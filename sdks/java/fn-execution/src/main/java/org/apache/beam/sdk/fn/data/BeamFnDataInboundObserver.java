@@ -25,7 +25,10 @@ import org.slf4j.LoggerFactory;
 /**
  * Decodes individually consumed {@link ByteString}s with the provided {@link Coder} passing the
  * individual decoded elements to the provided consumer.
+ *
+ * @deprecated Migrate to {@link BeamFnDataInboundObserver2}.
  */
+@Deprecated
 public class BeamFnDataInboundObserver
     implements BiConsumer<ByteString, Boolean>, InboundDataClient {
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataInboundObserver.class);

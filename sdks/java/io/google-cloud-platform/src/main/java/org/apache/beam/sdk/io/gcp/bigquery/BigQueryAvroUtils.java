@@ -76,12 +76,16 @@ class BigQueryAvroUtils {
           .put("GEOGRAPHY", Type.STRING)
           .put("BYTES", Type.BYTES)
           .put("INTEGER", Type.LONG)
+          .put("INT64", Type.LONG)
           .put("FLOAT", Type.DOUBLE)
+          .put("FLOAT64", Type.DOUBLE)
           .put("NUMERIC", Type.BYTES)
           .put("BIGNUMERIC", Type.BYTES)
           .put("BOOLEAN", Type.BOOLEAN)
+          .put("BOOL", Type.BOOLEAN)
           .put("TIMESTAMP", Type.LONG)
           .put("RECORD", Type.RECORD)
+          .put("STRUCT", Type.RECORD)
           .put("DATE", Type.STRING)
           .put("DATE", Type.INT)
           .put("DATETIME", Type.STRING)
@@ -326,9 +330,11 @@ class BigQueryAvroUtils {
           return v.toString();
         }
       case "INTEGER":
+      case "INT64":
         verify(v instanceof Long, "Expected Long, got %s", v.getClass());
         return ((Long) v).toString();
       case "FLOAT":
+      case "FLOAT64":
         verify(v instanceof Double, "Expected Double, got %s", v.getClass());
         return v;
       case "NUMERIC":
@@ -352,6 +358,7 @@ class BigQueryAvroUtils {
         verify(v instanceof Long, "Expected Long, got %s", v.getClass());
         return formatTimestamp((Long) v);
       case "RECORD":
+      case "STRUCT":
         verify(v instanceof GenericRecord, "Expected GenericRecord, got %s", v.getClass());
         return convertGenericRecordToTableRow((GenericRecord) v, fieldSchema.getFields());
       case "BYTES":

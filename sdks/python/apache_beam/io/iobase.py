@@ -44,6 +44,8 @@ from typing import Union
 
 from apache_beam import coders
 from apache_beam import pvalue
+from apache_beam.coders.coders import _MemoizingPickleCoder
+from apache_beam.internal import pickler
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
@@ -872,7 +874,7 @@ class Read(ptransform.PTransform):
     Args:
       source: Data source to read from.
     """
-    super(Read, self).__init__()
+    super().__init__()
     self.source = source
 
   @staticmethod
@@ -886,12 +888,14 @@ class Read(ptransform.PTransform):
 
   def expand(self, pbegin):
     if isinstance(self.source, BoundedSource):
+      coders.registry.register_coder(BoundedSource, _MemoizingPickleCoder)
       display_data = self.source.display_data() or {}
       display_data['source'] = self.source.__class__
+
       return (
           pbegin
           | Impulse()
-          | core.Map(lambda _: self.source)
+          | core.Map(lambda _: self.source).with_output_types(BoundedSource)
           | SDFBoundedSourceReader(display_data))
     elif isinstance(self.source, ptransform.PTransform):
       # The Read transform can also admit a full PTransform as an input
@@ -1044,7 +1048,7 @@ class Write(ptransform.PTransform):
     Args:
       sink: Data sink to write to.
     """
-    super(Write, self).__init__()
+    super().__init__()
     self.sink = sink
 
   def display_data(self):
@@ -1079,7 +1083,7 @@ class Write(ptransform.PTransform):
           timestamp_attribute=self.sink.timestamp_attribute)
       return (common_urns.composites.PUBSUB_WRITE.urn, payload)
     else:
-      return super(Write, self).to_runner_api_parameter(context)
+      return super().to_runner_api_parameter(context)
 
   @staticmethod
   @ptransform.PTransform.register_urn(
@@ -1113,7 +1117,7 @@ class WriteImpl(ptransform.PTransform):
   """Implements the writing of custom sinks."""
   def __init__(self, sink):
     # type: (Sink) -> None
-    super(WriteImpl, self).__init__()
+    super().__init__()
     self.sink = sink
 
   def expand(self, pcoll):
@@ -1573,6 +1577,18 @@ class _SDFBoundedSourceRestrictionTracker(RestrictionTracker):
     return True
 
 
+class _SDFBoundedSourceWrapperRestrictionCoder(coders.Coder):
+  def decode(self, value):
+    return _SDFBoundedSourceRestriction(SourceBundle(*pickler.loads(value)))
+
+  def encode(self, restriction):
+    return pickler.dumps((
+        restriction._source_bundle.weight,
+        restriction._source_bundle.source,
+        restriction._source_bundle.start_position,
+        restriction._source_bundle.stop_position))
+
+
 class _SDFBoundedSourceRestrictionProvider(core.RestrictionProvider):
   """
   A `RestrictionProvider` that is used by SDF for `BoundedSource`.
@@ -1580,8 +1596,10 @@ class _SDFBoundedSourceRestrictionProvider(core.RestrictionProvider):
   This restriction provider initializes restriction based on input
   element that is expected to be of BoundedSource type.
   """
-  def __init__(self, desired_chunk_size=None):
+  def __init__(self, desired_chunk_size=None, restriction_coder=None):
     self._desired_chunk_size = desired_chunk_size
+    self._restriction_coder = (
+        restriction_coder or _SDFBoundedSourceWrapperRestrictionCoder())
 
   def _check_source(self, src):
     if not isinstance(src, BoundedSource):
@@ -1618,7 +1636,7 @@ class _SDFBoundedSourceRestrictionProvider(core.RestrictionProvider):
     return restriction.weight()
 
   def restriction_coder(self):
-    return coders.DillCoder()
+    return self._restriction_coder
 
 
 class SDFBoundedSourceReader(PTransform):
@@ -1629,7 +1647,7 @@ class SDFBoundedSourceReader(PTransform):
   """
   def __init__(self, data_to_display=None):
     self._data_to_display = data_to_display or {}
-    super(SDFBoundedSourceReader, self).__init__()
+    super().__init__()
 
   def _create_sdf_bounded_source_dofn(self):
     class SDFBoundedSourceDoFn(core.DoFn):

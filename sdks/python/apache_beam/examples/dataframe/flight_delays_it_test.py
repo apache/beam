@@ -28,7 +28,7 @@ import unittest
 import uuid
 
 import pandas as pd
-from nose.plugins.attrib import attr
+import pytest
 
 from apache_beam.examples.dataframe import flight_delays
 from apache_beam.io.filesystems import FileSystems
@@ -100,7 +100,7 @@ class FlightDelaysTest(unittest.TestCase):
   def tearDown(self):
     FileSystems.delete([self.outdir + '/'])
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_flight_delays(self):
     flight_delays.run_flight_delay_pipeline(
         self.test_pipeline,

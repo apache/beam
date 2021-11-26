@@ -23,10 +23,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness/statecache"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	"github.com/golang/protobuf/proto"
 )
 
@@ -36,14 +37,20 @@ type ScopedStateReader struct {
 	mgr    *StateChannelManager
 	instID instructionID
 
-	opened []io.Closer // track open readers to force close all
 	closed bool
 	mu     sync.Mutex
+
+	cache *statecache.SideInputCache
 }
 
 // NewScopedStateReader returns a ScopedStateReader for the given instruction.
 func NewScopedStateReader(mgr *StateChannelManager, instID instructionID) *ScopedStateReader {
-	return &ScopedStateReader{mgr: mgr, instID: instID}
+	return &ScopedStateReader{mgr: mgr, instID: instID, cache: nil}
+}
+
+// NewScopedStateReaderWithCache returns a ScopedState reader for the given instruction with a pointer to a SideInputCache.
+func NewScopedStateReaderWithCache(mgr *StateChannelManager, instID instructionID, cache *statecache.SideInputCache) *ScopedStateReader {
+	return &ScopedStateReader{mgr: mgr, instID: instID, cache: cache}
 }
 
 // OpenSideInput opens a byte stream for reading iterable side input.
@@ -60,6 +67,11 @@ func (s *ScopedStateReader) OpenIterable(ctx context.Context, id exec.StreamID, 
 	})
 }
 
+// GetSideInputCache returns a pointer to the SideInputCache being used by the SDK harness.
+func (s *ScopedStateReader) GetSideInputCache() exec.SideCache {
+	return s.cache
+}
+
 func (s *ScopedStateReader) openReader(ctx context.Context, id exec.StreamID, readerFn func(*StateChannel) *stateKeyReader) (*stateKeyReader, error) {
 	ch, err := s.open(ctx, id.Port)
 	if err != nil {
@@ -72,7 +84,6 @@ func (s *ScopedStateReader) openReader(ctx context.Context, id exec.StreamID, re
 		return nil, errors.Errorf("instruction %v no longer processing", s.instID)
 	}
 	ret := readerFn(ch)
-	s.opened = append(s.opened, ret)
 	s.mu.Unlock()
 	return ret, nil
 }
@@ -94,10 +105,6 @@ func (s *ScopedStateReader) Close() error {
 	s.mu.Lock()
 	s.closed = true
 	s.mgr = nil
-	for _, r := range s.opened {
-		r.Close() // force close all opened readers
-	}
-	s.opened = nil
 	s.mu.Unlock()
 	return nil
 }
@@ -176,11 +183,15 @@ func (r *stateKeyReader) Read(buf []byte) (int, error) {
 		}
 		resp, err := localChannel.Send(req)
 		if err != nil {
+			r.Close()
 			return 0, err
 		}
 		get := resp.GetGet()
 		if get == nil { // no data associated with this segment.
 			r.eof = true
+			if err := r.Close(); err != nil {
+				return 0, err
+			}
 			return 0, io.EOF
 		}
 		r.token = get.GetContinuationToken()
@@ -198,6 +209,9 @@ func (r *stateKeyReader) Read(buf []byte) (int, error) {
 		// If no data was copied, and this is the last segment anyway, return EOF now.
 		// This prevent spurious zero elements.
 		r.buf = nil
+		if err := r.Close(); err != nil {
+			return 0, err
+		}
 		return 0, io.EOF
 	case len(r.buf) == n:
 		r.buf = nil

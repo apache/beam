@@ -37,3 +37,23 @@ def BigQueryTable(project_id, dataset_id, table_id):
 
 def GoogleCloudStorageBucket(bucket_id):
   return '//storage.googleapis.com/buckets/%s' % bucket_id
+
+
+def DatastoreNamespace(project_id, namespace_id):
+  return '//bigtable.googleapis.com/projects/%s/namespaces/%s' % (
+      project_id, namespace_id)
+
+
+def SpannerTable(project_id, database_id, table_id):
+  return '//spanner.googleapis.com/projects/%s/topics/%s/tables/%s' % (
+      project_id, database_id, table_id)
+
+
+def SpannerSqlQuery(project_id, query_name):
+  return '//spanner.googleapis.com/projects/%s/queries/%s' % (
+      project_id, query_name)
+
+
+def BigtableTable(project_id, instance_id, table_id):
+  return '//bigtable.googleapis.com/projects/%s/instances/%s/tables/%s' % (
+      project_id, instance_id, table_id)

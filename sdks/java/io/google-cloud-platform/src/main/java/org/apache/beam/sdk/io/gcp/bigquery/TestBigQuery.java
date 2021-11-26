@@ -128,7 +128,10 @@ public class TestBigQuery implements TestRule {
   private Table createTable(Description description) throws IOException, InterruptedException {
     TableReference tableReference =
         new TableReference()
-            .setProjectId(pipelineOptions.getProject())
+            .setProjectId(
+                pipelineOptions.getBigQueryProject() == null
+                    ? pipelineOptions.getProject()
+                    : pipelineOptions.getBigQueryProject())
             .setDatasetId(pipelineOptions.getTargetDataset())
             .setTableId(createRandomizedName(description));
 
@@ -186,9 +189,10 @@ public class TestBigQuery implements TestRule {
 
     DATETIME_FORMAT.printTo(topicName, Instant.now());
 
-    return topicName.toString()
-        + "_"
-        + String.valueOf(Math.abs(ThreadLocalRandom.current().nextLong()));
+    long randomNumber = ThreadLocalRandom.current().nextLong();
+    randomNumber = (randomNumber == Long.MIN_VALUE) ? 0 : Math.abs(randomNumber);
+
+    return topicName.toString() + "_" + String.valueOf(randomNumber);
   }
 
   public String tableSpec() {
@@ -213,7 +217,9 @@ public class TestBigQuery implements TestRule {
 
     return bq.tabledata()
         .insertAll(
-            pipelineOptions.getProject(),
+            pipelineOptions.getBigQueryProject() == null
+                ? pipelineOptions.getProject()
+                : pipelineOptions.getBigQueryProject(),
             pipelineOptions.getTargetDataset(),
             table.getTableReference().getTableId(),
             new TableDataInsertAllRequest().setRows(bqRows))
@@ -270,19 +276,13 @@ public class TestBigQuery implements TestRule {
         .collect(Collectors.toList());
   }
 
-  private List<TableRow> beamRowsToBqRows(List<Row> bqRows) {
-    if (bqRows == null) {
-      return Collections.emptyList();
-    }
-
-    return bqRows.stream().map(BigQueryUtils::toTableRow).collect(Collectors.toList());
-  }
-
   private TableSchema getSchema(Bigquery bq) {
     try {
       return bq.tables()
           .get(
-              pipelineOptions.getProject(),
+              pipelineOptions.getBigQueryProject() == null
+                  ? pipelineOptions.getProject()
+                  : pipelineOptions.getBigQueryProject(),
               pipelineOptions.getTargetDataset(),
               table.getTableReference().getTableId())
           .setPrettyPrint(false)
@@ -297,7 +297,9 @@ public class TestBigQuery implements TestRule {
     try {
       return bq.tabledata()
           .list(
-              pipelineOptions.getProject(),
+              pipelineOptions.getBigQueryProject() == null
+                  ? pipelineOptions.getProject()
+                  : pipelineOptions.getBigQueryProject(),
               pipelineOptions.getTargetDataset(),
               table.getTableReference().getTableId())
           .setPrettyPrint(false)

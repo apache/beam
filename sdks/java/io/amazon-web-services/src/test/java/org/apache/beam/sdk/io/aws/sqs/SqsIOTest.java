@@ -19,27 +19,16 @@ package org.apache.beam.sdk.io.aws.sqs;
 
 import static org.junit.Assert.assertEquals;
 
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.sqs.AmazonSQS;
-import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
-import com.amazonaws.services.sqs.model.CreateQueueResult;
 import com.amazonaws.services.sqs.model.Message;
 import com.amazonaws.services.sqs.model.ReceiveMessageResult;
 import com.amazonaws.services.sqs.model.SendMessageRequest;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.values.PCollection;
-import org.elasticmq.rest.sqs.SQSRestServer;
-import org.elasticmq.rest.sqs.SQSRestServerBuilder;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExternalResource;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -50,22 +39,6 @@ public class SqsIOTest {
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
   @Rule public EmbeddedSqsServer embeddedSqsRestServer = new EmbeddedSqsServer();
-
-  @Test
-  public void testRead() {
-    final AmazonSQS client = embeddedSqsRestServer.getClient();
-    final String queueUrl = embeddedSqsRestServer.getQueueUrl();
-
-    final PCollection<Message> output =
-        pipeline.apply(SqsIO.read().withQueueUrl(queueUrl).withMaxNumRecords(100));
-
-    PAssert.thatSingleton(output.apply(Count.globally())).isEqualTo(100L);
-
-    for (int i = 0; i < 100; i++) {
-      client.sendMessage(queueUrl, "This is a test");
-    }
-    pipeline.run();
-  }
 
   @Test
   public void testWrite() {
@@ -93,46 +66,6 @@ public class SqsIOTest {
     assertEquals(100, received.size());
     for (int i = 0; i < 100; i++) {
       received.contains("This is a test " + i);
-    }
-  }
-
-  private static class EmbeddedSqsServer extends ExternalResource {
-
-    private SQSRestServer sqsRestServer;
-    private AmazonSQS client;
-    private String queueUrl;
-
-    @Override
-    protected void before() {
-      sqsRestServer = SQSRestServerBuilder.start();
-
-      String endpoint = "http://localhost:9324";
-      String region = "elasticmq";
-      String accessKey = "x";
-      String secretKey = "x";
-
-      client =
-          AmazonSQSClientBuilder.standard()
-              .withCredentials(
-                  new AWSStaticCredentialsProvider(new BasicAWSCredentials(accessKey, secretKey)))
-              .withEndpointConfiguration(
-                  new AwsClientBuilder.EndpointConfiguration(endpoint, region))
-              .build();
-      final CreateQueueResult queue = client.createQueue("test");
-      queueUrl = queue.getQueueUrl();
-    }
-
-    @Override
-    protected void after() {
-      sqsRestServer.stopAndWait();
-    }
-
-    public AmazonSQS getClient() {
-      return client;
-    }
-
-    public String getQueueUrl() {
-      return queueUrl;
     }
   }
 }

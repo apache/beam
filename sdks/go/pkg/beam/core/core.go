@@ -27,5 +27,5 @@ const (
 	// SdkName is the human readable name of the SDK for UserAgents.
 	SdkName = "Apache Beam SDK for Go"
 	// SdkVersion is the current version of the SDK.
-	SdkVersion = "2.32.0.dev"
+	SdkVersion = "2.36.0.dev"
 )

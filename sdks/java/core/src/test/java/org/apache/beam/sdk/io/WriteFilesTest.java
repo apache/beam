@@ -64,6 +64,7 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesTestStream;
+import org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime;
 import org.apache.beam.sdk.testing.UsesUnboundedPCollections;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -329,7 +330,12 @@ public class WriteFilesTest {
   }
 
   @Test
-  @Category({NeedsRunner.class, UsesUnboundedPCollections.class, UsesTestStream.class})
+  @Category({
+    NeedsRunner.class,
+    UsesUnboundedPCollections.class,
+    UsesTestStream.class,
+    UsesTestStreamWithProcessingTime.class
+  })
   public void testWithRunnerDeterminedShardingTestStream() throws IOException {
     List<String> elements = Lists.newArrayList();
     for (int i = 0; i < 30; ++i) {

@@ -28,8 +28,8 @@ import unittest
 import uuid
 import warnings
 
+import pytest
 from hamcrest.library.text import stringmatches
-from nose.plugins.attrib import attr
 
 import apache_beam as beam
 from apache_beam.io import fileio
@@ -48,6 +48,7 @@ from apache_beam.transforms import trigger
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import IntervalWindow
+from apache_beam.utils.timestamp import Timestamp
 
 warnings.filterwarnings(
     'ignore', category=FutureWarning, module='apache_beam.io.fileio_test')
@@ -101,7 +102,7 @@ class MatchTest(_TestCaseWithTempDirCleanUp):
         '%s%s' % (self._new_tempdir(), os.sep)
     ]
 
-    files = list()
+    files = []
     files.append(self._create_temp_file(dir=directories[0]))
     files.append(self._create_temp_file(dir=directories[0]))
 
@@ -121,7 +122,7 @@ class MatchTest(_TestCaseWithTempDirCleanUp):
         '%s%s' % (self._new_tempdir(), os.sep)
     ]
 
-    files = list()
+    files = []
     files.append(self._create_temp_file(dir=directories[0]))
     files.append(self._create_temp_file(dir=directories[0]))
 
@@ -290,7 +291,7 @@ class MatchIntegrationTest(unittest.TestCase):
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_transform_on_gcs(self):
     args = self.test_pipeline.get_full_options_as_args()
 
@@ -318,6 +319,71 @@ class MatchIntegrationTest(unittest.TestCase):
           checksum_pc,
           equal_to([self.KINGLEAR_CHECKSUM]),
           label='Assert Checksums')
+
+
+class MatchContinuouslyTest(_TestCaseWithTempDirCleanUp):
+  def test_with_deduplication(self):
+    files = []
+    tempdir = '%s%s' % (self._new_tempdir(), os.sep)
+
+    # Create a file to be matched before pipeline
+    files.append(self._create_temp_file(dir=tempdir))
+    # Add file name that will be created mid-pipeline
+    files.append(FileSystems.join(tempdir, 'extra'))
+
+    interval = 0.2
+    start = Timestamp.now()
+    stop = start + interval + 0.1
+
+    def _create_extra_file(element):
+      writer = FileSystems.create(FileSystems.join(tempdir, 'extra'))
+      writer.close()
+      return element.path
+
+    with TestPipeline() as p:
+      match_continiously = (
+          p
+          | fileio.MatchContinuously(
+              file_pattern=FileSystems.join(tempdir, '*'),
+              interval=interval,
+              start_timestamp=start,
+              stop_timestamp=stop)
+          | beam.Map(_create_extra_file))
+
+      assert_that(match_continiously, equal_to(files))
+
+  def test_without_deduplication(self):
+    interval = 0.2
+    start = Timestamp.now()
+    stop = start + interval + 0.1
+
+    files = []
+    tempdir = '%s%s' % (self._new_tempdir(), os.sep)
+
+    # Create a file to be matched before pipeline starts
+    file = self._create_temp_file(dir=tempdir)
+    # Add file twice, since it will be matched for every interval
+    files += [file, file]
+    # Add file name that will be created mid-pipeline
+    files.append(FileSystems.join(tempdir, 'extra'))
+
+    def _create_extra_file(element):
+      writer = FileSystems.create(FileSystems.join(tempdir, 'extra'))
+      writer.close()
+      return element.path
+
+    with TestPipeline() as p:
+      match_continiously = (
+          p
+          | fileio.MatchContinuously(
+              file_pattern=FileSystems.join(tempdir, '*'),
+              interval=interval,
+              has_deduplication=False,
+              start_timestamp=start,
+              stop_timestamp=stop)
+          | beam.Map(_create_extra_file))
+
+      assert_that(match_continiously, equal_to(files))
 
 
 class WriteFilesTest(_TestCaseWithTempDirCleanUp):
@@ -441,6 +507,7 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
                     if row['foundation'] == 'apache']),
           label='verifyApache')
 
+  @unittest.skip('BEAM-13010')
   def test_find_orphaned_files(self):
     dir = self._new_tempdir()
 

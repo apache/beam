@@ -30,33 +30,4 @@ A Beam SQL statement comprises a series of tokens. For more information about to
 Beam SQL supports standard SQL scalar data types as well as extensions including arrays, maps, and nested rows. For more information about scalar data in Beam ZetaSQL, see the [Data types](/documentation/dsls/sql/zetasql/data-types) reference.
 
 ## Functions and operators
-The following table summarizes the [ZetaSQL functions and operators](https://github.com/google/zetasql/blob/master/docs/functions-and-operators.md) supported by Beam ZetaSQL.
-<table class="table-bordered table-striped">
-  <tr><th>Operators and functions</th><th>Beam ZetaSQL support</th></tr>
-  <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/conversion_rules.md">Type conversion</a></td><td>Yes</td></tr>
-  <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/aggregate_functions.md">Aggregate functions</a></td><td>See Beam SQL <a href="/documentation/dsls/sql/zetasql/aggregate-functions">aggregate functions</a></td></tr>
-  <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/statistical_aggregate_functions.md">Statistical aggregate functions</a></td><td>No</td></tr>
-  <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/approximate_aggregate_functions.md">Approximate aggregate functions</a></td><td>No</td></tr>
-  <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/hll_functions.md">HyperLogLog++ functions</a></td><td>No</td></tr>
-  <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/functions-and-operators.md#kll16-quantile-functions">KLL16 quantile functions</a></td><td>No</td></tr>
-  <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/numbering_functions.md">Numbering functions</a></td><td>No</td></tr>
-  <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/bit_functions.md">Bit functions</a></td><td>No</td></tr>
-  <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/mathematical_functions.md">Mathematical functions</a></td><td>See <a href="/documentation/dsls/sql/zetasql/math-functions">mathematical functions</a></td></tr>
-  <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/navigation_functions.md">Navigation functions</a></td><td>No</td></tr>
-  <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/aggregate_analytic_functions.md">Aggregate analytic functions</a></td><td>See <a href="/documentation/dsls/sql/zetasql/aggregate-functions">aggregate functions</a></td></tr>
-  <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/hash_functions.md">Hash functions</a></td><td>No</td></tr>
-  <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/string_functions.md">String functions</a></td><td>See <a href="/documentation/dsls/sql/zetasql/string-functions">string functions</a></td></tr>
-  <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/json_functions.md">JSON functions</a></td><td>No</td></tr>
-  <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/array_functions.md">Array functions</a></td><td>No</td></tr>
-  <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/date_functions.md">Date functions</a></td><td>No</td></tr>
-  <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/datetime_functions.md">DateTime functions</a></td><td>No</td></tr>
-  <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/time_functions.md">Time functions</a></td><td>No</td></tr>
-  <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/timestamp_functions.md">Timestamp functions</a></td><td>No</td></tr>
-  <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/protocol-buffers.md">Protocol buffer functions</a></td><td>No</td></tr>
-  <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/security_functions.md">Security functions</a></td><td>No</td></tr>
-  <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/net_functions.md">Net functions</a></td><td>No</td></tr>
-  <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/operators.md">Operator precedence</a></td><td>Yes</td></tr>
-  <tr><td><a href="">Conditional expressions</a></td><td>See <a href="/documentation/dsls/sql/zetasql/conditional-expressions">conditional expressions</a></td></tr>
-  <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/expression_subqueries.md">Expression subqueries</a></td><td>No</td></tr>
-  <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/debugging_functions.md">Debugging functions</a></td><td>No</td></tr>
-</table>
+For a list of the builtin functions and operators supported in Beam ZetaSQL, see [SupportedZetaSqlBuiltinFunctions.java](https://github.com/apache/beam/blob/master/sdks/java/extensions/sql/zetasql/src/main/java/org/apache/beam/sdk/extensions/sql/zetasql/SupportedZetaSqlBuiltinFunctions.java) (commented-out entries are not yet supported). For documentation on how these functions work, see the [ZetaSQL functions and operators](https://github.com/google/zetasql/blob/master/docs/functions-and-operators.md) reference.

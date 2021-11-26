@@ -23,8 +23,8 @@ import logging
 import time
 import unittest
 
+import pytest
 from hamcrest.core.core.allof import all_of
-from nose.plugins.attrib import attr
 
 from apache_beam.testing.pipeline_verifiers import FileChecksumMatcher
 from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
@@ -42,7 +42,7 @@ class DatastoreWordCountIT(unittest.TestCase):
   DATASTORE_WORDCOUNT_KIND = "DatastoreWordCount"
   EXPECTED_CHECKSUM = '826f69ed0275858c2e098f1e8407d4e3ba5a4b3f'
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_datastore_wordcount_it(self):
     test_pipeline = TestPipeline(is_integration_test=True)
     kind = self.DATASTORE_WORDCOUNT_KIND

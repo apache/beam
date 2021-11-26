@@ -66,7 +66,7 @@ RUN alias python=python3.6
 ###
 # Install grpcio-tools mypy-protobuf for `python3 sdks/python/setup.py sdist` to work
 ###
-RUN pip3 install grpcio-tools mypy-protobuf virtualenv
+RUN pip3 install grpcio-tools mypy-protobuf
 
 ###
 # Install useful tools

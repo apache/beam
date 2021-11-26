@@ -20,14 +20,12 @@ package org.apache.beam.runners.core.construction;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.RowCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -359,11 +357,5 @@ public class ValidateRunnerXlangTest implements Serializable {
             .setPayload(outputStream.toByteString())
             .build();
     return payload.toByteArray();
-  }
-
-  private static byte[] encodeString(String str) throws IOException {
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    StringUtf8Coder.of().encode(str, baos);
-    return baos.toByteArray();
   }
 }

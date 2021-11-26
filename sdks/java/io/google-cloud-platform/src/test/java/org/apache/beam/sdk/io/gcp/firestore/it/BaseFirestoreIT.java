@@ -18,13 +18,25 @@
 package org.apache.beam.sdk.io.gcp.firestore.it;
 
 import static org.apache.beam.sdk.io.gcp.firestore.it.FirestoreTestingHelper.assumeEnvVarSet;
+import static org.apache.beam.sdk.io.gcp.firestore.it.FirestoreTestingHelper.chunkUpDocIds;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assume.assumeThat;
 
+import com.google.api.core.ApiFutures;
+import com.google.cloud.firestore.WriteBatch;
+import com.google.firestore.v1.BatchGetDocumentsRequest;
+import com.google.firestore.v1.BatchGetDocumentsResponse;
+import com.google.firestore.v1.Document;
+import com.google.firestore.v1.ListCollectionIdsRequest;
+import com.google.firestore.v1.ListDocumentsRequest;
+import com.google.firestore.v1.PartitionQueryRequest;
+import com.google.firestore.v1.RunQueryRequest;
+import com.google.firestore.v1.RunQueryResponse;
 import com.google.firestore.v1.Write;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -33,10 +45,19 @@ import org.apache.beam.sdk.io.gcp.firestore.FirestoreIO;
 import org.apache.beam.sdk.io.gcp.firestore.FirestoreOptions;
 import org.apache.beam.sdk.io.gcp.firestore.RpcQosOptions;
 import org.apache.beam.sdk.io.gcp.firestore.it.FirestoreTestingHelper.CleanupMode;
+import org.apache.beam.sdk.io.gcp.firestore.it.FirestoreTestingHelper.DataLayout;
+import org.apache.beam.sdk.io.gcp.firestore.it.FirestoreTestingHelper.DocumentGenerator;
+import org.apache.beam.sdk.io.gcp.firestore.it.FirestoreTestingHelper.TestDataLayoutHint;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.junit.AssumptionViolatedException;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -112,10 +133,151 @@ abstract class BaseFirestoreIT {
   }
 
   @Test
+  @TestDataLayoutHint(DataLayout.Deep)
+  public final void listCollections() throws Exception {
+    // verification and cleanup of nested collections is much slower because each document
+    // requires an rpc to find its collections, instead of using the usual size, use 20
+    // to keep the test quick
+    List<String> collectionIds =
+        IntStream.rangeClosed(1, 20).mapToObj(i -> helper.colId()).collect(Collectors.toList());
+
+    ApiFutures.transform(
+            ApiFutures.allAsList(
+                chunkUpDocIds(collectionIds)
+                    .map(
+                        chunk -> {
+                          WriteBatch batch = helper.getFs().batch();
+                          chunk.stream()
+                              .map(col -> helper.getBaseDocument().collection(col).document())
+                              .forEach(ref -> batch.set(ref, ImmutableMap.of("foo", "bar")));
+                          return batch.commit();
+                        })
+                    .collect(Collectors.toList())),
+            FirestoreTestingHelper.flattenListList(),
+            MoreExecutors.directExecutor())
+        .get(10, TimeUnit.SECONDS);
+
+    PCollection<String> actualCollectionIds =
+        testPipeline
+            .apply(Create.of(""))
+            .apply(getListCollectionIdsPTransform(testName.getMethodName()))
+            .apply(
+                FirestoreIO.v1()
+                    .read()
+                    .listCollectionIds()
+                    .withRpcQosOptions(rpcQosOptions)
+                    .build());
+
+    PAssert.that(actualCollectionIds).containsInAnyOrder(collectionIds);
+    testPipeline.run(options);
+  }
+
+  @Test
+  public final void listDocuments() throws Exception {
+    DocumentGenerator documentGenerator = helper.documentGenerator(NUM_ITEMS_TO_GENERATE, "a");
+    documentGenerator.generateDocuments().get(10, TimeUnit.SECONDS);
+
+    PCollection<String> listDocumentPaths =
+        testPipeline
+            .apply(Create.of("a"))
+            .apply(getListDocumentsPTransform(testName.getMethodName()))
+            .apply(FirestoreIO.v1().read().listDocuments().withRpcQosOptions(rpcQosOptions).build())
+            .apply(ParDo.of(new DocumentToName()));
+
+    PAssert.that(listDocumentPaths).containsInAnyOrder(documentGenerator.expectedDocumentPaths());
+    testPipeline.run(options);
+  }
+
+  @Test
+  public final void runQuery() throws Exception {
+    String collectionId = "a";
+    DocumentGenerator documentGenerator =
+        helper.documentGenerator(NUM_ITEMS_TO_GENERATE, collectionId, /* addBazDoc = */ true);
+    documentGenerator.generateDocuments().get(10, TimeUnit.SECONDS);
+
+    PCollection<String> listDocumentPaths =
+        testPipeline
+            .apply(Create.of(collectionId))
+            .apply(getRunQueryPTransform(testName.getMethodName()))
+            .apply(FirestoreIO.v1().read().runQuery().withRpcQosOptions(rpcQosOptions).build())
+            .apply(ParDo.of(new RunQueryResponseToDocument()))
+            .apply(ParDo.of(new DocumentToName()));
+
+    PAssert.that(listDocumentPaths).containsInAnyOrder(documentGenerator.expectedDocumentPaths());
+    testPipeline.run(options);
+  }
+
+  @Test
+  public final void partitionQuery() throws Exception {
+    String collectionGroupId = UUID.randomUUID().toString();
+    // currently firestore will only generate a partition every 128 documents, so generate enough
+    // documents to get 2 cursors returned, resulting in 3 partitions
+    int partitionCount = 3;
+    int documentCount = (partitionCount * 128) - 1;
+
+    // create some documents for listing and asserting in the test
+    DocumentGenerator documentGenerator =
+        helper.documentGenerator(documentCount, collectionGroupId);
+    documentGenerator.generateDocuments().get(10, TimeUnit.SECONDS);
+
+    PCollection<String> listDocumentPaths =
+        testPipeline
+            .apply(Create.of(collectionGroupId))
+            .apply(getPartitionQueryPTransform(testName.getMethodName(), partitionCount))
+            .apply(FirestoreIO.v1().read().partitionQuery().withNameOnlyQuery().build())
+            .apply(FirestoreIO.v1().read().runQuery().build())
+            .apply(ParDo.of(new RunQueryResponseToDocument()))
+            .apply(ParDo.of(new DocumentToName()));
+
+    PAssert.that(listDocumentPaths).containsInAnyOrder(documentGenerator.expectedDocumentPaths());
+    testPipeline.run(options);
+  }
+
+  @Test
+  public final void batchGet() throws Exception {
+    String collectionId = "a";
+    DocumentGenerator documentGenerator =
+        helper.documentGenerator(NUM_ITEMS_TO_GENERATE, collectionId);
+    documentGenerator.generateDocuments().get(10, TimeUnit.SECONDS);
+
+    PCollection<String> listDocumentPaths =
+        testPipeline
+            .apply(Create.of(Collections.singletonList(documentGenerator.getDocumentIds())))
+            .apply(getBatchGetDocumentsPTransform(testName.getMethodName(), collectionId))
+            .apply(
+                FirestoreIO.v1()
+                    .read()
+                    .batchGetDocuments()
+                    .withRpcQosOptions(rpcQosOptions)
+                    .build())
+            .apply(Filter.by(BatchGetDocumentsResponse::hasFound))
+            .apply(ParDo.of(new BatchGetDocumentsResponseToDocument()))
+            .apply(ParDo.of(new DocumentToName()));
+
+    PAssert.that(listDocumentPaths).containsInAnyOrder(documentGenerator.expectedDocumentPaths());
+    testPipeline.run(options);
+  }
+
+  @Test
   public final void write() {
     String collectionId = "a";
     runWriteTest(getWritePTransform(testName.getMethodName(), collectionId), collectionId);
   }
+
+  protected abstract PTransform<PCollection<String>, PCollection<ListCollectionIdsRequest>>
+      getListCollectionIdsPTransform(String testMethodName);
+
+  protected abstract PTransform<PCollection<String>, PCollection<ListDocumentsRequest>>
+      getListDocumentsPTransform(String testMethodName);
+
+  protected abstract PTransform<PCollection<List<String>>, PCollection<BatchGetDocumentsRequest>>
+      getBatchGetDocumentsPTransform(String testMethodName, String collectionId);
+
+  protected abstract PTransform<PCollection<String>, PCollection<RunQueryRequest>>
+      getRunQueryPTransform(String testMethodName);
+
+  protected abstract PTransform<PCollection<String>, PCollection<PartitionQueryRequest>>
+      getPartitionQueryPTransform(String testMethodName, int partitionCount);
 
   protected abstract PTransform<PCollection<List<String>>, PCollection<Write>> getWritePTransform(
       String testMethodName, String collectionId);
@@ -141,5 +303,27 @@ abstract class BaseFirestoreIT {
             .collect(Collectors.toList());
 
     assertEquals(documentIds, actualDocumentIds);
+  }
+
+  private static final class RunQueryResponseToDocument extends DoFn<RunQueryResponse, Document> {
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      c.output(c.element().getDocument());
+    }
+  }
+
+  private static final class BatchGetDocumentsResponseToDocument
+      extends DoFn<BatchGetDocumentsResponse, Document> {
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      c.output(c.element().getFound());
+    }
+  }
+
+  private static final class DocumentToName extends DoFn<Document, String> {
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      c.output(c.element().getName());
+    }
   }
 }

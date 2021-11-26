@@ -17,14 +17,15 @@ package graphx_test
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/schema"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/schema"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
 func init() {
@@ -115,6 +116,31 @@ func TestMarshalUnmarshalCoders(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Marshal(%v) failed: %v", test.c, err)
 			}
+			coders, err := graphx.UnmarshalCoders(ids, marshalCoders)
+			if err != nil {
+				t.Fatalf("Unmarshal(Marshal(%v)) failed: %v", test.c, err)
+			}
+			if len(coders) != 1 || !test.c.Equals(coders[0]) {
+				t.Errorf("Unmarshal(Marshal(%v)) = %v, want identity", test.c, coders)
+			}
+		})
+	}
+
+	for _, test := range tests {
+		t.Run("namespaced:"+test.name, func(t *testing.T) {
+			cm := graphx.NewCoderMarshaller()
+			cm.Namespace = "testnamespace"
+			ids, err := cm.AddMulti([]*coder.Coder{test.c})
+			if err != nil {
+				t.Fatalf("AddMulti(%v) failed: %v", test.c, err)
+			}
+			marshalCoders := cm.Build()
+			for _, id := range ids {
+				if !strings.Contains(id, cm.Namespace) {
+					t.Errorf("got %v, want it to contain %v", id, cm.Namespace)
+				}
+			}
+
 			coders, err := graphx.UnmarshalCoders(ids, marshalCoders)
 			if err != nil {
 				t.Fatalf("Unmarshal(Marshal(%v)) failed: %v", test.c, err)

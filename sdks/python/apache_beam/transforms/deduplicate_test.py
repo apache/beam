@@ -46,7 +46,7 @@ class DeduplicateTest(unittest.TestCase):
   def __init__(self, *args, **kwargs):
     self.runner = None
     self.options = None
-    super(DeduplicateTest, self).__init__(*args, **kwargs)
+    super().__init__(*args, **kwargs)
 
   def set_runner(self, runner):
     self.runner = runner

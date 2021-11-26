@@ -26,7 +26,6 @@ import unittest
 
 import pytest
 from hamcrest.core.core.allof import all_of
-from nose.plugins.attrib import attr
 
 from apache_beam.examples import wordcount
 from apache_beam.testing.load_tests.load_test_metrics_utils import InfluxDBMetricsPublisherOptions
@@ -39,19 +38,16 @@ from apache_beam.testing.test_utils import delete_files
 
 class WordCountIT(unittest.TestCase):
 
-  # Enable nose tests running in parallel
-  _multiprocess_can_split_ = True
-
   # The default checksum is a SHA-1 hash generated from a sorted list of
   # lines read from expected output. This value corresponds to the default
   # input of WordCount example.
   DEFAULT_CHECKSUM = '33535a832b7db6d78389759577d4ff495980b9c0'
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_wordcount_it(self):
     self._run_wordcount_it(wordcount.run)
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   @pytest.mark.it_validatescontainer
   def test_wordcount_fnapi_it(self):
     self._run_wordcount_it(wordcount.run, experiment='beam_fn_api')
@@ -101,8 +97,7 @@ class WordCountIT(unittest.TestCase):
     # Register clean up before pipeline execution
     self.addCleanup(delete_files, [test_output + '*'])
 
-    publish_to_bq = bool(
-        test_pipeline.get_option('publish_to_big_query') or False)
+    publish_to_bq = bool(test_pipeline.get_option('publish_to_big_query'))
 
     # Start measure time for performance test
     start_time = time.time()

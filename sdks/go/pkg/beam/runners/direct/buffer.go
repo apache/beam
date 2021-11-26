@@ -19,9 +19,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 )
 
 // buffer buffers all input and notifies on FinishBundle. It is also a SideInputAdapter.
@@ -69,6 +69,10 @@ func (n *buffer) NewIterable(ctx context.Context, reader exec.StateReader, w typ
 		panic(fmt.Sprintf("buffer[%v] incomplete: %v", n.uid, len(n.buf)))
 	}
 	return &exec.FixedReStream{Buf: n.buf}, nil
+}
+
+func (n *buffer) NewKeyedIterable(ctx context.Context, reader exec.StateReader, w typex.Window, iterKey interface{}) (exec.ReStream, error) {
+	return n.NewIterable(ctx, reader, w)
 }
 
 func (n *buffer) String() string {

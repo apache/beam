@@ -1070,7 +1070,8 @@ public class SnowflakeIO {
 
     private PCollection writeBatchFiles(
         PCollection<T> input, ValueProvider<String> outputDirectory) {
-      return writeFiles(input, outputDirectory, DEFAULT_BATCH_SHARDS_NUMBER);
+      int shards = (getShardsNumber() > 0) ? getShardsNumber() : DEFAULT_BATCH_SHARDS_NUMBER;
+      return writeFiles(input, outputDirectory, shards);
     }
 
     private PCollection<String> writeFiles(
@@ -1598,7 +1599,7 @@ public class SnowflakeIO {
       return builder()
           .setUsername(ValueProvider.StaticValueProvider.of(username))
           .setRawPrivateKey(ValueProvider.StaticValueProvider.of(privateKey))
-          .setPrivateKeyPassphrase(ValueProvider.StaticValueProvider.of((privateKeyPassphrase)))
+          .setPrivateKeyPassphrase(ValueProvider.StaticValueProvider.of(privateKeyPassphrase))
           .build();
     }
 
@@ -1631,8 +1632,8 @@ public class SnowflakeIO {
         String username, String rawPrivateKey, String privateKeyPassphrase) {
       return builder()
           .setUsername(ValueProvider.StaticValueProvider.of(username))
-          .setRawPrivateKey(ValueProvider.StaticValueProvider.of((rawPrivateKey)))
-          .setPrivateKeyPassphrase(ValueProvider.StaticValueProvider.of((privateKeyPassphrase)))
+          .setRawPrivateKey(ValueProvider.StaticValueProvider.of(rawPrivateKey))
+          .setPrivateKeyPassphrase(ValueProvider.StaticValueProvider.of(privateKeyPassphrase))
           .build();
     }
 

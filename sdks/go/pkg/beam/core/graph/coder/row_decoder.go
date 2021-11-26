@@ -20,7 +20,7 @@ import (
 	"io"
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 // RowDecoderBuilder allows one to build Beam Schema row encoders for provided types.
@@ -78,9 +78,13 @@ func (b *RowDecoderBuilder) Build(rt reflect.Type) (func(io.Reader) (interface{}
 // decoderForType returns a decoder function for the struct or pointer to struct type.
 func (b *RowDecoderBuilder) decoderForType(t reflect.Type) (func(io.Reader) (interface{}, error), error) {
 	// Check if there are any providers registered for this type, or that this type adheres to any interfaces.
-	f, err := b.customFunc(t)
+	f, addr, err := b.customFunc(t)
 	if err != nil {
 		return nil, err
+	}
+	if addr {
+		// We cannot deal with address of here, only in embedded fields, indices, and keys/values. So clear f and continue.
+		f = nil
 	}
 	if f != nil {
 		return f, nil
@@ -101,13 +105,21 @@ func (b *RowDecoderBuilder) decoderForType(t reflect.Type) (func(io.Reader) (int
 		return func(r io.Reader) (interface{}, error) {
 			rv := reflect.New(t)
 			err := dec(rv.Elem(), r)
+			// Wrap handles nil cases, but io.EOF should be checked explicitly.
+			if err == io.EOF {
+				return nil, err
+			}
 			return rv.Interface(), errors.Wrapf(err, "decoding a *%v", t)
 		}, nil
 	}
 	return func(r io.Reader) (interface{}, error) {
 		rv := reflect.New(t)
 		err := dec(rv.Elem(), r)
-		return rv.Elem().Interface(), errors.Wrapf(err, "decoding a *%v", t)
+		// Wrap handles nil cases, but io.EOF should be checked explicitly.
+		if err == io.EOF {
+			return nil, err
+		}
+		return rv.Elem().Interface(), errors.Wrapf(err, "decoding a %v", t)
 	}, nil
 }
 
@@ -149,9 +161,9 @@ func (b *RowDecoderBuilder) decoderForStructReflect(t reflect.Type) (func(reflec
 			}
 			// Silently ignore, since we can't do anything about it.
 			// Add a no-op coder to fill in field index
-			coder.fields = append(coder.fields, func(rv reflect.Value, r io.Reader) error {
+			coder.fields = append(coder.fields, typeDecoderFieldReflect{decode: func(rv reflect.Value, r io.Reader) error {
 				return nil
-			})
+			}})
 			continue
 		}
 		dec, err := b.decoderForSingleTypeReflect(sf.Type)
@@ -172,7 +184,11 @@ func (b *RowDecoderBuilder) decoderForStructReflect(t reflect.Type) (func(reflec
 			if IsFieldNil(nils, i) {
 				continue
 			}
-			if err := f(rv.Field(i), r); err != nil {
+			fv := rv.Field(i)
+			if f.addr {
+				fv = fv.Addr()
+			}
+			if err := f.decode(fv, r); err != nil {
 				return err
 			}
 		}
@@ -245,115 +261,144 @@ func reflectDecodeByteSlice(rv reflect.Value, r io.Reader) error {
 
 // customFunc returns nil if no custom func exists for this type.
 // If an error is returned, coder construction should be aborted.
-func (b *RowDecoderBuilder) customFunc(t reflect.Type) (func(io.Reader) (interface{}, error), error) {
+func (b *RowDecoderBuilder) customFunc(t reflect.Type) (func(io.Reader) (interface{}, error), bool, error) {
 	if fact, ok := b.allFuncs[t]; ok {
 		f, err := fact(t)
 
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
-		return f, nil
+		return f, false, nil
 	}
 	// Check satisfaction of interface types in reverse registration order.
+	pt := reflect.PtrTo(t)
 	for i := len(b.ifaceFuncs) - 1; i >= 0; i-- {
 		it := b.ifaceFuncs[i]
 		if ok := t.Implements(it); ok {
 			if fact, ok := b.allFuncs[it]; ok {
 				f, err := fact(t)
 				if err != nil {
-					return nil, err
+					return nil, false, err
 				}
-				return f, nil
+				return f, false, nil
+			}
+		}
+		// This can occur when the type uses a pointer receiver but it is included as a value in a struct field.
+		if ok := pt.Implements(it); ok {
+			if fact, ok := b.allFuncs[it]; ok {
+				f, err := fact(pt)
+				if err != nil {
+					return nil, true, err
+				}
+				return f, true, nil
 			}
 		}
 	}
-	return nil, nil
+	return nil, false, nil
 }
 
 // decoderForSingleTypeReflect returns a reflection based decoder function for the
 // given type.
-func (b *RowDecoderBuilder) decoderForSingleTypeReflect(t reflect.Type) (func(reflect.Value, io.Reader) error, error) {
+func (b *RowDecoderBuilder) decoderForSingleTypeReflect(t reflect.Type) (typeDecoderFieldReflect, error) {
 	// Check if there are any providers registered for this type, or that this type adheres to any interfaces.
-	dec, err := b.customFunc(t)
+	dec, addr, err := b.customFunc(t)
 	if err != nil {
-		return nil, err
+		return typeDecoderFieldReflect{}, err
 	}
 	if dec != nil {
-		return func(v reflect.Value, r io.Reader) error {
-			elm, err := dec(r)
-			if err != nil {
-				return err
-			}
-			v.Set(reflect.ValueOf(elm))
-			return nil
+		return typeDecoderFieldReflect{
+			decode: func(v reflect.Value, r io.Reader) error {
+				elm, err := dec(r)
+				if err != nil {
+					return err
+				}
+				if addr {
+					v.Elem().Set(reflect.ValueOf(elm).Elem())
+				} else {
+					v.Set(reflect.ValueOf(elm))
+				}
+				return nil
+			},
+			addr: addr,
 		}, nil
 	}
 	switch t.Kind() {
 	case reflect.Struct:
-		return b.decoderForStructReflect(t)
+		dec, err := b.decoderForStructReflect(t)
+		return typeDecoderFieldReflect{decode: dec}, err
 	case reflect.Bool:
-		return reflectDecodeBool, nil
+		return typeDecoderFieldReflect{decode: reflectDecodeBool}, nil
 	case reflect.Uint8:
-		return reflectDecodeByte, nil
+		return typeDecoderFieldReflect{decode: reflectDecodeByte}, nil
 	case reflect.String:
-		return reflectDecodeString, nil
+		return typeDecoderFieldReflect{decode: reflectDecodeString}, nil
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return reflectDecodeInt, nil
+		return typeDecoderFieldReflect{decode: reflectDecodeInt}, nil
 	case reflect.Uint, reflect.Uint64, reflect.Uint32, reflect.Uint16:
-		return reflectDecodeUint, nil
+		return typeDecoderFieldReflect{decode: reflectDecodeUint}, nil
 	case reflect.Float32, reflect.Float64:
-		return reflectDecodeFloat, nil
+		return typeDecoderFieldReflect{decode: reflectDecodeFloat}, nil
 	case reflect.Ptr:
 		decf, err := b.decoderForSingleTypeReflect(t.Elem())
 		if err != nil {
-			return nil, err
+			return typeDecoderFieldReflect{}, err
 		}
-		return func(rv reflect.Value, r io.Reader) error {
+		return typeDecoderFieldReflect{decode: func(rv reflect.Value, r io.Reader) error {
 			rv.Set(reflect.New(t.Elem()))
-			return decf(rv.Elem(), r)
-		}, nil
+			if !decf.addr {
+				rv = rv.Elem()
+			}
+			return decf.decode(rv, r)
+		}}, nil
 	case reflect.Slice:
 		// Special case handling for byte slices.
 		if t.Elem().Kind() == reflect.Uint8 {
-			return reflectDecodeByteSlice, nil
+			return typeDecoderFieldReflect{decode: reflectDecodeByteSlice}, nil
 		}
 		decf, err := b.containerDecoderForType(t.Elem())
 		if err != nil {
-			return nil, err
+			return typeDecoderFieldReflect{}, err
 		}
-		return iterableDecoderForSlice(t, decf), nil
+		return typeDecoderFieldReflect{decode: iterableDecoderForSlice(t, decf)}, nil
 	case reflect.Array:
 		decf, err := b.containerDecoderForType(t.Elem())
 		if err != nil {
-			return nil, err
+			return typeDecoderFieldReflect{}, err
 		}
-		return iterableDecoderForArray(t, decf), nil
+		return typeDecoderFieldReflect{decode: iterableDecoderForArray(t, decf)}, nil
 	case reflect.Map:
 		decK, err := b.containerDecoderForType(t.Key())
 		if err != nil {
-			return nil, err
+			return typeDecoderFieldReflect{}, err
 		}
 		decV, err := b.containerDecoderForType(t.Elem())
 		if err != nil {
-			return nil, err
+			return typeDecoderFieldReflect{}, err
 		}
-		return mapDecoder(t, decK, decV), nil
+		return typeDecoderFieldReflect{decode: mapDecoder(t, decK, decV)}, nil
 	}
-	return nil, errors.Errorf("unable to decode type: %v", t)
+	return typeDecoderFieldReflect{}, errors.Errorf("unable to decode type: %v", t)
 }
 
-func (b *RowDecoderBuilder) containerDecoderForType(t reflect.Type) (func(reflect.Value, io.Reader) error, error) {
+func (b *RowDecoderBuilder) containerDecoderForType(t reflect.Type) (typeDecoderFieldReflect, error) {
 	dec, err := b.decoderForSingleTypeReflect(t)
 	if err != nil {
-		return nil, err
+		return typeDecoderFieldReflect{}, err
 	}
 	if t.Kind() == reflect.Ptr {
-		return containerNilDecoder(dec), nil
+		return typeDecoderFieldReflect{decode: containerNilDecoder(dec.decode), addr: dec.addr}, nil
 	}
 	return dec, nil
 }
 
 type typeDecoderReflect struct {
 	typ    reflect.Type
-	fields []func(reflect.Value, io.Reader) error
+	fields []typeDecoderFieldReflect
+}
+
+type typeDecoderFieldReflect struct {
+	decode func(reflect.Value, io.Reader) error
+	// If true the decoder is expecting us to pass it the address
+	// of the field value (i.e. &foo.bar) and not the field value (i.e. foo.bar).
+	addr bool
 }

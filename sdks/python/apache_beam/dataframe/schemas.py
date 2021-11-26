@@ -31,24 +31,24 @@ with :mod:`apache_beam.typehints.schemas`), and common pandas dtypes::
   pd.BooleanDType()       <-----> Optional[bool]
   pd.StringDType()        <-----> Optional[str]
                              \--- str
+  np.object               <-----> Any
 
   * int, float, bool are treated the same as np.int64, np.float64, np.bool
 
-Any unknown or unsupported types are treated as :code:`Any` and shunted to
-:code:`np.object`::
+Note that when converting to pandas dtypes, any types not specified here are
+shunted to ``np.object``.
 
-  np.object               <-----> Any
+Similarly when converting from pandas to Python types, types that aren't
+otherwise specified here are shunted to ``Any``. Notably, this includes
+``np.datetime64``.
 
 Pandas does not support hierarchical data natively. Currently, all structured
-types (:code:`Sequence`, :code:`Mapping`, nested :code:`NamedTuple` types), are
-shunted to :code:`np.object` like all other unknown types. In the future these
+types (``Sequence``, ``Mapping``, nested ``NamedTuple`` types), are
+shunted to ``np.object`` like all other unknown types. In the future these
 types may be given special consideration.
 """
 
 # pytype: skip-file
-
-#TODO: Mapping for date/time types
-#https://pandas.pydata.org/docs/user_guide/timeseries.html#overview
 
 from typing import Any
 from typing import NamedTuple
@@ -234,7 +234,7 @@ class _BaseDataframeUnbatchDoFn(beam.DoFn):
     all_series = self._get_series(df)
     iterators = [
         make_null_checking_generator(series) for series,
-        typehint in zip(all_series, self._namedtuple_ctor._field_types)
+        typehint in zip(all_series, self._namedtuple_ctor.__annotations__)
     ]
 
     # TODO: Avoid materializing the rows. Produce an object that references the
@@ -305,7 +305,7 @@ def _dtype_to_fieldtype(dtype):
   elif dtype.kind == 'S':
     return bytes
   else:
-    raise TypeError("Unsupported dtype in proxy: '%s'" % dtype)
+    return Any
 
 
 @typehints.with_input_types(Union[pd.DataFrame, pd.Series])

@@ -34,6 +34,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -97,13 +98,15 @@ public class BundleCheckpointHandlers {
               CoderUtils.decodeFromByteArray(
                   residualCoder, residual.getApplication().getElement().toByteArray());
           TimerInternals timerInternals =
-              timerInternalsFactory.timerInternalsForKey((stateValue.getValue()));
+              timerInternalsFactory.timerInternalsForKey(stateValue.getValue());
           StateInternals stateInternals =
               stateInternalsFactory.stateInternalsForKey(stateValue.getValue());
           // Calculate the timestamp for the timer.
           Instant timestamp = Instant.now();
           if (residual.hasRequestedTimeDelay()) {
-            timestamp = timestamp.plus(residual.getRequestedTimeDelay().getSeconds() * 1000);
+            timestamp =
+                timestamp.plus(
+                    Duration.millis(residual.getRequestedTimeDelay().getSeconds() * 1000));
           }
           // Calculate the watermark hold for the timer.
           long outputTimestamp = BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis();

@@ -118,23 +118,23 @@ The following commands run the
 example streaming pipeline. Specify your Cloud Pub/Sub project and input topic
 (`--input_topic`), output Cloud Pub/Sub project and topic (`--output_topic`).
 
-{{< highlight class="runner-direct" >}}
+{{< runner direct >}}
 # DirectRunner requires the --streaming option
 python -m apache_beam.examples.streaming_wordcount \
   --input_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_INPUT_TOPIC" \
   --output_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_OUTPUT_TOPIC" \
   --streaming
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-flink" >}}
+{{< runner flink >}}
 See https://beam.apache.org/documentation/runners/flink/ for more information.
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-spark" >}}
+{{< runner spark >}}
 See https://beam.apache.org/documentation/runners/spark/ for more information.
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-dataflow" >}}
+{{< runner dataflow >}}
 # As part of the initial setup, install Google Cloud Platform specific extra components.
 pip install apache-beam[gcp]
 
@@ -147,7 +147,7 @@ python -m apache_beam.examples.streaming_wordcount \
   --input_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_INPUT_TOPIC" \
   --output_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_OUTPUT_TOPIC" \
   --streaming
-{{< /highlight >}}
+{{< /runner >}}
 
 Check your runner's documentation for any additional runner-specific information
 about executing streaming pipelines:

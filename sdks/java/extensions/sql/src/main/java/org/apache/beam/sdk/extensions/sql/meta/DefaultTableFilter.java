@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.meta;
 
 import java.util.List;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexNode;
 
 /**
  * This default implementation of {@link BeamSqlTableFilter} interface. Assumes that predicate
@@ -27,7 +27,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 public final class DefaultTableFilter implements BeamSqlTableFilter {
   private final List<RexNode> filters;
 
-  DefaultTableFilter(List<RexNode> filters) {
+  public DefaultTableFilter(List<RexNode> filters) {
     this.filters = filters;
   }
 

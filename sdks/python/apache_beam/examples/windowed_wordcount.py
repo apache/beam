@@ -27,7 +27,7 @@ import argparse
 import logging
 
 import apache_beam as beam
-import apache_beam.transforms.window as window
+from apache_beam.transforms import window
 
 TABLE_SCHEMA = (
     'word:STRING, count:INTEGER, '
@@ -52,7 +52,7 @@ class FormatDoFn(beam.DoFn):
     }]
 
 
-def run(argv=None):
+def main(argv=None):
   """Build and run the pipeline."""
 
   parser = argparse.ArgumentParser()
@@ -98,4 +98,4 @@ def run(argv=None):
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
-  run()
+  main()

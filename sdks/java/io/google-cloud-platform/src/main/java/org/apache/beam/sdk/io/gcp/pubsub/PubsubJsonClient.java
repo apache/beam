@@ -21,7 +21,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.services.pubsub.Pubsub;
-import com.google.api.services.pubsub.Pubsub.Builder;
 import com.google.api.services.pubsub.Pubsub.Projects.Subscriptions;
 import com.google.api.services.pubsub.Pubsub.Projects.Topics;
 import com.google.api.services.pubsub.model.AcknowledgeRequest;
@@ -75,7 +74,7 @@ public class PubsubJsonClient extends PubsubClient {
         @Nullable String timestampAttribute, @Nullable String idAttribute, PubsubOptions options)
         throws IOException {
       Pubsub pubsub =
-          new Builder(
+          new Pubsub.Builder(
                   Transport.getTransport(),
                   Transport.getJsonFactory(),
                   chainHttpRequestInitializer(

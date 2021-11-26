@@ -32,4 +32,32 @@ public class GcpResourceIdentifiers {
         "//bigquery.googleapis.com/projects/%s/datasets/%s/tables/%s",
         projectId, datasetId, tableId);
   }
+
+  public static String bigtableTableID(String project, String instance, String table) {
+    return String.format("projects/%s/instances/%s/tables/%s", project, instance, table);
+  }
+
+  public static String bigtableResource(String projectId, String instanceId, String tableId) {
+    return String.format(
+        "//bigtable.googleapis.com/projects/%s/instances/%s/tables/%s",
+        projectId, instanceId, tableId);
+  }
+
+  public static String cloudStorageBucket(String bucketId) {
+    return String.format("//storage.googleapis.com/buckets/%s", bucketId);
+  }
+
+  public static String datastoreResource(String projectId, String namespace) {
+    return String.format(
+        "//bigtable.googleapis.com/projects/%s/namespaces/%s", projectId, namespace);
+  }
+
+  public static String spannerTable(String projectId, String databaseId, String tableId) {
+    return String.format(
+        "//spanner.googleapis.com/projects/%s/topics/%s/tables/%s", projectId, databaseId, tableId);
+  }
+
+  public static String spannerQuery(String projectId, String queryName) {
+    return String.format("//spanner.googleapis.com/projects/%s/queries/%s", projectId, queryName);
+  }
 }

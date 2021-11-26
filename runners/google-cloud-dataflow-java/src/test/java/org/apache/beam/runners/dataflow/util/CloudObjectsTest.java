@@ -51,6 +51,7 @@ import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.SetCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
+import org.apache.beam.sdk.coders.TimestampPrefixingWindowCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -68,7 +69,6 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList.Builder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Test;
@@ -138,12 +138,13 @@ public class CloudObjectsTest {
   public static class DefaultCoders {
     @Parameters(name = "{index}: {0}")
     public static Iterable<Coder<?>> data() {
-      Builder<Coder<?>> dataBuilder =
+      ImmutableList.Builder<Coder<?>> dataBuilder =
           ImmutableList.<Coder<?>>builder()
               .add(new ArbitraryCoder())
               .add(new ObjectCoder())
               .add(GlobalWindow.Coder.INSTANCE)
               .add(IntervalWindow.getCoder())
+              .add(TimestampPrefixingWindowCoder.of(IntervalWindow.getCoder()))
               .add(LengthPrefixCoder.of(VarLongCoder.of()))
               .add(IterableCoder.of(VarLongCoder.of()))
               .add(KvCoder.of(VarLongCoder.of(), ByteArrayCoder.of()))

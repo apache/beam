@@ -117,6 +117,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -221,6 +222,11 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     this.windowCoder = (Coder<BoundedWindow>) windowingStrategy.getWindowFn().windowCoder();
     this.inputCoder = windowedInputCoder;
     this.pipelineOptions = new SerializablePipelineOptions(options);
+
+    Preconditions.checkArgument(
+        !windowedInputCoder.getCoderArguments().isEmpty(),
+        "Empty arguments for WindowedValue Coder %s",
+        windowedInputCoder);
   }
 
   @Override
@@ -596,7 +602,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     }
 
     @Override
-    public void deleteTimer(StateNamespace namespace, String timerId, TimeDomain timeDomain) {
+    public void deleteTimer(
+        StateNamespace namespace, String timerId, String timerFamilyId, TimeDomain timeDomain) {
       throw new UnsupportedOperationException(
           "It is not expected to use SdfFlinkTimerInternals to delete a timer");
     }
@@ -1168,7 +1175,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
     void setCleanupTimer(BoundedWindow window) {
       // make sure this fires after any window.maxTimestamp() timers
-      Instant gcTime = LateDataUtils.garbageCollectionTime(window, windowingStrategy).plus(1);
+      Instant gcTime =
+          LateDataUtils.garbageCollectionTime(window, windowingStrategy).plus(Duration.millis(1));
       timerInternals.setTimer(
           StateNamespaces.window(windowCoder, window),
           GC_TIMER_ID,
@@ -1182,7 +1190,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     public boolean isForWindow(
         String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
       boolean isEventTimer = timeDomain.equals(TimeDomain.EVENT_TIME);
-      Instant gcTime = LateDataUtils.garbageCollectionTime(window, windowingStrategy).plus(1);
+      Instant gcTime =
+          LateDataUtils.garbageCollectionTime(window, windowingStrategy).plus(Duration.millis(1));
       return isEventTimer && GC_TIMER_ID.equals(timerId) && gcTime.equals(timestamp);
     }
   }

@@ -66,8 +66,8 @@ task flinkTriggerTranscript() {
           . ${envdir}/bin/activate \\
           && cd ${pythonRootDir} \\
           && pip install -e .[test] \\
-          && python setup.py nosetests \\
-              --tests apache_beam.transforms.trigger_test:WeakTestStreamTranscriptTest \\
+          && pytest \\
+              apache_beam/transforms/trigger_test.py::WeakTestStreamTranscriptTest \\
               --test-pipeline-options='--runner=FlinkRunner --environment_type=LOOPBACK --flink_job_server_jar=${project(":runners:flink:${latestFlinkVersion}:job-server:").shadowJar.archivePath}'
           """
     }
@@ -117,6 +117,31 @@ task createProcessWorker {
       commandLine('chmod', '+x', sdkWorkerFile)
     }
   }
+}
+
+def createSamzaRunnerTestTask(String workerType) {
+  def taskName = "samzaCompatibilityMatrix${workerType}"
+  def jobServerJar = "${rootDir}/runners/samza/job-server/build/libs/beam-runners-samza-job-server-${version}.jar"
+  def options = "--samza_job_server_jar=${jobServerJar} --environment_type=${workerType}"
+  if (workerType == 'PROCESS') {
+    options += " --environment_options=process_command=${buildDir.absolutePath}/sdk_worker.sh"
+  }
+  def task = toxTask(taskName, 'samza-runner-test', options)
+  task.dependsOn ":runners:samza:job-server:shadowJar"
+  if (workerType == 'DOCKER') {
+    task.dependsOn ext.pythonContainerTask
+  } else if (workerType == 'PROCESS') {
+    task.dependsOn 'createProcessWorker'
+  }
+  return task
+}
+
+createSamzaRunnerTestTask('DOCKER')
+createSamzaRunnerTestTask('PROCESS')
+createSamzaRunnerTestTask('LOOPBACK')
+
+task samzaValidatesRunner() {
+  dependsOn 'samzaCompatibilityMatrixLOOPBACK'
 }
 
 def createSparkRunnerTestTask(String workerType) {
@@ -176,14 +201,14 @@ project.task("postCommitPy${pythonVersionSuffix}IT") {
 
   doLast {
     def tests = [
-            "apache_beam.io.gcp.bigquery_read_it_test",
-            "apache_beam.io.external.xlang_jdbcio_it_test",
-            "apache_beam.io.external.xlang_kafkaio_it_test",
-            "apache_beam.io.external.xlang_kinesisio_it_test",
-            "apache_beam.io.gcp.tests.xlang_spannerio_it_test",
-            "apache_beam.io.external.xlang_debeziumio_it_test",
+            "apache_beam/io/gcp/bigquery_read_it_test.py",
+            "apache_beam/io/external/xlang_jdbcio_it_test.py",
+            "apache_beam/io/external/xlang_kafkaio_it_test.py",
+            "apache_beam/io/external/xlang_kinesisio_it_test.py",
+            "apache_beam/io/gcp/tests/xlang_spannerio_it_test.py",
+            "apache_beam/io/external/xlang_debeziumio_it_test.py",
     ]
-    def testOpts = ["--tests=${tests.join(',')}"]
+    def testOpts = ["${tests.join(' ')}"] + ["--log-cli-level=INFO"]
     def pipelineOpts = [
         "--runner=FlinkRunner",
         "--project=apache-beam-testing",

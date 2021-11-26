@@ -19,19 +19,49 @@ package org.apache.beam.sdk.io.gcp.firestore;
 
 import static java.util.Objects.requireNonNull;
 
+import com.google.firestore.v1.BatchGetDocumentsRequest;
+import com.google.firestore.v1.BatchGetDocumentsResponse;
 import com.google.firestore.v1.BatchWriteRequest;
+import com.google.firestore.v1.Cursor;
+import com.google.firestore.v1.Document;
+import com.google.firestore.v1.ListCollectionIdsRequest;
+import com.google.firestore.v1.ListCollectionIdsResponse;
+import com.google.firestore.v1.ListDocumentsRequest;
+import com.google.firestore.v1.ListDocumentsResponse;
+import com.google.firestore.v1.PartitionQueryRequest;
+import com.google.firestore.v1.PartitionQueryResponse;
+import com.google.firestore.v1.RunQueryRequest;
+import com.google.firestore.v1.RunQueryResponse;
+import com.google.firestore.v1.StructuredQuery;
+import com.google.firestore.v1.StructuredQuery.FieldReference;
+import com.google.firestore.v1.StructuredQuery.Projection;
+import com.google.firestore.v1.Value;
 import com.google.firestore.v1.WriteResult;
 import com.google.rpc.Status;
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.function.Function;
 import javax.annotation.concurrent.Immutable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1ReadFn.BatchGetDocumentsFn;
+import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1ReadFn.ListCollectionIdsFn;
+import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1ReadFn.ListDocumentsFn;
+import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1ReadFn.PartitionQueryFn;
+import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1ReadFn.PartitionQueryPair;
+import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1ReadFn.RunQueryFn;
 import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1WriteFn.BatchWriteFnWithDeadLetterQueue;
 import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1WriteFn.BatchWriteFnWithSummary;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Reshuffle;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.PCollection;
@@ -59,6 +89,91 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <h3>Operations</h3>
  *
+ * <h4>Read</h4>
+ *
+ * <p>The currently supported read operations and their execution behavior are as follows:
+ *
+ * <table>
+ *   <tbody>
+ *     <tr>
+ *       <th>RPC</th>
+ *       <th>Execution Behavior</th>
+ *       <th>Example Usage</th>
+ *     </tr>
+ *     <tr>
+ *       <td>{@link PartitionQuery}</td>
+ *       <td>Parallel Streaming</td>
+ *       <td>
+ * <pre>
+ * PCollection<{@link PartitionQueryRequest}> partitionQueryRequests = ...;
+ * PCollection<{@link RunQueryRequest}> runQueryRequests = partitionQueryRequests
+ *     .apply(FirestoreIO.v1().read().{@link Read#partitionQuery() partitionQuery()}.build());
+ * PCollection<{@link RunQueryResponse}> runQueryResponses = runQueryRequests
+ *     .apply(FirestoreIO.v1().read().{@link Read#runQuery() runQuery()}.build());
+ * </pre>
+ *       </td>
+ *     </tr>
+ *     <tr>
+ *       <td>{@link RunQuery}</td>
+ *       <td>Sequential Streaming</td>
+ *       <td>
+ * <pre>
+ * PCollection<{@link RunQueryRequest}> runQueryRequests = ...;
+ * PCollection<{@link RunQueryResponse}> runQueryResponses = runQueryRequests
+ *     .apply(FirestoreIO.v1().read().{@link Read#runQuery() runQuery()}.build());
+ * </pre>
+ *       </td>
+ *     </tr>
+ *     <tr>
+ *       <td>{@link BatchGetDocuments}</td>
+ *       <td>Sequential Streaming</td>
+ *       <td>
+ * <pre>
+ * PCollection<{@link BatchGetDocumentsRequest}> batchGetDocumentsRequests = ...;
+ * PCollection<{@link BatchGetDocumentsResponse}> batchGetDocumentsResponses = batchGetDocumentsRequests
+ *     .apply(FirestoreIO.v1().read().{@link Read#batchGetDocuments() batchGetDocuments()}.build());
+ * </pre>
+ *       </td>
+ *     </tr>
+ *     <tr>
+ *       <td>{@link ListCollectionIds}</td>
+ *       <td>Sequential Paginated</td>
+ *       <td>
+ * <pre>
+ * PCollection<{@link ListCollectionIdsRequest}> listCollectionIdsRequests = ...;
+ * PCollection<{@link ListCollectionIdsResponse}> listCollectionIdsResponses = listCollectionIdsRequests
+ *     .apply(FirestoreIO.v1().read().{@link Read#listCollectionIds() listCollectionIds()}.build());
+ * </pre>
+ *       </td>
+ *     </tr>
+ *     <tr>
+ *       <td>{@link ListDocuments}</td>
+ *       <td>Sequential Paginated</td>
+ *       <td>
+ * <pre>
+ * PCollection<{@link ListDocumentsRequest}> listDocumentsRequests = ...;
+ * PCollection<{@link ListDocumentsResponse}> listDocumentsResponses = listDocumentsRequests
+ *     .apply(FirestoreIO.v1().read().{@link Read#listDocuments() listDocuments()}.build());
+ * </pre>
+ *       </td>
+ *     </tr>
+ *   </tbody>
+ * </table>
+ *
+ * <p>PartitionQuery should be preferred over other options if at all possible, becuase it has the
+ * ability to parallelize execution of multiple queries for specific sub-ranges of the full results.
+ * When choosing the value to set for {@link PartitionQueryRequest.Builder#setPartitionCount(long)},
+ * ensure you are picking a value this makes sense for your data set and your max number of workers.
+ * <i>If you find that a partition query is taking a unexpectedly long time, try increasing the
+ * number of partitions.</i> Depending on how large your dataset is increasing as much as 10x can
+ * significantly reduce total partition query wall time.
+ *
+ * <p>You should only ever use ListDocuments if the use of <a target="_blank" rel="noopener
+ * noreferrer"
+ * href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.ListDocumentsRequest">{@code
+ * show_missing}</a> is needed to access a document. RunQuery and PartitionQuery will always be
+ * faster if the use of {@code show_missing} is not needed.
+ *
  * <h4>Write</h4>
  *
  * To write a {@link PCollection} to Cloud Firestore use {@link FirestoreV1#write()}, picking the
@@ -68,21 +183,21 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>The default behavior is to fail a bundle if any single write fails with a non-retryable error.
  *
- * <pre>{@code
- * PCollection<Write> writes = ...;
- * PCollection<WriteSummary> sink = writes
- *     .apply(FirestoreIO.v1().write().batchWrite().build());
- * }</pre>
+ * <pre>
+ * PCollection<{@link com.google.firestore.v1.Write}> writes = ...;
+ * PCollection<{@link WriteSuccessSummary}> sink = writes
+ *     .apply(FirestoreIO.v1().write().{@link Write#batchWrite() batchWrite()}.build());
+ * </pre>
  *
  * Alternatively, if you'd rather output write failures to a Dead Letter Queue add {@link
  * BatchWriteWithSummary.Builder#withDeadLetterQueue() withDeadLetterQueue} when building your
  * writer.
  *
- * <pre>{@code
- * PCollection<Write> writes = ...;
- * PCollection<WriteFailure> writeFailures = writes
- *     .apply(FirestoreIO.v1().write().batchWrite().withDeadLetterQueue().build());
- * }</pre>
+ * <pre>
+ * PCollection<{@link com.google.firestore.v1.Write}> writes = ...;
+ * PCollection<{@link WriteFailure}> writeFailures = writes
+ *     .apply(FirestoreIO.v1().write().{@link Write#batchWrite() batchWrite()}.withDeadLetterQueue().build());
+ * </pre>
  *
  * <h3>Permissions</h3>
  *
@@ -115,6 +230,23 @@ public final class FirestoreV1 {
 
   /**
    * The class returned by this method provides the ability to create {@link PTransform PTransforms}
+   * for read operations available in the Firestore V1 API provided by {@link
+   * com.google.cloud.firestore.v1.stub.FirestoreStub FirestoreStub}.
+   *
+   * <p>This method is part of the Firestore Connector DSL and should be accessed via {@link
+   * FirestoreIO#v1()}.
+   *
+   * <p>
+   *
+   * @return Type safe builder factory for read operations.
+   * @see FirestoreIO#v1()
+   */
+  public Read read() {
+    return Read.INSTANCE;
+  }
+
+  /**
+   * The class returned by this method provides the ability to create {@link PTransform PTransforms}
    * for write operations available in the Firestore V1 API provided by {@link
    * com.google.cloud.firestore.v1.stub.FirestoreStub FirestoreStub}.
    *
@@ -128,6 +260,229 @@ public final class FirestoreV1 {
    */
   public Write write() {
     return Write.INSTANCE;
+  }
+
+  /**
+   * Type safe builder factory for read operations.
+   *
+   * <p>This class is part of the Firestore Connector DSL and should be accessed via {@link #read()
+   * FirestoreIO.v1().read()}.
+   *
+   * <p>This class provides access to a set of type safe builders for read operations available in
+   * the Firestore V1 API accessed through {@link com.google.cloud.firestore.v1.stub.FirestoreStub
+   * FirestoreStub}. Each builder allows configuration before creating an immutable instance which
+   * can be used in your pipeline.
+   *
+   * <p>
+   *
+   * @see FirestoreIO#v1()
+   * @see #read()
+   */
+  @Experimental(Kind.SOURCE_SINK)
+  @Immutable
+  public static final class Read {
+    private static final Read INSTANCE = new Read();
+
+    private Read() {}
+
+    /**
+     * Factory method to create a new type safe builder for {@link ListDocumentsRequest} operations.
+     *
+     * <p>This method is part of the Firestore Connector DSL and should be accessed via {@link
+     * FirestoreIO#v1()}.
+     *
+     * <p>All request quality-of-service for the built {@link ListDocuments} PTransform is scoped to
+     * the worker and configured based on the {@link RpcQosOptions} specified via this builder.
+     *
+     * <p>All logging for the built instance of {@link ListDocuments} will be sent to appender
+     * {@code org.apache.beam.sdk.io.gcp.firestore.FirestoreV1.ListDocuments}.
+     *
+     * <p>The following metrics will be available for the built instance of {@link ListDocuments}
+     *
+     * <ol>
+     *   <li>{@code org.apache.beam.sdk.io.gcp.firestore.FirestoreV1.ListDocuments.throttlingMs} A
+     *       counter tracking the number of milliseconds RPCs are throttled by Qos
+     *   <li>{@code org.apache.beam.sdk.io.gcp.firestore.FirestoreV1.ListDocuments.rpcFailures} A
+     *       counter tracking the number of failed RPCs
+     *   <li>{@code org.apache.beam.sdk.io.gcp.firestore.FirestoreV1.ListDocuments.rpcSuccesses} A
+     *       counter tracking the number of successful RPCs
+     * </ol>
+     *
+     * @return A new type safe builder providing configuration for processing of {@link
+     *     ListDocumentsRequest}s
+     * @see FirestoreIO#v1()
+     * @see ListDocuments
+     * @see ListDocumentsRequest
+     * @see ListDocumentsResponse
+     * @see <a target="_blank" rel="noopener noreferrer"
+     *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.Firestore.ListDocuments">google.firestore.v1.Firestore.ListDocuments</a>
+     * @see <a target="_blank" rel="noopener noreferrer"
+     *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.ListDocumentsRequest">google.firestore.v1.ListDocumentsRequest</a>
+     * @see <a target="_blank" rel="noopener noreferrer"
+     *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.ListDocumentsResponse">google.firestore.v1.ListDocumentsResponse</a>
+     */
+    public ListDocuments.Builder listDocuments() {
+      return new ListDocuments.Builder();
+    }
+
+    /**
+     * Factory method to create a new type safe builder for {@link ListCollectionIdsRequest}
+     * operations.
+     *
+     * <p>This method is part of the Firestore Connector DSL and should be accessed via {@link
+     * FirestoreIO#v1()}.
+     *
+     * <p>All request quality-of-service for the built {@link ListCollectionIds} PTransform is
+     * scoped to the worker and configured based on the {@link RpcQosOptions} specified via this
+     * builder.
+     *
+     * <p>All logging for the built instance of {@link ListCollectionIds} will be sent to appender
+     * {@code org.apache.beam.sdk.io.gcp.firestore.FirestoreV1.ListCollectionIds}.
+     *
+     * <p>The following metrics will be available for the built instance of {@link
+     * ListCollectionIds}
+     *
+     * <ol>
+     *   <li>{@code org.apache.beam.sdk.io.gcp.firestore.FirestoreV1.ListCollectionIds.throttlingMs}
+     *       A counter tracking the number of milliseconds RPCs are throttled by Qos
+     *   <li>{@code org.apache.beam.sdk.io.gcp.firestore.FirestoreV1.ListCollectionIds.rpcFailures}
+     *       A counter tracking the number of failed RPCs
+     *   <li>{@code org.apache.beam.sdk.io.gcp.firestore.FirestoreV1.ListCollectionIds.rpcSuccesses}
+     *       A counter tracking the number of successful RPCs
+     * </ol>
+     *
+     * @return A new type safe builder providing configuration for processing of {@link
+     *     ListCollectionIdsRequest}s
+     * @see FirestoreIO#v1()
+     * @see ListCollectionIds
+     * @see ListCollectionIdsRequest
+     * @see ListCollectionIdsResponse
+     * @see <a target="_blank" rel="noopener noreferrer"
+     *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.Firestore.ListCollectionIds">google.firestore.v1.Firestore.ListCollectionIds</a>
+     * @see <a target="_blank" rel="noopener noreferrer"
+     *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.ListCollectionIdsRequest">google.firestore.v1.ListCollectionIdsRequest</a>
+     * @see <a target="_blank" rel="noopener noreferrer"
+     *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.ListCollectionIdsResponse">google.firestore.v1.ListCollectionIdsResponse</a>
+     */
+    public ListCollectionIds.Builder listCollectionIds() {
+      return new ListCollectionIds.Builder();
+    }
+
+    /**
+     * Factory method to create a new type safe builder for {@link BatchGetDocumentsRequest}
+     * operations.
+     *
+     * <p>This method is part of the Firestore Connector DSL and should be accessed via {@link
+     * FirestoreIO#v1()}.
+     *
+     * <p>All request quality-of-service for the built {@link BatchGetDocuments} PTransform is
+     * scoped to the worker and configured based on the {@link RpcQosOptions} specified via this
+     * builder.
+     *
+     * <p>All logging for the built instance of {@link BatchGetDocuments} will be sent to appender
+     * {@code org.apache.beam.sdk.io.gcp.firestore.FirestoreV1.BatchGetDocuments}.
+     *
+     * <p>The following metrics will be available for the built instance of {@link
+     * BatchGetDocuments}
+     *
+     * <ol>
+     *   <li>{@code org.apache.beam.sdk.io.gcp.firestore.FirestoreV1.BatchGetDocuments.throttlingMs}
+     *       A counter tracking the number of milliseconds RPCs are throttled by Qos
+     *   <li>{@code org.apache.beam.sdk.io.gcp.firestore.FirestoreV1.BatchGetDocuments.rpcFailures}
+     *       A counter tracking the number of failed RPCs
+     *   <li>{@code org.apache.beam.sdk.io.gcp.firestore.FirestoreV1.BatchGetDocuments.rpcSuccesses}
+     *       A counter tracking the number of successful RPCs
+     *   <li>{@code
+     *       org.apache.beam.sdk.io.gcp.firestore.FirestoreV1.RunQuery.rpcStreamValueReceived} A
+     *       counter tracking the number of values received by a streaming RPC
+     * </ol>
+     *
+     * @return A new type safe builder providing configuration for processing of {@link
+     *     BatchGetDocumentsRequest}s
+     * @see FirestoreIO#v1()
+     * @see BatchGetDocuments
+     * @see BatchGetDocumentsRequest
+     * @see BatchGetDocumentsResponse
+     * @see <a target="_blank" rel="noopener noreferrer"
+     *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.Firestore.BatchGetDocuments">google.firestore.v1.Firestore.BatchGetDocuments</a>
+     * @see <a target="_blank" rel="noopener noreferrer"
+     *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.BatchGetDocumentsRequest">google.firestore.v1.BatchGetDocumentsRequest</a>
+     * @see <a target="_blank" rel="noopener noreferrer"
+     *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.BatchGetDocumentsResponse">google.firestore.v1.BatchGetDocumentsResponse</a>
+     */
+    public BatchGetDocuments.Builder batchGetDocuments() {
+      return new BatchGetDocuments.Builder();
+    }
+
+    /**
+     * Factory method to create a new type safe builder for {@link RunQueryRequest} operations.
+     *
+     * <p>This method is part of the Firestore Connector DSL and should be accessed via {@link
+     * FirestoreIO#v1()}.
+     *
+     * <p>All request quality-of-service for the built {@link RunQuery} PTransform is scoped to the
+     * worker and configured based on the {@link RpcQosOptions} specified via this builder.
+     *
+     * <p>All logging for the built instance of {@link RunQuery} will be sent to appender {@code
+     * org.apache.beam.sdk.io.gcp.firestore.FirestoreV1.RunQuery}.
+     *
+     * <p>The following metrics will be available for the built instance of {@link RunQuery}
+     *
+     * <ol>
+     *   <li>{@code org.apache.beam.sdk.io.gcp.firestore.FirestoreV1.RunQuery.throttlingMs} A
+     *       counter tracking the number of milliseconds RPCs are throttled by Qos
+     *   <li>{@code org.apache.beam.sdk.io.gcp.firestore.FirestoreV1.RunQuery.rpcFailures} A counter
+     *       tracking the number of failed RPCs
+     *   <li>{@code org.apache.beam.sdk.io.gcp.firestore.FirestoreV1.RunQuery.rpcSuccesses} A
+     *       counter tracking the number of successful RPCs
+     *   <li>{@code
+     *       org.apache.beam.sdk.io.gcp.firestore.FirestoreV1.RunQuery.rpcStreamValueReceived} A
+     *       counter tracking the number of values received by a streaming RPC
+     * </ol>
+     *
+     * @return A new type safe builder providing configuration for processing of {@link
+     *     RunQueryRequest}s
+     * @see FirestoreIO#v1()
+     * @see RunQuery
+     * @see RunQueryRequest
+     * @see RunQueryResponse
+     * @see <a target="_blank" rel="noopener noreferrer"
+     *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.Firestore.RunQuery">google.firestore.v1.Firestore.RunQuery</a>
+     * @see <a target="_blank" rel="noopener noreferrer"
+     *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.RunQueryRequest">google.firestore.v1.RunQueryRequest</a>
+     * @see <a target="_blank" rel="noopener noreferrer"
+     *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.RunQueryResponse">google.firestore.v1.RunQueryResponse</a>
+     */
+    public RunQuery.Builder runQuery() {
+      return new RunQuery.Builder();
+    }
+
+    /**
+     * Factory method to create a new type safe builder for {@link PartitionQueryRequest}
+     * operations.
+     *
+     * <p>This method is part of the Firestore Connector DSL and should be accessed via {@link
+     * FirestoreIO#v1()}.
+     *
+     * <p>All request quality-of-service for the built {@link PartitionQuery} PTransform is scoped
+     * to the worker and configured based on the {@link RpcQosOptions} specified via this builder.
+     *
+     * @return A new type safe builder providing configuration for processing of {@link
+     *     PartitionQueryRequest}s
+     * @see FirestoreIO#v1()
+     * @see PartitionQuery
+     * @see PartitionQueryRequest
+     * @see RunQueryResponse
+     * @see <a target="_blank" rel="noopener noreferrer"
+     *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.Firestore.PartitionQuery">google.firestore.v1.Firestore.PartitionQuery</a>
+     * @see <a target="_blank" rel="noopener noreferrer"
+     *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.Firestore.PartitionQueryRequest">google.firestore.v1.PartitionQueryRequest</a>
+     * @see <a target="_blank" rel="noopener noreferrer"
+     *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.Firestore.PartitionQueryResponse">google.firestore.v1.PartitionQueryResponse</a>
+     */
+    public PartitionQuery.Builder partitionQuery() {
+      return new PartitionQuery.Builder();
+    }
   }
 
   /**
@@ -186,6 +541,735 @@ public final class FirestoreV1 {
      */
     public BatchWriteWithSummary.Builder batchWrite() {
       return new BatchWriteWithSummary.Builder();
+    }
+  }
+
+  /**
+   * Concrete class representing a {@link PTransform}{@code <}{@link PCollection}{@code <}{@link
+   * ListCollectionIdsRequest}{@code >, }{@link PTransform}{@code <}{@link
+   * ListCollectionIdsResponse}{@code >>} which will read from Firestore.
+   *
+   * <p>This class is part of the Firestore Connector DSL, it has a type safe builder accessible via
+   * {@link FirestoreIO#v1()}{@code .}{@link FirestoreV1#read() read()}{@code .}{@link
+   * FirestoreV1.Read#listCollectionIds() listCollectionIds()}.
+   *
+   * <p>All request quality-of-service for an instance of this PTransform is scoped to the worker
+   * and configured via {@link ListCollectionIds.Builder#withRpcQosOptions(RpcQosOptions)}.
+   *
+   * @see FirestoreIO#v1()
+   * @see FirestoreV1#read()
+   * @see FirestoreV1.Read#listCollectionIds()
+   * @see FirestoreV1.ListCollectionIds.Builder
+   * @see ListCollectionIdsRequest
+   * @see ListCollectionIdsResponse
+   * @see <a target="_blank" rel="noopener noreferrer"
+   *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.Firestore.ListCollectionIds">google.firestore.v1.Firestore.ListCollectionIds</a>
+   * @see <a target="_blank" rel="noopener noreferrer"
+   *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.ListCollectionIdsRequest">google.firestore.v1.ListCollectionIdsRequest</a>
+   * @see <a target="_blank" rel="noopener noreferrer"
+   *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.ListCollectionIdsResponse">google.firestore.v1.ListCollectionIdsResponse</a>
+   */
+  public static final class ListCollectionIds
+      extends Transform<
+          PCollection<ListCollectionIdsRequest>,
+          PCollection<String>,
+          ListCollectionIds,
+          ListCollectionIds.Builder> {
+
+    private ListCollectionIds(
+        JodaClock clock,
+        FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
+        RpcQosOptions rpcQosOptions) {
+      super(clock, firestoreStatefulComponentFactory, rpcQosOptions);
+    }
+
+    @Override
+    public PCollection<String> expand(PCollection<ListCollectionIdsRequest> input) {
+      return input
+          .apply(
+              "listCollectionIds",
+              ParDo.of(
+                  new ListCollectionIdsFn(clock, firestoreStatefulComponentFactory, rpcQosOptions)))
+          .apply(ParDo.of(new FlattenListCollectionIdsResponse()))
+          .apply(Reshuffle.viaRandomKey());
+    }
+
+    @Override
+    public Builder toBuilder() {
+      return new Builder(clock, firestoreStatefulComponentFactory, rpcQosOptions);
+    }
+
+    /**
+     * A type safe builder for {@link ListCollectionIds} allowing configuration and instantiation.
+     *
+     * <p>This class is part of the Firestore Connector DSL, it has a type safe builder accessible
+     * via {@link FirestoreIO#v1()}{@code .}{@link FirestoreV1#read() read()}{@code .}{@link
+     * FirestoreV1.Read#listCollectionIds() listCollectionIds()}.
+     *
+     * <p>
+     *
+     * @see FirestoreIO#v1()
+     * @see FirestoreV1#read()
+     * @see FirestoreV1.Read#listCollectionIds()
+     * @see FirestoreV1.ListCollectionIds
+     * @see ListCollectionIdsRequest
+     * @see ListCollectionIdsResponse
+     * @see <a target="_blank" rel="noopener noreferrer"
+     *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.Firestore.ListCollectionIds">google.firestore.v1.Firestore.ListCollectionIds</a>
+     * @see <a target="_blank" rel="noopener noreferrer"
+     *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.ListCollectionIdsRequest">google.firestore.v1.ListCollectionIdsRequest</a>
+     * @see <a target="_blank" rel="noopener noreferrer"
+     *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.ListCollectionIdsResponse">google.firestore.v1.ListCollectionIdsResponse</a>
+     */
+    public static final class Builder
+        extends Transform.Builder<
+            PCollection<ListCollectionIdsRequest>,
+            PCollection<String>,
+            ListCollectionIds,
+            ListCollectionIds.Builder> {
+
+      private Builder() {
+        super();
+      }
+
+      private Builder(
+          JodaClock clock,
+          FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
+          RpcQosOptions rpcQosOptions) {
+        super(clock, firestoreStatefulComponentFactory, rpcQosOptions);
+      }
+
+      @Override
+      public ListCollectionIds build() {
+        return genericBuild();
+      }
+
+      @Override
+      ListCollectionIds buildSafe(
+          JodaClock clock,
+          FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
+          RpcQosOptions rpcQosOptions) {
+        return new ListCollectionIds(clock, firestoreStatefulComponentFactory, rpcQosOptions);
+      }
+    }
+  }
+
+  /**
+   * Concrete class representing a {@link PTransform}{@code <}{@link PCollection}{@code <}{@link
+   * ListDocumentsRequest}{@code >, }{@link PTransform}{@code <}{@link ListDocumentsResponse}{@code
+   * >>} which will read from Firestore.
+   *
+   * <p>This class is part of the Firestore Connector DSL, it has a type safe builder accessible via
+   * {@link FirestoreIO#v1()}{@code .}{@link FirestoreV1#read() read()}{@code .}{@link
+   * FirestoreV1.Read#listDocuments() listDocuments()}.
+   *
+   * <p>All request quality-of-service for an instance of this PTransform is scoped to the worker
+   * and configured via {@link ListDocuments.Builder#withRpcQosOptions(RpcQosOptions)}.
+   *
+   * @see FirestoreIO#v1()
+   * @see FirestoreV1#read()
+   * @see FirestoreV1.Read#listDocuments()
+   * @see FirestoreV1.ListDocuments.Builder
+   * @see ListDocumentsRequest
+   * @see ListDocumentsResponse
+   * @see <a target="_blank" rel="noopener noreferrer"
+   *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.Firestore.ListDocuments">google.firestore.v1.Firestore.ListDocuments</a>
+   * @see <a target="_blank" rel="noopener noreferrer"
+   *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.ListDocumentsRequest">google.firestore.v1.ListDocumentsRequest</a>
+   * @see <a target="_blank" rel="noopener noreferrer"
+   *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.ListDocumentsResponse">google.firestore.v1.ListDocumentsResponse</a>
+   */
+  public static final class ListDocuments
+      extends Transform<
+          PCollection<ListDocumentsRequest>,
+          PCollection<Document>,
+          ListDocuments,
+          ListDocuments.Builder> {
+
+    private ListDocuments(
+        JodaClock clock,
+        FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
+        RpcQosOptions rpcQosOptions) {
+      super(clock, firestoreStatefulComponentFactory, rpcQosOptions);
+    }
+
+    @Override
+    public PCollection<Document> expand(PCollection<ListDocumentsRequest> input) {
+      return input
+          .apply(
+              "listDocuments",
+              ParDo.of(
+                  new ListDocumentsFn(clock, firestoreStatefulComponentFactory, rpcQosOptions)))
+          .apply(ParDo.of(new ListDocumentsResponseToDocument()))
+          .apply(Reshuffle.viaRandomKey());
+    }
+
+    @Override
+    public Builder toBuilder() {
+      return new Builder(clock, firestoreStatefulComponentFactory, rpcQosOptions);
+    }
+
+    /**
+     * A type safe builder for {@link ListDocuments} allowing configuration and instantiation.
+     *
+     * <p>This class is part of the Firestore Connector DSL, it has a type safe builder accessible
+     * via {@link FirestoreIO#v1()}{@code .}{@link FirestoreV1#read() read()}{@code .}{@link
+     * FirestoreV1.Read#listDocuments() listDocuments()}.
+     *
+     * <p>
+     *
+     * @see FirestoreIO#v1()
+     * @see FirestoreV1#read()
+     * @see FirestoreV1.Read#listDocuments()
+     * @see FirestoreV1.ListDocuments
+     * @see ListDocumentsRequest
+     * @see ListDocumentsResponse
+     * @see <a target="_blank" rel="noopener noreferrer"
+     *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.Firestore.ListDocuments">google.firestore.v1.Firestore.ListDocuments</a>
+     * @see <a target="_blank" rel="noopener noreferrer"
+     *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.ListDocumentsRequest">google.firestore.v1.ListDocumentsRequest</a>
+     * @see <a target="_blank" rel="noopener noreferrer"
+     *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.ListDocumentsResponse">google.firestore.v1.ListDocumentsResponse</a>
+     */
+    public static final class Builder
+        extends Transform.Builder<
+            PCollection<ListDocumentsRequest>,
+            PCollection<Document>,
+            ListDocuments,
+            ListDocuments.Builder> {
+
+      private Builder() {
+        super();
+      }
+
+      private Builder(
+          JodaClock clock,
+          FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
+          RpcQosOptions rpcQosOptions) {
+        super(clock, firestoreStatefulComponentFactory, rpcQosOptions);
+      }
+
+      @Override
+      public ListDocuments build() {
+        return genericBuild();
+      }
+
+      @Override
+      ListDocuments buildSafe(
+          JodaClock clock,
+          FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
+          RpcQosOptions rpcQosOptions) {
+        return new ListDocuments(clock, firestoreStatefulComponentFactory, rpcQosOptions);
+      }
+    }
+  }
+
+  /**
+   * Concrete class representing a {@link PTransform}{@code <}{@link PCollection}{@code <}{@link
+   * RunQueryRequest}{@code >, }{@link PTransform}{@code <}{@link RunQueryResponse}{@code >>} which
+   * will read from Firestore.
+   *
+   * <p>This class is part of the Firestore Connector DSL, it has a type safe builder accessible via
+   * {@link FirestoreIO#v1()}{@code .}{@link FirestoreV1#read() read()}{@code .}{@link
+   * FirestoreV1.Read#runQuery() runQuery()}.
+   *
+   * <p>All request quality-of-service for an instance of this PTransform is scoped to the worker
+   * and configured via {@link RunQuery.Builder#withRpcQosOptions(RpcQosOptions)}.
+   *
+   * @see FirestoreIO#v1()
+   * @see FirestoreV1#read()
+   * @see FirestoreV1.Read#runQuery()
+   * @see FirestoreV1.RunQuery.Builder
+   * @see RunQueryRequest
+   * @see RunQueryResponse
+   * @see <a target="_blank" rel="noopener noreferrer"
+   *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.Firestore.RunQuery">google.firestore.v1.Firestore.RunQuery</a>
+   * @see <a target="_blank" rel="noopener noreferrer"
+   *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.RunQueryRequest">google.firestore.v1.RunQueryRequest</a>
+   * @see <a target="_blank" rel="noopener noreferrer"
+   *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.RunQueryResponse">google.firestore.v1.RunQueryResponse</a>
+   */
+  // TODO(BEAM-12605): Add dynamic work rebalancing to support a Splittable DoFn
+  // TODO(BEAM-12606): Add support for progress reporting
+  public static final class RunQuery
+      extends Transform<
+          PCollection<RunQueryRequest>, PCollection<RunQueryResponse>, RunQuery, RunQuery.Builder> {
+
+    private RunQuery(
+        JodaClock clock,
+        FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
+        RpcQosOptions rpcQosOptions) {
+      super(clock, firestoreStatefulComponentFactory, rpcQosOptions);
+    }
+
+    @Override
+    public PCollection<RunQueryResponse> expand(PCollection<RunQueryRequest> input) {
+      return input
+          .apply(
+              "runQuery",
+              ParDo.of(new RunQueryFn(clock, firestoreStatefulComponentFactory, rpcQosOptions)))
+          .apply(Reshuffle.viaRandomKey());
+    }
+
+    @Override
+    public Builder toBuilder() {
+      return new Builder(clock, firestoreStatefulComponentFactory, rpcQosOptions);
+    }
+
+    /**
+     * A type safe builder for {@link RunQuery} allowing configuration and instantiation.
+     *
+     * <p>This class is part of the Firestore Connector DSL, it has a type safe builder accessible
+     * via {@link FirestoreIO#v1()}{@code .}{@link FirestoreV1#read() read()}{@code .}{@link
+     * FirestoreV1.Read#runQuery() runQuery()}.
+     *
+     * <p>
+     *
+     * @see FirestoreIO#v1()
+     * @see FirestoreV1#read()
+     * @see FirestoreV1.Read#runQuery()
+     * @see FirestoreV1.RunQuery
+     * @see RunQueryRequest
+     * @see RunQueryResponse
+     * @see <a target="_blank" rel="noopener noreferrer"
+     *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.Firestore.RunQuery">google.firestore.v1.Firestore.RunQuery</a>
+     * @see <a target="_blank" rel="noopener noreferrer"
+     *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.RunQueryRequest">google.firestore.v1.RunQueryRequest</a>
+     * @see <a target="_blank" rel="noopener noreferrer"
+     *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.RunQueryResponse">google.firestore.v1.RunQueryResponse</a>
+     */
+    public static final class Builder
+        extends Transform.Builder<
+            PCollection<RunQueryRequest>,
+            PCollection<RunQueryResponse>,
+            RunQuery,
+            RunQuery.Builder> {
+
+      private Builder() {
+        super();
+      }
+
+      private Builder(
+          JodaClock clock,
+          FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
+          RpcQosOptions rpcQosOptions) {
+        super(clock, firestoreStatefulComponentFactory, rpcQosOptions);
+      }
+
+      @Override
+      public RunQuery build() {
+        return genericBuild();
+      }
+
+      @Override
+      RunQuery buildSafe(
+          JodaClock clock,
+          FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
+          RpcQosOptions rpcQosOptions) {
+        return new RunQuery(clock, firestoreStatefulComponentFactory, rpcQosOptions);
+      }
+    }
+  }
+
+  /**
+   * Concrete class representing a {@link PTransform}{@code <}{@link PCollection}{@code <}{@link
+   * BatchGetDocumentsRequest}{@code >, }{@link PTransform}{@code <}{@link
+   * BatchGetDocumentsResponse}{@code >>} which will read from Firestore.
+   *
+   * <p>This class is part of the Firestore Connector DSL, it has a type safe builder accessible via
+   * {@link FirestoreIO#v1()}{@code .}{@link FirestoreV1#read() read()}{@code .}{@link
+   * FirestoreV1.Read#batchGetDocuments() batchGetDocuments()}.
+   *
+   * <p>All request quality-of-service for an instance of this PTransform is scoped to the worker
+   * and configured via {@link BatchGetDocuments.Builder#withRpcQosOptions(RpcQosOptions)}.
+   *
+   * @see FirestoreIO#v1()
+   * @see FirestoreV1#read()
+   * @see FirestoreV1.Read#batchGetDocuments()
+   * @see FirestoreV1.BatchGetDocuments.Builder
+   * @see BatchGetDocumentsRequest
+   * @see BatchGetDocumentsResponse
+   * @see <a target="_blank" rel="noopener noreferrer"
+   *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.Firestore.BatchGetDocuments">google.firestore.v1.Firestore.BatchGetDocuments</a>
+   * @see <a target="_blank" rel="noopener noreferrer"
+   *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.BatchGetDocumentsRequest">google.firestore.v1.BatchGetDocumentsRequest</a>
+   * @see <a target="_blank" rel="noopener noreferrer"
+   *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.BatchGetDocumentsResponse">google.firestore.v1.BatchGetDocumentsResponse</a>
+   */
+  public static final class BatchGetDocuments
+      extends Transform<
+          PCollection<BatchGetDocumentsRequest>,
+          PCollection<BatchGetDocumentsResponse>,
+          BatchGetDocuments,
+          BatchGetDocuments.Builder> {
+
+    private BatchGetDocuments(
+        JodaClock clock,
+        FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
+        RpcQosOptions rpcQosOptions) {
+      super(clock, firestoreStatefulComponentFactory, rpcQosOptions);
+    }
+
+    @Override
+    public PCollection<BatchGetDocumentsResponse> expand(
+        PCollection<BatchGetDocumentsRequest> input) {
+      return input
+          .apply(
+              "batchGetDocuments",
+              ParDo.of(
+                  new BatchGetDocumentsFn(clock, firestoreStatefulComponentFactory, rpcQosOptions)))
+          .apply(Reshuffle.viaRandomKey());
+    }
+
+    @Override
+    public Builder toBuilder() {
+      return new Builder(clock, firestoreStatefulComponentFactory, rpcQosOptions);
+    }
+
+    /**
+     * A type safe builder for {@link BatchGetDocuments} allowing configuration and instantiation.
+     *
+     * <p>This class is part of the Firestore Connector DSL, it has a type safe builder accessible
+     * via {@link FirestoreIO#v1()}{@code .}{@link FirestoreV1#read() read()}{@code .}{@link
+     * FirestoreV1.Read#batchGetDocuments() batchGetDocuments()}.
+     *
+     * <p>
+     *
+     * @see FirestoreIO#v1()
+     * @see FirestoreV1#read()
+     * @see FirestoreV1.Read#batchGetDocuments()
+     * @see FirestoreV1.BatchGetDocuments
+     * @see BatchGetDocumentsRequest
+     * @see BatchGetDocumentsResponse
+     * @see <a target="_blank" rel="noopener noreferrer"
+     *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.Firestore.BatchGetDocuments">google.firestore.v1.Firestore.BatchGetDocuments</a>
+     * @see <a target="_blank" rel="noopener noreferrer"
+     *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.BatchGetDocumentsRequest">google.firestore.v1.BatchGetDocumentsRequest</a>
+     * @see <a target="_blank" rel="noopener noreferrer"
+     *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.BatchGetDocumentsResponse">google.firestore.v1.BatchGetDocumentsResponse</a>
+     */
+    public static final class Builder
+        extends Transform.Builder<
+            PCollection<BatchGetDocumentsRequest>,
+            PCollection<BatchGetDocumentsResponse>,
+            BatchGetDocuments,
+            BatchGetDocuments.Builder> {
+
+      private Builder() {
+        super();
+      }
+
+      public Builder(
+          JodaClock clock,
+          FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
+          RpcQosOptions rpcQosOptions) {
+        super(clock, firestoreStatefulComponentFactory, rpcQosOptions);
+      }
+
+      @Override
+      public BatchGetDocuments build() {
+        return genericBuild();
+      }
+
+      @Override
+      BatchGetDocuments buildSafe(
+          JodaClock clock,
+          FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
+          RpcQosOptions rpcQosOptions) {
+        return new BatchGetDocuments(clock, firestoreStatefulComponentFactory, rpcQosOptions);
+      }
+    }
+  }
+
+  /**
+   * Concrete class representing a {@link PTransform}{@code <}{@link PCollection}{@code <}{@link
+   * PartitionQueryRequest}{@code >, }{@link PTransform}{@code <}{@link RunQueryRequest}{@code >>}
+   * which will read from Firestore.
+   *
+   * <p>Perform the necessary operations and handling of {@link PartitionQueryResponse}s to yield a
+   * number of {@link RunQueryRequest} which are friendly to being executed in parallel.
+   *
+   * <p>This class is part of the Firestore Connector DSL, it has a type safe builder accessible via
+   * {@link FirestoreIO#v1()}{@code .}{@link FirestoreV1#read() read()}{@code .}{@link
+   * FirestoreV1.Read#partitionQuery() partitionQuery()}.
+   *
+   * <p>All request quality-of-service for an instance of this PTransform is scoped to the worker
+   * and configured via {@link PartitionQuery.Builder#withRpcQosOptions(RpcQosOptions)}.
+   *
+   * @see FirestoreIO#v1()
+   * @see FirestoreV1#read()
+   * @see FirestoreV1.Read#partitionQuery()
+   * @see FirestoreV1.PartitionQuery.Builder
+   * @see FirestoreV1.Read#runQuery()
+   * @see FirestoreV1.RunQuery
+   * @see FirestoreV1.RunQuery.Builder
+   * @see PartitionQueryRequest
+   * @see RunQueryResponse
+   * @see <a target="_blank" rel="noopener noreferrer"
+   *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.Firestore.PartitionQuery">google.firestore.v1.Firestore.PartitionQuery</a>
+   * @see <a target="_blank" rel="noopener noreferrer"
+   *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.PartitionQueryRequest">google.firestore.v1.PartitionQueryRequest</a>
+   * @see <a target="_blank" rel="noopener noreferrer"
+   *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.PartitionQueryResponse">google.firestore.v1.PartitionQueryResponse</a>
+   */
+  public static final class PartitionQuery
+      extends Transform<
+          PCollection<PartitionQueryRequest>,
+          PCollection<RunQueryRequest>,
+          PartitionQuery,
+          PartitionQuery.Builder> {
+
+    private final boolean nameOnlyQuery;
+
+    private PartitionQuery(
+        JodaClock clock,
+        FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
+        RpcQosOptions rpcQosOptions,
+        boolean nameOnlyQuery) {
+      super(clock, firestoreStatefulComponentFactory, rpcQosOptions);
+      this.nameOnlyQuery = nameOnlyQuery;
+    }
+
+    @Override
+    public PCollection<RunQueryRequest> expand(PCollection<PartitionQueryRequest> input) {
+      PCollection<RunQueryRequest> queries =
+          input
+              .apply(
+                  "PartitionQuery",
+                  ParDo.of(
+                      new PartitionQueryFn(
+                          clock, firestoreStatefulComponentFactory, rpcQosOptions)))
+              .apply("expand queries", ParDo.of(new PartitionQueryResponseToRunQueryRequest()));
+      if (nameOnlyQuery) {
+        queries =
+            queries.apply(
+                "set name only query",
+                MapElements.via(
+                    new SimpleFunction<RunQueryRequest, RunQueryRequest>() {
+                      @Override
+                      public RunQueryRequest apply(RunQueryRequest input) {
+                        RunQueryRequest.Builder builder = input.toBuilder();
+                        builder
+                            .getStructuredQueryBuilder()
+                            .setSelect(
+                                Projection.newBuilder()
+                                    .addFields(
+                                        FieldReference.newBuilder()
+                                            .setFieldPath("__name__")
+                                            .build())
+                                    .build());
+                        return builder.build();
+                      }
+                    }));
+      }
+      return queries.apply(Reshuffle.viaRandomKey());
+    }
+
+    @Override
+    public Builder toBuilder() {
+      return new Builder(clock, firestoreStatefulComponentFactory, rpcQosOptions, nameOnlyQuery);
+    }
+
+    /**
+     * A type safe builder for {@link PartitionQuery} allowing configuration and instantiation.
+     *
+     * <p>This class is part of the Firestore Connector DSL, it has a type safe builder accessible
+     * via {@link FirestoreIO#v1()}{@code .}{@link FirestoreV1#read() read()}{@code .}{@link
+     * FirestoreV1.Read#partitionQuery() partitionQuery()}.
+     *
+     * <p>
+     *
+     * @see FirestoreIO#v1()
+     * @see FirestoreV1#read()
+     * @see FirestoreV1.Read#partitionQuery()
+     * @see FirestoreV1.PartitionQuery
+     * @see PartitionQueryRequest
+     * @see RunQueryResponse
+     * @see <a target="_blank" rel="noopener noreferrer"
+     *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.Firestore.PartitionQuery">google.firestore.v1.Firestore.PartitionQuery</a>
+     * @see <a target="_blank" rel="noopener noreferrer"
+     *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.PartitionQueryRequest">google.firestore.v1.PartitionQueryRequest</a>
+     * @see <a target="_blank" rel="noopener noreferrer"
+     *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.PartitionQueryResponse">google.firestore.v1.PartitionQueryResponse</a>
+     */
+    public static final class Builder
+        extends Transform.Builder<
+            PCollection<PartitionQueryRequest>,
+            PCollection<RunQueryRequest>,
+            PartitionQuery,
+            FirestoreV1.PartitionQuery.Builder> {
+
+      private boolean nameOnlyQuery = false;
+
+      private Builder() {
+        super();
+      }
+
+      public Builder(
+          JodaClock clock,
+          FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
+          RpcQosOptions rpcQosOptions,
+          boolean nameOnlyQuery) {
+        super(clock, firestoreStatefulComponentFactory, rpcQosOptions);
+        this.nameOnlyQuery = nameOnlyQuery;
+      }
+
+      @Override
+      public PartitionQuery build() {
+        return genericBuild();
+      }
+
+      /**
+       * Update produced queries to only retrieve their {@code __name__} thereby not retrieving any
+       * fields and reducing resource requirements.
+       *
+       * @return this builder
+       */
+      public Builder withNameOnlyQuery() {
+        this.nameOnlyQuery = true;
+        return this;
+      }
+
+      @Override
+      PartitionQuery buildSafe(
+          JodaClock clock,
+          FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
+          RpcQosOptions rpcQosOptions) {
+        return new PartitionQuery(
+            clock, firestoreStatefulComponentFactory, rpcQosOptions, nameOnlyQuery);
+      }
+    }
+
+    /**
+     * DoFn which contains the logic necessary to turn a {@link PartitionQueryRequest} and {@link
+     * PartitionQueryResponse} pair into {@code N} {@link RunQueryRequest}.
+     */
+    static final class PartitionQueryResponseToRunQueryRequest
+        extends DoFn<PartitionQueryPair, RunQueryRequest> {
+
+      /**
+       * When fetching cursors that span multiple pages it is expected (per <a
+       * href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.PartitionQueryRequest">
+       * PartitionQueryRequest.page_token</a>) for the client to sort the cursors before processing
+       * them to define the sub-queries. So here we're defining a Comparator which will sort Cursors
+       * by the first reference value present, then comparing the reference values
+       * lexicographically.
+       */
+      static final Comparator<Cursor> CURSOR_REFERENCE_VALUE_COMPARATOR;
+
+      static {
+        Function<Cursor, Optional<Value>> firstReferenceValue =
+            (Cursor c) ->
+                c.getValuesList().stream()
+                    .filter(
+                        v -> {
+                          String referenceValue = v.getReferenceValue();
+                          return referenceValue != null && !referenceValue.isEmpty();
+                        })
+                    .findFirst();
+        Function<String, String[]> stringToPath = (String s) -> s.split("/");
+        // compare references by their path segments rather than as a whole string to ensure
+        // per path segment comparison is taken into account.
+        Comparator<String[]> pathWiseCompare =
+            (String[] path1, String[] path2) -> {
+              int minLength = Math.min(path1.length, path2.length);
+              for (int i = 0; i < minLength; i++) {
+                String pathSegment1 = path1[i];
+                String pathSegment2 = path2[i];
+                int compare = pathSegment1.compareTo(pathSegment2);
+                if (compare != 0) {
+                  return compare;
+                }
+              }
+              if (path1.length == path2.length) {
+                return 0;
+              } else if (minLength == path1.length) {
+                return -1;
+              } else {
+                return 1;
+              }
+            };
+
+        // Sort those cursors which have no firstReferenceValue at the bottom of the list
+        CURSOR_REFERENCE_VALUE_COMPARATOR =
+            Comparator.comparing(
+                firstReferenceValue,
+                (o1, o2) -> {
+                  if (o1.isPresent() && o2.isPresent()) {
+                    return pathWiseCompare.compare(
+                        stringToPath.apply(o1.get().getReferenceValue()),
+                        stringToPath.apply(o2.get().getReferenceValue()));
+                  } else if (o1.isPresent()) {
+                    return -1;
+                  } else {
+                    return 1;
+                  }
+                });
+      }
+
+      @ProcessElement
+      public void processElement(ProcessContext c) {
+        PartitionQueryPair pair = c.element();
+        PartitionQueryRequest partitionQueryRequest = pair.getRequest();
+        String dbRoot = partitionQueryRequest.getParent();
+        StructuredQuery structuredQuery = partitionQueryRequest.getStructuredQuery();
+        PartitionQueryResponse partitionQueryResponse = pair.getResponse();
+        // create a new list before we sort things
+        List<Cursor> cursors = new ArrayList<>(partitionQueryResponse.getPartitionsList());
+        cursors.sort(CURSOR_REFERENCE_VALUE_COMPARATOR);
+        final int size = cursors.size();
+        if (size == 0) {
+          emit(c, dbRoot, structuredQuery.toBuilder());
+          return;
+        }
+        final int lastIdx = size - 1;
+        for (int i = 0; i < size; i++) {
+          Cursor curr = cursors.get(i);
+
+          if (i == 0) {
+            // first cursor, emit a range of everything up to the current cursor
+            emit(c, dbRoot, structuredQuery.toBuilder().setEndAt(curr));
+          }
+
+          if (0 < i && i <= lastIdx) {
+            Cursor prev = cursors.get(i - 1);
+            // emit a range for values between prev and curr
+            emit(c, dbRoot, structuredQuery.toBuilder().setStartAt(prev).setEndAt(curr));
+          }
+
+          if (i == lastIdx) {
+            // last cursor, emit a range of everything from the current cursor onward
+            emit(c, dbRoot, structuredQuery.toBuilder().setStartAt(curr));
+          }
+        }
+      }
+
+      private void emit(ProcessContext c, String dbRoot, StructuredQuery.Builder builder) {
+        RunQueryRequest runQueryRequest =
+            RunQueryRequest.newBuilder()
+                .setParent(dbRoot)
+                .setStructuredQuery(builder.build())
+                .build();
+        c.output(runQueryRequest);
+      }
+    }
+  }
+
+  /** DoFn to output CollectionIds from a {@link ListCollectionIdsResponse}. */
+  private static final class FlattenListCollectionIdsResponse
+      extends DoFn<ListCollectionIdsResponse, String> {
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      c.element().getCollectionIdsList().forEach(c::output);
+    }
+  }
+
+  /** DoFn to output {@link Document}s from a {@link ListDocumentsResponse}. */
+  private static final class ListDocumentsResponseToDocument
+      extends DoFn<ListDocumentsResponse, Document> {
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      c.element().getDocumentsList().forEach(c::output);
     }
   }
 
@@ -626,6 +1710,7 @@ public final class FirestoreV1 {
         OutT extends POutput,
         TrfmT extends Transform<InT, OutT, TrfmT, BldrT>,
         BldrT extends Transform.Builder<InT, OutT, TrfmT, BldrT>> {
+
       JodaClock clock;
       FirestoreStatefulComponentFactory firestoreStatefulComponentFactory;
       RpcQosOptions rpcQosOptions;
@@ -654,7 +1739,7 @@ public final class FirestoreV1 {
        * @return Down cast this
        */
       @SuppressWarnings({"unchecked", "RedundantSuppression"})
-      private BldrT self() {
+      BldrT self() {
         return (BldrT) this;
       }
 

@@ -76,7 +76,7 @@ public class GroupNonMergingWindowsFunctionsTest {
     Instant now = Instant.now();
     GroupByKeyIterator<String, Integer, IntervalWindow> iteratorUnderTest =
         createGbkIterator(
-            new IntervalWindow(now, now.plus(1)),
+            new IntervalWindow(now, now.plus(Duration.millis(1))),
             IntervalWindow.getCoder(),
             WindowingStrategy.of(FixedWindows.of(Duration.millis(1))));
 

@@ -975,7 +975,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
    *       options for the current pipeline.
    * </ul>
    *
-   * <p>Returns a double representing the size of the current element and restriction.
+   * <p>Returns a non-negative double representing the size of the current element and restriction.
    *
    * <p>Splittable {@link DoFn}s should only provide this method if the default {@link
    * RestrictionTracker.HasProgress} implementation within the {@link RestrictionTracker} is an

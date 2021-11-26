@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.aws2.sqs;
 import java.net.URI;
 import org.elasticmq.rest.sqs.SQSRestServer;
 import org.elasticmq.rest.sqs.SQSRestServerBuilder;
+import org.junit.rules.ExternalResource;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
@@ -27,22 +28,21 @@ import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.CreateQueueRequest;
 import software.amazon.awssdk.services.sqs.model.CreateQueueResponse;
 
-class EmbeddedSqsServer {
+class EmbeddedSqsServer extends ExternalResource {
   private static SQSRestServer sqsRestServer;
   private static SqsClient client;
   private static String queueUrl;
-  private static int port = 9234;
-  private static String endPoint = String.format("http://localhost:%d", port);
   private static String queueName = "test";
 
-  static void start() {
-    sqsRestServer = SQSRestServerBuilder.withPort(port).start();
-
+  @Override
+  protected void before() {
+    sqsRestServer = SQSRestServerBuilder.withDynamicPort().start();
+    int port = sqsRestServer.waitUntilStarted().localAddress().getPort();
     client =
         SqsClient.builder()
             .credentialsProvider(
                 StaticCredentialsProvider.create(AwsBasicCredentials.create("x", "x")))
-            .endpointOverride(URI.create(endPoint))
+            .endpointOverride(URI.create(String.format("http://localhost:%d", port)))
             .region(Region.US_WEST_2)
             .build();
 
@@ -52,15 +52,17 @@ class EmbeddedSqsServer {
     queueUrl = queue.queueUrl();
   }
 
-  static SqsClient getClient() {
+  public SqsClient getClient() {
     return client;
   }
 
-  static String getQueueUrl() {
+  public String getQueueUrl() {
     return queueUrl;
   }
 
-  static void stop() {
+  @Override
+  protected void after() {
     sqsRestServer.stopAndWait();
+    client.close();
   }
 }

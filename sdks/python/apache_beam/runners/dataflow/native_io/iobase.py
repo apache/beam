@@ -334,7 +334,7 @@ class _NativeWrite(ptransform.PTransform):
     Args:
       sink: Sink to use for the write
     """
-    super(_NativeWrite, self).__init__()
+    super().__init__()
     self.sink = sink
 
   def expand(self, pcoll):

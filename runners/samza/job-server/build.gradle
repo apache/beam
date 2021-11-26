@@ -24,6 +24,7 @@ apply plugin: 'application'
 mainClassName = "org.apache.beam.runners.samza.SamzaJobServerDriver"
 
 applyJavaNature(
+  suppressUnusedVariable: true,
     automaticModuleName: 'org.apache.beam.runners.samza.jobserver',
     archivesBaseName: project.hasProperty('archives_base_name') ? archives_base_name : archivesBaseName,
     validateShadowJar: false,
@@ -69,14 +70,11 @@ createPortableValidatesRunnerTask(
         pipelineOpts: pipelineOptions,
         environment: BeamModulePlugin.PortableValidatesRunnerConfiguration.Environment.EMBEDDED,
         testCategories: {
+            includeCategories 'org.apache.beam.sdk.testing.NeedsRunner'
             includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-            // TODO: BEAM-12348
-            excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
-            // TODO: BEAM-12349
-            excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
             // TODO: BEAM-12350
             excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
-
+            // TODO: BEAM-12681
             excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
             // Larger keys are possible, but they require more memory.
             excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above10MB'
@@ -95,13 +93,124 @@ createPortableValidatesRunnerTask(
             excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
             excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
             excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
-            excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+            excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'
+            // TODO(BEAM-12821)
+            excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithMultipleStages'
             excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
-            excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
+            excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'
         },
         testFilter: {
+            // TODO(BEAM-12677)
+            excludeTestsMatching "org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2"
             excludeTestsMatching "org.apache.beam.sdk.transforms.FlattenTest.testEmptyFlattenAsSideInput"
             excludeTestsMatching "org.apache.beam.sdk.transforms.FlattenTest.testFlattenPCollectionsEmptyThenParDo"
             excludeTestsMatching "org.apache.beam.sdk.transforms.FlattenTest.testFlattenPCollectionsEmpty"
+            // TODO(BEAM-10025)
+            excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testOutputTimestampDefaultUnbounded'
+            // TODO(BEAM-11479)
+            excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testOutputTimestamp'
+            // TODO(BEAM-12035)
+            excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testFirstElementLate'
+            // TODO(BEAM-12036)
+            excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testLateDataAccumulating'
+            // TODO(BEAM-12886)
+            excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupByKeyTest$WindowTests.testWindowFnPostMerging'
+            // TODO(BEAM-12887)
+            excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testParDoShiftTimestampInvalid'
+            // TODO(BEAM-12888)
+            excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testParDoShiftTimestampInvalidZeroAllowed'
+            // TODO(BEAM-12889)
+            excludeTestsMatching 'org.apache.beam.sdk.transforms.DeduplicateTest.testEventTime'
+            // TODO(BEAM-12890)
+            excludeTestsMatching 'org.apache.beam.sdk.io.TFRecordIOTest.testReadInvalidRecord'
+            // TODO(BEAM-12891)
+            excludeTestsMatching 'org.apache.beam.sdk.io.TFRecordIOTest.testReadInvalidDataMask'
+            // TODO(BEAM-12892)
+            excludeTestsMatching 'org.apache.beam.sdk.io.TFRecordIOTest.testReadInvalidLengthMask'
+            // TODO(BEAM-12893)
+            excludeTestsMatching 'org.apache.beam.sdk.io.TextIOReadTest$CompressedReadTest.testCompressedReadWithoutExtension'
+            // TODO(BEAM-12894)
+            excludeTestsMatching 'org.apache.beam.sdk.io.WriteFilesTest.testWithRunnerDeterminedShardingUnbounded'
+            // TODO(BEAM-128945)
+            excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$MultipleInputsAndOutputTests.testParDoWritingToUndeclaredTag'
+            // TODO(BEAM-12896)
+            excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$MultipleInputsAndOutputTests.testParDoReadingFromUnknownSideInput'
+            // TODO(BEAM-12897)
+            excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testMapSideInputWithNullValuesCatchesDuplicates'
+
+            // TODO(BEAM-12743)
+            excludeTestsMatching 'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testEncodingNPException'
+            excludeTestsMatching 'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testEncodingIOException'
+            excludeTestsMatching 'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testDecodingNPException'
+            excludeTestsMatching 'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testDecodingIOException'
+            // TODO(BEAM-12744)
+            excludeTestsMatching 'org.apache.beam.sdk.PipelineTest.testEmptyPipeline'
+            // TODO(BEAM-12745)
+            excludeTestsMatching 'org.apache.beam.sdk.io.AvroIOTest*'
+            // TODO(BEAM-12746)
+            excludeTestsMatching 'org.apache.beam.sdk.io.FileIOTest*'
+            // TODO(BEAM-12747)
+            excludeTestsMatching 'org.apache.beam.sdk.transforms.WithTimestampsTest.withTimestampsBackwardsInTimeShouldThrow'
+            excludeTestsMatching 'org.apache.beam.sdk.transforms.WithTimestampsTest.withTimestampsWithNullTimestampShouldThrow'
+            // TODO(BEAM-12748)
+            excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testEmptySingletonSideInput'
+            excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testNonSingletonSideInput'
+            // TODO(BEAM-12749)
+            excludeTestsMatching 'org.apache.beam.sdk.transforms.MapElementsTest.testMapSimpleFunction'
+            // TODO(BEAM-12750)
+            excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testInGlobalWindowBatchSizeByteSizeFn'
+            excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testInStreamingMode'
+            excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testWithShardedKeyInGlobalWindow'
+            excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testWithUnevenBatches'
+            excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testInGlobalWindowBatchSizeByteSize'
+            // TODO(BEAM-10025)
+            excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testOutputTimestampDefaultUnbounded'
+            // TODO(BEAM-11479)
+            excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testOutputTimestamp'
+            // TODO(BEAM-11479)
+            excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testRelativeTimerWithOutputTimestamp'
         }
+)
+
+def jobPort = BeamModulePlugin.getRandomPort()
+def artifactPort = BeamModulePlugin.getRandomPort()
+
+def setupTask = project.tasks.create(name: "samzaJobServerSetup", type: Exec) {
+    dependsOn shadowJar
+    def pythonDir = project.project(":sdks:python").projectDir
+    def samzaJobServerJar = shadowJar.archivePath
+
+    executable 'sh'
+    args '-c', "$pythonDir/scripts/run_job_server.sh stop --group_id ${project.name} && $pythonDir/scripts/run_job_server.sh start --group_id ${project.name} --job_port ${jobPort} --artifact_port ${artifactPort} --job_server_jar ${samzaJobServerJar}"
+}
+
+def cleanupTask = project.tasks.create(name: "samzaJobServerCleanup", type: Exec) {
+    def pythonDir = project.project(":sdks:python").projectDir
+
+    executable 'sh'
+    args '-c', "$pythonDir/scripts/run_job_server.sh stop --group_id ${project.name}"
+}
+
+createCrossLanguageValidatesRunnerTask(
+        startJobServer: setupTask,
+        cleanupJobServer: cleanupTask,
+        classpath: configurations.validatesPortableRunner,
+        numParallelTests: 1,
+        pythonPipelineOptions: [
+                "--runner=PortableRunner",
+                "--job_endpoint=localhost:${jobPort}",
+                "--environment_cache_millis=10000",
+                "--experiments=beam_fn_api",
+        ],
+        javaPipelineOptions: [
+                "--runner=PortableRunner",
+                "--jobEndpoint=localhost:${jobPort}",
+                "--environmentCacheMillis=10000",
+                "--experiments=beam_fn_api",
+        ],
+        goScriptOptions: [
+            "--runner samza",
+            "--tests \"./test/integration/xlang ./test/integration/io/xlang/...\"",
+            "--endpoint localhost:${jobPort}",
+        ],
 )

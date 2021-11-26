@@ -19,6 +19,7 @@ import datetime
 import logging
 import random
 import string
+import typing
 import unittest
 
 import mock
@@ -41,6 +42,10 @@ try:
   from apache_beam.io.gcp.experimental.spannerio import MutationGroup
   from apache_beam.io.gcp.experimental.spannerio import WriteToSpanner
   from apache_beam.io.gcp.experimental.spannerio import _BatchFn
+  from apache_beam.io.gcp import resource_identifiers
+  from apache_beam.metrics import monitoring_infos
+  from apache_beam.metrics.execution import MetricsEnvironment
+  from apache_beam.metrics.metricbase import MetricName
 except ImportError:
   spanner = None
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -336,7 +341,10 @@ class SpannerReadTest(unittest.TestCase):
       self, mock_batch_snapshot_class, mock_client_class):
     with self.assertRaises(ValueError):
       p = TestPipeline()
-      transaction = (p | beam.Create([{"invalid": "transaction"}]))
+      transaction = (
+          p | beam.Create([{
+              "invalid": "transaction"
+          }]).with_output_types(typing.Any))
       _ = (
           p | 'with query' >> ReadFromSpanner(
               project_id=TEST_PROJECT_ID,

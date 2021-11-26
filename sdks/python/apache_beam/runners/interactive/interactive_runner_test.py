@@ -267,7 +267,7 @@ class InteractiveRunnerTest(unittest.TestCase):
       ib.watch({'p': p})
 
     with cell:  # Cell 2
-      # pylint: disable=range-builtin-not-iterating
+      # pylint: disable=bad-option-value
       init = p | 'Init' >> beam.Create(range(5))
 
     with cell:  # Cell 3
@@ -407,6 +407,81 @@ class InteractiveRunnerTest(unittest.TestCase):
     pd.testing.assert_series_equal(
         df_expected['cube'],
         ib.collect(df['cube'], n=10).reset_index(drop=True))
+
+  @unittest.skipIf(
+      not ie.current_env().is_interactive_ready,
+      '[interactive] dependency is not installed.')
+  @unittest.skipIf(sys.platform == "win32", "[BEAM-10627]")
+  @patch('IPython.get_ipython', new_callable=mock_get_ipython)
+  def test_dataframe_caching(self, cell):
+
+    # Create a pipeline that exercises the DataFrame API. This will also use
+    # caching in the background.
+    with cell:  # Cell 1
+      p = beam.Pipeline(interactive_runner.InteractiveRunner())
+      ib.watch({'p': p})
+
+    with cell:  # Cell 2
+      data = p | beam.Create([
+          1, 2, 3
+      ]) | beam.Map(lambda x: beam.Row(square=x * x, cube=x * x * x))
+
+      with beam.dataframe.allow_non_parallel_operations():
+        df = to_dataframe(data).reset_index(drop=True)
+
+      ib.collect(df)
+
+    with cell:  # Cell 3
+      df['output'] = df['square'] * df['cube']
+      ib.collect(df)
+
+    with cell:  # Cell 4
+      df['output'] = 0
+      ib.collect(df)
+
+    # We use a trace through the graph to perform an isomorphism test. The end
+    # output should look like a linear graph. This indicates that the dataframe
+    # transform was correctly broken into separate pieces to cache. If caching
+    # isn't enabled, all the dataframe computation nodes are connected to a
+    # single shared node.
+    trace = []
+
+    # Only look at the top-level transforms for the isomorphism. The test
+    # doesn't care about the transform implementations, just the overall shape.
+    class TopLevelTracer(beam.pipeline.PipelineVisitor):
+      def _find_root_producer(self, node: beam.pipeline.AppliedPTransform):
+        if node is None or not node.full_label:
+          return None
+
+        parent = self._find_root_producer(node.parent)
+        if parent is None:
+          return node
+
+        return parent
+
+      def _add_to_trace(self, node, trace):
+        if '/' not in str(node):
+          if node.inputs:
+            producer = self._find_root_producer(node.inputs[0].producer)
+            producer_name = producer.full_label if producer else ''
+            trace.append((producer_name, node.full_label))
+
+      def visit_transform(self, node: beam.pipeline.AppliedPTransform):
+        self._add_to_trace(node, trace)
+
+      def enter_composite_transform(
+          self, node: beam.pipeline.AppliedPTransform):
+        self._add_to_trace(node, trace)
+
+    p.visit(TopLevelTracer())
+
+    # Do the isomorphism test which states that the topological sort of the
+    # graph yields a linear graph.
+    trace_string = '\n'.join(str(t) for t in trace)
+    prev_producer = ''
+    for producer, consumer in trace:
+      self.assertEqual(producer, prev_producer, trace_string)
+      prev_producer = consumer
 
 
 if __name__ == '__main__':

@@ -50,6 +50,11 @@ public class GroupIntoBatchesOverride {
   static class BatchGroupIntoBatchesOverrideFactory<K, V>
       implements PTransformOverrideFactory<
           PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>, GroupIntoBatches<K, V>> {
+    private final DataflowRunner runner;
+
+    BatchGroupIntoBatchesOverrideFactory(DataflowRunner runner) {
+      this.runner = runner;
+    }
 
     @Override
     public PTransformReplacement<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>>
@@ -59,7 +64,10 @@ public class GroupIntoBatchesOverride {
                 transform) {
       return PTransformReplacement.of(
           PTransformReplacements.getSingletonMainInput(transform),
-          new BatchGroupIntoBatches<>(transform.getTransform().getBatchingParams()));
+          new BatchGroupIntoBatches<>(
+              transform.getTransform().getBatchingParams(),
+              runner,
+              PTransformReplacements.getSingletonMainOutput(transform)));
     }
 
     @Override
@@ -73,13 +81,25 @@ public class GroupIntoBatchesOverride {
   static class BatchGroupIntoBatches<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>> {
     private final BatchingParams<V> batchingParams;
+    private final transient DataflowRunner runner;
+    private final transient PCollection<KV<K, Iterable<V>>> originalOutput;
 
-    private BatchGroupIntoBatches(BatchingParams<V> batchingParams) {
+    private BatchGroupIntoBatches(
+        BatchingParams<V> batchingParams,
+        DataflowRunner runner,
+        PCollection<KV<K, Iterable<V>>> originalOutput) {
       this.batchingParams = batchingParams;
+      this.runner = runner;
+      this.originalOutput = originalOutput;
     }
 
     @Override
     public PCollection<KV<K, Iterable<V>>> expand(PCollection<KV<K, V>> input) {
+      // Record the output PCollection of the original transform since the new output will be
+      // replaced by the original one when the replacement transform is wired to other nodes in the
+      // graph, although the old and the new outputs are effectively the same.
+      runner.maybeRecordPCollectionPreservedKeys(originalOutput);
+
       KvCoder<K, V> inputCoder = (KvCoder<K, V>) input.getCoder();
       final Coder<V> valueCoder = (Coder<V>) inputCoder.getCoderArguments().get(1);
       final SerializableFunction<V, Long> weigher = batchingParams.getWeigher(valueCoder);
@@ -105,9 +125,7 @@ public class GroupIntoBatchesOverride {
                             || (maxBatchSizeBytes != Long.MAX_VALUE
                                 && batchSizeBytes >= maxBatchSizeBytes)) {
                           c.output(KV.of(c.element().getKey(), currentBatch));
-                          // Call clear() since that allows us to reuse the array memory for
-                          // subsequent batches.
-                          currentBatch.clear();
+                          currentBatch = Lists.newArrayList();
                           batchSizeBytes = 0;
                         }
                       }
@@ -124,6 +142,11 @@ public class GroupIntoBatchesOverride {
           PCollection<KV<K, V>>,
           PCollection<KV<ShardedKey<K>, Iterable<V>>>,
           GroupIntoBatches<K, V>.WithShardedKey> {
+    private final DataflowRunner runner;
+
+    BatchGroupIntoBatchesWithShardedKeyOverrideFactory(DataflowRunner runner) {
+      this.runner = runner;
+    }
 
     @Override
     public PTransformReplacement<PCollection<KV<K, V>>, PCollection<KV<ShardedKey<K>, Iterable<V>>>>
@@ -135,7 +158,10 @@ public class GroupIntoBatchesOverride {
                 transform) {
       return PTransformReplacement.of(
           PTransformReplacements.getSingletonMainInput(transform),
-          new BatchGroupIntoBatchesWithShardedKey<>(transform.getTransform().getBatchingParams()));
+          new BatchGroupIntoBatchesWithShardedKey<>(
+              transform.getTransform().getBatchingParams(),
+              runner,
+              PTransformReplacements.getSingletonMainOutput(transform)));
     }
 
     @Override
@@ -154,14 +180,84 @@ public class GroupIntoBatchesOverride {
       extends PTransform<PCollection<KV<K, V>>, PCollection<KV<ShardedKey<K>, Iterable<V>>>> {
 
     private final BatchingParams<V> batchingParams;
+    private final transient DataflowRunner runner;
+    private final transient PCollection<KV<ShardedKey<K>, Iterable<V>>> originalOutput;
 
-    private BatchGroupIntoBatchesWithShardedKey(BatchingParams<V> batchingParams) {
+    private BatchGroupIntoBatchesWithShardedKey(
+        BatchingParams<V> batchingParams,
+        DataflowRunner runner,
+        PCollection<KV<ShardedKey<K>, Iterable<V>>> originalOutput) {
       this.batchingParams = batchingParams;
+      this.runner = runner;
+      this.originalOutput = originalOutput;
     }
 
     @Override
     public PCollection<KV<ShardedKey<K>, Iterable<V>>> expand(PCollection<KV<K, V>> input) {
-      return shardKeys(input).apply(new BatchGroupIntoBatches<>(batchingParams));
+      return shardKeys(input)
+          .apply(new BatchGroupIntoBatches<>(batchingParams, runner, originalOutput));
+    }
+  }
+
+  static class StreamingGroupIntoBatchesOverrideFactory<K, V>
+      implements PTransformOverrideFactory<
+          PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>, GroupIntoBatches<K, V>> {
+
+    private final DataflowRunner runner;
+
+    StreamingGroupIntoBatchesOverrideFactory(DataflowRunner runner) {
+      this.runner = runner;
+    }
+
+    @Override
+    public PTransformReplacement<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>>
+        getReplacementTransform(
+            AppliedPTransform<
+                    PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>, GroupIntoBatches<K, V>>
+                transform) {
+      return PTransformReplacement.of(
+          PTransformReplacements.getSingletonMainInput(transform),
+          new StreamingGroupIntoBatches<>(
+              runner,
+              transform.getTransform(),
+              PTransformReplacements.getSingletonMainOutput(transform)));
+    }
+
+    @Override
+    public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PCollection<?>> outputs, PCollection<KV<K, Iterable<V>>> newOutput) {
+      return ReplacementOutputs.singleton(outputs, newOutput);
+    }
+  }
+
+  /**
+   * Specialized implementation of {@link GroupIntoBatches} for unbounded Dataflow pipelines. The
+   * override does the same thing as the original transform but additionally records the output in
+   * order to append required step properties during the graph translation.
+   */
+  static class StreamingGroupIntoBatches<K, V>
+      extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>> {
+
+    private final transient DataflowRunner runner;
+    private final GroupIntoBatches<K, V> originalTransform;
+    private final transient PCollection<KV<K, Iterable<V>>> originalOutput;
+
+    public StreamingGroupIntoBatches(
+        DataflowRunner runner,
+        GroupIntoBatches<K, V> original,
+        PCollection<KV<K, Iterable<V>>> output) {
+      this.runner = runner;
+      this.originalTransform = original;
+      this.originalOutput = output;
+    }
+
+    @Override
+    public PCollection<KV<K, Iterable<V>>> expand(PCollection<KV<K, V>> input) {
+      // Record the output PCollection of the original transform since the new output will be
+      // replaced by the original one when the replacement transform is wired to other nodes in the
+      // graph, although the old and the new outputs are effectively the same.
+      runner.maybeRecordPCollectionPreservedKeys(originalOutput);
+      return input.apply(originalTransform);
     }
   }
 

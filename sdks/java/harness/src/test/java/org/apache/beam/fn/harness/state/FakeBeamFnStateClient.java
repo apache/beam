@@ -73,8 +73,8 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
   }
 
   @Override
-  public void handle(
-      StateRequest.Builder requestBuilder, CompletableFuture<StateResponse> responseFuture) {
+  public CompletableFuture<StateResponse> handle(StateRequest.Builder requestBuilder) {
+
     // The id should never be filled out
     assertEquals("", requestBuilder.getId());
     requestBuilder.setId(generateId());
@@ -138,10 +138,15 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
             String.format("Unknown request type %s", request.getRequestCase()));
     }
 
-    responseFuture.complete(response.setId(requestBuilder.getId()).build());
+    CompletableFuture<StateResponse> responseFuture = new CompletableFuture<>();
+    return CompletableFuture.completedFuture(response.setId(requestBuilder.getId()).build());
   }
 
   private String generateId() {
     return Integer.toString(++currentId);
+  }
+
+  public int getCallCount() {
+    return currentId;
   }
 }

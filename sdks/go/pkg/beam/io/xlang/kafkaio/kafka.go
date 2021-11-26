@@ -47,10 +47,9 @@ package kafkaio
 import (
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
 func init() {
@@ -81,8 +80,8 @@ const (
 	// be found in Java's KafkaIO documentation.
 	LogAppendTime policy = "LogAppendTime"
 
-	readURN  = "beam:external:java:kafka:read:v1"
-	writeURN = "beam:external:java:kafka:write:v1"
+	readURN  = "beam:transform:org.apache.beam:kafka_read_without_metadata:v1"
+	writeURN = "beam:transform:org.apache.beam:kafka_write:v1"
 )
 
 // Read is a cross-language PTransform which reads from Kafka and returns a
@@ -131,7 +130,7 @@ func Read(s beam.Scope, addr string, servers string, topics []string, opts ...re
 	pl := beam.CrossLanguagePayload(rpl)
 	outT := beam.UnnamedOutput(typex.NewKV(typex.New(rcfg.key), typex.New(rcfg.val)))
 	out := beam.CrossLanguage(s, readURN, pl, addr, nil, outT)
-	return out[graph.UnnamedOutputTag]
+	return out[beam.UnnamedOutputTag()]
 }
 
 type readOption func(*readConfig)

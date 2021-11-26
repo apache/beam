@@ -48,7 +48,8 @@ import org.joda.time.Instant;
  *   <li>Record start of trying to send request
  *   <li>Record success or failure state of send request attempt
  *   <li>If success output all returned responses
- *   <li>If failure check retry ability ({@link RpcAttempt#checkCanRetry(RuntimeException)})
+ *   <li>If failure check retry ability ({@link RpcAttempt#checkCanRetry(Instant,
+ *       RuntimeException)})
  *       <ol style="margin-top: 0">
  *         <li>Ensure the request has budget to retry ({@link RpcQosOptions#getMaxAttempts()})
  *         <li>Ensure the error is not a non-retryable error
@@ -125,7 +126,7 @@ interface RpcQos {
     boolean awaitSafeToProceed(Instant start) throws InterruptedException;
 
     /**
-     * Determine if an rpc can be retried given {@code exception}.
+     * Determine if an rpc can be retried given {@code instant} and {@code exception}.
      *
      * <p>If a backoff is necessary before retrying this method can block for backoff before
      * returning.
@@ -133,10 +134,11 @@ interface RpcQos {
      * <p>If no retry is available this {@link RpcAttempt} will move to a terminal failed state and
      * will error if further interaction is attempted.
      *
+     * @param instant The instant with which to evaluate retryability
      * @param exception Exception to evaluate for retry ability
      * @throws InterruptedException if this thread is interrupted while waiting
      */
-    void checkCanRetry(RuntimeException exception) throws InterruptedException;
+    void checkCanRetry(Instant instant, RuntimeException exception) throws InterruptedException;
 
     /**
      * Mark this {@link RpcAttempt} as having completed successfully, moving to a terminal success

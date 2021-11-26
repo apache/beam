@@ -23,9 +23,10 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/hooks"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	"github.com/golang/protobuf/ptypes"
 )
 
@@ -95,6 +96,28 @@ func convertSeverity(sev log.Severity) fnpb.LogEntry_Severity_Enum {
 	}
 }
 
+type remoteLoggingKey string
+
+// DefaultRemoteLoggingHook is the key used for the default remote logging hook.
+// If a runner wants to use an alternative logging solution, it can be
+// disabled with hooks.DisableHook(harness.DefaultRemoteLoggingHook).
+const DefaultRemoteLoggingHook = "default_remote_logging"
+
+var loggingEndpointCtxKey = remoteLoggingKey(DefaultRemoteLoggingHook)
+
+func init() {
+	hooks.RegisterHook(DefaultRemoteLoggingHook, func(args []string) hooks.Hook {
+		return hooks.Hook{
+			Init: func(ctx context.Context) (context.Context, error) {
+				loggingEndpoint := ctx.Value(loggingEndpointCtxKey)
+				setupRemoteLogging(ctx, loggingEndpoint.(string))
+				return ctx, nil
+			},
+		}
+	})
+	hooks.EnableHook(DefaultRemoteLoggingHook)
+}
+
 // setupRemoteLogging redirects local log messages to FnHarness. It will
 // try to reconnect, if a connection goes bad. Falls back to stdout.
 func setupRemoteLogging(ctx context.Context, endpoint string) {
@@ -114,7 +137,7 @@ func (w *remoteWriter) Run(ctx context.Context) error {
 	for {
 		err := w.connect(ctx)
 		if err == io.EOF {
-			fmt.Fprintf(os.Stderr, "Remote logging shutting down.")
+			fmt.Fprintf(os.Stderr, "Remote logging shutting down.\n")
 			return nil
 		}
 

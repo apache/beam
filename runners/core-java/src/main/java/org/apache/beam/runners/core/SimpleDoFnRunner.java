@@ -287,7 +287,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       }
     }
 
-    private final Context context = new Context();
+    private final DoFnStartBundleArgumentProvider.Context context =
+        new DoFnStartBundleArgumentProvider.Context();
 
     @Override
     public PipelineOptions pipelineOptions() {
@@ -330,7 +331,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       }
     }
 
-    private final Context context = new Context();
+    private final DoFnFinishBundleArgumentProvider.Context context =
+        new DoFnFinishBundleArgumentProvider.Context();
 
     @Override
     public PipelineOptions pipelineOptions() {
@@ -1124,24 +1126,29 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public void set(Instant target) {
       this.target = target;
-      verifyAbsoluteTimeDomain();
       setAndVerifyOutputTimestamp();
       setUnderlyingTimer();
     }
 
     @Override
     public void setRelative() {
-      Instant now = getCurrentTime();
+      Instant now = getCurrentRelativeTime();
       if (period.equals(Duration.ZERO)) {
         target = now.plus(offset);
       } else {
         long millisSinceStart = now.plus(offset).getMillis() % period.getMillis();
-        target = millisSinceStart == 0 ? now : now.plus(period).minus(millisSinceStart);
+        target =
+            millisSinceStart == 0 ? now : now.plus(period).minus(Duration.millis(millisSinceStart));
       }
       target = minTargetAndGcTime(target);
 
       setAndVerifyOutputTimestamp();
       setUnderlyingTimer();
+    }
+
+    @Override
+    public void clear() {
+      timerInternals.deleteTimer(namespace, timerId, timerFamilyId, spec.getTimeDomain());
     }
 
     @Override
@@ -1174,14 +1181,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public Timer withOutputTimestamp(Instant outputTimestamp) {
       this.outputTimestamp = outputTimestamp;
       return this;
-    }
-
-    /** Verifies that the time domain of this timer is acceptable for absolute timers. */
-    private void verifyAbsoluteTimeDomain() {
-      if (!TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
-        throw new IllegalStateException(
-            "Cannot only set relative timers in processing time domain." + " Use #setRelative()");
-      }
     }
 
     /**
@@ -1250,8 +1249,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
           namespace, timerId, timerFamilyId, target, outputTimestamp, spec.getTimeDomain());
     }
 
-    private Instant getCurrentTime() {
-      switch (spec.getTimeDomain()) {
+    @Override
+    public Instant getCurrentRelativeTime() {
+      return getCurrentTime(spec.getTimeDomain());
+    }
+
+    private Instant getCurrentTime(TimeDomain timeDomain) {
+      switch (timeDomain) {
         case EVENT_TIME:
           return timerInternals.currentInputWatermarkTime();
         case PROCESSING_TIME:

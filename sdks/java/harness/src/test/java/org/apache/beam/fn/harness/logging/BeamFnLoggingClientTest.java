@@ -50,13 +50,14 @@ import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Tests for {@link BeamFnLoggingClient}. */
 @RunWith(JUnit4.class)
 public class BeamFnLoggingClientTest {
-
+  @Rule public TestRule restoreLogging = new RestoreBeamFnLoggingMDC();
   private static final LogRecord FILTERED_RECORD;
   private static final LogRecord TEST_RECORD;
   private static final LogRecord TEST_RECORD_WITH_EXCEPTION;
@@ -78,6 +79,7 @@ public class BeamFnLoggingClientTest {
 
   private static final BeamFnApi.LogEntry TEST_ENTRY =
       BeamFnApi.LogEntry.newBuilder()
+          .setInstructionId("instruction-1")
           .setSeverity(BeamFnApi.LogEntry.Severity.Enum.DEBUG)
           .setMessage("Message")
           .setThread("12345")
@@ -86,6 +88,7 @@ public class BeamFnLoggingClientTest {
           .build();
   private static final BeamFnApi.LogEntry TEST_ENTRY_WITH_EXCEPTION =
       BeamFnApi.LogEntry.newBuilder()
+          .setInstructionId("instruction-1")
           .setSeverity(BeamFnApi.LogEntry.Severity.Enum.WARN)
           .setMessage("MessageWithException")
           .setTrace(getStackTraceAsString(TEST_RECORD_WITH_EXCEPTION.getThrown()))
@@ -97,6 +100,7 @@ public class BeamFnLoggingClientTest {
 
   @Test
   public void testLogging() throws Exception {
+    BeamFnLoggingMDC.setInstructionId("instruction-1");
     AtomicBoolean clientClosedStream = new AtomicBoolean();
     Collection<BeamFnApi.LogEntry> values = new ConcurrentLinkedQueue<>();
     AtomicReference<StreamObserver<BeamFnApi.LogControl>> outboundServerObserver =
@@ -175,6 +179,7 @@ public class BeamFnLoggingClientTest {
 
   @Test
   public void testWhenServerFailsThatClientIsAbleToCleanup() throws Exception {
+    BeamFnLoggingMDC.setInstructionId("instruction-1");
     Collection<BeamFnApi.LogEntry> values = new ConcurrentLinkedQueue<>();
     AtomicReference<StreamObserver<BeamFnApi.LogControl>> outboundServerObserver =
         new AtomicReference<>();
@@ -244,6 +249,7 @@ public class BeamFnLoggingClientTest {
 
   @Test
   public void testWhenServerHangsUpEarlyThatClientIsAbleCleanup() throws Exception {
+    BeamFnLoggingMDC.setInstructionId("instruction-1");
     Collection<BeamFnApi.LogEntry> values = new ConcurrentLinkedQueue<>();
     AtomicReference<StreamObserver<BeamFnApi.LogControl>> outboundServerObserver =
         new AtomicReference<>();

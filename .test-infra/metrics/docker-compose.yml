@@ -64,6 +64,7 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=<GrafanaPasswordHere>
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_NAME=Beam
+      - GF_INSTALL_PLUGINS=marcusolsson-json-datasource
       - PSQL_DB_HOST=beampostgresql
       - PSQL_DB_PORT=5432
       - PSQL_DB_DBNAME=beam_metrics

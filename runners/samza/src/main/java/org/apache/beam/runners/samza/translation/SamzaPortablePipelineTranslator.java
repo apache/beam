@@ -17,10 +17,14 @@
  */
 package org.apache.beam.runners.samza.translation;
 
+import com.google.auto.service.AutoService;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.ServiceLoader;
+import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
@@ -33,6 +37,7 @@ import org.slf4j.LoggerFactory;
  * pipeline
  */
 @SuppressWarnings({
+  "keyfor",
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
@@ -43,7 +48,8 @@ public class SamzaPortablePipelineTranslator {
 
   private static Map<String, TransformTranslator<?>> loadTranslators() {
     Map<String, TransformTranslator<?>> translators = new HashMap<>();
-    for (SamzaTranslatorRegistrar registrar : ServiceLoader.load(SamzaTranslatorRegistrar.class)) {
+    for (SamzaPortableTranslatorRegistrar registrar :
+        ServiceLoader.load(SamzaPortableTranslatorRegistrar.class)) {
       translators.putAll(registrar.getTransformTranslators());
     }
     LOG.info("{} translators loaded.", translators.size());
@@ -83,6 +89,28 @@ public class SamzaPortablePipelineTranslator {
         TransformConfigGenerator configGenerator = (TransformConfigGenerator) translator;
         configBuilder.putAll(configGenerator.createPortableConfig(transform, options));
       }
+    }
+  }
+
+  public static Set<String> knownUrns() {
+    return TRANSLATORS.keySet();
+  }
+
+  /** Registers Samza translators. */
+  @AutoService(SamzaPortableTranslatorRegistrar.class)
+  public static class SamzaTranslators implements SamzaPortableTranslatorRegistrar {
+
+    @Override
+    public Map<String, TransformTranslator<?>> getTransformTranslators() {
+      return ImmutableMap.<String, TransformTranslator<?>>builder()
+          // Re-enable after BEAM-12999 is completed
+          //          .put(PTransformTranslation.RESHUFFLE_URN, new ReshuffleTranslator<>())
+          .put(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, new GroupByKeyTranslator<>())
+          .put(PTransformTranslation.FLATTEN_TRANSFORM_URN, new FlattenPCollectionsTranslator<>())
+          .put(PTransformTranslation.IMPULSE_TRANSFORM_URN, new ImpulseTranslator())
+          .put(PTransformTranslation.TEST_STREAM_TRANSFORM_URN, new SamzaTestStreamTranslator<>())
+          .put(ExecutableStage.URN, new ParDoBoundMultiTranslator<>())
+          .build();
     }
   }
 }

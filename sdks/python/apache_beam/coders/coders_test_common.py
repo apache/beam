@@ -128,12 +128,12 @@ class CodersTest(unittest.TestCase):
       False,
   ]
   test_values = test_values_deterministic + [
-      dict(),
+      {},
       {
           'a': 'b'
       },
       {
-          0: dict(), 1: len
+          0: {}, 1: len
       },
       set(),
       {'a', 'b'},
@@ -157,9 +157,11 @@ class CodersTest(unittest.TestCase):
         coders.FastCoder,
         coders.ListLikeCoder,
         coders.ProtoCoder,
+        coders.ProtoPlusCoder,
         coders.ToBytesCoder
     ])
-    cls.seen_nested -= set([coders.ProtoCoder, CustomCoder])
+    cls.seen_nested -= set(
+        [coders.ProtoCoder, coders.ProtoPlusCoder, CustomCoder])
     assert not standard - cls.seen, str(standard - cls.seen)
     assert not cls.seen_nested - standard, str(cls.seen_nested - standard)
 
@@ -207,6 +209,10 @@ class CodersTest(unittest.TestCase):
     coder = coders.PickleCoder()
     self.check_coder(coder, *self.test_values)
 
+  def test_memoizing_pickle_coder(self):
+    coder = coders._MemoizingPickleCoder()
+    self.check_coder(coder, *self.test_values)
+
   def test_deterministic_coder(self):
     coder = coders.FastPrimitivesCoder()
     deterministic_coder = coders.DeterministicFastPrimitivesCoder(coder, 'step')
@@ -219,13 +225,12 @@ class CodersTest(unittest.TestCase):
         tuple(self.test_values_deterministic))
 
     with self.assertRaises(TypeError):
-      self.check_coder(deterministic_coder, dict())
+      self.check_coder(deterministic_coder, {})
     with self.assertRaises(TypeError):
-      self.check_coder(deterministic_coder, [1, dict()])
+      self.check_coder(deterministic_coder, [1, {}])
 
     self.check_coder(
-        coders.TupleCoder((deterministic_coder, coder)), (1, dict()),
-        ('a', [dict()]))
+        coders.TupleCoder((deterministic_coder, coder)), (1, {}), ('a', [{}]))
 
     self.check_coder(deterministic_coder, test_message.MessageA(field1='value'))
 
@@ -256,7 +261,7 @@ class CodersTest(unittest.TestCase):
     with self.assertRaises(TypeError):
       self.check_coder(deterministic_coder, DefinesGetState(1))
     with self.assertRaises(TypeError):
-      self.check_coder(deterministic_coder, DefinesGetAndSetState(dict()))
+      self.check_coder(deterministic_coder, DefinesGetAndSetState({}))
 
   def test_dill_coder(self):
     cell_value = (lambda x: lambda: x)(0).__closure__[0]
@@ -748,6 +753,19 @@ class CodersTest(unittest.TestCase):
         self.check_coder(
             coders.TupleCoder((coder, other_coder)),
             (ShardedKey(key, b'123'), ShardedKey(other_key, b'')))
+
+  def test_timestamp_prefixing_window_coder(self):
+    self.check_coder(
+        coders.TimestampPrefixingWindowCoder(coders.IntervalWindowCoder()),
+        *[
+            window.IntervalWindow(x, y) for x in [-2**52, 0, 2**52]
+            for y in range(-100, 100)
+        ])
+    self.check_coder(
+        coders.TupleCoder((
+            coders.TimestampPrefixingWindowCoder(
+                coders.IntervalWindowCoder()), )),
+        (window.IntervalWindow(0, 10), ))
 
 
 if __name__ == '__main__':

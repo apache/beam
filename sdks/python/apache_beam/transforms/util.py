@@ -40,6 +40,7 @@ from apache_beam import typehints
 from apache_beam.metrics import Metrics
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.pvalue import AsSideInput
 from apache_beam.transforms import window
 from apache_beam.transforms.combiners import CountCombineFn
 from apache_beam.transforms.core import CombinePerKey
@@ -63,6 +64,7 @@ from apache_beam.transforms.userstate import on_timer
 from apache_beam.transforms.window import NonMergingWindowFn
 from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import TimestampedValue
+from apache_beam.typehints.decorators import get_signature
 from apache_beam.typehints.sharded_key_type import ShardedKeyType
 from apache_beam.utils import windowed_value
 from apache_beam.utils.annotations import deprecated
@@ -144,66 +146,78 @@ class CoGroupByKey(PTransform):
       (or if there's a chance there may be none), this argument is the only way
       to provide pipeline information, and should be considered mandatory.
   """
-  def __init__(self, **kwargs):
-    super(CoGroupByKey, self).__init__()
-    self.pipeline = kwargs.pop('pipeline', None)
-    if kwargs:
-      raise ValueError('Unexpected keyword arguments: %s' % list(kwargs.keys()))
+  def __init__(self, *, pipeline=None):
+    self.pipeline = pipeline
 
   def _extract_input_pvalues(self, pvalueish):
     try:
       # If this works, it's a dict.
       return pvalueish, tuple(pvalueish.values())
     except AttributeError:
+      # Cast iterables a tuple so we can do re-iteration.
       pcolls = tuple(pvalueish)
       return pcolls, pcolls
 
   def expand(self, pcolls):
-    """Performs CoGroupByKey on argument pcolls; see class docstring."""
+    if isinstance(pcolls, dict):
+      if all(isinstance(tag, str) and len(tag) < 10 for tag in pcolls.keys()):
+        # Small, string tags. Pass them as data.
+        pcolls_dict = pcolls
+        restore_tags = None
+      else:
+        # Pass the tags in the restore_tags closure.
+        tags = list(pcolls.keys())
+        pcolls_dict = {str(ix): pcolls[tag] for (ix, tag) in enumerate(tags)}
+        restore_tags = lambda vs: {
+            tag: vs[str(ix)]
+            for (ix, tag) in enumerate(tags)
+        }
+    else:
+      # Tags are tuple indices.
+      num_tags = len(pcolls)
+      pcolls_dict = {str(ix): pcolls[ix] for ix in range(num_tags)}
+      restore_tags = lambda vs: tuple(vs[str(ix)] for ix in range(num_tags))
 
-    # For associating values in K-V pairs with the PCollections they came from.
-    def _pair_tag_with_value(key_value, tag):
-      (key, value) = key_value
-      return (key, (tag, value))
+    result = (
+        pcolls_dict | 'CoGroupByKeyImpl' >> _CoGBKImpl(pipeline=self.pipeline))
+    if restore_tags:
+      return result | 'RestoreTags' >> MapTuple(
+          lambda k, vs: (k, restore_tags(vs)))
+    else:
+      return result
 
-    # Creates the key, value pairs for the output PCollection. Values are either
-    # lists or dicts (per the class docstring), initialized by the result of
-    # result_ctor(result_ctor_arg).
-    def _merge_tagged_vals_under_key(key_grouped, result_ctor, result_ctor_arg):
-      (key, grouped) = key_grouped
-      result_value = result_ctor(result_ctor_arg)
-      for tag, value in grouped:
-        result_value[tag].append(value)
-      return (key, result_value)
 
-    try:
-      # If pcolls is a dict, we turn it into (tag, pcoll) pairs for use in the
-      # general-purpose code below. The result value constructor creates dicts
-      # whose keys are the tags.
-      result_ctor_arg = list(pcolls)
-      result_ctor = lambda tags: dict((tag, []) for tag in tags)
-      pcolls = pcolls.items()
-    except AttributeError:
-      # Otherwise, pcolls is a list/tuple, so we turn it into (index, pcoll)
-      # pairs. The result value constructor makes tuples with len(pcolls) slots.
-      pcolls = list(enumerate(pcolls))
-      result_ctor_arg = len(pcolls)
-      result_ctor = lambda size: tuple([] for _ in range(size))
+class _CoGBKImpl(PTransform):
+  def __init__(self, *, pipeline=None):
+    self.pipeline = pipeline
 
+  def expand(self, pcolls):
     # Check input PCollections for PCollection-ness, and that they all belong
     # to the same pipeline.
-    for _, pcoll in pcolls:
+    for pcoll in pcolls.values():
       self._check_pcollection(pcoll)
       if self.pipeline:
         assert pcoll.pipeline == self.pipeline
 
+    tags = list(pcolls.keys())
+
+    def add_tag(tag):
+      return lambda k, v: (k, (tag, v))
+
+    def collect_values(key, tagged_values):
+      grouped_values = {tag: [] for tag in tags}
+      for tag, value in tagged_values:
+        grouped_values[tag].append(value)
+      return key, grouped_values
+
     return ([
-        pcoll | 'pair_with_%s' % tag >> Map(_pair_tag_with_value, tag) for tag,
-        pcoll in pcolls
+        pcoll
+        | 'Tag[%s]' % tag >> MapTuple(add_tag(tag))
+        for (tag, pcoll) in pcolls.items()
     ]
             | Flatten(pipeline=self.pipeline)
             | GroupByKey()
-            | Map(_merge_tagged_vals_under_key, result_ctor, result_ctor_arg))
+            | MapTuple(collect_values))
 
 
 @ptransform_fn
@@ -618,7 +632,7 @@ class _IdentityWindowFn(NonMergingWindowFn):
     Arguments:
       window_coder: coders.Coder object to be used on windows.
     """
-    super(_IdentityWindowFn, self).__init__()
+    super().__init__()
     if window_coder is None:
       raise ValueError('window_coder should not be None')
     self._window_coder = window_coder
@@ -709,12 +723,29 @@ class Reshuffle(PTransform):
 
   Reshuffle is experimental. No backwards compatibility guarantees.
   """
+
+  # We use 32-bit integer as the default number of buckets.
+  _DEFAULT_NUM_BUCKETS = 1 << 32
+
+  def __init__(self, num_buckets=None):
+    """
+    :param num_buckets: If set, specifies the maximum random keys that would be
+      generated.
+    """
+    self.num_buckets = num_buckets if num_buckets else self._DEFAULT_NUM_BUCKETS
+
+    valid_buckets = isinstance(num_buckets, int) and num_buckets > 0
+    if not (num_buckets is None or valid_buckets):
+      raise ValueError(
+          'If `num_buckets` is set, it has to be an '
+          'integer greater than 0, got %s' % num_buckets)
+
   def expand(self, pcoll):
     # type: (pvalue.PValue) -> pvalue.PCollection
     return (
-        pcoll
-        | 'AddRandomKeys' >> Map(lambda t: (random.getrandbits(32), t)).
-        with_input_types(T).with_output_types(Tuple[int, T])
+        pcoll | 'AddRandomKeys' >>
+        Map(lambda t: (random.randrange(0, self.num_buckets), t)
+            ).with_input_types(T).with_output_types(Tuple[int, T])
         | ReshufflePerKey()
         | 'RemoveRandomKeys' >> Map(lambda t: t[1]).with_input_types(
             Tuple[int, T]).with_output_types(T))
@@ -730,14 +761,40 @@ class Reshuffle(PTransform):
     return Reshuffle()
 
 
+def fn_takes_side_inputs(fn):
+  try:
+    signature = get_signature(fn)
+  except TypeError:
+    # We can't tell; maybe it does.
+    return True
+
+  return (
+      len(signature.parameters) > 1 or any(
+          p.kind == p.VAR_POSITIONAL or p.kind == p.VAR_KEYWORD
+          for p in signature.parameters.values()))
+
+
 @ptransform_fn
-def WithKeys(pcoll, k):
+def WithKeys(pcoll, k, *args, **kwargs):
   """PTransform that takes a PCollection, and either a constant key or a
   callable, and returns a PCollection of (K, V), where each of the values in
   the input PCollection has been paired with either the constant key or a key
-  computed from the value.
+  computed from the value.  The callable may optionally accept positional or
+  keyword arguments, which should be passed to WithKeys directly.  These may
+  be either SideInputs or static (non-PCollection) values, such as ints.
   """
   if callable(k):
+    if fn_takes_side_inputs(k):
+      if all(isinstance(arg, AsSideInput)
+             for arg in args) and all(isinstance(kwarg, AsSideInput)
+                                      for kwarg in kwargs.values()):
+        return pcoll | Map(
+            lambda v,
+            *args,
+            **kwargs: (k(v, *args, **kwargs), v),
+            *args,
+            **kwargs)
+      return pcoll | Map(lambda v: (k(v, *args, **kwargs), v))
     return pcoll | Map(lambda v: (k(v), v))
   return pcoll | Map(lambda v: (k, v))
 
@@ -923,6 +980,7 @@ def _pardo_group_into_batches(
       if count == 1 and max_buffering_duration_secs > 0:
         # This is the first element in batch. Start counting buffering time if a
         # limit was set.
+        # pylint: disable=deprecated-method
         buffering_timer.set(clock() + max_buffering_duration_secs)
       if count >= batch_size:
         return self.flush_batch(element_state, count_state, buffering_timer)

@@ -333,79 +333,79 @@ above section, [MinimalWordCount](#minimalwordcount-example).
 
 **To run this example in Java:**
 
-{{< highlight class="runner-direct" >}}
+{{< runner direct >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Dexec.args="--inputFile=pom.xml --output=counts" -Pdirect-runner
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-flink-local" >}}
+{{< runner flink >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Dexec.args="--runner=FlinkRunner --inputFile=pom.xml --output=counts" -Pflink-runner
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-flink-cluster" >}}
+{{< runner flinkCluster >}}
 $ mvn package exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Dexec.args="--runner=FlinkRunner --flinkMaster=<flink master> --filesToStage=target/word-count-beam-bundled-0.1.jar \
                   --inputFile=/path/to/quickstart/pom.xml --output=/tmp/counts" -Pflink-runner
 
 You can monitor the running job by visiting the Flink dashboard at http://<flink master>:8081
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-spark" >}}
+{{< runner spark >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Dexec.args="--runner=SparkRunner --inputFile=pom.xml --output=counts" -Pspark-runner
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-dataflow" >}}
+{{< runner dataflow >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Dexec.args="--runner=DataflowRunner --gcpTempLocation=gs://YOUR_GCS_BUCKET/tmp \
                   --project=YOUR_PROJECT --region=GCE_REGION \
                   --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://YOUR_GCS_BUCKET/counts" \
      -Pdataflow-runner
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-samza-local" >}}
+{{< runner samza >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Dexec.args="--inputFile=pom.xml --output=counts --runner=SamzaRunner" -Psamza-runner
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-nemo" >}}
+{{< runner nemo >}}
 $ mvn package -Pnemo-runner && java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount \
      --runner=NemoRunner --inputFile=`pwd`/pom.xml --output=counts
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-jet" >}}
+{{< runner jet >}}
 $ mvn package -P jet-runner && java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount \
      --runner=JetRunner --jetLocalMode=3 --inputFile=`pwd`/pom.xml --output=counts
-{{< /highlight >}}
+{{< /runner >}}
 
 To view the full code in Java, see
 **[WordCount](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WordCount.java).**
 
 **To run this example in Python:**
 
-{{< highlight class="runner-direct" >}}
+{{< runner direct >}}
 python -m apache_beam.examples.wordcount --input YOUR_INPUT_FILE --output counts
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-flink-local" >}}
+{{< runner flink >}}
 python -m apache_beam.examples.wordcount --input /path/to/inputfile \
                                          --output /path/to/write/counts \
                                          --runner FlinkRunner
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-flink-cluster" >}}
+{{< runner flinkCluster >}}
 # Running Beam Python on a distributed Flink cluster requires additional configuration.
 # See https://beam.apache.org/documentation/runners/flink/ for more information.
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-spark" >}}
+{{< runner spark >}}
 python -m apache_beam.examples.wordcount --input /path/to/inputfile \
                                          --output /path/to/write/counts \
                                          --runner SparkRunner
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-dataflow" >}}
+{{< runner dataflow >}}
 # As part of the initial setup, install Google Cloud Platform specific extra components.
 pip install apache-beam[gcp]
 python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
@@ -414,43 +414,43 @@ python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespea
                                          --project YOUR_GCP_PROJECT \
                                          --region YOUR_GCP_REGION \
                                          --temp_location gs://YOUR_GCS_BUCKET/tmp/
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-samza-local" >}}
+{{< runner samza >}}
 This runner is not yet available for the Python SDK.
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-nemo" >}}
+{{< runner nemo >}}
 This runner is not yet available for the Python SDK.
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-jet" >}}
+{{< runner jet >}}
 This runner is not yet available for the Python SDK.
-{{< /highlight >}}
+{{< /runner >}}
 
 To view the full code in Python, see
 **[wordcount.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/wordcount.py).**
 
 **To run this example in Go:**
 
-{{< highlight class="runner-direct" >}}
+{{< runner direct >}}
 $ go install github.com/apache/beam/sdks/go/examples/wordcount
 $ wordcount --input <PATH_TO_INPUT_FILE> --output counts
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-flink-local" >}}
+{{< runner flink >}}
 This runner is not yet available for the Go SDK.
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-flink-cluster" >}}
+{{< runner flinkCluster >}}
 This runner is not yet available for the Go SDK.
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-spark" >}}
+{{< runner spark >}}
 This runner is not yet available for the Go SDK.
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-dataflow" >}}
+{{< runner dataflow >}}
 $ go install github.com/apache/beam/sdks/go/examples/wordcount
 # As part of the initial setup, for non linux users - install package unix before run
 $ go get -u golang.org/x/sys/unix
@@ -462,19 +462,19 @@ $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
             --temp_location gs://<your-gcs-bucket>/tmp/ \
             --staging_location gs://<your-gcs-bucket>/binaries/ \
             --worker_harness_container_image=apache/beam_go_sdk:latest
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-samza-local" >}}
+{{< runner samza >}}
 This runner is not yet available for the Go SDK.
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-nemo" >}}
+{{< runner nemo >}}
 This runner is not yet available for the Go SDK.
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-jet" >}}
+{{< runner jet >}}
 This runner is not yet available for the Go SDK.
-{{< /highlight >}}
+{{< /runner >}}
 
 To view the full code in Go, see
 **[wordcount.go](https://github.com/apache/beam/blob/master/sdks/go/examples/wordcount/wordcount.go).**
@@ -665,74 +665,74 @@ instrumenting your pipeline code.
 
 **To run this example in Java:**
 
-{{< highlight class="runner-direct" >}}
+{{< runner direct >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
      -Dexec.args="--output=counts" -Pdirect-runner
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-flink-local" >}}
+{{< runner flink >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
      -Dexec.args="--runner=FlinkRunner --output=counts" -Pflink-runner
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-flink-cluster" >}}
+{{< runner flinkCluster >}}
 $ mvn package exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
      -Dexec.args="--runner=FlinkRunner --flinkMaster=<flink master> --filesToStage=target/word-count-beam-bundled-0.1.jar \
                   --output=/tmp/counts" -Pflink-runner
 
 You can monitor the running job by visiting the Flink dashboard at http://<flink master>:8081
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-spark" >}}
+{{< runner spark >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
      -Dexec.args="--runner=SparkRunner --output=counts" -Pspark-runner
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-dataflow" >}}
+{{< runner dataflow >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
    -Dexec.args="--runner=DataflowRunner --gcpTempLocation=gs://<your-gcs-bucket>/tmp \
                 --project=YOUR_PROJECT --region=GCE_REGION \
                 --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://<your-gcs-bucket>/counts" \
      -Pdataflow-runner
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-samza-local" >}}
+{{< runner samza >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
      -Dexec.args="--runner=SamzaRunner --output=counts" -Psamza-runner
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-nemo" >}}
+{{< runner nemo >}}
 $ mvn package -Pnemo-runner && java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.DebuggingWordCount \
      --runner=NemoRunner --inputFile=`pwd`/pom.xml --output=counts
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-jet" >}}
+{{< runner jet >}}
 $ mvn package -P jet-runner && java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.DebuggingWordCount \
      --runner=JetRunner --jetLocalMode=3 --output=counts
-{{< /highlight >}}
+{{< /runner >}}
 
 To view the full code in Java, see
 [DebuggingWordCount](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/DebuggingWordCount.java).
 
 **To run this example in Python:**
 
-{{< highlight class="runner-direct" >}}
+{{< runner direct >}}
 python -m apache_beam.examples.wordcount_debugging --input YOUR_INPUT_FILE --output counts
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-flink-local" >}}
+{{< runner flink >}}
 This runner is not yet available for the Python SDK.
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-flink-cluster" >}}
+{{< runner flinkCluster >}}
 This runner is not yet available for the Python SDK.
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-spark" >}}
+{{< runner spark >}}
 This runner is not yet available for the Python SDK.
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-dataflow" >}}
+{{< runner dataflow >}}
 # As part of the initial setup, install Google Cloud Platform specific extra components.
 pip install apache-beam[gcp]
 python -m apache_beam.examples.wordcount_debugging --input gs://dataflow-samples/shakespeare/kinglear.txt \
@@ -740,43 +740,43 @@ python -m apache_beam.examples.wordcount_debugging --input gs://dataflow-samples
                                          --runner DataflowRunner \
                                          --project YOUR_GCP_PROJECT \
                                          --temp_location gs://YOUR_GCS_BUCKET/tmp/
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-samza-local" >}}
+{{< runner samza >}}
 This runner is not yet available for the Python SDK.
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-nemo" >}}
+{{< runner nemo >}}
 This runner is not yet available for the Python SDK.
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-jet" >}}
+{{< runner jet >}}
 This runner is not yet available for the Python SDK.
-{{< /highlight >}}
+{{< /runner >}}
 
 To view the full code in Python, see
 **[wordcount_debugging.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/wordcount_debugging.py).**
 
 **To run this example in Go:**
 
-{{< highlight class="runner-direct" >}}
+{{< runner direct >}}
 $ go install github.com/apache/beam/sdks/go/examples/debugging_wordcount
 $ debugging_wordcount --input <PATH_TO_INPUT_FILE> --output counts
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-flink-local" >}}
+{{< runner flink >}}
 This runner is not yet available for the Go SDK.
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-flink-cluster" >}}
+{{< runner flinkCluster >}}
 This runner is not yet available for the Go SDK.
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-spark" >}}
+{{< runner spark >}}
 This runner is not yet available for the Go SDK.
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-dataflow" >}}
+{{< runner dataflow >}}
 $ go install github.com/apache/beam/sdks/go/examples/debugging_wordcount
 # As part of the initial setup, for non linux users - install package unix before run
 $ go get -u golang.org/x/sys/unix
@@ -788,19 +788,19 @@ $ debugging_wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
                       --temp_location gs://<your-gcs-bucket>/tmp/ \
                       --staging_location gs://<your-gcs-bucket>/binaries/ \
                       --worker_harness_container_image=apache-docker-beam-snapshots-docker.bintray.io/beam/go:20180515
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-samza-local" >}}
+{{< runner samza >}}
 This runner is not yet available for the Go SDK.
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-nemo" >}}
+{{< runner nemo >}}
 This runner is not yet available for the Go SDK.
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-jet" >}}
+{{< runner jet >}}
 This runner is not yet available for the Go SDK.
-{{< /highlight >}}
+{{< /runner >}}
 
 To view the full code in Go, see
 **[debugging_wordcount.go](https://github.com/apache/beam/blob/master/sdks/go/examples/debugging_wordcount/debugging_wordcount.go).**
@@ -989,51 +989,51 @@ pipeline code into smaller sections.
 
 **To run this example in Java:**
 
-{{< highlight class="runner-direct" >}}
+{{< runner direct >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
      -Dexec.args="--inputFile=pom.xml --output=counts" -Pdirect-runner
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-flink-local" >}}
+{{< runner flink >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
      -Dexec.args="--runner=FlinkRunner --inputFile=pom.xml --output=counts" -Pflink-runner
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-flink-cluster" >}}
+{{< runner flinkCluster >}}
 $ mvn package exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
      -Dexec.args="--runner=FlinkRunner --flinkMaster=<flink master> --filesToStage=target/word-count-beam-bundled-0.1.jar \
                   --inputFile=/path/to/quickstart/pom.xml --output=/tmp/counts" -Pflink-runner
 
 You can monitor the running job by visiting the Flink dashboard at http://<flink master>:8081
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-spark" >}}
+{{< runner spark >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
      -Dexec.args="--runner=SparkRunner --inputFile=pom.xml --output=counts" -Pspark-runner
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-dataflow" >}}
+{{< runner dataflow >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
    -Dexec.args="--runner=DataflowRunner --gcpTempLocation=gs://YOUR_GCS_BUCKET/tmp \
                 --project=YOUR_PROJECT --region=GCE_REGION \
                 --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://YOUR_GCS_BUCKET/counts" \
      -Pdataflow-runner
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-samza-local" >}}
+{{< runner samza >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
      -Dexec.args="--runner=SamzaRunner --inputFile=pom.xml --output=counts" -Psamza-runner
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-nemo" >}}
+{{< runner nemo >}}
 $ mvn package -Pnemo-runner && java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WindowedWordCount \
      --runner=NemoRunner --inputFile=`pwd`/pom.xml --output=counts
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-jet" >}}
+{{< runner jet >}}
 $ mvn package -P jet-runner && java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WindowedWordCount \
      --runner=JetRunner --jetLocalMode=3 --inputFile=`pwd`/pom.xml --output=counts
-{{< /highlight >}}
+{{< /runner >}}
 
 To view the full code in Java, see
 **[WindowedWordCount](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WindowedWordCount.java).**
@@ -1044,23 +1044,23 @@ This pipeline writes its results to a BigQuery table `--output_table`
 parameter. using the format `PROJECT:DATASET.TABLE` or
 `DATASET.TABLE`.
 
-{{< highlight class="runner-direct" >}}
+{{< runner direct >}}
 python -m apache_beam.examples.windowed_wordcount --input YOUR_INPUT_FILE --output_table PROJECT:DATASET.TABLE
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-flink-local" >}}
+{{< runner flink >}}
 This runner is not yet available for the Python SDK.
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-flink-cluster" >}}
+{{< runner flinkCluster >}}
 This runner is not yet available for the Python SDK.
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-spark" >}}
+{{< runner spark >}}
 This runner is not yet available for the Python SDK.
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-dataflow" >}}
+{{< runner dataflow >}}
 # As part of the initial setup, install Google Cloud Platform specific extra components.
 pip install apache-beam[gcp]
 python -m apache_beam.examples.windowed_wordcount --input YOUR_INPUT_FILE \
@@ -1068,43 +1068,43 @@ python -m apache_beam.examples.windowed_wordcount --input YOUR_INPUT_FILE \
                                          --runner DataflowRunner \
                                          --project YOUR_GCP_PROJECT \
                                          --temp_location gs://YOUR_GCS_BUCKET/tmp/
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-samza-local" >}}
+{{< runner samza >}}
 This runner is not yet available for the Python SDK.
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-nemo" >}}
+{{< runner nemo >}}
 This runner is not yet available for the Python SDK.
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-jet" >}}
+{{< runner jet >}}
 This runner is not yet available for the Python SDK.
-{{< /highlight >}}
+{{< /runner >}}
 
 To view the full code in Python, see
 **[windowed_wordcount.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/windowed_wordcount.py).**
 
 **To run this example in Go:**
 
-{{< highlight class="runner-direct" >}}
+{{< runner direct >}}
 $ go install github.com/apache/beam/sdks/go/examples/windowed_wordcount
 $ windowed_wordcount --input <PATH_TO_INPUT_FILE> --output counts
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-flink-local" >}}
+{{< runner flink >}}
 This runner is not yet available for the Go SDK.
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-flink-cluster" >}}
+{{< runner flinkCluster >}}
 This runner is not yet available for the Go SDK.
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-spark" >}}
+{{< runner spark >}}
 This runner is not yet available for the Go SDK.
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-dataflow" >}}
+{{< runner dataflow >}}
 $ go install github.com/apache/beam/sdks/go/examples/windowed_wordcount
 # As part of the initial setup, for non linux users - install package unix before run
 $ go get -u golang.org/x/sys/unix
@@ -1115,19 +1115,19 @@ $ windowed_wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
             --temp_location gs://<your-gcs-bucket>/tmp/ \
             --staging_location gs://<your-gcs-bucket>/binaries/ \
             --worker_harness_container_image=apache-docker-beam-snapshots-docker.bintray.io/beam/go:20180515
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-samza-local" >}}
+{{< runner samza >}}
 This runner is not yet available for the Go SDK.
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-nemo" >}}
+{{< runner nemo >}}
 This runner is not yet available for the Go SDK.
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-jet" >}}
+{{< runner jet >}}
 This runner is not yet available for the Go SDK.
-{{< /highlight >}}
+{{< /runner >}}
 
 To view the full code in Go, see
 **[windowed_wordcount.go](https://github.com/apache/beam/blob/master/sdks/go/examples/windowed_wordcount/windowed_wordcount.go).**
@@ -1341,26 +1341,26 @@ frequency count of the words seen in each 15 second window.
 
 **To run this example in Python:**
 
-{{< highlight class="runner-direct" >}}
+{{< runner direct >}}
 python -m apache_beam.examples.streaming_wordcount \
   --input_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_INPUT_TOPIC" \
   --output_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_OUTPUT_TOPIC" \
   --streaming
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-flink-local" >}}
+{{< runner flink >}}
 This runner is not yet available for the Python SDK.
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-flink-cluster" >}}
+{{< runner flinkCluster >}}
 This runner is not yet available for the Python SDK.
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-spark" >}}
+{{< runner spark >}}
 This runner is not yet available for the Python SDK.
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-dataflow" >}}
+{{< runner dataflow >}}
 # As part of the initial setup, install Google Cloud Platform specific extra components.
 pip install apache-beam[gcp]
 python -m apache_beam.examples.streaming_wordcount \
@@ -1371,19 +1371,19 @@ python -m apache_beam.examples.streaming_wordcount \
   --input_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_INPUT_TOPIC" \
   --output_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_OUTPUT_TOPIC" \
   --streaming
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-samza-local" >}}
+{{< runner samza >}}
 This runner is not yet available for the Python SDK.
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-nemo" >}}
+{{< runner nemo >}}
 This runner is not yet available for the Python SDK.
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-jet" >}}
+{{< runner jet >}}
 This runner is not yet available for the Python SDK.
-{{< /highlight >}}
+{{< /runner >}}
 
 To view the full code in Python, see
 **[streaming_wordcount.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/streaming_wordcount.py).**

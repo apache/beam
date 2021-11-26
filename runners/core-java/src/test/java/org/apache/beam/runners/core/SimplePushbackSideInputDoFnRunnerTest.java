@@ -305,14 +305,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
 
     // Mocking is not easily compatible with annotation analysis, so we manually record
     // the method call.
-    runner.onTimer(
-        timerId,
-        "",
-        null,
-        window,
-        new Instant(timestamp),
-        new Instant(timestamp),
-        TimeDomain.EVENT_TIME);
+    runner.onTimer(timerId, "", null, window, timestamp, timestamp, TimeDomain.EVENT_TIME);
 
     assertThat(
         underlying.firedTimers,
@@ -396,8 +389,8 @@ public class SimplePushbackSideInputDoFnRunnerTest {
     MetricsContainerImpl container = new MetricsContainerImpl("any");
     MetricsEnvironment.setCurrentContainer(container);
 
-    timerInternals.advanceInputWatermark(new Instant(BoundedWindow.TIMESTAMP_MAX_VALUE));
-    timerInternals.advanceOutputWatermark(new Instant(BoundedWindow.TIMESTAMP_MAX_VALUE));
+    timerInternals.advanceInputWatermark(BoundedWindow.TIMESTAMP_MAX_VALUE);
+    timerInternals.advanceOutputWatermark(BoundedWindow.TIMESTAMP_MAX_VALUE);
 
     PushbackSideInputDoFnRunner runner =
         createRunner(statefulRunner, ImmutableList.of(singletonView));
@@ -452,11 +445,17 @@ public class SimplePushbackSideInputDoFnRunnerTest {
     // second element, key is hello, WINDOW_2
     runner.processElementInReadyWindows(
         WindowedValue.of(
-            KV.of("hello", 1), elementTime.plus(WINDOW_SIZE), WINDOW_2, PaneInfo.NO_FIRING));
+            KV.of("hello", 1),
+            elementTime.plus(Duration.millis(WINDOW_SIZE)),
+            WINDOW_2,
+            PaneInfo.NO_FIRING));
 
     runner.processElementInReadyWindows(
         WindowedValue.of(
-            KV.of("hello", 1), elementTime.plus(WINDOW_SIZE), WINDOW_2, PaneInfo.NO_FIRING));
+            KV.of("hello", 1),
+            elementTime.plus(Duration.millis(WINDOW_SIZE)),
+            WINDOW_2,
+            PaneInfo.NO_FIRING));
 
     assertEquals(2, (int) stateInternals.state(windowNamespace(WINDOW_2), stateTag).read());
 
@@ -467,9 +466,9 @@ public class SimplePushbackSideInputDoFnRunnerTest {
         timerInternals,
         WINDOW_1
             .maxTimestamp()
-            .plus(ALLOWED_LATENESS)
-            .plus(StatefulDoFnRunner.TimeInternalsCleanupTimer.GC_DELAY_MS)
-            .plus(1), // so the watermark is past the GC horizon, not on it
+            .plus(Duration.millis(ALLOWED_LATENESS))
+            .plus(Duration.millis(StatefulDoFnRunner.TimeInternalsCleanupTimer.GC_DELAY_MS))
+            .plus(Duration.millis(1)), // so the watermark is past the GC horizon, not on it
         runner);
 
     assertTrue(
@@ -483,9 +482,9 @@ public class SimplePushbackSideInputDoFnRunnerTest {
         timerInternals,
         WINDOW_2
             .maxTimestamp()
-            .plus(ALLOWED_LATENESS)
-            .plus(StatefulDoFnRunner.TimeInternalsCleanupTimer.GC_DELAY_MS)
-            .plus(1), // so the watermark is past the GC horizon, not on it
+            .plus(Duration.millis(ALLOWED_LATENESS))
+            .plus(Duration.millis(StatefulDoFnRunner.TimeInternalsCleanupTimer.GC_DELAY_MS))
+            .plus(Duration.millis(1)), // so the watermark is past the GC horizon, not on it
         runner);
 
     assertTrue(

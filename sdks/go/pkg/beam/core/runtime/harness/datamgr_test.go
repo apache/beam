@@ -16,6 +16,7 @@
 package harness
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -26,7 +27,7 @@ import (
 	"testing"
 	"time"
 
-	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
+	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 )
 
 const extraData = 2
@@ -39,6 +40,7 @@ type fakeDataClient struct {
 	calls          int
 	err            error
 	skipFirstError bool
+	isLastCall     int
 
 	blocked sync.Mutex // Prevent data from being read by the gotourtinr.
 }
@@ -53,6 +55,9 @@ func (f *fakeDataClient) Recv() (*fnpb.Elements, error) {
 		InstructionId: "inst_ref",
 		Data:          data,
 		TransformId:   "ptr",
+	}
+	if f.isLastCall == f.calls {
+		elemData.IsLast = true
 	}
 
 	msg := fnpb.Elements{}
@@ -127,6 +132,20 @@ func TestDataChannelTerminate_dataReader(t *testing.T) {
 			expectedError: io.EOF,
 			caseFn: func(t *testing.T, r io.ReadCloser, client *fakeDataClient, c *DataChannel) {
 				// fakeDataClient eventually returns a sentinel element.
+			},
+		}, {
+			name:          "onIsLast_withData",
+			expectedError: io.EOF,
+			caseFn: func(t *testing.T, r io.ReadCloser, client *fakeDataClient, c *DataChannel) {
+				// Set the last call with data to use is_last.
+				client.isLastCall = 2
+			},
+		}, {
+			name:          "onIsLast_withoutData",
+			expectedError: io.EOF,
+			caseFn: func(t *testing.T, r io.ReadCloser, client *fakeDataClient, c *DataChannel) {
+				// Set the call without data to use is_last.
+				client.isLastCall = 3
 			},
 		}, {
 			name:          "onRecvError",
@@ -296,6 +315,60 @@ func TestDataChannelTerminate_Writes(t *testing.T) {
 			case <-time.After(time.Second * 5):
 				t.Fatal("context wasn't cancelled")
 			}
+		})
+	}
+}
+
+type noopDataClient struct {
+}
+
+func (*noopDataClient) Recv() (*fnpb.Elements, error) {
+	return nil, nil
+}
+
+func (*noopDataClient) Send(*fnpb.Elements) error {
+	return nil
+}
+
+func BenchmarkDataWriter(b *testing.B) {
+	fourB := []byte{42, 23, 78, 159}
+	sixteenB := bytes.Repeat(fourB, 4)
+	oneKiloB := bytes.Repeat(sixteenB, 64)
+	oneMegaB := bytes.Repeat(oneKiloB, 1024)
+	benches := []struct {
+		name string
+		data []byte
+	}{
+		{"4B", fourB},
+		{"16B", sixteenB},
+		{"1KB", oneKiloB},
+		{"4KB", bytes.Repeat(oneKiloB, 4)},
+		{"100KB", bytes.Repeat(oneKiloB, 100)},
+		{"1MB", oneMegaB},
+		{"10MB", bytes.Repeat(oneMegaB, 10)},
+		{"100MB", bytes.Repeat(oneMegaB, 100)},
+		{"256MB", bytes.Repeat(oneMegaB, 256)},
+	}
+	for _, bench := range benches {
+		b.Run(bench.name, func(b *testing.B) {
+			ndc := &noopDataClient{}
+			dc := &DataChannel{
+				id:      "dcid",
+				client:  ndc,
+				writers: map[instructionID]map[string]*dataWriter{},
+			}
+			w := dataWriter{
+				ch: dc,
+				id: clientID{
+					ptransformID: "pid",
+					instID:       instructionID("instID"),
+				},
+			}
+
+			for i := 0; i < b.N; i++ {
+				w.Write(bench.data)
+			}
+			w.Close()
 		})
 	}
 }

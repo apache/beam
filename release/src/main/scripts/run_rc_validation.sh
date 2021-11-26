@@ -58,6 +58,22 @@ function clean_up(){
 }
 trap clean_up EXIT
 
+setup_bashrc=0
+function set_bashrc(){
+    [[ $setup_bashrc -eq 0 ]] || return
+    # [BEAM-4518]
+    FIXED_WINDOW_DURATION=20
+    cp ~/.bashrc ~/$BACKUP_BASHRC
+    echo "export USER_GCP_PROJECT=${USER_GCP_PROJECT}" >> ~/.bashrc
+    echo "export USER_GCS_BUCKET=${USER_GCS_BUCKET}" >> ~/.bashrc
+    echo "export SHARED_PUBSUB_TOPIC=${SHARED_PUBSUB_TOPIC}" >> ~/.bashrc
+    echo "export GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}" >> ~/.bashrc
+    echo "export RELEASE_VER=${RELEASE_VER}" >> ~/.bashrc
+    echo "export FIXED_WINDOW_DURATION=${FIXED_WINDOW_DURATION}" >> ~/.bashrc
+    echo "export LOCAL_BEAM_DIR=${LOCAL_BEAM_DIR}" >> ~/.bashrc
+    setup_bashrc=1
+}
+
 RC_TAG="v${RELEASE_VER}-RC${RC_NUM}"
 RELEASE_BRANCH="releasev${RELEASE_VER}"
 WORKING_BRANCH=v${RELEASE_VER}-RC${RC_NUM}_validations
@@ -104,7 +120,7 @@ else
   echo "* Creating local Beam workspace: ${LOCAL_BEAM_DIR}"
   mkdir -p ${LOCAL_BEAM_DIR}
   echo "* Cloning Beam repo"
-  git clone --depth 1 --branch ${RC_TAG} ${GIT_REPO_URL} ${LOCAL_BEAM_DIR}
+  git clone --branch ${RC_TAG} ${GIT_REPO_URL} ${LOCAL_BEAM_DIR}
   cd ${LOCAL_BEAM_DIR}
   git checkout -b ${WORKING_BRANCH} ${RC_TAG} --quiet
   echo "* Setting up git config"
@@ -168,15 +184,26 @@ bq version
 echo "-----------------Checking gnome-terminal-----------------"
 if [[ -z `which gnome-terminal` ]]; then
   echo "You don't have gnome-terminal installed."
-  if [[ "$INSTALL_GNOME_TERMINAL" != true ]]; then
-    sudo apt-get upgrade
+  if [[ "$INSTALL_GNOME_TERMINAL" = true ]]; then
     sudo apt-get install gnome-terminal
   else
-    echo "gnome-terminal is not installed. Validation on Python Leaderboard & GameStates will be skipped."
+    echo "gnome-terminal is not installed. Can't run validation on Python Leaderboard & GameStates. Exiting."
     exit
   fi
 fi
 gnome-terminal --version
+
+echo "-----------------Checking kubectl-----------------"
+if [[ -z `which kubectl` ]]; then
+  echo "You don't have kubectl installed."
+  if [[ "$INSTALL_KUBECTL" = true ]]; then
+    sudo apt-get install kubectl
+  else
+    echo "kubectl is not installed. Can't run validation on Python cross-language Kafka taxi. Exiting."
+    exit
+  fi
+fi
+kubectl version
 
 
 echo ""
@@ -302,7 +329,7 @@ if [[ ("$java_mobile_game_direct" = true || "$java_mobile_game_dataflow" = true)
   fi
 
   echo "-----------------Cleaning up BigQuery & Pubsub-----------------"
-  bq rm -rf --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
+  bq rm -r -f --project_id=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
   gcloud pubsub topics delete projects/${USER_GCP_PROJECT}/topics/${MOBILE_GAME_PUBSUB_TOPIC}
 fi
 
@@ -351,7 +378,6 @@ if [[ ("$python_leaderboard_direct" = true \
 
   `which pip` install --upgrade pip
   `which pip` install --upgrade setuptools
-  `which pip` install --upgrade virtualenv
 
   echo "--------------------------Updating ~/.m2/settings.xml-------------------------"
     cd ~
@@ -382,16 +408,7 @@ if [[ ("$python_leaderboard_direct" = true \
     echo "</settings>" >> settings.xml
 
   echo "-----------------------Setting up Shell Env Vars------------------------------"
-    # [BEAM-4518]
-    FIXED_WINDOW_DURATION=20
-    cp ~/.bashrc ~/$BACKUP_BASHRC
-    echo "export USER_GCP_PROJECT=${USER_GCP_PROJECT}" >> ~/.bashrc
-    echo "export USER_GCS_BUCKET=${USER_GCS_BUCKET}" >> ~/.bashrc
-    echo "export SHARED_PUBSUB_TOPIC=${SHARED_PUBSUB_TOPIC}" >> ~/.bashrc
-    echo "export GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}" >> ~/.bashrc
-    echo "export RELEASE_VER=${RELEASE_VER}" >> ~/.bashrc
-    echo "export FIXED_WINDOW_DURATION=${FIXED_WINDOW_DURATION}" >> ~/.bashrc
-    echo "export LOCAL_BEAM_DIR=${LOCAL_BEAM_DIR}" >> ~/.bashrc
+    set_bashrc
 
   echo "----------------------Starting Pubsub Java Injector--------------------------"
   cd ${LOCAL_BEAM_DIR}
@@ -426,7 +443,7 @@ if [[ ("$python_leaderboard_direct" = true \
   do
     rm -rf ./beam_env_${py_version}
     echo "--------------Setting up virtualenv with $py_version interpreter----------------"
-    virtualenv beam_env_${py_version} -p $py_version
+    $py_version -m venv beam_env_${py_version} 
     . beam_env_${py_version}/bin/activate
 
     echo "--------------------------Installing Python SDK-------------------------------"
@@ -583,3 +600,155 @@ if [[ ("$python_leaderboard_direct" = true \
 else
   echo "* Skip Python Leaderboard & GameStates Validations"
 fi
+
+echo ""
+echo "====================Starting Python Cross-language Validations==============="
+if [[ ("$python_xlang_kafka_taxi_dataflow" = true
+      || "$python_xlang_sql_taxi_dataflow" = true) \
+      && ! -z `which gnome-terminal` && ! -z `which kubectl` ]]; then
+  cd ${LOCAL_BEAM_DIR}
+
+  echo "---------------------Downloading Python Staging RC----------------------------"
+  wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip
+  wget ${PYTHON_RC_DOWNLOAD_URL}/${RELEASE_VER}/python/apache-beam-${RELEASE_VER}.zip.sha512
+  if [[ ! -f apache-beam-${RELEASE_VER}.zip ]]; then
+    { echo "Fail to download Python Staging RC files." ;exit 1; }
+  fi
+
+  echo "--------------------------Verifying Hashes------------------------------------"
+  sha512sum -c apache-beam-${RELEASE_VER}.zip.sha512
+
+  `which pip` install --upgrade pip
+  `which pip` install --upgrade setuptools
+
+  echo "-----------------------Setting up Shell Env Vars------------------------------"
+  set_bashrc
+
+  echo "-----------------------Setting up Kafka Cluster on GKE------------------------"
+  CLUSTER_NAME=xlang-kafka-cluster-$RANDOM
+  if [[ "$python_xlang_kafka_taxi_dataflow" = true ]]; then
+    gcloud container clusters create --project=${USER_GCP_PROJECT} --region=${USER_GCP_REGION} --no-enable-ip-alias $CLUSTER_NAME
+    kubectl apply -R -f ${LOCAL_BEAM_DIR}/.test-infra/kubernetes/kafka-cluster
+    echo "* Please wait for 10 mins to let a Kafka cluster be launched on GKE."
+    echo "* Sleeping for 10 mins"
+    sleep 10m
+  else
+    echo "* Skip Kafka cluster setup"
+  fi
+
+  echo "-----------------------Building expansion service jar------------------------"
+  ./gradlew sdks:java:io:expansion-service:shadowJar
+  ./gradlew sdks:java:extensions:sql:expansion-service:shadowJar
+
+  # Run Python XLang pipelines under multiple versions of Python
+  cd ${LOCAL_BEAM_DIR}
+  for py_version in "${PYTHON_VERSIONS_TO_VALIDATE[@]}"
+  do
+    rm -rf ./beam_env_${py_version}
+    echo "--------------Setting up virtualenv with $py_version interpreter----------------"
+    $py_version -m venv beam_env_${py_version}
+    . beam_env_${py_version}/bin/activate
+    ln -s ${LOCAL_BEAM_DIR}/sdks beam_env_${py_version}/lib/sdks
+
+    echo "--------------------------Installing Python SDK-------------------------------"
+    pip install apache-beam-${RELEASE_VER}.zip[gcp]
+
+    echo "----------------Starting XLang Kafka Taxi with DataflowRunner---------------------"
+    if [[ "$python_xlang_kafka_taxi_dataflow" = true ]]; then
+      BOOTSTRAP_SERVERS="$(kubectl get svc outside-0 -o jsonpath='{.status.loadBalancer.ingress[0].ip}'):32400"
+      echo "BOOTSTRAP_SERVERS=${BOOTSTRAP_SERVERS}"
+      KAFKA_TAXI_DF_DATASET=${USER}_python_validations_$(date +%m%d)_$RANDOM
+      bq mk --project_id=${USER_GCP_PROJECT} ${KAFKA_TAXI_DF_DATASET}
+      echo "export BOOTSTRAP_SERVERS=${BOOTSTRAP_SERVERS}" >> ~/.bashrc
+      echo "export KAFKA_TAXI_DF_DATASET=${KAFKA_TAXI_DF_DATASET}" >> ~/.bashrc
+
+      echo "This is a streaming job. This task will be launched in a separate terminal."
+      gnome-terminal -x sh -c \
+      "echo '*****************************************************';
+       echo '* Running Python XLang Kafka Taxi with DataflowRunner';
+       echo '*****************************************************';
+      . ${LOCAL_BEAM_DIR}/beam_env_${py_version}/bin/activate
+      python -m apache_beam.examples.kafkataxi.kafka_taxi \
+      --project=${USER_GCP_PROJECT} \
+      --region=${USER_GCP_REGION} \
+      --topic beam-runnerv2 \
+      --bootstrap_servers ${BOOTSTRAP_SERVERS} \
+      --bq_dataset ${KAFKA_TAXI_DF_DATASET} \
+      --runner DataflowRunner \
+      --num_workers 5 \
+      --temp_location=${USER_GCS_BUCKET}/temp/ \
+      --with_metadata \
+      --sdk_location apache-beam-${RELEASE_VER}.zip; \
+      exec bash"
+
+      echo "***************************************************************"
+      echo "* Please wait for at least 10 mins to let Dataflow job be launched and results get populated."
+      echo "* Sleeping for 10 mins"
+      sleep 10m
+      echo "* How to verify results:"
+      echo "* 1. Goto your Dataflow job console and check whether there is any error."
+      echo "* 2. Check whether ${KAFKA_TAXI_DF_DATASET}.xlang_kafka_taxi has data, retrieving BigQuery data as below: "
+      test_output=$(bq head -n 10 ${KAFKA_TAXI_DF_DATASET}.xlang_kafka_taxi)
+      echo "$test_output"
+      if ! grep -q "passenger_count" <<< "$test_output"; then
+        echo "Couldn't find expected output. Please confirm the output by visiting the console manually."
+        exit 1
+      fi
+      echo "***************************************************************"
+    else
+      echo "* Skip Python XLang Kafka Taxi with DataflowRunner"
+    fi
+
+    echo "----------------Starting XLang SQL Taxi with DataflowRunner---------------------"
+    if [[ "$python_xlang_sql_taxi_dataflow" = true ]]; then
+      SQL_TAXI_TOPIC=${USER}_python_validations_$(date +%m%d)_$RANDOM
+      SQL_TAXI_SUBSCRIPTION=${USER}_python_validations_$(date +%m%d)_$RANDOM
+      gcloud pubsub topics create --project=${USER_GCP_PROJECT} ${SQL_TAXI_TOPIC}
+      gcloud pubsub subscriptions create --project=${USER_GCP_PROJECT} --topic=${SQL_TAXI_TOPIC} ${SQL_TAXI_SUBSCRIPTION}
+      echo "export SQL_TAXI_TOPIC=${SQL_TAXI_TOPIC}" >> ~/.bashrc
+
+      echo "This is a streaming job. This task will be launched in a separate terminal."
+      gnome-terminal -x sh -c \
+      "echo '***************************************************';
+       echo '* Running Python XLang SQL Taxi with DataflowRunner';
+       echo '***************************************************';
+      . ${LOCAL_BEAM_DIR}/beam_env_${py_version}/bin/activate
+      python -m apache_beam.examples.sql_taxi \
+      --project=${USER_GCP_PROJECT} \
+      --region=${USER_GCP_REGION} \
+      --runner DataflowRunner \
+      --num_workers 5 \
+      --temp_location=${USER_GCS_BUCKET}/temp/ \
+      --output_topic projects/${USER_GCP_PROJECT}/topics/${SQL_TAXI_TOPIC} \
+      --sdk_location apache-beam-${RELEASE_VER}.zip; \
+      exec bash"
+
+      echo "***************************************************************"
+      echo "* Please wait for at least 10 mins to let Dataflow job be launched and results get populated."
+      echo "* Sleeping for 10 mins"
+      sleep 10m
+      echo "* How to verify results:"
+      echo "* 1. Goto your Dataflow job console and check whether there is any error."
+      echo "* 2. Check whether your ${SQL_TAXI_SUBSCRIPTION} subscription has data below:"
+      # run twice since the first execution would return 0 messages
+      gcloud pubsub subscriptions pull --project=${USER_GCP_PROJECT} --limit=5 ${SQL_TAXI_SUBSCRIPTION}
+      test_output=$(gcloud pubsub subscriptions pull --project=${USER_GCP_PROJECT} --limit=5 ${SQL_TAXI_SUBSCRIPTION})
+      echo "$test_output"
+      if ! grep -q "ride_status" <<< "$test_output"; then
+        echo "Couldn't find expected output. Please confirm the output by visiting the console manually."
+        exit 1
+      fi
+      echo "***************************************************************"
+    else
+      echo "* Skip Python XLang SQL Taxi with DataflowRunner"
+    fi
+  done # Loop over Python versions.
+else
+  echo "* Skip Python Cross-language Validations"
+fi
+echo "*************************************************************"
+echo " NOTE: Streaming pipelines are not automatically canceled.   "
+echo " Please manually cancel any remaining test pipelines and     "
+echo " clean up the resources (BigQuery dataset, PubSub topics and "
+echo " subscriptions, GKE cluster, etc.) after verification.       "
+echo "*************************************************************"

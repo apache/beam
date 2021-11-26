@@ -71,7 +71,7 @@ except ImportError:
 # composite transforms support display data.
 class SpecialParDo(beam.ParDo):
   def __init__(self, fn, now):
-    super(SpecialParDo, self).__init__(fn)
+    super().__init__(fn)
     self.fn = fn
     self.now = now
 
@@ -220,7 +220,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
                 urn=common_urns.environments.DOCKER.urn,
                 payload=beam_runner_api_pb2.DockerPayload(
                     container_image='LEGACY').SerializeToString(),
-                capabilities=environments.python_sdk_capabilities())
+                capabilities=environments.python_sdk_docker_capabilities())
         ])
 
   def test_environment_override_translation_sdk_container_image(self):
@@ -240,7 +240,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
                 urn=common_urns.environments.DOCKER.urn,
                 payload=beam_runner_api_pb2.DockerPayload(
                     container_image='FOO').SerializeToString(),
-                capabilities=environments.python_sdk_capabilities())
+                capabilities=environments.python_sdk_docker_capabilities())
         ])
 
   def test_remote_runner_translation(self):
@@ -256,6 +256,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
   def test_streaming_create_translation(self):
     remote_runner = DataflowRunner()
     self.default_properties.append("--streaming")
+    self.default_properties.append("--experiments=disable_runner_v2")
     with Pipeline(remote_runner, PipelineOptions(self.default_properties)) as p:
       p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
     job_dict = json.loads(str(remote_runner.job))
@@ -348,7 +349,8 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     pcoll2.element_type = typehints.Any
     pcoll3.element_type = typehints.KV[typehints.Any, typehints.Any]
     for pcoll in [pcoll1, pcoll2, pcoll3]:
-      applied = AppliedPTransform(None, beam.GroupByKey(), "label", [pcoll])
+      applied = AppliedPTransform(
+          None, beam.GroupByKey(), "label", {'pcoll': pcoll})
       applied.outputs[None] = PCollection(None)
       common.group_by_key_input_visitor().visit_transform(applied)
       self.assertEqual(
@@ -367,7 +369,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     for pcoll in [pcoll1, pcoll2]:
       with self.assertRaisesRegex(ValueError, err_msg):
         common.group_by_key_input_visitor().visit_transform(
-            AppliedPTransform(None, beam.GroupByKey(), "label", [pcoll]))
+            AppliedPTransform(None, beam.GroupByKey(), "label", {'in': pcoll}))
 
   def test_group_by_key_input_visitor_for_non_gbk_transforms(self):
     p = TestPipeline()
@@ -375,7 +377,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     for transform in [beam.Flatten(), beam.Map(lambda x: x)]:
       pcoll.element_type = typehints.Any
       common.group_by_key_input_visitor().visit_transform(
-          AppliedPTransform(None, transform, "label", [pcoll]))
+          AppliedPTransform(None, transform, "label", {'in': pcoll}))
       self.assertEqual(pcoll.element_type, typehints.Any)
 
   def test_flatten_input_with_visitor_with_single_input(self):
@@ -387,11 +389,11 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
 
   def _test_flatten_input_visitor(self, input_type, output_type, num_inputs):
     p = TestPipeline()
-    inputs = []
-    for _ in range(num_inputs):
+    inputs = {}
+    for ix in range(num_inputs):
       input_pcoll = PCollection(p)
       input_pcoll.element_type = input_type
-      inputs.append(input_pcoll)
+      inputs[str(ix)] = input_pcoll
     output_pcoll = PCollection(p)
     output_pcoll.element_type = output_type
 
@@ -399,7 +401,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     flatten.add_output(output_pcoll, None)
     DataflowRunner.flatten_input_visitor().visit_transform(flatten)
     for _ in range(num_inputs):
-      self.assertEqual(inputs[0].element_type, output_type)
+      self.assertEqual(inputs['0'].element_type, output_type)
 
   def test_gbk_then_flatten_input_visitor(self):
     p = TestPipeline(
@@ -442,7 +444,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         z: (x, y, z),
         beam.pvalue.AsSingleton(pc),
         beam.pvalue.AsMultiMap(pc))
-    applied_transform = AppliedPTransform(None, transform, "label", [pc])
+    applied_transform = AppliedPTransform(None, transform, "label", {'pc': pc})
     DataflowRunner.side_input_visitor(
         use_fn_api=True).visit_transform(applied_transform)
     self.assertEqual(2, len(applied_transform.side_inputs))
@@ -512,16 +514,6 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         remote_runner.job.options.view_as(DebugOptions).experiments)
     self.assertIn('beam_fn_api', experiments_for_job)
     self.assertIn('use_staged_dataflow_worker_jar', experiments_for_job)
-
-  def test_use_fastavro_experiment_is_added_on_py3_and_onwards(self):
-    remote_runner = DataflowRunner()
-
-    with Pipeline(remote_runner, PipelineOptions(self.default_properties)) as p:
-      p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
-
-    self.assertTrue(
-        remote_runner.job.options.view_as(DebugOptions).lookup_experiment(
-            'use_fastavro', False))
 
   def test_use_fastavro_experiment_is_not_added_when_use_avro_is_present(self):
     remote_runner = DataflowRunner()
@@ -838,7 +830,8 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         'Runner determined sharding not available in Dataflow for '
         'GroupIntoBatches for jobs not using Runner V2'):
       _ = self._run_group_into_batches_and_get_step_properties(
-          True, ['--enable_streaming_engine'])
+          True,
+          ['--enable_streaming_engine', '--experiments=disable_runner_v2'])
 
     # JRH
     with self.assertRaisesRegex(
@@ -846,7 +839,12 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         'Runner determined sharding not available in Dataflow for '
         'GroupIntoBatches for jobs not using Runner V2'):
       _ = self._run_group_into_batches_and_get_step_properties(
-          True, ['--enable_streaming_engine', '--experiments=beam_fn_api'])
+          True,
+          [
+              '--enable_streaming_engine',
+              '--experiments=beam_fn_api',
+              '--experiments=disable_runner_v2'
+          ])
 
   def test_pack_combiners(self):
     class PackableCombines(beam.PTransform):

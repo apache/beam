@@ -27,6 +27,7 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.DurationCoder;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
+import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -68,7 +69,7 @@ public class IntervalWindow extends BoundedWindow implements Comparable<Interval
   @Override
   public Instant maxTimestamp() {
     // end not inclusive
-    return end.minus(1);
+    return end.minus(Duration.millis(1));
   }
 
   /** Returns whether this window contains the given window. */
@@ -172,6 +173,19 @@ public class IntervalWindow extends BoundedWindow implements Comparable<Interval
     @Override
     public boolean consistentWithEquals() {
       return instantCoder.consistentWithEquals() && durationCoder.consistentWithEquals();
+    }
+
+    @Override
+    public boolean isRegisterByteSizeObserverCheap(IntervalWindow value) {
+      return instantCoder.isRegisterByteSizeObserverCheap(value.end)
+          && durationCoder.isRegisterByteSizeObserverCheap(new Duration(value.start, value.end));
+    }
+
+    @Override
+    public void registerByteSizeObserver(IntervalWindow value, ElementByteSizeObserver observer)
+        throws Exception {
+      instantCoder.registerByteSizeObserver(value.end, observer);
+      durationCoder.registerByteSizeObserver(new Duration(value.start, value.end), observer);
     }
 
     @Override

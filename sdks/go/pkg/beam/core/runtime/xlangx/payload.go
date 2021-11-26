@@ -19,10 +19,10 @@ import (
 	"bytes"
 	"reflect"
 
-	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/schema"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/schema"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -64,4 +64,38 @@ func EncodeStructPayload(pl interface{}) ([]byte, error) {
 	}
 
 	return plBytes, nil
+}
+
+// DecodeStructPayload takes a marshaled ExternalConfigurationPayload proto
+// and returns a native Go struct, with its type converted from the Schema
+// representation and its value decoded from the Row.
+func DecodeStructPayload(plBytes []byte) (interface{}, error) {
+	// Unmarshal payload proto.
+	ecp := &pipepb.ExternalConfigurationPayload{}
+	if err := proto.Unmarshal(plBytes, ecp); err != nil {
+		err = errors.WithContext(err, "failed to unmarshal the payload proto")
+		return nil, errors.WithContext(err, "decoding external payload")
+	}
+
+	// Convert Schema representation into payload type.
+	rt, err := schema.ToType(ecp.GetSchema())
+	if err != nil {
+		err = errors.WithContextf(err, "converting schema to payload type. schema: %v", ecp.GetSchema())
+		return nil, errors.WithContext(err, "decoding external payload")
+	}
+
+	// Decode a Row to payload value.
+	dec, err := coder.RowDecoderForStruct(rt)
+	if err != nil {
+		err = errors.WithContextf(err, "creating Row decoder for type %v", rt)
+		return nil, errors.WithContext(err, "decoding external payload")
+	}
+	buf := bytes.NewBuffer(ecp.Payload)
+	val, err := dec(buf)
+	if err != nil {
+		err = errors.WithContext(err, "decoding Row to payload")
+		return nil, errors.WithContextf(err, "decoding external payload")
+	}
+
+	return val, nil
 }

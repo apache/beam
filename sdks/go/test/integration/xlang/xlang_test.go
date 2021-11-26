@@ -21,14 +21,15 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/examples/xlang"
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/dataflow"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/flink"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/spark"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
-	"github.com/apache/beam/sdks/go/test/integration"
+	"github.com/apache/beam/sdks/v2/go/examples/xlang"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/dataflow"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/flink"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/samza"
+	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/spark"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
+	"github.com/apache/beam/sdks/v2/go/test/integration"
 )
 
 func init() {
@@ -45,8 +46,8 @@ func init() {
 }
 
 func checkFlags(t *testing.T) {
-	if *ptest.ExpansionAddr == "" {
-		t.Skip("No expansion address provided")
+	if *integration.TestExpansionAddr == "" {
+		t.Skip("No expansion address provided.")
 	}
 }
 
@@ -120,7 +121,7 @@ func TestXLang_Prefix(t *testing.T) {
 
 	// Using the cross-language transform
 	strings := beam.Create(s, "a", "b", "c")
-	prefixed := xlang.Prefix(s, "prefix_", *ptest.ExpansionAddr, strings)
+	prefixed := xlang.Prefix(s, "prefix_", *integration.TestExpansionAddr, strings)
 	passert.Equals(s, prefixed, "prefix_a", "prefix_b", "prefix_c")
 
 	ptest.RunAndValidate(t, p)
@@ -136,7 +137,7 @@ func TestXLang_CoGroupBy(t *testing.T) {
 	// Using the cross-language transform
 	col1 := beam.ParDo(s, getIntString, beam.Create(s, IntString{X: 0, Y: "1"}, IntString{X: 0, Y: "2"}, IntString{X: 1, Y: "3"}))
 	col2 := beam.ParDo(s, getIntString, beam.Create(s, IntString{X: 0, Y: "4"}, IntString{X: 1, Y: "5"}, IntString{X: 1, Y: "6"}))
-	c := xlang.CoGroupByKey(s, *ptest.ExpansionAddr, col1, col2)
+	c := xlang.CoGroupByKey(s, *integration.TestExpansionAddr, col1, col2)
 	sums := beam.ParDo(s, sumCounts, c)
 	formatted := beam.ParDo(s, formatIntStringsFn, sums)
 	passert.Equals(s, formatted, "0:[1 2 4]", "1:[3 5 6]")
@@ -154,7 +155,7 @@ func TestXLang_Combine(t *testing.T) {
 	// Using the cross-language transform
 	kvs := beam.Create(s, StringInt{X: "a", Y: 1}, StringInt{X: "a", Y: 2}, StringInt{X: "b", Y: 3})
 	ins := beam.ParDo(s, getStringInt, kvs)
-	c := xlang.CombinePerKey(s, *ptest.ExpansionAddr, ins)
+	c := xlang.CombinePerKey(s, *integration.TestExpansionAddr, ins)
 
 	formatted := beam.ParDo(s, formatStringIntFn, c)
 	passert.Equals(s, formatted, "a:3", "b:3")
@@ -172,7 +173,7 @@ func TestXLang_CombineGlobally(t *testing.T) {
 	in := beam.CreateList(s, []int64{1, 2, 3})
 
 	// Using the cross-language transform
-	c := xlang.CombineGlobally(s, *ptest.ExpansionAddr, in)
+	c := xlang.CombineGlobally(s, *integration.TestExpansionAddr, in)
 
 	formatted := beam.ParDo(s, formatIntFn, c)
 	passert.Equals(s, formatted, "6")
@@ -191,7 +192,7 @@ func TestXLang_Flatten(t *testing.T) {
 	col2 := beam.CreateList(s, []int64{4, 5, 6})
 
 	// Using the cross-language transform
-	c := xlang.Flatten(s, *ptest.ExpansionAddr, col1, col2)
+	c := xlang.Flatten(s, *integration.TestExpansionAddr, col1, col2)
 
 	formatted := beam.ParDo(s, formatIntFn, c)
 	passert.Equals(s, formatted, "1", "2", "3", "4", "5", "6")
@@ -209,7 +210,7 @@ func TestXLang_GroupBy(t *testing.T) {
 	// Using the cross-language transform
 	kvs := beam.Create(s, StringInt{X: "0", Y: 1}, StringInt{X: "0", Y: 2}, StringInt{X: "1", Y: 3})
 	in := beam.ParDo(s, getStringInt, kvs)
-	out := xlang.GroupByKey(s, *ptest.ExpansionAddr, in)
+	out := xlang.GroupByKey(s, *integration.TestExpansionAddr, in)
 
 	vals := beam.ParDo(s, collectValues, out)
 	formatted := beam.ParDo(s, formatStringIntsFn, vals)
@@ -230,7 +231,7 @@ func TestXLang_Multi(t *testing.T) {
 	side := beam.CreateList(s, []string{"s"})
 
 	// Using the cross-language transform
-	mainOut, sideOut := xlang.Multi(s, *ptest.ExpansionAddr, main1, main2, side)
+	mainOut, sideOut := xlang.Multi(s, *integration.TestExpansionAddr, main1, main2, side)
 
 	passert.Equals(s, mainOut, "as", "bbs", "xs", "yys", "zzzs")
 	passert.Equals(s, sideOut, "ss")
@@ -248,7 +249,7 @@ func TestXLang_Partition(t *testing.T) {
 	col := beam.CreateList(s, []int64{1, 2, 3, 4, 5, 6})
 
 	// Using the cross-language transform
-	out0, out1 := xlang.Partition(s, *ptest.ExpansionAddr, col)
+	out0, out1 := xlang.Partition(s, *integration.TestExpansionAddr, col)
 	formatted0 := beam.ParDo(s, formatIntFn, out0)
 	formatted1 := beam.ParDo(s, formatIntFn, out1)
 

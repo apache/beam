@@ -20,7 +20,7 @@
 Code: beam/sdks/python/apache_beam/examples/complete/game/game_stats.py
 Usage:
 
-  python setup.py nosetests --test-pipeline-options=" \
+  pytest --test-pipeline-options=" \
       --runner=TestDataflowRunner \
       --project=... \
       --region=... \
@@ -38,8 +38,8 @@ import time
 import unittest
 import uuid
 
+import pytest
 from hamcrest.core.core.allof import all_of
-from nose.plugins.attrib import attr
 
 from apache_beam.examples.complete.game import game_stats
 from apache_beam.io.gcp.tests import utils
@@ -103,7 +103,7 @@ class GameStatsIT(unittest.TestCase):
     test_utils.cleanup_subscriptions(self.sub_client, [self.input_sub])
     test_utils.cleanup_topics(self.pub_client, [self.input_topic])
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_game_stats_it(self):
     state_verifier = PipelineStateMatcher(PipelineState.RUNNING)
 

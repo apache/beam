@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"testing"
 
-	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -227,5 +227,14 @@ func validateSortForTest(t *testing.T, xforms map[string]*pipepb.PTransform, sor
 	}
 	if len(missingPCollections) != 0 {
 		t.Log(sorted)
+	}
+}
+
+func TestBoolToBounded(t *testing.T) {
+	if got, want := BoolToBounded(false), pipepb.IsBounded_UNBOUNDED; got != want {
+		t.Errorf("BoolToBounded(false) = %v, want %v", got, want)
+	}
+	if got, want := BoolToBounded(true), pipepb.IsBounded_BOUNDED; got != want {
+		t.Errorf("BoolToBounded(true) = %v, want %v", got, want)
 	}
 }

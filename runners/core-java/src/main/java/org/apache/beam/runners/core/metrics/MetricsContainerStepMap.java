@@ -229,7 +229,7 @@ public class MetricsContainerStepMap implements Serializable {
     for (MetricUpdate<T> metricUpdate : updates) {
       MetricKey key = metricUpdate.getKey();
       if (metricResultMap.computeIfPresent(
-              key, ((k, current) -> current.addCommitted(metricUpdate.getUpdate(), combine)))
+              key, (k, current) -> current.addCommitted(metricUpdate.getUpdate(), combine))
           == null) {
         throw new IllegalStateException(
             String.format(

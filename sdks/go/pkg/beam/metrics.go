@@ -18,7 +18,7 @@ package beam
 import (
 	"context"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
 )
 
 // Implementation Note: The wrapping of the embedded methods
@@ -34,12 +34,14 @@ type Counter struct {
 	*metrics.Counter
 }
 
-// Inc increments the counter within by the given amount.
+// Inc increments the counter within by the given amount. The context must be
+// provided by the framework, or the value will not be recorded.
 func (c Counter) Inc(ctx context.Context, v int64) {
 	c.Counter.Inc(ctx, v)
 }
 
-// Dec decrements the counter within by the given amount.
+// Dec decrements the counter within by the given amount. The context must be
+// provided by the framework, or the value will not be recorded.
 func (c Counter) Dec(ctx context.Context, v int64) {
 	c.Counter.Dec(ctx, v)
 }
@@ -59,7 +61,8 @@ type Distribution struct {
 	*metrics.Distribution
 }
 
-// Update adds an observation to this distribution.
+// Update adds an observation to this distribution. The context must be
+// provided by the framework, or the value will not be recorded.
 func (c Distribution) Update(ctx context.Context, v int64) {
 	c.Distribution.Update(ctx, v)
 }
@@ -79,7 +82,8 @@ type Gauge struct {
 	*metrics.Gauge
 }
 
-// Set sets the current value for this gauge.
+// Set sets the current value for this gauge. The context must be
+// provided by the framework, or the value will not be recorded.
 func (c Gauge) Set(ctx context.Context, v int64) {
 	c.Gauge.Set(ctx, v)
 }

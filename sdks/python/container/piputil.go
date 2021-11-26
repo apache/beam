@@ -26,7 +26,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/util/execx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/execx"
 )
 
 var (

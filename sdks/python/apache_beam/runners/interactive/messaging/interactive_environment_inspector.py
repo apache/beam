@@ -36,16 +36,17 @@ class InteractiveEnvironmentInspector(object):
   list_inspectables first then communicates back to the kernel and get_val for
   usage on the kernel side.
   """
-  def __init__(self):
+  def __init__(self, ignore_synthetic=True):
     self._inspectables = {}
     self._anonymous = {}
     self._inspectable_pipelines = set()
+    self._ignore_synthetic = ignore_synthetic
 
   @property
   def inspectables(self):
     """Lists pipelines and pcollections assigned to variables as inspectables.
     """
-    self._inspectables = inspect()
+    self._inspectables = inspect(self._ignore_synthetic)
     return self._inspectables
 
   @property
@@ -136,7 +137,7 @@ class InteractiveEnvironmentInspector(object):
     return {}
 
 
-def inspect():
+def inspect(ignore_synthetic=True):
   """Inspects current interactive environment to track metadata and values of
   pipelines and pcollections.
 
@@ -148,7 +149,7 @@ def inspect():
   for watching in ie.current_env().watching():
     for name, value in watching:
       # Ignore synthetic vars created by Interactive Beam itself.
-      if name.startswith('synthetic_var_'):
+      if ignore_synthetic and name.startswith('synthetic_var_'):
         continue
       metadata = meta(name, value)
       identifier = obfuscate(metadata)

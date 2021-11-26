@@ -72,7 +72,7 @@ constructor::
       def construct_table():
         # Construct the rainbow table from the table elements.
         # The table contains lines in the form "string::hash"
-        result = dict()
+        result = {}
         for key, value in table_elements:
           result[value] = key
         return result
@@ -209,7 +209,7 @@ class _SharedMap(object):
     self._lock = threading.Lock()
 
     # Dictionary of references to shared control blocks
-    self._cache_map = dict()
+    self._cache_map = {}
 
     # Tuple of (key, obj), where obj is an object we explicitly hold a reference
     # to keep it alive

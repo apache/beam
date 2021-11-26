@@ -29,13 +29,14 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/artifact"
-	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
-	"github.com/apache/beam/sdks/go/pkg/beam/provision"
-	"github.com/apache/beam/sdks/go/pkg/beam/util/execx"
-	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/artifact"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/provision"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/execx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
 	"github.com/nightlyone/lockfile"
@@ -180,7 +181,6 @@ func main() {
 
 	// (3) Invoke python
 
-	os.Setenv("WORKER_ID", *id)
 	os.Setenv("PIPELINE_OPTIONS", options)
 	os.Setenv("SEMI_PERSISTENT_DIRECTORY", *semiPersistDir)
 	os.Setenv("LOGGING_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(&pipepb.ApiServiceDescriptor{Url: *loggingEndpoint}))
@@ -191,22 +191,31 @@ func main() {
 		os.Setenv("STATUS_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(info.GetStatusEndpoint()))
 	}
 
-    if metadata := info.GetMetadata(); metadata != nil {
-        if jobName, nameExists := metadata["job_name"]; nameExists {
-            os.Setenv("JOB_NAME", jobName)
-        }
-        if jobID, idExists := metadata["job_id"]; idExists {
-            os.Setenv("JOB_ID", jobID)
-        }
-    }
+	if metadata := info.GetMetadata(); metadata != nil {
+		if jobName, nameExists := metadata["job_name"]; nameExists {
+			os.Setenv("JOB_NAME", jobName)
+		}
+		if jobID, idExists := metadata["job_id"]; idExists {
+			os.Setenv("JOB_ID", jobID)
+		}
+	}
 
 	args := []string{
 		"-m",
 		sdkHarnessEntrypoint,
 	}
-	log.Printf("Executing: python %v", strings.Join(args, " "))
 
-	log.Fatalf("Python exited: %v", execx.Execute("python", args...))
+	workerIds := append([]string{*id}, info.GetSiblingWorkerIds()...)
+	var wg sync.WaitGroup
+	wg.Add(len(workerIds))
+	for _, workerId := range workerIds {
+		go func(workerId string) {
+			log.Printf("Executing: python %v", strings.Join(args, " "))
+			log.Fatalf("Python exited: %v", execx.ExecuteEnv(map[string]string{"WORKER_ID": workerId}, "python", args...))
+			wg.Done()
+		}(workerId)
+	}
+	wg.Wait()
 }
 
 // setup wheel specs according to installed python version

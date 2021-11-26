@@ -59,6 +59,7 @@ import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.TimestampPrefixingWindowCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
@@ -116,6 +117,7 @@ public class CommonCoderTest {
               WindowedValue.ParamWindowedValueCoder.class)
           .put(getUrn(StandardCoders.Enum.ROW), RowCoder.class)
           .put(getUrn(StandardCoders.Enum.SHARDED_KEY), ShardedKey.Coder.class)
+          .put(getUrn(StandardCoders.Enum.CUSTOM_WINDOW), TimestampPrefixingWindowCoder.class)
           .build();
 
   @AutoValue
@@ -345,6 +347,10 @@ public class CommonCoderTest {
       byte[] shardId = ((String) kvMap.get("shardId")).getBytes(StandardCharsets.ISO_8859_1);
       return ShardedKey.of(
           convertValue(kvMap.get("key"), coderSpec.getComponents().get(0), keyCoder), shardId);
+    } else if (s.equals(getUrn(StandardCoders.Enum.CUSTOM_WINDOW))) {
+      Map<String, Object> kvMap = (Map<String, Object>) value;
+      Coder windowCoder = ((TimestampPrefixingWindowCoder) coder).getWindowCoder();
+      return convertValue(kvMap.get("window"), coderSpec.getComponents().get(0), windowCoder);
     } else {
       throw new IllegalStateException("Unknown coder URN: " + coderSpec.getUrn());
     }
@@ -502,6 +508,8 @@ public class CommonCoderTest {
       assertEquals(expectedValue, actualValue);
     } else if (s.equals(getUrn(StandardCoders.Enum.SHARDED_KEY))) {
       assertEquals(expectedValue, actualValue);
+    } else if (s.equals(getUrn(StandardCoders.Enum.CUSTOM_WINDOW))) {
+      assertEquals(expectedValue, actualValue);
     } else {
       throw new IllegalStateException("Unknown coder URN: " + coder.getUrn());
     }
@@ -511,6 +519,7 @@ public class CommonCoderTest {
    * Utility for adding new entries to the common coder spec -- prints the serialized bytes of the
    * given value in the given context using JSON-escaped strings.
    */
+  @SuppressWarnings("unused")
   private static <T> String jsonByteString(Coder<T> coder, T value, Context context)
       throws CoderException {
     byte[] bytes = CoderUtils.encodeToByteArray(coder, value, context);

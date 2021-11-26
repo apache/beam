@@ -151,13 +151,13 @@ class StandardCodersTest(unittest.TestCase):
       window_parser: windowed_value.create(
           value_parser(x['value']),
           x['timestamp'] * 1000,
-          tuple([window_parser(w) for w in x['windows']])),
+          tuple(window_parser(w) for w in x['windows'])),
       'beam:coder:param_windowed_value:v1': lambda x,
       value_parser,
       window_parser: windowed_value.create(
           value_parser(x['value']),
           x['timestamp'] * 1000,
-          tuple([window_parser(w) for w in x['windows']]),
+          tuple(window_parser(w) for w in x['windows']),
           PaneInfo(
               x['pane']['is_first'],
               x['pane']['is_last'],
@@ -170,7 +170,7 @@ class StandardCodersTest(unittest.TestCase):
           user_key=value_parser(x['userKey']),
           dynamic_timer_tag=x['dynamicTimerTag'],
           clear_bit=x['clearBit'],
-          windows=tuple([window_parser(w) for w in x['windows']]),
+          windows=tuple(window_parser(w) for w in x['windows']),
           fire_timestamp=None,
           hold_timestamp=None,
           paneinfo=None) if x['clearBit'] else userstate.Timer(
@@ -179,7 +179,7 @@ class StandardCodersTest(unittest.TestCase):
               clear_bit=x['clearBit'],
               fire_timestamp=Timestamp(micros=x['fireTimestamp'] * 1000),
               hold_timestamp=Timestamp(micros=x['holdTimestamp'] * 1000),
-              windows=tuple([window_parser(w) for w in x['windows']]),
+              windows=tuple(window_parser(w) for w in x['windows']),
               paneinfo=PaneInfo(
                   x['pane']['is_first'],
                   x['pane']['is_last'],
@@ -189,7 +189,9 @@ class StandardCodersTest(unittest.TestCase):
       'beam:coder:double:v1': parse_float,
       'beam:coder:sharded_key:v1': lambda x,
       value_parser: ShardedKey(
-          key=value_parser(x['key']), shard_id=x['shardId'].encode('utf-8'))
+          key=value_parser(x['key']), shard_id=x['shardId'].encode('utf-8')),
+      'beam:coder:custom_window:v1': lambda x,
+      window_parser: window_parser(x['window'])
   }
 
   def test_standard_coders(self):

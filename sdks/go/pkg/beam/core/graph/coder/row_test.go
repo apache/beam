@@ -22,7 +22,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/jsonx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/jsonx"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -606,4 +606,266 @@ func BenchmarkRowCoder_RoundTrip(b *testing.B) {
 			})
 		}
 	}
+}
+
+type testInterface interface {
+	TestEncode() ([]byte, error)
+	TestDecode(b []byte) error
+}
+
+var (
+	testInterfaceType = reflect.TypeOf((*testInterface)(nil)).Elem()
+	testStorageType   = reflect.TypeOf((*struct{ TestData []byte })(nil)).Elem()
+	testParDoType     = reflect.TypeOf((*testParDo)(nil))
+)
+
+type testProvider struct{}
+
+func (p *testProvider) FromLogicalType(rt reflect.Type) (reflect.Type, error) {
+	if !rt.Implements(testInterfaceType) {
+		return nil, fmt.Errorf("%s does not implement testInterface", rt)
+	}
+	return testStorageType, nil
+}
+
+func (p *testProvider) BuildEncoder(rt reflect.Type) (func(interface{}, io.Writer) error, error) {
+	if _, err := p.FromLogicalType(rt); err != nil {
+		return nil, err
+	}
+
+	return func(iface interface{}, w io.Writer) error {
+		v := iface.(testInterface)
+		data, err := v.TestEncode()
+		if err != nil {
+			return err
+		}
+		if err := WriteSimpleRowHeader(1, w); err != nil {
+			return err
+		}
+		if err := EncodeBytes(data, w); err != nil {
+			return err
+		}
+		return nil
+	}, nil
+}
+
+func (p *testProvider) BuildDecoder(rt reflect.Type) (func(io.Reader) (interface{}, error), error) {
+	if _, err := p.FromLogicalType(rt); err != nil {
+		return nil, err
+	}
+	if rt.Kind() == reflect.Ptr {
+		rt = rt.Elem()
+		return func(r io.Reader) (interface{}, error) {
+			if err := ReadSimpleRowHeader(1, r); err != nil {
+				return nil, err
+			}
+			data, err := DecodeBytes(r)
+			if err != nil {
+				return nil, err
+			}
+			v, ok := reflect.New(rt).Interface().(testInterface)
+			if !ok {
+				return nil, fmt.Errorf("%s is not %s", reflect.PtrTo(rt), testInterfaceType)
+			}
+			if err := v.TestDecode(data); err != nil {
+				return nil, err
+			}
+			return v, nil
+		}, nil
+	}
+	return func(r io.Reader) (interface{}, error) {
+		if err := ReadSimpleRowHeader(1, r); err != nil {
+			return nil, err
+		}
+		data, err := DecodeBytes(r)
+		if err != nil {
+			return nil, err
+		}
+		v, ok := reflect.New(rt).Elem().Interface().(testInterface)
+		if !ok {
+			return nil, fmt.Errorf("%s is not %s", rt, testInterfaceType)
+		}
+		if err := v.TestDecode(data); err != nil {
+			return nil, err
+		}
+		return v, nil
+	}, nil
+}
+
+type testStruct struct {
+	A int64
+
+	b int64
+}
+
+func (s *testStruct) TestEncode() ([]byte, error) {
+	var buf bytes.Buffer
+	if err := EncodeVarInt(s.A, &buf); err != nil {
+		return nil, err
+	}
+	if err := EncodeVarInt(s.b, &buf); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func (s *testStruct) TestDecode(b []byte) error {
+	buf := bytes.NewReader(b)
+	var err error
+	s.A, err = DecodeVarInt(buf)
+	if err != nil {
+		return err
+	}
+	s.b, err = DecodeVarInt(buf)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+var _ testInterface = &testStruct{}
+
+type testParDo struct {
+	Struct         testStruct
+	StructPtr      *testStruct
+	StructSlice    []testStruct
+	StructPtrSlice []*testStruct
+	StructMap      map[int64]testStruct
+	StructPtrMap   map[int64]*testStruct
+}
+
+func TestSchemaProviderInterface(t *testing.T) {
+	p := testProvider{}
+	encb := &RowEncoderBuilder{}
+	encb.Register(testInterfaceType, p.BuildEncoder)
+	enc, err := encb.Build(testParDoType)
+	if err != nil {
+		t.Fatalf("RowEncoderBuilder.Build(%v): %v", testParDoType, err)
+	}
+	decb := &RowDecoderBuilder{}
+	decb.Register(testInterfaceType, p.BuildDecoder)
+	dec, err := decb.Build(testParDoType)
+	if err != nil {
+		t.Fatalf("RowDecoderBuilder.Build(%v): %v", testParDoType, err)
+	}
+	want := &testParDo{
+		Struct: testStruct{
+			A: 1,
+			b: 2,
+		},
+		StructPtr: &testStruct{
+			A: 3,
+			b: 4,
+		},
+		StructSlice: []testStruct{
+			{
+				A: 5,
+				b: 6,
+			},
+			{
+				A: 7,
+				b: 8,
+			},
+			{
+				A: 9,
+				b: 10,
+			},
+		},
+		StructPtrSlice: []*testStruct{
+			{
+				A: 11,
+				b: 12,
+			},
+			{
+				A: 13,
+				b: 14,
+			},
+			{
+				A: 15,
+				b: 16,
+			},
+		},
+		StructMap: map[int64]testStruct{
+			0: {
+				A: 17,
+				b: 18,
+			},
+			1: {
+				A: 19,
+				b: 20,
+			},
+			2: {
+				A: 21,
+				b: 22,
+			},
+		},
+		StructPtrMap: map[int64]*testStruct{
+			0: {
+				A: 23,
+				b: 24,
+			},
+			1: {
+				A: 25,
+				b: 26,
+			},
+			2: {
+				A: 27,
+				b: 28,
+			},
+		},
+	}
+	var buf bytes.Buffer
+	if err := enc(want, &buf); err != nil {
+		t.Fatalf("Encode(%v): %v", want, err)
+	}
+	got, err := dec(&buf)
+	if err != nil {
+		t.Fatalf("Decode(%v): %v", buf.Bytes(), err)
+	}
+	if diff := cmp.Diff(want, got, cmp.AllowUnexported(testStruct{})); diff != "" {
+		t.Errorf("Decode(Encode(%v)): %v", want, diff)
+	}
+}
+
+func TestRowHeader_TrailingZeroBytes(t *testing.T) {
+	// BEAM-13081: The row header should elide trailing 0 bytes.
+	// But be tolerant of trailing 0 bytes.
+
+	const count = 255
+	// For each bit, lets ensure we can check and lookup all the nils.
+	for i := -1; i < count; i++ {
+		t.Run(fmt.Sprintf("%d is nil", i), func(t *testing.T) {
+			var buf bytes.Buffer
+			if err := WriteRowHeader(count, func(f int) bool { return f == i }, &buf); err != nil {
+				t.Fatalf("WriteRowHeader failed: %v", err)
+			}
+			// 3+(i/8+1) is the expected byte count for the header when trailing nils are elided.
+			// 2 bytes for the varint encoded `count`
+			// 1 byte for the varint encoded bitset length
+			// i/8+1 nil filed index to get the number of bytes in the bitset.
+			const fcl = 3
+			if got, want := len(buf.Bytes()), fcl+(i/8+1); i != -1 && got != want {
+				t.Errorf("len(header: %+v) = %v, want %v", buf.Bytes(), got, want)
+			}
+			// In the no nils case, header should only be fcl bytes long.
+			if got, want := len(buf.Bytes()), fcl; i == -1 && got != want {
+				t.Errorf("len(header: %+v) = %v, want %v", buf.Bytes(), got, want)
+			}
+			n, nils, err := ReadRowHeader(&buf)
+			if err != nil {
+				t.Fatalf("ReadRowHeader failed: %v", err)
+			}
+			if got, want := n, count; got != want {
+				t.Fatalf("ReadRowHeader returned %v fields, but want %v", got, want)
+			}
+			// Look up all fields, and ensure they actually match.
+			// Only a single nil field is being set at most, the matching iteration index.
+			for f := 0; f < count; f++ {
+				if got, want := IsFieldNil(nils, f), i == f; got != want {
+					t.Errorf("IsFieldNil(%v, %v) = %v but want %v", nils, f, got, want)
+				}
+			}
+		})
+	}
+
 }

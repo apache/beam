@@ -51,6 +51,8 @@ def run(argv=None):
   # The pipeline will be run on exiting the with block.
   with beam.Pipeline(options=PipelineOptions(pipeline_args)) as p:
 
+    # [START DataFrame_wordcount]
+
     # Read the text file[pattern] into a PCollection.
     lines = p | 'Read' >> ReadFromText(known_args.input)
 
@@ -69,6 +71,8 @@ def run(argv=None):
 
     # Deferred DataFrames can also be converted back to schema'd PCollections
     counted_pc = to_pcollection(counted, include_indexes=True)
+
+    # [END DataFrame_wordcount]
 
     # Print out every word that occurred >50 times
     _ = (

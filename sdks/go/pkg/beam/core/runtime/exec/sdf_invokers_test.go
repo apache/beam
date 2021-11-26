@@ -18,7 +18,7 @@ package exec
 import (
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -379,6 +379,53 @@ func (fn *VetKvSdf) ProcessElement(rt *VetRTracker, i, j int, emit func(*VetRest
 	rest := rt.Rest
 	rest.Key = i
 	rest.Val = j
+	rest.ProcessElm = true
+	emit(rest)
+}
+
+// VetEmptyInitialSplitSdf runs an SDF in order to test that these methods get called properly,
+// each method will flip the corresponding flag in the passed in VetRestriction,
+// overwrite the restriction's Key and Val with the last seen input elements,
+// and retain the other fields in the VetRestriction.
+type VetEmptyInitialSplitSdf struct {
+}
+
+// CreateInitialRestriction creates a restriction with the given values and
+// with the appropriate flags to track that this was called.
+func (fn *VetEmptyInitialSplitSdf) CreateInitialRestriction(i int) *VetRestriction {
+	return &VetRestriction{ID: "EmptySdf", Val: i, CreateRest: true}
+}
+
+// SplitRestriction outputs zero restrictions.
+func (fn *VetEmptyInitialSplitSdf) SplitRestriction(i int, rest *VetRestriction) []*VetRestriction {
+	return []*VetRestriction{}
+}
+
+// RestrictionSize just returns i as the size, as well as flipping appropriate
+// flags on the restriction to track that this was called.
+func (fn *VetEmptyInitialSplitSdf) RestrictionSize(i int, rest *VetRestriction) float64 {
+	rest.Key = nil
+	rest.Val = i
+	rest.RestSize = true
+	return (float64)(i)
+}
+
+// CreateTracker creates an RTracker containing the given restriction and flips
+// the appropriate flags on the restriction to track that this was called.
+func (fn *VetEmptyInitialSplitSdf) CreateTracker(rest *VetRestriction) *VetRTracker {
+	rest.CreateTracker = true
+	return &VetRTracker{rest}
+}
+
+// ProcessElement emits the restriction from the restriction tracker it
+// received, with the appropriate flags flipped to track that this was called.
+// Note that emitting restrictions is discouraged in normal usage. It is only
+// done here to allow validating that ProcessElement is being executed
+// properly.
+func (fn *VetEmptyInitialSplitSdf) ProcessElement(rt *VetRTracker, i int, emit func(*VetRestriction)) {
+	rest := rt.Rest
+	rest.Key = nil
+	rest.Val = i
 	rest.ProcessElm = true
 	emit(rest)
 }

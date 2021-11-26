@@ -73,7 +73,7 @@ public class SamzaMetricsContainer {
     final GaugeUpdater updateGauge = new GaugeUpdater();
     results.getGauges().forEach(updateGauge);
 
-    // TODO: add distribution metrics to Samza
+    // TODO(BEAM-12614): add distribution metrics to Samza
   }
 
   private class CounterUpdater implements Consumer<MetricResult<Long>> {

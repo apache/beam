@@ -16,7 +16,7 @@
 package cmd
 
 import (
-	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
+	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	"github.com/golang/protobuf/proto"
 	"github.com/spf13/cobra"
 )

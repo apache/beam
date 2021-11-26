@@ -17,12 +17,12 @@ package funcx
 
 import (
 	"fmt"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/sdf"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 // Note that we can't tell the difference between K, V and V, S before binding.
@@ -70,6 +70,12 @@ const (
 	// FnRTracker indicates a function input parameter that implements
 	// sdf.RTracker.
 	FnRTracker FnParamKind = 0x100
+	// FnMultiMap indicates a function input parameter that is a multimap.
+	// The function signature is a function taking a value and returning a function
+	// matching the iterator signature.
+	// Example:
+	//				"func(string) func (*int) bool"
+	FnMultiMap FnParamKind = 0x200
 )
 
 func (k FnParamKind) String() string {
@@ -92,6 +98,8 @@ func (k FnParamKind) String() string {
 		return "Window"
 	case FnRTracker:
 		return "RTracker"
+	case FnMultiMap:
+		return "MultiMap"
 	default:
 		return fmt.Sprintf("%v", int(k))
 	}
@@ -190,12 +198,12 @@ func (u *Fn) Inputs() (pos int, num int, exists bool) {
 	pos = -1
 	exists = false
 	for i, p := range u.Param {
-		if !exists && (p.Kind == FnValue || p.Kind == FnIter || p.Kind == FnReIter) {
+		if !exists && (p.Kind == FnValue || p.Kind == FnIter || p.Kind == FnReIter || p.Kind == FnMultiMap) {
 			// This executes on hitting the first input.
 			pos = i
 			num = 1
 			exists = true
-		} else if exists && (p.Kind == FnValue || p.Kind == FnIter || p.Kind == FnReIter) {
+		} else if exists && (p.Kind == FnValue || p.Kind == FnIter || p.Kind == FnReIter || p.Kind == FnMultiMap) {
 			// Subsequent inputs after the first.
 			num++
 		} else if exists {
@@ -319,6 +327,8 @@ func New(fn reflectx.Func) (*Fn, error) {
 			kind = FnIter
 		case IsReIter(t):
 			kind = FnReIter
+		case IsMultiMap(t):
+			kind = FnMultiMap
 		default:
 			return nil, errors.Errorf("bad parameter type for %s: %v", fn.Name(), t)
 		}
@@ -493,7 +503,7 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 		return -1, errReflectTypePrecedence
 	case FnRTracker:
 		return -1, errRTrackerPrecedence
-	case FnIter, FnReIter, FnValue:
+	case FnIter, FnReIter, FnValue, FnMultiMap:
 		return psInput, nil
 	case FnEmit:
 		return psOutput, nil

@@ -61,6 +61,7 @@ from typing import Dict
 from typing import FrozenSet
 from typing import Iterable
 from typing import List
+from typing import Mapping
 from typing import Optional
 from typing import Sequence
 from typing import Set
@@ -95,6 +96,7 @@ from apache_beam.utils import proto_utils
 from apache_beam.utils import subprocess_server
 from apache_beam.utils.annotations import deprecated
 from apache_beam.utils.interactive_utils import alter_label_if_ipython
+from apache_beam.utils.interactive_utils import is_in_ipython
 
 if TYPE_CHECKING:
   from types import TracebackType
@@ -271,7 +273,7 @@ class Pipeline(object):
     output_replacements = {
     }  # type: Dict[AppliedPTransform, List[Tuple[pvalue.PValue, Optional[str]]]]
     input_replacements = {
-    }  # type: Dict[AppliedPTransform, Sequence[Union[pvalue.PBegin, pvalue.PCollection]]]
+    }  # type: Dict[AppliedPTransform, Mapping[str, Union[pvalue.PBegin, pvalue.PCollection]]]
     side_input_replacements = {
     }  # type: Dict[AppliedPTransform, List[pvalue.AsSideInput]]
 
@@ -297,8 +299,9 @@ class Pipeline(object):
               original_transform_node.parent,
               replacement_transform,
               original_transform_node.full_label,
-              original_transform_node.inputs)
+              original_transform_node.main_inputs)
 
+          # TODO(BEAM-12854): Merge rather than override.
           replacement_transform_node.resource_hints = (
               original_transform_node.resource_hints)
 
@@ -391,6 +394,12 @@ class Pipeline(object):
 
     self.visit(TransformUpdater(self))
 
+    # Ensure no type information is lost.
+    for old, new in output_map.items():
+      if new.element_type == typehints.Any:
+        # TODO(robertwb): Perhaps take the intersection?
+        new.element_type = old.element_type
+
     # Adjusting inputs and outputs
     class InputOutputUpdater(PipelineVisitor):  # pylint: disable=used-before-assignment
       """"A visitor that records input and output values to be replaced.
@@ -437,11 +446,11 @@ class Pipeline(object):
                 output_replacements[transform_node].append((tag, replacement))
 
         if replace_input:
-          new_input = [
-              input if not input in output_map else output_map[input]
-              for input in transform_node.inputs
-          ]
-          input_replacements[transform_node] = new_input
+          new_inputs = {
+              tag: input if not input in output_map else output_map[input]
+              for (tag, input) in transform_node.main_inputs.items()
+          }
+          input_replacements[transform_node] = new_inputs
 
         if replace_side_inputs:
           new_side_inputs = []
@@ -455,15 +464,15 @@ class Pipeline(object):
 
     self.visit(InputOutputUpdater(self))
 
-    for transform in output_replacements:
-      for tag, output in output_replacements[transform]:
+    for transform, output_replacement in output_replacements.items():
+      for tag, output in output_replacement:
         transform.replace_output(output, tag=tag)
 
-    for transform in input_replacements:
-      transform.replace_inputs(input_replacements[transform])
+    for transform, input_replacement in input_replacements.items():
+      transform.replace_inputs(input_replacement)
 
-    for transform in side_input_replacements:
-      transform.replace_side_inputs(side_input_replacements[transform])
+    for transform, side_input_replacement in side_input_replacements.items():
+      transform.replace_side_inputs(side_input_replacement)
 
   def _check_replacement(self, override):
     # type: (PTransformOverride) -> None
@@ -563,7 +572,9 @@ class Pipeline(object):
           shutil.rmtree(tmpdir)
       return self.runner.run_pipeline(self, self._options)
     finally:
-      shutil.rmtree(self.local_tempdir, ignore_errors=True)
+      if not is_in_ipython():
+        shutil.rmtree(self.local_tempdir, ignore_errors=True)
+      # else interactive beam handles the cleanup.
 
   def __enter__(self):
     # type: () -> Pipeline
@@ -670,15 +681,18 @@ class Pipeline(object):
 
     pvalueish, inputs = transform._extract_input_pvalues(pvalueish)
     try:
-      inputs = tuple(inputs)
-      for leaf_input in inputs:
-        if not isinstance(leaf_input, pvalue.PValue):
-          raise TypeError
+      if not isinstance(inputs, dict):
+        inputs = {str(ix): input for (ix, input) in enumerate(inputs)}
     except TypeError:
       raise NotImplementedError(
           'Unable to extract PValue inputs from %s; either %s does not accept '
           'inputs of this format, or it does not properly override '
           '_extract_input_pvalues' % (pvalueish, transform))
+    for t, leaf_input in inputs.items():
+      if not isinstance(leaf_input, pvalue.PValue) or not isinstance(t, str):
+        raise NotImplementedError(
+            '%s does not properly override _extract_input_pvalues, '
+            'returned %s from %s' % (transform, inputs, pvalueish))
 
     current = AppliedPTransform(
         self._current_transform(), transform, full_label, inputs)
@@ -705,7 +719,8 @@ class Pipeline(object):
         if result.producer is None:
           result.producer = current
 
-        self._infer_result_type(transform, inputs, result)
+        # TODO(BEAM-1833): Pass full tuples dict.
+        self._infer_result_type(transform, tuple(inputs.values()), result)
 
         assert isinstance(result.producer.inputs, tuple)
         # The DoOutputsTuple adds the PCollection to the outputs when accessed
@@ -763,15 +778,17 @@ class Pipeline(object):
         input_types = type_hints.input_types
         if input_types and input_types[0]:
           declared_input_type = input_types[0][0]
-          result_pcollection.element_type = typehints.bind_type_variables(
+          result_element_type = typehints.bind_type_variables(
               declared_output_type,
               typehints.match_type_variables(
                   declared_input_type, input_element_type))
         else:
-          result_pcollection.element_type = declared_output_type
+          result_element_type = declared_output_type
       else:
-        result_pcollection.element_type = transform.infer_output_type(
-            input_element_type)
+        result_element_type = transform.infer_output_type(input_element_type)
+      # Any remaining type variables have no bindings higher than this scope.
+      result_pcollection.element_type = typehints.bind_type_variables(
+          result_element_type, {'*': typehints.Any})
     elif isinstance(result_pcollection, pvalue.DoOutputsTuple):
       # {Single, multi}-input, multi-output inference.
       # TODO(BEAM-4132): Add support for tagged type hints.
@@ -875,7 +892,9 @@ class Pipeline(object):
                   pcoll.element_type)
             if (isinstance(output.element_type,
                            typehints.TupleHint.TupleConstraint) and
-                len(output.element_type.tuple_types) == 2):
+                len(output.element_type.tuple_types) == 2 and
+                pcoll.element_type.tuple_types[0] ==
+                output.element_type.tuple_types[0]):
               output.requires_deterministic_key_coder = (
                   deterministic_key_coders and transform_node.full_label)
         for side_input in transform_node.transform.side_inputs:
@@ -940,7 +959,7 @@ class Pipeline(object):
     for id in proto.components.transforms:
       transform = context.transforms.get_by_id(id)
       if not transform.inputs and transform.transform.__class__ in has_pbegin:
-        transform.inputs = (pvalue.PBegin(p), )
+        transform.main_inputs = {'None': pvalue.PBegin(p)}
 
     if return_context:
       return p, context  # type: ignore  # too complicated for now
@@ -1030,7 +1049,7 @@ class AppliedPTransform(object):
       parent,  # type:  Optional[AppliedPTransform]
       transform,  # type: Optional[ptransform.PTransform]
       full_label,  # type: str
-      inputs,  # type: Optional[Sequence[Union[pvalue.PBegin, pvalue.PCollection]]]
+      main_inputs,  # type: Optional[Mapping[str, Union[pvalue.PBegin, pvalue.PCollection]]]
       environment_id=None,  # type: Optional[str]
       annotations=None, # type: Optional[Dict[str, bytes]]
   ):
@@ -1043,7 +1062,7 @@ class AppliedPTransform(object):
     # reusing PTransform instances in different contexts (apply() calls) without
     # any interference. This is particularly useful for composite transforms.
     self.full_label = full_label
-    self.inputs = inputs or ()
+    self.main_inputs = dict(main_inputs or {})
 
     self.side_inputs = tuple() if transform is None else transform.side_inputs
     self.outputs = {}  # type: Dict[Union[str, int, None], pvalue.PValue]
@@ -1075,6 +1094,10 @@ class AppliedPTransform(object):
           a in transform.annotations().items()
       }
     self.annotations = annotations
+
+  @property
+  def inputs(self):
+    return tuple(self.main_inputs.values())
 
   def __repr__(self):
     # type: () -> str
@@ -1109,8 +1132,8 @@ class AppliedPTransform(object):
     if isinstance(self.transform, external.ExternalTransform):
       self.transform.replace_named_outputs(self.named_outputs())
 
-  def replace_inputs(self, inputs):
-    self.inputs = inputs
+  def replace_inputs(self, main_inputs):
+    self.main_inputs = main_inputs
 
     # Importing locally to prevent circular dependency issues.
     from apache_beam.transforms import external
@@ -1215,12 +1238,17 @@ class AppliedPTransform(object):
 
   def named_inputs(self):
     # type: () -> Dict[str, pvalue.PValue]
-    # TODO(BEAM-1833): Push names up into the sdk construction.
     if self.transform is None:
-      assert not self.inputs and not self.side_inputs
+      assert not self.main_inputs and not self.side_inputs
       return {}
     else:
-      return self.transform._named_inputs(self.inputs, self.side_inputs)
+      named_inputs = self.transform._named_inputs(
+          self.main_inputs, self.side_inputs)
+      if not self.parts:
+        for name, pc_out in self.outputs.items():
+          if pc_out.producer is not self:
+            named_inputs[f'__implicit_input_{name}'] = pc_out
+      return named_inputs
 
   def named_outputs(self):
     # type: () -> Dict[str, pvalue.PCollection]
@@ -1309,10 +1337,10 @@ class AppliedPTransform(object):
       pardo_payload = None
       side_input_tags = []
 
-    main_inputs = [
-        context.pcollections.get_by_id(id) for tag,
-        id in proto.inputs.items() if tag not in side_input_tags
-    ]
+    main_inputs = {
+        tag: context.pcollections.get_by_id(id)
+        for (tag, id) in proto.inputs.items() if tag not in side_input_tags
+    }
 
     transform = ptransform.PTransform.from_runner_api(proto, context)
     if transform and proto.environment_id:
@@ -1334,7 +1362,7 @@ class AppliedPTransform(object):
         parent=None,
         transform=transform,
         full_label=proto.unique_name,
-        inputs=main_inputs,
+        main_inputs=main_inputs,
         environment_id=None,
         annotations=proto.annotations)
 

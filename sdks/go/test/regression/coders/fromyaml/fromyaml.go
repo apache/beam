@@ -30,12 +30,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
-	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/google/go-cmp/cmp"
 	"golang.org/x/text/encoding/charmap"
 	yaml "gopkg.in/yaml.v2"
@@ -45,6 +45,7 @@ var unimplementedCoders = map[string]bool{
 	"beam:coder:param_windowed_value:v1": true,
 	"beam:coder:timer:v1":                true,
 	"beam:coder:sharded_key:v1":          true,
+	"beam:coder:custom_window:v1":        true,
 }
 
 // Coder is a representation a serialized beam coder.

@@ -31,6 +31,8 @@ import java.util.TimeZone;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.DateTime;
@@ -251,5 +253,33 @@ class JdbcUtil {
     calendar.setTimeInMillis(dateTime.getMillis());
 
     return calendar;
+  }
+
+  /** Create partitions on a table. */
+  static class PartitioningFn extends DoFn<KV<Integer, KV<Long, Long>>, KV<String, Long>> {
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      Integer numPartitions = c.element().getKey();
+      Long lowerBound = c.element().getValue().getKey();
+      Long upperBound = c.element().getValue().getValue();
+      if (lowerBound > upperBound) {
+        throw new RuntimeException(
+            String.format(
+                "Lower bound [%s] is higher than upper bound [%s]", lowerBound, upperBound));
+      }
+      long stride = (upperBound - lowerBound) / numPartitions + 1;
+      for (long i = lowerBound; i < upperBound - stride; i += stride) {
+        String range = String.format("%s,%s", i, i + stride);
+        KV<String, Long> kvRange = KV.of(range, 1L);
+        c.output(kvRange);
+      }
+      if (upperBound - lowerBound > stride * (numPartitions - 1)) {
+        long indexFrom = (numPartitions - 1) * stride;
+        long indexTo = upperBound + 1;
+        String range = String.format("%s,%s", indexFrom, indexTo);
+        KV<String, Long> kvRange = KV.of(range, 1L);
+        c.output(kvRange);
+      }
+    }
   }
 }

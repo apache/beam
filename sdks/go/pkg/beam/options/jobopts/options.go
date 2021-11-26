@@ -27,8 +27,9 @@ import (
 
 	"sync/atomic"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 )
 
 func init() {
@@ -141,7 +142,7 @@ func IsLoopback() bool {
 // Convenience function.
 func GetEnvironmentConfig(ctx context.Context) string {
 	if *EnvironmentConfig == "" {
-		*EnvironmentConfig = os.ExpandEnv("apache/beam_go_sdk:latest")
+		*EnvironmentConfig = os.ExpandEnv("apache/beam_go_sdk:" + core.SdkVersion)
 		log.Infof(ctx, "No environment config specified. Using default config: '%v'", *EnvironmentConfig)
 	}
 	return *EnvironmentConfig

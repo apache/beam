@@ -31,6 +31,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.Serializable;
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
@@ -46,6 +47,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
@@ -54,7 +56,12 @@ import javax.annotation.Nonnull;
 import javax.net.ssl.SSLContext;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.coders.InstantCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -66,6 +73,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
@@ -73,9 +81,13 @@ import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
 import org.apache.http.ConnectionClosedException;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
@@ -100,6 +112,7 @@ import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -210,9 +223,7 @@ public class ElasticsearchIO {
   }
 
   public static DocToBulk docToBulk() {
-    return new AutoValue_ElasticsearchIO_DocToBulk.Builder()
-        .setUsePartialUpdate(false) // default is document upsert
-        .build();
+    return new AutoValue_ElasticsearchIO_DocToBulk.Builder().build();
   }
 
   public static BulkIO bulkIO() {
@@ -239,49 +250,62 @@ public class ElasticsearchIO {
     return mapper.readValue(responseEntity.getContent(), JsonNode.class);
   }
 
-  static void checkForErrors(HttpEntity responseEntity, @Nullable Set<String> allowedErrorTypes)
+  static List<Document> createWriteReport(
+      HttpEntity responseEntity, @Nullable Set<String> allowedErrorTypes, boolean throwWriteErrors)
       throws IOException {
 
+    List<Document> responses = new ArrayList<>();
+    int numErrors = 0;
     JsonNode searchResult = parseResponse(responseEntity);
-    boolean errors = searchResult.path("errors").asBoolean();
-    if (errors) {
-      int numErrors = 0;
+    StringBuilder errorMessages =
+        new StringBuilder("Error writing to Elasticsearch, some elements could not be inserted:");
+    JsonNode items = searchResult.path("items");
 
-      StringBuilder errorMessages =
-          new StringBuilder("Error writing to Elasticsearch, some elements could not be inserted:");
-      JsonNode items = searchResult.path("items");
-      if (items.isMissingNode() || items.size() == 0) {
-        errorMessages.append(searchResult.toString());
-      }
-      // some items present in bulk might have errors, concatenate error messages
-      for (JsonNode item : items) {
-        JsonNode error = item.findValue("error");
-        if (error != null) {
-          // N.B. An empty-string within the allowedErrorTypes Set implies all errors are allowed.
-          String type = error.path("type").asText();
-          String reason = error.path("reason").asText();
-          String docId = item.findValue("_id").asText();
-          JsonNode causedBy = error.path("caused_by"); // May not be present
-          String cbReason = causedBy.path("reason").asText();
-          String cbType = causedBy.path("type").asText();
+    if (items.isMissingNode() || items.size() == 0) {
+      // This would only be expected in cases like connectivity issues or similar
+      errorMessages.append(searchResult);
+      LOG.warn(String.format("'items' missing from Elasticsearch response: %s", errorMessages));
+    }
 
-          if (allowedErrorTypes == null
-              || (!allowedErrorTypes.contains(type) && !allowedErrorTypes.contains(cbType))) {
-            // 'error' and 'causedBy` fields are not null, and the error is not being ignored.
-            numErrors++;
+    // some items present in bulk might have errors, concatenate error messages and record
+    // which items had errors
+    for (JsonNode item : items) {
+      Document result = Document.create().withResponseItemJson(item.toString());
 
-            errorMessages.append(String.format("%nDocument id %s: %s (%s)", docId, reason, type));
+      JsonNode error = item.findValue("error");
+      if (error != null) {
+        // N.B. An empty-string within the allowedErrorTypes Set implies all errors are allowed.
+        String type = error.path("type").asText();
+        String reason = error.path("reason").asText();
+        String docId = item.findValue("_id").asText();
+        JsonNode causedBy = error.path("caused_by"); // May not be present
+        String cbReason = causedBy.path("reason").asText();
+        String cbType = causedBy.path("type").asText();
 
-            if (!causedBy.isMissingNode()) {
-              errorMessages.append(String.format("%nCaused by: %s (%s)", cbReason, cbType));
-            }
+        if (allowedErrorTypes == null
+            || (!allowedErrorTypes.contains(type) && !allowedErrorTypes.contains(cbType))) {
+          // 'error' and 'causedBy` fields are not null, and the error is not being ignored.
+          result = result.withHasError(true);
+          numErrors++;
+
+          errorMessages.append(String.format("%nDocument id %s: %s (%s)", docId, reason, type));
+
+          if (!causedBy.isMissingNode()) {
+            errorMessages.append(String.format("%nCaused by: %s (%s)", cbReason, cbType));
           }
         }
       }
-      if (numErrors > 0) {
+      responses.add(result);
+    }
+
+    if (numErrors > 0) {
+      LOG.error(errorMessages.toString());
+      if (throwWriteErrors) {
         throw new IOException(errorMessages.toString());
       }
     }
+
+    return responses;
   }
 
   /** A POJO describing a connection configuration to Elasticsearch. */
@@ -1193,7 +1217,7 @@ public class ElasticsearchIO {
   /** A {@link PTransform} converting docs to their Bulk API counterparts. */
   @AutoValue
   public abstract static class DocToBulk
-      extends PTransform<PCollection<String>, PCollection<String>> {
+      extends PTransform<PCollection<String>, PCollection<Document>> {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final int DEFAULT_RETRY_ON_CONFLICT = 5; // race conditions on updates
@@ -1222,6 +1246,8 @@ public class ElasticsearchIO {
 
     abstract @Nullable Boolean getUsePartialUpdate();
 
+    abstract @Nullable Boolean getAppendOnly();
+
     abstract Write.@Nullable BooleanFieldValueExtractFn getIsDeleteFn();
 
     abstract @Nullable Integer getBackendVersion();
@@ -1247,6 +1273,8 @@ public class ElasticsearchIO {
       abstract Builder setIsDeleteFn(Write.BooleanFieldValueExtractFn isDeleteFn);
 
       abstract Builder setUsePartialUpdate(Boolean usePartialUpdate);
+
+      abstract Builder setAppendOnly(Boolean appendOnly);
 
       abstract Builder setUpsertScript(String source);
 
@@ -1334,6 +1362,31 @@ public class ElasticsearchIO {
     }
 
     /**
+     * Provide an instruction to control whether the target index should be considered append-only.
+     * For append-only indexes and/or data streams, only {@code create} operations will be issued,
+     * instead of {@code index}, which is the default.
+     *
+     * <p>{@code create} fails if a document with the same ID already exists in the target, {@code
+     * index} adds or replaces a document as necessary. If no ID is provided, both operations are
+     * equivalent, unless you are writing to a <a
+     * href="https://www.elastic.co/guide/en/elasticsearch/reference/current/data-streams.html">data
+     * stream</a>. Data streams only support the {@code create} operation. For more information see
+     * the <a
+     * href="https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html#docs-bulk-api-desc>
+     * Elasticsearch documentation</a>
+     *
+     * <p>Updates and deletions are not allowed, so related options will be ignored.
+     *
+     * <p>When the documents contain
+     *
+     * @param appendOnly set to true to allow only document appending
+     * @return the {@link DocToBulk} with the-append only control set
+     */
+    public DocToBulk withAppendOnly(boolean appendOnly) {
+      return builder().setAppendOnly(appendOnly).build();
+    }
+
+    /**
      * Whether to use scripted updates and what script to use.
      *
      * @param source set to the value of the script source, painless lang
@@ -1413,7 +1466,7 @@ public class ElasticsearchIO {
     }
 
     @Override
-    public PCollection<String> expand(PCollection<String> docs) {
+    public PCollection<Document> expand(PCollection<String> docs) {
       ConnectionConfiguration connectionConfiguration = getConnectionConfiguration();
       Integer backendVersion = getBackendVersion();
       Write.FieldValueExtractFn idFn = getIdFn();
@@ -1512,25 +1565,31 @@ public class ElasticsearchIO {
           isDelete = spec.getIsDeleteFn().apply(parsedDocument);
         }
       }
+      final boolean isAppendOnly = Boolean.TRUE.equals(spec.getAppendOnly());
 
       if (isDelete) {
+        checkState(!isAppendOnly, "No deletions allowed for append-only indices");
         // delete request used for deleting a document
         return String.format("{ \"delete\" : %s }%n", documentMetadata);
+      }
+
+      if (isAppendOnly) {
+        return String.format("{ \"create\" : %s }%n%s%n", documentMetadata, document);
+      }
+
+      // index is an insert/upsert and update is a partial update (or insert if not
+      // existing)
+      if (Boolean.TRUE.equals(spec.getUsePartialUpdate())) {
+        return String.format(
+            "{ \"update\" : %s }%n{ \"doc\" : %s, " + "\"doc_as_upsert\" : true }%n",
+            documentMetadata, document);
+      } else if (spec.getUpsertScript() != null) {
+        return String.format(
+            "{ \"update\" : %s }%n{ \"script\" : {\"source\": \"%s\", "
+                + "\"params\": %s}, \"upsert\" : %s, \"scripted_upsert\": true}%n",
+            documentMetadata, spec.getUpsertScript(), document, document);
       } else {
-        // index is an insert/upsert and update is a partial update (or insert if not
-        // existing)
-        if (spec.getUsePartialUpdate()) {
-          return String.format(
-              "{ \"update\" : %s }%n{ \"doc\" : %s, " + "\"doc_as_upsert\" : true }%n",
-              documentMetadata, document);
-        } else if (spec.getUpsertScript() != null) {
-          return String.format(
-              "{ \"update\" : %s }%n{ \"script\" : {\"source\": \"%s\", "
-                  + "\"params\": %s}, \"upsert\" : %s, \"scripted_upsert\": true}%n",
-              documentMetadata, spec.getUpsertScript(), document, document);
-        } else {
-          return String.format("{ \"index\" : %s }%n%s%n", documentMetadata, document);
-        }
+        return String.format("{ \"index\" : %s }%n%s%n", documentMetadata, document);
       }
     }
 
@@ -1558,7 +1617,7 @@ public class ElasticsearchIO {
                   : null,
               spec.getTypeFn() != null ? spec.getTypeFn().apply(parsedDocument) : null,
               spec.getIdFn() != null ? spec.getIdFn().apply(parsedDocument) : null,
-              (spec.getUsePartialUpdate()
+              (Boolean.TRUE.equals(spec.getUsePartialUpdate())
                       || (spec.getUpsertScript() != null && !spec.getUpsertScript().isEmpty()))
                   ? DEFAULT_RETRY_ON_CONFLICT
                   : null,
@@ -1571,7 +1630,7 @@ public class ElasticsearchIO {
 
     /** {@link DoFn} to for the {@link DocToBulk} transform. */
     @VisibleForTesting
-    static class DocToBulkFn extends DoFn<String, String> {
+    static class DocToBulkFn extends DoFn<String, Document> {
       private final DocToBulk spec;
       private int backendVersion;
 
@@ -1590,11 +1649,153 @@ public class ElasticsearchIO {
 
       @ProcessElement
       public void processElement(ProcessContext c) throws IOException {
-        c.output(createBulkApiEntity(spec, c.element(), backendVersion));
+        String inputDoc = c.element();
+        String bulkDirective = createBulkApiEntity(spec, inputDoc, backendVersion);
+        c.output(
+            Document.create()
+                .withInputDoc(inputDoc)
+                .withBulkDirective(bulkDirective)
+                // N.B. Saving the element timestamp for later use allows for exactly emulating
+                // c.output(...) because c.output is equivalent to
+                // c.outputWithTimestamp(..., c.timestamp())
+                .withTimestamp(c.timestamp()));
       }
     }
   }
 
+  public static class DocumentCoder extends AtomicCoder<Document> implements Serializable {
+    private static final DocumentCoder INSTANCE = new DocumentCoder();
+
+    private DocumentCoder() {}
+
+    public static DocumentCoder of() {
+      return INSTANCE;
+    }
+
+    @Override
+    public void encode(Document value, OutputStream outStream) throws IOException {
+      NullableCoder.of(StringUtf8Coder.of()).encode(value.getInputDoc(), outStream);
+      NullableCoder.of(StringUtf8Coder.of()).encode(value.getBulkDirective(), outStream);
+      BooleanCoder.of().encode(value.getHasError(), outStream);
+      NullableCoder.of(StringUtf8Coder.of()).encode(value.getResponseItemJson(), outStream);
+      NullableCoder.of(InstantCoder.of()).encode(value.getTimestamp(), outStream);
+    }
+
+    @Override
+    public Document decode(InputStream inStream) throws IOException {
+      String inputDoc = NullableCoder.of(StringUtf8Coder.of()).decode(inStream);
+      String bulkDirective = NullableCoder.of(StringUtf8Coder.of()).decode(inStream);
+      boolean hasError = BooleanCoder.of().decode(inStream);
+      String responseItemJson = NullableCoder.of(StringUtf8Coder.of()).decode(inStream);
+      Instant timestamp = NullableCoder.of(InstantCoder.of()).decode(inStream);
+
+      return Document.create()
+          .withInputDoc(inputDoc)
+          .withBulkDirective(bulkDirective)
+          .withHasError(hasError)
+          .withResponseItemJson(responseItemJson)
+          .withTimestamp(timestamp);
+    }
+  }
+
+  // Immutable POJO for maintaining various states of documents and their bulk representation, plus
+  // response from ES for the given document and the timestamp of the data
+  @DefaultCoder(DocumentCoder.class)
+  @AutoValue
+  public abstract static class Document implements Serializable {
+    public abstract @Nullable String getInputDoc();
+
+    public abstract @Nullable String getBulkDirective();
+
+    public abstract Boolean getHasError();
+
+    public abstract @Nullable String getResponseItemJson();
+
+    public abstract @Nullable Instant getTimestamp();
+
+    abstract Builder toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setInputDoc(String inputDoc);
+
+      abstract Builder setBulkDirective(String bulkDirective);
+
+      abstract Builder setHasError(boolean hasError);
+
+      abstract Builder setResponseItemJson(String responseItemJson);
+
+      abstract Builder setTimestamp(Instant timestamp);
+
+      abstract Document build();
+    }
+
+    public static Document create() {
+      return new AutoValue_ElasticsearchIO_Document.Builder().setHasError(false).build();
+    }
+
+    /**
+     * Sets the input document i.e. desired document that will end up in Elasticsearch for this
+     * WriteSummary object. The inputDoc will be the a document that was part of the input
+     * PCollection to either {@link Write} or {@link DocToBulk}
+     *
+     * @param inputDoc Serialized json input document destined to end up in Elasticsearch.
+     * @return WriteSummary with inputDocument set.
+     */
+    public Document withInputDoc(String inputDoc) {
+      return toBuilder().setInputDoc(inputDoc).build();
+    }
+
+    /**
+     * Sets the bulk directive representation of an input document. This will be new-line separated
+     * JSON where each line is valid JSON. Typically the first line includes meta-data and
+     * instructions to Elasticsearch such as whether to overwrite a document, delete it, etc. and
+     * the second line (if present) will be the document itself. For more info please see
+     * https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html
+     *
+     * @param bulkDirective Serialized new-line delimited json bulk API information.
+     * @return WriteSummary with bulkDirective set.
+     */
+    public Document withBulkDirective(String bulkDirective) {
+      return toBuilder().setBulkDirective(bulkDirective).build();
+    }
+
+    /**
+     * Sets the element from Elasticsearch Bulk API response "items" pertaining to this
+     * WriteSummary.
+     *
+     * @param responseItemJson The Elasticsearch Bulk API response.
+     * @return WriteSummary with Elasticsearch Bulk API response set.
+     */
+    public Document withResponseItemJson(String responseItemJson) {
+      return toBuilder().setResponseItemJson(responseItemJson).build();
+    }
+
+    /**
+     * Used to set whether or not there was an error for a given document as indicated by the
+     * response from Elasticsearch. Note that if using {@link Write#withAllowableResponseErrors}
+     * errors which are allowed will have a false value for hasError for their respective
+     * WriteSummary.
+     *
+     * @param hasError Whether or not Elasticsearch returned an error when persisting a bulk
+     *     directive.
+     * @return WriteSummary with hasError set.
+     */
+    public Document withHasError(boolean hasError) {
+      return toBuilder().setHasError(hasError).build();
+    }
+
+    /**
+     * Sets the timestamp of the element in the PCollection, to be used in order to output
+     * WriteSummary to the same window from which the inputDoc originated.
+     *
+     * @param timestamp The timestamp with which the WriteSummary will be output.
+     * @return WriteSummary with timestamp set.
+     */
+    public Document withTimestamp(Instant timestamp) {
+      return toBuilder().setTimestamp(timestamp).build();
+    }
+  }
   /**
    * A {@link PTransform} writing data to Elasticsearch.
    *
@@ -1603,15 +1804,16 @@ public class ElasticsearchIO {
    * cluster. This class is effectively a thin proxy for DocToBulk->BulkIO all-in-one for
    * convenience and backward compatibility.
    */
-  public static class Write extends PTransform<PCollection<String>, PDone> {
+  public static class Write extends PTransform<PCollection<String>, PCollectionTuple> {
     public interface FieldValueExtractFn extends SerializableFunction<JsonNode, String> {}
 
     public interface BooleanFieldValueExtractFn extends SerializableFunction<JsonNode, Boolean> {}
 
-    private DocToBulk docToBulk =
-        new AutoValue_ElasticsearchIO_DocToBulk.Builder()
-            .setUsePartialUpdate(false) // default is document upsert
-            .build();
+    // N.B. Be sure to create tuple tags as new anonymous subclasses to avoid type erasure issues
+    public static final TupleTag<Document> SUCCESSFUL_WRITES = new TupleTag<Document>() {};
+    public static final TupleTag<Document> FAILED_WRITES = new TupleTag<Document>() {};
+
+    private DocToBulk docToBulk = new AutoValue_ElasticsearchIO_DocToBulk.Builder().build();
 
     private BulkIO bulkIO =
         new AutoValue_ElasticsearchIO_BulkIO.Builder()
@@ -1621,6 +1823,7 @@ public class ElasticsearchIO {
             .setMaxBatchSizeBytes(5L * 1024L * 1024L)
             .setUseStatefulBatches(false)
             .setMaxParallelRequestsPerWindow(1)
+            .setThrowWriteErrors(true)
             .build();
 
     public DocToBulk getDocToBulk() {
@@ -1671,6 +1874,12 @@ public class ElasticsearchIO {
     /** Refer to {@link DocToBulk#withUsePartialUpdate}. */
     public Write withUsePartialUpdate(boolean usePartialUpdate) {
       docToBulk = docToBulk.withUsePartialUpdate(usePartialUpdate);
+      return this;
+    }
+
+    /** Refer to {@link DocToBulk#withAppendOnly}. */
+    public Write withAppendOnly(boolean appendOnly) {
+      docToBulk = docToBulk.withAppendOnly(appendOnly);
       return this;
     }
 
@@ -1753,8 +1962,14 @@ public class ElasticsearchIO {
       return this;
     }
 
+    /** Refer to {@link BulkIO#withThrowWriteErrors}. */
+    public Write withThrowWriteErrors(boolean throwWriteErrors) {
+      bulkIO = bulkIO.withThrowWriteErrors(throwWriteErrors);
+      return this;
+    }
+
     @Override
-    public PDone expand(PCollection<String> input) {
+    public PCollectionTuple expand(PCollection<String> input) {
       return input.apply(docToBulk).apply(bulkIO);
     }
   }
@@ -1766,7 +1981,7 @@ public class ElasticsearchIO {
    * mirroring data to multiple clusters or data lakes without recomputation.
    */
   @AutoValue
-  public abstract static class BulkIO extends PTransform<PCollection<String>, PDone> {
+  public abstract static class BulkIO extends PTransform<PCollection<Document>, PCollectionTuple> {
     @VisibleForTesting
     static final String RETRY_ATTEMPT_LOG = "Error writing to Elasticsearch. Retry attempt[%d]";
 
@@ -1790,6 +2005,8 @@ public class ElasticsearchIO {
 
     abstract @Nullable Set<String> getAllowedResponseErrors();
 
+    abstract boolean getThrowWriteErrors();
+
     abstract Builder builder();
 
     @AutoValue.Builder
@@ -1809,6 +2026,8 @@ public class ElasticsearchIO {
       abstract Builder setUseStatefulBatches(boolean useStatefulBatches);
 
       abstract Builder setMaxParallelRequestsPerWindow(int maxParallelRequestsPerWindow);
+
+      abstract Builder setThrowWriteErrors(boolean throwWriteErrors);
 
       abstract BulkIO build();
     }
@@ -1980,6 +2199,23 @@ public class ElasticsearchIO {
     }
 
     /**
+     * Whether to throw runtime exceptions when write (IO) errors occur. Especially useful in
+     * streaming pipelines where non-transient IO failures will cause infinite retries. If true, a
+     * runtime error will be thrown for any error found by {@link
+     * ElasticsearchIO#createWriteReport}. If false, a {@link PCollectionTuple} will be returned
+     * with tags {@link Write#SUCCESSFUL_WRITES} and {@link Write#FAILED_WRITES}, each being a
+     * {@link PCollection} of {@link Document} representing documents which were written to
+     * Elasticsearch without errors and those which failed to write due to errors, respectively.
+     *
+     * @param throwWriteErrors whether to surface write errors as runtime exceptions or return them
+     *     in a {@link PCollection}
+     * @return the {@link BulkIO} with write error treatment configured
+     */
+    public BulkIO withThrowWriteErrors(boolean throwWriteErrors) {
+      return builder().setThrowWriteErrors(throwWriteErrors).build();
+    }
+
+    /**
      * Creates batches of documents using Stateful Processing based on user configurable settings of
      * withMaxBufferingDuration and withMaxParallelRequestsPerWindow.
      *
@@ -1987,7 +2223,7 @@ public class ElasticsearchIO {
      */
     @VisibleForTesting
     static class StatefulBatching
-        extends PTransform<PCollection<String>, PCollection<KV<Integer, Iterable<String>>>> {
+        extends PTransform<PCollection<Document>, PCollection<KV<Integer, Iterable<Document>>>> {
       final BulkIO spec;
 
       private StatefulBatching(BulkIO bulkSpec) {
@@ -1999,8 +2235,8 @@ public class ElasticsearchIO {
       }
 
       @Override
-      public PCollection<KV<Integer, Iterable<String>>> expand(PCollection<String> input) {
-        GroupIntoBatches<Integer, String> groupIntoBatches =
+      public PCollection<KV<Integer, Iterable<Document>>> expand(PCollection<Document> input) {
+        GroupIntoBatches<Integer, Document> groupIntoBatches =
             GroupIntoBatches.ofSize(spec.getMaxBatchSize());
 
         if (spec.getMaxBufferingDuration() != null) {
@@ -2015,60 +2251,65 @@ public class ElasticsearchIO {
     }
 
     @Override
-    public PDone expand(PCollection<String> input) {
+    public PCollectionTuple expand(PCollection<Document> input) {
       ConnectionConfiguration connectionConfiguration = getConnectionConfiguration();
 
       checkState(connectionConfiguration != null, "withConnectionConfiguration() is required");
 
       if (getUseStatefulBatches()) {
-        input.apply(StatefulBatching.fromSpec(this)).apply(ParDo.of(new BulkIOStatefulFn(this)));
+        return input
+            .apply(StatefulBatching.fromSpec(this))
+            .apply(
+                ParDo.of(new BulkIOStatefulFn(this))
+                    .withOutputTags(Write.SUCCESSFUL_WRITES, TupleTagList.of(Write.FAILED_WRITES)));
       } else {
-        input.apply(ParDo.of(new BulkIOBundleFn(this)));
+        return input.apply(
+            ParDo.of(new BulkIOBundleFn(this))
+                .withOutputTags(Write.SUCCESSFUL_WRITES, TupleTagList.of(Write.FAILED_WRITES)));
       }
-      return PDone.in(input.getPipeline());
     }
 
-    static class BulkIOBundleFn extends BulkIOBaseFn<String> {
+    static class BulkIOBundleFn extends BulkIOBaseFn<Document> {
       @VisibleForTesting
       BulkIOBundleFn(BulkIO bulkSpec) {
         super(bulkSpec);
       }
 
       @ProcessElement
-      public void processElement(ProcessContext context) throws Exception {
-        String bulkApiEntity = context.element();
-        addAndMaybeFlush(bulkApiEntity);
+      public void processElement(ProcessContext context, BoundedWindow w) throws Exception {
+        // the element KV pair is a pair of raw_doc + resulting Bulk API formatted newline-json
+        // based on DocToBulk settings
+        Document summary = context.element();
+        addAndMaybeFlush(summary, context, w);
       }
     }
 
     /*
     Intended for use in conjunction with {@link GroupIntoBatches}
      */
-    static class BulkIOStatefulFn extends BulkIOBaseFn<KV<Integer, Iterable<String>>> {
+    static class BulkIOStatefulFn extends BulkIOBaseFn<KV<Integer, Iterable<Document>>> {
       @VisibleForTesting
       BulkIOStatefulFn(BulkIO bulkSpec) {
         super(bulkSpec);
       }
 
       @ProcessElement
-      public void processElement(ProcessContext context) throws Exception {
-        Iterable<String> bulkApiEntities = context.element().getValue();
-        for (String bulkApiEntity : bulkApiEntities) {
-          addAndMaybeFlush(bulkApiEntity);
+      public void processElement(ProcessContext c, BoundedWindow w) throws Exception {
+        for (Document result : c.element().getValue()) {
+          addAndMaybeFlush(result, c, w);
         }
       }
     }
 
     /** {@link DoFn} to for the {@link BulkIO} transform. */
     @VisibleForTesting
-    private abstract static class BulkIOBaseFn<T> extends DoFn<T, Void> {
+    private abstract static class BulkIOBaseFn<T> extends DoFn<T, Document> {
       private static final Duration RETRY_INITIAL_BACKOFF = Duration.standardSeconds(5);
-
       private transient FluentBackoff retryBackoff;
 
       private BulkIO spec;
       private transient RestClient restClient;
-      private ArrayList<String> batch;
+      private Multimap<BoundedWindow, Document> batch;
       long currentBatchSizeBytes;
 
       protected BulkIOBaseFn(BulkIO bulkSpec) {
@@ -2095,24 +2336,86 @@ public class ElasticsearchIO {
 
       @StartBundle
       public void startBundle(StartBundleContext context) {
-        batch = new ArrayList<>();
+        batch = ArrayListMultimap.create();
         currentBatchSizeBytes = 0;
+      }
+
+      /**
+       * Adapter interface which provides a common parent for {@link ProcessContext} and {@link
+       * FinishBundleContext} so that we are able to use a single common invocation to output from.
+       */
+      interface ContextAdapter {
+        void output(
+            TupleTag<Document> tag, Document document, Instant timestamp, BoundedWindow window);
+      }
+
+      private static final class ProcessContextAdapter<T> implements ContextAdapter {
+        private final DoFn<T, Document>.ProcessContext context;
+
+        private ProcessContextAdapter(DoFn<T, Document>.ProcessContext context) {
+          this.context = context;
+        }
+
+        @Override
+        public void output(
+            TupleTag<Document> tag, Document document, Instant timestamp, BoundedWindow ignored) {
+          // Note: window is intentionally unused, but required as a param to fit the interface
+          context.outputWithTimestamp(tag, document, timestamp);
+        }
+      }
+
+      private static final class FinishBundleContextAdapter<T> implements ContextAdapter {
+        private final DoFn<T, Document>.FinishBundleContext context;
+
+        private FinishBundleContextAdapter(DoFn<T, Document>.FinishBundleContext context) {
+          this.context = context;
+        }
+
+        @Override
+        public void output(
+            TupleTag<Document> tag, Document document, Instant timestamp, BoundedWindow window) {
+          context.output(tag, document, timestamp, window);
+        }
       }
 
       @FinishBundle
       public void finishBundle(FinishBundleContext context)
           throws IOException, InterruptedException {
-        flushBatch();
+        flushAndOutputResults(new FinishBundleContextAdapter<>(context));
       }
 
-      protected void addAndMaybeFlush(String bulkApiEntity)
+      private void flushAndOutputResults(ContextAdapter context)
           throws IOException, InterruptedException {
-        batch.add(bulkApiEntity);
-        currentBatchSizeBytes += bulkApiEntity.getBytes(StandardCharsets.UTF_8).length;
+        // TODO: remove ContextAdapter and Multimap in favour of MultiOutputReceiver when
+        //  https://issues.apache.org/jira/browse/BEAM-1287 is completed
+        Multimap<BoundedWindow, Document> results = flushBatch();
+        for (Entry<BoundedWindow, Document> result : results.entries()) {
+          BoundedWindow outputWindow = result.getKey();
+          Document outputResult = result.getValue();
+          Instant timestamp = outputResult.getTimestamp();
+          if (timestamp == null) {
+            timestamp = outputWindow.maxTimestamp();
+          }
+
+          if (outputResult.getHasError()) {
+            context.output(Write.FAILED_WRITES, outputResult, timestamp, outputWindow);
+          } else {
+            context.output(Write.SUCCESSFUL_WRITES, outputResult, timestamp, outputWindow);
+          }
+        }
+      }
+
+      protected void addAndMaybeFlush(
+          Document bulkApiEntity, ProcessContext context, BoundedWindow outputWindow)
+          throws IOException, InterruptedException {
+
+        batch.put(outputWindow, bulkApiEntity);
+        currentBatchSizeBytes +=
+            bulkApiEntity.getBulkDirective().getBytes(StandardCharsets.UTF_8).length;
 
         if (batch.size() >= spec.getMaxBatchSize()
             || currentBatchSizeBytes >= spec.getMaxBatchSizeBytes()) {
-          flushBatch();
+          flushAndOutputResults(new ProcessContextAdapter<>(context));
         }
       }
 
@@ -2126,9 +2429,11 @@ public class ElasticsearchIO {
             || t.getCause() instanceof ConnectException;
       }
 
-      private void flushBatch() throws IOException, InterruptedException {
+      private Multimap<BoundedWindow, Document> flushBatch()
+          throws IOException, InterruptedException {
+
         if (batch.isEmpty()) {
-          return;
+          return ArrayListMultimap.create();
         }
 
         LOG.info(
@@ -2137,12 +2442,18 @@ public class ElasticsearchIO {
             currentBatchSizeBytes);
 
         StringBuilder bulkRequest = new StringBuilder();
-        for (String json : batch) {
-          bulkRequest.append(json);
-        }
+        // Create a stable list of input entries, because order is important to keep constant
+        List<Entry<BoundedWindow, Document>> inputEntries = new ArrayList<>(batch.entries());
 
         batch.clear();
         currentBatchSizeBytes = 0L;
+
+        for (Entry<BoundedWindow, Document> entry : inputEntries) {
+          // N.B. we need to ensure that we can iterate in the same order later to match up
+          // responses to these bulk directives. ES Bulk response `items` is in the same order
+          // as the bulk directives in the request, so order is imperative.
+          bulkRequest.append(entry.getValue().getBulkDirective());
+        }
 
         Response response = null;
         HttpEntity responseEntity = null;
@@ -2178,7 +2489,42 @@ public class ElasticsearchIO {
           }
           responseEntity = handleRetry("POST", endPoint, Collections.emptyMap(), requestBody);
         }
-        checkForErrors(responseEntity, spec.getAllowedResponseErrors());
+
+        List<Document> responses =
+            createWriteReport(
+                responseEntity, spec.getAllowedResponseErrors(), spec.getThrowWriteErrors());
+
+        return mergeInputsAndResponses(inputEntries, responses);
+      }
+
+      private static Multimap<BoundedWindow, Document> mergeInputsAndResponses(
+          List<Entry<BoundedWindow, Document>> inputs, List<Document> responses) {
+
+        checkArgument(
+            inputs.size() == responses.size(), "inputs and responses must be of same size");
+
+        Multimap<BoundedWindow, Document> results = ArrayListMultimap.create();
+
+        // N.B. the order of responses must always match the order of inputs
+        for (int i = 0; i < inputs.size(); i++) {
+          BoundedWindow outputWindow = inputs.get(i).getKey();
+
+          // Contains raw input document and Bulk directive counterpart only
+          Document inputDoc = inputs.get(i).getValue();
+
+          // Contains stringified JSON response from Elasticsearch and error status only
+          Document outputDoc = responses.get(i);
+
+          // Create a new Document object with all the input fields from inputDoc (i.e. the raw
+          // input JSON string) and all the response fields from ES bulk API for that input document
+          Document merged =
+              inputDoc
+                  .withHasError(outputDoc.getHasError())
+                  .withResponseItemJson(outputDoc.getResponseItemJson());
+          results.put(outputWindow, merged);
+        }
+
+        return results;
       }
 
       /** retry request based on retry configuration policy. */
@@ -2234,7 +2580,7 @@ public class ElasticsearchIO {
       int backendVersion =
           Integer.parseInt(jsonNode.path("version").path("number").asText().substring(0, 1));
       checkArgument(
-          (VALID_CLUSTER_VERSIONS.contains(backendVersion)),
+          VALID_CLUSTER_VERSIONS.contains(backendVersion),
           "The Elasticsearch version to connect to is %s.x. "
               + "This version of the ElasticsearchIO is only compatible with "
               + "Elasticsearch v7.x, v6.x, v5.x and v2.x",

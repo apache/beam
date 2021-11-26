@@ -38,9 +38,12 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.pvalue import AsList
+from apache_beam.pvalue import AsSingleton
 from apache_beam.runners import pipeline_context
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
+from apache_beam.testing.util import SortLists
 from apache_beam.testing.util import TestWindowedValue
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import contains_in_any_order
@@ -68,6 +71,106 @@ from apache_beam.utils.windowed_value import WindowedValue
 
 warnings.filterwarnings(
     'ignore', category=FutureWarning, module='apache_beam.transform.util_test')
+
+
+class CoGroupByKeyTest(unittest.TestCase):
+  def test_co_group_by_key_on_tuple(self):
+    with TestPipeline() as pipeline:
+      pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2),
+                                                     ('b', 3), ('c', 4)])
+      pcoll_2 = pipeline | 'Start 2' >> beam.Create([('a', 5), ('a', 6),
+                                                     ('c', 7), ('c', 8)])
+      result = (pcoll_1, pcoll_2) | beam.CoGroupByKey() | SortLists
+      assert_that(
+          result,
+          equal_to([('a', ([1, 2], [5, 6])), ('b', ([3], [])),
+                    ('c', ([4], [7, 8]))]))
+
+  def test_co_group_by_key_on_iterable(self):
+    with TestPipeline() as pipeline:
+      pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2),
+                                                     ('b', 3), ('c', 4)])
+      pcoll_2 = pipeline | 'Start 2' >> beam.Create([('a', 5), ('a', 6),
+                                                     ('c', 7), ('c', 8)])
+      result = iter([pcoll_1, pcoll_2]) | beam.CoGroupByKey() | SortLists
+      assert_that(
+          result,
+          equal_to([('a', ([1, 2], [5, 6])), ('b', ([3], [])),
+                    ('c', ([4], [7, 8]))]))
+
+  def test_co_group_by_key_on_list(self):
+    with TestPipeline() as pipeline:
+      pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2),
+                                                     ('b', 3), ('c', 4)])
+      pcoll_2 = pipeline | 'Start 2' >> beam.Create([('a', 5), ('a', 6),
+                                                     ('c', 7), ('c', 8)])
+      result = [pcoll_1, pcoll_2] | beam.CoGroupByKey() | SortLists
+      assert_that(
+          result,
+          equal_to([('a', ([1, 2], [5, 6])), ('b', ([3], [])),
+                    ('c', ([4], [7, 8]))]))
+
+  def test_co_group_by_key_on_dict(self):
+    with TestPipeline() as pipeline:
+      pcoll_1 = pipeline | 'Start 1' >> beam.Create([('a', 1), ('a', 2),
+                                                     ('b', 3), ('c', 4)])
+      pcoll_2 = pipeline | 'Start 2' >> beam.Create([('a', 5), ('a', 6),
+                                                     ('c', 7), ('c', 8)])
+      result = {'X': pcoll_1, 'Y': pcoll_2} | beam.CoGroupByKey() | SortLists
+      assert_that(
+          result,
+          equal_to([('a', {
+              'X': [1, 2], 'Y': [5, 6]
+          }), ('b', {
+              'X': [3], 'Y': []
+          }), ('c', {
+              'X': [4], 'Y': [7, 8]
+          })]))
+
+  def test_co_group_by_key_on_dict_with_tuple_keys(self):
+    with TestPipeline() as pipeline:
+      key = ('a', ('b', 'c'))
+      pcoll_1 = pipeline | 'Start 1' >> beam.Create([(key, 1)])
+      pcoll_2 = pipeline | 'Start 2' >> beam.Create([(key, 2)])
+      result = {'X': pcoll_1, 'Y': pcoll_2} | beam.CoGroupByKey() | SortLists
+      assert_that(result, equal_to([(key, {'X': [1], 'Y': [2]})]))
+
+  def test_co_group_by_key_on_empty(self):
+    with TestPipeline() as pipeline:
+      assert_that(
+          tuple() | 'EmptyTuple' >> beam.CoGroupByKey(pipeline=pipeline),
+          equal_to([]),
+          label='AssertEmptyTuple')
+      assert_that([] | 'EmptyList' >> beam.CoGroupByKey(pipeline=pipeline),
+                  equal_to([]),
+                  label='AssertEmptyList')
+      assert_that(
+          iter([]) | 'EmptyIterable' >> beam.CoGroupByKey(pipeline=pipeline),
+          equal_to([]),
+          label='AssertEmptyIterable')
+      assert_that({} | 'EmptyDict' >> beam.CoGroupByKey(pipeline=pipeline),
+                  equal_to([]),
+                  label='AssertEmptyDict')
+
+  def test_co_group_by_key_on_one(self):
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | beam.Create([('a', 1), ('b', 2)])
+      expected = [('a', ([1], )), ('b', ([2], ))]
+      assert_that((pcoll, ) | 'OneTuple' >> beam.CoGroupByKey(),
+                  equal_to(expected),
+                  label='AssertOneTuple')
+      assert_that([pcoll] | 'OneList' >> beam.CoGroupByKey(),
+                  equal_to(expected),
+                  label='AssertOneList')
+      assert_that(
+          iter([pcoll]) | 'OneIterable' >> beam.CoGroupByKey(),
+          equal_to(expected),
+          label='AssertOneIterable')
+      assert_that({'tag': pcoll}
+                  | 'OneDict' >> beam.CoGroupByKey()
+                  | beam.MapTuple(lambda k, v: (k, (v['tag'], ))),
+                  equal_to(expected),
+                  label='AssertOneDict')
 
 
 class FakeClock(object):
@@ -370,6 +473,22 @@ class ReshuffleTest(unittest.TestCase):
       result = (pipeline | beam.Create(data) | beam.Reshuffle())
       assert_that(result, equal_to(data))
 
+  def test_reshuffle_contents_unchanged_with_buckets(self):
+    with TestPipeline() as pipeline:
+      data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 3)]
+      buckets = 2
+      result = (pipeline | beam.Create(data) | beam.Reshuffle(buckets))
+      assert_that(result, equal_to(data))
+
+  def test_reshuffle_contents_unchanged_with_wrong_buckets(self):
+    wrong_buckets = [0, -1, "wrong", 2.5]
+    for wrong_bucket in wrong_buckets:
+      with self.assertRaisesRegex(ValueError,
+                                  'If `num_buckets` is set, it has to be an '
+                                  'integer greater than 0, got %s' %
+                                  wrong_bucket):
+        beam.Reshuffle(wrong_bucket)
+
   def test_reshuffle_after_gbk_contents_unchanged(self):
     with TestPipeline() as pipeline:
       data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 3)]
@@ -543,6 +662,25 @@ class ReshuffleTest(unittest.TestCase):
       assert_that(
           after_reshuffle, equal_to(expected_data), label='after reshuffle')
 
+  def test_reshuffle_streaming_global_window_with_buckets(self):
+    options = PipelineOptions()
+    options.view_as(StandardOptions).streaming = True
+    with TestPipeline(options=options) as pipeline:
+      data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
+      expected_data = [(1, [1, 2, 4]), (2, [1, 2]), (3, [1])]
+      buckets = 2
+      before_reshuffle = (
+          pipeline
+          | beam.Create(data)
+          | beam.WindowInto(GlobalWindows())
+          | beam.GroupByKey()
+          | beam.MapTuple(lambda k, vs: (k, sorted(vs))))
+      assert_that(
+          before_reshuffle, equal_to(expected_data), label='before_reshuffle')
+      after_reshuffle = before_reshuffle | beam.Reshuffle(buckets)
+      assert_that(
+          after_reshuffle, equal_to(expected_data), label='after reshuffle')
+
   @pytest.mark.it_validatesrunner
   def test_reshuffle_preserves_timestamps(self):
     with TestPipeline() as pipeline:
@@ -627,6 +765,30 @@ class WithKeysTest(unittest.TestCase):
       pc = p | beam.Create(self.l)
       with_keys = pc | util.WithKeys(lambda x: x * x)
     assert_that(with_keys, equal_to([(1, 1), (4, 2), (9, 3)]))
+
+  @staticmethod
+  def _test_args_kwargs_fn(x, multiply, subtract):
+    return x * multiply - subtract
+
+  def test_args_kwargs_k(self):
+    with TestPipeline() as p:
+      pc = p | beam.Create(self.l)
+      with_keys = pc | util.WithKeys(
+          WithKeysTest._test_args_kwargs_fn, 2, subtract=1)
+    assert_that(with_keys, equal_to([(1, 1), (3, 2), (5, 3)]))
+
+  def test_sideinputs(self):
+    with TestPipeline() as p:
+      pc = p | beam.Create(self.l)
+      si1 = AsList(p | "side input 1" >> beam.Create([1, 2, 3]))
+      si2 = AsSingleton(p | "side input 2" >> beam.Create([10]))
+      with_keys = pc | util.WithKeys(
+          lambda x,
+          the_list,
+          the_singleton: x + sum(the_list) + the_singleton,
+          si1,
+          the_singleton=si2)
+    assert_that(with_keys, equal_to([(17, 1), (18, 2), (19, 3)]))
 
 
 class GroupIntoBatchesTest(unittest.TestCase):

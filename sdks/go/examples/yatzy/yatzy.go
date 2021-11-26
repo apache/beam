@@ -27,9 +27,9 @@ import (
 	"sort"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 )
 
 var (
@@ -38,6 +38,8 @@ var (
 )
 
 func init() {
+	beam.RegisterFunction(incFn)
+	beam.RegisterFunction(evalFn)
 	beam.RegisterType(reflect.TypeOf((*minFn)(nil)).Elem())
 }
 

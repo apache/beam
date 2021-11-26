@@ -23,8 +23,8 @@ import logging
 import time
 import unittest
 
+import pytest
 from hamcrest.core.core.allof import all_of
-from nose.plugins.attrib import attr
 
 from apache_beam.examples.cookbook import bigquery_tornadoes
 from apache_beam.io.gcp.tests import utils
@@ -35,14 +35,11 @@ from apache_beam.testing.test_pipeline import TestPipeline
 
 class BigqueryTornadoesIT(unittest.TestCase):
 
-  # Enable nose tests running in parallel
-  _multiprocess_can_split_ = True
-
   # The default checksum is a SHA-1 hash generated from sorted rows reading
   # from expected Bigquery table.
   DEFAULT_CHECKSUM = 'd860e636050c559a16a791aff40d6ad809d4daf0'
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_bigquery_tornadoes_it(self):
     test_pipeline = TestPipeline(is_integration_test=True)
 

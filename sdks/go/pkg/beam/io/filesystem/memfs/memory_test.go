@@ -20,7 +20,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/io/filesystem"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
 )
 
 // TestReadWrite tests that read and write from the memory filesystem

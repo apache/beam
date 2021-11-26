@@ -117,7 +117,10 @@ class ReadFromKafka(ExternalTransform):
   create_time_policy = 'CreateTime'
   log_append_time = 'LogAppendTime'
 
-  URN = 'beam:external:java:kafka:read:v1'
+  URN_WITH_METADATA = (
+      'beam:transform:org.apache.beam:kafka_read_with_metadata:v1')
+  URN_WITHOUT_METADATA = (
+      'beam:transform:org.apache.beam:kafka_read_without_metadata:v1')
 
   def __init__(
       self,
@@ -130,6 +133,7 @@ class ReadFromKafka(ExternalTransform):
       max_read_time=None,
       commit_offset_in_finalize=False,
       timestamp_policy=processing_time_policy,
+      with_metadata=False,
       expansion_service=None,
   ):
     """
@@ -154,6 +158,12 @@ class ReadFromKafka(ExternalTransform):
     :param commit_offset_in_finalize: Whether to commit offsets when finalizing.
     :param timestamp_policy: The built-in timestamp policy which is used for
         extracting timestamp from KafkaRecord.
+    :param with_metadata: whether the returned PCollection should contain
+        Kafka related metadata or not. If False (default), elements of the
+        returned PCollection will be of type 'bytes' if True, elements of the
+        returned PCollection will be of the type 'Row'. Note that, currently
+        this only works when using default key and value deserializers where
+        Java Kafka Reader reads keys and values as 'byte[]'.
     :param expansion_service: The address (host:port) of the ExpansionService.
     """
     if timestamp_policy not in [ReadFromKafka.processing_time_policy,
@@ -163,8 +173,8 @@ class ReadFromKafka(ExternalTransform):
           'timestamp_policy should be one of '
           '[ProcessingTime, CreateTime, LogAppendTime]')
 
-    super(ReadFromKafka, self).__init__(
-        self.URN,
+    super().__init__(
+        self.URN_WITH_METADATA if with_metadata else self.URN_WITHOUT_METADATA,
         NamedTupleBasedPayloadBuilder(
             ReadFromKafkaSchema(
                 consumer_config=consumer_config,
@@ -202,7 +212,7 @@ class WriteToKafka(ExternalTransform):
   byte_array_serializer = (
       'org.apache.kafka.common.serialization.ByteArraySerializer')
 
-  URN = 'beam:external:java:kafka:write:v1'
+  URN = 'beam:transform:org.apache.beam:kafka_write:v1'
 
   def __init__(
       self,
@@ -226,7 +236,7 @@ class WriteToKafka(ExternalTransform):
         Default: 'org.apache.kafka.common.serialization.ByteArraySerializer'.
     :param expansion_service: The address (host:port) of the ExpansionService.
     """
-    super(WriteToKafka, self).__init__(
+    super().__init__(
         self.URN,
         NamedTupleBasedPayloadBuilder(
             WriteToKafkaSchema(

@@ -27,6 +27,7 @@ import groovy.json.JsonOutput
 
 apply plugin: 'org.apache.beam.module'
 applyJavaNature(
+    suppressUnusedVariable: true,
     enableStrictDependencies:true,
     automaticModuleName: 'org.apache.beam.runners.flink',
     archivesBaseName: (project.hasProperty('archives_base_name') ? archives_base_name : archivesBaseName),
@@ -227,6 +228,7 @@ def createValidatesRunnerTask(Map m) {
       excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
       excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
       excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'
       if (config.streaming) {
         excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithMultipleStages'  // BEAM-8598

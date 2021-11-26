@@ -105,7 +105,7 @@ class Metrics(object):
     """Metrics Histogram that Delegates functionality to MetricsEnvironment."""
     def __init__(self, metric_name, bucket_type, logger):
       # type: (MetricName, BucketType, Optional[MetricLogger]) -> None
-      super(Metrics.DelegatingHistogram, self).__init__(metric_name)
+      super().__init__(metric_name)
       self.metric_name = metric_name
       self.cell_type = HistogramCellFactory(bucket_type)
       self.logger = logger
@@ -125,7 +125,7 @@ class MetricLogger(object):
   """
   def __init__(self):
     # type: () -> None
-    self._metric = dict()  # type: Dict[MetricName, MetricCell]
+    self._metric = {}  # type: Dict[MetricName, MetricCell]
     self._lock = threading.Lock()
     self._last_logging_millis = int(time.time() * 1000)
     self.minimum_logging_frequency_msec = 180000
@@ -158,7 +158,7 @@ class MetricLogger(object):
             logging_metric_info.append('%s: %s' % (name, cell.get_cumulative()))
           _LOGGER.info('\n'.join(logging_metric_info))
           if reset_after_logging:
-            self._metric = dict()
+            self._metric = {}
           self._last_logging_millis = current_millis
       finally:
         self._lock.release()
@@ -223,3 +223,43 @@ class ServiceCallMetric(object):
         http_status_code in http_to_canonical_gcp_status):
       return http_to_canonical_gcp_status[http_status_code]
     return str(http_status_code)
+
+  @staticmethod
+  def bigtable_error_code_to_grpc_status_string(grpc_status_code):
+    # type: (int) -> str
+
+    """
+    Converts the bigtable error code to a canonical GCP status code string.
+
+    This Bigtable client library is not using the canonical http status code
+    values (i.e. https://cloud.google.com/apis/design/errors)"
+    Instead they are numbered using an enum with these values corresponding
+    to each status code: https://cloud.google.com/bigtable/docs/status-codes
+
+    Args:
+      grpc_status_code: An int that corresponds to an enum of status codes
+
+    Returns:
+      A GCP status code string
+    """
+    grpc_to_canonical_gcp_status = {
+        0: 'ok',
+        1: 'cancelled',
+        2: 'unknown',
+        3: 'invalid_argument',
+        4: 'deadline_exceeded',
+        5: 'not_found',
+        6: 'already_exists',
+        7: 'permission_denied',
+        8: 'resource_exhausted',
+        9: 'failed_precondition',
+        10: 'aborted',
+        11: 'out_of_range',
+        12: 'unimplemented',
+        13: 'internal',
+        14: 'unavailable'
+    }
+    if (grpc_status_code is not None and
+        grpc_status_code in grpc_to_canonical_gcp_status):
+      return grpc_to_canonical_gcp_status[grpc_status_code]
+    return str(grpc_status_code)

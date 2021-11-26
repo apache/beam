@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.coders;
 
+import com.google.errorprone.annotations.FormatMethod;
+import com.google.errorprone.annotations.FormatString;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.InputStream;
@@ -117,9 +119,19 @@ public class AvroCoder<T> extends CustomCoder<T> {
    * @param <T> the element type
    */
   public static <T> AvroCoder<T> of(TypeDescriptor<T> type) {
+    return of(type, true);
+  }
+
+  /**
+   * Returns an {@code AvroCoder} instance for the provided element type, respecting whether to use
+   * Avro's Reflect* or Specific* suite for encoding and decoding.
+   *
+   * @param <T> the element type
+   */
+  public static <T> AvroCoder<T> of(TypeDescriptor<T> type, boolean useReflectApi) {
     @SuppressWarnings("unchecked")
     Class<T> clazz = (Class<T>) type.getRawType();
-    return of(clazz);
+    return of(clazz, useReflectApi);
   }
 
   /**
@@ -128,7 +140,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
    * @param <T> the element type
    */
   public static <T> AvroCoder<T> of(Class<T> clazz) {
-    return new AvroCoder<>(clazz, new ReflectData(clazz.getClassLoader()).getSchema(clazz));
+    return of(clazz, true);
   }
 
   /**
@@ -140,6 +152,16 @@ public class AvroCoder<T> extends CustomCoder<T> {
   }
 
   /**
+   * Returns an {@code AvroCoder} instance for the given class, respecting whether to use Avro's
+   * Reflect* or Specific* suite for encoding and decoding.
+   *
+   * @param <T> the element type
+   */
+  public static <T> AvroCoder<T> of(Class<T> type, boolean useReflectApi) {
+    return of(type, new ReflectData(type.getClassLoader()).getSchema(type), useReflectApi);
+  }
+
+  /**
    * Returns an {@code AvroCoder} instance for the provided element type using the provided Avro
    * schema.
    *
@@ -148,7 +170,17 @@ public class AvroCoder<T> extends CustomCoder<T> {
    * @param <T> the element type
    */
   public static <T> AvroCoder<T> of(Class<T> type, Schema schema) {
-    return new AvroCoder<>(type, schema);
+    return of(type, schema, true);
+  }
+
+  /**
+   * Returns an {@code AvroCoder} instance for the given class and schema, respecting whether to use
+   * Avro's Reflect* or Specific* suite for encoding and decoding.
+   *
+   * @param <T> the element type
+   */
+  public static <T> AvroCoder<T> of(Class<T> type, Schema schema, boolean useReflectApi) {
+    return new AvroCoder<>(type, schema, useReflectApi);
   }
 
   /**
@@ -270,6 +302,10 @@ public class AvroCoder<T> extends CustomCoder<T> {
   private final Supplier<ReflectData> reflectData;
 
   protected AvroCoder(Class<T> type, Schema schema) {
+    this(type, schema, false);
+  }
+
+  protected AvroCoder(Class<T> type, Schema schema, boolean useReflectApi) {
     this.type = type;
     this.schemaSupplier = new SerializableSchemaSupplier(schema);
     typeDescriptor = TypeDescriptor.of(type);
@@ -291,7 +327,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
           public DatumReader<T> initialValue() {
             if (myCoder.getType().equals(GenericRecord.class)) {
               return new GenericDatumReader<>(myCoder.getSchema());
-            } else if (SpecificRecord.class.isAssignableFrom(myCoder.getType())) {
+            } else if (SpecificRecord.class.isAssignableFrom(myCoder.getType()) && !useReflectApi) {
               return new SpecificDatumReader<>(myCoder.getType());
             }
             return new ReflectDatumReader<>(
@@ -307,7 +343,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
           public DatumWriter<T> initialValue() {
             if (myCoder.getType().equals(GenericRecord.class)) {
               return new GenericDatumWriter<>(myCoder.getSchema());
-            } else if (SpecificRecord.class.isAssignableFrom(myCoder.getType())) {
+            } else if (SpecificRecord.class.isAssignableFrom(myCoder.getType()) && !useReflectApi) {
               return new SpecificDatumWriter<>(myCoder.getType());
             }
             return new ReflectDatumWriter<>(myCoder.getSchema(), myCoder.reflectData.get());
@@ -381,7 +417,8 @@ public class AvroCoder<T> extends CustomCoder<T> {
     private Set<Schema> activeSchemas = new HashSet<>();
 
     /** Report an error in the current context. */
-    private void reportError(String context, String fmt, Object... args) {
+    @FormatMethod
+    private void reportError(String context, @FormatString String fmt, Object... args) {
       String message = String.format(fmt, args);
       reasons.add(context + ": " + message);
     }

@@ -63,6 +63,7 @@ import pkg_resources
 
 from apache_beam.internal import pickler
 from apache_beam.internal.http_client import get_new_http
+from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions  # pylint: disable=unused-import
@@ -89,7 +90,6 @@ def retry_on_non_zero_exit(exception):
   if (isinstance(exception, processes.CalledProcessError) and
       exception.returncode != 0):
     return True
-  return False
 
 
 class Stager(object):
@@ -98,6 +98,8 @@ class Stager(object):
   Implementation of this stager has to implement :func:`stage_artifact` and
   :func:`commit_manifest`.
   """
+  _DEFAULT_CHUNK_SIZE = 2 << 20
+
   def stage_artifact(self, local_path_to_artifact, artifact_name):
     # type: (str, str) -> None
 
@@ -463,6 +465,24 @@ class Stager(object):
         _LOGGER.info('Failed to download Artifact from %s', from_url)
         raise
     else:
+      try:
+        read_handle = FileSystems.open(
+            from_url, compression_type=CompressionTypes.UNCOMPRESSED)
+        with read_handle as fin:
+          with open(to_path, 'wb') as f:
+            while True:
+              chunk = fin.read(Stager._DEFAULT_CHUNK_SIZE)
+              if not chunk:
+                break
+              f.write(chunk)
+        _LOGGER.info('Copied remote file from %s to %s.', from_url, to_path)
+        return
+      except Exception as e:
+        _LOGGER.info(
+            'Failed to download file from %s via apache_beam.io.filesystems.'
+            'Trying to copy directly. %s',
+            from_url,
+            repr(e))
       if not os.path.isdir(os.path.dirname(to_path)):
         _LOGGER.info(
             'Created folder (since we have not done yet, and any errors '
@@ -619,30 +639,58 @@ class Stager(object):
     return python_bin
 
   @staticmethod
+  def remove_dependency_from_requirements(
+          requirements_file,  # type: str
+          dependency_to_remove,  # type: str
+          temp_directory_path):
+    """Function to remove dependencies from a given requirements file."""
+    # read all the dependency names
+    with open(requirements_file, 'r') as f:
+      lines = f.readlines()
+
+    tmp_requirements_filename = os.path.join(
+        temp_directory_path, 'tmp_requirements.txt')
+
+    with open(tmp_requirements_filename, 'w') as tf:
+      for i in range(len(lines)):
+        if not lines[i].startswith(dependency_to_remove):
+          tf.write(lines[i])
+
+    return tmp_requirements_filename
+
+  @staticmethod
   @retry.with_exponential_backoff(
       num_retries=4, retry_filter=retry_on_non_zero_exit)
   def _populate_requirements_cache(requirements_file, cache_dir):
     # The 'pip download' command will not download again if it finds the
     # tarball with the proper version already present.
     # It will get the packages downloaded in the order they are presented in
-    # the requirements file and will not download package dependencies.
-    cmd_args = [
-        Stager._get_python_executable(),
-        '-m',
-        'pip',
-        'download',
-        '--dest',
-        cache_dir,
-        '-r',
-        requirements_file,
-        '--exists-action',
-        'i',
-        # Download from PyPI source distributions.
-        '--no-binary',
-        ':all:'
-    ]
-    _LOGGER.info('Executing command: %s', cmd_args)
-    processes.check_output(cmd_args, stderr=processes.STDOUT)
+    # the requirements file and will download package dependencies.
+
+    # The apache-beam dependency  is excluded from requirements cache population
+    # because we  stage the SDK separately.
+    with tempfile.TemporaryDirectory() as temp_directory:
+      tmp_requirements_filepath = Stager.remove_dependency_from_requirements(
+          requirements_file=requirements_file,
+          dependency_to_remove='apache-beam',
+          temp_directory_path=temp_directory)
+      cmd_args = [
+          Stager._get_python_executable(),
+          '-m',
+          'pip',
+          'download',
+          '--dest',
+          cache_dir,
+          '-r',
+          tmp_requirements_filepath,
+          '--exists-action',
+          'i',
+          # Download from PyPI source distributions.
+          '--no-binary',
+          ':all:'
+      ]
+      _LOGGER.info('Executing command: %s', cmd_args)
+      processes.check_output(cmd_args, stderr=processes.STDOUT)
 
   @staticmethod
   def _build_setup_package(setup_file,  # type: str

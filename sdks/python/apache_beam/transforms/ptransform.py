@@ -50,6 +50,7 @@ from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import List
+from typing import Mapping
 from typing import Optional
 from typing import Sequence
 from typing import Tuple
@@ -201,8 +202,7 @@ class _MaterializedResult(object):
 
 class _MaterializedDoOutputsTuple(pvalue.DoOutputsTuple):
   def __init__(self, deferred, results_by_tag):
-    super(_MaterializedDoOutputsTuple,
-          self).__init__(None, None, deferred._tags, deferred._main_tag)
+    super().__init__(None, None, deferred._tags, deferred._main_tag)
     self._deferred = deferred
     self._results_by_tag = results_by_tag
 
@@ -253,7 +253,7 @@ class _FinalizeMaterialization(_PValueishTransform):
       return self.visit_nested(node)
 
 
-def get_named_nested_pvalues(pvalueish):
+def get_named_nested_pvalues(pvalueish, as_inputs=False):
   if isinstance(pvalueish, tuple):
     # Check to see if it's a named tuple.
     fields = getattr(pvalueish, '_fields', None)
@@ -262,16 +262,22 @@ def get_named_nested_pvalues(pvalueish):
     else:
       tagged_values = enumerate(pvalueish)
   elif isinstance(pvalueish, list):
+    if as_inputs:
+      # Full list treated as a list of value for eager evaluation.
+      yield None, pvalueish
+      return
     tagged_values = enumerate(pvalueish)
   elif isinstance(pvalueish, dict):
     tagged_values = pvalueish.items()
   else:
-    if isinstance(pvalueish, (pvalue.PValue, pvalue.DoOutputsTuple)):
+    if as_inputs or isinstance(pvalueish,
+                               (pvalue.PValue, pvalue.DoOutputsTuple)):
       yield None, pvalueish
     return
 
   for tag, subvalue in tagged_values:
-    for subtag, subsubvalue in get_named_nested_pvalues(subvalue):
+    for subtag, subsubvalue in get_named_nested_pvalues(
+        subvalue, as_inputs=as_inputs):
       if subtag is None:
         yield tag, subsubvalue
       else:
@@ -344,7 +350,7 @@ class PTransform(WithTypeHints, HasDisplayData):
 
   def __init__(self, label=None):
     # type: (Optional[str]) -> None
-    super(PTransform, self).__init__()
+    super().__init__()
     self.label = label  # type: ignore # https://github.com/python/mypy/issues/3004
 
   @property
@@ -395,7 +401,7 @@ class PTransform(WithTypeHints, HasDisplayData):
         input_type_hint)
     validate_composite_type_param(
         input_type_hint, 'Type hints for a PTransform')
-    return super(PTransform, self).with_input_types(input_type_hint)
+    return super().with_input_types(input_type_hint)
 
   def with_output_types(self, type_hint):
     """Annotates the output type of a :class:`PTransform` with a type-hint.
@@ -416,7 +422,7 @@ class PTransform(WithTypeHints, HasDisplayData):
     """
     type_hint = native_type_compatibility.convert_to_beam_type(type_hint)
     validate_composite_type_param(type_hint, 'Type hints for a PTransform')
-    return super(PTransform, self).with_output_types(type_hint)
+    return super().with_output_types(type_hint)
 
   def with_resource_hints(self, **kwargs):  # type: (...) -> PTransform
     """Adds resource hints to the :class:`PTransform`.
@@ -569,6 +575,8 @@ class PTransform(WithTypeHints, HasDisplayData):
   def __ror__(self, left, label=None):
     """Used to apply this PTransform to non-PValues, e.g., a tuple."""
     pvalueish, pvalues = self._extract_input_pvalues(left)
+    if isinstance(pvalues, dict):
+      pvalues = tuple(pvalues.values())
     pipelines = [v.pipeline for v in pvalues if isinstance(v, pvalue.PValue)]
     if pvalues and not pipelines:
       deferred = False
@@ -590,15 +598,15 @@ class PTransform(WithTypeHints, HasDisplayData):
         for pp in pipelines:
           if p != pp:
             raise ValueError(
-                'Mixing value from different pipelines not allowed.')
+                'Mixing values in different pipelines is not allowed.'
+                '\n{%r} != {%r}' % (p, pp))
       deferred = not getattr(p.runner, 'is_eager', False)
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.transforms.core import Create
     # pylint: enable=wrong-import-order, wrong-import-position
     replacements = {
         id(v): p | 'CreatePInput%s' % ix >> Create(v, reshuffle=False)
-        for ix,
-        v in enumerate(pvalues)
+        for (ix, v) in enumerate(pvalues)
         if not isinstance(v, pvalue.PValue) and v is not None
     }
     pvalueish = _SetInputPValues().visit(pvalueish, replacements)
@@ -628,19 +636,11 @@ class PTransform(WithTypeHints, HasDisplayData):
     if isinstance(pvalueish, pipeline.Pipeline):
       pvalueish = pvalue.PBegin(pvalueish)
 
-    def _dict_tuple_leaves(pvalueish):
-      if isinstance(pvalueish, tuple):
-        for a in pvalueish:
-          for p in _dict_tuple_leaves(a):
-            yield p
-      elif isinstance(pvalueish, dict):
-        for a in pvalueish.values():
-          for p in _dict_tuple_leaves(a):
-            yield p
-      else:
-        yield pvalueish
-
-    return pvalueish, tuple(_dict_tuple_leaves(pvalueish))
+    return pvalueish, {
+        str(tag): value
+        for (tag, value) in get_named_nested_pvalues(
+            pvalueish, as_inputs=True)
+    }
 
   def _pvaluish_from_dict(self, input_dict):
     if len(input_dict) == 1:
@@ -648,16 +648,15 @@ class PTransform(WithTypeHints, HasDisplayData):
     else:
       return input_dict
 
-  def _named_inputs(self, inputs, side_inputs):
-    # type: (Sequence[pvalue.PValue], Sequence[Any]) -> Dict[str, pvalue.PValue]
+  def _named_inputs(self, main_inputs, side_inputs):
+    # type: (Mapping[str, pvalue.PValue], Sequence[Any]) -> Dict[str, pvalue.PValue]
 
     """Returns the dictionary of named inputs (including side inputs) as they
     should be named in the beam proto.
     """
-    # TODO(BEAM-1833): Push names up into the sdk construction.
     main_inputs = {
-        str(ix): input
-        for (ix, input) in enumerate(inputs)
+        tag: input
+        for (tag, input) in main_inputs.items()
         if isinstance(input, pvalue.PCollection)
     }
     named_side_inputs = {(SIDE_INPUT_PREFIX + '%s') % ix: si.pvalue
@@ -806,7 +805,7 @@ def _unpickle_transform(unused_ptransform, pickled_bytes, unused_context):
 class _ChainedPTransform(PTransform):
   def __init__(self, *parts):
     # type: (*PTransform) -> None
-    super(_ChainedPTransform, self).__init__(label=self._chain_label(parts))
+    super().__init__(label=self._chain_label(parts))
     self._parts = parts
 
   def _chain_label(self, parts):
@@ -842,10 +841,10 @@ class PTransformWithSideInputs(PTransform):
       raise ValueError('Use %s() not %s.' % (fn.__name__, fn.__name__))
     self.fn = self.make_fn(fn, bool(args or kwargs))
     # Now that we figure out the label, initialize the super-class.
-    super(PTransformWithSideInputs, self).__init__()
+    super().__init__()
 
-    if (any([isinstance(v, pvalue.PCollection) for v in args]) or
-        any([isinstance(v, pvalue.PCollection) for v in kwargs.values()])):
+    if (any(isinstance(v, pvalue.PCollection) for v in args) or
+        any(isinstance(v, pvalue.PCollection) for v in kwargs.values())):
       raise error.SideInputError(
           'PCollection used directly as side input argument. Specify '
           'AsIter(pcollection) or AsSingleton(pcollection) to indicate how the '
@@ -898,7 +897,7 @@ class PTransformWithSideInputs(PTransform):
       :class:`PTransform` object. This allows chaining type-hinting related
       methods.
     """
-    super(PTransformWithSideInputs, self).with_input_types(input_type_hint)
+    super().with_input_types(input_type_hint)
 
     side_inputs_arg_hints = native_type_compatibility.convert_to_beam_types(
         side_inputs_arg_hints)
@@ -964,7 +963,7 @@ class PTransformWithSideInputs(PTransform):
 class _PTransformFnPTransform(PTransform):
   """A class wrapper for a function-based transform."""
   def __init__(self, fn, *args, **kwargs):
-    super(_PTransformFnPTransform, self).__init__()
+    super().__init__()
     self._fn = fn
     self._args = args
     self._kwargs = kwargs
@@ -1031,7 +1030,7 @@ def ptransform_fn(fn):
     class CustomMapper(PTransform):
 
       def __init__(self, mapfn):
-        super(CustomMapper, self).__init__()
+        super().__init__()
         self.mapfn = mapfn
 
       def expand(self, pcoll):
@@ -1084,7 +1083,7 @@ def label_from_callable(fn):
 
 class _NamedPTransform(PTransform):
   def __init__(self, transform, label):
-    super(_NamedPTransform, self).__init__(label)
+    super().__init__(label)
     self.transform = transform
 
   def __ror__(self, pvalueish, _unused=None):

@@ -20,6 +20,7 @@ import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
+  suppressUnusedVariable: true,
   automaticModuleName: 'org.apache.beam.runners.dataflow',
   classesTriggerCheckerBugs: [
     'PrimitiveParDoSingleFactory': 'https://github.com/typetools/checker-framework/issues/3791',
@@ -45,8 +46,8 @@ processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'dataflow.legacy_environment_major_version' : '8',
     'dataflow.fnapi_environment_major_version' : '8',
-    'dataflow.legacy_container_version' : 'beam-master-20210525',
-    'dataflow.fnapi_container_version' : 'beam-master-20210524',
+    'dataflow.legacy_container_version' : 'beam-master-20210913',
+    'dataflow.fnapi_container_version' : 'beam-master-20210913',
     'dataflow.container_base_repository' : 'gcr.io/cloud-dataflow/v1beta3',
   ]
 }
@@ -162,7 +163,6 @@ def commonLegacyExcludeCategories = [
   'org.apache.beam.sdk.testing.UsesPythonExpansionService',
   'org.apache.beam.sdk.testing.UsesDistributionMetrics',
   'org.apache.beam.sdk.testing.UsesGaugeMetrics',
-  'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs',
   'org.apache.beam.sdk.testing.UsesTestStream',
   'org.apache.beam.sdk.testing.UsesParDoLifecycle',
   'org.apache.beam.sdk.testing.UsesMetricsPusher',
@@ -277,7 +277,10 @@ task cleanUpDockerImages() {
       commandLine "docker", "rmi", "--force", "${dockerImageName}"
     }
     exec {
-      commandLine "gcloud", "--quiet", "container", "images", "delete", "--force-delete-tags", "${dockerImageName}"
+      commandLine "gcloud", "--quiet", "container", "images", "untag", "${dockerImageName}"
+    }
+    exec {
+      commandLine "./scripts/cleanup_untagged_gcr_images.sh", "${dockerImageContainer}"
     }
   }
 }
@@ -319,13 +322,13 @@ task validatesRunnerStreaming {
       'org.apache.beam.sdk.testing.UsesMapState',
       'org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput',
       'org.apache.beam.sdk.testing.UsesSetState',
-      'org.apache.beam.sdk.testing.UsesStrictTimerOrdering',
     ],
   ))
 }
 
 task setupXVR {
   dependsOn buildAndPushDockerContainer
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
 }
 
 createCrossLanguageValidatesRunnerTask(
@@ -357,7 +360,15 @@ createCrossLanguageValidatesRunnerTask(
     "--numprocesses=8",
     "--timeout=4500",
     "--log-cli-level=INFO",
-  ]
+  ],
+  goScriptOptions: [
+    "--runner dataflow",
+    "--project ${dataflowProject}",
+    "--dataflow_project ${dataflowProject}",
+    "--region ${dataflowRegion}",
+    "--tests \"./test/integration/xlang\"",
+    "--sdk_overrides \".*java.*,${dockerImageContainer}:${dockerTag}\"",
+  ],
 )
 
 task validatesRunnerV2 {
@@ -411,6 +422,7 @@ task validatesRunnerV2Streaming {
       'org.apache.beam.sdk.testing.LargeKeys$Above10KB',
       'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo',
       'org.apache.beam.sdk.testing.UsesCommittedMetrics',
+      'org.apache.beam.sdk.testing.UsesStrictTimerOrdering' /* BEAM-8543 */,
       'org.apache.beam.sdk.testing.UsesTestStream',
     ],
     excludedTests: [
@@ -445,11 +457,6 @@ task validatesRunnerV2Streaming {
       'org.apache.beam.sdk.transforms.SplittableDoFnTest.testPairWithIndexBasicUnbounded',
       'org.apache.beam.sdk.transforms.SplittableDoFnTest.testOutputAfterCheckpointUnbounded',
       'org.apache.beam.sdk.transforms.SplittableDoFnTest.testBundleFinalizationOccursOnUnboundedSplittableDoFn',
-
-      // TODO(BEAM-8543): streaming timers are not strictly time ordered
-      'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerOrderingWithCreate',
-      'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testTwoTimersSettingEachOther',
-      'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testTwoTimersSettingEachOtherWithCreateAsInput',
 
       'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerAlignAfterGcTimeUnbounded',
 

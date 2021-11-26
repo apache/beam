@@ -27,6 +27,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -70,6 +71,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.MoreFutures;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -90,6 +92,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -338,9 +341,9 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       }
     }
     this.writeOperation = getSink().createWriteOperation();
-    this.writeOperation.setWindowedWrites(getWindowedWrites());
-
-    if (!getWindowedWrites()) {
+    if (getWindowedWrites()) {
+      this.writeOperation.setWindowedWrites();
+    } else {
       // Re-window the data into the global window and remove any existing triggers.
       input =
           input.apply(
@@ -881,7 +884,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         shardCount = context.sideInput(numShardsView);
       } else {
         checkNotNull(getNumShardsProvider());
-        shardCount = getNumShardsProvider().get();
+        shardCount =
+            checkNotNull(getNumShardsProvider().get(), "Must have non-null number of shards.");
       }
       checkArgument(
           shardCount > 0,
@@ -898,6 +902,15 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
   private class WriteShardsIntoTempFilesFn
       extends DoFn<KV<ShardedKey<Integer>, Iterable<UserT>>, FileResult<DestinationT>> {
+    private transient @Nullable List<CompletionStage<Void>> closeFutures = null;
+    private transient @Nullable List<KV<Instant, FileResult<DestinationT>>> deferredOutput = null;
+
+    @StartBundle
+    public void startBundle() {
+      closeFutures = new ArrayList<>();
+      deferredOutput = new ArrayList<>();
+    }
+
     @ProcessElement
     public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
       getDynamicDestinations().setSideInputAccessorFromProcessContext(c);
@@ -926,21 +939,48 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
       // Close all writers.
       for (Map.Entry<DestinationT, Writer<DestinationT, OutputT>> entry : writers.entrySet()) {
-        Writer<DestinationT, OutputT> writer = entry.getValue();
-        try {
-          // Close the writer; if this throws let the error propagate.
-          writer.close();
-        } catch (Exception e) {
-          // If anything goes wrong, make sure to delete the temporary file.
-          writer.cleanup();
-          throw e;
-        }
         int shard = c.element().getKey().getShardNumber();
         checkArgument(
             shard != UNKNOWN_SHARDNUM,
             "Shard should have been set, but is unset for element %s",
             c.element());
-        c.output(new FileResult<>(writer.getOutputFile(), shard, window, c.pane(), entry.getKey()));
+        Writer<DestinationT, OutputT> writer = entry.getValue();
+        deferredOutput.add(
+            KV.of(
+                c.timestamp(),
+                new FileResult<>(writer.getOutputFile(), shard, window, c.pane(), entry.getKey())));
+        closeWriterInBackground(writer);
+      }
+    }
+
+    private void closeWriterInBackground(Writer<DestinationT, OutputT> writer) {
+      // Close in parallel so flushing of buffered writes to files for many windows happens in
+      // parallel.
+      closeFutures.add(
+          MoreFutures.runAsync(
+              () -> {
+                try {
+                  // Close the writer; if this throws let the error propagate.
+                  writer.close();
+                } catch (Exception e) {
+                  // If anything goes wrong, make sure to delete the temporary file.
+                  writer.cleanup();
+                  throw e;
+                }
+              }));
+    }
+
+    @FinishBundle
+    public void finishBundle(FinishBundleContext c) throws Exception {
+      try {
+        MoreFutures.get(MoreFutures.allAsList(closeFutures));
+        // If all writers were closed without exception, output the results to the next stage.
+        for (KV<Instant, FileResult<DestinationT>> result : deferredOutput) {
+          c.output(result.getValue(), result.getKey(), result.getValue().getWindow());
+        }
+      } finally {
+        deferredOutput = null;
+        closeFutures = null;
       }
     }
   }

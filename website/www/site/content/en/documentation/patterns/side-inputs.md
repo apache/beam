@@ -59,7 +59,7 @@ This guarantees consistency on the duration of the single window,
 meaning that each window on the main input will be matched to a single
 version of side input data.
 
-To read side input data periodically into distinct PColleciton windows:
+To read side input data periodically into distinct PCollection windows:
 
 1. Use the PeriodicImpulse or PeriodicSequence PTransform to:
     * Generate an infinite sequence of elements at required processing time

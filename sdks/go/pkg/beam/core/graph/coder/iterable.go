@@ -19,7 +19,7 @@ import (
 	"io"
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 // TODO(lostluck): 2020.06.29 export these for use for others?
@@ -62,14 +62,18 @@ func DecoderForSlice(rt reflect.Type) (func(io.Reader) (interface{}, error), err
 
 // iterableEncoder reflectively encodes a slice or array type using
 // the beam fixed length iterable encoding.
-func iterableEncoder(rt reflect.Type, encode func(reflect.Value, io.Writer) error) func(reflect.Value, io.Writer) error {
+func iterableEncoder(rt reflect.Type, encode typeEncoderFieldReflect) func(reflect.Value, io.Writer) error {
 	return func(rv reflect.Value, w io.Writer) error {
 		size := rv.Len()
 		if err := EncodeInt32((int32)(size), w); err != nil {
 			return err
 		}
 		for i := 0; i < size; i++ {
-			if err := encode(rv.Index(i), w); err != nil {
+			iv := rv.Index(i)
+			if encode.addr {
+				iv = iv.Addr()
+			}
+			if err := encode.encode(iv, w); err != nil {
 				return err
 			}
 		}
@@ -80,7 +84,7 @@ func iterableEncoder(rt reflect.Type, encode func(reflect.Value, io.Writer) erro
 // iterableDecoderForSlice can decode from both the fixed sized and
 // multi-chunk variants of the beam iterable protocol.
 // Returns an error for other protocols (such as state backed).
-func iterableDecoderForSlice(rt reflect.Type, decodeToElem func(reflect.Value, io.Reader) error) func(reflect.Value, io.Reader) error {
+func iterableDecoderForSlice(rt reflect.Type, decodeToElem typeDecoderFieldReflect) func(reflect.Value, io.Reader) error {
 	return func(ret reflect.Value, r io.Reader) error {
 		// (1) Read count prefixed encoded data
 		size, err := DecodeInt32(r)
@@ -124,7 +128,7 @@ func iterableDecoderForSlice(rt reflect.Type, decodeToElem func(reflect.Value, i
 // iterableDecoderForArray can decode from only the fixed sized and
 // multi-chunk variant of the beam iterable protocol.
 // Returns an error for other protocols (such as state backed).
-func iterableDecoderForArray(rt reflect.Type, decodeToElem func(reflect.Value, io.Reader) error) func(reflect.Value, io.Reader) error {
+func iterableDecoderForArray(rt reflect.Type, decodeToElem typeDecoderFieldReflect) func(reflect.Value, io.Reader) error {
 	return func(ret reflect.Value, r io.Reader) error {
 		// (1) Read count prefixed encoded data
 		size, err := DecodeInt32(r)
@@ -147,10 +151,14 @@ func iterableDecoderForArray(rt reflect.Type, decodeToElem func(reflect.Value, i
 	}
 }
 
-func decodeToIterable(rv reflect.Value, r io.Reader, decodeTo func(reflect.Value, io.Reader) error) error {
-	for i := 0; i < rv.Len(); i++ {
-		err := decodeTo(rv.Index(i), r)
-		if err != nil {
+func decodeToIterable(rv reflect.Value, r io.Reader, decodeTo typeDecoderFieldReflect) error {
+	size := rv.Len()
+	for i := 0; i < size; i++ {
+		iv := rv.Index(i)
+		if decodeTo.addr {
+			iv = iv.Addr()
+		}
+		if err := decodeTo.decode(iv, r); err != nil {
 			return err
 		}
 	}
