@@ -21,7 +21,7 @@ from google.cloud import storage
 from typing import List
 
 from api.v1.api_pb2 import Sdk
-from config import Config
+from config import Config, PrecompiledExample
 from helper import Example, get_statuses
 from grpc_client import GRPCClient
 
@@ -32,12 +32,6 @@ class CDHelper:
 
     It is used to save beam examples/katas/tests and their output on the Google Cloud.
     """
-
-    def __init__(self):
-        os.environ[
-            'GOOGLE_APPLICATION_CREDENTIALS'] = "/Users/dariamalkova/IdeaProjects/beam/playground/infrastructure/play-test-key.json"
-        self._storage_client = storage.Client()
-        self._bucket = self._storage_client.bucket(Config.BUCKET_NAME)
 
     def store_examples(self, examples: List[Example]):
         """
@@ -56,7 +50,7 @@ class CDHelper:
         Args:
             examples: beam examples that should be run
         """
-        get_statuses(examples)  # run examples code and wait until all are executed
+        await get_statuses(examples)  # run examples code and wait until all are executed
         client = GRPCClient()
         tasks = [client.get_run_output(example.pipeline_id) for example in examples]
         outputs = await asyncio.gather(*tasks)
@@ -70,12 +64,14 @@ class CDHelper:
         Args:
             examples: precompiled examples
         """
+        self._storage_client = storage.Client()
+        self._bucket = self._storage_client.bucket(Config.BUCKET_NAME)
         for example in examples:
-            file_names = self._write_to_os(example)
+            file_names = self._write_to_local_fs(example)
             for cloud_file_name, local_file_name in file_names.items():
                 self._upload_blob(source_file=local_file_name, destination_blob_name=cloud_file_name)
 
-    def _write_to_os(self, example: Example):
+    def _write_to_local_fs(self, example: Example):
         """
         Write code of an example, output and meta info to the filesystem (in temp folder)
 
@@ -90,23 +86,25 @@ class CDHelper:
         Path(path_to_object_folder).mkdir(parents=True, exist_ok=True)
 
         file_names = dict()
-        code_path = self._get_cloud_file_name(sdk=example.sdk, base_folder_name=example.tag.name,
+        code_path = self._get_gcs_object_name(sdk=example.sdk, base_folder_name=example.tag.name,
                                               file_name=example.tag.name)
-        output_path = self._get_cloud_file_name(sdk=example.sdk, base_folder_name=example.tag.name,
-                                                file_name=example.tag.name, extension="output")
-        meta_path = self._get_cloud_file_name(sdk=example.sdk, base_folder_name=example.tag.name,
-                                              file_name="meta", extension="info")
+        output_path = self._get_gcs_object_name(sdk=example.sdk, base_folder_name=example.tag.name,
+                                                file_name=example.tag.name,
+                                                extension=PrecompiledExample.OUTPUT_EXTENSION)
+        meta_path = self._get_gcs_object_name(sdk=example.sdk, base_folder_name=example.tag.name,
+                                              file_name=PrecompiledExample.META_NAME,
+                                              extension=PrecompiledExample.META_EXTENSION)
         file_names[code_path] = example.code
         file_names[output_path] = example.output
         file_names[meta_path] = str(example.tag._asdict())
         for file_name, file_content in file_names.items():
             local_file_path = os.path.join(Config.TEMP_FOLDER, example.pipeline_id, file_name)
-            with open(local_file_path, 'w') as file:
+            with open(local_file_path, "w") as file:
                 file.write(file_content)
             file_names[file_name] = local_file_path  # don't need content anymore, instead save the local path
         return file_names
 
-    def _get_cloud_file_name(self, sdk: Sdk, base_folder_name: str, file_name: str, extension: str = None):
+    def _get_gcs_object_name(self, sdk: Sdk, base_folder_name: str, file_name: str, extension: str = None):
         """
         Get the path where file will be stored at the bucket.
 

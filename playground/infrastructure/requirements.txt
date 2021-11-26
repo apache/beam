@@ -20,4 +20,5 @@ grpcio==1.41.1
 mock==4.0.3
 protobuf==3.19.1
 pytest==6.2.5
+pytest-mock==3.6.1
 PyYAML==6.0
