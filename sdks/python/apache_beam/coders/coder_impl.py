@@ -31,6 +31,7 @@ For internal use only; no backwards-compatibility guarantees.
 # pytype: skip-file
 
 import enum
+import itertools
 import json
 import logging
 import pickle
@@ -68,6 +69,7 @@ except ImportError:
   dataclasses = None  # type: ignore
 
 if TYPE_CHECKING:
+  import proto
   from apache_beam.transforms import userstate
   from apache_beam.transforms.window import IntervalWindow
 
@@ -307,6 +309,19 @@ class DeterministicProtoCoderImpl(ProtoCoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
   def encode(self, value):
     return value.SerializePartialToString(deterministic=True)
+
+
+class ProtoPlusCoderImpl(SimpleCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees."""
+  def __init__(self, proto_plus_type):
+    # type: (Type[proto.Message]) -> None
+    self.proto_plus_type = proto_plus_type
+
+  def encode(self, value):
+    return value._pb.SerializePartialToString(deterministic=True)
+
+  def decode(self, value):
+    return self.proto_plus_type.deserialize(value)
 
 
 UNKNOWN_TYPE = 0xFF
@@ -747,7 +762,7 @@ class IntervalWindowCoderImpl(StreamCoderImpl):
   def decode_from_stream(self, in_, nested):
     # type: (create_InputStream, bool) -> IntervalWindow
     if not TYPE_CHECKING:
-      global IntervalWindow
+      global IntervalWindow  # pylint: disable=global-variable-not-assigned
       if IntervalWindow is None:
         from apache_beam.transforms.window import IntervalWindow
     # instantiating with None is not part of the public interface
@@ -1193,12 +1208,58 @@ class TupleSequenceCoderImpl(SequenceCoderImpl):
     return tuple(components)
 
 
+class _AbstractIterable(object):
+  """Wraps an iterable hiding methods that might not always be available."""
+  def __init__(self, contents):
+    self._contents = contents
+
+  def __iter__(self):
+    return iter(self._contents)
+
+  def __repr__(self):
+    head = [repr(e) for e in itertools.islice(self, 4)]
+    if len(head) == 4:
+      head[-1] = '...'
+    return '_AbstractIterable([%s])' % ', '.join(head)
+
+  # Mostly useful for tests.
+  def __eq__(left, right):
+    end = object()
+    for a, b in itertools.zip_longest(left, right, fillvalue=end):
+      if a != b:
+        return False
+    return True
+
+
+FastPrimitivesCoderImpl.register_iterable_like_type(_AbstractIterable)
+
+# TODO(BEAM-13066): Enable using abstract iterables permanently
+_iterable_coder_uses_abstract_iterable_by_default = False
+
+
 class IterableCoderImpl(SequenceCoderImpl):
   """For internal use only; no backwards-compatibility guarantees.
 
   A coder for homogeneous iterable objects."""
+  def __init__(self, *args, use_abstract_iterable=None, **kwargs):
+    super().__init__(*args, **kwargs)
+    if use_abstract_iterable is None:
+      use_abstract_iterable = _iterable_coder_uses_abstract_iterable_by_default
+    self._use_abstract_iterable = use_abstract_iterable
+
   def _construct_from_sequence(self, components):
-    return components
+    if self._use_abstract_iterable:
+      return _AbstractIterable(components)
+    else:
+      return components
+
+
+class ListCoderImpl(SequenceCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A coder for homogeneous list objects."""
+  def _construct_from_sequence(self, components):
+    return components if isinstance(components, list) else list(components)
 
 
 class PaneInfoEncoding(object):
@@ -1390,8 +1451,7 @@ class ParamWindowedValueCoderImpl(WindowedValueCoderImpl):
   and pane info values during decoding when reconstructing the windowed
   value."""
   def __init__(self, value_coder, window_coder, payload):
-    super(ParamWindowedValueCoderImpl,
-          self).__init__(value_coder, TimestampCoderImpl(), window_coder)
+    super().__init__(value_coder, TimestampCoderImpl(), window_coder)
     self._timestamp, self._windows, self._pane_info = self._from_proto(
         payload, window_coder)
 
@@ -1482,4 +1542,32 @@ class ShardedKeyCoderImpl(StreamCoderImpl):
         self._shard_id_coder_impl.estimate_size(value._shard_id, nested=True))
     estimated_size += (
         self._key_coder_impl.estimate_size(value.key, nested=True))
+    return estimated_size
+
+
+class TimestampPrefixingWindowCoderImpl(StreamCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A coder for custom window types, which prefix required max_timestamp to
+  encoded original window.
+
+  The coder encodes and decodes custom window types with following format:
+    window's max_timestamp()
+    encoded window using it's own coder.
+  """
+  def __init__(self, window_coder_impl: CoderImpl) -> None:
+    self._window_coder_impl = window_coder_impl
+
+  def encode_to_stream(self, value, stream, nested):
+    TimestampCoderImpl().encode_to_stream(value.max_timestamp(), stream, nested)
+    self._window_coder_impl.encode_to_stream(value, stream, nested)
+
+  def decode_from_stream(self, stream, nested):
+    TimestampCoderImpl().decode_from_stream(stream, nested)
+    return self._window_coder_impl.decode_from_stream(stream, nested)
+
+  def estimate_size(self, value: Any, nested: bool = False) -> int:
+    estimated_size = 0
+    estimated_size += TimestampCoderImpl().estimate_size(value)
+    estimated_size += self._window_coder_impl.estimate_size(value, nested)
     return estimated_size

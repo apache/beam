@@ -19,8 +19,8 @@ import (
 	"context"
 	"io"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 // CaptureNode is a test Node that captures all elements for verification. It also
@@ -160,6 +160,10 @@ type FixedSideInputAdapter struct {
 }
 
 func (a *FixedSideInputAdapter) NewIterable(ctx context.Context, reader StateReader, w typex.Window) (ReStream, error) {
+	return a.Val, nil
+}
+
+func (a *FixedSideInputAdapter) NewKeyedIterable(ctx context.Context, reader StateReader, w typex.Window, iterKey interface{}) (ReStream, error) {
 	return a.Val, nil
 }
 

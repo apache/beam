@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.aws.options;
 
+import static org.apache.beam.repackaged.core.org.apache.commons.lang3.reflect.FieldUtils.readField;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
@@ -25,6 +26,7 @@ import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.auth.BasicSessionCredentials;
 import com.amazonaws.auth.ClasspathPropertiesFileCredentialsProvider;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.auth.EC2ContainerCredentialsProviderWrapper;
@@ -37,7 +39,6 @@ import com.amazonaws.services.s3.model.SSEAwsKeyManagementParams;
 import com.amazonaws.services.s3.model.SSECustomerKey;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.lang.reflect.Field;
 import java.util.List;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -78,6 +79,20 @@ public class AwsModuleTest {
     assertEquals(
         credentialsProvider.getCredentials().getAWSSecretKey(),
         deserializedCredentialsProvider.getCredentials().getAWSSecretKey());
+
+    String sessionToken = "session-token";
+    BasicSessionCredentials sessionCredentials =
+        new BasicSessionCredentials(awsKeyId, awsSecretKey, sessionToken);
+    credentialsProvider = new AWSStaticCredentialsProvider(sessionCredentials);
+    serializedCredentialsProvider = objectMapper.writeValueAsString(credentialsProvider);
+    deserializedCredentialsProvider =
+        objectMapper.readValue(serializedCredentialsProvider, AWSCredentialsProvider.class);
+    BasicSessionCredentials deserializedCredentials =
+        (BasicSessionCredentials) deserializedCredentialsProvider.getCredentials();
+    assertEquals(credentialsProvider.getClass(), deserializedCredentialsProvider.getClass());
+    assertEquals(deserializedCredentials.getAWSAccessKeyId(), awsKeyId);
+    assertEquals(deserializedCredentials.getAWSSecretKey(), awsSecretKey);
+    assertEquals(deserializedCredentials.getSessionToken(), sessionToken);
   }
 
   @Test
@@ -92,11 +107,9 @@ public class AwsModuleTest {
         objectMapper.readValue(serializedCredentialsProvider, AWSCredentialsProvider.class);
 
     assertEquals(credentialsProvider.getClass(), deserializedCredentialsProvider.getClass());
-
-    Field field = PropertiesFileCredentialsProvider.class.getDeclaredField("credentialsFilePath");
-    field.setAccessible(true);
-    String deserializedCredentialsFilePath = (String) field.get(deserializedCredentialsProvider);
-    assertEquals(credentialsFilePath, deserializedCredentialsFilePath);
+    assertEquals(
+        credentialsFilePath,
+        readField(deserializedCredentialsProvider, "credentialsFilePath", true));
   }
 
   @Test
@@ -112,12 +125,9 @@ public class AwsModuleTest {
         objectMapper.readValue(serializedCredentialsProvider, AWSCredentialsProvider.class);
 
     assertEquals(credentialsProvider.getClass(), deserializedCredentialsProvider.getClass());
-
-    Field field =
-        ClasspathPropertiesFileCredentialsProvider.class.getDeclaredField("credentialsFilePath");
-    field.setAccessible(true);
-    String deserializedCredentialsFilePath = (String) field.get(deserializedCredentialsProvider);
-    assertEquals(credentialsFilePath, deserializedCredentialsFilePath);
+    assertEquals(
+        credentialsFilePath,
+        readField(deserializedCredentialsProvider, "credentialsFilePath", true));
   }
 
   @Test
@@ -132,16 +142,9 @@ public class AwsModuleTest {
         objectMapper.readValue(serializedCredentialsProvider, AWSCredentialsProvider.class);
 
     assertEquals(credentialsProvider.getClass(), deserializedCredentialsProvider.getClass());
-    Field fieldRole = STSAssumeRoleSessionCredentialsProvider.class.getDeclaredField("roleArn");
-    fieldRole.setAccessible(true);
-    String deserializedRoleArn = (String) fieldRole.get(deserializedCredentialsProvider);
-    assertEquals(roleArn, deserializedRoleArn);
-
-    Field fieldSession =
-        STSAssumeRoleSessionCredentialsProvider.class.getDeclaredField("roleSessionName");
-    fieldSession.setAccessible(true);
-    String deserializedRoleSessionName = (String) fieldSession.get(deserializedCredentialsProvider);
-    assertEquals(roleSessionName, deserializedRoleSessionName);
+    assertEquals(roleArn, readField(deserializedCredentialsProvider, "roleArn", true));
+    assertEquals(
+        roleSessionName, readField(deserializedCredentialsProvider, "roleSessionName", true));
   }
 
   @Test

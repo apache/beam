@@ -30,6 +30,9 @@ public class ShortIdMap {
 
   public synchronized String getOrCreateShortId(MonitoringInfo info) {
     Preconditions.checkNotNull(info);
+    Preconditions.checkArgument(info.getPayload().isEmpty());
+    Preconditions.checkArgument(!info.hasStartTime());
+
     String shortId = monitoringInfoMap.inverse().get(info);
     if (shortId == null) {
       shortId = "metric" + counter++;

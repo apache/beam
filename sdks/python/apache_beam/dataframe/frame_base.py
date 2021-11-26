@@ -64,7 +64,7 @@ class DeferredBase(object):
             requires_partition_by=partitionings.Arbitrary(),
             preserves_partition_by=partitionings.Singleton())
 
-      return tuple([cls.wrap(get(ix)) for ix in range(len(expr.proxy()))])
+      return tuple(cls.wrap(get(ix)) for ix in range(len(expr.proxy())))
     elif proxy_type in cls._pandas_type_map:
       wrapper_type = cls._pandas_type_map[proxy_type]
     else:
@@ -641,4 +641,4 @@ class WontImplementError(NotImplementedError):
       if 'url' in reason_data:
         msg = f"{msg}\nFor more information see {reason_data['url']}."
 
-    super(WontImplementError, self).__init__(msg)
+    super().__init__(msg)

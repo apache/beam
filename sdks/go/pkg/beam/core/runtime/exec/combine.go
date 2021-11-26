@@ -22,13 +22,13 @@ import (
 	"path"
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	"github.com/apache/beam/sdks/go/pkg/beam/util/errorx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/errorx"
 )
 
 // Combine is a Combine executor. Combiners do not have side inputs (or output).
@@ -50,6 +50,8 @@ type Combine struct {
 	createAccumInv, addInputInv, mergeInv, extractOutputInv *invoker
 	// cached value converter for add input.
 	aiValConvert func(interface{}) interface{}
+
+	states *metrics.PTransformState
 }
 
 // GetPID returns the PTransformID for this CombineFn.
@@ -68,6 +70,8 @@ func (n *Combine) Up(ctx context.Context) error {
 		return errors.Errorf("invalid status for combine %v: %v", n.UID, n.status)
 	}
 	n.status = Up
+
+	n.states = metrics.NewPTransformState(n.PID)
 
 	if _, err := InvokeWithoutEventTime(ctx, n.Fn.SetupFn(), nil); err != nil {
 		return n.fail(err)
@@ -120,6 +124,8 @@ func (n *Combine) StartBundle(ctx context.Context, id string, data DataContext) 
 	// and never accept modified contexts from users, so we will cache them per-bundle
 	// per-unit, to avoid the constant allocation overhead.
 	n.ctx = metrics.SetPTransformID(ctx, n.PID)
+
+	n.states.Set(n.ctx, metrics.StartBundle)
 
 	if err := n.Out.StartBundle(n.ctx, id, data); err != nil {
 		return n.fail(err)
@@ -177,6 +183,9 @@ func (n *Combine) FinishBundle(ctx context.Context) error {
 		return errors.Errorf("invalid status for combine %v: %v", n.UID, n.status)
 	}
 	n.status = Up
+
+	n.states.Set(n.ctx, metrics.FinishBundle)
+
 	if n.createAccumInv != nil {
 		n.createAccumInv.Reset()
 	}
@@ -286,8 +295,17 @@ func (n *Combine) extract(ctx context.Context, accum interface{}) (interface{}, 
 
 func (n *Combine) fail(err error) error {
 	n.status = Broken
-	n.err.TrySetError(err)
-	return err
+	if err2, ok := err.(*doFnError); ok {
+		return err2
+	}
+	combineError := &doFnError{
+		doFn: n.Fn.Name(),
+		err:  err,
+		uid:  n.UID,
+		pid:  n.PID,
+	}
+	n.err.TrySetError(combineError)
+	return combineError
 }
 
 func (n *Combine) String() string {
@@ -339,6 +357,9 @@ func (n *LiftedCombine) ProcessElement(ctx context.Context, value *FullValue, va
 	if n.status != Active {
 		return errors.Errorf("invalid status for precombine %v: %v", n.UID, n.status)
 	}
+
+	n.Combine.states.Set(n.Combine.ctx, metrics.ProcessBundle)
+
 	// The cache layer in lifted combines implicitly observes windows. Process each individually.
 	for _, w := range value.Windows {
 		err := n.processElementPerWindow(ctx, value, w)
@@ -412,6 +433,7 @@ func (n *LiftedCombine) processElementPerWindow(ctx context.Context, value *Full
 // FinishBundle iterates through the cached (key, accumulator) pairs, and then
 // processes the value in the bundle as normal.
 func (n *LiftedCombine) FinishBundle(ctx context.Context) error {
+	n.Combine.states.Set(n.Combine.ctx, metrics.FinishBundle)
 	// Need to run n.Out.ProcessElement for all the cached precombined KVs, and
 	// then finally Finish bundle as normal.
 	for _, a := range n.cache {
@@ -450,6 +472,7 @@ func (n *MergeAccumulators) ProcessElement(ctx context.Context, value *FullValue
 	if n.status != Active {
 		return errors.Errorf("invalid status for combine merge %v: %v", n.UID, n.status)
 	}
+	n.Combine.states.Set(n.Combine.ctx, metrics.ProcessBundle)
 	a, err := n.newAccum(n.Combine.ctx, value.Elm)
 	if err != nil {
 		return n.fail(err)
@@ -505,6 +528,7 @@ func (n *ExtractOutput) ProcessElement(ctx context.Context, value *FullValue, va
 	if n.status != Active {
 		return errors.Errorf("invalid status for combine extract %v: %v", n.UID, n.status)
 	}
+	n.Combine.states.Set(n.Combine.ctx, metrics.StartBundle)
 	out, err := n.extract(n.Combine.ctx, value.Elm2)
 	if err != nil {
 		return n.fail(err)
@@ -526,6 +550,7 @@ func (n *ConvertToAccumulators) ProcessElement(ctx context.Context, value *FullV
 	if n.status != Active {
 		return errors.Errorf("invalid status for combine convert %v: %v", n.UID, n.status)
 	}
+	n.Combine.states.Set(n.Combine.ctx, metrics.StartBundle)
 	a, err := n.newAccum(n.Combine.ctx, value.Elm)
 	if err != nil {
 		return n.fail(err)

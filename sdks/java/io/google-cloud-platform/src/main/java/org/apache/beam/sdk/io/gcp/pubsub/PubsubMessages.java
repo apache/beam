@@ -24,25 +24,36 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** Common util functions for converting between PubsubMessage proto and {@link PubsubMessage}. */
-public class PubsubMessages {
+public final class PubsubMessages {
+  private PubsubMessages() {}
+
+  public static com.google.pubsub.v1.PubsubMessage toProto(PubsubMessage input) {
+    Map<String, String> attributes = input.getAttributeMap();
+    com.google.pubsub.v1.PubsubMessage.Builder message =
+        com.google.pubsub.v1.PubsubMessage.newBuilder()
+            .setData(ByteString.copyFrom(input.getPayload()));
+    // TODO(BEAM-8085) this should not be null
+    if (attributes != null) {
+      message.putAllAttributes(attributes);
+    }
+    String messageId = input.getMessageId();
+    if (messageId != null) {
+      message.setMessageId(messageId);
+    }
+    return message.build();
+  }
+
+  public static PubsubMessage fromProto(com.google.pubsub.v1.PubsubMessage input) {
+    return new PubsubMessage(
+        input.getData().toByteArray(), input.getAttributesMap(), input.getMessageId());
+  }
+
   // Convert the PubsubMessage to a PubsubMessage proto, then return its serialized representation.
   public static class ParsePayloadAsPubsubMessageProto
       implements SerializableFunction<PubsubMessage, byte[]> {
     @Override
     public byte[] apply(PubsubMessage input) {
-      Map<String, String> attributes = input.getAttributeMap();
-      com.google.pubsub.v1.PubsubMessage.Builder message =
-          com.google.pubsub.v1.PubsubMessage.newBuilder()
-              .setData(ByteString.copyFrom(input.getPayload()));
-      // TODO(BEAM-8085) this should not be null
-      if (attributes != null) {
-        message.putAllAttributes(attributes);
-      }
-      String messageId = input.getMessageId();
-      if (messageId != null) {
-        message.setMessageId(messageId);
-      }
-      return message.build().toByteArray();
+      return toProto(input).toByteArray();
     }
   }
 
@@ -54,8 +65,7 @@ public class PubsubMessages {
       try {
         com.google.pubsub.v1.PubsubMessage message =
             com.google.pubsub.v1.PubsubMessage.parseFrom(input);
-        return new PubsubMessage(
-            message.getData().toByteArray(), message.getAttributesMap(), message.getMessageId());
+        return fromProto(message);
       } catch (InvalidProtocolBufferException e) {
         throw new RuntimeException("Could not decode Pubsub message", e);
       }

@@ -62,6 +62,16 @@ function usage() {
   echo 'Usage: build_release_candidate.sh --release <version> --rc <rc> --github-user <username> --signing-key <sig> [--debug]'
 }
 
+function wipe_local_clone_dir() {
+  if [[ -d ${LOCAL_CLONE_DIR} ]]; then
+    # Go modules leave behind directories with no write permissions, so readd
+    # write perms to allow rm to work. Also, some files are owned by root and
+    # will fail chmod, hence the `|| true`. Luckily they're world writable.
+    chmod -R u+w ${LOCAL_CLONE_DIR} || true
+    rm -rf ${LOCAL_CLONE_DIR}
+  fi
+}
+
 RELEASE=
 RC_NUM=
 SIGNING_KEY=
@@ -161,9 +171,7 @@ if [[ $confirmation = "y" ]]; then
   echo "============Building and Staging Java Artifacts============="
   echo "--------Cloning Beam Repo and Checkout Release Tag-------"
   cd ~
-  if [[ -d ${LOCAL_CLONE_DIR} ]]; then
-    rm -rf ${LOCAL_CLONE_DIR}
-  fi
+  wipe_local_clone_dir
   mkdir -p ${LOCAL_CLONE_DIR}
   cd ${LOCAL_CLONE_DIR}
   git clone --depth 1 --branch "${RC_TAG}" ${GIT_REPO_URL} "${BEAM_ROOT_DIR}"
@@ -173,10 +181,17 @@ if [[ $confirmation = "y" ]]; then
   git config credential.helper store
 
   echo "-------------Staging Java Artifacts into Maven---------------"
+  # Cache the key/passphrase in gpg-agent by signing an arbitrary file.
   gpg --local-user ${SIGNING_KEY} --output /dev/null --sign ~/.bashrc
-  ./gradlew publish -Psigning.gnupg.keyName=${SIGNING_KEY} -PisRelease --no-daemon
+  # Too many workers can overload (?) gpg-agent, causing gpg to prompt for a
+  # passphrase, and gradle doesn't play nice with pinentry.
+  # https://github.com/gradle/gradle/issues/11706
+  # --max-workers=6 works, but parallelism also seems to cause
+  # multiple Nexus repos to be created, so parallelism is disabled.
+  # https://issues.apache.org/jira/browse/BEAM-11813
+  ./gradlew publish -Psigning.gnupg.keyName=${SIGNING_KEY} -PisRelease --no-daemon --no-parallel
   echo "You need to close the staging repository manually on Apache Nexus. See the release guide for instructions."
-  rm -rf ~/${LOCAL_CLONE_DIR}
+  wipe_local_clone_dir
 fi
 
 echo "[Current Step]: Stage source release on dist.apache.org"
@@ -256,6 +271,7 @@ if [[ $confirmation = "y" ]]; then
   echo '-------------------Creating Python Virtualenv-----------------'
   python3 -m venv "${LOCAL_PYTHON_VIRTUALENV}"
   source "${LOCAL_PYTHON_VIRTUALENV}/bin/activate"
+  pip install -U pip
   pip install requests python-dateutil
 
   echo '--------------Fetching GitHub Actions Artifacts--------------'
@@ -306,9 +322,7 @@ read confirmation
 if [[ $confirmation = "y" ]]; then
   echo "============Staging SDK docker images on docker hub========="
   cd ~
-  if [[ -d ${LOCAL_CLONE_DIR} ]]; then
-    rm -rf ${LOCAL_CLONE_DIR}
-  fi
+  wipe_local_clone_dir
   mkdir -p ${LOCAL_CLONE_DIR}
   cd ${LOCAL_CLONE_DIR}
 
@@ -319,7 +333,7 @@ if [[ $confirmation = "y" ]]; then
 
   ./gradlew :pushAllDockerImages -Pdocker-pull-licenses -Pdocker-tag=${RELEASE}_rc${RC_NUM}
 
-  rm -rf ~/${LOCAL_CLONE_DIR}
+  wipe_local_clone_dir
 fi
 
 echo "[Current Step]: Update beam-site"
@@ -341,6 +355,7 @@ if [[ $confirmation = "y" ]]; then
   python3 -m venv "${LOCAL_PYTHON_VIRTUALENV}"
   source "${LOCAL_PYTHON_VIRTUALENV}/bin/activate"
   cd ${LOCAL_PYTHON_DOC}
+  pip install -U pip
   pip install tox
   git clone --branch "${RC_TAG}" --depth 1 ${GIT_REPO_URL}
   cd ${BEAM_ROOT_DIR}

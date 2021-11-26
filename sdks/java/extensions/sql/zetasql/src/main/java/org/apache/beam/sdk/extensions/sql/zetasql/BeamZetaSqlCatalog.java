@@ -50,11 +50,12 @@ import org.apache.beam.sdk.extensions.sql.impl.utils.TVFStreamingUtils;
 import org.apache.beam.sdk.extensions.sql.udf.ScalarFn;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.UserFunctionDefinitions;
 import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.java.JavaTypeFactory;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.FunctionParameter;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.SchemaPlus;
+import org.apache.beam.sdk.util.Preconditions;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.adapter.java.JavaTypeFactory;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.FunctionParameter;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.SchemaPlus;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /**
@@ -350,7 +351,7 @@ public class BeamZetaSqlCatalog {
 
   private void addUdfsFromSchema() {
     for (String functionName : calciteSchema.getFunctionNames()) {
-      Collection<org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Function>
+      Collection<org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Function>
           functions = calciteSchema.getFunctions(functionName);
       if (functions.size() != 1) {
         throw new IllegalArgumentException(
@@ -359,7 +360,7 @@ public class BeamZetaSqlCatalog {
                     + " Beam ZetaSQL supports only a single function definition per function name (BEAM-12073).",
                 functionName, functions.size()));
       }
-      for (org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Function function :
+      for (org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Function function :
           functions) {
         List<String> path = Arrays.asList(functionName.split("\\."));
         if (function instanceof ScalarFunctionImpl) {
@@ -409,7 +410,7 @@ public class BeamZetaSqlCatalog {
   }
 
   private List<FunctionArgumentType> getArgumentTypes(
-      org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Function function) {
+      org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Function function) {
     return function.getParameters().stream()
         .map(
             (arg) ->
@@ -439,7 +440,10 @@ public class BeamZetaSqlCatalog {
         // These types are supported.
         break;
       case ARRAY:
-        validateJavaUdfCalciteType(type.getComponentType(), functionName);
+        validateJavaUdfCalciteType(
+            Preconditions.checkArgumentNotNull(
+                type.getComponentType(), "Encountered ARRAY type with no component type."),
+            functionName);
         break;
       case TIME:
       case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
@@ -494,7 +498,7 @@ public class BeamZetaSqlCatalog {
 
     SimpleCatalog leafCatalog = createNestedCatalogs(zetaSqlCatalog, tablePath);
 
-    org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Table calciteTable =
+    org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Table calciteTable =
         TableResolution.resolveCalciteTable(calciteSchema, tablePath);
 
     if (calciteTable == null) {

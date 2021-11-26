@@ -36,12 +36,12 @@ import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
-import org.apache.beam.sdk.io.gcp.firestore.FirestoreDoFn.WindowAwareDoFn;
+import org.apache.beam.sdk.io.gcp.firestore.FirestoreDoFn.ExplicitlyWindowedFirestoreDoFn;
 import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1.FailedWritesException;
 import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1.WriteFailure;
 import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1.WriteSuccessSummary;
-import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1Fn.HasRpcAttemptContext;
-import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1Fn.V1FnRpcAttemptContext;
+import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1RpcAttemptContexts.HasRpcAttemptContext;
+import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1RpcAttemptContexts.V1FnRpcAttemptContext;
 import org.apache.beam.sdk.io.gcp.firestore.RpcQos.RpcAttempt.Context;
 import org.apache.beam.sdk.io.gcp.firestore.RpcQos.RpcWriteAttempt;
 import org.apache.beam.sdk.io.gcp.firestore.RpcQos.RpcWriteAttempt.Element;
@@ -56,6 +56,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -137,10 +138,11 @@ final class FirestoreV1WriteFn {
    * <p>All request quality-of-service is managed via the instance of {@link RpcQos} associated with
    * the lifecycle of this Fn.
    */
-  abstract static class BaseBatchWriteFn<OutT> extends WindowAwareDoFn<Write, OutT>
+  abstract static class BaseBatchWriteFn<OutT> extends ExplicitlyWindowedFirestoreDoFn<Write, OutT>
       implements HasRpcAttemptContext {
     private static final Logger LOG =
-        LoggerFactory.getLogger(FirestoreV1Fn.V1FnRpcAttemptContext.BatchWrite.getNamespace());
+        LoggerFactory.getLogger(
+            FirestoreV1RpcAttemptContexts.V1FnRpcAttemptContext.BatchWrite.getNamespace());
     private final JodaClock clock;
     private final FirestoreStatefulComponentFactory firestoreStatefulComponentFactory;
     private final RpcQosOptions rpcQosOptions;
@@ -378,11 +380,11 @@ final class FirestoreV1WriteFn {
           attempt.recordRequestFailed(end);
           attempt.recordWriteCounts(end, 0, writesCount);
           flushBuffer.forEach(writes::offer);
-          attempt.checkCanRetry(exception);
+          attempt.checkCanRetry(end, exception);
           continue;
         }
 
-        long elapsedMillis = end.minus(start.getMillis()).getMillis();
+        long elapsedMillis = end.minus(Duration.millis(start.getMillis())).getMillis();
 
         int okCount = 0;
         long okBytes = 0L;

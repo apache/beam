@@ -18,8 +18,8 @@ package primitives
 import (
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
-	"github.com/apache/beam/sdks/go/test/integration"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
+	"github.com/apache/beam/sdks/v2/go/test/integration"
 )
 
 func TestParDoMultiOutput(t *testing.T) {
@@ -35,4 +35,9 @@ func TestParDoSideInput(t *testing.T) {
 func TestParDoKVSideInput(t *testing.T) {
 	integration.CheckFilters(t)
 	ptest.RunAndValidate(t, ParDoKVSideInput())
+}
+
+func TestParDoMultiMapSideInput(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.RunAndValidate(t, ParDoMultiMapSideInput())
 }

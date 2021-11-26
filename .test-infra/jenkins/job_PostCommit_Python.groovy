@@ -33,7 +33,7 @@ ALL_SUPPORTED_VERSIONS.each { pythonVersion ->
         commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
 
         publishers {
-          archiveJunit('**/nosetests*.xml')
+          archiveJunit('**/pytest*.xml')
         }
 
         // Execute shell command to test Python SDK.

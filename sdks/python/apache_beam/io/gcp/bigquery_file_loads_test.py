@@ -26,10 +26,10 @@ import time
 import unittest
 
 import mock
+import pytest
 from hamcrest.core import assert_that as hamcrest_assert
 from hamcrest.core.core.allof import all_of
 from hamcrest.core.core.is_ import is_
-from nose.plugins.attrib import attr
 from parameterized import param
 from parameterized import parameterized
 
@@ -744,7 +744,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
     _LOGGER.info(
         "Created dataset %s in project %s", self.dataset_id, self.project)
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_multiple_destinations_transform(self):
     output_table_1 = '%s%s' % (self.output_table, 1)
     output_table_2 = '%s%s' % (self.output_table, 2)
@@ -824,7 +824,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
               max_file_size=20,
               max_files_per_bundle=-1))
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_bqfl_streaming(self):
     if isinstance(self.test_pipeline.runner, TestDataflowRunner):
       self.skipTest("TestStream is not supported on TestDataflowRunner")
@@ -862,7 +862,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
                                         .Method.FILE_LOADS,
                                       triggering_frequency=100))
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_one_job_fails_all_jobs_fail(self):
 
     # If one of the import jobs fails, then other jobs must not be performed.

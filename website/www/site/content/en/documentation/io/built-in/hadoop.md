@@ -34,6 +34,7 @@ You will need to pass a Hadoop `Configuration` with parameters specifying how th
 - `value.class` - The `Value` class returned by the `InputFormat` in `mapreduce.job.inputformat.class`.
 
 For example:
+
 {{< highlight java >}}
 Configuration myHadoopConfiguration = new Configuration(false);
 // Set Hadoop InputFormat, key and value class in configuration
@@ -50,6 +51,7 @@ myHadoopConfiguration.setClass("value.class", InputFormatValueClass, Object.clas
 You will need to check if the `Key` and `Value` classes output by the `InputFormat` have a Beam `Coder` available. If not, you can use `withKeyTranslation` or `withValueTranslation` to specify a method transforming instances of those classes into another class that is supported by a Beam `Coder`. These settings are optional and you don't need to specify translation for both key and value.
 
 For example:
+
 {{< highlight java >}}
 SimpleFunction<InputFormatKeyClass, MyKeyClass> myOutputKeyType =
 new SimpleFunction<InputFormatKeyClass, MyKeyClass>() {
@@ -64,7 +66,6 @@ new SimpleFunction<InputFormatValueClass, MyValueClass>() {
   }
 };
 {{< /highlight >}}
-
 {{< highlight py >}}
   # The Beam SDK for Python does not support Hadoop Input/Output Format IO.
 {{< /highlight >}}
@@ -291,6 +292,7 @@ This is useful for cases such as reading historical data or offloading of work f
 There are scenarios when this may prove faster than accessing content through the region servers using the `HBaseIO`.
 
 A table snapshot can be taken using the HBase shell or programmatically:
+
 {{< highlight java >}}
 try (
     Connection connection = ConnectionFactory.createConnection(hbaseConf);
@@ -364,6 +366,7 @@ You will need to pass a Hadoop `Configuration` with parameters specifying how th
 _Note_: All mentioned values have appropriate constants. E.g.: `HadoopFormatIO.OUTPUT_FORMAT_CLASS_ATTR`.
 
 For example:
+
 {{< highlight java >}}
 Configuration myHadoopConfiguration = new Configuration(false);
 // Set Hadoop OutputFormat, key and value class in configuration

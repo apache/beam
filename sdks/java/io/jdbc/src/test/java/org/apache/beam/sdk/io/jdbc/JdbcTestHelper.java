@@ -17,9 +17,18 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.Serializable;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Objects;
+import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.io.common.TestRow;
 
 /**
@@ -28,10 +37,59 @@ import org.apache.beam.sdk.io.common.TestRow;
  */
 class JdbcTestHelper {
 
+  public static class TestDto extends JdbcWriteResult implements Serializable {
+
+    public static final int EMPTY_RESULT = 0;
+
+    private int simpleField;
+
+    public TestDto(int simpleField) {
+      this.simpleField = simpleField;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      TestDto testDto = (TestDto) o;
+      return simpleField == testDto.simpleField;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(simpleField);
+    }
+  }
+
+  public static final Coder<TestDto> TEST_DTO_CODER =
+      new CustomCoder<TestDto>() {
+        @Override
+        public void encode(TestDto value, OutputStream outStream)
+            throws CoderException, IOException {
+          BigEndianIntegerCoder.of().encode(value.simpleField, outStream);
+        }
+
+        @Override
+        public TestDto decode(InputStream inStream) throws CoderException, IOException {
+          int simpleField = BigEndianIntegerCoder.of().decode(inStream);
+          return new TestDto(simpleField);
+        }
+
+        @Override
+        public Object structuralValue(TestDto v) {
+          return v;
+        }
+      };
+
   static class CreateTestRowOfNameAndId implements JdbcIO.RowMapper<TestRow> {
     @Override
     public TestRow mapRow(ResultSet resultSet) throws Exception {
-      return TestRow.create(resultSet.getInt("id"), resultSet.getString("name"));
+      return TestRow.create(
+          Long.valueOf(resultSet.getLong("id")).intValue(), resultSet.getString("name"));
     }
   }
 

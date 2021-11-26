@@ -69,7 +69,7 @@ public interface ExternalTransformRegistrar {
         throw e;
       } catch (Exception e) {
         throw new RuntimeException(
-            "Unable to instantiate ExternalTransformBuilder from constructor.");
+            "Unable to instantiate ExternalTransformBuilder from constructor.", e);
       }
     }
     return builder.build();

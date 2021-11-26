@@ -17,12 +17,17 @@
  */
 package org.apache.beam.sdk.io.aws.s3;
 
-import static org.apache.beam.sdk.io.aws.s3.S3TestUtils.getSSECustomerKeyMd5;
+import static org.apache.beam.sdk.io.aws.s3.S3TestUtils.s3Config;
+import static org.apache.beam.sdk.io.aws.s3.S3TestUtils.s3ConfigWithMultipleSSEOptions;
+import static org.apache.beam.sdk.io.aws.s3.S3TestUtils.s3ConfigWithSSEAlgorithm;
+import static org.apache.beam.sdk.io.aws.s3.S3TestUtils.s3ConfigWithSSEAwsKeyManagementParams;
+import static org.apache.beam.sdk.io.aws.s3.S3TestUtils.s3ConfigWithSSECustomerKey;
 import static org.apache.beam.sdk.io.aws.s3.S3TestUtils.s3Options;
 import static org.apache.beam.sdk.io.aws.s3.S3TestUtils.s3OptionsWithMultipleSSEOptions;
 import static org.apache.beam.sdk.io.aws.s3.S3TestUtils.s3OptionsWithSSEAlgorithm;
 import static org.apache.beam.sdk.io.aws.s3.S3TestUtils.s3OptionsWithSSEAwsKeyManagementParams;
 import static org.apache.beam.sdk.io.aws.s3.S3TestUtils.s3OptionsWithSSECustomerKey;
+import static org.apache.beam.sdk.io.aws.s3.S3TestUtils.toMd5;
 import static org.apache.beam.sdk.io.aws.s3.S3WritableByteChannel.atMostOne;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -42,6 +47,7 @@ import com.amazonaws.services.s3.model.CompleteMultipartUploadRequest;
 import com.amazonaws.services.s3.model.CompleteMultipartUploadResult;
 import com.amazonaws.services.s3.model.InitiateMultipartUploadRequest;
 import com.amazonaws.services.s3.model.InitiateMultipartUploadResult;
+import com.amazonaws.services.s3.model.SSEAwsKeyManagementParams;
 import com.amazonaws.services.s3.model.UploadPartRequest;
 import com.amazonaws.services.s3.model.UploadPartResult;
 import java.io.IOException;
@@ -60,6 +66,16 @@ public class S3WritableByteChannelTest {
 
   @Test
   public void write() throws IOException {
+    writeFromConfig(s3Config("s3"));
+    writeFromConfig(s3ConfigWithSSEAlgorithm("s3"));
+    writeFromConfig(s3ConfigWithSSECustomerKey("s3"));
+    writeFromConfig(s3ConfigWithSSEAwsKeyManagementParams("s3"));
+    expected.expect(IllegalArgumentException.class);
+    writeFromConfig(s3ConfigWithMultipleSSEOptions("s3"));
+  }
+
+  @Test
+  public void writeWithS3Options() throws IOException {
     writeFromOptions(s3Options());
     writeFromOptions(s3OptionsWithSSEAlgorithm());
     writeFromOptions(s3OptionsWithSSECustomerKey());
@@ -68,24 +84,71 @@ public class S3WritableByteChannelTest {
     writeFromOptions(s3OptionsWithMultipleSSEOptions());
   }
 
+  @FunctionalInterface
+  public interface Supplier {
+    S3WritableByteChannel get() throws IOException;
+  }
+
   private void writeFromOptions(S3Options options) throws IOException {
     AmazonS3 mockAmazonS3 = mock(AmazonS3.class, withSettings().defaultAnswer(RETURNS_SMART_NULLS));
     S3ResourceId path = S3ResourceId.fromUri("s3://bucket/dir/file");
+    Supplier channel =
+        () ->
+            new S3WritableByteChannel(
+                mockAmazonS3,
+                path,
+                "text/plain",
+                S3FileSystemConfiguration.fromS3Options(options).build());
+    write(
+        mockAmazonS3,
+        channel,
+        path,
+        options.getSSEAlgorithm(),
+        toMd5(options.getSSECustomerKey()),
+        options.getSSEAwsKeyManagementParams(),
+        options.getS3UploadBufferSizeBytes(),
+        options.getBucketKeyEnabled());
+  }
 
+  private void writeFromConfig(S3FileSystemConfiguration config) throws IOException {
+    AmazonS3 mockAmazonS3 = mock(AmazonS3.class, withSettings().defaultAnswer(RETURNS_SMART_NULLS));
+    S3ResourceId path = S3ResourceId.fromUri("s3://bucket/dir/file");
+    Supplier channel = () -> new S3WritableByteChannel(mockAmazonS3, path, "text/plain", config);
+    write(
+        mockAmazonS3,
+        channel,
+        path,
+        config.getSSEAlgorithm(),
+        toMd5(config.getSSECustomerKey()),
+        config.getSSEAwsKeyManagementParams(),
+        config.getS3UploadBufferSizeBytes(),
+        config.getBucketKeyEnabled());
+  }
+
+  private void write(
+      AmazonS3 mockAmazonS3,
+      Supplier channelSupplier,
+      S3ResourceId path,
+      String sseAlgorithm,
+      String sseCustomerKeyMd5,
+      SSEAwsKeyManagementParams sseAwsKeyManagementParams,
+      long s3UploadBufferSizeBytes,
+      boolean bucketKeyEnabled)
+      throws IOException {
     InitiateMultipartUploadResult initiateMultipartUploadResult =
         new InitiateMultipartUploadResult();
     initiateMultipartUploadResult.setUploadId("upload-id");
-    String sseAlgorithm = options.getSSEAlgorithm();
-    if (options.getSSEAlgorithm() != null) {
+    if (sseAlgorithm != null) {
       initiateMultipartUploadResult.setSSEAlgorithm(sseAlgorithm);
     }
-    if (getSSECustomerKeyMd5(options) != null) {
-      initiateMultipartUploadResult.setSSECustomerKeyMd5(getSSECustomerKeyMd5(options));
+    if (sseCustomerKeyMd5 != null) {
+      initiateMultipartUploadResult.setSSECustomerKeyMd5(sseCustomerKeyMd5);
     }
-    if (options.getSSEAwsKeyManagementParams() != null) {
+    if (sseAwsKeyManagementParams != null) {
       sseAlgorithm = "aws:kms";
       initiateMultipartUploadResult.setSSEAlgorithm(sseAlgorithm);
     }
+    initiateMultipartUploadResult.setBucketKeyEnabled(bucketKeyEnabled);
     doReturn(initiateMultipartUploadResult)
         .when(mockAmazonS3)
         .initiateMultipartUpload(any(InitiateMultipartUploadRequest.class));
@@ -94,21 +157,19 @@ public class S3WritableByteChannelTest {
         mockAmazonS3.initiateMultipartUpload(
             new InitiateMultipartUploadRequest(path.getBucket(), path.getKey()));
     assertEquals(sseAlgorithm, mockInitiateMultipartUploadResult.getSSEAlgorithm());
-    assertEquals(
-        getSSECustomerKeyMd5(options), mockInitiateMultipartUploadResult.getSSECustomerKeyMd5());
+    assertEquals(bucketKeyEnabled, mockInitiateMultipartUploadResult.getBucketKeyEnabled());
+    assertEquals(sseCustomerKeyMd5, mockInitiateMultipartUploadResult.getSSECustomerKeyMd5());
 
     UploadPartResult result = new UploadPartResult();
     result.setETag("etag");
-    if (getSSECustomerKeyMd5(options) != null) {
-      result.setSSECustomerKeyMd5(getSSECustomerKeyMd5(options));
+    if (sseCustomerKeyMd5 != null) {
+      result.setSSECustomerKeyMd5(sseCustomerKeyMd5);
     }
     doReturn(result).when(mockAmazonS3).uploadPart(any(UploadPartRequest.class));
 
     UploadPartResult mockUploadPartResult = mockAmazonS3.uploadPart(new UploadPartRequest());
-    assertEquals(getSSECustomerKeyMd5(options), mockUploadPartResult.getSSECustomerKeyMd5());
+    assertEquals(sseCustomerKeyMd5, mockUploadPartResult.getSSECustomerKeyMd5());
 
-    S3WritableByteChannel channel =
-        new S3WritableByteChannel(mockAmazonS3, path, "text/plain", options);
     int contentSize = 34_078_720;
     ByteBuffer uploadContent = ByteBuffer.allocate((int) (contentSize * 2.5));
     for (int i = 0; i < contentSize; i++) {
@@ -116,6 +177,7 @@ public class S3WritableByteChannelTest {
     }
     uploadContent.flip();
 
+    S3WritableByteChannel channel = channelSupplier.get();
     int uploadedSize = channel.write(uploadContent);
     assertEquals(contentSize, uploadedSize);
 
@@ -129,8 +191,7 @@ public class S3WritableByteChannelTest {
 
     verify(mockAmazonS3, times(2))
         .initiateMultipartUpload(notNull(InitiateMultipartUploadRequest.class));
-    int partQuantity =
-        (int) Math.ceil((double) contentSize / options.getS3UploadBufferSizeBytes()) + 1;
+    int partQuantity = (int) Math.ceil((double) contentSize / s3UploadBufferSizeBytes) + 1;
     verify(mockAmazonS3, times(partQuantity)).uploadPart(notNull(UploadPartRequest.class));
     verify(mockAmazonS3, times(1))
         .completeMultipartUpload(notNull(CompleteMultipartUploadRequest.class));

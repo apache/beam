@@ -22,18 +22,25 @@ import (
 	"flag"
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/bigqueryio"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	"github.com/apache/beam/sdks/go/pkg/beam/options/gcpopts"
-	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
-	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/bigqueryio"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/gcpopts"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 )
 
 var (
 	input  = flag.String("input", "clouddataflow-readonly:samples.weather_stations", "Weather data BQ table.")
 	output = flag.String("output", "", "Output BQ table.")
 )
+
+func init() {
+	beam.RegisterFunction(formatFn)
+	beam.RegisterFunction(extractFn)
+	beam.RegisterType(reflect.TypeOf((*WeatherDataRow)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*MaxMeanTempRow)(nil)).Elem())
+}
 
 type WeatherDataRow struct {
 	Month    int     `bigquery:"month"`

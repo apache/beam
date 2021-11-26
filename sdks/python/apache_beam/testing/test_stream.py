@@ -207,15 +207,56 @@ class ProcessingTimeEvent(Event):
     return 'ProcessingTimeEvent: <{}>'.format(self.advance_by)
 
 
-class WindowedValueHolder:
+class WindowedValueHolderMeta(type):
+  """A metaclass that overrides the isinstance check for WindowedValueHolder.
+
+  Python does a quick test for exact match. If an instance is exactly of
+  type WindowedValueHolder, the overridden isinstance check is omitted.
+  The override is needed because WindowedValueHolder elements encoded then
+  decoded become Row elements.
+  """
+  def __instancecheck__(cls, other):
+    """Checks if a beam.Row typed instance is a WindowedValueHolder.
+    """
+    return (
+        isinstance(other, beam.Row) and hasattr(other, 'windowed_value') and
+        hasattr(other, 'urn') and
+        isinstance(other.windowed_value, WindowedValue) and
+        other.urn == common_urns.coders.ROW.urn)
+
+
+class WindowedValueHolder(beam.Row, metaclass=WindowedValueHolderMeta):
   """A class that holds a WindowedValue.
 
   This is a special class that can be used by the runner that implements the
   TestStream as a signal that the underlying value should be unreified to the
   specified window.
   """
+  # Register WindowedValueHolder to always use RowCoder.
+  coders.registry.register_coder(WindowedValueHolderMeta, coders.RowCoder)
+
   def __init__(self, windowed_value):
-    self.windowed_value = windowed_value
+    assert isinstance(windowed_value, WindowedValue), (
+        'WindowedValueHolder can only hold %s type. Instead, %s is given.') % (
+            WindowedValue, windowed_value)
+    super().__init__(
+        **{
+            'windowed_value': windowed_value, 'urn': common_urns.coders.ROW.urn
+        })
+
+  @classmethod
+  def from_row(cls, row):
+    """Converts a beam.Row typed instance to WindowedValueHolder.
+    """
+    if isinstance(row, WindowedValueHolder):
+      return WindowedValueHolder(row.windowed_value)
+    assert isinstance(row, beam.Row), 'The given row %s must be a %s type' % (
+        row, beam.Row)
+    assert hasattr(row, 'windowed_value'), (
+        'The given %s must have a windowed_value attribute.') % row
+    assert isinstance(row.windowed_value, WindowedValue), (
+        'The windowed_value attribute of %s must be a %s type') % (
+            row, WindowedValue)
 
 
 class TestStream(PTransform):
@@ -245,7 +286,7 @@ class TestStream(PTransform):
       endpoint: (str) a URL locating a TestStreamService.
     """
 
-    super(TestStream, self).__init__()
+    super().__init__()
     assert coder is not None
 
     self.coder = coder

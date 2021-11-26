@@ -42,6 +42,22 @@ We also see how we can read from CSV files, read from a SQLite database, write f
 
 {{< button-colab url="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/tour-of-beam/reading-and-writing-data.ipynb" >}}
 
+### Windowing
+
+In this notebook we go through how to aggregate data based on time intervals, or in streaming pipelines.
+We introduce the `GlobalWindow`, `FixedWindows`, `SlidingWindows`, and `Sessions`.
+
+{{< button-colab url="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/tour-of-beam/windowing.ipynb" >}}
+
+### DataFrames
+
+Beam DataFrames provide a pandas-like [DataFrame](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html)
+API to declare Beam pipelines.
+To learn more about Beam DataFrames, take a look at the
+[Beam DataFrames overview](https://beam.apache.org/documentation/dsls/dataframes/overview) page.
+
+{{< button-colab url="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/tour-of-beam/dataframes.ipynb" >}}
+
 ## Transforms
 
 Check the [Python transform catalog](/documentation/transforms/python/overview/)

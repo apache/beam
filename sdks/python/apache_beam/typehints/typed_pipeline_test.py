@@ -627,6 +627,24 @@ class MainInputTest(unittest.TestCase):
     # if isinstance(pvalue_, DoOutputsTuple): continue
     _ = [1, 2, 3] | MyPTransform()
 
+  def test_typed_ptransform_with_unknown_type_vars_tuple_compiles(self):
+    @typehints.with_input_types(typing.TypeVar('T'))
+    @typehints.with_output_types(typing.TypeVar('U'))
+    def produces_unkown(e):
+      return e
+
+    @typehints.with_input_types(int)
+    def requires_int(e):
+      return e
+
+    class MyPTransform(beam.PTransform):
+      def expand(self, pcoll):
+        unknowns = pcoll | beam.Map(produces_unkown)
+        ints = pcoll | beam.Map(int)
+        return (unknowns, ints) | beam.Flatten() | beam.Map(requires_int)
+
+    _ = [1, 2, 3] | MyPTransform()
+
 
 class NativeTypesTest(unittest.TestCase):
   def test_good_main_input(self):

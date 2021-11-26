@@ -19,6 +19,8 @@ package org.apache.beam.sdk.io.jdbc;
 
 import static org.apache.beam.sdk.io.jdbc.SchemaUtil.checkNullabilityForFields;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -31,12 +33,14 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -45,13 +49,21 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.io.jdbc.JdbcIO.WriteFn.WriteFnSpec;
+import org.apache.beam.sdk.io.jdbc.JdbcUtil.PartitioningFn;
+import org.apache.beam.sdk.io.jdbc.SchemaUtil.FieldWithIndex;
+import org.apache.beam.sdk.metrics.Distribution;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
+import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
@@ -65,6 +77,7 @@ import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -175,6 +188,53 @@ import org.slf4j.LoggerFactory;
  * );
  * }</code></pre>
  *
+ * <p>3. To read all data from a table in parallel with partitioning can be done with {@link
+ * ReadWithPartitions}:
+ *
+ * <pre>{@code
+ * pipeline.apply(JdbcIO.<KV<Integer, String>>readWithPartitions()
+ *  .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(
+ *         "com.mysql.jdbc.Driver", "jdbc:mysql://hostname:3306/mydb")
+ *       .withUsername("username")
+ *       .withPassword("password"))
+ *  .withTable("Person")
+ *  .withPartitionColumn("id")
+ *  .withLowerBound(0)
+ *  .withUpperBound(1000)
+ *  .withNumPartitions(5)
+ *  .withCoder(KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of()))
+ *  .withRowMapper(new JdbcIO.RowMapper<KV<Integer, String>>() {
+ *    public KV<Integer, String> mapRow(ResultSet resultSet) throws Exception {
+ *      return KV.of(resultSet.getInt(1), resultSet.getString(2));
+ *    }
+ *  })
+ * );
+ * }</pre>
+ *
+ * <p>Instead of a full table you could also use a subquery in parentheses. The subquery can be
+ * specified using Table option instead and partition columns can be qualified using the subquery
+ * alias provided as part of Table.
+ *
+ * <pre>{@code
+ * pipeline.apply(JdbcIO.<KV<Integer, String>>readWithPartitions()
+ *  .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(
+ *         "com.mysql.jdbc.Driver", "jdbc:mysql://hostname:3306/mydb")
+ *       .withUsername("username")
+ *       .withPassword("password"))
+ *  .withTable("(select id, name from Person) as subq")
+ *  .withPartitionColumn("id")
+ *  .withLowerBound(0)
+ *  .withUpperBound(1000)
+ *  .withNumPartitions(5)
+ *  .withCoder(KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of()))
+ *  .withRowMapper(new JdbcIO.RowMapper<KV<Integer, String>>() {
+ *    public KV<Integer, String> mapRow(ResultSet resultSet) throws Exception {
+ *      return KV.of(resultSet.getInt(1), resultSet.getString(2));
+ *    }
+ *  })
+ * );
+ * }</pre>
+ *
  * <h3>Writing to JDBC datasource</h3>
  *
  * <p>JDBC sink supports writing records into a database. It writes a {@link PCollection} to the
@@ -253,11 +313,24 @@ public class JdbcIO {
         .build();
   }
 
+  /**
+   * Like {@link #readAll}, but executes multiple instances of the query on the same table
+   * (subquery) using ranges.
+   *
+   * @param <T> Type of the data to be read.
+   */
+  public static <T> ReadWithPartitions<T> readWithPartitions() {
+    return new AutoValue_JdbcIO_ReadWithPartitions.Builder<T>()
+        .setNumPartitions(DEFAULT_NUM_PARTITIONS)
+        .build();
+  }
+
   private static final long DEFAULT_BATCH_SIZE = 1000L;
   private static final int DEFAULT_FETCH_SIZE = 50_000;
   // Default values used from fluent backoff.
   private static final Duration DEFAULT_INITIAL_BACKOFF = Duration.standardSeconds(1);
   private static final Duration DEFAULT_MAX_CUMULATIVE_BACKOFF = Duration.standardDays(1000);
+  private static final int DEFAULT_NUM_PARTITIONS = 200;
 
   /**
    * Write data to a JDBC datasource.
@@ -265,7 +338,7 @@ public class JdbcIO {
    * @param <T> Type of the data to be written.
    */
   public static <T> Write<T> write() {
-    return new Write();
+    return new Write<>();
   }
 
   public static <T> WriteVoid<T> writeVoid() {
@@ -775,6 +848,11 @@ public class JdbcIO {
 
     public ReadAll<ParameterT, OutputT> withDataSourceProviderFn(
         SerializableFunction<Void, DataSource> dataSourceProviderFn) {
+      if (getDataSourceProviderFn() != null) {
+        throw new IllegalArgumentException(
+            "A dataSourceConfiguration or dataSourceProviderFn has "
+                + "already been provided, and does not need to be provided again.");
+      }
       return toBuilder().setDataSourceProviderFn(dataSourceProviderFn).build();
     }
 
@@ -873,8 +951,168 @@ public class JdbcIO {
     }
   }
 
+  /** Implementation of {@link #readWithPartitions}. */
+  @AutoValue
+  public abstract static class ReadWithPartitions<T> extends PTransform<PBegin, PCollection<T>> {
+
+    abstract @Nullable SerializableFunction<Void, DataSource> getDataSourceProviderFn();
+
+    abstract @Nullable RowMapper<T> getRowMapper();
+
+    abstract @Nullable Coder<T> getCoder();
+
+    abstract Integer getNumPartitions();
+
+    abstract @Nullable String getPartitionColumn();
+
+    abstract @Nullable Long getLowerBound();
+
+    abstract @Nullable Long getUpperBound();
+
+    abstract @Nullable String getTable();
+
+    abstract Builder<T> toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder<T> {
+
+      abstract Builder<T> setDataSourceProviderFn(
+          SerializableFunction<Void, DataSource> dataSourceProviderFn);
+
+      abstract Builder<T> setRowMapper(RowMapper<T> rowMapper);
+
+      abstract Builder<T> setCoder(Coder<T> coder);
+
+      abstract Builder<T> setNumPartitions(Integer numPartitions);
+
+      abstract Builder<T> setPartitionColumn(String partitionColumn);
+
+      abstract Builder<T> setLowerBound(Long lowerBound);
+
+      abstract Builder<T> setUpperBound(Long upperBound);
+
+      abstract Builder<T> setTable(String tableName);
+
+      abstract ReadWithPartitions<T> build();
+    }
+
+    public ReadWithPartitions<T> withDataSourceConfiguration(final DataSourceConfiguration config) {
+      return withDataSourceProviderFn(new DataSourceProviderFromDataSourceConfiguration(config));
+    }
+
+    public ReadWithPartitions<T> withDataSourceProviderFn(
+        SerializableFunction<Void, DataSource> dataSourceProviderFn) {
+      return toBuilder().setDataSourceProviderFn(dataSourceProviderFn).build();
+    }
+
+    public ReadWithPartitions<T> withRowMapper(RowMapper<T> rowMapper) {
+      checkNotNull(rowMapper, "rowMapper can not be null");
+      return toBuilder().setRowMapper(rowMapper).build();
+    }
+
+    public ReadWithPartitions<T> withCoder(Coder<T> coder) {
+      checkNotNull(coder, "coder can not be null");
+      return toBuilder().setCoder(coder).build();
+    }
+
+    /**
+     * The number of partitions. This, along with withLowerBound and withUpperBound, form partitions
+     * strides for generated WHERE clause expressions used to split the column withPartitionColumn
+     * evenly. When the input is less than 1, the number is set to 1.
+     */
+    public ReadWithPartitions<T> withNumPartitions(int numPartitions) {
+      checkArgument(numPartitions > 0, "numPartitions can not be less than 1");
+      return toBuilder().setNumPartitions(numPartitions).build();
+    }
+
+    /** The name of a column of numeric type that will be used for partitioning. */
+    public ReadWithPartitions<T> withPartitionColumn(String partitionColumn) {
+      checkNotNull(partitionColumn, "partitionColumn can not be null");
+      return toBuilder().setPartitionColumn(partitionColumn).build();
+    }
+
+    public ReadWithPartitions<T> withLowerBound(Long lowerBound) {
+      return toBuilder().setLowerBound(lowerBound).build();
+    }
+
+    public ReadWithPartitions<T> withUpperBound(Long upperBound) {
+      return toBuilder().setUpperBound(upperBound).build();
+    }
+
+    /** Name of the table in the external database. Can be used to pass a user-defined subqery. */
+    public ReadWithPartitions<T> withTable(String tableName) {
+      checkNotNull(tableName, "table can not be null");
+      return toBuilder().setTable(tableName).build();
+    }
+
+    @Override
+    public PCollection<T> expand(PBegin input) {
+      checkNotNull(getRowMapper(), "withRowMapper() is required");
+      checkNotNull(getCoder(), "withCoder() is required");
+      checkNotNull(
+          getDataSourceProviderFn(),
+          "withDataSourceConfiguration() or withDataSourceProviderFn() is required");
+      checkNotNull(getPartitionColumn(), "withPartitionColumn() is required");
+      checkArgument(
+          getUpperBound() != null && getLowerBound() != null,
+          "Upper and lower bounds are mandatory parameters for JdbcIO.readWithPartitions");
+      checkNotNull(getTable(), "withTable() is required");
+      checkArgument(
+          getLowerBound() < getUpperBound(),
+          "The lower bound of partitioning column is larger or equal than the upper bound");
+      checkArgument(
+          getUpperBound() - getLowerBound() >= getNumPartitions(),
+          "The specified number of partitions is more than the difference between upper bound and lower bound");
+
+      PCollection<KV<Integer, KV<Long, Long>>> params =
+          input.apply(
+              Create.of(
+                  Collections.singletonList(
+                      KV.of(getNumPartitions(), KV.of(getLowerBound(), getUpperBound())))));
+      PCollection<KV<String, Iterable<Long>>> ranges =
+          params
+              .apply("Partitioning", ParDo.of(new PartitioningFn()))
+              .apply("Group partitions", GroupByKey.create());
+
+      return ranges.apply(
+          "Read ranges",
+          JdbcIO.<KV<String, Iterable<Long>>, T>readAll()
+              .withDataSourceProviderFn(getDataSourceProviderFn())
+              .withQuery(
+                  String.format(
+                      "select * from %1$s where %2$s >= ? and %2$s < ?",
+                      getTable(), getPartitionColumn()))
+              .withCoder(getCoder())
+              .withRowMapper(getRowMapper())
+              .withParameterSetter(
+                  (PreparedStatementSetter<KV<String, Iterable<Long>>>)
+                      (element, preparedStatement) -> {
+                        String[] range = element.getKey().split(",", -1);
+                        preparedStatement.setLong(1, Long.parseLong(range[0]));
+                        preparedStatement.setLong(2, Long.parseLong(range[1]));
+                      })
+              .withOutputParallelization(false));
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder.add(DisplayData.item("rowMapper", getRowMapper().getClass().getName()));
+      builder.add(DisplayData.item("coder", getCoder().getClass().getName()));
+      builder.add(DisplayData.item("partitionColumn", getPartitionColumn()));
+      builder.add(DisplayData.item("table", getTable()));
+      builder.add(DisplayData.item("numPartitions", getNumPartitions()));
+      builder.add(DisplayData.item("lowerBound", getLowerBound()));
+      builder.add(DisplayData.item("upperBound", getUpperBound()));
+      if (getDataSourceProviderFn() instanceof HasDisplayData) {
+        ((HasDisplayData) getDataSourceProviderFn()).populateDisplayData(builder);
+      }
+    }
+  }
+
   /** A {@link DoFn} executing the SQL query to read from the database. */
   private static class ReadFn<ParameterT, OutputT> extends DoFn<ParameterT, OutputT> {
+
     private final SerializableFunction<Void, DataSource> dataSourceProviderFn;
     private final ValueProvider<String> query;
     private final PreparedStatementSetter<ParameterT> parameterSetter;
@@ -1032,43 +1270,43 @@ public class JdbcIO {
 
     /** See {@link WriteVoid#withDataSourceConfiguration(DataSourceConfiguration)}. */
     public Write<T> withDataSourceConfiguration(DataSourceConfiguration config) {
-      return new Write(inner.withDataSourceConfiguration(config));
+      return new Write<>(inner.withDataSourceConfiguration(config));
     }
 
     /** See {@link WriteVoid#withDataSourceProviderFn(SerializableFunction)}. */
     public Write<T> withDataSourceProviderFn(
         SerializableFunction<Void, DataSource> dataSourceProviderFn) {
-      return new Write(inner.withDataSourceProviderFn(dataSourceProviderFn));
+      return new Write<>(inner.withDataSourceProviderFn(dataSourceProviderFn));
     }
 
     /** See {@link WriteVoid#withStatement(String)}. */
     public Write<T> withStatement(String statement) {
-      return new Write(inner.withStatement(statement));
+      return new Write<>(inner.withStatement(statement));
     }
 
     /** See {@link WriteVoid#withPreparedStatementSetter(PreparedStatementSetter)}. */
     public Write<T> withPreparedStatementSetter(PreparedStatementSetter<T> setter) {
-      return new Write(inner.withPreparedStatementSetter(setter));
+      return new Write<>(inner.withPreparedStatementSetter(setter));
     }
 
     /** See {@link WriteVoid#withBatchSize(long)}. */
     public Write<T> withBatchSize(long batchSize) {
-      return new Write(inner.withBatchSize(batchSize));
+      return new Write<>(inner.withBatchSize(batchSize));
     }
 
     /** See {@link WriteVoid#withRetryStrategy(RetryStrategy)}. */
     public Write<T> withRetryStrategy(RetryStrategy retryStrategy) {
-      return new Write(inner.withRetryStrategy(retryStrategy));
+      return new Write<>(inner.withRetryStrategy(retryStrategy));
     }
 
     /** See {@link WriteVoid#withRetryConfiguration(RetryConfiguration)}. */
     public Write<T> withRetryConfiguration(RetryConfiguration retryConfiguration) {
-      return new Write(inner.withRetryConfiguration(retryConfiguration));
+      return new Write<>(inner.withRetryConfiguration(retryConfiguration));
     }
 
     /** See {@link WriteVoid#withTable(String)}. */
     public Write<T> withTable(String table) {
-      return new Write(inner.withTable(table));
+      return new Write<>(inner.withTable(table));
     }
 
     /**
@@ -1090,135 +1328,33 @@ public class JdbcIO {
       return inner;
     }
 
+    /**
+     * Returns {@link WriteWithResults} transform that could return a specific result.
+     *
+     * <p>See {@link WriteWithResults}
+     */
+    public <V extends JdbcWriteResult> WriteWithResults<T, V> withWriteResults(
+        RowMapper<V> rowMapper) {
+      return new AutoValue_JdbcIO_WriteWithResults.Builder<T, V>()
+          .setRowMapper(rowMapper)
+          .setRetryStrategy(inner.getRetryStrategy())
+          .setRetryConfiguration(inner.getRetryConfiguration())
+          .setDataSourceProviderFn(inner.getDataSourceProviderFn())
+          .setPreparedStatementSetter(inner.getPreparedStatementSetter())
+          .setStatement(inner.getStatement())
+          .setTable(inner.getTable())
+          .build();
+    }
+
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       inner.populateDisplayData(builder);
     }
 
-    private boolean hasStatementAndSetter() {
-      return inner.getStatement() != null && inner.getPreparedStatementSetter() != null;
-    }
-
     @Override
     public PDone expand(PCollection<T> input) {
-      // fixme: validate invalid table input
-      if (input.hasSchema() && !hasStatementAndSetter()) {
-        checkArgument(
-            inner.getTable() != null, "table cannot be null if statement is not provided");
-        Schema schema = input.getSchema();
-        List<SchemaUtil.FieldWithIndex> fields = getFilteredFields(schema);
-        inner =
-            inner.withStatement(
-                JdbcUtil.generateStatement(
-                    inner.getTable(),
-                    fields.stream()
-                        .map(SchemaUtil.FieldWithIndex::getField)
-                        .collect(Collectors.toList())));
-        inner =
-            inner.withPreparedStatementSetter(
-                new AutoGeneratedPreparedStatementSetter(fields, input.getToRowFunction()));
-      }
-
       inner.expand(input);
       return PDone.in(input.getPipeline());
-    }
-
-    private List<SchemaUtil.FieldWithIndex> getFilteredFields(Schema schema) {
-      Schema tableSchema;
-
-      try (Connection connection = inner.getDataSourceProviderFn().apply(null).getConnection();
-          PreparedStatement statement =
-              connection.prepareStatement((String.format("SELECT * FROM %s", inner.getTable())))) {
-        tableSchema = SchemaUtil.toBeamSchema(statement.getMetaData());
-        statement.close();
-      } catch (SQLException e) {
-        throw new RuntimeException(
-            "Error while determining columns from table: " + inner.getTable(), e);
-      }
-
-      if (tableSchema.getFieldCount() < schema.getFieldCount()) {
-        throw new RuntimeException("Input schema has more fields than actual table.");
-      }
-
-      // filter out missing fields from output table
-      List<Schema.Field> missingFields =
-          tableSchema.getFields().stream()
-              .filter(
-                  line ->
-                      schema.getFields().stream()
-                          .noneMatch(s -> s.getName().equalsIgnoreCase(line.getName())))
-              .collect(Collectors.toList());
-
-      // allow insert only if missing fields are nullable
-      if (checkNullabilityForFields(missingFields)) {
-        throw new RuntimeException("Non nullable fields are not allowed without schema.");
-      }
-
-      List<SchemaUtil.FieldWithIndex> tableFilteredFields =
-          tableSchema.getFields().stream()
-              .map(
-                  (tableField) -> {
-                    Optional<Schema.Field> optionalSchemaField =
-                        schema.getFields().stream()
-                            .filter((f) -> SchemaUtil.compareSchemaField(tableField, f))
-                            .findFirst();
-                    return (optionalSchemaField.isPresent())
-                        ? SchemaUtil.FieldWithIndex.of(
-                            tableField, schema.getFields().indexOf(optionalSchemaField.get()))
-                        : null;
-                  })
-              .filter(Objects::nonNull)
-              .collect(Collectors.toList());
-
-      if (tableFilteredFields.size() != schema.getFieldCount()) {
-        throw new RuntimeException("Provided schema doesn't match with database schema.");
-      }
-
-      return tableFilteredFields;
-    }
-
-    /**
-     * A {@link org.apache.beam.sdk.io.jdbc.JdbcIO.PreparedStatementSetter} implementation that
-     * calls related setters on prepared statement.
-     */
-    private class AutoGeneratedPreparedStatementSetter implements PreparedStatementSetter<T> {
-
-      private List<SchemaUtil.FieldWithIndex> fields;
-      private SerializableFunction<T, Row> toRowFn;
-      private List<PreparedStatementSetCaller> preparedStatementFieldSetterList = new ArrayList<>();
-
-      AutoGeneratedPreparedStatementSetter(
-          List<SchemaUtil.FieldWithIndex> fieldsWithIndex, SerializableFunction<T, Row> toRowFn) {
-        this.fields = fieldsWithIndex;
-        this.toRowFn = toRowFn;
-        populatePreparedStatementFieldSetter();
-      }
-
-      private void populatePreparedStatementFieldSetter() {
-        IntStream.range(0, fields.size())
-            .forEach(
-                (index) -> {
-                  Schema.FieldType fieldType = fields.get(index).getField().getType();
-                  preparedStatementFieldSetterList.add(
-                      JdbcUtil.getPreparedStatementSetCaller(fieldType));
-                });
-      }
-
-      @Override
-      public void setParameters(T element, PreparedStatement preparedStatement) throws Exception {
-        Row row = (element instanceof Row) ? (Row) element : toRowFn.apply(element);
-        IntStream.range(0, fields.size())
-            .forEach(
-                (index) -> {
-                  try {
-                    preparedStatementFieldSetterList
-                        .get(index)
-                        .set(row, preparedStatement, index, fields.get(index));
-                  } catch (SQLException | NullPointerException e) {
-                    throw new RuntimeException("Error while setting data to preparedStatement", e);
-                  }
-                });
-      }
     }
   }
 
@@ -1233,7 +1369,157 @@ public class JdbcIO {
         throws SQLException;
   }
 
-  /** A {@link PTransform} to write to a JDBC datasource. */
+  /**
+   * A {@link PTransform} to write to a JDBC datasource. Executes statements one by one.
+   *
+   * <p>The INSERT, UPDATE, and DELETE commands sometimes have an optional RETURNING clause that
+   * supports obtaining data from modified rows while they are being manipulated. Output {@link
+   * PCollection} of this transform is a collection of such returning results mapped by {@link
+   * RowMapper}.
+   */
+  @AutoValue
+  public abstract static class WriteWithResults<T, V extends JdbcWriteResult>
+      extends PTransform<PCollection<T>, PCollection<V>> {
+    abstract @Nullable SerializableFunction<Void, DataSource> getDataSourceProviderFn();
+
+    abstract @Nullable ValueProvider<String> getStatement();
+
+    abstract @Nullable PreparedStatementSetter<T> getPreparedStatementSetter();
+
+    abstract @Nullable RetryStrategy getRetryStrategy();
+
+    abstract @Nullable RetryConfiguration getRetryConfiguration();
+
+    abstract @Nullable String getTable();
+
+    abstract @Nullable RowMapper<V> getRowMapper();
+
+    abstract Builder<T, V> toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder<T, V extends JdbcWriteResult> {
+      abstract Builder<T, V> setDataSourceProviderFn(
+          SerializableFunction<Void, DataSource> dataSourceProviderFn);
+
+      abstract Builder<T, V> setStatement(ValueProvider<String> statement);
+
+      abstract Builder<T, V> setPreparedStatementSetter(PreparedStatementSetter<T> setter);
+
+      abstract Builder<T, V> setRetryStrategy(RetryStrategy deadlockPredicate);
+
+      abstract Builder<T, V> setRetryConfiguration(RetryConfiguration retryConfiguration);
+
+      abstract Builder<T, V> setTable(String table);
+
+      abstract Builder<T, V> setRowMapper(RowMapper<V> rowMapper);
+
+      abstract WriteWithResults<T, V> build();
+    }
+
+    public WriteWithResults<T, V> withDataSourceConfiguration(DataSourceConfiguration config) {
+      return withDataSourceProviderFn(new DataSourceProviderFromDataSourceConfiguration(config));
+    }
+
+    public WriteWithResults<T, V> withDataSourceProviderFn(
+        SerializableFunction<Void, DataSource> dataSourceProviderFn) {
+      return toBuilder().setDataSourceProviderFn(dataSourceProviderFn).build();
+    }
+
+    public WriteWithResults<T, V> withStatement(String statement) {
+      return withStatement(ValueProvider.StaticValueProvider.of(statement));
+    }
+
+    public WriteWithResults<T, V> withStatement(ValueProvider<String> statement) {
+      return toBuilder().setStatement(statement).build();
+    }
+
+    public WriteWithResults<T, V> withPreparedStatementSetter(PreparedStatementSetter<T> setter) {
+      return toBuilder().setPreparedStatementSetter(setter).build();
+    }
+
+    /**
+     * When a SQL exception occurs, {@link Write} uses this {@link RetryStrategy} to determine if it
+     * will retry the statements. If {@link RetryStrategy#apply(SQLException)} returns {@code true},
+     * then {@link Write} retries the statements.
+     */
+    public WriteWithResults<T, V> withRetryStrategy(RetryStrategy retryStrategy) {
+      checkArgument(retryStrategy != null, "retryStrategy can not be null");
+      return toBuilder().setRetryStrategy(retryStrategy).build();
+    }
+
+    /**
+     * When a SQL exception occurs, {@link Write} uses this {@link RetryConfiguration} to
+     * exponentially back off and retry the statements based on the {@link RetryConfiguration}
+     * mentioned.
+     *
+     * <p>Usage of RetryConfiguration -
+     *
+     * <pre>{@code
+     * pipeline.apply(JdbcIO.<T>write())
+     *    .withReturningResults(...)
+     *    .withDataSourceConfiguration(...)
+     *    .withRetryStrategy(...)
+     *    .withRetryConfiguration(JdbcIO.RetryConfiguration.
+     *        create(5, Duration.standardSeconds(5), Duration.standardSeconds(1))
+     *
+     * }</pre>
+     *
+     * maxDuration and initialDuration are Nullable
+     *
+     * <pre>{@code
+     * pipeline.apply(JdbcIO.<T>write())
+     *    .withReturningResults(...)
+     *    .withDataSourceConfiguration(...)
+     *    .withRetryStrategy(...)
+     *    .withRetryConfiguration(JdbcIO.RetryConfiguration.
+     *        create(5, null, null)
+     *
+     * }</pre>
+     */
+    public WriteWithResults<T, V> withRetryConfiguration(RetryConfiguration retryConfiguration) {
+      checkArgument(retryConfiguration != null, "retryConfiguration can not be null");
+      return toBuilder().setRetryConfiguration(retryConfiguration).build();
+    }
+
+    public WriteWithResults<T, V> withTable(String table) {
+      checkArgument(table != null, "table name can not be null");
+      return toBuilder().setTable(table).build();
+    }
+
+    public WriteWithResults<T, V> withRowMapper(RowMapper<V> rowMapper) {
+      checkArgument(rowMapper != null, "result set getter can not be null");
+      return toBuilder().setRowMapper(rowMapper).build();
+    }
+
+    @Override
+    public PCollection<V> expand(PCollection<T> input) {
+      checkArgument(getStatement() != null, "withStatement() is required");
+      checkArgument(
+          getPreparedStatementSetter() != null, "withPreparedStatementSetter() is required");
+      checkArgument(
+          (getDataSourceProviderFn() != null),
+          "withDataSourceConfiguration() or withDataSourceProviderFn() is required");
+
+      return input.apply(
+          ParDo.of(
+              new WriteFn<T, V>(
+                  WriteFnSpec.builder()
+                      .setRetryStrategy(getRetryStrategy())
+                      .setDataSourceProviderFn(getDataSourceProviderFn())
+                      .setPreparedStatementSetter(getPreparedStatementSetter())
+                      .setRowMapper(getRowMapper())
+                      .setStatement(getStatement())
+                      .setRetryConfiguration(getRetryConfiguration())
+                      .setReturnResults(true)
+                      .setBatchSize(1)
+                      .build())));
+    }
+  }
+
+  /**
+   * A {@link PTransform} to write to a JDBC datasource. Executes statements in a batch, and returns
+   * a trivial result.
+   */
   @AutoValue
   public abstract static class WriteVoid<T> extends PTransform<PCollection<T>, PCollection<Void>> {
 
@@ -1353,135 +1639,150 @@ public class JdbcIO {
 
     @Override
     public PCollection<Void> expand(PCollection<T> input) {
-      checkArgument(getStatement() != null, "withStatement() is required");
+      WriteVoid<T> spec = this;
       checkArgument(
-          getPreparedStatementSetter() != null, "withPreparedStatementSetter() is required");
-      checkArgument(
-          (getDataSourceProviderFn() != null),
+          (spec.getDataSourceProviderFn() != null),
           "withDataSourceConfiguration() or withDataSourceProviderFn() is required");
-
-      return input.apply(ParDo.of(new WriteFn<>(this)));
+      // fixme: validate invalid table input
+      if (input.hasSchema() && !spec.hasStatementAndSetter()) {
+        checkArgument(spec.getTable() != null, "table cannot be null if statement is not provided");
+        List<SchemaUtil.FieldWithIndex> fields = spec.getFilteredFields(input.getSchema());
+        spec =
+            spec.toBuilder()
+                .setStatement(spec.generateStatement(fields))
+                .setPreparedStatementSetter(
+                    new AutoGeneratedPreparedStatementSetter(fields, input.getToRowFunction()))
+                .build();
+      } else {
+        checkArgument(spec.getStatement() != null, "withStatement() is required");
+        checkArgument(
+            spec.getPreparedStatementSetter() != null, "withPreparedStatementSetter() is required");
+      }
+      return input
+          .apply(
+              ParDo.of(
+                  new WriteFn<T, Void>(
+                      WriteFnSpec.builder()
+                          .setRetryConfiguration(spec.getRetryConfiguration())
+                          .setRetryStrategy(spec.getRetryStrategy())
+                          .setPreparedStatementSetter(spec.getPreparedStatementSetter())
+                          .setDataSourceProviderFn(spec.getDataSourceProviderFn())
+                          .setTable(spec.getTable())
+                          .setStatement(spec.getStatement())
+                          .setBatchSize(spec.getBatchSize())
+                          .setReturnResults(false)
+                          .build())))
+          .setCoder(VoidCoder.of());
     }
 
-    private static class WriteFn<T> extends DoFn<T, Void> {
+    private StaticValueProvider<String> generateStatement(List<SchemaUtil.FieldWithIndex> fields) {
+      return StaticValueProvider.of(
+          JdbcUtil.generateStatement(
+              getTable(),
+              fields.stream().map(FieldWithIndex::getField).collect(Collectors.toList())));
+    }
 
-      private final WriteVoid<T> spec;
-      private DataSource dataSource;
-      private Connection connection;
-      private PreparedStatement preparedStatement;
-      private final List<T> records = new ArrayList<>();
-      private static FluentBackoff retryBackOff;
+    private List<SchemaUtil.FieldWithIndex> getFilteredFields(Schema schema) {
+      Schema tableSchema;
 
-      public WriteFn(WriteVoid<T> spec) {
-        this.spec = spec;
+      try (Connection connection = getDataSourceProviderFn().apply(null).getConnection();
+          PreparedStatement statement =
+              connection.prepareStatement(String.format("SELECT * FROM %s", getTable()))) {
+        tableSchema = SchemaUtil.toBeamSchema(statement.getMetaData());
+        statement.close();
+      } catch (SQLException e) {
+        throw new RuntimeException("Error while determining columns from table: " + getTable(), e);
       }
 
-      @Setup
-      public void setup() {
-        dataSource = spec.getDataSourceProviderFn().apply(null);
-        RetryConfiguration retryConfiguration = spec.getRetryConfiguration();
+      checkState(
+          tableSchema.getFieldCount() >= schema.getFieldCount(),
+          "Input schema has more fields than actual table.");
 
-        retryBackOff =
-            FluentBackoff.DEFAULT
-                .withInitialBackoff(retryConfiguration.getInitialDuration())
-                .withMaxCumulativeBackoff(retryConfiguration.getMaxDuration())
-                .withMaxRetries(retryConfiguration.getMaxAttempts());
+      // filter out missing fields from output table
+      List<Schema.Field> missingFields =
+          tableSchema.getFields().stream()
+              .filter(
+                  line ->
+                      schema.getFields().stream()
+                          .noneMatch(s -> s.getName().equalsIgnoreCase(line.getName())))
+              .collect(Collectors.toList());
+
+      // allow insert only if missing fields are nullable
+      checkState(
+          !checkNullabilityForFields(missingFields),
+          "Non nullable fields are not allowed without schema.");
+
+      List<SchemaUtil.FieldWithIndex> tableFilteredFields =
+          tableSchema.getFields().stream()
+              .map(
+                  (tableField) -> {
+                    Optional<Schema.Field> optionalSchemaField =
+                        schema.getFields().stream()
+                            .filter((f) -> SchemaUtil.compareSchemaField(tableField, f))
+                            .findFirst();
+                    return optionalSchemaField
+                        .map(
+                            field ->
+                                FieldWithIndex.of(tableField, schema.getFields().indexOf(field)))
+                        .orElse(null);
+                  })
+              .filter(Objects::nonNull)
+              .collect(Collectors.toList());
+
+      checkState(
+          tableFilteredFields.size() == schema.getFieldCount(),
+          "Provided schema doesn't match with database schema.");
+
+      return tableFilteredFields;
+    }
+
+    /**
+     * A {@link org.apache.beam.sdk.io.jdbc.JdbcIO.PreparedStatementSetter} implementation that
+     * calls related setters on prepared statement.
+     */
+    private class AutoGeneratedPreparedStatementSetter implements PreparedStatementSetter<T> {
+
+      private final List<SchemaUtil.FieldWithIndex> fields;
+      private final SerializableFunction<T, Row> toRowFn;
+      private final List<PreparedStatementSetCaller> preparedStatementFieldSetterList =
+          new ArrayList<>();
+
+      AutoGeneratedPreparedStatementSetter(
+          List<SchemaUtil.FieldWithIndex> fieldsWithIndex, SerializableFunction<T, Row> toRowFn) {
+        this.fields = fieldsWithIndex;
+        this.toRowFn = toRowFn;
+        populatePreparedStatementFieldSetter();
       }
 
-      @ProcessElement
-      public void processElement(ProcessContext context) throws Exception {
-        T record = context.element();
-
-        records.add(record);
-
-        if (records.size() >= spec.getBatchSize()) {
-          executeBatch();
-        }
-      }
-
-      private void processRecord(T record, PreparedStatement preparedStatement) {
-        try {
-          preparedStatement.clearParameters();
-          spec.getPreparedStatementSetter().setParameters(record, preparedStatement);
-          preparedStatement.addBatch();
-        } catch (Exception e) {
-          throw new RuntimeException(e);
-        }
-      }
-
-      @FinishBundle
-      public void finishBundle() throws Exception {
-        executeBatch();
-        cleanUpStatementAndConnection();
+      private void populatePreparedStatementFieldSetter() {
+        IntStream.range(0, fields.size())
+            .forEach(
+                (index) -> {
+                  Schema.FieldType fieldType = fields.get(index).getField().getType();
+                  preparedStatementFieldSetterList.add(
+                      JdbcUtil.getPreparedStatementSetCaller(fieldType));
+                });
       }
 
       @Override
-      protected void finalize() throws Throwable {
-        cleanUpStatementAndConnection();
+      public void setParameters(T element, PreparedStatement preparedStatement) throws Exception {
+        Row row = (element instanceof Row) ? (Row) element : toRowFn.apply(element);
+        IntStream.range(0, fields.size())
+            .forEach(
+                (index) -> {
+                  try {
+                    preparedStatementFieldSetterList
+                        .get(index)
+                        .set(row, preparedStatement, index, fields.get(index));
+                  } catch (SQLException | NullPointerException e) {
+                    throw new RuntimeException("Error while setting data to preparedStatement", e);
+                  }
+                });
       }
+    }
 
-      private void cleanUpStatementAndConnection() throws Exception {
-        try {
-          if (preparedStatement != null) {
-            try {
-              preparedStatement.close();
-            } finally {
-              preparedStatement = null;
-            }
-          }
-        } finally {
-          if (connection != null) {
-            try {
-              connection.close();
-            } finally {
-              connection = null;
-            }
-          }
-        }
-      }
-
-      private void executeBatch() throws SQLException, IOException, InterruptedException {
-        if (records.isEmpty()) {
-          return;
-        }
-        // Only acquire the connection if there is something to write.
-        if (connection == null) {
-          connection = dataSource.getConnection();
-          connection.setAutoCommit(false);
-          preparedStatement = connection.prepareStatement(spec.getStatement().get());
-        }
-        Sleeper sleeper = Sleeper.DEFAULT;
-        BackOff backoff = retryBackOff.backoff();
-        while (true) {
-          try (PreparedStatement preparedStatement =
-              connection.prepareStatement(spec.getStatement().get())) {
-            try {
-              // add each record in the statement batch
-              for (T record : records) {
-                processRecord(record, preparedStatement);
-              }
-              // execute the batch
-              preparedStatement.executeBatch();
-              // commit the changes
-              connection.commit();
-              break;
-            } catch (SQLException exception) {
-              if (!spec.getRetryStrategy().apply(exception)) {
-                throw exception;
-              }
-              LOG.warn("Deadlock detected, retrying", exception);
-              // clean up the statement batch and the connection state
-              preparedStatement.clearBatch();
-              connection.rollback();
-              if (!BackOffUtils.next(sleeper, backoff)) {
-                // we tried the max number of times
-                throw exception;
-              }
-            }
-          }
-        }
-        records.clear();
-      }
+    private boolean hasStatementAndSetter() {
+      return getStatement() != null && getPreparedStatementSetter() != null;
     }
   }
 
@@ -1594,6 +1895,244 @@ public class JdbcIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       config.populateDisplayData(builder);
+    }
+  }
+
+  /**
+   * {@link DoFn} class to write results data to a JDBC sink. It supports writing rows one by one
+   * (and returning individual results) - or by batch.
+   *
+   * @param <T>
+   * @param <V>
+   */
+  static class WriteFn<T, V> extends DoFn<T, V> {
+
+    @AutoValue
+    abstract static class WriteFnSpec<T, V> implements Serializable, HasDisplayData {
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        builder
+            .addIfNotNull(
+                DisplayData.item(
+                    "dataSourceProviderFn",
+                    getDataSourceProviderFn() == null
+                        ? "null"
+                        : getDataSourceProviderFn().getClass().getName()))
+            .addIfNotNull(DisplayData.item("statement", getStatement()))
+            .addIfNotNull(
+                DisplayData.item(
+                    "preparedStatementSetter",
+                    getPreparedStatementSetter() == null
+                        ? "null"
+                        : getPreparedStatementSetter().getClass().getName()))
+            .addIfNotNull(
+                DisplayData.item(
+                    "retryConfiguration",
+                    getRetryConfiguration() == null
+                        ? "null"
+                        : getRetryConfiguration().getClass().getName()))
+            .addIfNotNull(DisplayData.item("table", getTable()))
+            .addIfNotNull(
+                DisplayData.item(
+                    "rowMapper",
+                    getRowMapper() == null ? "null" : getRowMapper().getClass().toString()))
+            .addIfNotNull(DisplayData.item("batchSize", getBatchSize()));
+      }
+
+      abstract SerializableFunction<Void, DataSource> getDataSourceProviderFn();
+
+      abstract ValueProvider<String> getStatement();
+
+      abstract PreparedStatementSetter<T> getPreparedStatementSetter();
+
+      abstract RetryStrategy getRetryStrategy();
+
+      abstract @Nullable RetryConfiguration getRetryConfiguration();
+
+      abstract @Nullable String getTable();
+
+      abstract @Nullable RowMapper<V> getRowMapper();
+
+      abstract @Nullable Long getBatchSize();
+
+      abstract Boolean getReturnResults();
+
+      static Builder builder() {
+        return new AutoValue_JdbcIO_WriteFn_WriteFnSpec.Builder();
+      }
+
+      @AutoValue.Builder
+      abstract static class Builder<T, V> {
+        abstract Builder<T, V> setDataSourceProviderFn(SerializableFunction<Void, DataSource> fn);
+
+        abstract Builder<T, V> setStatement(ValueProvider<String> statement);
+
+        abstract Builder<T, V> setPreparedStatementSetter(PreparedStatementSetter<T> setter);
+
+        abstract Builder<T, V> setRetryStrategy(RetryStrategy retryStrategy);
+
+        abstract Builder<T, V> setRetryConfiguration(RetryConfiguration retryConfiguration);
+
+        abstract Builder<T, V> setTable(String table);
+
+        abstract Builder<T, V> setRowMapper(RowMapper<V> rowMapper);
+
+        abstract Builder<T, V> setBatchSize(long batchSize);
+
+        abstract Builder<T, V> setReturnResults(Boolean returnResults);
+
+        abstract WriteFnSpec<T, V> build();
+      }
+    }
+
+    private static final Distribution RECORDS_PER_BATCH =
+        Metrics.distribution(WriteFn.class, "records_per_jdbc_batch");
+    private static final Distribution MS_PER_BATCH =
+        Metrics.distribution(WriteFn.class, "milliseconds_per_batch");
+
+    private final WriteFnSpec<T, V> spec;
+    private DataSource dataSource;
+    private Connection connection;
+    private PreparedStatement preparedStatement;
+    private static FluentBackoff retryBackOff;
+    private final List<T> records = new ArrayList<>();
+
+    public WriteFn(WriteFnSpec<T, V> spec) {
+      this.spec = spec;
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      spec.populateDisplayData(builder);
+      builder.add(
+          DisplayData.item(
+              "query", preparedStatement == null ? "null" : preparedStatement.toString()));
+      builder.add(
+          DisplayData.item("dataSource", dataSource == null ? "null" : dataSource.toString()));
+      builder.add(DisplayData.item("spec", spec == null ? "null" : spec.toString()));
+    }
+
+    @Setup
+    public void setup() {
+      dataSource = spec.getDataSourceProviderFn().apply(null);
+      RetryConfiguration retryConfiguration = spec.getRetryConfiguration();
+
+      retryBackOff =
+          FluentBackoff.DEFAULT
+              .withInitialBackoff(retryConfiguration.getInitialDuration())
+              .withMaxCumulativeBackoff(retryConfiguration.getMaxDuration())
+              .withMaxRetries(retryConfiguration.getMaxAttempts());
+    }
+
+    private Connection getConnection() throws SQLException {
+      if (connection == null) {
+        connection = dataSource.getConnection();
+        connection.setAutoCommit(false);
+        preparedStatement = connection.prepareStatement(spec.getStatement().get());
+      }
+      return connection;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext context) throws Exception {
+      T record = context.element();
+      records.add(record);
+      if (records.size() >= spec.getBatchSize()) {
+        executeBatch(context);
+      }
+    }
+
+    @FinishBundle
+    public void finishBundle() throws Exception {
+      // We pass a null context because we only execute a final batch for WriteVoid cases.
+      executeBatch(null);
+      cleanUpStatementAndConnection();
+    }
+
+    @Override
+    protected void finalize() throws Throwable {
+      cleanUpStatementAndConnection();
+    }
+
+    private void cleanUpStatementAndConnection() throws Exception {
+      try {
+        if (preparedStatement != null) {
+          try {
+            preparedStatement.close();
+          } finally {
+            preparedStatement = null;
+          }
+        }
+      } finally {
+        if (connection != null) {
+          try {
+            connection.close();
+          } finally {
+            connection = null;
+          }
+        }
+      }
+    }
+
+    private void executeBatch(ProcessContext context)
+        throws SQLException, IOException, InterruptedException {
+      if (records.isEmpty()) {
+        return;
+      }
+      Long startTimeNs = System.nanoTime();
+      Sleeper sleeper = Sleeper.DEFAULT;
+      BackOff backoff = retryBackOff.backoff();
+      while (true) {
+        try (PreparedStatement preparedStatement =
+            getConnection().prepareStatement(spec.getStatement().get())) {
+          try {
+            // add each record in the statement batch
+            for (T record : records) {
+              processRecord(record, preparedStatement, context);
+            }
+            if (!spec.getReturnResults()) {
+              // execute the batch
+              preparedStatement.executeBatch();
+              // commit the changes
+              getConnection().commit();
+            }
+            RECORDS_PER_BATCH.update(records.size());
+            MS_PER_BATCH.update(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTimeNs));
+            break;
+          } catch (SQLException exception) {
+            if (!spec.getRetryStrategy().apply(exception)) {
+              throw exception;
+            }
+            LOG.warn("Deadlock detected, retrying", exception);
+            // clean up the statement batch and the connection state
+            preparedStatement.clearBatch();
+            connection.rollback();
+            if (!BackOffUtils.next(sleeper, backoff)) {
+              // we tried the max number of times
+              throw exception;
+            }
+          }
+        }
+      }
+      records.clear();
+    }
+
+    private void processRecord(T record, PreparedStatement preparedStatement, ProcessContext c) {
+      try {
+        preparedStatement.clearParameters();
+        spec.getPreparedStatementSetter().setParameters(record, preparedStatement);
+        if (spec.getReturnResults()) {
+          // execute the statement
+          preparedStatement.execute();
+          // commit the changes
+          getConnection().commit();
+          c.output(spec.getRowMapper().mapRow(preparedStatement.getResultSet()));
+        } else {
+          preparedStatement.addBatch();
+        }
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
     }
   }
 }

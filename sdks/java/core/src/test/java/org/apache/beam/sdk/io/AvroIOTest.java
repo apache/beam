@@ -475,6 +475,20 @@ public class AvroIOTest implements Serializable {
                       "ParseFilesGenericRecords",
                       AvroIO.parseFilesGenericRecords(new ParseGenericClass())
                           .withCoder(AvroCoder.of(GenericClass.class))
+                          .withUsesReshuffle(false)
+                          .withDesiredBundleSizeBytes(10)))
+          .containsInAnyOrder(values);
+      PAssert.that(
+              path.apply("MatchAllParseFilesGenericRecordsWithShuffle", FileIO.matchAll())
+                  .apply(
+                      "ReadMatchesParseFilesGenericRecordsWithShuffle",
+                      FileIO.readMatches()
+                          .withDirectoryTreatment(FileIO.ReadMatches.DirectoryTreatment.PROHIBIT))
+                  .apply(
+                      "ParseFilesGenericRecordsWithShuffle",
+                      AvroIO.parseFilesGenericRecords(new ParseGenericClass())
+                          .withCoder(AvroCoder.of(GenericClass.class))
+                          .withUsesReshuffle(true)
                           .withDesiredBundleSizeBytes(10)))
           .containsInAnyOrder(values);
       PAssert.that(

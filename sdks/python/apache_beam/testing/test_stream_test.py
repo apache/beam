@@ -332,6 +332,27 @@ class TestStreamTest(unittest.TestCase):
               ('a', timestamp.Timestamp(5), beam.window.IntervalWindow(5, 10)),
           ]))
 
+  def test_instance_check_windowed_value_holder(self):
+    windowed_value = WindowedValue(
+        'a',
+        Timestamp(5), [beam.window.IntervalWindow(5, 10)],
+        PaneInfo(True, True, PaneInfoTiming.ON_TIME, 0, 0))
+    self.assertTrue(
+        isinstance(WindowedValueHolder(windowed_value), WindowedValueHolder))
+    self.assertTrue(
+        isinstance(
+            beam.Row(
+                windowed_value=windowed_value, urn=common_urns.coders.ROW.urn),
+            WindowedValueHolder))
+    self.assertFalse(
+        isinstance(
+            beam.Row(windowed_value=windowed_value), WindowedValueHolder))
+    self.assertFalse(isinstance(windowed_value, WindowedValueHolder))
+    self.assertFalse(
+        isinstance(beam.Row(x=windowed_value), WindowedValueHolder))
+    self.assertFalse(
+        isinstance(beam.Row(windowed_value=1), WindowedValueHolder))
+
   def test_gbk_execution_no_triggers(self):
     test_stream = (
         TestStream().advance_watermark_to(10).add_elements([

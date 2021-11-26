@@ -15,7 +15,7 @@
 
 package beam
 
-//go:generate go install github.com/apache/beam/sdks/go/cmd/starcgen
+//go:generate go install github.com/apache/beam/sdks/v2/go/cmd/starcgen
 //go:generate starcgen --package=beam --identifiers=addFixedKeyFn,dropKeyFn,dropValueFn,swapKVFn,explodeFn,jsonDec,jsonEnc,protoEnc,protoDec,schemaEnc,schemaDec,makePartitionFn,createFn
 //go:generate go fmt
 

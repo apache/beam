@@ -32,8 +32,8 @@ import uuid
 
 import hamcrest as hc
 import mock
+import pytest
 import pytz
-from nose.plugins.attrib import attr
 from parameterized import param
 from parameterized import parameterized
 
@@ -77,14 +77,18 @@ from apache_beam.transforms.display_test import DisplayDataItemMatcher
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
   from apitools.base.py.exceptions import HttpError
+  from google.cloud import bigquery as gcp_bigquery
 except ImportError:
+  gcp_bigquery = None
   HttpError = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
 _LOGGER = logging.getLogger(__name__)
 
 
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+@unittest.skipIf(
+    HttpError is None or gcp_bigquery is None,
+    'GCP dependencies are not installed')
 class TestTableRowJsonCoder(unittest.TestCase):
   def test_row_as_table_row(self):
     schema_definition = [('s', 'STRING'), ('i', 'INTEGER'), ('f', 'FLOAT'),
@@ -447,18 +451,20 @@ class TestReadFromBigQuery(unittest.TestCase):
             'empty, using temp_location instead'
         ])
 
+  @mock.patch.object(BigQueryWrapper, '_delete_table')
   @mock.patch.object(BigQueryWrapper, '_delete_dataset')
   @mock.patch('apache_beam.io.gcp.internal.clients.bigquery.BigqueryV2')
-  def test_temp_dataset_location_is_configurable(self, api, delete_dataset):
+  def test_temp_dataset_is_configurable(
+      self, api, delete_dataset, delete_table):
     temp_dataset = bigquery.DatasetReference(
         projectId='temp-project', datasetId='bq_dataset')
     bq = BigQueryWrapper(client=api, temp_dataset_id=temp_dataset.datasetId)
     gcs_location = 'gs://gcs_location'
 
-    # bq.get_or_create_dataset.return_value = temp_dataset
     c = beam.io.gcp.bigquery._CustomBigQuerySource(
         query='select * from test_table',
         gcs_location=gcs_location,
+        method=beam.io.ReadFromBigQuery.Method.EXPORT,
         validate=True,
         pipeline_options=beam.options.pipeline_options.PipelineOptions(),
         job_name='job_name',
@@ -466,30 +472,15 @@ class TestReadFromBigQuery(unittest.TestCase):
         project='execution_project',
         **{'temp_dataset': temp_dataset})
 
-    api.datasets.Get.side_effect = HttpError({
-        'status_code': 404, 'status': 404
-    },
-                                             '',
-                                             '')
-
     c._setup_temporary_dataset(bq)
-    api.datasets.Insert.assert_called_with(
-        bigquery.BigqueryDatasetsInsertRequest(
-            dataset=bigquery.Dataset(datasetReference=temp_dataset),
-            projectId=temp_dataset.projectId))
+    api.datasets.assert_not_called()
 
-    api.datasets.Get.return_value = temp_dataset
-    api.datasets.Get.side_effect = None
+    # User provided temporary dataset should not be deleted but the temporary
+    # table created by Beam should be deleted.
     bq.clean_up_temporary_dataset(temp_dataset.projectId)
-    delete_dataset.assert_called_with(
-        temp_dataset.projectId, temp_dataset.datasetId, True)
-
-    self.assertEqual(
-        bq._get_temp_table(temp_dataset.projectId),
-        bigquery.TableReference(
-            projectId=temp_dataset.projectId,
-            datasetId=temp_dataset.datasetId,
-            tableId=BigQueryWrapper.TEMP_TABLE + bq._temporary_table_suffix))
+    delete_dataset.assert_not_called()
+    delete_table.assert_called_with(
+        temp_dataset.projectId, temp_dataset.datasetId, mock.ANY)
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
@@ -1043,13 +1034,6 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
 class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
   BIG_QUERY_DATASET_ID = 'python_bq_streaming_inserts_'
 
-  # Prevent nose from finding and running tests that were not
-  # specified in the Gradle file.
-  # See "More tests may be found" in:
-  # https://nose.readthedocs.io/en/latest/doc_tests/test_multiprocess
-  # /multiprocess.html#other-differences-in-test-running
-  _multiprocess_can_split_ = True
-
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
     self.runner_name = type(self.test_pipeline.runner).__name__
@@ -1065,7 +1049,7 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
     _LOGGER.info(
         "Created dataset %s in project %s", self.dataset_id, self.project)
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_value_provider_transform(self):
     output_table_1 = '%s%s' % (self.output_table, 1)
     output_table_2 = '%s%s' % (self.output_table, 2)
@@ -1135,7 +1119,7 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
               additional_bq_parameters=lambda _: additional_bq_parameters,
               method='FILE_LOADS'))
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_multiple_destinations_transform(self):
     streaming = self.test_pipeline.options.view_as(StandardOptions).streaming
     if streaming and isinstance(self.test_pipeline.runner, TestDataflowRunner):
@@ -1329,11 +1313,11 @@ class PubSubBigQueryIT(unittest.TestCase):
           method=method,
           triggering_frequency=triggering_frequency)
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_streaming_inserts(self):
     self._run_pubsub_bq_pipeline(WriteToBigQuery.Method.STREAMING_INSERTS)
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_file_loads(self):
     self._run_pubsub_bq_pipeline(
         WriteToBigQuery.Method.FILE_LOADS, triggering_frequency=20)
@@ -1358,7 +1342,7 @@ class BigQueryFileLoadsIntegrationTests(unittest.TestCase):
     _LOGGER.info(
         'Created dataset %s in project %s', self.dataset_id, self.project)
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_avro_file_load(self):
     # Construct elements such that they can be written via Avro but not via
     # JSON. See BEAM-8841.

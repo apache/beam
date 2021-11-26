@@ -34,11 +34,13 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
 import org.slf4j.Logger;
@@ -51,7 +53,7 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
-class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
+class WriteRename extends DoFn<Iterable<KV<TableDestination, WriteTables.Result>>, Void> {
   private static final Logger LOG = LoggerFactory.getLogger(WriteRename.class);
 
   private final BigQueryServices bqServices;
@@ -64,6 +66,7 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
   private final CreateDisposition firstPaneCreateDisposition;
   private final int maxRetryJobs;
   private final String kmsKey;
+  private final ValueProvider<String> loadJobProjectId;
   private @Nullable DatasetService datasetService;
 
   private static class PendingJobData {
@@ -89,13 +92,15 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
       WriteDisposition writeDisposition,
       CreateDisposition createDisposition,
       int maxRetryJobs,
-      String kmsKey) {
+      String kmsKey,
+      ValueProvider<String> loadJobProjectId) {
     this.bqServices = bqServices;
     this.jobIdToken = jobIdToken;
     this.firstPaneWriteDisposition = writeDisposition;
     this.firstPaneCreateDisposition = createDisposition;
     this.maxRetryJobs = maxRetryJobs;
     this.kmsKey = kmsKey;
+    this.loadJobProjectId = loadJobProjectId;
   }
 
   @StartBundle
@@ -116,12 +121,15 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
   }
 
   @ProcessElement
-  public void processElement(ProcessContext c) throws Exception {
-    Multimap<TableDestination, String> tempTables = ArrayListMultimap.create();
-    for (KV<TableDestination, String> entry : c.element()) {
+  public void processElement(
+      @Element Iterable<KV<TableDestination, WriteTables.Result>> element, ProcessContext c)
+      throws Exception {
+    Multimap<TableDestination, WriteTables.Result> tempTables = ArrayListMultimap.create();
+    for (KV<TableDestination, WriteTables.Result> entry : element) {
       tempTables.put(entry.getKey(), entry.getValue());
     }
-    for (Map.Entry<TableDestination, Collection<String>> entry : tempTables.asMap().entrySet()) {
+    for (Map.Entry<TableDestination, Collection<WriteTables.Result>> entry :
+        tempTables.asMap().entrySet()) {
       // Process each destination table.
       // Do not copy if no temp tables are provided.
       if (!entry.getValue().isEmpty()) {
@@ -165,17 +173,27 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
   }
 
   private PendingJobData startWriteRename(
-      TableDestination finalTableDestination, Iterable<String> tempTableNames, ProcessContext c)
+      TableDestination finalTableDestination,
+      Iterable<WriteTables.Result> tempTableNames,
+      ProcessContext c)
       throws Exception {
+    // The pane may have advanced either here due to triggering or due to an upstream trigger. We
+    // check the upstream
+    // trigger to handle the case where an earlier pane triggered the single-partition path. If this
+    // happened, then the
+    // table will already exist so we want to append to the table.
+    boolean isFirstPane =
+        Iterables.getFirst(tempTableNames, null).isFirstPane() && c.pane().isFirst();
     WriteDisposition writeDisposition =
-        (c.pane().getIndex() == 0) ? firstPaneWriteDisposition : WriteDisposition.WRITE_APPEND;
+        isFirstPane ? firstPaneWriteDisposition : WriteDisposition.WRITE_APPEND;
     CreateDisposition createDisposition =
-        (c.pane().getIndex() == 0) ? firstPaneCreateDisposition : CreateDisposition.CREATE_NEVER;
+        isFirstPane ? firstPaneCreateDisposition : CreateDisposition.CREATE_NEVER;
     List<TableReference> tempTables =
         StreamSupport.stream(tempTableNames.spliterator(), false)
-            .map(table -> BigQueryHelpers.fromJsonString(table, TableReference.class))
+            .map(
+                result ->
+                    BigQueryHelpers.fromJsonString(result.getTableName(), TableReference.class))
             .collect(Collectors.toList());
-    ;
 
     // Make sure each destination table gets a unique job id.
     String jobIdPrefix =
@@ -191,7 +209,8 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
             tempTables,
             writeDisposition,
             createDisposition,
-            kmsKey);
+            kmsKey,
+            loadJobProjectId);
     return new PendingJobData(retryJob, finalTableDestination, tempTables);
   }
 
@@ -203,7 +222,8 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
       List<TableReference> tempTables,
       WriteDisposition writeDisposition,
       CreateDisposition createDisposition,
-      String kmsKey) {
+      String kmsKey,
+      ValueProvider<String> loadJobProjectId) {
     JobConfigurationTableCopy copyConfig =
         new JobConfigurationTableCopy()
             .setSourceTables(tempTables)
@@ -218,7 +238,10 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
     String bqLocation =
         BigQueryHelpers.getDatasetLocation(datasetService, ref.getProjectId(), ref.getDatasetId());
 
-    String projectId = ref.getProjectId();
+    String projectId =
+        loadJobProjectId == null || loadJobProjectId.get() == null
+            ? ref.getProjectId()
+            : loadJobProjectId.get();
     BigQueryHelpers.PendingJob retryJob =
         new BigQueryHelpers.PendingJob(
             jobId -> {

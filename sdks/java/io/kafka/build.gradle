@@ -20,6 +20,7 @@ import java.util.stream.Collectors
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
+  suppressUnusedVariable: true,
   automaticModuleName: 'org.apache.beam.sdk.io.kafka',
   mavenRepositories: [
     [id: 'io.confluent', url: 'https://packages.confluent.io/maven/']

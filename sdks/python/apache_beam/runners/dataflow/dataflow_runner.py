@@ -138,7 +138,7 @@ class DataflowRunner(PipelineRunner):
 
   def apply(self, transform, input, options):
     self._maybe_add_unified_worker_missing_options(options)
-    return super(DataflowRunner, self).apply(transform, input, options)
+    return super().apply(transform, input, options)
 
   def _get_unique_step_name(self):
     self._unique_step_id += 1
@@ -305,7 +305,7 @@ class DataflowRunner(PipelineRunner):
                     parent,
                     beam.Map(lambda x: (b'', x)),
                     transform_node.full_label + '/MapToVoidKey%s' % ix,
-                    (side_input.pvalue, ))
+                    {'input': side_input.pvalue})
                 new_side_input.pvalue.producer = map_to_void_key
                 map_to_void_key.add_output(new_side_input.pvalue, None)
                 parent.add_part(map_to_void_key)
@@ -407,6 +407,18 @@ class DataflowRunner(PipelineRunner):
       raise ImportError(
           'Google Cloud Dataflow runner not available, '
           'please install apache_beam[gcp]')
+
+    debug_options = options.view_as(DebugOptions)
+    if pipeline.contains_external_transforms:
+      if not apiclient._use_unified_worker(options):
+        _LOGGER.info(
+            'Automatically enabling Dataflow Runner v2 since the '
+            'pipeline used cross-language transforms.')
+        # This has to be done before any Fn API specific setup.
+        debug_options.add_experiment("use_runner_v2")
+      # Dataflow multi-language pipelines require portable job submission.
+      if not debug_options.lookup_experiment('use_portable_job_submission'):
+        debug_options.add_experiment("use_portable_job_submission")
 
     self._maybe_add_unified_worker_missing_options(options)
 
@@ -511,12 +523,6 @@ class DataflowRunner(PipelineRunner):
       debug_options.add_experiment(
           'min_cpu_platform=' + worker_options.min_cpu_platform)
 
-    if (apiclient._use_unified_worker(options) and
-        pipeline.contains_external_transforms):
-      # All Dataflow multi-language pipelines (supported by Runner v2 only) use
-      # portable job submission by default.
-      debug_options.add_experiment("use_portable_job_submission")
-
     # Elevate "enable_streaming_engine" to pipeline option, but using the
     # existing experiment.
     google_cloud_options = options.view_as(GoogleCloudOptions)
@@ -546,13 +552,6 @@ class DataflowRunner(PipelineRunner):
             'It can only be used when FnAPI is enabled.')
       else:
         debug_options.add_experiment('use_staged_dataflow_worker_jar')
-
-    # Make Dataflow workers use FastAvro on Python 3 unless use_avro experiment
-    # is set. Note that use_avro is only interpreted by the Dataflow runner
-    # at job submission and is not interpreted by Dataflow service or workers,
-    # which by default use avro library unless use_fastavro experiment is set.
-    if not debug_options.lookup_experiment('use_avro'):
-      debug_options.add_experiment('use_fastavro')
 
     self.job = apiclient.Job(options, self.proto_pipeline)
 
@@ -588,9 +587,17 @@ class DataflowRunner(PipelineRunner):
     return result
 
   def _maybe_add_unified_worker_missing_options(self, options):
+    debug_options = options.view_as(DebugOptions)
+    # Streaming is always portable, default to runner v2.
+    if (options.view_as(StandardOptions).streaming and
+        not debug_options.lookup_experiment('disable_streaming_engine') and
+        not options.view_as(GoogleCloudOptions).dataflow_kms_key):
+      if not debug_options.lookup_experiment('disable_runner_v2'):
+        debug_options.add_experiment('beam_fn_api')
+        debug_options.add_experiment('use_runner_v2')
+        debug_options.add_experiment('use_portable_job_submission')
     # set default beam_fn_api experiment if use unified
     # worker experiment flag exists, no-op otherwise.
-    debug_options = options.view_as(DebugOptions)
     from apache_beam.runners.dataflow.internal import apiclient
     if apiclient._use_unified_worker(options):
       if not debug_options.lookup_experiment('beam_fn_api'):
@@ -1661,5 +1668,5 @@ class DataflowPipelineResult(PipelineResult):
 class DataflowRuntimeException(Exception):
   """Indicates an error has occurred in running this pipeline."""
   def __init__(self, msg, result):
-    super(DataflowRuntimeException, self).__init__(msg)
+    super().__init__(msg)
     self.result = result

@@ -29,10 +29,6 @@ from apache_beam.testing.util import equal_to
 
 
 class KeywordOnlyArgsTests(unittest.TestCase):
-
-  # Enable nose tests running in parallel
-  _multiprocess_can_split_ = True
-
   def test_side_input_keyword_only_args(self):
     with TestPipeline() as pipeline:
 

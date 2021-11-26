@@ -25,8 +25,8 @@
 import logging
 import unittest
 
+import pytest
 from hamcrest.core.core.allof import all_of
-from nose.plugins.attrib import attr
 
 from apache_beam.io.gcp import bigquery_io_read_pipeline
 from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
@@ -59,11 +59,11 @@ class BigqueryIOReadIT(unittest.TestCase):
     bigquery_io_read_pipeline.run(
         test_pipeline.get_full_options_as_args(**extra_opts))
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_bigquery_read_custom_1M_python(self):
     self.run_bigquery_io_read_pipeline('1M', True)
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_bigquery_read_1M_python(self):
     self.run_bigquery_io_read_pipeline('1M')
 

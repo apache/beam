@@ -35,7 +35,7 @@ from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Write
 from apache_beam.transforms import PTransform
 
-__all__ = ['ReadFromTFRecord', 'WriteToTFRecord']
+__all__ = ['ReadFromTFRecord', 'ReadAllFromTFRecord', 'WriteToTFRecord']
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -168,7 +168,7 @@ class _TFRecordSource(FileBasedSource):
   """
   def __init__(self, file_pattern, coder, compression_type, validate):
     """Initialize a TFRecordSource.  See ReadFromTFRecord for details."""
-    super(_TFRecordSource, self).__init__(
+    super().__init__(
         file_pattern=file_pattern,
         compression_type=compression_type,
         splittable=False,
@@ -203,7 +203,10 @@ def _create_tfrecordio_source(
 class ReadAllFromTFRecord(PTransform):
   """A ``PTransform`` for reading a ``PCollection`` of TFRecord files."""
   def __init__(
-      self, coder=coders.BytesCoder(), compression_type=CompressionTypes.AUTO):
+      self,
+      coder=coders.BytesCoder(),
+      compression_type=CompressionTypes.AUTO,
+      with_filename=False):
     """Initialize the ``ReadAllFromTFRecord`` transform.
 
     Args:
@@ -211,8 +214,11 @@ class ReadAllFromTFRecord(PTransform):
       compression_type: Used to handle compressed input files. Default value
           is CompressionTypes.AUTO, in which case the file_path's extension will
           be used to detect the compression.
+      with_filename: If True, returns a Key Value with the key being the file
+        name and the value being the actual data. If False, it only returns
+        the data.
     """
-    super(ReadAllFromTFRecord, self).__init__()
+    super().__init__()
     source_from_file = partial(
         _create_tfrecordio_source,
         compression_type=compression_type,
@@ -224,7 +230,8 @@ class ReadAllFromTFRecord(PTransform):
         compression_type=compression_type,
         desired_bundle_size=0,
         min_bundle_size=0,
-        source_from_file=source_from_file)
+        source_from_file=source_from_file,
+        with_filename=with_filename)
 
   def expand(self, pvalue):
     return pvalue | 'ReadAllFiles' >> self._read_all_files
@@ -252,7 +259,7 @@ class ReadFromTFRecord(PTransform):
     Returns:
       A ReadFromTFRecord transform object.
     """
-    super(ReadFromTFRecord, self).__init__()
+    super().__init__()
     self._source = _TFRecordSource(
         file_pattern, coder, compression_type, validate)
 
@@ -276,7 +283,7 @@ class _TFRecordSink(filebasedsink.FileBasedSink):
       compression_type):
     """Initialize a TFRecordSink. See WriteToTFRecord for details."""
 
-    super(_TFRecordSink, self).__init__(
+    super().__init__(
         file_path_prefix=file_path_prefix,
         coder=coder,
         file_name_suffix=file_name_suffix,
@@ -323,7 +330,7 @@ class WriteToTFRecord(PTransform):
     Returns:
       A WriteToTFRecord transform object.
     """
-    super(WriteToTFRecord, self).__init__()
+    super().__init__()
     self._sink = _TFRecordSink(
         file_path_prefix,
         coder,

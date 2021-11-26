@@ -58,9 +58,13 @@ import com.google.rpc.Code;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.ServiceCallMetric;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
@@ -78,6 +82,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
@@ -88,7 +93,9 @@ import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
@@ -96,6 +103,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -901,12 +909,27 @@ public class DatastoreV1 {
         Sleeper sleeper = Sleeper.DEFAULT;
         BackOff backoff = RUNQUERY_BACKOFF.backoff();
         while (true) {
+          HashMap<String, String> baseLabels = new HashMap<>();
+          baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
+          baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "Datastore");
+          baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "BatchDatastoreRead");
+          baseLabels.put(
+              MonitoringInfoConstants.Labels.RESOURCE,
+              GcpResourceIdentifiers.datastoreResource(
+                  options.getProjectId(), options.getNamespace()));
+          baseLabels.put(MonitoringInfoConstants.Labels.DATASTORE_PROJECT, options.getProjectId());
+          baseLabels.put(
+              MonitoringInfoConstants.Labels.DATASTORE_NAMESPACE, options.getNamespace());
+          ServiceCallMetric serviceCallMetric =
+              new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
           try {
             RunQueryResponse response = datastore.runQuery(request);
+            serviceCallMetric.call("ok");
             rpcSuccesses.inc();
             return response;
           } catch (DatastoreException exception) {
             rpcErrors.inc();
+            serviceCallMetric.call(exception.getCode().getNumber());
 
             if (NON_RETRYABLE_ERRORS.contains(exception.getCode())) {
               throw exception;
@@ -985,7 +1008,7 @@ public class DatastoreV1 {
    * using {@link DatastoreV1.Write#withProjectId}.
    */
   public Write write() {
-    return new Write(null, null, true, DEFAULT_HINT_NUM_WORKERS);
+    return new Write(null, null, true, StaticValueProvider.of(DEFAULT_HINT_NUM_WORKERS));
   }
 
   /**
@@ -993,7 +1016,7 @@ public class DatastoreV1 {
    * using {@link DeleteEntity#withProjectId}.
    */
   public DeleteEntity deleteEntity() {
-    return new DeleteEntity(null, null, true, DEFAULT_HINT_NUM_WORKERS);
+    return new DeleteEntity(null, null, true, StaticValueProvider.of(DEFAULT_HINT_NUM_WORKERS));
   }
 
   /**
@@ -1001,7 +1024,7 @@ public class DatastoreV1 {
    * {@link DeleteKey#withProjectId}.
    */
   public DeleteKey deleteKey() {
-    return new DeleteKey(null, null, true, DEFAULT_HINT_NUM_WORKERS);
+    return new DeleteKey(null, null, true, StaticValueProvider.of(DEFAULT_HINT_NUM_WORKERS));
   }
 
   /**
@@ -1019,7 +1042,7 @@ public class DatastoreV1 {
         @Nullable ValueProvider<String> projectId,
         @Nullable String localhost,
         boolean throttleRampup,
-        int hintNumWorkers) {
+        ValueProvider<Integer> hintNumWorkers) {
       super(projectId, localhost, new UpsertFn(), throttleRampup, hintNumWorkers);
     }
 
@@ -1054,7 +1077,12 @@ public class DatastoreV1 {
      * is ignored if ramp-up throttling is disabled.
      */
     public Write withHintNumWorkers(int hintNumWorkers) {
-      checkArgument(hintNumWorkers > 0, "hintNumWorkers must be positive");
+      return withHintNumWorkers(StaticValueProvider.of(hintNumWorkers));
+    }
+
+    /** Same as {@link Write#withHintNumWorkers(int)} but with a {@link ValueProvider}. */
+    public Write withHintNumWorkers(ValueProvider<Integer> hintNumWorkers) {
+      checkArgument(hintNumWorkers != null, "hintNumWorkers can not be null");
       return new Write(projectId, localhost, throttleRampup, hintNumWorkers);
     }
   }
@@ -1074,7 +1102,7 @@ public class DatastoreV1 {
         @Nullable ValueProvider<String> projectId,
         @Nullable String localhost,
         boolean throttleRampup,
-        int hintNumWorkers) {
+        ValueProvider<Integer> hintNumWorkers) {
       super(projectId, localhost, new DeleteEntityFn(), throttleRampup, hintNumWorkers);
     }
 
@@ -1113,6 +1141,12 @@ public class DatastoreV1 {
      */
     public DeleteEntity withHintNumWorkers(int hintNumWorkers) {
       checkArgument(hintNumWorkers > 0, "hintNumWorkers must be positive");
+      return withHintNumWorkers(StaticValueProvider.of(hintNumWorkers));
+    }
+
+    /** Same as {@link DeleteEntity#withHintNumWorkers(int)} but with a {@link ValueProvider}. */
+    public DeleteEntity withHintNumWorkers(ValueProvider<Integer> hintNumWorkers) {
+      checkArgument(hintNumWorkers != null, "hintNumWorkers can not be null");
       return new DeleteEntity(projectId, localhost, throttleRampup, hintNumWorkers);
     }
   }
@@ -1133,7 +1167,7 @@ public class DatastoreV1 {
         @Nullable ValueProvider<String> projectId,
         @Nullable String localhost,
         boolean throttleRampup,
-        int hintNumWorkers) {
+        ValueProvider<Integer> hintNumWorkers) {
       super(projectId, localhost, new DeleteKeyFn(), throttleRampup, hintNumWorkers);
     }
 
@@ -1172,6 +1206,12 @@ public class DatastoreV1 {
      */
     public DeleteKey withHintNumWorkers(int hintNumWorkers) {
       checkArgument(hintNumWorkers > 0, "hintNumWorkers must be positive");
+      return withHintNumWorkers(StaticValueProvider.of(hintNumWorkers));
+    }
+
+    /** Same as {@link DeleteKey#withHintNumWorkers(int)} but with a {@link ValueProvider}. */
+    public DeleteKey withHintNumWorkers(ValueProvider<Integer> hintNumWorkers) {
+      checkArgument(hintNumWorkers != null, "hintNumWorkers can not be null");
       return new DeleteKey(projectId, localhost, throttleRampup, hintNumWorkers);
     }
   }
@@ -1189,11 +1229,11 @@ public class DatastoreV1 {
     protected ValueProvider<String> projectId;
     protected @Nullable String localhost;
     protected boolean throttleRampup;
-    protected int hintNumWorkers;
+    protected ValueProvider<Integer> hintNumWorkers;
     /** A function that transforms each {@code T} into a mutation. */
     private final SimpleFunction<T, Mutation> mutationFn;
 
-    private final RampupThrottlingFn<Mutation> rampupThrottlingFn;
+    private RampupThrottlingFn<Mutation> rampupThrottlingFn;
 
     /**
      * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if it
@@ -1204,13 +1244,12 @@ public class DatastoreV1 {
         @Nullable String localhost,
         SimpleFunction<T, Mutation> mutationFn,
         boolean throttleRampup,
-        int hintNumWorkers) {
+        ValueProvider<Integer> hintNumWorkers) {
       this.projectId = projectId;
       this.localhost = localhost;
       this.throttleRampup = throttleRampup;
       this.hintNumWorkers = hintNumWorkers;
       this.mutationFn = checkNotNull(mutationFn);
-      this.rampupThrottlingFn = new RampupThrottlingFn<>(hintNumWorkers);
     }
 
     @Override
@@ -1224,9 +1263,28 @@ public class DatastoreV1 {
       PCollection<Mutation> intermediateOutput =
           input.apply("Convert to Mutation", MapElements.via(mutationFn));
       if (throttleRampup) {
+        PCollectionView<Instant> startTimestampView =
+            input
+                .getPipeline()
+                .apply(
+                    "Generate start timestamp",
+                    new PTransform<PBegin, PCollectionView<Instant>>() {
+                      @Override
+                      public PCollectionView<Instant> expand(PBegin input) {
+                        return input
+                            .apply(Create.of("side input"))
+                            .apply(
+                                MapElements.into(TypeDescriptor.of(Instant.class))
+                                    .via((s) -> Instant.now()))
+                            .apply(View.asSingleton());
+                      }
+                    });
+        rampupThrottlingFn = new RampupThrottlingFn<>(hintNumWorkers, startTimestampView);
+
         intermediateOutput =
             intermediateOutput.apply(
-                "Enforce ramp-up through throttling", ParDo.of(rampupThrottlingFn));
+                "Enforce ramp-up through throttling",
+                ParDo.of(rampupThrottlingFn).withSideInputs(startTimestampView));
       }
       intermediateOutput.apply(
           "Write Mutation to Datastore", ParDo.of(new DatastoreWriterFn(projectId, localhost)));
@@ -1248,7 +1306,7 @@ public class DatastoreV1 {
       builder
           .addIfNotNull(DisplayData.item("projectId", projectId).withLabel("Output Project"))
           .include("mutationFn", mutationFn);
-      if (throttleRampup) {
+      if (rampupThrottlingFn != null) {
         builder.include("rampupThrottlingFn", rampupThrottlingFn);
       }
     }
@@ -1447,9 +1505,21 @@ public class DatastoreV1 {
           continue;
         }
 
+        HashMap<String, String> baseLabels = new HashMap<>();
+        baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
+        baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "Datastore");
+        baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "BatchDatastoreWrite");
+        baseLabels.put(
+            MonitoringInfoConstants.Labels.RESOURCE,
+            GcpResourceIdentifiers.datastoreResource(projectId.get(), ""));
+        baseLabels.put(MonitoringInfoConstants.Labels.DATASTORE_PROJECT, projectId.get());
+        baseLabels.put(MonitoringInfoConstants.Labels.DATASTORE_NAMESPACE, "");
+        ServiceCallMetric serviceCallMetric =
+            new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
         try {
           datastore.commit(commitRequest.build());
           endTime = System.currentTimeMillis();
+          serviceCallMetric.call("ok");
 
           writeBatcher.addRequestLatency(endTime, endTime - startTime, mutations.size());
           adaptiveThrottler.successfulRequest(startTime);
@@ -1460,6 +1530,7 @@ public class DatastoreV1 {
           // Break if the commit threw no exception.
           break;
         } catch (DatastoreException exception) {
+          serviceCallMetric.call(exception.getCode().getNumber());
           if (exception.getCode() == Code.DEADLINE_EXCEEDED) {
             /* Most errors are not related to request size, and should not change our expectation of
              * the latency of successful requests. DEADLINE_EXCEEDED can be taken into
@@ -1492,7 +1563,7 @@ public class DatastoreV1 {
     }
 
     @Override
-    public void populateDisplayData(Builder builder) {
+    public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder.addIfNotNull(DisplayData.item("projectId", projectId).withLabel("Output Project"));
     }
@@ -1526,7 +1597,7 @@ public class DatastoreV1 {
     }
 
     @Override
-    public void populateDisplayData(Builder builder) {
+    public void populateDisplayData(DisplayData.Builder builder) {
       builder.add(
           DisplayData.item("upsertFn", this.getClass()).withLabel("Create Upsert Mutation"));
     }
@@ -1547,7 +1618,7 @@ public class DatastoreV1 {
     }
 
     @Override
-    public void populateDisplayData(Builder builder) {
+    public void populateDisplayData(DisplayData.Builder builder) {
       builder.add(
           DisplayData.item("deleteEntityFn", this.getClass()).withLabel("Create Delete Mutation"));
     }
@@ -1568,7 +1639,7 @@ public class DatastoreV1 {
     }
 
     @Override
-    public void populateDisplayData(Builder builder) {
+    public void populateDisplayData(DisplayData.Builder builder) {
       builder.add(
           DisplayData.item("deleteKeyFn", this.getClass()).withLabel("Create Delete Mutation"));
     }

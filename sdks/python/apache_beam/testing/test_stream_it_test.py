@@ -22,7 +22,7 @@
 import unittest
 from functools import wraps
 
-from nose.plugins.attrib import attr
+import pytest
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import StandardOptions
@@ -67,7 +67,7 @@ class TestStreamIntegrationTests(unittest.TestCase):
     cls.project = cls.test_pipeline.get_option('project')
 
   @supported(['DirectRunner', 'SwitchingDirectRunner'])
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_basic_execution(self):
     test_stream = (
         TestStream().advance_watermark_to(10).add_elements([
@@ -103,7 +103,7 @@ class TestStreamIntegrationTests(unittest.TestCase):
           ]))
 
   @supported(['DirectRunner', 'SwitchingDirectRunner'])
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_multiple_outputs(self):
     """Tests that the TestStream supports emitting to multiple PCollections."""
     letters_elements = [
@@ -151,7 +151,7 @@ class TestStreamIntegrationTests(unittest.TestCase):
     p.run()
 
   @supported(['DirectRunner', 'SwitchingDirectRunner'])
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_multiple_outputs_with_watermark_advancement(self):
     """Tests that the TestStream can independently control output watermarks."""
 

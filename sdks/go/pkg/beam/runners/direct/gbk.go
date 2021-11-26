@@ -19,11 +19,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"sort"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 type group struct {
@@ -40,6 +42,7 @@ type CoGBK struct {
 	enc  exec.ElementEncoder // key encoder for coder-equality
 	wEnc exec.WindowEncoder  // window encoder for windowing
 	m    map[string]*group
+	wins []typex.Window
 }
 
 func (n *CoGBK) ID() exec.UnitID {
@@ -63,30 +66,52 @@ func (n *CoGBK) ProcessElement(ctx context.Context, elm *exec.FullValue, _ ...ex
 
 	for _, w := range elm.Windows {
 		ws := []typex.Window{w}
+		n.wins = append(n.wins, ws...)
 
-		var buf bytes.Buffer
-		if err := n.enc.Encode(&exec.FullValue{Elm: value.Elm}, &buf); err != nil {
-			return errors.WithContextf(err, "encoding key %v for CoGBK", elm)
+		key, err := n.encodeKey(value.Elm, ws)
+		if err != nil {
+			return errors.Errorf("failed encoding key for %v: %v", elm, err)
 		}
-		if err := n.wEnc.Encode(ws, &buf); err != nil {
-			return errors.WithContextf(err, "encoding window %v for CoGBK", w)
-		}
-		key := buf.String()
-
-		g, ok := n.m[key]
-		if !ok {
-			g = &group{
-				key:    exec.FullValue{Elm: value.Elm, Timestamp: value.Timestamp, Windows: ws},
-				values: make([][]exec.FullValue, len(n.Edge.Input)),
-			}
-			n.m[key] = g
-		}
+		g := n.getGroup(n.m, key, value, ws)
 		g.values[index] = append(g.values[index], exec.FullValue{Elm: value.Elm2, Timestamp: value.Timestamp})
 	}
 	return nil
 }
 
+func (n *CoGBK) encodeKey(elm interface{}, ws []typex.Window) (string, error) {
+	var buf bytes.Buffer
+	if err := n.enc.Encode(&exec.FullValue{Elm: elm}, &buf); err != nil {
+		return "", errors.WithContextf(err, "encoding key %v for CoGBK", elm)
+	}
+	if err := n.wEnc.Encode(ws, &buf); err != nil {
+		return "", errors.WithContextf(err, "encoding window %v for CoGBK", ws)
+	}
+	return buf.String(), nil
+}
+
+func (n *CoGBK) getGroup(m map[string]*group, key string, value *exec.FullValue, ws []typex.Window) *group {
+	g, ok := m[key]
+	if !ok {
+		g = &group{
+			key:    exec.FullValue{Elm: value.Elm, Timestamp: value.Timestamp, Windows: ws},
+			values: make([][]exec.FullValue, len(n.Edge.Input)),
+		}
+		m[key] = g
+	}
+	return g
+}
+
 func (n *CoGBK) FinishBundle(ctx context.Context) error {
+	winKind := n.Edge.Input[0].From.WindowingStrategy().Fn.Kind
+	if winKind == window.Sessions {
+		mergeMap, mergeErr := n.mergeWindows()
+		if mergeErr != nil {
+			return errors.Errorf("failed to merge windows, got: %v", mergeErr)
+		}
+		if reprocessErr := n.reprocessByWindow(mergeMap); reprocessErr != nil {
+			return errors.Errorf("failed to reprocess with merged windows, got :%v", reprocessErr)
+		}
+	}
 	for key, g := range n.m {
 		values := make([]exec.ReStream, len(g.values))
 		for i, list := range g.values {
@@ -98,6 +123,58 @@ func (n *CoGBK) FinishBundle(ctx context.Context) error {
 		delete(n.m, key)
 	}
 	return n.Out.FinishBundle(ctx)
+}
+
+func (n *CoGBK) mergeWindows() (map[typex.Window]int, error) {
+	sort.Slice(n.wins, func(i int, j int) bool {
+		return n.wins[i].MaxTimestamp() < n.wins[j].MaxTimestamp()
+	})
+	// mergeMap is a map from the oringal windows to the index of the new window
+	// in the mergedWins slice
+	mergeMap := make(map[typex.Window]int)
+	mergedWins := []typex.Window{}
+	for i := 0; i < len(n.wins); {
+		intWin, ok := n.wins[i].(window.IntervalWindow)
+		if !ok {
+			return nil, errors.Errorf("tried to merge non-interval window type %T", n.wins[i])
+		}
+		mergeStart := intWin.Start
+		mergeEnd := intWin.End
+		j := i + 1
+		for j < len(n.wins) {
+			candidateWin := n.wins[j].(window.IntervalWindow)
+			if candidateWin.Start <= mergeEnd {
+				mergeEnd = candidateWin.End
+				j++
+			} else {
+				break
+			}
+		}
+		for k := i; k < j; k++ {
+			mergeMap[n.wins[k]] = len(mergedWins)
+		}
+		mergedWins = append(mergedWins, window.IntervalWindow{Start: mergeStart, End: mergeEnd})
+		i = j
+	}
+	n.wins = mergedWins
+	return mergeMap, nil
+}
+
+func (n *CoGBK) reprocessByWindow(mergeMap map[typex.Window]int) error {
+	newGroups := make(map[string]*group)
+	for _, g := range n.m {
+		ws := []typex.Window{n.wins[mergeMap[g.key.Windows[0]]]}
+		key, err := n.encodeKey(g.key.Elm, ws)
+		if err != nil {
+			return errors.Errorf("failed encoding key for %v: %v", g.key.Elm, err)
+		}
+		gr := n.getGroup(newGroups, key, &g.key, ws)
+		for i, list := range g.values {
+			gr.values[i] = append(gr.values[i], list...)
+		}
+	}
+	n.m = newGroups
+	return nil
 }
 
 func (n *CoGBK) Down(ctx context.Context) error {

@@ -17,20 +17,23 @@
  */
 package org.apache.beam.sdk.tpcds;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletionService;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
-import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
 import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTable;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.io.parquet.ParquetIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
@@ -40,6 +43,10 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlIdentifier;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.util.SqlBasicVisitor;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Resources;
 import org.apache.commons.csv.CSVFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,6 +54,8 @@ import org.slf4j.LoggerFactory;
 /**
  * This class executes jobs using PCollection and SqlTransform, it uses SqlTransform.query to run
  * queries.
+ *
+ * <p>TODO: Add tests.
  */
 public class SqlTransformRunner {
   private static final String SUMMARY_START = "\n" + "TPC-DS Query Execution Summary:";
@@ -62,6 +71,21 @@ public class SqlTransformRunner {
           "Elapsed Time(sec)");
 
   private static final Logger LOG = LoggerFactory.getLogger(SqlTransformRunner.class);
+
+  /** This class is used to extract all SQL query identifiers. */
+  static class SqlIdentifierVisitor extends SqlBasicVisitor<Void> {
+    private final Set<String> identifiers = new HashSet<>();
+
+    public Set<String> getIdentifiers() {
+      return identifiers;
+    }
+
+    @Override
+    public Void visit(SqlIdentifier id) {
+      identifiers.addAll(id.names);
+      return null;
+    }
+  }
 
   /**
    * Get all tables (in the form of TextTable) needed for a specific query execution.
@@ -79,33 +103,116 @@ public class SqlTransformRunner {
     Map<String, Schema> schemaMap = TpcdsSchemas.getTpcdsSchemas();
     TpcdsOptions tpcdsOptions = pipeline.getOptions().as(TpcdsOptions.class);
     String dataSize = TpcdsParametersReader.getAndCheckDataSize(tpcdsOptions);
-    String queryString = QueryReader.readQuery(queryName);
+    Set<String> identifiers = QueryReader.getQueryIdentifiers(QueryReader.readQuery(queryName));
 
     PCollectionTuple tables = PCollectionTuple.empty(pipeline);
     for (Map.Entry<String, Schema> tableSchema : schemaMap.entrySet()) {
       String tableName = tableSchema.getKey();
 
-      // Only when queryString contains tableName, the table is relevant to this query and will be
-      // added. This can avoid reading unnecessary data files.
-      if (queryString.contains(tableName)) {
-        // This is location path where the data are stored
-        String filePattern =
-            tpcdsOptions.getDataDirectory() + "/" + dataSize + "/" + tableName + ".dat";
+      // Only when query identifiers contain tableName, the table is relevant to this query and will
+      // be added. This can avoid reading unnecessary data files.
+      if (identifiers.contains(tableName.toUpperCase())) {
+        Set<String> tableColumns = getTableColumns(identifiers, tableSchema);
 
-        PCollection<Row> table =
-            new TextTable(
-                    tableSchema.getValue(),
-                    filePattern,
-                    new CsvToRow(tableSchema.getValue(), csvFormat),
-                    new RowToCsv(csvFormat))
-                .buildIOReader(pipeline.begin())
-                .setCoder(SchemaCoder.of(tableSchema.getValue()))
-                .setName(tableSchema.getKey());
-
-        tables = tables.and(new TupleTag<>(tableName), table);
+        switch (tpcdsOptions.getSourceType()) {
+          case CSV:
+            {
+              PCollection<Row> table =
+                  getTableCSV(pipeline, csvFormat, tpcdsOptions, dataSize, tableSchema, tableName);
+              tables = tables.and(new TupleTag<>(tableName), table);
+              break;
+            }
+          case PARQUET:
+            {
+              PCollection<GenericRecord> table =
+                  getTableParquet(pipeline, tpcdsOptions, dataSize, tableName, tableColumns);
+              tables = tables.and(new TupleTag<>(tableName), table);
+              break;
+            }
+          default:
+            throw new IllegalStateException(
+                "Unexpected source type: " + tpcdsOptions.getSourceType());
+        }
       }
     }
     return tables;
+  }
+
+  private static Set<String> getTableColumns(
+      Set<String> identifiers, Map.Entry<String, Schema> tableSchema) {
+    Set<String> tableColumns = new HashSet<>();
+    List<Schema.Field> fields = tableSchema.getValue().getFields();
+    for (Schema.Field field : fields) {
+      String fieldName = field.getName();
+      if (identifiers.contains(fieldName.toUpperCase())) {
+        tableColumns.add(fieldName);
+      }
+    }
+    return tableColumns;
+  }
+
+  private static PCollection<GenericRecord> getTableParquet(
+      Pipeline pipeline,
+      TpcdsOptions tpcdsOptions,
+      String dataSize,
+      String tableName,
+      Set<String> tableColumns)
+      throws IOException {
+    org.apache.avro.Schema schema = getAvroSchema(tableName);
+    org.apache.avro.Schema schemaProjected = getProjectedSchema(tableColumns, schema);
+
+    String filepattern =
+        tpcdsOptions.getDataDirectory() + "/" + dataSize + "/" + tableName + "/*.parquet";
+
+    return pipeline.apply(
+        "Read " + tableName + " (parquet)",
+        ParquetIO.read(schema)
+            .from(filepattern)
+            .withSplit()
+            .withProjection(schemaProjected, schemaProjected)
+            .withBeamSchemas(true));
+  }
+
+  private static PCollection<Row> getTableCSV(
+      Pipeline pipeline,
+      CSVFormat csvFormat,
+      TpcdsOptions tpcdsOptions,
+      String dataSize,
+      Map.Entry<String, Schema> tableSchema,
+      String tableName) {
+    // This is location path where the data are stored
+    String filePattern =
+        tpcdsOptions.getDataDirectory() + "/" + dataSize + "/" + tableName + ".dat";
+
+    return new TextTable(
+            tableSchema.getValue(),
+            filePattern,
+            new CsvToRow(tableSchema.getValue(), csvFormat),
+            new RowToCsv(csvFormat))
+        .buildIOReader(pipeline.begin())
+        .setCoder(SchemaCoder.of(tableSchema.getValue()))
+        .setName(tableSchema.getKey());
+  }
+
+  private static org.apache.avro.Schema getAvroSchema(String tableName) throws IOException {
+    String path = "schemas_avro/" + tableName + ".json";
+    return new org.apache.avro.Schema.Parser()
+        .parse(Resources.toString(Resources.getResource(path), Charsets.UTF_8));
+  }
+
+  static org.apache.avro.Schema getProjectedSchema(
+      Set<String> projectedFieldNames, org.apache.avro.Schema schema) {
+    List<org.apache.avro.Schema.Field> projectedFields = new ArrayList<>();
+    for (org.apache.avro.Schema.Field f : schema.getFields()) {
+      if (projectedFieldNames.contains(f.name())) {
+        projectedFields.add(
+            new org.apache.avro.Schema.Field(f.name(), f.schema(), f.doc(), f.defaultVal()));
+      }
+    }
+    org.apache.avro.Schema schemaProjected =
+        org.apache.avro.Schema.createRecord(schema.getName() + "_projected", "", "", false);
+    schemaProjected.setFields(projectedFields);
+    return schemaProjected;
   }
 
   /**
@@ -160,28 +267,18 @@ public class SqlTransformRunner {
     Pipeline[] pipelines = new Pipeline[queryNames.length];
     CSVFormat csvFormat = CSVFormat.MYSQL.withDelimiter('|').withNullString("");
 
-    // Execute all queries, transform the each result into a PCollection<String>, write them into
+    // Execute all queries, transform each result into a PCollection<String>, write them into
     // the txt file and store in a GCP directory.
     for (int i = 0; i < queryNames.length; i++) {
       // For each query, get a copy of pipelineOptions from command line arguments.
       TpcdsOptions tpcdsOptionsCopy =
           PipelineOptionsFactory.fromArgs(args).withValidation().as(TpcdsOptions.class);
 
-      // Cast tpcdsOptions as a BeamSqlPipelineOptions object to read and set queryPlanner (the
-      // default one is Calcite, can change to ZetaSQL).
-      BeamSqlPipelineOptions beamSqlPipelineOptionsCopy =
-          tpcdsOptionsCopy.as(BeamSqlPipelineOptions.class);
-
-      // Finally, cast BeamSqlPipelineOptions as a DataflowPipelineOptions object to read and set
-      // other required pipeline optionsparameters .
-      DataflowPipelineOptions dataflowPipelineOptionsCopy =
-          beamSqlPipelineOptionsCopy.as(DataflowPipelineOptions.class);
-
       // Set a unique job name using the time stamp so that multiple different pipelines can run
       // together.
-      dataflowPipelineOptionsCopy.setJobName(queryNames[i] + "result" + System.currentTimeMillis());
+      tpcdsOptionsCopy.setJobName(queryNames[i] + "result" + System.currentTimeMillis());
 
-      pipelines[i] = Pipeline.create(dataflowPipelineOptionsCopy);
+      pipelines[i] = Pipeline.create(tpcdsOptionsCopy);
       String queryString = QueryReader.readQuery(queryNames[i]);
       PCollectionTuple tables = getTables(pipelines[i], csvFormat, queryNames[i]);
 

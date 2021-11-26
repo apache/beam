@@ -24,6 +24,7 @@
   <suppress checks="JavadocMethod" files=".*Test\.java"/>
   <suppress checks="JavadocMethod" files=".*[\\\/]src[\\\/]test[\\\/].*"/>
   <suppress checks="JavadocMethod" files=".*[\\\/]examples[\\\/].*"/>
+  
 
   <!-- suppress all checks in the generated directories -->
   <suppress checks=".*" files=".+[\\\/]generated[\\\/].+\.java" />
@@ -117,6 +118,16 @@
   <suppress checks="JavadocPackage" files=".*runners.flink.*BeamStoppableFunction\.java"/>
   <suppress checks="JavadocPackage" files=".*runners.flink.*BeamFlinkRemoteStreamEnvironment\.java"/>
   <suppress checks="JavadocPackage" files=".*runners.flink.*FlinkCapabilities\.java"/>
+
+  <!-- Spark Structured Streaming -->
+  <!-- list of version specific classes -->
+  <!-- Checkstyle does not correctly detect package files across multiple source directories. -->
+  <suppress checks="JavadocPackage" files=".*runners.spark.structuredstreaming.*TranslationContext\.java"/>
+  <suppress checks="JavadocPackage" files=".*runners.spark.structuredstreaming.*DatasetSourceBatch\.java"/>
+  <suppress checks="JavadocPackage" files=".*runners.spark.structuredstreaming.*EncoderFactory\.java"/>
+  <suppress checks="JavadocPackage" files=".*runners.spark.structuredstreaming.*DatasetSourceStreaming\.java"/>
+
+
 
   <!-- ThriftIO -->
   <!-- Suppress Checkstyle for Thrift generated test files. -->

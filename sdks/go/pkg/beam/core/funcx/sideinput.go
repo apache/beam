@@ -18,8 +18,8 @@ package funcx
 import (
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
 // IsIter returns true iff the supplied type is a "single sweep functional iterator".
@@ -97,4 +97,29 @@ func UnfoldReIter(t reflect.Type) ([]reflect.Type, bool) {
 		return nil, false
 	}
 	return UnfoldIter(t.Out(0))
+}
+
+// IsMultiMap returns true iff the supplied type is a keyed functional iterator
+// generator.
+//
+// A keyed functional iterator generator is a function taking a single parameter
+// (a key) and returns a corresponding single sweep functional iterator.
+func IsMultiMap(t reflect.Type) bool {
+	_, ok := UnfoldMultiMap(t)
+	return ok
+}
+
+// UnfoldMultiMap returns the parameter types for the input key and the output
+// values iff the type is a keyed functional iterator generator.
+func UnfoldMultiMap(t reflect.Type) ([]reflect.Type, bool) {
+	if t.Kind() != reflect.Func {
+		return nil, false
+	}
+	if t.NumIn() != 1 || t.NumOut() != 1 {
+		return nil, false
+	}
+	types := []reflect.Type{t.In(0)}
+	iterTypes, is := UnfoldIter(t.Out(0))
+	types = append(types, iterTypes...)
+	return types, is
 }

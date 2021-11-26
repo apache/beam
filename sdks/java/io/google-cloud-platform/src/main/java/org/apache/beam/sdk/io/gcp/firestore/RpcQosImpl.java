@@ -21,29 +21,33 @@ import com.google.api.gax.grpc.GrpcStatusCode;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode;
 import com.google.rpc.Code;
-import java.io.IOException;
+import java.util.Collections;
 import java.util.Iterator;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.function.Function;
+import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1RpcAttemptContexts.V1FnRpcAttemptContext;
 import org.apache.beam.sdk.io.gcp.firestore.RpcQos.RpcAttempt.Context;
 import org.apache.beam.sdk.io.gcp.firestore.RpcQos.RpcWriteAttempt.Element;
 import org.apache.beam.sdk.io.gcp.firestore.RpcQos.RpcWriteAttempt.FlushBuffer;
+import org.apache.beam.sdk.io.gcp.firestore.RpcQosImpl.StatusCodeAwareBackoff.BackoffDuration;
+import org.apache.beam.sdk.io.gcp.firestore.RpcQosImpl.StatusCodeAwareBackoff.BackoffResult;
+import org.apache.beam.sdk.io.gcp.firestore.RpcQosImpl.StatusCodeAwareBackoff.BackoffResults;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.util.BackOff;
-import org.apache.beam.sdk.util.BackOffUtils;
-import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.MovingFunction;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Ints;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.Interval;
@@ -79,7 +83,6 @@ final class RpcQosImpl implements RpcQos {
   private final AdaptiveThrottler at;
   private final WriteBatcher wb;
   private final WriteRampUp writeRampUp;
-  private final FluentBackoff fb;
 
   private final WeakHashMap<Context, O11y> counters;
   private final Random random;
@@ -115,11 +118,6 @@ final class RpcQosImpl implements RpcQos {
             filteringDistributionFactory);
     writeRampUp =
         new WriteRampUp(500.0 / options.getHintMaxNumWorkers(), filteringDistributionFactory);
-    // maxRetries is an inclusive value, we want exclusive since we are tracking all attempts
-    fb =
-        FluentBackoff.DEFAULT
-            .withMaxRetries(options.getMaxAttempts() - 1)
-            .withInitialBackoff(options.getInitialBackoff());
     counters = new WeakHashMap<>();
     computeCounters = (Context c) -> O11y.create(c, counterFactory, filteringDistributionFactory);
   }
@@ -127,13 +125,36 @@ final class RpcQosImpl implements RpcQos {
   @Override
   public RpcWriteAttemptImpl newWriteAttempt(Context context) {
     return new RpcWriteAttemptImpl(
-        context, counters.computeIfAbsent(context, computeCounters), fb.backoff(), sleeper);
+        context,
+        counters.computeIfAbsent(context, computeCounters),
+        new StatusCodeAwareBackoff(
+            random,
+            options.getMaxAttempts(),
+            options.getThrottleDuration(),
+            Collections.emptySet()),
+        sleeper);
   }
 
   @Override
   public RpcReadAttemptImpl newReadAttempt(Context context) {
+    Set<Integer> graceStatusCodeNumbers = Collections.emptySet();
+    // When reading results from a RunQuery or BatchGet the stream returning the results has a
+    //   maximum lifetime of 60 seconds at which point it will be broken with an UNAVAILABLE
+    //   status code. Since this is expected for semi-large query result set sizes we specify
+    //   it as a grace value for backoff evaluation.
+    if (V1FnRpcAttemptContext.RunQuery.equals(context)
+        || V1FnRpcAttemptContext.BatchGetDocuments.equals(context)) {
+      graceStatusCodeNumbers = ImmutableSet.of(Code.UNAVAILABLE_VALUE);
+    }
     return new RpcReadAttemptImpl(
-        context, counters.computeIfAbsent(context, computeCounters), fb.backoff(), sleeper);
+        context,
+        counters.computeIfAbsent(context, computeCounters),
+        new StatusCodeAwareBackoff(
+            random,
+            options.getMaxAttempts(),
+            options.getThrottleDuration(),
+            graceStatusCodeNumbers),
+        sleeper);
   }
 
   @Override
@@ -187,7 +208,7 @@ final class RpcQosImpl implements RpcQos {
   private abstract class BaseRpcAttempt implements RpcAttempt {
     private final Logger logger;
     final O11y o11y;
-    final BackOff backoff;
+    final StatusCodeAwareBackoff backoff;
     final Sleeper sleeper;
 
     AttemptState state;
@@ -196,7 +217,7 @@ final class RpcQosImpl implements RpcQos {
     @SuppressWarnings(
         "initialization.fields.uninitialized") // allow transient fields to be managed by component
     // lifecycle
-    BaseRpcAttempt(Context context, O11y o11y, BackOff backoff, Sleeper sleeper) {
+    BaseRpcAttempt(Context context, O11y o11y, StatusCodeAwareBackoff backoff, Sleeper sleeper) {
       this.logger = LoggerFactory.getLogger(String.format("%s.RpcQos", context.getNamespace()));
       this.o11y = o11y;
       this.backoff = backoff;
@@ -219,7 +240,8 @@ final class RpcQosImpl implements RpcQos {
     }
 
     @Override
-    public void checkCanRetry(RuntimeException exception) throws InterruptedException {
+    public void checkCanRetry(Instant instant, RuntimeException exception)
+        throws InterruptedException {
       state.checkActive();
 
       Optional<ApiException> findApiException = findApiException(exception);
@@ -229,10 +251,9 @@ final class RpcQosImpl implements RpcQos {
         // order here is semi-important
         // First we always want to test if the error code is one of the codes we have deemed
         // non-retryable before delegating to the exceptions default set.
-        if (maxAttemptsExhausted()
-            || getStatusCodeNumber(apiException)
-                .map(NON_RETRYABLE_ERROR_NUMBERS::contains)
-                .orElse(false)
+        Optional<Integer> statusCodeNumber = getStatusCodeNumber(apiException);
+        if (maxAttemptsExhausted(instant, statusCodeNumber.orElse(Code.UNKNOWN_VALUE))
+            || statusCodeNumber.map(NON_RETRYABLE_ERROR_NUMBERS::contains).orElse(false)
             || !apiException.isRetryable()) {
           state = AttemptState.COMPLETE_ERROR;
           throw apiException;
@@ -259,7 +280,7 @@ final class RpcQosImpl implements RpcQos {
       state.checkStarted();
       o11y.rpcSuccesses.inc();
       o11y.rpcDurationMs.update(durationMs(end));
-      at.recordSuccessfulRequest(start);
+      at.recordRequestSuccessful(start);
     }
 
     @Override
@@ -267,21 +288,21 @@ final class RpcQosImpl implements RpcQos {
       state.checkStarted();
       o11y.rpcFailures.inc();
       o11y.rpcDurationMs.update(durationMs(end));
-      at.recordFailedRequest(start);
+      at.recordRequestFailed(start);
     }
 
-    private boolean maxAttemptsExhausted() throws InterruptedException {
-      try {
-        boolean exhausted = !BackOffUtils.next(sleeper, backoff);
-        if (exhausted) {
-          logger.error("Max attempts exhausted after {} attempts.", options.getMaxAttempts());
-        }
-        return exhausted;
-      } catch (IOException e) {
-        // We are using FluentBackoff which does not ever throw an IOException from its methods
-        // Catch and wrap any potential IOException as a RuntimeException since it won't ever
-        // happen unless the implementation of FluentBackoff changes.
-        throw new RuntimeException(e);
+    private boolean maxAttemptsExhausted(Instant now, int statusCodeNumber)
+        throws InterruptedException {
+      BackoffResult backoffResult = backoff.nextBackoff(now, statusCodeNumber);
+      if (BackoffResults.EXHAUSTED.equals(backoffResult)) {
+        logger.error("Max attempts exhausted after {} attempts.", options.getMaxAttempts());
+        return true;
+      } else if (backoffResult instanceof BackoffDuration) {
+        BackoffDuration result = (BackoffDuration) backoffResult;
+        sleeper.sleep(result.getDuration().getMillis());
+        return false;
+      } else {
+        return false;
       }
     }
 
@@ -295,7 +316,7 @@ final class RpcQosImpl implements RpcQos {
     }
 
     final long durationMs(Instant end) {
-      return end.minus(start.getMillis()).getMillis();
+      return end.minus(Duration.millis(start.getMillis())).getMillis();
     }
 
     private Optional<Integer> getStatusCodeNumber(ApiException apiException) {
@@ -323,13 +344,14 @@ final class RpcQosImpl implements RpcQos {
   }
 
   private final class RpcReadAttemptImpl extends BaseRpcAttempt implements RpcReadAttempt {
-    private RpcReadAttemptImpl(Context context, O11y o11y, BackOff backoff, Sleeper sleeper) {
+    private RpcReadAttemptImpl(
+        Context context, O11y o11y, StatusCodeAwareBackoff backoff, Sleeper sleeper) {
       super(context, o11y, backoff, sleeper);
     }
 
     @Override
     public void recordRequestStart(Instant start) {
-      at.recordStartRequest(start);
+      at.recordRequestStart(start);
       this.start = start;
       state = AttemptState.STARTED;
     }
@@ -343,7 +365,8 @@ final class RpcQosImpl implements RpcQos {
 
   final class RpcWriteAttemptImpl extends BaseRpcAttempt implements RpcWriteAttempt {
 
-    private RpcWriteAttemptImpl(Context context, O11y o11y, BackOff backoff, Sleeper sleeper) {
+    private RpcWriteAttemptImpl(
+        Context context, O11y o11y, StatusCodeAwareBackoff backoff, Sleeper sleeper) {
       super(context, o11y, backoff, sleeper);
     }
 
@@ -379,7 +402,7 @@ final class RpcQosImpl implements RpcQos {
 
     @Override
     public void recordRequestStart(Instant start, int numWrites) {
-      at.recordStartRequest(start, numWrites);
+      at.recordRequestStart(start, numWrites);
       writeRampUp.recordWriteCount(start, numWrites);
       this.start = start;
       state = AttemptState.STARTED;
@@ -391,10 +414,10 @@ final class RpcQosImpl implements RpcQos {
       state.checkStarted();
       wb.recordRequestLatency(start, end, totalWrites, o11y.latencyPerDocumentMs);
       if (successfulWrites > 0) {
-        at.recordSuccessfulRequest(start, successfulWrites);
+        at.recordRequestSuccessful(start, successfulWrites);
       }
       if (failedWrites > 0) {
-        at.recordFailedRequest(start, failedWrites);
+        at.recordRequestFailed(start, failedWrites);
       }
     }
   }
@@ -511,27 +534,27 @@ final class RpcQosImpl implements RpcQos {
       }
     }
 
-    private void recordStartRequest(Instant instantSinceEpoch) {
-      recordStartRequest(instantSinceEpoch, 1);
+    private void recordRequestStart(Instant instantSinceEpoch) {
+      recordRequestStart(instantSinceEpoch, 1);
     }
 
-    private void recordStartRequest(Instant instantSinceEpoch, int value) {
+    private void recordRequestStart(Instant instantSinceEpoch, int value) {
       allRequestsMovingFunction.add(instantSinceEpoch.getMillis(), value);
     }
 
-    private void recordSuccessfulRequest(Instant instantSinceEpoch) {
-      recordSuccessfulRequest(instantSinceEpoch, 1);
+    private void recordRequestSuccessful(Instant instantSinceEpoch) {
+      recordRequestSuccessful(instantSinceEpoch, 1);
     }
 
-    private void recordSuccessfulRequest(Instant instantSinceEpoch, int value) {
+    private void recordRequestSuccessful(Instant instantSinceEpoch, int value) {
       successfulRequestsMovingFunction.add(instantSinceEpoch.getMillis(), value);
     }
 
-    private void recordFailedRequest(Instant instantSinceEpoch) {
-      recordFailedRequest(instantSinceEpoch, 1);
+    private void recordRequestFailed(Instant instantSinceEpoch) {
+      recordRequestFailed(instantSinceEpoch, 1);
     }
 
-    private void recordFailedRequest(Instant instantSinceEpoch, int value) {
+    private void recordRequestFailed(Instant instantSinceEpoch, int value) {
       failedRequestsMovingFunction.add(instantSinceEpoch.getMillis(), value);
     }
 
@@ -696,6 +719,142 @@ final class RpcQosImpl implements RpcQos {
         currentBackoffMillis = (long) (currentBackoffMillis * 1.5);
         cumulativeMillis += retVal;
         return retVal;
+      }
+    }
+  }
+
+  /**
+   * This class implements a backoff algorithm similar to that of {@link
+   * org.apache.beam.sdk.util.FluentBackoff} with some key differences:
+   *
+   * <ol>
+   *   <li>A set of status code numbers may be specified to have a graceful evaluation
+   *   <li>Gracefully evaluated status code numbers will increment a decaying counter to ensure if
+   *       the graceful status code numbers occur more than once in the previous 60 seconds the
+   *       regular backoff behavior will kick in.
+   *   <li>The random number generator used to induce jitter is provided via constructor parameter
+   *       rather than using {@link Math#random()}}
+   * </ol>
+   *
+   * The primary motivation for creating this implementation is to support streamed responses from
+   * Firestore. In the case of RunQuery and BatchGet the results are returned via stream. The result
+   * stream has a maximum lifetime of 60 seconds before it will be broken and an UNAVAILABLE status
+   * code will be raised. Give that UNAVAILABLE is expected for streams, this class allows for
+   * defining a set of status code numbers which are given a grace count of 1 before backoff kicks
+   * in. When backoff does kick in, it is implemented using the same calculations as {@link
+   * org.apache.beam.sdk.util.FluentBackoff}.
+   */
+  static final class StatusCodeAwareBackoff {
+    private static final double RANDOMIZATION_FACTOR = 0.5;
+    private static final Duration MAX_BACKOFF = Duration.standardMinutes(1);
+    private static final Duration MAX_CUMULATIVE_BACKOFF = Duration.standardMinutes(1);
+
+    private final Random rand;
+    private final int maxAttempts;
+    private final Duration initialBackoff;
+    private final Set<Integer> graceStatusCodeNumbers;
+    private final MovingFunction graceStatusCodeTracker;
+
+    private Duration cumulativeBackoff;
+    private int attempt;
+
+    StatusCodeAwareBackoff(
+        Random rand,
+        int maxAttempts,
+        Duration throttleDuration,
+        Set<Integer> graceStatusCodeNumbers) {
+      this.rand = rand;
+      this.graceStatusCodeNumbers = graceStatusCodeNumbers;
+      this.maxAttempts = maxAttempts;
+      this.initialBackoff = throttleDuration;
+      this.graceStatusCodeTracker = createGraceStatusCodeTracker();
+      this.cumulativeBackoff = Duration.ZERO;
+      this.attempt = 1;
+    }
+
+    BackoffResult nextBackoff(Instant now, int statusCodeNumber) {
+      if (graceStatusCodeNumbers.contains(statusCodeNumber)) {
+        long nowMillis = now.getMillis();
+        long numGraceStatusCode = graceStatusCodeTracker.get(nowMillis);
+        graceStatusCodeTracker.add(nowMillis, 1);
+        if (numGraceStatusCode < 1) {
+          return BackoffResults.NONE;
+        } else {
+          return doBackoff();
+        }
+      } else {
+        return doBackoff();
+      }
+    }
+
+    private BackoffResult doBackoff() {
+      // Maximum number of retries reached.
+      if (attempt >= maxAttempts) {
+        return BackoffResults.EXHAUSTED;
+      }
+      // Maximum cumulative backoff reached.
+      if (cumulativeBackoff.compareTo(MAX_CUMULATIVE_BACKOFF) >= 0) {
+        return BackoffResults.EXHAUSTED;
+      }
+
+      double currentIntervalMillis =
+          Math.min(
+              initialBackoff.getMillis() * Math.pow(1.5, attempt - 1), MAX_BACKOFF.getMillis());
+      double randomOffset =
+          (rand.nextDouble() * 2 - 1) * RANDOMIZATION_FACTOR * currentIntervalMillis;
+      long nextBackoffMillis = Math.round(currentIntervalMillis + randomOffset);
+      // Cap to limit on cumulative backoff
+      Duration remainingCumulative = MAX_CUMULATIVE_BACKOFF.minus(cumulativeBackoff);
+      nextBackoffMillis = Math.min(nextBackoffMillis, remainingCumulative.getMillis());
+
+      // Update state and return backoff.
+      cumulativeBackoff = cumulativeBackoff.plus(Duration.millis(nextBackoffMillis));
+      attempt += 1;
+      return new BackoffDuration(Duration.millis(nextBackoffMillis));
+    }
+
+    private static MovingFunction createGraceStatusCodeTracker() {
+      return createMovingFunction(Duration.standardMinutes(1), Duration.millis(500));
+    }
+
+    interface BackoffResult {}
+
+    enum BackoffResults implements BackoffResult {
+      EXHAUSTED,
+      NONE
+    }
+
+    static final class BackoffDuration implements BackoffResult {
+      private final Duration duration;
+
+      BackoffDuration(Duration duration) {
+        this.duration = duration;
+      }
+
+      Duration getDuration() {
+        return duration;
+      }
+
+      @Override
+      public boolean equals(@Nullable Object o) {
+        if (this == o) {
+          return true;
+        }
+        if (!(o instanceof BackoffDuration)) {
+          return false;
+        }
+        BackoffDuration that = (BackoffDuration) o;
+        return Objects.equals(duration, that.duration);
+      }
+
+      @Override
+      public int hashCode() {
+        return Objects.hash(duration);
+      }
+
+      @Override
+      public String toString() {
+        return "BackoffDuration{" + "duration=" + duration + '}';
       }
     }
   }

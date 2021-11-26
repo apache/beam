@@ -135,7 +135,7 @@ complexity. Beam Katas are available for both Java and Python SDKs.
 
 *   **[Java API Reference](https://beam.apache.org/documentation/sdks/javadoc/)** - Official API Reference for the Java SDK.
 *   **[Python API Reference](https://beam.apache.org/documentation/sdks/pydoc/)** - Official API Reference for the Python SDK.
-*   **[Go API Reference](https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam)** - Official API Reference for the Go SDK.
+*   **[Go API Reference](https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam)** - Official API Reference for the Go SDK.
 
 ## Feedback and Suggestions {#feedback-and-suggestions}
 

@@ -22,8 +22,8 @@ import (
 	"io"
 	"math/rand"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 // ReshuffleInput is a Node.
@@ -62,7 +62,7 @@ func (n *ReshuffleInput) StartBundle(ctx context.Context, id string, data DataCo
 
 func (n *ReshuffleInput) ProcessElement(ctx context.Context, value *FullValue, values ...ReStream) error {
 	n.b.Reset()
-	if err := EncodeWindowedValueHeader(n.wEnc, value.Windows, value.Timestamp, &n.b); err != nil {
+	if err := EncodeWindowedValueHeader(n.wEnc, value.Windows, value.Timestamp, value.Pane, &n.b); err != nil {
 		return err
 	}
 	if err := n.enc.Encode(value, &n.b); err != nil {
@@ -135,7 +135,7 @@ func (n *ReshuffleOutput) ProcessElement(ctx context.Context, value *FullValue, 
 			return errors.WithContextf(err, "reading values for %v", n)
 		}
 		n.b = *bytes.NewBuffer(v.Elm.([]byte))
-		ws, ts, err := DecodeWindowedValueHeader(n.wDec, &n.b)
+		ws, ts, pn, err := DecodeWindowedValueHeader(n.wDec, &n.b)
 		if err != nil {
 			return errors.WithContextf(err, "decoding windows for %v", n)
 		}
@@ -144,6 +144,7 @@ func (n *ReshuffleOutput) ProcessElement(ctx context.Context, value *FullValue, 
 		}
 		n.ret.Windows = ws
 		n.ret.Timestamp = ts
+		n.ret.Pane = pn
 		if err := n.Out.ProcessElement(ctx, &n.ret); err != nil {
 			return err
 		}

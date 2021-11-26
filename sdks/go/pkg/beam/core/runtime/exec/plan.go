@@ -21,44 +21,30 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"sync"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 // Plan represents the bundle execution plan. It will generally be constructed
 // from a part of a pipeline. A plan can be used to process multiple bundles
 // serially.
 type Plan struct {
-	id       string
-	roots    []Root
-	units    []Unit
-	parDoIDs []string
+	id    string // id of the bundle descriptor for this plan
+	roots []Root
+	units []Unit
+	pcols []*PCollection
 
 	status Status
-
-	// While the store is threadsafe, the reference to it
-	// is not, so we need to protect the store field to be
-	// able to asynchronously provide tentative metrics.
-	storeMu sync.Mutex
-	store   *metrics.Store
 
 	// TODO: there can be more than 1 DataSource in a bundle.
 	source *DataSource
 }
 
-// hasPID provides a common interface for extracting PTransformIDs
-// from Units.
-type hasPID interface {
-	GetPID() string
-}
-
 // NewPlan returns a new bundle execution plan from the given units.
 func NewPlan(id string, units []Unit) (*Plan, error) {
 	var roots []Root
+	var pcols []*PCollection
 	var source *DataSource
-	var pardoIDs []string
 
 	for _, u := range units {
 		if u == nil {
@@ -70,8 +56,8 @@ func NewPlan(id string, units []Unit) (*Plan, error) {
 		if s, ok := u.(*DataSource); ok {
 			source = s
 		}
-		if p, ok := u.(hasPID); ok {
-			pardoIDs = append(pardoIDs, p.GetPID())
+		if p, ok := u.(*PCollection); ok {
+			pcols = append(pcols, p)
 		}
 	}
 	if len(roots) == 0 {
@@ -79,12 +65,12 @@ func NewPlan(id string, units []Unit) (*Plan, error) {
 	}
 
 	return &Plan{
-		id:       id,
-		status:   Initializing,
-		roots:    roots,
-		units:    units,
-		parDoIDs: pardoIDs,
-		source:   source,
+		id:     id,
+		status: Initializing,
+		roots:  roots,
+		units:  units,
+		pcols:  pcols,
+		source: source,
 	}, nil
 }
 
@@ -102,10 +88,6 @@ func (p *Plan) SourcePTransformID() string {
 // are brought up on the first execution. If a bundle fails, the plan cannot
 // be reused for further bundles. Does not panic. Blocking.
 func (p *Plan) Execute(ctx context.Context, id string, manager DataContext) error {
-	ctx = metrics.SetBundleID(ctx, p.id)
-	p.storeMu.Lock()
-	p.store = metrics.GetStore(ctx)
-	p.storeMu.Unlock()
 	if p.status == Initializing {
 		for _, u := range p.units {
 			if err := callNoPanic(ctx, u.Up); err != nil {
@@ -181,19 +163,28 @@ func (p *Plan) String() string {
 	return fmt.Sprintf("Plan[%v]:\n%v", p.ID(), strings.Join(units, "\n"))
 }
 
-// Progress returns a snapshot of input progress of the plan, and associated metrics.
-func (p *Plan) Progress() (ProgressReportSnapshot, bool) {
-	if p.source != nil {
-		return p.source.Progress(), true
-	}
-	return ProgressReportSnapshot{}, false
+// PlanSnapshot contains system metrics for the current run of the plan.
+type PlanSnapshot struct {
+	Source ProgressReportSnapshot
+	PCols  []PCollectionSnapshot
 }
 
-// Store returns the metric store for the last use of this plan.
-func (p *Plan) Store() *metrics.Store {
-	p.storeMu.Lock()
-	defer p.storeMu.Unlock()
-	return p.store
+// Progress returns a snapshot of progress of the plan, and associated metrics.
+// The retuend boolean indicates whether the plan includes a DataSource, which is
+// important for handling legacy metrics. This boolean will be removed once
+// we no longer return legacy metrics.
+func (p *Plan) Progress() (PlanSnapshot, bool) {
+	pcolSnaps := make([]PCollectionSnapshot, 0, len(p.pcols)+1) // include space for the datasource pcollection.
+	for _, pcol := range p.pcols {
+		pcolSnaps = append(pcolSnaps, pcol.snapshot())
+	}
+	snap := PlanSnapshot{PCols: pcolSnaps}
+	if p.source != nil {
+		snap.Source = p.source.Progress()
+		snap.PCols = append(pcolSnaps, snap.Source.pcol)
+		return snap, true
+	}
+	return snap, false
 }
 
 // SplitPoints captures the split requested by the Runner.

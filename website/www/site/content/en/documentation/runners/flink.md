@@ -87,13 +87,13 @@ Flink [Setup Quickstart](https://ci.apache.org/projects/flink/flink-docs-stable/
 {{< paragraph class="language-java" >}}
 You must specify your dependency on the Flink Runner
 in your `pom.xml` or `build.gradle`. Use the Beam version and the artifact id
-from the above table. For example:
+from the [compatibility table](#flink-version-compatibility) below. For example:
 {{< /paragraph >}}
 
 {{< highlight java >}}
 <dependency>
   <groupId>org.apache.beam</groupId>
-  <artifactId>beam-runners-flink-1.6</artifactId>
+  <artifactId>beam-runners-flink-1.13</artifactId>
   <version>{{< param release_latest >}}</version>
 </dependency>
 {{< /highlight >}}
@@ -122,7 +122,7 @@ $ mvn package -Pflink-runner
 
 {{< paragraph class="language-java" >}}
 Look for the output JAR of this command in the
-install apache_beam``target` folder.
+`target` folder.
 {{< /paragraph >}}
 
 {{< paragraph class="language-java" >}}
@@ -500,4 +500,3 @@ capabilities of the classic Flink Runner.
 The [Portable Capability
 Matrix](https://s.apache.org/apache-beam-portability-support-table) documents
 the capabilities of the portable Flink Runner.
-

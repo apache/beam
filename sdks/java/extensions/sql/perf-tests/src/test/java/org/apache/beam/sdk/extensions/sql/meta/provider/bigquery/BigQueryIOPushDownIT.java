@@ -46,9 +46,9 @@ import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSet;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSets;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptRule;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.RuleSet;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.RuleSets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -188,7 +188,6 @@ public class BigQueryIOPushDownIT {
     Set<Function<MetricsReader, NamedTestResult>> readSuppliers = getReadSuppliers(uuid, timestamp);
     IOITMetrics readMetrics =
         new IOITMetrics(readSuppliers, readResult, NAMESPACE, uuid, timestamp);
-    readMetrics.publish(metricsBigQueryDataset, metricsBigQueryTable + postfix);
     readMetrics.publishToInflux(settings.copyWithMeasurement(settings.measurement + postfix));
   }
 

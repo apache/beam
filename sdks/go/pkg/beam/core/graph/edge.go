@@ -20,12 +20,12 @@ import (
 	"reflect"
 	"sort"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 // Opcode represents a primitive Beam instruction kind.
@@ -387,7 +387,13 @@ func NewTaggedExternal(g *Graph, s *Scope, payload *Payload, ins []*Inbound, out
 	edge.Op = External
 	edge.Payload = payload
 
-	windowingStrategy := inputWindow([]*Node{ins[0].From})
+	var windowingStrategy *window.WindowingStrategy
+	if len(ins) == 0 {
+		windowingStrategy = window.DefaultWindowingStrategy()
+	} else {
+		windowingStrategy = inputWindow([]*Node{ins[0].From})
+	}
+
 	for _, o := range outs {
 		o.To.w = windowingStrategy
 		o.To.bounded = bounded
@@ -527,13 +533,13 @@ func NewImpulse(g *Graph, s *Scope, value []byte) *MultiEdge {
 }
 
 // NewWindowInto inserts a new WindowInto edge into the graph.
-func NewWindowInto(g *Graph, s *Scope, wfn *window.Fn, in *Node) *MultiEdge {
-	n := g.NewNode(in.Type(), &window.WindowingStrategy{Fn: wfn}, in.Bounded())
+func NewWindowInto(g *Graph, s *Scope, ws *window.WindowingStrategy, in *Node) *MultiEdge {
+	n := g.NewNode(in.Type(), ws, in.Bounded())
 	n.Coder = in.Coder
 
 	edge := g.NewEdge(s)
 	edge.Op = WindowInto
-	edge.WindowFn = wfn
+	edge.WindowFn = ws.Fn
 	edge.Input = []*Inbound{{Kind: Main, From: in, Type: in.Type()}}
 	edge.Output = []*Outbound{{To: n, Type: in.Type()}}
 	return edge

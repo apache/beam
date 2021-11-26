@@ -80,8 +80,9 @@ detail.
    changes locally.
  - For SDK Development:
       - [Go](https://golang.org) 1.12 or later installed for Go SDK development
- - Python 3.6, 3.7, and 3.8. Yes, you need all three versions installed.
-      - pip, setuptools, virtualenv, and tox installed for Python development
+      - Python 3.x interpreters. You will need Python interpreters for all Python versions supported by Beam.
+        Interpreters should be installed and available in shell via `python3.x` commands. For more information, see:
+        Python installation tips in [Developer Wiki](https://cwiki.apache.org/confluence/display/BEAM/Python+Tips#PythonTips-InstallingPythoninterpreters).
  - For large contributions, a signed [Individual Contributor License
    Agreement](https://www.apache.org/licenses/icla.pdf) (ICLA) to the Apache
    Software Foundation (ASF).
@@ -139,7 +140,7 @@ You can install these in a Debian-based distribution for Linux or macOs using th
 * Python
 * Docker
 
-To istall:
+To install:
 
 1. Execute:
 ```
@@ -313,12 +314,12 @@ export GOLANG_PROTOBUF_REGISTRATION_CONFLICT=ignore
    and keeps comment threads attached to the code.
    Please refrain from squashing new commits into reviewed commits before review is completed.
    Because squashing reviewed and unreviewed commits often makes it harder to
-   see the the difference between the review iterations, reviewers may ask you to unsquash new changes.
+   see the difference between the review iterations, reviewers may ask you to unsquash new changes.
 
 1. After review is complete and the PR is accepted, fixup commits should be squashed (see [Git workflow tips](https://cwiki.apache.org/confluence/display/BEAM/Git+Tips)).
    Beam committers [can squash](https://beam.apache.org/contribute/committer-guide/#merging-it)
    all commits in the PR during merge, however if a PR has a mixture of independent changes that should not be squashed, and fixup commits,
-   then the PR author should help squashing fixup commits to maintain a clean commmit history.
+   then the PR author should help squashing fixup commits to maintain a clean commit history.
 
 </div>
 

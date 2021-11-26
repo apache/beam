@@ -21,13 +21,8 @@ import static org.junit.Assert.assertEquals;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.values.PCollection;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -40,36 +35,19 @@ import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 
 /** Tests on {@link SqsIO}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SqsIOTest {
 
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
-  @Test
-  public void testRead() {
-    final SqsClient client = EmbeddedSqsServer.getClient();
-    final String queueUrl = EmbeddedSqsServer.getQueueUrl();
-
-    final PCollection<SqsMessage> output =
-        pipeline.apply(
-            SqsIO.read()
-                .withSqsClientProvider(SqsClientProviderMock.of(client))
-                .withQueueUrl(queueUrl)
-                .withMaxNumRecords(100));
-
-    PAssert.thatSingleton(output.apply(Count.globally())).isEqualTo(100L);
-
-    for (int i = 0; i < 100; i++) {
-      SendMessageRequest sendMessageRequest =
-          SendMessageRequest.builder().queueUrl(queueUrl).messageBody("This is a test").build();
-      client.sendMessage(sendMessageRequest);
-    }
-    pipeline.run();
-  }
+  @Rule public EmbeddedSqsServer embeddedSqsRestServer = new EmbeddedSqsServer();
 
   @Test
   public void testWrite() {
-    final SqsClient client = EmbeddedSqsServer.getClient();
-    final String queueUrl = EmbeddedSqsServer.getQueueUrl();
+    final SqsClient client = embeddedSqsRestServer.getClient();
+    final String queueUrl = embeddedSqsRestServer.getQueueUrl();
 
     List<SendMessageRequest> messages = new ArrayList<>();
     for (int i = 0; i < 100; i++) {
@@ -104,15 +82,5 @@ public class SqsIOTest {
     for (int i = 0; i < 100; i++) {
       received.contains("This is a test " + i);
     }
-  }
-
-  @BeforeClass
-  public static void before() {
-    EmbeddedSqsServer.start();
-  }
-
-  @AfterClass
-  public static void after() {
-    EmbeddedSqsServer.stop();
   }
 }

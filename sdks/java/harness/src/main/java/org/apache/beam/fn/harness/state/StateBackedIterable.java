@@ -90,9 +90,7 @@ public class StateBackedIterable<T> implements Iterable<T>, Serializable {
     return Iterators.concat(
         prefix.iterator(),
         new DataStreams.DataStreamDecoder(
-            elemCoder,
-            DataStreams.inbound(
-                StateFetchingIterators.readAllStartingFrom(beamFnStateClient, request))));
+            elemCoder, StateFetchingIterators.readAllStartingFrom(beamFnStateClient, request)));
   }
 
   protected Object writeReplace() throws ObjectStreamException {

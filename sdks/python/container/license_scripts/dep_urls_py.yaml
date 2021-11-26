@@ -41,10 +41,15 @@ pip_dependencies:
     notice: "https://raw.githubusercontent.com/apache/avro/master/NOTICE.txt"
   backports.weakref:
     license: "https://raw.githubusercontent.com/PiDelport/backports.weakref/master/LICENSE"
+  bs4:
+    # bs4 is a dummy PyPI package setup for beautifulsoup4.
+    license: "skip"
   chardet:
     license: "https://raw.githubusercontent.com/chardet/chardet/master/LICENSE"
   certifi:
     license: "https://raw.githubusercontent.com/certifi/python-certifi/master/LICENSE"
+  clang:
+    license: "https://raw.githubusercontent.com/llvm/llvm-project/main/clang/LICENSE.TXT"
   cython:
     license: "https://raw.githubusercontent.com/cython/cython/master/LICENSE.txt"
   dataclasses:
@@ -66,6 +71,8 @@ pip_dependencies:
     license: "https://raw.githubusercontent.com/google/apitools/master/LICENSE"
   googledatastore:
     license: "https://raw.githubusercontent.com/GoogleCloudPlatform/google-cloud-datastore/master/LICENSE"
+  google-python-cloud-debugger:
+    license: "https://raw.githubusercontent.com/GoogleCloudPlatform/cloud-debug-python/master/LICENSE"
   grpcio:
     license: "https://raw.githubusercontent.com/grpc/grpc/master/LICENSE"
     notice: "https://raw.githubusercontent.com/grpc/grpc/master/NOTICE.txt"

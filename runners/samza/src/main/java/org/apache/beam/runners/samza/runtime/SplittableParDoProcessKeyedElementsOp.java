@@ -115,8 +115,8 @@ public class SplittableParDoProcessKeyedElementsOp<
             .as(SamzaPipelineOptions.class);
 
     final SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory =
-        SamzaStoreStateInternals.createStateInternalFactory(
-            transformId, null, context.getTaskContext(), pipelineOptions, null);
+        SamzaStoreStateInternals.createNonKeyedStateInternalsFactory(
+            transformId, context.getTaskContext(), pipelineOptions);
 
     final DoFnRunners.OutputManager outputManager = outputManagerFactory.create(emitter);
 
@@ -148,6 +148,7 @@ public class SplittableParDoProcessKeyedElementsOp<
     DoFnInvokers.tryInvokeSetupFor(processFn, pipelineOptions);
     processFn.setStateInternalsFactory(stateInternalsFactory);
     processFn.setTimerInternalsFactory(timerInternalsFactory);
+    processFn.setSideInputReader(NullSideInputReader.empty());
     processFn.setProcessElementInvoker(
         new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
             processElements.getFn(),

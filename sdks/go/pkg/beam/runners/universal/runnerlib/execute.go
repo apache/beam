@@ -20,13 +20,13 @@ import (
 	"os"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/metricsx"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	jobpb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
-	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
-	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/metricsx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
 )
 
 // Execute executes a pipeline on the universal runner serving the given endpoint.
@@ -94,7 +94,7 @@ func Execute(ctx context.Context, p *pipepb.Pipeline, endpoint string, opt *JobO
 	}
 	err = WaitForCompletion(ctx, client, jobID)
 
-	res, presultErr := newUniversalPipelineResult(ctx, jobID, client)
+	res, presultErr := newUniversalPipelineResult(ctx, jobID, client, p)
 	if presultErr != nil {
 		if err != nil {
 			return presult, errors.Wrap(err, presultErr.Error())
@@ -109,7 +109,7 @@ type universalPipelineResult struct {
 	metrics *metrics.Results
 }
 
-func newUniversalPipelineResult(ctx context.Context, jobID string, client jobpb.JobServiceClient) (*universalPipelineResult, error) {
+func newUniversalPipelineResult(ctx context.Context, jobID string, client jobpb.JobServiceClient, p *pipepb.Pipeline) (*universalPipelineResult, error) {
 	request := &jobpb.GetJobMetricsRequest{JobId: jobID}
 	response, err := client.GetJobMetrics(ctx, request)
 	if err != nil {
@@ -117,7 +117,7 @@ func newUniversalPipelineResult(ctx context.Context, jobID string, client jobpb.
 	}
 
 	monitoredStates := response.GetMetrics()
-	metrics := metricsx.FromMonitoringInfos(monitoredStates.Attempted, monitoredStates.Committed)
+	metrics := metricsx.FromMonitoringInfos(p, monitoredStates.Attempted, monitoredStates.Committed)
 	return &universalPipelineResult{jobID, metrics}, nil
 }
 

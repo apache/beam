@@ -16,10 +16,10 @@
 package dataflowlib
 
 import (
-	"encoding/json"
 	"fmt"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	df "google.golang.org/api/dataflow/v1b3"
 )
 
@@ -29,14 +29,14 @@ import (
 // Dataflow currently only reports Counter and Distribution metrics to Cloud
 // Monitoring. Gauge metrics are not supported. The output metrics.Results will
 // not contain any gauges.
-func FromMetricUpdates(allMetrics []*df.MetricUpdate, job *df.Job) *metrics.Results {
-	ac, ad := groupByType(allMetrics, job, true)
-	cc, cd := groupByType(allMetrics, job, false)
+func FromMetricUpdates(allMetrics []*df.MetricUpdate, p *pipepb.Pipeline) *metrics.Results {
+	ac, ad := groupByType(allMetrics, p, true)
+	cc, cd := groupByType(allMetrics, p, false)
 
-	return metrics.NewResults(metrics.MergeCounters(ac, cc), metrics.MergeDistributions(ad, cd), make([]metrics.GaugeResult, 0))
+	return metrics.NewResults(metrics.MergeCounters(ac, cc), metrics.MergeDistributions(ad, cd), make([]metrics.GaugeResult, 0), make([]metrics.MsecResult, 0), make([]metrics.PColResult, 0))
 }
 
-func groupByType(allMetrics []*df.MetricUpdate, job *df.Job, tentative bool) (
+func groupByType(allMetrics []*df.MetricUpdate, p *pipepb.Pipeline, tentative bool) (
 	map[metrics.StepKey]int64,
 	map[metrics.StepKey]metrics.DistributionValue) {
 	counters := make(map[metrics.StepKey]int64)
@@ -48,7 +48,7 @@ func groupByType(allMetrics []*df.MetricUpdate, job *df.Job, tentative bool) (
 			continue
 		}
 
-		key, err := extractKey(metric, job)
+		key, err := extractKey(metric, p)
 		if err != nil {
 			continue
 		}
@@ -70,18 +70,16 @@ func groupByType(allMetrics []*df.MetricUpdate, job *df.Job, tentative bool) (
 	return counters, distributions
 }
 
-func extractKey(metric *df.MetricUpdate, job *df.Job) (metrics.StepKey, error) {
+func extractKey(metric *df.MetricUpdate, p *pipepb.Pipeline) (metrics.StepKey, error) {
 	stepName, ok := metric.Name.Context["step"]
 	if !ok {
 		return metrics.StepKey{}, fmt.Errorf("could not find the internal step name")
 	}
 	userStepName := ""
 
-	for _, step := range job.Steps {
-		if step.Name == stepName {
-			properties := make(map[string]string)
-			json.Unmarshal(step.Properties, &properties)
-			userStepName = properties["user_name"]
+	for k, transform := range p.GetComponents().GetTransforms() {
+		if k == stepName {
+			userStepName = transform.GetUniqueName()
 			break
 		}
 	}

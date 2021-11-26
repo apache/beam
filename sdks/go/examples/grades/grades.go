@@ -18,14 +18,24 @@ package main
 import (
 	"context"
 	"flag"
+	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
-	"github.com/apache/beam/sdks/go/pkg/beam/transforms/top"
-	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
-	"github.com/apache/beam/sdks/go/pkg/beam/x/debug"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/top"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
 )
+
+func init() {
+	beam.RegisterFunction(printTopFn)
+	beam.RegisterFunction(less)
+	beam.RegisterFunction(alphabetically)
+	beam.RegisterFunction(keyGrade)
+	beam.RegisterFunction(getGPA)
+	beam.RegisterType(reflect.TypeOf((*Grade)(nil)))
+}
 
 type Grade struct {
 	Name string
@@ -46,6 +56,12 @@ func printTopFn(ctx context.Context, list []Grade) {
 		log.Infof(ctx, " %v:\t%v\t(GPA: %v)", i+1, student.Name, student.GPA)
 	}
 }
+
+func keyGrade(g Grade) (string, Grade) {
+	return g.Name[:1], g
+}
+
+func getGPA(g Grade) float32 { return g.GPA }
 
 func main() {
 	flag.Parse()
@@ -77,9 +93,7 @@ func main() {
 
 	// (2) Print top student per initial (then ordered by name)
 
-	keyed := beam.ParDo(s, func(g Grade) (string, Grade) {
-		return g.Name[:1], g
-	}, students)
+	keyed := beam.ParDo(s, keyGrade, students)
 	keyedBest := top.LargestPerKey(s, keyed, 1, less)
 	unkeyed := beam.Explode(s, beam.DropKey(s, keyedBest))
 
@@ -93,7 +107,7 @@ func main() {
 
 	// (4) Print min/max/sum/mean grades
 
-	grades := beam.ParDo(s, func(g Grade) float32 { return g.GPA }, students)
+	grades := beam.ParDo(s, getGPA, students)
 	debug.Printf(s, "Min: %v", stats.Min(s, grades))
 	debug.Printf(s, "Max: %v", stats.Max(s, grades))
 	debug.Printf(s, "Sum: %v", stats.Sum(s, grades))

@@ -62,9 +62,13 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.WithFailures;
+import org.apache.beam.sdk.transforms.WithFailures.Result;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.values.EncodableThrowable;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -126,6 +130,12 @@ public class PubsubIO {
   private static final int PUBSUB_NAME_MIN_LENGTH = 3;
   private static final int PUBSUB_NAME_MAX_LENGTH = 255;
 
+  // See https://cloud.google.com/pubsub/quotas#resource_limits.
+  private static final int PUBSUB_MESSAGE_DATA_MAX_LENGTH = 10 << 20;
+  private static final int PUBSUB_MESSAGE_MAX_ATTRIBUTES = 100;
+  private static final int PUBSUB_MESSAGE_ATTRIBUTE_MAX_KEY_LENGTH = 256;
+  private static final int PUBSUB_MESSAGE_ATTRIBUTE_MAX_VALUE_LENGTH = 1024;
+
   private static final String SUBSCRIPTION_RANDOM_TEST_PREFIX = "_random/";
   private static final String SUBSCRIPTION_STARTING_SIGNAL = "_starting_signal/";
   private static final String TOPIC_DEV_NULL_TEST_NAME = "/topics/dev/null";
@@ -161,6 +171,48 @@ public class PubsubIO {
     }
   }
 
+  private static void validatePubsubMessage(PubsubMessage message)
+      throws SizeLimitExceededException {
+    if (message.getPayload().length > PUBSUB_MESSAGE_DATA_MAX_LENGTH) {
+      throw new SizeLimitExceededException(
+          "Pubsub message data field of length "
+              + message.getPayload().length
+              + " exceeds maximum of "
+              + PUBSUB_MESSAGE_DATA_MAX_LENGTH
+              + ". See https://cloud.google.com/pubsub/quotas#resource_limits");
+    }
+    @Nullable Map<String, String> attributes = message.getAttributeMap();
+    if (attributes != null) {
+      if (attributes.size() > PUBSUB_MESSAGE_MAX_ATTRIBUTES) {
+        throw new SizeLimitExceededException(
+            "Pubsub message contains "
+                + attributes.size()
+                + " attributes which exceeds the maximum of "
+                + PUBSUB_MESSAGE_MAX_ATTRIBUTES
+                + ". See https://cloud.google.com/pubsub/quotas#resource_limits");
+      }
+      for (Map.Entry<String, String> attribute : attributes.entrySet()) {
+        if (attribute.getKey().length() > PUBSUB_MESSAGE_ATTRIBUTE_MAX_KEY_LENGTH) {
+          throw new SizeLimitExceededException(
+              "Pubsub message attribute key "
+                  + attribute.getKey()
+                  + " exceeds the maximum of "
+                  + PUBSUB_MESSAGE_ATTRIBUTE_MAX_KEY_LENGTH
+                  + ". See https://cloud.google.com/pubsub/quotas#resource_limits");
+        }
+        String value = attribute.getValue();
+        if (value.length() > PUBSUB_MESSAGE_ATTRIBUTE_MAX_VALUE_LENGTH) {
+          throw new SizeLimitExceededException(
+              "Pubsub message attribute value starting with "
+                  + value.substring(0, Math.min(256, value.length()))
+                  + " exceeds the maximum of "
+                  + PUBSUB_MESSAGE_ATTRIBUTE_MAX_VALUE_LENGTH
+                  + ". See https://cloud.google.com/pubsub/quotas#resource_limits");
+        }
+      }
+    }
+  }
+
   /** Populate common {@link DisplayData} between Pubsub source and sink. */
   private static void populateCommonDisplayData(
       DisplayData.Builder builder,
@@ -183,11 +235,11 @@ public class PubsubIO {
       FAKE
     }
 
-    private final Type type;
+    private final PubsubSubscription.Type type;
     private final String project;
     private final String subscription;
 
-    private PubsubSubscription(Type type, String project, String subscription) {
+    private PubsubSubscription(PubsubSubscription.Type type, String project, String subscription) {
       this.type = type;
       this.project = project;
       this.subscription = subscription;
@@ -213,7 +265,7 @@ public class PubsubIO {
     public static PubsubSubscription fromPath(String path) {
       if (path.startsWith(SUBSCRIPTION_RANDOM_TEST_PREFIX)
           || path.startsWith(SUBSCRIPTION_STARTING_SIGNAL)) {
-        return new PubsubSubscription(Type.FAKE, "", path);
+        return new PubsubSubscription(PubsubSubscription.Type.FAKE, "", path);
       }
 
       String projectName, subscriptionName;
@@ -239,7 +291,7 @@ public class PubsubIO {
 
       validateProjectName(projectName);
       validatePubsubName(subscriptionName);
-      return new PubsubSubscription(Type.NORMAL, projectName, subscriptionName);
+      return new PubsubSubscription(PubsubSubscription.Type.NORMAL, projectName, subscriptionName);
     }
 
     /**
@@ -250,7 +302,7 @@ public class PubsubIO {
      */
     @Deprecated
     public String asV1Beta1Path() {
-      if (type == Type.NORMAL) {
+      if (type == PubsubSubscription.Type.NORMAL) {
         return "/subscriptions/" + project + "/" + subscription;
       } else {
         return subscription;
@@ -265,7 +317,7 @@ public class PubsubIO {
      */
     @Deprecated
     public String asV1Beta2Path() {
-      if (type == Type.NORMAL) {
+      if (type == PubsubSubscription.Type.NORMAL) {
         return "projects/" + project + "/subscriptions/" + subscription;
       } else {
         return subscription;
@@ -277,7 +329,7 @@ public class PubsubIO {
      * API.
      */
     public String asPath() {
-      if (type == Type.NORMAL) {
+      if (type == PubsubSubscription.Type.NORMAL) {
         return "projects/" + project + "/subscriptions/" + subscription;
       } else {
         return subscription;
@@ -317,11 +369,11 @@ public class PubsubIO {
       FAKE
     }
 
-    private final Type type;
+    private final PubsubTopic.Type type;
     private final String project;
     private final String topic;
 
-    private PubsubTopic(Type type, String project, String topic) {
+    private PubsubTopic(PubsubTopic.Type type, String project, String topic) {
       this.type = type;
       this.project = project;
       this.topic = topic;
@@ -345,7 +397,7 @@ public class PubsubIO {
      */
     public static PubsubTopic fromPath(String path) {
       if (path.equals(TOPIC_DEV_NULL_TEST_NAME)) {
-        return new PubsubTopic(Type.FAKE, "", path);
+        return new PubsubTopic(PubsubTopic.Type.FAKE, "", path);
       }
 
       String projectName, topicName;
@@ -369,7 +421,7 @@ public class PubsubIO {
 
       validateProjectName(projectName);
       validatePubsubName(topicName);
-      return new PubsubTopic(Type.NORMAL, projectName, topicName);
+      return new PubsubTopic(PubsubTopic.Type.NORMAL, projectName, topicName);
     }
 
     /**
@@ -380,7 +432,7 @@ public class PubsubIO {
      */
     @Deprecated
     public String asV1Beta1Path() {
-      if (type == Type.NORMAL) {
+      if (type == PubsubTopic.Type.NORMAL) {
         return "/topics/" + project + "/" + topic;
       } else {
         return topic;
@@ -395,7 +447,7 @@ public class PubsubIO {
      */
     @Deprecated
     public String asV1Beta2Path() {
-      if (type == Type.NORMAL) {
+      if (type == PubsubTopic.Type.NORMAL) {
         return "projects/" + project + "/topics/" + topic;
       } else {
         return topic;
@@ -404,7 +456,7 @@ public class PubsubIO {
 
     /** Returns the string representation of this topic as a path used in the Cloud Pub/Sub API. */
     public String asPath() {
-      if (type == Type.NORMAL) {
+      if (type == PubsubTopic.Type.NORMAL) {
         return "projects/" + project + "/topics/" + topic;
       } else {
         return topic;
@@ -643,6 +695,8 @@ public class PubsubIO {
 
     abstract @Nullable ValueProvider<PubsubTopic> getTopicProvider();
 
+    abstract @Nullable ValueProvider<PubsubTopic> getDeadLetterTopicProvider();
+
     abstract PubsubClient.PubsubClientFactory getPubsubClientFactory();
 
     abstract @Nullable ValueProvider<PubsubSubscription> getSubscriptionProvider();
@@ -692,6 +746,8 @@ public class PubsubIO {
     @AutoValue.Builder
     abstract static class Builder<T> {
       abstract Builder<T> setTopicProvider(ValueProvider<PubsubTopic> topic);
+
+      abstract Builder<T> setDeadLetterTopicProvider(ValueProvider<PubsubTopic> deadLetterTopic);
 
       abstract Builder<T> setPubsubClientFactory(PubsubClient.PubsubClientFactory clientFactory);
 
@@ -763,15 +819,60 @@ public class PubsubIO {
       return fromTopic(StaticValueProvider.of(topic));
     }
 
-    /** Like {@code topic()} but with a {@link ValueProvider}. */
+    /** Like {@link Read#fromTopic(String)} but with a {@link ValueProvider}. */
     public Read<T> fromTopic(ValueProvider<String> topic) {
-      if (topic.isAccessible()) {
-        // Validate.
-        PubsubTopic.fromPath(topic.get());
-      }
+      validateTopic(topic);
       return toBuilder()
           .setTopicProvider(NestedValueProvider.of(topic, PubsubTopic::fromPath))
           .build();
+    }
+
+    /**
+     * Creates and returns a transform for writing read failures out to a dead-letter topic.
+     *
+     * <p>The message written to the dead-letter will contain three attributes:
+     *
+     * <ul>
+     *   <li>exceptionClassName: The type of exception that was thrown.
+     *   <li>exceptionMessage: The message in the exception
+     *   <li>pubsubMessageId: The message id of the original Pub/Sub message if it was read in,
+     *       otherwise "<null>"
+     * </ul>
+     *
+     * <p>The {@link PubsubClient.PubsubClientFactory} used in the {@link Write} transform for
+     * errors will be the same as used in the final {@link Read} transform.
+     *
+     * <p>If there <i>might</i> be a parsing error (or similar), then this should be set up on the
+     * topic to avoid wasting resources and to provide more error details with the message written
+     * to Pub/Sub. Otherwise, the Pub/Sub topic should have a dead-letter configuration set up to
+     * avoid an infinite retry loop.
+     *
+     * <p>Only failures that result from the {@link Read} configuration (e.g. parsing errors) will
+     * be sent to the dead-letter topic. Errors that occur after a successful read will need to set
+     * up their own {@link Write} transform. Errors with delivery require configuring Pub/Sub itself
+     * to write to the dead-letter topic after a certain number of failed attempts.
+     *
+     * <p>See {@link PubsubIO.PubsubTopic#fromPath(String)} for more details on the format of the
+     * {@code deadLetterTopic} string.
+     */
+    public Read<T> withDeadLetterTopic(String deadLetterTopic) {
+      return withDeadLetterTopic(StaticValueProvider.of(deadLetterTopic));
+    }
+
+    /** Like {@link Read#withDeadLetterTopic(String)} but with a {@link ValueProvider}. */
+    public Read<T> withDeadLetterTopic(ValueProvider<String> deadLetterTopic) {
+      validateTopic(deadLetterTopic);
+      return toBuilder()
+          .setDeadLetterTopicProvider(
+              NestedValueProvider.of(deadLetterTopic, PubsubTopic::fromPath))
+          .build();
+    }
+
+    /** Handles validation of {@code topic}. */
+    private static void validateTopic(ValueProvider<String> topic) {
+      if (topic.isAccessible()) {
+        PubsubTopic.fromPath(topic.get());
+      }
     }
 
     /**
@@ -881,8 +982,60 @@ public class PubsubIO {
               getIdAttribute(),
               getNeedsAttributes(),
               getNeedsMessageId());
-      PCollection<T> read =
-          input.apply(source).apply(MapElements.into(new TypeDescriptor<T>() {}).via(getParseFn()));
+
+      PCollection<T> read;
+      PCollection<PubsubMessage> preParse = input.apply(source);
+      TypeDescriptor<T> typeDescriptor = new TypeDescriptor<T>() {};
+      if (getDeadLetterTopicProvider() == null) {
+        read = preParse.apply(MapElements.into(typeDescriptor).via(getParseFn()));
+      } else {
+        Result<PCollection<T>, KV<PubsubMessage, EncodableThrowable>> result =
+            preParse.apply(
+                "PubsubIO.Read/Map/Parse-Incoming-Messages",
+                MapElements.into(typeDescriptor)
+                    .via(getParseFn())
+                    .exceptionsVia(new WithFailures.ThrowableHandler<PubsubMessage>() {}));
+        read = result.output();
+
+        // Write out failures to the provided dead-letter topic.
+        result
+            .failures()
+            // Since the stack trace could easily exceed Pub/Sub limits, we need to remove it from
+            // the attributes.
+            .apply(
+                "PubsubIO.Read/Map/Remove-Stack-Trace-Attribute",
+                MapElements.into(new TypeDescriptor<KV<PubsubMessage, Map<String, String>>>() {})
+                    .via(
+                        kv -> {
+                          PubsubMessage message = kv.getKey();
+                          String messageId =
+                              message.getMessageId() == null ? "<null>" : message.getMessageId();
+                          Throwable throwable = kv.getValue().throwable();
+
+                          // In order to stay within Pub/Sub limits, we aren't adding the stack
+                          // trace to the attributes. Therefore, we need to log the throwable.
+                          LOG.error(
+                              "Error parsing Pub/Sub message with id '{}'", messageId, throwable);
+
+                          ImmutableMap<String, String> attributes =
+                              ImmutableMap.<String, String>builder()
+                                  .put("exceptionClassName", throwable.getClass().getName())
+                                  .put("exceptionMessage", throwable.getMessage())
+                                  .put("pubsubMessageId", messageId)
+                                  .build();
+
+                          return KV.of(kv.getKey(), attributes);
+                        }))
+            .apply(
+                "PubsubIO.Read/Map/Create-Dead-Letter-Payload",
+                MapElements.into(TypeDescriptor.of(PubsubMessage.class))
+                    .via(kv -> new PubsubMessage(kv.getKey().getPayload(), kv.getValue())))
+            .apply(
+                writeMessages()
+                    .to(getDeadLetterTopicProvider().get().asPath())
+                    .withClientFactory(getPubsubClientFactory()));
+      }
+
       return read.setCoder(getCoder());
     }
 
@@ -1040,15 +1193,6 @@ public class PubsubIO {
       return toBuilder().setIdAttribute(idAttribute).build();
     }
 
-    /**
-     * Used to write a PubSub message together with PubSub attributes. The user-supplied format
-     * function translates the input type T to a PubsubMessage object, which is used by the sink to
-     * separately set the PubSub message's payload and attributes.
-     */
-    private Write<T> withFormatFn(SimpleFunction<T, PubsubMessage> formatFn) {
-      return toBuilder().setFormatFn(formatFn).build();
-    }
-
     @Override
     public PDone expand(PCollection<T> input) {
       if (getTopicProvider() == null) {
@@ -1066,7 +1210,18 @@ public class PubsubIO {
           return PDone.in(input.getPipeline());
         case UNBOUNDED:
           return input
-              .apply(MapElements.into(new TypeDescriptor<PubsubMessage>() {}).via(getFormatFn()))
+              .apply(
+                  MapElements.into(new TypeDescriptor<PubsubMessage>() {})
+                      .via(
+                          elem -> {
+                            PubsubMessage message = getFormatFn().apply(elem);
+                            try {
+                              validatePubsubMessage(message);
+                            } catch (SizeLimitExceededException e) {
+                              throw new IllegalArgumentException(e);
+                            }
+                            return message;
+                          }))
               .apply(
                   new PubsubUnboundedSink(
                       getPubsubClientFactory(),
@@ -1128,6 +1283,7 @@ public class PubsubIO {
       public void processElement(ProcessContext c) throws IOException, SizeLimitExceededException {
         byte[] payload;
         PubsubMessage message = getFormatFn().apply(c.element());
+        validatePubsubMessage(message);
         payload = message.getPayload();
         Map<String, String> attributes = message.getAttributeMap();
 

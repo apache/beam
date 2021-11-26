@@ -19,6 +19,8 @@ package org.apache.beam.sdk.tpcds;
 
 import static org.junit.Assert.assertEquals;
 
+import java.util.HashSet;
+import java.util.Set;
 import org.junit.Test;
 
 public class QueryReaderTest {
@@ -64,6 +66,32 @@ public class QueryReaderTest {
     String query3StringNoSpaces = query3String.replaceAll("\\s+", "");
     String expectedNoSpaces = (headers + expected).replaceAll("\\s+", "");
     assertEquals(expectedNoSpaces, query3StringNoSpaces);
+  }
+
+  @Test
+  public void testQuery3Identifiers() throws Exception {
+    Set<String> expected = new HashSet<>();
+    expected.add("BRAND");
+    expected.add("BRAND_ID");
+    expected.add("D_DATE_SK");
+    expected.add("D_MOY");
+    expected.add("D_YEAR");
+    expected.add("DATE_DIM");
+    expected.add("DT");
+    expected.add("I_BRAND");
+    expected.add("I_BRAND_ID");
+    expected.add("I_ITEM_SK");
+    expected.add("I_MANUFACT_ID");
+    expected.add("ITEM");
+    expected.add("SS_EXT_SALES_PRICE");
+    expected.add("SS_ITEM_SK");
+    expected.add("SS_SOLD_DATE_SK");
+    expected.add("STORE_SALES");
+    expected.add("SUM_AGG");
+
+    String query3String = QueryReader.readQuery("query3");
+    Set<String> identifiers = QueryReader.getQueryIdentifiers(query3String);
+    assertEquals(expected, identifiers);
   }
 
   @Test

@@ -142,15 +142,8 @@ public class HistogramData implements Serializable {
 
   public synchronized String getPercentileString(String elemType, String unit) {
     return String.format(
-        "Total number of %s: %s, P99: %s%s, P90: %s%s, P50: %s%s",
-        elemType,
-        getTotalCount(),
-        DoubleMath.roundToInt(p99(), RoundingMode.HALF_UP),
-        unit,
-        DoubleMath.roundToInt(p90(), RoundingMode.HALF_UP),
-        unit,
-        DoubleMath.roundToInt(p50(), RoundingMode.HALF_UP),
-        unit);
+        "Total number of %s: %s, P99: %.0f %s, P90: %.0f %s, P50: %.0f %s",
+        elemType, getTotalCount(), p99(), unit, p90(), unit, p50(), unit);
   }
 
   /**
@@ -196,7 +189,7 @@ public class HistogramData implements Serializable {
   private synchronized double getLinearInterpolation(double percentile) {
     long totalNumOfRecords = getTotalCount();
     if (totalNumOfRecords == 0) {
-      throw new RuntimeException("histogram has no record.");
+      return Double.NaN;
     }
     int index;
     double recordSum = numBottomRecords;
@@ -245,10 +238,11 @@ public class HistogramData implements Serializable {
 
     public static LinearBuckets of(double start, double width, int numBuckets) {
       if (width <= 0) {
-        throw new RuntimeException(String.format("width should be greater than zero: %f", width));
+        throw new IllegalArgumentException(
+            String.format("width should be greater than zero: %f", width));
       }
       if (numBuckets <= 0) {
-        throw new RuntimeException(
+        throw new IllegalArgumentException(
             String.format("numBuckets should be greater than zero: %d", numBuckets));
       }
       return new AutoValue_HistogramData_LinearBuckets(start, width, numBuckets);

@@ -24,7 +24,6 @@ import sys
 import typing
 import unittest
 
-import apache_beam.typehints.typehints as typehints
 from apache_beam import Map
 from apache_beam import PTransform
 from apache_beam.pvalue import PBegin
@@ -38,6 +37,7 @@ from apache_beam.typehints import Tuple
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import Union
 from apache_beam.typehints import native_type_compatibility
+from apache_beam.typehints import typehints
 from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
 from apache_beam.typehints.decorators import GeneratorWrapper
@@ -267,6 +267,44 @@ class UnionHintTestCase(TypeHintTestCase):
         typehints.Union[()],
         typehints.Union[typehints.Union[()], typehints.Union[()]])
     self.assertEqual(int, typehints.Union[typehints.Union[()], int])
+
+  def test_match_type_variables(self):
+    A = typehints.TypeVariable('A')  # pylint: disable=invalid-name
+    B = typehints.TypeVariable('B')  # pylint: disable=invalid-name
+    self.assertEqual(
+        typehints.Union[A, int].match_type_variables(str), {A: str})
+    self.assertEqual(typehints.Union[A, int].match_type_variables(int), {})
+    self.assertEqual(typehints.Union[A, B, int].match_type_variables(str), {})
+    # We could do better here, but most importantly we don't want to
+    # incorrectly infer A is a float.
+    self.assertEqual(
+        typehints.Tuple[A, typehints.Union[A, B, int]].match_type_variables(
+            typehints.Tuple[str, float]), {A: str})
+
+    self.assertEqual(
+        typehints.Union[Tuple[str, A], Tuple[float, B]].match_type_variables(
+            typehints.Tuple[Any, int]), {})
+    self.assertEqual(
+        typehints.Union[Tuple[str, A], Tuple[float, A]].match_type_variables(
+            typehints.Tuple[Any, int]), {A: int})
+    self.assertEqual(
+        typehints.Union[Tuple[str, A], Tuple[float, B]].match_type_variables(
+            typehints.Tuple[str, int]), {A: int})
+
+  def test_bind_type_variables(self):
+    A = typehints.TypeVariable('A')  # pylint: disable=invalid-name
+    B = typehints.TypeVariable('B')  # pylint: disable=invalid-name
+    hint = typehints.Union[A, B, int]
+    self.assertEqual(
+        hint.bind_type_variables({
+            A: str, B: float
+        }),
+        typehints.Union[str, float, int])
+    self.assertEqual(
+        hint.bind_type_variables({
+            A: str, B: int
+        }), typehints.Union[str, int])
+    self.assertEqual(hint.bind_type_variables({A: int, B: int}), int)
 
 
 class OptionalHintTestCase(TypeHintTestCase):

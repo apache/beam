@@ -21,11 +21,11 @@ import (
 	"io"
 	"sync"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness/session"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/hooks"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness/session"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/hooks"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	"github.com/golang/protobuf/proto"
 )
 

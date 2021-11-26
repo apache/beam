@@ -23,15 +23,15 @@ import (
 	"reflect"
 	"sort"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
-//go:generate go install github.com/apache/beam/sdks/go/cmd/starcgen
+//go:generate go install github.com/apache/beam/sdks/v2/go/cmd/starcgen
 //go:generate starcgen --package=top
 //go:generate go fmt
 
@@ -100,7 +100,7 @@ func SmallestPerKey(s beam.Scope, col beam.PCollection, n int, less interface{})
 	_, t := beam.ValidateKVType(col)
 	validate(t, n, less)
 
-	return beam.Combine(s, newCombineFn(less, n, t.Type(), true), col)
+	return beam.CombinePerKey(s, newCombineFn(less, n, t.Type(), true), col)
 }
 
 func validate(t typex.FullType, n int, less interface{}) {

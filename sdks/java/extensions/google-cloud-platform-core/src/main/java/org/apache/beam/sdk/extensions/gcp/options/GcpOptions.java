@@ -406,7 +406,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
       try {
         Project project =
             ResilientOperation.retry(
-                ResilientOperation.getGoogleRequestCallable(getProject),
+                getProject::execute,
                 backoff,
                 RetryDeterminer.SOCKET_ERRORS,
                 IOException.class,

@@ -25,6 +25,7 @@ import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.values.EncodableThrowable;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -89,6 +90,24 @@ public class WithFailures {
 
     public static <T> ExceptionElement<T> of(T element, Exception exception) {
       return new AutoValue_WithFailures_ExceptionElement<>(element, exception);
+    }
+  }
+
+  /**
+   * A handler that holds onto the {@link Throwable} that led to the exception, returning it along
+   * with the original value as a {@link KV}.
+   *
+   * <p>Extends {@link SimpleFunction} so that full type information is captured. {@link KV} and
+   * {@link EncodableThrowable} coders can be easily inferred by Beam, so coder inference can be
+   * successfully applied if the consuming transform passes type information to the failure
+   * collection's {@link TupleTag}. This may require creating an instance of an anonymous inherited
+   * class rather than of this class directly.
+   */
+  public static class ThrowableHandler<T>
+      extends SimpleFunction<ExceptionElement<T>, KV<T, EncodableThrowable>> {
+    @Override
+    public KV<T, EncodableThrowable> apply(ExceptionElement<T> f) {
+      return KV.of(f.element(), EncodableThrowable.forThrowable(f.exception()));
     }
   }
 

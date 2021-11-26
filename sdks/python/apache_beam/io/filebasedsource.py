@@ -29,6 +29,7 @@ For an example implementation of :class:`FileBasedSource` see
 # pytype: skip-file
 
 from typing import Callable
+from typing import Union
 
 from apache_beam.internal import pickler
 from apache_beam.io import concat_source
@@ -361,9 +362,13 @@ class _ExpandIntoRanges(DoFn):
 
 
 class _ReadRange(DoFn):
-  def __init__(self, source_from_file):
-    # type: (Callable[[str], iobase.BoundedSource]) -> None
+  def __init__(
+      self,
+      source_from_file,  # type: Union[str, iobase.BoundedSource]
+      with_filename=False  # type: bool
+    ) -> None:
     self._source_from_file = source_from_file
+    self._with_filename = with_filename
 
   def process(self, element, *args, **kwargs):
     metadata, range = element
@@ -377,8 +382,12 @@ class _ReadRange(DoFn):
     if not source_list:
       return
     source = source_list[0].source
+
     for record in source.read(range.new_tracker()):
-      yield record
+      if self._with_filename:
+        yield (metadata.path, record)
+      else:
+        yield record
 
 
 class ReadAllFiles(PTransform):
@@ -395,6 +404,7 @@ class ReadAllFiles(PTransform):
                desired_bundle_size,  # type: int
                min_bundle_size,  # type: int
                source_from_file,  # type: Callable[[str], iobase.BoundedSource]
+               with_filename=False  # type: bool
               ):
     """
     Args:
@@ -415,12 +425,16 @@ class ReadAllFiles(PTransform):
                         paths passed to this will be for individual files, not
                         for file patterns even if the ``PCollection`` of files
                         processed by the transform consist of file patterns.
+      with_filename: If True, returns a Key Value with the key being the file
+        name and the value being the actual data. If False, it only returns
+        the data.
     """
     self._splittable = splittable
     self._compression_type = compression_type
     self._desired_bundle_size = desired_bundle_size
     self._min_bundle_size = min_bundle_size
     self._source_from_file = source_from_file
+    self._with_filename = with_filename
 
   def expand(self, pvalue):
     return (
@@ -432,4 +446,6 @@ class ReadAllFiles(PTransform):
                 self._desired_bundle_size,
                 self._min_bundle_size))
         | 'Reshard' >> Reshuffle()
-        | 'ReadRange' >> ParDo(_ReadRange(self._source_from_file)))
+        | 'ReadRange' >> ParDo(
+            _ReadRange(
+                self._source_from_file, with_filename=self._with_filename)))

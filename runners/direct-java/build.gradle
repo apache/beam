@@ -30,6 +30,7 @@ def dependOnProjects = [":runners:core-construction-java",
                         ]
 
 applyJavaNature(
+  suppressUnusedVariable: true,
         automaticModuleName: 'org.apache.beam.runners.direct',
         classesTriggerCheckerBugs: [
           'ImpulseEvaluatorFactory': 'https://github.com/typetools/checker-framework/issues/3791',
@@ -131,6 +132,8 @@ task needsRunnerTests(type: Test) {
     excludeCategories "org.apache.beam.sdk.testing.UsesCrossLanguageTransforms"
     excludeCategories "org.apache.beam.sdk.testing.UsesPythonExpansionService"
     excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
+    // https://issues.apache.org/jira/browse/BEAM-2791
+    excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'
   }
   testLogging {
     outputs.upToDateWhen {false}
@@ -160,6 +163,8 @@ task validatesRunner(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
     excludeCategories "org.apache.beam.sdk.testing.UsesCrossLanguageTransforms"
     excludeCategories "org.apache.beam.sdk.testing.UsesPythonExpansionService"
+    // https://issues.apache.org/jira/browse/BEAM-2791
+    excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'
   }
 }
 

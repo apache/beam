@@ -20,13 +20,13 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/schema"
-	v1pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/schema"
+	v1pb "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/golang/protobuf/proto"
 )
 
@@ -70,7 +70,7 @@ func knownStandardCoders() []string {
 		urnWindowedValueCoder,
 		urnGlobalWindow,
 		urnIntervalWindow,
-		// TODO(BEAM-9615): Add urnRowCoder once finalized.
+		urnRowCoder,
 		// TODO(BEAM-10660): Add urnTimerCoder once finalized.
 	}
 }
@@ -423,6 +423,8 @@ func (b *CoderUnmarshaller) isCoGBKList(id string) ([]string, bool) {
 type CoderMarshaller struct {
 	coders   map[string]*pipepb.Coder
 	coder2id map[string]string // index of serialized coders to id to deduplicate
+
+	Namespace string // Namespace for xlang coders.
 }
 
 // NewCoderMarshaller returns a new CoderMarshaller.
@@ -583,7 +585,12 @@ func (b *CoderMarshaller) internCoder(coder *pipepb.Coder) string {
 		return id
 	}
 
-	id := fmt.Sprintf("c%v", len(b.coder2id))
+	var id string
+	if b.Namespace == "" {
+		id = fmt.Sprintf("c%v", len(b.coder2id))
+	} else {
+		id = fmt.Sprintf("c%v@%v", len(b.coder2id), b.Namespace)
+	}
 	b.coder2id[key] = id
 	b.coders[id] = coder
 	return id

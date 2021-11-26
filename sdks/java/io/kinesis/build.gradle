@@ -17,7 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.kinesis')
+applyJavaNature(suppressUnusedVariable: true, automaticModuleName: 'org.apache.beam.sdk.io.kinesis')
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -25,8 +25,7 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Kinesis"
 ext.summary = "Library to read Kinesis streams."
 
 test {
-  // Forking every test resolves an issue where KinesisMockReadTest gets stuck forever.
-  forkEvery 1
+  maxParallelForks 4
 }
 
 dependencies {
@@ -42,6 +41,9 @@ dependencies {
   compile "com.amazonaws:amazon-kinesis-producer:0.14.1"
   compile "commons-lang:commons-lang:2.6"
   compile library.java.vendored_guava_26_0_jre
+  compile library.java.jackson_core
+  compile library.java.jackson_annotations
+  compile library.java.jackson_databind
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
   testCompile library.java.junit
   testCompile library.java.mockito_core

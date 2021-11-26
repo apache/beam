@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable;
 
+import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.times;
@@ -42,9 +43,15 @@ import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.HashMap;
+import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
+import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -61,8 +68,12 @@ import org.mockito.MockitoAnnotations;
 @RunWith(JUnit4.class)
 public class BigtableServiceImplTest {
 
+  private static final String PROJECT_ID = "project";
+  private static final String INSTANCE_ID = "instance";
+  private static final String TABLE_ID = "table";
+
   private static final BigtableTableName TABLE_NAME =
-      new BigtableInstanceName("project", "instance").toTableName("table");
+      new BigtableInstanceName(PROJECT_ID, INSTANCE_ID).toTableName(TABLE_ID);
 
   @Mock private BigtableSession mockSession;
 
@@ -76,10 +87,13 @@ public class BigtableServiceImplTest {
   public void setup() {
     MockitoAnnotations.initMocks(this);
     BigtableOptions options =
-        new BigtableOptions.Builder().setProjectId("project").setInstanceId("instance").build();
+        new BigtableOptions.Builder().setProjectId(PROJECT_ID).setInstanceId(INSTANCE_ID).build();
     when(mockSession.getOptions()).thenReturn(options);
     when(mockSession.createBulkMutation(eq(TABLE_NAME))).thenReturn(mockBulkMutation);
     when(mockSession.getDataClient()).thenReturn(mockBigtableDataClient);
+    // Setup the ProcessWideContainer for testing metrics are set.
+    MetricsContainerImpl container = new MetricsContainerImpl(null);
+    MetricsEnvironment.setProcessWideContainer(container);
   }
 
   /**
@@ -94,7 +108,7 @@ public class BigtableServiceImplTest {
     ByteKey start = ByteKey.copyFrom("a".getBytes(StandardCharsets.UTF_8));
     ByteKey end = ByteKey.copyFrom("b".getBytes(StandardCharsets.UTF_8));
     when(mockBigtableSource.getRanges()).thenReturn(Arrays.asList(ByteKeyRange.of(start, end)));
-    when(mockBigtableSource.getTableId()).thenReturn(StaticValueProvider.of("table_name"));
+    when(mockBigtableSource.getTableId()).thenReturn(StaticValueProvider.of(TABLE_ID));
     @SuppressWarnings("unchecked")
     ResultScanner<Row> mockResultScanner = Mockito.mock(ResultScanner.class);
     Row expectedRow = Row.newBuilder().setKey(ByteString.copyFromUtf8("a")).build();
@@ -109,6 +123,7 @@ public class BigtableServiceImplTest {
     underTest.close();
 
     verify(mockResultScanner, times(1)).close();
+    verifyMetricWasSet("google.bigtable.v2.ReadRows", "ok", 1);
   }
 
   /**
@@ -139,5 +154,28 @@ public class BigtableServiceImplTest {
 
     underTest.close();
     verify(mockBulkMutation, times(1)).flush();
+  }
+
+  private void verifyMetricWasSet(String method, String status, long count) {
+    // Verify the metric as reported.
+    HashMap<String, String> labels = new HashMap<>();
+    labels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
+    labels.put(MonitoringInfoConstants.Labels.SERVICE, "BigTable");
+    labels.put(MonitoringInfoConstants.Labels.METHOD, method);
+    labels.put(
+        MonitoringInfoConstants.Labels.RESOURCE,
+        GcpResourceIdentifiers.bigtableResource(PROJECT_ID, INSTANCE_ID, TABLE_ID));
+    labels.put(MonitoringInfoConstants.Labels.BIGTABLE_PROJECT_ID, PROJECT_ID);
+    labels.put(MonitoringInfoConstants.Labels.INSTANCE_ID, INSTANCE_ID);
+    labels.put(
+        MonitoringInfoConstants.Labels.TABLE_ID,
+        GcpResourceIdentifiers.bigtableTableID(PROJECT_ID, INSTANCE_ID, TABLE_ID));
+    labels.put(MonitoringInfoConstants.Labels.STATUS, status);
+
+    MonitoringInfoMetricName name =
+        MonitoringInfoMetricName.named(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, labels);
+    MetricsContainerImpl container =
+        (MetricsContainerImpl) MetricsEnvironment.getProcessWideContainer();
+    assertEquals(count, (long) container.getCounter(name).getCumulative());
   }
 }

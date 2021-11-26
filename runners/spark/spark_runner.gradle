@@ -21,6 +21,7 @@ import java.util.stream.Collectors
 
 apply plugin: 'org.apache.beam.module'
 applyJavaNature(
+  suppressUnusedVariable: true,
   enableStrictDependencies:true,
   automaticModuleName: 'org.apache.beam.runners.spark',
   archivesBaseName: (project.hasProperty('archives_base_name') ? archives_base_name : archivesBaseName),
@@ -321,7 +322,7 @@ task validatesStructuredStreamingRunnerBatch(type: Test) {
   forkEvery 1
   maxParallelForks 4
   // Increase memory heap in order to avoid OOM errors
-  jvmArgs '-Xmx4g'
+  jvmArgs '-Xmx7g'
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
     // Unbounded

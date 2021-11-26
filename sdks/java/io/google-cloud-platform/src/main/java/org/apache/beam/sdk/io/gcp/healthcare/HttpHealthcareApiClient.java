@@ -24,30 +24,30 @@ import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
-import com.google.api.services.healthcare.v1beta1.CloudHealthcare;
-import com.google.api.services.healthcare.v1beta1.CloudHealthcare.Projects.Locations.Datasets.FhirStores.Fhir.Search;
-import com.google.api.services.healthcare.v1beta1.CloudHealthcare.Projects.Locations.Datasets.Hl7V2Stores.Messages;
-import com.google.api.services.healthcare.v1beta1.CloudHealthcareScopes;
-import com.google.api.services.healthcare.v1beta1.model.CreateMessageRequest;
-import com.google.api.services.healthcare.v1beta1.model.DeidentifyConfig;
-import com.google.api.services.healthcare.v1beta1.model.DeidentifyFhirStoreRequest;
-import com.google.api.services.healthcare.v1beta1.model.DicomStore;
-import com.google.api.services.healthcare.v1beta1.model.Empty;
-import com.google.api.services.healthcare.v1beta1.model.ExportResourcesRequest;
-import com.google.api.services.healthcare.v1beta1.model.FhirStore;
-import com.google.api.services.healthcare.v1beta1.model.GoogleCloudHealthcareV1beta1FhirGcsDestination;
-import com.google.api.services.healthcare.v1beta1.model.GoogleCloudHealthcareV1beta1FhirGcsSource;
-import com.google.api.services.healthcare.v1beta1.model.Hl7V2Store;
-import com.google.api.services.healthcare.v1beta1.model.HttpBody;
-import com.google.api.services.healthcare.v1beta1.model.ImportResourcesRequest;
-import com.google.api.services.healthcare.v1beta1.model.IngestMessageRequest;
-import com.google.api.services.healthcare.v1beta1.model.IngestMessageResponse;
-import com.google.api.services.healthcare.v1beta1.model.ListFhirStoresResponse;
-import com.google.api.services.healthcare.v1beta1.model.ListMessagesResponse;
-import com.google.api.services.healthcare.v1beta1.model.Message;
-import com.google.api.services.healthcare.v1beta1.model.NotificationConfig;
-import com.google.api.services.healthcare.v1beta1.model.Operation;
-import com.google.api.services.healthcare.v1beta1.model.SearchResourcesRequest;
+import com.google.api.services.healthcare.v1.CloudHealthcare;
+import com.google.api.services.healthcare.v1.CloudHealthcare.Projects.Locations.Datasets.FhirStores.Fhir.Search;
+import com.google.api.services.healthcare.v1.CloudHealthcare.Projects.Locations.Datasets.Hl7V2Stores.Messages;
+import com.google.api.services.healthcare.v1.CloudHealthcareScopes;
+import com.google.api.services.healthcare.v1.model.CreateMessageRequest;
+import com.google.api.services.healthcare.v1.model.DeidentifyConfig;
+import com.google.api.services.healthcare.v1.model.DeidentifyFhirStoreRequest;
+import com.google.api.services.healthcare.v1.model.DicomStore;
+import com.google.api.services.healthcare.v1.model.Empty;
+import com.google.api.services.healthcare.v1.model.ExportResourcesRequest;
+import com.google.api.services.healthcare.v1.model.FhirStore;
+import com.google.api.services.healthcare.v1.model.GoogleCloudHealthcareV1FhirGcsDestination;
+import com.google.api.services.healthcare.v1.model.GoogleCloudHealthcareV1FhirGcsSource;
+import com.google.api.services.healthcare.v1.model.Hl7V2Store;
+import com.google.api.services.healthcare.v1.model.HttpBody;
+import com.google.api.services.healthcare.v1.model.ImportResourcesRequest;
+import com.google.api.services.healthcare.v1.model.IngestMessageRequest;
+import com.google.api.services.healthcare.v1.model.IngestMessageResponse;
+import com.google.api.services.healthcare.v1.model.ListFhirStoresResponse;
+import com.google.api.services.healthcare.v1.model.ListMessagesResponse;
+import com.google.api.services.healthcare.v1.model.Message;
+import com.google.api.services.healthcare.v1.model.NotificationConfig;
+import com.google.api.services.healthcare.v1.model.Operation;
+import com.google.api.services.healthcare.v1.model.SearchResourcesRequest;
 import com.google.api.services.storage.StorageScopes;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.gson.JsonArray;
@@ -322,7 +322,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
       return Instant.ofEpochMilli(0);
     }
     // sendTime is conveniently RFC3339 UTC "Zulu"
-    // https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.hl7V2Stores.messages#Message
+    // https://cloud.google.com/healthcare/docs/reference/rest/v1/projects.locations.datasets.hl7V2Stores.messages#Message
     return Instant.parse(sendTime);
   }
 
@@ -358,7 +358,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
       return Instant.now();
     }
     // sendTime is conveniently RFC3339 UTC "Zulu"
-    // https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.hl7V2Stores.messages#Message
+    // https://cloud.google.com/healthcare/docs/reference/rest/v1/projects.locations.datasets.hl7V2Stores.messages#Message
     return Instant.parse(sendTime);
   }
 
@@ -491,8 +491,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   public Operation importFhirResource(
       String fhirStore, String gcsSourcePath, @Nullable String contentStructure)
       throws IOException {
-    GoogleCloudHealthcareV1beta1FhirGcsSource gcsSrc =
-        new GoogleCloudHealthcareV1beta1FhirGcsSource();
+    GoogleCloudHealthcareV1FhirGcsSource gcsSrc = new GoogleCloudHealthcareV1FhirGcsSource();
 
     gcsSrc.setUri(gcsSourcePath);
     ImportResourcesRequest importRequest = new ImportResourcesRequest();
@@ -509,8 +508,8 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   @Override
   public Operation exportFhirResourceToGcs(String fhirStore, String gcsDestinationPrefix)
       throws IOException {
-    GoogleCloudHealthcareV1beta1FhirGcsDestination gcsDst =
-        new GoogleCloudHealthcareV1beta1FhirGcsDestination();
+    GoogleCloudHealthcareV1FhirGcsDestination gcsDst =
+        new GoogleCloudHealthcareV1FhirGcsDestination();
     gcsDst.setUriPrefix(gcsDestinationPrefix);
     ExportResourcesRequest exportRequest = new ExportResourcesRequest();
     exportRequest.setGcsDestination(gcsDst);
@@ -542,7 +541,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   @Override
   public Operation pollOperation(Operation operation, Long sleepMs)
       throws InterruptedException, IOException {
-    LOG.debug(String.format("started opertation %s. polling until complete.", operation.getName()));
+    LOG.debug(String.format("Operation %s started, polling until complete.", operation.getName()));
     while (operation.getDone() == null || !operation.getDone()) {
       // Update the status of the operation with another request.
       Thread.sleep(sleepMs); // Pause between requests.
@@ -563,7 +562,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     StringEntity requestEntity = new StringEntity(bundle, ContentType.APPLICATION_JSON);
     URI uri;
     try {
-      uri = new URIBuilder(client.getRootUrl() + "v1beta1/" + fhirStore + "/fhir").build();
+      uri = new URIBuilder(client.getRootUrl() + "v1/" + fhirStore + "/fhir").build();
     } catch (URISyntaxException e) {
       LOG.error("URL error when making executeBundle request to FHIR API. " + e.getMessage());
       throw new IllegalArgumentException(e);

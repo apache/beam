@@ -22,10 +22,10 @@ applyDockerNature()
 
 description = "Apache Beam :: SDKs :: Go :: Container"
 
-// Figure out why the golang plugin does not add a build dependency between projects.
-// Without the line below, we get spurious errors about not being able to resolve
-// "./github.com/apache/beam/sdks/go"
-resolveBuildDependencies.dependsOn ":sdks:go:goBuild"
+// Disable gogradle's dependency resolution so it uses Go modules instead.
+installDependencies.enabled = false
+resolveBuildDependencies.enabled = false
+resolveTestDependencies.enabled = false
 
 clean.dependsOn cleanVendor
 
@@ -33,14 +33,27 @@ dependencies {
   golang {
     // TODO(herohde): use "./" prefix to prevent gogradle use base github path, for now.
     // TODO(herohde): get the pkg subdirectory only, if possible. We spend mins pulling cmd/beamctl deps.
-    build name: './github.com/apache/beam/sdks/go', dir: project(':sdks:go').projectDir
-    test name: './github.com/apache/beam/sdks/go', dir: project(':sdks:go').projectDir
+    build name: './github.com/apache/beam/sdks/v2/go', dir: project(':sdks:go').projectDir
+    test name: './github.com/apache/beam/sdks/v2/go', dir: project(':sdks:go').projectDir
   }
 }
 
 golang {
-  packagePath = 'github.com/apache/beam/sdks/go/boot'
+  packagePath = 'github.com/apache/beam/sdks/v2/go/container'
+
+  // Set -modcacherw on common tasks so module cache can be deleted by goBuild.
+  goTest {
+    environment 'GOFLAGS', '-modcacherw'
+  }
+  goVet {
+    environment 'GOFLAGS', '-modcacherw'
+  }
+  gofmt {
+    environment 'GOFLAGS', '-modcacherw'
+  }
   goBuild {
+    environment 'GOFLAGS', '-modcacherw'
+
     // TODO(herohde): build local platform + linux-amd64, if possible.
     targetPlatform = ['linux-amd64']
     outputLocation = './build/target/${GOOS}_${GOARCH}/boot'
@@ -75,4 +88,8 @@ if (project.rootProject.hasProperty(["docker-pull-licenses"])) {
     args "-c", "mkdir -p build/target/go-licenses"
   }
   dockerPrepare.dependsOn 'skipPullLicenses'
+}
+
+task pushAll {
+  dependsOn ":sdks:go:container:dockerPush"
 }

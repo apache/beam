@@ -88,42 +88,74 @@ versions denoted `0.x.y`.
 
 ## Releases
 
+### 2.34.0 (2021-11-11)
+Official [source code download](https://www.apache.org/dyn/closer.cgi/beam/2.34.0/apache-beam-2.34.0-source-release.zip).
+[SHA-512](https://downloads.apache.org/beam/2.34.0/apache-beam-2.34.0-source-release.zip.sha512).
+[signature](https://downloads.apache.org/beam/2.34.0/apache-beam-2.34.0-source-release.zip.asc).
+
+[Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12350405)
+[Blog post](/blog/beam-2.34.0).
+
+### 2.33.0 (2021-10-07)
+Official [source code download](https://www.apache.org/dyn/closer.cgi/beam/2.33.0/apache-beam-2.33.0-source-release.zip).
+[SHA-512](https://downloads.apache.org/beam/2.33.0/apache-beam-2.33.0-source-release.zip.sha512).
+[signature](https://downloads.apache.org/beam/2.33.0/apache-beam-2.33.0-source-release.zip.asc).
+
+[Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12350404)
+[Blog post](/blog/beam-2.33.0).
+
+### 2.32.0 (2021-08-25)
+Official [source code download](https://www.apache.org/dyn/closer.cgi/beam/2.32.0/apache-beam-2.32.0-source-release.zip).
+[SHA-512](https://downloads.apache.org/beam/2.32.0/apache-beam-2.32.0-source-release.zip.sha512).
+[signature](https://downloads.apache.org/beam/2.32.0/apache-beam-2.32.0-source-release.zip.asc).
+
+[Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12349992)
+[Blog post](/blog/beam-2.32.0).
+
+### 2.31.0 (2021-07-08)
+Official [source code download](https://www.apache.org/dyn/closer.cgi/beam/2.31.0/apache-beam-2.31.0-source-release.zip).
+[SHA-512](https://downloads.apache.org/beam/2.31.0/apache-beam-2.31.0-source-release.zip.sha512).
+[signature](https://downloads.apache.org/beam/2.31.0/apache-beam-2.31.0-source-release.zip.asc).
+
+[Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12349991)
+[Blog post](/blog/beam-2.31.0).
+
 ### 2.30.0 (2021-06-09)
-Official [source code download](http://www.apache.org/dyn/closer.cgi/beam/2.30.0/apache-beam-2.30.0-source-release.zip).
-[SHA-512](https://downloads.apache.org/beam/2.30.0/apache-beam-2.30.0-source-release.zip.sha512).
-[signature](https://downloads.apache.org/beam/2.30.0/apache-beam-2.30.0-source-release.zip.asc).
+Official [source code download](https://archive.apache.org/dist/beam/2.30.0/apache-beam-2.30.0-source-release.zip).
+[SHA-512](https://archive.apache.org/dist/beam/2.30.0/apache-beam-2.30.0-source-release.zip.sha512).
+[signature](https://archive.apache.org/dist/beam/2.30.0/apache-beam-2.30.0-source-release.zip.asc).
 
 [Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12349978)
 [Blog post](/blog/beam-2.30.0).
 
 ### 2.29.0 (2021-04-27)
-Official [source code download](http://www.apache.org/dyn/closer.cgi/beam/2.29.0/apache-beam-2.29.0-source-release.zip).
-[SHA-512](https://downloads.apache.org/beam/2.29.0/apache-beam-2.29.0-source-release.zip.sha512).
-[signature](https://downloads.apache.org/beam/2.29.0/apache-beam-2.29.0-source-release.zip.asc).
+Official [source code download](https://archive.apache.org/dist/beam/2.29.0/apache-beam-2.29.0-source-release.zip).
+[SHA-512](https://archive.apache.org/dist/beam/2.29.0/apache-beam-2.29.0-source-release.zip.sha512).
+[signature](https://archive.apache.org/dist/beam/2.29.0/apache-beam-2.29.0-source-release.zip.asc).
 
 [Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12349629)
 [Blog post](/blog/beam-2.29.0).
 
 ### 2.28.0 (2021-02-22)
-Official [source code download](http://www.apache.org/dyn/closer.cgi/beam/2.28.0/apache-beam-2.28.0-source-release.zip).
-[SHA-512](https://downloads.apache.org/beam/2.28.0/apache-beam-2.28.0-source-release.zip.sha512).
-[signature](https://downloads.apache.org/beam/2.28.0/apache-beam-2.28.0-source-release.zip.asc).
+Official [source code download](https://archive.apache.org/dist/beam/2.28.0/apache-beam-2.28.0-source-release.zip).
+[SHA-512](https://archive.apache.org/dist/beam/2.28.0/apache-beam-2.28.0-source-release.zip.sha512).
+[signature](https://archive.apache.org/dist/beam/2.28.0/apache-beam-2.28.0-source-release.zip.asc).
 
 [Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12349499).
 [Blog post](/blog/beam-2.28.0).
 
 ### 2.27.0 (2020-12-22)
-Official [source code download](http://www.apache.org/dyn/closer.cgi/beam/2.27.0/apache-beam-2.27.0-source-release.zip).
-[SHA-512](https://downloads.apache.org/beam/2.27.0/apache-beam-2.27.0-source-release.zip.sha512).
-[signature](https://downloads.apache.org/beam/2.27.0/apache-beam-2.27.0-source-release.zip.asc).
+Official [source code download](https://archive.apache.org/dist/beam/2.27.0/apache-beam-2.27.0-source-release.zip).
+[SHA-512](https://archive.apache.org/dist/beam/2.27.0/apache-beam-2.27.0-source-release.zip.sha512).
+[signature](https://archive.apache.org/dist/beam/2.27.0/apache-beam-2.27.0-source-release.zip.asc).
 
 [Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12349380).
 [Blog post](/blog/beam-2.27.0).
 
 ### 2.26.0 (2020-12-11)
-Official [source code download](http://www.apache.org/dyn/closer.cgi/beam/2.26.0/apache-beam-2.26.0-source-release.zip).
-[SHA-512](https://downloads.apache.org/beam/2.26.0/apache-beam-2.26.0-source-release.zip.sha512).
-[signature](https://downloads.apache.org/beam/2.26.0/apache-beam-2.26.0-source-release.zip.asc).
+Official [source code download](https://archive.apache.org/dist/beam/2.26.0/apache-beam-2.26.0-source-release.zip).
+[SHA-512](https://archive.apache.org/dist/beam/2.26.0/apache-beam-2.26.0-source-release.zip.sha512).
+[signature](https://archive.apache.org/dist/beam/2.26.0/apache-beam-2.26.0-source-release.zip.asc).
 
 [Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12348833).
 [Blog post](/blog/beam-2.26.0).
@@ -131,7 +163,7 @@ Official [source code download](http://www.apache.org/dyn/closer.cgi/beam/2.26.0
 ### 2.25.0 (2020-10-23)
 Official [source code download](https://archive.apache.org/dist/beam/2.25.0/apache-beam-2.25.0-source-release.zip).
 [SHA-512](https://archive.apache.org/dist/beam/2.25.0/apache-beam-2.25.0-source-release.zip.sha512).
-[signature](https://archive.apache.org/dist/beam/.25.0/apache-beam-2.25.0-source-release.zip.asc).
+[signature](https://archive.apache.org/dist/beam/2.25.0/apache-beam-2.25.0-source-release.zip.asc).
 
 [Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12347147).
 [Blog post](/blog/beam-2.25.0).

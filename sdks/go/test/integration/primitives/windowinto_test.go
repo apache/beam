@@ -18,9 +18,9 @@ package primitives
 import (
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
-	"github.com/apache/beam/sdks/go/test/integration"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
+	"github.com/apache/beam/sdks/v2/go/test/integration"
 )
 
 func TestWindowSums_Lifted(t *testing.T) {
@@ -34,5 +34,47 @@ func TestWindowSums_GBK(t *testing.T) {
 	integration.CheckFilters(t)
 	p, s := beam.NewPipelineWithRoot()
 	WindowSums_GBK(s)
+	ptest.RunAndValidate(t, p)
+}
+
+func TestValidateWindowedSideInputs(t *testing.T) {
+	integration.CheckFilters(t)
+	p, s := beam.NewPipelineWithRoot()
+	ValidateWindowedSideInputs(s)
+	ptest.RunAndValidate(t, p)
+}
+
+func TestTriggerDefault(t *testing.T) {
+	integration.CheckFilters(t)
+	p, s := beam.NewPipelineWithRoot()
+	TriggerDefault(s)
+	ptest.RunAndValidate(t, p)
+}
+
+func TestTriggerAlways(t *testing.T) {
+	integration.CheckFilters(t)
+	p, s := beam.NewPipelineWithRoot()
+	TriggerAlways(s)
+	ptest.RunAndValidate(t, p)
+}
+
+func TestTriggerElementCount(t *testing.T) {
+	integration.CheckFilters(t)
+	p, s := beam.NewPipelineWithRoot()
+	TriggerElementCount(s)
+	ptest.RunAndValidate(t, p)
+}
+
+func TestTriggerRepeat(t *testing.T) {
+	integration.CheckFilters(t)
+	p, s := beam.NewPipelineWithRoot()
+	TriggerRepeat(s)
+	ptest.RunAndValidate(t, p)
+}
+
+func TestTriggerAfterEndOfWindow(t *testing.T) {
+	integration.CheckFilters(t)
+	p, s := beam.NewPipelineWithRoot()
+	TriggerAfterEndOfWindow(s)
 	ptest.RunAndValidate(t, p)
 }

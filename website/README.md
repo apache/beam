@@ -24,9 +24,7 @@ https://beam.apache.org/.
 
 ## About
 
-The Beam website is built using [Hugo](https://gohugo.io/). Additionally,
-for additional formatting capabilities, this website uses
-[Twitter Bootstrap](https://getbootstrap.com/).
+The Beam website is built using [Hugo](https://gohugo.io/) and the Hugo theme [Docsy](https://www.docsy.dev/). For additional formatting capabilities, this website uses [Twitter Bootstrap](https://getbootstrap.com/).
 
 Documentation generated from source code, such as Javadoc and Pydoc, is stored
 separately on the [beam-site
@@ -64,3 +62,29 @@ https://beam.apache.org/.
 ## Contribution guide
 
 If you'd like to contribute to the Apache Beam website, read our [contribution guide](CONTRIBUTE.md) where you can find detailed instructions on how to work with the website.
+
+## Additional resources
+
+If you're developing the site, you should know a little bit about Hugo and Docsy. The following external resources will help you get up and running:
+
+- [Directory Structure](https://gohugo.io/getting-started/directory-structure/)
+- [Adding Content](https://www.docsy.dev/docs/adding-content/content/)
+- [Shortcodes](https://gohugo.io/content-management/shortcodes/)
+- [Introduction to Hugo Templating](https://gohugo.io/templates/introduction/)
+- [Partial Templates](https://gohugo.io/templates/partials/)
+
+## Troubleshooting
+
+### Hugo server does not reload static files
+
+The Hugo dev server waits for changes in site content, static files, configuration, and other resources. On change, the server rebuilds and reloads the site in your browser. If you're making changes to static files, and those changes are detected by the server but don't appear in the browser, you may have a caching issue.
+
+You can tell that the server has detected a change by looking at the output. For example, if you make a change to **website/www/site/static/js/section-nav.js**, you should see something like:
+
+```
+Change of Static files detected, rebuilding site.
+2021-07-16 15:25:29.730 +0000
+Syncing js/section-nav.js to /
+```
+
+If the change does not appear in the browser, even after a hard refresh, try disabling the cache. For example, to disable the cache in Chrome, open dev tools, select the Network tab, and check the box labeled "Disable cache".

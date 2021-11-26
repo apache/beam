@@ -328,6 +328,7 @@ class GCSFileSystem(FileSystem):
       match_result = self.match([path_to_use])[0]
       statuses = gcsio.GcsIO().delete_batch(
           [m.path for m in match_result.metadata_list])
+      # pylint: disable=used-before-assignment
       failures = [e for (_, e) in statuses if e is not None]
       if failures:
         raise failures[0]

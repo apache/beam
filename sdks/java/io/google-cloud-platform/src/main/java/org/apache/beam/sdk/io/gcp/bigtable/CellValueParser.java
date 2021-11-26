@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigtable;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.bigtable.v2.Cell;
@@ -31,10 +32,10 @@ import org.joda.time.DateTime;
 
 class CellValueParser implements Serializable {
 
-  Object getCellValue(Cell cell, Schema.TypeName type) {
+  Object getCellValue(Cell cell, Schema.FieldType type) {
     ByteString cellValue = cell.getValue();
     int valueSize = cellValue.size();
-    switch (type) {
+    switch (type.getTypeName()) {
       case BOOLEAN:
         checkArgument(valueSize == 1, message("Boolean", 1));
         return cellValue.toByteArray()[0] != 0;
@@ -62,14 +63,17 @@ class CellValueParser implements Serializable {
         return cellValue.toStringUtf8();
       case BYTES:
         return cellValue.toByteArray();
+      case LOGICAL_TYPE:
+        String identifier = checkArgumentNotNull(type.getLogicalType()).getIdentifier();
+        throw new IllegalStateException("Unsupported logical type: " + identifier);
       default:
         throw new IllegalArgumentException(
-            String.format("Unsupported cell value type '%s'.", type));
+            String.format("Unsupported cell value type '%s'.", type.getTypeName()));
     }
   }
 
-  ByteString valueToByteString(Object value, Schema.TypeName type) {
-    switch (type) {
+  ByteString valueToByteString(Object value, Schema.FieldType type) {
+    switch (type.getTypeName()) {
       case BOOLEAN:
         return byteString(((Boolean) value) ? new byte[] {1} : new byte[] {0});
       case FLOAT:
@@ -90,8 +94,15 @@ class CellValueParser implements Serializable {
         return byteString((byte[]) value);
       case DATETIME:
         return byteString(value.toString().getBytes(UTF_8));
+      case LOGICAL_TYPE:
+        String identifier = checkArgumentNotNull(type.getLogicalType()).getIdentifier();
+        if ("SqlCharType".equals(identifier)) {
+          return byteString(((String) value).getBytes(UTF_8));
+        } else {
+          throw new IllegalStateException("Unsupported logical type: " + identifier);
+        }
       default:
-        throw new IllegalStateException("Unsupported type: " + type);
+        throw new IllegalStateException("Unsupported type: " + type.getTypeName());
     }
   }
 

@@ -170,6 +170,6 @@ class UnsplittableRestrictionTracker(RestrictionTracker):
   # stubs in the baseclass.
   def __getattribute__(self, name):
     if name.startswith('_') or name in ('try_split', ):
-      return super(UnsplittableRestrictionTracker, self).__getattribute__(name)
+      return super().__getattribute__(name)
     else:
       return getattr(self._underling_tracker, name)

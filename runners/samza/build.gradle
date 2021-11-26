@@ -20,6 +20,7 @@ import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
+  suppressUnusedVariable: true,
   exportJavadoc: false,
   classesTriggerCheckerBugs: [
     'GroupWithoutRepartition': 'https://github.com/typetools/checker-framework/issues/3791',
@@ -63,6 +64,7 @@ dependencies {
   compile "org.apache.samza:samza-kv-rocksdb_2.11:$samza_version"
   compile "org.apache.samza:samza-kv-inmemory_2.11:$samza_version"
   compile "org.apache.samza:samza-yarn_2.11:$samza_version"
+  compileOnly library.java.error_prone_annotations
   runtimeOnly "org.apache.kafka:kafka-clients:2.0.1"
   compile library.java.vendored_grpc_1_36_0
   compile project(path: ":model:fn-execution", configuration: "shadow")
@@ -75,6 +77,7 @@ dependencies {
   testCompile library.java.junit
   testCompile library.java.mockito_core
   testCompile library.java.jackson_dataformat_yaml
+  testCompile library.java.google_code_gson
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesRunner project(path: ":runners:core-java", configuration: "testRuntime")
   validatesRunner project(project.path)
@@ -94,7 +97,10 @@ task validatesRunner(type: Test) {
   classpath = configurations.validatesRunner
   testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
   useJUnit {
+    includeCategories 'org.apache.beam.sdk.testing.NeedsRunner'
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSchema'
     excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
     excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
@@ -105,16 +111,42 @@ task validatesRunner(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
     excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
     excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'
   }
   filter {
     // TODO(BEAM-10025)
     excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testOutputTimestampDefaultUnbounded'
     // TODO(BEAM-11479)
     excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testOutputTimestamp'
-    // https://issues.apache.org/jira/browse/BEAM-12035
+    // TODO(BEAM-11479)
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testRelativeTimerWithOutputTimestamp'
+    // TODO(BEAM-12035)
     excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testFirstElementLate'
-    // https://issues.apache.org/jira/browse/BEAM-12036
+    // TODO(BEAM-12036)
     excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testLateDataAccumulating'
+    // TODO(BEAM-12743)
+    excludeTestsMatching 'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testEncodingNPException'
+    excludeTestsMatching 'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testEncodingIOException'
+    excludeTestsMatching 'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testDecodingNPException'
+    excludeTestsMatching 'org.apache.beam.sdk.coders.PCollectionCustomCoderTest.testDecodingIOException'
+    // TODO(BEAM-12744)
+    excludeTestsMatching 'org.apache.beam.sdk.PipelineTest.testEmptyPipeline'
+    // TODO(BEAM-12745)
+    excludeTestsMatching 'org.apache.beam.sdk.io.AvroIOTest*'
+    // TODO(BEAM-12746)
+    excludeTestsMatching 'org.apache.beam.sdk.io.FileIOTest*'
+    // TODO(BEAM-12747)
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.WithTimestampsTest.withTimestampsBackwardsInTimeShouldThrow'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.WithTimestampsTest.withTimestampsWithNullTimestampShouldThrow'
+    // TODO(BEAM-12748)
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testEmptySingletonSideInput'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testNonSingletonSideInput'
+    // TODO(BEAM-12749)
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.MapElementsTest.testMapSimpleFunction'
+    // TODO(BEAM-12750)
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testInGlobalWindowBatchSizeByteSizeFn'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testInStreamingMode'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testWithShardedKeyInGlobalWindow'
 
     // These tests fail since there is no support for side inputs in Samza's unbounded splittable DoFn integration
     excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testWindowedSideInputWithCheckpointsUnbounded'

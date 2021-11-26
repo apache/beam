@@ -22,10 +22,11 @@ import (
 	"math"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 func TestDataSource_PerElement(t *testing.T) {
@@ -43,7 +44,7 @@ func TestDataSource_PerElement(t *testing.T) {
 				wc := MakeWindowEncoder(c.Window)
 				ec := MakeElementEncoder(coder.SkipW(c))
 				for _, v := range expected {
-					EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, pw)
+					EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, typex.NoFiringPane(), pw)
 					ec.Encode(&FullValue{Elm: v}, pw)
 				}
 				pw.Close()
@@ -98,7 +99,7 @@ func TestDataSource_Iterators(t *testing.T) {
 			driver: func(c *coder.Coder, dmw io.WriteCloser, _ func() io.WriteCloser, ks, vs []interface{}) {
 				wc, kc, vc := extractCoders(c)
 				for _, k := range ks {
-					EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, dmw)
+					EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, typex.NoFiringPane(), dmw)
 					kc.Encode(&FullValue{Elm: k}, dmw)
 					coder.EncodeInt32(int32(len(vs)), dmw) // Number of elements.
 					for _, v := range vs {
@@ -116,7 +117,7 @@ func TestDataSource_Iterators(t *testing.T) {
 			driver: func(c *coder.Coder, dmw io.WriteCloser, _ func() io.WriteCloser, ks, vs []interface{}) {
 				wc, kc, vc := extractCoders(c)
 				for _, k := range ks {
-					EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, dmw)
+					EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, typex.NoFiringPane(), dmw)
 					kc.Encode(&FullValue{Elm: k}, dmw)
 
 					coder.EncodeInt32(-1, dmw) // Mark this as a multi-Chunk (though beam runner proto says to use 0)
@@ -137,7 +138,7 @@ func TestDataSource_Iterators(t *testing.T) {
 			driver: func(c *coder.Coder, dmw io.WriteCloser, swFn func() io.WriteCloser, ks, vs []interface{}) {
 				wc, kc, vc := extractCoders(c)
 				for _, k := range ks {
-					EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, dmw)
+					EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, typex.NoFiringPane(), dmw)
 					kc.Encode(&FullValue{Elm: k}, dmw)
 					coder.EncodeInt32(-1, dmw)  // Mark as multi-chunk (though beam, runner says to use 0)
 					coder.EncodeVarInt(-1, dmw) // Mark subsequent chunks as "state backed"
@@ -203,6 +204,16 @@ func TestDataSource_Iterators(t *testing.T) {
 			if got, want := iVals, expectedKeys; !equalList(got, want) {
 				t.Errorf("DataSource => %#v, want %#v", extractValues(got...), extractValues(want...))
 			}
+
+			// We're using integers that encode to 1 byte, so do some quick math to validate.
+			sizeOfSmallInt := 1
+			snap := quickTestSnapshot(source, int64(len(test.keys)))
+			snap.pcol.SizeSum = int64(len(test.keys) * (1 + len(test.vals)) * sizeOfSmallInt)
+			snap.pcol.SizeMin = int64((1 + len(test.vals)) * sizeOfSmallInt)
+			snap.pcol.SizeMax = int64((1 + len(test.vals)) * sizeOfSmallInt)
+			if got, want := source.Progress(), snap; got != want {
+				t.Errorf("progress didn't match: got %v, want %v", got, want)
+			}
 		})
 	}
 }
@@ -225,7 +236,7 @@ func TestDataSource_Split(t *testing.T) {
 			wc := MakeWindowEncoder(c.Window)
 			ec := MakeElementEncoder(coder.SkipW(c))
 			for _, v := range elements {
-				EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, pw)
+				EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, typex.NoFiringPane(), pw)
 				ec.Encode(&FullValue{Elm: v}, pw)
 			}
 			pw.Close()
@@ -371,15 +382,6 @@ func TestDataSource_Split(t *testing.T) {
 				})
 
 				validateSource(t, out, source, makeValues(test.expected...))
-
-				// Adjust expectations to maximum number of elements.
-				adjustedExpectation := test.splitIdx
-				if adjustedExpectation > int64(len(elements)) {
-					adjustedExpectation = int64(len(elements))
-				}
-				if got, want := source.Progress().Count, adjustedExpectation; got != want {
-					t.Fatalf("progress didn't match split: got %v, want %v", got, want)
-				}
 			})
 		}
 	})
@@ -871,13 +873,29 @@ func constructAndExecutePlanWithContext(t *testing.T, us []Unit, dc DataContext)
 	}
 }
 
+func quickTestSnapshot(source *DataSource, count int64) ProgressReportSnapshot {
+	return ProgressReportSnapshot{
+		Name:  source.Name,
+		ID:    source.SID.PtransformID,
+		Count: count,
+		pcol: PCollectionSnapshot{
+			ElementCount: count,
+			SizeCount:    count,
+			SizeSum:      count,
+			// We're only encoding small ints here, so size will only be 1.
+			SizeMin: 1,
+			SizeMax: 1,
+		},
+	}
+}
+
 func validateSource(t *testing.T, out *CaptureNode, source *DataSource, expected []FullValue) {
 	t.Helper()
 	if got, want := len(out.Elements), len(expected); got != want {
 		t.Fatalf("lengths don't match: got %v, want %v", got, want)
 	}
-	if got, want := source.Progress().Count, int64(len(expected)); got != want {
-		t.Fatalf("progress count didn't match: got %v, want %v", got, want)
+	if got, want := source.Progress(), quickTestSnapshot(source, int64(len(expected))); got != want {
+		t.Fatalf("progress snapshot didn't match: got %v, want %v", got, want)
 	}
 	if !equalList(out.Elements, expected) {
 		t.Errorf("DataSource => %#v, want %#v", extractValues(out.Elements...), extractValues(expected...))

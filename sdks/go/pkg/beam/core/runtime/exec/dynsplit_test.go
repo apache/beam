@@ -23,14 +23,14 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/rtrackers/offsetrange"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/rtrackers/offsetrange"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -279,7 +279,7 @@ func createSdfPlan(t *testing.T, name string, fn *graph.DoFn, cdr *coder.Coder) 
 func writeElm(elm *FullValue, cdr *coder.Coder, pw *io.PipeWriter) {
 	wc := MakeWindowEncoder(cdr.Window)
 	ec := MakeElementEncoder(coder.SkipW(cdr))
-	if err := EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, pw); err != nil {
+	if err := EncodeWindowedValueHeader(wc, window.SingleGlobalWindow, mtime.ZeroTimestamp, typex.NoFiringPane(), pw); err != nil {
 		panic("err")
 	}
 	if err := ec.Encode(elm, pw); err != nil {
@@ -294,7 +294,7 @@ func decodeDynSplitElm(elm []byte, cdr *coder.Coder) (*FullValue, error) {
 	wd := MakeWindowDecoder(cdr.Window)
 	ed := MakeElementDecoder(coder.SkipW(cdr))
 	b := bytes.NewBuffer(elm)
-	w, t, err := DecodeWindowedValueHeader(wd, b)
+	w, t, pn, err := DecodeWindowedValueHeader(wd, b)
 	if err != nil {
 		return nil, err
 	}
@@ -304,6 +304,7 @@ func decodeDynSplitElm(elm []byte, cdr *coder.Coder) (*FullValue, error) {
 	}
 	e.Windows = w
 	e.Timestamp = t
+	e.Pane = pn
 	return e, nil
 }
 

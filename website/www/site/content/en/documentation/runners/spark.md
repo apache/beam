@@ -398,3 +398,7 @@ Provided SparkSession and StreamingListeners are not supported on the Spark Stru
 {{< paragraph class="language-py" >}}
 Provided SparkContext and StreamingListeners are not supported on the Spark portable runner.
 {{< /paragraph >}}
+
+### Kubernetes
+
+An [example](https://github.com/cometta/python-apache-beam-spark) of configuring Spark to run Apache beam job

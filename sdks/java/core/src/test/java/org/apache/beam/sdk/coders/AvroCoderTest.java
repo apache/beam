@@ -323,10 +323,24 @@ public class AvroCoderTest {
 
   @Test
   public void testSpecificRecordEncoding() throws Exception {
-    AvroCoder<TestAvro> coder = AvroCoder.of(TestAvro.class, AVRO_SPECIFIC_RECORD.getSchema());
+    AvroCoder<TestAvro> coder =
+        AvroCoder.of(TestAvro.class, AVRO_SPECIFIC_RECORD.getSchema(), false);
 
     assertTrue(SpecificRecord.class.isAssignableFrom(coder.getType()));
     CoderProperties.coderDecodeEncodeEqual(coder, AVRO_SPECIFIC_RECORD);
+  }
+
+  @Test
+  public void testReflectRecordEncoding() throws Exception {
+    AvroCoder<TestAvro> coder = AvroCoder.of(TestAvro.class, true);
+    AvroCoder<TestAvro> coderWithSchema =
+        AvroCoder.of(TestAvro.class, AVRO_SPECIFIC_RECORD.getSchema(), true);
+
+    assertTrue(SpecificRecord.class.isAssignableFrom(coder.getType()));
+    assertTrue(SpecificRecord.class.isAssignableFrom(coderWithSchema.getType()));
+
+    CoderProperties.coderDecodeEncodeEqual(coder, AVRO_SPECIFIC_RECORD);
+    CoderProperties.coderDecodeEncodeEqual(coderWithSchema, AVRO_SPECIFIC_RECORD);
   }
 
   @Test
@@ -341,7 +355,7 @@ public class AvroCoderTest {
             + "     {\"name\": \"favorite_color\", \"type\": [\"string\", \"null\"]}\n"
             + " ]\n"
             + "}";
-    Schema schema = (new Schema.Parser()).parse(schemaString);
+    Schema schema = new Schema.Parser().parse(schemaString);
 
     GenericRecord before = new GenericData.Record(schema);
     before.put("name", "Bob");
@@ -396,6 +410,14 @@ public class AvroCoderTest {
   @Test
   public void testAvroCoderIsSerializable() throws Exception {
     AvroCoder<Pojo> coder = AvroCoder.of(Pojo.class);
+
+    // Check that the coder is serializable using the regular JSON approach.
+    SerializableUtils.ensureSerializable(coder);
+  }
+
+  @Test
+  public void testAvroSpecificCoderIsSerializable() throws Exception {
+    AvroCoder<Pojo> coder = AvroCoder.of(Pojo.class, false);
 
     // Check that the coder is serializable using the regular JSON approach.
     SerializableUtils.ensureSerializable(coder);

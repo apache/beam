@@ -20,7 +20,10 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 )
 
 // TestCombineFn3String verifies that the accumulator correctly
@@ -162,4 +165,87 @@ func output(fn *combineFn, a accum) []string {
 		ret = append(ret, actual.(string))
 	}
 	return ret
+}
+
+// TestLargest checks that the Largest transform outputs the correct elements
+// for a given PCollection of ints and a comparator function.
+func TestLargest(t *testing.T) {
+	less := func(a, b int) bool {
+		return a < b
+	}
+	p, s := beam.NewPipelineWithRoot()
+	col := beam.Create(s, 1, 11, 7, 5, 10)
+	topTwo := Largest(s, col, 2, less)
+	passert.Equals(s, topTwo, []int{11, 10})
+	if err := ptest.Run(p); err != nil {
+		t.Errorf("pipeline failed but should have succeeded, got %v", err)
+	}
+}
+
+// TestSmallest checks that the Smallest transform outputs the correct elements
+// for a given PCollection of ints and a comparator function.
+func TestSmallest(t *testing.T) {
+	less := func(a, b int) bool {
+		return a < b
+	}
+	p, s := beam.NewPipelineWithRoot()
+	col := beam.Create(s, 1, 11, 7, 5, 10)
+	botTwo := Smallest(s, col, 2, less)
+	passert.Equals(s, botTwo, []int{1, 5})
+	if err := ptest.Run(p); err != nil {
+		t.Errorf("pipeline failed but should have succeeded, got %v", err)
+	}
+}
+
+func addKey(s beam.Scope, col beam.PCollection, newKey int) beam.PCollection {
+	keyCol := beam.Create(s, newKey)
+	return beam.ParDo(s, addKeyFn, col, beam.SideInput{Input: keyCol})
+}
+
+func addKeyFn(elm beam.T, newKey int) (int, beam.T) {
+	return newKey, elm
+}
+
+// TestLargestPerKey ensures that the LargestPerKey transform outputs the proper
+// collection for a PCollection of type <int, int>.
+func TestLargestPerKey(t *testing.T) {
+	less := func(a, b int) bool {
+		return a < b
+	}
+	p, s := beam.NewPipelineWithRoot()
+	colZero := beam.Create(s, 1, 11, 7, 5, 10)
+	keyedZero := addKey(s, colZero, 0)
+
+	colOne := beam.Create(s, 2, 12, 8, 6, 11)
+	keyedOne := addKey(s, colOne, 1)
+
+	col := beam.Flatten(s, keyedZero, keyedOne)
+	top := LargestPerKey(s, col, 2, less)
+	out := beam.DropKey(s, top)
+	passert.Equals(s, out, []int{11, 10}, []int{12, 11})
+	if err := ptest.Run(p); err != nil {
+		t.Errorf("pipeline failed but should have succeeded, got %v", err)
+	}
+}
+
+// TestSmallestPerKey ensures that the SmallestPerKey transform outputs the proper
+// collection for a PCollection of type <int, int>.
+func TestSmallestPerKey(t *testing.T) {
+	less := func(a, b int) bool {
+		return a < b
+	}
+	p, s := beam.NewPipelineWithRoot()
+	colZero := beam.Create(s, 1, 11, 7, 5, 10)
+	keyedZero := addKey(s, colZero, 0)
+
+	colOne := beam.Create(s, 2, 12, 8, 6, 11)
+	keyedOne := addKey(s, colOne, 1)
+
+	col := beam.Flatten(s, keyedZero, keyedOne)
+	bot := SmallestPerKey(s, col, 2, less)
+	out := beam.DropKey(s, bot)
+	passert.Equals(s, out, []int{1, 5}, []int{2, 6})
+	if err := ptest.Run(p); err != nil {
+		t.Errorf("pipeline failed but should have succeeded, got %v", err)
+	}
 }

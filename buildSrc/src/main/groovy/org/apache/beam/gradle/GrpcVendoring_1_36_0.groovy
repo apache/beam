@@ -49,7 +49,9 @@ class GrpcVendoring_1_36_0 {
       "io.grpc:grpc-netty:$grpc_version",
       "io.grpc:grpc-protobuf:$grpc_version",
       "io.grpc:grpc-stub:$grpc_version",
-      "io.netty:netty-transport-native-epoll:$netty_version",
+      // Use a classifier to ensure we get the jar containing native libraries. In the future
+      // hopefully netty releases a single jar containing native libraries for all architectures.
+      "io.netty:netty-transport-native-epoll:$netty_version:linux-x86_64",
       // tcnative version from https://github.com/grpc/grpc-java/blob/master/SECURITY.md#netty
       "io.netty:netty-tcnative-boringssl-static:2.0.34.Final",
       "com.google.auth:google-auth-library-credentials:$google_auth_version",
@@ -67,9 +69,6 @@ class GrpcVendoring_1_36_0 {
   static List<String> runtimeDependencies() {
     return [
       'com.google.errorprone:error_prone_annotations:2.4.0',
-      'commons-logging:commons-logging:1.2',
-      'org.apache.logging.log4j:log4j-api:2.6.2',
-      'org.slf4j:slf4j-api:1.7.30',
       // TODO(BEAM-9288): Enable relocation for conscrypt
       "org.conscrypt:conscrypt-openjdk-uber:$conscrypt_version"
     ]
@@ -130,6 +129,7 @@ class GrpcVendoring_1_36_0 {
       // this includes concatenation of string literals and constants.
       'META-INF/native/libnetty': "META-INF/native/liborg_apache_beam_vendor_grpc_${version}_netty",
       'META-INF/native/netty': "META-INF/native/org_apache_beam_vendor_grpc_${version}_netty",
+      'META-INF/native/lib-netty': "META-INF/native/lib-org-apache-beam-vendor-grpc-${version}-netty",
     ]
   }
 
@@ -156,10 +156,6 @@ class GrpcVendoring_1_36_0 {
       "javax/annotation/**",
       "junit/**",
       "module-info.class",
-      "org/apache/commons/logging/**",
-      "org/apache/log/**",
-      "org/apache/log4j/**",
-      "org/apache/logging/log4j/**",
       "org/checkerframework/**",
       "org/codehaus/mojo/animal_sniffer/**",
       "org/conscrypt/**",
@@ -169,7 +165,6 @@ class GrpcVendoring_1_36_0 {
       "org/junit/**",
       "org/mockito/**",
       "org/objenesis/**",
-      "org/slf4j/**",
     ]
   }
 

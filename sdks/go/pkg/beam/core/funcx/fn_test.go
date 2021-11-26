@@ -21,9 +21,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
 type foo struct {
@@ -74,6 +74,11 @@ func TestNew(t *testing.T) {
 			Name:  "good5",
 			Fn:    func(typex.Window, typex.EventTime, reflect.Type, []byte) {},
 			Param: []FnParamKind{FnWindow, FnEventTime, FnType, FnValue},
+		},
+		{
+			Name:  "good6",
+			Fn:    func(int, func(string) func(*int) bool) {},
+			Param: []FnParamKind{FnValue, FnMultiMap},
 		},
 		{
 			Name:  "good-method",

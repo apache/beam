@@ -21,10 +21,10 @@ applyGoNature()
 
 description = "Apache Beam :: SDKs :: Python :: Container"
 
-// Figure out why the golang plugin does not add a build dependency between projects.
-// Without the line below, we get spurious errors about not being able to resolve
-// "./github.com/apache/beam/sdks/go"
-resolveBuildDependencies.dependsOn ":sdks:go:goBuild"
+// Disable gogradle's dependency resolution so it uses Go modules instead.
+installDependencies.enabled = false
+resolveBuildDependencies.enabled = false
+resolveTestDependencies.enabled = false
 
 configurations {
   sdkSourceTarball
@@ -42,8 +42,21 @@ dependencies {
 }
 
 golang {
-  packagePath = 'github.com/apache/beam/sdks/python/boot'
+  packagePath = 'github.com/apache/beam/sdks/v2/python/container'
+
+  // Set -modcacherw on common tasks so module cache can be deleted by goBuild.
+  goTest {
+    environment 'GOFLAGS', '-modcacherw'
+  }
+  goVet {
+    environment 'GOFLAGS', '-modcacherw'
+  }
+  gofmt {
+    environment 'GOFLAGS', '-modcacherw'
+  }
   goBuild {
+    environment 'GOFLAGS', '-modcacherw'
+
     // Build for linux and mac.
     targetPlatform = ['linux-amd64', 'darwin-amd64']
     outputLocation = './build/target/launcher/${GOOS}_${GOARCH}/boot'
@@ -60,6 +73,12 @@ task pushAll {
   dependsOn ':sdks:python:container:py36:dockerPush'
   dependsOn ':sdks:python:container:py37:dockerPush'
   dependsOn ':sdks:python:container:py38:dockerPush'
+}
+
+task generatePythonRequirementsAll {
+  dependsOn ':sdks:python:container:py36:generatePythonRequirements'
+  dependsOn ':sdks:python:container:py37:generatePythonRequirements'
+  dependsOn ':sdks:python:container:py38:generatePythonRequirements'
 }
 
 artifacts {

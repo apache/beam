@@ -17,6 +17,9 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
+import static org.apache.beam.runners.spark.structuredstreaming.Constants.BEAM_SOURCE_OPTION;
+import static org.apache.beam.runners.spark.structuredstreaming.Constants.DEFAULT_PARALLELISM;
+import static org.apache.beam.runners.spark.structuredstreaming.Constants.PIPELINE_OPTIONS;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
@@ -25,8 +28,8 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.serialization.Base64Serializer;
-import org.apache.beam.runners.spark.structuredstreaming.translation.SchemaHelpers;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.RowHelpers;
+import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.SchemaHelpers;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -47,10 +50,6 @@ import org.apache.spark.sql.types.StructType;
  * no exactly once guaranty), this class does no implement {@link ContinuousReadSupport}.
  */
 public class DatasetSourceBatch implements DataSourceV2, ReadSupport {
-
-  static final String BEAM_SOURCE_OPTION = "beam-source";
-  static final String DEFAULT_PARALLELISM = "default-parallelism";
-  static final String PIPELINE_OPTIONS = "pipeline-options";
 
   @Override
   public DataSourceReader createReader(DataSourceOptions options) {

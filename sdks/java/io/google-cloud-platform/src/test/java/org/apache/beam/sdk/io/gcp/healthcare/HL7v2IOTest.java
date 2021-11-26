@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
-import com.google.api.services.healthcare.v1beta1.model.Message;
+import com.google.api.services.healthcare.v1.model.Message;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;

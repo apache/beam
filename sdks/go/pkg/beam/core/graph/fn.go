@@ -19,11 +19,11 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/sdf"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/sdf"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 // Fn holds either a function or struct receiver.
@@ -385,6 +385,12 @@ func AsDoFn(fn *Fn, numMainIn mainInputs) (*DoFn, error) {
 
 	if _, ok := fn.methods[processElementName]; !ok {
 		err := errors.Errorf("failed to find %v method", processElementName)
+		if fn.Recv != nil {
+			v := reflect.ValueOf(fn.Recv)
+			if v.Kind() != reflect.Ptr {
+				err = errors.Wrap(err, "structural DoFn passed by value, ensure that the ProcessElement method has a value receiver or pass the DoFn by pointer")
+			}
+		}
 		return nil, addContext(err, fn)
 	}
 

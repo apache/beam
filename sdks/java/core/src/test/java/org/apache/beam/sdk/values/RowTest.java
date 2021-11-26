@@ -132,7 +132,16 @@ public class RowTest {
     Row row =
         Row.withSchema(schema)
             .addValues(
-                (byte) 0, (short) 1, 2, 3L, new BigDecimal(2.3), 1.2f, 3.0d, "str", dateTime, false)
+                (byte) 0,
+                (short) 1,
+                2,
+                3L,
+                new BigDecimal("2.3"),
+                1.2f,
+                3.0d,
+                "str",
+                dateTime,
+                false)
             .build();
 
     assertEquals((byte) 0, (Object) row.getByte("f_byte"));
@@ -143,8 +152,8 @@ public class RowTest {
     assertEquals((int) 2, (Object) row.getInt32(2));
     assertEquals((long) 3, (Object) row.getInt64("f_int64"));
     assertEquals((long) 3, (Object) row.getInt64(3));
-    assertEquals(new BigDecimal(2.3), row.getDecimal("f_decimal"));
-    assertEquals(new BigDecimal(2.3), row.getDecimal(4));
+    assertEquals(new BigDecimal("2.3"), row.getDecimal("f_decimal"));
+    assertEquals(new BigDecimal("2.3"), row.getDecimal(4));
     assertEquals(1.2f, row.getFloat("f_float"), 0);
     assertEquals(1.2f, row.getFloat(5), 0);
     assertEquals(3.0d, row.getDouble("f_double"), 0);
@@ -556,7 +565,7 @@ public class RowTest {
             .withFieldValue("f_long", (long) 45)
             .withFieldValue("f_float", (float) 3.14)
             .withFieldValue("f_double", (double) 3.141)
-            .withFieldValue("f_decimal", new BigDecimal(3.1415))
+            .withFieldValue("f_decimal", new BigDecimal("3.1415"))
             .withFieldValue("f_boolean", true)
             .withFieldValue("f_datetime", dateTime)
             .withFieldValue("f_bytes", bytes)
@@ -575,7 +584,7 @@ public class RowTest {
                 (long) 45,
                 (float) 3.14,
                 (double) 3.141,
-                new BigDecimal(3.1415),
+                new BigDecimal("3.1415"),
                 true,
                 dateTime,
                 bytes,

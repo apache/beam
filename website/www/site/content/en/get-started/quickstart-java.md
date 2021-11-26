@@ -39,7 +39,7 @@ If you're interested in contributing to the Apache Beam Java codebase, see the [
 
 Use the following command to generate a Maven project that contains Beam's WordCount examples and builds against the most recent Beam release:
 
-{{< highlight class="shell-unix" >}}
+{{< shell unix >}}
 $ mvn archetype:generate \
       -DarchetypeGroupId=org.apache.beam \
       -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
@@ -49,9 +49,9 @@ $ mvn archetype:generate \
       -Dversion="0.1" \
       -Dpackage=org.apache.beam.examples \
       -DinteractiveMode=false
-{{< /highlight >}}
+{{< /shell >}}
 
-{{< highlight class="shell-PowerShell" >}}
+{{< shell powerShell >}}
 PS> mvn archetype:generate `
  -D archetypeGroupId=org.apache.beam `
  -D archetypeArtifactId=beam-sdks-java-maven-archetypes-examples `
@@ -61,11 +61,11 @@ PS> mvn archetype:generate `
  -D version="0.1" `
  -D package=org.apache.beam.examples `
  -D interactiveMode=false
-{{< /highlight >}}
+{{< /shell >}}
 
 This will create a `word-count-beam` directory that contains a `pom.xml` and several example pipelines that count words in text files.
 
-{{< highlight class="shell-unix" >}}
+{{< shell unix >}}
 $ cd word-count-beam/
 
 $ ls
@@ -74,9 +74,9 @@ pom.xml	src
 $ ls src/main/java/org/apache/beam/examples/
 DebuggingWordCount.java	WindowedWordCount.java	common
 MinimalWordCount.java	WordCount.java
-{{< /highlight >}}
+{{< /shell >}}
 
-{{< highlight class="shell-PowerShell" >}}
+{{< shell powerShell >}}
 PS> cd .\word-count-beam
 
 PS> dir
@@ -100,22 +100,20 @@ d-----        7/19/2018  11:00 PM                subprocess
 -a----        7/19/2018  11:00 PM           5945 MinimalWordCount.java
 -a----        7/19/2018  11:00 PM           9490 WindowedWordCount.java
 -a----        7/19/2018  11:00 PM           7662 WordCount.java
-{{< /highlight >}}
+{{< /shell >}}
 
 For a detailed introduction to the Beam concepts used in these examples, see the [WordCount Example Walkthrough](/get-started/wordcount-example). Here, we'll just focus on executing `WordCount.java`.
 
 ## Optional: Convert from Maven to Gradle Project
 
-Ensure you are in the same directory as the `pom.xml` file generated from the previous step. Automatically convert your project from Maven to Gradle by running:
+The steps below explain how to convert the build for the Direct Runner from Maven to Gradle. Converting the builds for the other runners is a more involved process and is out of scope for this guide. For additional guidance, see [Migrating Builds From Apache Maven](https://docs.gradle.org/current/userguide/migrating_from_maven.html).
+
+1. Ensure you are in the same directory as the `pom.xml` file generated from the previous step. Automatically convert your project from Maven to Gradle by running:
 {{< highlight >}}
 $ gradle init
 {{< /highlight >}}
-
 You'll be asked if you want to generate a Gradle build. Enter **yes**. You'll also be prompted to choose a DSL (Groovy or Kotlin). This tutorial uses Groovy, so select that if you don't have a preference.
-
-After you have converted the project to Gradle:
-
-1. In the generated `build.gradle` file, in the `repositories` block, replace `mavenLocal()` with `mavenCentral()`:
+1. After you've converted the project to Gradle, open the generated `build.gradle` file, and, in the `repositories` block, replace `mavenLocal()` with `mavenCentral()`:
 {{< highlight >}}
 repositories {
     mavenCentral()
@@ -168,30 +166,30 @@ To run the WordCount pipeline, see the Maven and Gradle examples below.
 
 For Unix shells:
 
-{{< highlight class="runner-direct" >}}
+{{< runner direct >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Dexec.args="--inputFile=sample.txt --output=counts" -Pdirect-runner
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-flink-local" >}}
+{{< runner flink >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Dexec.args="--runner=FlinkRunner --inputFile=sample.txt --output=counts" -Pflink-runner
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-flink-cluster" >}}
+{{< runner flinkCluster >}}
 $ mvn package exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Dexec.args="--runner=FlinkRunner --flinkMaster=<flink master> --filesToStage=target/word-count-beam-bundled-0.1.jar \
                   --inputFile=sample.txt --output=/tmp/counts" -Pflink-runner
 
 You can monitor the running job by visiting the Flink dashboard at http://<flink master>:8081
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-spark" >}}
+{{< runner spark >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Dexec.args="--runner=SparkRunner --inputFile=sample.txt --output=counts" -Pspark-runner
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-dataflow" >}}
+{{< runner dataflow >}}
 Make sure you complete the setup steps at /documentation/runners/dataflow/#setup
 
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
@@ -200,50 +198,50 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
                   --gcpTempLocation=gs://<your-gcs-bucket>/tmp \
                   --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://<your-gcs-bucket>/counts" \
      -Pdataflow-runner
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-samza-local" >}}
+{{< runner samza >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Dexec.args="--inputFile=sample.txt --output=/tmp/counts --runner=SamzaRunner" -Psamza-runner
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-nemo" >}}
+{{< runner nemo >}}
 $ mvn package -Pnemo-runner && java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount \
      --runner=NemoRunner --inputFile=`pwd`/sample.txt --output=counts
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-jet" >}}
+{{< runner jet >}}
 $ mvn package -Pjet-runner
 $ java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount \
      --runner=JetRunner --jetLocalMode=3 --inputFile=`pwd`/sample.txt --output=counts
-{{< /highlight >}}
+{{< /runner >}}
 
 For Windows PowerShell:
 
-{{< highlight class="runner-direct" >}}
+{{< runner direct >}}
 PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
  -D exec.args="--inputFile=sample.txt --output=counts" -P direct-runner
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-flink-local" >}}
+{{< runner flink >}}
 PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
  -D exec.args="--runner=FlinkRunner --inputFile=sample.txt --output=counts" -P flink-runner
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-flink-cluster" >}}
+{{< runner flinkCluster >}}
 PS> mvn package exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
  -D exec.args="--runner=FlinkRunner --flinkMaster=<flink master> --filesToStage=.\target\word-count-beam-bundled-0.1.jar `
                --inputFile=C:\path\to\quickstart\sample.txt --output=C:\tmp\counts" -P flink-runner
 
 You can monitor the running job by visiting the Flink dashboard at http://<flink master>:8081
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-spark" >}}
+{{< runner spark >}}
 PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
  -D exec.args="--runner=SparkRunner --inputFile=sample.txt --output=counts" -P spark-runner
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-dataflow" >}}
+{{< runner dataflow >}}
 Make sure you complete the setup steps at /documentation/runners/dataflow/#setup
 
 PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
@@ -252,108 +250,104 @@ PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
                --gcpTempLocation=gs://<your-gcs-bucket>/tmp `
                --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://<your-gcs-bucket>/counts" `
  -P dataflow-runner
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-samza-local" >}}
+{{< runner samza >}}
 PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
      -D exec.args="--inputFile=sample.txt --output=/tmp/counts --runner=SamzaRunner" -P samza-runner
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-nemo" >}}
+{{< runner nemo >}}
 PS> mvn package -P nemo-runner -DskipTests
 PS> java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount `
       --runner=NemoRunner --inputFile=`pwd`/sample.txt --output=counts
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-jet" >}}
+{{< runner jet >}}
 PS> mvn package -P jet-runner
 PS> java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount `
       --runner=JetRunner --jetLocalMode=3 --inputFile=$pwd/sample.txt --output=counts
-{{< /highlight >}}
+{{< /runner >}}
 
 ### Run WordCount Using Gradle
 
 For Unix shells (Instructions currently only available for Direct, Spark, and Dataflow):
 
-{{< highlight class="runner-direct">}}
+{{< runner direct>}}
 $ gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
     -Dexec.args="--inputFile=sample.txt --output=counts" -Pdirect-runner
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-apex">}}
+{{< runner flink>}}
 We are working on adding the instruction for this runner!
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-flink-local">}}
+{{< runner flinkCluster>}}
 We are working on adding the instruction for this runner!
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-flink-cluster">}}
-We are working on adding the instruction for this runner!
-{{< /highlight >}}
-
-{{< highlight class="runner-spark" >}}
+{{< runner spark >}}
 $ gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
     -Dexec.args="--inputFile=sample.txt --output=counts" -Pspark-runner
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-dataflow" >}}
+{{< runner dataflow >}}
 $ gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
     -Dexec.args="--project=<your-gcp-project> --inputFile=gs://apache-beam-samples/shakespeare/* \
     --output=gs://<your-gcs-bucket>/counts" -Pdataflow-runner
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-samza-local">}}
+{{< runner samza>}}
 We are working on adding the instruction for this runner!
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-nemo">}}
+{{< runner nemo>}}
 We are working on adding the instruction for this runner!
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-jet">}}
+{{< runner jet>}}
 We are working on adding the instruction for this runner!
-{{< /highlight >}}
+{{< /runner >}}
 
 ## Inspect the results
 
 Once the pipeline has completed, you can view the output. You'll notice that there may be multiple output files prefixed by `count`. The exact number of these files is decided by the runner, giving it the flexibility to do efficient, distributed execution.
 
-{{< highlight class="runner-direct" >}}
+{{< runner direct >}}
 $ ls counts*
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-flink-local" >}}
+{{< runner flink >}}
 $ ls counts*
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-flink-cluster" >}}
+{{< runner flinkCluster >}}
 $ ls /tmp/counts*
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-spark" >}}
+{{< runner spark >}}
 $ ls counts*
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-dataflow" >}}
+{{< runner dataflow >}}
 $ gsutil ls gs://<your-gcs-bucket>/counts*
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-samza-local" >}}
+{{< runner samza >}}
 $ ls /tmp/counts*
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-nemo" >}}
+{{< runner nemo >}}
 $ ls counts*
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-jet" >}}
+{{< runner jet >}}
 $ ls counts*
-{{< /highlight >}}
+{{< /runner >}}
 
 When you look into the contents of the file, you'll see that they contain unique words and the number of occurrences of each word. The order of elements within the file may differ because the Beam model does not generally guarantee ordering, again to allow runners to optimize for efficiency.
 
-{{< highlight class="runner-direct" >}}
+{{< runner direct >}}
 $ more counts*
 wrought: 2
 st: 32
@@ -366,9 +360,9 @@ untold: 1
 th: 1
 single: 4
 ...
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-flink-local" >}}
+{{< runner flink >}}
 $ more counts*
 wrought: 2
 st: 32
@@ -381,9 +375,9 @@ untold: 1
 th: 1
 single: 4
 ...
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-flink-cluster" >}}
+{{< runner flinkCluster >}}
 $ more /tmp/counts*
 wrought: 2
 st: 32
@@ -396,9 +390,9 @@ untold: 1
 th: 1
 single: 4
 ...
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-spark" >}}
+{{< runner spark >}}
 $ more counts*
 wrought: 2
 st: 32
@@ -411,10 +405,10 @@ untold: 1
 th: 1
 single: 4
 ...
-{{< /highlight >}}
+{{< /runner >}}
 
 
-{{< highlight class="runner-dataflow" >}}
+{{< runner dataflow >}}
 $ gsutil cat gs://<your-gcs-bucket>/counts*
 wrought: 2
 st: 32
@@ -427,9 +421,9 @@ untold: 1
 th: 1
 single: 4
 ...
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-samza-local" >}}
+{{< runner samza >}}
 $ more /tmp/counts*
 wrought: 2
 st: 32
@@ -442,9 +436,9 @@ untold: 1
 th: 1
 single: 4
 ...
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-nemo" >}}
+{{< runner nemo >}}
 $ more counts*
 wrought: 2
 st: 32
@@ -457,9 +451,9 @@ untold: 1
 th: 1
 single: 4
 ...
-{{< /highlight >}}
+{{< /runner >}}
 
-{{< highlight class="runner-jet" >}}
+{{< runner jet >}}
 $ more counts*
 wrought: 2
 st: 32
@@ -472,7 +466,7 @@ untold: 1
 th: 1
 single: 4
 ...
-{{< /highlight >}}
+{{< /runner >}}
 
 ## Next Steps
 

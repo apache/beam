@@ -21,7 +21,7 @@ import string
 import unittest
 from collections import Counter
 
-from nose.plugins.attrib import attr
+import pytest
 
 from apache_beam import Create
 from apache_beam import DoFn
@@ -52,7 +52,7 @@ class TestParquetIT(unittest.TestCase):
   def tearDown(self):
     pass
 
-  @attr('IT')
+  @pytest.mark.it_postcommit
   def test_parquetio_it(self):
     file_prefix = "parquet_it_test"
     init_size = 10
@@ -118,7 +118,7 @@ class TestParquetIT(unittest.TestCase):
 
 class ProducerFn(DoFn):
   def __init__(self, number):
-    super(ProducerFn, self).__init__()
+    super().__init__()
     self._number = number
     self._string_index = 0
     self._number_index = 0

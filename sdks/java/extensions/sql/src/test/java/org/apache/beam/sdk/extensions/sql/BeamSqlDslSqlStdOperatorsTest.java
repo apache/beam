@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
+import static java.math.RoundingMode.UNNECESSARY;
 import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithUTCTimeZone;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
@@ -30,7 +31,6 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Arrays;
@@ -44,14 +44,14 @@ import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.integrationtest.BeamSqlBuiltinFunctionsIntegrationTestBase;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Joiner;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.Lists;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.Ordering;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.runtime.SqlFunctions;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperator;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.base.Joiner;
+import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.Lists;
+import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.Ordering;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.runtime.SqlFunctions;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlKind;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlOperator;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -59,16 +59,16 @@ import org.junit.rules.ExpectedException;
 
 /**
  * DSL compliance tests for the row-level operators of {@link
- * org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.fun.SqlStdOperatorTable}.
+ * org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.fun.SqlStdOperatorTable}.
  */
 public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegrationTestBase {
-  private static final BigDecimal ZERO = BigDecimal.valueOf(0.0);
-  private static final BigDecimal ONE = BigDecimal.valueOf(1.0);
-  private static final BigDecimal ONE2 = BigDecimal.valueOf(1.0).multiply(BigDecimal.valueOf(1.0));
-  private static final BigDecimal ONE10 =
-      BigDecimal.ONE.divide(BigDecimal.ONE, 10, RoundingMode.HALF_EVEN);
-  private static final BigDecimal TWO = BigDecimal.valueOf(2.0);
-  private static final BigDecimal TWO0 = BigDecimal.ONE.add(BigDecimal.ONE);
+  private static final BigDecimal ZERO_0 = BigDecimal.valueOf(0).setScale(0, UNNECESSARY);
+  private static final BigDecimal ZERO_1 = BigDecimal.valueOf(0).setScale(1, UNNECESSARY);
+  private static final BigDecimal ONE_0 = BigDecimal.valueOf(1).setScale(0, UNNECESSARY);
+  private static final BigDecimal ONE_1 = BigDecimal.valueOf(1).setScale(1, UNNECESSARY);
+  private static final BigDecimal ONE_2 = BigDecimal.valueOf(1).setScale(2, UNNECESSARY);
+  private static final BigDecimal TWO_0 = BigDecimal.valueOf(2).setScale(0, UNNECESSARY);
+  private static final BigDecimal TWO_1 = BigDecimal.valueOf(2).setScale(1, UNNECESSARY);
 
   private static final int INTEGER_VALUE = 1;
   private static final long LONG_VALUE = 1L;
@@ -76,6 +76,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
   private static final byte BYTE_VALUE = 1;
   private static final double DOUBLE_VALUE = 1.0;
   private static final float FLOAT_VALUE = 1.0f;
+  private static final BigDecimal DECIMAL_VALUE = BigDecimal.ONE;
 
   @Rule public ExpectedException thrown = ExpectedException.none();
 
@@ -87,6 +88,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
     abstract SqlKind kind();
   }
 
+  @SuppressWarnings("unused")
   private static SqlOperatorId sqlOperatorId(String nameAndKind) {
     return sqlOperatorId(nameAndKind, SqlKind.valueOf(nameAndKind));
   }
@@ -233,9 +235,11 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
   }
 
   @Test
-  @SqlOperatorTest(name = "OR", kind = "OR")
-  @SqlOperatorTest(name = "NOT", kind = "NOT")
-  @SqlOperatorTest(name = "AND", kind = "AND")
+  @SqlOperatorTests({
+    @SqlOperatorTest(name = "OR", kind = "OR"),
+    @SqlOperatorTest(name = "NOT", kind = "NOT"),
+    @SqlOperatorTest(name = "AND", kind = "AND"),
+  })
   public void testLogicOperators() {
     ExpressionChecker checker =
         new ExpressionChecker()
@@ -280,23 +284,25 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
   }
 
   @Test
-  @SqlOperatorTest(name = "+", kind = "PLUS")
-  @SqlOperatorTest(name = "-", kind = "MINUS")
-  @SqlOperatorTest(name = "*", kind = "TIMES")
-  @SqlOperatorTest(name = "/", kind = "DIVIDE")
-  @SqlOperatorTest(name = "MOD", kind = "MOD")
+  @SqlOperatorTests({
+    @SqlOperatorTest(name = "+", kind = "PLUS"),
+    @SqlOperatorTest(name = "-", kind = "MINUS"),
+    @SqlOperatorTest(name = "*", kind = "TIMES"),
+    @SqlOperatorTest(name = "/", kind = "DIVIDE"),
+    @SqlOperatorTest(name = "MOD", kind = "MOD"),
+  })
   public void testArithmeticOperator() {
     ExpressionChecker checker =
         new ExpressionChecker()
             .addExpr("1 + 1", 2)
-            .addExpr("1.0 + 1", TWO)
-            .addExpr("1 + 1.0", TWO)
-            .addExpr("1.0 + 1.0", TWO)
+            .addExpr("1.0 + 1", TWO_1)
+            .addExpr("1 + 1.0", TWO_1)
+            .addExpr("1.0 + 1.0", TWO_1)
             .addExpr("c_tinyint + c_tinyint", (byte) 2)
             .addExpr("c_smallint + c_smallint", (short) 2)
             .addExpr("c_bigint + c_bigint", 2L)
-            .addExpr("c_decimal + c_decimal", TWO0)
-            .addExpr("c_tinyint + c_decimal", TWO0)
+            .addExpr("c_decimal + c_decimal", TWO_0)
+            .addExpr("c_tinyint + c_decimal", TWO_0)
             .addExpr("c_float + c_decimal", 2.0)
             .addExpr("c_double + c_decimal", 2.0)
             .addExpr("c_float + c_float", 2.0f)
@@ -305,9 +311,9 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("c_float + c_bigint", 2.0f)
             .addExpr("c_double + c_bigint", 2.0)
             .addExpr("1 - 1", 0)
-            .addExpr("1.0 - 1", ZERO)
-            .addExpr("1 - 0.0", ONE)
-            .addExpr("1.0 - 1.0", ZERO)
+            .addExpr("1.0 - 1", ZERO_1)
+            .addExpr("1 - 0.0", ONE_0)
+            .addExpr("1.0 - 1.0", ZERO_1)
             .addExpr("c_tinyint - c_tinyint", (byte) 0)
             .addExpr("c_smallint - c_smallint", (short) 0)
             .addExpr("c_bigint - c_bigint", 0L)
@@ -321,14 +327,14 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("c_float - c_bigint", 0.0f)
             .addExpr("c_double - c_bigint", 0.0)
             .addExpr("1 * 1", 1)
-            .addExpr("1.0 * 1", ONE)
-            .addExpr("1 * 1.0", ONE)
-            .addExpr("1.0 * 1.0", ONE2)
+            .addExpr("1.0 * 1", ONE_0)
+            .addExpr("1 * 1.0", ONE_1)
+            .addExpr("1.0 * 1.0", ONE_1)
             .addExpr("c_tinyint * c_tinyint", (byte) 1)
             .addExpr("c_smallint * c_smallint", (short) 1)
             .addExpr("c_bigint * c_bigint", 1L)
-            .addExpr("c_decimal * c_decimal", BigDecimal.ONE)
-            .addExpr("c_tinyint * c_decimal", BigDecimal.ONE)
+            .addExpr("c_decimal * c_decimal", ONE_0)
+            .addExpr("c_tinyint * c_decimal", ONE_0)
             .addExpr("c_float * c_decimal", 1.0)
             .addExpr("c_double * c_decimal", 1.0)
             .addExpr("c_float * c_float", 1.0f)
@@ -337,14 +343,14 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("c_float * c_bigint", 1.0f)
             .addExpr("c_double * c_bigint", 1.0)
             .addExpr("1 / 1", 1)
-            .addExpr("1.0 / 1", ONE)
-            .addExpr("1 / 1.0", BigDecimal.ONE)
-            .addExpr("1.0 / 1.0", BigDecimal.ONE)
+            .addExpr("1.0 / 1", ONE_1)
+            .addExpr("1 / 1.0", ONE_0)
+            .addExpr("1.0 / 1.0", ONE_0)
             .addExpr("c_tinyint / c_tinyint", (byte) 1)
             .addExpr("c_smallint / c_smallint", (short) 1)
             .addExpr("c_bigint / c_bigint", 1L)
-            .addExpr("c_decimal / c_decimal", BigDecimal.ONE)
-            .addExpr("c_tinyint / c_decimal", BigDecimal.ONE)
+            .addExpr("c_decimal / c_decimal", ONE_0)
+            .addExpr("c_tinyint / c_decimal", ONE_0)
             .addExpr("c_float / c_decimal", 1.0)
             .addExpr("c_double / c_decimal", 1.0)
             .addExpr("c_float / c_float", 1.0f)
@@ -353,14 +359,14 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("c_float / c_bigint", 1.0f)
             .addExpr("c_double / c_bigint", 1.0)
             .addExpr("mod(1, 1)", 0)
-            .addExpr("mod(1.0, 1)", 0)
-            .addExpr("mod(1, 1.0)", BigDecimal.ZERO)
-            .addExpr("mod(1.0, 1.0)", ZERO)
+            .addExpr("mod(1.0, 1)", ZERO_1)
+            .addExpr("mod(1, 1.0)", ZERO_1)
+            .addExpr("mod(1.0, 1.0)", ZERO_1)
             .addExpr("mod(c_tinyint, c_tinyint)", (byte) 0)
             .addExpr("mod(c_smallint, c_smallint)", (short) 0)
             .addExpr("mod(c_bigint, c_bigint)", 0L)
-            .addExpr("mod(c_decimal, c_decimal)", BigDecimal.ZERO)
-            .addExpr("mod(c_tinyint, c_decimal)", BigDecimal.ZERO)
+            .addExpr("mod(c_decimal, c_decimal)", ZERO_0)
+            .addExpr("mod(c_tinyint, c_decimal)", ZERO_0)
             // Test overflow
             .addExpr("c_tinyint_max + c_tinyint_max", (byte) -2)
             .addExpr("c_smallint_max + c_smallint_max", (short) -2)
@@ -371,8 +377,10 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
   }
 
   @Test
-  @SqlOperatorTest(name = "LIKE", kind = "LIKE")
-  @SqlOperatorTest(name = "NOT LIKE", kind = "LIKE")
+  @SqlOperatorTests({
+    @SqlOperatorTest(name = "LIKE", kind = "LIKE"),
+    @SqlOperatorTest(name = "NOT LIKE", kind = "LIKE"),
+  })
   public void testLikeAndNotLike() {
     ExpressionChecker checker =
         new ExpressionChecker()
@@ -451,22 +459,24 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
   }
 
   @Test
-  @SqlOperatorTest(name = "<", kind = "LESS_THAN")
-  @SqlOperatorTest(name = ">", kind = "GREATER_THAN")
-  @SqlOperatorTest(name = "<=", kind = "LESS_THAN_OR_EQUAL")
-  @SqlOperatorTest(name = "<>", kind = "NOT_EQUALS")
-  @SqlOperatorTest(name = "=", kind = "EQUALS")
-  @SqlOperatorTest(name = ">=", kind = "GREATER_THAN_OR_EQUAL")
-  @SqlOperatorTest(name = "IS NOT NULL", kind = "IS_NOT_NULL")
-  @SqlOperatorTest(name = "IS NULL", kind = "IS_NULL")
-  @SqlOperatorTest(name = "IS TRUE", kind = "IS_TRUE")
-  @SqlOperatorTest(name = "IS NOT TRUE", kind = "IS_NOT_TRUE")
-  @SqlOperatorTest(name = "IS FALSE", kind = "IS_FALSE")
-  @SqlOperatorTest(name = "IS NOT FALSE", kind = "IS_NOT_FALSE")
-  @SqlOperatorTest(name = "IS UNKNOWN", kind = "IS_NULL")
-  @SqlOperatorTest(name = "IS NOT UNKNOWN", kind = "IS_NOT_NULL")
-  @SqlOperatorTest(name = "IS DISTINCT FROM", kind = "IS_DISTINCT_FROM")
-  @SqlOperatorTest(name = "IS NOT DISTINCT FROM", kind = "IS_NOT_DISTINCT_FROM")
+  @SqlOperatorTests({
+    @SqlOperatorTest(name = "<", kind = "LESS_THAN"),
+    @SqlOperatorTest(name = ">", kind = "GREATER_THAN"),
+    @SqlOperatorTest(name = "<=", kind = "LESS_THAN_OR_EQUAL"),
+    @SqlOperatorTest(name = "<>", kind = "NOT_EQUALS"),
+    @SqlOperatorTest(name = "=", kind = "EQUALS"),
+    @SqlOperatorTest(name = ">=", kind = "GREATER_THAN_OR_EQUAL"),
+    @SqlOperatorTest(name = "IS NOT NULL", kind = "IS_NOT_NULL"),
+    @SqlOperatorTest(name = "IS NULL", kind = "IS_NULL"),
+    @SqlOperatorTest(name = "IS TRUE", kind = "IS_TRUE"),
+    @SqlOperatorTest(name = "IS NOT TRUE", kind = "IS_NOT_TRUE"),
+    @SqlOperatorTest(name = "IS FALSE", kind = "IS_FALSE"),
+    @SqlOperatorTest(name = "IS NOT FALSE", kind = "IS_NOT_FALSE"),
+    @SqlOperatorTest(name = "IS UNKNOWN", kind = "IS_NULL"),
+    @SqlOperatorTest(name = "IS NOT UNKNOWN", kind = "IS_NOT_NULL"),
+    @SqlOperatorTest(name = "IS DISTINCT FROM", kind = "IS_DISTINCT_FROM"),
+    @SqlOperatorTest(name = "IS NOT DISTINCT FROM", kind = "IS_NOT_DISTINCT_FROM"),
+  })
   public void testComparisonOperatorFunction() {
     ExpressionChecker checker =
         new ExpressionChecker()
@@ -698,16 +708,18 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
   }
 
   @Test
-  @SqlOperatorTest(name = "CHARACTER_LENGTH", kind = "OTHER_FUNCTION")
-  @SqlOperatorTest(name = "CHAR_LENGTH", kind = "OTHER_FUNCTION")
-  @SqlOperatorTest(name = "INITCAP", kind = "OTHER_FUNCTION")
-  @SqlOperatorTest(name = "LOWER", kind = "OTHER_FUNCTION")
-  @SqlOperatorTest(name = "POSITION", kind = "POSITION")
-  @SqlOperatorTest(name = "OVERLAY", kind = "OTHER_FUNCTION")
-  @SqlOperatorTest(name = "SUBSTRING", kind = "OTHER_FUNCTION")
-  @SqlOperatorTest(name = "TRIM", kind = "TRIM")
-  @SqlOperatorTest(name = "UPPER", kind = "OTHER_FUNCTION")
-  @SqlOperatorTest(name = "||", kind = "OTHER")
+  @SqlOperatorTests({
+    @SqlOperatorTest(name = "CHARACTER_LENGTH", kind = "OTHER_FUNCTION"),
+    @SqlOperatorTest(name = "CHAR_LENGTH", kind = "OTHER_FUNCTION"),
+    @SqlOperatorTest(name = "INITCAP", kind = "OTHER_FUNCTION"),
+    @SqlOperatorTest(name = "LOWER", kind = "OTHER_FUNCTION"),
+    @SqlOperatorTest(name = "POSITION", kind = "POSITION"),
+    @SqlOperatorTest(name = "OVERLAY", kind = "OTHER_FUNCTION"),
+    @SqlOperatorTest(name = "SUBSTRING", kind = "OTHER_FUNCTION"),
+    @SqlOperatorTest(name = "TRIM", kind = "TRIM"),
+    @SqlOperatorTest(name = "UPPER", kind = "OTHER_FUNCTION"),
+    @SqlOperatorTest(name = "||", kind = "OTHER"),
+  })
   public void testStringFunctions() throws Exception {
     SqlExpressionChecker checker =
         new SqlExpressionChecker()
@@ -732,10 +744,10 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("OVERLAY('w3333333rce' PLACING 'resou' FROM 3 FOR 5) = 'w3resou3rce'")
             .addExpr("OVERLAY('w3333333rce' PLACING 'resou' FROM 3 FOR 7) = 'w3resouce'")
             .addExpr("SUBSTRING('hello' FROM 2) = 'ello'")
-            .addExpr("SUBSTRING('hello' FROM -1) = 'o'")
+            .addExpr("SUBSTRING('hello' FROM -1) = 'hello'")
             .addExpr("SUBSTRING('hello' FROM 2 FOR 2) = 'el'")
             .addExpr("SUBSTRING('hello' FROM 2 FOR 100) = 'ello'")
-            .addExpr("SUBSTRING('hello' FROM -3 for 2) = 'll'")
+            .addExpr("SUBSTRING('hello' FROM -3 for 2) = ''")
             .addExpr("UPPER('hello') = 'HELLO'");
 
     checker.check(pipeline);
@@ -753,7 +765,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("ABS(c_tinyint)", (byte) Math.abs(BYTE_VALUE))
             .addExpr("ABS(c_double)", Math.abs(DOUBLE_VALUE))
             .addExpr("ABS(c_float)", Math.abs(FLOAT_VALUE))
-            .addExpr("ABS(c_decimal)", new BigDecimal(Math.abs(ONE.doubleValue())));
+            .addExpr("ABS(c_decimal)", ONE_0.abs());
     checker.buildRunAndCheck();
   }
 
@@ -768,7 +780,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("LN(c_tinyint)", Math.log(BYTE_VALUE))
             .addExpr("LN(c_double)", Math.log(DOUBLE_VALUE))
             .addExpr("LN(c_float)", Math.log(FLOAT_VALUE))
-            .addExpr("LN(c_decimal)", Math.log(ONE.doubleValue()));
+            .addExpr("LN(c_decimal)", Math.log(DECIMAL_VALUE.doubleValue()));
     checker.buildRunAndCheck();
   }
 
@@ -783,7 +795,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("SQRT(c_tinyint)", Math.sqrt(BYTE_VALUE))
             .addExpr("SQRT(c_double)", Math.sqrt(DOUBLE_VALUE))
             .addExpr("SQRT(c_float)", Math.sqrt(FLOAT_VALUE))
-            .addExpr("SQRT(c_decimal)", Math.sqrt(ONE.doubleValue()));
+            .addExpr("SQRT(c_decimal)", Math.sqrt(DECIMAL_VALUE.doubleValue()));
     checker.buildRunAndCheck();
   }
 
@@ -798,8 +810,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("ROUND(c_tinyint, 0)", (byte) SqlFunctions.sround(BYTE_VALUE, 0))
             .addExpr("ROUND(c_double, 0)", SqlFunctions.sround(DOUBLE_VALUE, 0))
             .addExpr("ROUND(c_float, 0)", (float) SqlFunctions.sround(FLOAT_VALUE, 0))
-            .addExpr(
-                "ROUND(c_decimal, 0)", new BigDecimal(SqlFunctions.sround(ONE.doubleValue(), 0)));
+            .addExpr("ROUND(c_decimal, 0)", SqlFunctions.sround(ONE_0, 0));
     checker.buildRunAndCheck();
   }
 
@@ -814,7 +825,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("LOG10(c_tinyint)", Math.log10(BYTE_VALUE))
             .addExpr("LOG10(c_double)", Math.log10(DOUBLE_VALUE))
             .addExpr("LOG10(c_float)", Math.log10(FLOAT_VALUE))
-            .addExpr("LOG10(c_decimal)", Math.log10(ONE.doubleValue()));
+            .addExpr("LOG10(c_decimal)", Math.log10(DECIMAL_VALUE.doubleValue()));
     checker.buildRunAndCheck();
   }
 
@@ -829,7 +840,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("EXP(c_tinyint)", Math.exp(BYTE_VALUE))
             .addExpr("EXP(c_double)", Math.exp(DOUBLE_VALUE))
             .addExpr("EXP(c_float)", Math.exp(FLOAT_VALUE))
-            .addExpr("EXP(c_decimal)", Math.exp(ONE.doubleValue()));
+            .addExpr("EXP(c_decimal)", Math.exp(DECIMAL_VALUE.doubleValue()));
     checker.buildRunAndCheck();
   }
 
@@ -844,7 +855,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("ACOS(c_tinyint)", Math.acos(BYTE_VALUE))
             .addExpr("ACOS(c_double)", Math.acos(DOUBLE_VALUE))
             .addExpr("ACOS(c_float)", Math.acos(FLOAT_VALUE))
-            .addExpr("ACOS(c_decimal)", Math.acos(ONE.doubleValue()));
+            .addExpr("ACOS(c_decimal)", Math.acos(DECIMAL_VALUE.doubleValue()));
     checker.buildRunAndCheck();
   }
 
@@ -859,7 +870,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("ASIN(c_tinyint)", Math.asin(BYTE_VALUE))
             .addExpr("ASIN(c_double)", Math.asin(DOUBLE_VALUE))
             .addExpr("ASIN(c_float)", Math.asin(FLOAT_VALUE))
-            .addExpr("ASIN(c_decimal)", Math.asin(ONE.doubleValue()));
+            .addExpr("ASIN(c_decimal)", Math.asin(DECIMAL_VALUE.doubleValue()));
     checker.buildRunAndCheck();
   }
 
@@ -874,7 +885,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("ATAN(c_tinyint)", Math.atan(BYTE_VALUE))
             .addExpr("ATAN(c_double)", Math.atan(DOUBLE_VALUE))
             .addExpr("ATAN(c_float)", Math.atan(FLOAT_VALUE))
-            .addExpr("ATAN(c_decimal)", Math.atan(ONE.doubleValue()));
+            .addExpr("ATAN(c_decimal)", Math.atan(DECIMAL_VALUE.doubleValue()));
     checker.buildRunAndCheck();
   }
 
@@ -889,7 +900,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("COT(c_tinyint)", 1.0d / Math.tan(BYTE_VALUE))
             .addExpr("COT(c_double)", 1.0d / Math.tan(DOUBLE_VALUE))
             .addExpr("COT(c_float)", 1.0d / Math.tan(FLOAT_VALUE))
-            .addExpr("COT(c_decimal)", 1.0d / Math.tan(ONE.doubleValue()));
+            .addExpr("COT(c_decimal)", 1.0d / Math.tan(DECIMAL_VALUE.doubleValue()));
     checker.buildRunAndCheck();
   }
 
@@ -904,7 +915,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("DEGREES(c_tinyint)", Math.toDegrees(BYTE_VALUE))
             .addExpr("DEGREES(c_double)", Math.toDegrees(DOUBLE_VALUE))
             .addExpr("DEGREES(c_float)", Math.toDegrees(FLOAT_VALUE))
-            .addExpr("DEGREES(c_decimal)", Math.toDegrees(ONE.doubleValue()));
+            .addExpr("DEGREES(c_decimal)", Math.toDegrees(DECIMAL_VALUE.doubleValue()));
     checker.buildRunAndCheck();
   }
 
@@ -919,7 +930,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("RADIANS(c_tinyint)", Math.toRadians(BYTE_VALUE))
             .addExpr("RADIANS(c_double)", Math.toRadians(DOUBLE_VALUE))
             .addExpr("RADIANS(c_float)", Math.toRadians(FLOAT_VALUE))
-            .addExpr("RADIANS(c_decimal)", Math.toRadians(ONE.doubleValue()));
+            .addExpr("RADIANS(c_decimal)", Math.toRadians(DECIMAL_VALUE.doubleValue()));
     checker.buildRunAndCheck();
   }
 
@@ -934,7 +945,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("COS(c_tinyint)", Math.cos(BYTE_VALUE))
             .addExpr("COS(c_double)", Math.cos(DOUBLE_VALUE))
             .addExpr("COS(c_float)", Math.cos(FLOAT_VALUE))
-            .addExpr("COS(c_decimal)", Math.cos(ONE.doubleValue()));
+            .addExpr("COS(c_decimal)", Math.cos(DECIMAL_VALUE.doubleValue()));
     checker.buildRunAndCheck();
   }
 
@@ -949,7 +960,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("SIN(c_tinyint)", Math.sin(BYTE_VALUE))
             .addExpr("SIN(c_double)", Math.sin(DOUBLE_VALUE))
             .addExpr("SIN(c_float)", Math.sin(FLOAT_VALUE))
-            .addExpr("SIN(c_decimal)", Math.sin(ONE.doubleValue()));
+            .addExpr("SIN(c_decimal)", Math.sin(DECIMAL_VALUE.doubleValue()));
     checker.buildRunAndCheck();
   }
 
@@ -964,7 +975,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("TAN(c_tinyint)", Math.tan(BYTE_VALUE))
             .addExpr("TAN(c_double)", Math.tan(DOUBLE_VALUE))
             .addExpr("TAN(c_float)", Math.tan(FLOAT_VALUE))
-            .addExpr("TAN(c_decimal)", Math.tan(ONE.doubleValue()));
+            .addExpr("TAN(c_decimal)", Math.tan(DECIMAL_VALUE.doubleValue()));
 
     checker.buildRunAndCheck();
   }
@@ -975,12 +986,12 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
     ExpressionChecker checker =
         new ExpressionChecker()
             .addExpr("SIGN(c_integer)", Integer.signum(INTEGER_VALUE))
-            .addExpr("SIGN(c_bigint)", (long) (Long.signum(LONG_VALUE)))
-            .addExpr("SIGN(c_smallint)", (short) (Integer.signum(SHORT_VALUE)))
+            .addExpr("SIGN(c_bigint)", (long) Long.signum(LONG_VALUE))
+            .addExpr("SIGN(c_smallint)", (short) Integer.signum(SHORT_VALUE))
             .addExpr("SIGN(c_tinyint)", (byte) Integer.signum(BYTE_VALUE))
             .addExpr("SIGN(c_double)", Math.signum(DOUBLE_VALUE))
             .addExpr("SIGN(c_float)", Math.signum(FLOAT_VALUE))
-            .addExpr("SIGN(c_decimal)", BigDecimal.valueOf(ONE.signum()));
+            .addExpr("SIGN(c_decimal)", BigDecimal.valueOf(DECIMAL_VALUE.signum()));
 
     checker.buildRunAndCheck();
   }
@@ -996,14 +1007,14 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("POWER(c_tinyint, 2)", Math.pow(BYTE_VALUE, 2))
             .addExpr("POWER(c_double, 2)", Math.pow(DOUBLE_VALUE, 2))
             .addExpr("POWER(c_float, 2)", Math.pow(FLOAT_VALUE, 2))
-            .addExpr("POWER(c_decimal, 2)", Math.pow(ONE.doubleValue(), 2));
+            .addExpr("POWER(c_decimal, 2)", Math.pow(DECIMAL_VALUE.doubleValue(), 2));
 
     checker.buildRunAndCheck();
   }
 
   @Test
   @SqlOperatorTest(name = "PI", kind = "OTHER_FUNCTION")
-  public void testPi() throws Exception {
+  public void testPi() {
     ExpressionChecker checker = new ExpressionChecker().addExpr("PI", Math.PI);
 
     checker.buildRunAndCheck();
@@ -1020,7 +1031,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("ATAN2(c_tinyint, 2)", Math.atan2(BYTE_VALUE, 2))
             .addExpr("ATAN2(c_double, 2)", Math.atan2(DOUBLE_VALUE, 2))
             .addExpr("ATAN2(c_float, 2)", Math.atan2(FLOAT_VALUE, 2))
-            .addExpr("ATAN2(c_decimal, 2)", Math.atan2(ONE.doubleValue(), 2));
+            .addExpr("ATAN2(c_decimal, 2)", Math.atan2(DECIMAL_VALUE.doubleValue(), 2));
 
     checker.buildRunAndCheck();
   }
@@ -1036,7 +1047,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("TRUNCATE(c_tinyint, 2)", (byte) SqlFunctions.struncate(BYTE_VALUE, 2))
             .addExpr("TRUNCATE(c_double, 2)", SqlFunctions.struncate(DOUBLE_VALUE, 2))
             .addExpr("TRUNCATE(c_float, 2)", (float) SqlFunctions.struncate(FLOAT_VALUE, 2))
-            .addExpr("TRUNCATE(c_decimal, 2)", SqlFunctions.struncate(ONE, 2));
+            .addExpr("TRUNCATE(c_decimal, 2)", SqlFunctions.struncate(DECIMAL_VALUE, 2));
 
     checker.buildRunAndCheck();
   }
@@ -1065,9 +1076,11 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
   }
 
   @Test
-  @SqlOperatorTest(name = "ARRAY", kind = "ARRAY_VALUE_CONSTRUCTOR")
-  @SqlOperatorTest(name = "CARDINALITY", kind = "OTHER_FUNCTION")
-  @SqlOperatorTest(name = "ELEMENT", kind = "OTHER_FUNCTION")
+  @SqlOperatorTests({
+    @SqlOperatorTest(name = "ARRAY", kind = "ARRAY_VALUE_CONSTRUCTOR"),
+    @SqlOperatorTest(name = "CARDINALITY", kind = "OTHER_FUNCTION"),
+    @SqlOperatorTest(name = "ELEMENT", kind = "OTHER_FUNCTION"),
+  })
   public void testArrayFunctions() {
     ExpressionChecker checker =
         new ExpressionChecker()
@@ -1086,17 +1099,19 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
   }
 
   @Test
-  @SqlOperatorTest(name = "DAYOFMONTH", kind = "OTHER")
-  @SqlOperatorTest(name = "DAYOFWEEK", kind = "OTHER")
-  @SqlOperatorTest(name = "DAYOFYEAR", kind = "OTHER")
-  @SqlOperatorTest(name = "EXTRACT", kind = "EXTRACT")
-  @SqlOperatorTest(name = "YEAR", kind = "OTHER")
-  @SqlOperatorTest(name = "QUARTER", kind = "OTHER")
-  @SqlOperatorTest(name = "MONTH", kind = "OTHER")
-  @SqlOperatorTest(name = "WEEK", kind = "OTHER")
-  @SqlOperatorTest(name = "HOUR", kind = "OTHER")
-  @SqlOperatorTest(name = "MINUTE", kind = "OTHER")
-  @SqlOperatorTest(name = "SECOND", kind = "OTHER")
+  @SqlOperatorTests({
+    @SqlOperatorTest(name = "DAYOFMONTH", kind = "OTHER"),
+    @SqlOperatorTest(name = "DAYOFWEEK", kind = "OTHER"),
+    @SqlOperatorTest(name = "DAYOFYEAR", kind = "OTHER"),
+    @SqlOperatorTest(name = "EXTRACT", kind = "EXTRACT"),
+    @SqlOperatorTest(name = "YEAR", kind = "OTHER"),
+    @SqlOperatorTest(name = "QUARTER", kind = "OTHER"),
+    @SqlOperatorTest(name = "MONTH", kind = "OTHER"),
+    @SqlOperatorTest(name = "WEEK", kind = "OTHER"),
+    @SqlOperatorTest(name = "HOUR", kind = "OTHER"),
+    @SqlOperatorTest(name = "MINUTE", kind = "OTHER"),
+    @SqlOperatorTest(name = "SECOND", kind = "OTHER"),
+  })
   public void testBasicDateTimeFunctions() {
     ExpressionChecker checker =
         new ExpressionChecker()
@@ -1365,9 +1380,11 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
   }
 
   @Test
-  @SqlOperatorTest(name = "CASE", kind = "CASE")
-  @SqlOperatorTest(name = "NULLIF", kind = "NULLIF")
-  @SqlOperatorTest(name = "COALESCE", kind = "COALESCE")
+  @SqlOperatorTests({
+    @SqlOperatorTest(name = "CASE", kind = "CASE"),
+    @SqlOperatorTest(name = "NULLIF", kind = "NULLIF"),
+    @SqlOperatorTest(name = "COALESCE", kind = "COALESCE"),
+  })
   public void testConditionalOperatorsAndFunctions() {
     ExpressionChecker checker =
         new ExpressionChecker()

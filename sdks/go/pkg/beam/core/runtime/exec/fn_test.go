@@ -22,11 +22,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
 type testInt int32
@@ -81,6 +81,19 @@ func TestInvoke(t *testing.T) {
 				return ret
 			},
 			Args:     []interface{}{1, func(out *int) bool { *out = 2; return true }},
+			Expected: 2,
+		},
+		{
+			// Multimap side input
+			Fn: func(a int, get func(int) func(*int) bool) int {
+				var ret int
+				iter := get(a)
+				if !iter(&ret) {
+					return a
+				}
+				return ret
+			},
+			Args:     []interface{}{1, func(_ int) func(*int) bool { return func(out *int) bool { *out = 2; return true } }},
 			Expected: 2,
 		},
 		{

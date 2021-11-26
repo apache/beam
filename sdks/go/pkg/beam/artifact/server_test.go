@@ -22,9 +22,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	jobpb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
-	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
@@ -68,6 +68,9 @@ type manifest struct {
 
 // server is a in-memory staging and retrieval artifact server for testing.
 type server struct {
+	jobpb.UnimplementedLegacyArtifactStagingServiceServer
+	jobpb.UnimplementedLegacyArtifactRetrievalServiceServer
+
 	m  map[string]*manifest // token -> manifest
 	mu sync.Mutex
 }

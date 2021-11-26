@@ -95,7 +95,7 @@ class AnnotateVideo(PTransform):
           videointelligenceml.AnnotateVideo(features,
             context_side_input=beam.pvalue.AsDict(context_side_input)))
     """
-    super(AnnotateVideo, self).__init__()
+    super().__init__()
     self.features = features
     self.location_id = location_id
     self.metadata = metadata
@@ -120,7 +120,7 @@ class _VideoAnnotateFn(DoFn):
   (``google.cloud.videointelligence_v1.types.AnnotateVideoResponse``).
   """
   def __init__(self, features, location_id, metadata, timeout):
-    super(_VideoAnnotateFn, self).__init__()
+    super().__init__()
     self._client = None
     self.features = features
     self.location_id = location_id
@@ -186,7 +186,7 @@ class AnnotateVideoWithContext(AnnotateVideo):
           The time in seconds to wait for the response from the
           Video Intelligence API
     """
-    super(AnnotateVideoWithContext, self).__init__(
+    super().__init__(
         features=features,
         location_id=location_id,
         metadata=metadata,
@@ -210,7 +210,7 @@ class _VideoAnnotateFnWithContext(_VideoAnnotateFn):
   (``google.cloud.videointelligence_v1.types.AnnotateVideoResponse``).
   """
   def __init__(self, features, location_id, metadata, timeout):
-    super(_VideoAnnotateFnWithContext, self).__init__(
+    super().__init__(
         features=features,
         location_id=location_id,
         metadata=metadata,

@@ -17,33 +17,70 @@
  */
 package org.apache.beam.sdk.io.aws2.sqs;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+
+import java.io.IOException;
 import java.io.Serializable;
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import software.amazon.awssdk.services.sqs.model.Message;
 
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class SqsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable {
 
-  private final List<Message> messagesToDelete;
-  private final transient Optional<SqsUnboundedReader> reader;
+  /**
+   * If the checkpoint is for persisting: the reader who's snapshotted state we are persisting. If
+   * the checkpoint is for restoring: {@literal null}. Not persisted in durable checkpoint. CAUTION:
+   * Between a checkpoint being taken and {@link #finalizeCheckpoint()} being called the 'true'
+   * active reader may have changed.
+   */
+  private transient Optional<SqsUnboundedReader> reader;
+  /**
+   * If the checkpoint is for persisting: The ids of messages which have been passed downstream
+   * since the last checkpoint. If the checkpoint is for restoring: {@literal null}. Not persisted
+   * in durable checkpoint.
+   */
+  private @Nullable List<String> safeToDeleteIds;
 
-  SqsCheckpointMark(SqsUnboundedReader reader, Collection<Message> messagesToDelete) {
+  /**
+   * If the checkpoint is for persisting: The receipt handles of messages which have been received
+   * from SQS but not yet passed downstream at the time of the snapshot. If the checkpoint is for
+   * restoring: Same, but recovered from durable storage.
+   */
+  @VisibleForTesting final List<String> notYetReadReceipts;
+
+  SqsCheckpointMark(
+      SqsUnboundedReader reader, List<String> messagesToDelete, List<String> notYetReadReceipts) {
     this.reader = Optional.of(reader);
-    this.messagesToDelete = ImmutableList.copyOf(messagesToDelete);
+    this.safeToDeleteIds = ImmutableList.copyOf(messagesToDelete);
+    this.notYetReadReceipts = ImmutableList.copyOf(notYetReadReceipts);
   }
 
   @Override
-  public void finalizeCheckpoint() {
-    reader.ifPresent(r -> r.delete(messagesToDelete));
-  }
-
-  List<Message> getMessagesToDelete() {
-    return messagesToDelete;
+  public void finalizeCheckpoint() throws IOException {
+    checkState(
+        reader.isPresent() && safeToDeleteIds != null, "Cannot finalize a restored checkpoint");
+    // Even if the 'true' active reader has changed since the checkpoint was taken we are
+    // fine:
+    // - The underlying SQS topic will not have changed, so the following deletes will still
+    // go to the right place.
+    // - We'll delete the ACK ids from the readers in-flight state, but that only affect
+    // flow control and stats, neither of which are relevant anymore.
+    try {
+      reader.get().delete(safeToDeleteIds);
+    } finally {
+      int remainingInFlight = reader.get().numInFlightCheckpoints.decrementAndGet();
+      checkState(remainingInFlight >= 0, "Miscounted in-flight checkpoints");
+      reader.get().maybeCloseClient();
+      reader = Optional.empty();
+      safeToDeleteIds = null;
+    }
   }
 
   @Override
@@ -55,11 +92,11 @@ class SqsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable 
       return false;
     }
     SqsCheckpointMark that = (SqsCheckpointMark) o;
-    return Objects.equal(messagesToDelete, that.messagesToDelete);
+    return Objects.equal(safeToDeleteIds, that.safeToDeleteIds);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(messagesToDelete);
+    return Objects.hashCode(safeToDeleteIds);
   }
 }

@@ -60,21 +60,28 @@ class DynamicDestinationsHelpers {
   static class ConstantTableDestinations<T> extends DynamicDestinations<T, TableDestination> {
     private final ValueProvider<String> tableSpec;
     private final @Nullable String tableDescription;
+    private final boolean clusteringEnabled;
 
-    ConstantTableDestinations(ValueProvider<String> tableSpec, @Nullable String tableDescription) {
+    ConstantTableDestinations(
+        ValueProvider<String> tableSpec,
+        @Nullable String tableDescription,
+        boolean clusteringEnabled) {
       this.tableSpec = tableSpec;
       this.tableDescription = tableDescription;
+      this.clusteringEnabled = clusteringEnabled;
     }
 
     static <T> ConstantTableDestinations<T> fromTableSpec(
-        ValueProvider<String> tableSpec, String tableDescription) {
-      return new ConstantTableDestinations<>(tableSpec, tableDescription);
+        ValueProvider<String> tableSpec, String tableDescription, boolean clusteringEnabled) {
+      return new ConstantTableDestinations<>(tableSpec, tableDescription, clusteringEnabled);
     }
 
     static <T> ConstantTableDestinations<T> fromJsonTableRef(
-        ValueProvider<String> jsonTableRef, String tableDescription) {
+        ValueProvider<String> jsonTableRef, String tableDescription, boolean clusteringEnabled) {
       return new ConstantTableDestinations<>(
-          NestedValueProvider.of(jsonTableRef, new JsonTableRefToTableSpec()), tableDescription);
+          NestedValueProvider.of(jsonTableRef, new JsonTableRefToTableSpec()),
+          tableDescription,
+          clusteringEnabled);
     }
 
     @Override
@@ -96,7 +103,11 @@ class DynamicDestinationsHelpers {
 
     @Override
     public Coder<TableDestination> getDestinationCoder() {
-      return TableDestinationCoderV2.of();
+      if (clusteringEnabled) {
+        return TableDestinationCoderV3.of();
+      } else {
+        return TableDestinationCoderV2.of();
+      }
     }
   }
 
@@ -357,7 +368,10 @@ class DynamicDestinationsHelpers {
           try {
             BigQueryOptions bqOptions = getPipelineOptions().as(BigQueryOptions.class);
             if (tableReference.getProjectId() == null) {
-              tableReference.setProjectId(bqOptions.getProject());
+              tableReference.setProjectId(
+                  bqOptions.getBigQueryProject() == null
+                      ? bqOptions.getProject()
+                      : bqOptions.getBigQueryProject());
             }
             try (DatasetService datasetService = bqServices.getDatasetService(bqOptions)) {
               return datasetService.getTable(tableReference);

@@ -22,7 +22,7 @@ import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HL7V2_INDEXI
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.MESSAGES;
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.deleteAllHL7v2Messages;
 
-import com.google.api.services.healthcare.v1beta1.model.Hl7V2Store;
+import com.google.api.services.healthcare.v1.model.Hl7V2Store;
 import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.concurrent.TimeoutException;
@@ -46,7 +46,7 @@ public class HL7v2IOWriteIT {
   private transient HealthcareApiClient client;
   private static String healthcareDataset;
   private static final String HL7V2_STORE_NAME =
-      "hl7v2_store_write_it_" + System.currentTimeMillis() + "_" + (new SecureRandom().nextInt(32));
+      "hl7v2_store_write_it_" + System.currentTimeMillis() + "_" + new SecureRandom().nextInt(32);
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
