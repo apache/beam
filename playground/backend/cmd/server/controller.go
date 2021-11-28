@@ -124,7 +124,9 @@ func (controller *playgroundController) GetRunOutput(ctx context.Context, info *
 	newRunOutput := ""
 	if len(runOutput) > lastIndex {
 		newRunOutput = runOutput[lastIndex:]
-		utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.RunOutputIndex, lastIndex+len(newRunOutput))
+		if err := utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.RunOutputIndex, lastIndex+len(newRunOutput)); err != nil {
+			return nil, errors.InternalError("GetRunOutput", "Error during set value to cache: "+err.Error())
+		}
 	}
 
 	pipelineResult := pb.GetRunOutputResponse{Output: newRunOutput}
