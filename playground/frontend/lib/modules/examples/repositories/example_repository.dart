@@ -17,103 +17,34 @@
  */
 
 import 'package:playground/modules/examples/models/category_model.dart';
-import 'package:playground/modules/examples/models/example_model.dart';
+import 'package:playground/modules/examples/repositories/example_client/example_client.dart';
+import 'package:playground/modules/examples/repositories/models/get_example_request.dart';
+import 'package:playground/modules/examples/repositories/models/get_list_of_examples_request.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 
-const javaHelloWorld = '''class HelloWorld {
-  public static void main(String[] args) {
-    System.out.println("Hello World!");
-  }
-}''';
-
-const pythonHelloWorld = 'print(‘Hello World’)';
-
-const goHelloWorld = '''package main
-
-import "fmt"
-
-// this is a comment
-
-func main() {
-  fmt.Println("Hello World")
-}''';
-
-const scioHelloWorld = ''' 
-object Hello {
-    def main(args: Array[String]) = {
-        println("Hello, world")
-    }
-}''';
-
 class ExampleRepository {
-  List<CategoryModel>? getCategories() {
-    return const [
-      CategoryModel('Side Inputs', [
-        ExampleModel(
-          {
-            SDK.java: javaHelloWorld,
-            SDK.go: goHelloWorld,
-            SDK.python: pythonHelloWorld,
-            SDK.scio: scioHelloWorld,
-          },
-          'HelloWorld',
-          ExampleType.example,
-        ),
-        ExampleModel(
-          {
-            SDK.java: 'JAVA Source code 1',
-            SDK.go: 'GO  Source code 1',
-            SDK.python: 'PYTHON  Source code 1',
-            SDK.scio: 'SCIO  Source code 1',
-          },
-          'KATA Source code 1',
-          ExampleType.kata,
-        ),
-      ]),
-      CategoryModel('Side Outputs', [
-        ExampleModel(
-          {
-            SDK.java: 'JAVA Source code 2',
-            SDK.go: 'GO  Source code 2',
-            SDK.python: 'PYTHON  Source code 2',
-            SDK.scio: 'SCIO  Source code 2',
-          },
-          'UNIT TEST Source code 2',
-          ExampleType.test,
-        ),
-        ExampleModel(
-          {
-            SDK.java: 'JAVA Source code 3',
-            SDK.go: 'GO  Source code 3',
-            SDK.python: 'PYTHON  Source code 3',
-            SDK.scio: 'SCIO  Source code 3',
-          },
-          'EXAMPLE Source code 3',
-          ExampleType.example,
-        ),
-      ]),
-      CategoryModel('I/O', [
-        ExampleModel(
-          {
-            SDK.java: 'JAVA Source code 4',
-            SDK.go: 'GO  Source code 4',
-            SDK.python: 'PYTHON  Source code 4',
-            SDK.scio: 'SCIO  Source code 4',
-          },
-          'KATA Source code 4',
-          ExampleType.kata,
-        ),
-        ExampleModel(
-          {
-            SDK.java: 'JAVA Source code 5',
-            SDK.go: 'GO  Source code 5',
-            SDK.python: 'PYTHON  Source code 5',
-            SDK.scio: 'SCIO  Source code 5',
-          },
-          'UNIT TEST Source code 5',
-          ExampleType.test,
-        ),
-      ]),
-    ];
+  late final ExampleClient _client;
+
+  ExampleRepository(ExampleClient client) {
+    _client = client;
+  }
+
+  Future<Map<SDK, List<CategoryModel>>> getListOfExamples(
+    GetListOfExamplesRequestWrapper request,
+  ) async {
+    final result = await _client.getListOfExamples(request);
+    return result.categories;
+  }
+
+  Future<String> getExampleSource(GetExampleRequestWrapper request) async {
+    final result = await _client.getExample(request);
+    return result.code;
+  }
+
+  Future<String> getExampleOutput(
+    GetExampleRequestWrapper request,
+  ) async {
+    final result = await _client.getExampleOutput(request);
+    return result.output;
   }
 }

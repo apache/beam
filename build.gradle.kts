@@ -248,12 +248,8 @@ task("goIntegrationTests") {
 }
 
 task("playgroundPreCommit") {
-  dependsOn(":playground:backend:tidy")
-  dependsOn(":playground:backend:test")
-
-  dependsOn(":playground:frontend:pubGet")
-  dependsOn(":playground:frontend:analyze")
-  dependsOn(":playground:frontend:test")
+  dependsOn(":playground:backend:precommit")
+  dependsOn(":playground:frontend:precommit")
 }
 
 task("pythonPreCommit") {

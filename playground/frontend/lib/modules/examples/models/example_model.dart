@@ -16,8 +16,6 @@
  * limitations under the License.
  */
 
-import 'package:playground/modules/sdk/models/sdk.dart';
-
 enum ExampleType {
   all,
   example,
@@ -41,9 +39,27 @@ extension ExampleTypeToString on ExampleType {
 }
 
 class ExampleModel {
-  final Map<SDK, String> sources;
   final ExampleType type;
   final String name;
+  final String path;
+  final String description;
+  String? source;
+  String? outputs;
 
-  const ExampleModel(this.sources, this.name, this.type);
+  ExampleModel({
+    required this.name,
+    required this.path,
+    required this.description,
+    required this.type,
+    this.source,
+    this.outputs,
+  });
+
+  setSource(String source) {
+    this.source = source;
+  }
+
+  setOutputs(String outputs) {
+    this.outputs = outputs;
+  }
 }

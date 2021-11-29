@@ -52,13 +52,17 @@ class PlaygroundPage extends StatelessWidget {
                   Consumer<ExampleState>(
                     builder: (context, state, child) {
                       return ExampleSelector(
-                        changeSelectorVisibility: state.changeSelectorVisibility,
+                        changeSelectorVisibility:
+                            state.changeSelectorVisibility,
                         isSelectorOpened: state.isSelectorOpened,
-                        categories: state.categories!,
                       );
                     },
                   ),
-                  SDKSelector(sdk: state.sdk, setSdk: state.setSdk),
+                  SDKSelector(
+                    sdk: state.sdk,
+                    setSdk: state.setSdk,
+                    setExample: state.setExample,
+                  ),
                   const NewExampleAction(),
                   ResetAction(reset: state.reset),
                 ],

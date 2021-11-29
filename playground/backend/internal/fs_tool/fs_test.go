@@ -17,6 +17,7 @@ package fs_tool
 
 import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"beam.apache.org/playground/backend/internal/logger"
 	"fmt"
 	"github.com/google/uuid"
 	"io/fs"
@@ -25,6 +26,53 @@ import (
 	"reflect"
 	"testing"
 )
+
+const (
+	preparedModDir  = "testModDir"
+	preparedWorkDir = "workingDir"
+)
+
+func TestMain(m *testing.M) {
+	err := setupPreparedFiles()
+	if err != nil {
+		logger.Fatal(err)
+	}
+	defer teardown()
+	m.Run()
+}
+
+func setupPreparedFiles() error {
+	err := os.Mkdir(preparedModDir, 0755)
+	if err != nil {
+		return err
+	}
+	err = os.MkdirAll(filepath.Join(preparedWorkDir, baseFileFolder), 0755)
+	if err != nil {
+		return err
+	}
+	testModFile := filepath.Join(preparedModDir, "go.mod")
+	testSumFile := filepath.Join(preparedModDir, "go.sum")
+	_, err = os.Create(testModFile)
+	if err != nil {
+		return err
+	}
+	_, err = os.Create(testSumFile)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func teardown() {
+	err := os.RemoveAll(preparedModDir)
+	if err != nil {
+		logger.Fatal(err)
+	}
+	err = os.RemoveAll(preparedWorkDir)
+	if err != nil {
+		logger.Fatal(err)
+	}
+}
 
 func TestLifeCycle_CreateExecutableFile(t *testing.T) {
 	pipelineId := uuid.New()
@@ -397,6 +445,71 @@ func TestLifeCycle_ExecutableName(t *testing.T) {
 			}
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetExecutableName() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestLifeCycle_CopyFiles(t *testing.T) {
+	type fields struct {
+		folderGlobs    []string
+		Folder         Folder
+		Extension      Extension
+		ExecutableName func(uuid.UUID, string) (string, error)
+		pipelineId     uuid.UUID
+	}
+	type args struct {
+		workingDir     string
+		preparedModDir string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "go.mod and go.sum exists in current dir",
+			fields: fields{
+				folderGlobs:    nil,
+				Folder:         Folder{},
+				Extension:      Extension{},
+				ExecutableName: nil,
+				pipelineId:     uuid.UUID{},
+			},
+			args: args{
+				workingDir:     preparedWorkDir,
+				preparedModDir: preparedModDir,
+			},
+			wantErr: false,
+		},
+		{
+			name: "go.mod or go.sum does not exists in current dir",
+			fields: fields{
+				folderGlobs:    nil,
+				Folder:         Folder{},
+				Extension:      Extension{},
+				ExecutableName: nil,
+				pipelineId:     uuid.UUID{},
+			},
+			args: args{
+				workingDir:     preparedWorkDir,
+				preparedModDir: "",
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := &LifeCycle{
+				folderGlobs:    tt.fields.folderGlobs,
+				Folder:         tt.fields.Folder,
+				Extension:      tt.fields.Extension,
+				ExecutableName: tt.fields.ExecutableName,
+				pipelineId:     tt.fields.pipelineId,
+			}
+			if err := l.CopyFiles(tt.args.workingDir, tt.args.preparedModDir); (err != nil) != tt.wantErr {
+				t.Errorf("CopyFiles() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
