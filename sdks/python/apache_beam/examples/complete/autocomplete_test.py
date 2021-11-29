@@ -21,8 +21,9 @@
 
 import unittest
 
-import apache_beam as beam
 import pytest
+
+import apache_beam as beam
 from apache_beam.examples.complete import autocomplete
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_utils import compute_hash

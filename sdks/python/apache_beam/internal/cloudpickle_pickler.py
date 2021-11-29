@@ -29,6 +29,7 @@ dump_session and load_session are no ops.
 
 import base64
 import bz2
+import cloudpickle
 import io
 import threading
 import zlib
@@ -41,8 +42,6 @@ try:
   from absl import flags
 except (ImportError, ModuleNotFoundError):
   pass
-
-import cloudpickle
 
 # Pickling, especially unpickling, causes broken module imports on Python 3
 # if executed concurrently, see: BEAM-8651, http://bugs.python.org/issue38884.
