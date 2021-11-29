@@ -252,9 +252,6 @@ class _ReadFromPandas(beam.PTransform):
       else:
         sample = self.reader(handle, *self.args, **self.kwargs)
 
-    def index_files(_, matches):
-      return {m.path: ix for ix, m in enumerate(sorted(matches))}
-
     matches_pcoll = paths_pcoll | fileio.MatchAll()
     indices_pcoll = (
         matches_pcoll.pipeline
