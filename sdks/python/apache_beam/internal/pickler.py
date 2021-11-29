@@ -35,7 +35,7 @@ USE_CLOUDPICKLE = 'cloudpickle'
 USE_DILL = 'dill'
 DEFAULT_PICKLE_LIB = USE_DILL
 
-desired_pickle_lib = None
+desired_pickle_lib = dill_pickler
 
 
 def dumps(o, enable_trace=True, use_zlib=False):
@@ -75,7 +75,3 @@ def set_library(selected_library=DEFAULT_PICKLE_LIB):
         desired_pickle_lib != cloudpickle_pickler):
     desired_pickle_lib = cloudpickle_pickler
     dill_pickler.override_pickler_hooks(False)
-
-
-if not desired_pickle_lib:
-  set_library()

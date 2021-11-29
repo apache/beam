@@ -37,7 +37,7 @@ import cloudpickle
 
 try:
   from _thread import RLock as RLockType
-except (ImportError, ModuleNotFoundError):
+except:
   pass
 
 try:
