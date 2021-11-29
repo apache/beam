@@ -41,8 +41,6 @@ class BigQueryStorageArrowReader implements BigQueryStorageReader {
 
   BigQueryStorageArrowReader(ReadSession readSession) throws IOException {
     protoSchema = readSession.getArrowSchema();
-    InputStream input = protoSchema.getSerializedSchema().newInput();
-    ArrowConversion.ArrowSchemaTranslator.toBeamSchema(ArrowConversion.arrowSchemaFromInput(input));
     this.rowCount = 0;
     this.alloc = null;
   }

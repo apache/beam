@@ -178,9 +178,9 @@ public class S3FileSystemTest {
     verify(s3FileSystem.getS3Client(), times(1)).copyObject(any(CopyObjectRequest.class));
 
     // we simulate a big object >= 5GB so it takes the multiPart path
-    headObjectResponse.toBuilder().contentLength(5_368_709_120L).build();
+    HeadObjectResponse bigHeadObjectResponse = headObjectResponse.toBuilder().contentLength(5_368_709_120L).build();
     assertGetObjectHead(
-        s3FileSystem, createObjectHeadRequest(sourcePath, options), options, headObjectResponse);
+        s3FileSystem, createObjectHeadRequest(sourcePath, options), options, bigHeadObjectResponse);
 
     try {
       s3FileSystem.copy(sourcePath, destinationPath);
