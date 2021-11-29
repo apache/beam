@@ -926,6 +926,7 @@ public class JdbcIO {
         try {
           return registry.getCoder(outputType);
         } catch (CannotProvideCoderException e) {
+          LOG.warn("Unable to infer a coder for type {}", outputType);
           return null;
         }
       }
