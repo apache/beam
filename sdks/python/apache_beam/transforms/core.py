@@ -2306,20 +2306,18 @@ class CombinePerKey(PTransformWithSideInputs):
         self.fn, *args, **kwargs)
 
   def default_type_hints(self):
-    result = self.fn.get_type_hints()
-    k = typehints.TypeVariable('K')
-    if result.input_types:
-      args, kwargs = result.input_types
-      args = (typehints.Tuple[k, args[0]], ) + args[1:]
-      result = result.with_input_types(*args, **kwargs)
+    hints = self.fn.get_type_hints()
+    if hints.input_types:
+      K = typehints.TypeVariable('K')
+      args, kwargs = hints.input_types
+      args = (typehints.Tuple[K, args[0]], ) + args[1:]
+      hints = hints.with_input_types(*args, **kwargs)
     else:
-      result = result.with_input_types(typehints.Tuple[k, typehints.Any])
-    if result.output_types:
-      main_output_type = result.simple_output_type('')
-      result = result.with_output_types(typehints.Tuple[k, main_output_type])
-    else:
-      result = result.with_output_types(typehints.Tuple[k, typehints.Any])
-    return result
+      K = typehints.Any
+    if hints.output_types:
+      main_output_type = hints.simple_output_type('')
+      hints = hints.with_output_types(typehints.Tuple[K, main_output_type])
+    return hints
 
   def to_runner_api_parameter(
       self,
