@@ -1060,8 +1060,8 @@ class SetupOptions(PipelineOptions):
         '--pickle_library',
         default='default',
         help=(
-            'Chooses which pickle library to use. Options are dill, cloudpickle '
-            'or default.'))
+            'Chooses which pickle library to use. Options are dill, '
+            'cloudpickle or default.'))
     parser.add_argument(
         '--save_main_session',
         default=False,

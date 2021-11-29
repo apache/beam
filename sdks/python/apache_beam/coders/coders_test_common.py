@@ -667,13 +667,11 @@ class CodersTest(unittest.TestCase):
     state = {}
 
     def iterable_state_write(values, element_coder_impl):
-      global state
       token = b'state_token_%d' % len(state)
       state[token] = [element_coder_impl.encode(e) for e in values]
       return token
 
     def iterable_state_read(token, element_coder_impl):
-      global state
       return [element_coder_impl.decode(s) for s in state[token]]
 
     coder = coders.StateBackedIterableCoder(
@@ -681,10 +679,8 @@ class CodersTest(unittest.TestCase):
         read_state=iterable_state_read,
         write_state=iterable_state_write,
         write_state_threshold=1)
-    context = pipeline_context.PipelineContext(
-        iterable_state_read=iterable_state_read,
-        iterable_state_write=iterable_state_write)
-    # Note: do not use check_coder see https://github.com/cloudpipe/cloudpickle/issues/452
+    # Note: do not use check_coder
+    # see https://github.com/cloudpipe/cloudpickle/issues/452
     self._observe(coder)
     self.assertEqual([1, 2, 3], coder.decode(coder.encode([1, 2, 3])))
     # Ensure that state was actually used.
