@@ -251,6 +251,25 @@ public class JdbcIOTest implements Serializable {
   }
 
   @Test
+  public void testReadWithCoderInference() {
+    PCollection<TestRow> rows =
+        pipeline.apply(
+            JdbcIO.<TestRow>read()
+                .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+                .withQuery(String.format("select name,id from %s where name = ?", READ_TABLE_NAME))
+                .withStatementPreparator(
+                    preparedStatement -> preparedStatement.setString(1, TestRow.getNameForSeed(1)))
+                .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId()));
+
+    PAssert.thatSingleton(rows.apply("Count All", Count.globally())).isEqualTo(1L);
+
+    Iterable<TestRow> expectedValues = Collections.singletonList(TestRow.fromSeed(1));
+    PAssert.that(rows).containsInAnyOrder(expectedValues);
+
+    pipeline.run();
+  }
+
+  @Test
   public void testReadRowsWithDataSourceConfiguration() {
     PCollection<Row> rows =
         pipeline.apply(
