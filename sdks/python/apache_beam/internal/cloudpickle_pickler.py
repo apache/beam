@@ -36,11 +36,6 @@ import zlib
 import cloudpickle
 
 try:
-  from _thread import RLock as RLockType
-except:
-  pass
-
-try:
   from absl import flags
 except (ImportError, ModuleNotFoundError):
   pass
@@ -58,7 +53,6 @@ def dumps(o, enable_trace=True, use_zlib=False):
     with io.BytesIO() as file:
       pickler = cloudpickle.CloudPickler(file)
       try:
-        pickler.dispatch_table[RLockType] = _pickle_rlock
         pickler.dispatch_table[type(flags.FLAGS)] = _pickle_absl_flags
       except NameError:
         pass
@@ -95,14 +89,6 @@ def loads(encoded, enable_trace=True, use_zlib=False):
   with _pickle_lock:
     unpickled = cloudpickle.loads(s)
     return unpickled
-
-
-def _pickle_rlock(obj):
-  return _create_rlock, tuple([])
-
-
-def _create_rlock():
-  return RLockType()
 
 
 def _pickle_absl_flags(obj):
