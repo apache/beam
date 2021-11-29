@@ -73,6 +73,8 @@ import org.joda.time.Instant;
  * BeamRelNode to replace {@code Project} and {@code Filter} node based on the {@code ZetaSQL}
  * expression evaluator.
  */
+@SuppressWarnings(
+    "unused") // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
 @Internal
 public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
 
@@ -172,7 +174,6 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
     private final boolean verifyRowValues;
     private final List<Integer> referencedColumns;
 
-    @SuppressWarnings("unused")
     @FieldAccess("row")
     private final FieldAccessDescriptor fieldAccess;
 

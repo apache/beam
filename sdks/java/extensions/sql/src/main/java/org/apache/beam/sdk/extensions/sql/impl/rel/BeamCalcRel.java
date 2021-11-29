@@ -112,7 +112,8 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
   "keyfor",
-  "nullness"
+  "nullness",
+  "unused" // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
 }) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class BeamCalcRel extends AbstractBeamCalcRel {
 
@@ -244,7 +245,6 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
     private final boolean verifyRowValues;
     private final List<String> jarPaths;
 
-    @SuppressWarnings("unused")
     @FieldAccess("row")
     private final FieldAccessDescriptor fieldAccess;
 

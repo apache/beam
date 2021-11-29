@@ -346,8 +346,6 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     PCollection<Row> stream = execute(sql);
 
-    Schema.builder().addNullableField("field1", FieldType.BOOLEAN).build();
-
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(Schema.builder().addBooleanField("f_bool").build())
@@ -361,8 +359,6 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     String sql = "SELECT 'b' IN UNNEST(['a', 'b', 'c'])";
 
     PCollection<Row> stream = execute(sql);
-
-    Schema.builder().addNullableField("field1", FieldType.BOOLEAN).build();
 
     PAssert.that(stream)
         .containsInAnyOrder(

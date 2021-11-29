@@ -19,7 +19,7 @@
 plugins { id 'org.apache.beam.module' }
 
 applyJavaNature(
-  suppressUnusedVariable: false,
+
   automaticModuleName: 'org.apache.beam.sdk.extensions.sql.udf')
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: SQL :: UDF"

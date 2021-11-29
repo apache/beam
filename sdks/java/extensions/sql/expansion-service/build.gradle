@@ -18,7 +18,7 @@
 plugins { id 'org.apache.beam.module' }
 
 applyJavaNature(
-  suppressUnusedVariable: false,
+
   automaticModuleName: 'org.apache.beam.sdks.extensions.sql.expansion',
   validateShadowJar: false,
   shadowClosure: {
