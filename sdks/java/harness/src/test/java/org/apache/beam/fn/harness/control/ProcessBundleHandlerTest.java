@@ -994,6 +994,12 @@ public class ProcessBundleHandlerTest {
                                     .setTransformId("2L")
                                     .setData(encodedData.toByteString())
                                     .build())
+                            .addData(
+                                Data.newBuilder()
+                                    .setInstructionId("998L")
+                                    .setTransformId("2L")
+                                    .setIsLast(true)
+                                    .build())
                             .addTimers(
                                 Timers.newBuilder()
                                     .setInstructionId("998L")
@@ -1002,6 +1008,15 @@ public class ProcessBundleHandlerTest {
                                         TimerFamilyDeclaration.PREFIX
                                             + SimpleRecordingDoFn.TIMER_FAMILY_ID)
                                     .setTimers(encodedTimer.toByteString())
+                                    .build())
+                            .addTimers(
+                                Timers.newBuilder()
+                                    .setInstructionId("998L")
+                                    .setTransformId("3L")
+                                    .setTimerFamilyId(
+                                        TimerFamilyDeclaration.PREFIX
+                                            + SimpleRecordingDoFn.TIMER_FAMILY_ID)
+                                    .setIsLast(true)
                                     .build())
                             .build()))
             .build());
@@ -1022,7 +1037,7 @@ public class ProcessBundleHandlerTest {
 
     assertThrows(
         "Expect java.lang.IllegalStateException: Unable to find inbound data receiver for"
-            + " instruction 998L and transform 3L. But was not thrown.",
+            + " instruction 998L and transform 3L. But was not thrown or Exception did not match.",
         IllegalStateException.class,
         () ->
             handler.processBundle(
@@ -1037,6 +1052,27 @@ public class ProcessBundleHandlerTest {
                                         Data.newBuilder()
                                             .setInstructionId("998L")
                                             .setTransformId("3L")
+                                            .setData(encodedData.toByteString())
+                                            .build())
+                                    .build()))
+                    .build()));
+    assertThrows(
+        "Expect java.lang.RuntimeException: Elements embedded in ProcessBundleRequest are "
+            + "incomplete. But was not thrown or Exception did not match.",
+        RuntimeException.class,
+        () ->
+            handler.processBundle(
+                InstructionRequest.newBuilder()
+                    .setInstructionId("998L")
+                    .setProcessBundle(
+                        ProcessBundleRequest.newBuilder()
+                            .setProcessBundleDescriptorId("1L")
+                            .setElements(
+                                Elements.newBuilder()
+                                    .addData(
+                                        Data.newBuilder()
+                                            .setInstructionId("998L")
+                                            .setTransformId("2L")
                                             .setData(encodedData.toByteString())
                                             .build())
                                     .build()))
@@ -1063,7 +1099,7 @@ public class ProcessBundleHandlerTest {
     assertThrows(
         "Expect java.lang.IllegalStateException: Unable to find inbound timer receiver "
             + "for instruction 998L, transform 4L, and timer family tfs-timer_family. But was not"
-            + " thrown",
+            + " thrown or Exception did not match.",
         IllegalStateException.class,
         () ->
             handler.processBundle(
@@ -1088,7 +1124,7 @@ public class ProcessBundleHandlerTest {
     assertThrows(
         "Expect java.lang.IllegalStateException: Unable to find inbound timer receiver "
             + "for instruction 998L, transform 3L, and timer family tfs-not_declared_id. But was "
-            + "not thrown",
+            + "not thrown or Exception did not match.",
         IllegalStateException.class,
         () ->
             handler.processBundle(
@@ -1105,6 +1141,30 @@ public class ProcessBundleHandlerTest {
                                             .setTransformId("3L")
                                             .setTimerFamilyId(
                                                 TimerFamilyDeclaration.PREFIX + "not_declared_id")
+                                            .setTimers(encodedTimer.toByteString())
+                                            .build())
+                                    .build()))
+                    .build()));
+    assertThrows(
+        "Expect java.lang.RuntimeException: Elements embedded in ProcessBundleRequest are"
+            + " incomplete. But was not thrown or Exception did not match.",
+        RuntimeException.class,
+        () ->
+            handler.processBundle(
+                InstructionRequest.newBuilder()
+                    .setInstructionId("998L")
+                    .setProcessBundle(
+                        ProcessBundleRequest.newBuilder()
+                            .setProcessBundleDescriptorId("1L")
+                            .setElements(
+                                Elements.newBuilder()
+                                    .addTimers(
+                                        Timers.newBuilder()
+                                            .setInstructionId("998L")
+                                            .setTransformId("3L")
+                                            .setTimerFamilyId(
+                                                TimerFamilyDeclaration.PREFIX
+                                                    + SimpleRecordingDoFn.TIMER_FAMILY_ID)
                                             .setTimers(encodedTimer.toByteString())
                                             .build())
                                     .build()))

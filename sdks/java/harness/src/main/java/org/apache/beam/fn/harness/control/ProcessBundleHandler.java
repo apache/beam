@@ -459,9 +459,14 @@ public class ProcessBundleHandler {
           }
 
           if (request.getProcessBundle().hasElements()) {
-            bundleProcessor
-                .getInboundObserver()
-                .multiplexElements(request.getProcessBundle().getElements());
+            boolean inputFinished =
+                bundleProcessor
+                    .getInboundObserver()
+                    .multiplexElements(request.getProcessBundle().getElements());
+            if (!inputFinished) {
+              throw new RuntimeException(
+                  "Elements embedded in ProcessBundleRequest are incomplete.");
+            }
           } else if (!bundleProcessor.getInboundEndpointApiServiceDescriptors().isEmpty()) {
             BeamFnDataInboundObserver2 observer = bundleProcessor.getInboundObserver();
             beamFnDataClient.registerReceiver(

@@ -118,8 +118,11 @@ public class BeamFnDataInboundObserver2 implements CloseableFnDataReceiver<BeamF
     }
   }
 
-  /** Dispatches the data and timers from the elements to corresponding receivers. */
-  public void multiplexElements(Elements elements) throws Exception {
+  /**
+   * Dispatches the data and timers from the elements to corresponding receivers. Returns true if
+   * all the endpoints are done after elements dispatching.
+   */
+  public boolean multiplexElements(Elements elements) throws Exception {
     for (BeamFnApi.Elements.Data data : elements.getDataList()) {
       EndpointStatus<DataEndpoint<?>> endpoint =
           transformIdToDataEndpoint.get(data.getTransformId());
@@ -179,6 +182,7 @@ public class BeamFnDataInboundObserver2 implements CloseableFnDataReceiver<BeamF
         numEndpointsThatAreIncomplete -= 1;
       }
     }
+    return numEndpointsThatAreIncomplete == 0;
   }
 
   /** Enables this receiver to be used again for another bundle. */
