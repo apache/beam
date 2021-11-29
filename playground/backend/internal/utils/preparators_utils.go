@@ -17,22 +17,22 @@ package utils
 
 import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
-	"beam.apache.org/playground/backend/internal/validators"
+	"beam.apache.org/playground/backend/internal/preparators"
 	"fmt"
 )
 
-// GetValidators returns slice of validators.Validator according to sdk
-func GetValidators(sdk pb.Sdk, filepath string) (*[]validators.Validator, error) {
-	var val *[]validators.Validator
+// GetPreparators returns slice of preparators.Preparator according to sdk
+func GetPreparators(sdk pb.Sdk, filepath string) (*[]preparators.Preparator, error) {
+	var prep *[]preparators.Preparator
 	switch sdk {
 	case pb.Sdk_SDK_JAVA:
-		val = validators.GetJavaValidators(filepath)
+		prep = preparators.GetJavaPreparators(filepath)
 	case pb.Sdk_SDK_GO:
-		val = validators.GetGoValidators()
+		prep = preparators.GetGoPreparators(filepath)
 	case pb.Sdk_SDK_PYTHON:
-		val = validators.GetPythonValidators()
+		prep = preparators.GetPythonPreparators(filepath)
 	default:
 		return nil, fmt.Errorf("incorrect sdk: %s", sdk)
 	}
-	return val, nil
+	return prep, nil
 }

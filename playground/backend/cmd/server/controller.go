@@ -51,7 +51,7 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 		return nil, errors.InvalidArgumentError("Run code()", "incorrect sdk: "+info.Sdk.String())
 	}
 	switch info.Sdk {
-	case pb.Sdk_SDK_UNSPECIFIED, pb.Sdk_SDK_PYTHON, pb.Sdk_SDK_SCIO:
+	case pb.Sdk_SDK_UNSPECIFIED, pb.Sdk_SDK_SCIO:
 		logger.Errorf("RunCode(): unimplemented sdk: %s\n", info.Sdk)
 		return nil, errors.InvalidArgumentError("Run code()", "unimplemented sdk: "+info.Sdk.String())
 	}
@@ -124,7 +124,9 @@ func (controller *playgroundController) GetRunOutput(ctx context.Context, info *
 	newRunOutput := ""
 	if len(runOutput) > lastIndex {
 		newRunOutput = runOutput[lastIndex:]
-		utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.RunOutputIndex, lastIndex+len(newRunOutput))
+		if err := utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.RunOutputIndex, lastIndex+len(newRunOutput)); err != nil {
+			return nil, errors.InternalError("GetRunOutput", "Error during set value to cache: "+err.Error())
+		}
 	}
 
 	pipelineResult := pb.GetRunOutputResponse{Output: newRunOutput}

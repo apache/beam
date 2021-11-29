@@ -831,11 +831,13 @@ public class JdbcIOTest implements Serializable {
 
   @Test
   public void testGetPreparedStatementSetCallerForLogicalTypes() throws Exception {
+    FieldType fixedLengthStringType = LogicalTypes.fixedLengthString(JDBCType.VARCHAR, 4);
     Schema schema =
         Schema.builder()
             .addField("logical_date_col", LogicalTypes.JDBC_DATE_TYPE)
             .addField("logical_time_col", LogicalTypes.JDBC_TIME_TYPE)
             .addField("logical_time_with_tz_col", LogicalTypes.JDBC_TIMESTAMP_WITH_TIMEZONE_TYPE)
+            .addField("logical_fixed_length_string_col", fixedLengthStringType)
             .build();
 
     long epochMilli = 1558719710000L;
@@ -846,7 +848,9 @@ public class JdbcIOTest implements Serializable {
             ISOChronology.getInstanceUTC());
 
     Row row =
-        Row.withSchema(schema).addValues(dateTime.withTimeAtStartOfDay(), time, dateTime).build();
+        Row.withSchema(schema)
+            .addValues(dateTime.withTimeAtStartOfDay(), time, dateTime, "Test")
+            .build();
 
     PreparedStatement psMocked = mock(PreparedStatement.class);
 
@@ -856,6 +860,8 @@ public class JdbcIOTest implements Serializable {
         .set(row, psMocked, 1, SchemaUtil.FieldWithIndex.of(schema.getField(1), 1));
     JdbcUtil.getPreparedStatementSetCaller(LogicalTypes.JDBC_TIMESTAMP_WITH_TIMEZONE_TYPE)
         .set(row, psMocked, 2, SchemaUtil.FieldWithIndex.of(schema.getField(2), 2));
+    JdbcUtil.getPreparedStatementSetCaller(fixedLengthStringType)
+        .set(row, psMocked, 3, SchemaUtil.FieldWithIndex.of(schema.getField(3), 3));
 
     verify(psMocked, times(1)).setDate(1, new Date(row.getDateTime(0).getMillis()));
     verify(psMocked, times(1)).setTime(2, new Time(row.getDateTime(1).getMillis()));
@@ -864,6 +870,7 @@ public class JdbcIOTest implements Serializable {
     cal.setTimeInMillis(epochMilli);
 
     verify(psMocked, times(1)).setTimestamp(3, new Timestamp(cal.getTime().getTime()), cal);
+    verify(psMocked, times(1)).setString(4, row.getString(3));
   }
 
   @Test
