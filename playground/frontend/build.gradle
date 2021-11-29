@@ -163,13 +163,13 @@ task("createConfig") {
 
 const String kApiClientURL =
     '${playgroundBackendUrl}';
-const String kApiJavaClientURL = 
+const String kApiJavaClientURL =
     '${playgroundBackendJavaRouteUrl}';
-const String kApiGoClientURL = 
+const String kApiGoClientURL =
     '${playgroundBackendGoRouteUrl}';
-const String kApiPythonClientURL = 
+const String kApiPythonClientURL =
     '${playgroundBackendPythonRouteUrl}';
-const String kApiScioClientURL = 
+const String kApiScioClientURL =
     '${playgroundBackendScioRouteUrl}';
 """)
   }
