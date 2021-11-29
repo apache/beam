@@ -65,7 +65,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Set hosted tool cache
       - name: Install python
         uses: actions/setup-python@v2
         with:
