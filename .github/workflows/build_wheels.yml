@@ -65,11 +65,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
+      - name: Set hosted tool cache
+        run: mkdir /Users/runner/hostedtoolcache && export AGENT_TOOLSDIRECTORY=/Users/runner/hostedtoolcache && chmod 777 /Users/runner/hostedtoolcache
       - name: Install python
         uses: actions/setup-python@v2
         with:
-          python-version: '3.7'
-          cache: 'pip'
+          python-version: 3.7
       - name: Get build dependencies
         working-directory: ./sdks/python
         run: python -m pip install -r build-requirements.txt
