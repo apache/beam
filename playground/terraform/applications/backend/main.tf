@@ -35,6 +35,15 @@ resource "google_app_engine_flexible_app_version" "backend_app" {
     instances = 1
   }
 
+  resources {
+    memory_gb = var.memory_size
+    volumes {
+      name        = "inmemory"
+      size_gb     = var.volume_size
+      volume_type = "tmpfs"
+    }
+  }
+
   deployment {
     container {
       image = "${var.docker_registry_address}/${var.docker_image_name}:${var.docker_image_tag}"
