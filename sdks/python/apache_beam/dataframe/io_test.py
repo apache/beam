@@ -78,7 +78,8 @@ class IOTest(unittest.TestCase):
         os.remove(path)
 
   def test_read_fwf(self):
-    input = self.temp_dir({'all.fwf': '''
+    input = self.temp_dir(
+        {'all.fwf': '''
 A     B
 11a   0
 37a   1
@@ -242,9 +243,9 @@ A     B
     self.assertGreater(
         min(len(s) for s in splits), len(numbers) * 0.9**20 * 0.1)
 
-  def _run_truncating_file_handle_iter_test(
-      self, s, delim=' ', chunk_size=10):
-    tracker = restriction_trackers.OffsetRestrictionTracker(restriction_trackers.OffsetRange(0, len(s)))
+  def _run_truncating_file_handle_iter_test(self, s, delim=' ', chunk_size=10):
+    tracker = restriction_trackers.OffsetRestrictionTracker(
+        restriction_trackers.OffsetRange(0, len(s)))
     handle = io._TruncatingFileHandle(
         StringIO(s), tracker, splitter=io._DelimSplitter(delim, chunk_size))
     self.assertEqual(s, ''.join(list(handle)))
