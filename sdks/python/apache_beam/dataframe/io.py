@@ -540,10 +540,15 @@ class _ReadFromPandasDoFn(beam.DoFn, beam.RestrictionProvider):
     reader = self.reader
     if isinstance(reader, str):
       reader = getattr(pd, self.reader)
+    indices_per_file = 10**int(math.log(2**64 // len(path_indices), 10))
+    if readable_file.metadata.size_in_bytes > indices_per_file:
+      raise RuntimeError(
+          f'Cannot safely index records from {len(path_indices)} files '
+          f'of size {readable_file.metadata.size_in_bytes} '
+          f'as their product is greater than 2^63.')
     start_index = (
         tracker.current_restriction().start +
-        path_indices[readable_file.metadata.path] *
-        10**int(math.log(2**64 // len(path_indices), 10)))
+        path_indices[readable_file.metadata.path] * indices_per_file)
     with readable_file.open() as handle:
       if self.incremental:
         # TODO(robertwb): We could consider trying to get progress for
