@@ -203,8 +203,7 @@ jobs:
     needs: build_source
     env:
       CIBW_ARCHS_LINUX: ${{matrix.arch}}
-    runs-on: self-hosted
-    container: ${{ matrix.os_python.os }}
+    runs-on: [self-hosted, ${{ matrix.os_python.os }}]
     strategy:
       matrix:
         os_python: [
@@ -287,8 +286,7 @@ jobs:
     needs:
       - build_wheels
       - check_gcp_variables
-    runs-on: self-hosted
-    container: ${{ matrix.os }}
+    runs-on: [self-hosted, ${{ matrix.os }}]
     if: needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     strategy:
       matrix:
