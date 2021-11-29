@@ -78,15 +78,20 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 		return
 	}
 
-	// compile
-	logger.Infof("%s: Compile() ...\n", pipelineId)
-	compileCmd := executor.Compile(ctxWithTimeout)
-	var compileError bytes.Buffer
-	var compileOutput bytes.Buffer
-	runCmdWithOutput(compileCmd, &compileOutput, &compileError, successChannel, errorChannel)
+	switch sdkEnv.ApacheBeamSdk {
+	case pb.Sdk_SDK_JAVA, pb.Sdk_SDK_GO:
+		// compile
+		logger.Infof("%s: Compile() ...\n", pipelineId)
+		compileCmd := executor.Compile(ctxWithTimeout)
+		var compileError bytes.Buffer
+		var compileOutput bytes.Buffer
+		runCmdWithOutput(compileCmd, &compileOutput, &compileError, successChannel, errorChannel)
 
-	if err := processStep(ctxWithTimeout, pipelineId, cacheService, cancelChannel, successChannel, &compileOutput, &compileError, errorChannel, pb.Status_STATUS_COMPILE_ERROR, pb.Status_STATUS_EXECUTING); err != nil {
-		return
+		if err := processStep(ctxWithTimeout, pipelineId, cacheService, cancelChannel, successChannel, &compileOutput, &compileError, errorChannel, pb.Status_STATUS_COMPILE_ERROR, pb.Status_STATUS_EXECUTING); err != nil {
+			return
+		}
+	case pb.Sdk_SDK_PYTHON:
+		processSuccess(ctx, []byte(""), pipelineId, cacheService, pb.Status_STATUS_EXECUTING)
 	}
 
 	runBuilder, err := run_builder.Setup(pipelineId, lc, appEnv.WorkingDir(), sdkEnv, compileBuilder)
