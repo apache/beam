@@ -13,26 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package utils
+package validators
 
-import (
-	pb "beam.apache.org/playground/backend/internal/api/v1"
-	"beam.apache.org/playground/backend/internal/validators"
-	"fmt"
-)
-
-// GetValidators returns slice of validators.Validator according to sdk
-func GetValidators(sdk pb.Sdk, filepath string) (*[]validators.Validator, error) {
-	var val *[]validators.Validator
-	switch sdk {
-	case pb.Sdk_SDK_JAVA:
-		val = validators.GetJavaValidators(filepath)
-	case pb.Sdk_SDK_GO:
-		val = validators.GetGoValidators()
-	case pb.Sdk_SDK_PYTHON:
-		val = validators.GetPythonValidators()
-	default:
-		return nil, fmt.Errorf("incorrect sdk: %s", sdk)
-	}
-	return val, nil
+// GetPythonValidators return validators methods that should be applied to Go code
+func GetPythonValidators() *[]Validator {
+	//TODO: Will be added in task [BEAM-13292]
+	return &[]Validator{}
 }
