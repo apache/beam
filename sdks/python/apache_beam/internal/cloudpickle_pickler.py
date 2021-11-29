@@ -29,10 +29,12 @@ dump_session and load_session are no ops.
 
 import base64
 import bz2
-import cloudpickle
 import io
 import threading
 import zlib
+
+import cloudpickle
+
 try:
   from _thread import RLock as RLockType
 except (ImportError, ModuleNotFoundError):
