@@ -28,12 +28,14 @@ import org.apache.beam.sdk.coders.AvroCoder;
 class AvroCoderCloudObjectTranslator implements CloudObjectTranslator<AvroCoder> {
   private static final String TYPE_FIELD = "type";
   private static final String SCHEMA_FIELD = "schema";
+  private static final String REFLECTION_FIELD = "reflection";
 
   @Override
   public CloudObject toCloudObject(AvroCoder target, SdkComponents sdkComponents) {
     CloudObject base = CloudObject.forClass(AvroCoder.class);
     Structs.addString(base, SCHEMA_FIELD, target.getSchema().toString());
     Structs.addString(base, TYPE_FIELD, target.getType().getName());
+    Structs.addBoolean(base, REFLECTION_FIELD, target.usesReflection());
     return base;
   }
 
@@ -42,10 +44,11 @@ class AvroCoderCloudObjectTranslator implements CloudObjectTranslator<AvroCoder>
     Schema.Parser parser = new Schema.Parser();
     String className = Structs.getString(cloudObject, TYPE_FIELD);
     String schemaString = Structs.getString(cloudObject, SCHEMA_FIELD);
+    boolean useReflection = Structs.getBoolean(cloudObject, REFLECTION_FIELD);
     try {
       Class<?> type = Class.forName(className);
       Schema schema = parser.parse(schemaString);
-      return AvroCoder.of(type, schema);
+      return AvroCoder.of(type, schema, useReflection);
     } catch (ClassNotFoundException e) {
       throw new IllegalArgumentException(e);
     }

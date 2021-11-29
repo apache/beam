@@ -217,6 +217,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
   }
 
   private final Class<T> type;
+  private final boolean useReflection;
   private final SerializableSchemaSupplier schemaSupplier;
   private final TypeDescriptor<T> typeDescriptor;
 
@@ -305,8 +306,9 @@ public class AvroCoder<T> extends CustomCoder<T> {
     this(type, schema, false);
   }
 
-  protected AvroCoder(Class<T> type, Schema schema, boolean useReflectApi) {
+  protected AvroCoder(Class<T> type, Schema schema, boolean useReflection) {
     this.type = type;
+    this.useReflection = useReflection;
     this.schemaSupplier = new SerializableSchemaSupplier(schema);
     typeDescriptor = TypeDescriptor.of(type);
     nonDeterministicReasons = new AvroDeterminismChecker().check(TypeDescriptor.of(type), schema);
@@ -327,7 +329,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
           public DatumReader<T> initialValue() {
             if (myCoder.getType().equals(GenericRecord.class)) {
               return new GenericDatumReader<>(myCoder.getSchema());
-            } else if (SpecificRecord.class.isAssignableFrom(myCoder.getType()) && !useReflectApi) {
+            } else if (SpecificRecord.class.isAssignableFrom(myCoder.getType()) && !useReflection) {
               return new SpecificDatumReader<>(myCoder.getType());
             }
             return new ReflectDatumReader<>(
@@ -343,7 +345,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
           public DatumWriter<T> initialValue() {
             if (myCoder.getType().equals(GenericRecord.class)) {
               return new GenericDatumWriter<>(myCoder.getSchema());
-            } else if (SpecificRecord.class.isAssignableFrom(myCoder.getType()) && !useReflectApi) {
+            } else if (SpecificRecord.class.isAssignableFrom(myCoder.getType()) && !useReflection) {
               return new SpecificDatumWriter<>(myCoder.getType());
             }
             return new ReflectDatumWriter<>(myCoder.getSchema(), myCoder.reflectData.get());
@@ -354,6 +356,10 @@ public class AvroCoder<T> extends CustomCoder<T> {
   /** Returns the type this coder encodes/decodes. */
   public Class<T> getType() {
     return type;
+  }
+
+  public boolean usesReflection() {
+    return useReflection;
   }
 
   @Override
