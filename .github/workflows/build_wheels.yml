@@ -242,7 +242,6 @@ jobs:
       env:
         CIBW_BUILD: ${{ matrix.os_python.python }}
         CIBW_BEFORE_BUILD: pip install cython
-        CIBW_BEFORE_ALL_LINUX: yum install -y yum-utils;yum-config-manager --add-repo https://download.docker.com/linux/centos/7/x86_64/stable/Packages/;yum install docker-ce docker-ce-cli containerd.io
       run: cibuildwheel --print-build-identifiers && cibuildwheel --output-dir wheelhouse
       shell: bash
     - name: install sha512sum on MacOS
