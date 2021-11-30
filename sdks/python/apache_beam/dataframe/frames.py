@@ -1281,8 +1281,6 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
   def idxmin(self, **kwargs):
-    skipna = kwargs.get('skipna', True)
-
     def compute_idxmin(s):
       min_index = s.idxmin(**kwargs)
       if pd.isna(min_index):
@@ -1297,12 +1295,6 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     proxy.index = index
     proxy = proxy.append(
         pd.Series([np.inf], index=np.asarray(['0']).astype(proxy.index.dtype)))
-
-    if not skipna:
-      proxy = proxy.append(
-          pd.Series([None],
-                    index=np.asarray(['1']).astype(proxy.index.dtype)).astype(
-                        proxy.dtype))
 
     idx_min = expressions.ComputedExpression(
         'idx_min',
@@ -1323,8 +1315,6 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
   def idxmax(self, **kwargs):
-    skipna = kwargs.get('skipna', True)
-
     def compute_idxmax(s):
       max_index = s.idxmax(**kwargs)
       if pd.isna(max_index):
@@ -1339,12 +1329,6 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     proxy.index = index
     proxy = proxy.append(
         pd.Series([-np.inf], index=np.asarray(['0']).astype(proxy.index.dtype)))
-
-    if not skipna:
-      proxy = proxy.append(
-          pd.Series([None],
-                    index=np.asarray(['1']).astype(proxy.index.dtype)).astype(
-                        proxy.dtype))
 
     idx_max = expressions.ComputedExpression(
         'idx_max',
@@ -3636,7 +3620,6 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   def idxmin(self, **kwargs):
-    skipna = kwargs.get('skipna', True)
     axis = kwargs.get('axis', 0)
 
     index_dtype = self._expr.proxy().index.dtype
@@ -3654,14 +3637,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
       proxy_index = pd.Index([], dtype=columns_dtype)
       proxy = pd.Series([], index=proxy_index, dtype=index_dtype)
-
       partition_proxy = self._expr.proxy().copy()
-
-      if not skipna:
-        index = pd.Index(['0'], dtype=index_dtype).astype(index_dtype)
-        partition_proxy = partition_proxy.append(pd.Series(), ignore_index=True)
-        partition_proxy.index = index
-        partition_proxy.loc[index] = np.nan
 
       idxmin_per_partition = expressions.ComputedExpression(
         'idxmin-per-partition',
@@ -3696,7 +3672,6 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   def idxmax(self, **kwargs):
-    skipna = kwargs.get('skipna', True)
     axis = kwargs.get('axis', 0)
 
     index_dtype = self._expr.proxy().index.dtype
@@ -3714,14 +3689,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
       proxy_index = pd.Index([], dtype=columns_dtype)
       proxy = pd.Series([], index=proxy_index, dtype=index_dtype)
-
       partition_proxy = self._expr.proxy().copy()
 
-      if not skipna:
-        index = pd.Index(['0'], dtype=index_dtype).astype(index_dtype)
-        partition_proxy = partition_proxy.append(pd.Series(), ignore_index=True)
-        partition_proxy.index = index
-        partition_proxy.loc[index] = np.nan
 
       idxmax_per_partition = expressions.ComputedExpression(
         'idxmax-per-partition',
