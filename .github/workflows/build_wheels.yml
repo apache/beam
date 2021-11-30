@@ -207,7 +207,6 @@ jobs:
     strategy:
       matrix:
         os_python: [
-          {"os": "self-hosted", "python": "cp36-* cp37-* cp38-*"},
           {"os": "ubuntu-latest", "python": "cp36-* cp37-* cp38-*"},
           {"os": "macos-latest", "python": "cp36-* cp37-* cp38-*"},
           {"os": "windows-latest", "python": "cp36-* cp37-* cp38-*"},
