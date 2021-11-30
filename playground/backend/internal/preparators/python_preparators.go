@@ -15,8 +15,6 @@
 
 package preparators
 
-const ()
-
 // GetPythonPreparators returns preparation methods that should be applied to Python code
 func GetPythonPreparators(filePath string) *[]Preparator {
 	return &[]Preparator{}
