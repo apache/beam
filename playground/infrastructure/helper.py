@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import asyncio
 import logging
 import os
 import yaml
@@ -21,8 +22,10 @@ from dataclasses import dataclass, fields
 from typing import List
 from yaml import YAMLError
 from config import Config, TagFields
-from api.v1.api_pb2 import SDK_UNSPECIFIED, STATUS_UNSPECIFIED, Sdk
+from api.v1.api_pb2 import SDK_UNSPECIFIED, STATUS_UNSPECIFIED, Sdk, STATUS_VALIDATING, STATUS_PREPARING, \
+    STATUS_COMPILING, STATUS_EXECUTING
 from collections import namedtuple
+from grpc_client import GRPCClient
 
 Tag = namedtuple("Tag", [TagFields.NAME, TagFields.DESCRIPTION, TagFields.MULTIFILE, TagFields.CATEGORIES])
 
@@ -75,21 +78,18 @@ def find_examples(work_dir: str, supported_categories: List[str]) -> List[Exampl
     return examples
 
 
-def get_statuses(examples: List[Example]):
+async def get_statuses(examples: List[Example]):
     """
-    Receive statuses for examples and update example.status and example.pipeline_id
-
-    Use client to send requests to the backend:
-    1. Start code processing.
-    2. Ping the backend while status is STATUS_VALIDATING/STATUS_PREPARING/STATUS_COMPILING/STATUS_EXECUTING
-    Update example.pipeline_id with resulting pipelineId.
-    Update example.status with resulting status.
+    Receive status and update example.status and example.pipeline_id for each example
 
     Args:
-        examples: beam examples for processing and updating statuses.
+        examples: beam examples for processing and updating statuses and pipeline_id values.
     """
-    # TODO [BEAM-13267] Implement
-    pass
+    tasks = []
+    client = GRPCClient()
+    for example in examples:
+        tasks.append(_update_example_status(example, client))
+    await asyncio.gather(*tasks)
 
 
 def get_tag(filepath):
@@ -272,3 +272,25 @@ def _get_sdk(filename: str) -> Sdk:
         return Config.SUPPORTED_SDK[extension]
     else:
         raise ValueError(extension + " is not supported")
+
+
+async def _update_example_status(example: Example, client: GRPCClient):
+    """
+    Receive status for examples and update example.status and pipeline_id
+
+    Use client to send requests to the backend:
+    1. Start code processing.
+    2. Ping the backend while status is STATUS_VALIDATING/STATUS_PREPARING/STATUS_COMPILING/STATUS_EXECUTING
+    Update example.status with resulting status.
+
+    Args:
+        example: beam example for processing and updating status and pipeline_id.
+        client: client to send requests to the server.
+    """
+    pipeline_id = await client.run_code(example.code, example.sdk)
+    example.pipeline_id = pipeline_id
+    status = await client.check_status(pipeline_id)
+    while status in [STATUS_VALIDATING, STATUS_PREPARING, STATUS_COMPILING, STATUS_EXECUTING]:
+        await asyncio.sleep(Config.PAUSE_DELAY)
+        status = await client.check_status(pipeline_id)
+    example.status = status
