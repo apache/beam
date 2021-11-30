@@ -3,8 +3,8 @@ title: "Cloud Dataflow"
 type: commercial
 categories:
   - Cloud & Data Analytics
-icon: /images/logo_google_cloud.png 
-nav: true
+icon: /images/logo_google_cloud.png
+hasNav: true
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

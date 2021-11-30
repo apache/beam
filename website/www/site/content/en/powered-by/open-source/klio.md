@@ -3,8 +3,8 @@ title:  "Klio"
 type: open-source
 categories:
   - Open Source Projects Powered by Apache Beam
-icon: /images/logos/powered-by/klio.png 
-nav: true
+icon: /images/logos/powered-by/klio.png
+hasNav: true
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

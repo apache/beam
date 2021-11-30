@@ -1,7 +1,7 @@
 ---
 title: "Projects and Products Powered by Apache Beam"
 layout: main
-nav: true
+hasNav: true
 ---
 
 <!--

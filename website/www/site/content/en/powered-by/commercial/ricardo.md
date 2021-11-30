@@ -148,7 +148,7 @@ they shifted the stream 5 minutes back and created a lookup schema with it in Bi
 that the assets stream is always processed first while BigTable allows for matching the latest asset to an article and
 Apache Beam joins them both together.
 
-<div class="post-scheme"> 
+<div class="post-scheme">
     <img src="/images/post_scheme.png">
 </div>
 

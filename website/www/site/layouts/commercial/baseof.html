@@ -22,7 +22,7 @@
       {{ .TableOfContents }}
     </nav>
     {{ block "nav" . }}{{ end }}
-    <div class="{{ if isset .Params "nav" }}body__contained body__section-no-nav{{ end }}">
+    <div class="{{ if isset .Params "hasNav" }}body__contained body__section-no-nav{{ end }}">
       {{ block "main" . }}{{ end }}
     </div>
   </div>

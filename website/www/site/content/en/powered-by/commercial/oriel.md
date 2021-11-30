@@ -4,7 +4,7 @@ type: commercial
 categories:
   - Machine Learning
 icon: /images/logos/powered-by/oriel.png
-nav: true
+hasNav: true
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

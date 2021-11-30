@@ -2,7 +2,7 @@
 title: "Commercial projects"
 type: commercial
 icon: images/github-icon.svg
-nav: true
+hasNav: true
 ---
 
 <!--

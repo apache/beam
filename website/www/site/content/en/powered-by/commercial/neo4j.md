@@ -4,7 +4,7 @@ type: commercial
 categories:
   - BI & Analytics
 icon: /images/logos/powered-by/neo4j.png
-nav: true
+hasNav: true
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
