@@ -44,8 +44,6 @@ import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
 import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptRule;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.RuleSet;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.RuleSets;
@@ -93,12 +91,6 @@ public class BigQueryIOPushDownIT {
   private static SQLBigQueryPerfTestOptions options;
 
   @SuppressWarnings("initialization.static.fields.uninitialized")
-  private static String metricsBigQueryDataset;
-
-  @SuppressWarnings("initialization.static.fields.uninitialized")
-  private static String metricsBigQueryTable;
-
-  @SuppressWarnings("initialization.static.fields.uninitialized")
   private static InfluxDBSettings settings;
 
   private Pipeline pipeline = Pipeline.create(options);
@@ -109,8 +101,6 @@ public class BigQueryIOPushDownIT {
   @BeforeClass
   public static void setUp() {
     options = IOITHelper.readIOTestPipelineOptions(SQLBigQueryPerfTestOptions.class);
-    metricsBigQueryDataset = options.getMetricsBigQueryDataset();
-    metricsBigQueryTable = options.getMetricsBigQueryTable();
     settings =
         InfluxDBSettings.builder()
             .withHost(options.getInfluxHost())
@@ -129,9 +119,8 @@ public class BigQueryIOPushDownIT {
     sqlEnv.executeDdl(String.format(CREATE_TABLE_STATEMENT, Method.DIRECT_READ.toString()));
 
     BeamRelNode beamRelNode = sqlEnv.parseQuery(SELECT_STATEMENT);
-    PCollection<Row> output =
-        BeamSqlRelUtils.toPCollection(pipeline, beamRelNode)
-            .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC)));
+    BeamSqlRelUtils.toPCollection(pipeline, beamRelNode)
+        .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC)));
 
     PipelineResult result = pipeline.run();
     result.waitUntilFinish();
@@ -158,9 +147,8 @@ public class BigQueryIOPushDownIT {
     sqlEnv.executeDdl(String.format(CREATE_TABLE_STATEMENT, Method.DIRECT_READ.toString()));
 
     BeamRelNode beamRelNode = sqlEnv.parseQuery(SELECT_STATEMENT);
-    PCollection<Row> output =
-        BeamSqlRelUtils.toPCollection(pipeline, beamRelNode)
-            .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC)));
+    BeamSqlRelUtils.toPCollection(pipeline, beamRelNode)
+        .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC)));
 
     PipelineResult result = pipeline.run();
     result.waitUntilFinish();
@@ -172,9 +160,8 @@ public class BigQueryIOPushDownIT {
     sqlEnv.executeDdl(String.format(CREATE_TABLE_STATEMENT, Method.DEFAULT.toString()));
 
     BeamRelNode beamRelNode = sqlEnv.parseQuery(SELECT_STATEMENT);
-    PCollection<Row> output =
-        BeamSqlRelUtils.toPCollection(pipeline, beamRelNode)
-            .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC)));
+    BeamSqlRelUtils.toPCollection(pipeline, beamRelNode)
+        .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, READ_TIME_METRIC)));
 
     PipelineResult result = pipeline.run();
     result.waitUntilFinish();
