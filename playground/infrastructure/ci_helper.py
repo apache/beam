@@ -38,7 +38,7 @@ class CIHelper:
         2. Group code of examples by their SDK.
         3. Run processing for all examples to verify examples' code.
         """
-        get_statuses(examples)
+        await get_statuses(examples)
         await self._verify_examples_status(examples)
 
     async def _verify_examples_status(self, examples: List[Example]):

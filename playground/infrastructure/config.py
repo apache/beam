@@ -28,6 +28,7 @@ class Config:
     SUPPORTED_SDK = {'java': SDK_JAVA, 'go': SDK_GO, 'py': SDK_PYTHON}
     BEAM_PLAYGROUND_TITLE = "Beam-playground:\n"
     BEAM_PLAYGROUND = "Beam-playground"
+    PAUSE_DELAY = 10
 
 
 @dataclass(frozen=True)
