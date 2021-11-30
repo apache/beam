@@ -41,6 +41,9 @@ jobs:
         uses: subosito/flutter-action@v1
         with:
             channel: 'stable'
+      - name: Remove default github maven configuration
+        # This step is a workaround to avoid a decryption issue
+        run: rm ~/.m2/settings.xml
       - name: Run PreCommit
         run: ./gradlew playground:frontend:precommit
       - name: install npm
