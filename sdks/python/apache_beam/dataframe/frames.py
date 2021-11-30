@@ -3628,6 +3628,16 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       else:
         return result
 
+  @frame_base.with_docs_from(pd.DataFrame)
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  def pipe(self, func, **kwargs):
+    return expressions.ComputedExpression(
+      'pipe',
+      lambda df: df.pipe(func, **kwargs), [self._expr],
+      requires_partition_by=partitionings.Singleton(reason='YES'),
+      preserves_partition_by=partitionings.Singleton()
+    )
 
 for io_func in dir(io):
   if io_func.startswith('to_'):

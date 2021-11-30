@@ -1102,6 +1102,19 @@ class DeferredFrameTest(_AbstractFrameTest):
             'Europe/Warsaw', ambiguous='NaT', nonexistent=pd.Timedelta('1H')),
         s)
 
+  def test_pipe(self):
+    def change_age(x):
+      x['A'] = [10, 20, 30]
+      return x
+
+    df = pd.DataFrame({'A': [1, 2, 3], 'B': [4, 5, 6]}, index=[0, 1, 2])
+
+    # func_1 = pd.DataFrame.idxmin
+    func_2 = change_age
+    # func_3 =
+
+    self._run_test(lambda df: df.pipe(func_2), df, nonparallel=True)
+
 
 # pandas doesn't support kurtosis on GroupBys:
 # https://github.com/pandas-dev/pandas/issues/40139
