@@ -17,8 +17,8 @@ import mock
 import pytest
 
 from unittest.mock import mock_open
-from api.v1.api_pb2 import SDK_UNSPECIFIED, STATUS_UNSPECIFIED, SDK_JAVA, SDK_PYTHON, SDK_GO, \
-    STATUS_VALIDATING, STATUS_FINISHED
+from api.v1.api_pb2 import SDK_UNSPECIFIED, STATUS_UNSPECIFIED, SDK_JAVA, SDK_PYTHON, SDK_GO, STATUS_VALIDATING, \
+    STATUS_FINISHED
 from grpc_client import GRPCClient
 from helper import find_examples, Example, _get_example, _get_name, _get_sdk, get_tag, _validate, Tag, get_statuses, \
     _update_example_status, get_supported_categories, _check_file

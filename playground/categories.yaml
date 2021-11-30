@@ -17,10 +17,14 @@
 
 categories:
   - Side Input
-  - Side Output
+  - Multiple Outputs
   - Testing
   - Schemas
-  - Transform
+  - Batch
+  - Streaming
+  - Combiners
+  - Dataframes
+  - Joins
   - IO
   - Metrics
   - Options

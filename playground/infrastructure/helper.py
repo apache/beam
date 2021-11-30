@@ -22,9 +22,9 @@ from dataclasses import dataclass, fields
 from typing import List
 from yaml import YAMLError
 from config import Config, TagFields
+from api.v1.api_pb2 import SDK_UNSPECIFIED, STATUS_UNSPECIFIED, Sdk, STATUS_VALIDATING, STATUS_PREPARING, \
+    STATUS_COMPILING, STATUS_EXECUTING
 from collections import namedtuple
-from api.v1.api_pb2 import Sdk, SDK_UNSPECIFIED, STATUS_UNSPECIFIED, STATUS_VALIDATING, \
-    STATUS_PREPARING, STATUS_COMPILING, STATUS_EXECUTING
 from grpc_client import GRPCClient
 
 Tag = namedtuple("Tag", [TagFields.NAME, TagFields.DESCRIPTION, TagFields.MULTIFILE, TagFields.CATEGORIES])

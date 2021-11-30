@@ -187,7 +187,8 @@ class SchemaTest(unittest.TestCase):
         typing_to_runner_api(np.uint32),
         schema_pb2.FieldType(
             logical_type=schema_pb2.LogicalType(
-                urn="beam:logical:pythonsdk_any:v1")))
+                urn="beam:logical:pythonsdk_any:v1"),
+            nullable=True))
 
   def test_unknown_atomic_raise_valueerror(self):
     self.assertRaises(
