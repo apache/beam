@@ -615,9 +615,9 @@ public class RedisIO {
         } else if (Method.LPUSH == method || Method.RPUSH == method) {
           writeUsingListCommand(record, method, expireTime);
         } else if (Method.SADD == method) {
-          writeUsingSaddCommand(record);
+          writeUsingSaddCommand(record, expireTime);
         } else if (Method.PFADD == method) {
-          writeUsingHLLCommand(record);
+          writeUsingHLLCommand(record, expireTime);
         } else if (Method.INCRBY == method) {
           writeUsingIncrBy(record, expireTime);
         } else if (Method.DECRBY == method) {
@@ -660,7 +660,7 @@ public class RedisIO {
         setExpireTimeWhenRequired(key, expireTime);
       }
 
-      private void writeUsingSaddCommand(KV<String, String> record) {
+      private void writeUsingSaddCommand(KV<String, String> record, Long expireTime) {
         String key = record.getKey();
         String value = record.getValue();
 
@@ -669,7 +669,7 @@ public class RedisIO {
         setExpireTimeWhenRequired(key, expireTime);
       }
 
-      private void writeUsingHLLCommand(KV<String, String> record) {
+      private void writeUsingHLLCommand(KV<String, String> record, Long expireTime) {
         String key = record.getKey();
         String value = record.getValue();
 
