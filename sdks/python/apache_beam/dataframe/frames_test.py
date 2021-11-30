@@ -662,6 +662,7 @@ class DeferredFrameTest(_AbstractFrameTest):
                       index=[1, 2, 3, 4, 5])
     self._run_test(lambda df: df.truncate(before=1, after=3), df)
     self._run_test(lambda df: df.truncate(before='A', after='B', axis=1), df)
+    self._run_test(lambda df: df['A'].truncate(before=2, after=4), df)
 
   @parameterized.expand([
       (pd.Series(range(10)), ),  # unique
