@@ -22,7 +22,6 @@ import (
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/errors"
 	"beam.apache.org/playground/backend/internal/logger"
-	"beam.apache.org/playground/backend/internal/setup_tools/compile_builder"
 	"beam.apache.org/playground/backend/internal/setup_tools/life_cycle"
 	"beam.apache.org/playground/backend/internal/utils"
 	"context"
@@ -65,13 +64,6 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 		return nil, errors.InternalError("Run code", "Error during setup file system: "+err.Error())
 	}
 
-	compileBuilder, err := compile_builder.Setup(lc.GetAbsoluteSourceFilePath(), lc.GetAbsoluteBaseFolderPath(), info.Sdk, controller.env.BeamSdkEnvs.ExecutorConfig)
-	if err != nil {
-		logger.Errorf("RunCode(): error during setup run builder: %s\n", err.Error())
-		code_processing.DeleteFolders(pipelineId, lc)
-		return nil, errors.InvalidArgumentError("Run code", "Error during setup compile builder: "+err.Error())
-	}
-
 	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.Status, pb.Status_STATUS_VALIDATING); err != nil {
 		code_processing.DeleteFolders(pipelineId, lc)
 		return nil, errors.InternalError("Run code()", "Error during set value to cache: "+err.Error())
@@ -86,7 +78,7 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 	}
 
 	// TODO change using of context.TODO() to context.Background()
-	go code_processing.Process(context.TODO(), controller.cacheService, lc, compileBuilder, pipelineId, &controller.env.ApplicationEnvs, &controller.env.BeamSdkEnvs)
+	go code_processing.Process(context.TODO(), controller.cacheService, lc, pipelineId, &controller.env.ApplicationEnvs, &controller.env.BeamSdkEnvs)
 
 	pipelineInfo := pb.RunCodeResponse{PipelineUuid: pipelineId.String()}
 	return &pipelineInfo, nil

@@ -51,7 +51,7 @@ func BaseExecutorBuilder(envs environment.BeamEnvs, workingDir string, filePath 
 		WithRunner().
 		WithCommand(envs.ExecutorConfig.RunCmd).
 		WithArgs(envs.ExecutorConfig.RunArgs).
-		WithExecutableName("HelloWorld").
+		WithExecutableFileName("HelloWorld").
 		WithWorkingDir(workingDir).
 		WithValidator().
 		WithSdkValidators(validatorsFuncs).
