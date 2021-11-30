@@ -45,3 +45,21 @@ func newCompilingLifeCycle(pipelineId uuid.UUID, workingDir string, sourceFileEx
 		pipelineId: pipelineId,
 	}
 }
+
+// newInterpretedLifeCycle creates LifeCycle for interpreted SDK environment.
+func newInterpretedLifeCycle(pipelineId uuid.UUID, workingDir string, sourceFileExtension string) *LifeCycle {
+	sourceFileFolder := filepath.Join(workingDir, baseFileFolder, pipelineId.String())
+	return &LifeCycle{
+		folderGlobs: []string{sourceFileFolder},
+		Folder: Folder{
+			BaseFolder:           sourceFileFolder,
+			SourceFileFolder:     sourceFileFolder,
+			ExecutableFileFolder: sourceFileFolder,
+		},
+		Extension: Extension{
+			ExecutableFileExtension: sourceFileExtension,
+			SourceFileExtension:     sourceFileExtension,
+		},
+		pipelineId: pipelineId,
+	}
+}
