@@ -203,11 +203,11 @@ jobs:
     needs: build_source
     env:
       CIBW_ARCHS_LINUX: ${{matrix.arch}}
-    runs-on: ${{ matrix.os_python.os }}
+      os-matrix: ${{ matrix.os_python.os }}
+    runs-on: [self-hosted, os-matrix]
     strategy:
       matrix:
         os_python: [
-          {"os": "self-hosted", "python": "cp36-* cp37-* cp38-*"},
           {"os": "ubuntu-latest", "python": "cp36-* cp37-* cp38-*"},
           {"os": "macos-latest", "python": "cp36-* cp37-* cp38-*"},
           {"os": "windows-latest", "python": "cp36-* cp37-* cp38-*"},
