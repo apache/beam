@@ -14,15 +14,17 @@
 # limitations under the License.
 
 import mock
+import pytest
 
 from ci_helper import CIHelper
 
 
+@pytest.mark.asyncio
 @mock.patch('ci_helper.CIHelper._verify_examples_status')
 @mock.patch('ci_helper.get_statuses')
-def test_verify_examples(mock_get_statuses, mock_verify_examples_statuses):
+async def test_verify_examples(mock_get_statuses, mock_verify_examples_statuses):
     helper = CIHelper()
-    helper.verify_examples([])
+    await helper.verify_examples([])
 
     mock_get_statuses.assert_called_once_with([])
     mock_verify_examples_statuses.assert_called_once_with([])
