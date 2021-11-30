@@ -53,7 +53,15 @@ class DoctestTest(unittest.TestCase):
                 # frames_test.py
                 "s.tz_localize('CET', ambiguous=np.array([True, True, False]))",
             ],
-            'pandas.core.generic.NDFrame.truncate': ['*'],
+            'pandas.core.generic.NDFrame.truncate': [
+                # These inputs rely on tail (wont implement, order
+                # sensitive) for verification
+                "df.tail()",
+                "df.truncate(before=pd.Timestamp('2016-01-05'),\n"
+                "            after=pd.Timestamp('2016-01-10')).tail()",
+                "df.truncate('2016-01-05', '2016-01-10').tail()",
+                "df.loc['2016-01-05':'2016-01-10', :].tail()"
+            ],
             'pandas.core.generic.NDFrame.replace': [
                 "s.replace([1, 2], method='bfill')",
                 # Relies on method='pad'
