@@ -203,11 +203,11 @@ jobs:
     needs: build_source
     env:
       CIBW_ARCHS_LINUX: ${{matrix.arch}}
-    runs-on: self-hosted
-    container: ${{ matrix.os_python.os }}
+    runs-on: ${{ matrix.os_python.os }}
     strategy:
       matrix:
         os_python: [
+          {"os": "self-hosted", "python": "cp36-* cp37-* cp38-*"},
           {"os": "ubuntu-latest", "python": "cp36-* cp37-* cp38-*"},
           {"os": "macos-latest", "python": "cp36-* cp37-* cp38-*"},
           {"os": "windows-latest", "python": "cp36-* cp37-* cp38-*"},
@@ -287,12 +287,11 @@ jobs:
     needs:
       - build_wheels
       - check_gcp_variables
-    runs-on: self-hosted
-    container: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     if: needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     strategy:
       matrix:
-        os : [ubuntu-latest, macos-latest, windows-latest]
+        os : [self-hosted, ubuntu-latest, macos-latest, windows-latest]
     steps:
     - name: Download wheels from artifacts
       uses: actions/download-artifact@v2
