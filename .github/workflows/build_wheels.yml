@@ -203,8 +203,7 @@ jobs:
     needs: build_source
     env:
       CIBW_ARCHS_LINUX: ${{matrix.arch}}
-      os-matrix: ${{ matrix.os_python.os }}
-    runs-on: [self-hosted, os-matrix]
+    runs-on: [self-hosted]
     strategy:
       matrix:
         os_python: [
