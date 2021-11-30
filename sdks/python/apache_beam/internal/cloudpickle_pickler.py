@@ -22,7 +22,7 @@ For internal use only. No backwards compatibility guarantees.
 Uses the cloudpickle library to pickle data, functions, lambdas
 and classes.
 
-dump_session and load_session are no ops.
+dump_session and load_session are no-ops.
 """
 
 # pytype: skip-file
