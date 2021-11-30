@@ -13,7 +13,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package executors
 package executors
 
 import (
@@ -31,7 +30,7 @@ type CmdConfiguration struct {
 	commandArgs []string
 }
 
-// Executor struct for all executors (Java/Python/Go/SCIO)
+// Executor struct for all sdks (Java/Python/Go/SCIO)
 type Executor struct {
 	compileArgs CmdConfiguration
 	runArgs     CmdConfiguration

@@ -13,38 +13,52 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package compile_builder
+package builder
 
 import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/executors"
 	"beam.apache.org/playground/backend/internal/utils"
+	"fmt"
 )
 
-// Setup returns executors.CompileBuilder setup it according to sdk
-func Setup(filePath, filesFolderPath string, sdk pb.Sdk, executorConfig *environment.ExecutorConfig) (*executors.CompileBuilder, error) {
-	val, err := utils.GetValidators(sdk, filePath)
-	if err != nil {
-		return nil, err
-	}
-	prep, err := utils.GetPreparators(sdk, filePath)
-	if err != nil {
-		return nil, err
-	}
+// SetupExecutorBuilder return executor with set args for validator, preparator, compiler and runner
+func SetupExecutorBuilder(srcFilePath, baseFolderPath, execFilePath string, sdkEnv *environment.BeamEnvs) (*executors.ExecutorBuilder, error) {
+	sdk := sdkEnv.ApacheBeamSdk
 
-	compileBuilder := executors.NewExecutorBuilder().
+	val, err := utils.GetValidators(sdk, srcFilePath)
+	if err != nil {
+		return nil, err
+	}
+	prep, err := utils.GetPreparators(sdk, srcFilePath)
+	if err != nil {
+		return nil, err
+	}
+	executorConfig := sdkEnv.ExecutorConfig
+	builder := executors.NewExecutorBuilder().
 		WithValidator().
 		WithSdkValidators(val).
 		WithPreparator().
 		WithSdkPreparators(prep).
-		WithCompiler()
-
-	compileBuilder = compileBuilder.
+		WithCompiler().
 		WithCommand(executorConfig.CompileCmd).
 		WithArgs(executorConfig.CompileArgs).
-		WithFileName(filePath).
-		WithWorkingDir(filesFolderPath)
+		WithFileName(srcFilePath).
+		WithWorkingDir(baseFolderPath).
+		WithRunner().
+		WithCommand(executorConfig.RunCmd).
+		WithArgs(executorConfig.RunArgs).
+		WithWorkingDir(baseFolderPath)
 
-	return compileBuilder, nil
+	switch sdk {
+	case pb.Sdk_SDK_JAVA: // Executable name for java class will be known after compilation
+	case pb.Sdk_SDK_GO:
+		builder = builder.WithCommand(execFilePath)
+	case pb.Sdk_SDK_PYTHON:
+		builder = builder.WithExecutableFileName(execFilePath)
+	default:
+		return nil, fmt.Errorf("incorrect sdk: %s", sdkEnv.ApacheBeamSdk)
+	}
+	return &builder.ExecutorBuilder, nil
 }
