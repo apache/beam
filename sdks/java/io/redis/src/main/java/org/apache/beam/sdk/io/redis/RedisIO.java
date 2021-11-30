@@ -619,9 +619,9 @@ public class RedisIO {
         } else if (Method.PFADD == method) {
           writeUsingHLLCommand(record);
         } else if (Method.INCRBY == method) {
-          writeUsingIncrBy(record);
+          writeUsingIncrBy(record, expireTime);
         } else if (Method.DECRBY == method) {
-          writeUsingDecrBy(record);
+          writeUsingDecrBy(record, expireTime);
         }
       }
 
@@ -665,6 +665,8 @@ public class RedisIO {
         String value = record.getValue();
 
         pipeline.sadd(key, value);
+
+        setExpireTimeWhenRequired(key, expireTime);
       }
 
       private void writeUsingHLLCommand(KV<String, String> record) {
@@ -672,20 +674,26 @@ public class RedisIO {
         String value = record.getValue();
 
         pipeline.pfadd(key, value);
+
+        setExpireTimeWhenRequired(key, expireTime);
       }
 
-      private void writeUsingIncrBy(KV<String, String> record) {
+      private void writeUsingIncrBy(KV<String, String> record, Long expireTime) {
         String key = record.getKey();
         String value = record.getValue();
         long inc = Long.parseLong(value);
         pipeline.incrBy(key, inc);
+
+        setExpireTimeWhenRequired(key, expireTime);
       }
 
-      private void writeUsingDecrBy(KV<String, String> record) {
+      private void writeUsingDecrBy(KV<String, String> record, Long expireTime) {
         String key = record.getKey();
         String value = record.getValue();
         long decr = Long.parseLong(value);
         pipeline.decrBy(key, decr);
+
+        setExpireTimeWhenRequired(key, expireTime);
       }
 
       private void setExpireTimeWhenRequired(String key, Long expireTime) {

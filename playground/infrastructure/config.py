@@ -14,9 +14,25 @@
 # limitations under the License.
 
 import os
+
 from dataclasses import dataclass
+from api.v1.api_pb2 import STATUS_VALIDATION_ERROR, STATUS_ERROR, STATUS_PREPARATION_ERROR, STATUS_COMPILE_ERROR, \
+    STATUS_RUN_TIMEOUT, STATUS_RUN_ERROR, SDK_JAVA, SDK_GO, SDK_PYTHON
 
 
 @dataclass(frozen=True)
 class Config:
     SERVER_ADDRESS = os.getenv("SERVER_ADDRESS", "localhost:8080")
+    ERROR_STATUSES = [STATUS_VALIDATION_ERROR, STATUS_ERROR, STATUS_PREPARATION_ERROR, STATUS_COMPILE_ERROR,
+                      STATUS_RUN_TIMEOUT, STATUS_RUN_ERROR]
+    SUPPORTED_SDK = {'java': SDK_JAVA, 'go': SDK_GO, 'py': SDK_PYTHON}
+    BEAM_PLAYGROUND_TITLE = "Beam-playground:\n"
+    BEAM_PLAYGROUND = "Beam-playground"
+
+
+@dataclass(frozen=True)
+class TagFields:
+    NAME: str = "name"
+    DESCRIPTION: str = "description"
+    MULTIFILE: str = "multifile"
+    CATEGORIES: str = "categories"

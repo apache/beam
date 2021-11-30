@@ -28,10 +28,16 @@ func Setup(filePath, filesFolderPath string, sdk pb.Sdk, executorConfig *environ
 	if err != nil {
 		return nil, err
 	}
+	prep, err := utils.GetPreparators(sdk, filePath)
+	if err != nil {
+		return nil, err
+	}
 
 	compileBuilder := executors.NewExecutorBuilder().
 		WithValidator().
 		WithSdkValidators(val).
+		WithPreparator().
+		WithSdkPreparators(prep).
 		WithCompiler()
 
 	compileBuilder = compileBuilder.

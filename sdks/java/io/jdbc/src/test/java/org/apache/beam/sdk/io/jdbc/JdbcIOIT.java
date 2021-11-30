@@ -32,7 +32,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.common.DatabaseTestHelper;
 import org.apache.beam.sdk.io.common.HashingFn;
@@ -230,8 +229,7 @@ public class JdbcIOIT {
                 JdbcIO.<TestRow>read()
                     .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
                     .withQuery(String.format("select name,id from %s;", tableName))
-                    .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
-                    .withCoder(SerializableCoder.of(TestRow.class)))
+                    .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId()))
             .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, "read_time")));
 
     PAssert.thatSingleton(namesAndIds.apply("Count All", Count.globally()))
