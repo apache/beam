@@ -17,6 +17,5 @@ package validators
 
 // GetGoValidators return validators methods that should be applied to Go code
 func GetGoValidators() *[]Validator {
-	//TODO: Will be added in task [BEAM-13153]
 	return &[]Validator{}
 }

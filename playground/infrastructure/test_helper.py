@@ -17,9 +17,11 @@ import mock
 import pytest
 
 from unittest.mock import mock_open
-from api.v1.api_pb2 import SDK_UNSPECIFIED, STATUS_UNSPECIFIED, SDK_JAVA, SDK_PYTHON, SDK_GO
-from helper import find_examples, Example, _get_example, _get_name, _get_sdk, get_tag, _validate, Tag, \
-    get_supported_categories, _check_file
+from api.v1.api_pb2 import SDK_UNSPECIFIED, STATUS_UNSPECIFIED, SDK_JAVA, SDK_PYTHON, SDK_GO, STATUS_VALIDATING, \
+    STATUS_FINISHED
+from grpc_client import GRPCClient
+from helper import find_examples, Example, _get_example, _get_name, _get_sdk, get_tag, _validate, Tag, get_statuses, \
+    _update_example_status, get_supported_categories, _check_file
 
 
 @mock.patch('helper._check_file')
@@ -47,6 +49,21 @@ def test_find_examples_with_invalid_tag(mock_os_walk, mock_check_file):
 
     mock_os_walk.assert_called_once_with("")
     mock_check_file.assert_called_once_with([], "file.java", "/root/file.java", [])
+
+
+@pytest.mark.asyncio
+@mock.patch('helper.GRPCClient')
+@mock.patch('helper._update_example_status')
+async def test_get_statuses(mock_update_example_status, mock_grpc_client):
+    example = Example("file", "pipeline_id", SDK_UNSPECIFIED, "root/file.extension", "code", "output",
+                      STATUS_UNSPECIFIED, {"name": "Name"})
+    client = None
+
+    mock_grpc_client.return_value = client
+
+    await get_statuses([example])
+
+    mock_update_example_status.assert_called_once_with(example, client)
 
 
 @mock.patch('builtins.open', mock_open(read_data="...\n# Beam-playground:\n#     name: Name\n\nimport ..."))
@@ -183,3 +200,21 @@ def test__get_sdk_with_supported_extension():
 def test__get_sdk_with_unsupported_extension():
     with pytest.raises(ValueError, match="extension is not supported"):
         _get_sdk("filename.extension")
+
+
+@pytest.mark.asyncio
+@mock.patch('grpc_client.GRPCClient.check_status')
+@mock.patch('grpc_client.GRPCClient.run_code')
+async def test__update_example_status(mock_grpc_client_run_code, mock_grpc_client_check_status):
+    example = Example("file", "pipeline_id", SDK_UNSPECIFIED, "root/file.extension", "code", "output",
+                      STATUS_UNSPECIFIED, {"name": "Name"})
+
+    mock_grpc_client_run_code.return_value = "pipeline_id"
+    mock_grpc_client_check_status.side_effect = [STATUS_VALIDATING, STATUS_FINISHED]
+
+    await _update_example_status(example, GRPCClient())
+
+    assert example.pipeline_id == "pipeline_id"
+    assert example.status == STATUS_FINISHED
+    mock_grpc_client_run_code.assert_called_once_with(example.code, example.sdk)
+    mock_grpc_client_check_status.assert_has_calls([mock.call("pipeline_id")])
