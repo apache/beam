@@ -4,6 +4,7 @@ type: open-source
 categories:
   - Open Source Projects Powered by Apache Beam
 icon: /images/logos/powered-by/tfx.png
+nav: true
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

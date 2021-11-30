@@ -4,6 +4,7 @@ type: commercial
 categories:
   - Machine Learning
 icon: /images/logos/powered-by/oriel.png
+nav: true
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,5 +20,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
+<div>
+<header class="case-study-header">
+  <h2 itemprop="name headline">From Apache Beam to Leukemia early detection</h2>
+</header>
+
 Oriel Research Therapeutics (ORT) is a startup company in the greater Boston area that provides early detection services for
 multiple medical conditions, utilizing cutting edge Artificial Intelligence technologies and Next Generation Sequencing (NGS). ORT utilizes Apache Beam pipelines to process over 1 million samples of genomics and clinical information. The processed data is used by ORT in detecting Leukemia, Sepsis and other medical conditions.
+</div>

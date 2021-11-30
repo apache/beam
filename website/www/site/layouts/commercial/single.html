@@ -11,19 +11,21 @@ limitations under the License. See accompanying LICENSE file.
 */}}
 
 {{ define "main" }}
-    <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
-      <div class="post-content">
-        <div class="post-info">
-          <p>
-          {{ delimit .Params.categories ", " " & " }}
-          </p>
-        </div>
-        <header class="post-header">
-          <h2 itemprop="name headline">{{ .Title }}</h1>
-        </header>
-
-        <div class="arrow-list header-top-margin" itemprop="articleBody">
-          {{ .Content }}
+    <article itemscope itemtype="http://schema.org/BlogPosting">
+      <div class="arrow-list header-top-margin" itemprop="articleBody">
+        <div class="case-study">
+          <div class="case-study-breadcrumbs">
+            <a href="/powered-by" class="case-study-breadcrumbs-link">Case Studies</a>
+            <div class="case-study-breadcrumbs-separator">
+              <svg width="6" height="11" viewBox="0 0 6 11" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M1 9.5L5 5.5L1 1.5" stroke="#E6E6E6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div>{{ .Params.name | default .Params.title}}</div>
+          </div>
+          <div class="case-study-content">
+            {{ .Content }}
+          </div>
         </div>
       </div>
     </article>

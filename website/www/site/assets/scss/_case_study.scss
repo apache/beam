@@ -1,0 +1,166 @@
+@import "media";
+
+.case-study {
+  margin-left: 80px;
+  margin-right: 80px;
+  font-family: "Source Sans Pro", Roboto, arial, sans-serif;
+  display: flex;
+  flex-direction: column;
+
+  .case-study-header {
+    border-bottom: 2px solid rgba(255, 109, 5, 0.24);
+    margin-bottom: 24px;
+    padding-bottom: 26px;
+  }
+
+  .clear-nav {
+    display: block;
+    width: 270px;
+  }
+
+  .case-study-breadcrumbs {
+    display: flex;
+    font-size: 14px;
+    color: #a0a4ab;
+    font-weight: bold;
+    margin-bottom: 16px;
+    a.case-study-breadcrumbs-link {
+      text-decoration: none;
+      color: #a0a4ab;
+    }
+    .case-study-breadcrumbs-separator {
+      margin: 0 8px;
+    }
+  }
+
+  .case-study-content {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+  }
+
+  h1 {
+    margin-top: 0;
+  }
+
+  p {
+    margin-bottom: 24px;
+  }
+
+  .case-study-opinion {
+    display: flex;
+    flex-direction: column;
+    width: 260px;
+    margin-right: 32px;
+
+    .case-study-opinion-img {
+      margin-bottom: 24px;
+      img {
+        width: 100%;
+      }
+    }
+  }
+
+  .case-study-post {
+    flex: 1;
+    max-width: 540px;
+  }
+
+  .post-scheme {
+    margin-bottom: 16px;
+    img {
+      width: 100%;
+    }
+  }
+
+  @media screen and (max-width: $mobile) {
+    .case-study-content {
+      flex-direction: column;
+    }
+
+    .case-study-opinion {
+      width: 100%;
+      margin-bottom: 32px;
+    }
+  }
+
+  @media screen and (max-width: $tablet){
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+
+    .clear-nav {
+      display: none;
+    }
+  }
+
+  .case-study-quote-block {
+    padding: 0;
+    border-left: 0;
+    .case-study-quote-text {
+      font-size: 18px;
+      line-height: 28px;
+      font-style: italic;
+      margin-bottom: 12px;
+    }
+
+    .case-study-quote-author {
+      display: flex;
+      .case-study-quote-author-img img {
+        height: 40px;
+        width: 40px;
+        border-radius: 50%;
+        margin-right: 10px;
+      }
+      .case-study-quote-author-info {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+      .case-study-quote-author-name {
+        font-size: 14px;
+        font-weight: 700;
+      }
+      .case-study-quote-author-position {
+        font-size: 12px;
+        color: #a0a4ab;
+      }
+    }
+    &.case-study-quote-wrapped {
+      position: relative;
+      margin-bottom: 24px;
+      border-radius: 8px;
+      background-color: #fcfcfc;
+      padding: 48px 24px;
+      .case-study-quote-text {
+        font-size: 20px;
+        margin-bottom: 20px;
+        line-height: 31px;
+      }
+      .case-study-quote-author-img {
+        margin-left: auto;
+      }
+      &:before {
+        content: ' ';
+        top: 16px;
+        background-image: url("/images/open-quote.svg");
+        height: 37px;
+        width: 46px;
+        position: absolute;
+        font-size: 96px;
+        color: #E5E5E5;
+      }
+      &:after {
+        content: ' ';
+        background-image: url("/images/close-quote.svg");
+        height: 37px;
+        width: 46px;
+        right: 12px;
+        bottom: 16px;
+        position: absolute;
+        font-size: 96px;
+        color: #E5E5E5;
+      }
+    }
+  }
+}

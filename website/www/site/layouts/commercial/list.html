@@ -10,6 +10,17 @@
  limitations under the License. See accompanying LICENSE file.
 */}}
 
+{{ define "nav" }}
+<div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
+  <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
+  <nav>
+    <ul class="section-nav-list" data-section-nav>
+      {{ partial (printf "section-menu/%s/powered-by.html" .Lang) . }}
+    </ul>
+  </nav>
+</div>
+{{ end }}
+
 {{ define "main" }}
 <div class="blog-content">
     <h1>Commercial Projects</h1>
