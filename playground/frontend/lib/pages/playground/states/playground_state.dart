@@ -36,11 +36,6 @@ class PlaygroundState with ChangeNotifier {
   RunCodeResult? _result;
   DateTime? resetKey;
 
-  String get examplesTitle {
-    final name = _selectedExample?.name ?? '';
-    return name.substring(0, min(kTitleLength, name.length));
-  }
-
   PlaygroundState({
     SDK sdk = SDK.java,
     ExampleModel? selectedExample,
@@ -48,8 +43,13 @@ class PlaygroundState with ChangeNotifier {
   }) {
     _selectedExample = selectedExample;
     _sdk = sdk;
-    _source = _selectedExample?.sources[_sdk] ?? '';
+    _source = _selectedExample?.source ?? '';
     _codeRepository = codeRepository;
+  }
+
+  String get examplesTitle {
+    final name = _selectedExample?.name ?? kTitle;
+    return name.substring(0, min(kTitleLength, name.length));
   }
 
   ExampleModel? get selectedExample => _selectedExample;
@@ -64,7 +64,7 @@ class PlaygroundState with ChangeNotifier {
 
   setExample(ExampleModel example) {
     _selectedExample = example;
-    _source = example.sources[_sdk] ?? '';
+    _source = example.source ?? '';
     notifyListeners();
   }
 
@@ -83,7 +83,7 @@ class PlaygroundState with ChangeNotifier {
   }
 
   reset() {
-    _source = _selectedExample?.sources[_sdk] ?? '';
+    _source = _selectedExample?.source ?? '';
     resetKey = DateTime.now();
     notifyListeners();
   }
@@ -97,11 +97,20 @@ class PlaygroundState with ChangeNotifier {
   }
 
   void runCode() {
-    _codeRepository
-        ?.runCode(RunCodeRequestWrapper(code: source, sdk: sdk))
-        .listen((event) {
-      _result = event;
+    if (_selectedExample?.source == source &&
+        _selectedExample?.outputs != null) {
+      _result = RunCodeResult(
+        status: RunCodeStatus.finished,
+        output: _selectedExample!.outputs ?? 'anti-precompiled output',
+      );
       notifyListeners();
-    });
+    } else {
+      _codeRepository
+          ?.runCode(RunCodeRequestWrapper(code: source, sdk: sdk))
+          .listen((event) {
+        _result = event;
+        notifyListeners();
+      });
+    }
   }
 }

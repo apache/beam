@@ -53,7 +53,7 @@ func TestSetup(t *testing.T) {
 		CompileArgs: []string{"MOCK_COMPILE_ARG"},
 		RunArgs:     []string{"MOCK_RUN_ARG"},
 	}
-	sdkEnv := environment.NewBeamEnvs(playground.Sdk_SDK_JAVA, executorConfig)
+	sdkEnv := environment.NewBeamEnvs(playground.Sdk_SDK_JAVA, executorConfig, "")
 	compileBuilder := &executors.CompileBuilder{}
 	className, err := successLc.ExecutableName(successPipelineId, "")
 	if err != nil {
@@ -81,7 +81,7 @@ func TestSetup(t *testing.T) {
 				pipelineId:     successPipelineId,
 				lc:             successLc,
 				workingDir:     "",
-				sdkEnv:         environment.NewBeamEnvs(playground.Sdk_SDK_UNSPECIFIED, executorConfig),
+				sdkEnv:         environment.NewBeamEnvs(playground.Sdk_SDK_UNSPECIFIED, executorConfig, ""),
 				compileBuilder: compileBuilder,
 			},
 			want:    nil,
