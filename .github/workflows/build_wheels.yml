@@ -217,6 +217,8 @@ jobs:
           - os_python: {"os": "ubuntu-latest", "python": "cp36-* cp37-* cp38-*"}
             arch: aarch64
     steps:
+    - name: Install Docker
+      run: sudo apt-get update && sudo apt-get install docker-ce docker-ce-cli containerd.io && sudo docker run hello-world
     - name: Download python source distribution from artifacts
       uses: actions/download-artifact@v2
       with:
