@@ -465,7 +465,9 @@ public class ProcessBundleHandler {
                     .multiplexElements(request.getProcessBundle().getElements());
             if (!inputFinished) {
               throw new RuntimeException(
-                  "Elements embedded in ProcessBundleRequest are incomplete.");
+                  "Elements embedded in ProcessBundleRequest do not contain stream terminators for "
+                      + "all data and timer inputs. Unterminated endpoints: "
+                      + bundleProcessor.getInboundObserver().getUnfinishedEndpoints());
             }
           } else if (!bundleProcessor.getInboundEndpointApiServiceDescriptors().isEmpty()) {
             BeamFnDataInboundObserver2 observer = bundleProcessor.getInboundObserver();

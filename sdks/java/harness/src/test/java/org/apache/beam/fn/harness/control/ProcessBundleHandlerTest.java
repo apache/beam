@@ -75,6 +75,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.AccumulationMode;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ClosingBehavior;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
+import org.apache.beam.model.pipeline.v1.RunnerApi.IsBounded;
 import org.apache.beam.model.pipeline.v1.RunnerApi.OnTimeBehavior;
 import org.apache.beam.model.pipeline.v1.RunnerApi.OutputTime;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
@@ -101,6 +102,7 @@ import org.apache.beam.sdk.fn.data.TimerEndpoint;
 import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.state.TimerMap;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -811,32 +813,31 @@ public class ProcessBundleHandlerTest {
     assertThat(handler.bundleProcessorCache.getCachedBundleProcessors().get("1L"), empty());
   }
 
-  private static final class SimpleRecordingDoFn extends DoFn<KV<String, String>, String> {
+  private static final class SimpleDoFn extends DoFn<KV<String, String>, String> {
     private static final TupleTag<String> MAIN_OUTPUT_TAG = new TupleTag<>("mainOutput");
     private static final String TIMER_FAMILY_ID = "timer_family";
 
     @TimerFamily(TIMER_FAMILY_ID)
     private final TimerSpec timer = TimerSpecs.timerMap(TimeDomain.EVENT_TIME);
 
-    static List<String> consumedData = new ArrayList<>();
-    static List<String> firedOnTimerCallbackTimerIds = new ArrayList<>();
-
     @ProcessElement
     public void processElement(ProcessContext context, BoundedWindow window) {}
 
     @OnTimerFamily(TIMER_FAMILY_ID)
-    public void onTimer(@TimerId String timerId) {
-      firedOnTimerCallbackTimerIds.add(timerId);
+    public void onTimer(@TimerFamily(TIMER_FAMILY_ID) TimerMap timerFamily) {
+      timerFamily
+          .get("output_timer")
+          .withOutputTimestamp(Instant.ofEpochMilli(100L))
+          .set(Instant.ofEpochMilli(100L));
     }
   }
 
-  private ProcessBundleHandler setupProcessBundleHanlderForSimpleRecordingDoFn() throws Exception {
-    SimpleRecordingDoFn.consumedData.clear();
-    SimpleRecordingDoFn.firedOnTimerCallbackTimerIds.clear();
+  private ProcessBundleHandler setupProcessBundleHanlderForSimpleRecordingDoFn(
+      List<String> dataOutput, List<String> timerOutput) throws Exception {
     DoFnWithExecutionInformation doFnWithExecutionInformation =
         DoFnWithExecutionInformation.of(
-            new SimpleRecordingDoFn(),
-            SimpleRecordingDoFn.MAIN_OUTPUT_TAG,
+            new SimpleDoFn(),
+            SimpleDoFn.MAIN_OUTPUT_TAG,
             Collections.emptyMap(),
             DoFnSchemaInformation.create());
     RunnerApi.FunctionSpec functionSpec =
@@ -850,7 +851,7 @@ public class ProcessBundleHandlerTest {
         ParDoPayload.newBuilder()
             .setDoFn(functionSpec)
             .putTimerFamilySpecs(
-                "tfs-" + SimpleRecordingDoFn.TIMER_FAMILY_ID,
+                "tfs-" + SimpleDoFn.TIMER_FAMILY_ID,
                 TimerFamilySpec.newBuilder()
                     .setTimeDomain(RunnerApi.TimeDomain.Enum.EVENT_TIME)
                     .setTimerFamilyCoderId("timer-coder")
@@ -878,6 +879,7 @@ public class ProcessBundleHandlerTest {
                 PCollection.newBuilder()
                     .setWindowingStrategyId("window-strategy")
                     .setCoderId("2L-output-coder")
+                    .setIsBounded(IsBounded.Enum.BOUNDED)
                     .build())
             .putWindowingStrategies(
                 "window-strategy",
@@ -928,17 +930,18 @@ public class ProcessBundleHandlerTest {
                   ApiServiceDescriptor.getDefaultInstance(),
                   KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()),
                   (input) -> {
-                    SimpleRecordingDoFn.consumedData.add(input.getValue());
+                    dataOutput.add(input.getValue());
                   });
               return null;
             });
 
     Mockito.doAnswer(
             (invocation) -> {
-              // A no op consumer for timers.
               return new CloseableFnDataReceiver() {
                 @Override
-                public void accept(Object input) throws Exception {}
+                public void accept(Object input) throws Exception {
+                  timerOutput.add(((Timer<String>) input).getDynamicTimerTag());
+                }
 
                 @Override
                 public void flush() throws Exception {}
@@ -964,7 +967,10 @@ public class ProcessBundleHandlerTest {
 
   @Test
   public void testInstructionEmbeddedElementsAreProcessed() throws Exception {
-    ProcessBundleHandler handler = setupProcessBundleHanlderForSimpleRecordingDoFn();
+    List<String> dataOutput = new ArrayList<>();
+    List<String> timerOutput = new ArrayList<>();
+    ProcessBundleHandler handler =
+        setupProcessBundleHanlderForSimpleRecordingDoFn(dataOutput, timerOutput);
 
     ByteString.Output encodedData = ByteString.newOutput();
     KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()).encode(KV.of("", "data"), encodedData);
@@ -1005,8 +1011,7 @@ public class ProcessBundleHandlerTest {
                                     .setInstructionId("998L")
                                     .setTransformId("3L")
                                     .setTimerFamilyId(
-                                        TimerFamilyDeclaration.PREFIX
-                                            + SimpleRecordingDoFn.TIMER_FAMILY_ID)
+                                        TimerFamilyDeclaration.PREFIX + SimpleDoFn.TIMER_FAMILY_ID)
                                     .setTimers(encodedTimer.toByteString())
                                     .build())
                             .addTimers(
@@ -1014,15 +1019,14 @@ public class ProcessBundleHandlerTest {
                                     .setInstructionId("998L")
                                     .setTransformId("3L")
                                     .setTimerFamilyId(
-                                        TimerFamilyDeclaration.PREFIX
-                                            + SimpleRecordingDoFn.TIMER_FAMILY_ID)
+                                        TimerFamilyDeclaration.PREFIX + SimpleDoFn.TIMER_FAMILY_ID)
                                     .setIsLast(true)
                                     .build())
                             .build()))
             .build());
     handler.shutdown();
-    assertThat(SimpleRecordingDoFn.consumedData, contains("data"));
-    assertThat(SimpleRecordingDoFn.firedOnTimerCallbackTimerIds, contains("timer_id"));
+    assertThat(dataOutput, contains("data"));
+    assertThat(timerOutput, contains("output_timer"));
     // Register timer family outbound receiver.
     verify(beamFnDataClient).send(any(), any(), any());
     verifyNoMoreInteractions(beamFnDataClient);
@@ -1030,14 +1034,17 @@ public class ProcessBundleHandlerTest {
 
   @Test
   public void testInstructionEmbeddedElementsWithMalformedData() throws Exception {
-    ProcessBundleHandler handler = setupProcessBundleHanlderForSimpleRecordingDoFn();
+    List<String> dataOutput = new ArrayList<>();
+    List<String> timerOutput = new ArrayList<>();
+    ProcessBundleHandler handler =
+        setupProcessBundleHanlderForSimpleRecordingDoFn(dataOutput, timerOutput);
 
     ByteString.Output encodedData = ByteString.newOutput();
     KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()).encode(KV.of("", "data"), encodedData);
 
     assertThrows(
         "Expect java.lang.IllegalStateException: Unable to find inbound data receiver for"
-            + " instruction 998L and transform 3L. But was not thrown or Exception did not match.",
+            + " instruction 998L and transform 3L.",
         IllegalStateException.class,
         () ->
             handler.processBundle(
@@ -1057,8 +1064,9 @@ public class ProcessBundleHandlerTest {
                                     .build()))
                     .build()));
     assertThrows(
-        "Expect java.lang.RuntimeException: Elements embedded in ProcessBundleRequest are "
-            + "incomplete. But was not thrown or Exception did not match.",
+        "Elements embedded in ProcessBundleRequest do not contain stream terminators for "
+            + "all data and timer inputs. Unterminated endpoints: [2L:data,"
+            + " 3L:timers:tfs-timer_family]",
         RuntimeException.class,
         () ->
             handler.processBundle(
@@ -1082,7 +1090,10 @@ public class ProcessBundleHandlerTest {
 
   @Test
   public void testInstructionEmbeddedElementsWithMalformedTimers() throws Exception {
-    ProcessBundleHandler handler = setupProcessBundleHanlderForSimpleRecordingDoFn();
+    List<String> dataOutput = new ArrayList<>();
+    List<String> timerOutput = new ArrayList<>();
+    ProcessBundleHandler handler =
+        setupProcessBundleHanlderForSimpleRecordingDoFn(dataOutput, timerOutput);
 
     ByteString.Output encodedTimer = ByteString.newOutput();
     Timer.Coder.of(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE)
@@ -1098,8 +1109,7 @@ public class ProcessBundleHandlerTest {
 
     assertThrows(
         "Expect java.lang.IllegalStateException: Unable to find inbound timer receiver "
-            + "for instruction 998L, transform 4L, and timer family tfs-timer_family. But was not"
-            + " thrown or Exception did not match.",
+            + "for instruction 998L, transform 4L, and timer family tfs-timer_family.",
         IllegalStateException.class,
         () ->
             handler.processBundle(
@@ -1116,15 +1126,14 @@ public class ProcessBundleHandlerTest {
                                             .setTransformId("4L")
                                             .setTimerFamilyId(
                                                 TimerFamilyDeclaration.PREFIX
-                                                    + SimpleRecordingDoFn.TIMER_FAMILY_ID)
+                                                    + SimpleDoFn.TIMER_FAMILY_ID)
                                             .setTimers(encodedTimer.toByteString())
                                             .build())
                                     .build()))
                     .build()));
     assertThrows(
         "Expect java.lang.IllegalStateException: Unable to find inbound timer receiver "
-            + "for instruction 998L, transform 3L, and timer family tfs-not_declared_id. But was "
-            + "not thrown or Exception did not match.",
+            + "for instruction 998L, transform 3L, and timer family tfs-not_declared_id.",
         IllegalStateException.class,
         () ->
             handler.processBundle(
@@ -1146,8 +1155,9 @@ public class ProcessBundleHandlerTest {
                                     .build()))
                     .build()));
     assertThrows(
-        "Expect java.lang.RuntimeException: Elements embedded in ProcessBundleRequest are"
-            + " incomplete. But was not thrown or Exception did not match.",
+        "Elements embedded in ProcessBundleRequest do not contain stream terminators for "
+            + "all data and timer inputs. Unterminated endpoints: [2L:data,"
+            + " 3L:timers:tfs-timer_family]",
         RuntimeException.class,
         () ->
             handler.processBundle(
@@ -1164,7 +1174,7 @@ public class ProcessBundleHandlerTest {
                                             .setTransformId("3L")
                                             .setTimerFamilyId(
                                                 TimerFamilyDeclaration.PREFIX
-                                                    + SimpleRecordingDoFn.TIMER_FAMILY_ID)
+                                                    + SimpleDoFn.TIMER_FAMILY_ID)
                                             .setTimers(encodedTimer.toByteString())
                                             .build())
                                     .build()))

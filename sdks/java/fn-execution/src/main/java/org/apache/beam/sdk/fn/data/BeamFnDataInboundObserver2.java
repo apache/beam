@@ -18,9 +18,11 @@
 package org.apache.beam.sdk.fn.data;
 
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.sdk.coders.Coder;
@@ -105,8 +107,7 @@ public class BeamFnDataInboundObserver2 implements CloseableFnDataReceiver<BeamF
     try {
       while (true) {
         BeamFnApi.Elements elements = queue.take();
-        multiplexElements(elements);
-        if (numEndpointsThatAreIncomplete == 0) {
+        if (multiplexElements(elements)) {
           return;
         }
       }
@@ -198,5 +199,30 @@ public class BeamFnDataInboundObserver2 implements CloseableFnDataReceiver<BeamF
       }
     }
     queue.reset();
+  }
+
+  /**
+   * Get all unfinished data and timers endpoints represented as [transform_id]:data and
+   * [transform_id]:timers:[timer_family_id].
+   */
+  public List<String> getUnfinishedEndpoints() {
+    List<String> unfinishedEndpoints = new ArrayList<>();
+    for (Entry<String, EndpointStatus<DataEndpoint<?>>> endpointStatus :
+        transformIdToDataEndpoint.entrySet()) {
+      if (!endpointStatus.getValue().isDone) {
+        unfinishedEndpoints.add(String.format("%s:data", endpointStatus.getKey()));
+      }
+    }
+    for (Entry<String, Map<String, EndpointStatus<TimerEndpoint<?>>>> entry :
+        transformIdToTimerFamilyIdToTimerEndpoint.entrySet()) {
+      for (Entry<String, EndpointStatus<TimerEndpoint<?>>> timerFamilyStatus :
+          entry.getValue().entrySet()) {
+        if (!timerFamilyStatus.getValue().isDone) {
+          unfinishedEndpoints.add(
+              String.format("%s:timers:%s", entry.getKey(), timerFamilyStatus.getKey()));
+        }
+      }
+    }
+    return unfinishedEndpoints;
   }
 }
