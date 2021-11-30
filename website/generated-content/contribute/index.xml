@@ -498,11 +498,11 @@ If you don’t have a GPG key associated with your Apache account, please create
 &lt;/code>&lt;/pre>
 &lt;p>This will list your GPG keys. One of these should reflect your Apache account, for example:&lt;/p>
 &lt;pre>&lt;code>--------------------------------------------------
-pub 2048R/845E6689 2016-02-23
+pub rsa4096/845E6689845E6689 2016-02-23
 uid Nomen Nescio &amp;lt;anonymous@apache.org&amp;gt;
-sub 2048R/BA4D50BE 2016-02-23
+sub rsa4096/BA4D50BEBA4D50BE 2016-02-23
 &lt;/code>&lt;/pre>
-&lt;p>Here, the key ID is the 8-digit hex string in the &lt;code>pub&lt;/code> line: &lt;code>845E6689&lt;/code>.&lt;/p>
+&lt;p>Here, the key ID is the 16-digit hex string in the &lt;code>pub&lt;/code> line: &lt;code>845E6689845E6689&lt;/code>.&lt;/p>
 &lt;/li>
 &lt;/ul>
 &lt;h4 id="access-to-apache-nexus-repository">Access to Apache Nexus repository&lt;/h4>
@@ -911,7 +911,7 @@ is perfectly safe since the script does not depend on the current working tree.&
 &lt;/li>
 &lt;li>
 &lt;p>&lt;strong>Usage&lt;/strong>&lt;/p>
-&lt;pre>&lt;code>./beam/release/src/main/scripts/build_release_candidate.sh
+&lt;pre>&lt;code>./beam/release/src/main/scripts/build_release_candidate.sh --release &amp;quot;${RELEASE_VERSION}&amp;quot; --rc &amp;quot;${RC_NUM}&amp;quot; --github-user &amp;quot;${GITHUB_USER}&amp;quot;
 &lt;/code>&lt;/pre>
 &lt;/li>
 &lt;li>
@@ -1164,8 +1164,6 @@ versions to run all of the tests. See Python installation tips in &lt;a href="ht
 &lt;li>
 &lt;p>&lt;strong>Tasks included&lt;/strong>&lt;/p>
 &lt;ol>
-&lt;li>Run Java quickstart with Direct Runner, Flink local runner, Spark local runner and Dataflow runner.&lt;/li>
-&lt;li>Run Java Mobile Games(UserScore, HourlyTeamScore, Leaderboard) with Dataflow runner.&lt;/li>
 &lt;li>Create a PR to trigger python validation job, including
 &lt;ul>
 &lt;li>Python quickstart in batch and streaming mode with direct runner and Dataflow runner.&lt;/li>
@@ -1188,6 +1186,12 @@ versions to run all of the tests. See Python installation tips in &lt;a href="ht
 &lt;ol>
 &lt;li>Check whether validations succeed by following console output instructions.&lt;/li>
 &lt;li>Terminate streaming jobs and java injector.&lt;/li>
+&lt;li>Run Java quickstart (wordcount) and mobile game examples with the staged artifacts. The easiest way to do this is by running the tests on Jenkins.&lt;/li>
+&lt;li>Log in to Jenkins.&lt;/li>
+&lt;li>Go to &lt;a href="https://ci-beam.apache.org/job/beam_PostRelease_NightlySnapshot/">https://ci-beam.apache.org/job/beam_PostRelease_NightlySnapshot/&lt;/a>.&lt;/li>
+&lt;li>Click &amp;ldquo;Build with Parameters&amp;rdquo;.&lt;/li>
+&lt;li>Set &lt;code>snapshot_version&lt;/code> to &lt;code>2.xx.0&lt;/code>, and set &lt;code>snapshot_url&lt;/code> to point to the staged artifacts in Maven central (&lt;a href="https://repository.apache.org/content/repositories/orgapachebeam-NNNN/)">https://repository.apache.org/content/repositories/orgapachebeam-NNNN/)&lt;/a>.&lt;/li>
+&lt;li>Click &amp;ldquo;Build&amp;rdquo;.&lt;/li>
 &lt;li>Sign up &lt;a href="https://s.apache.org/beam-release-validation">spreadsheet&lt;/a>.&lt;/li>
 &lt;li>Vote in the release thread.&lt;/li>
 &lt;/ol>
@@ -1482,7 +1486,7 @@ git push https://github.com/apache/beam &amp;quot;$VERSION_TAG&amp;quot;
 &lt;/code>&lt;/pre>&lt;p>After pushing the tag, the tag should be visible on Github&amp;rsquo;s &lt;a href="https://github.com/apache/beam/tags">Tags&lt;/a> page.&lt;/p>
 &lt;h3 id="publish-release-to-github">Publish release to Github&lt;/h3>
 &lt;p>Once the tag is uploaded, publish the release notes to Github, as follows:&lt;/p>
-&lt;pre>&lt;code>cd beam/release/src/main/scripts &amp;amp;&amp;amp; ./publish_github_release_notes.sh
+&lt;pre>&lt;code>./beam/release/src/main/scripts/publish_github_release_notes.sh
 &lt;/code>&lt;/pre>&lt;p>Note this script reads the release notes from the blog post, so you should make sure to run this from master &lt;em>after&lt;/em> merging the blog post PR.&lt;/p>
 &lt;p>After running the script, the release notes should be visible on Github&amp;rsquo;s &lt;a href="https://github.com/apache/beam/releases">Releases&lt;/a> page.&lt;/p>
 &lt;h3 id="pmc-only-finalization">PMC-Only Finalization&lt;/h3>
