@@ -33,6 +33,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.locks.Lock;
 import java.util.stream.Collectors;
@@ -804,10 +805,9 @@ public class DoFnOperator<InputT, OutputT>
           && watermark
               > adjustTimestampForFlink(GlobalWindow.INSTANCE.maxTimestamp().getMillis())) {
         final KeyedStateBackend<Object> keyedStateBackend = getKeyedStateBackend();
-        List<ByteBuffer> globalStateKeys = keyedStateInternals.getGlobalWindowStateKeys();
         Instant outputTimestamp = GlobalWindow.INSTANCE.maxTimestamp().minus(Duration.millis(1));
-        globalStateKeys.forEach(
-            k -> {
+        keyedStateInternals.applyToAllGlobalWindowStateKeys(
+         k -> {
               keyedStateBackend.setCurrentKey(k);
               pushbackDoFnRunner.onWindowExpiration(
                   GlobalWindow.INSTANCE, outputTimestamp, FlinkKeyUtils.decodeKey(k, keyCoder));

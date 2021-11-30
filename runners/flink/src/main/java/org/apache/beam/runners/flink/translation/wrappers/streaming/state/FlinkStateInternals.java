@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import javax.annotation.Nonnull;
@@ -61,6 +62,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditio
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.TreeMultiset;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -216,8 +218,8 @@ public class FlinkStateInternals<K> implements StateInternals {
     }
   }
 
-  public List<ByteBuffer> getGlobalWindowStateKeys() {
-    List<ByteBuffer> keys = Lists.newArrayList();
+  public void applyToAllGlobalWindowStateKeys(Consumer<ByteBuffer> fn) {
+    Set<ByteBuffer> keys = Sets.newHashSet();
     for (StateAndNamespaceDescriptor stateAndNamespace : globalWindowStateDescriptors) {
       try {
         flinkStateBackend.applyToAllKeys(
@@ -229,7 +231,7 @@ public class FlinkStateInternals<K> implements StateInternals {
         throw new RuntimeException("Failed to list global-state keys.", e);
       }
     }
-    return keys;
+    keys.forEach(fn);
   }
 
   private class FlinkStateBinder implements StateBinder {
@@ -333,7 +335,7 @@ public class FlinkStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public WatermarkHoldState bindWatermark(
+      public WatermarkHoldState bindWatermark(
         String id, StateSpec<WatermarkHoldState> spec, TimestampCombiner timestampCombiner) {
       collectGlobalWindowStateDescriptor(
           watermarkHoldStateDescriptor, VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE);
