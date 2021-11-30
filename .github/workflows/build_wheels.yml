@@ -218,7 +218,6 @@ jobs:
             arch: aarch64
     steps:
     - name: Install Docker
-      run:  sudo curl -fsSL https://get.docker.com -o get-docker.sh && sudo sh get-docker.sh && sudo docker --version
     - name: Download python source distribution from artifacts
       uses: actions/download-artifact@v2
       with:
@@ -244,6 +243,7 @@ jobs:
       env:
         CIBW_BUILD: ${{ matrix.os_python.python }}
         CIBW_BEFORE_BUILD: pip install cython
+        CIBW_BEFORE_ALL_LINUX: sudo apt-get install -y && sudo apt-get install docker-ce docker-ce-cli containerd.io && sudo docker --version
       run: cibuildwheel --print-build-identifiers && cibuildwheel --output-dir wheelhouse
       shell: bash
     - name: install sha512sum on MacOS
