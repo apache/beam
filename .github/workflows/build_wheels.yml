@@ -217,7 +217,6 @@ jobs:
           - os_python: {"os": "ubuntu-latest", "python": "cp36-* cp37-* cp38-*"}
             arch: aarch64
     steps:
-    - name: Install Docker
     - name: Download python source distribution from artifacts
       uses: actions/download-artifact@v2
       with:
