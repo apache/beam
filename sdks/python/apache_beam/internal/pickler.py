@@ -37,6 +37,7 @@ DEFAULT_PICKLE_LIB = USE_DILL
 
 desired_pickle_lib = dill_pickler
 
+
 def dumps(o, enable_trace=True, use_zlib=False):
   # type: (...) -> bytes
 
@@ -47,8 +48,8 @@ def dumps(o, enable_trace=True, use_zlib=False):
 def loads(encoded, enable_trace=True, use_zlib=False):
   """For internal use only; no backwards-compatibility guarantees."""
 
-  return desired_pickle_lib.loads(encoded, enable_trace=enable_trace,
-                                  use_zlib=use_zlib)
+  return desired_pickle_lib.loads(
+      encoded, enable_trace=enable_trace, use_zlib=use_zlib)
 
 
 def dump_session(file_path):
