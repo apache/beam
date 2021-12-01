@@ -95,7 +95,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [self-hosted, ubuntu-latest, macos-latest, windows-latest]
+        os: [self-hosted]
         params: [
           {"py_ver": "3.6", "tox_env": "py36"},
           {"py_ver": "3.7", "tox_env": "py37"},
@@ -139,7 +139,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [self-hosted, ubuntu-latest, macos-latest, windows-latest]
+        os: [self-hosted]
         python: [3.6, 3.7, 3.8]
         exclude:
           # TODO remove exclusion after issue with protobuf is solved
@@ -172,7 +172,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [self-hosted, ubuntu-latest, macos-latest, windows-latest]
+        os: [self-hosted]
         python: [3.6, 3.7, 3.8]
         exclude:
           # TODO remove exclusion after issue with protobuf is solved
