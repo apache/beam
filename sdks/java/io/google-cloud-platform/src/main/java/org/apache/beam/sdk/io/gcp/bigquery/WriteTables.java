@@ -145,7 +145,7 @@ class WriteTables<DestinationT>
   private final @Nullable String kmsKey;
   private final String sourceFormat;
   private final boolean useAvroLogicalTypes;
-  private @Nullable transient DatasetService datasetService;
+  private transient @Nullable DatasetService datasetService;
   private @Nullable JobService jobService;
 
   private class WriteTablesDoFn
