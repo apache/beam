@@ -95,7 +95,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest]
+        os: [ubuntu-latest]
         params: [
           {"py_ver": "3.6", "tox_env": "py36"}
         ]
@@ -137,7 +137,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest]
+        os: [ubuntu-latest]
         python: [3.6]
         exclude:
           # TODO remove exclusion after issue with protobuf is solved
@@ -170,7 +170,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest]
+        os: [ubuntu-latest]
         python: [3.6]
         exclude:
           # TODO remove exclusion after issue with protobuf is solved
