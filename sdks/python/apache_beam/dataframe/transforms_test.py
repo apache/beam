@@ -373,7 +373,7 @@ class FusionTest(unittest.TestCase):
       _ = (
           self.create_animal_speed_input(p)
           | transforms.DataframeTransform(lambda df: df[df.Speed > 10]))
-    self.assertEqual(self.fused_stages(p), 3)
+    self.assertEqual(self.fused_stages(p), 1)
 
   def test_column_manipulation(self):
     def set_column(df, name, s):
@@ -385,7 +385,7 @@ class FusionTest(unittest.TestCase):
           self.create_animal_speed_input(p)
           | transforms.DataframeTransform(
               lambda df: set_column(df, 'x', df.Speed + df.Animal.str.len())))
-    self.assertEqual(self.fused_stages(p), 3)
+    self.assertEqual(self.fused_stages(p), 1)
 
 
 class TransformPartsTest(unittest.TestCase):

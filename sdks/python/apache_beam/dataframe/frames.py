@@ -4268,7 +4268,7 @@ class _DeferredLoc(object):
             func,
             args,
             requires_partition_by=(
-                partitionings.Index()
+                partitionings.JoinIndex()
                 if len(args) > 1
                 else partitionings.Arbitrary()),
             preserves_partition_by=partitionings.Arbitrary()))
