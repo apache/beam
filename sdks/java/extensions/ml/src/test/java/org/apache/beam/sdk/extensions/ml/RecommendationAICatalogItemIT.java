@@ -63,7 +63,6 @@ public class RecommendationAICatalogItemIT {
         .set("languageCode", "en");
   }
 
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-12733")
   @Test
   public void createCatalogItem() {
     GenericJson catalogItem = getCatalogItem();
