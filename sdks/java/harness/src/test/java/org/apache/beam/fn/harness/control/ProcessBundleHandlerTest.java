@@ -832,7 +832,7 @@ public class ProcessBundleHandlerTest {
     }
   }
 
-  private ProcessBundleHandler setupProcessBundleHanlderForSimpleRecordingDoFn(
+  private ProcessBundleHandler setupProcessBundleHandlerForSimpleRecordingDoFn(
       List<String> dataOutput, List<String> timerOutput) throws Exception {
     DoFnWithExecutionInformation doFnWithExecutionInformation =
         DoFnWithExecutionInformation.of(
@@ -970,7 +970,7 @@ public class ProcessBundleHandlerTest {
     List<String> dataOutput = new ArrayList<>();
     List<String> timerOutput = new ArrayList<>();
     ProcessBundleHandler handler =
-        setupProcessBundleHanlderForSimpleRecordingDoFn(dataOutput, timerOutput);
+        setupProcessBundleHandlerForSimpleRecordingDoFn(dataOutput, timerOutput);
 
     ByteString.Output encodedData = ByteString.newOutput();
     KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()).encode(KV.of("", "data"), encodedData);
@@ -1037,7 +1037,7 @@ public class ProcessBundleHandlerTest {
     List<String> dataOutput = new ArrayList<>();
     List<String> timerOutput = new ArrayList<>();
     ProcessBundleHandler handler =
-        setupProcessBundleHanlderForSimpleRecordingDoFn(dataOutput, timerOutput);
+        setupProcessBundleHandlerForSimpleRecordingDoFn(dataOutput, timerOutput);
 
     ByteString.Output encodedData = ByteString.newOutput();
     KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()).encode(KV.of("", "data"), encodedData);
@@ -1093,7 +1093,7 @@ public class ProcessBundleHandlerTest {
     List<String> dataOutput = new ArrayList<>();
     List<String> timerOutput = new ArrayList<>();
     ProcessBundleHandler handler =
-        setupProcessBundleHanlderForSimpleRecordingDoFn(dataOutput, timerOutput);
+        setupProcessBundleHandlerForSimpleRecordingDoFn(dataOutput, timerOutput);
 
     ByteString.Output encodedTimer = ByteString.newOutput();
     Timer.Coder.of(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE)
