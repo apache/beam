@@ -151,7 +151,7 @@ def _elementwise_method(
       inplace,
       base,
       requires_partition_by=partitionings.Arbitrary(),
-      preserves_partition_by=partitionings.Singleton())
+      preserves_partition_by=partitionings.Arbitrary())
 
 
 def _proxy_method(
@@ -187,7 +187,7 @@ def _elementwise_function(
       inplace,
       base,
       requires_partition_by=partitionings.Arbitrary(),
-      preserves_partition_by=partitionings.Singleton())
+      preserves_partition_by=partitionings.Arbitrary())
 
 
 def _proxy_function(
