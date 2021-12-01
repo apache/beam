@@ -1,9 +1,9 @@
 ---
-title: "Cloud Dataflow"
-type: commercial
+title:  "Scio"
 categories:
-  - Cloud & Data Analytics
-icon: /images/logo_google_cloud.png
+  - Open Source
+icon: /images/logos/powered-by/scio.png
+hasNav: true
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,5 +18,4 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-
-**[Cloud Dataflow](https://cloud.google.com/dataflow):** Google Cloud Dataflow is a fully managed service for executing Apache Beam pipelines within the Google Cloud Platform ecosystem.
+Scio is a Scala API for Apache Beam and Google Cloud Dataflow inspired by Apache Spark and Scalding.

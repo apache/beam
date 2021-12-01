@@ -1,9 +1,9 @@
 ---
-title: "Combining the Power of Beam With Three Other Apache Technologies for Fun and Profit"
-type: commercial
+title:  "TensorFlow Extended (TFX)"
 categories:
-  - Online & Traditional Retail
-icon: /images/logos/powered-by/ricardo.png
+  - Open Source
+icon: /images/logos/powered-by/tfx.png
+hasNav: true
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,5 +19,5 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-Ricardo, the largest online marketplace in Switzerland, uses Apache Beam to stream-process platform data and enables the
-Data Intelligence team to provide scalable data integration, analytics, and smart services.
+**[TensorFlow Extended (TFX)](https://www.tensorflow.org/tfx):**  TensorFlow Extended (TFX) is an end-to-end platform
+  for deploying production ML pipelines based on Apache Beam.

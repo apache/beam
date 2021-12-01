@@ -1,9 +1,9 @@
 ---
-title:  "Scio"
-type: open-source
+title:  "Klio"
 categories:
-  - Open Source Projects Powered by Apache Beam
-icon: /images/logos/powered-by/scio.png
+  - Open Source
+icon: /images/logos/powered-by/klio.png
+hasNav: true
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,4 +18,5 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-Scio is a Scala API for Apache Beam and Google Cloud Dataflow inspired by Apache Spark and Scalding.
+
+Developed at Spotify and built on top of Apache Beam for Python, Klio is an open source framework that lets researchers and engineers build smarter data pipelines for processing audio and other media files, easily and at scale.
