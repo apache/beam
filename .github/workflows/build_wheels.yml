@@ -40,7 +40,7 @@ jobs:
   check_gcp_variables:
     timeout-minutes: 5
     name: "Check GCP variables"
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     outputs:
       gcp-variables-set: ${{ steps.check_gcp_variables.outputs.gcp-variables-set }}
     steps:
@@ -57,7 +57,7 @@ jobs:
           GCP_TESTING_BUCKET: "not-needed-here"
 
   build_source:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     name: Build python source distribution
     outputs:
       is_rc: ${{ steps.is_rc.outputs.is_rc }}
@@ -166,7 +166,7 @@ jobs:
     needs:
       - build_source
       - check_gcp_variables
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     if: needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     steps:
       - name: Authenticate on GCP
@@ -182,7 +182,7 @@ jobs:
     needs:
       - prepare_gcs
       - check_gcp_variables
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     if: needs.check_gcp_variables.outputs.gcp-variables-set == 'true'
     steps:
       - name: Download compressed sources from artifacts
@@ -203,7 +203,7 @@ jobs:
     needs: build_source
     env:
       CIBW_ARCHS_LINUX: ${{matrix.arch}}
-    runs-on: [self-hosted]
+    runs-on: ${{ matrix.os_python.os }}
     strategy:
       matrix:
         os_python: [
@@ -241,8 +241,6 @@ jobs:
       env:
         CIBW_BUILD: ${{ matrix.os_python.python }}
         CIBW_BEFORE_BUILD: pip install cython
-        CIBW_BEFORE_ALL_LINUX: yum install -y yum-utils;yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo;yum install docker-ce docker-ce-cli containerd.io
-        CIBW_BEFORE_ALL_MACOS: brew install docker
       run: cibuildwheel --print-build-identifiers && cibuildwheel --output-dir wheelhouse
       shell: bash
     - name: install sha512sum on MacOS
@@ -288,7 +286,7 @@ jobs:
     needs:
       - build_wheels
       - check_gcp_variables
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     if: needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     strategy:
       matrix:
@@ -332,7 +330,7 @@ jobs:
     needs:
      - upload_wheels_to_gcs
      - check_gcp_variables
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     if: needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     steps:
     - name: Authenticate on GCP
@@ -348,7 +346,7 @@ jobs:
     needs:
       - build_source
       - build_wheels
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     timeout-minutes: 60
     if: github.repository_owner == 'apache' && github.event_name == 'schedule'
     steps:
