@@ -69,7 +69,6 @@ def extract_prediction(response):
 @unittest.skipIf(
     recommendationengine is None,
     "Recommendations AI dependencies not installed.")
-@unittest.skip('https://issues.apache.org/jira/browse/BEAM-12683')
 class RecommendationAIIT(unittest.TestCase):
   def test_create_catalog_item(self):
 
