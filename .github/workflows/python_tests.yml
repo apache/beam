@@ -119,7 +119,7 @@ jobs:
       - name: Install tox
         run: pip install tox
       - name: Run tests basic unix
-        if: startsWith(matrix.os, 'ubuntu') || startsWith(matrix.os, 'macos')
+        if: startsWith(matrix.os, 'ubuntu') || startsWith(matrix.os, 'macos') || startsWith(matrix.os, 'self')
         working-directory: ./sdks/python
         run: tox -c tox.ini -e ${{ matrix.params.tox_env }}
       - name: Run tests basic windows
