@@ -934,8 +934,8 @@ public final class KinesisIO {
                     .createKinesisProducer(spec.createProducerConfiguration());
             producerRefCount.set(0);
           }
+          producerRefCount.incrementAndGet();
         }
-        producerRefCount.incrementAndGet();
       }
 
       /**
