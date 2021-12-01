@@ -30,12 +30,14 @@ import tempfile
 import unittest
 
 import pandas as pd
+import pytest
 
 import apache_beam as beam
 from apache_beam.examples.dataframe import taxiride
 from apache_beam.testing.util import open_shards
 
 
+@pytest.mark.examples_postcommit
 class TaxiRideExampleTest(unittest.TestCase):
 
   # First 10 lines from gs://apache-beam-samples/nyc_taxi/misc/sample.csv
