@@ -40,6 +40,9 @@ const (
 
 	// Canceled is used to keep the canceled status
 	Canceled SubKey = "CANCELED"
+
+	// RunOutputIndex is the index of the start of the run step's output
+	RunOutputIndex SubKey = "RUN_OUTPUT_INDEX"
 )
 
 // Cache is used to store states and outputs for Apache Beam pipelines that running in Playground

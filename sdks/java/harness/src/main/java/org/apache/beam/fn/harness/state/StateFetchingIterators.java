@@ -223,22 +223,15 @@ public class StateFetchingIterators {
   @VisibleForTesting
   static class LazyBlockingStateFetchingIterator implements PrefetchableIterator<ByteString> {
 
-    private enum State {
-      READ_REQUIRED,
-      HAS_NEXT,
-      EOF
-    }
-
     private final BeamFnStateClient beamFnStateClient;
     private final StateRequest stateRequestForFirstChunk;
-    private State currentState;
+    private boolean moreToRead;
     private ByteString continuationToken;
-    private ByteString next;
     private CompletableFuture<StateResponse> prefetchedResponse;
 
     LazyBlockingStateFetchingIterator(
         BeamFnStateClient beamFnStateClient, StateRequest stateRequestForFirstChunk) {
-      this.currentState = State.READ_REQUIRED;
+      this.moreToRead = true;
       this.beamFnStateClient = beamFnStateClient;
       this.stateRequestForFirstChunk = stateRequestForFirstChunk;
       this.continuationToken = stateRequestForFirstChunk.getGet().getContinuationToken();
@@ -247,14 +240,14 @@ public class StateFetchingIterators {
     @Override
     public boolean isReady() {
       if (prefetchedResponse == null) {
-        return currentState != State.READ_REQUIRED;
+        return !moreToRead;
       }
       return prefetchedResponse.isDone();
     }
 
     @Override
     public void prefetch() {
-      if (currentState == State.READ_REQUIRED && prefetchedResponse == null) {
+      if (moreToRead && prefetchedResponse == null) {
         prefetchedResponse =
             beamFnStateClient.handle(
                 stateRequestForFirstChunk
@@ -265,33 +258,7 @@ public class StateFetchingIterators {
 
     @Override
     public boolean hasNext() {
-      switch (currentState) {
-        case EOF:
-          return false;
-        case READ_REQUIRED:
-          prefetch();
-          StateResponse stateResponse;
-          try {
-            stateResponse = prefetchedResponse.get();
-          } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IllegalStateException(e);
-          } catch (ExecutionException e) {
-            if (e.getCause() == null) {
-              throw new IllegalStateException(e);
-            }
-            Throwables.throwIfUnchecked(e.getCause());
-            throw new IllegalStateException(e.getCause());
-          }
-          prefetchedResponse = null;
-          continuationToken = stateResponse.getGet().getContinuationToken();
-          next = stateResponse.getGet().getData();
-          currentState = State.HAS_NEXT;
-          return true;
-        case HAS_NEXT:
-          return true;
-      }
-      throw new IllegalStateException(String.format("Unknown state %s", currentState));
+      return moreToRead;
     }
 
     @Override
@@ -299,14 +266,31 @@ public class StateFetchingIterators {
       if (!hasNext()) {
         throw new NoSuchElementException();
       }
+
+      prefetch();
+      StateResponse stateResponse;
+      try {
+        stateResponse = prefetchedResponse.get();
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new IllegalStateException(e);
+      } catch (ExecutionException e) {
+        if (e.getCause() == null) {
+          throw new IllegalStateException(e);
+        }
+        Throwables.throwIfUnchecked(e.getCause());
+        throw new IllegalStateException(e.getCause());
+      }
+      prefetchedResponse = null;
+      continuationToken = stateResponse.getGet().getContinuationToken();
+
       // If the continuation token is empty, that means we have reached EOF.
       if (ByteString.EMPTY.equals(continuationToken)) {
-        currentState = State.EOF;
+        moreToRead = false;
       } else {
-        currentState = State.READ_REQUIRED;
         prefetch();
       }
-      return next;
+      return stateResponse.getGet().getData();
     }
   }
 }

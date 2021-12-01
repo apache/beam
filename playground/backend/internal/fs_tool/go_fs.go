@@ -20,11 +20,11 @@ import (
 )
 
 const (
-	goExecutableFileExtension = ".go"
-	goCompiledFileExtension   = ""
+	goSourceFileExtension     = ".go"
+	goExecutableFileExtension = ""
 )
 
 // newGoLifeCycle creates LifeCycle with go SDK environment.
 func newGoLifeCycle(pipelineId uuid.UUID, workingDir string) *LifeCycle {
-	return newCompilingLifeCycle(pipelineId, workingDir, goExecutableFileExtension, goCompiledFileExtension)
+	return newCompilingLifeCycle(pipelineId, workingDir, goSourceFileExtension, goExecutableFileExtension)
 }
