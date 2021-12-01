@@ -181,7 +181,7 @@ public class ChildPartitionsRecordAction {
           partitionMetadataDao
               .runInTransaction(
                   transaction -> {
-                    if (transaction.getPartition(childPartitionToken) == null) {
+                    if (!transaction.partitionExists(childPartitionToken)) {
                       transaction.insert(row);
                       return true;
                     } else {

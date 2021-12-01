@@ -479,6 +479,35 @@ public class PartitionMetadataDao {
       }
     }
 
+    /**
+     * Checks whether the given partition token exists in the metadata table.
+     *
+     * @param partitionToken the partition unique identifier
+     * @return a boolean representing whether the partition exists
+     */
+    public boolean partitionExists(String partitionToken) {
+      try (Scope scope =
+          TRACER.spanBuilder("partitionExists").setRecordEvents(true).startScopedSpan()) {
+        TRACER
+            .getCurrentSpan()
+            .putAttribute(
+                PARTITION_ID_ATTRIBUTE_LABEL, AttributeValue.stringAttributeValue(partitionToken));
+        try (ResultSet resultSet =
+            transaction.executeQuery(
+                Statement.newBuilder(
+                    "SELECT * FROM "
+                        + metadataTableName
+                        + " WHERE "
+                        + PartitionMetadataAdminDao.COLUMN_PARTITION_TOKEN
+                        + " = @partition")
+                    .bind("partition")
+                    .to(partitionToken)
+                    .build())) {
+          return resultSet.next();
+        }
+      }
+    }
+
     /** Represents a partition not found error as a {@link RuntimeException}. */
     public static class PartitionNotFoundException extends RuntimeException {
 
