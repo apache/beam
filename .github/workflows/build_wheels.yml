@@ -290,7 +290,7 @@ jobs:
     if: needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     strategy:
       matrix:
-        os : [self-hosted, ubuntu-latest, macos-latest, windows-latest]
+        os : [ubuntu-latest, macos-latest, windows-latest]
     steps:
     - name: Download wheels from artifacts
       uses: actions/download-artifact@v2
