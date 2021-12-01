@@ -3,7 +3,7 @@ title: "Apache Beam Amplified Ricardo’s Real-time and ML Data Processing for e
 name: "Ricardo"
 categories:
   - Commercial
-  - Ricardo.ch
+  - Enterprise
 icon: /images/logos/powered-by/ricardo.png
 ---
 <!--
