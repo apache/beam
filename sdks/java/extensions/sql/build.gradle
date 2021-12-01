@@ -24,7 +24,6 @@ plugins {
   id 'ca.coglinc.javacc'
 }
 applyJavaNature(
-  suppressUnusedVariable: true,
   generatedClassPatterns: [
     /^org\.apache\.beam\.sdk\.extensions\.sql\.impl\.parser\.impl.*/,
   ],

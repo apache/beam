@@ -16,16 +16,4 @@
  * limitations under the License.
  */
 
-plugins { id 'org.apache.beam.module' }
-
-applyJavaNature(
-  automaticModuleName: 'org.apache.beam.sdk.extensions.sql.udf')
-
-description = "Apache Beam :: SDKs :: Java :: Extensions :: SQL :: UDF"
-ext.summary = "Provides interfaces for defining user-defined functions in Beam SQL."
-
-dependencies {
-  // None, except for those declared by applyJavaNature.
-  // Please think twice before adding dependencies here. The purpose of this module is to provide a way to define SQL
-  // functions in Java without depending on the rest of Beam.
-}
+rootProject.name = 'apache-beam-playground-backend-go'
