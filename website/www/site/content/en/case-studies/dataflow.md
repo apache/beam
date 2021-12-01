@@ -1,9 +1,10 @@
 ---
-title: "The Nitty-Gritty of Moving Data with Beam"
-type: commercial
+title: "Cloud Dataflow"
 categories:
-  - Enterprise
-icon: /images/logos/powered-by/mozilla.png
+  - Commercial
+  - Cloud & Data Analytics
+icon: /images/logo_google_cloud.png
+hasNav: true
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,4 +20,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-Mozilla is the non-profit Firefox browser. This use case focuses on complexity that comes from moving data from one system to another safely, modeling data as it passes from one transform to another, handling errors, testing the system, and organizing the code to make the pipeline configurable for different source and destination systems in their open source codebase for ingesting telemetry data from Firefox clients.
+<div>
+
+<header class="case-study-header">
+  <h2 itemprop="name headline">Cloud Dataflow</h2>
+</header>
+
+**[Cloud Dataflow](https://cloud.google.com/dataflow):** Google Cloud Dataflow is a fully managed service for executing Apache Beam pipelines within the Google Cloud Platform ecosystem.
+
+</div>

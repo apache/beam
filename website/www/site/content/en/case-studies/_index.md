@@ -1,10 +1,9 @@
 ---
-title:  "TensorFlow Extended (TFX)"
-type: open-source
-categories:
-  - Open Source Projects Powered by Apache Beam
-icon: /images/logos/powered-by/tfx.png
+title: "Case Studies"
+icon: images/github-icon.svg
+hasNav: true
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,6 +17,3 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-
-**[TensorFlow Extended (TFX)](https://www.tensorflow.org/tfx):**  TensorFlow Extended (TFX) is an end-to-end platform
-  for deploying production ML pipelines based on Apache Beam.
