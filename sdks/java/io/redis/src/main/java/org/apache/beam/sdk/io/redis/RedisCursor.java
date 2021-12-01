@@ -19,10 +19,15 @@ package org.apache.beam.sdk.io.redis;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.Serializable;
+import java.nio.ByteBuffer;
 import java.util.Objects;
 import javax.annotation.Nonnull;
+import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.io.range.ByteKey;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class RedisCursor implements Comparable<RedisCursor>, Serializable {
@@ -91,5 +96,58 @@ public class RedisCursor implements Comparable<RedisCursor>, Serializable {
 
   public boolean isStart() {
     return isStart;
+  }
+
+  @VisibleForTesting
+  static ByteKey redisCursorToByteKey(RedisCursor cursor) {
+    if ("0".equals(cursor.getCursor())) {
+      if (cursor.isStart()) {
+        return ByteKey.of(0x00);
+      } else {
+        return ByteKey.EMPTY;
+      }
+    }
+    int nBits = getTablePow(cursor.getDbSize());
+    long cursorLong = Long.parseLong(cursor.getCursor());
+    long reversed = shiftBits(cursorLong, nBits);
+    BigEndianLongCoder coder = BigEndianLongCoder.of();
+    ByteArrayOutputStream os = new ByteArrayOutputStream();
+    try {
+      coder.encode(reversed, os);
+    } catch (IOException e) {
+      throw new IllegalArgumentException("invalid redis cursor " + cursor);
+    }
+    byte[] byteArray = os.toByteArray();
+    return ByteKey.copyFrom(byteArray);
+  }
+
+  @VisibleForTesting
+  static long shiftBits(long a, int nBits) {
+    long b = 0;
+    for (int i = 0; i < nBits; ++i) {
+      b <<= 1;
+      b |= (a & 1);
+      a >>= 1;
+    }
+    return b;
+  }
+
+  @VisibleForTesting
+  static int getTablePow(long nKeys) {
+    return 64 - Long.numberOfLeadingZeros(nKeys - 1);
+  }
+
+  @VisibleForTesting
+  static RedisCursor byteKeyToRedisCursor(ByteKey byteKeyStart, long nKeys, boolean isStart) {
+    if (byteKeyStart.isEmpty()) {
+      return RedisCursor.of("0", nKeys, false);
+    } else if (byteKeyStart.equals(ByteKey.of(0x00))) {
+      return RedisCursor.of("0", nKeys, true);
+    }
+    int nBits = getTablePow(nKeys);
+    ByteBuffer bb = ByteBuffer.wrap(byteKeyStart.getBytes());
+    long l = bb.getLong();
+    l = shiftBits(l, nBits);
+    return RedisCursor.of(Long.toString(l), nKeys, isStart);
   }
 }

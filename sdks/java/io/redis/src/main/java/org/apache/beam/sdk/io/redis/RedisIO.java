@@ -26,6 +26,8 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.range.ByteKey;
+import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
@@ -337,18 +339,19 @@ public class RedisIO {
     }
 
     @GetInitialRestriction
-    public RedisCursorRange getInitialRestriction() {
-      return RedisCursorRange.of(RedisCursor.ZERO_CURSOR, RedisCursor.END_CURSOR);
+    public ByteKeyRange getInitialRestriction() {
+      return ByteKeyRange.of(ByteKey.of(0x00), ByteKey.EMPTY);
     }
 
     @ProcessElement
     public ProcessContinuation processElement(
-        ProcessContext c, RestrictionTracker<RedisCursorRange, RedisCursor> tracker) {
-      RedisCursor cursor = tracker.currentRestriction().getStartPosition();
+        ProcessContext c, RestrictionTracker<ByteKeyRange, ByteKey> tracker) {
+      ByteKey cursor = tracker.currentRestriction().getStartKey();
+      RedisCursor redisCursor = RedisCursor.byteKeyToRedisCursor(cursor, jedis.dbSize(), true);
       ScanParams scanParams = new ScanParams();
       scanParams.match(c.element());
       while (tracker.tryClaim(cursor)) {
-        ScanResult<String> scanResult = jedis.scan(cursor.getCursor(), scanParams);
+        ScanResult<String> scanResult = jedis.scan(redisCursor.getCursor(), scanParams);
         if (scanResult.getResult().size() > 0) {
           String[] keys = scanResult.getResult().toArray(new String[scanResult.getResult().size()]);
           List<String> results = jedis.mget(keys);
@@ -358,7 +361,8 @@ public class RedisIO {
             }
           }
         }
-        cursor = RedisCursor.of(scanResult.getCursor(), jedis.dbSize(), false);
+        redisCursor = RedisCursor.of(scanResult.getCursor(), jedis.dbSize(), false);
+        cursor = RedisCursor.redisCursorToByteKey(redisCursor);
       }
       return ProcessContinuation.stop();
     }
