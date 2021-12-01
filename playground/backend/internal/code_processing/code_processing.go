@@ -164,18 +164,18 @@ func GetProcessingStatus(ctx context.Context, cacheService cache.Cache, key uuid
 	return statusValue, nil
 }
 
-// GetRunOutputLastIndex gets run output's last index from cache by key.
+// GetLastIndex gets last index for run output or logs from cache by key.
 // In case key doesn't exist in cache - returns an errors.NotFoundError.
 // In case value from cache by key and subKey couldn't be converted to int - returns an errors.InternalError.
-func GetRunOutputLastIndex(ctx context.Context, cacheService cache.Cache, key uuid.UUID, errorTitle string) (int, error) {
-	value, err := cacheService.GetValue(ctx, key, cache.RunOutputIndex)
+func GetLastIndex(ctx context.Context, cacheService cache.Cache, key uuid.UUID, subKey cache.SubKey, errorTitle string) (int, error) {
+	value, err := cacheService.GetValue(ctx, key, subKey)
 	if err != nil {
-		logger.Errorf("%s: GetStringValueFromCache(): cache.GetValue: error: %s", key, err.Error())
-		return 0, errors.NotFoundError(errorTitle, fmt.Sprintf("Error during getting cache by key: %s, subKey: %s", key.String(), string(cache.RunOutputIndex)))
+		logger.Errorf("%s: GetLastIndex(): cache.GetValue: error: %s", key, err.Error())
+		return 0, errors.NotFoundError(errorTitle, fmt.Sprintf("Error during getting cache by key: %s, subKey: %s", key.String(), string(subKey)))
 	}
 	intValue, converted := value.(int)
 	if !converted {
-		logger.Errorf("%s: couldn't convert value to string: %s", key, value)
+		logger.Errorf("%s: couldn't convert value to int: %s", key, value)
 		return 0, errors.InternalError(errorTitle, fmt.Sprintf("Value from cache couldn't be converted to int: %s", value))
 	}
 	return intValue, nil
