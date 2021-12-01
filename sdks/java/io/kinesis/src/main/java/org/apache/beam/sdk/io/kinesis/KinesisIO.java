@@ -901,8 +901,12 @@ public final class KinesisIO {
 
     private static class KinesisWriterFn extends DoFn<byte[], Void> {
       private static final int MAX_NUM_FAILURES = 10;
+
+      /** Init lock for static, shared Kinesis producer. */
+      private static final Object producerLock = new Object();
+
       /** Usage count of static, shared Kinesis producer. */
-      private static final AtomicInteger producerRefCount = new AtomicInteger();
+      private static int producerRefCount = 0;
 
       /** Static, shared Kinesis producer. */
       private static IKinesisProducer producer;
@@ -925,36 +929,32 @@ public final class KinesisIO {
        * AWSClientsProvider}, these changes will be silently discarded in favor of an existing
        * producer instance.
        */
-      @SuppressFBWarnings("JLM_JSR166_UTILCONCURRENT_MONITORENTER")
       private void setupSharedProducer() {
-        synchronized (producerRefCount) {
+        synchronized (producerLock) {
           if (producer == null) {
             producer =
                 spec.getAWSClientsProvider()
                     .createKinesisProducer(spec.createProducerConfiguration());
-            producerRefCount.set(0);
+            producerRefCount = 0;
           }
-          producerRefCount.incrementAndGet();
+          producerRefCount++;
         }
       }
 
       /**
        * Discard statically shared producer if it is not used anymore according to the usage count.
        */
-      @SuppressFBWarnings("JLM_JSR166_UTILCONCURRENT_MONITORENTER")
       private void teardownSharedProducer() {
-        synchronized (producerRefCount) {
-          if (producerRefCount.decrementAndGet() == 0) {
-            // the following checks should never be true, but just in case
-            if (producer == null) {
-              return;
-            }
-            if (producer.getOutstandingRecordsCount() > 0) {
-              producer.flushSync();
-            }
-            producer.destroy();
+        IKinesisProducer obsolete = null;
+        synchronized (producerLock) {
+          if (--producerRefCount == 0) {
+            obsolete = producer;
             producer = null;
           }
+        }
+        if (obsolete != null) {
+          obsolete.flushSync(); // should be a noop, but just in case
+          obsolete.destroy();
         }
       }
 
