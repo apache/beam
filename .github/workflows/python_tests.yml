@@ -91,11 +91,11 @@ jobs:
 
   python_unit_tests:
     name: 'Python Unit Tests'
-    runs-on: [self-hosted]
+    runs-on: self-hosted
     strategy:
       fail-fast: false
       matrix:
-        os: [self-hosted]
+        os: [ubuntu-latest]
         params: [
           {"py_ver": "3.6", "tox_env": "py36"}
         ]
@@ -133,11 +133,11 @@ jobs:
 
   python_wordcount_direct_runner:
     name: 'Python Wordcount Direct Runner'
-    runs-on: [self-hosted]
+    runs-on: self-hosted
     strategy:
       fail-fast: false
       matrix:
-        os: [self-hosted]
+        os: [ubuntu-latest]
         python: [3.6]
         exclude:
           # TODO remove exclusion after issue with protobuf is solved
@@ -166,11 +166,11 @@ jobs:
     name: 'Python Wordcount Dataflow'
     needs:
       - build_python_sdk_source
-    runs-on: [self-hosted]
+    runs-on: self-hosted
     strategy:
       fail-fast: false
       matrix:
-        os: [self-hosted]
+        os: [ubuntu-latest]
         python: [3.6]
         exclude:
           # TODO remove exclusion after issue with protobuf is solved
