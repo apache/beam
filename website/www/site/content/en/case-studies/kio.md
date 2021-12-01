@@ -1,8 +1,7 @@
 ---
 title:  "Kio"
-type: open-source
 categories:
-  - Open Source Projects Powered by Apache Beam
+  - Open Source
 icon: /images/logos/powered-by/kio.png
 hasNav: true
 ---

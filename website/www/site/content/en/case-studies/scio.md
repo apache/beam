@@ -1,8 +1,7 @@
 ---
 title:  "Scio"
-type: open-source
 categories:
-  - Open Source Projects Powered by Apache Beam
+  - Open Source
 icon: /images/logos/powered-by/scio.png
 hasNav: true
 ---

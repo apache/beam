@@ -1,7 +1,7 @@
 ---
 title: "The Nitty-Gritty of Moving Data with Beam"
-type: commercial
 categories:
+  - Commercial
   - Enterprise
 icon: /images/logos/powered-by/mozilla.png
 hasNav: true

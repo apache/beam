@@ -1,7 +1,7 @@
 ---
 title: "Feature Powered by Apache Beam - Beyond Lambda"
-type: commercial
 categories:
+  - Commercial
   - Online & Traditional Retail
 icon: /images/logos/powered-by/eBay.png
 hasNav: true

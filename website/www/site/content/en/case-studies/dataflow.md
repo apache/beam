@@ -1,9 +1,9 @@
 ---
-title: "Beam and Geocoding"
-type: commercial
+title: "Cloud Dataflow"
 categories:
-  - Machine Learning
-icon: /images/logos/powered-by/goga.png
+  - Commercial
+  - Cloud & Data Analytics
+icon: /images/logo_google_cloud.png
 hasNav: true
 ---
 <!--
@@ -23,9 +23,9 @@ limitations under the License.
 <div>
 
 <header class="case-study-header">
-  <h2 itemprop="name headline">Beam and Geocoding</h2>
+  <h2 itemprop="name headline">Cloud Dataflow</h2>
 </header>
 
-GOGA Data Analysis and Consulting is a company based in Japan that specializes in analytics of geospatial and mapping data. They use Apache Beam and Cloud Dataflow for a smooth data transformation process for analytical purposes. This use case focuses on handling multiple extractions, geocoding, and insertion process by wrangling and requesting API call of each data based on the location provided.
+**[Cloud Dataflow](https://cloud.google.com/dataflow):** Google Cloud Dataflow is a fully managed service for executing Apache Beam pipelines within the Google Cloud Platform ecosystem.
 
 </div>

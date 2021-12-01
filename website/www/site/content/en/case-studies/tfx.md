@@ -1,6 +1,8 @@
 ---
-title:  "Open source projects"
-type: open-source
+title:  "TensorFlow Extended (TFX)"
+categories:
+  - Open Source
+icon: /images/logos/powered-by/tfx.png
 hasNav: true
 ---
 <!--
@@ -16,3 +18,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
+
+**[TensorFlow Extended (TFX)](https://www.tensorflow.org/tfx):**  TensorFlow Extended (TFX) is an end-to-end platform
+  for deploying production ML pipelines based on Apache Beam.

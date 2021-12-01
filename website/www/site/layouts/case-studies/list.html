@@ -12,8 +12,8 @@
 
 {{ define "main" }}
 <div class="blog-content">
-    <h1>Open Source Projects</h1>
-    <p>Check out how the open source projects are using Apache Beam.</p>
+    <h1>Case Studies</h1>
+    <p>Check out how the projects are using Apache Beam.</p>
     {{ $pages := .Pages }}
     {{ $.Scratch.Set "categories" (slice ) }}
     {{ $.Scratch.Set "noCategories" 0 }}
@@ -65,7 +65,7 @@
                   <h5 class="use-title">{{ .Title }}</h5>
                   <p class="use-summary">{{ .Summary | plainify | chomp }}</p>
                 </div>
-                <a class="read-link" href="{{ .RelPermalink }}">{{ T "powered-read" }}</a>
+                <a class="read-link" href="{{ .RelPermalink }}">{{ T "case-studies-read" }}</a>
               </div>
             </div>
           </a>
@@ -76,10 +76,8 @@
     </div>
 
 </div>
-
 {{ $categoriesFilter := resources.Get "js/categories-filter.js" | minify| fingerprint }}
 <script src="{{ $categoriesFilter.RelPermalink }}"></script>
-
 <script>
 var ptfConfig={
   filters:[

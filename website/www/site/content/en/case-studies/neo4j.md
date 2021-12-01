@@ -1,7 +1,7 @@
 ---
 title: "Beam visual pipeline development with Hop"
-type: commercial
 categories:
+  - Commercial
   - BI & Analytics
 icon: /images/logos/powered-by/neo4j.png
 hasNav: true

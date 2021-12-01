@@ -1,7 +1,7 @@
 ---
 title: "From Apache Beam to Leukemia early detection"
-type: commercial
 categories:
+  - Commercial
   - Machine Learning
 icon: /images/logos/powered-by/oriel.png
 hasNav: true
