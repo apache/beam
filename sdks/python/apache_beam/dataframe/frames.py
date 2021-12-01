@@ -1263,7 +1263,12 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   tshift = frame_base.wont_implement_method(
       pd.Series, 'tshift', reason="deprecated")
 
-  rename = frame_base._elementwise_method('rename', base=pd.Series)
+  rename = frame_base._proxy_method(
+      'rename',
+      base=pd.Series,
+      requires_partition_by=partitionings.Arbitrary(),
+      preserves_partition_by=partitionings.Singleton())
+
   between = frame_base._elementwise_method('between', base=pd.Series)
 
   add_suffix = frame_base._proxy_method(
@@ -3509,7 +3514,11 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   shape = property(frame_base.wont_implement_method(
       pd.DataFrame, 'shape', reason="non-deferred-result"))
 
-  stack = frame_base._elementwise_method('stack', base=pd.DataFrame)
+  stack = frame_base._proxy_method(
+      'stack',
+      base=pd.DataFrame,
+      requires_partition_by=partitionings.Arbitrary(),
+      preserves_partition_by=partitionings.Singleton())
 
   all = _agg_method(pd.DataFrame, 'all')
   any = _agg_method(pd.DataFrame, 'any')
@@ -4401,7 +4410,6 @@ ELEMENTWISE_STRING_METHODS = [
             'count',
             'endswith',
             'extract',
-            'extractall',
             'findall',
             'fullmatch',
             'get',
@@ -4436,6 +4444,10 @@ ELEMENTWISE_STRING_METHODS = [
             '__getitem__',
 ]
 
+NON_ELEMENTWISE_STRING_METHODS = [
+            'extractall',
+]
+
 def make_str_func(method):
   def func(df, *args, **kwargs):
     try:
@@ -4465,6 +4477,19 @@ for method in ELEMENTWISE_STRING_METHODS:
           frame_base._elementwise_method(make_str_func(method),
                                          name=method,
                                          base=pd.core.strings.StringMethods))
+
+for method in NON_ELEMENTWISE_STRING_METHODS:
+  if not hasattr(pd.core.strings.StringMethods, method):
+    # older versions (1.0.x) don't support some of these methods
+    continue
+  setattr(_DeferredStringMethods,
+          method,
+          frame_base._proxy_method(
+              make_str_func(method),
+              name=method,
+              base=pd.core.strings.StringMethods,
+              requires_partition_by=partitionings.Arbitrary(),
+              preserves_partition_by=partitionings.Singleton()))
 
 
 def make_cat_func(method):
