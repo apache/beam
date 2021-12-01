@@ -324,8 +324,6 @@ public class SimplePushbackSideInputDoFnRunnerTest {
     private boolean started = false;
     private boolean finished = false;
 
-    TestDoFnRunner() {}
-
     @Override
     public DoFn<InputT, OutputT> getFn() {
       return null;

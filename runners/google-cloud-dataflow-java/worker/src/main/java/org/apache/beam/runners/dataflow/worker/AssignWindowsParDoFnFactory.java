@@ -63,8 +63,7 @@ class AssignWindowsParDoFnFactory implements ParDoFnFactory {
     WindowingStrategy<Object, BoundedWindow> windowingStrategy =
         (WindowingStrategy<Object, BoundedWindow>) deserializedWindowingStrategy;
 
-    return new AssignWindowsParDoFn<>(
-        windowingStrategy.getWindowFn(), executionContext.getStepContext(operationContext));
+    return new AssignWindowsParDoFn<>(windowingStrategy.getWindowFn());
   }
 
   private static class AssignWindowsParDoFn<T, W extends BoundedWindow> implements ParDoFn {
@@ -72,8 +71,7 @@ class AssignWindowsParDoFnFactory implements ParDoFnFactory {
 
     private @Nullable Receiver receiver;
 
-    AssignWindowsParDoFn(
-        WindowFn<T, W> windowFn, DataflowExecutionContext.DataflowStepContext stepContext) {
+    AssignWindowsParDoFn(WindowFn<T, W> windowFn) {
       this.windowFn = windowFn;
     }
 

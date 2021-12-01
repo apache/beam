@@ -43,9 +43,11 @@ import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
@@ -55,6 +57,7 @@ import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
@@ -102,12 +105,17 @@ public class PipelineTranslationTest {
     BigEndianLongCoder customCoder = BigEndianLongCoder.of();
     PCollection<Long> elems = complexPipeline.apply(GenerateSequence.from(0L).to(207L));
     PCollection<Long> counted = elems.apply(Count.globally()).setCoder(customCoder);
-    counted.apply(
-        Window.<Long>into(FixedWindows.of(Duration.standardMinutes(7)))
-            .triggering(
-                AfterWatermark.pastEndOfWindow().withLateFirings(AfterPane.elementCountAtLeast(19)))
-            .accumulatingFiredPanes()
-            .withAllowedLateness(Duration.standardMinutes(3L)));
+    PCollection<Long> windowed =
+        counted.apply(
+            Window.<Long>into(FixedWindows.of(Duration.standardMinutes(7)))
+                .triggering(
+                    AfterWatermark.pastEndOfWindow()
+                        .withLateFirings(AfterPane.elementCountAtLeast(19)))
+                .accumulatingFiredPanes()
+                .withAllowedLateness(Duration.standardMinutes(3L)));
+    windowed.getWindowingStrategy();
+    PCollection<KV<String, Long>> keyed = windowed.apply(WithKeys.of("foo"));
+    keyed.apply(GroupByKey.create());
     return ImmutableList.of(trivialPipeline, sideInputPipeline, complexPipeline);
   }
 
