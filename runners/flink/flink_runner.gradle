@@ -27,7 +27,6 @@ import groovy.json.JsonOutput
 
 apply plugin: 'org.apache.beam.module'
 applyJavaNature(
-    suppressUnusedVariable: false,
     enableStrictDependencies:true,
     automaticModuleName: 'org.apache.beam.runners.flink',
     archivesBaseName: (project.hasProperty('archives_base_name') ? archives_base_name : archivesBaseName),
