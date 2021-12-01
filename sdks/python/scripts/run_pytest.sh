@@ -37,7 +37,7 @@ fi
 
 # Run with pytest-xdist and without.
 pytest -o junit_suite_name=${envname} \
-  --junitxml=pytest_${envname}.xml -m 'not no_xdist' -n 8 ${pytest_args} --pyargs ${posargs}
+  --junitxml=pytest_${envname}.xml -m 'not no_xdist' -n 4 ${pytest_args} --pyargs ${posargs}
 status1=$?
 pytest -o junit_suite_name=${envname}_no_xdist \
   --junitxml=pytest_${envname}_no_xdist.xml -m 'no_xdist' ${pytest_args} --pyargs ${posargs}
