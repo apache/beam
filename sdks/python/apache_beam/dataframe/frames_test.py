@@ -1105,8 +1105,34 @@ class DeferredFrameTest(_AbstractFrameTest):
     df2.loc[0, 'col1'] = 'c'
     df2.loc[2, 'col3'] = 4.0
 
+    # Skipped because keep_shape=False won't be implemented
+    with self.assertRaisesRegex(
+        frame_base.WontImplementError,
+        r"compare\(align_axis\=1, keep_shape\=False\) is not allowed"):
+      self._run_test(lambda df1, df2: df1.compare(df2), df1, df2)
+
     self._run_test(
-        lambda df1, df2: df1.compare(df2), df1, df2, nonparallel=True)
+        lambda df1,
+        df2: df1.compare(df2, align_axis=0),
+        df1,
+        df2,
+        check_proxy=False)
+    self._run_test(lambda df1, df2: df1.compare(df2, keep_shape=True), df1, df2)
+    self._run_test(
+        lambda df1,
+        df2: df1.compare(df2, align_axis=0, keep_shape=True),
+        df1,
+        df2)
+    self._run_test(
+        lambda df1,
+        df2: df1.compare(df2, keep_shape=True, keep_equal=True),
+        df1,
+        df2)
+    self._run_test(
+        lambda df1,
+        df2: df1.compare(df2, align_axis=0, keep_shape=True, keep_equal=True),
+        df1,
+        df2)
 
 
 # pandas doesn't support kurtosis on GroupBys:

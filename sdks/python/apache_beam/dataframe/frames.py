@@ -3464,12 +3464,29 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   def compare(self, other, **kwargs):
+    align_axis = kwargs.get('align_axis', 1)
+    keep_shape = kwargs.get('keep_shape', False)
+
+    preserve_partition = None
+
+    if align_axis and not keep_shape:
+      raise frame_base.WontImplementError(
+        "compare(align_axis=1, keep_shape=False) is not allowed",
+        reason='non-deferred-columns'
+      )
+
+    if align_axis:
+      preserve_partition = partitionings.Arbitrary()
+    else:
+      preserve_partition = partitionings.Singleton()
+
     return frame_base.DeferredFrame.wrap(
       expressions.ComputedExpression(
         'compare',
-        lambda s, other: s.compare(other, **kwargs), [self._expr, other._expr],
-        requires_partition_by=partitionings.Singleton(reason='YES'),
-        preserves_partition_by=partitionings.Singleton()
+        lambda df, other: df.compare(other, **kwargs),
+        [self._expr, other._expr],
+        requires_partition_by=partitionings.Index(),
+        preserves_partition_by=preserve_partition
       )
     )
 

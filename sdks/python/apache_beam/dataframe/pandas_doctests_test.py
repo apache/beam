@@ -293,6 +293,7 @@ class DoctestTest(unittest.TestCase):
                 # Returns deferred index.
                 'df.axes',
             ],
+            # Skipped because the relies on loc to set cells in df2
             'pandas.core.frame.DataFrame.compare': ['*'],
             'pandas.core.frame.DataFrame.cov': [
                 # Relies on setting entries ahead of time.
