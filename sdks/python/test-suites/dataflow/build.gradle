@@ -78,3 +78,9 @@ task validatesContainerTests {
     dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:validatesContainer")
   }
 }
+
+task examplesPostCommit {
+  getVersionsAsList('dataflow_examples_postcommit_py_versions').each {
+    dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:examples")
+  }
+}
