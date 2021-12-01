@@ -65,10 +65,6 @@ public class InMemoryStateInternalsTest {
         StateTags.map("stringMap", StringUtf8Coder.of(), VarIntCoder.of());
     private static final StateTag<WatermarkHoldState> WATERMARK_EARLIEST_ADDR =
         StateTags.watermarkStateInternal("watermark", TimestampCombiner.EARLIEST);
-    private static final StateTag<WatermarkHoldState> WATERMARK_LATEST_ADDR =
-        StateTags.watermarkStateInternal("watermark", TimestampCombiner.LATEST);
-    private static final StateTag<WatermarkHoldState> WATERMARK_EOW_ADDR =
-        StateTags.watermarkStateInternal("watermark", TimestampCombiner.END_OF_WINDOW);
 
     StateInternals underTest = new InMemoryStateInternals<>("dummyKey");
 
