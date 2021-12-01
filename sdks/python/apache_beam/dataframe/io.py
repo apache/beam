@@ -537,7 +537,7 @@ class _ReadFromPandasDoFn(beam.DoFn, beam.RestrictionProvider):
     reader = self.reader
     if isinstance(reader, str):
       reader = getattr(pd, self.reader)
-    indices_per_file = 10**int(math.log(2**64 // len(path_indices), 10))
+    indices_per_file = 10**int(math.log(2**63 // len(path_indices), 10))
     if readable_file.metadata.size_in_bytes > indices_per_file:
       raise RuntimeError(
           f'Cannot safely index records from {len(path_indices)} files '
