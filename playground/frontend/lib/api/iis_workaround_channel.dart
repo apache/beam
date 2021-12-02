@@ -17,6 +17,7 @@
  */
 
 import 'package:grpc/grpc_connection_interface.dart';
+
 // ignore: implementation_imports
 import 'package:grpc/src/client/transport/xhr_transport.dart';
 
@@ -35,13 +36,20 @@ class IisClientConnection extends XhrClientConnection {
   IisClientConnection(Uri uri) : super(uri);
 
   @override
-  GrpcTransportStream makeRequest(String path, Duration? timeout,
-      Map<String, String> metadata, ErrorHandler onError,
-      {CallOptions? callOptions}) {
-    print(path);
+  GrpcTransportStream makeRequest(
+    String path,
+    Duration? timeout,
+    Map<String, String> metadata,
+    ErrorHandler onError, {
+    CallOptions? callOptions,
+  }) {
     var pathWithoutFirstSlash = path.substring(1);
-    print(pathWithoutFirstSlash);
-    return super.makeRequest(pathWithoutFirstSlash, timeout, metadata, onError,
-        callOptions: callOptions);
+    return super.makeRequest(
+      pathWithoutFirstSlash,
+      timeout,
+      metadata,
+      onError,
+      callOptions: callOptions,
+    );
   }
 }
