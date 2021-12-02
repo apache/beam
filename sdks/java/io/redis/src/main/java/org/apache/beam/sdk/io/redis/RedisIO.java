@@ -29,11 +29,11 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -344,7 +344,7 @@ public class RedisIO {
     }
 
     @ProcessElement
-    public ProcessContinuation processElement(
+    public void processElement(
         ProcessContext c, RestrictionTracker<ByteKeyRange, ByteKey> tracker) {
       ByteKey cursor = tracker.currentRestriction().getStartKey();
       RedisCursor redisCursor = RedisCursor.byteKeyToRedisCursor(cursor, jedis.dbSize(), true);
@@ -364,7 +364,6 @@ public class RedisIO {
         redisCursor = RedisCursor.of(scanResult.getCursor(), jedis.dbSize(), false);
         cursor = RedisCursor.redisCursorToByteKey(redisCursor);
       }
-      return ProcessContinuation.stop();
     }
   }
 
@@ -389,7 +388,7 @@ public class RedisIO {
                         }
                       })
                   .withSideInputs(empty));
-      return materialized.apply(Reshuffle.viaRandomKey());
+      return materialized.apply(Distinct.create());
     }
   }
 
