@@ -255,6 +255,7 @@ elif [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" || 
   if [[ -z "$ENDPOINT" ]]; then
     JOB_PORT=$(python3 -c "$SOCKET_SCRIPT")
     ENDPOINT="localhost:$JOB_PORT"
+    IO_EXPANSION_ADDR="localhost:9000"
     echo "No endpoint specified; starting a new $RUNNER job server on $ENDPOINT"
     if [[ "$RUNNER" == "flink" ]]; then
       java \
