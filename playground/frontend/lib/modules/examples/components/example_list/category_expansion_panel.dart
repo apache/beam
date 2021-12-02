@@ -39,9 +39,7 @@ class CategoryExpansionPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ExpansionWidget(
-      initiallyExpanded: examples
-          .where((element) => element.name == selectedExample.name)
-          .isNotEmpty,
+      initiallyExpanded: examples.contains(selectedExample),
       maintainState: true,
       titleBuilder: (animationValue, _, isExpanded, toggleFunction) => InkWell(
         onTap: () => toggleFunction(animated: true),

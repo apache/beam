@@ -62,4 +62,17 @@ class ExampleModel {
   setOutputs(String outputs) {
     this.outputs = outputs;
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ExampleModel &&
+          path == other.path &&
+          name == other.name &&
+          type == other.type &&
+          description == other.description;
+
+  @override
+  int get hashCode =>
+      path.hashCode ^ name.hashCode ^ type.hashCode ^ description.hashCode;
 }

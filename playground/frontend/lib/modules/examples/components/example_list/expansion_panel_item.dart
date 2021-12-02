@@ -55,7 +55,7 @@ class ExpansionPanelItem extends StatelessWidget {
                 // Wrapped with Row for better user interaction and positioning
                 Text(
                   example.name,
-                  style: example.name == selectedExample.name
+                  style: example == selectedExample
                       ? const TextStyle(fontWeight: FontWeight.bold)
                       : const TextStyle(),
                 ),
