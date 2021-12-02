@@ -1106,7 +1106,7 @@ public class BigQueryServicesImplTest {
           when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
           when(response.getContent())
               .thenReturn(
-                  toStream(errorWithReasonAndStatus("No rows present in the request.", 400)));
+                  toStream(errorWithReasonAndStatus(" No rows present in the request. ", 400)));
         });
 
     DatasetServiceImpl dataService =
@@ -1135,7 +1135,7 @@ public class BigQueryServicesImplTest {
     verifyAllResponsesAreRead();
     expectedLogs.verifyError("No rows present in the request error likely caused by");
 
-    verifyWriteMetricWasSet("project", "dataset", "table", "no rows present in the request.", 1);
+    verifyWriteMetricWasSet("project", "dataset", "table", " no rows present in the request. ", 1);
   }
 
   /**
