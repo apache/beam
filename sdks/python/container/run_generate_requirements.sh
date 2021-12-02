@@ -31,9 +31,8 @@
 # https://s.apache.org/beam-python-dev-wiki
 
 if [[ $# != 2 ]]; then
-  printf "Usage: \n$> ./sdks/python/container/run_generate_requirements.sh <python_version> <sdk_tarball>"
-  printf "\n\tpython_version: [required] Python version to generate dependencies for."
-  printf "\n\tUse 3.7 for Python3.7, 3.8 for Python3.8 etc.\n"
+  printf "Example usage: \n$> ./sdks/python/container/run_generate_requirements.sh 3.8 <sdk_tarball>"
+  printf "\n\twhere 3.8 is the Python major.minor version."
   exit 1
 fi
 
