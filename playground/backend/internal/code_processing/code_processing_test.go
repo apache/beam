@@ -438,7 +438,7 @@ func TestGetProcessingStatus(t *testing.T) {
 	}
 }
 
-func TestGetRunOutputLastIndex(t *testing.T) {
+func TestGetLastIndex(t *testing.T) {
 	defer goleak.VerifyNone(t, opt)
 	pipelineId := uuid.New()
 	incorrectConvertPipelineId := uuid.New()
@@ -455,6 +455,7 @@ func TestGetRunOutputLastIndex(t *testing.T) {
 		ctx          context.Context
 		cacheService cache.Cache
 		key          uuid.UUID
+		subKey       cache.SubKey
 		errorTitle   string
 	}
 	tests := []struct {
@@ -464,39 +465,42 @@ func TestGetRunOutputLastIndex(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			// Test case with calling GetRunOutputLastIndex with pipelineId which doesn't contain status.
+			// Test case with calling GetLastIndex with pipelineId which doesn't contain status.
 			// As a result, want to receive an error.
 			name: "get last index with incorrect pipelineId",
 			args: args{
 				ctx:          context.Background(),
 				cacheService: cacheService,
 				key:          uuid.New(),
+				subKey:       cache.RunOutputIndex,
 				errorTitle:   "",
 			},
 			want:    0,
 			wantErr: true,
 		},
 		{
-			// Test case with calling GetRunOutputLastIndex with pipelineId which contains incorrect status value in cache.
+			// Test case with calling GetLastIndex with pipelineId which contains incorrect status value in cache.
 			// As a result, want to receive an error.
 			name: "get last index with incorrect cache value",
 			args: args{
 				ctx:          context.Background(),
 				cacheService: cacheService,
 				key:          incorrectConvertPipelineId,
+				subKey:       cache.RunOutputIndex,
 				errorTitle:   "",
 			},
 			want:    0,
 			wantErr: true,
 		},
 		{
-			// Test case with calling GetRunOutputLastIndex with pipelineId which contains status.
+			// Test case with calling GetLastIndex with pipelineId which contains status.
 			// As a result, want to receive an expected last index.
 			name: "get last index with correct pipelineId",
 			args: args{
 				ctx:          context.Background(),
 				cacheService: cacheService,
 				key:          pipelineId,
+				subKey:       cache.RunOutputIndex,
 				errorTitle:   "",
 			},
 			want:    2,
@@ -505,13 +509,13 @@ func TestGetRunOutputLastIndex(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetRunOutputLastIndex(tt.args.ctx, tt.args.cacheService, tt.args.key, tt.args.errorTitle)
+			got, err := GetLastIndex(tt.args.ctx, tt.args.cacheService, tt.args.key, tt.args.subKey, tt.args.errorTitle)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("GetRunOutputLastIndex() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("GetLastIndex() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("GetRunOutputLastIndex() got = %v, want %v", got, tt.want)
+				t.Errorf("GetLastIndex() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
