@@ -233,10 +233,9 @@ If you are not a PMC, please ask for help in dev@ mailing list.
 
 ## 3. Update base image dependencies for Python container images
 
-1. Check the versions specified in sdks/python/container/base_image_requirements_manual.txt` and update them if necessary.
-1. Regenerate full dependency list, see: https://s.apache.org/beam-python-requirements-generate
+See instructions at: https://s.apache.org/beam-python-requirements-generate
 
-Ideally, do this at least a week before the release cut, so that any issues
+Ideally, do the update at least a week before the release cut, so that any issues
 related to the update have time to surface.
 
 ## 4. Investigate performance regressions
