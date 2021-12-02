@@ -17,6 +17,7 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:playground/modules/analytics/analytics_service.dart';
 import 'package:playground/modules/editor/repository/code_repository/code_client/grpc_code_client.dart';
 import 'package:playground/modules/editor/repository/code_repository/code_repository.dart';
 import 'package:playground/modules/examples/repositories/example_client/grpc_example_client.dart';
@@ -42,6 +43,7 @@ class PlaygroundPageProviders extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        Provider<AnalyticsService>(create: (context) => AnalyticsService()),
         ChangeNotifierProvider<ExampleState>(
           create: (context) => ExampleState(kExampleRepository)..init(),
         ),

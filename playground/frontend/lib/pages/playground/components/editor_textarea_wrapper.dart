@@ -18,6 +18,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:playground/constants/sizes.dart';
+import 'package:playground/modules/analytics/analytics_service.dart';
 import 'package:playground/modules/editor/components/editor_textarea.dart';
 import 'package:playground/modules/editor/components/run_button.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
@@ -60,7 +61,11 @@ class CodeTextAreaWrapper extends StatelessWidget {
             height: kRunButtonHeight,
             child: RunButton(
               isRunning: state.isCodeRunning,
-              runCode: state.runCode,
+              runCode: () {
+                state.runCode();
+                AnalyticsService.get(context)
+                    .trackClickRunEvent(state.selectedExample);
+              },
             ),
           ),
         ],

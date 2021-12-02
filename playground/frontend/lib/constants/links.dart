@@ -16,14 +16,11 @@
  * limitations under the License.
  */
 
-const String kApiClientURL =
-    'https://backend-dot-datatokenization.uc.r.appspot.com';
-const String kAnalyticsUA = 'UA-73650088-1';
-const String kApiJavaClientURL =
-    'https://backend-dot-datatokenization.uc.r.appspot.com/java/';
-const String kApiGoClientURL =
-    'https://backend-dot-datatokenization.uc.r.appspot.com/go/';
-const String kApiPythonClientURL =
-    'https://backend-dot-datatokenization.uc.r.appspot.com/python/';
-const String kApiScioClientURL =
-    'https://backend-dot-datatokenization.uc.r.appspot.com/scio/';
+const kReportIssueLink = 'https://issues.apache.org/jira/projects/BEAM/issues/';
+const kGooglePrivacyPolicyLink = 'https://policies.google.com/privacy';
+const kBeamPlaygroundGithubLink =
+    'https://github.com/apache/beam/tree/master/playground';
+const kApacheBeamGithubLink = 'https://github.com/apache/beam';
+const kBeamWebsiteLink = 'https://beam.apache.org/';
+const kScioGithubLink = 'https://github.com/spotify/scio';
+const kAboutBeamLink = 'https://beam.apache.org/get-started/beam-overview';
