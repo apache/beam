@@ -481,7 +481,6 @@ class DoctestTest(unittest.TestCase):
                 'ser.groupby(["a", "b", "a", np.nan]).mean()',
                 'ser.groupby(["a", "b", "a", np.nan], dropna=False).mean()',
             ],
-            'pandas.core.series.Series.swaplevel' :['*']
         },
         skip={
             # Relies on setting values with iloc
