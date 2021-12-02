@@ -65,14 +65,8 @@ class ExampleModel {
 
   @override
   bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is ExampleModel &&
-          path == other.path &&
-          name == other.name &&
-          type == other.type &&
-          description == other.description;
+      identical(this, other) || other is ExampleModel && path == other.path;
 
   @override
-  int get hashCode =>
-      path.hashCode ^ name.hashCode ^ type.hashCode ^ description.hashCode;
+  int get hashCode => path.hashCode;
 }
