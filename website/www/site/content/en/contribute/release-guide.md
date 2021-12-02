@@ -586,12 +586,12 @@ Before you start, run this command to make sure you'll be using the latest docke
           Please note that dependencies for the SDKs with different Python versions vary.
           Need to verify all Python images by replacing `${ver}` with each supported Python version `X.Y`.
           ```
-          docker run -it --entrypoint=/bin/bash apache/beam_python${ver}_sdk:${RELEASE}_rc{RC_NUM}
+          docker run --rm -it --entrypoint=/bin/bash apache/beam_python${ver}_sdk:${RELEASE}_rc{RC_NUM}
           ls -al /opt/apache/beam/third_party_licenses/ | wc -l
           ```
           - For Java SDK images, there should be around 200 dependencies.
           ```
-          docker run -it --entrypoint=/bin/bash apache/beam_java${ver}_sdk:${RELEASE}_rc{RC_NUM}
+          docker run --rm -it --entrypoint=/bin/bash apache/beam_java${ver}_sdk:${RELEASE}_rc{RC_NUM}
           ls -al /opt/apache/beam/third_party_licenses/ | wc -l
           ```
   1. Publish staging artifacts
