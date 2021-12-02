@@ -54,14 +54,14 @@ class GRPCClient:
 
   async def check_status(self, pipeline_uuid: str) -> api_pb2.Status:
     """
-        Get status of the pipeline by his pipeline
+    Get status of the pipeline by his pipeline
 
-        Args:
-            pipeline_uuid: uuid of the pipeline
+    Args:
+        pipeline_uuid: uuid of the pipeline
 
-        Returns:
-            status: status of the pipeline
-        """
+    Returns:
+        status: status of the pipeline
+    """
     self._verify_pipeline_uuid(pipeline_uuid)
     request = api_pb2.CheckStatusRequest(pipeline_uuid=pipeline_uuid)
     response = await self._stub.CheckStatus(request)
@@ -69,14 +69,14 @@ class GRPCClient:
 
   async def get_run_error(self, pipeline_uuid: str) -> str:
     """
-        Get the error of pipeline execution.
+    Get the error of pipeline execution.
 
-        Args:
-            pipeline_uuid: uuid of the pipeline
+    Args:
+        pipeline_uuid: uuid of the pipeline
 
-        Returns:
-            output: contain an error of pipeline execution
-        """
+    Returns:
+        output: contain an error of pipeline execution
+    """
     self._verify_pipeline_uuid(pipeline_uuid)
     request = api_pb2.GetRunErrorRequest(pipeline_uuid=pipeline_uuid)
     response = await self._stub.GetRunError(request)
@@ -84,14 +84,14 @@ class GRPCClient:
 
   async def get_run_output(self, pipeline_uuid: str) -> str:
     """
-        Get the result of pipeline execution.
+    Get the result of pipeline execution.
 
-        Args:
-            pipeline_uuid: uuid of the pipeline
+    Args:
+        pipeline_uuid: uuid of the pipeline
 
-        Returns:
-            output: contain the result of pipeline execution
-        """
+    Returns:
+        output: contain the result of pipeline execution
+    """
     self._verify_pipeline_uuid(pipeline_uuid)
     request = api_pb2.GetRunOutputRequest(pipeline_uuid=pipeline_uuid)
     response = await self._stub.GetRunOutput(request)
@@ -99,14 +99,14 @@ class GRPCClient:
 
   async def get_compile_output(self, pipeline_uuid: str) -> str:
     """
-        Get the result of pipeline compilation.
+    Get the result of pipeline compilation.
 
-        Args:
-            pipeline_uuid: uuid of the pipeline
+    Args:
+        pipeline_uuid: uuid of the pipeline
 
-        Returns:
-            output: contain the result of pipeline compilation
-        """
+    Returns:
+        output: contain the result of pipeline compilation
+    """
     self._verify_pipeline_uuid(pipeline_uuid)
     request = api_pb2.GetCompileOutputRequest(pipeline_uuid=pipeline_uuid)
     response = await self._stub.GetCompileOutput(request)
