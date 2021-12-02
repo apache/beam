@@ -64,16 +64,16 @@ def find_examples(work_dir: str,
   """
   Find and return beam examples.
 
-    Search throws all child files of work_dir directory files with beam tag:
-    Beam-playground:
-        name: NameOfExample
-        description: Description of NameOfExample.
-        multifile: false
-        categories:
-            - category-1
-            - category-2
-        pipeline_options: --inputFile=your_file --outputFile=your_output_file
-    If some example contain beam tag with incorrect format raise an error.
+  Search throws all child files of work_dir directory files with beam tag:
+  Beam-playground:
+      name: NameOfExample
+      description: Description of NameOfExample.
+      multifile: false
+      categories:
+          - category-1
+          - category-2
+      pipeline_options: --inputFile=your_file --outputFile=your_output_file
+  If some example contain beam tag with incorrect format raise an error.
 
   Args:
       work_dir: directory where to search examples.
@@ -244,22 +244,22 @@ def _validate(tag: dict, supported_categories: List[str]) -> bool:
         "Please, check that this field exists in the beam playground tag."
         "If you are sure that this field exists in the tag"
         " check the format of indenting.", field.default, tag.__str__())
-      return False
+      valid = False
 
     name = tag.get(TagFields.NAME)
     if name == '':
         logging.error("tag's field name is incorrect: " + tag.__str__() + "\n" +
                       "name can not be empty.")
-        return False
+        valid = False
 
   multifile = tag.get(TagFields.multifile)
-  if str(multifile).lower() not in ["true",
-                                                                 "false"]:
+  if (multifile is not None) and (str(multifile).lower() not in ["true",
+                                                                 "false"]):
     logging.error(
       "tag's field multifile is incorrect: %s \n"
       "multifile variable should be boolean format, but tag contains: %s"
       , tag.__str__(), str(multifile))
-    return False
+    valid = False
 
   categories = tag.get(TagFields.categories)
   if categories is not None:

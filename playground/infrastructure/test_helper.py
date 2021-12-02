@@ -170,9 +170,8 @@ def test__get_example(mock_get_name, mock_get_sdk):
       "name": "Name",
       "description": "Description",
       "multifile": "False",
-      "categories": [""]
-    ,
-                           "pipeline_options": "--option option"})
+      "categories": [""],
+      "pipeline_options": "--option option"})
 
   assert result == Example(
     "filepath",
@@ -237,10 +236,9 @@ def test__validate_with_all_fields():
     "name": "Name",
     "description": "Description",
     "multifile": "true",
-    "categories": ["category"]
-  ,
-           "pipeline_options": "--option option"}
-    assert _validate(tag, ["category"]) is True
+    "categories": ["category"],
+    "pipeline_options": "--option option"}
+  assert _validate(tag, ["category"]) is True
 
 
 def test__get_name():
