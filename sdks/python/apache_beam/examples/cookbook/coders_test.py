@@ -22,6 +22,8 @@
 import logging
 import unittest
 
+import pytest
+
 import apache_beam as beam
 from apache_beam.examples.cookbook import coders
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -39,6 +41,7 @@ class CodersTest(unittest.TestCase):
       'host': ['Brasil', 1], 'guest': ['Italy', 0]
   }]
 
+  @pytest.mark.examples_postcommit
   def test_compute_points(self):
     with TestPipeline() as p:
       records = p | 'create' >> beam.Create(self.SAMPLE_RECORDS)

@@ -89,8 +89,7 @@ public class BeamWorkerStatusGrpcServiceTest {
 
   @Test
   public void testClientConnected() throws Exception {
-    StreamObserver<WorkerStatusResponse> workerStatusResponseStreamObserver =
-        stub.workerStatus(mockObserver);
+    stub.workerStatus(mockObserver);
     WorkerStatusClient client = waitAndGetStatusClient(ID);
     assertNotNull(client);
   }

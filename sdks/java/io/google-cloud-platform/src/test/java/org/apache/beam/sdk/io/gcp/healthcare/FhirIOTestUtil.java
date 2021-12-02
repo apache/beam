@@ -17,13 +17,18 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.client.http.HttpHeaders;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.jackson2.JacksonFactory;
+import com.google.api.services.healthcare.v1.model.HttpBody;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.auth.oauth2.GoogleCredentials;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -41,6 +46,7 @@ import java.util.stream.Stream;
 import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HealthcareHttpException;
 
 class FhirIOTestUtil {
+  private static final ObjectMapper mapper = new ObjectMapper();
   public static final String DEFAULT_TEMP_BUCKET = "temp-storage-for-healthcare-io-tests";
 
   private static Stream<String> readPrettyBundles(String version) {
@@ -82,15 +88,30 @@ class FhirIOTestUtil {
   }
 
   /** Populate the test resources into the FHIR store and returns a list of resource IDs. */
-  static void executeFhirBundles(HealthcareApiClient client, String fhirStore, List<String> bundles)
+  static List<String> executeFhirBundles(
+      HealthcareApiClient client, String fhirStore, List<String> bundles)
       throws IOException, HealthcareHttpException {
+    List<String> resourceNames = new ArrayList<>();
     for (String bundle : bundles) {
-      client.executeFhirBundle(fhirStore, bundle);
+      HttpBody resp = client.executeFhirBundle(fhirStore, bundle);
+
+      JsonObject jsonResponse = JsonParser.parseString(resp.getData()).getAsJsonObject();
+      for (JsonElement entry : jsonResponse.getAsJsonArray("entry")) {
+        String location =
+            entry
+                .getAsJsonObject()
+                .getAsJsonObject("response")
+                .getAsJsonPrimitive("location")
+                .getAsString();
+        String resourceName =
+            location.substring(location.indexOf("project"), location.indexOf("/_history"));
+        resourceNames.add(resourceName);
+      }
     }
+    return resourceNames;
   }
 
   public static void tearDownTempBucket() throws IOException {
-
     GoogleCredentials credentials = GoogleCredentials.getApplicationDefault();
     HttpRequestInitializer requestInitializer =
         request -> {

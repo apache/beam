@@ -394,7 +394,6 @@ public class FlinkBatchPortablePipelineTranslator
           context,
           outputMap.get(collectionId),
           outputCoders.get(collectionId),
-          transform.getTransform().getUniqueName(),
           collectionId);
     }
     if (outputs.isEmpty()) {
@@ -568,7 +567,6 @@ public class FlinkBatchPortablePipelineTranslator
       BatchTranslationContext context,
       int unionTag,
       Coder<WindowedValue<?>> outputCoder,
-      String transformName,
       String collectionId) {
     TypeInformation<WindowedValue<?>> outputType =
         new CoderTypeInformation<>(outputCoder, context.getPipelineOptions());

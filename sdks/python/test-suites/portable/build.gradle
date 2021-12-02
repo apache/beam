@@ -37,3 +37,14 @@ task flinkValidatesRunnerPrecommit {
   }
 }
 
+task flinkExamplesPostCommit {
+  getVersionsAsList('flink_examples_postcommit_py_versions').each {
+    dependsOn.add(":sdks:python:test-suites:portable:py${getVersionSuffix(it)}:flinkExamples")
+  }
+}
+
+task sparkExamplesPostCommit {
+  getVersionsAsList('spark_examples_postcommit_py_versions').each {
+    dependsOn.add(":sdks:python:test-suites:portable:py${getVersionSuffix(it)}:sparkExamples")
+  }
+}

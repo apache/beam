@@ -33,6 +33,7 @@ certifi==2021.10.8
 charset-normalizer==2.0.7
 clang==5.0
 click==8.0.3
+cloudpickle==2.0.0
 crcmod==1.7
 Cython==0.29.24
 dataclasses==0.8
