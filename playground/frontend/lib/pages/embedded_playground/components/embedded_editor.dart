@@ -17,31 +17,20 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/config/theme.dart';
-import 'package:playground/pages/playground/components/playground_page_providers.dart';
-import 'package:playground/pages/routes.dart';
+import 'package:playground/modules/editor/components/editor_textarea.dart';
+import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:provider/provider.dart';
 
-class PlaygroundApp extends StatelessWidget {
-  const PlaygroundApp({Key? key}) : super(key: key);
+class EmbeddedEditor extends StatelessWidget {
+  const EmbeddedEditor({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (context) => ThemeProvider(),
-      builder: (context, _) {
-        final themeProvider = Provider.of<ThemeProvider>(context);
-        return PlaygroundPageProviders(
-          child: MaterialApp(
-            title: 'Apache Beam Playground',
-            themeMode: themeProvider.themeMode,
-            theme: kLightTheme,
-            darkTheme: kDarkTheme,
-            onGenerateRoute: Routes.generateRoute,
-            debugShowCheckedModeBanner: false,
-          ),
-        );
-      },
+    final state = Provider.of<PlaygroundState>(context);
+    return EditorTextArea(
+      enabled: true,
+      sdk: state.sdk,
+      example: state.selectedExample,
     );
   }
 }
