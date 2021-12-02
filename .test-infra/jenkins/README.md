@@ -238,6 +238,11 @@ Beam Jenkins overview page: [link](https://ci-beam.apache.org/)
 | beam_Prober_CommunityMetrics | [cron](https://ci-beam.apache.org/job/beam_Prober_CommunityMetrics/) | `Run Community Metrics Prober` | [![Build Status](https://ci-beam.apache.org/job/beam_Prober_CommunityMetrics/badge/icon)](https://ci-beam.apache.org/job/beam_Prober_CommunityMetrics) |
 | beam_SeedJob | [cron](https://ci-beam.apache.org/job/beam_SeedJob/), [standalone](https://ci-beam.apache.org/job/beam_SeedJob_Standalone/) | `Run Seed Job` | [![Build Status](https://ci-beam.apache.org/job/beam_SeedJob/badge/icon)](https://ci-beam.apache.org/job/beam_SeedJob) |
 | beam_sonarqube_report | [cron](https://ci-beam.apache.org/job/beam_sonarqube_report/)| N/A | [![Build Status](https://ci-beam.apache.org/job/beam_sonarqube_report/badge/icon)](https://ci-beam.apache.org/job/beam_sonarqube_report/) |
+| beam_CancelStaleDataflowJobs | [cron](https://ci-beam.apache.org/job/beam_CancelStaleDataflowJobs/)| Run Cancel Stale Dataflow Jobs | [![Build Status](https://ci-beam.apache.org/job/beam_CancelStaleDataflowJobs/badge/icon)](https://ci-beam.apache.org/job/beam_CancelStaleDataflowJobs/) |
+| beam_Clean_tmp_directory | [cron](https://ci-beam.apache.org/job/beam_Clean_tmp_directory/)| N/A | [![Build Status](https://ci-beam.apache.org/job/beam_Clean_tmp_directory/badge/icon)](https://ci-beam.apache.org/job/beam_Clean_tmp_directory/) |
+| beam_Publish_Beam_SDK_Snapshots | [cron](https://ci-beam.apache.org/job/beam_Publish_Beam_SDK_Snapshots/)| N/A | [![Build Status](https://ci-beam.apache.org/job/beam_Publish_Beam_SDK_Snapshots/badge/icon)](https://ci-beam.apache.org/job/beam_Publish_Beam_SDK_Snapshots/) |
+| beam_Publish_Docker_Snapshots | [cron](https://ci-beam.apache.org/job/beam_Publish_Docker_Snapshots/)| N/A | [![Build Status](https://ci-beam.apache.org/job/beam_Publish_Docker_Snapshots/badge/icon)](https://ci-beam.apache.org/job/beam_Publish_Docker_Snapshots/) |
+| beam_PostRelease_Python_Candidate | [cron](https://ci-beam.apache.org/job/beam_PostRelease_Python_Candidate/)| Run Python ReleaseCandidate | [![Build Status](https://ci-beam.apache.org/job/beam_PostRelease_Python_Candidate/badge/icon)](https://ci-beam.apache.org/job/beam_PostRelease_Python_Candidate/) |
 
 ### Notes:
 
