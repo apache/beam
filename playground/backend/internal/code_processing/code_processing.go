@@ -23,7 +23,7 @@ import (
 	"beam.apache.org/playground/backend/internal/executors"
 	"beam.apache.org/playground/backend/internal/fs_tool"
 	"beam.apache.org/playground/backend/internal/logger"
-	"beam.apache.org/playground/backend/internal/setup_tools/run_builder"
+	"beam.apache.org/playground/backend/internal/setup_tools/builder"
 	"beam.apache.org/playground/backend/internal/streaming"
 	"bytes"
 	"context"
@@ -44,7 +44,7 @@ import (
 // - In case of run step is failed saves playground.Status_STATUS_RUN_ERROR as cache.Status and run logs as cache.RunError into cache.
 // - In case of run step is completed with no errors saves playground.Status_STATUS_FINISHED as cache.Status and run output as cache.RunOutput into cache.
 // At the end of this method deletes all created folders.
-func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycle, compileBuilder *executors.CompileBuilder, pipelineId uuid.UUID, appEnv *environment.ApplicationEnvs, sdkEnv *environment.BeamEnvs) {
+func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycle, pipelineId uuid.UUID, appEnv *environment.ApplicationEnvs, sdkEnv *environment.BeamEnvs) {
 	ctxWithTimeout, finishCtxFunc := context.WithTimeout(ctx, appEnv.PipelineExecuteTimeout())
 	defer func(lc *fs_tool.LifeCycle) {
 		finishCtxFunc()
@@ -57,56 +57,76 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 
 	go cancelCheck(ctxWithTimeout, pipelineId, cancelChannel, cacheService)
 
-	// build executor for validate and compile steps
-	executor := compileBuilder.Build()
+	executorBuilder, err := builder.SetupExecutorBuilder(lc.GetAbsoluteSourceFilePath(), lc.GetAbsoluteBaseFolderPath(), lc.GetAbsoluteExecutableFilePath(), sdkEnv)
+	if err != nil {
+		processSetupError(err, pipelineId, cacheService, ctxWithTimeout)
+		return
+	}
+	executor := executorBuilder.Build()
 
-	// validate
+	// Validate
 	logger.Infof("%s: Validate() ...\n", pipelineId)
 	validateFunc := executor.Validate()
 	go validateFunc(successChannel, errorChannel)
 
-	if err := processStep(ctxWithTimeout, pipelineId, cacheService, cancelChannel, successChannel, nil, nil, errorChannel, pb.Status_STATUS_VALIDATION_ERROR, pb.Status_STATUS_PREPARING); err != nil {
+	if err = processStep(ctxWithTimeout, pipelineId, cacheService, cancelChannel, successChannel, nil, nil, errorChannel, pb.Status_STATUS_VALIDATION_ERROR, pb.Status_STATUS_PREPARING); err != nil {
 		return
 	}
 
-	// prepare
+	// Prepare
 	logger.Infof("%s: Prepare() ...\n", pipelineId)
 	prepareFunc := executor.Prepare()
 	go prepareFunc(successChannel, errorChannel)
 
-	if err := processStep(ctxWithTimeout, pipelineId, cacheService, cancelChannel, successChannel, nil, nil, errorChannel, pb.Status_STATUS_PREPARATION_ERROR, pb.Status_STATUS_COMPILING); err != nil {
+	if err = processStep(ctxWithTimeout, pipelineId, cacheService, cancelChannel, successChannel, nil, nil, errorChannel, pb.Status_STATUS_PREPARATION_ERROR, pb.Status_STATUS_COMPILING); err != nil {
 		return
 	}
 
-	// compile
-	logger.Infof("%s: Compile() ...\n", pipelineId)
-	compileCmd := executor.Compile(ctxWithTimeout)
-	var compileError bytes.Buffer
-	var compileOutput bytes.Buffer
-	runCmdWithOutput(compileCmd, &compileOutput, &compileError, successChannel, errorChannel)
+	switch sdkEnv.ApacheBeamSdk {
+	case pb.Sdk_SDK_JAVA, pb.Sdk_SDK_GO:
+		// Compile
+		logger.Infof("%s: Compile() ...\n", pipelineId)
+		compileCmd := executor.Compile(ctxWithTimeout)
+		var compileError bytes.Buffer
+		var compileOutput bytes.Buffer
+		runCmdWithOutput(compileCmd, &compileOutput, &compileError, successChannel, errorChannel)
 
-	if err := processStep(ctxWithTimeout, pipelineId, cacheService, cancelChannel, successChannel, &compileOutput, &compileError, errorChannel, pb.Status_STATUS_COMPILE_ERROR, pb.Status_STATUS_EXECUTING); err != nil {
-		return
+		if err = processStep(ctxWithTimeout, pipelineId, cacheService, cancelChannel, successChannel, &compileOutput, &compileError, errorChannel, pb.Status_STATUS_COMPILE_ERROR, pb.Status_STATUS_EXECUTING); err != nil {
+			return
+		}
+	case pb.Sdk_SDK_PYTHON:
+		processSuccess(ctx, []byte(""), pipelineId, cacheService, pb.Status_STATUS_EXECUTING)
 	}
 
-	runBuilder, err := run_builder.Setup(pipelineId, lc, appEnv.WorkingDir(), sdkEnv, compileBuilder)
-	if err != nil {
-		logger.Errorf("%s: error during setup run builder: %s\n", pipelineId, err.Error())
-		cacheService.SetValue(ctxWithTimeout, pipelineId, cache.Status, pb.Status_STATUS_ERROR)
-		return
+	// Run
+	if sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_JAVA {
+		executor = setJavaExecutableFile(lc, pipelineId, cacheService, ctxWithTimeout, executorBuilder, appEnv.WorkingDir())
 	}
-
-	// build executor for run step
-	executor = runBuilder.Build()
-
-	// run
 	logger.Infof("%s: Run() ...\n", pipelineId)
 	runCmd := executor.Run(ctxWithTimeout)
 	var runError bytes.Buffer
 	runOutput := streaming.RunOutputWriter{Ctx: ctxWithTimeout, CacheService: cacheService, PipelineId: pipelineId}
 	runCmdWithOutput(runCmd, &runOutput, &runError, successChannel, errorChannel)
 
-	processStep(ctxWithTimeout, pipelineId, cacheService, cancelChannel, successChannel, nil, &runError, errorChannel, pb.Status_STATUS_RUN_ERROR, pb.Status_STATUS_FINISHED)
+	err = processStep(ctxWithTimeout, pipelineId, cacheService, cancelChannel, successChannel, nil, &runError, errorChannel, pb.Status_STATUS_RUN_ERROR, pb.Status_STATUS_FINISHED)
+	if err != nil {
+		return
+	}
+}
+
+// setJavaExecutableFile sets executable file name to runner (JAVA class name is known after compilation step)
+func setJavaExecutableFile(lc *fs_tool.LifeCycle, id uuid.UUID, service cache.Cache, ctx context.Context, executorBuilder *executors.ExecutorBuilder, dir string) executors.Executor {
+	className, err := lc.ExecutableName(id, dir)
+	if err != nil {
+		processSetupError(err, id, service, ctx)
+	}
+	return executorBuilder.WithRunner().WithExecutableFileName(className).Build()
+}
+
+// processSetupError processes errors during the setting up an executor builder
+func processSetupError(err error, pipelineId uuid.UUID, cacheService cache.Cache, ctxWithTimeout context.Context) {
+	logger.Errorf("%s: error during setup builder: %s\n", pipelineId, err.Error())
+	cacheService.SetValue(ctxWithTimeout, pipelineId, cache.Status, pb.Status_STATUS_ERROR)
 }
 
 // GetProcessingOutput gets processing output value from cache by key and subKey.
@@ -144,18 +164,18 @@ func GetProcessingStatus(ctx context.Context, cacheService cache.Cache, key uuid
 	return statusValue, nil
 }
 
-// GetRunOutputLastIndex gets run output's last index from cache by key.
+// GetLastIndex gets last index for run output or logs from cache by key.
 // In case key doesn't exist in cache - returns an errors.NotFoundError.
 // In case value from cache by key and subKey couldn't be converted to int - returns an errors.InternalError.
-func GetRunOutputLastIndex(ctx context.Context, cacheService cache.Cache, key uuid.UUID, errorTitle string) (int, error) {
-	value, err := cacheService.GetValue(ctx, key, cache.RunOutputIndex)
+func GetLastIndex(ctx context.Context, cacheService cache.Cache, key uuid.UUID, subKey cache.SubKey, errorTitle string) (int, error) {
+	value, err := cacheService.GetValue(ctx, key, subKey)
 	if err != nil {
-		logger.Errorf("%s: GetStringValueFromCache(): cache.GetValue: error: %s", key, err.Error())
-		return 0, errors.NotFoundError(errorTitle, fmt.Sprintf("Error during getting cache by key: %s, subKey: %s", key.String(), string(cache.RunOutputIndex)))
+		logger.Errorf("%s: GetLastIndex(): cache.GetValue: error: %s", key, err.Error())
+		return 0, errors.NotFoundError(errorTitle, fmt.Sprintf("Error during getting cache by key: %s, subKey: %s", key.String(), string(subKey)))
 	}
 	intValue, converted := value.(int)
 	if !converted {
-		logger.Errorf("%s: couldn't convert value to string: %s", key, value)
+		logger.Errorf("%s: couldn't convert value to int: %s", key, value)
 		return 0, errors.InternalError(errorTitle, fmt.Sprintf("Value from cache couldn't be converted to int: %s", value))
 	}
 	return intValue, nil

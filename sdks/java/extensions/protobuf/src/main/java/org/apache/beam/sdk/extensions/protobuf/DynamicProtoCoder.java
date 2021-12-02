@@ -127,10 +127,6 @@ public class DynamicProtoCoder extends ProtoCoder<DynamicMessage> {
   ////////////////////////////////////////////////////////////////////////////////////
   // Private implementation details below.
 
-  // Constants used to serialize and deserialize
-  private static final String PROTO_MESSAGE_CLASS = "dynamic_proto_message_class";
-  private static final String PROTO_EXTENSION_HOSTS = "dynamic_proto_extension_hosts";
-
   // Descriptor used by DynamicMessage.
   private transient ProtoDomain domain;
   private transient String messageName;
