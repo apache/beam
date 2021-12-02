@@ -224,7 +224,6 @@ public class SamzaDoFnRunners {
                 executableStage.getInputPCollection().getId(), executableStage.getComponents()),
             outputManager,
             stageBundleFactory,
-            mainOutputTag,
             idToTupleTagMap,
             bundledEventsBag,
             stateRequestHandler);
@@ -239,7 +238,6 @@ public class SamzaDoFnRunners {
     private final WindowingStrategy windowingStrategy;
     private final DoFnRunners.OutputManager outputManager;
     private final StageBundleFactory stageBundleFactory;
-    private final TupleTag<FnOutT> mainOutputTag;
     private final Map<String, TupleTag<?>> idToTupleTagMap;
     private final LinkedBlockingQueue<KV<String, FnOutT>> outputQueue = new LinkedBlockingQueue<>();
     private final BagState<WindowedValue<InT>> bundledEventsBag;
@@ -252,7 +250,6 @@ public class SamzaDoFnRunners {
         WindowingStrategy windowingStrategy,
         DoFnRunners.OutputManager outputManager,
         StageBundleFactory stageBundleFactory,
-        TupleTag<FnOutT> mainOutputTag,
         Map<String, TupleTag<?>> idToTupleTagMap,
         BagState<WindowedValue<InT>> bundledEventsBag,
         StateRequestHandler stateRequestHandler) {
@@ -260,7 +257,6 @@ public class SamzaDoFnRunners {
       this.windowingStrategy = windowingStrategy;
       this.outputManager = outputManager;
       this.stageBundleFactory = stageBundleFactory;
-      this.mainOutputTag = mainOutputTag;
       this.idToTupleTagMap = idToTupleTagMap;
       this.bundledEventsBag = bundledEventsBag;
       this.stateRequestHandler = stateRequestHandler;

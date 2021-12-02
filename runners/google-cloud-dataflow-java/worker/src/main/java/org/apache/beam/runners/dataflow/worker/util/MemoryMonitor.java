@@ -164,6 +164,7 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
    * before dumping the heap, this block of memory will be garbage collected, thus giving dumpHeap()
    * enough space to dump the heap.
    */
+  @SuppressWarnings("unused")
   @SuppressFBWarnings("unused")
   private byte[] reservedForDumpingHeap = new byte[HEAP_DUMP_RESERVED_BYTES];
 

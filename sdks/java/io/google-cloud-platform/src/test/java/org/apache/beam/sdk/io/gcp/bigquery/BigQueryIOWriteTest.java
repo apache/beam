@@ -673,6 +673,36 @@ public class BigQueryIOWriteTest implements Serializable {
   }
 
   @Test
+  public void testUntriggeredFileLoadsWithTempTables() throws Exception {
+    // Test only non-streaming inserts.
+    if (useStorageApi || useStreaming) {
+      return;
+    }
+    List<TableRow> elements = Lists.newArrayList();
+    for (int i = 0; i < 30; ++i) {
+      elements.add(new TableRow().set("number", i));
+    }
+    p.apply(Create.of(elements))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to("project-id:dataset-id.table-id")
+                .withSchema(
+                    new TableSchema()
+                        .setFields(
+                            ImmutableList.of(
+                                new TableFieldSchema().setName("number").setType("INTEGER"))))
+                .withTestServices(fakeBqServices)
+                .withMaxBytesPerPartition(1)
+                .withMaxFilesPerPartition(1)
+                .withoutValidation());
+    p.run();
+
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(Iterables.toArray(elements, TableRow.class)));
+  }
+
+  @Test
   public void testTriggeredFileLoadsWithTempTablesDefaultProject() throws Exception {
     testTriggeredFileLoadsWithTempTables("dataset-id.table-id");
   }

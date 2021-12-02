@@ -116,7 +116,6 @@ public class BeamFnDataGrpcServiceTest {
     int numberOfClients = 3;
 
     for (int client = 0; client < numberOfClients; ++client) {
-      final int workerSuffix = client;
       executorService.submit(
           () -> {
             ManagedChannel channel =

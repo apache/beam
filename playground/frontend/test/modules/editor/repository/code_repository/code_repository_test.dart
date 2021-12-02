@@ -63,16 +63,16 @@ void main() {
       when(client.runCode(kRequestMock)).thenAnswer(
         (_) async => kRunCodeResponse,
       );
-      when(client.checkStatus(kPipelineUuid)).thenAnswer(
+      when(client.checkStatus(kPipelineUuid, kRequestMock)).thenAnswer(
         (_) async => kFinishedStatusResponse,
       );
-      when(client.getRunOutput(kPipelineUuid)).thenAnswer(
+      when(client.getRunOutput(kPipelineUuid, kRequestMock)).thenAnswer(
         (_) async => kRunOutputResponse,
       );
-      when(client.getCompileOutput(kPipelineUuid)).thenAnswer(
+      when(client.getCompileOutput(kPipelineUuid, kRequestMock)).thenAnswer(
         (_) async => kCompileOutputResponse,
       );
-      when(client.getLogOutput(kPipelineUuid)).thenAnswer(
+      when(client.getLogOutput(kPipelineUuid, kRequestMock)).thenAnswer(
         (_) async => kLogOutputResponse,
       );
 
@@ -93,7 +93,7 @@ void main() {
         ]),
       );
       // compile output should not be called
-      verifyNever(client.getCompileOutput(kPipelineUuid));
+      verifyNever(client.getCompileOutput(kPipelineUuid, kRequestMock));
     });
 
     test('should return output from compilation if failed', () async {
@@ -102,16 +102,16 @@ void main() {
       when(client.runCode(kRequestMock)).thenAnswer(
         (_) async => kRunCodeResponse,
       );
-      when(client.checkStatus(kPipelineUuid)).thenAnswer(
+      when(client.checkStatus(kPipelineUuid, kRequestMock)).thenAnswer(
         (_) async => kCompileErrorStatusResponse,
       );
-      when(client.getCompileOutput(kPipelineUuid)).thenAnswer(
+      when(client.getCompileOutput(kPipelineUuid, kRequestMock)).thenAnswer(
         (_) async => kCompileOutputResponse,
       );
-      when(client.getRunOutput(kPipelineUuid)).thenAnswer(
+      when(client.getRunOutput(kPipelineUuid, kRequestMock)).thenAnswer(
         (_) async => kRunOutputResponse,
       );
-      when(client.getLogOutput(kPipelineUuid)).thenAnswer(
+      when(client.getLogOutput(kPipelineUuid, kRequestMock)).thenAnswer(
         (_) async => kLogOutputResponse,
       );
 
@@ -137,19 +137,19 @@ void main() {
       when(client.runCode(kRequestMock)).thenAnswer(
         (_) async => kRunCodeResponse,
       );
-      when(client.checkStatus(kPipelineUuid)).thenAnswer(
+      when(client.checkStatus(kPipelineUuid, kRequestMock)).thenAnswer(
         (_) async => kRunErrorStatusResponse,
       );
-      when(client.getCompileOutput(kPipelineUuid)).thenAnswer(
+      when(client.getCompileOutput(kPipelineUuid, kRequestMock)).thenAnswer(
         (_) async => kCompileOutputResponse,
       );
-      when(client.getRunOutput(kPipelineUuid)).thenAnswer(
+      when(client.getRunOutput(kPipelineUuid, kRequestMock)).thenAnswer(
         (_) async => kRunOutputResponse,
       );
-      when(client.getRunErrorOutput(kPipelineUuid)).thenAnswer(
+      when(client.getRunErrorOutput(kPipelineUuid, kRequestMock)).thenAnswer(
         (_) async => kRunErrorOutputResponse,
       );
-      when(client.getLogOutput(kPipelineUuid)).thenAnswer(
+      when(client.getLogOutput(kPipelineUuid, kRequestMock)).thenAnswer(
         (_) async => kLogOutputResponse,
       );
 
@@ -181,16 +181,16 @@ void main() {
       kExecutingStatusResponse,
       kFinishedStatusResponse
     ];
-    when(client.checkStatus(kPipelineUuid)).thenAnswer(
+    when(client.checkStatus(kPipelineUuid, kRequestMock)).thenAnswer(
       (_) async => answers.removeAt(0),
     );
-    when(client.getRunOutput(kPipelineUuid)).thenAnswer(
+    when(client.getRunOutput(kPipelineUuid, kRequestMock)).thenAnswer(
       (_) async => kRunOutputResponse,
     );
-    when(client.getRunErrorOutput(kPipelineUuid)).thenAnswer(
+    when(client.getRunErrorOutput(kPipelineUuid, kRequestMock)).thenAnswer(
       (_) async => kRunErrorOutputResponse,
     );
-    when(client.getLogOutput(kPipelineUuid)).thenAnswer(
+    when(client.getLogOutput(kPipelineUuid, kRequestMock)).thenAnswer(
       (_) async => kLogOutputResponse,
     );
 
