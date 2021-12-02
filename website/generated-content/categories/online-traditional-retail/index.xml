@@ -1,4 +1,4 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Online &amp; Traditional Retail</title><link>/categories/online-traditional-retail/</link><description>Recent content in Online &amp; Traditional Retail on Apache Beam</description><generator>Hugo -- gohugo.io</generator><atom:link href="/categories/online-traditional-retail/index.xml" rel="self" type="application/rss+xml"/><item><title>Powered-By: Combining the Power of Beam With Three Other Apache Technologies for Fun and Profit</title><link>/powered-by/commercial/ricardo/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/powered-by/commercial/ricardo/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Online &amp; Traditional Retail</title><link>/categories/online-traditional-retail/</link><description>Recent content in Online &amp; Traditional Retail on Apache Beam</description><generator>Hugo -- gohugo.io</generator><atom:link href="/categories/online-traditional-retail/index.xml" rel="self" type="application/rss+xml"/><item><title>Case-Studies: Feature Powered by Apache Beam - Beyond Lambda</title><link>/case-studies/ebay/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/ebay/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -10,17 +10,9 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-&lt;p>Ricardo, the largest online marketplace in Switzerland, uses Apache Beam to stream-process platform data and enables the
-Data Intelligence team to provide scalable data integration, analytics, and smart services.&lt;/p></description></item><item><title>Powered-By: Feature Powered by Apache Beam - Beyond Lambda</title><link>/powered-by/commercial/ebay/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/powered-by/commercial/ebay/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>eBay is an American e-commerce company that provides business-to-consumer and consumer-to-consumer sales through the online website. They build feature pipelines with Apache Beam: unify feature extraction and selection in online and offline, speed up E2E iteration for model training, evaluation and serving, support different types (streaming, runtime, batch) of features, etc. eBay leverages Apache Beam for the streaming feature SDK as a foundation to integrate with Kafka, Hadoop, Flink, Airflow and others in eBay.&lt;/p></description></item></channel></rss>
+&lt;div>
+&lt;header class="case-study-header">
+&lt;h2 itemprop="name headline">Feature Powered by Apache Beam - Beyond Lambda&lt;/h2>
+&lt;/header>
+&lt;p>eBay is an American e-commerce company that provides business-to-consumer and consumer-to-consumer sales through the online website. They build feature pipelines with Apache Beam: unify feature extraction and selection in online and offline, speed up E2E iteration for model training, evaluation and serving, support different types (streaming, runtime, batch) of features, etc. eBay leverages Apache Beam for the streaming feature SDK as a foundation to integrate with Kafka, Hadoop, Flink, Airflow and others in eBay.&lt;/p>
+&lt;/div></description></item></channel></rss>

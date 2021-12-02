@@ -1,4 +1,4 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Machine Learning</title><link>/categories/machine-learning/</link><description>Recent content in Machine Learning on Apache Beam</description><generator>Hugo -- gohugo.io</generator><atom:link href="/categories/machine-learning/index.xml" rel="self" type="application/rss+xml"/><item><title>Powered-By: Beam and Geocoding</title><link>/powered-by/commercial/goga/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/powered-by/commercial/goga/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Machine Learning</title><link>/categories/machine-learning/</link><description>Recent content in Machine Learning on Apache Beam</description><generator>Hugo -- gohugo.io</generator><atom:link href="/categories/machine-learning/index.xml" rel="self" type="application/rss+xml"/><item><title>Case-Studies: Beam and Geocoding</title><link>/case-studies/goga/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/goga/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -10,7 +10,12 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-&lt;p>GOGA Data Analysis and Consulting is a company based in Japan that specializes in analytics of geospatial and mapping data. They use Apache Beam and Cloud Dataflow for a smooth data transformation process for analytical purposes. This use case focuses on handling multiple extractions, geocoding, and insertion process by wrangling and requesting API call of each data based on the location provided.&lt;/p></description></item><item><title>Powered-By: From Apache Beam to Leukemia early detection</title><link>/powered-by/commercial/oriel/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/powered-by/commercial/oriel/</guid><description>
+&lt;div>
+&lt;header class="case-study-header">
+&lt;h2 itemprop="name headline">Beam and Geocoding&lt;/h2>
+&lt;/header>
+&lt;p>GOGA Data Analysis and Consulting is a company based in Japan that specializes in analytics of geospatial and mapping data. They use Apache Beam and Cloud Dataflow for a smooth data transformation process for analytical purposes. This use case focuses on handling multiple extractions, geocoding, and insertion process by wrangling and requesting API call of each data based on the location provided.&lt;/p>
+&lt;/div></description></item><item><title>Case-Studies: From Apache Beam to Leukemia early detection</title><link>/case-studies/oriel/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/oriel/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,5 +27,10 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
+&lt;div>
+&lt;header class="case-study-header">
+&lt;h2 itemprop="name headline">From Apache Beam to Leukemia early detection&lt;/h2>
+&lt;/header>
 &lt;p>Oriel Research Therapeutics (ORT) is a startup company in the greater Boston area that provides early detection services for
-multiple medical conditions, utilizing cutting edge Artificial Intelligence technologies and Next Generation Sequencing (NGS). ORT utilizes Apache Beam pipelines to process over 1 million samples of genomics and clinical information. The processed data is used by ORT in detecting Leukemia, Sepsis and other medical conditions.&lt;/p></description></item></channel></rss>
+multiple medical conditions, utilizing cutting edge Artificial Intelligence technologies and Next Generation Sequencing (NGS). ORT utilizes Apache Beam pipelines to process over 1 million samples of genomics and clinical information. The processed data is used by ORT in detecting Leukemia, Sepsis and other medical conditions.&lt;/p>
+&lt;/div></description></item></channel></rss>

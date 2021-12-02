@@ -1,0 +1,371 @@
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Case Studies</title><link>/case-studies/</link><description>Recent content in Case Studies on Apache Beam</description><generator>Hugo -- gohugo.io</generator><atom:link href="/case-studies/index.xml" rel="self" type="application/rss+xml"/><item><title>Case-Studies: Apache Beam Amplified Ricardo’s Real-time and ML Data Processing for eCommerce Platform</title><link>/case-studies/ricardo/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/ricardo/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;div class="case-study-opinion">
+&lt;div class="case-study-opinion-img">
+&lt;img src="/images/logos/powered-by/ricardo.png"/>
+&lt;/div>
+&lt;blockquote class="case-study-quote-block">
+&lt;p class="case-study-quote-text">
+“Without Beam, without all this data and real time information, we could not deliver the services we are providing and handle the volumes of data we are processing.”
+&lt;/p>
+&lt;div class="case-study-quote-author">
+&lt;div class="case-study-quote-author-img">
+&lt;img src="/images/tobias_kaymak_photo.png">
+&lt;/div>
+&lt;div class="case-study-quote-author-info">
+&lt;div class="case-study-quote-author-name">
+Tobias Kaymak
+&lt;/div>
+&lt;div class="case-study-quote-author-position">
+Senior Data Engineer @ Ricardo
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/blockquote>
+&lt;/div>
+&lt;div class="case-study-post">
+&lt;h1 id="apache-beam-amplified-ricardos-real-time-and-ml-data-processing-for-ecommerce-platform">Apache Beam Amplified Ricardo’s Real-time and ML Data Processing for eCommerce Platform&lt;/h1>
+&lt;h2 id="background">Background&lt;/h2>
+&lt;p>&lt;a href="https://www.ricardo.ch/">Ricardo&lt;/a> is a leading second hand marketplace in Switzerland. The site supports over 4 million
+registered buyers and sellers, processing more than 6.5 million article transactions via the platform annually. Ricardo
+needs to process high volumes of streaming events and manage over 5 TB of articles, assets, and analytical data.&lt;/p>
+&lt;p>With the scale that came from 20 years in the market, Ricardo made the decision to migrate from their on-premises data
+center to cloud to easily grow and evolve further and reduce operational costs through managed cloud services. Data
+intelligence and engineering teams took the lead on this transformation and development of new AI/ML-enabled customer
+experiences. Apache Beam has been a technology amplifier that expedited Ricardo’s transformation.&lt;/p>
+&lt;h2 id="challenge">Challenge&lt;/h2>
+&lt;p>Migrating from an on-premises data center to the cloud presented Ricardo with an opportunity to modernize their
+marketplace from heavy legacy reliance on transactional SQL, switch to BigQuery for analytics, and take advantage of the
+event-based streaming architecture.&lt;/p>
+&lt;p>Ricardo’s data intelligence team identified two key success factors: a carefully designed data model and a framework
+that provides unified stream and batch data pipelines execution, both on-premises and in the cloud.&lt;/p>
+&lt;p>Ricardo needed a data processing framework that can scale easily, enrich event streams with historic data from multiple
+sources, provide granular control on data freshness, and provide an abstract pipeline operational infrastructure, thus
+helping their team focus on creating new value for customers and business&lt;/p>
+&lt;h2 id="journey-to-beam">Journey to Beam&lt;/h2>
+&lt;p>Ricardo’s data intelligence team began modernizing their stack in 2018. They selected frameworks that provide reliable
+and scalable data processing both on-premises and in the cloud. Apache Beam enables users to create pipelines in their
+favorite programming language offering SDKs in Java, Python, Go, SQL, Scala (SCIO).
+A &lt;a href="https://beam.apache.org/documentation/#available-runners">Beam Runner&lt;/a> runs a Beam pipeline on a specific (often
+distributed) data processing system. Ricardo selected the Apache Beam Flink runner for executing pipelines on-premises
+and the Dataflow runner as a managed cloud service for the same pipelines developed using Apache Beam Java SDK. Apache
+Flink is well known for its reliability and cost-efficiency and an on-premises cluster was spun up at Ricardo’s
+datacenter as the initial environment.&lt;/p>
+&lt;blockquote class="case-study-quote-block case-study-quote-wrapped">
+&lt;p class="case-study-quote-text">
+We wanted to implement a solution that would multiply our possibilities, and that’s exactly where Beam comes in. One of the major drivers in this decision was the ability to evolve without adding too much operational load
+&lt;/p>
+&lt;div class="case-study-quote-author">
+&lt;div class="case-study-quote-author-img">
+&lt;img src="/images/tobias_kaymak_photo.png">
+&lt;/div>
+&lt;div class="case-study-quote-author-info">
+&lt;div class="case-study-quote-author-name">
+Tobias Kaymak
+&lt;/div>
+&lt;div class="case-study-quote-author-position">
+Senior Data Engineer @ Ricardo
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/blockquote>
+&lt;p>Beam pipelines for core business workloads to ingest events data from Apache Kafka into BigQuery were running stable in
+just one month. As Ricardo’s cloud migration progressed, the data intelligence
+team &lt;a href="https://www.youtube.com/watch?v=EcvnFH5LDE4">migrated Flink cluster from Kubernetes&lt;/a> in their on-premises
+datacenter to GKE.&lt;/p>
+&lt;blockquote class="case-study-quote-block case-study-quote-wrapped">
+&lt;p class="case-study-quote-text">
+I knew Beam, I knew it works. When you need to move from Kafka to BigQuery and you know that Beam is exactly the right tool, you just need to choose the right executor for it.
+&lt;/p>
+&lt;div class="case-study-quote-author">
+&lt;div class="case-study-quote-author-img">
+&lt;img src="/images/tobias_kaymak_photo.png">
+&lt;/div>
+&lt;div class="case-study-quote-author-info">
+&lt;div class="case-study-quote-author-name">
+Tobias Kaymak
+&lt;/div>
+&lt;div class="case-study-quote-author-position">
+Senior Data Engineer @ Ricardo
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/blockquote>
+&lt;p>The flexibility to refresh data every hour, minute, or stream data real-time, depending on the specific use case and
+need, helped the team improve data freshness which was a significant advancement for Ricardo’s eCommerce platform
+analytics and reporting.&lt;/p>
+&lt;p>Ricardo’s team found benefits in Apache Beam Flink runner on self-managed Flink cluster in GKE for streaming pipelines.
+Full control over Flink provisioning enabled to set up required connectivity from Flink cluster to an external peered
+Kafka managed service. The data intelligence team optimized operating costs through cluster resource utilization
+significantly. For batch pipelines, the team chose Dataflow managed service for its on-demand autoscaling and cost
+reduction features like FlexRS, especially efficient for training ML models over TBs of historic data. This hybrid
+approach has been serving Ricardo’s needs well and proved to be a reliable production solution.&lt;/p>
+&lt;h2 id="evolution-of-use-cases">Evolution of Use Cases&lt;/h2>
+&lt;p>Thinking of a stream as data in motion, and a table as data at rest provided a fortuitous chance to take a look at some
+data model decisions that were made as far back as 20 years before. Articles that are on the marketplace have assets
+that describe them, and for performance and cost optimizations purposes, data entities that belong together were split
+into separate database instances. Apache Beam enabled Ricardo’s data intelligence team
+to &lt;a href="https://youtu.be/PiwLC-YK_Zw">join assets and articles streams&lt;/a> and optimize BigQuery scans to reduce costs. When
+designing the pipeline, the team created streams for assets and articles. Since the assets stream is the primary one,
+they shifted the stream 5 minutes back and created a lookup schema with it in BigTable. This elegant solution ensures
+that the assets stream is always processed first while BigTable allows for matching the latest asset to an article and
+Apache Beam joins them both together.&lt;/p>
+&lt;div class="post-scheme">
+&lt;img src="/images/post_scheme.png">
+&lt;/div>
+&lt;p>The successful case of joining different data streams facilitated further Apache Beam adoption by Ricardo in areas like
+data science and ML.&lt;/p>
+&lt;blockquote class="case-study-quote-block case-study-quote-wrapped">
+&lt;p class="case-study-quote-text">
+Once you start laying out the simple use cases, you will always figure out the edge case scenarios. This pipeline has been running for a year now, and Beam handles it all, from super simple use cases to something crazy
+&lt;/p>
+&lt;div class="case-study-quote-author">
+&lt;div class="case-study-quote-author-img">
+&lt;img src="/images/tobias_kaymak_photo.png">
+&lt;/div>
+&lt;div class="case-study-quote-author-info">
+&lt;div class="case-study-quote-author-name">
+Tobias Kaymak
+&lt;/div>
+&lt;div class="case-study-quote-author-position">
+Senior Data Engineer @ Ricardo
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/blockquote>
+&lt;p>As an eCommerce retailer, Ricardo faces the increasing scale and sophistication of fraud transactions and takes a
+strategic approach by employing Beam pipelines for fraud detection and prevention. Beam pipelines act on an external
+intelligent API to identify the signs of fraudulent behaviour, like device characteristics or user activity. Apache Beam
+&lt;a href="https://beam.apache.org/documentation/programming-guide/#state-and-timers">stateful processing&lt;/a> feature enables Ricardo
+to apply an associating operation to the streams of data (trigger banishing a user for example). Thus, Apache Beam saves
+Ricardo’s customer care team&amp;rsquo;s time and effort on investigating duplicate cases. It also runs batch pipelines
+to &lt;a href="https://www.youtube.com/watch?v=LXnh9jNNfYY">find linked accounts&lt;/a>, associate products to categories by
+encapsulating a ML model, or calculates the likelihood something is going to sell, at a scale or precision that was
+previously not possible.&lt;/p>
+&lt;p>Originally implemented by Ricardo’s data intelligence team, Apache Beam has proven to be a powerful framework that
+supports advanced scenarios and acts as a glue between Kafka, BigQuery, and platform and external APIs, which encouraged
+other teams at Ricardo to adopt it.&lt;/p>
+&lt;blockquote class="case-study-quote-block case-study-quote-wrapped">
+&lt;p class="case-study-quote-text">
+[Apache Beam] is a framework that is so good that other teams are picking up the idea and starting to work with it after we tested it
+&lt;/p>
+&lt;div class="case-study-quote-author">
+&lt;div class="case-study-quote-author-img">
+&lt;img src="/images/tobias_kaymak_photo.png">
+&lt;/div>
+&lt;div class="case-study-quote-author-info">
+&lt;div class="case-study-quote-author-name">
+Tobias Kaymak
+&lt;/div>
+&lt;div class="case-study-quote-author-position">
+Senior Data Engineer @ Ricardo
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/blockquote>
+&lt;h2 id="results">Results&lt;/h2>
+&lt;p>Apache Beam has provided Ricardo with a scalable and reliable data processing framework that supported Ricardo’s
+fundamental business scenarios and enabled new use cases to respond to events in real-time.&lt;/p>
+&lt;p>Throughout Ricardo’s transformation, Apache Beam has been a unified framework that can run batch and stream pipelines,
+offers on-premises and cloud managed services execution, and programming language options like Java and Python,
+empowered data science and research teams to advance customer experience with new real-time scenarios fast-tracking time
+to value.&lt;/p>
+&lt;blockquote class="case-study-quote-block case-study-quote-wrapped">
+&lt;p class="case-study-quote-text">
+After this first pipeline, we are working on other use cases and planning to move them to Beam. I was always trying to spread the idea that this a framework that is reliable, it actually helps you to get the stuff done in a consistent way
+&lt;/p>
+&lt;div class="case-study-quote-author">
+&lt;div class="case-study-quote-author-img">
+&lt;img src="/images/tobias_kaymak_photo.png">
+&lt;/div>
+&lt;div class="case-study-quote-author-info">
+&lt;div class="case-study-quote-author-name">
+Tobias Kaymak
+&lt;/div>
+&lt;div class="case-study-quote-author-position">
+Senior Data Engineer @ Ricardo
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/blockquote>
+&lt;p>Apache Beam has been a technology that multiplied possibilities, allowing Ricardo to maximize technology benefits at all
+stages of their modernization and cloud journey.&lt;/p>
+&lt;/div>
+&lt;div class="clear-nav">&lt;/div></description></item><item><title>Case-Studies: Beam and Geocoding</title><link>/case-studies/goga/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/goga/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;div>
+&lt;header class="case-study-header">
+&lt;h2 itemprop="name headline">Beam and Geocoding&lt;/h2>
+&lt;/header>
+&lt;p>GOGA Data Analysis and Consulting is a company based in Japan that specializes in analytics of geospatial and mapping data. They use Apache Beam and Cloud Dataflow for a smooth data transformation process for analytical purposes. This use case focuses on handling multiple extractions, geocoding, and insertion process by wrangling and requesting API call of each data based on the location provided.&lt;/p>
+&lt;/div></description></item><item><title>Case-Studies: Beam visual pipeline development with Hop</title><link>/case-studies/neo4j/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/neo4j/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;div>
+&lt;header class="case-study-header">
+&lt;h2 itemprop="name headline">Beam visual pipeline development with Hop&lt;/h2>
+&lt;/header>
+&lt;p>Neo4j is a graph database management system that leverages data relationships between data records to enable fast queries. They use Apache Beam support in Kettle to do everything and more in project Hop. The various Apache Beam runners are now directly supported as Hop pipeline engines.
+&lt;a href="http://hop.apache.org">Apache Hop (incubating)&lt;/a>: Hop provides a complete data orchestration (ETL / DI) toolset with visual pipeline development. It supports execution on the main Apache Beam runners.&lt;/p>
+&lt;/div></description></item><item><title>Case-Studies: Cloud Dataflow</title><link>/case-studies/dataflow/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/dataflow/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;div>
+&lt;header class="case-study-header">
+&lt;h2 itemprop="name headline">Cloud Dataflow&lt;/h2>
+&lt;/header>
+&lt;p>&lt;strong>&lt;a href="https://cloud.google.com/dataflow">Cloud Dataflow&lt;/a>:&lt;/strong> Google Cloud Dataflow is a fully managed service for executing Apache Beam pipelines within the Google Cloud Platform ecosystem.&lt;/p>
+&lt;/div></description></item><item><title>Case-Studies: Feature Powered by Apache Beam - Beyond Lambda</title><link>/case-studies/ebay/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/ebay/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;div>
+&lt;header class="case-study-header">
+&lt;h2 itemprop="name headline">Feature Powered by Apache Beam - Beyond Lambda&lt;/h2>
+&lt;/header>
+&lt;p>eBay is an American e-commerce company that provides business-to-consumer and consumer-to-consumer sales through the online website. They build feature pipelines with Apache Beam: unify feature extraction and selection in online and offline, speed up E2E iteration for model training, evaluation and serving, support different types (streaming, runtime, batch) of features, etc. eBay leverages Apache Beam for the streaming feature SDK as a foundation to integrate with Kafka, Hadoop, Flink, Airflow and others in eBay.&lt;/p>
+&lt;/div></description></item><item><title>Case-Studies: From Apache Beam to Leukemia early detection</title><link>/case-studies/oriel/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/oriel/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;div>
+&lt;header class="case-study-header">
+&lt;h2 itemprop="name headline">From Apache Beam to Leukemia early detection&lt;/h2>
+&lt;/header>
+&lt;p>Oriel Research Therapeutics (ORT) is a startup company in the greater Boston area that provides early detection services for
+multiple medical conditions, utilizing cutting edge Artificial Intelligence technologies and Next Generation Sequencing (NGS). ORT utilizes Apache Beam pipelines to process over 1 million samples of genomics and clinical information. The processed data is used by ORT in detecting Leukemia, Sepsis and other medical conditions.&lt;/p>
+&lt;/div></description></item><item><title>Case-Studies: Kio</title><link>/case-studies/kio/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/kio/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>Kio is a set of Kotlin extensions for Apache Beam to implement fluent-like API for Java SDK.&lt;/p>
+&lt;h2 id="word-count-example">Word Count example&lt;/h2>
+&lt;pre>&lt;code>// Create Kio context
+val kio = Kio.fromArguments(args)
+// Configure a pipeline
+kio.read().text(&amp;quot;~/input.txt&amp;quot;)
+.map { it.toLowerCase() }
+.flatMap { it.split(&amp;quot;\\W+&amp;quot;.toRegex()) }
+.filter { it.isNotEmpty() }
+.countByValue()
+.forEach { println(it) }
+// And execute it
+kio.execute().waitUntilDone()
+&lt;/code>&lt;/pre>&lt;h2 id="documentation">Documentation&lt;/h2>
+&lt;p>For more information about Kio, please see the documentation here: &lt;a href="https://code.chermenin.ru/kio">https://code.chermenin.ru/kio&lt;/a>.&lt;/p></description></item><item><title>Case-Studies: Klio</title><link>/case-studies/klio/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/klio/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>Developed at Spotify and built on top of Apache Beam for Python, Klio is an open source framework that lets researchers and engineers build smarter data pipelines for processing audio and other media files, easily and at scale.&lt;/p></description></item><item><title>Case-Studies: Scio</title><link>/case-studies/scio/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/scio/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>Scio is a Scala API for Apache Beam and Google Cloud Dataflow inspired by Apache Spark and Scalding.&lt;/p></description></item><item><title>Case-Studies: TensorFlow Extended (TFX)</title><link>/case-studies/tfx/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/tfx/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>&lt;strong>&lt;a href="https://www.tensorflow.org/tfx">TensorFlow Extended (TFX)&lt;/a>:&lt;/strong> TensorFlow Extended (TFX) is an end-to-end platform
+for deploying production ML pipelines based on Apache Beam.&lt;/p></description></item><item><title>Case-Studies: The Nitty-Gritty of Moving Data with Beam</title><link>/case-studies/mozilla/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/mozilla/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;div>
+&lt;header class="case-study-header">
+&lt;h2 itemprop="name headline">The Nitty-Gritty of Moving Data with Beam&lt;/h2>
+&lt;/header>
+&lt;p>Mozilla is the non-profit Firefox browser. This use case focuses on complexity that comes from moving data from one system to another safely, modeling data as it passes from one transform to another, handling errors, testing the system, and organizing the code to make the pipeline configurable for different source and destination systems in their open source codebase for ingesting telemetry data from Firefox clients.&lt;/p>
+&lt;/div></description></item></channel></rss>

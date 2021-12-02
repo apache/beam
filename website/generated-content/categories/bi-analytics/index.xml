@@ -1,4 +1,4 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – BI &amp; Analytics</title><link>/categories/bi-analytics/</link><description>Recent content in BI &amp; Analytics on Apache Beam</description><generator>Hugo -- gohugo.io</generator><atom:link href="/categories/bi-analytics/index.xml" rel="self" type="application/rss+xml"/><item><title>Powered-By: Beam visual pipeline development with Hop</title><link>/powered-by/commercial/neo4j/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/powered-by/commercial/neo4j/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – BI &amp; Analytics</title><link>/categories/bi-analytics/</link><description>Recent content in BI &amp; Analytics on Apache Beam</description><generator>Hugo -- gohugo.io</generator><atom:link href="/categories/bi-analytics/index.xml" rel="self" type="application/rss+xml"/><item><title>Case-Studies: Beam visual pipeline development with Hop</title><link>/case-studies/neo4j/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/neo4j/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -10,5 +10,10 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
+&lt;div>
+&lt;header class="case-study-header">
+&lt;h2 itemprop="name headline">Beam visual pipeline development with Hop&lt;/h2>
+&lt;/header>
 &lt;p>Neo4j is a graph database management system that leverages data relationships between data records to enable fast queries. They use Apache Beam support in Kettle to do everything and more in project Hop. The various Apache Beam runners are now directly supported as Hop pipeline engines.
-&lt;a href="http://hop.apache.org">Apache Hop (incubating)&lt;/a>: Hop provides a complete data orchestration (ETL / DI) toolset with visual pipeline development. It supports execution on the main Apache Beam runners.&lt;/p></description></item></channel></rss>
+&lt;a href="http://hop.apache.org">Apache Hop (incubating)&lt;/a>: Hop provides a complete data orchestration (ETL / DI) toolset with visual pipeline development. It supports execution on the main Apache Beam runners.&lt;/p>
+&lt;/div></description></item></channel></rss>

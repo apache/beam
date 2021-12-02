@@ -1,4 +1,4 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Cloud &amp; Data Analytics</title><link>/categories/cloud-data-analytics/</link><description>Recent content in Cloud &amp; Data Analytics on Apache Beam</description><generator>Hugo -- gohugo.io</generator><atom:link href="/categories/cloud-data-analytics/index.xml" rel="self" type="application/rss+xml"/><item><title>Powered-By: Cloud Dataflow</title><link>/powered-by/commercial/dataflow/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/powered-by/commercial/dataflow/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Cloud &amp; Data Analytics</title><link>/categories/cloud-data-analytics/</link><description>Recent content in Cloud &amp; Data Analytics on Apache Beam</description><generator>Hugo -- gohugo.io</generator><atom:link href="/categories/cloud-data-analytics/index.xml" rel="self" type="application/rss+xml"/><item><title>Case-Studies: Cloud Dataflow</title><link>/case-studies/dataflow/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/dataflow/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -10,4 +10,9 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-&lt;p>&lt;strong>&lt;a href="https://cloud.google.com/dataflow">Cloud Dataflow&lt;/a>:&lt;/strong> Google Cloud Dataflow is a fully managed service for executing Apache Beam pipelines within the Google Cloud Platform ecosystem.&lt;/p></description></item></channel></rss>
+&lt;div>
+&lt;header class="case-study-header">
+&lt;h2 itemprop="name headline">Cloud Dataflow&lt;/h2>
+&lt;/header>
+&lt;p>&lt;strong>&lt;a href="https://cloud.google.com/dataflow">Cloud Dataflow&lt;/a>:&lt;/strong> Google Cloud Dataflow is a fully managed service for executing Apache Beam pipelines within the Google Cloud Platform ecosystem.&lt;/p>
+&lt;/div></description></item></channel></rss>
