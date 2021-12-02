@@ -69,6 +69,7 @@ class MockCodeClient extends _i1.Mock implements _i5.CodeClient {
               returnValue: Future<_i3.CheckStatusResponse>.value(
                   _FakeCheckStatusResponse_1()))
           as _i6.Future<_i3.CheckStatusResponse>);
+
   @override
   _i6.Future<_i4.OutputResponse> getCompileOutput(String? pipelineUuid) =>
       (super.noSuchMethod(Invocation.method(#getCompileOutput, [pipelineUuid]),
@@ -79,6 +80,13 @@ class MockCodeClient extends _i1.Mock implements _i5.CodeClient {
   @override
   _i6.Future<_i4.OutputResponse> getRunOutput(String? pipelineUuid) =>
       (super.noSuchMethod(Invocation.method(#getRunOutput, [pipelineUuid]),
+              returnValue:
+                  Future<_i4.OutputResponse>.value(_FakeOutputResponse_2()))
+          as _i6.Future<_i4.OutputResponse>);
+
+  @override
+  _i6.Future<_i4.OutputResponse> getLogOutput(String? pipelineUuid) =>
+      (super.noSuchMethod(Invocation.method(#getLogOutput, [pipelineUuid]),
               returnValue:
                   Future<_i4.OutputResponse>.value(_FakeOutputResponse_2()))
           as _i6.Future<_i4.OutputResponse>);

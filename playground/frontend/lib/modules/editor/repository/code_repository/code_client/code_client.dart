@@ -30,5 +30,7 @@ abstract class CodeClient {
 
   Future<OutputResponse> getRunOutput(String pipelineUuid);
 
+  Future<OutputResponse> getLogOutput(String pipelineUuid);
+
   Future<OutputResponse> getRunErrorOutput(String pipelineUuid);
 }

@@ -70,6 +70,7 @@ class CodeRepository {
     RunCodeResult? prevResult,
   ) async {
     final prevOutput = prevResult?.output ?? '';
+    final prevLog = prevResult?.log ?? '';
     switch (status) {
       case RunCodeStatus.compileError:
         final compileOutput = await _client.getCompileOutput(pipelineUuid);
@@ -82,15 +83,18 @@ class CodeRepository {
       case RunCodeStatus.unknownError:
         return RunCodeResult(status: status, errorMessage: kUnknownErrorText);
       case RunCodeStatus.executing:
-        final output = await _client.getRunOutput(pipelineUuid);
+      case RunCodeStatus.finished:
+        final responses = await Future.wait([
+          _client.getRunOutput(pipelineUuid),
+          _client.getLogOutput(pipelineUuid)
+        ]);
+        final output = responses[0];
+        final log = responses[1];
         return RunCodeResult(
           status: status,
           output: prevOutput + output.output,
+          log: prevLog + log.output,
         );
-      case RunCodeStatus.finished:
-        final output = await _client.getRunOutput(pipelineUuid);
-        return RunCodeResult(
-            status: status, output: prevOutput + output.output);
       default:
         return RunCodeResult(status: status);
     }

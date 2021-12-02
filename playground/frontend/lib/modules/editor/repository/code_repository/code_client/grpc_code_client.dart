@@ -74,6 +74,13 @@ class GrpcCodeClient implements CodeClient {
   }
 
   @override
+  Future<OutputResponse> getLogOutput(String pipelineUuid) {
+    return _runSafely(() => _client
+        .getLogs(grpc.GetLogsRequest(pipelineUuid: pipelineUuid))
+        .then((response) => OutputResponse(response.output)));
+  }
+
+  @override
   Future<OutputResponse> getRunErrorOutput(String pipelineUuid) {
     return _runSafely(() => _client
         .getRunError(grpc.GetRunErrorRequest(pipelineUuid: pipelineUuid))
