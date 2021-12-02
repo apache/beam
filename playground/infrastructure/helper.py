@@ -27,7 +27,7 @@ from api.v1.api_pb2 import SDK_UNSPECIFIED, STATUS_UNSPECIFIED, Sdk, STATUS_VALI
 from collections import namedtuple
 from grpc_client import GRPCClient
 
-Tag = namedtuple("Tag", [TagFields.NAME, TagFields.DESCRIPTION, TagFields.MULTIFILE, TagFields.CATEGORIES])
+Tag = namedtuple("Tag", [TagFields.NAME, TagFields.DESCRIPTION, TagFields.MULTIFILE, TagFields.CATEGORIES, TagFields.PIPELINE_OPTIONS])
 
 
 @dataclass
@@ -57,6 +57,7 @@ def find_examples(work_dir: str, supported_categories: List[str]) -> List[Exampl
         categories:
             - category-1
             - category-2
+        pipeline_options: --inputFile=your_file --outputFile=your_output_file
     If some example contain beam tag with incorrect format raise an error.
 
     Args:
