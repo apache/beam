@@ -27,7 +27,8 @@ from api.v1.api_pb2 import SDK_UNSPECIFIED, STATUS_UNSPECIFIED, Sdk, STATUS_VALI
 from collections import namedtuple
 from grpc_client import GRPCClient
 
-Tag = namedtuple("Tag", [TagFields.NAME, TagFields.DESCRIPTION, TagFields.MULTIFILE, TagFields.CATEGORIES, TagFields.PIPELINE_OPTIONS])
+Tag = namedtuple("Tag", [TagFields.NAME, TagFields.DESCRIPTION, TagFields.MULTIFILE, TagFields.CATEGORIES,
+                         TagFields.PIPELINE_OPTIONS])
 
 
 @dataclass
@@ -213,31 +214,36 @@ def _validate(tag: dict, supported_categories: List[str]) -> bool:
     """
     valid = True
     for field in fields(TagFields):
-        if tag.get(field.default) is None:
+        if field.default not in tag:
             logging.error("tag doesn't contain " + field.default + " field: " + tag.__str__() + "\n" +
                           "Please, double-check that this field exists in the beam playground tag. " +
                           "If you are sure that this field exists in the tag double-check the format of indenting.")
-            valid = False
+            return False
+
+    name = tag.get(TagFields.NAME)
+    if name == '':
+        logging.error("tag's field name is incorrect: " + tag.__str__() + "\n" +
+                      "name can not be empty.")
+        return False
 
     multifile = tag.get(TagFields.MULTIFILE)
-    if (multifile is not None) and (str(multifile).lower() not in ["true", "false"]):
+    if str(multifile).lower() not in ["true", "false"]:
         logging.error("tag's field multifile is incorrect: " + tag.__str__() + "\n" +
                       "multifile variable should be boolean format, but tag contains: " + str(multifile))
-        valid = False
+        return False
 
     categories = tag.get(TagFields.CATEGORIES)
-    if categories is not None:
-        if type(categories) is not list:
-            logging.error("tag's field categories is incorrect: " + tag.__str__() + "\n" +
-                          "categories variable should be list format, but tag contains: " + str(type(categories)))
-            valid = False
-        else:
-            for category in categories:
-                if category not in supported_categories:
-                    logging.error("tag contains unsupported category: " + category + "\n" +
-                                  "If you are sure that " + category + " category should be placed in " +
-                                  "Beam Playground, you can add it to the `playground/categories.yaml` file")
-                    valid = False
+    if type(categories) is not list:
+        logging.error("tag's field categories is incorrect: " + tag.__str__() + "\n" +
+                      "categories variable should be list format, but tag contains: " + str(type(categories)))
+        return False
+    else:
+        for category in categories:
+            if category not in supported_categories:
+                logging.error("tag contains unsupported category: " + category + "\n" +
+                              "If you are sure that " + category + " category should be placed in " +
+                              "Beam Playground, you can add it to the `playground/categories.yaml` file")
+                return False
     return valid
 
 

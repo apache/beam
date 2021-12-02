@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import asyncio
+import json
 import logging
 import os
 import shutil
@@ -96,7 +97,7 @@ class CDHelper:
                                               extension=PrecompiledExample.META_EXTENSION)
         file_names[code_path] = example.code
         file_names[output_path] = example.output
-        file_names[meta_path] = str(example.tag._asdict())
+        file_names[meta_path] = json.dumps(example.tag._asdict())
         for file_name, file_content in file_names.items():
             local_file_path = os.path.join(Config.TEMP_FOLDER, example.pipeline_id, file_name)
             with open(local_file_path, "w") as file:

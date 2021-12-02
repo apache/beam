@@ -86,7 +86,7 @@ def test_get_tag_when_tag_does_not_exist():
 def test__check_file_with_correct_tag(mock_get_tag, mock_validate, mock_get_example):
     tag = {"name": "Name"}
     example = Example("filename", "", SDK_UNSPECIFIED, "/root/filename.java", "data", "", STATUS_UNSPECIFIED,
-                      Tag("Name", "Description", False, []))
+                      Tag("Name", "Description", False, [], '--option option'))
     examples = []
 
     mock_get_tag.return_value = tag
@@ -136,11 +136,12 @@ def test__get_example(mock_get_name, mock_get_sdk):
     mock_get_sdk.return_value = SDK_UNSPECIFIED
 
     result = _get_example("/root/filepath.extension", "filepath.extension",
-                          {'name': 'Name', "description": "Description", "multifile": "False", "categories": [""]})
+                          {'name': 'Name', "description": "Description", "multifile": "False", "categories": [""],
+                           "pipeline_options": "--option option"})
 
     assert result == Example("filepath", "", SDK_UNSPECIFIED, "/root/filepath.extension", "data", "",
                              STATUS_UNSPECIFIED,
-                             Tag("Name", "Description", "False", [""]))
+                             Tag("Name", "Description", "False", [""], "--option option"))
     mock_get_name.assert_called_once_with("filepath.extension")
     mock_get_sdk.assert_called_once_with("filepath.extension")
 
@@ -181,7 +182,8 @@ def test__validate_with_not_supported_category():
 
 
 def test__validate_with_all_fields():
-    tag = {"name": "Name", "description": "Description", "multifile": "true", "categories": ["category"]}
+    tag = {"name": "Name", "description": "Description", "multifile": "true", "categories": ["category"],
+           "pipeline_options": "--option option"}
     assert _validate(tag, ["category"]) is True
 
 
