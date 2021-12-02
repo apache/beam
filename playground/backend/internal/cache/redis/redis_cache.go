@@ -101,10 +101,12 @@ func unmarshalBySubKey(subKey cache.SubKey, value string) (result interface{}, e
 	switch subKey {
 	case cache.Status:
 		result = new(pb.Status)
-	case cache.RunOutput, cache.RunError, cache.CompileOutput:
+	case cache.RunOutput, cache.RunError, cache.CompileOutput, cache.Logs:
 		result = ""
 	case cache.Canceled:
 		result = false
+	case cache.RunOutputIndex, cache.LogsIndex:
+		result = 0
 	}
 	err = json.Unmarshal([]byte(value), &result)
 	if err != nil {
