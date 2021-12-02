@@ -19,6 +19,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:playground/modules/editor/parsers/run_options_parser.dart';
 import 'package:playground/modules/editor/repository/code_repository/code_repository.dart';
 import 'package:playground/modules/editor/repository/code_repository/run_code_request.dart';
 import 'package:playground/modules/editor/repository/code_repository/run_code_result.dart';
@@ -34,6 +35,7 @@ class PlaygroundState with ChangeNotifier {
   ExampleModel? _selectedExample;
   String _source = '';
   RunCodeResult? _result;
+  String _runOptions = '';
   DateTime? resetKey;
 
   PlaygroundState({
@@ -42,6 +44,7 @@ class PlaygroundState with ChangeNotifier {
     CodeRepository? codeRepository,
   }) {
     _selectedExample = selectedExample;
+    _runOptions = selectedExample?.runOptions ?? '';
     _sdk = sdk;
     _source = _selectedExample?.source ?? '';
     _codeRepository = codeRepository;
@@ -62,8 +65,11 @@ class PlaygroundState with ChangeNotifier {
 
   RunCodeResult? get result => _result;
 
+  String get runOptions => _runOptions;
+
   setExample(ExampleModel example) {
     _selectedExample = example;
+    _runOptions = example.runOptions ?? '';
     _source = example.source ?? '';
     notifyListeners();
   }
@@ -96,7 +102,20 @@ class PlaygroundState with ChangeNotifier {
     notifyListeners();
   }
 
+  setRunOptions(String options) {
+    _runOptions = options;
+  }
+
   void runCode() {
+    final parsedRunOptions = parseRunOptions(runOptions);
+    if (parsedRunOptions == null) {
+      _result = RunCodeResult(
+          status: RunCodeStatus.compileError,
+          errorMessage:
+              'Failed to parse run options, please check the format (--key1 value1 --key2 value2)');
+      notifyListeners();
+      return;
+    }
     if (_selectedExample?.source == source &&
         _selectedExample?.outputs != null) {
       _result = RunCodeResult(
@@ -105,9 +124,12 @@ class PlaygroundState with ChangeNotifier {
       );
       notifyListeners();
     } else {
-      _codeRepository
-          ?.runCode(RunCodeRequestWrapper(code: source, sdk: sdk))
-          .listen((event) {
+      final request = RunCodeRequestWrapper(
+        code: source,
+        sdk: sdk,
+        runOptions: parsedRunOptions,
+      );
+      _codeRepository?.runCode(request).listen((event) {
         _result = event;
         notifyListeners();
       });
