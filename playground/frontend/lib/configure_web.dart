@@ -16,12 +16,8 @@
  * limitations under the License.
  */
 
-import 'package:flutter/material.dart';
-import 'package:playground/configure_nonweb.dart'
-    if (dart.library.html) 'package:playground/configure_web.dart';
-import 'package:playground/playground_app.dart';
+import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 
-void main() {
-  configureApp();
-  runApp(const PlaygroundApp());
+void configureApp() {
+  setUrlStrategy(PathUrlStrategy());
 }

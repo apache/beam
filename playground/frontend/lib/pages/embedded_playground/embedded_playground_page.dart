@@ -17,31 +17,34 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/config/theme.dart';
-import 'package:playground/pages/playground/components/playground_page_providers.dart';
-import 'package:playground/pages/routes.dart';
-import 'package:provider/provider.dart';
+import 'package:playground/constants/sizes.dart';
+import 'package:playground/pages/embedded_playground/components/embedded_actions.dart';
+import 'package:playground/pages/embedded_playground/components/embedded_editor.dart';
 
-class PlaygroundApp extends StatelessWidget {
-  const PlaygroundApp({Key? key}) : super(key: key);
+const kPlaygroundText = 'Try in Playground';
+const kActionsWidth = 300.0;
+const kActionsHeight = 40.0;
+
+class EmbeddedPlaygroundPage extends StatelessWidget {
+  const EmbeddedPlaygroundPage({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (context) => ThemeProvider(),
-      builder: (context, _) {
-        final themeProvider = Provider.of<ThemeProvider>(context);
-        return PlaygroundPageProviders(
-          child: MaterialApp(
-            title: 'Apache Beam Playground',
-            themeMode: themeProvider.themeMode,
-            theme: kLightTheme,
-            darkTheme: kDarkTheme,
-            onGenerateRoute: Routes.generateRoute,
-            debugShowCheckedModeBanner: false,
+    return Scaffold(
+      body: Stack(
+        children: const [
+          Positioned.fill(
+            child: EmbeddedEditor(),
           ),
-        );
-      },
+          Positioned(
+            right: kXlSpacing,
+            top: kXlSpacing,
+            width: kActionsWidth,
+            height: kActionsHeight,
+            child: EmbeddedActions(),
+          ),
+        ],
+      ),
     );
   }
 }
