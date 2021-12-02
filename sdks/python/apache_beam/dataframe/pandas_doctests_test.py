@@ -249,7 +249,6 @@ class DoctestTest(unittest.TestCase):
                 # frames_test.py::DeferredFrameTest::test_groupby_transform_sum
                 "df.groupby('Date')['Data'].transform('sum')",
             ],
-            'pandas.core.frame.DataFrame.swaplevel': ['*'],
             'pandas.core.frame.DataFrame.melt': ['*'],
             'pandas.core.frame.DataFrame.reindex_axis': ['*'],
             'pandas.core.frame.DataFrame.round': [
