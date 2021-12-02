@@ -900,9 +900,6 @@ public final class KinesisIO {
     private static class KinesisWriterFn extends DoFn<byte[], Void> {
       private static final int MAX_NUM_FAILURES = 10;
 
-      /** Init lock for static, shared Kinesis producer. */
-      private static final Object producerLock = new Object();
-
       /** Usage count of static, shared Kinesis producer. */
       private static int producerRefCount = 0;
 
@@ -928,7 +925,7 @@ public final class KinesisIO {
        * producer instance.
        */
       private void setupSharedProducer() {
-        synchronized (producerLock) {
+        synchronized (KinesisWriterFn.class) {
           if (producer == null) {
             producer =
                 spec.getAWSClientsProvider()
@@ -944,7 +941,7 @@ public final class KinesisIO {
        */
       private void teardownSharedProducer() {
         IKinesisProducer obsolete = null;
-        synchronized (producerLock) {
+        synchronized (KinesisWriterFn.class) {
           if (--producerRefCount == 0) {
             obsolete = producer;
             producer = null;
