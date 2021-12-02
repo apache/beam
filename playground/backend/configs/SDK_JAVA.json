@@ -8,6 +8,7 @@
   ],
   "run_args": [
     "-cp",
-    "bin:"
+    "bin:",
+    "-Djava.util.logging.config.file={logConfigFile}"
   ]
 }

@@ -36,6 +36,9 @@ func TestSetupExecutor(t *testing.T) {
 		CompileArgs: []string{"MOCK_COMPILE_ARG"},
 		RunArgs:     []string{"MOCK_RUN_ARG"},
 	}
+	if err != nil {
+		panic(err)
+	}
 
 	sdkEnv := environment.NewBeamEnvs(sdk, executorConfig, "")
 	val, err := utils.GetValidators(sdk, lc.GetAbsoluteSourceFilePath())
