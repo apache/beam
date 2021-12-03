@@ -131,20 +131,21 @@ public class AwsModuleTest {
   @Test
   public void testStsAssumeRoleCredentialsProviderSerializationDeserialization() throws Exception {
     AssumeRoleRequest req = AssumeRoleRequest.builder().roleArn("roleArn").policy("policy").build();
-    AwsCredentialsProvider provider =
-        StsAssumeRoleCredentialsProvider.builder()
-            .stsClient(StsClient.create())
-            .refreshRequest(req)
-            .build();
+    Supplier<AwsCredentialsProvider> provider =
+        () ->
+            StsAssumeRoleCredentialsProvider.builder()
+                .stsClient(StsClient.create())
+                .refreshRequest(req)
+                .build();
 
     Properties overrides = new Properties();
-    overrides.setProperty(AWS_REGION.property(), Regions.AP_EAST_1.getName());
+    overrides.setProperty(AWS_REGION.property(), Regions.US_EAST_1.getName());
     overrides.setProperty(AWS_ACCESS_KEY_ID.property(), ACCESS_KEY);
     overrides.setProperty(AWS_SECRET_ACCESS_KEY.property(), SECRET_KEY);
 
     // Region and credentials for STS client are resolved using default providers
     AwsCredentialsProvider deserializedProvider =
-        withSystemPropertyOverrides(overrides, () -> serializeAndDeserialize(provider));
+        withSystemPropertyOverrides(overrides, () -> serializeAndDeserialize(provider.get()));
 
     Supplier<AssumeRoleRequest> requestSupplier =
         (Supplier<AssumeRoleRequest>)
