@@ -30,6 +30,9 @@ func TestSetupExecutor(t *testing.T) {
 	pipelineId := uuid.New()
 	sdk := pb.Sdk_SDK_JAVA
 	lc, err := fs_tool.NewLifeCycle(sdk, pipelineId, "")
+	if err != nil {
+		panic(err)
+	}
 	executorConfig := &environment.ExecutorConfig{
 		CompileCmd:  "MOCK_COMPILE_CMD",
 		RunCmd:      "MOCK_RUN_CMD",

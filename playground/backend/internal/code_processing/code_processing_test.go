@@ -35,8 +35,12 @@ import (
 	"time"
 )
 
-const javaConfig = "{\n  \"compile_cmd\": \"javac\",\n  \"run_cmd\": \"java\",\n  \"compile_args\": [\"-d\", \"bin\", \"-classpath\"],\n  \"run_args\": [\"-cp\", \"bin:\"]\n}"
-const fileName = "fakeFileName"
+const (
+	javaConfig     = "{\n  \"compile_cmd\": \"javac\",\n  \"run_cmd\": \"java\",\n  \"compile_args\": [\"-d\", \"bin\", \"-classpath\"],\n  \"run_args\": [\"-cp\", \"bin:\"]\n}"
+	fileName       = "fakeFileName"
+	baseFileFolder = "executable_files"
+	configFolder   = "configs"
+)
 
 var opt goleak.Option
 var cacheService cache.Cache
@@ -72,11 +76,11 @@ func setup() {
 }
 
 func teardown() {
-	err := os.RemoveAll("configs")
+	err := os.RemoveAll(configFolder)
 	if err != nil {
 		panic(fmt.Errorf("error during test teardown: %s", err.Error()))
 	}
-	err = os.RemoveAll("executable_files")
+	err = os.RemoveAll(baseFileFolder)
 	if err != nil {
 		panic(fmt.Errorf("error during test teardown: %s", err.Error()))
 	}
@@ -268,10 +272,6 @@ func Test_Process(t *testing.T) {
 			if !reflect.DeepEqual(runError, tt.expectedRunError) {
 				t.Errorf("processCode() set runError: %s, but expectes: %s", runError, tt.expectedRunError)
 			}
-
-			// remove
-			path := os.Getenv("APP_WORK_DIR") + "/executable_files"
-			os.RemoveAll(path)
 		})
 	}
 }
@@ -535,9 +535,10 @@ func Test_setJavaExecutableFile(t *testing.T) {
 		dir             string
 	}
 	tests := []struct {
-		name string
-		args args
-		want executors.Executor
+		name    string
+		args    args
+		want    executors.Executor
+		wantErr bool
 	}{
 		{
 			name: "set executable name to runner",
@@ -549,12 +550,16 @@ func Test_setJavaExecutableFile(t *testing.T) {
 				executorBuilder: &executorBuilder,
 				dir:             "",
 			},
-			want: executors.NewExecutorBuilder().WithRunner().WithCommand("fake cmd").WithExecutableFileName(fileName).Build(),
+			want:    executors.NewExecutorBuilder().WithRunner().WithCommand("fake cmd").WithExecutableFileName(fileName).Build(),
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := setJavaExecutableFile(tt.args.lc, tt.args.id, tt.args.service, tt.args.ctx, tt.args.executorBuilder, tt.args.dir)
+			got, err := setJavaExecutableFile(tt.args.lc, tt.args.id, tt.args.service, tt.args.ctx, tt.args.executorBuilder, tt.args.dir)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("setJavaExecutableFile() error = %v, wantErr %v", err, tt.wantErr)
+			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("setJavaExecutableFile() = %v, want %v", got, tt.want)
 			}

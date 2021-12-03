@@ -26,7 +26,8 @@ import (
 )
 
 const (
-	fileMode = 0600
+	fileMode    = 0600
+	logFileName = "logs.log"
 )
 
 // Folder contains names of folders with executable and compiled files.
@@ -169,5 +170,12 @@ func (l *LifeCycle) GetAbsoluteExecutableFilePath() string {
 // GetAbsoluteBaseFolderPath returns absolute path to executable folder (/path/to/workingDir/executable_files/{pipelineId}).
 func (l *LifeCycle) GetAbsoluteBaseFolderPath() string {
 	absoluteFilePath, _ := filepath.Abs(l.Folder.BaseFolder)
+	return absoluteFilePath
+}
+
+// GetAbsoluteLogFilePath returns absolute path to the logs file (/path/to/workingDir/executable_files/{pipelineId}/logs.log)
+func (l *LifeCycle) GetAbsoluteLogFilePath() string {
+	filePath := filepath.Join(l.Folder.BaseFolder, logFileName)
+	absoluteFilePath, _ := filepath.Abs(filePath)
 	return absoluteFilePath
 }
