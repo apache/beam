@@ -22,8 +22,9 @@ import (
 
 func TestInternalError(t *testing.T) {
 	type args struct {
-		title   string
-		message string
+		title         string
+		formatMessage string
+		arg           interface{}
 	}
 	tests := []struct {
 		name     string
@@ -31,12 +32,18 @@ func TestInternalError(t *testing.T) {
 		expected string
 		wantErr  bool
 	}{
-		{name: "TestInternalError", args: args{title: "TEST_TITLE", message: "TEST_MESSAGE"},
-			expected: "rpc error: code = Internal desc = TEST_TITLE: TEST_MESSAGE", wantErr: true},
+		{
+			// Test case with calling InternalError method.
+			// As a result, want to receive error with correct error message.
+			name:     "TestInternalError",
+			args:     args{title: "TEST_TITLE", formatMessage: "TEST_FORMAT_MESSAGE %s", arg: "TEST_ARG"},
+			expected: "rpc error: code = Internal desc = TEST_TITLE: TEST_FORMAT_MESSAGE TEST_ARG",
+			wantErr:  true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := InternalError(tt.args.title, tt.args.message)
+			err := InternalError(tt.args.title, tt.args.formatMessage, tt.args.arg)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("InternalError() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -49,8 +56,9 @@ func TestInternalError(t *testing.T) {
 
 func TestInvalidArgumentError(t *testing.T) {
 	type args struct {
-		title   string
-		message string
+		title         string
+		formatMessage string
+		arg           interface{}
 	}
 	tests := []struct {
 		name     string
@@ -58,12 +66,18 @@ func TestInvalidArgumentError(t *testing.T) {
 		expected string
 		wantErr  bool
 	}{
-		{name: "TestInvalidArgumentError", args: args{title: "TEST_TITLE", message: "TEST_MESSAGE"},
-			expected: "rpc error: code = InvalidArgument desc = TEST_TITLE: TEST_MESSAGE", wantErr: true},
+		{
+			// Test case with calling InvalidArgumentError method.
+			// As a result, want to receive error with correct error message.
+			name:     "TestInvalidArgumentError",
+			args:     args{title: "TEST_TITLE", formatMessage: "TEST_FORMAT_MESSAGE %s", arg: "TEST_ARG"},
+			expected: "rpc error: code = InvalidArgument desc = TEST_TITLE: TEST_FORMAT_MESSAGE TEST_ARG",
+			wantErr:  true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := InvalidArgumentError(tt.args.title, tt.args.message)
+			err := InvalidArgumentError(tt.args.title, tt.args.formatMessage, tt.args.arg)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("InvalidArgumentError() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -76,8 +90,9 @@ func TestInvalidArgumentError(t *testing.T) {
 
 func TestNotFoundError(t *testing.T) {
 	type args struct {
-		title   string
-		message string
+		title         string
+		formatMessage string
+		arg           interface{}
 	}
 	tests := []struct {
 		name     string
@@ -85,12 +100,18 @@ func TestNotFoundError(t *testing.T) {
 		expected string
 		wantErr  bool
 	}{
-		{name: "TestNotFoundError", args: args{title: "TEST_TITLE", message: "TEST_MESSAGE"},
-			expected: "rpc error: code = NotFound desc = TEST_TITLE: TEST_MESSAGE", wantErr: true},
+		{
+			// Test case with calling NotFoundError method.
+			// As a result, want to receive error with correct error message.
+			name:     "TestNotFoundError",
+			args:     args{title: "TEST_TITLE", formatMessage: "TEST_FORMAT_MESSAGE %s", arg: "TEST_ARG"},
+			expected: "rpc error: code = NotFound desc = TEST_TITLE: TEST_FORMAT_MESSAGE TEST_ARG",
+			wantErr:  true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := NotFoundError(tt.args.title, tt.args.message)
+			err := NotFoundError(tt.args.title, tt.args.formatMessage, tt.args.arg)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NotFoundError() error = %v, wantErr %v", err, tt.wantErr)
 			}
