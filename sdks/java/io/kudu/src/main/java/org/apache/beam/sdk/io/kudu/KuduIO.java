@@ -50,8 +50,6 @@ import org.apache.kudu.client.KuduPredicate;
 import org.apache.kudu.client.Operation;
 import org.apache.kudu.client.RowResult;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A bounded source and sink for Kudu.
@@ -126,7 +124,6 @@ import org.slf4j.LoggerFactory;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class KuduIO {
-  private static final Logger LOG = LoggerFactory.getLogger(KuduIO.class);
 
   private KuduIO() {}
 

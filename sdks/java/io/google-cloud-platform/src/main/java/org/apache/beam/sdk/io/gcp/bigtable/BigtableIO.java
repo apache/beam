@@ -912,7 +912,6 @@ public class BigtableIO {
     private final BigtableConfig config;
     private final BigtableReadOptions readOptions;
     private @Nullable Long estimatedSizeBytes;
-    private transient @Nullable List<SampleRowKeysResponse> sampleRowKeys;
 
     /** Creates a new {@link BigtableSource} with just one {@link ByteKeyRange}. */
     protected BigtableSource withSingleRange(ByteKeyRange range) {
