@@ -29,10 +29,9 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -87,13 +86,13 @@ class FieldAccessVisitor extends PipelineVisitor.Defaults {
 
   private static Pair<TupleTag<?>, PCollection<?>> getMainInputTagId(Node node) {
     HashSet<TupleTag<?>> mainInputTags = new HashSet<>(node.getInputs().keySet());
-    Map<TupleTag<?>, PValue> additionalInputs = node.getTransform().getAdditionalInputs();
-    if (additionalInputs != null) {
-      mainInputTags.removeAll(additionalInputs.keySet());
+    PTransform<?, ?> transform = node.getTransform();
+    if (transform != null) {
+      mainInputTags.removeAll(transform.getAdditionalInputs().keySet());
     }
     TupleTag<?> mainInputTag = Iterables.getOnlyElement(mainInputTags);
     PCollection<?> pCollection = node.getInputs().get(mainInputTag);
-    Preconditions.checkNotNull(pCollection);
+    Preconditions.checkArgumentNotNull(pCollection);
     return Pair.of(mainInputTag, pCollection);
   }
 }
