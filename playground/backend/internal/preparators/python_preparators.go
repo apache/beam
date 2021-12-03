@@ -15,7 +15,82 @@
 
 package preparators
 
+import (
+	"beam.apache.org/playground/backend/internal/logger"
+	"bufio"
+	"io"
+	"os"
+)
+
+const (
+	addLogHandlerCode = "import logging\nlogging.basicConfig(\n    level=logging.DEBUG,\n    format=\"%(asctime)s [%(levelname)s] %(message)s\",\n    handlers=[\n        logging.FileHandler(\"logs.log\"),\n    ]\n)\n"
+)
+
 // GetPythonPreparators returns preparation methods that should be applied to Python code
 func GetPythonPreparators(filePath string) *[]Preparator {
-	return &[]Preparator{}
+	addLogHandler := Preparator{
+		Prepare: addToCode,
+		Args:    []interface{}{filePath, addLogHandlerCode},
+	}
+	return &[]Preparator{addLogHandler}
+}
+
+// addToCode processes file by filePath and adds additional code
+func addToCode(args ...interface{}) error {
+	filePath := args[0].(string)
+	additionalCode := args[1].(string)
+
+	file, err := os.Open(filePath)
+	if err != nil {
+		logger.Errorf("Preparation: Error during open file: %s, err: %s\n", filePath, err.Error())
+		return err
+	}
+	defer file.Close()
+
+	tmp, err := createTempFile(filePath)
+	if err != nil {
+		logger.Errorf("Preparation: Error during create new temporary file, err: %s\n", err.Error())
+		return err
+	}
+	defer tmp.Close()
+
+	err = writeCodeToFile(file, tmp, additionalCode)
+	if err != nil {
+		logger.Errorf("Preparation: Error during write data to tmp file, err: %s\n", err.Error())
+		return err
+	}
+
+	// replace original file with temporary file with renaming
+	if err = os.Rename(tmp.Name(), filePath); err != nil {
+		logger.Errorf("Preparation: Error during rename temporary file, err: %s\n", err.Error())
+		return err
+	}
+	return nil
+}
+
+// writeCodeToFile rewrites all lines from file with adding additional code to another file
+// New code is added to the top of the file.
+func writeCodeToFile(from *os.File, to *os.File, code string) error {
+	if err := writeToFile(to, code); err != nil {
+		return err
+	}
+
+	scanner := bufio.NewScanner(from)
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		if err := writeToFile(to, line+"\n"); err != nil {
+			return err
+		}
+	}
+	return scanner.Err()
+}
+
+// writeToFile writes str to the file.
+func writeToFile(to *os.File, str string) error {
+	if _, err := io.WriteString(to, str); err != nil {
+		logger.Errorf("Preparation: Error during write \"%s\" to tmp file, err: %s\n", str, err.Error())
+		return err
+	}
+	return nil
 }
