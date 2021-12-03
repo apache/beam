@@ -20,7 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/editor/components/editor_textarea.dart';
 import 'package:playground/modules/editor/components/run_button.dart';
-import 'package:playground/modules/editor/components/run_options_text_field.dart';
+import 'package:playground/modules/editor/components/pipeline_options_text_field.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/notifications/components/notification.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
@@ -70,9 +70,9 @@ class CodeTextAreaWrapper extends StatelessWidget {
               ],
             ),
           ),
-          RunOptionsTextField(
-            runOptions: state.runOptions,
-            onChange: state.setRunOptions,
+          PipelineOptionsTextField(
+            pipelineOptions: state.pipelineOptions,
+            onChange: state.setPipelineOptions,
           ),
         ],
       );

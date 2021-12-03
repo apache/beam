@@ -24,12 +24,13 @@ String getGroupValue(RegExpMatch match, int groupNum) {
   return match.group(groupNum)?.trim() ?? '';
 }
 
-Map<String, String>? parseRunOptions(String runOptions) {
+/// Parses pipeline options string (--key value) to the key-value map
+Map<String, String>? parsePipelineOptions(String pipelineOptions) {
   final Map<String, String> result = {};
-  if (runOptions.isEmpty) {
+  if (pipelineOptions.isEmpty) {
     return result;
   }
-  final matches = regExp.allMatches(runOptions);
+  final matches = regExp.allMatches(pipelineOptions);
   if (matches.isEmpty) {
     return null;
   }
@@ -48,4 +49,9 @@ Map<String, String>? parseRunOptions(String runOptions) {
     result[key] = value;
   }
   return result;
+}
+
+/// Converts pipeline options to --key value string
+String pipelineOptionsToString(Map<String, String> pipelineOptions) {
+  return pipelineOptions.entries.map((e) => '--${e.key} ${e.value}').join(' ');
 }

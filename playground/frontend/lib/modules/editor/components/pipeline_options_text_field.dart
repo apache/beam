@@ -24,24 +24,24 @@ const kPlaceholderText =
     'Add Pipeline Options here in the format --key1 value1 --key2 value2';
 const kLabelText = 'Pipeline Options:';
 
-class RunOptionsTextField extends StatefulWidget {
-  final String runOptions;
+class PipelineOptionsTextField extends StatefulWidget {
+  final String pipelineOptions;
   final Function(String value) onChange;
 
-  const RunOptionsTextField(
-      {Key? key, required this.runOptions, required this.onChange})
+  const PipelineOptionsTextField(
+      {Key? key, required this.pipelineOptions, required this.onChange})
       : super(key: key);
 
   @override
-  State<RunOptionsTextField> createState() => _RunOptionsTextFieldState();
+  State<PipelineOptionsTextField> createState() => _PipelineOptionsTextFieldState();
 }
 
-class _RunOptionsTextFieldState extends State<RunOptionsTextField> {
+class _PipelineOptionsTextFieldState extends State<PipelineOptionsTextField> {
   TextEditingController? _controller;
 
   @override
   void didChangeDependencies() {
-    _controller = TextEditingController(text: widget.runOptions);
+    _controller = TextEditingController(text: widget.pipelineOptions);
     _controller?.addListener(() => widget.onChange(_controller?.text ?? ''));
     super.didChangeDependencies();
   }

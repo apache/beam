@@ -28,6 +28,8 @@ import 'package:playground/modules/sdk/models/sdk.dart';
 
 const kTitleLength = 15;
 const kTitle = 'Catalog';
+const kPipelineOptionsParseError =
+    'Failed to parse pipeline options, please check the format (--key1 value1 --key2 value2)';
 
 class PlaygroundState with ChangeNotifier {
   late SDK _sdk;
@@ -35,7 +37,7 @@ class PlaygroundState with ChangeNotifier {
   ExampleModel? _selectedExample;
   String _source = '';
   RunCodeResult? _result;
-  String _runOptions = '';
+  String _pipelineOptions = '';
   DateTime? resetKey;
 
   PlaygroundState({
@@ -44,7 +46,7 @@ class PlaygroundState with ChangeNotifier {
     CodeRepository? codeRepository,
   }) {
     _selectedExample = selectedExample;
-    _runOptions = selectedExample?.runOptions ?? '';
+    _pipelineOptions = selectedExample?.pipelineOptions ?? '';
     _sdk = sdk;
     _source = _selectedExample?.source ?? '';
     _codeRepository = codeRepository;
@@ -65,11 +67,11 @@ class PlaygroundState with ChangeNotifier {
 
   RunCodeResult? get result => _result;
 
-  String get runOptions => _runOptions;
+  String get pipelineOptions => _pipelineOptions;
 
   setExample(ExampleModel example) {
     _selectedExample = example;
-    _runOptions = example.runOptions ?? '';
+    _pipelineOptions = example.pipelineOptions ?? '';
     _source = example.source ?? '';
     notifyListeners();
   }
@@ -102,17 +104,17 @@ class PlaygroundState with ChangeNotifier {
     notifyListeners();
   }
 
-  setRunOptions(String options) {
-    _runOptions = options;
+  setPipelineOptions(String options) {
+    _pipelineOptions = options;
   }
 
   void runCode() {
-    final parsedRunOptions = parseRunOptions(runOptions);
-    if (parsedRunOptions == null) {
+    final parsedPipelineOptions = parsePipelineOptions(pipelineOptions);
+    if (parsedPipelineOptions == null) {
       _result = RunCodeResult(
-          status: RunCodeStatus.compileError,
-          errorMessage:
-              'Failed to parse run options, please check the format (--key1 value1 --key2 value2)');
+        status: RunCodeStatus.compileError,
+        errorMessage: kPipelineOptionsParseError,
+      );
       notifyListeners();
       return;
     }
@@ -127,7 +129,7 @@ class PlaygroundState with ChangeNotifier {
       final request = RunCodeRequestWrapper(
         code: source,
         sdk: sdk,
-        runOptions: parsedRunOptions,
+        pipelineOptions: parsedPipelineOptions,
       );
       _codeRepository?.runCode(request).listen((event) {
         _result = event;

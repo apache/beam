@@ -21,11 +21,11 @@ import 'package:playground/modules/sdk/models/sdk.dart';
 class RunCodeRequestWrapper {
   final String code;
   final SDK sdk;
-  final Map<String, String> runOptions;
+  final Map<String, String> pipelineOptions;
 
   RunCodeRequestWrapper({
     required this.code,
     required this.sdk,
-    required this.runOptions,
+    required this.pipelineOptions,
   });
 }

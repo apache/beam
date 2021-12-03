@@ -20,24 +20,40 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:playground/modules/editor/parsers/run_options_parser.dart';
 
 void main() {
-  group('RunOptions parser', () {
+  group('PipelineOptions parser', () {
     test('should return null if cant parse options', () {
-      expect(parseRunOptions('--key1'), null);
-      expect(parseRunOptions('--key1 value --key'), null);
-      expect(parseRunOptions('-key1 value'), null);
-      expect(parseRunOptions('- -key1 value'), null);
+      expect(parsePipelineOptions('--key1'), null);
+      expect(parsePipelineOptions('--key1 value --key'), null);
+      expect(parsePipelineOptions('-key1 value'), null);
+      expect(parsePipelineOptions('- -key1 value'), null);
     });
     test('should return empty map if empty', () {
-      expect(parseRunOptions(''), {});
+      expect(parsePipelineOptions(''), {});
     });
     test('should parse correct options string', () {
       expect(
-        parseRunOptions('--key1 value1 --key2 value2'),
+        parsePipelineOptions('--key1 value1 --key2 value2'),
         {'key1': 'value1', 'key2': 'value2'},
       );
       expect(
-        parseRunOptions('--key1    value1     --key2     value2'),
+        parsePipelineOptions('--key1    value1     --key2     value2'),
         {'key1': 'value1', 'key2': 'value2'},
+      );
+    });
+  });
+  group('PipelineOptions to string', () {
+    test('should return empty string for empty map', () {
+      expect(pipelineOptionsToString({}), '');
+    });
+    test('should correctly transform single option', () {
+      expect(pipelineOptionsToString({'key': 'value'}), '--key value');
+    });
+    test('should correctly transform multiple options', () {
+      expect(
+        pipelineOptionsToString(
+          {'key': 'value', 'key2': 'value2', 'key3': 'value3'},
+        ),
+        '--key value --key2 value2 --key3 value3',
       );
     });
   });
