@@ -38,7 +38,7 @@ To use Beam DataFrames, you need to install Beam python version 2.26.0 or higher
 pip install apache_beam[dataframe]
 ```
 
-Note that the _same_ `pandas` version should be installed on workers when executing DataFrame API pipelines on distributed runners.  Reference [`base_image_requirements.txt`](https://github.com/apache/beam/blob/master/sdks/python/container/base_image_requirements.txt) for the Beam release you are using to see what version of `pandas` will be used by default on workers.
+Note that the _same_ `pandas` version should be installed on workers when executing DataFrame API pipelines on distributed runners.  Reference [`base_image_requirements.txt`](https://github.com/apache/beam/blob/master/sdks/python/container/py38/base_image_requirements.txt) for the Python version and Beam release you are using to see what version of `pandas` will be used by default on workers.
 
 ## Using DataFrames
 You can use DataFrames as shown in the following example, which reads New York City taxi data from a CSV file, performs a grouped aggregation, and writes the output back to CSV:
