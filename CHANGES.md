@@ -32,8 +32,6 @@
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-* Remote packages can now be downloaded from locations supported by apache_beam.io.filesystems. The files will be downloaded on Stager and uploaded to staging location. For more information, see [BEAM-11275](https://issues.apache.org/jira/browse/BEAM-11275)
-* Added support for cloudpickle as a pickling library for Python SDK. To use cloudpickle set pipeline options, --pickler_lib=cloudpickle.
 
 ## Breaking Changes
 
@@ -51,16 +49,32 @@
 
 * ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 -->
-# [2.35.0] - Unreleased
+# 2.36.0 - Unreleased
 
 ## Highlights
 
-* New highly anticipated feature X added to Python SDK ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-* New highly anticipated feature Y added to Java SDK ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
+## I/Os
+
+## New Features / Improvements
+
+## Breaking Changes
+
+## Deprecations
+
+## Bugfixes
+
+## Known Issues
+
+
+# [2.35.0] - 2021-12-08
+
+## Highlights
+
+* MultiMap side inputs are now supported by the Go SDK ([BEAM-3293](https://issues.apache.org/jira/browse/BEAM-3293)).
+* Side inputs are supported within Splittable DoFns for Dataflow Runner V1 and Dataflow Runner V2. ([BEAM-12522](https://issues.apache.org/jira/browse/BEAM-12522)).
 
 ## I/Os
 
-* Support for X source added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 * We changed the data type for ranges in `JdbcIO.readWithPartitions` from `int` to `long`. This is a relatively minor
     breaking change, which we're implementing to improve the usability of the transform without increasing cruft.
     This transform is relatively new, so we may implement other breaking changes in the future to improve its usability.
@@ -68,9 +82,8 @@
 
 ## New Features / Improvements
 
-* X feature added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-* Add custom delimiters to Python TextIO reads ([BEAM-12730](https://issues.apache.org/jira/browse/BEAM-12730)).
-* Add escapechar parameter to Python TextIO reads ([BEAM-13189](https://issues.apache.org/jira/browse/BEAM-13189)).
+* Added custom delimiters to Python TextIO reads ([BEAM-12730](https://issues.apache.org/jira/browse/BEAM-12730)).
+* Added escapechar parameter to Python TextIO reads ([BEAM-13189](https://issues.apache.org/jira/browse/BEAM-13189)).
 * Splittable reading is enabled by default while reading data with ParquetIO ([BEAM-12070](https://issues.apache.org/jira/browse/BEAM-12070)).
 * DoFn Execution Time metrics added to Go ([BEAM-13001](https://issues.apache.org/jira/browse/BEAM-13001)).
 * Cross-bundle side input caching is now available in the Go SDK for runners that support the feature by setting the EnableSideInputCache hook ([BEAM-11097](https://issues.apache.org/jira/browse/BEAM-11097)).
@@ -79,32 +92,28 @@
   see [this table](https://storage.googleapis.com/cloud-opensource-java-dashboard/com.google.cloud/libraries-bom/24.0.0/artifact_details.html).
 * Removed avro-python3 dependency in AvroIO. Fastavro has already been our Avro library of choice on Python 3. Boolean use_fastavro is left for api compatibility, but will have no effect.([BEAM-13016](https://github.com/apache/beam/pull/15900)).
 * MultiMap side inputs are now supported by the Go SDK ([BEAM-3293](https://issues.apache.org/jira/browse/BEAM-3293)).
+* Remote packages can now be downloaded from locations supported by apache_beam.io.filesystems. The files will be downloaded on Stager and uploaded to staging location. For more information, see [BEAM-11275](https://issues.apache.org/jira/browse/BEAM-11275)
+* Added support for cloudpickle as a pickling library for Python SDK. To use cloudpickle set pipeline option: --pickler_lib=cloudpickle
 
 ## Breaking Changes
 
-* X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 * A new URN convention was adopted for cross-language transforms and existing URNs were updated. This may break advanced use-cases, for example, if a custom expansion service is used to connect diffrent Beam Java and Python versions. ([BEAM-12047](https://issues.apache.org/jira/browse/BEAM-12047)).
 * The upgrade to Calcite 1.28.0 introduces a breaking change in the SUBSTRING function in SqlTransform, when used with the Calcite dialect ([BEAM-13099](https://issues.apache.org/jira/browse/BEAM-13099), [CALCITE-4427](https://issues.apache.org/jira/browse/CALCITE-4427)).
 
 ## Deprecations
 
-* X behavior is deprecated and will be removed in X versions ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 * Non-splittable reading is deprecated while reading data with ParquetIO ([BEAM-12070](https://issues.apache.org/jira/browse/BEAM-12070)).
 
 ## Bugfixes
 
-* Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 * Properly map main input windows to side input windows by default (Go)
   ([BEAM-11087](https://issues.apache.org/jira/browse/BEAM-11087)).
 * Fixed data loss when writing to DynamoDB without setting deduplication key names (Java)
   ([BEAM-13009](https://issues.apache.org/jira/browse/BEAM-13009)).
 * Go SDK Examples now have types and functions registered. (Go) ([BEAM-5378](https://issues.apache.org/jira/browse/BEAM-5378))
 
-## Known Issues
-
-* ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-
 # [2.34.0] - 2021-11-11
+
 ## Highlights
 
 * The Beam Java API for Calcite SqlTransform is no longer experimental ([BEAM-12680](https://issues.apache.org/jira/browse/BEAM-12680)).
@@ -118,12 +127,12 @@
 
 ## New Features / Improvements
 
-* Upgrade to Calcite 1.26.0 ([BEAM-9379](https://issues.apache.org/jira/browse/BEAM-9379)).
+* Upgraded to Calcite 1.26.0 ([BEAM-9379](https://issues.apache.org/jira/browse/BEAM-9379)).
 * Added a new `dataframe` extra to the Python SDK that tracks `pandas` versions
   we've verified compatibility with. We now recommend installing Beam with `pip
   install apache-beam[dataframe]` when you intend to use the DataFrame API
   ([BEAM-12906](https://issues.apache.org/jira/browse/BEAM-12906)).
-* Add an [example](https://github.com/cometta/python-apache-beam-spark) of deploying Python Apache Beam job with Spark Cluster
+* Added an [example](https://github.com/cometta/python-apache-beam-spark) of deploying Python Apache Beam job with Spark Cluster
 
 ## Breaking Changes
 
