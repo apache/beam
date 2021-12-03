@@ -28,6 +28,9 @@ back to collapsed details
 &lt;tr>
 &lt;th>Checkpoint&lt;/th>
 &lt;/tr>
+&lt;tr>
+&lt;th>Key-ordered delivery&lt;/th>
+&lt;/tr>
 &lt;/table>
 &lt;/div>
 &lt;div class="table-right big-right">
@@ -151,6 +154,65 @@ Samza has a native checkpoint capability.
 &lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
 &lt;b>
 &lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : &lt;/p>
+&lt;/b>
+&lt;br>
+Dataflow performs different shuffling algorithms for batch and streaming. Dataflow guarantees key-ordered delivery in streaming, though not in batch.
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : &lt;/p>
+&lt;/b>
+&lt;br>
+Flink may perform different shuffling algorithms for batch and streaming. Flink guarantees key-ordered delivery in streaming, though not in batch.
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>Unverified : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>Unverified : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>Unverified : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : &lt;/p>
+&lt;/b>
+&lt;br>
+Samza may perform different shuffling algorithms for batch and streaming. Samza guarantees key-ordered delivery in streaming, though not in batch.
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>Unverified : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>Unverified : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>Unverified : &lt;/p>
 &lt;/b>
 &lt;br>
 &lt;/td>

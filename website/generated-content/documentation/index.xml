@@ -15395,7 +15395,9 @@ serializing the elements and broadcasting them to all the workers executing
 the &lt;code>ParDo&lt;/code>.&lt;/li>
 &lt;li>Passing elements between transforms that are running on the same worker.
 This may allow the runner to avoid serializing elements; instead, the runner
-can just pass the elements in memory.&lt;/li>
+can just pass the elements in memory. This is done as part of an
+optimization that is known as
+&lt;a href="https://beam.apache.org/documentation/glossary/#fusion">fusion&lt;/a>.&lt;/li>
 &lt;/ul>
 &lt;p>Some situations where the runner may serialize and persist elements are:&lt;/p>
 &lt;ol>
@@ -15420,6 +15422,41 @@ choose an appropriate middle-ground between persisting results after every
 element, and having to retry everything if there is a failure. For example, a
 streaming runner may prefer to process and commit small bundles, and a batch
 runner may prefer to process larger bundles.&lt;/p>
+&lt;h3 id="data-partitioning-and-inter-stage-execution">Data partitioning and inter-stage execution&lt;/h3>
+&lt;p>Partitioning and parallelization of element processing within a Beam pipeline is
+dependent on two things:&lt;/p>
+&lt;ul>
+&lt;li>Data source implementation&lt;/li>
+&lt;li>Inter-stage key parallelism&lt;/li>
+&lt;/ul>
+&lt;p>Beam pipelines read data from a source (e.g. &lt;code>KafkaIO&lt;/code>, &lt;code>BigQueryIO&lt;/code>, &lt;code>JdbcIO&lt;/code>,
+or your own source implementation). To implement a Source in Beam one must
+implement it as a Splittable &lt;code>DoFn&lt;/code>. A Splittable &lt;code>DoFn&lt;/code> provides the runner
+with interfaces to facilitate the splitting of work.&lt;/p>
+&lt;p>When running key-based operations in Beam (e.g. &lt;code>GroupByKey&lt;/code>, &lt;code>Combine&lt;/code>,
+&lt;code>Reshuffle.perKey&lt;/code>, and stateful &lt;code>DoFn&lt;/code>s), Beam runners perform serialization
+and transfer of data known as &lt;em>shuffle&lt;/em>&lt;sup>1&lt;/sup>. Shuffle allows data
+elements of the same key to be processed together.&lt;/p>
+&lt;p>The way in which runners &lt;em>shuffle&lt;/em> data may be slightly different for Batch and
+Streaming execution modes.&lt;/p>
+&lt;p>&lt;sup>1&lt;/sup>Not to be confused with the &lt;code>shuffle&lt;/code> operation in some runners.&lt;/p>
+&lt;h4 id="data-ordering-in-a-pipeline-execution">Data ordering in a pipeline execution&lt;/h4>
+&lt;p>The Beam model does not define strict guidelines regarding the order in which
+runners process elements or transport them across &lt;code>PTransforms&lt;/code>. Runners are
+free to implement data transfer semantics in different forms.&lt;/p>
+&lt;p>Some use cases exist where user pipelines may need to rely on specific ordering
+semantics in pipeline execution. The &lt;a href="/documentation/runners/capability-matrix/additional-common-features-not-yet-part-of-the-beam-model/index.html">capability matrix documents&lt;/a>
+runner behavior for &lt;strong>key-ordered delivery&lt;/strong>.&lt;/p>
+&lt;p>Consider a single Beam worker processing a series of bundles from the same Beam
+transform, and consider a &lt;code>PTransform&lt;/code> that outputs data from this Stage into a
+downstream &lt;code>PCollection&lt;/code>. Finally, consider two events &lt;em>with the same key&lt;/em>
+emitted in a certain order by this worker (within the same bundle or as part of
+different bundles).&lt;/p>
+&lt;p>We say that the Beam runner supports &lt;strong>key-ordered delivery&lt;/strong> if it guarantees
+that these two events will be observed in the same order by a PTransform that is
+immediately downstream independently of the kind of data transmission method.&lt;/p>
+&lt;p>This characteristic will hold true in runners and operations that have
+key-limited parallelism.&lt;/p>
 &lt;h2 id="parallelism">Failures and parallelism within and between transforms&lt;/h2>
 &lt;p>In this section, we discuss how elements in the input collection are processed
 in parallel, and how transforms are retried when failures occur.&lt;/p>
