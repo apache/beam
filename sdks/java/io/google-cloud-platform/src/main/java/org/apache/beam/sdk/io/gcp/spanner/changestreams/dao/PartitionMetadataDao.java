@@ -453,7 +453,7 @@ public class PartitionMetadataDao {
      * @return the partition metadata for the given token if it exists. Otherwise, it throws a
      *     {@link PartitionNotFoundException}
      */
-    public PartitionMetadata getPartition(String partitionToken) {
+    public @Nullable PartitionMetadata getPartition(String partitionToken) {
       try (Scope scope =
           TRACER.spanBuilder("getPartition").setRecordEvents(true).startScopedSpan()) {
         TRACER
@@ -474,52 +474,8 @@ public class PartitionMetadataDao {
           if (resultSet.next()) {
             return mapper.from(resultSet);
           }
-          throw new PartitionNotFoundException(partitionToken);
+          return null;
         }
-      }
-    }
-
-    /**
-     * Checks whether the given partition token exists in the metadata table.
-     *
-     * @param partitionToken the partition unique identifier
-     * @return a boolean representing whether the partition exists
-     */
-    public boolean partitionExists(String partitionToken) {
-      try (Scope scope =
-          TRACER.spanBuilder("partitionExists").setRecordEvents(true).startScopedSpan()) {
-        TRACER
-            .getCurrentSpan()
-            .putAttribute(
-                PARTITION_ID_ATTRIBUTE_LABEL, AttributeValue.stringAttributeValue(partitionToken));
-        try (ResultSet resultSet =
-            transaction.executeQuery(
-                Statement.newBuilder(
-                    "SELECT * FROM "
-                        + metadataTableName
-                        + " WHERE "
-                        + PartitionMetadataAdminDao.COLUMN_PARTITION_TOKEN
-                        + " = @partition")
-                    .bind("partition")
-                    .to(partitionToken)
-                    .build())) {
-          return resultSet.next();
-        }
-      }
-    }
-
-    /** Represents a partition not found error as a {@link RuntimeException}. */
-    public static class PartitionNotFoundException extends RuntimeException {
-
-      private static final long serialVersionUID = -9040427803701187936L;
-
-      /**
-       * Constructs a partition not found error.
-       *
-       * @param token the partition unique identifier
-       */
-      public PartitionNotFoundException(String token) {
-        super("Partition " + token + " not found");
       }
     }
 
