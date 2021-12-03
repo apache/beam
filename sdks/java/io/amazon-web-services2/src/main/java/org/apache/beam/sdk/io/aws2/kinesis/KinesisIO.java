@@ -30,8 +30,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
@@ -236,10 +234,6 @@ import software.amazon.kinesis.common.InitialPositionInStream;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public final class KinesisIO {
-
-  private static final Logger LOG = LoggerFactory.getLogger(KinesisIO.class);
-
-  private static final int DEFAULT_NUM_RETRIES = 6;
 
   /** Returns a new {@link Read} transform for reading from Kinesis. */
   public static Read read() {
