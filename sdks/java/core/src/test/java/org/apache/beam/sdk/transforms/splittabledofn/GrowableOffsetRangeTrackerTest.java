@@ -183,7 +183,7 @@ public class GrowableOffsetRangeTrackerTest {
     tracker.checkDone();
     simpleEstimator.setEstimateRangeEnd(0L);
     Progress currentProgress = tracker.getProgress();
-    assertEquals(Long.MAX_VALUE - 10L, currentProgress.getWorkCompleted());
+    assertEquals(Long.MAX_VALUE - 10L, currentProgress.getWorkCompleted(), 0);
     assertEquals(0, currentProgress.getWorkRemaining(), 0.001);
   }
 
