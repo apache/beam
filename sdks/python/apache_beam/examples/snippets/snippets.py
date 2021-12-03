@@ -231,7 +231,7 @@ def pipeline_options_remote():
         temp_location='gs://my-bucket/temp',
         region='us-central1')
         # Repeatable options like experiments or dataflow_service_options must
-        # be specified as a list of strings
+        # be specified as a list of strings.
         # e.g. dataflow_service_options=['enable_prime', 'option_b']
 
     # Create the Pipeline with the specified options.
