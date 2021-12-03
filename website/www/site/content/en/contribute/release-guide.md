@@ -680,7 +680,7 @@ See [beam-2.31.0.md](https://github.com/apache/beam/commit/a32a75ed0657c122c6625
 - Copy the changes for the current release from `CHANGES.md` to the blog post and edit as necessary.
 - Be sure to add yourself to [authors.yml](https://github.com/apache/beam/blob/master/website/www/site/data/authors.yml) if necessary.
 
-__Tip__: Use git log to find contributors to the releases. (e.g: `git log --pretty='%aN' ^v2.10.0 v2.11.0 | sort | uniq`).
+__Tip__: Use git log to find contributors to the releases. (e.g: `git fetch origin --tags; git log --pretty='%aN' ^v2.10.0 v2.11.0-RC1 | sort | uniq`).
 Make sure to clean it up, as there may be duplicate or incorrect user names.
 
 __NOTE__: Make sure to include any breaking changes, even to `@Experimental` features,
