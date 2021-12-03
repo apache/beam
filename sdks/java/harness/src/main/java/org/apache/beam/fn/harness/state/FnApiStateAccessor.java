@@ -352,7 +352,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
 
                       @Override
                       public ReadableState<Boolean> readLater() {
-                        // TODO: Support prefetching.
+                        impl.get(t).iterator().prefetch();
                         return this;
                       }
                     };
@@ -364,7 +364,6 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                     if (isEmpty) {
                       impl.put(t, null);
                     }
-                    // TODO: Support prefetching.
                     return ReadableStates.immediate(isEmpty);
                   }
 
@@ -389,7 +388,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
 
                       @Override
                       public ReadableState<Boolean> readLater() {
-                        // TODO: Support prefetching.
+                        impl.keys().iterator().prefetch();
                         return this;
                       }
                     };
@@ -402,7 +401,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
 
                   @Override
                   public SetState<T> readLater() {
-                    // TODO: Support prefetching.
+                    impl.keys().iterator().prefetch();
                     return this;
                   }
                 };
@@ -469,7 +468,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
 
                       @Override
                       public ReadableState<ValueT> readLater() {
-                        // TODO: Support prefetching.
+                        impl.get(key).iterator().prefetch();
                         return this;
                       }
                     };
@@ -485,7 +484,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
 
                       @Override
                       public ReadableState<Iterable<KeyT>> readLater() {
-                        // TODO: Support prefetching.
+                        impl.keys().iterator().prefetch();
                         return this;
                       }
                     };
@@ -501,7 +500,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
 
                       @Override
                       public ReadableState<Iterable<ValueT>> readLater() {
-                        // TODO: Support prefetching.
+                        entries().readLater();
                         return this;
                       }
                     };
@@ -519,7 +518,9 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
 
                       @Override
                       public ReadableState<Iterable<Map.Entry<KeyT, ValueT>>> readLater() {
-                        // TODO: Support prefetching.
+                        // Start prefetching the keys. We would need to block to start prefetching
+                        // the values.
+                        keys().readLater();
                         return this;
                       }
                     };
@@ -535,7 +536,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
 
                       @Override
                       public ReadableState<Boolean> readLater() {
-                        // TODO: Support prefetching.
+                        keys().readLater();
                         return this;
                       }
                     };
