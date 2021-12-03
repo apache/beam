@@ -22,10 +22,12 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateAppendRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateClearRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
@@ -164,7 +166,7 @@ public class MultimapUserState<K, V> {
     }
 
     PrefetchableIterable<K> persistedKeys = getPersistedKeys();
-    Map<Object, K> pendingRemovesNow = new HashMap<>(pendingRemoves);
+    Set<Object> pendingRemovesNow = new HashSet<>(pendingRemoves.keySet());
     Map<Object, K> pendingAddsNow = new HashMap<>();
     for (Map.Entry<Object, KV<K, List<V>>> entry : pendingAdds.entrySet()) {
       pendingAddsNow.put(entry.getKey(), entry.getValue().getKey());
@@ -199,7 +201,7 @@ public class MultimapUserState<K, V> {
             while (persistedKeysIterator.hasNext()) {
               nextKey = persistedKeysIterator.next();
               Object nextKeyStructuralValue = mapKeyCoder.structuralValue(nextKey);
-              if (!pendingRemovesNow.containsKey(nextKeyStructuralValue)) {
+              if (!pendingRemovesNow.contains(nextKeyStructuralValue)) {
                 // Remove all keys that we will visit when passing over the persistedKeysIterator
                 // so we do not revisit them when passing over the pendingAddsNowIterator
                 if (pendingAddsNow.containsKey(nextKeyStructuralValue)) {
