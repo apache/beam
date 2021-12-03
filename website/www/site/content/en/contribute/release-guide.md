@@ -783,7 +783,7 @@ Here’s an email template; please adjust as you see fit.
     * source code tag "v1.2.3-RC3" [5],
     * website pull request listing the release [6], the blog post [6], and publishing the API reference manual [7].
     * Java artifacts were built with Gradle GRADLE_VERSION and OpenJDK/Oracle JDK JDK_VERSION.
-    * Python artifacts are deployed along with the source release to the dist.apache.org [2] and pypy[8].
+    * Python artifacts are deployed along with the source release to the dist.apache.org [2] and PyPI[8].
     * Validation sheet with a tab for 1.2.3 release to help with validation [9].
     * Docker images published to Docker Hub [10].
 
