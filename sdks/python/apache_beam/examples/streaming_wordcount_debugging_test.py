@@ -22,7 +22,6 @@
 import unittest
 
 import mock
-import pytest
 
 import apache_beam as beam
 from apache_beam.examples import streaming_wordcount_debugging
@@ -39,7 +38,6 @@ except ImportError:
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
-@pytest.mark.examples_postcommit
 class StreamingWordcountDebugging(unittest.TestCase):
   @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
   @mock.patch('apache_beam.io.ReadFromPubSub')

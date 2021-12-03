@@ -83,7 +83,7 @@ def combine_results(results):
 class JsonCoder(object):
   """A JSON coder used to format the final result."""
   def encode(self, x):
-    return json.dumps(x)
+    return json.dumps(x).encode('utf-8')
 
 
 class EstimatePiTransform(beam.PTransform):
@@ -106,6 +106,12 @@ def run(argv=None):
   parser = argparse.ArgumentParser()
   parser.add_argument(
       '--output', required=True, help='Output file to write results to.')
+  parser.add_argument(
+      '--tries',
+      "--integer",
+      type=int,
+      default=100000,
+      help='Number of tries per work item')
   known_args, pipeline_args = parser.parse_known_args(argv)
   # We use the save_main_session option because one or more DoFn's in this
   # workflow rely on global context (e.g., a module imported at module level).
@@ -115,7 +121,7 @@ def run(argv=None):
 
     (  # pylint: disable=expression-not-assigned
         p
-        | EstimatePiTransform()
+        | EstimatePiTransform(known_args.tries)
         | WriteToText(known_args.output, coder=JsonCoder()))
 
 

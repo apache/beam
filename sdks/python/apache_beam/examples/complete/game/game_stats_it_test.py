@@ -103,6 +103,7 @@ class GameStatsIT(unittest.TestCase):
     test_utils.cleanup_subscriptions(self.sub_client, [self.input_sub])
     test_utils.cleanup_topics(self.pub_client, [self.input_topic])
 
+  @pytest.mark.examples_postcommit
   @pytest.mark.it_postcommit
   def test_game_stats_it(self):
     state_verifier = PipelineStateMatcher(PipelineState.RUNNING)

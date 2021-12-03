@@ -20,14 +20,16 @@
 # pytype: skip-file
 
 import logging
+import os
+import tempfile
 import unittest
 
+import json
 import pytest
 
 from apache_beam.examples.complete import estimate_pi
-from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import BeamAssertException
-from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import open_shards
 
 
 def in_between(lower, upper):
@@ -43,13 +45,16 @@ def in_between(lower, upper):
 @pytest.mark.examples_postcommit
 class EstimatePiTest(unittest.TestCase):
   def test_basics(self):
-    with TestPipeline() as p:
-      result = p | 'Estimate' >> estimate_pi.EstimatePiTransform(5000)
-
-      # Note: Probabilistically speaking this test can fail with a probability
-      # that is very small (VERY) given that we run at least 500 thousand
-      # trials.
-      assert_that(result, in_between(3.125, 3.155))
+    temp_folder = tempfile.mkdtemp()
+    estimate_pi.run(
+        ['--output', os.path.join(temp_folder, 'result'), '--tries', '5000'])
+    # Load result file and compare.
+    with open_shards(os.path.join(temp_folder, 'result-*-of-*')) as result_file:
+      result = json.loads(result_file.read().strip())[2]
+    # Note: Probabilistically speaking this test can fail with a probability
+    # that is very small (VERY) given that we run at least 500 thousand
+    # trials.
+    self.assertTrue(3.125 <= result <= 3.155)
 
 
 if __name__ == '__main__':

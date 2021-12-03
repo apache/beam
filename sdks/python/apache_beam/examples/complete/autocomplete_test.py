@@ -19,6 +19,9 @@
 
 # pytype: skip-file
 
+import logging
+import os
+import tempfile
 import unittest
 
 import pytest
@@ -29,6 +32,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_utils import compute_hash
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.testing.util import open_shards
 
 
 class AutocompleteTest(unittest.TestCase):
@@ -37,7 +41,11 @@ class AutocompleteTest(unittest.TestCase):
   KINGLEAR_HASH_SUM = 268011785062540
   KINGLEAR_INPUT = 'gs://dataflow-samples/shakespeare/kinglear.txt'
 
-  @pytest.mark.examples_postcommit
+  def create_file(self, path, contents):
+    logging.info('Creating temp file: %s', path)
+    with open(path, 'w') as f:
+      f.write(contents)
+
   def test_top_prefixes(self):
     with TestPipeline() as p:
       words = p | beam.Create(self.WORDS)
@@ -70,6 +78,32 @@ class AutocompleteTest(unittest.TestCase):
           | beam.CombineGlobally(sum))
 
       assert_that(checksum, equal_to([self.KINGLEAR_HASH_SUM]))
+
+  @pytest.mark.examples_postcommit
+  def test_basics(self):
+    EXPECTED_PREFIXES = "t: [(3, 'to'), (2, 'this'), (1, 'that')]\n" \
+                          "th: [(2, 'this'), (1, 'that')]\n" \
+                          "thi: [(2, 'this')]\n" \
+                          "this: [(2, 'this')]\n" \
+                          "tha: [(1, 'that')]\n" \
+                          "that: [(1, 'that')]\n" \
+                          "to: [(3, 'to')]"
+
+    # Setup the files with expected content.
+    temp_folder = tempfile.mkdtemp()
+    self.create_file(
+        os.path.join(temp_folder, 'input.txt'), ' '.join(self.WORDS))
+    autocomplete.run([
+        '--input=%s/input.txt' % temp_folder,
+        '--output',
+        os.path.join(temp_folder, 'result')
+    ])
+
+    # Load result file and compare.
+    with open_shards(os.path.join(temp_folder, 'result-*-of-*')) as result_file:
+      result = result_file.read().strip()
+
+    self.assertEqual(result, EXPECTED_PREFIXES)
 
 
 if __name__ == '__main__':

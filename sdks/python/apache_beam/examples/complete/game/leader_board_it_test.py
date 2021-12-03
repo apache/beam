@@ -104,6 +104,7 @@ class LeaderBoardIT(unittest.TestCase):
     test_utils.cleanup_subscriptions(self.sub_client, [self.input_sub])
     test_utils.cleanup_topics(self.pub_client, [self.input_topic])
 
+  @pytest.mark.examples_postcommit
   @pytest.mark.it_postcommit
   def test_leader_board_it(self):
     state_verifier = PipelineStateMatcher(PipelineState.RUNNING)
