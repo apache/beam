@@ -209,7 +209,7 @@ class JdbcUtil {
       if (field.getType().getTypeName().isLogicalType()
           && field.getType().getLogicalType().getArgument() != null) {
         int maxLimit = (Integer) field.getType().getLogicalType().getArgument();
-        if (length >= maxLimit) {
+        if (length > maxLimit) {
           throw new RuntimeException(
               String.format(
                   "Length of Schema.Field[%s] data exceeds database column capacity",

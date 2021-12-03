@@ -153,8 +153,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Tests the execution of a pipeline from specification time to executing a single fused stage,
@@ -163,14 +161,14 @@ import org.slf4j.LoggerFactory;
 @RunWith(JUnit4.class)
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "keyfor"
+  "keyfor",
+  "unused" // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
 })
 public class RemoteExecutionTest implements Serializable {
 
   @Rule public transient ResetDateTimeProvider resetDateTimeProvider = new ResetDateTimeProvider();
 
   private static final String WORKER_ID = "remote_test";
-  private static final Logger LOG = LoggerFactory.getLogger(RemoteExecutionTest.class);
 
   private transient GrpcFnServer<FnApiControlClientPoolService> controlServer;
   private transient GrpcFnServer<GrpcDataService> dataServer;
@@ -756,6 +754,7 @@ public class RemoteExecutionTest implements Serializable {
   }
 
   @Test
+  @SuppressWarnings("FutureReturnValueIgnored")
   public void testMetrics() throws Exception {
     launchSdkHarness(PipelineOptionsFactory.create());
     MetricsDoFn metricsDoFn = new MetricsDoFn();
@@ -1028,22 +1027,20 @@ public class RemoteExecutionTest implements Serializable {
         };
 
     ExecutorService executor = Executors.newSingleThreadExecutor();
-    Future<Object> future;
 
     try (RemoteBundle bundle =
         processor.newBundle(outputReceivers, StateRequestHandler.unsupported(), progressHandler)) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
           .accept(valueInGlobalWindow(CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "X")));
 
-      future =
-          executor.submit(
-              () -> {
-                checkState(
-                    MetricsDoFn.AFTER_PROCESS.get(metricsDoFn.uuid).await(60, TimeUnit.SECONDS),
-                    "Runner waited too long for DoFn to get to AFTER_PROCESS.");
-                bundle.requestProgress();
-                return (Void) null;
-              });
+      executor.submit(
+          () -> {
+            checkState(
+                MetricsDoFn.AFTER_PROCESS.get(metricsDoFn.uuid).await(60, TimeUnit.SECONDS),
+                "Runner waited too long for DoFn to get to AFTER_PROCESS.");
+            bundle.requestProgress();
+            return (Void) null;
+          });
     }
     executor.shutdown();
   }
@@ -1083,7 +1080,6 @@ public class RemoteExecutionTest implements Serializable {
                       @StateId(stateId) BagState<String> state,
                       @StateId(stateId2) BagState<String> state2,
                       OutputReceiver<KV<String, String>> r) {
-                    ReadableState<Boolean> isEmpty = state.isEmpty();
                     for (String value : state.read()) {
                       r.output(KV.of(element.getKey(), value));
                     }
@@ -1478,6 +1474,7 @@ public class RemoteExecutionTest implements Serializable {
             "timer",
             ParDo.of(
                 new DoFn<KV<String, String>, KV<String, String>>() {
+
                   @TimerId("event")
                   private final TimerSpec eventTimerSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 

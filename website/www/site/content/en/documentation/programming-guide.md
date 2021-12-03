@@ -4797,7 +4797,7 @@ timestamps attached to the data elements. The watermark is a global progress
 metric, and is Beam's notion of input completeness within your pipeline at any
 given point. <span class="language-java">`AfterWatermark.pastEndOfWindow()`</span>
 <span class="language-py">`AfterWatermark`</span>
-<span class="language-go">`window.AfterEndOfWindow`</span> *only* fires when the
+<span class="language-go">`trigger.AfterEndOfWindow`</span> *only* fires when the
 watermark passes the end of the window.
 
 In addition, you can configure triggers that fire if your pipeline receives data
@@ -4843,7 +4843,7 @@ modifying this behavior.
 The `AfterProcessingTime` trigger operates on *processing time*. For example,
 the <span class="language-java">`AfterProcessingTime.pastFirstElementInPane()`</span>
 <span class="language-py">`AfterProcessingTime`</span>
-<span class="language-go">`window.TriggerAfterProcessingTime()`</span> trigger emits a window
+<span class="language-go">`trigger.AfterProcessingTime()`</span> trigger emits a window
 after a certain amount of processing time has passed since data was received.
 The processing time is determined by the system clock, rather than the data
 element's timestamp.
@@ -4857,7 +4857,7 @@ window.
 Beam provides one data-driven trigger,
 <span class="language-java">`AfterPane.elementCountAtLeast()`</span>
 <span class="language-py">`AfterCount`</span>
-<span class="language-go">`window.TriggerAfterCount()`</span>. This trigger works on an element
+<span class="language-go">`trigger.AfterCount()`</span>. This trigger works on an element
 count; it fires after the current pane has collected at least *N* elements. This
 allows a window to emit early results (before all the data has accumulated),
 which can be particularly useful if you are using a single global window.
@@ -4865,7 +4865,7 @@ which can be particularly useful if you are using a single global window.
 It is important to note that if, for example, you specify
 <span class="language-java">`.elementCountAtLeast(50)`</span>
 <span class="language-py">AfterCount(50)</span>
-<span class="language-go">`window.TriggerAfterCount(50)`</span> and only 32 elements arrive,
+<span class="language-go">`trigger.AfterCount(50)`</span> and only 32 elements arrive,
 those 32 elements sit around forever. If the 32 elements are important to you,
 consider using [composite triggers](#composite-triggers) to combine multiple
 conditions. This allows you to specify multiple firing conditions such as "fire
@@ -6537,6 +6537,10 @@ This is not supported yet, see BEAM-10976.
 
 ## 13. Multi-language pipelines {#multi-language-pipelines}
 
+This section provides comprehensive documentation of multi-language pipelines. For a short overview of the topic, see:
+
+* [Python multi-language pipelines quickstart](/documentation/sdks/python-multi-language-pipelines)
+
 Beam allows you to combine transforms written in any supported SDK language (currently, Java and Python) and use them in one multi-language pipeline. This capability makes it easy to provide new functionality simultaneously in different Apache Beam SDKs through a single cross-language transform. For example, the [Apache Kafka connector](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/kafka.py) and [SQL transform](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/sql.py) from the Java SDK can be used in Python streaming pipelines.
 
 Pipelines that use transforms from more than one SDK-language are known as *multi-language pipelines*.
@@ -6554,6 +6558,115 @@ At runtime, the Beam runner will execute both Python and Java transforms to exec
 In this section, we will use [KafkaIO.Read](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/kafka/KafkaIO.Read.html) to illustrate how to create a cross-language transform for Java and a test example for Python.
 
 #### 13.1.1. Creating cross-language Java transforms
+
+There are two ways to make Java transforms available to other SDKs.
+
+* Option 1: In some cases, you can use existing Java transforms from other SDKs without writing any additional Java code.
+* Option 2: You can use arbitrary Java Transforms from other SDKs by adding a few Java classes.
+
+##### 13.1.1.1 Using Existing Java Transforms from Other SDKs Without Writing more Java Code
+
+Starting with Beam 2.34.0, Python SDK users can use some Java transforms without writing additional Java code. This can be useful in many cases. For example,
+* A developer not familiar with Java may need to use an existing Java transform from a Python pipeline
+* A developer may need to make an existing Java transform available to a Python pipeline without writing/releasing more Java code
+
+> **Note:** This feature is currently only available when using Java transforms from a Python pipeline.
+
+To be eligible for direct usage, the API of the Java transform has to follow the following pattern.
+* Requirement 1: The Java transform can be constructed using an available public constructor or a public static method (a constructor method) in the same Java class.
+* Requirement 2: The Java transform can be configured using one or more builder methods. Each builder method should be public and should return an instance of the Java transform.
+
+See below for the structure of an example Java class that can be directly used from the Python API.
+
+{{< highlight >}}
+public class JavaDataGenerator extends PTransform<PBegin, PCollection<String>> {
+  . . .
+
+  // Following method satisfies the Requirement 1.
+  // Note that you may also use a class constructor instead of a static method.
+  public static JavaDataGenerator create(Integer size) {
+    return new JavaDataGenerator(size);
+  }
+
+  static class JavaDataGeneratorConfig implements Serializable  {
+    public String prefix;
+    public long length;
+    public String suffix;
+    . . .
+  }
+
+  // Following method conforms to the Requirement 2
+  public JavaDataGenerator withJavaDataGeneratorConfig(JavaDataGeneratorConfig dataConfig) {
+    return new JavaDataGenerator(this.size, javaDataGeneratorConfig);
+  }
+
+   . . .
+}
+{{< /highlight >}}
+
+To use a Java class that conforms to the above requirement from a Python SDK pipeline you may do the following.
+
+* Step 1: create an allowlist file in the _yaml_ format that describes the Java transform classes and methods that will be directly accessed from Python.
+* Step 2: start an Expansion Service with the `javaClassLookupAllowlistFile` option passing path to the allowlist defined in Step 1 as the value.
+* Step 3: Use the Python [JavaExternalTransform](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/external.py) API to directly
+  access Java transforms defined in the allowlist from the Python side.
+
+Starting with Beam 2.35.0, Step 1 and 2 may be skipped as described in corresponding sections below.
+
+##### Step 1
+
+To use this Java transform from Python, you may define an allowlist file in the _yaml_ format. This allowlist lists the class names,
+constructor methods, and builder methods that are directly available to be used from the Python side.
+
+Starting with Beam 2.35.0, you have the option to specify `*` to the `javaClassLookupAllowlistFile` option instead of defining an actual allowlist which
+denotes that all supported transforms in the classpath of the expansion service may be accessed through the API.
+
+{{< highlight >}}
+version: v1
+allowedClasses:
+- className: my.beam.transforms.JavaDataGenerator
+  allowedConstructorMethods:
+    - create
+      allowedBuilderMethods:
+    - withJavaDataGeneratorConfig
+{{< /highlight >}}
+
+##### Step 2
+
+The allowlist is provided as an argument when starting up the Java expansion service. For example, the expansion service can be started
+as a local Java process using the following command.
+
+{{< highlight >}}
+java -jar <jar file> <port> --javaClassLookupAllowlistFile=<path to the allowlist file>
+{{< /highlight >}}
+
+Starting with Beam 2.35.0, Beam ``JavaExternalTransform` API will automatically startup an expansion service with a given set of `jar` file dependencies
+if an expansion service address was not provided.
+
+##### Step 3
+
+You can directly use the Java class from your Python pipeline using a stub transform created using the `JavaExternalTransform` API. This API allows you to construct the transform
+using the Java class name and allows you to invoke builder methods to configure the class.
+
+Constructor and method parameter types are mapped between Python and Java using a Beam Schema. The Schema is auto-generated using the object types
+provided on the Python side. If the Java class constructor method or builder method accepts any complex object types, make sure that the Beam Schema
+for these objects is registered and available for the Java expansion service. If a schema has not been registered, the Java expansion service will
+try to register a schema using [JavaFieldSchema](https://beam.apache.org/documentation/programming-guide/#creating-schemas). In Python arbitrary objects
+can be represented using `NamedTuple`s which will be represented as Beam Rows in the Schema. See below for a Python stub transform that represents the above
+mentioned Java transform.
+
+{{< highlight >}}
+JavaDataGeneratorConfig = typing.NamedTuple(
+'JavaDataGeneratorConfig', [('prefix', str), ('length', int), ('suffix', str)])
+data_config = JavaDataGeneratorConfig(prefix='start', length=20, suffix='end')
+
+java_transform = JavaExternalTransform(
+'my.beam.transforms.JavaDataGenerator', expansion_service='localhost:<port>').create(numpy.int32(100)).withJavaDataGeneratorConfig(data_config)
+{{< /highlight >}}
+
+This transform can be used in a Python pipeline along with other Python transforms.
+
+##### 13.1.1.2 Full API for Making Existing Java Transforms Available to Other SDKs
 
 To make your Apache Beam Java SDK transform portable across SDK languages, you must implement two interfaces: [ExternalTransformBuilder](https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/transforms/ExternalTransformBuilder.java) and [ExternalTransformRegistrar](https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/expansion/ExternalTransformRegistrar.java). The `ExternalTransformBuilder` interface constructs the cross-language transform using configuration values passed in from the pipeline and the `ExternalTransformRegistrar` interface registers the cross-language transform for use with the expansion service.
 
@@ -6751,6 +6864,43 @@ Currently Python external transforms are limited to dependencies available in co
 
 Go currently does not support creating cross-language transforms, only using cross-language
 transforms from other languages; see more at [BEAM-9923](https://issues.apache.org/jira/browse/BEAM-9923).
+
+#### 13.1.4. Selecting a URN for Cross-language Transforms
+
+Developing a cross-language transform involves defining a URN for registering the transform with an expansion service. In this section
+we provide a convention for defining such URNs. Following this convention is optional but it will ensure that your transform
+will not run into conflicts when registering in an expansion service along with transforms developed by other developers.
+
+##### Schema
+
+A URN should consist of the following components:
+* ns-id: A namespace identifier. Default recommendation is `beam:transform`.
+* org-identifier: Identifies the organization where the transform was defined. Transforms defined in Apache Beam use `org.apache.beam` for this.
+* functionality-identifier - Identifies the functionality of the cross-language transform.
+* version - a version number for the transform
+
+We provide the schema from the URN convention in [augmented Backus–Naur](https://en.wikipedia.org/wiki/Augmented_Backus%E2%80%93Naur_form) form.
+Keywords in upper case are from the [URN spec](https://datatracker.ietf.org/doc/html/rfc8141).
+
+{{< highlight >}}
+transform-urn = ns-id “:” org-identifier “:” functionality-identifier  “:” version
+ns-id = (“beam” / NID) “:” “transform”
+id-char = ALPHA / DIGIT / "-" / "." / "_" / "~" ; A subset of characters allowed in a URN
+org-identifier = 1*id-char
+functionality-identifier = 1*id-char
+version = “v” 1*(DIGIT / “.”)  ; For example, ‘v1.2’
+{{< /highlight >}}
+
+##### Examples
+
+Below we’ve given some example transform classes and corresponding URNs to be used.
+
+* A transform offered with Apache Beam that writes Parquet files.
+    * `beam:transform:org.apache.beam:parquet_write:v1`
+* A transform offered with Apache Beam that reads from Kafka with metadata.
+    * `beam:transform:org.apache.beam:kafka_read_with_metadata:v1`
+* A transform developed by organization abc.org that reads from data store MyDatastore.
+    * `beam:transform:org.abc:mydatastore_read:v1`
 
 ### 13.2. Using cross-language transforms {#use-x-lang-transforms}
 

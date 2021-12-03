@@ -64,10 +64,10 @@ public class BeamFnDataGrpcMultiplexer2 implements AutoCloseable {
           baseOutboundObserverFactory) {
     this.apiServiceDescriptor = apiServiceDescriptor;
     this.receivers = new ConcurrentHashMap<>();
+    this.erroredInstructionIds = new ConcurrentHashMap<>();
     this.inboundObserver = new InboundObserver();
     this.outboundObserver =
         outboundObserverFactory.outboundObserverFor(baseOutboundObserverFactory, inboundObserver);
-    this.erroredInstructionIds = new ConcurrentHashMap<>();
   }
 
   @Override
@@ -254,7 +254,6 @@ public class BeamFnDataGrpcMultiplexer2 implements AutoCloseable {
           apiServiceDescriptor == null ? "unknown endpoint" : apiServiceDescriptor,
           t);
       outboundObserver.onCompleted();
-      ;
     }
 
     @Override
@@ -263,7 +262,6 @@ public class BeamFnDataGrpcMultiplexer2 implements AutoCloseable {
           "Hanged up for {}.",
           apiServiceDescriptor == null ? "unknown endpoint" : apiServiceDescriptor);
       outboundObserver.onCompleted();
-      ;
     }
   }
 }

@@ -44,12 +44,12 @@ func New(ctx context.Context, addr string) (*Cache, error) {
 }
 
 func (rc *Cache) GetValue(ctx context.Context, pipelineId uuid.UUID, subKey cache.SubKey) (interface{}, error) {
-	marshSubKey, err := json.Marshal(subKey)
+	subKeyMarsh, err := json.Marshal(subKey)
 	if err != nil {
 		logger.Errorf("Redis Cache: get value: error during marshal subKey: %s, err: %s\n", subKey, err.Error())
 		return nil, err
 	}
-	value, err := rc.HGet(ctx, pipelineId.String(), string(marshSubKey)).Result()
+	value, err := rc.HGet(ctx, pipelineId.String(), string(subKeyMarsh)).Result()
 	if err != nil {
 		logger.Errorf("Redis Cache: get value: error during HGet operation for key: %s, subKey: %s, err: %s\n", pipelineId.String(), subKey, err.Error())
 		return nil, err
@@ -101,13 +101,22 @@ func unmarshalBySubKey(subKey cache.SubKey, value string) (result interface{}, e
 	switch subKey {
 	case cache.Status:
 		result = new(pb.Status)
-		err = json.Unmarshal([]byte(value), &result)
-	case cache.RunOutput, cache.CompileOutput:
+	case cache.RunOutput, cache.RunError, cache.CompileOutput, cache.Logs:
 		result = ""
-		err = json.Unmarshal([]byte(value), &result)
+	case cache.Canceled:
+		result = false
+	case cache.RunOutputIndex, cache.LogsIndex:
+		result = 0
 	}
+	err = json.Unmarshal([]byte(value), &result)
 	if err != nil {
 		logger.Errorf("Redis Cache: get value: error during unmarshal value, err: %s\n", err.Error())
 	}
+
+	switch subKey {
+	case cache.Status:
+		result = *result.(*pb.Status)
+	}
+
 	return
 }

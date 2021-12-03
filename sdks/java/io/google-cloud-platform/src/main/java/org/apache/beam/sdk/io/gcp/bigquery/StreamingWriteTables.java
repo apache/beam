@@ -62,6 +62,7 @@ public class StreamingWriteTables<ElementT>
   private final Coder<ElementT> elementCoder;
   private final SerializableFunction<ElementT, TableRow> toTableRow;
   private final SerializableFunction<ElementT, TableRow> toFailsafeTableRow;
+  private final SerializableFunction<ElementT, String> deterministicRecordIdFn;
 
   public StreamingWriteTables() {
     this(
@@ -74,7 +75,8 @@ public class StreamingWriteTables<ElementT>
         false, // autoSharding
         null, // elementCoder
         null, // toTableRow
-        null); // toFailsafeTableRow
+        null, // toFailsafeTableRow
+        null); // deterministicRecordIdFn
   }
 
   private StreamingWriteTables(
@@ -87,7 +89,8 @@ public class StreamingWriteTables<ElementT>
       boolean autoSharding,
       Coder<ElementT> elementCoder,
       SerializableFunction<ElementT, TableRow> toTableRow,
-      SerializableFunction<ElementT, TableRow> toFailsafeTableRow) {
+      SerializableFunction<ElementT, TableRow> toFailsafeTableRow,
+      SerializableFunction<ElementT, String> deterministicRecordIdFn) {
     this.bigQueryServices = bigQueryServices;
     this.retryPolicy = retryPolicy;
     this.extendedErrorInfo = extendedErrorInfo;
@@ -98,6 +101,7 @@ public class StreamingWriteTables<ElementT>
     this.elementCoder = elementCoder;
     this.toTableRow = toTableRow;
     this.toFailsafeTableRow = toFailsafeTableRow;
+    this.deterministicRecordIdFn = deterministicRecordIdFn;
   }
 
   StreamingWriteTables<ElementT> withTestServices(BigQueryServices bigQueryServices) {
@@ -111,7 +115,8 @@ public class StreamingWriteTables<ElementT>
         autoSharding,
         elementCoder,
         toTableRow,
-        toFailsafeTableRow);
+        toFailsafeTableRow,
+        deterministicRecordIdFn);
   }
 
   StreamingWriteTables<ElementT> withInsertRetryPolicy(InsertRetryPolicy retryPolicy) {
@@ -125,7 +130,8 @@ public class StreamingWriteTables<ElementT>
         autoSharding,
         elementCoder,
         toTableRow,
-        toFailsafeTableRow);
+        toFailsafeTableRow,
+        deterministicRecordIdFn);
   }
 
   StreamingWriteTables<ElementT> withExtendedErrorInfo(boolean extendedErrorInfo) {
@@ -139,7 +145,8 @@ public class StreamingWriteTables<ElementT>
         autoSharding,
         elementCoder,
         toTableRow,
-        toFailsafeTableRow);
+        toFailsafeTableRow,
+        deterministicRecordIdFn);
   }
 
   StreamingWriteTables<ElementT> withSkipInvalidRows(boolean skipInvalidRows) {
@@ -153,7 +160,8 @@ public class StreamingWriteTables<ElementT>
         autoSharding,
         elementCoder,
         toTableRow,
-        toFailsafeTableRow);
+        toFailsafeTableRow,
+        deterministicRecordIdFn);
   }
 
   StreamingWriteTables<ElementT> withIgnoreUnknownValues(boolean ignoreUnknownValues) {
@@ -167,7 +175,8 @@ public class StreamingWriteTables<ElementT>
         autoSharding,
         elementCoder,
         toTableRow,
-        toFailsafeTableRow);
+        toFailsafeTableRow,
+        deterministicRecordIdFn);
   }
 
   StreamingWriteTables<ElementT> withIgnoreInsertIds(boolean ignoreInsertIds) {
@@ -181,7 +190,8 @@ public class StreamingWriteTables<ElementT>
         autoSharding,
         elementCoder,
         toTableRow,
-        toFailsafeTableRow);
+        toFailsafeTableRow,
+        deterministicRecordIdFn);
   }
 
   StreamingWriteTables<ElementT> withAutoSharding(boolean autoSharding) {
@@ -195,7 +205,8 @@ public class StreamingWriteTables<ElementT>
         autoSharding,
         elementCoder,
         toTableRow,
-        toFailsafeTableRow);
+        toFailsafeTableRow,
+        deterministicRecordIdFn);
   }
 
   StreamingWriteTables<ElementT> withElementCoder(Coder<ElementT> elementCoder) {
@@ -209,7 +220,8 @@ public class StreamingWriteTables<ElementT>
         autoSharding,
         elementCoder,
         toTableRow,
-        toFailsafeTableRow);
+        toFailsafeTableRow,
+        deterministicRecordIdFn);
   }
 
   StreamingWriteTables<ElementT> withToTableRow(
@@ -224,7 +236,8 @@ public class StreamingWriteTables<ElementT>
         autoSharding,
         elementCoder,
         toTableRow,
-        toFailsafeTableRow);
+        toFailsafeTableRow,
+        deterministicRecordIdFn);
   }
 
   StreamingWriteTables<ElementT> withToFailsafeTableRow(
@@ -239,7 +252,24 @@ public class StreamingWriteTables<ElementT>
         autoSharding,
         elementCoder,
         toTableRow,
-        toFailsafeTableRow);
+        toFailsafeTableRow,
+        deterministicRecordIdFn);
+  }
+
+  StreamingWriteTables<ElementT> withDeterministicRecordIdFn(
+      SerializableFunction<ElementT, String> deterministicRecordIdFn) {
+    return new StreamingWriteTables<>(
+        bigQueryServices,
+        retryPolicy,
+        extendedErrorInfo,
+        skipInvalidRows,
+        ignoreUnknownValues,
+        ignoreInsertIds,
+        autoSharding,
+        elementCoder,
+        toTableRow,
+        toFailsafeTableRow,
+        deterministicRecordIdFn);
   }
 
   @Override
@@ -295,7 +325,7 @@ public class StreamingWriteTables<ElementT>
     // different unique ids, this implementation relies on "checkpointing", which is
     // achieved as a side effect of having BigQuery insertion immediately follow a GBK.
 
-    if (autoSharding) {
+    if (autoSharding && deterministicRecordIdFn == null) {
       // If runner determined dynamic sharding is enabled, group TableRows on table destinations
       // that may be sharded during the runtime. Otherwise, we choose a fixed number of shards per
       // table destination following the logic below in the other branch.
@@ -339,14 +369,19 @@ public class StreamingWriteTables<ElementT>
           input
               .apply("ShardTableWrites", ParDo.of(new GenerateShardedTable<>(numShards)))
               .setCoder(KvCoder.of(ShardedKeyCoder.of(StringUtf8Coder.of()), elementCoder))
-              .apply("TagWithUniqueIds", ParDo.of(new TagWithUniqueIds<>()))
+              .apply("TagWithUniqueIds", ParDo.of(new TagWithUniqueIds<>(deterministicRecordIdFn)))
               .setCoder(
                   KvCoder.of(
                       ShardedKeyCoder.of(StringUtf8Coder.of()),
                       TableRowInfoCoder.of(elementCoder)));
 
+      if (deterministicRecordIdFn == null) {
+        // If not using a deterministic function for record ids, we must apply a reshuffle to ensure
+        // determinism on the generated ids.
+        shardedTagged = shardedTagged.apply(Reshuffle.of());
+      }
+
       return shardedTagged
-          .apply(Reshuffle.of())
           // Put in the global window to ensure that DynamicDestinations side inputs are
           // accessed
           // correctly.

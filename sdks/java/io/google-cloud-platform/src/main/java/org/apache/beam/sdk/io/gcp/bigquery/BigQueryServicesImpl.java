@@ -163,6 +163,8 @@ class BigQueryServicesImpl implements BigQueryServices {
   // The error code for quota exceeded error (https://cloud.google.com/bigquery/docs/error-messages)
   private static final String QUOTA_EXCEEDED = "quotaExceeded";
 
+  private static final String NO_ROWS_PRESENT = "No rows present in the request.";
+
   protected static final Map<String, String> API_METRIC_LABEL =
       ImmutableMap.of(
           MonitoringInfoConstants.Labels.SERVICE, "BigQuery",
@@ -886,6 +888,14 @@ class BigQueryServicesImpl implements BigQueryServices {
              */
             if (!ApiErrorExtractor.INSTANCE.rateLimited(e)
                 && !errorInfo.getReason().equals(QUOTA_EXCEEDED)) {
+              if (ApiErrorExtractor.INSTANCE.badRequest(e)
+                  && e.getMessage().contains(NO_ROWS_PRESENT)) {
+                LOG.error(
+                    "No rows present in the request error likely caused by BigQuery Insert"
+                        + " timing out. Update BigQueryOptions.setHTTPWriteTimeout to be longer,"
+                        + " or 0 to disable timeouts",
+                    e.getCause());
+              }
               throw e;
             }
             LOG.info(

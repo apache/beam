@@ -36,6 +36,11 @@ var (
 	big   = flag.String("big", "", "Output file for big words (required).")
 )
 
+func init() {
+	beam.RegisterFunction(splitFn)
+	beam.RegisterFunction(formatFn)
+}
+
 var wordRE = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
 
 func splitFn(line string, big, small func(string)) {
@@ -70,8 +75,8 @@ func main() {
 
 	lines := textio.Read(s, *input)
 	bcol, scol := beam.ParDo2(s, splitFn, lines)
-	writeCounts(s, bcol, *big)
-	writeCounts(s, scol, *small)
+	writeCounts(s.Scope("Big"), bcol, *big)
+	writeCounts(s.Scope("Small"), scol, *small)
 
 	if err := beamx.Run(context.Background(), p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)

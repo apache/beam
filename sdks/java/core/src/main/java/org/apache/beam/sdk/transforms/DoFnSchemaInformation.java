@@ -51,10 +51,14 @@ public abstract class DoFnSchemaInformation implements Serializable {
    */
   public abstract List<SerializableFunction<?, ?>> getElementConverters();
 
+  /** Effective FieldAccessDescriptor applied by DoFn. */
+  public abstract FieldAccessDescriptor getFieldAccessDescriptor();
+
   /** Create an instance. */
   public static DoFnSchemaInformation create() {
     return new AutoValue_DoFnSchemaInformation.Builder()
         .setElementConverters(Collections.emptyList())
+        .setFieldAccessDescriptor(FieldAccessDescriptor.create())
         .build();
   }
 
@@ -62,6 +66,8 @@ public abstract class DoFnSchemaInformation implements Serializable {
   @AutoValue.Builder
   public abstract static class Builder {
     abstract Builder setElementConverters(List<SerializableFunction<?, ?>> converters);
+
+    abstract Builder setFieldAccessDescriptor(FieldAccessDescriptor descriptor);
 
     abstract DoFnSchemaInformation build();
   }
@@ -142,6 +148,20 @@ public abstract class DoFnSchemaInformation implements Serializable {
             .build();
 
     return toBuilder().setElementConverters(converters).build();
+  }
+
+  /**
+   * Specified a descriptor of fields accessed from an input schema.
+   *
+   * @param selectDescriptor The descriptor describing which field to select.
+   * @return
+   */
+  DoFnSchemaInformation withFieldAccessDescriptor(FieldAccessDescriptor selectDescriptor) {
+
+    FieldAccessDescriptor descriptor =
+        FieldAccessDescriptor.union(ImmutableList.of(getFieldAccessDescriptor(), selectDescriptor));
+
+    return toBuilder().setFieldAccessDescriptor(descriptor).build();
   }
 
   private static class ConversionFunction<InputT, OutputT>

@@ -33,7 +33,7 @@ func FromMetricUpdates(allMetrics []*df.MetricUpdate, p *pipepb.Pipeline) *metri
 	ac, ad := groupByType(allMetrics, p, true)
 	cc, cd := groupByType(allMetrics, p, false)
 
-	return metrics.NewResults(metrics.MergeCounters(ac, cc), metrics.MergeDistributions(ad, cd), make([]metrics.GaugeResult, 0), make([]metrics.MsecResult, 0))
+	return metrics.NewResults(metrics.MergeCounters(ac, cc), metrics.MergeDistributions(ad, cd), make([]metrics.GaugeResult, 0), make([]metrics.MsecResult, 0), make([]metrics.PColResult, 0))
 }
 
 func groupByType(allMetrics []*df.MetricUpdate, p *pipepb.Pipeline, tentative bool) (

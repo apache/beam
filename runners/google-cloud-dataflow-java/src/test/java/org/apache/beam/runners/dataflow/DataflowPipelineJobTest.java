@@ -332,7 +332,6 @@ public class DataflowPipelineJobTest {
     DataflowPipelineJob job =
         new DataflowPipelineJob(DataflowClient.create(options), JOB_ID, options, ImmutableMap.of());
 
-    long startTime = fastClock.nanoTime();
     thrown.expect(IOException.class);
     job.getStateWithRetries(
         BackOffAdapter.toGcpBackOff(DataflowPipelineJob.STATUS_BACKOFF_FACTORY.backoff()),

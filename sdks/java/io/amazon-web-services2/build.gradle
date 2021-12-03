@@ -20,6 +20,7 @@ import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
+  suppressUnusedVariable: true,
   automaticModuleName: 'org.apache.beam.sdk.io.aws2',
 )
 provideIntegrationTestingDependencies()
@@ -75,6 +76,5 @@ test {
       '--awsRegion=us-west-2',
       '--awsCredentialsProvider={"@type": "StaticCredentialsProvider", "accessKeyId": "key_id_value", "secretAccessKey": "secret_value"}'
   ])
-  // Forking every test resolves an issue where KinesisMockReadTest gets stuck forever.
-  forkEvery 1
+  maxParallelForks 4
 }

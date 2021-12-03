@@ -589,6 +589,34 @@ public class ParquetIOTest implements Serializable {
     readPipeline.run().waitUntilFinish();
   }
 
+  @Test
+  public void testWriteAndReadFilesAsJsonForUnknownSchemaWithConfiguration() {
+    List<GenericRecord> records = generateGenericRecords(10);
+    List<GenericRecord> expectedRecords = generateGenericRecords(1);
+
+    mainPipeline
+        .apply(Create.of(records).withCoder(AvroCoder.of(SCHEMA)))
+        .apply(
+            FileIO.<GenericRecord>write()
+                .via(ParquetIO.sink(SCHEMA))
+                .to(temporaryFolder.getRoot().getAbsolutePath()));
+    mainPipeline.run().waitUntilFinish();
+
+    Configuration configuration = new Configuration();
+    FilterPredicate filterPredicate =
+        FilterApi.eq(FilterApi.binaryColumn("id"), Binary.fromString("0"));
+    ParquetInputFormat.setFilterPredicate(configuration, filterPredicate);
+
+    PCollection<String> readBackAsJson =
+        readPipeline.apply(
+            ParquetIO.parseGenericRecords(ParseGenericRecordAsJsonFn.create())
+                .withConfiguration(configuration)
+                .from(temporaryFolder.getRoot().getAbsolutePath() + "/*"));
+
+    PAssert.that(readBackAsJson).containsInAnyOrder(convertRecordsToJson(expectedRecords));
+    readPipeline.run().waitUntilFinish();
+  }
+
   /** Returns list of JSON representation of GenericRecords. */
   private static List<String> convertRecordsToJson(List<GenericRecord> records) {
     return records.stream().map(ParseGenericRecordAsJsonFn.create()::apply).collect(toList());

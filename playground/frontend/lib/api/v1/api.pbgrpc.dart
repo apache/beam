@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 ///
 //  Generated code. Do not modify.
 //  source: api/v1/api.proto
@@ -32,47 +33,65 @@ export 'api.pb.dart';
 
 class PlaygroundServiceClient extends $grpc.Client {
   static final _$runCode =
-      $grpc.ClientMethod<$0.RunCodeRequest, $0.RunCodeResponse>(
-          '/api.v1.PlaygroundService/RunCode',
+  $grpc.ClientMethod<$0.RunCodeRequest, $0.RunCodeResponse>(
+      '/api.v1.PlaygroundService/RunCode',
           ($0.RunCodeRequest value) => value.writeToBuffer(),
           ($core.List<$core.int> value) =>
-              $0.RunCodeResponse.fromBuffer(value));
+          $0.RunCodeResponse.fromBuffer(value));
   static final _$checkStatus =
-      $grpc.ClientMethod<$0.CheckStatusRequest, $0.CheckStatusResponse>(
-          '/api.v1.PlaygroundService/CheckStatus',
+  $grpc.ClientMethod<$0.CheckStatusRequest, $0.CheckStatusResponse>(
+      '/api.v1.PlaygroundService/CheckStatus',
           ($0.CheckStatusRequest value) => value.writeToBuffer(),
           ($core.List<$core.int> value) =>
-              $0.CheckStatusResponse.fromBuffer(value));
+          $0.CheckStatusResponse.fromBuffer(value));
   static final _$getRunOutput =
-      $grpc.ClientMethod<$0.GetRunOutputRequest, $0.GetRunOutputResponse>(
-          '/api.v1.PlaygroundService/GetRunOutput',
+  $grpc.ClientMethod<$0.GetRunOutputRequest, $0.GetRunOutputResponse>(
+      '/api.v1.PlaygroundService/GetRunOutput',
           ($0.GetRunOutputRequest value) => value.writeToBuffer(),
           ($core.List<$core.int> value) =>
-              $0.GetRunOutputResponse.fromBuffer(value));
+          $0.GetRunOutputResponse.fromBuffer(value));
+  static final _$getLogs =
+  $grpc.ClientMethod<$0.GetLogsRequest, $0.GetLogsResponse>(
+      '/api.v1.PlaygroundService/GetLogs',
+          ($0.GetLogsRequest value) => value.writeToBuffer(),
+          ($core.List<$core.int> value) =>
+          $0.GetLogsResponse.fromBuffer(value));
+  static final _$getRunError =
+  $grpc.ClientMethod<$0.GetRunErrorRequest, $0.GetRunErrorResponse>(
+      '/api.v1.PlaygroundService/GetRunError',
+          ($0.GetRunErrorRequest value) => value.writeToBuffer(),
+          ($core.List<$core.int> value) =>
+          $0.GetRunErrorResponse.fromBuffer(value));
   static final _$getCompileOutput = $grpc.ClientMethod<
-          $0.GetCompileOutputRequest, $0.GetCompileOutputResponse>(
+      $0.GetCompileOutputRequest,
+      $0.GetCompileOutputResponse>(
       '/api.v1.PlaygroundService/GetCompileOutput',
-      ($0.GetCompileOutputRequest value) => value.writeToBuffer(),
-      ($core.List<$core.int> value) =>
+          ($0.GetCompileOutputRequest value) => value.writeToBuffer(),
+          ($core.List<$core.int> value) =>
           $0.GetCompileOutputResponse.fromBuffer(value));
-  static final _$getListOfExamples = $grpc.ClientMethod<
-          $0.GetListOfExamplesRequest, $0.GetListOfExamplesResponse>(
-      '/api.v1.PlaygroundService/GetListOfExamples',
-      ($0.GetListOfExamplesRequest value) => value.writeToBuffer(),
+  static final _$cancel =
+  $grpc.ClientMethod<$0.CancelRequest, $0.CancelResponse>(
+      '/api.v1.PlaygroundService/Cancel',
+          ($0.CancelRequest value) => value.writeToBuffer(),
+          ($core.List<$core.int> value) => $0.CancelResponse.fromBuffer(value));
+  static final _$getPrecompiledObjects = $grpc.ClientMethod<
+          $0.GetPrecompiledObjectsRequest, $0.GetPrecompiledObjectsResponse>(
+      '/api.v1.PlaygroundService/GetPrecompiledObjects',
+      ($0.GetPrecompiledObjectsRequest value) => value.writeToBuffer(),
       ($core.List<$core.int> value) =>
-          $0.GetListOfExamplesResponse.fromBuffer(value));
-  static final _$getExample =
-      $grpc.ClientMethod<$0.GetExampleRequest, $0.GetExampleResponse>(
-          '/api.v1.PlaygroundService/GetExample',
-          ($0.GetExampleRequest value) => value.writeToBuffer(),
-          ($core.List<$core.int> value) =>
-              $0.GetExampleResponse.fromBuffer(value));
-  static final _$getExampleOutput =
-      $grpc.ClientMethod<$0.GetExampleRequest, $0.GetRunOutputResponse>(
-          '/api.v1.PlaygroundService/GetExampleOutput',
-          ($0.GetExampleRequest value) => value.writeToBuffer(),
-          ($core.List<$core.int> value) =>
-              $0.GetRunOutputResponse.fromBuffer(value));
+          $0.GetPrecompiledObjectsResponse.fromBuffer(value));
+  static final _$getPrecompiledObjectCode = $grpc.ClientMethod<
+          $0.GetPrecompiledObjectRequest, $0.GetPrecompiledObjectCodeResponse>(
+      '/api.v1.PlaygroundService/GetPrecompiledObjectCode',
+      ($0.GetPrecompiledObjectRequest value) => value.writeToBuffer(),
+      ($core.List<$core.int> value) =>
+          $0.GetPrecompiledObjectCodeResponse.fromBuffer(value));
+  static final _$getPrecompiledObjectOutput = $grpc.ClientMethod<
+          $0.GetPrecompiledObjectRequest, $0.GetRunOutputResponse>(
+      '/api.v1.PlaygroundService/GetPrecompiledObjectOutput',
+      ($0.GetPrecompiledObjectRequest value) => value.writeToBuffer(),
+      ($core.List<$core.int> value) =>
+          $0.GetRunOutputResponse.fromBuffer(value));
 
   PlaygroundServiceClient($grpc.ClientChannel channel,
       {$grpc.CallOptions? options,
@@ -96,28 +115,46 @@ class PlaygroundServiceClient extends $grpc.Client {
     return $createUnaryCall(_$getRunOutput, request, options: options);
   }
 
+  $grpc.ResponseFuture<$0.GetLogsResponse> getLogs($0.GetLogsRequest request,
+      {$grpc.CallOptions? options}) {
+    return $createUnaryCall(_$getLogs, request, options: options);
+  }
+
+  $grpc.ResponseFuture<$0.GetRunErrorResponse> getRunError(
+      $0.GetRunErrorRequest request,
+      {$grpc.CallOptions? options}) {
+    return $createUnaryCall(_$getRunError, request, options: options);
+  }
+
   $grpc.ResponseFuture<$0.GetCompileOutputResponse> getCompileOutput(
       $0.GetCompileOutputRequest request,
       {$grpc.CallOptions? options}) {
     return $createUnaryCall(_$getCompileOutput, request, options: options);
   }
 
-  $grpc.ResponseFuture<$0.GetListOfExamplesResponse> getListOfExamples(
-      $0.GetListOfExamplesRequest request,
+  $grpc.ResponseFuture<$0.CancelResponse> cancel($0.CancelRequest request,
       {$grpc.CallOptions? options}) {
-    return $createUnaryCall(_$getListOfExamples, request, options: options);
+    return $createUnaryCall(_$cancel, request, options: options);
   }
 
-  $grpc.ResponseFuture<$0.GetExampleResponse> getExample(
-      $0.GetExampleRequest request,
+  $grpc.ResponseFuture<$0.GetPrecompiledObjectsResponse> getPrecompiledObjects(
+      $0.GetPrecompiledObjectsRequest request,
       {$grpc.CallOptions? options}) {
-    return $createUnaryCall(_$getExample, request, options: options);
+    return $createUnaryCall(_$getPrecompiledObjects, request, options: options);
   }
 
-  $grpc.ResponseFuture<$0.GetRunOutputResponse> getExampleOutput(
-      $0.GetExampleRequest request,
+  $grpc.ResponseFuture<$0.GetPrecompiledObjectCodeResponse>
+      getPrecompiledObjectCode($0.GetPrecompiledObjectRequest request,
+          {$grpc.CallOptions? options}) {
+    return $createUnaryCall(_$getPrecompiledObjectCode, request,
+        options: options);
+  }
+
+  $grpc.ResponseFuture<$0.GetRunOutputResponse> getPrecompiledObjectOutput(
+      $0.GetPrecompiledObjectRequest request,
       {$grpc.CallOptions? options}) {
-    return $createUnaryCall(_$getExampleOutput, request, options: options);
+    return $createUnaryCall(_$getPrecompiledObjectOutput, request,
+        options: options);
   }
 }
 
@@ -130,60 +167,87 @@ abstract class PlaygroundServiceBase extends $grpc.Service {
         runCode_Pre,
         false,
         false,
-        ($core.List<$core.int> value) => $0.RunCodeRequest.fromBuffer(value),
-        ($0.RunCodeResponse value) => value.writeToBuffer()));
+            ($core.List<$core.int> value) =>
+            $0.RunCodeRequest.fromBuffer(value),
+            ($0.RunCodeResponse value) => value.writeToBuffer()));
     $addMethod(
         $grpc.ServiceMethod<$0.CheckStatusRequest, $0.CheckStatusResponse>(
             'CheckStatus',
             checkStatus_Pre,
             false,
             false,
-            ($core.List<$core.int> value) =>
+                ($core.List<$core.int> value) =>
                 $0.CheckStatusRequest.fromBuffer(value),
-            ($0.CheckStatusResponse value) => value.writeToBuffer()));
+                ($0.CheckStatusResponse value) => value.writeToBuffer()));
     $addMethod(
         $grpc.ServiceMethod<$0.GetRunOutputRequest, $0.GetRunOutputResponse>(
             'GetRunOutput',
             getRunOutput_Pre,
             false,
             false,
-            ($core.List<$core.int> value) =>
+                ($core.List<$core.int> value) =>
                 $0.GetRunOutputRequest.fromBuffer(value),
-            ($0.GetRunOutputResponse value) => value.writeToBuffer()));
+                ($0.GetRunOutputResponse value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.GetLogsRequest, $0.GetLogsResponse>(
+        'GetLogs',
+        getLogs_Pre,
+        false,
+        false,
+            ($core.List<$core.int> value) =>
+            $0.GetLogsRequest.fromBuffer(value),
+            ($0.GetLogsResponse value) => value.writeToBuffer()));
+    $addMethod(
+        $grpc.ServiceMethod<$0.GetRunErrorRequest, $0.GetRunErrorResponse>(
+            'GetRunError',
+            getRunError_Pre,
+            false,
+            false,
+                ($core.List<$core.int> value) =>
+                $0.GetRunErrorRequest.fromBuffer(value),
+                ($0.GetRunErrorResponse value) => value.writeToBuffer()));
     $addMethod($grpc.ServiceMethod<$0.GetCompileOutputRequest,
-            $0.GetCompileOutputResponse>(
+        $0.GetCompileOutputResponse>(
         'GetCompileOutput',
         getCompileOutput_Pre,
         false,
         false,
-        ($core.List<$core.int> value) =>
-            $0.GetCompileOutputRequest.fromBuffer(value),
-        ($0.GetCompileOutputResponse value) => value.writeToBuffer()));
-    $addMethod($grpc.ServiceMethod<$0.GetListOfExamplesRequest,
-            $0.GetListOfExamplesResponse>(
-        'GetListOfExamples',
-        getListOfExamples_Pre,
-        false,
-        false,
-        ($core.List<$core.int> value) =>
-            $0.GetListOfExamplesRequest.fromBuffer(value),
-        ($0.GetListOfExamplesResponse value) => value.writeToBuffer()));
-    $addMethod($grpc.ServiceMethod<$0.GetExampleRequest, $0.GetExampleResponse>(
-        'GetExample',
-        getExample_Pre,
-        false,
-        false,
-        ($core.List<$core.int> value) => $0.GetExampleRequest.fromBuffer(value),
-        ($0.GetExampleResponse value) => value.writeToBuffer()));
-    $addMethod(
-        $grpc.ServiceMethod<$0.GetExampleRequest, $0.GetRunOutputResponse>(
-            'GetExampleOutput',
-            getExampleOutput_Pre,
-            false,
-            false,
             ($core.List<$core.int> value) =>
-                $0.GetExampleRequest.fromBuffer(value),
-            ($0.GetRunOutputResponse value) => value.writeToBuffer()));
+            $0.GetCompileOutputRequest.fromBuffer(value),
+            ($0.GetCompileOutputResponse value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.CancelRequest, $0.CancelResponse>(
+        'Cancel',
+        cancel_Pre,
+        false,
+        false,
+            ($core.List<$core.int> value) => $0.CancelRequest.fromBuffer(value),
+            ($0.CancelResponse value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.GetPrecompiledObjectsRequest,
+        $0.GetPrecompiledObjectsResponse>(
+        'GetPrecompiledObjects',
+        getPrecompiledObjects_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) =>
+            $0.GetPrecompiledObjectsRequest.fromBuffer(value),
+        ($0.GetPrecompiledObjectsResponse value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.GetPrecompiledObjectRequest,
+            $0.GetPrecompiledObjectCodeResponse>(
+        'GetPrecompiledObjectCode',
+        getPrecompiledObjectCode_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) =>
+            $0.GetPrecompiledObjectRequest.fromBuffer(value),
+        ($0.GetPrecompiledObjectCodeResponse value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.GetPrecompiledObjectRequest,
+            $0.GetRunOutputResponse>(
+        'GetPrecompiledObjectOutput',
+        getPrecompiledObjectOutput_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) =>
+            $0.GetPrecompiledObjectRequest.fromBuffer(value),
+        ($0.GetRunOutputResponse value) => value.writeToBuffer()));
   }
 
   $async.Future<$0.RunCodeResponse> runCode_Pre(
@@ -202,41 +266,72 @@ abstract class PlaygroundServiceBase extends $grpc.Service {
     return getRunOutput(call, await request);
   }
 
+  $async.Future<$0.GetLogsResponse> getLogs_Pre($grpc.ServiceCall call,
+      $async.Future<$0.GetLogsRequest> request) async {
+    return getLogs(call, await request);
+  }
+
+  $async.Future<$0.GetRunErrorResponse> getRunError_Pre($grpc.ServiceCall call,
+      $async.Future<$0.GetRunErrorRequest> request) async {
+    return getRunError(call, await request);
+  }
+
   $async.Future<$0.GetCompileOutputResponse> getCompileOutput_Pre(
       $grpc.ServiceCall call,
       $async.Future<$0.GetCompileOutputRequest> request) async {
     return getCompileOutput(call, await request);
   }
 
-  $async.Future<$0.GetListOfExamplesResponse> getListOfExamples_Pre(
+  $async.Future<$0.CancelResponse> cancel_Pre(
+      $grpc.ServiceCall call, $async.Future<$0.CancelRequest> request) async {
+    return cancel(call, await request);
+  }
+
+  $async.Future<$0.GetPrecompiledObjectsResponse> getPrecompiledObjects_Pre(
       $grpc.ServiceCall call,
-      $async.Future<$0.GetListOfExamplesRequest> request) async {
-    return getListOfExamples(call, await request);
+      $async.Future<$0.GetPrecompiledObjectsRequest> request) async {
+    return getPrecompiledObjects(call, await request);
   }
 
-  $async.Future<$0.GetExampleResponse> getExample_Pre($grpc.ServiceCall call,
-      $async.Future<$0.GetExampleRequest> request) async {
-    return getExample(call, await request);
+  $async.Future<$0.GetPrecompiledObjectCodeResponse>
+  getPrecompiledObjectCode_Pre($grpc.ServiceCall call,
+      $async.Future<$0.GetPrecompiledObjectRequest> request) async {
+    return getPrecompiledObjectCode(call, await request);
   }
 
-  $async.Future<$0.GetRunOutputResponse> getExampleOutput_Pre(
+  $async.Future<$0.GetRunOutputResponse> getPrecompiledObjectOutput_Pre(
       $grpc.ServiceCall call,
-      $async.Future<$0.GetExampleRequest> request) async {
-    return getExampleOutput(call, await request);
+      $async.Future<$0.GetPrecompiledObjectRequest> request) async {
+    return getPrecompiledObjectOutput(call, await request);
   }
 
-  $async.Future<$0.RunCodeResponse> runCode(
-      $grpc.ServiceCall call, $0.RunCodeRequest request);
-  $async.Future<$0.CheckStatusResponse> checkStatus(
-      $grpc.ServiceCall call, $0.CheckStatusRequest request);
-  $async.Future<$0.GetRunOutputResponse> getRunOutput(
-      $grpc.ServiceCall call, $0.GetRunOutputRequest request);
+  $async.Future<$0.RunCodeResponse> runCode($grpc.ServiceCall call,
+      $0.RunCodeRequest request);
+
+  $async.Future<$0.CheckStatusResponse> checkStatus($grpc.ServiceCall call,
+      $0.CheckStatusRequest request);
+
+  $async.Future<$0.GetRunOutputResponse> getRunOutput($grpc.ServiceCall call,
+      $0.GetRunOutputRequest request);
+
+  $async.Future<$0.GetLogsResponse> getLogs($grpc.ServiceCall call,
+      $0.GetLogsRequest request);
+
+  $async.Future<$0.GetRunErrorResponse> getRunError($grpc.ServiceCall call,
+      $0.GetRunErrorRequest request);
+
   $async.Future<$0.GetCompileOutputResponse> getCompileOutput(
       $grpc.ServiceCall call, $0.GetCompileOutputRequest request);
-  $async.Future<$0.GetListOfExamplesResponse> getListOfExamples(
-      $grpc.ServiceCall call, $0.GetListOfExamplesRequest request);
-  $async.Future<$0.GetExampleResponse> getExample(
-      $grpc.ServiceCall call, $0.GetExampleRequest request);
-  $async.Future<$0.GetRunOutputResponse> getExampleOutput(
-      $grpc.ServiceCall call, $0.GetExampleRequest request);
+
+  $async.Future<$0.CancelResponse> cancel($grpc.ServiceCall call,
+      $0.CancelRequest request);
+
+  $async.Future<$0.GetPrecompiledObjectsResponse> getPrecompiledObjects(
+      $grpc.ServiceCall call, $0.GetPrecompiledObjectsRequest request);
+
+  $async.Future<$0.GetPrecompiledObjectCodeResponse> getPrecompiledObjectCode(
+      $grpc.ServiceCall call, $0.GetPrecompiledObjectRequest request);
+
+  $async.Future<$0.GetRunOutputResponse> getPrecompiledObjectOutput(
+      $grpc.ServiceCall call, $0.GetPrecompiledObjectRequest request);
 }

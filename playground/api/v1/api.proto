@@ -33,18 +33,23 @@ enum Status {
   STATUS_UNSPECIFIED = 0;
   STATUS_VALIDATING = 1;
   STATUS_VALIDATION_ERROR = 2;
-  STATUS_COMPILING = 3;
-  STATUS_COMPILE_ERROR = 4;
-  STATUS_EXECUTING = 5;
-  STATUS_FINISHED = 6;
-  STATUS_ERROR = 7;
-  STATUS_RUN_TIMEOUT = 8;
+  STATUS_PREPARING = 3;
+  STATUS_PREPARATION_ERROR = 4;
+  STATUS_COMPILING = 5;
+  STATUS_COMPILE_ERROR = 6;
+  STATUS_EXECUTING = 7;
+  STATUS_FINISHED = 8;
+  STATUS_RUN_ERROR = 9;
+  STATUS_ERROR = 10;
+  STATUS_RUN_TIMEOUT = 11;
+  STATUS_CANCELED = 12;
 }
 
-enum ExampleType {
-  EXAMPLE_TYPE_DEFAULT = 0;
-  EXAMPLE_TYPE_KATA = 1;
-  EXAMPLE_TYPE_UNIT_TEST = 2;
+enum PrecompiledObjectType {
+  PRECOMPILED_OBJECT_TYPE_UNSPECIFIED = 0;
+  PRECOMPILED_OBJECT_TYPE_EXAMPLE = 1;
+  PRECOMPILED_OBJECT_TYPE_KATA = 2;
+  PRECOMPILED_OBJECT_TYPE_UNIT_TEST = 3;
 }
 
 // RunCodeRequest represents a code text and options of SDK which executes the code.
@@ -87,45 +92,74 @@ message GetRunOutputRequest {
 // RunOutputResponse represents the result of the executed code.
 message GetRunOutputResponse {
   string output = 1;
-  Status compilation_status = 2;
 }
 
-// ListOfExamplesRequest contains information of the needed examples sdk and categories.
-message GetListOfExamplesRequest{
+// GetRunErrorRequest contains information of the pipeline uuid.
+message GetRunErrorRequest {
+  string pipeline_uuid = 1;
+}
+
+// GetRunErrorResponse represents the error of the executed code.
+message GetRunErrorResponse {
+  string output = 1;
+}
+
+// GetLogsRequest contains information of the pipeline uuid.
+message GetLogsRequest {
+  string pipeline_uuid = 1;
+}
+
+// RunOutputResponse represents the logs of the executed code.
+message GetLogsResponse {
+  string output = 1;
+}
+
+// CancelRequest request to cancel code processing
+message CancelRequest {
+  string pipeline_uuid = 1;
+}
+
+// CancelResponse response for cancel request
+message CancelResponse {
+}
+
+// GetPrecompiledObjectsRequest contains information of the needed PrecompiledObjects sdk and categories.
+message GetPrecompiledObjectsRequest{
   Sdk sdk = 1;
   string category = 2;
 }
 
-// Example represents one example with its information
-message Example{
-  string example_uuid = 1;
+// PrecompiledObject represents one PrecompiledObject with its information
+message PrecompiledObject{
+  string cloud_path = 1;
   string name = 2;
   string description = 3;
-  ExampleType type = 4;
+  PrecompiledObjectType type = 4;
 }
 
 // Categories represent the array of messages with sdk and categories at this sdk
 message Categories{
   message Category{
     string category_name = 1;
-    repeated Example examples = 2;
+    repeated PrecompiledObject precompiled_objects = 2;
   }
   Sdk sdk = 1;
   repeated Category categories = 2;
 }
 
-// ListOfExamplesResponse represent the map between sdk and categories for the sdk.
-message GetListOfExamplesResponse{
-  repeated Categories sdk_examples = 1;
+
+// GetListOfPrecompiledObjectsResponse represent the map between sdk and categories for the sdk.
+message GetPrecompiledObjectsResponse{
+  repeated Categories sdk_categories = 1;
 }
 
-// ExampleRequest contains information of the example uuid.
-message GetExampleRequest{
-  string example_uuid = 1;
+// GetPrecompiledObjectRequest contains information of the PrecompiledObject uuid.
+message GetPrecompiledObjectRequest{
+  string cloud_path = 1;
 }
 
-// ExampleResponse represents the source code of the example.
-message GetExampleResponse{
+// GetPrecompiledObjectResponse represents the source code of the PrecompiledObject.
+message GetPrecompiledObjectCodeResponse{
   string code = 1;
 }
 
@@ -140,15 +174,24 @@ service PlaygroundService {
   // Get the result of pipeline execution.
   rpc GetRunOutput(GetRunOutputRequest) returns (GetRunOutputResponse);
 
+  // Get the logs of pipeline execution.
+  rpc GetLogs(GetLogsRequest) returns (GetLogsResponse);
+
+  // Get the error of pipeline execution.
+  rpc GetRunError(GetRunErrorRequest) returns (GetRunErrorResponse);
+
   // Get the result of pipeline compilation.
   rpc GetCompileOutput(GetCompileOutputRequest) returns (GetCompileOutputResponse);
 
-  // Get the list of precompiled examples.
-  rpc GetListOfExamples(GetListOfExamplesRequest) returns (GetListOfExamplesResponse);
+  // Cancel code processing
+  rpc Cancel(CancelRequest) returns (CancelResponse);
 
-  // Get the code of an example.
-  rpc GetExample(GetExampleRequest) returns (GetExampleResponse);
+  // Get all precompiled objects from the cloud storage.
+  rpc GetPrecompiledObjects(GetPrecompiledObjectsRequest) returns (GetPrecompiledObjectsResponse);
 
-  // Get the precompiled details of an example.
-  rpc GetExampleOutput(GetExampleRequest) returns (GetRunOutputResponse);
+  // Get the code of an PrecompiledObject.
+  rpc GetPrecompiledObjectCode(GetPrecompiledObjectRequest) returns (GetPrecompiledObjectCodeResponse);
+
+  // Get the precompiled details of an PrecompiledObject.
+  rpc GetPrecompiledObjectOutput(GetPrecompiledObjectRequest) returns (GetRunOutputResponse);
 }

@@ -33,6 +33,7 @@ const (
 	serverPortKey                 = "SERVER_PORT"
 	beamSdkKey                    = "BEAM_SDK"
 	workingDirKey                 = "APP_WORK_DIR"
+	preparedModDirKey             = "PREPARED_MOD_DIR"
 	cacheTypeKey                  = "CACHE_TYPE"
 	cacheAddressKey               = "CACHE_ADDRESS"
 	beamPathKey                   = "BEAM_PATH"
@@ -139,6 +140,7 @@ func GetNetworkEnvsFromOsEnvs() (*NetworkEnvs, error) {
 // Configures ExecutorConfig with config file.
 func ConfigureBeamEnvs(workDir string) (*BeamEnvs, error) {
 	sdk := pb.Sdk_SDK_UNSPECIFIED
+	preparedModDir, modDirExist := os.LookupEnv(preparedModDirKey)
 	if value, present := os.LookupEnv(beamSdkKey); present {
 
 		switch value {
@@ -146,6 +148,9 @@ func ConfigureBeamEnvs(workDir string) (*BeamEnvs, error) {
 			sdk = pb.Sdk_SDK_JAVA
 		case pb.Sdk_SDK_GO.String():
 			sdk = pb.Sdk_SDK_GO
+			if !modDirExist {
+				return nil, errors.New("env PREPARED_MOD_DIR must be specified in the environment variables for GO sdk")
+			}
 		case pb.Sdk_SDK_PYTHON.String():
 			sdk = pb.Sdk_SDK_PYTHON
 		case pb.Sdk_SDK_SCIO.String():
@@ -160,7 +165,7 @@ func ConfigureBeamEnvs(workDir string) (*BeamEnvs, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewBeamEnvs(sdk, executorConfig), nil
+	return NewBeamEnvs(sdk, executorConfig, preparedModDir), nil
 }
 
 // createExecutorConfig creates ExecutorConfig that corresponds to specific Apache Beam SDK.
@@ -180,9 +185,9 @@ func createExecutorConfig(apacheBeamSdk pb.Sdk, configPath string) (*ExecutorCon
 		}, ":")
 		executorConfig.RunArgs[1] += jars
 	case pb.Sdk_SDK_GO:
-		return nil, errors.New("not yet supported")
+		// Go sdk doesn't need any additional arguments from the config file
 	case pb.Sdk_SDK_PYTHON:
-		return nil, errors.New("not yet supported")
+		// Python sdk doesn't need any additional arguments from the config file
 	case pb.Sdk_SDK_SCIO:
 		return nil, errors.New("not yet supported")
 	}
