@@ -190,8 +190,8 @@ public class Snippets {
     }
 
     {
-      // [START BigQueryDataTypes]
       @SuppressWarnings("ModifiedButNotUsed")
+      // [START BigQueryDataTypes]
       TableRow row = new TableRow();
       row.set("string", "abc");
       byte[] rawbytes = {(byte) 0xab, (byte) 0xac};

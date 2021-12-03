@@ -41,7 +41,6 @@ public class SystemNanoTimeSleeper implements Sleeper {
   @Override
   public void sleep(long millis) throws InterruptedException {
     long currentTime;
-    @SuppressWarnings("PreferJavaTimeOverload")
     long endTime = System.nanoTime() + TimeUnit.NANOSECONDS.convert(millis, TimeUnit.MILLISECONDS);
     while ((currentTime = System.nanoTime()) < endTime) {
       if (Thread.interrupted()) {

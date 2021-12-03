@@ -257,6 +257,7 @@ public class StateFetchingIteratorsTest {
       assertEquals(1, callCount.get());
 
       // Prefetch every second element in the iterator capturing the results
+      List<T> results = new ArrayList<>();
       for (int i = 0; i < expected.length; ++i) {
         if (i % 2 == 1) {
           // Ensure that prefetch performs the call
@@ -267,12 +268,12 @@ public class StateFetchingIteratorsTest {
           assertEquals(Math.min(i + 2, expected.length), callCount.get());
         }
         assertTrue(valuesIter2.hasNext());
-        valuesIter2.next();
+        results.add(valuesIter2.next());
       }
       assertFalse(valuesIter2.hasNext());
       assertTrue(valuesIter2.isReady());
-
       // The contents agree.
+      assertArrayEquals(expected, Iterables.toArray(results, Object.class));
       assertArrayEquals(expected, Iterables.toArray(values, Object.class));
     }
   }
