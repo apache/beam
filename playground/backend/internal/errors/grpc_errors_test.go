@@ -24,7 +24,7 @@ func TestInternalError(t *testing.T) {
 	type args struct {
 		title         string
 		formatMessage string
-		arg           interface{}
+		arg           []interface{}
 	}
 	tests := []struct {
 		name     string
@@ -35,15 +35,31 @@ func TestInternalError(t *testing.T) {
 		{
 			// Test case with calling InternalError method.
 			// As a result, want to receive error with correct error message.
-			name:     "TestInternalError",
-			args:     args{title: "TEST_TITLE", formatMessage: "TEST_FORMAT_MESSAGE %s", arg: "TEST_ARG"},
+			name:     "correct count of args",
+			args:     args{title: "TEST_TITLE", formatMessage: "TEST_FORMAT_MESSAGE %s", arg: []interface{}{"TEST_ARG"}},
 			expected: "rpc error: code = Internal desc = TEST_TITLE: TEST_FORMAT_MESSAGE TEST_ARG",
+			wantErr:  true,
+		},
+		{
+			// Test case with calling InternalError method with too many args.
+			// As a result, want to receive error with correct error message.
+			name:     "too many args",
+			args:     args{title: "TEST_TITLE", formatMessage: "TEST_FORMAT_MESSAGE %s", arg: []interface{}{"TEST_ARG", "TEST_ARG"}},
+			expected: "rpc error: code = Internal desc = TEST_TITLE: TEST_FORMAT_MESSAGE TEST_ARG%!(EXTRA string=TEST_ARG)",
+			wantErr:  true,
+		},
+		{
+			// Test case with calling InternalError method with too few args.
+			// As a result, want to receive error with correct error message.
+			name:     "too few args",
+			args:     args{title: "TEST_TITLE", formatMessage: "TEST_FORMAT_MESSAGE %s", arg: []interface{}{}},
+			expected: "rpc error: code = Internal desc = TEST_TITLE: TEST_FORMAT_MESSAGE %!s(MISSING)",
 			wantErr:  true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := InternalError(tt.args.title, tt.args.formatMessage, tt.args.arg)
+			err := InternalError(tt.args.title, tt.args.formatMessage, tt.args.arg...)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("InternalError() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -58,7 +74,7 @@ func TestInvalidArgumentError(t *testing.T) {
 	type args struct {
 		title         string
 		formatMessage string
-		arg           interface{}
+		arg           []interface{}
 	}
 	tests := []struct {
 		name     string
@@ -69,15 +85,31 @@ func TestInvalidArgumentError(t *testing.T) {
 		{
 			// Test case with calling InvalidArgumentError method.
 			// As a result, want to receive error with correct error message.
-			name:     "TestInvalidArgumentError",
-			args:     args{title: "TEST_TITLE", formatMessage: "TEST_FORMAT_MESSAGE %s", arg: "TEST_ARG"},
+			name:     "correct count of args",
+			args:     args{title: "TEST_TITLE", formatMessage: "TEST_FORMAT_MESSAGE %s", arg: []interface{}{"TEST_ARG"}},
 			expected: "rpc error: code = InvalidArgument desc = TEST_TITLE: TEST_FORMAT_MESSAGE TEST_ARG",
+			wantErr:  true,
+		},
+		{
+			// Test case with calling InvalidArgumentError method with too many args.
+			// As a result, want to receive error with correct error message.
+			name:     "too many args",
+			args:     args{title: "TEST_TITLE", formatMessage: "TEST_FORMAT_MESSAGE %s", arg: []interface{}{"TEST_ARG", "TEST_ARG"}},
+			expected: "rpc error: code = InvalidArgument desc = TEST_TITLE: TEST_FORMAT_MESSAGE TEST_ARG%!(EXTRA string=TEST_ARG)",
+			wantErr:  true,
+		},
+		{
+			// Test case with calling InvalidArgumentError method with too few args.
+			// As a result, want to receive error with correct error message.
+			name:     "too few args",
+			args:     args{title: "TEST_TITLE", formatMessage: "TEST_FORMAT_MESSAGE %s", arg: []interface{}{}},
+			expected: "rpc error: code = InvalidArgument desc = TEST_TITLE: TEST_FORMAT_MESSAGE %!s(MISSING)",
 			wantErr:  true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := InvalidArgumentError(tt.args.title, tt.args.formatMessage, tt.args.arg)
+			err := InvalidArgumentError(tt.args.title, tt.args.formatMessage, tt.args.arg...)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("InvalidArgumentError() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -92,7 +124,7 @@ func TestNotFoundError(t *testing.T) {
 	type args struct {
 		title         string
 		formatMessage string
-		arg           interface{}
+		arg           []interface{}
 	}
 	tests := []struct {
 		name     string
@@ -103,15 +135,31 @@ func TestNotFoundError(t *testing.T) {
 		{
 			// Test case with calling NotFoundError method.
 			// As a result, want to receive error with correct error message.
-			name:     "TestNotFoundError",
-			args:     args{title: "TEST_TITLE", formatMessage: "TEST_FORMAT_MESSAGE %s", arg: "TEST_ARG"},
+			name:     "correct count of args",
+			args:     args{title: "TEST_TITLE", formatMessage: "TEST_FORMAT_MESSAGE %s", arg: []interface{}{"TEST_ARG"}},
 			expected: "rpc error: code = NotFound desc = TEST_TITLE: TEST_FORMAT_MESSAGE TEST_ARG",
+			wantErr:  true,
+		},
+		{
+			// Test case with calling NotFoundError method with too many args.
+			// As a result, want to receive error with correct error message.
+			name:     "too many args",
+			args:     args{title: "TEST_TITLE", formatMessage: "TEST_FORMAT_MESSAGE %s", arg: []interface{}{"TEST_ARG", "TEST_ARG"}},
+			expected: "rpc error: code = NotFound desc = TEST_TITLE: TEST_FORMAT_MESSAGE TEST_ARG%!(EXTRA string=TEST_ARG)",
+			wantErr:  true,
+		},
+		{
+			// Test case with calling NotFoundError method with too few args.
+			// As a result, want to receive error with correct error message.
+			name:     "too few args",
+			args:     args{title: "TEST_TITLE", formatMessage: "TEST_FORMAT_MESSAGE %s", arg: []interface{}{}},
+			expected: "rpc error: code = NotFound desc = TEST_TITLE: TEST_FORMAT_MESSAGE %!s(MISSING)",
 			wantErr:  true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := NotFoundError(tt.args.title, tt.args.formatMessage, tt.args.arg)
+			err := NotFoundError(tt.args.title, tt.args.formatMessage, tt.args.arg...)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NotFoundError() error = %v, wantErr %v", err, tt.wantErr)
 			}
