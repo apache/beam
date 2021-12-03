@@ -17,6 +17,7 @@ package executors
 
 import (
 	"beam.apache.org/playground/backend/internal/preparators"
+	"beam.apache.org/playground/backend/internal/utils"
 	"beam.apache.org/playground/backend/internal/validators"
 	"context"
 	"os/exec"
@@ -25,10 +26,11 @@ import (
 
 //CmdConfiguration for base cmd code execution
 type CmdConfiguration struct {
-	fileName    string
-	workingDir  string
-	commandName string
-	commandArgs []string
+	fileName        string
+	workingDir      string
+	commandName     string
+	commandArgs     []string
+	pipelineOptions string
 }
 
 // Executor struct for all sdks (Java/Python/Go/SCIO)
@@ -93,7 +95,9 @@ func (ex *Executor) Compile(ctx context.Context) *exec.Cmd {
 // Returns Cmd instance
 func (ex *Executor) Run(ctx context.Context) *exec.Cmd {
 	args := append(ex.runArgs.commandArgs, ex.runArgs.fileName)
-	cmd := exec.CommandContext(ctx, ex.runArgs.commandName, args...)
+	argsWithOptions := append(args, ex.runArgs.pipelineOptions)
+	argsWithOptions = utils.RemoveEmptyValue(argsWithOptions)
+	cmd := exec.CommandContext(ctx, ex.runArgs.commandName, argsWithOptions...)
 	cmd.Dir = ex.runArgs.workingDir
 	return cmd
 }

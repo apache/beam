@@ -15,7 +15,11 @@
 
 package utils
 
-import "testing"
+import (
+	"fmt"
+	"reflect"
+	"testing"
+)
 
 func TestGetFuncName(t *testing.T) {
 	type args struct {
@@ -36,6 +40,40 @@ func TestGetFuncName(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := GetFuncName(tt.args.i); got != tt.want {
 				t.Errorf("GetFuncName() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestRemoveEmptyValue(t *testing.T) {
+	type args struct {
+		args []string
+	}
+	tests := []struct {
+		name string
+		args args
+		want []string
+	}{
+		{
+			name: "array with 2 empty string",
+			args: args{args: []string{"", "test1", "test2", ""}},
+			want: []string{"test1", "test2"},
+		},
+		{
+			name: "array with 1 empty string",
+			args: args{args: []string{""}},
+			want: []string{},
+		},
+		{
+			name: "array without empty string",
+			args: args{args: []string{"test1", "test2"}},
+			want: []string{"test1", "test2"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := RemoveEmptyValue(tt.args.args); !reflect.DeepEqual(fmt.Sprint(got), fmt.Sprint(tt.want)) {
+				t.Errorf("RemoveEmptyValue() = %v, want %v", got, tt.want)
 			}
 		})
 	}

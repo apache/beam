@@ -29,50 +29,55 @@ class PlaygroundServiceStub(object):
             channel: A grpc.Channel.
         """
         self.RunCode = channel.unary_unary(
-            '/api.v1.PlaygroundService/RunCode',
-            request_serializer=api__pb2.RunCodeRequest.SerializeToString,
-            response_deserializer=api__pb2.RunCodeResponse.FromString,
-        )
+                '/api.v1.PlaygroundService/RunCode',
+                request_serializer=api__pb2.RunCodeRequest.SerializeToString,
+                response_deserializer=api__pb2.RunCodeResponse.FromString,
+                )
         self.CheckStatus = channel.unary_unary(
-            '/api.v1.PlaygroundService/CheckStatus',
-            request_serializer=api__pb2.CheckStatusRequest.SerializeToString,
-            response_deserializer=api__pb2.CheckStatusResponse.FromString,
-        )
+                '/api.v1.PlaygroundService/CheckStatus',
+                request_serializer=api__pb2.CheckStatusRequest.SerializeToString,
+                response_deserializer=api__pb2.CheckStatusResponse.FromString,
+                )
         self.GetRunOutput = channel.unary_unary(
-            '/api.v1.PlaygroundService/GetRunOutput',
-            request_serializer=api__pb2.GetRunOutputRequest.SerializeToString,
-            response_deserializer=api__pb2.GetRunOutputResponse.FromString,
-        )
+                '/api.v1.PlaygroundService/GetRunOutput',
+                request_serializer=api__pb2.GetRunOutputRequest.SerializeToString,
+                response_deserializer=api__pb2.GetRunOutputResponse.FromString,
+                )
+        self.GetLogs = channel.unary_unary(
+                '/api.v1.PlaygroundService/GetLogs',
+                request_serializer=api__pb2.GetLogsRequest.SerializeToString,
+                response_deserializer=api__pb2.GetLogsResponse.FromString,
+                )
         self.GetRunError = channel.unary_unary(
-            '/api.v1.PlaygroundService/GetRunError',
-            request_serializer=api__pb2.GetRunErrorRequest.SerializeToString,
-            response_deserializer=api__pb2.GetRunErrorResponse.FromString,
-        )
+                '/api.v1.PlaygroundService/GetRunError',
+                request_serializer=api__pb2.GetRunErrorRequest.SerializeToString,
+                response_deserializer=api__pb2.GetRunErrorResponse.FromString,
+                )
         self.GetCompileOutput = channel.unary_unary(
-            '/api.v1.PlaygroundService/GetCompileOutput',
-            request_serializer=api__pb2.GetCompileOutputRequest.SerializeToString,
-            response_deserializer=api__pb2.GetCompileOutputResponse.FromString,
-        )
+                '/api.v1.PlaygroundService/GetCompileOutput',
+                request_serializer=api__pb2.GetCompileOutputRequest.SerializeToString,
+                response_deserializer=api__pb2.GetCompileOutputResponse.FromString,
+                )
         self.Cancel = channel.unary_unary(
-            '/api.v1.PlaygroundService/Cancel',
-            request_serializer=api__pb2.CancelRequest.SerializeToString,
-            response_deserializer=api__pb2.CancelResponse.FromString,
-        )
+                '/api.v1.PlaygroundService/Cancel',
+                request_serializer=api__pb2.CancelRequest.SerializeToString,
+                response_deserializer=api__pb2.CancelResponse.FromString,
+                )
         self.GetPrecompiledObjects = channel.unary_unary(
-            '/api.v1.PlaygroundService/GetPrecompiledObjects',
-            request_serializer=api__pb2.GetPrecompiledObjectsRequest.SerializeToString,
-            response_deserializer=api__pb2.GetPrecompiledObjectsResponse.FromString,
-        )
+                '/api.v1.PlaygroundService/GetPrecompiledObjects',
+                request_serializer=api__pb2.GetPrecompiledObjectsRequest.SerializeToString,
+                response_deserializer=api__pb2.GetPrecompiledObjectsResponse.FromString,
+                )
         self.GetPrecompiledObjectCode = channel.unary_unary(
-            '/api.v1.PlaygroundService/GetPrecompiledObjectCode',
-            request_serializer=api__pb2.GetPrecompiledObjectRequest.SerializeToString,
-            response_deserializer=api__pb2.GetPrecompiledObjectCodeResponse.FromString,
-        )
+                '/api.v1.PlaygroundService/GetPrecompiledObjectCode',
+                request_serializer=api__pb2.GetPrecompiledObjectRequest.SerializeToString,
+                response_deserializer=api__pb2.GetPrecompiledObjectCodeResponse.FromString,
+                )
         self.GetPrecompiledObjectOutput = channel.unary_unary(
-            '/api.v1.PlaygroundService/GetPrecompiledObjectOutput',
-            request_serializer=api__pb2.GetPrecompiledObjectRequest.SerializeToString,
-            response_deserializer=api__pb2.GetRunOutputResponse.FromString,
-        )
+                '/api.v1.PlaygroundService/GetPrecompiledObjectOutput',
+                request_serializer=api__pb2.GetPrecompiledObjectRequest.SerializeToString,
+                response_deserializer=api__pb2.GetRunOutputResponse.FromString,
+                )
 
 
 class PlaygroundServiceServicer(object):
@@ -94,6 +99,13 @@ class PlaygroundServiceServicer(object):
 
     def GetRunOutput(self, request, context):
         """Get the result of pipeline execution.
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetLogs(self, request, context):
+        """Get the logs of pipeline execution.
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -144,210 +156,232 @@ class PlaygroundServiceServicer(object):
 
 def add_PlaygroundServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
-        'RunCode': grpc.unary_unary_rpc_method_handler(
-            servicer.RunCode,
-            request_deserializer=api__pb2.RunCodeRequest.FromString,
-            response_serializer=api__pb2.RunCodeResponse.SerializeToString,
-        ),
-        'CheckStatus': grpc.unary_unary_rpc_method_handler(
-            servicer.CheckStatus,
-            request_deserializer=api__pb2.CheckStatusRequest.FromString,
-            response_serializer=api__pb2.CheckStatusResponse.SerializeToString,
-        ),
-        'GetRunOutput': grpc.unary_unary_rpc_method_handler(
-            servicer.GetRunOutput,
-            request_deserializer=api__pb2.GetRunOutputRequest.FromString,
-            response_serializer=api__pb2.GetRunOutputResponse.SerializeToString,
-        ),
-        'GetRunError': grpc.unary_unary_rpc_method_handler(
-            servicer.GetRunError,
-            request_deserializer=api__pb2.GetRunErrorRequest.FromString,
-            response_serializer=api__pb2.GetRunErrorResponse.SerializeToString,
-        ),
-        'GetCompileOutput': grpc.unary_unary_rpc_method_handler(
-            servicer.GetCompileOutput,
-            request_deserializer=api__pb2.GetCompileOutputRequest.FromString,
-            response_serializer=api__pb2.GetCompileOutputResponse.SerializeToString,
-        ),
-        'Cancel': grpc.unary_unary_rpc_method_handler(
-            servicer.Cancel,
-            request_deserializer=api__pb2.CancelRequest.FromString,
-            response_serializer=api__pb2.CancelResponse.SerializeToString,
-        ),
-        'GetPrecompiledObjects': grpc.unary_unary_rpc_method_handler(
-            servicer.GetPrecompiledObjects,
-            request_deserializer=api__pb2.GetPrecompiledObjectsRequest.FromString,
-            response_serializer=api__pb2.GetPrecompiledObjectsResponse.SerializeToString,
-        ),
-        'GetPrecompiledObjectCode': grpc.unary_unary_rpc_method_handler(
-            servicer.GetPrecompiledObjectCode,
-            request_deserializer=api__pb2.GetPrecompiledObjectRequest.FromString,
-            response_serializer=api__pb2.GetPrecompiledObjectCodeResponse.SerializeToString,
-        ),
-        'GetPrecompiledObjectOutput': grpc.unary_unary_rpc_method_handler(
-            servicer.GetPrecompiledObjectOutput,
-            request_deserializer=api__pb2.GetPrecompiledObjectRequest.FromString,
-            response_serializer=api__pb2.GetRunOutputResponse.SerializeToString,
-        ),
+            'RunCode': grpc.unary_unary_rpc_method_handler(
+                    servicer.RunCode,
+                    request_deserializer=api__pb2.RunCodeRequest.FromString,
+                    response_serializer=api__pb2.RunCodeResponse.SerializeToString,
+            ),
+            'CheckStatus': grpc.unary_unary_rpc_method_handler(
+                    servicer.CheckStatus,
+                    request_deserializer=api__pb2.CheckStatusRequest.FromString,
+                    response_serializer=api__pb2.CheckStatusResponse.SerializeToString,
+            ),
+            'GetRunOutput': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetRunOutput,
+                    request_deserializer=api__pb2.GetRunOutputRequest.FromString,
+                    response_serializer=api__pb2.GetRunOutputResponse.SerializeToString,
+            ),
+            'GetLogs': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetLogs,
+                    request_deserializer=api__pb2.GetLogsRequest.FromString,
+                    response_serializer=api__pb2.GetLogsResponse.SerializeToString,
+            ),
+            'GetRunError': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetRunError,
+                    request_deserializer=api__pb2.GetRunErrorRequest.FromString,
+                    response_serializer=api__pb2.GetRunErrorResponse.SerializeToString,
+            ),
+            'GetCompileOutput': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetCompileOutput,
+                    request_deserializer=api__pb2.GetCompileOutputRequest.FromString,
+                    response_serializer=api__pb2.GetCompileOutputResponse.SerializeToString,
+            ),
+            'Cancel': grpc.unary_unary_rpc_method_handler(
+                    servicer.Cancel,
+                    request_deserializer=api__pb2.CancelRequest.FromString,
+                    response_serializer=api__pb2.CancelResponse.SerializeToString,
+            ),
+            'GetPrecompiledObjects': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetPrecompiledObjects,
+                    request_deserializer=api__pb2.GetPrecompiledObjectsRequest.FromString,
+                    response_serializer=api__pb2.GetPrecompiledObjectsResponse.SerializeToString,
+            ),
+            'GetPrecompiledObjectCode': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetPrecompiledObjectCode,
+                    request_deserializer=api__pb2.GetPrecompiledObjectRequest.FromString,
+                    response_serializer=api__pb2.GetPrecompiledObjectCodeResponse.SerializeToString,
+            ),
+            'GetPrecompiledObjectOutput': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetPrecompiledObjectOutput,
+                    request_deserializer=api__pb2.GetPrecompiledObjectRequest.FromString,
+                    response_serializer=api__pb2.GetRunOutputResponse.SerializeToString,
+            ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-        'api.v1.PlaygroundService', rpc_method_handlers)
+            'api.v1.PlaygroundService', rpc_method_handlers)
     server.add_generic_rpc_handlers((generic_handler,))
 
 
-# This class is part of an EXPERIMENTAL API.
+ # This class is part of an EXPERIMENTAL API.
 class PlaygroundService(object):
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
     def RunCode(request,
-                target,
-                options=(),
-                channel_credentials=None,
-                call_credentials=None,
-                insecure=False,
-                compression=None,
-                wait_for_ready=None,
-                timeout=None,
-                metadata=None):
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
         return grpc.experimental.unary_unary(request, target, '/api.v1.PlaygroundService/RunCode',
-                                             api__pb2.RunCodeRequest.SerializeToString,
-                                             api__pb2.RunCodeResponse.FromString,
-                                             options, channel_credentials,
-                                             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+            api__pb2.RunCodeRequest.SerializeToString,
+            api__pb2.RunCodeResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
     def CheckStatus(request,
-                    target,
-                    options=(),
-                    channel_credentials=None,
-                    call_credentials=None,
-                    insecure=False,
-                    compression=None,
-                    wait_for_ready=None,
-                    timeout=None,
-                    metadata=None):
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
         return grpc.experimental.unary_unary(request, target, '/api.v1.PlaygroundService/CheckStatus',
-                                             api__pb2.CheckStatusRequest.SerializeToString,
-                                             api__pb2.CheckStatusResponse.FromString,
-                                             options, channel_credentials,
-                                             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+            api__pb2.CheckStatusRequest.SerializeToString,
+            api__pb2.CheckStatusResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
     def GetRunOutput(request,
-                     target,
-                     options=(),
-                     channel_credentials=None,
-                     call_credentials=None,
-                     insecure=False,
-                     compression=None,
-                     wait_for_ready=None,
-                     timeout=None,
-                     metadata=None):
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
         return grpc.experimental.unary_unary(request, target, '/api.v1.PlaygroundService/GetRunOutput',
-                                             api__pb2.GetRunOutputRequest.SerializeToString,
-                                             api__pb2.GetRunOutputResponse.FromString,
-                                             options, channel_credentials,
-                                             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+            api__pb2.GetRunOutputRequest.SerializeToString,
+            api__pb2.GetRunOutputResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def GetLogs(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/api.v1.PlaygroundService/GetLogs',
+            api__pb2.GetLogsRequest.SerializeToString,
+            api__pb2.GetLogsResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
     def GetRunError(request,
-                    target,
-                    options=(),
-                    channel_credentials=None,
-                    call_credentials=None,
-                    insecure=False,
-                    compression=None,
-                    wait_for_ready=None,
-                    timeout=None,
-                    metadata=None):
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
         return grpc.experimental.unary_unary(request, target, '/api.v1.PlaygroundService/GetRunError',
-                                             api__pb2.GetRunErrorRequest.SerializeToString,
-                                             api__pb2.GetRunErrorResponse.FromString,
-                                             options, channel_credentials,
-                                             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+            api__pb2.GetRunErrorRequest.SerializeToString,
+            api__pb2.GetRunErrorResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
     def GetCompileOutput(request,
-                         target,
-                         options=(),
-                         channel_credentials=None,
-                         call_credentials=None,
-                         insecure=False,
-                         compression=None,
-                         wait_for_ready=None,
-                         timeout=None,
-                         metadata=None):
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
         return grpc.experimental.unary_unary(request, target, '/api.v1.PlaygroundService/GetCompileOutput',
-                                             api__pb2.GetCompileOutputRequest.SerializeToString,
-                                             api__pb2.GetCompileOutputResponse.FromString,
-                                             options, channel_credentials,
-                                             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+            api__pb2.GetCompileOutputRequest.SerializeToString,
+            api__pb2.GetCompileOutputResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
     def Cancel(request,
-               target,
-               options=(),
-               channel_credentials=None,
-               call_credentials=None,
-               insecure=False,
-               compression=None,
-               wait_for_ready=None,
-               timeout=None,
-               metadata=None):
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
         return grpc.experimental.unary_unary(request, target, '/api.v1.PlaygroundService/Cancel',
-                                             api__pb2.CancelRequest.SerializeToString,
-                                             api__pb2.CancelResponse.FromString,
-                                             options, channel_credentials,
-                                             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+            api__pb2.CancelRequest.SerializeToString,
+            api__pb2.CancelResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
     def GetPrecompiledObjects(request,
-                              target,
-                              options=(),
-                              channel_credentials=None,
-                              call_credentials=None,
-                              insecure=False,
-                              compression=None,
-                              wait_for_ready=None,
-                              timeout=None,
-                              metadata=None):
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
         return grpc.experimental.unary_unary(request, target, '/api.v1.PlaygroundService/GetPrecompiledObjects',
-                                             api__pb2.GetPrecompiledObjectsRequest.SerializeToString,
-                                             api__pb2.GetPrecompiledObjectsResponse.FromString,
-                                             options, channel_credentials,
-                                             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+            api__pb2.GetPrecompiledObjectsRequest.SerializeToString,
+            api__pb2.GetPrecompiledObjectsResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
     def GetPrecompiledObjectCode(request,
-                                 target,
-                                 options=(),
-                                 channel_credentials=None,
-                                 call_credentials=None,
-                                 insecure=False,
-                                 compression=None,
-                                 wait_for_ready=None,
-                                 timeout=None,
-                                 metadata=None):
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
         return grpc.experimental.unary_unary(request, target, '/api.v1.PlaygroundService/GetPrecompiledObjectCode',
-                                             api__pb2.GetPrecompiledObjectRequest.SerializeToString,
-                                             api__pb2.GetPrecompiledObjectCodeResponse.FromString,
-                                             options, channel_credentials,
-                                             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+            api__pb2.GetPrecompiledObjectRequest.SerializeToString,
+            api__pb2.GetPrecompiledObjectCodeResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
     def GetPrecompiledObjectOutput(request,
-                                   target,
-                                   options=(),
-                                   channel_credentials=None,
-                                   call_credentials=None,
-                                   insecure=False,
-                                   compression=None,
-                                   wait_for_ready=None,
-                                   timeout=None,
-                                   metadata=None):
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
         return grpc.experimental.unary_unary(request, target, '/api.v1.PlaygroundService/GetPrecompiledObjectOutput',
-                                             api__pb2.GetPrecompiledObjectRequest.SerializeToString,
-                                             api__pb2.GetRunOutputResponse.FromString,
-                                             options, channel_credentials,
-                                             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+            api__pb2.GetPrecompiledObjectRequest.SerializeToString,
+            api__pb2.GetRunOutputResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

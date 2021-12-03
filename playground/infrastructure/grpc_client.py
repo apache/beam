@@ -32,13 +32,14 @@ class GRPCClient:
     self._channel = grpc.aio.insecure_channel(Config.SERVER_ADDRESS)
     self._stub = api_pb2_grpc.PlaygroundServiceStub(self._channel)
 
-  async def run_code(self, code: str, sdk: api_pb2.Sdk) -> str:
+  async def run_code(self, code: str, sdk: api_pb2.Sdk, pipeline_options: str) -> str:
     """
     Run example by his code and SDK
 
     Args:
         code: code of the example.
         sdk: SDK of the example.
+        pipeline_options: pipeline options of example.
 
     Returns:
         pipeline_uuid: uuid of the pipeline
@@ -48,7 +49,7 @@ class GRPCClient:
       sdks.remove(api_pb2.Sdk.Name(0))  # del SDK_UNSPECIFIED
       raise Exception(
         f'Incorrect sdk: must be from this pool: {", ".join(sdks)}')
-    request = api_pb2.RunCodeRequest(code=code, sdk=sdk)
+    request = api_pb2.RunCodeRequest(code=code, sdk=sdk, pipeline_options=pipeline_options)
     response = await self._stub.RunCode(request)
     return response.pipeline_uuid
 

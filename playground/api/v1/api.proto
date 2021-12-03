@@ -56,6 +56,7 @@ enum PrecompiledObjectType {
 message RunCodeRequest {
   string code = 1;
   Sdk sdk = 2;
+  string pipeline_options = 3;
 }
 
 // RunCodeResponse contains information of the pipeline uuid.

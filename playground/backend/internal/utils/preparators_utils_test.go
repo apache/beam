@@ -15,26 +15,38 @@
 
 package utils
 
-import (
-	"reflect"
-	"runtime"
-	"strings"
-)
+import "testing"
 
-// GetFuncName returns the name of the received func
-func GetFuncName(i interface{}) string {
-	fullName := runtime.FuncForPC(reflect.ValueOf(i).Pointer()).Name()
-	splitName := strings.Split(fullName, ".")
-	return splitName[len(splitName)-1]
-}
-
-//RemoveEmptyValue removes empty lines from an array
-func RemoveEmptyValue(args []string) []string {
-	var array []string
-	for _, str := range args {
-		if str != "" {
-			array = append(array, str)
-		}
+func TestSpacesToEqualsOption(t *testing.T) {
+	type args struct {
+		pipelineOptions string
 	}
-	return array
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "args is empty string",
+			args: args{pipelineOptions: ""},
+			want: "",
+		},
+		{
+			name: "args with one option",
+			args: args{pipelineOptions: "--opt1 valOpt"},
+			want: "--opt1=valOpt",
+		},
+		{
+			name: "args with some options",
+			args: args{pipelineOptions: "--opt1 valOpt --opt2 valOpt --opt3 valOpt"},
+			want: "--opt1=valOpt --opt2=valOpt --opt3=valOpt",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := SpacesToEqualsOption(tt.args.pipelineOptions); got != tt.want {
+				t.Errorf("SpacesToEqualsOption() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

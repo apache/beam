@@ -39,7 +39,8 @@ Tag = namedtuple(
     TagFields.name,
     TagFields.description,
     TagFields.multifile,
-    TagFields.categories
+    TagFields.categories,
+    TagFields.pipeline_options
   ])
 
 
@@ -236,13 +237,19 @@ def _validate(tag: dict, supported_categories: List[str]) -> bool:
   """
   valid = True
   for field in fields(TagFields):
-    if tag.get(field.default) is None:
+    if field.default not in tag:
       logging.error(
         "tag doesn't contain %s field: %s \n"
         "Please, check that this field exists in the beam playground tag."
         "If you are sure that this field exists in the tag"
         " check the format of indenting.", field.default, tag.__str__())
       valid = False
+
+    name = tag.get(TagFields.NAME)
+    if name == '':
+        logging.error("tag's field name is incorrect: " + tag.__str__() + "\n" +
+                      "name can not be empty.")
+        valid = False
 
   multifile = tag.get(TagFields.multifile)
   if (multifile is not None) and (str(multifile).lower() not in ["true",
