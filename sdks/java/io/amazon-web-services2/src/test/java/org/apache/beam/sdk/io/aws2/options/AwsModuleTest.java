@@ -23,14 +23,20 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static software.amazon.awssdk.core.SdkSystemSetting.AWS_ACCESS_KEY_ID;
+import static software.amazon.awssdk.core.SdkSystemSetting.AWS_REGION;
+import static software.amazon.awssdk.core.SdkSystemSetting.AWS_SECRET_ACCESS_KEY;
 
+import com.amazonaws.regions.Regions;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
 import java.time.Duration;
 import java.util.List;
+import java.util.Properties;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import org.apache.beam.sdk.util.ThrowingSupplier;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.hamcrest.MatcherAssert;
 import org.junit.Test;
@@ -131,7 +137,15 @@ public class AwsModuleTest {
             .refreshRequest(req)
             .build();
 
-    AwsCredentialsProvider deserializedProvider = serializeAndDeserialize(provider);
+    Properties overrides = new Properties();
+    overrides.setProperty(AWS_REGION.property(), Regions.AP_EAST_1.getName());
+    overrides.setProperty(AWS_ACCESS_KEY_ID.property(), ACCESS_KEY);
+    overrides.setProperty(AWS_SECRET_ACCESS_KEY.property(), SECRET_KEY);
+
+    // Region and credentials for STS client are resolved using default providers
+    AwsCredentialsProvider deserializedProvider =
+        withSystemPropertyOverrides(overrides, () -> serializeAndDeserialize(provider));
+
     Supplier<AssumeRoleRequest> requestSupplier =
         (Supplier<AssumeRoleRequest>)
             readField(deserializedProvider, "assumeRoleRequestSupplier", true);
@@ -172,5 +186,23 @@ public class AwsModuleTest {
         deserializedAttributeMap.get(SdkHttpConfigurationOption.CONNECTION_TIME_TO_LIVE));
     assertEquals(
         (Integer) 15, deserializedAttributeMap.get(SdkHttpConfigurationOption.MAX_CONNECTIONS));
+  }
+
+  private <T> T withSystemPropertyOverrides(Properties overrides, ThrowingSupplier<T> fun)
+      throws Exception {
+    Properties systemProps = System.getProperties();
+
+    Properties previousProps = new Properties();
+    systemProps.entrySet().stream()
+        .filter(e -> overrides.containsKey(e.getKey()))
+        .forEach(e -> previousProps.put(e.getKey(), e.getValue()));
+
+    overrides.forEach(systemProps::put);
+    try {
+      return fun.get();
+    } finally {
+      overrides.forEach(systemProps::remove);
+      previousProps.forEach(systemProps::put);
+    }
   }
 }
