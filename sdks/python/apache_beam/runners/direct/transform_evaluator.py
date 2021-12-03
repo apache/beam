@@ -674,8 +674,9 @@ class _PubSubReadEvaluator(_TransformEvaluator):
           except ValueError as e:
             raise ValueError('Bad timestamp value: %s' % e)
       else:
-        timestamp = Timestamp(
-            message.publish_time.seconds, message.publish_time.nanos // 1000)
+        if message.publish_time is None:
+          raise ValueError('No publish time present in message: %s' % message)
+        timestamp = Timestamp.from_utc_datetime(message.publish_time)
 
       return timestamp, parsed_message
 

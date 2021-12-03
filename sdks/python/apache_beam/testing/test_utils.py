@@ -181,22 +181,28 @@ def create_pull_response(responses):
     responses.
   """
   from google.cloud import pubsub
+  from google.protobuf import timestamp_pb2
 
   res = pubsub.types.PullResponse()
   for response in responses:
-    received_message = res.received_messages.add()
+    received_message = pubsub.types.ReceivedMessage()
 
     message = received_message.message
     message.data = response.data
     if response.attributes is not None:
       for k, v in response.attributes.items():
         message.attributes[k] = v
+
+    publish_time = timestamp_pb2.Timestamp()
     if response.publish_time_secs is not None:
-      message.publish_time.seconds = response.publish_time_secs
+      publish_time.seconds = response.publish_time_secs
     if response.publish_time_nanos is not None:
-      message.publish_time.nanos = response.publish_time_nanos
+      publish_time.nanos = response.publish_time_nanos
+    message.publish_time = publish_time
 
     if response.ack_id is not None:
       received_message.ack_id = response.ack_id
+
+    res.received_messages.append(received_message)
 
   return res

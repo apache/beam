@@ -116,15 +116,14 @@ class PubsubMessage(object):
     Returns:
       A new PubsubMessage object.
     """
-    msg = pubsub.types.pubsub_pb2.PubsubMessage()
-    msg.ParseFromString(proto_msg)
+    msg = pubsub.types.PubsubMessage.deserialize(proto_msg)
     # Convert ScalarMapContainer to dict.
     attributes = dict((key, msg.attributes[key]) for key in msg.attributes)
     return PubsubMessage(
         msg.data,
         attributes,
         msg.message_id,
-        msg.publish_time.ToDatetime(),
+        msg.publish_time,
         msg.ordering_key)
 
   def _to_proto_str(self, for_publish=False):
@@ -141,7 +140,7 @@ class PubsubMessage(object):
       https://cloud.google.com/pubsub/docs/reference/rpc/google.pubsub.v1#google.pubsub.v1.PubsubMessage
       containing the payload of this object.
     """
-    msg = pubsub.types.pubsub_pb2.PubsubMessage()
+    msg = pubsub.types.PubsubMessage()
     msg.data = self.data
     for key, value in self.attributes.items():
       msg.attributes[key] = value
@@ -150,7 +149,7 @@ class PubsubMessage(object):
     if self.publish_time and not for_publish:
       msg.publish_time = msg.publish_time.FromDatetime(self.publish_time)
     msg.ordering_key = self.ordering_key
-    return msg.SerializeToString()
+    return pubsub.types.PubsubMessage.serialize(msg)
 
   @staticmethod
   def _from_message(msg):
