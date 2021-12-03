@@ -57,6 +57,8 @@
 
 ## New Features / Improvements
 
+* Added support for cloudpickle as a pickling library for Python SDK ([BEAM-8123](https://issues.apache.org/jira/browse/BEAM-8123)). To use cloudpickle, set pipeline option: --pickler_lib=cloudpickle
+
 ## Breaking Changes
 
 ## Deprecations
@@ -75,8 +77,8 @@
 
 ## I/Os
 
-* We changed the data type for ranges in `JdbcIO.readWithPartitions` from `int` to `long`. This is a relatively minor
-    breaking change, which we're implementing to improve the usability of the transform without increasing cruft.
+* We changed the data type for ranges in `JdbcIO.readWithPartitions` from `int` to `long` ([BEAM-13149](https://issues.apache.org/jira/browse/BEAM-13149)).
+    This is a relatively minor breaking change, which we're implementing to improve the usability of the transform without increasing cruft.
     This transform is relatively new, so we may implement other breaking changes in the future to improve its usability.
 * Side inputs are supported within Splittable DoFns for Dataflow Runner V1 and Dataflow Runner V2. ([BEAM-12522](https://issues.apache.org/jira/browse/BEAM-12522)).
 
@@ -93,7 +95,6 @@
 * Removed avro-python3 dependency in AvroIO. Fastavro has already been our Avro library of choice on Python 3. Boolean use_fastavro is left for api compatibility, but will have no effect.([BEAM-13016](https://github.com/apache/beam/pull/15900)).
 * MultiMap side inputs are now supported by the Go SDK ([BEAM-3293](https://issues.apache.org/jira/browse/BEAM-3293)).
 * Remote packages can now be downloaded from locations supported by apache_beam.io.filesystems. The files will be downloaded on Stager and uploaded to staging location. For more information, see [BEAM-11275](https://issues.apache.org/jira/browse/BEAM-11275)
-* Added support for cloudpickle as a pickling library for Python SDK. To use cloudpickle set pipeline option: --pickler_lib=cloudpickle
 
 ## Breaking Changes
 
