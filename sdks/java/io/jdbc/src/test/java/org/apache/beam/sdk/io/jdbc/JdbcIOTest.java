@@ -94,13 +94,11 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Test on the JdbcIO. */
 @RunWith(JUnit4.class)
 public class JdbcIOTest implements Serializable {
-  private static final Logger LOG = LoggerFactory.getLogger(JdbcIOTest.class);
+
   private static final DataSourceConfiguration DATA_SOURCE_CONFIGURATION =
       DataSourceConfiguration.create(
           "org.apache.derby.jdbc.EmbeddedDriver", "jdbc:derby:memory:testDB;create=true");
@@ -462,17 +460,16 @@ public class JdbcIOTest implements Serializable {
   public void testIfNumPartitionsIsZero() {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("numPartitions can not be less than 1");
-    PCollection<TestRow> rows =
-        pipeline.apply(
-            JdbcIO.<TestRow>readWithPartitions()
-                .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
-                .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
-                .withCoder(SerializableCoder.of(TestRow.class))
-                .withTable(READ_TABLE_NAME)
-                .withNumPartitions(0)
-                .withPartitionColumn("id")
-                .withLowerBound(0L)
-                .withUpperBound(1000L));
+    pipeline.apply(
+        JdbcIO.<TestRow>readWithPartitions()
+            .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+            .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
+            .withCoder(SerializableCoder.of(TestRow.class))
+            .withTable(READ_TABLE_NAME)
+            .withNumPartitions(0)
+            .withPartitionColumn("id")
+            .withLowerBound(0L)
+            .withUpperBound(1000L));
     pipeline.run();
   }
 

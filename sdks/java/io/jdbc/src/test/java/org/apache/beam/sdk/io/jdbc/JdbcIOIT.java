@@ -88,8 +88,6 @@ public class JdbcIOIT {
   private static int numberOfRows;
   private static PGSimpleDataSource dataSource;
   private static String tableName;
-  private static String bigQueryDataset;
-  private static String bigQueryTable;
   private static Long tableSize;
   private static InfluxDBSettings settings;
   @Rule public TestPipeline pipelineWrite = TestPipeline.create();
@@ -100,8 +98,6 @@ public class JdbcIOIT {
     PostgresIOTestPipelineOptions options =
         readIOTestPipelineOptions(PostgresIOTestPipelineOptions.class);
 
-    bigQueryDataset = options.getBigQueryDataset();
-    bigQueryTable = options.getBigQueryTable();
     numberOfRows = options.getNumberOfRecords();
     dataSource = DatabaseTestHelper.getPostgresDataSource(options);
     tableName = DatabaseTestHelper.getTestTableName("IT");

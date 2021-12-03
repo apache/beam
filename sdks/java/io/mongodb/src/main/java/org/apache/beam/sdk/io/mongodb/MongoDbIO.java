@@ -628,7 +628,6 @@ public class MongoDbIO {
       ObjectId lowestBound = null; // lower boundary (previous split in the iteration)
       for (int i = 0; i < splitKeys.size(); i++) {
         ObjectId splitKey = splitKeys.get(i).getObjectId("_id");
-        String rangeFilter;
         if (i == 0) {
           aggregates.add(Aggregates.match(Filters.lte("_id", splitKey)));
           if (splitKeys.size() == 1) {
