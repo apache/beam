@@ -104,6 +104,16 @@ message GetRunErrorResponse {
   string output = 1;
 }
 
+// GetLogsRequest contains information of the pipeline uuid.
+message GetLogsRequest {
+  string pipeline_uuid = 1;
+}
+
+// RunOutputResponse represents the logs of the executed code.
+message GetLogsResponse {
+  string output = 1;
+}
+
 // CancelRequest request to cancel code processing
 message CancelRequest {
   string pipeline_uuid = 1;
@@ -125,6 +135,7 @@ message PrecompiledObject{
   string name = 2;
   string description = 3;
   PrecompiledObjectType type = 4;
+  string pipeline_options = 5;
 }
 
 // Categories represent the array of messages with sdk and categories at this sdk
@@ -163,6 +174,9 @@ service PlaygroundService {
 
   // Get the result of pipeline execution.
   rpc GetRunOutput(GetRunOutputRequest) returns (GetRunOutputResponse);
+
+  // Get the logs of pipeline execution.
+  rpc GetLogs(GetLogsRequest) returns (GetLogsResponse);
 
   // Get the error of pipeline execution.
   rpc GetRunError(GetRunErrorRequest) returns (GetRunErrorResponse);
