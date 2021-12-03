@@ -39,7 +39,6 @@ class PlaygroundPageBody extends StatelessWidget {
             first: codeTextArea,
             second: output,
             dividerSize: kMdSpacing,
-            ratio: 0.5,
           );
         case OutputPlacement.left:
           return SplitView(
@@ -47,7 +46,6 @@ class PlaygroundPageBody extends StatelessWidget {
             first: output,
             second: codeTextArea,
             dividerSize: kMdSpacing,
-            ratio: 0.5,
           );
         case OutputPlacement.right:
           return SplitView(
@@ -55,7 +53,6 @@ class PlaygroundPageBody extends StatelessWidget {
             first: codeTextArea,
             second: output,
             dividerSize: kMdSpacing,
-            ratio: 0.5,
           );
       }
     });
