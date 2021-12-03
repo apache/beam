@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """
   Helper for CD step.
 
@@ -39,7 +40,6 @@ class CDHelper:
 
   It is used to save beam examples/katas/tests and their output on the GCS.
   """
-
   def store_examples(self, examples: List[Example]):
     """
     Store beam examples and their output in the Google Cloud.
@@ -59,7 +59,7 @@ class CDHelper:
         examples: beam examples that should be run
     """
     await get_statuses(
-      examples)  # run examples code and wait until all are executed
+        examples)  # run examples code and wait until all are executed
     client = GRPCClient()
     tasks = [client.get_run_output(example.pipeline_id) for example in examples]
     outputs = await asyncio.gather(*tasks)
@@ -79,7 +79,7 @@ class CDHelper:
       file_names = self._write_to_local_fs(example)
       for cloud_file_name, local_file_name in file_names.items():
         self._upload_blob(
-          source_file=local_file_name, destination_blob_name=cloud_file_name)
+            source_file=local_file_name, destination_blob_name=cloud_file_name)
 
   def _write_to_local_fs(self, example: Example):
     """
@@ -93,33 +93,33 @@ class CDHelper:
 
     """
     path_to_object_folder = os.path.join(
-      Config.TEMP_FOLDER,
-      example.pipeline_id,
-      Sdk.Name(example.sdk),
-      example.tag.name)
+        Config.TEMP_FOLDER,
+        example.pipeline_id,
+        Sdk.Name(example.sdk),
+        example.tag.name)
     Path(path_to_object_folder).mkdir(parents=True, exist_ok=True)
 
     file_names = {}
     code_path = self._get_gcs_object_name(
-      sdk=example.sdk,
-      base_folder_name=example.tag.name,
-      file_name=example.tag.name)
+        sdk=example.sdk,
+        base_folder_name=example.tag.name,
+        file_name=example.tag.name)
     output_path = self._get_gcs_object_name(
-      sdk=example.sdk,
-      base_folder_name=example.tag.name,
-      file_name=example.tag.name,
-      extension=PrecompiledExample.OUTPUT_EXTENSION)
+        sdk=example.sdk,
+        base_folder_name=example.tag.name,
+        file_name=example.tag.name,
+        extension=PrecompiledExample.OUTPUT_EXTENSION)
     meta_path = self._get_gcs_object_name(
-      sdk=example.sdk,
-      base_folder_name=example.tag.name,
-      file_name=PrecompiledExample.META_NAME,
-      extension=PrecompiledExample.META_EXTENSION)
+        sdk=example.sdk,
+        base_folder_name=example.tag.name,
+        file_name=PrecompiledExample.META_NAME,
+        extension=PrecompiledExample.META_EXTENSION)
     file_names[code_path] = example.code
     file_names[output_path] = example.output
     file_names[meta_path] = json.dumps(example.tag._asdict())
     for file_name, file_content in file_names.items():
       local_file_path = os.path.join(
-        Config.TEMP_FOLDER, example.pipeline_id, file_name)
+          Config.TEMP_FOLDER, example.pipeline_id, file_name)
       with open(local_file_path, "w", encoding="utf-8") as file:
         file.write(file_content)
       # don't need content anymore, instead save the local path
@@ -147,7 +147,7 @@ class CDHelper:
     if extension is None:
       extension = Config.EXTENSIONS[Sdk.Name(sdk)]
     return os.path.join(
-      Sdk.Name(sdk), base_folder_name, f"{file_name}.{extension}")
+        Sdk.Name(sdk), base_folder_name, f"{file_name}.{extension}")
 
   def _upload_blob(self, source_file: str, destination_blob_name: str):
     """

@@ -34,14 +34,14 @@ from config import Config, TagFields
 from grpc_client import GRPCClient
 
 Tag = namedtuple(
-  "Tag",
-  [
-    TagFields.name,
-    TagFields.description,
-    TagFields.multifile,
-    TagFields.categories,
-    TagFields.pipeline_options
-  ])
+    "Tag",
+    [
+        TagFields.name,
+        TagFields.description,
+        TagFields.multifile,
+        TagFields.categories,
+        TagFields.pipeline_options
+    ])
 
 
 @dataclass
@@ -88,13 +88,12 @@ def find_examples(work_dir: str,
     for filename in files:
       filepath = os.path.join(root, filename)
       error_during_check_file = _check_file(
-        examples, filename, filepath, supported_categories)
+          examples, filename, filepath, supported_categories)
       has_error = has_error or error_during_check_file
   if has_error:
     raise ValueError(
-      "Some of the beam examples contain beam playground tag with "
-      "an incorrect format"
-    )
+        "Some of the beam examples contain beam playground tag with "
+        "an incorrect format")
   return examples
 
 
@@ -177,8 +176,8 @@ def _check_file(examples, filename, filepath, supported_categories):
     tag = get_tag(filepath)
     if tag:
       if _validate(tag, supported_categories) is False:
-        logging.error("%s contains beam playground tag with incorrect format",
-                      filepath)
+        logging.error(
+            "%s contains beam playground tag with incorrect format", filepath)
         has_error = True
       else:
         examples.append(_get_example(filepath, filename, tag))
@@ -218,7 +217,7 @@ def _get_example(filepath: str, filename: str, tag: dict) -> Example:
     content = parsed_file.read()
 
   return Example(
-    name, "", sdk, filepath, content, "", STATUS_UNSPECIFIED, Tag(**tag))
+      name, "", sdk, filepath, content, "", STATUS_UNSPECIFIED, Tag(**tag))
 
 
 def _validate(tag: dict, supported_categories: List[str]) -> bool:
@@ -240,43 +239,50 @@ def _validate(tag: dict, supported_categories: List[str]) -> bool:
   for field in fields(TagFields):
     if field.default not in tag:
       logging.error(
-        "tag doesn't contain %s field: %s \n"
-        "Please, check that this field exists in the beam playground tag."
-        "If you are sure that this field exists in the tag"
-        " check the format of indenting.", field.default, tag.__str__())
+          "tag doesn't contain %s field: %s \n"
+          "Please, check that this field exists in the beam playground tag."
+          "If you are sure that this field exists in the tag"
+          " check the format of indenting.",
+          field.default,
+          tag.__str__())
       valid = False
 
     name = tag.get(TagFields.NAME)
-    if name == '':
-        logging.error("tag's field name is incorrect: " + tag.__str__() + "\n" +
-                      "name can not be empty.")
-        valid = False
+    if name == "":
+      logging.error(
+          "tag's field name is incorrect: %s \nname can not be empty.",
+          tag.__str__())
+      valid = False
 
   multifile = tag.get(TagFields.multifile)
   if (multifile is not None) and (str(multifile).lower() not in ["true",
                                                                  "false"]):
     logging.error(
-      "tag's field multifile is incorrect: %s \n"
-      "multifile variable should be boolean format, but tag contains: %s"
-      , tag.__str__(), str(multifile))
+        "tag's field multifile is incorrect: %s \n"
+        "multifile variable should be boolean format, but tag contains: %s",
+        tag.__str__(),
+        str(multifile))
     valid = False
 
   categories = tag.get(TagFields.categories)
   if categories is not None:
     if not isinstance(categories, list):
       logging.error(
-        "tag's field categories is incorrect: %s \n"
-        "categories variable should be list format, but tag contains: %s"
-        , tag.__str__(), str(type(categories)))
+          "tag's field categories is incorrect: %s \n"
+          "categories variable should be list format, but tag contains: %s",
+          tag.__str__(),
+          str(type(categories)))
       valid = False
     else:
       for category in categories:
         if category not in supported_categories:
           logging.error(
-            "tag contains unsupported category: %s \n"
-            "If you are sure that %s category should be placed in "
-            "Beam Playground, you can add it to the "
-            "`playground/categories.yaml` file", category, category)
+              "tag contains unsupported category: %s \n"
+              "If you are sure that %s category should be placed in "
+              "Beam Playground, you can add it to the "
+              "`playground/categories.yaml` file",
+              category,
+              category)
           valid = False
   return valid
 
