@@ -1041,7 +1041,7 @@ See &lt;a href="https://github.com/apache/beam/commit/a32a75ed0657c122c6625aee1a
 &lt;li>Copy the changes for the current release from &lt;code>CHANGES.md&lt;/code> to the blog post and edit as necessary.&lt;/li>
 &lt;li>Be sure to add yourself to &lt;a href="https://github.com/apache/beam/blob/master/website/www/site/data/authors.yml">authors.yml&lt;/a> if necessary.&lt;/li>
 &lt;/ul>
-&lt;p>&lt;strong>Tip&lt;/strong>: Use git log to find contributors to the releases. (e.g: &lt;code>git log --pretty='%aN' ^v2.10.0 v2.11.0 | sort | uniq&lt;/code>).
+&lt;p>&lt;strong>Tip&lt;/strong>: Use git log to find contributors to the releases. (e.g: &lt;code>git fetch origin --tags; git log --pretty='%aN' ^v2.10.0 v2.11.0-RC1 | sort | uniq&lt;/code>).
 Make sure to clean it up, as there may be duplicate or incorrect user names.&lt;/p>
 &lt;p>&lt;strong>NOTE&lt;/strong>: Make sure to include any breaking changes, even to &lt;code>@Experimental&lt;/code> features,
 all major features and bug fixes, and all known issues.&lt;/p>
