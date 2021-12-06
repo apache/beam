@@ -450,8 +450,7 @@ public class PartitionMetadataDao {
      * Fetches the partition metadata row data for the given partition token.
      *
      * @param partitionToken the partition unique identifier
-     * @return the partition metadata for the given token if it exists. Otherwise, it throws a
-     *     {@link PartitionNotFoundException}
+     * @return the partition metadata for the given token if it exists. Otherwise, it returns null.
      */
     public @Nullable PartitionMetadata getPartition(String partitionToken) {
       try (Scope scope =
@@ -472,7 +471,7 @@ public class PartitionMetadataDao {
                     .to(partitionToken)
                     .build())) {
           if (resultSet.next()) {
-            return mapper.from(resultSet);
+            return mapper.from(resultSet.getCurrentRowAsStruct());
           }
           return null;
         }

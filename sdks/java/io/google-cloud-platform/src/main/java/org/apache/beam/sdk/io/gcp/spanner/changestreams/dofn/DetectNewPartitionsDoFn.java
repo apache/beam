@@ -198,7 +198,8 @@ public class DetectNewPartitionsDoFn extends DoFn<ChangeStreamSourceDescriptor, 
               return ProcessContinuation.stop();
             }
 
-            final PartitionMetadata partition = partitionMetadataMapper.from(resultSet);
+            final PartitionMetadata partition =
+                partitionMetadataMapper.from(resultSet.getCurrentRowAsStruct());
             final com.google.cloud.Timestamp scheduledAt = schedulePartition(partition);
             final PartitionMetadata updatedPartition =
                 partition.toBuilder().setScheduledAt(scheduledAt).build();
