@@ -47,5 +47,9 @@ ENV BEAM_SDK="SDK_PYTHON"
 COPY --from=build /go/bin/server_python_backend /opt/playground/backend/
 COPY --from=build /go/src/playground/backend/configs /opt/playground/backend/configs/
 
+# Install Python Katas Utils
+COPY katas/log_elements.py /go/src/katas/
+ENV PYTHONPATH="/go/src/katas"
+
 RUN printenv
 ENTRYPOINT ["/opt/playground/backend/server_python_backend"]
