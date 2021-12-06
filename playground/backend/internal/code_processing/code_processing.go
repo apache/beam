@@ -26,6 +26,7 @@ import (
 	"beam.apache.org/playground/backend/internal/setup_tools/builder"
 	"beam.apache.org/playground/backend/internal/streaming"
 	"beam.apache.org/playground/backend/internal/utils"
+	"beam.apache.org/playground/backend/internal/validators"
 	"bytes"
 	"context"
 	"fmt"
@@ -33,6 +34,8 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"reflect"
+	"sync"
 	"time"
 )
 
@@ -62,6 +65,7 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 	cancelChannel := make(chan bool, 1)
 	stopReadLogsChannel := make(chan bool, 1)
 	finishReadLogsChannel := make(chan bool, 1)
+	var validationResults sync.Map
 
 	go cancelCheck(ctxWithTimeout, pipelineId, cancelChannel, cacheService)
 
@@ -71,11 +75,10 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 		return
 	}
 	executor := executorBuilder.Build()
-
 	// Validate
 	logger.Infof("%s: Validate() ...\n", pipelineId)
 	validateFunc := executor.Validate()
-	go validateFunc(successChannel, errorChannel)
+	go validateFunc(successChannel, errorChannel, &validationResults)
 
 	ok, err := processStep(ctxWithTimeout, pipelineId, cacheService, cancelChannel, successChannel)
 	if err != nil {
@@ -139,8 +142,7 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 			return
 		}
 	}
-	logger.Infof("%s: Run() ...\n", pipelineId)
-	runCmd := executor.Run(ctxWithTimeout)
+	runCmd := getExecuteCmd(&validationResults, &executor, ctxWithTimeout)
 	var runError bytes.Buffer
 	runOutput := streaming.RunOutputWriter{Ctx: ctxWithTimeout, CacheService: cacheService, PipelineId: pipelineId}
 	go readLogFile(ctxWithTimeout, cacheService, lc.GetAbsoluteLogFilePath(), pipelineId, stopReadLogsChannel, finishReadLogsChannel)
@@ -157,6 +159,17 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 	_ = processRunSuccess(ctxWithTimeout, pipelineId, cacheService, stopReadLogsChannel, finishReadLogsChannel)
 }
 
+// getExecuteCmd return cmd instance based on the code type: unit test or example code
+func getExecuteCmd(valRes *sync.Map, executor *executors.Executor, ctxWithTimeout context.Context) *exec.Cmd {
+	isUnitTest, _ := valRes.Load(validators.UnitTestValidatorName)
+	runType := executors.Run
+	if isUnitTest.(bool) {
+		runType = executors.Test
+	}
+	cmdReflect := reflect.ValueOf(executor).MethodByName(string(runType)).Call([]reflect.Value{reflect.ValueOf(ctxWithTimeout)})
+	return cmdReflect[0].Interface().(*exec.Cmd)
+}
+
 // setJavaExecutableFile sets executable file name to runner (JAVA class name is known after compilation step)
 func setJavaExecutableFile(lc *fs_tool.LifeCycle, id uuid.UUID, service cache.Cache, ctx context.Context, executorBuilder *executors.ExecutorBuilder, dir string) (executors.Executor, error) {
 	className, err := lc.ExecutableName(id, dir)
@@ -165,7 +178,9 @@ func setJavaExecutableFile(lc *fs_tool.LifeCycle, id uuid.UUID, service cache.Ca
 			return executorBuilder.Build(), err
 		}
 	}
-	return executorBuilder.WithRunner().WithExecutableFileName(className).Build(), nil
+	return executorBuilder.
+		WithExecutableFileName(className).
+		Build(), nil
 }
 
 // processSetupError processes errors during the setting up an executor builder

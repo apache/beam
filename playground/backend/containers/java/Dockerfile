@@ -38,6 +38,8 @@ RUN go mod download &&\
 
 FROM $BASE_IMAGE
 ARG BEAM_VERSION=2.33.0
+ARG HAMCREST_VERSION=1.3
+ARG JUNIT_VERSION=4.13
 #ENV BEAM_VERSION=${BEAM_VERSION_ARG}
 ENV SERVER_IP=0.0.0.0
 ENV SERVER_PORT=8080
@@ -52,5 +54,20 @@ COPY --from=build /go/src/playground/backend/logging.properties /opt/playground/
 # Install Beam DirectRunner
 RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-runners-direct-java/$BEAM_VERSION/beam-runners-direct-java-$BEAM_VERSION.jar &&\
     mv beam-runners-direct-java-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-runners-direct.jar
+# Install Beam SDK Core
+RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-sdks-java-core/$BEAM_VERSION/beam-sdks-java-core-$BEAM_VERSION.jar &&\
+    mv beam-sdks-java-core-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-sdks-java-core.jar
+# Imstall Beam Examples
+RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-examples-java/$BEAM_VERSION/beam-examples-java-$BEAM_VERSION.jar &&\
+    mv beam-examples-java-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-examples-java.jar
+# Install Beam SDK Core tests
+RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-sdks-java-core/$BEAM_VERSION/beam-sdks-java-core-$BEAM_VERSION-tests.jar &&\
+    mv beam-sdks-java-core-$BEAM_VERSION-tests.jar /opt/apache/beam/jars/beam-sdks-java-core-tests.jar
+# Install Hamcrest
+RUN wget https://repo1.maven.org/maven2/org/hamcrest/hamcrest-all/$HAMCREST_VERSION/hamcrest-all-$HAMCREST_VERSION.jar &&\
+    mv hamcrest-all-$HAMCREST_VERSION.jar /opt/apache/beam/jars/hamcrest-all.jar
+# Install JUnit
+RUN wget https://repo1.maven.org/maven2/junit/junit/$JUNIT_VERSION/junit-$JUNIT_VERSION.jar &&\
+    mv junit-$JUNIT_VERSION.jar /opt/apache/beam/jars/junit.jar
 RUN printenv
 ENTRYPOINT ["/opt/playground/backend/server_java_backend"]
