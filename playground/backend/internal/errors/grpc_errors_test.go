@@ -13,6 +13,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Contains tests cases for all custom error. Each method contains 3 test cases:
+// - call the method with correct count of arguments.
+// - call the method with too few count of arguments.
+// - call the method with too many count of arguments.
+// For all cases want to receive an error with expected error message.
 package errors
 
 import (
@@ -33,24 +38,18 @@ func TestInternalError(t *testing.T) {
 		wantErr  bool
 	}{
 		{
-			// Test case with calling InternalError method.
-			// As a result, want to receive error with correct error message.
 			name:     "correct count of args",
 			args:     args{title: "TEST_TITLE", formatMessage: "TEST_FORMAT_MESSAGE %s", arg: []interface{}{"TEST_ARG"}},
 			expected: "rpc error: code = Internal desc = TEST_TITLE: TEST_FORMAT_MESSAGE TEST_ARG",
 			wantErr:  true,
 		},
 		{
-			// Test case with calling InternalError method with too many args.
-			// As a result, want to receive error with correct error message.
 			name:     "too many args",
 			args:     args{title: "TEST_TITLE", formatMessage: "TEST_FORMAT_MESSAGE %s", arg: []interface{}{"TEST_ARG", "TEST_ARG"}},
 			expected: "rpc error: code = Internal desc = TEST_TITLE: TEST_FORMAT_MESSAGE TEST_ARG%!(EXTRA string=TEST_ARG)",
 			wantErr:  true,
 		},
 		{
-			// Test case with calling InternalError method with too few args.
-			// As a result, want to receive error with correct error message.
 			name:     "too few args",
 			args:     args{title: "TEST_TITLE", formatMessage: "TEST_FORMAT_MESSAGE %s", arg: []interface{}{}},
 			expected: "rpc error: code = Internal desc = TEST_TITLE: TEST_FORMAT_MESSAGE %!s(MISSING)",
@@ -83,24 +82,18 @@ func TestInvalidArgumentError(t *testing.T) {
 		wantErr  bool
 	}{
 		{
-			// Test case with calling InvalidArgumentError method.
-			// As a result, want to receive error with correct error message.
 			name:     "correct count of args",
 			args:     args{title: "TEST_TITLE", formatMessage: "TEST_FORMAT_MESSAGE %s", arg: []interface{}{"TEST_ARG"}},
 			expected: "rpc error: code = InvalidArgument desc = TEST_TITLE: TEST_FORMAT_MESSAGE TEST_ARG",
 			wantErr:  true,
 		},
 		{
-			// Test case with calling InvalidArgumentError method with too many args.
-			// As a result, want to receive error with correct error message.
 			name:     "too many args",
 			args:     args{title: "TEST_TITLE", formatMessage: "TEST_FORMAT_MESSAGE %s", arg: []interface{}{"TEST_ARG", "TEST_ARG"}},
 			expected: "rpc error: code = InvalidArgument desc = TEST_TITLE: TEST_FORMAT_MESSAGE TEST_ARG%!(EXTRA string=TEST_ARG)",
 			wantErr:  true,
 		},
 		{
-			// Test case with calling InvalidArgumentError method with too few args.
-			// As a result, want to receive error with correct error message.
 			name:     "too few args",
 			args:     args{title: "TEST_TITLE", formatMessage: "TEST_FORMAT_MESSAGE %s", arg: []interface{}{}},
 			expected: "rpc error: code = InvalidArgument desc = TEST_TITLE: TEST_FORMAT_MESSAGE %!s(MISSING)",
@@ -133,24 +126,18 @@ func TestNotFoundError(t *testing.T) {
 		wantErr  bool
 	}{
 		{
-			// Test case with calling NotFoundError method.
-			// As a result, want to receive error with correct error message.
 			name:     "correct count of args",
 			args:     args{title: "TEST_TITLE", formatMessage: "TEST_FORMAT_MESSAGE %s", arg: []interface{}{"TEST_ARG"}},
 			expected: "rpc error: code = NotFound desc = TEST_TITLE: TEST_FORMAT_MESSAGE TEST_ARG",
 			wantErr:  true,
 		},
 		{
-			// Test case with calling NotFoundError method with too many args.
-			// As a result, want to receive error with correct error message.
 			name:     "too many args",
 			args:     args{title: "TEST_TITLE", formatMessage: "TEST_FORMAT_MESSAGE %s", arg: []interface{}{"TEST_ARG", "TEST_ARG"}},
 			expected: "rpc error: code = NotFound desc = TEST_TITLE: TEST_FORMAT_MESSAGE TEST_ARG%!(EXTRA string=TEST_ARG)",
 			wantErr:  true,
 		},
 		{
-			// Test case with calling NotFoundError method with too few args.
-			// As a result, want to receive error with correct error message.
 			name:     "too few args",
 			args:     args{title: "TEST_TITLE", formatMessage: "TEST_FORMAT_MESSAGE %s", arg: []interface{}{}},
 			expected: "rpc error: code = NotFound desc = TEST_TITLE: TEST_FORMAT_MESSAGE %!s(MISSING)",
