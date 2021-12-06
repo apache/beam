@@ -489,6 +489,7 @@ class GetRunErrorResponse extends $pb.GeneratedMessage {
   ;
 
   GetRunErrorResponse._() : super();
+
   factory GetRunErrorResponse({
     $core.String? output,
   }) {
@@ -522,9 +523,8 @@ class GetRunErrorResponse extends $pb.GeneratedMessage {
           'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
           'Will be removed in next major version')
   GetRunErrorResponse copyWith(void Function(GetRunErrorResponse) updates) =>
-      super.copyWith((message) =>
-          updates(
-              message as GetRunErrorResponse)) as GetRunErrorResponse; // ignore: deprecated_member_use
+      super.copyWith((message) => updates(
+          message as GetRunErrorResponse)) as GetRunErrorResponse; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
 
   @$core.pragma('dart2js:noInline')
@@ -536,9 +536,8 @@ class GetRunErrorResponse extends $pb.GeneratedMessage {
       $pb.PbList<GetRunErrorResponse>();
 
   @$core.pragma('dart2js:noInline')
-  static GetRunErrorResponse getDefault() =>
-      _defaultInstance ??=
-          $pb.GeneratedMessage.$_defaultFor<GetRunErrorResponse>(create);
+  static GetRunErrorResponse getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<GetRunErrorResponse>(create);
   static GetRunErrorResponse? _defaultInstance;
 
   @$pb.TagNumber(1)
@@ -548,10 +547,8 @@ class GetRunErrorResponse extends $pb.GeneratedMessage {
   set output($core.String v) {
     $_setString(0, v);
   }
-
   @$pb.TagNumber(1)
   $core.bool hasOutput() => $_has(0);
-
   @$pb.TagNumber(1)
   void clearOutput() => clearField(1);
 }
@@ -605,9 +602,8 @@ class GetLogsRequest extends $pb.GeneratedMessage {
           'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
           'Will be removed in next major version')
   GetLogsRequest copyWith(void Function(GetLogsRequest) updates) =>
-      super.copyWith((message) =>
-          updates(
-              message as GetLogsRequest)) as GetLogsRequest; // ignore: deprecated_member_use
+      super.copyWith((message) => updates(
+          message as GetLogsRequest)) as GetLogsRequest; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
 
   @$core.pragma('dart2js:noInline')
@@ -619,9 +615,8 @@ class GetLogsRequest extends $pb.GeneratedMessage {
       $pb.PbList<GetLogsRequest>();
 
   @$core.pragma('dart2js:noInline')
-  static GetLogsRequest getDefault() =>
-      _defaultInstance ??=
-          $pb.GeneratedMessage.$_defaultFor<GetLogsRequest>(create);
+  static GetLogsRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<GetLogsRequest>(create);
   static GetLogsRequest? _defaultInstance;
 
   @$pb.TagNumber(1)
@@ -631,10 +626,8 @@ class GetLogsRequest extends $pb.GeneratedMessage {
   set pipelineUuid($core.String v) {
     $_setString(0, v);
   }
-
   @$pb.TagNumber(1)
   $core.bool hasPipelineUuid() => $_has(0);
-
   @$pb.TagNumber(1)
   void clearPipelineUuid() => clearField(1);
 }
@@ -688,9 +681,8 @@ class GetLogsResponse extends $pb.GeneratedMessage {
           'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
           'Will be removed in next major version')
   GetLogsResponse copyWith(void Function(GetLogsResponse) updates) =>
-      super.copyWith((message) =>
-          updates(
-              message as GetLogsResponse)) as GetLogsResponse; // ignore: deprecated_member_use
+      super.copyWith((message) => updates(
+          message as GetLogsResponse)) as GetLogsResponse; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
 
   @$core.pragma('dart2js:noInline')
@@ -702,9 +694,8 @@ class GetLogsResponse extends $pb.GeneratedMessage {
       $pb.PbList<GetLogsResponse>();
 
   @$core.pragma('dart2js:noInline')
-  static GetLogsResponse getDefault() =>
-      _defaultInstance ??=
-          $pb.GeneratedMessage.$_defaultFor<GetLogsResponse>(create);
+  static GetLogsResponse getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<GetLogsResponse>(create);
   static GetLogsResponse? _defaultInstance;
 
   @$pb.TagNumber(1)
@@ -714,10 +705,8 @@ class GetLogsResponse extends $pb.GeneratedMessage {
   set output($core.String v) {
     $_setString(0, v);
   }
-
   @$pb.TagNumber(1)
   $core.bool hasOutput() => $_has(0);
-
   @$pb.TagNumber(1)
   void clearOutput() => clearField(1);
 }
@@ -873,7 +862,16 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     ..aOS(1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'cloudPath')
     ..aOS(2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'name')
     ..aOS(3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'description')
-    ..e<PrecompiledObjectType>(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'type', $pb.PbFieldType.OE, defaultOrMaker: PrecompiledObjectType.PRECOMPILED_OBJECT_TYPE_UNSPECIFIED, valueOf: PrecompiledObjectType.valueOf, enumValues: PrecompiledObjectType.values)
+    ..e<PrecompiledObjectType>(4,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'type', $pb.PbFieldType.OE, defaultOrMaker: PrecompiledObjectType
+            .PRECOMPILED_OBJECT_TYPE_UNSPECIFIED,
+        valueOf: PrecompiledObjectType.valueOf,
+        enumValues: PrecompiledObjectType.values)
+    ..aOS(5, const $core.bool.fromEnvironment('protobuf.omit_field_names')
+        ? ''
+        : 'pipelineOptions')
     ..hasRequiredFields = false
   ;
 
@@ -883,6 +881,7 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     $core.String? name,
     $core.String? description,
     PrecompiledObjectType? type,
+    $core.String? pipelineOptions,
   }) {
     final _result = create();
     if (cloudPath != null) {
@@ -896,6 +895,9 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     }
     if (type != null) {
       _result.type = type;
+    }
+    if (pipelineOptions != null) {
+      _result.pipelineOptions = pipelineOptions;
     }
     return _result;
   }
@@ -949,12 +951,31 @@ class PrecompiledObject extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(4)
   PrecompiledObjectType get type => $_getN(3);
+
   @$pb.TagNumber(4)
-  set type(PrecompiledObjectType v) { setField(4, v); }
+  set type(PrecompiledObjectType v) {
+    setField(4, v);
+  }
+
   @$pb.TagNumber(4)
   $core.bool hasType() => $_has(3);
+
   @$pb.TagNumber(4)
   void clearType() => clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get pipelineOptions => $_getSZ(4);
+
+  @$pb.TagNumber(5)
+  set pipelineOptions($core.String v) {
+    $_setString(4, v);
+  }
+
+  @$pb.TagNumber(5)
+  $core.bool hasPipelineOptions() => $_has(4);
+
+  @$pb.TagNumber(5)
+  void clearPipelineOptions() => clearField(5);
 }
 
 class Categories_Category extends $pb.GeneratedMessage {
