@@ -25,8 +25,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.google.api.client.json.JsonFactory;
-import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.GetDebugConfigRequest;
 import com.google.api.services.dataflow.model.GetDebugConfigResponse;
@@ -49,7 +47,6 @@ public class DebugCaptureTest {
   private static final String WORKER_ID = "some-host-abcd";
   private static final String UPDATE_CONFIG_JSON =
       "{\"expire_timestamp_usec\":11,\"capture_frequency_usec\":12}";
-  private static final JsonFactory JSON_FACTORY = new JacksonFactory();
 
   private Dataflow.Projects.Locations.Jobs.Debug.SendCapture mockSendCapture;
   private GetDebugConfigResponse fakeGetConfigResponse;

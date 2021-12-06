@@ -25,6 +25,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
@@ -1042,8 +1043,6 @@ public class BigQueryServicesImplTest {
     List<FailsafeValueInSingleWindow<TableRow, TableRow>> rows = new ArrayList<>();
     rows.add(wrapValue(new TableRow()));
 
-    final TableDataInsertAllResponse allRowsSucceeded =
-        new TableDataInsertAllResponse().setInsertErrors(ImmutableList.of());
     // First response is 403 non-{rate-limited, quota-exceeded}, second response has valid payload
     // but should not be invoked.
     setupMockResponses(
@@ -1089,6 +1088,52 @@ public class BigQueryServicesImplTest {
     }
 
     verifyWriteMetricWasSet("project", "dataset", "table", "actually forbidden", 1);
+  }
+
+  /** Tests that {@link DatasetServiceImpl#insertAll} logs suggested remedy for insert timeouts. */
+  @Test
+  public void testInsertTimeoutLog() throws Exception {
+    TableReference ref =
+        new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
+    List<FailsafeValueInSingleWindow<TableRow, TableRow>> rows = new ArrayList<>();
+    rows.add(wrapValue(new TableRow()));
+
+    setupMockResponses(
+        response -> {
+          when(response.getStatusCode()).thenReturn(400);
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getContent())
+              .thenReturn(
+                  toStream(errorWithReasonAndStatus(" No rows present in the request. ", 400)));
+        });
+
+    DatasetServiceImpl dataService =
+        new DatasetServiceImpl(bigquery, null, PipelineOptionsFactory.create());
+    RuntimeException e =
+        assertThrows(
+            RuntimeException.class,
+            () ->
+                dataService.insertAll(
+                    ref,
+                    rows,
+                    null,
+                    BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()),
+                    TEST_BACKOFF,
+                    new MockSleeper(),
+                    InsertRetryPolicy.alwaysRetry(),
+                    null,
+                    null,
+                    false,
+                    false,
+                    false,
+                    null));
+
+    assertThat(e.getCause().getMessage(), containsString("No rows present in the request."));
+
+    verifyAllResponsesAreRead();
+    expectedLogs.verifyError("No rows present in the request error likely caused by");
+
+    verifyWriteMetricWasSet("project", "dataset", "table", " no rows present in the request. ", 1);
   }
 
   /**
@@ -1271,8 +1316,6 @@ public class BigQueryServicesImplTest {
 
   @Test
   public void testGetErrorInfo() throws IOException {
-    DatasetServiceImpl dataService =
-        new DatasetServiceImpl(bigquery, null, PipelineOptionsFactory.create());
     ErrorInfo info = new ErrorInfo();
     List<ErrorInfo> infoList = new ArrayList<>();
     infoList.add(info);

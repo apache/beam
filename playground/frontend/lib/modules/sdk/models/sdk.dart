@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+import 'package:playground/config.g.dart';
+
 enum SDK {
   java,
   go,
@@ -34,6 +36,23 @@ extension SDKToString on SDK {
         return 'Python';
       case SDK.scio:
         return 'SCIO';
+    }
+  }
+}
+
+extension SdkToRoute on SDK {
+  String get getRoute {
+    switch (this) {
+      case SDK.java:
+        return kApiJavaClientURL;
+      case SDK.go:
+        return kApiGoClientURL;
+      case SDK.python:
+        return kApiPythonClientURL;
+      case SDK.scio:
+        return kApiScioClientURL;
+      default:
+        return '';
     }
   }
 }

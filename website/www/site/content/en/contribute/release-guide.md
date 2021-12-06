@@ -135,11 +135,11 @@ __NOTE__: When generating the key, please make sure you choose the key type as _
   This will list your GPG keys. One of these should reflect your Apache account, for example:
 
       --------------------------------------------------
-      pub   2048R/845E6689 2016-02-23
+      pub   rsa4096/845E6689845E6689 2016-02-23
       uid                  Nomen Nescio <anonymous@apache.org>
-      sub   2048R/BA4D50BE 2016-02-23
+      sub   rsa4096/BA4D50BEBA4D50BE 2016-02-23
 
-  Here, the key ID is the 8-digit hex string in the `pub` line: `845E6689`.
+  Here, the key ID is the 16-digit hex string in the `pub` line: `845E6689845E6689`.
 
 #### Access to Apache Nexus repository
 
@@ -548,7 +548,7 @@ The final state of the repository should match this diagram:
       ./beam/release/src/main/scripts/choose_rc_commit.sh \
           --release "${RELEASE_VERSION}" \
           --rc "${RC_NUM}" \
-	  --commit "${COMMIT_REF}" \
+          --commit "${COMMIT_REF}" \
           --clone \
           --push-tag
 
@@ -569,7 +569,7 @@ Before you start, run this command to make sure you'll be using the latest docke
 
 * **Usage**
 
-      ./beam/release/src/main/scripts/build_release_candidate.sh
+      ./beam/release/src/main/scripts/build_release_candidate.sh --release "${RELEASE_VERSION}" --rc "${RC_NUM}" --github-user "${GITHUB_USER}"
 
 * **The script will:**
   1. Clone the repo at the selected RC tag.
@@ -680,7 +680,7 @@ See [beam-2.31.0.md](https://github.com/apache/beam/commit/a32a75ed0657c122c6625
 - Copy the changes for the current release from `CHANGES.md` to the blog post and edit as necessary.
 - Be sure to add yourself to [authors.yml](https://github.com/apache/beam/blob/master/website/www/site/data/authors.yml) if necessary.
 
-__Tip__: Use git log to find contributors to the releases. (e.g: `git log --pretty='%aN' ^v2.10.0 v2.11.0 | sort | uniq`).
+__Tip__: Use git log to find contributors to the releases. (e.g: `git fetch origin --tags; git log --pretty='%aN' ^v2.10.0 v2.11.0-RC1 | sort | uniq`).
 Make sure to clean it up, as there may be duplicate or incorrect user names.
 
 __NOTE__: Make sure to include any breaking changes, even to `@Experimental` features,
@@ -839,8 +839,6 @@ versions to run all of the tests. See Python installation tips in [Developer Wik
       ```
 
 * **Tasks included**
-  1. Run Java quickstart with Direct Runner, Flink local runner, Spark local runner and Dataflow runner.
-  1. Run Java Mobile Games(UserScore, HourlyTeamScore, Leaderboard) with Dataflow runner.
   1. Create a PR to trigger python validation job, including
      * Python quickstart in batch and streaming mode with direct runner and Dataflow runner.
      * Python Mobile Games(UserScore, HourlyTeamScore) with direct runner and Dataflow runner.
@@ -854,6 +852,12 @@ versions to run all of the tests. See Python installation tips in [Developer Wik
 * **Tasks you need to do manually**
   1. Check whether validations succeed by following console output instructions.
   1. Terminate streaming jobs and java injector.
+  1. Run Java quickstart (wordcount) and mobile game examples with the staged artifacts. The easiest way to do this is by running the tests on Jenkins.
+    1. Log in to Jenkins.
+    1. Go to https://ci-beam.apache.org/job/beam_PostRelease_NightlySnapshot/.
+    1. Click "Build with Parameters".
+    1. Set `snapshot_version` to `2.xx.0`, and set `snapshot_url` to point to the staged artifacts in Maven central (https://repository.apache.org/content/repositories/orgapachebeam-NNNN/).
+    1. Click "Build".
   1. Sign up [spreadsheet](https://s.apache.org/beam-release-validation).
   1. Vote in the release thread.
 
@@ -1184,7 +1188,7 @@ After pushing the tag, the tag should be visible on Github's [Tags](https://gith
 Once the tag is uploaded, publish the release notes to Github, as follows:
 
 ```
-cd beam/release/src/main/scripts && ./publish_github_release_notes.sh
+./beam/release/src/main/scripts/publish_github_release_notes.sh
 ```
 
 Note this script reads the release notes from the blog post, so you should make sure to run this from master _after_ merging the blog post PR.
