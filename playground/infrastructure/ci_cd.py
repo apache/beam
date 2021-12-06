@@ -19,7 +19,7 @@ Module implements CI/CD steps for Beam Playground examples
 import argparse
 import asyncio
 import os
-from typing import List, Literal
+from typing import List
 
 import config
 from api.v1.api_pb2 import Sdk
