@@ -48,19 +48,19 @@ type Executor struct {
 }
 
 // Validate returns the function that applies all validators of executor
-func (ex *Executor) Validate() func(chan bool, chan error, map[string]bool) {
-	return func(doneCh chan bool, errCh chan error, valRes map[string]bool) {
+func (ex *Executor) Validate() func(chan bool, chan error, *sync.Map) {
+	return func(doneCh chan bool, errCh chan error, valRes *sync.Map) {
 		validationErrors := make(chan error, len(ex.validators))
 		var wg sync.WaitGroup
 		for _, validator := range ex.validators {
 			wg.Add(1)
-			go func(validationErrors chan error, valRes map[string]bool, validator validators.Validator) {
+			go func(validationErrors chan error, valRes *sync.Map, validator validators.Validator) {
 				defer wg.Done()
 				res, err := validator.Validator(validator.Args...)
 				if err != nil {
 					validationErrors <- err
 				}
-				valRes[validator.Name] = res
+				valRes.Store(validator.Name, res)
 			}(validationErrors, valRes, validator)
 		}
 		wg.Wait()

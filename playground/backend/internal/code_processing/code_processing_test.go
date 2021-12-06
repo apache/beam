@@ -33,6 +33,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -575,11 +576,11 @@ func Test_setJavaExecutableFile(t *testing.T) {
 }
 
 func Test_getRunOrTestCmd(t *testing.T) {
-	unitTests := make(map[string]bool, 1)
-	unitTests[validators.UnitTestValidatorName] = true
+	unitTests := sync.Map{}
+	unitTests.Store(validators.UnitTestValidatorName, true)
 
-	notUnitTests := make(map[string]bool, 1)
-	notUnitTests[validators.UnitTestValidatorName] = false
+	notUnitTests := sync.Map{}
+	notUnitTests.Store(validators.UnitTestValidatorName, false)
 
 	runEx := executors.NewExecutorBuilder().
 		WithRunner().
@@ -597,7 +598,7 @@ func Test_getRunOrTestCmd(t *testing.T) {
 	wantTestExec := exec.CommandContext(context.Background(), "testCommand", "arg1", "")
 
 	type args struct {
-		valResult      map[string]bool
+		valResult      *sync.Map
 		executor       *executors.Executor
 		ctxWithTimeout context.Context
 	}
@@ -611,7 +612,7 @@ func Test_getRunOrTestCmd(t *testing.T) {
 			//Get cmd objects with set run executor
 			name: "get run cmd",
 			args: args{
-				valResult:      notUnitTests,
+				valResult:      &notUnitTests,
 				executor:       &runEx,
 				ctxWithTimeout: context.Background(),
 			},
@@ -621,7 +622,7 @@ func Test_getRunOrTestCmd(t *testing.T) {
 			//Get cmd objects with set test executor
 			name: "get test cmd",
 			args: args{
-				valResult:      unitTests,
+				valResult:      &unitTests,
 				executor:       &testEx,
 				ctxWithTimeout: context.Background(),
 			},

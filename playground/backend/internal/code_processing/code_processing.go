@@ -25,8 +25,8 @@ import (
 	"beam.apache.org/playground/backend/internal/logger"
 	"beam.apache.org/playground/backend/internal/setup_tools/builder"
 	"beam.apache.org/playground/backend/internal/streaming"
-	"beam.apache.org/playground/backend/internal/validators"
 	"beam.apache.org/playground/backend/internal/utils"
+	"beam.apache.org/playground/backend/internal/validators"
 	"bytes"
 	"context"
 	"fmt"
@@ -35,6 +35,7 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
+	"sync"
 	"time"
 )
 
@@ -62,9 +63,9 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 	errorChannel := make(chan error, 1)
 	successChannel := make(chan bool, 1)
 	cancelChannel := make(chan bool, 1)
-	validationResults := make(map[string]bool)
 	stopReadLogsChannel := make(chan bool, 1)
 	finishReadLogsChannel := make(chan bool, 1)
+	var validationResults sync.Map
 
 	go cancelCheck(ctxWithTimeout, pipelineId, cancelChannel, cacheService)
 
@@ -77,7 +78,7 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 	// Validate
 	logger.Infof("%s: Validate() ...\n", pipelineId)
 	validateFunc := executor.Validate()
-	go validateFunc(successChannel, errorChannel, validationResults)
+	go validateFunc(successChannel, errorChannel, &validationResults)
 
 	ok, err := processStep(ctxWithTimeout, pipelineId, cacheService, cancelChannel, successChannel)
 	if err != nil {
@@ -141,7 +142,7 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 			return
 		}
 	}
-	runCmd := getExecuteCmd(validationResults, &executor, ctxWithTimeout)
+	runCmd := getExecuteCmd(&validationResults, &executor, ctxWithTimeout)
 	var runError bytes.Buffer
 	runOutput := streaming.RunOutputWriter{Ctx: ctxWithTimeout, CacheService: cacheService, PipelineId: pipelineId}
 	go readLogFile(ctxWithTimeout, cacheService, lc.GetAbsoluteLogFilePath(), pipelineId, stopReadLogsChannel, finishReadLogsChannel)
@@ -159,10 +160,10 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 }
 
 // getExecuteCmd return cmd instance based on the code type: unit test or example code
-func getExecuteCmd(valRes map[string]bool, executor *executors.Executor, ctxWithTimeout context.Context) *exec.Cmd {
-	isUnitTest := valRes[validators.UnitTestValidatorName]
+func getExecuteCmd(valRes *sync.Map, executor *executors.Executor, ctxWithTimeout context.Context) *exec.Cmd {
+	isUnitTest, _ := valRes.Load(validators.UnitTestValidatorName)
 	runType := executors.Run
-	if isUnitTest {
+	if isUnitTest.(bool) {
 		runType = executors.Test
 	}
 	cmdReflect := reflect.ValueOf(executor).MethodByName(string(runType)).Call([]reflect.Value{reflect.ValueOf(ctxWithTimeout)})
