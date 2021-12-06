@@ -927,12 +927,19 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   @frame_base.populate_defaults(pd.DataFrame)
   def truncate(self, before, after, axis):
 
+    if axis in (None, 0, 'index'):
+
+      def truncate(df):
+        return df.sort_index().truncate(before=before, after=after, axis=axis)
+    else:
+
+      def truncate(df):
+        return df.truncate(before=before, after=after, axis=axis)
+
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'truncate',
-            lambda df:
-            (df.sort_index() if axis in (None, 0, 'index') else df).truncate(
-                before=before, after=after, axis=axis), [self._expr],
+            truncate, [self._expr],
             requires_partition_by=partitionings.Arbitrary(),
             preserves_partition_by=partitionings.Arbitrary()))
 
