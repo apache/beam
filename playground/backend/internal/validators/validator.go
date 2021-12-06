@@ -15,7 +15,10 @@
 
 package validators
 
+const UnitTestValidatorName = "UnitTest"
+
 type Validator struct {
-	Validator func(args ...interface{}) error
+	Validator func(args ...interface{}) (bool, error)
 	Args      []interface{}
+	Name      string
 }

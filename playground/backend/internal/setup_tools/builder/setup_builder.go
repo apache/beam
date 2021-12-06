@@ -44,6 +44,8 @@ func SetupExecutorBuilder(srcFilePath, baseFolderPath, execFilePath string, sdkE
 	}
 	executorConfig := sdkEnv.ExecutorConfig
 	builder := executors.NewExecutorBuilder().
+		WithExecutableFileName(execFilePath).
+		WithWorkingDir(baseFolderPath).
 		WithValidator().
 		WithSdkValidators(val).
 		WithPreparator().
@@ -52,11 +54,13 @@ func SetupExecutorBuilder(srcFilePath, baseFolderPath, execFilePath string, sdkE
 		WithCommand(executorConfig.CompileCmd).
 		WithArgs(executorConfig.CompileArgs).
 		WithFileName(srcFilePath).
-		WithWorkingDir(baseFolderPath).
 		WithRunner().
 		WithCommand(executorConfig.RunCmd).
 		WithArgs(executorConfig.RunArgs).
-		WithWorkingDir(baseFolderPath)
+		WithTestRunner().
+		WithCommand(executorConfig.TestCmd).
+		WithArgs(executorConfig.TestArgs).
+		ExecutorBuilder
 
 	switch sdk {
 	case pb.Sdk_SDK_JAVA: // Executable name for java class will be known after compilation
@@ -68,13 +72,14 @@ func SetupExecutorBuilder(srcFilePath, baseFolderPath, execFilePath string, sdkE
 			}
 			args = append(args, arg)
 		}
-		builder = builder.WithArgs(args)
-	case pb.Sdk_SDK_GO:
-		builder = builder.WithCommand(execFilePath)
-	case pb.Sdk_SDK_PYTHON:
-		builder = builder.WithExecutableFileName(execFilePath)
+		builder = builder.WithRunner().WithArgs(args).ExecutorBuilder
+	case pb.Sdk_SDK_GO: //go run command is executable file itself
+		builder = builder.
+			WithExecutableFileName("").
+			WithRunner().
+			WithCommand(execFilePath).ExecutorBuilder
 	default:
 		return nil, fmt.Errorf("incorrect sdk: %s", sdkEnv.ApacheBeamSdk)
 	}
-	return &builder.ExecutorBuilder, nil
+	return &builder, nil
 }
