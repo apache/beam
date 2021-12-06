@@ -26,6 +26,7 @@ import (
 	"beam.apache.org/playground/backend/internal/setup_tools/builder"
 	"beam.apache.org/playground/backend/internal/streaming"
 	"beam.apache.org/playground/backend/internal/utils"
+	"beam.apache.org/playground/backend/internal/validators"
 	"bytes"
 	"context"
 	"fmt"
@@ -33,6 +34,8 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"reflect"
+	"sync"
 	"time"
 )
 
@@ -62,6 +65,7 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 	cancelChannel := make(chan bool, 1)
 	stopReadLogsChannel := make(chan bool, 1)
 	finishReadLogsChannel := make(chan bool, 1)
+	var validationResults sync.Map
 
 	go cancelCheck(ctxWithTimeout, pipelineId, cancelChannel, cacheService)
 
@@ -71,12 +75,11 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 		return
 	}
 	executor := executorBuilder.Build()
-
 	// Validate
 	logger.Infof("%s: Validate() ...\n", pipelineId)
 	validateFunc := executor.Validate()
 	// Run validate function
-	go validateFunc(successChannel, errorChannel)
+	go validateFunc(successChannel, errorChannel, &validationResults)
 
 	// Start of the monitoring of background tasks (validate function/cancellation/timeout)
 	ok, err := reconcileBackgroundTask(ctxWithTimeout, pipelineId, cacheService, cancelChannel, successChannel)
@@ -151,7 +154,7 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 		}
 	}
 	logger.Infof("%s: Run() ...\n", pipelineId)
-	runCmd := executor.Run(ctxWithTimeout)
+	runCmd := getExecuteCmd(&validationResults, &executor, ctxWithTimeout)
 	var runError bytes.Buffer
 	runOutput := streaming.RunOutputWriter{Ctx: ctxWithTimeout, CacheService: cacheService, PipelineId: pipelineId}
 	go readLogFile(ctxWithTimeout, cacheService, lc.GetAbsoluteLogFilePath(), pipelineId, stopReadLogsChannel, finishReadLogsChannel)
@@ -171,6 +174,17 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 	_ = processRunSuccess(ctxWithTimeout, pipelineId, cacheService, stopReadLogsChannel, finishReadLogsChannel)
 }
 
+// getExecuteCmd return cmd instance based on the code type: unit test or example code
+func getExecuteCmd(valRes *sync.Map, executor *executors.Executor, ctxWithTimeout context.Context) *exec.Cmd {
+	isUnitTest, _ := valRes.Load(validators.UnitTestValidatorName)
+	runType := executors.Run
+	if isUnitTest.(bool) {
+		runType = executors.Test
+	}
+	cmdReflect := reflect.ValueOf(executor).MethodByName(string(runType)).Call([]reflect.Value{reflect.ValueOf(ctxWithTimeout)})
+	return cmdReflect[0].Interface().(*exec.Cmd)
+}
+
 // setJavaExecutableFile sets executable file name to runner (JAVA class name is known after compilation step)
 func setJavaExecutableFile(lc *fs_tool.LifeCycle, id uuid.UUID, service cache.Cache, ctx context.Context, executorBuilder *executors.ExecutorBuilder, dir string) (executors.Executor, error) {
 	className, err := lc.ExecutableName(id, dir)
@@ -179,7 +193,9 @@ func setJavaExecutableFile(lc *fs_tool.LifeCycle, id uuid.UUID, service cache.Ca
 			return executorBuilder.Build(), err
 		}
 	}
-	return executorBuilder.WithRunner().WithExecutableFileName(className).Build(), nil
+	return executorBuilder.
+		WithExecutableFileName(className).
+		Build(), nil
 }
 
 // processSetupError processes errors during the setting up an executor builder
@@ -199,12 +215,12 @@ func GetProcessingOutput(ctx context.Context, cacheService cache.Cache, key uuid
 	value, err := cacheService.GetValue(ctx, key, subKey)
 	if err != nil {
 		logger.Errorf("%s: GetStringValueFromCache(): cache.GetValue: error: %s", key, err.Error())
-		return "", errors.NotFoundError(errorTitle, fmt.Sprintf("Error during getting cache by key: %s, subKey: %s", key.String(), string(subKey)))
+		return "", errors.NotFoundError(errorTitle, "Error during getting cache by key: %s, subKey: %s", key.String(), string(subKey))
 	}
 	stringValue, converted := value.(string)
 	if !converted {
 		logger.Errorf("%s: couldn't convert value to string: %s", key, value)
-		return "", errors.InternalError(errorTitle, fmt.Sprintf("Value from cache couldn't be converted to string: %s", value))
+		return "", errors.InternalError(errorTitle, "Value from cache couldn't be converted to string: %s", value)
 	}
 	return stringValue, nil
 }
@@ -216,12 +232,12 @@ func GetProcessingStatus(ctx context.Context, cacheService cache.Cache, key uuid
 	value, err := cacheService.GetValue(ctx, key, cache.Status)
 	if err != nil {
 		logger.Errorf("%s: GetStringValueFromCache(): cache.GetValue: error: %s", key, err.Error())
-		return pb.Status_STATUS_UNSPECIFIED, errors.NotFoundError(errorTitle, fmt.Sprintf("Error during getting cache by key: %s, subKey: %s", key.String(), string(cache.Status)))
+		return pb.Status_STATUS_UNSPECIFIED, errors.NotFoundError(errorTitle, "Error during getting cache by key: %s, subKey: %s", key.String(), string(cache.Status))
 	}
 	statusValue, converted := value.(pb.Status)
 	if !converted {
 		logger.Errorf("%s: couldn't convert value to correct status enum: %s", key, value)
-		return pb.Status_STATUS_UNSPECIFIED, errors.InternalError(errorTitle, fmt.Sprintf("Value from cache couldn't be converted to correct status enum: %s", value))
+		return pb.Status_STATUS_UNSPECIFIED, errors.InternalError(errorTitle, "Value from cache couldn't be converted to correct status enum: %s", value)
 	}
 	return statusValue, nil
 }
@@ -233,12 +249,12 @@ func GetLastIndex(ctx context.Context, cacheService cache.Cache, key uuid.UUID, 
 	value, err := cacheService.GetValue(ctx, key, subKey)
 	if err != nil {
 		logger.Errorf("%s: GetLastIndex(): cache.GetValue: error: %s", key, err.Error())
-		return 0, errors.NotFoundError(errorTitle, fmt.Sprintf("Error during getting cache by key: %s, subKey: %s", key.String(), string(subKey)))
+		return 0, errors.NotFoundError(errorTitle, "Error during getting cache by key: %s, subKey: %s", key.String(), string(subKey))
 	}
 	intValue, converted := value.(int)
 	if !converted {
 		logger.Errorf("%s: couldn't convert value to int: %s", key, value)
-		return 0, errors.InternalError(errorTitle, fmt.Sprintf("Value from cache couldn't be converted to int: %s", value))
+		return 0, errors.InternalError(errorTitle, "Value from cache couldn't be converted to int: %s", value)
 	}
 	return intValue, nil
 }
