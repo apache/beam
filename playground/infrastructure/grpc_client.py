@@ -39,7 +39,7 @@ class GRPCClient:
     Args:
         code: code of the example.
         sdk: SDK of the example.
-        pipeline_options: pipeline options of example.
+        pipeline_options: pipeline options of the example.
 
     Returns:
         pipeline_uuid: uuid of the pipeline
