@@ -16,8 +16,7 @@
 # limitations under the License.
 ###############################################################################
 ARG BASE_IMAGE=apache/beam_python3.7_sdk:latest
-ARG GO_BASE_IMAGE=golang:1.17-buster
-FROM $GO_BASE_IMAGE AS build
+FROM golang:1.17-buster AS build
 
 # Setup Go Environment
 ENV GOPATH /go
@@ -46,6 +45,7 @@ ENV BEAM_SDK="SDK_PYTHON"
 # Copy build result
 COPY --from=build /go/bin/server_python_backend /opt/playground/backend/
 COPY --from=build /go/src/playground/backend/configs /opt/playground/backend/configs/
+
 
 RUN printenv
 ENTRYPOINT ["/opt/playground/backend/server_python_backend"]

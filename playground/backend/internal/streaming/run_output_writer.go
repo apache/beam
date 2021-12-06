@@ -56,5 +56,6 @@ func (row *RunOutputWriter) Write(p []byte) (int, error) {
 	if err != nil {
 		return 0, err
 	}
+	fmt.Printf("Added: %s\n", str)
 	return len(p), nil
 }
