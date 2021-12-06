@@ -36,7 +36,7 @@ parser.add_argument(
     required=True,
     help="CI step to verify all beam examples/tests/katas. CD step to save all "
     "beam examples/tests/katas and their outputs on the GCS",
-    choices=["CI", "CD"])
+    choices=[config.Config.CI_STEP_NAME, config.Config.CD_STEP_NAME])
 parser.add_argument(
     "--sdk",
     dest="sdk",
@@ -75,7 +75,7 @@ def _check_envs():
     )
 
 
-def run_ci_cd(step: Literal["CI", "CD"], sdk: Sdk):
+def run_ci_cd(step: config.Config.CI_CD_LITERAL, sdk: Sdk):
   supported_categories = get_supported_categories(categories_file)
   examples = find_examples(root_dir, supported_categories, sdk)
   if step == "CI":

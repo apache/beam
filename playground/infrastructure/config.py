@@ -19,6 +19,7 @@ Configuration for CI/CD steps
 
 import os
 from dataclasses import dataclass
+from typing import Literal
 
 from api.v1.api_pb2 import STATUS_VALIDATION_ERROR, STATUS_ERROR, \
   STATUS_PREPARATION_ERROR, STATUS_COMPILE_ERROR, \
@@ -49,6 +50,9 @@ class Config:
   BEAM_PLAYGROUND_TITLE = "Beam-playground:\n"
   BEAM_PLAYGROUND = "Beam-playground"
   PAUSE_DELAY = 10
+  CI_STEP_NAME = "CI"
+  CD_STEP_NAME = "CD"
+  CI_CD_LITERAL = Literal["CI", "CD"]
 
 
 @dataclass(frozen=True)
