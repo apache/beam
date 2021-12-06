@@ -13,7 +13,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package executors
 package executors
 
 import (
@@ -21,6 +20,7 @@ import (
 	"beam.apache.org/playground/backend/internal/validators"
 	"context"
 	"os/exec"
+	"sync"
 )
 
 //CmdConfiguration for base cmd code execution
@@ -31,7 +31,7 @@ type CmdConfiguration struct {
 	commandArgs []string
 }
 
-// Executor struct for all executors (Java/Python/Go/SCIO)
+// Executor struct for all sdks (Java/Python/Go/SCIO)
 type Executor struct {
 	compileArgs CmdConfiguration
 	runArgs     CmdConfiguration
@@ -42,15 +42,26 @@ type Executor struct {
 // Validate returns the function that applies all validators of executor
 func (ex *Executor) Validate() func(chan bool, chan error) {
 	return func(doneCh chan bool, errCh chan error) {
+		validationErrors := make(chan error, len(ex.validators))
+		var wg sync.WaitGroup
 		for _, validator := range ex.validators {
-			err := validator.Validator(validator.Args...)
-			if err != nil {
-				errCh <- err
-				doneCh <- false
-				return
-			}
+			wg.Add(1)
+			go func(validationErrors chan error, validator validators.Validator) {
+				defer wg.Done()
+				err := validator.Validator(validator.Args...)
+				if err != nil {
+					validationErrors <- err
+				}
+			}(validationErrors, validator)
 		}
-		doneCh <- true
+		wg.Wait()
+		select {
+		case err := <-validationErrors:
+			errCh <- err
+			doneCh <- false
+		default:
+			doneCh <- true
+		}
 	}
 }
 

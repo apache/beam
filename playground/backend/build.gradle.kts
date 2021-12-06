@@ -46,7 +46,7 @@ task("test") {
   doLast {
     exec {
       executable("go")
-      args("test", "internal/...")
+      args("test", "./...")
     }
   }
 }
