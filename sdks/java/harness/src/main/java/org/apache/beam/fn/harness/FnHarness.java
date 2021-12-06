@@ -247,7 +247,8 @@ public class FnHarness {
           new BeamFnStateGrpcClientCache(
               idGenerator, channelFactory::forDescriptor, outboundObserverFactory);
 
-      FinalizeBundleHandler finalizeBundleHandler = new FinalizeBundleHandler();
+      FinalizeBundleHandler finalizeBundleHandler =
+          new FinalizeBundleHandler(options.as(GcsOptions.class).getExecutorService());
 
       LoadingCache<String, BeamFnApi.ProcessBundleDescriptor> processBundleDescriptors =
           CacheBuilder.newBuilder()

@@ -25,6 +25,7 @@ import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.fn.harness.control.FinalizeBundleHandler.CallbackRegistration;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.FinalizeBundleRequest;
@@ -58,7 +59,7 @@ public class FinalizeBundleHandlerTest {
         CallbackRegistration.create(
             Instant.now().plus(Duration.standardHours(1)), () -> wasCalled2.set(true)));
 
-    FinalizeBundleHandler handler = new FinalizeBundleHandler();
+    FinalizeBundleHandler handler = new FinalizeBundleHandler(Executors.newCachedThreadPool());
     handler.registerCallbacks("test", callbacks);
     assertEquals(SUCCESSFUL_RESPONSE, handler.finalizeBundle(requestFor("test")).build());
     assertTrue(wasCalled1.get());
@@ -67,7 +68,7 @@ public class FinalizeBundleHandlerTest {
 
   @Test
   public void testFinalizationIgnoresMissingBundleIds() throws Exception {
-    FinalizeBundleHandler handler = new FinalizeBundleHandler();
+    FinalizeBundleHandler handler = new FinalizeBundleHandler(Executors.newCachedThreadPool());
     assertEquals(SUCCESSFUL_RESPONSE, handler.finalizeBundle(requestFor("test")).build());
   }
 
@@ -91,7 +92,7 @@ public class FinalizeBundleHandlerTest {
               throw new Exception("testException2");
             }));
 
-    FinalizeBundleHandler handler = new FinalizeBundleHandler();
+    FinalizeBundleHandler handler = new FinalizeBundleHandler(Executors.newCachedThreadPool());
     handler.registerCallbacks("test", callbacks);
 
     try {
