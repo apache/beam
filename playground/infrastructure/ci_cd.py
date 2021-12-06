@@ -16,37 +16,76 @@
 """
 Module implements CI/CD steps for Beam Playground examples
 """
-
+import argparse
 import asyncio
 import os
+from typing import List, Literal
 
+import config
+from api.v1.api_pb2 import Sdk
 from cd_helper import CDHelper
 from ci_helper import CIHelper
-from helper import find_examples, get_supported_categories
+from helper import find_examples, get_supported_categories, Example
 from logger import setup_logger
 
+parser = argparse.ArgumentParser(
+    description="CI/CD Steps for Playground objects")
+parser.add_argument(
+    "--step",
+    dest="step",
+    required=True,
+    help="CI step to verify all beam examples/tests/katas. CD step to save all "
+    "beam examples/tests/katas and their outputs on the GCS",
+    choices=["CI", "CD"])
+parser.add_argument(
+    "--sdk",
+    dest="sdk",
+    required=True,
+    help="Supported SDKs",
+    choices=config.Config.SUPPORTED_SDK)
 
-def ci_step():
+root_dir = os.getenv("BEAM_ROOT_DIR")
+categories_file = os.getenv("BEAM_EXAMPLE_CATEGORIES")
+
+
+def ci_step(examples: List[Example]):
   """
   CI step to verify all beam examples/tests/katas
   """
-  setup_logger()
-  root_dir = os.getenv("BEAM_ROOT_DIR")
-  categories_file = os.getenv("BEAM_EXAMPLE_CATEGORIES")
-  supported_categories = get_supported_categories(categories_file)
+
   ci_helper = CIHelper()
-  examples = find_examples(root_dir, supported_categories)
   asyncio.run(ci_helper.verify_examples(examples))
 
 
-def cd_step():
+def cd_step(examples: List[Example]):
   """
   CD step to save all beam examples/tests/katas and their outputs on the GCS
   """
-  setup_logger()
-  root_dir = os.getenv("BEAM_ROOT_DIR")
-  categories_file = os.getenv("BEAM_EXAMPLE_CATEGORIES")
-  supported_categories = get_supported_categories(categories_file)
   cd_helper = CDHelper()
-  examples = find_examples(root_dir, supported_categories)
   cd_helper.store_examples(examples)
+
+
+def _check_envs():
+  if root_dir is None:
+    raise KeyError(
+        "BEAM_ROOT_DIR environment variable should be specified in os")
+  if categories_file is None:
+    raise KeyError(
+        "BEAM_EXAMPLE_CATEGORIES environment variable should be specified in os"
+    )
+
+
+def run_ci_cd(step: Literal["CI", "CD"], sdk: Sdk):
+  supported_categories = get_supported_categories(categories_file)
+  examples = find_examples(root_dir, supported_categories, sdk)
+  if step == "CI":
+    ci_step(examples=examples)
+  if step == "CD":
+    cd_step(examples=examples)
+
+
+if __name__ == "__main__":
+  parser = parser.parse_args()
+  _check_envs()
+  setup_logger()
+  run_ci_cd(parser.step, Sdk.Value(parser.sdk))
