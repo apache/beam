@@ -119,7 +119,8 @@ class PlaygroundState with ChangeNotifier {
       return;
     }
     if (_selectedExample?.source == source &&
-        _selectedExample?.outputs != null) {
+        _selectedExample?.outputs != null &&
+        !_arePipelineOptionsChanges) {
       _result = RunCodeResult(
         status: RunCodeStatus.finished,
         output: _selectedExample!.outputs,
@@ -136,5 +137,9 @@ class PlaygroundState with ChangeNotifier {
         notifyListeners();
       });
     }
+  }
+
+  bool get _arePipelineOptionsChanges {
+    return pipelineOptions != (_selectedExample?.pipelineOptions ?? '');
   }
 }

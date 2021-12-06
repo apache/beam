@@ -19,10 +19,10 @@
 const String kApiClientURL =
     'https://backend-dot-datatokenization.uc.r.appspot.com';
 const String kApiJavaClientURL =
-    'https://backend-dot-datatokenization.uc.r.appspot.com/java/';
+    'https://backend-java-dot-datatokenization.uc.r.appspot.com';
 const String kApiGoClientURL =
-    'https://backend-dot-datatokenization.uc.r.appspot.com/go/';
+    'https://backend-go-dot-datatokenization.uc.r.appspot.com';
 const String kApiPythonClientURL =
-    'https://backend-dot-datatokenization.uc.r.appspot.com/python/';
+    'https://backend-python-dot-datatokenization.uc.r.appspot.com';
 const String kApiScioClientURL =
-    'https://backend-dot-datatokenization.uc.r.appspot.com/scio/';
+    'https://backend-scia-dot-datatokenization.uc.r.appspot.com';

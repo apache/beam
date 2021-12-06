@@ -224,9 +224,9 @@ abstract class PlaygroundServiceBase extends $grpc.Service {
         getPrecompiledObjects_Pre,
         false,
         false,
-            ($core.List<$core.int> value) =>
+        ($core.List<$core.int> value) =>
             $0.GetPrecompiledObjectsRequest.fromBuffer(value),
-            ($0.GetPrecompiledObjectsResponse value) => value.writeToBuffer()));
+        ($0.GetPrecompiledObjectsResponse value) => value.writeToBuffer()));
     $addMethod($grpc.ServiceMethod<$0.GetPrecompiledObjectRequest,
             $0.GetPrecompiledObjectCodeResponse>(
         'GetPrecompiledObjectCode',

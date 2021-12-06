@@ -780,6 +780,7 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     ..aOS(2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'name')
     ..aOS(3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'description')
     ..e<PrecompiledObjectType>(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'type', $pb.PbFieldType.OE, defaultOrMaker: PrecompiledObjectType.PRECOMPILED_OBJECT_TYPE_UNSPECIFIED, valueOf: PrecompiledObjectType.valueOf, enumValues: PrecompiledObjectType.values)
+    ..aOS(5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'pipelineOptions')
     ..hasRequiredFields = false
   ;
 
@@ -789,6 +790,7 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     $core.String? name,
     $core.String? description,
     PrecompiledObjectType? type,
+    $core.String? pipelineOptions,
   }) {
     final _result = create();
     if (cloudPath != null) {
@@ -802,6 +804,9 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     }
     if (type != null) {
       _result.type = type;
+    }
+    if (pipelineOptions != null) {
+      _result.pipelineOptions = pipelineOptions;
     }
     return _result;
   }
@@ -861,6 +866,15 @@ class PrecompiledObject extends $pb.GeneratedMessage {
   $core.bool hasType() => $_has(3);
   @$pb.TagNumber(4)
   void clearType() => clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get pipelineOptions => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set pipelineOptions($core.String v) { $_setString(4, v); }
+  @$pb.TagNumber(5)
+  $core.bool hasPipelineOptions() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearPipelineOptions() => clearField(5);
 }
 
 class Categories_Category extends $pb.GeneratedMessage {
