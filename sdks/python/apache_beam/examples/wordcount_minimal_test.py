@@ -25,10 +25,13 @@ import re
 import tempfile
 import unittest
 
+import pytest
+
 from apache_beam.examples import wordcount_minimal
 from apache_beam.testing.util import open_shards
 
 
+@pytest.mark.examples_postcommit
 class WordCountMinimalTest(unittest.TestCase):
   """Unit test for wordcount_minimal example with direct runner."""
 

@@ -66,8 +66,6 @@ import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaInputDStream;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 
 /** Translates an unbounded portable pipeline into a Spark job. */
@@ -78,8 +76,6 @@ import scala.Tuple2;
 public class SparkStreamingPortablePipelineTranslator
     implements SparkPortablePipelineTranslator<SparkStreamingTranslationContext> {
 
-  private static final Logger LOG =
-      LoggerFactory.getLogger(SparkStreamingPortablePipelineTranslator.class);
 
   private final ImmutableMap<String, PTransformTranslator> urnToTransformTranslator;
 
@@ -252,6 +248,7 @@ public class SparkStreamingPortablePipelineTranslator
 
     SparkExecutableStageFunction<InputT, SideInputT> function =
         new SparkExecutableStageFunction<>(
+            context.getSerializableOptions(),
             stagePayload,
             context.jobInfo,
             outputMap,

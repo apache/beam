@@ -30,9 +30,7 @@ from abc import ABCMeta
 from abc import abstractmethod
 from enum import Flag
 from enum import auto
-from functools import reduce
 from itertools import zip_longest
-from operator import or_
 
 from apache_beam.coders import coder_impl
 from apache_beam.coders import observable
@@ -111,7 +109,7 @@ class _CombiningValueStateTag(_StateTag):
 
   # TODO(robertwb): Also store the coder (perhaps extracted from the combine_fn)
   def __init__(self, tag, combine_fn):
-    super(_CombiningValueStateTag, self).__init__(tag)
+    super().__init__(tag)
     if not combine_fn:
       raise ValueError('combine_fn must be specified.')
     if not isinstance(combine_fn, core.CombineFn):
@@ -148,7 +146,7 @@ class _ListStateTag(_StateTag):
 
 class _WatermarkHoldStateTag(_StateTag):
   def __init__(self, tag, timestamp_combiner_impl):
-    super(_WatermarkHoldStateTag, self).__init__(tag)
+    super().__init__(tag)
     self.timestamp_combiner_impl = timestamp_combiner_impl
 
   def __repr__(self):
@@ -161,10 +159,32 @@ class _WatermarkHoldStateTag(_StateTag):
 
 
 class DataLossReason(Flag):
-  """Enum defining potential reasons that a trigger may cause data loss."""
+  """Enum defining potential reasons that a trigger may cause data loss.
+
+  These flags should only cover when the trigger is the cause, though windowing
+  can be taken into account. For instance, AfterWatermark may not flag itself
+  as finishing if the windowing doesn't allow lateness.
+  """
+
+  # Trigger will never be the source of data loss.
   NO_POTENTIAL_LOSS = 0
+
+  # Trigger may finish. In this case, data that comes in after the trigger may
+  # be lost. Example: AfterCount(1) will stop firing after the first element.
   MAY_FINISH = auto()
+
+  # Deprecated: Beam will emit buffered data at GC time. Any other behavior
+  # should be treated as a bug with the runner used.
   CONDITION_NOT_GUARANTEED = auto()
+
+
+# Convenience functions for checking if a flag is included. Each is equivalent
+# to `reason & flag == flag`
+
+
+def _IncludesMayFinish(reason):
+  # type: (DataLossReason) -> bool
+  return reason & DataLossReason.MAY_FINISH == DataLossReason.MAY_FINISH
 
 
 # pylint: disable=unused-argument
@@ -260,12 +280,6 @@ class TriggerFn(metaclass=ABCMeta):
           scenario is only accounted for if the windowing strategy allows
           late data. Otherwise, the trigger is not responsible for the data
           loss.
-        * The trigger condition may not be met. For instance,
-          Repeatedly(AfterCount(N)) may not fire due to N not being met. This
-          is only accounted for if the condition itself led to data loss.
-          Repeatedly(AfterCount(1)) is safe, since it would only not fire if
-          there is no data to lose, but Repeatedly(AfterCount(2)) can cause
-          data loss if there is only one record.
 
     Note that this only returns the potential for loss. It does not mean that
     there will be data loss. It also only accounts for loss related to the
@@ -278,9 +292,7 @@ class TriggerFn(metaclass=ABCMeta):
     Returns:
       The DataLossReason. If there is no potential loss,
         DataLossReason.NO_POTENTIAL_LOSS is returned. Otherwise, all the
-        potential reasons are returned as a single value. For instance, if
-        data loss can result from finishing or not having the condition met,
-        the result will be DataLossReason.MAY_FINISH|CONDITION_NOT_GUARANTEED.
+        potential reasons are returned as a single value.
     """
     # For backwards compatibility's sake, we're assuming the trigger is safe.
     return DataLossReason.NO_POTENTIAL_LOSS
@@ -390,6 +402,7 @@ class AfterProcessingTime(TriggerFn):
     pass
 
   def may_lose_data(self, unused_windowing):
+    """AfterProcessingTime may finish."""
     return DataLossReason.MAY_FINISH
 
   @staticmethod
@@ -444,6 +457,7 @@ class Always(TriggerFn):
     return False
 
   def may_lose_data(self, unused_windowing):
+    """No potential loss, since the trigger always fires."""
     return DataLossReason.NO_POTENTIAL_LOSS
 
   @staticmethod
@@ -494,7 +508,7 @@ class _Never(TriggerFn):
     """No potential data loss.
 
     Though Never doesn't explicitly trigger, it still collects data on
-    windowing closing, so any data loss is due to windowing closing.
+    windowing closing.
     """
     return DataLossReason.NO_POTENTIAL_LOSS
 
@@ -591,13 +605,7 @@ class AfterWatermark(TriggerFn):
       self.late.reset(window, NestedContext(context, 'late'))
 
   def may_lose_data(self, windowing):
-    """May cause data loss if the windowing allows lateness and either:
-
-      * The late trigger is not set
-      * The late trigger may cause data loss.
-
-    The second case is equivalent to Repeatedly(late).may_lose_data(windowing)
-    """
+    """May cause data loss if lateness allowed and no late trigger set."""
     if windowing.allowed_lateness == 0:
       return DataLossReason.NO_POTENTIAL_LOSS
     if self.late is None:
@@ -674,10 +682,8 @@ class AfterCount(TriggerFn):
     context.clear_state(self.COUNT_TAG)
 
   def may_lose_data(self, unused_windowing):
-    reason = DataLossReason.MAY_FINISH
-    if self.count > 1:
-      reason |= DataLossReason.CONDITION_NOT_GUARANTEED
-    return reason
+    """AfterCount may finish."""
+    return DataLossReason.MAY_FINISH
 
   @staticmethod
   def from_runner_api(proto, unused_context):
@@ -724,15 +730,8 @@ class Repeatedly(TriggerFn):
     self.underlying.reset(window, context)
 
   def may_lose_data(self, windowing):
-    """Repeatedly may only lose data if the underlying trigger may not have
-    its condition met.
-
-    For underlying triggers that may finish, Repeatedly overrides that
-    behavior.
-    """
-    return (
-        self.underlying.may_lose_data(windowing)
-        & DataLossReason.CONDITION_NOT_GUARANTEED)
+    """Repeatedly will run in a loop and pick up whatever is left at GC."""
+    return DataLossReason.NO_POTENTIAL_LOSS
 
   @staticmethod
   def from_runner_api(proto, context):
@@ -794,6 +793,13 @@ class _ParallelTriggerFn(TriggerFn, metaclass=ABCMeta):
         finished.append(trigger.on_fire(watermark, window, nested_context))
     return self.combine_op(finished)
 
+  def may_lose_data(self, windowing):
+    may_finish = self.combine_op(
+        _IncludesMayFinish(t.may_lose_data(windowing)) for t in self.triggers)
+    return (
+        DataLossReason.MAY_FINISH
+        if may_finish else DataLossReason.NO_POTENTIAL_LOSS)
+
   def reset(self, window, context):
     for ix, trigger in enumerate(self.triggers):
       trigger.reset(window, self._sub_context(context, ix))
@@ -839,15 +845,6 @@ class AfterAny(_ParallelTriggerFn):
   """
   combine_op = any
 
-  def may_lose_data(self, windowing):
-    reason = DataLossReason.NO_POTENTIAL_LOSS
-    for trigger in self.triggers:
-      t_reason = trigger.may_lose_data(windowing)
-      if t_reason == DataLossReason.NO_POTENTIAL_LOSS:
-        return t_reason
-      reason |= t_reason
-    return reason
-
 
 class AfterAll(_ParallelTriggerFn):
   """Fires when all subtriggers have fired.
@@ -855,9 +852,6 @@ class AfterAll(_ParallelTriggerFn):
   Also finishes when all subtriggers have finished.
   """
   combine_op = all
-
-  def may_lose_data(self, windowing):
-    return reduce(or_, (t.may_lose_data(windowing) for t in self.triggers))
 
 
 class AfterEach(TriggerFn):
@@ -915,7 +909,12 @@ class AfterEach(TriggerFn):
       trigger.reset(window, self._sub_context(context, ix))
 
   def may_lose_data(self, windowing):
-    return reduce(or_, (t.may_lose_data(windowing) for t in self.triggers))
+    """If all sub-triggers may finish, this may finish."""
+    may_finish = all(
+        _IncludesMayFinish(t.may_lose_data(windowing)) for t in self.triggers)
+    return (
+        DataLossReason.MAY_FINISH
+        if may_finish else DataLossReason.NO_POTENTIAL_LOSS)
 
   @staticmethod
   def _sub_context(context, index):
@@ -1243,7 +1242,7 @@ class TriggerDriver(metaclass=ABCMeta):
 class _UnwindowedValues(observable.ObservableMixin):
   """Exposes iterable of windowed values as iterable of unwindowed values."""
   def __init__(self, windowed_values):
-    super(_UnwindowedValues, self).__init__()
+    super().__init__()
     self._windowed_values = windowed_values
 
   def __iter__(self):

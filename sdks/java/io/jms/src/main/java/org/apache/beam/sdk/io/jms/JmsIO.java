@@ -196,6 +196,8 @@ public class JmsIO {
 
     abstract @Nullable Coder<T> getCoder();
 
+    abstract @Nullable AutoScaler getAutoScaler();
+
     abstract Builder<T> builder();
 
     @AutoValue.Builder
@@ -217,6 +219,8 @@ public class JmsIO {
       abstract Builder<T> setMessageMapper(MessageMapper<T> mesageMapper);
 
       abstract Builder<T> setCoder(Coder<T> coder);
+
+      abstract Builder<T> setAutoScaler(AutoScaler autoScaler);
 
       abstract Read<T> build();
     }
@@ -344,6 +348,14 @@ public class JmsIO {
       return builder().setCoder(coder).build();
     }
 
+    /**
+     * Sets the {@link AutoScaler} to use for reporting backlog during the execution of this source.
+     */
+    public Read<T> withAutoScaler(AutoScaler autoScaler) {
+      checkArgument(autoScaler != null, "autoScaler can not be null");
+      return builder().setAutoScaler(autoScaler).build();
+    }
+
     @Override
     public PCollection<T> expand(PBegin input) {
       checkArgument(getConnectionFactory() != null, "withConnectionFactory() is required");
@@ -447,6 +459,7 @@ public class JmsIO {
     private Connection connection;
     private Session session;
     private MessageConsumer consumer;
+    private AutoScaler autoScaler;
 
     private T currentMessage;
     private Instant currentTimestamp;
@@ -474,6 +487,12 @@ public class JmsIO {
         }
         connection.start();
         this.connection = connection;
+        if (spec.getAutoScaler() == null) {
+          this.autoScaler = new DefaultAutoscaler();
+        } else {
+          this.autoScaler = spec.getAutoScaler();
+        }
+        this.autoScaler.start();
       } catch (Exception e) {
         throw new IOException("Error connecting to JMS", e);
       }
@@ -545,6 +564,11 @@ public class JmsIO {
     }
 
     @Override
+    public long getTotalBacklogBytes() {
+      return this.autoScaler.getTotalBacklogBytes();
+    }
+
+    @Override
     public UnboundedSource<T, ?> getCurrentSource() {
       return source;
     }
@@ -564,6 +588,10 @@ public class JmsIO {
           connection.stop();
           connection.close();
           connection = null;
+        }
+        if (autoScaler != null) {
+          autoScaler.stop();
+          autoScaler = null;
         }
       } catch (Exception e) {
         throw new IOException(e);

@@ -22,7 +22,7 @@ class LogElements(beam.PTransform):
     class _LoggingFn(beam.DoFn):
 
         def __init__(self, prefix='', with_timestamp=False, with_window=False):
-            super(LogElements._LoggingFn, self).__init__()
+            super().__init__()
             self.prefix = prefix
             self.with_timestamp = with_timestamp
             self.with_window = with_window
@@ -43,7 +43,7 @@ class LogElements(beam.PTransform):
 
     def __init__(self, label=None, prefix='',
                  with_timestamp=False, with_window=False):
-        super(LogElements, self).__init__(label)
+        super().__init__(label)
         self.prefix = prefix
         self.with_timestamp = with_timestamp
         self.with_window = with_window

@@ -21,6 +21,8 @@
 
 import dataclasses
 import logging
+import os
+import tempfile
 import typing
 import unittest
 
@@ -28,7 +30,9 @@ import apache_beam as beam
 from apache_beam import Pipeline
 from apache_beam.coders import RowCoder
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.portability.api.external_transforms_pb2 import BuilderMethod
 from apache_beam.portability.api.external_transforms_pb2 import ExternalConfigurationPayload
+from apache_beam.portability.api.external_transforms_pb2 import JavaClassLookupPayload
 from apache_beam.runners import pipeline_context
 from apache_beam.runners.portability import expansion_service
 from apache_beam.runners.portability.expansion_service_test import FibTransform
@@ -36,9 +40,13 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.external import AnnotationBasedPayloadBuilder
 from apache_beam.transforms.external import ImplicitSchemaPayloadBuilder
+from apache_beam.transforms.external import JavaClassLookupPayloadBuilder
+from apache_beam.transforms.external import JavaExternalTransform
+from apache_beam.transforms.external import JavaJarExpansionService
 from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
 from apache_beam.typehints import typehints
 from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
+from apache_beam.utils import proto_utils
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -330,7 +338,7 @@ class ExternalAnnotationPayloadTest(PayloadBase, unittest.TestCase):
           mapping: typing.Mapping[str, float],
           optional_integer: typing.Optional[int] = None,
           expansion_service=None):
-        super(AnnotatedTransform, self).__init__(
+        super().__init__(
             self.URN,
             AnnotationBasedPayloadBuilder(
                 self,
@@ -358,7 +366,7 @@ class ExternalAnnotationPayloadTest(PayloadBase, unittest.TestCase):
           mapping: typehints.Dict[str, float],
           optional_integer: typehints.Optional[int] = None,
           expansion_service=None):
-        super(AnnotatedTransform, self).__init__(
+        super().__init__(
             self.URN,
             AnnotationBasedPayloadBuilder(
                 self,
@@ -404,6 +412,163 @@ class ExternalDataclassesPayloadTest(PayloadBase, unittest.TestCase):
       expansion_service: dataclasses.InitVar[typehints.Optional[str]] = None
 
     return get_payload(DataclassTransform(**values))
+
+
+class JavaClassLookupPayloadBuilderTest(unittest.TestCase):
+  def _verify_row(self, schema, row_payload, expected_values):
+    row = RowCoder(schema).decode(row_payload)
+
+    for attr_name, expected_value in expected_values.items():
+      self.assertTrue(hasattr(row, attr_name))
+      value = getattr(row, attr_name)
+      self.assertEqual(expected_value, value)
+
+  def test_build_payload_with_constructor(self):
+    payload_builder = JavaClassLookupPayloadBuilder('dummy_class_name')
+
+    payload_builder.with_constructor('abc', 123, str_field='def', int_field=456)
+    payload_bytes = payload_builder.payload()
+    payload_from_bytes = proto_utils.parse_Bytes(
+        payload_bytes, JavaClassLookupPayload)
+    self.assertTrue(isinstance(payload_from_bytes, JavaClassLookupPayload))
+    self.assertFalse(payload_from_bytes.constructor_method)
+    self._verify_row(
+        payload_from_bytes.constructor_schema,
+        payload_from_bytes.constructor_payload, {
+            'ignore0': 'abc',
+            'ignore1': 123,
+            'str_field': 'def',
+            'int_field': 456
+        })
+
+  def test_build_payload_with_constructor_method(self):
+    payload_builder = JavaClassLookupPayloadBuilder('dummy_class_name')
+    payload_builder.with_constructor_method(
+        'dummy_constructor_method', 'abc', 123, str_field='def', int_field=456)
+    payload_bytes = payload_builder.payload()
+    payload_from_bytes = proto_utils.parse_Bytes(
+        payload_bytes, JavaClassLookupPayload)
+    self.assertTrue(isinstance(payload_from_bytes, JavaClassLookupPayload))
+    self.assertEqual(
+        'dummy_constructor_method', payload_from_bytes.constructor_method)
+    self._verify_row(
+        payload_from_bytes.constructor_schema,
+        payload_from_bytes.constructor_payload, {
+            'ignore0': 'abc',
+            'ignore1': 123,
+            'str_field': 'def',
+            'int_field': 456
+        })
+
+  def test_build_payload_with_builder_methods(self):
+    payload_builder = JavaClassLookupPayloadBuilder('dummy_class_name')
+    payload_builder.with_constructor('abc', 123, str_field='def', int_field=456)
+    payload_builder.add_builder_method(
+        'builder_method1', 'abc1', 1234, str_field1='abc2', int_field1=2345)
+    payload_builder.add_builder_method(
+        'builder_method2', 'abc3', 3456, str_field2='abc4', int_field2=4567)
+    payload_bytes = payload_builder.payload()
+    payload_from_bytes = proto_utils.parse_Bytes(
+        payload_bytes, JavaClassLookupPayload)
+    self.assertTrue(isinstance(payload_from_bytes, JavaClassLookupPayload))
+    self._verify_row(
+        payload_from_bytes.constructor_schema,
+        payload_from_bytes.constructor_payload, {
+            'ignore0': 'abc',
+            'ignore1': 123,
+            'str_field': 'def',
+            'int_field': 456
+        })
+    self.assertEqual(2, len(payload_from_bytes.builder_methods))
+    builder_method = payload_from_bytes.builder_methods[0]
+    self.assertTrue(isinstance(builder_method, BuilderMethod))
+    self.assertEqual('builder_method1', builder_method.name)
+
+    self._verify_row(
+        builder_method.schema,
+        builder_method.payload,
+        {
+            'ignore0': 'abc1',
+            'ignore1': 1234,
+            'str_field1': 'abc2',
+            'int_field1': 2345
+        })
+
+    builder_method = payload_from_bytes.builder_methods[1]
+    self.assertTrue(isinstance(builder_method, BuilderMethod))
+    self.assertEqual('builder_method2', builder_method.name)
+    self._verify_row(
+        builder_method.schema,
+        builder_method.payload,
+        {
+            'ignore0': 'abc3',
+            'ignore1': 3456,
+            'str_field2': 'abc4',
+            'int_field2': 4567
+        })
+
+  def test_build_payload_with_constructor_twice_fails(self):
+    payload_builder = JavaClassLookupPayloadBuilder('dummy_class_name')
+    payload_builder.with_constructor('abc')
+    with self.assertRaises(ValueError):
+      payload_builder.with_constructor('def')
+
+  def test_implicit_builder_with_constructor(self):
+    constructor_transform = (
+        JavaExternalTransform('org.pkg.MyTransform')('abc').withIntProperty(5))
+
+    payload_bytes = constructor_transform._payload_builder.payload()
+    payload_from_bytes = proto_utils.parse_Bytes(
+        payload_bytes, JavaClassLookupPayload)
+    self.assertEqual('org.pkg.MyTransform', payload_from_bytes.class_name)
+    self._verify_row(
+        payload_from_bytes.constructor_schema,
+        payload_from_bytes.constructor_payload, {'ignore0': 'abc'})
+    builder_method = payload_from_bytes.builder_methods[0]
+    self.assertEqual('withIntProperty', builder_method.name)
+    self._verify_row(
+        builder_method.schema, builder_method.payload, {'ignore0': 5})
+
+  def test_implicit_builder_with_constructor_method(self):
+    constructor_transform = JavaExternalTransform('org.pkg.MyTransform').of(
+        str_field='abc').withProperty(int_field=1234).build()
+
+    payload_bytes = constructor_transform._payload_builder.payload()
+    payload_from_bytes = proto_utils.parse_Bytes(
+        payload_bytes, JavaClassLookupPayload)
+    self.assertEqual('of', payload_from_bytes.constructor_method)
+    self._verify_row(
+        payload_from_bytes.constructor_schema,
+        payload_from_bytes.constructor_payload, {'str_field': 'abc'})
+    with_property_method = payload_from_bytes.builder_methods[0]
+    self.assertEqual('withProperty', with_property_method.name)
+    self._verify_row(
+        with_property_method.schema,
+        with_property_method.payload, {'int_field': 1234})
+    build_method = payload_from_bytes.builder_methods[1]
+    self.assertEqual('build', build_method.name)
+    self._verify_row(build_method.schema, build_method.payload, {})
+
+
+class JavaJarExpansionServiceTest(unittest.TestCase):
+  def test_classpath(self):
+    with tempfile.TemporaryDirectory() as temp_dir:
+      try:
+        # Avoid having to prefix everything in our test strings.
+        oldwd = os.getcwd()
+        os.chdir(temp_dir)
+        # Touch some files for globing.
+        with open('a1.jar', 'w') as _:
+          pass
+
+        service = JavaJarExpansionService(
+            'main.jar', classpath=['a*.jar', 'b.jar'])
+        self.assertEqual(
+            service._default_args(),
+            ['{{PORT}}', '--filesToStage=main.jar,a1.jar,b.jar'])
+
+      finally:
+        os.chdir(oldwd)
 
 
 if __name__ == '__main__':

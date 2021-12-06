@@ -50,6 +50,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.io.aws2.options.S3Options;
+import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.AfterClass;
@@ -180,7 +181,7 @@ public class S3FileSystemTest {
     HeadObjectResponse bigHeadObjectResponse =
         headObjectResponse.toBuilder().contentLength(5_368_709_120L).build();
     assertGetObjectHead(
-        s3FileSystem, createObjectHeadRequest(sourcePath, options), options, headObjectResponse);
+        s3FileSystem, createObjectHeadRequest(sourcePath, options), options, bigHeadObjectResponse);
 
     try {
       s3FileSystem.copy(sourcePath, destinationPath);
@@ -745,7 +746,9 @@ public class S3FileSystemTest {
     // First create an object and write data to it
     S3ResourceId path = S3ResourceId.fromUri("s3://testbucket/foo/bar.txt");
     WritableByteChannel writableByteChannel =
-        s3FileSystem.create(path, builder().setMimeType("application/text").build());
+        s3FileSystem.create(
+            path,
+            CreateOptions.StandardCreateOptions.builder().setMimeType("application/text").build());
     writableByteChannel.write(bb);
     writableByteChannel.close();
 

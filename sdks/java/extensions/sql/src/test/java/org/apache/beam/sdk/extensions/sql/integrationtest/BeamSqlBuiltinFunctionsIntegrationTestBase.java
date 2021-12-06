@@ -19,7 +19,7 @@ package org.apache.beam.sdk.extensions.sql.integrationtest;
 
 import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithUTCTimeZone;
 import static org.apache.beam.sdk.extensions.sql.utils.RowAsserts.matchesScalar;
-import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.calcite.v1_28_0.com.google.common.base.Preconditions.checkArgument;
 import static org.junit.Assert.assertTrue;
 
 import com.google.auto.value.AutoValue;
@@ -33,7 +33,6 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
-import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -50,8 +49,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.junit.Rule;
@@ -341,16 +340,6 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
         pipeline.apply(expr, new CheckPTransform(expr));
       }
     }
-
-    private static final ReadOnlyTableProvider BOUNDED_TABLE =
-        new ReadOnlyTableProvider(
-            "test",
-            ImmutableMap.of(
-                "test",
-                TestBoundedTable.of(
-                        Schema.FieldType.INT32, "id",
-                        Schema.FieldType.STRING, "name")
-                    .addRows(1, "first")));
 
     private void checkJdbc(PipelineOptions pipelineOptions) throws Exception {
       // Beam SQL code is only invoked when the calling convention insists on it, so we

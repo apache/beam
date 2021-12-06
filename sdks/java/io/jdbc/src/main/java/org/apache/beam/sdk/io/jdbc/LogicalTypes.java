@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.jdbc;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.math.BigDecimal;
+import java.math.MathContext;
 import java.sql.JDBCType;
 import java.time.Instant;
 import java.util.Arrays;
@@ -265,7 +266,16 @@ class LogicalTypes {
 
     @Override
     public BigDecimal toInputType(BigDecimal base) {
-      checkArgument(base == null || (base.precision() == precision && base.scale() == scale));
+      checkArgument(
+          base == null
+              || (base.precision() <= precision && base.scale() <= scale)
+              // for cases when received values can be safely coerced to the schema
+              || base.round(new MathContext(precision)).compareTo(base) == 0,
+          "Expected BigDecimal base to be null or have precision <= %s (was %s), scale <= %s (was %s)",
+          precision,
+          base.precision(),
+          scale,
+          base.scale());
       return base;
     }
   }

@@ -27,12 +27,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Message.Builder;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Message;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.util.JsonFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Contains common code for writing and reading portable pipeline jars.
@@ -74,7 +72,6 @@ public abstract class PortablePipelineJarUtils {
   private static final String PIPELINE_OPTIONS = "pipeline-options.json";
   private static final String PIPELINE_MANIFEST = PIPELINE_FOLDER + "/pipeline-manifest.json";
 
-  private static final Logger LOG = LoggerFactory.getLogger(PortablePipelineJarUtils.class);
   private static final ObjectMapper OBJECT_MAPPER =
       new ObjectMapper(new JsonFactory().configure(Feature.AUTO_CLOSE_TARGET, false));
 
@@ -93,7 +90,8 @@ public abstract class PortablePipelineJarUtils {
   }
 
   /** Populates {@code builder} using the JSON resource specified by {@code resourcePath}. */
-  private static void parseJsonResource(String resourcePath, Builder builder) throws IOException {
+  private static void parseJsonResource(String resourcePath, Message.Builder builder)
+      throws IOException {
     try (InputStream inputStream = getResourceFromClassPath(resourcePath)) {
       String contents = new String(ByteStreams.toByteArray(inputStream), StandardCharsets.UTF_8);
       JsonFormat.parser().merge(contents, builder);

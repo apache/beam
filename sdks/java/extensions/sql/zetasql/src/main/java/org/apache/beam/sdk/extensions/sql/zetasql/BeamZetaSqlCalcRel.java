@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
+import static org.apache.beam.sdk.schemas.Schema.Field;
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import com.google.auto.value.AutoValue;
@@ -39,6 +40,7 @@ import org.apache.beam.sdk.extensions.sql.impl.rel.AbstractBeamCalcRel;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BeamBigQuerySqlDialect;
 import org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BeamSqlUnparseContext;
+import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -47,19 +49,19 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCluster;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitSet;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Calc;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexBuilder;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexProgram;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlDialect;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlIdentifier;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptCluster;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelTraitSet;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.Calc;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexBuilder;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexProgram;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlDialect;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlIdentifier;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -71,6 +73,8 @@ import org.joda.time.Instant;
  * BeamRelNode to replace {@code Project} and {@code Filter} node based on the {@code ZetaSQL}
  * expression evaluator.
  */
+@SuppressWarnings(
+    "unused") // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
 @Internal
 public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
 
@@ -142,9 +146,6 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
               options.getZetaSqlDefaultTimezone(),
               options.getVerifyRowValues());
 
-      // validate prepared expressions
-      calcFn.setup();
-
       return upstream.apply(ParDo.of(calcFn)).setRowSchema(outputSchema);
     }
   }
@@ -171,7 +172,11 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
     private final Schema outputSchema;
     private final String defaultTimezone;
     private final boolean verifyRowValues;
-    private transient List<Integer> referencedColumns = ImmutableList.of();
+    private final List<Integer> referencedColumns;
+
+    @FieldAccess("row")
+    private final FieldAccessDescriptor fieldAccess;
+
     private transient Map<BoundedWindow, Queue<TimestampedFuture>> pending = new HashMap<>();
     private transient PreparedExpression exp;
     private transient PreparedExpression.@Nullable Stream stream;
@@ -190,10 +195,21 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
       this.outputSchema = outputSchema;
       this.defaultTimezone = defaultTimezone;
       this.verifyRowValues = verifyRowValues;
+
+      try (PreparedExpression exp =
+          prepareExpression(sql, nullParams, inputSchema, defaultTimezone)) {
+        ImmutableList.Builder<Integer> columns = new ImmutableList.Builder<>();
+        for (String c : exp.getReferencedColumns()) {
+          columns.add(Integer.parseInt(c.substring(1)));
+        }
+        this.referencedColumns = columns.build();
+        this.fieldAccess = FieldAccessDescriptor.withFieldIds(this.referencedColumns);
+      }
     }
 
     /** exp cannot be reused and is transient so needs to be reinitialized. */
-    private void prepareExpression() {
+    private static PreparedExpression prepareExpression(
+        String sql, Map<String, Value> nullParams, Schema inputSchema, String defaultTimezone) {
       AnalyzerOptions options =
           SqlAnalyzer.getAnalyzerOptions(QueryParameters.ofNamed(nullParams), defaultTimezone);
       for (int i = 0; i < inputSchema.getFieldCount(); i++) {
@@ -202,21 +218,15 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
             ZetaSqlBeamTranslationUtils.toZetaSqlType(inputSchema.getField(i).getType()));
       }
 
-      exp = new PreparedExpression(sql);
+      PreparedExpression exp = new PreparedExpression(sql);
       exp.prepare(options);
+      return exp;
     }
 
     @Setup
     public void setup() {
-      prepareExpression();
-
-      ImmutableList.Builder<Integer> columns = new ImmutableList.Builder<>();
-      for (String c : exp.getReferencedColumns()) {
-        columns.add(Integer.parseInt(c.substring(1)));
-      }
-      referencedColumns = columns.build();
-
-      stream = exp.stream();
+      this.exp = prepareExpression(sql, nullParams, inputSchema, defaultTimezone);
+      this.stream = exp.stream();
     }
 
     @StartBundle
@@ -231,14 +241,15 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
 
     @ProcessElement
     public void processElement(
-        @Element Row row, @Timestamp Instant t, BoundedWindow w, OutputReceiver<Row> r)
+        @FieldAccess("row") Row row, @Timestamp Instant t, BoundedWindow w, OutputReceiver<Row> r)
         throws InterruptedException {
       Map<String, Value> columns = new HashMap<>();
       for (int i : referencedColumns) {
+        final Field field = inputSchema.getField(i);
         columns.put(
             columnName(i),
             ZetaSqlBeamTranslationUtils.toZetaSqlValue(
-                row.getBaseValue(i, Object.class), inputSchema.getField(i).getType()));
+                row.getBaseValue(field.getName(), Object.class), field.getType()));
       }
 
       @NonNull

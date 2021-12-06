@@ -269,7 +269,7 @@ class UtilTest(unittest.TestCase):
 
     # Accessing non-public method for testing.
     apiclient.DataflowApplicationClient._apply_sdk_environment_overrides(
-        proto_pipeline, dict(), pipeline_options)
+        proto_pipeline, {}, pipeline_options)
 
     from apache_beam.utils import proto_utils
     found_override = False
@@ -300,7 +300,7 @@ class UtilTest(unittest.TestCase):
 
     # Accessing non-public method for testing.
     apiclient.DataflowApplicationClient._apply_sdk_environment_overrides(
-        proto_pipeline, dict(), pipeline_options)
+        proto_pipeline, {}, pipeline_options)
 
     self.assertIsNotNone(2, len(proto_pipeline.components.environments))
 
@@ -336,7 +336,7 @@ class UtilTest(unittest.TestCase):
 
     # Accessing non-public method for testing.
     apiclient.DataflowApplicationClient._apply_sdk_environment_overrides(
-        proto_pipeline, dict(), pipeline_options)
+        proto_pipeline, {}, pipeline_options)
 
     self.assertIsNotNone(2, len(proto_pipeline.components.environments))
 
@@ -1039,6 +1039,86 @@ class UtilTest(unittest.TestCase):
               mock.ANY, "dataflow_graph.json", mock.ANY)
           client.create_job_description.assert_called_once()
 
+  def test_create_job_returns_existing_job(self):
+    pipeline_options = PipelineOptions([
+        '--project',
+        'test_project',
+        '--job_name',
+        'test_job_name',
+        '--temp_location',
+        'gs://test-location/temp',
+    ])
+    job = apiclient.Job(pipeline_options, FAKE_PIPELINE_URL)
+    self.assertTrue(job.proto.clientRequestId)  # asserts non-empty string
+    pipeline_options.view_as(GoogleCloudOptions).no_auth = True
+    client = apiclient.DataflowApplicationClient(pipeline_options)
+
+    response = dataflow.Job()
+    # different clientRequestId from `job`
+    response.clientRequestId = "20210821081910123456-1234"
+    response.name = 'test_job_name'
+    response.id = '2021-08-19_21_18_43-9756917246311111021'
+
+    with mock.patch.object(client._client.projects_locations_jobs,
+                           'Create',
+                           side_effect=[response]):
+      with mock.patch.object(client, 'create_job_description',
+                             side_effect=None):
+        with self.assertRaises(
+            apiclient.DataflowJobAlreadyExistsError) as context:
+          client.create_job(job)
+
+        self.assertEqual(
+            str(context.exception),
+            'There is already active job named %s with id: %s. If you want to '
+            'submit a second job, try again by setting a different name using '
+            '--job_name.' % ('test_job_name', response.id))
+
+  def test_update_job_returns_existing_job(self):
+    pipeline_options = PipelineOptions([
+        '--project',
+        'test_project',
+        '--job_name',
+        'test_job_name',
+        '--temp_location',
+        'gs://test-location/temp',
+        '--region',
+        'us-central1',
+        '--update',
+    ])
+    replace_job_id = '2021-08-21_00_00_01-6081497447916622336'
+    with mock.patch('apache_beam.runners.dataflow.internal.apiclient.Job.'
+                    'job_id_for_name',
+                    return_value=replace_job_id) as job_id_for_name_mock:
+      job = apiclient.Job(pipeline_options, FAKE_PIPELINE_URL)
+    job_id_for_name_mock.assert_called_once()
+
+    self.assertTrue(job.proto.clientRequestId)  # asserts non-empty string
+
+    pipeline_options.view_as(GoogleCloudOptions).no_auth = True
+    client = apiclient.DataflowApplicationClient(pipeline_options)
+
+    response = dataflow.Job()
+    # different clientRequestId from `job`
+    response.clientRequestId = "20210821083254123456-1234"
+    response.name = 'test_job_name'
+    response.id = '2021-08-19_21_29_07-5725551945600207770'
+
+    with mock.patch.object(client, 'create_job_description', side_effect=None):
+      with mock.patch.object(client._client.projects_locations_jobs,
+                             'Create',
+                             side_effect=[response]):
+
+        with self.assertRaises(
+            apiclient.DataflowJobAlreadyExistsError) as context:
+          client.create_job(job)
+
+      self.assertEqual(
+          str(context.exception),
+          'The job named %s with id: %s has already been updated into job '
+          'id: %s and cannot be updated again.' %
+          ('test_job_name', replace_job_id, response.id))
+
   def test_template_file_generation_with_upload_graph(self):
     pipeline_options = PipelineOptions([
         '--project',
@@ -1112,7 +1192,26 @@ class UtilTest(unittest.TestCase):
                             role_urn=common_urns.artifact_roles.STAGING_TO.urn,
                             role_payload=beam_runner_api_pb2.
                             ArtifactStagingToRolePayload(
-                                staged_name='bar1').SerializeToString())
+                                staged_name='bar1').SerializeToString()),
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.FILE.urn,
+                            type_payload=beam_runner_api_pb2.
+                            ArtifactFilePayload(
+                                path='/tmp/baz').SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='baz1').SerializeToString()),
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.FILE.urn,
+                            type_payload=beam_runner_api_pb2.
+                            ArtifactFilePayload(
+                                path='/tmp/renamed1',
+                                sha256='abcdefg').SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='renamed1').SerializeToString())
                     ]),
                 'env2': beam_runner_api_pb2.Environment(
                     dependencies=[
@@ -1133,7 +1232,26 @@ class UtilTest(unittest.TestCase):
                             role_urn=common_urns.artifact_roles.STAGING_TO.urn,
                             role_payload=beam_runner_api_pb2.
                             ArtifactStagingToRolePayload(
-                                staged_name='bar2').SerializeToString())
+                                staged_name='bar2').SerializeToString()),
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.FILE.urn,
+                            type_payload=beam_runner_api_pb2.
+                            ArtifactFilePayload(
+                                path='/tmp/baz').SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='baz2').SerializeToString()),
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.FILE.urn,
+                            type_payload=beam_runner_api_pb2.
+                            ArtifactFilePayload(
+                                path='/tmp/renamed2',
+                                sha256='abcdefg').SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='renamed2').SerializeToString())
                     ])
             }))
     client = apiclient.DataflowApplicationClient(pipeline_options)
@@ -1141,7 +1259,8 @@ class UtilTest(unittest.TestCase):
                            'stage_job_resources') as mock_stager:
       client._stage_resources(pipeline, pipeline_options)
     mock_stager.assert_called_once_with(
-        [('/tmp/foo1', 'foo1'), ('/tmp/bar1', 'bar1'), ('/tmp/foo2', 'foo2'),
+        [('/tmp/foo1', 'foo1'), ('/tmp/bar1', 'bar1'), ('/tmp/baz', 'baz1'),
+         ('/tmp/renamed1', 'renamed1'), ('/tmp/foo2', 'foo2'),
          ('/tmp/bar2', 'bar2')],
         staging_location='gs://test-location/staging')
 
@@ -1167,7 +1286,25 @@ class UtilTest(unittest.TestCase):
                             role_urn=common_urns.artifact_roles.STAGING_TO.urn,
                             role_payload=beam_runner_api_pb2.
                             ArtifactStagingToRolePayload(
-                                staged_name='bar1').SerializeToString())
+                                staged_name='bar1').SerializeToString()),
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.URL.urn,
+                            type_payload=beam_runner_api_pb2.ArtifactUrlPayload(
+                                url='gs://test-location/staging/baz1').
+                            SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='baz1').SerializeToString()),
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.URL.urn,
+                            type_payload=beam_runner_api_pb2.ArtifactUrlPayload(
+                                url='gs://test-location/staging/renamed1',
+                                sha256='abcdefg').SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='renamed1').SerializeToString())
                     ]),
                 'env2': beam_runner_api_pb2.Environment(
                     dependencies=[
@@ -1188,7 +1325,25 @@ class UtilTest(unittest.TestCase):
                             role_urn=common_urns.artifact_roles.STAGING_TO.urn,
                             role_payload=beam_runner_api_pb2.
                             ArtifactStagingToRolePayload(
-                                staged_name='bar2').SerializeToString())
+                                staged_name='bar2').SerializeToString()),
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.URL.urn,
+                            type_payload=beam_runner_api_pb2.ArtifactUrlPayload(
+                                url='gs://test-location/staging/baz1').
+                            SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='baz1').SerializeToString()),
+                        beam_runner_api_pb2.ArtifactInformation(
+                            type_urn=common_urns.artifact_types.URL.urn,
+                            type_payload=beam_runner_api_pb2.ArtifactUrlPayload(
+                                url='gs://test-location/staging/renamed1',
+                                sha256='abcdefg').SerializeToString(),
+                            role_urn=common_urns.artifact_roles.STAGING_TO.urn,
+                            role_payload=beam_runner_api_pb2.
+                            ArtifactStagingToRolePayload(
+                                staged_name='renamed1').SerializeToString())
                     ])
             }))
     self.assertEqual(pipeline, pipeline_expected)

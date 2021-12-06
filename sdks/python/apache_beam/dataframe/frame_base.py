@@ -64,7 +64,7 @@ class DeferredBase(object):
             requires_partition_by=partitionings.Arbitrary(),
             preserves_partition_by=partitionings.Singleton())
 
-      return tuple([cls.wrap(get(ix)) for ix in range(len(expr.proxy()))])
+      return tuple(cls.wrap(get(ix)) for ix in range(len(expr.proxy())))
     elif proxy_type in cls._pandas_type_map:
       wrapper_type = cls._pandas_type_map[proxy_type]
     else:
@@ -151,7 +151,7 @@ def _elementwise_method(
       inplace,
       base,
       requires_partition_by=partitionings.Arbitrary(),
-      preserves_partition_by=partitionings.Singleton())
+      preserves_partition_by=partitionings.Arbitrary())
 
 
 def _proxy_method(
@@ -160,8 +160,10 @@ def _proxy_method(
     restrictions=None,
     inplace=False,
     base=None,
-    requires_partition_by=partitionings.Singleton(),
-    preserves_partition_by=partitionings.Arbitrary()):
+    *,
+    requires_partition_by,  # type: partitionings.Partitioning
+    preserves_partition_by,  # type: partitionings.Partitioning
+):
   if name is None:
     name, func = name_and_func(func)
   if base is None:
@@ -172,8 +174,8 @@ def _proxy_method(
       restrictions,
       inplace,
       base,
-      requires_partition_by,
-      preserves_partition_by)
+      requires_partition_by=requires_partition_by,
+      preserves_partition_by=preserves_partition_by)
 
 
 def _elementwise_function(
@@ -185,7 +187,7 @@ def _elementwise_function(
       inplace,
       base,
       requires_partition_by=partitionings.Arbitrary(),
-      preserves_partition_by=partitionings.Singleton())
+      preserves_partition_by=partitionings.Arbitrary())
 
 
 def _proxy_function(
@@ -194,10 +196,9 @@ def _proxy_function(
     restrictions=None,  # type: Optional[Dict[str, Union[Any, List[Any]]]]
     inplace=False,  # type: bool
     base=None,  # type: Optional[type]
-    requires_partition_by=partitionings.Singleton(
-    ),  # type: partitionings.Partitioning
-    preserves_partition_by=partitionings.Arbitrary(
-    ),  # type: partitionings.Partitioning
+    *,
+    requires_partition_by,  # type: partitionings.Partitioning
+    preserves_partition_by,  # type: partitionings.Partitioning
 ):
 
   if name is None:
@@ -641,4 +642,4 @@ class WontImplementError(NotImplementedError):
       if 'url' in reason_data:
         msg = f"{msg}\nFor more information see {reason_data['url']}."
 
-    super(WontImplementError, self).__init__(msg)
+    super().__init__(msg)

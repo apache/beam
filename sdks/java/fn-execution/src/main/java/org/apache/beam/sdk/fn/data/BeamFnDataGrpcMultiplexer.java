@@ -49,7 +49,10 @@ import org.slf4j.LoggerFactory;
  *
  * <p>TODO: Add support for multiplexing over multiple outbound observers by stickying the output
  * location with a specific outbound observer.
+ *
+ * @deprecated Migrate to {@link BeamFnDataGrpcMultiplexer2}.
  */
+@Deprecated
 public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataGrpcMultiplexer.class);
   private final Endpoints.@Nullable ApiServiceDescriptor apiServiceDescriptor;

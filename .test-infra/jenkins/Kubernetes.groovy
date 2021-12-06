@@ -79,15 +79,30 @@ class Kubernetes {
 
   private static void addCleanupSteps() {
     job.publishers {
-      postBuildScripts {
-        steps {
-          if (!namespace.isEmpty()) {
-            shell("${KUBERNETES_SCRIPT} deleteNamespace ${namespace}")
+      postBuildScript {
+        buildSteps {
+          postBuildStep {
+            stopOnFailure(false)
+            results([
+              'FAILURE',
+              'SUCCESS',
+              'UNSTABLE',
+              'NOT_BUILT',
+              'ABORTED'
+            ])
+            buildSteps {
+              if (!namespace.isEmpty()) {
+                shell {
+                  command("${KUBERNETES_SCRIPT} deleteNamespace ${namespace}")
+                }
+              }
+              shell {
+                command("rm ${kubeconfigLocation}")
+              }
+            }
           }
-          shell("rm ${kubeconfigLocation}")
         }
-        onlyIfBuildSucceeds(false)
-        onlyIfBuildFails(false)
+        markBuildUnstable(false)
       }
     }
   }

@@ -81,6 +81,7 @@ import org.apache.beam.sdk.util.common.Reiterator;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.Before;
@@ -99,7 +100,8 @@ public class GroupingShuffleReaderTest {
       Collections.emptyList();
 
   private static final Instant timestamp = new Instant(123000);
-  private static final IntervalWindow window = new IntervalWindow(timestamp, timestamp.plus(1000));
+  private static final IntervalWindow window =
+      new IntervalWindow(timestamp, timestamp.plus(Duration.millis(1000)));
 
   private final ExecutionStateSampler sampler = ExecutionStateSampler.newForTest();
   private final ExecutionStateTracker tracker = new ExecutionStateTracker(sampler);

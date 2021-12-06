@@ -25,7 +25,7 @@ If you're interested in contributing to the Apache Beam Go codebase, see the [Co
 
 ## Set up your environment
 
-The Beam SDK for Go requires `go` version 1.10 or newer. It can be downloaded [here](https://golang.org/). Check that you have version 1.10 by running:
+The Beam SDK for Go requires `go` version 1.16 or newer. It can be downloaded [here](https://golang.org/). Check that you have version 1.16 by running:
 
 {{< highlight >}}
 $ go version
@@ -36,7 +36,7 @@ $ go version
 The easiest way to obtain the Apache Beam Go SDK is via `go get`:
 
 {{< highlight >}}
-$ go get -u github.com/apache/beam/sdks/go/...
+$ go get -u github.com/apache/beam/sdks/v2/go/pkg/beam
 {{< /highlight >}}
 
 For development of the Go SDK itself, see [BUILD.md](https://github.com/apache/beam/blob/master/sdks/go/BUILD.md) for details.
@@ -72,7 +72,7 @@ $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
 {{< runner spark >}}
 # Build and run the Spark job server from Beam source.
 # -PsparkMasterUrl is optional. If it is unset the job will be run inside an embedded Spark cluster.
-$ ./gradlew :runners:spark:2:job-server:runShadow -PsparkMasterUrl=spark://localhost:7077
+$ ./gradlew :runners:spark:3:job-server:runShadow -PsparkMasterUrl=spark://localhost:7077
 
 # In a separate terminal, run:
 $ go install github.com/apache/beam/sdks/go/examples/wordcount
@@ -85,7 +85,7 @@ $ wordcount --input <PATH_TO_INPUT_FILE> \
 ## Next Steps
 
 * Learn more about the [Beam SDK for Go](/documentation/sdks/go/)
-  and look through the [godoc](https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam).
+  and look through the [godoc](https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam).
 * Walk through these WordCount examples in the [WordCount Example Walkthrough](/get-started/wordcount-example).
 * Take a self-paced tour through our [Learning Resources](/documentation/resources/learning-resources).
 * Dive in to some of our favorite [Videos and Podcasts](/documentation/resources/videos-and-podcasts).

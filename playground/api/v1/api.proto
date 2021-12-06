@@ -1,0 +1,197 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+option go_package = "beam.apache.org/playground/backend/internal;playground";
+
+package api.v1;
+
+enum Sdk {
+  SDK_UNSPECIFIED = 0;
+  SDK_JAVA = 1;
+  SDK_GO = 2;
+  SDK_PYTHON = 3;
+  SDK_SCIO = 4;
+}
+
+enum Status {
+  STATUS_UNSPECIFIED = 0;
+  STATUS_VALIDATING = 1;
+  STATUS_VALIDATION_ERROR = 2;
+  STATUS_PREPARING = 3;
+  STATUS_PREPARATION_ERROR = 4;
+  STATUS_COMPILING = 5;
+  STATUS_COMPILE_ERROR = 6;
+  STATUS_EXECUTING = 7;
+  STATUS_FINISHED = 8;
+  STATUS_RUN_ERROR = 9;
+  STATUS_ERROR = 10;
+  STATUS_RUN_TIMEOUT = 11;
+  STATUS_CANCELED = 12;
+}
+
+enum PrecompiledObjectType {
+  PRECOMPILED_OBJECT_TYPE_UNSPECIFIED = 0;
+  PRECOMPILED_OBJECT_TYPE_EXAMPLE = 1;
+  PRECOMPILED_OBJECT_TYPE_KATA = 2;
+  PRECOMPILED_OBJECT_TYPE_UNIT_TEST = 3;
+}
+
+// RunCodeRequest represents a code text and options of SDK which executes the code.
+message RunCodeRequest {
+  string code = 1;
+  Sdk sdk = 2;
+}
+
+// RunCodeResponse contains information of the pipeline uuid.
+message RunCodeResponse {
+  string pipeline_uuid = 1;
+}
+
+// CheckStatusRequest contains information of the pipeline uuid.
+message CheckStatusRequest {
+  string pipeline_uuid = 1;
+}
+
+// StatusInfo contains information about the status of the code execution.
+message CheckStatusResponse {
+  Status status = 1;
+}
+
+// GetCompileOutputRequest contains information of the pipeline uuid.
+message GetCompileOutputRequest {
+  string pipeline_uuid = 1;
+}
+
+// GetCompileOutputResponse represents the result of the compiled code.
+message GetCompileOutputResponse {
+  string output = 1;
+  Status compilation_status = 2;
+}
+
+// GetRunOutputRequest contains information of the pipeline uuid.
+message GetRunOutputRequest {
+  string pipeline_uuid = 1;
+}
+
+// RunOutputResponse represents the result of the executed code.
+message GetRunOutputResponse {
+  string output = 1;
+}
+
+// GetRunErrorRequest contains information of the pipeline uuid.
+message GetRunErrorRequest {
+  string pipeline_uuid = 1;
+}
+
+// GetRunErrorResponse represents the error of the executed code.
+message GetRunErrorResponse {
+  string output = 1;
+}
+
+// GetLogsRequest contains information of the pipeline uuid.
+message GetLogsRequest {
+  string pipeline_uuid = 1;
+}
+
+// RunOutputResponse represents the logs of the executed code.
+message GetLogsResponse {
+  string output = 1;
+}
+
+// CancelRequest request to cancel code processing
+message CancelRequest {
+  string pipeline_uuid = 1;
+}
+
+// CancelResponse response for cancel request
+message CancelResponse {
+}
+
+// GetPrecompiledObjectsRequest contains information of the needed PrecompiledObjects sdk and categories.
+message GetPrecompiledObjectsRequest{
+  Sdk sdk = 1;
+  string category = 2;
+}
+
+// PrecompiledObject represents one PrecompiledObject with its information
+message PrecompiledObject{
+  string cloud_path = 1;
+  string name = 2;
+  string description = 3;
+  PrecompiledObjectType type = 4;
+}
+
+// Categories represent the array of messages with sdk and categories at this sdk
+message Categories{
+  message Category{
+    string category_name = 1;
+    repeated PrecompiledObject precompiled_objects = 2;
+  }
+  Sdk sdk = 1;
+  repeated Category categories = 2;
+}
+
+
+// GetListOfPrecompiledObjectsResponse represent the map between sdk and categories for the sdk.
+message GetPrecompiledObjectsResponse{
+  repeated Categories sdk_categories = 1;
+}
+
+// GetPrecompiledObjectRequest contains information of the PrecompiledObject uuid.
+message GetPrecompiledObjectRequest{
+  string cloud_path = 1;
+}
+
+// GetPrecompiledObjectResponse represents the source code of the PrecompiledObject.
+message GetPrecompiledObjectCodeResponse{
+  string code = 1;
+}
+
+service PlaygroundService {
+
+  // Submit the job for an execution and get the pipeline uuid.
+  rpc RunCode(RunCodeRequest) returns (RunCodeResponse);
+
+  // Get the status of pipeline execution.
+  rpc CheckStatus(CheckStatusRequest) returns (CheckStatusResponse);
+
+  // Get the result of pipeline execution.
+  rpc GetRunOutput(GetRunOutputRequest) returns (GetRunOutputResponse);
+
+  // Get the logs of pipeline execution.
+  rpc GetLogs(GetLogsRequest) returns (GetLogsResponse);
+
+  // Get the error of pipeline execution.
+  rpc GetRunError(GetRunErrorRequest) returns (GetRunErrorResponse);
+
+  // Get the result of pipeline compilation.
+  rpc GetCompileOutput(GetCompileOutputRequest) returns (GetCompileOutputResponse);
+
+  // Cancel code processing
+  rpc Cancel(CancelRequest) returns (CancelResponse);
+
+  // Get all precompiled objects from the cloud storage.
+  rpc GetPrecompiledObjects(GetPrecompiledObjectsRequest) returns (GetPrecompiledObjectsResponse);
+
+  // Get the code of an PrecompiledObject.
+  rpc GetPrecompiledObjectCode(GetPrecompiledObjectRequest) returns (GetPrecompiledObjectCodeResponse);
+
+  // Get the precompiled details of an PrecompiledObject.
+  rpc GetPrecompiledObjectOutput(GetPrecompiledObjectRequest) returns (GetRunOutputResponse);
+}

@@ -35,6 +35,7 @@ import org.apache.beam.runners.samza.runtime.OpMessage;
 import org.apache.beam.runners.samza.transforms.GroupWithoutRepartition;
 import org.apache.beam.runners.samza.util.SamzaCoders;
 import org.apache.beam.runners.samza.util.SamzaPipelineTranslatorUtils;
+import org.apache.beam.runners.samza.util.WindowUtils;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -116,9 +117,9 @@ class GroupByKeyTranslator<K, InputT, OutputT>
     final RunnerApi.PCollection input = pipeline.getComponents().getPcollectionsOrThrow(inputId);
     final MessageStream<OpMessage<KV<K, InputT>>> inputStream = ctx.getMessageStreamById(inputId);
     final WindowingStrategy<?, BoundedWindow> windowingStrategy =
-        ctx.getPortableWindowStrategy(inputId, pipeline.getComponents());
+        WindowUtils.getWindowStrategy(inputId, pipeline.getComponents());
     final WindowedValue.WindowedValueCoder<KV<K, InputT>> windowedInputCoder =
-        ctx.instantiateCoder(inputId, pipeline.getComponents());
+        WindowUtils.instantiateWindowedCoder(inputId, pipeline.getComponents());
     final TupleTag<KV<K, OutputT>> outputTag =
         new TupleTag<>(Iterables.getOnlyElement(transform.getTransform().getOutputsMap().keySet()));
 

@@ -25,6 +25,7 @@ plugins {
 }
 
 applyJavaNature(
+  suppressUnusedVariable: true,
   exportJavadoc: false,
   automaticModuleName: 'org.apache.beam.examples',
 )
@@ -94,6 +95,7 @@ dependencies {
   testCompile project(path: ":runners:direct-java", configuration: "shadow")
   testCompile project(":sdks:java:io:google-cloud-platform")
   testCompile project(":sdks:java:extensions:ml")
+  testCompile library.java.google_cloud_bigquery
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile library.java.junit

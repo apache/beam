@@ -486,6 +486,39 @@ class TestBigQueryWrapper(unittest.TestCase):
     self.verify_write_call_metric(
         "my_project", "my_dataset", "my_table", "ok", 1)
 
+  @unittest.skipIf(ClientError is None, 'GCP dependencies are not installed')
+  def test_start_query_job_priority_configuration(self):
+    client = mock.Mock()
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+
+    query_result = mock.Mock()
+    query_result.pageToken = None
+    wrapper._get_query_results = mock.Mock(return_value=query_result)
+
+    wrapper._start_query_job(
+        "my_project",
+        "my_query",
+        use_legacy_sql=False,
+        flatten_results=False,
+        job_id="my_job_id",
+        priority=beam.io.BigQueryQueryPriority.BATCH)
+
+    self.assertEqual(
+        client.jobs.Insert.call_args[0][0].job.configuration.query.priority,
+        'BATCH')
+
+    wrapper._start_query_job(
+        "my_project",
+        "my_query",
+        use_legacy_sql=False,
+        flatten_results=False,
+        job_id="my_job_id",
+        priority=beam.io.BigQueryQueryPriority.INTERACTIVE)
+
+    self.assertEqual(
+        client.jobs.Insert.call_args[0][0].job.configuration.query.priority,
+        'INTERACTIVE')
+
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQueryReader(unittest.TestCase):
@@ -926,7 +959,9 @@ class TestBigQueryWriter(unittest.TestCase):
         '%s.%s.%s' % ('project', 'dataset', 'table'),
         json_rows=[sample_row],
         row_ids=['_1'],
-        skip_invalid_rows=True)
+        skip_invalid_rows=False,
+        timeout=120,
+        ignore_unknown_values=False)
 
   def test_table_schema_without_project(self):
     # Writer should pick executing project by default.

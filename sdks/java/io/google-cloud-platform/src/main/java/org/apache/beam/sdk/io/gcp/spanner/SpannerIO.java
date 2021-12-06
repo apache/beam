@@ -33,6 +33,7 @@ import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Mutation.Op;
+import com.google.cloud.spanner.Options;
 import com.google.cloud.spanner.Options.RpcPriority;
 import com.google.cloud.spanner.PartitionOptions;
 import com.google.cloud.spanner.Spanner;
@@ -53,10 +54,14 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.ServiceCallMetric;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -549,6 +554,16 @@ public class SpannerIO {
       return toBuilder().setBatching(batching).build();
     }
 
+    public ReadAll withLowPriority() {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withRpcPriority(RpcPriority.LOW));
+    }
+
+    public ReadAll withHighPriority() {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withRpcPriority(RpcPriority.HIGH));
+    }
+
     abstract Boolean getBatching();
 
     @Override
@@ -708,6 +723,10 @@ public class SpannerIO {
       return withQuery(Statement.of(sql));
     }
 
+    public Read withQueryName(String queryName) {
+      return withReadOperation(getReadOperation().withQueryName(queryName));
+    }
+
     public Read withKeySet(KeySet keySet) {
       return withReadOperation(getReadOperation().withKeySet(keySet));
     }
@@ -718,6 +737,16 @@ public class SpannerIO {
 
     public Read withPartitionOptions(PartitionOptions partitionOptions) {
       return withReadOperation(getReadOperation().withPartitionOptions(partitionOptions));
+    }
+
+    public Read withLowPriority() {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withRpcPriority(RpcPriority.LOW));
+    }
+
+    public Read withHighPriority() {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withRpcPriority(RpcPriority.HIGH));
     }
 
     @Override
@@ -1096,6 +1125,16 @@ public class SpannerIO {
      */
     public Write withGroupingFactor(int groupingFactor) {
       return toBuilder().setGroupingFactor(groupingFactor).build();
+    }
+
+    public Write withLowPriority() {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withRpcPriority(RpcPriority.LOW));
+    }
+
+    public Write withHighPriority() {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withRpcPriority(RpcPriority.HIGH));
     }
 
     @Override
@@ -1936,10 +1975,20 @@ public class SpannerIO {
     private void spannerWriteWithRetryIfSchemaChange(Iterable<Mutation> batch)
         throws SpannerException {
       for (int retry = 1; ; retry++) {
+        ServiceCallMetric serviceCallMetric =
+            createServiceCallMetric(
+                this.spannerConfig.getProjectId().toString(),
+                this.spannerConfig.getDatabaseId().toString(),
+                this.spannerConfig.getInstanceId().toString(),
+                "Write");
         try {
-          spannerAccessor.getDatabaseClient().writeAtLeastOnce(batch);
+          spannerAccessor
+              .getDatabaseClient()
+              .writeAtLeastOnceWithOptions(batch, Options.priority(spannerConfig.getRpcPriority()));
+          serviceCallMetric.call("ok");
           return;
         } catch (AbortedException e) {
+          serviceCallMetric.call(e.getErrorCode().getGrpcStatusCode().toString());
           if (retry >= ABORTED_RETRY_ATTEMPTS) {
             throw e;
           }
@@ -1947,8 +1996,28 @@ public class SpannerIO {
             continue;
           }
           throw e;
+        } catch (SpannerException e) {
+          serviceCallMetric.call(e.getErrorCode().getGrpcStatusCode().toString());
+          throw e;
         }
       }
+    }
+
+    private ServiceCallMetric createServiceCallMetric(
+        String projectId, String databaseId, String tableId, String method) {
+      HashMap<String, String> baseLabels = new HashMap<>();
+      baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
+      baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "Spanner");
+      baseLabels.put(MonitoringInfoConstants.Labels.METHOD, method);
+      baseLabels.put(
+          MonitoringInfoConstants.Labels.RESOURCE,
+          GcpResourceIdentifiers.spannerTable(projectId, databaseId, tableId));
+      baseLabels.put(MonitoringInfoConstants.Labels.SPANNER_PROJECT_ID, projectId);
+      baseLabels.put(MonitoringInfoConstants.Labels.SPANNER_DATABASE_ID, databaseId);
+      baseLabels.put(MonitoringInfoConstants.Labels.SPANNER_INSTANCE_ID, tableId);
+      ServiceCallMetric serviceCallMetric =
+          new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
+      return serviceCallMetric;
     }
 
     /** Write the Mutations to Spanner, handling DEADLINE_EXCEEDED with backoff/retries. */

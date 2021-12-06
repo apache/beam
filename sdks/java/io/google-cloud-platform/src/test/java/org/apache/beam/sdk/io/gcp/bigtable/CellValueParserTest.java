@@ -18,17 +18,17 @@
 package org.apache.beam.sdk.io.gcp.bigtable;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.beam.sdk.schemas.Schema.TypeName.BOOLEAN;
-import static org.apache.beam.sdk.schemas.Schema.TypeName.BYTE;
-import static org.apache.beam.sdk.schemas.Schema.TypeName.BYTES;
-import static org.apache.beam.sdk.schemas.Schema.TypeName.DATETIME;
-import static org.apache.beam.sdk.schemas.Schema.TypeName.DOUBLE;
-import static org.apache.beam.sdk.schemas.Schema.TypeName.FLOAT;
-import static org.apache.beam.sdk.schemas.Schema.TypeName.INT16;
-import static org.apache.beam.sdk.schemas.Schema.TypeName.INT32;
-import static org.apache.beam.sdk.schemas.Schema.TypeName.INT64;
+import static org.apache.beam.sdk.schemas.Schema.FieldType.BOOLEAN;
+import static org.apache.beam.sdk.schemas.Schema.FieldType.BYTE;
+import static org.apache.beam.sdk.schemas.Schema.FieldType.BYTES;
+import static org.apache.beam.sdk.schemas.Schema.FieldType.DATETIME;
+import static org.apache.beam.sdk.schemas.Schema.FieldType.DOUBLE;
+import static org.apache.beam.sdk.schemas.Schema.FieldType.FLOAT;
+import static org.apache.beam.sdk.schemas.Schema.FieldType.INT16;
+import static org.apache.beam.sdk.schemas.Schema.FieldType.INT32;
+import static org.apache.beam.sdk.schemas.Schema.FieldType.INT64;
+import static org.apache.beam.sdk.schemas.Schema.FieldType.STRING;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.MAP;
-import static org.apache.beam.sdk.schemas.Schema.TypeName.STRING;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
@@ -37,6 +37,7 @@ import static org.junit.Assert.fail;
 
 import com.google.bigtable.v2.Cell;
 import com.google.protobuf.ByteString;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -188,7 +189,9 @@ public class CellValueParserTest {
   public void shouldFailOnUnsupportedType() {
     byte[] value = new byte[0];
     IllegalArgumentException exception =
-        assertThrows(IllegalArgumentException.class, () -> PARSER.getCellValue(cell(value), MAP));
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> PARSER.getCellValue(cell(value), FieldType.of(MAP)));
     checkMessage(exception.getMessage(), "Unsupported cell value type 'MAP'.");
   }
 

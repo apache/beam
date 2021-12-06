@@ -83,6 +83,13 @@ class ConvertTest(unittest.TestCase):
       assert_that(pc_3a, equal_to(list(3 * a)), label='Check3a')
       assert_that(pc_ab, equal_to(list(a * b)), label='Checkab')
 
+  def test_convert_with_none(self):
+    # Ensure the logical Any type allows (nullable) None, see BEAM-12587.
+    df = pd.DataFrame({'A': ['str', 10, None], 'B': [None, 'str', 20]})
+    with beam.Pipeline() as p:
+      res = convert.to_pcollection(df, pipeline=p) | beam.Map(tuple)
+      assert_that(res, equal_to([(row.A, row.B) for _, row in df.iterrows()]))
+
   def test_convert_scalar(self):
     with beam.Pipeline() as p:
       pc = p | 'A' >> beam.Create([1, 2, 3])

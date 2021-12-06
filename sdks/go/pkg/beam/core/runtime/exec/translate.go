@@ -89,6 +89,8 @@ func UnmarshalPlan(desc *fnpb.ProcessBundleDescriptor) (*Plan, error) {
 			}
 			// Elide the PCollection Node for DataSources
 			// DataSources can get byte samples directly, and can handle CoGBKs.
+			// Copying the PCollection here is fine, as the PCollection will never
+			// have used it's mutex yet.
 			u.PCol = *u.Out.(*PCollection)
 			u.Out = u.PCol.Out
 			b.units = b.units[:len(b.units)-1]
@@ -227,6 +229,39 @@ func unmarshalWindowFn(wfn *pipepb.FunctionSpec) (*window.Fn, error) {
 	}
 }
 
+func unmarshalAndMakeWindowMapping(wmfn *pipepb.FunctionSpec) (WindowMapper, error) {
+	switch urn := wmfn.GetUrn(); urn {
+	case graphx.URNWindowMappingGlobal:
+		return &windowMapper{wfn: window.NewGlobalWindows()}, nil
+	case graphx.URNWindowMappingFixed:
+		var payload pipepb.FixedWindowsPayload
+		if err := proto.Unmarshal(wmfn.GetPayload(), &payload); err != nil {
+			return nil, err
+		}
+		size, err := ptypes.Duration(payload.GetSize())
+		if err != nil {
+			return nil, err
+		}
+		return &windowMapper{wfn: window.NewFixedWindows(size)}, nil
+	case graphx.URNWindowMappingSliding:
+		var payload pipepb.SlidingWindowsPayload
+		if err := proto.Unmarshal(wmfn.GetPayload(), &payload); err != nil {
+			return nil, err
+		}
+		period, err := ptypes.Duration(payload.GetPeriod())
+		if err != nil {
+			return nil, err
+		}
+		size, err := ptypes.Duration(payload.GetSize())
+		if err != nil {
+			return nil, err
+		}
+		return &windowMapper{wfn: window.NewSlidingWindows(period, size)}, nil
+	default:
+		return nil, fmt.Errorf("unsupported window mapping fn URN %v", urn)
+	}
+}
+
 func (b *builder) makePCollections(out []string) ([]Node, error) {
 	var ret []Node
 	for _, o := range out {
@@ -234,7 +269,22 @@ func (b *builder) makePCollections(out []string) ([]Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		ret = append(ret, n)
+		// This is the cleanest place to do this check and filtering,
+		// since DataSinks don't know their inputs, due to the construction
+		// call stack.
+		// A Source->Sink is both uncommon and inefficent, with the Source eliding the
+		// collection anyway.
+		// TODO[BEAM-6374): Properly handle the multiplex and flatten cases.
+		// Right now we just stop datasink collection.
+		switch out := n.Out.(type) {
+		case *DataSink:
+			// We don't remove the PCollection from units here, since we
+			// want to ensure it's included in snapshots.
+			out.PCol = n
+			ret = append(ret, out)
+		default:
+			ret = append(ret, n)
+		}
 	}
 	return ret, nil
 }
@@ -361,6 +411,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 		urnSplitAndSizeRestrictions,
 		urnProcessSizedElementsAndRestrictions:
 		var data string
+		var sides map[string]*pipepb.SideInput
 		switch urn {
 		case graphx.URNParDo,
 			urnPairWithRestriction,
@@ -371,6 +422,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 				return nil, errors.Wrapf(err, "invalid ParDo payload for %v", transform)
 			}
 			data = string(pardo.GetDoFn().GetPayload())
+			sides = pardo.GetSideInputs()
 		case urnPerKeyCombinePre, urnPerKeyCombineMerge, urnPerKeyCombineExtract, urnPerKeyCombineConvert:
 			var cmb pipepb.CombinePayload
 			if err := proto.Unmarshal(payload, &cmb); err != nil {
@@ -416,10 +468,19 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 
 					input := unmarshalKeyedValues(transform.GetInputs())
 					for i := 1; i < len(input); i++ {
-						// TODO(herohde) 8/8/2018: handle different windows, view_fn and window_mapping_fn.
-						// For now, assume we don't need any information in the pardo payload.
+						// TODO(BEAM-3305) Handle ViewFns for side inputs
 
 						ec, wc, err := b.makeCoderForPCollection(input[i])
+						if err != nil {
+							return nil, err
+						}
+
+						sidePB, ok := sides[indexToInputId(i)]
+						if !ok {
+							return nil, fmt.Errorf("missing side input info for collection %v", input[i])
+						}
+
+						mapper, err := unmarshalAndMakeWindowMapping(sidePB.GetWindowMappingFn())
 						if err != nil {
 							return nil, err
 						}
@@ -429,7 +490,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 							PtransformID: id.to,
 						}
 						sideInputID := fmt.Sprintf("i%v", i) // SideInputID (= local id, "iN")
-						side := NewSideInputAdapter(sid, sideInputID, coder.NewW(ec, wc))
+						side := NewSideInputAdapter(sid, sideInputID, coder.NewW(ec, wc), mapper)
 						n.Side = append(n.Side, side)
 					}
 					u = n
@@ -465,7 +526,14 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 					}
 					u = &LiftedCombine{Combine: cn, KeyCoder: ec.Components[0], WindowCoder: wc}
 				case urnPerKeyCombineMerge:
-					u = &MergeAccumulators{Combine: cn}
+					ma := &MergeAccumulators{Combine: cn}
+					if eo, ok := ma.Out.(*PCollection).Out.(*ExtractOutput); ok {
+						// Strip PCollections from between MergeAccumulators and ExtractOutputs
+						// as it's a synthetic PCollection.
+						b.units = b.units[:len(b.units)-1]
+						ma.Out = eo
+					}
+					u = ma
 				case urnPerKeyCombineExtract:
 					u = &ExtractOutput{Combine: cn}
 				case urnPerKeyCombineConvert:
@@ -644,7 +712,7 @@ func inputIdToIndex(id string) (int, error) {
 	return strconv.Atoi(strings.TrimPrefix(id, "i"))
 }
 
-// inputIdToIndex converts an index into a local input ID for a transform. Use
+// indexToInputId converts an index into a local input ID for a transform. Use
 // this to avoid relying on format details for input IDs.
 func indexToInputId(i int) string {
 	return "i" + strconv.Itoa(i)

@@ -222,6 +222,8 @@ public class StreamingDataflowWorker {
           "org.apache.beam.sdk.io.gcp.bigquery.BigQueryServicesImpl$DatasetServiceImpl",
           "throttling-msecs");
 
+  private static final Duration MAX_LOCAL_PROCESSING_RETRY_DURATION = Duration.standardMinutes(5);
+
   private final AtomicLong counterAggregationErrorCount = new AtomicLong();
 
   /** Returns whether an exception was caused by a {@link OutOfMemoryError}. */
@@ -1141,7 +1143,7 @@ public class StreamingDataflowWorker {
     public abstract long shardingKey();
 
     @Override
-    public String toString() {
+    public final String toString() {
       ByteString keyToDisplay = key();
       if (keyToDisplay.size() > 100) {
         keyToDisplay = keyToDisplay.substring(0, 100);
@@ -1506,6 +1508,7 @@ public class StreamingDataflowWorker {
       } else {
         LastExceptionDataProvider.reportException(t);
         LOG.debug("Failed work: {}", work);
+        Duration elapsedTimeSinceStart = new Duration(Instant.now(), work.getStartTime());
         if (!reportFailure(computationId, workItem, t)) {
           LOG.error(
               "Execution of work for computation '{}' on key '{}' failed with uncaught exception, "
@@ -1521,6 +1524,16 @@ public class StreamingDataflowWorker {
               computationId,
               key.toStringUtf8(),
               heapDump == null ? "not written" : ("written to '" + heapDump + "'"),
+              t);
+        } else if (elapsedTimeSinceStart.isLongerThan(MAX_LOCAL_PROCESSING_RETRY_DURATION)) {
+          LOG.error(
+              "Execution of work for computation '{}' for key '{}' failed with uncaught exception, "
+                  + "and it will not be retried locally because the elapsed time since start {} "
+                  + "exceeds {}.",
+              computationId,
+              key.toStringUtf8(),
+              elapsedTimeSinceStart,
+              MAX_LOCAL_PROCESSING_RETRY_DURATION,
               t);
         } else {
           LOG.error(

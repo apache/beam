@@ -108,6 +108,7 @@ func isConcrete(t reflect.Type, visited map[uintptr]bool) bool {
 	if t == nil ||
 		t == EventTimeType ||
 		t.Implements(WindowType) ||
+		t == PaneInfoType ||
 		t == reflectx.Error ||
 		t == reflectx.Context ||
 		IsUniversal(t) {

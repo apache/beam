@@ -39,7 +39,6 @@ import org.apache.beam.sdk.io.synthetic.SyntheticUnboundedSource;
 import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
-import org.apache.beam.sdk.testutils.publishing.BigQueryResultsPublisher;
 import org.apache.beam.sdk.testutils.publishing.ConsoleResultPublisher;
 import org.apache.beam.sdk.testutils.publishing.InfluxDBPublisher;
 import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
@@ -51,7 +50,6 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -140,10 +138,6 @@ abstract class LoadTest<OptionsT extends LoadTestOptions> {
 
     handleFailure(pipelineResult, metrics);
 
-    if (options.getPublishToBigQuery()) {
-      publishResultsToBigQuery(metrics);
-    }
-
     if (options.getPublishToInfluxDB()) {
       InfluxDBPublisher.publishWithSettings(metrics, settings);
     }
@@ -183,24 +177,6 @@ abstract class LoadTest<OptionsT extends LoadTestOptions> {
             reader.getCounterMetric("totalBytes.count"));
 
     return Arrays.asList(runtime, totalBytes);
-  }
-
-  private void publishResultsToBigQuery(List<NamedTestResult> testResults) {
-    String dataset = options.getBigQueryDataset();
-    String table = options.getBigQueryTable();
-    checkBigQueryOptions(dataset, table);
-
-    BigQueryResultsPublisher.create(dataset, NamedTestResult.getSchema())
-        .publish(testResults, table);
-  }
-
-  private static void checkBigQueryOptions(String dataset, String table) {
-    Preconditions.checkArgument(
-        dataset != null,
-        "Please specify --bigQueryDataset option if you want to publish to BigQuery");
-
-    Preconditions.checkArgument(
-        table != null, "Please specify --bigQueryTable option if you want to publish to BigQuery");
   }
 
   Optional<SyntheticStep> createStep(String stepOptions) throws IOException {

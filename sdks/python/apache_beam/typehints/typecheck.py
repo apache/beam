@@ -44,7 +44,7 @@ from apache_beam.typehints.typehints import check_constraint
 class AbstractDoFnWrapper(DoFn):
   """An abstract class to create wrapper around DoFn"""
   def __init__(self, dofn):
-    super(AbstractDoFnWrapper, self).__init__()
+    super().__init__()
     self.dofn = dofn
 
   def _inspect_start_bundle(self):
@@ -78,7 +78,7 @@ class AbstractDoFnWrapper(DoFn):
 class OutputCheckWrapperDoFn(AbstractDoFnWrapper):
   """A DoFn that verifies against common errors in the output type."""
   def __init__(self, dofn, full_label):
-    super(OutputCheckWrapperDoFn, self).__init__(dofn)
+    super().__init__(dofn)
     self.full_label = full_label
 
   def wrapper(self, method, args, kwargs):
@@ -116,7 +116,7 @@ class TypeCheckWrapperDoFn(AbstractDoFnWrapper):
   """A wrapper around a DoFn which performs type-checking of input and output.
   """
   def __init__(self, dofn, type_hints, label=None):
-    super(TypeCheckWrapperDoFn, self).__init__(dofn)
+    super().__init__(dofn)
     self._process_fn = self.dofn._process_argspec_fn()
     if type_hints.input_types:
       input_args, input_kwargs = type_hints.input_types

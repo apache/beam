@@ -74,10 +74,26 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 	if err = plan.Down(ctx); err != nil {
 		return nil, err
 	}
-	// TODO(lostluck) 2020/01/24: What's the right way to expose the
-	// metrics store for the direct runner?
-	metrics.DumpToLog(ctx)
-	return nil, nil
+
+	return newDirectPipelineResult(ctx)
+}
+
+type directPipelineResult struct {
+	jobID   string
+	metrics *metrics.Results
+}
+
+func newDirectPipelineResult(ctx context.Context) (*directPipelineResult, error) {
+	metrics := metrics.ResultsExtractor(ctx)
+	return &directPipelineResult{metrics: &metrics}, nil
+}
+
+func (pr directPipelineResult) Metrics() metrics.Results {
+	return *pr.metrics
+}
+
+func (pr directPipelineResult) JobID() string {
+	return pr.jobID
 }
 
 // Compile translates a pipeline to a multi-bundle execution plan.

@@ -99,6 +99,23 @@ GCS_PROJECT_ID_LABEL = (
     common_urns.monitoring_info_labels.GCS_PROJECT_ID.label_props.name)
 GCS_BUCKET_LABEL = (
     common_urns.monitoring_info_labels.GCS_BUCKET.label_props.name)
+DATASTORE_PROJECT_ID_LABEL = (
+    common_urns.monitoring_info_labels.DATASTORE_PROJECT.label_props.name)
+DATASTORE_NAMESPACE_LABEL = (
+    common_urns.monitoring_info_labels.DATASTORE_NAMESPACE.label_props.name)
+SPANNER_PROJECT_ID = (
+    common_urns.monitoring_info_labels.SPANNER_PROJECT_ID.label_props.name)
+SPANNER_DATABASE_ID = (
+    common_urns.monitoring_info_labels.SPANNER_DATABASE_ID.label_props.name)
+SPANNER_TABLE_ID = (
+    common_urns.monitoring_info_labels.SPANNER_TABLE_ID.label_props.name)
+SPANNER_QUERY_NAME = (
+    common_urns.monitoring_info_labels.SPANNER_QUERY_NAME.label_props.name)
+BIGTABLE_PROJECT_ID_LABEL = (
+    common_urns.monitoring_info_labels.BIGTABLE_PROJECT_ID.label_props.name)
+INSTANCE_ID_LABEL = (
+    common_urns.monitoring_info_labels.INSTANCE_ID.label_props.name)
+TABLE_ID_LABEL = common_urns.monitoring_info_labels.TABLE_ID.label_props.name
 
 
 def extract_counter_value(monitoring_info_proto):
@@ -180,7 +197,7 @@ def int64_counter(urn, metric, ptransform=None, pcollection=None, labels=None):
     ptransform: The ptransform id used as a label.
     pcollection: The pcollection id used as a label.
   """
-  labels = labels or dict()
+  labels = labels or {}
   labels.update(create_labels(ptransform=ptransform, pcollection=pcollection))
   if isinstance(metric, int):
     metric = coders.VarIntCoder().encode(metric)
@@ -283,7 +300,7 @@ def create_monitoring_info(urn, type_urn, payload, labels=None):
     labels: The label dictionary to use in the MonitoringInfo.
   """
   return metrics_pb2.MonitoringInfo(
-      urn=urn, type=type_urn, labels=labels or dict(), payload=payload)
+      urn=urn, type=type_urn, labels=labels or {}, payload=payload)
 
 
 def is_counter(monitoring_info_proto):

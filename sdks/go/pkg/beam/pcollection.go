@@ -49,7 +49,6 @@ func (p PCollection) IsValid() bool {
 }
 
 // TODO(herohde) 5/30/2017: add name for PCollections? Java supports it.
-// TODO(herohde) 5/30/2017: add windowing strategy and documentation.
 
 // Type returns the full type 'A' of the elements. 'A' must be a concrete
 // type, such as int or KV<int,string>.

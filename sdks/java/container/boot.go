@@ -154,6 +154,10 @@ func main() {
 
 	args := []string{
 		"-Xmx" + strconv.FormatUint(heapSizeLimit(info), 10),
+		// ParallelGC the most adequate for high throughput and lower CPU utilization
+		// It is the default GC in Java 8, but not on newer versions
+		"-XX:+UseParallelGC",
+		"-XX:+AlwaysActAsServerClassMachine",
 		"-XX:-OmitStackTraceInFastThrow",
 		"-cp", strings.Join(cp, ":"),
 	}

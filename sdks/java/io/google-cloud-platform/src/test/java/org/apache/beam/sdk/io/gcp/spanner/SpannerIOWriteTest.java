@@ -36,12 +36,15 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.cloud.Timestamp;
+import com.google.cloud.spanner.CommitResponse;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.Key;
 import com.google.cloud.spanner.KeyRange;
 import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Mutation;
+import com.google.cloud.spanner.Options.ReadQueryUpdateTransactionOption;
+import com.google.cloud.spanner.Options.RpcPriority;
 import com.google.cloud.spanner.ReadOnlyTransaction;
 import com.google.cloud.spanner.ResultSets;
 import com.google.cloud.spanner.SpannerExceptionFactory;
@@ -50,13 +53,20 @@ import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.Type;
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
+import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.BatchableMutationFilterFn;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.FailureMode;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.GatherSortCreateBatchesFn;
+import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.Write;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.WriteToSpannerFn;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -99,6 +109,7 @@ public class SpannerIOWriteTest implements Serializable {
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
   @Rule public transient ExpectedException thrown = ExpectedException.none();
   @Captor public transient ArgumentCaptor<Iterable<Mutation>> mutationBatchesCaptor;
+  @Captor public transient ArgumentCaptor<ReadQueryUpdateTransactionOption> optionsCaptor;
   @Captor public transient ArgumentCaptor<Iterable<MutationGroup>> mutationGroupListCaptor;
   @Captor public transient ArgumentCaptor<MutationGroup> mutationGroupCaptor;
 
@@ -113,13 +124,19 @@ public class SpannerIOWriteTest implements Serializable {
     ReadOnlyTransaction tx = mock(ReadOnlyTransaction.class);
     when(serviceFactory.mockDatabaseClient().readOnlyTransaction()).thenReturn(tx);
 
-    // Capture batches sent to writeAtLeastOnce.
-    when(serviceFactory.mockDatabaseClient().writeAtLeastOnce(mutationBatchesCaptor.capture()))
+    // Capture batches sent to writeAtLeastOnceWithOptions.
+    when(serviceFactory
+            .mockDatabaseClient()
+            .writeAtLeastOnceWithOptions(mutationBatchesCaptor.capture(), optionsCaptor.capture()))
         .thenReturn(null);
 
     // Simplest schema: a table with int64 key
     preparePkMetadata(tx, Arrays.asList(pkMetadata("tEsT", "key", "ASC")));
     prepareColumnMetadata(tx, Arrays.asList(columnMetadata("tEsT", "key", "INT64", CELLS_PER_KEY)));
+
+    // Setup the ProcessWideContainer for testing metrics are set.
+    MetricsContainerImpl container = new MetricsContainerImpl(null);
+    MetricsEnvironment.setProcessWideContainer(container);
   }
 
   private SpannerSchema getSchema() {
@@ -257,7 +274,9 @@ public class SpannerIOWriteTest implements Serializable {
 
   private void verifyBatches(Iterable<Mutation>... batches) {
     for (Iterable<Mutation> b : batches) {
-      verify(serviceFactory.mockDatabaseClient(), times(1)).writeAtLeastOnce(mutationsInNoOrder(b));
+      verify(serviceFactory.mockDatabaseClient(), times(1))
+          .writeAtLeastOnceWithOptions(
+              mutationsInNoOrder(b), any(ReadQueryUpdateTransactionOption.class));
     }
   }
 
@@ -270,8 +289,10 @@ public class SpannerIOWriteTest implements Serializable {
     ReadOnlyTransaction tx = mock(ReadOnlyTransaction.class);
     when(fakeServiceFactory.mockDatabaseClient().readOnlyTransaction()).thenReturn(tx);
 
-    // Capture batches sent to writeAtLeastOnce.
-    when(fakeServiceFactory.mockDatabaseClient().writeAtLeastOnce(mutationBatchesCaptor.capture()))
+    // Capture batches sent to writeAtLeastOnceWithOptions.
+    when(fakeServiceFactory
+            .mockDatabaseClient()
+            .writeAtLeastOnceWithOptions(mutationBatchesCaptor.capture(), optionsCaptor.capture()))
         .thenReturn(null);
 
     PCollection<MutationGroup> mutations = pipeline.apply(Create.of(g(m(1L)), g(m(2L))));
@@ -286,9 +307,11 @@ public class SpannerIOWriteTest implements Serializable {
     pipeline.run();
 
     verify(fakeServiceFactory.mockDatabaseClient(), times(1))
-        .writeAtLeastOnce(mutationsInNoOrder(batch(m(1L))));
+        .writeAtLeastOnceWithOptions(
+            mutationsInNoOrder(batch(m(1L))), any(ReadQueryUpdateTransactionOption.class));
     verify(fakeServiceFactory.mockDatabaseClient(), times(1))
-        .writeAtLeastOnce(mutationsInNoOrder(batch(m(2L))));
+        .writeAtLeastOnceWithOptions(
+            mutationsInNoOrder(batch(m(2L))), any(ReadQueryUpdateTransactionOption.class));
     // If no batching then the DB schema is never read.
     verify(tx, never()).executeQuery(any());
   }
@@ -317,6 +340,29 @@ public class SpannerIOWriteTest implements Serializable {
   }
 
   @Test
+  public void streamingWritesWithPriority() throws Exception {
+    TestStream<Mutation> testStream =
+        TestStream.create(SerializableCoder.of(Mutation.class))
+            .addElements(m(1L), m(2L))
+            .advanceProcessingTime(Duration.standardMinutes(1))
+            .addElements(m(3L), m(4L))
+            .advanceProcessingTime(Duration.standardMinutes(1))
+            .addElements(m(5L), m(6L))
+            .advanceWatermarkToInfinity();
+    Write write =
+        SpannerIO.write()
+            .withProjectId("test-project")
+            .withInstanceId("test-instance")
+            .withDatabaseId("test-database")
+            .withServiceFactory(serviceFactory)
+            .withHighPriority();
+    pipeline.apply(testStream).apply(write);
+    pipeline.run();
+    assertEquals(RpcPriority.HIGH, write.getSpannerConfig().getRpcPriority());
+    verifyBatches(batch(m(1L), m(2L)), batch(m(3L), m(4L)), batch(m(5L), m(6L)));
+  }
+
+  @Test
   public void streamingWritesWithGrouping() throws Exception {
 
     // verify that grouping/sorting occurs when set.
@@ -335,6 +381,32 @@ public class SpannerIOWriteTest implements Serializable {
                 .withGroupingFactor(40)
                 .withMaxNumRows(2));
     pipeline.run();
+
+    // Output should be batches of sorted mutations.
+    verifyBatches(batch(m(1L), m(2L)), batch(m(3L), m(4L)), batch(m(5L), m(6L)));
+  }
+
+  @Test
+  public void streamingWritesWithGroupingWithPriority() throws Exception {
+
+    // verify that grouping/sorting occurs when set.
+    TestStream<Mutation> testStream =
+        TestStream.create(SerializableCoder.of(Mutation.class))
+            .addElements(m(1L), m(5L), m(2L), m(4L), m(3L), m(6L))
+            .advanceWatermarkToInfinity();
+
+    Write write =
+        SpannerIO.write()
+            .withProjectId("test-project")
+            .withInstanceId("test-instance")
+            .withDatabaseId("test-database")
+            .withServiceFactory(serviceFactory)
+            .withGroupingFactor(40)
+            .withMaxNumRows(2)
+            .withLowPriority();
+    pipeline.apply(testStream).apply(write);
+    pipeline.run();
+    assertEquals(RpcPriority.LOW, write.getSpannerConfig().getRpcPriority());
 
     // Output should be batches of sorted mutations.
     verifyBatches(batch(m(1L), m(2L)), batch(m(3L), m(4L)), batch(m(5L), m(6L)));
@@ -374,7 +446,9 @@ public class SpannerIOWriteTest implements Serializable {
 
     List<MutationGroup> mutationGroupList = Arrays.asList(mutationGroups);
 
-    when(serviceFactory.mockDatabaseClient().writeAtLeastOnce(any()))
+    when(serviceFactory
+            .mockDatabaseClient()
+            .writeAtLeastOnceWithOptions(any(), any(ReadQueryUpdateTransactionOption.class)))
         .thenAnswer(
             invocationOnMock -> {
               Preconditions.checkNotNull(invocationOnMock.getArguments()[0]);
@@ -402,9 +476,68 @@ public class SpannerIOWriteTest implements Serializable {
     PAssert.that(result.getFailedMutations()).containsInAnyOrder(mutationGroupList);
     pipeline.run().waitUntilFinish();
 
-    // writeAtLeastOnce called once for the batch of mutations
+    // writeAtLeastOnceWithOptions called once for the batch of mutations
     // (which as they are unbatched = each mutation group) then again for the individual retry.
-    verify(serviceFactory.mockDatabaseClient(), times(20)).writeAtLeastOnce(any());
+    verify(serviceFactory.mockDatabaseClient(), times(20))
+        .writeAtLeastOnceWithOptions(any(), any(ReadQueryUpdateTransactionOption.class));
+  }
+
+  @Test
+  public void testSpannerWriteMetricIsSet() {
+    Mutation mutation = m(2L);
+    PCollection<Mutation> mutations = pipeline.apply(Create.of(mutation));
+
+    // respond with 2 error codes and a success.
+    when(serviceFactory
+            .mockDatabaseClient()
+            .writeAtLeastOnceWithOptions(any(), any(ReadQueryUpdateTransactionOption.class)))
+        .thenThrow(
+            SpannerExceptionFactory.newSpannerException(
+                ErrorCode.DEADLINE_EXCEEDED, "Simulated Timeout 1"))
+        .thenThrow(
+            SpannerExceptionFactory.newSpannerException(
+                ErrorCode.DEADLINE_EXCEEDED, "Simulated Timeout 2"))
+        .thenReturn(new CommitResponse(Timestamp.now()));
+
+    mutations.apply(
+        SpannerIO.write()
+            .withProjectId("test-project")
+            .withInstanceId("test-instance")
+            .withDatabaseId("test-database")
+            .withFailureMode(FailureMode.FAIL_FAST)
+            .withServiceFactory(serviceFactory));
+    pipeline.run();
+
+    verifyMetricWasSet(
+        "test-project", "test-database", "test-instance", "Write", "deadline_exceeded", 2);
+    verifyMetricWasSet("test-project", "test-database", "test-instance", "Write", "ok", 1);
+  }
+
+  private void verifyMetricWasSet(
+      String projectId,
+      String databaseId,
+      String tableId,
+      String method,
+      String status,
+      long count) {
+    // Verify the metric was reported.
+    HashMap<String, String> labels = new HashMap<>();
+    labels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
+    labels.put(MonitoringInfoConstants.Labels.SERVICE, "Spanner");
+    labels.put(MonitoringInfoConstants.Labels.METHOD, method);
+    labels.put(
+        MonitoringInfoConstants.Labels.RESOURCE,
+        GcpResourceIdentifiers.spannerTable(projectId, databaseId, tableId));
+    labels.put(MonitoringInfoConstants.Labels.SPANNER_PROJECT_ID, projectId);
+    labels.put(MonitoringInfoConstants.Labels.SPANNER_DATABASE_ID, databaseId);
+    labels.put(MonitoringInfoConstants.Labels.SPANNER_INSTANCE_ID, tableId);
+    labels.put(MonitoringInfoConstants.Labels.STATUS, status);
+
+    MonitoringInfoMetricName name =
+        MonitoringInfoMetricName.named(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, labels);
+    MetricsContainerImpl container =
+        (MetricsContainerImpl) MetricsEnvironment.getProcessWideContainer();
+    assertEquals(count, (long) container.getCounter(name).getCumulative());
   }
 
   @Test
@@ -415,14 +548,16 @@ public class SpannerIOWriteTest implements Serializable {
     WriteToSpannerFn.sleeper = Mockito.mock(Sleeper.class);
 
     // respond with 2 timeouts and a success.
-    when(serviceFactory.mockDatabaseClient().writeAtLeastOnce(any()))
+    when(serviceFactory
+            .mockDatabaseClient()
+            .writeAtLeastOnceWithOptions(any(), any(ReadQueryUpdateTransactionOption.class)))
         .thenThrow(
             SpannerExceptionFactory.newSpannerException(
                 ErrorCode.DEADLINE_EXCEEDED, "simulated Timeout 1"))
         .thenThrow(
             SpannerExceptionFactory.newSpannerException(
                 ErrorCode.DEADLINE_EXCEEDED, "simulated Timeout 2"))
-        .thenReturn(Timestamp.now());
+        .thenReturn(new CommitResponse(Timestamp.now()));
 
     SpannerWriteResult result =
         pipeline
@@ -448,7 +583,8 @@ public class SpannerIOWriteTest implements Serializable {
     // 2 calls to sleeper
     verify(WriteToSpannerFn.sleeper, times(2)).sleep(anyLong());
     // 3 write attempts for the single mutationGroup.
-    verify(serviceFactory.mockDatabaseClient(), times(3)).writeAtLeastOnce(any());
+    verify(serviceFactory.mockDatabaseClient(), times(3))
+        .writeAtLeastOnceWithOptions(any(), any(ReadQueryUpdateTransactionOption.class));
   }
 
   @Test
@@ -459,7 +595,9 @@ public class SpannerIOWriteTest implements Serializable {
     WriteToSpannerFn.sleeper = Mockito.mock(Sleeper.class);
 
     // respond with all timeouts.
-    when(serviceFactory.mockDatabaseClient().writeAtLeastOnce(any()))
+    when(serviceFactory
+            .mockDatabaseClient()
+            .writeAtLeastOnceWithOptions(any(), any(ReadQueryUpdateTransactionOption.class)))
         .thenThrow(
             SpannerExceptionFactory.newSpannerException(
                 ErrorCode.DEADLINE_EXCEEDED, "simulated Timeout"));
@@ -501,7 +639,8 @@ public class SpannerIOWriteTest implements Serializable {
     // Number of write attempts should be numSleeps + 2 write attempts:
     //      1 batch attempt, numSleeps/2 batch retries,
     // then 1 individual attempt + numSleeps/2 individual retries
-    verify(serviceFactory.mockDatabaseClient(), times(numSleeps + 2)).writeAtLeastOnce(any());
+    verify(serviceFactory.mockDatabaseClient(), times(numSleeps + 2))
+        .writeAtLeastOnceWithOptions(any(), any(ReadQueryUpdateTransactionOption.class));
   }
 
   @Test
@@ -516,10 +655,12 @@ public class SpannerIOWriteTest implements Serializable {
     WriteToSpannerFn.sleeper = Mockito.mock(Sleeper.class);
 
     // respond with 2 timeouts and a success.
-    when(serviceFactory.mockDatabaseClient().writeAtLeastOnce(any()))
+    when(serviceFactory
+            .mockDatabaseClient()
+            .writeAtLeastOnceWithOptions(any(), any(ReadQueryUpdateTransactionOption.class)))
         .thenThrow(SpannerExceptionFactory.newSpannerException(ErrorCode.ABORTED, errString))
         .thenThrow(SpannerExceptionFactory.newSpannerException(ErrorCode.ABORTED, errString))
-        .thenReturn(Timestamp.now());
+        .thenReturn(new CommitResponse(Timestamp.now()));
 
     SpannerWriteResult result =
         pipeline
@@ -545,7 +686,8 @@ public class SpannerIOWriteTest implements Serializable {
     // 0 calls to sleeper
     verify(WriteToSpannerFn.sleeper, times(0)).sleep(anyLong());
     // 3 write attempts for the single mutationGroup.
-    verify(serviceFactory.mockDatabaseClient(), times(3)).writeAtLeastOnce(any());
+    verify(serviceFactory.mockDatabaseClient(), times(3))
+        .writeAtLeastOnceWithOptions(any(), any(ReadQueryUpdateTransactionOption.class));
   }
 
   @Test
@@ -560,7 +702,9 @@ public class SpannerIOWriteTest implements Serializable {
     WriteToSpannerFn.sleeper = Mockito.mock(Sleeper.class);
 
     // Respond with Aborted transaction
-    when(serviceFactory.mockDatabaseClient().writeAtLeastOnce(any()))
+    when(serviceFactory
+            .mockDatabaseClient()
+            .writeAtLeastOnceWithOptions(any(), any(ReadQueryUpdateTransactionOption.class)))
         .thenThrow(SpannerExceptionFactory.newSpannerException(ErrorCode.ABORTED, errString));
 
     // When spanner aborts transaction for more than 5 time, pipeline execution stops with
@@ -592,7 +736,8 @@ public class SpannerIOWriteTest implements Serializable {
     // 0 calls to sleeper
     verify(WriteToSpannerFn.sleeper, times(0)).sleep(anyLong());
     // 5 write attempts for the single mutationGroup.
-    verify(serviceFactory.mockDatabaseClient(), times(5)).writeAtLeastOnce(any());
+    verify(serviceFactory.mockDatabaseClient(), times(5))
+        .writeAtLeastOnceWithOptions(any(), any(ReadQueryUpdateTransactionOption.class));
   }
 
   @Test
@@ -608,7 +753,9 @@ public class SpannerIOWriteTest implements Serializable {
 
     // Respond with (1) Aborted transaction a couple of times (2) deadline exceeded
     // (3) Aborted transaction 3 times (4)  deadline exceeded and finally return success.
-    when(serviceFactory.mockDatabaseClient().writeAtLeastOnce(any()))
+    when(serviceFactory
+            .mockDatabaseClient()
+            .writeAtLeastOnceWithOptions(any(), any(ReadQueryUpdateTransactionOption.class)))
         .thenThrow(SpannerExceptionFactory.newSpannerException(ErrorCode.ABORTED, errString))
         .thenThrow(SpannerExceptionFactory.newSpannerException(ErrorCode.ABORTED, errString))
         .thenThrow(
@@ -620,7 +767,7 @@ public class SpannerIOWriteTest implements Serializable {
         .thenThrow(
             SpannerExceptionFactory.newSpannerException(
                 ErrorCode.DEADLINE_EXCEEDED, "simulated Timeout 2"))
-        .thenReturn(Timestamp.now());
+        .thenReturn(new CommitResponse(Timestamp.now()));
 
     SpannerWriteResult result =
         pipeline
@@ -646,7 +793,8 @@ public class SpannerIOWriteTest implements Serializable {
     // 2 calls to sleeper
     verify(WriteToSpannerFn.sleeper, times(2)).sleep(anyLong());
     // 8 write attempts for the single mutationGroup.
-    verify(serviceFactory.mockDatabaseClient(), times(8)).writeAtLeastOnce(any());
+    verify(serviceFactory.mockDatabaseClient(), times(8))
+        .writeAtLeastOnceWithOptions(any(), any(ReadQueryUpdateTransactionOption.class));
   }
 
   @Test
@@ -847,7 +995,6 @@ public class SpannerIOWriteTest implements Serializable {
           g(range)
         };
 
-    long mutationSize = MutationSizeEstimator.sizeOf(m(1L));
     BatchableMutationFilterFn testFn = new BatchableMutationFilterFn(null, null, 1000, 1000, 3);
 
     BatchableMutationFilterFn.ProcessContext mockProcessContext =
@@ -1235,10 +1382,6 @@ public class SpannerIOWriteTest implements Serializable {
     return Mutation.delete("test", builder.build());
   }
 
-  private static Mutation delRange(Long start, Long end) {
-    return Mutation.delete("test", KeySet.range(KeyRange.closedClosed(Key.of(start), Key.of(end))));
-  }
-
   private static Iterable<Mutation> mutationsInNoOrder(Iterable<Mutation> expected) {
     final ImmutableSet<Mutation> mutations = ImmutableSet.copyOf(expected);
     return argThat(
@@ -1256,22 +1399,6 @@ public class SpannerIOWriteTest implements Serializable {
           @Override
           public String toString() {
             return "Iterable must match " + mutations;
-          }
-        });
-  }
-
-  private Iterable<Mutation> iterableOfSize(final int size) {
-    return argThat(
-        new ArgumentMatcher<Iterable<Mutation>>() {
-
-          @Override
-          public boolean matches(Iterable<Mutation> argument) {
-            return argument instanceof Iterable && Iterables.size((Iterable<?>) argument) == size;
-          }
-
-          @Override
-          public String toString() {
-            return "The size of the iterable must equal " + size;
           }
         });
   }

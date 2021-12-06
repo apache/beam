@@ -176,30 +176,22 @@ def portableValidatesRunnerTask(String name, Boolean streaming, Boolean checkpoi
           excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithOutputTimestamp'
         } else {
           excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
-          excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
           excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
           excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+          excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderedDelivery'
+          excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderInStage'
         }
       }
     },
     testFilter: {
       // TODO(BEAM-10016)
       excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2'
-      // TODO(BEAM-11310)
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testWindowedSideInputNotPresent'
-
-      // https://issues.apache.org/jira/browse/BEAM-12039
+      // TODO(BEAM-12039)
       excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testDiscardingMode'
-      // https://issues.apache.org/jira/browse/BEAM-12038
+      // TODO(BEAM-12038)
       excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testLateDataAccumulating'
-      // https://issues.apache.org/jira/browse/BEAM-12048
-      excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testMultipleStreams'
-      // https://issues.apache.org/jira/browse/BEAM-12710
+      // TODO(BEAM-12710)
       excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testFirstElementLate'
-      // https://issues.apache.org/jira/browse/BEAM-12050
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerUnbounded'
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerAlignUnbounded'
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerAlignAfterGcTimeUnbounded'
     },
   )
 }
@@ -251,7 +243,12 @@ createCrossLanguageValidatesRunnerTask(
     "--environmentCacheMillis=10000",
     "--experiments=beam_fn_api",
     "--parallelism=2",
-  ]
+  ],
+  goScriptOptions: [
+    "--runner flink",
+    "--tests \"./test/integration/xlang ./test/integration/io/xlang/...\"",
+    "--endpoint localhost:${jobPort}",
+  ],
 )
 
 // miniCluster jar starts an embedded Flink cluster intended for use in testing.

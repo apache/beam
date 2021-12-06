@@ -20,8 +20,10 @@ package org.apache.beam.sdk.tpcds;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletionService;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
@@ -41,6 +43,8 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlIdentifier;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.util.SqlBasicVisitor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Resources;
 import org.apache.commons.csv.CSVFormat;
@@ -50,6 +54,8 @@ import org.slf4j.LoggerFactory;
 /**
  * This class executes jobs using PCollection and SqlTransform, it uses SqlTransform.query to run
  * queries.
+ *
+ * <p>TODO: Add tests.
  */
 public class SqlTransformRunner {
   private static final String SUMMARY_START = "\n" + "TPC-DS Query Execution Summary:";
@@ -65,6 +71,21 @@ public class SqlTransformRunner {
           "Elapsed Time(sec)");
 
   private static final Logger LOG = LoggerFactory.getLogger(SqlTransformRunner.class);
+
+  /** This class is used to extract all SQL query identifiers. */
+  static class SqlIdentifierVisitor extends SqlBasicVisitor<Void> {
+    private final Set<String> identifiers = new HashSet<>();
+
+    public Set<String> getIdentifiers() {
+      return identifiers;
+    }
+
+    @Override
+    public Void visit(SqlIdentifier id) {
+      identifiers.addAll(id.names);
+      return null;
+    }
+  }
 
   /**
    * Get all tables (in the form of TextTable) needed for a specific query execution.
@@ -82,17 +103,17 @@ public class SqlTransformRunner {
     Map<String, Schema> schemaMap = TpcdsSchemas.getTpcdsSchemas();
     TpcdsOptions tpcdsOptions = pipeline.getOptions().as(TpcdsOptions.class);
     String dataSize = TpcdsParametersReader.getAndCheckDataSize(tpcdsOptions);
-    String queryString = QueryReader.readQuery(queryName);
+    Set<String> identifiers = QueryReader.getQueryIdentifiers(QueryReader.readQuery(queryName));
 
     PCollectionTuple tables = PCollectionTuple.empty(pipeline);
     for (Map.Entry<String, Schema> tableSchema : schemaMap.entrySet()) {
       String tableName = tableSchema.getKey();
 
-      // Only when queryString contains tableName, the table is relevant to this query and will be
-      // added. This can avoid reading unnecessary data files.
-      // TODO: Simple but not reliable way since table name can be any substring in a query and can
-      // give false positives
-      if (queryString.contains(tableName)) {
+      // Only when query identifiers contain tableName, the table is relevant to this query and will
+      // be added. This can avoid reading unnecessary data files.
+      if (identifiers.contains(tableName.toUpperCase())) {
+        Set<String> tableColumns = getTableColumns(identifiers, tableSchema);
+
         switch (tpcdsOptions.getSourceType()) {
           case CSV:
             {
@@ -104,7 +125,7 @@ public class SqlTransformRunner {
           case PARQUET:
             {
               PCollection<GenericRecord> table =
-                  getTableParquet(pipeline, tpcdsOptions, dataSize, tableName);
+                  getTableParquet(pipeline, tpcdsOptions, dataSize, tableName, tableColumns);
               tables = tables.and(new TupleTag<>(tableName), table);
               break;
             }
@@ -117,10 +138,28 @@ public class SqlTransformRunner {
     return tables;
   }
 
+  private static Set<String> getTableColumns(
+      Set<String> identifiers, Map.Entry<String, Schema> tableSchema) {
+    Set<String> tableColumns = new HashSet<>();
+    List<Schema.Field> fields = tableSchema.getValue().getFields();
+    for (Schema.Field field : fields) {
+      String fieldName = field.getName();
+      if (identifiers.contains(fieldName.toUpperCase())) {
+        tableColumns.add(fieldName);
+      }
+    }
+    return tableColumns;
+  }
+
   private static PCollection<GenericRecord> getTableParquet(
-      Pipeline pipeline, TpcdsOptions tpcdsOptions, String dataSize, String tableName)
+      Pipeline pipeline,
+      TpcdsOptions tpcdsOptions,
+      String dataSize,
+      String tableName,
+      Set<String> tableColumns)
       throws IOException {
     org.apache.avro.Schema schema = getAvroSchema(tableName);
+    org.apache.avro.Schema schemaProjected = getProjectedSchema(tableColumns, schema);
 
     String filepattern =
         tpcdsOptions.getDataDirectory() + "/" + dataSize + "/" + tableName + "/*.parquet";
@@ -130,7 +169,7 @@ public class SqlTransformRunner {
         ParquetIO.read(schema)
             .from(filepattern)
             .withSplit()
-            // TODO: add .withProjection()
+            .withProjection(schemaProjected, schemaProjected)
             .withBeamSchemas(true));
   }
 
@@ -159,6 +198,21 @@ public class SqlTransformRunner {
     String path = "schemas_avro/" + tableName + ".json";
     return new org.apache.avro.Schema.Parser()
         .parse(Resources.toString(Resources.getResource(path), Charsets.UTF_8));
+  }
+
+  static org.apache.avro.Schema getProjectedSchema(
+      Set<String> projectedFieldNames, org.apache.avro.Schema schema) {
+    List<org.apache.avro.Schema.Field> projectedFields = new ArrayList<>();
+    for (org.apache.avro.Schema.Field f : schema.getFields()) {
+      if (projectedFieldNames.contains(f.name())) {
+        projectedFields.add(
+            new org.apache.avro.Schema.Field(f.name(), f.schema(), f.doc(), f.defaultVal()));
+      }
+    }
+    org.apache.avro.Schema schemaProjected =
+        org.apache.avro.Schema.createRecord(schema.getName() + "_projected", "", "", false);
+    schemaProjected.setFields(projectedFields);
+    return schemaProjected;
   }
 
   /**

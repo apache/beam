@@ -154,9 +154,6 @@ ignore_identifiers = [
   # Ignore broken built-in type references
   'tuple',
 
-  # Ignore future.builtin type references
-  'future.types.newobject.newobject',
-
   # Ignore private classes
   'apache_beam.coders.coders._PickleCoderBase',
   'apache_beam.coders.coders.FastCoder',
@@ -218,6 +215,9 @@ ignore_identifiers = [
   'google.cloud.datastore.batch.Batch',
   'is_in_ipython',
   'doctest.TestResults',
+
+  # IPython Magics py:class reference target not found
+  'IPython.core.magic.Magics',
 ]
 ignore_references = [
   'BeamIOError',

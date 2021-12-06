@@ -79,11 +79,11 @@ public interface TimerInternals {
   void deleteTimer(
       StateNamespace namespace, String timerId, String timerFamilyId, TimeDomain timeDomain);
 
-  /** @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}. */
+  /** @deprecated use {@link #deleteTimer(StateNamespace, String, String, TimeDomain)}. */
   @Deprecated
   void deleteTimer(StateNamespace namespace, String timerId, String timerFamilyId);
 
-  /** @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}. */
+  /** @deprecated use {@link #deleteTimer(StateNamespace, String, String, TimeDomain)}. */
   @Deprecated
   void deleteTimer(TimerData timerKey);
 

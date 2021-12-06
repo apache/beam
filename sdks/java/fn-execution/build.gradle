@@ -18,6 +18,7 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
+  suppressUnusedVariable: true,
   automaticModuleName: 'org.apache.beam.sdk.fn',
 )
 
@@ -34,8 +35,10 @@ dependencies {
   compile library.java.slf4j_api
   compile library.java.joda_time
   provided library.java.junit
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile library.java.junit
   testCompile library.java.mockito_core
   testCompile library.java.commons_lang3
+  testCompile "com.github.stefanbirkner:system-rules:1.19.0"
   testRuntimeOnly library.java.slf4j_jdk14
 }

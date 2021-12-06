@@ -46,6 +46,8 @@ spec:
           value: "true"
         - name: GF_AUTH_ANONYMOUS_ORG_NAME
           value: Beam
+        - name: GF_INSTALL_PLUGINS
+          value: marcusolsson-json-datasource
         - name: GF_SECURITY_ADMIN_PASSWORD
           valueFrom:
             secretKeyRef:
@@ -89,6 +91,7 @@ spec:
         volumeMounts:
         - mountPath: /var/lib/grafana
           name: beam-grafana-libdata
+          readOnly: false
         - mountPath: /etc/grafana
           name: beam-grafana-etcdata
         - mountPath: /var/log/grafana

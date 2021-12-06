@@ -21,14 +21,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelCollation;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelFieldCollation;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexInputRef;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperator;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelCollation;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelFieldCollation;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexCall;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexLiteral;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlKind;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlOperator;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.ImmutableBitSet;
 
 /**
  * Some utility methods for transforming Calcite's constructs into our own Beam constructs (for
@@ -43,7 +43,7 @@ public class CEPUtils {
     Quantifier quantToAdd;
     if (!isReluctant) {
       if (start == end) {
-        quantToAdd = new Quantifier("{ " + start + " }", start, end, false);
+        quantToAdd = new Quantifier("{ " + start + " }");
       } else {
         if (end == -1) {
           if (start == 0) {
@@ -51,21 +51,21 @@ public class CEPUtils {
           } else if (start == 1) {
             quantToAdd = Quantifier.PLUS;
           } else {
-            quantToAdd = new Quantifier("{ " + start + " }", start, end, false);
+            quantToAdd = new Quantifier("{ " + start + " }");
           }
         } else {
           if (start == 0 && end == 1) {
             quantToAdd = Quantifier.QMARK;
           } else if (start == -1) {
-            quantToAdd = new Quantifier("{ , " + end + " }", start, end, false);
+            quantToAdd = new Quantifier("{ , " + end + " }");
           } else {
-            quantToAdd = new Quantifier("{ " + start + " , }", start, end, false);
+            quantToAdd = new Quantifier("{ " + start + " , }");
           }
         }
       }
     } else {
       if (start == end) {
-        quantToAdd = new Quantifier("{ " + start + " }?", start, end, true);
+        quantToAdd = new Quantifier("{ " + start + " }?");
       } else {
         if (end == -1) {
           if (start == 0) {
@@ -73,15 +73,15 @@ public class CEPUtils {
           } else if (start == 1) {
             quantToAdd = Quantifier.PLUS_RELUCTANT;
           } else {
-            quantToAdd = new Quantifier("{ " + start + " }?", start, end, true);
+            quantToAdd = new Quantifier("{ " + start + " }?");
           }
         } else {
           if (start == 0 && end == 1) {
             quantToAdd = Quantifier.QMARK_RELUCTANT;
           } else if (start == -1) {
-            quantToAdd = new Quantifier("{ , " + end + " }?", start, end, true);
+            quantToAdd = new Quantifier("{ , " + end + " }?");
           } else {
-            quantToAdd = new Quantifier("{ " + start + " , }?", start, end, true);
+            quantToAdd = new Quantifier("{ " + start + " , }?");
           }
         }
       }
@@ -156,11 +156,10 @@ public class CEPUtils {
   }
 
   /** Transform the partition columns into serializable CEPFieldRef. */
-  public static List<CEPFieldRef> getCEPFieldRefFromParKeys(List<RexNode> parKeys) {
+  public static List<CEPFieldRef> getCEPFieldRefFromParKeys(ImmutableBitSet partitionKeys) {
     ArrayList<CEPFieldRef> fieldList = new ArrayList<>();
-    for (RexNode i : parKeys) {
-      RexInputRef parKey = (RexInputRef) i;
-      fieldList.add(new CEPFieldRef(parKey.getName(), parKey.getIndex()));
+    for (int index : partitionKeys.asList()) {
+      fieldList.add(new CEPFieldRef("Partition Key " + index, index));
     }
     return fieldList;
   }

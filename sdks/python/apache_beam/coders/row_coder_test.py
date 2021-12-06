@@ -47,6 +47,15 @@ Person = typing.NamedTuple(
         ("favorite_time", Timestamp),
     ])
 
+NullablePerson = typing.NamedTuple(
+    "NullablePerson",
+    [("name", typing.Optional[str]), ("age", np.int32),
+     ("address", typing.Optional[str]), ("aliases", typing.List[str]),
+     ("knows_javascript", bool), ("payload", typing.Optional[bytes]),
+     ("custom_metadata", typing.Mapping[str, int]),
+     ("favorite_time", typing.Optional[Timestamp]),
+     ("one_more_field", typing.Optional[str])])
+
 coders_registry.register_coder(Person, RowCoder)
 
 
@@ -81,6 +90,23 @@ class RowCoderTest(unittest.TestCase):
           b"I've made a huge mistake", {},
           Timestamp.from_rfc3339('2020-08-12T15:51:00.032Z'))
   ]
+
+  def test_row_accepts_trailing_zeros_truncated(self):
+    expected_coder = RowCoder(
+        typing_to_runner_api(NullablePerson).row_type.schema)
+    person = NullablePerson(
+        None,
+        np.int32(25),
+        "Westeros", ["Mother of Dragons"],
+        False,
+        None, {"dragons": 3},
+        None,
+        "NotNull")
+    out = expected_coder.encode(person)
+    # 9 fields, 1 null byte, field 0, 5, 7 are null
+    new_payload = bytes([9, 1, 1 | 1 << 5 | 1 << 7]) + out[4:]
+    new_value = expected_coder.decode(new_payload)
+    self.assertEqual(person, new_value)
 
   def test_create_row_coder_from_named_tuple(self):
     expected_coder = RowCoder(typing_to_runner_api(Person).row_type.schema)
@@ -185,6 +211,7 @@ class RowCoderTest(unittest.TestCase):
     )
 
     # Encode max+1/min-1 ints to make sure they DO throw an error
+    # pylint: disable=cell-var-from-loop
     for case in overflow:
       self.assertRaises(OverflowError, lambda: c.encode(case))
 
@@ -254,6 +281,17 @@ class RowCoderTest(unittest.TestCase):
     coder = RowCoder(typing_to_runner_api(Pair).row_type.schema)
 
     self.assertEqual(value, coder.decode(coder.encode(value)))
+
+  def test_row_coder_fail_early_bad_schema(self):
+    schema_proto = schema_pb2.Schema(
+        fields=[
+            schema_pb2.Field(
+                name="type_with_no_typeinfo", type=schema_pb2.FieldType())
+        ])
+
+    # Should raise an exception referencing the problem field
+    self.assertRaisesRegex(
+        ValueError, "type_with_no_typeinfo", lambda: RowCoder(schema_proto))
 
 
 if __name__ == "__main__":

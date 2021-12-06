@@ -263,8 +263,8 @@ public class PartitionMetadata implements Serializable {
   }
 
   /** Creates a builder for constructing a partition metadata instance. */
-  public static PartitionMetadata.Builder newBuilder() {
-    return new PartitionMetadata.Builder();
+  public static Builder newBuilder() {
+    return new Builder();
   }
 
   /** Partition metadata builder for better user experience. Defaults for all fields are nulls. */

@@ -41,6 +41,7 @@ instances (for example with
 """
 
 import itertools
+import math
 import re
 from io import BytesIO
 from io import StringIO
@@ -74,16 +75,19 @@ def read_csv(path, *args, splittable=False, **kwargs):
       splitter=_CsvSplitter(args, kwargs) if splittable else None)
 
 
-def _as_pc(df):
+def _as_pc(df, label=None):
   from apache_beam.dataframe import convert  # avoid circular import
   # TODO(roberwb): Amortize the computation for multiple writes?
-  return convert.to_pcollection(df, yield_elements='pandas')
+  return convert.to_pcollection(df, yield_elements='pandas', label=label)
 
 
 @frame_base.with_docs_from(pd.DataFrame)
-def to_csv(df, path, *args, **kwargs):
-
-  return _as_pc(df) | _WriteToPandas(
+def to_csv(df, path, transform_label=None, *args, **kwargs):
+  label_pc = f"{transform_label} - ToPCollection" if transform_label \
+    else f"ToPCollection(df) - {path}"
+  label_pd = f"{transform_label} - ToPandasDataFrame" if transform_label \
+    else f"WriteToPandas(df) - {path}"
+  return _as_pc(df, label_pc) | label_pd >> _WriteToPandas(
       'to_csv', path, args, kwargs, incremental=True, binary=False)
 
 
@@ -202,9 +206,9 @@ for name in dir(pd):
     globals()[name] = frame_base.not_implemented_method(name, base_type=pd)
 
 
-def _prefix_range_index_with(prefix, df):
+def _shift_range_index(offset, df):
   if isinstance(df.index, pd.RangeIndex):
-    return df.set_index(prefix + df.index.map(str).astype(str))
+    return df.set_index(df.index + offset)
   else:
     return df
 
@@ -248,9 +252,19 @@ class _ReadFromPandas(beam.PTransform):
       else:
         sample = self.reader(handle, *self.args, **self.kwargs)
 
+    matches_pcoll = paths_pcoll | fileio.MatchAll()
+    indices_pcoll = (
+        matches_pcoll.pipeline
+        | 'DoOnce' >> beam.Create([None])
+        | beam.Map(
+            lambda _,
+            paths: {path: ix
+                    for ix, path in enumerate(sorted(paths))},
+            paths=beam.pvalue.AsList(
+                matches_pcoll | beam.Map(lambda match: match.path))))
+
     pcoll = (
-        paths_pcoll
-        | fileio.MatchFiles(self.path)
+        matches_pcoll
         | beam.Reshuffle()
         | fileio.ReadMatches()
         | beam.ParDo(
@@ -260,10 +274,10 @@ class _ReadFromPandas(beam.PTransform):
                 self.kwargs,
                 self.binary,
                 self.incremental,
-                self.splitter)))
+                self.splitter),
+            path_indices=beam.pvalue.AsSingleton(indices_pcoll)))
     from apache_beam.dataframe import convert
-    return convert.to_dataframe(
-        pcoll, proxy=_prefix_range_index_with(':', sample[:0]))
+    return convert.to_dataframe(pcoll, proxy=sample[:0])
 
 
 class _Splitter:
@@ -350,7 +364,7 @@ class _CsvSplitter(_DelimSplitter):
           'for splittable csv reads.')
     if kwargs.get('skipfooter', 0):
       raise ValueError('Splittablility incompatible with skipping footers.')
-    super(_CsvSplitter, self).__init__(
+    super().__init__(
         _maybe_encode(kwargs.get('lineterminator', b'\n')),
         _DEFAULT_BYTES_CHUNKSIZE)
     self._kwargs = kwargs
@@ -518,10 +532,20 @@ class _ReadFromPandasDoFn(beam.DoFn, beam.RestrictionProvider):
       return beam.io.restriction_trackers.UnsplittableRestrictionTracker(
           tracker)
 
-  def process(self, readable_file, tracker=beam.DoFn.RestrictionParam()):
+  def process(
+      self, readable_file, path_indices, tracker=beam.DoFn.RestrictionParam()):
     reader = self.reader
     if isinstance(reader, str):
       reader = getattr(pd, self.reader)
+    indices_per_file = 10**int(math.log(2**63 // len(path_indices), 10))
+    if readable_file.metadata.size_in_bytes > indices_per_file:
+      raise RuntimeError(
+          f'Cannot safely index records from {len(path_indices)} files '
+          f'of size {readable_file.metadata.size_in_bytes} '
+          f'as their product is greater than 2^63.')
+    start_index = (
+        tracker.current_restriction().start +
+        path_indices[readable_file.metadata.path] * indices_per_file)
     with readable_file.open() as handle:
       if self.incremental:
         # TODO(robertwb): We could consider trying to get progress for
@@ -543,7 +567,7 @@ class _ReadFromPandasDoFn(beam.DoFn, beam.RestrictionProvider):
       else:
         frames = [reader(handle, *self.args, **self.kwargs)]
       for df in frames:
-        yield _prefix_range_index_with(readable_file.metadata.path + ':', df)
+        yield _shift_range_index(start_index, df)
       if not self.incremental:
         # Satisfy the SDF contract by claiming the whole range.
         # Do this after emitting the frames to avoid advancing progress to 100%

@@ -40,7 +40,20 @@ dependencies {
 
 golang {
   packagePath = 'github.com/apache/beam/sdks/v2/go/container'
+
+  // Set -modcacherw on common tasks so module cache can be deleted by goBuild.
+  goTest {
+    environment 'GOFLAGS', '-modcacherw'
+  }
+  goVet {
+    environment 'GOFLAGS', '-modcacherw'
+  }
+  gofmt {
+    environment 'GOFLAGS', '-modcacherw'
+  }
   goBuild {
+    environment 'GOFLAGS', '-modcacherw'
+
     // TODO(herohde): build local platform + linux-amd64, if possible.
     targetPlatform = ['linux-amd64']
     outputLocation = './build/target/${GOOS}_${GOARCH}/boot'
@@ -75,4 +88,8 @@ if (project.rootProject.hasProperty(["docker-pull-licenses"])) {
     args "-c", "mkdir -p build/target/go-licenses"
   }
   dockerPrepare.dependsOn 'skipPullLicenses'
+}
+
+task pushAll {
+  dependsOn ":sdks:go:container:dockerPush"
 }

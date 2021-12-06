@@ -39,9 +39,7 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeFalse;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.anyListOf;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Matchers.isA;
@@ -182,6 +180,8 @@ import org.powermock.modules.junit4.PowerMockRunner;
  * <p>Implements {@link Serializable} because it is caught in closures.
  */
 @RunWith(JUnit4.class)
+// TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
+@SuppressWarnings("unused")
 public class DataflowRunnerTest implements Serializable {
 
   private static final String VALID_BUCKET = "valid-bucket";
@@ -267,7 +267,7 @@ public class DataflowRunnerTest implements Serializable {
   private static GcsUtil buildMockGcsUtil() throws IOException {
     GcsUtil mockGcsUtil = mock(GcsUtil.class);
 
-    when(mockGcsUtil.create(any(GcsPath.class), anyString()))
+    when(mockGcsUtil.create(any(GcsPath.class), any(GcsUtil.CreateOptions.class)))
         .then(
             invocation ->
                 FileChannel.open(
@@ -276,7 +276,7 @@ public class DataflowRunnerTest implements Serializable {
                     StandardOpenOption.WRITE,
                     StandardOpenOption.DELETE_ON_CLOSE));
 
-    when(mockGcsUtil.create(any(GcsPath.class), anyString(), anyInt()))
+    when(mockGcsUtil.create(any(GcsPath.class), any(GcsUtil.CreateOptions.class)))
         .then(
             invocation ->
                 FileChannel.open(
@@ -784,7 +784,7 @@ public class DataflowRunnerTest implements Serializable {
     DataflowPipelineOptions options = buildPipelineOptions();
     options.setExperiments(Arrays.asList("upload_graph"));
     Pipeline p = buildDataflowPipeline(options);
-    DataflowPipelineJob job = (DataflowPipelineJob) p.run();
+    p.run();
 
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
     Mockito.verify(mockJobs).create(eq(PROJECT_ID), eq(REGION_ID), jobCaptor.capture());
@@ -882,7 +882,7 @@ public class DataflowRunnerTest implements Serializable {
     options.setGcsUtil(mockGcsUtil);
     options.setGcpCredential(new TestCredential());
 
-    when(mockGcsUtil.create(any(GcsPath.class), anyString(), anyInt()))
+    when(mockGcsUtil.create(any(GcsPath.class), any(GcsUtil.CreateOptions.class)))
         .then(
             invocation ->
                 FileChannel.open(
@@ -950,7 +950,7 @@ public class DataflowRunnerTest implements Serializable {
     options.setGcsUtil(mockGcsUtil);
     options.setGcpCredential(new TestCredential());
 
-    when(mockGcsUtil.create(any(GcsPath.class), anyString(), anyInt()))
+    when(mockGcsUtil.create(any(GcsPath.class), any(GcsUtil.CreateOptions.class)))
         .then(
             invocation ->
                 FileChannel.open(
@@ -960,8 +960,7 @@ public class DataflowRunnerTest implements Serializable {
                     StandardOpenOption.DELETE_ON_CLOSE));
 
     Pipeline p = buildDataflowPipeline(options);
-
-    DataflowPipelineJob job = (DataflowPipelineJob) p.run();
+    p.run();
   }
 
   @Test
@@ -1176,6 +1175,97 @@ public class DataflowRunnerTest implements Serializable {
         "DataflowRunner requires gcpTempLocation, "
             + "but failed to retrieve a value from PipelineOption");
     DataflowRunner.fromOptions(options);
+  }
+
+  @Test
+  public void testResolveArtifacts() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    String stagingLocation = options.getStagingLocation().replaceFirst("/$", "");
+    RunnerApi.ArtifactInformation fooLocalArtifact =
+        RunnerApi.ArtifactInformation.newBuilder()
+            .setTypeUrn(BeamUrns.getUrn(RunnerApi.StandardArtifacts.Types.FILE))
+            .setTypePayload(
+                RunnerApi.ArtifactFilePayload.newBuilder()
+                    .setPath("/tmp/foo.jar")
+                    .build()
+                    .toByteString())
+            .setRoleUrn(BeamUrns.getUrn(RunnerApi.StandardArtifacts.Roles.STAGING_TO))
+            .setRolePayload(
+                RunnerApi.ArtifactStagingToRolePayload.newBuilder()
+                    .setStagedName("foo_staged.jar")
+                    .build()
+                    .toByteString())
+            .build();
+    RunnerApi.ArtifactInformation barLocalArtifact =
+        RunnerApi.ArtifactInformation.newBuilder()
+            .setTypeUrn(BeamUrns.getUrn(RunnerApi.StandardArtifacts.Types.FILE))
+            .setTypePayload(
+                RunnerApi.ArtifactFilePayload.newBuilder()
+                    .setPath("/tmp/bar.jar")
+                    .build()
+                    .toByteString())
+            .setRoleUrn(BeamUrns.getUrn(RunnerApi.StandardArtifacts.Roles.STAGING_TO))
+            .setRolePayload(
+                RunnerApi.ArtifactStagingToRolePayload.newBuilder()
+                    .setStagedName("bar_staged.jar")
+                    .build()
+                    .toByteString())
+            .build();
+    RunnerApi.Pipeline pipeline =
+        RunnerApi.Pipeline.newBuilder()
+            .setComponents(
+                RunnerApi.Components.newBuilder()
+                    .putEnvironments(
+                        "env",
+                        RunnerApi.Environment.newBuilder()
+                            .addAllDependencies(
+                                ImmutableList.of(fooLocalArtifact, barLocalArtifact))
+                            .build()))
+            .build();
+
+    RunnerApi.ArtifactInformation fooStagedArtifact =
+        RunnerApi.ArtifactInformation.newBuilder()
+            .setTypeUrn(BeamUrns.getUrn(RunnerApi.StandardArtifacts.Types.URL))
+            .setTypePayload(
+                RunnerApi.ArtifactUrlPayload.newBuilder()
+                    .setUrl(stagingLocation + "/foo_staged.jar")
+                    .build()
+                    .toByteString())
+            .setRoleUrn(BeamUrns.getUrn(RunnerApi.StandardArtifacts.Roles.STAGING_TO))
+            .setRolePayload(
+                RunnerApi.ArtifactStagingToRolePayload.newBuilder()
+                    .setStagedName("foo_staged.jar")
+                    .build()
+                    .toByteString())
+            .build();
+    RunnerApi.ArtifactInformation barStagedArtifact =
+        RunnerApi.ArtifactInformation.newBuilder()
+            .setTypeUrn(BeamUrns.getUrn(RunnerApi.StandardArtifacts.Types.URL))
+            .setTypePayload(
+                RunnerApi.ArtifactUrlPayload.newBuilder()
+                    .setUrl(stagingLocation + "/bar_staged.jar")
+                    .build()
+                    .toByteString())
+            .setRoleUrn(BeamUrns.getUrn(RunnerApi.StandardArtifacts.Roles.STAGING_TO))
+            .setRolePayload(
+                RunnerApi.ArtifactStagingToRolePayload.newBuilder()
+                    .setStagedName("bar_staged.jar")
+                    .build()
+                    .toByteString())
+            .build();
+    RunnerApi.Pipeline expectedPipeline =
+        RunnerApi.Pipeline.newBuilder()
+            .setComponents(
+                RunnerApi.Components.newBuilder()
+                    .putEnvironments(
+                        "env",
+                        RunnerApi.Environment.newBuilder()
+                            .addAllDependencies(
+                                ImmutableList.of(fooStagedArtifact, barStagedArtifact))
+                            .build()))
+            .build();
+    assertThat(runner.resolveArtifacts(pipeline), equalTo(expectedPipeline));
   }
 
   @Test
@@ -1428,6 +1518,7 @@ public class DataflowRunnerTest implements Serializable {
         .apply(
             ParDo.of(
                 new DoFn<KV<Integer, Integer>, Void>() {
+
                   @StateId("fizzle")
                   private final StateSpec<MapState<Void, Void>> voidState = StateSpecs.map();
 
@@ -1450,12 +1541,22 @@ public class DataflowRunnerTest implements Serializable {
     verifyMapStateUnsupported(options);
   }
 
+  @Test
+  public void testMapStateUnsupportedStreamingUnifiedRunner() throws Exception {
+    PipelineOptions options = buildPipelineOptions();
+    ExperimentalOptions.addExperiment(options.as(ExperimentalOptions.class), "use_unified_worker");
+    options.as(DataflowPipelineOptions.class).setStreaming(true);
+
+    verifyMapStateUnsupported(options);
+  }
+
   private void verifySetStateUnsupported(PipelineOptions options) throws Exception {
     Pipeline p = Pipeline.create(options);
     p.apply(Create.of(KV.of(13, 42)))
         .apply(
             ParDo.of(
                 new DoFn<KV<Integer, Integer>, Void>() {
+
                   @StateId("fizzle")
                   private final StateSpec<SetState<Void>> voidState = StateSpecs.set();
 
@@ -1473,6 +1574,14 @@ public class DataflowRunnerTest implements Serializable {
     PipelineOptions options = buildPipelineOptions();
     ExperimentalOptions.addExperiment(
         options.as(ExperimentalOptions.class), GcpOptions.STREAMING_ENGINE_EXPERIMENT);
+    options.as(DataflowPipelineOptions.class).setStreaming(true);
+    verifySetStateUnsupported(options);
+  }
+
+  @Test
+  public void testSetStateUnsupportedStreamingUnifiedWorker() throws Exception {
+    PipelineOptions options = buildPipelineOptions();
+    ExperimentalOptions.addExperiment(options.as(ExperimentalOptions.class), "use_unified_worker");
     options.as(DataflowPipelineOptions.class).setStreaming(true);
     verifySetStateUnsupported(options);
   }
@@ -1682,6 +1791,7 @@ public class DataflowRunnerTest implements Serializable {
         .apply(
             ParDo.of(
                 new DoFn<KV<Integer, Integer>, Void>() {
+
                   @StateId("fizzle")
                   private final StateSpec<ValueState<Void>> voidState = StateSpecs.value();
 

@@ -70,7 +70,8 @@
 #        jar from the appropriate gradle module, which may not succeed.
 
 set -e
-set -v
+trap '! [[ "$BASH_COMMAND" =~ ^(echo|read|if|ARGS|shift|SOCKET_SCRIPT|\[\[) ]] && \
+cmd=`eval echo "$BASH_COMMAND" 2>/dev/null` && echo "\$ $cmd"' DEBUG
 
 # Default test targets.
 TESTS="./test/integration/... ./test/regression"
@@ -80,7 +81,7 @@ RUNNER=portable
 
 # Default timeout. This timeout is applied per-package, as tests in different
 # packages are executed in parallel.
-TIMEOUT=1h
+TIMEOUT=2h
 
 # Default limit on simultaneous test binaries/packages being executed.
 SIMULTANEOUS=3
@@ -262,14 +263,12 @@ elif [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" || 
           --job-port $JOB_PORT \
           --expansion-port 0 \
           --artifact-port 0 &
-      SIMULTANEOUS=1
     elif [[ "$RUNNER" == "samza" ]]; then
       java \
           -jar $SAMZA_JOB_SERVER_JAR \
           --job-port $JOB_PORT \
           --expansion-port 0 \
           --artifact-port 0 &
-      SIMULTANEOUS=1
     elif [[ "$RUNNER" == "spark" ]]; then
       java \
           -jar $SPARK_JOB_SERVER_JAR \
@@ -277,7 +276,6 @@ elif [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" || 
           --job-port $JOB_PORT \
           --expansion-port 0 \
           --artifact-port 0 &
-      SIMULTANEOUS=1  # Spark runner fails if jobs are run concurrently.
     elif [[ "$RUNNER" == "portable" ]]; then
       python3 \
           -m apache_beam.runners.portability.local_job_service_main \
@@ -303,6 +301,11 @@ elif [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" || 
     java -jar $IO_EXPANSION_JAR $EXPANSION_PORT &
     IO_EXPANSION_PID=$!
   fi
+fi
+
+# Disable parallelism on runners that don't support it.
+if [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" ]]; then
+  SIMULTANEOUS=1
 fi
 
 if [[ "$RUNNER" == "dataflow" ]]; then
@@ -369,7 +372,7 @@ fi
 ARGS="$ARGS -p $SIMULTANEOUS"
 
 # Assemble test arguments and pipeline options.
-ARGS="$ARGS --timeout=$TIMEOUT"
+ARGS="$ARGS -timeout $TIMEOUT"
 ARGS="$ARGS --runner=$RUNNER"
 ARGS="$ARGS --project=$DATAFLOW_PROJECT"
 ARGS="$ARGS --region=$REGION"
@@ -393,7 +396,7 @@ ARGS="$ARGS $PIPELINE_OPTS"
 
 cd sdks/go
 echo ">>> RUNNING $RUNNER integration tests with pipeline options: $ARGS"
-go test -v $TESTS $ARGS \
+go test -v $TESTS $ARGS 1>&2 \
     || TEST_EXIT_CODE=$? # don't fail fast here; clean up environment before exiting
 cd ../..
 

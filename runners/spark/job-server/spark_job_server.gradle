@@ -59,7 +59,8 @@ dependencies {
   validatesPortableRunner project(path: ":runners:core-java", configuration: "testRuntime")
   validatesPortableRunner project(path: ":runners:portability:java", configuration: "testRuntime")
   runtime project(":sdks:java:extensions:google-cloud-platform-core")
-//  TODO: Enable AWS and HDFS file system.
+  runtime project(":sdks:java:io:amazon-web-services2")
+//  TODO: Enable HDFS file system.
 }
 
 // NOTE: runShadow must be used in order to run the job server. The standard run
@@ -101,6 +102,7 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
       excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
       excludeCategories 'org.apache.beam.sdk.testing.UsesFailureMessage'
       excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderedDelivery'
       excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
       excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
       excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
@@ -111,7 +113,6 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
       excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
       // TODO (BEAM-7222) SplittableDoFnTests
       excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
       excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
       excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
       excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
@@ -165,7 +166,6 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
       excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
       // TODO (BEAM-7222) SplittableDoFnTests
       excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
       excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
       excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
       excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
@@ -237,5 +237,10 @@ createCrossLanguageValidatesRunnerTask(
     "--jobEndpoint=localhost:${jobPort}",
     "--environmentCacheMillis=10000",
     "--experiments=beam_fn_api",
-  ]
+  ],
+  goScriptOptions: [
+    "--runner spark",
+    "--tests \"./test/integration/xlang ./test/integration/io/xlang/...\"",
+    "--endpoint localhost:${jobPort}",
+  ],
 )

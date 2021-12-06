@@ -30,10 +30,13 @@ import com.azure.identity.ManagedIdentityCredential;
 import com.azure.identity.ManagedIdentityCredentialBuilder;
 import com.azure.identity.UsernamePasswordCredential;
 import com.azure.identity.UsernamePasswordCredentialBuilder;
+import com.azure.identity.implementation.IdentityClient;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.core.type.WritableTypeId;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonSerializer;
@@ -46,8 +49,8 @@ import com.fasterxml.jackson.databind.jsontype.TypeSerializer;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.auto.service.AutoService;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.util.Map;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 
 /**
  * A Jackson {@link Module} that registers a {@link JsonSerializer} and {@link JsonDeserializer} for
@@ -139,6 +142,7 @@ public class AzureModule extends SimpleModule {
             .clientId(asMap.getOrDefault(AZURE_CLIENT_ID, ""))
             .username(asMap.getOrDefault(AZURE_USERNAME, ""))
             .password(asMap.getOrDefault(AZURE_PASSWORD, ""))
+            .tenantId(asMap.getOrDefault(AZURE_TENANT_ID, ""))
             .build();
       } else {
         throw new IOException(
@@ -147,12 +151,7 @@ public class AzureModule extends SimpleModule {
     }
   }
 
-  // TODO: Write this class
   private static class TokenCredentialSerializer extends JsonSerializer<TokenCredential> {
-    // These providers are singletons, so don't require any serialization, other than type.
-    // add any singleton credentials...
-    private static final ImmutableSet<Object> SINGLETON_CREDENTIAL_PROVIDERS = ImmutableSet.of();
-
     @Override
     public void serialize(
         TokenCredential tokenCredential,
@@ -162,13 +161,75 @@ public class AzureModule extends SimpleModule {
       serializers.defaultSerializeValue(tokenCredential, jsonGenerator);
     }
 
+    @SuppressWarnings("nullness")
+    private static Object getMember(Object obj, String member)
+        throws IllegalAccessException, NoSuchFieldException {
+      Class<?> cls = obj.getClass();
+      Field field = cls.getDeclaredField(member);
+      field.setAccessible(true);
+      Object fieldObj = field.get(obj);
+      assert fieldObj != null;
+      return fieldObj;
+    }
+
     @Override
     public void serializeWithType(
         TokenCredential tokenCredential,
         JsonGenerator jsonGenerator,
         SerializerProvider serializers,
-        TypeSerializer typeSerializer) {
-      throw new UnsupportedOperationException();
+        TypeSerializer typeSerializer)
+        throws IOException {
+
+      WritableTypeId typeIdDef =
+          typeSerializer.writeTypePrefix(
+              jsonGenerator, typeSerializer.typeId(tokenCredential, JsonToken.START_OBJECT));
+
+      try {
+        if (tokenCredential instanceof DefaultAzureCredential) {
+          // Do nothing
+        } else if (tokenCredential instanceof ClientSecretCredential) {
+          ClientSecretCredential credential = (ClientSecretCredential) tokenCredential;
+          IdentityClient identityClient = (IdentityClient) getMember(credential, "identityClient");
+          jsonGenerator.writeStringField(
+              AZURE_CLIENT_ID, (String) getMember(identityClient, "clientId"));
+          jsonGenerator.writeStringField(
+              AZURE_TENANT_ID, (String) getMember(identityClient, "tenantId"));
+          jsonGenerator.writeStringField(
+              AZURE_CLIENT_SECRET, (String) getMember(credential, "clientSecret"));
+        } else if (tokenCredential instanceof ManagedIdentityCredential) {
+          ManagedIdentityCredential credential = (ManagedIdentityCredential) tokenCredential;
+          Object appServiceMsiCredential = getMember(credential, "appServiceMSICredential");
+          IdentityClient identityClient =
+              (IdentityClient) getMember(appServiceMsiCredential, "identityClient");
+          jsonGenerator.writeStringField(
+              AZURE_CLIENT_ID, (String) getMember(identityClient, "clientId"));
+        } else if (tokenCredential instanceof EnvironmentCredential) {
+          // Do nothing
+        } else if (tokenCredential instanceof ClientCertificateCredential) {
+          throw new IOException("Client certificates not yet implemented"); // TODO
+        } else if (tokenCredential instanceof UsernamePasswordCredential) {
+          UsernamePasswordCredential credential = (UsernamePasswordCredential) tokenCredential;
+          IdentityClient identityClient = (IdentityClient) getMember(credential, "identityClient");
+          jsonGenerator.writeStringField(
+              AZURE_CLIENT_ID, (String) getMember(identityClient, "clientId"));
+          jsonGenerator.writeStringField(
+              AZURE_USERNAME, (String) getMember(credential, "username"));
+          jsonGenerator.writeStringField(
+              AZURE_PASSWORD, (String) getMember(credential, "password"));
+        } else {
+          throw new IOException(
+              String.format(
+                  "Azure credential provider type '%s' is not supported",
+                  tokenCredential.getClass().getSimpleName()));
+        }
+      } catch (IllegalAccessException | NoSuchFieldException e) {
+        throw new IOException(
+            String.format(
+                "Failed to serialize object of type '%s': %s",
+                tokenCredential.getClass().getSimpleName(), e.toString()));
+      }
+
+      typeSerializer.writeTypeSuffix(jsonGenerator, typeIdDef);
     }
   }
 }

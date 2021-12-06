@@ -36,8 +36,17 @@ import static org.junit.Assume.assumeFalse;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonValue;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
+import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import com.google.common.testing.EqualsTester;
 import java.io.IOException;
 import java.io.NotSerializableException;
@@ -904,6 +913,24 @@ public class ProxyInvocationHandlerTest {
     void setValue(Object value);
   }
 
+  public interface PrimitiveIntOptions extends PipelineOptions {
+    int getInt();
+
+    void setInt(int value);
+  }
+
+  @Test
+  public void testPrimitiveIntegerFromJsonOptions() throws Exception {
+    String optionsJson =
+        "{\"options\":{\"appName\":\"ProxyInvocationHandlerTest\",\"optionsId\":1,\"int\":\"100\"},\"display_data\":[{\"namespace\":\"org.apache.beam.sdk.options.ProxyInvocationHandlerTest$DisplayDataOptions\",\"key\":\"int\",\"type\":\"INTEGER\",\"value\":100},{\"namespace\":\"org.apache.beam.sdk.options.ApplicationNameOptions\",\"key\":\"appName\",\"type\":\"STRING\",\"value\":\"ProxyInvocationHandlerTest\"}]}";
+
+    PrimitiveIntOptions options =
+        MAPPER.readValue(optionsJson, PipelineOptions.class).as(PrimitiveIntOptions.class);
+
+    int value = options.getInt();
+    assertEquals(100, value);
+  }
+
   @Test
   public void testDisplayDataInheritanceNamespace() {
     ExtendsBaseOptions options = PipelineOptionsFactory.as(ExtendsBaseOptions.class);
@@ -967,6 +994,56 @@ public class ProxyInvocationHandlerTest {
     String getBar();
 
     void setBar(String value);
+  }
+
+  public static class JacksonObject {
+    String value;
+  }
+
+  public static class JacksonObjectSerializer extends StdSerializer<JacksonObject> {
+    public JacksonObjectSerializer() {
+      super(JacksonObject.class);
+    }
+
+    @Override
+    public void serialize(JacksonObject value, JsonGenerator gen, SerializerProvider provider)
+        throws IOException {
+      gen.writeString(value.value);
+    }
+  }
+
+  public static class JacksonObjectDeserializer extends StdDeserializer<JacksonObject> {
+    public JacksonObjectDeserializer() {
+      super(JacksonObject.class);
+    }
+
+    @Override
+    public JacksonObject deserialize(JsonParser p, DeserializationContext ctxt)
+        throws IOException, JsonProcessingException {
+      JacksonObject obj = new JacksonObject();
+      obj.value = p.getValueAsString();
+      return obj;
+    }
+  }
+
+  public interface JacksonOptions extends PipelineOptions {
+    @JsonSerialize(using = JacksonObjectSerializer.class)
+    @JsonDeserialize(using = JacksonObjectDeserializer.class)
+    JacksonObject getJacksonObject();
+
+    void setJacksonObject(JacksonObject value);
+  }
+
+  @Test
+  public void testJacksonSerializeAndDeserialize() throws Exception {
+    JacksonOptions options = PipelineOptionsFactory.as(JacksonOptions.class);
+    JacksonObject value = new JacksonObject();
+    value.value = "foo";
+
+    options.setJacksonObject(value);
+
+    JacksonOptions deserializedOptions = serializeDeserialize(JacksonOptions.class, options);
+    assertEquals(options.getJacksonObject().value, deserializedOptions.getJacksonObject().value);
   }
 
   @Test

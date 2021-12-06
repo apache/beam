@@ -111,12 +111,11 @@ public class BeamRowToBigtableMutation
 
     private ByteString convertValueToByteString(Row row, String column) {
       Schema.Field field = row.getSchema().getField(column);
-      Schema.TypeName typeName = field.getType().getTypeName();
       Object value = row.getValue(column);
       if (value == null) {
         throw new NullPointerException("Null value at column " + column);
       } else {
-        return cellValueParser.valueToByteString(value, typeName);
+        return cellValueParser.valueToByteString(value, field.getType());
       }
     }
   }

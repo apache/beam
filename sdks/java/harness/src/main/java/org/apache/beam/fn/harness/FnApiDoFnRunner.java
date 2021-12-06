@@ -34,14 +34,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.NavigableSet;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.ProgressRequestCallback;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
-import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.data.BeamFnTimerClient;
-import org.apache.beam.fn.harness.data.BeamFnTimerClient.TimerHandler;
-import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
-import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.FnApiStateAccessor;
 import org.apache.beam.fn.harness.state.FnApiTimerBundleTracker;
@@ -69,6 +66,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.splittabledofn.RestrictionTrackers;
@@ -165,45 +163,38 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public final FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimatorStateT, OutputT>
-        createRunnerForPTransform(
-            PipelineOptions pipelineOptions,
-            BeamFnDataClient beamFnDataClient,
-            BeamFnStateClient beamFnStateClient,
-            BeamFnTimerClient beamFnTimerClient,
-            String pTransformId,
-            PTransform pTransform,
-            Supplier<String> processBundleInstructionId,
-            Map<String, PCollection> pCollections,
-            Map<String, RunnerApi.Coder> coders,
-            Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
-            PCollectionConsumerRegistry pCollectionConsumerRegistry,
-            PTransformFunctionRegistry startFunctionRegistry,
-            PTransformFunctionRegistry finishFunctionRegistry,
-            Consumer<ThrowingRunnable> addResetFunction,
-            Consumer<ThrowingRunnable> tearDownFunctions,
-            Consumer<ProgressRequestCallback> addProgressRequestCallback,
-            BundleSplitListener splitListener,
-            BundleFinalizer bundleFinalizer) {
+        createRunnerForPTransform(Context context) {
 
       FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimatorStateT, OutputT> runner =
           new FnApiDoFnRunner<>(
-              pipelineOptions,
-              beamFnStateClient,
-              beamFnTimerClient,
-              pTransformId,
-              pTransform,
-              processBundleInstructionId,
-              pCollections,
-              coders,
-              windowingStrategies,
-              pCollectionConsumerRegistry,
-              startFunctionRegistry,
-              finishFunctionRegistry,
-              tearDownFunctions,
-              addProgressRequestCallback,
-              splitListener,
-              bundleFinalizer);
+              context.getPipelineOptions(),
+              context.getBeamFnStateClient(),
+              context.getBeamFnTimerClient(),
+              context.getPTransformId(),
+              context.getPTransform(),
+              context.getProcessBundleInstructionIdSupplier(),
+              context.getPCollections(),
+              context.getCoders(),
+              context.getWindowingStrategies(),
+              context::addStartBundleFunction,
+              context::addFinishBundleFunction,
+              context::addTearDownFunction,
+              pCollectionId -> context.getPCollectionConsumer(pCollectionId),
+              (pCollectionId, consumer, valueCoder) ->
+                  context.addPCollectionConsumer(
+                      pCollectionId, (FnDataReceiver) consumer, (Coder) valueCoder),
+              context::addProgressRequestCallback,
+              context.getSplitListener(),
+              context.getBundleFinalizer());
 
+      for (Map.Entry<String, KV<TimeDomain, Coder<Timer<Object>>>> entry :
+          runner.timerFamilyInfos.entrySet()) {
+        String localName = entry.getKey();
+        TimeDomain timeDomain = entry.getValue().getKey();
+        Coder<Timer<Object>> coder = entry.getValue().getValue();
+        context.addIncomingTimerEndpoint(
+            localName, coder, timer -> runner.processTimer(localName, timeDomain, timer));
+      }
       return runner;
     }
   }
@@ -237,7 +228,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
   private final String mainInputId;
   private final FnApiStateAccessor<?> stateAccessor;
-  private Map<String, BeamFnTimerClient.TimerHandler<?>> timerHandlers;
+  private Map<String, CloseableFnDataReceiver<Timer<Object>>> outboundTimerReceivers;
   private FnApiTimerBundleTracker timerBundleTracker;
   private final DoFnInvoker<InputT, OutputT> doFnInvoker;
   private final StartBundleArgumentProvider startBundleArgumentProvider;
@@ -296,9 +287,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private WatermarkEstimatorStateT currentWatermarkEstimatorState;
 
   /**
-   * Only valud during {@link
-   * #processElementForWindowObservingSizedElementAndRestriction(WindowedValue)} and {@link
-   * #processElementForWindowObservingTruncateRestriction(WindowedValue)}.
+   * Only valid during {@link #processElementForWindowObservingSizedElementAndRestriction} and
+   * {@link #processElementForWindowObservingTruncateRestriction}.
    */
   private Instant initialWatermark;
 
@@ -321,6 +311,10 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   /** Only valid during {@link #processTimer}, null otherwise. */
   private TimeDomain currentTimeDomain;
 
+  private interface TriFunction<FirstT, SecondT, ThirdT> {
+    void accept(FirstT x, SecondT y, ThirdT z);
+  }
+
   FnApiDoFnRunner(
       PipelineOptions pipelineOptions,
       BeamFnStateClient beamFnStateClient,
@@ -331,10 +325,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       Map<String, PCollection> pCollections,
       Map<String, RunnerApi.Coder> coders,
       Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
-      PCollectionConsumerRegistry pCollectionConsumerRegistry,
-      PTransformFunctionRegistry startFunctionRegistry,
-      PTransformFunctionRegistry finishFunctionRegistry,
-      Consumer<ThrowingRunnable> tearDownFunctions,
+      Consumer<ThrowingRunnable> addStartFunction,
+      Consumer<ThrowingRunnable> addFinishFunction,
+      Consumer<ThrowingRunnable> addTearDownFunction,
+      Function<String, FnDataReceiver<WindowedValue<?>>> getPCollectionConsumer,
+      TriFunction<String, FnDataReceiver<WindowedValue<?>>, Coder<?>> addPCollectionConsumer,
       Consumer<ProgressRequestCallback> addProgressRequestCallback,
       BundleSplitListener splitListener,
       BundleFinalizer bundleFinalizer) {
@@ -459,7 +454,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         localNameToConsumerBuilder = ImmutableListMultimap.builder();
     for (Map.Entry<String, String> entry : pTransform.getOutputsMap().entrySet()) {
       localNameToConsumerBuilder.putAll(
-          entry.getKey(), pCollectionConsumerRegistry.getMultiplexingConsumer(entry.getValue()));
+          entry.getKey(), getPCollectionConsumer.apply(entry.getValue()));
     }
     localNameToConsumer = localNameToConsumerBuilder.build();
     tagToSideInputSpecMap = tagToSideInputSpecMapBuilder.build();
@@ -484,7 +479,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     switch (pTransform.getSpec().getUrn()) {
       case PTransformTranslation.PAR_DO_TRANSFORM_URN:
       case PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN:
-        startFunctionRegistry.register(pTransformId, this::startBundle);
+        addStartFunction.accept(this::startBundle);
         break;
       case PTransformTranslation.SPLITTABLE_PAIR_WITH_RESTRICTION_URN:
         // startBundle should not be invoked
@@ -563,7 +558,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                   }
 
                   @Override
-                  public SplitResult trySplit(double fractionOfRemainder) {
+                  public HandlesSplits.SplitResult trySplit(double fractionOfRemainder) {
                     return trySplitForWindowObservingTruncateRestriction(
                         fractionOfRemainder, splitDelegate);
                   }
@@ -603,7 +598,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                   }
 
                   @Override
-                  public SplitResult trySplit(double fractionOfRemainder) {
+                  public HandlesSplits.SplitResult trySplit(double fractionOfRemainder) {
                     return splitDelegate.trySplit(fractionOfRemainder);
                   }
 
@@ -651,17 +646,14 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       default:
         throw new IllegalStateException("Unknown urn: " + pTransform.getSpec().getUrn());
     }
-    pCollectionConsumerRegistry.register(
-        pTransform.getInputsOrThrow(mainInput),
-        pTransformId,
-        (FnDataReceiver) mainInputConsumer,
-        inputCoder);
+    addPCollectionConsumer.accept(
+        pTransform.getInputsOrThrow(mainInput), (FnDataReceiver) mainInputConsumer, inputCoder);
 
     this.finishBundleArgumentProvider = new FinishBundleArgumentProvider();
     switch (pTransform.getSpec().getUrn()) {
       case PTransformTranslation.PAR_DO_TRANSFORM_URN:
       case PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN:
-        finishFunctionRegistry.register(pTransformId, this::finishBundle);
+        addFinishFunction.accept(this::finishBundle);
         break;
       case PTransformTranslation.SPLITTABLE_PAIR_WITH_RESTRICTION_URN:
         // finishBundle should not be invoked
@@ -672,7 +664,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       default:
         // no-op
     }
-    tearDownFunctions.accept(this::tearDown);
+    addTearDownFunction.accept(this::tearDown);
 
     switch (pTransform.getSpec().getUrn()) {
       case PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN:
@@ -741,7 +733,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
   private void startBundle() {
     // Register as a consumer for each timer.
-    timerHandlers = new HashMap<>();
+    outboundTimerReceivers = new HashMap<>();
     timerBundleTracker =
         new FnApiTimerBundleTracker(
             keyCoder, windowCoder, this::getCurrentKey, () -> currentWindow);
@@ -750,12 +742,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       String localName = timerFamilyInfo.getKey();
       TimeDomain timeDomain = timerFamilyInfo.getValue().getKey();
       Coder<Timer<Object>> timerCoder = timerFamilyInfo.getValue().getValue();
-      timerHandlers.put(
+      outboundTimerReceivers.put(
           localName,
-          beamFnTimerClient.register(
+          beamFnTimerClient.<Object>register(
               LogicalEndpoint.timer(processBundleInstructionId.get(), pTransformId, localName),
-              timerCoder,
-              (FnDataReceiver<Timer<Object>>) timer -> processTimer(localName, timeDomain, timer)));
+              timerCoder));
     }
 
     doFnInvoker.invokeStartBundle(startBundleArgumentProvider);
@@ -1108,7 +1099,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private abstract class SplittableFnDataReceiver
       implements HandlesSplits, FnDataReceiver<WindowedValue> {
     @Override
-    public SplitResult trySplit(double fractionOfRemainder) {
+    public HandlesSplits.SplitResult trySplit(double fractionOfRemainder) {
       return trySplitForElementAndRestriction(fractionOfRemainder, Duration.ZERO);
     }
 
@@ -1727,12 +1718,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   }
 
   private void finishBundle() throws Exception {
-    timerBundleTracker.outputTimers(timerFamilyOrId -> timerHandlers.get(timerFamilyOrId));
-    for (TimerHandler timerHandler : timerHandlers.values()) {
-      timerHandler.awaitCompletion();
-    }
-    for (TimerHandler timerHandler : timerHandlers.values()) {
-      timerHandler.close();
+    timerBundleTracker.outputTimers(timerFamilyOrId -> outboundTimerReceivers.get(timerFamilyOrId));
+    for (CloseableFnDataReceiver<?> outboundTimerReceiver : outboundTimerReceivers.values()) {
+      outboundTimerReceiver.close();
     }
 
     doFnInvoker.invokeFinishBundle(finishBundleArgumentProvider);
@@ -1845,7 +1833,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         target =
             millisSinceStart == 0
                 ? fireTimestamp
-                : fireTimestamp.plus(period).minus(millisSinceStart);
+                : fireTimestamp.plus(period).minus(Duration.millis(millisSinceStart));
       }
       target = minTargetAndGcTime(target);
       timerBundleTracker.timerModified(timerIdOrFamily, timeDomain, getTimerForTime(target));
@@ -2011,7 +1999,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       }
     }
 
-    private final Context context = new Context();
+    private final StartBundleArgumentProvider.Context context =
+        new StartBundleArgumentProvider.Context();
 
     @Override
     public DoFn<InputT, OutputT>.StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
@@ -2062,7 +2051,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       }
     }
 
-    private final Context context = new Context();
+    private final FinishBundleArgumentProvider.Context context =
+        new FinishBundleArgumentProvider.Context();
 
     @Override
     public DoFn<InputT, OutputT>.FinishBundleContext finishBundleContext(
@@ -2556,7 +2546,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       }
     }
 
-    private final Context context = new Context();
+    private final OnTimerContext.Context context = new OnTimerContext.Context();
 
     @Override
     public BoundedWindow window() {

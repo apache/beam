@@ -19,99 +19,43 @@ package org.apache.beam.fn.harness.data;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 
 /** An implementation of a {@link BeamFnTimerClient} that can be used for testing. */
-@SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-})
 public class FakeBeamFnTimerClient implements BeamFnTimerClient {
-  private final ConcurrentMap<LogicalEndpoint, TimerHandler<?>> timerHandlers;
   private final ConcurrentMap<LogicalEndpoint, List<Timer<?>>> setTimers;
   private final ConcurrentMap<LogicalEndpoint, Boolean> wasClosed;
-  private final ConcurrentMap<LogicalEndpoint, CompletableFuture> timerInputFutures;
-  private final ConcurrentMap<LogicalEndpoint, FnDataReceiver<Timer<?>>> timerInputReceivers;
 
   public FakeBeamFnTimerClient() {
-    this.timerHandlers = new ConcurrentHashMap<>();
     this.setTimers = new ConcurrentHashMap<>();
     this.wasClosed = new ConcurrentHashMap<>();
-    this.timerInputFutures = new ConcurrentHashMap<>();
-    this.timerInputReceivers = new ConcurrentHashMap<>();
   }
 
   @Override
-  public <K> TimerHandler<K> register(
-      LogicalEndpoint timerEndpoint, Coder<Timer<K>> coder, FnDataReceiver<Timer<K>> receiver) {
-    return (TimerHandler)
-        timerHandlers.computeIfAbsent(
-            timerEndpoint,
-            (endpoint) -> {
-              setTimers.put(timerEndpoint, new ArrayList<>());
-              wasClosed.put(timerEndpoint, false);
-              timerInputFutures.put(timerEndpoint, new CompletableFuture());
-              timerInputReceivers.put(timerEndpoint, (FnDataReceiver) receiver);
+  public <K> CloseableFnDataReceiver<Timer<K>> register(
+      LogicalEndpoint timerEndpoint, Coder<Timer<K>> coder) {
+    setTimers.put(timerEndpoint, new ArrayList<>());
+    wasClosed.put(timerEndpoint, false);
 
-              return new TimerHandler<Object>() {
-                @Override
-                public void awaitCompletion() throws InterruptedException, Exception {
-                  timerInputFutures.get(endpoint).get();
-                }
+    return new CloseableFnDataReceiver<Timer<K>>() {
+      @Override
+      public void flush() throws Exception {}
 
-                @Override
-                @SuppressWarnings("FutureReturnValueIgnored")
-                public void runWhenComplete(Runnable completeRunnable) {
-                  timerInputFutures.get(endpoint).whenComplete((f, t) -> completeRunnable.run());
-                }
+      @Override
+      public void close() throws Exception {
+        wasClosed.put(timerEndpoint, true);
+      }
 
-                @Override
-                public boolean isDone() {
-                  return timerInputFutures.get(endpoint).isDone();
-                }
-
-                @Override
-                public void cancel() {
-                  timerInputFutures.get(endpoint).cancel(true);
-                }
-
-                @Override
-                public void complete() {
-                  timerInputFutures.get(endpoint).complete(null);
-                }
-
-                @Override
-                public void fail(Throwable t) {
-                  timerInputFutures.get(endpoint).completeExceptionally(t);
-                }
-
-                @Override
-                public void accept(Timer<Object> input) throws Exception {
-                  setTimers.get(endpoint).add(input);
-                }
-
-                @Override
-                public void flush() throws Exception {}
-
-                @Override
-                public void close() throws Exception {
-                  wasClosed.put(endpoint, true);
-                }
-              };
-            });
-  }
-
-  public void sendTimer(LogicalEndpoint timerEndpoint, Timer<?> timer) throws Exception {
-    timerInputReceivers.get(timerEndpoint).accept(timer);
-  }
-
-  public void closeInbound(LogicalEndpoint timerEndpoint) {
-    timerInputFutures.get(timerEndpoint).complete(null);
+      @Override
+      public void accept(Timer<K> input) throws Exception {
+        setTimers.get(timerEndpoint).add(input);
+      }
+    };
   }
 
   public boolean isOutboundClosed(LogicalEndpoint timerEndpoint) {
