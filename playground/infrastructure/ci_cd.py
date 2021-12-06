@@ -78,9 +78,9 @@ def _check_envs():
 def run_ci_cd(step: config.Config.CI_CD_LITERAL, sdk: Sdk):
   supported_categories = get_supported_categories(categories_file)
   examples = find_examples(root_dir, supported_categories, sdk)
-  if step == "CI":
+  if step == config.Config.CI_STEP_NAME:
     ci_step(examples=examples)
-  if step == "CD":
+  if step == config.Config.CD_STEP_NAME:
     cd_step(examples=examples)
 
 
