@@ -26,8 +26,9 @@ import (
 )
 
 func Test_replace(t *testing.T) {
-	codeWithPublicClass := "public class Class {\n    public static void main(String[] args) {\n        System.out.println(\"Hello World!\");\n    }\n}"
-	codeWithoutPublicClass := "class Class {\n    public static void main(String[] args) {\n        System.out.println(\"Hello World!\");\n    }\n}"
+	codeWithPublicClass := "package org.apache.beam.sdk.transforms; \n public class Class {\n    public static void main(String[] args) {\n        System.out.println(\"Hello World!\");\n    }\n}"
+	codeWithoutPublicClass := "package org.apache.beam.sdk.transforms; \n class Class {\n    public static void main(String[] args) {\n        System.out.println(\"Hello World!\");\n    }\n}"
+	codeWithImportedPackage := "import org.apache.beam.sdk.transforms.*; \n class Class {\n    public static void main(String[] args) {\n        System.out.println(\"Hello World!\");\n    }\n}"
 
 	path, err := os.Getwd()
 	if err != nil {
@@ -56,6 +57,13 @@ func Test_replace(t *testing.T) {
 			name:     "original file exists",
 			args:     args{[]interface{}{lc.GetAbsoluteSourceFilePath(), classWithPublicModifierPattern, classWithoutPublicModifierPattern}},
 			wantCode: codeWithoutPublicClass,
+			wantErr:  false,
+		},
+		{
+			// Test that file where package is used changes to import all dependencies from this package
+			name:     "original file with package",
+			args:     args{[]interface{}{lc.GetAbsoluteSourceFilePath(), packagePattern, importStringPattern}},
+			wantCode: codeWithImportedPackage,
 			wantErr:  false,
 		},
 	}

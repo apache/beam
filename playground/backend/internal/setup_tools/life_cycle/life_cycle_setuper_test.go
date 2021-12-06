@@ -19,15 +19,36 @@ import (
 	playground "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/fs_tool"
 	"github.com/google/uuid"
+	"io/fs"
 	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
+)
+
+const (
+	workingDir              = "workingDir"
+	baseFileFolder          = "executable_files"
+	sourceFolder            = "src"
+	executableFolder        = "bin"
+	javaSourceFileExtension = ".java"
 )
 
 func TestSetup(t *testing.T) {
 	errorPipelineId := uuid.New()
 	successPipelineId := uuid.New()
-	lc, err := fs_tool.NewLifeCycle(playground.Sdk_SDK_JAVA, successPipelineId, "")
+
+	err := os.MkdirAll(workingDir, fs.ModePerm)
+	if err != nil {
+		panic(err)
+	}
+	_, err = os.Create(filepath.Join(workingDir, javaLogConfigFileName))
+	if err != nil {
+		panic(err)
+	}
+	defer os.RemoveAll(workingDir)
+
+	lc, err := fs_tool.NewLifeCycle(playground.Sdk_SDK_JAVA, successPipelineId, workingDir)
 	if err != nil {
 		panic(err)
 	}
@@ -53,10 +74,10 @@ func TestSetup(t *testing.T) {
 				sdk:        playground.Sdk_SDK_UNSPECIFIED,
 				code:       "",
 				pipelineId: errorPipelineId,
-				workingDir: "",
+				workingDir: workingDir,
 			},
 			check: func() bool {
-				if _, err := os.Stat("executable_files/" + errorPipelineId.String()); os.IsNotExist(err) {
+				if _, err := os.Stat(filepath.Join(baseFileFolder, errorPipelineId.String())); os.IsNotExist(err) {
 					return true
 				}
 				return false
@@ -72,20 +93,20 @@ func TestSetup(t *testing.T) {
 				sdk:            playground.Sdk_SDK_JAVA,
 				code:           "",
 				pipelineId:     successPipelineId,
-				workingDir:     "",
+				workingDir:     workingDir,
 				preparedModDir: "",
 			},
 			check: func() bool {
-				if _, err := os.Stat("executable_files/" + successPipelineId.String()); os.IsNotExist(err) {
+				if _, err := os.Stat(filepath.Join(workingDir, baseFileFolder, successPipelineId.String())); os.IsNotExist(err) {
 					return false
 				}
-				if _, err := os.Stat("executable_files/" + successPipelineId.String() + "/src"); os.IsNotExist(err) {
+				if _, err := os.Stat(filepath.Join(workingDir, baseFileFolder, successPipelineId.String(), sourceFolder)); os.IsNotExist(err) {
 					return false
 				}
-				if _, err := os.Stat("executable_files/" + successPipelineId.String() + "/bin"); os.IsNotExist(err) {
+				if _, err := os.Stat(filepath.Join(workingDir, baseFileFolder, successPipelineId.String(), executableFolder)); os.IsNotExist(err) {
 					return false
 				}
-				if _, err := os.Stat("executable_files/" + successPipelineId.String() + "/src/" + successPipelineId.String() + ".java"); os.IsNotExist(err) {
+				if _, err := os.Stat(filepath.Join(workingDir, baseFileFolder, successPipelineId.String(), sourceFolder, successPipelineId.String()+javaSourceFileExtension)); os.IsNotExist(err) {
 					return false
 				}
 				return true
