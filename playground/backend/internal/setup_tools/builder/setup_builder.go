@@ -72,7 +72,7 @@ func SetupExecutorBuilder(srcFilePath, baseFolderPath, execFilePath string, sdkE
 			}
 			args = append(args, arg)
 		}
-		builder = builder.WithArgs(args)
+		builder = builder.WithRunner().WithArgs(args).ExecutorBuilder
 	case pb.Sdk_SDK_GO: //go run command is executable file itself
 		builder = builder.
 			WithExecutableFileName("").

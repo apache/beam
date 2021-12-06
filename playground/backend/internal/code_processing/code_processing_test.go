@@ -552,7 +552,12 @@ func Test_setJavaExecutableFile(t *testing.T) {
 				executorBuilder: &executorBuilder,
 				dir:             "",
 			},
-			want:    executors.NewExecutorBuilder().WithRunner().WithCommand("fake cmd").WithExecutableFileName(fileName).Build(),
+			want: executors.NewExecutorBuilder().
+				WithExecutableFileName(fileName).
+				WithRunner().
+				WithCommand("fake cmd").
+				WithTestRunner().
+				Build(),
 			wantErr: false,
 		},
 	}
@@ -562,52 +567,6 @@ func Test_setJavaExecutableFile(t *testing.T) {
 			if (err != nil) != tt.wantErr {
 				t.Errorf("setJavaExecutableFile() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("setJavaExecutableFile() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_setJavaExecutableFile(t *testing.T) {
-	pipelineId := uuid.New()
-	lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, pipelineId, os.Getenv("APP_WORK_DIR"))
-	lc.ExecutableName = fakeExecutableName
-	executorBuilder := executors.NewExecutorBuilder().WithRunner().WithCommand("fake cmd").ExecutorBuilder
-	type args struct {
-		lc              *fs_tool.LifeCycle
-		id              uuid.UUID
-		service         cache.Cache
-		ctx             context.Context
-		executorBuilder *executors.ExecutorBuilder
-		dir             string
-	}
-	tests := []struct {
-		name string
-		args args
-		want executors.Executor
-	}{
-		{
-			name: "set executable name to runner/test runner",
-			args: args{
-				lc:              lc,
-				id:              pipelineId,
-				service:         cacheService,
-				ctx:             context.Background(),
-				executorBuilder: &executorBuilder,
-				dir:             "",
-			},
-			want: executors.NewExecutorBuilder().
-				WithExecutableFileName(fileName).
-				WithRunner().
-				WithCommand("fake cmd").
-				WithTestRunner().
-				Build(),
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := setJavaExecutableFile(tt.args.lc, tt.args.id, tt.args.service, tt.args.ctx, tt.args.executorBuilder, tt.args.dir)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("setJavaExecutableFile() = %v, want %v", got, tt.want)
 			}
