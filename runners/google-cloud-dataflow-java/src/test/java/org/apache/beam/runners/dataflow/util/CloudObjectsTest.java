@@ -34,9 +34,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.runners.core.construction.SdkComponents;
-import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.AvroGenericCoder;
+import org.apache.beam.sdk.coders.AvroReflectCoder;
+import org.apache.beam.sdk.coders.AvroSpecificCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -54,6 +55,7 @@ import org.apache.beam.sdk.coders.SetCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.TimestampPrefixingWindowCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.io.AvroGeneratedUser;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.SchemaCoder;
@@ -156,8 +158,9 @@ public class CloudObjectsTest {
               .add(ByteArrayCoder.of())
               .add(VarLongCoder.of())
               .add(SerializableCoder.of(Record.class))
-              .add(AvroCoder.of(Record.class, true))
-              .add(AvroCoder.of(GenericRecord.class, avroSchema, false))
+              .add(AvroGenericCoder.of(avroSchema))
+              .add(AvroSpecificCoder.of(AvroGeneratedUser.class))
+              .add(AvroReflectCoder.of(Record.class))
               .add(CollectionCoder.of(VarLongCoder.of()))
               .add(ListCoder.of(VarLongCoder.of()))
               .add(SetCoder.of(VarLongCoder.of()))

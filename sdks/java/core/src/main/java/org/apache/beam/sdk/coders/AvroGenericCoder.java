@@ -18,15 +18,31 @@
 package org.apache.beam.sdk.coders;
 
 import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericDatumReader;
+import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.io.DatumReader;
+import org.apache.avro.io.DatumWriter;
 
 /** AvroCoder specialisation for GenericRecord. */
 public class AvroGenericCoder extends AvroCoder<GenericRecord> {
-  AvroGenericCoder(Schema schema) {
+
+  public AvroGenericCoder(Schema schema) {
     super(GenericRecord.class, schema);
   }
 
   public static AvroGenericCoder of(Schema schema) {
     return new AvroGenericCoder(schema);
+  }
+
+  @Override
+  protected DatumReader<GenericRecord> createReader() {
+    Schema schema = getSchema();
+    return new GenericDatumReader<>(schema, schema);
+  }
+
+  @Override
+  protected DatumWriter<GenericRecord> createWriter() {
+    return new GenericDatumWriter<>(getSchema());
   }
 }

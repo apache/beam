@@ -35,9 +35,12 @@ import org.apache.beam.sdk.values.TypeDescriptor;
   "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
 })
 public class AvroRecordSchema extends GetterBasedSchemaProvider {
+
   @Override
+  @SuppressWarnings("nullness") // new ReflectData(ClassLoader) is not annotated to accept null
   public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
-    return toBeamSchema(ReflectData.get().getSchema(typeDescriptor.getRawType()));
+    Class<?> avroType = typeDescriptor.getRawType();
+    return toBeamSchema(new ReflectData(avroType.getClassLoader()).getSchema(avroType));
   }
 
   @Override

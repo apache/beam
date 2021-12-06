@@ -21,12 +21,16 @@ import java.io.Serializable;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.util.Map;
+import java.util.Optional;
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericDatumWriter;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.reflect.ReflectDatumWriter;
+import org.apache.avro.specific.SpecificDatumWriter;
+import org.apache.avro.specific.SpecificRecord;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.util.MimeTypes;
@@ -38,20 +42,78 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 })
 public class AvroSink<UserT, DestinationT, OutputT>
     extends FileBasedSink<UserT, DestinationT, OutputT> {
-  private final boolean genericRecords;
+  private final Class<OutputT> type;
 
   @FunctionalInterface
   public interface DatumWriterFactory<T> extends Serializable {
     DatumWriter<T> apply(Schema writer);
   }
 
+  // Keep this logic in sync with AvroGenericCoder.createWriter
+  public static final DatumWriterFactory<GenericRecord> GENERIC_DATUM_WRITER_FACTORY =
+      GenericDatumWriter::new;
+
+  // Keep this logic in sync with AvroSpecificCoder.createWriter
+  public static class SpecificDatumWriterFactory<T> implements DatumWriterFactory<T> {
+
+    private final Class<T> type;
+
+    public SpecificDatumWriterFactory(Class<T> type) {
+      this.type = type;
+    }
+
+    @Override
+    public DatumWriter<T> apply(Schema writer) {
+      // create the datum writer using the Class<T> api.
+      // avro will load the proper class loader and when using avro 1.9
+      // the proper data with conversions (SpecificData.getForClass)
+      SpecificDatumWriter<T> datumWriter = new SpecificDatumWriter<>(type);
+      datumWriter.setSchema(writer);
+      return datumWriter;
+    }
+  }
+
+  // Keep this logic in sync with AvroReflectCoder.createWriter
+  public static class ReflectDatumWriterFactory<T> implements DatumWriterFactory<T> {
+
+    private final Class<T> type;
+
+    public ReflectDatumWriterFactory(Class<T> type) {
+      this.type = type;
+    }
+
+    @Override
+    public DatumWriter<T> apply(Schema writer) {
+      ReflectDatumWriter<T> datumWriter = new ReflectDatumWriter<>(type);
+      datumWriter.setSchema(writer);
+      return datumWriter;
+    }
+  }
+
+  // Keep this logic in sync with AvroCoder.of
+  public static <T> DatumWriterFactory<T> defaultWriterFactory(Class<T> type) {
+    return defaultWriterFactory(type, true);
+  }
+
+  // Keep this logic in sync with AvroCoder.of
+  public static <T> DatumWriterFactory<T> defaultWriterFactory(
+      Class<T> type, boolean useReflectApi) {
+    if (GenericRecord.class.equals(type)) {
+      return (DatumWriterFactory<T>) GENERIC_DATUM_WRITER_FACTORY;
+    } else if (SpecificRecord.class.isAssignableFrom(type) && !useReflectApi) {
+      return new SpecificDatumWriterFactory<>(type);
+    } else {
+      return new ReflectDatumWriterFactory<>(type);
+    }
+  }
+
   AvroSink(
+      Class<OutputT> type,
       ValueProvider<ResourceId> outputPrefix,
-      DynamicAvroDestinations<UserT, DestinationT, OutputT> dynamicDestinations,
-      boolean genericRecords) {
+      DynamicAvroDestinations<UserT, DestinationT, OutputT> dynamicDestinations) {
     // Avro handles compression internally using the codec.
     super(outputPrefix, dynamicDestinations, Compression.UNCOMPRESSED);
-    this.genericRecords = genericRecords;
+    this.type = type;
   }
 
   @Override
@@ -61,24 +123,24 @@ public class AvroSink<UserT, DestinationT, OutputT>
 
   @Override
   public WriteOperation<DestinationT, OutputT> createWriteOperation() {
-    return new AvroWriteOperation<>(this, genericRecords);
+    return new AvroWriteOperation<>(type, this);
   }
 
   /** A {@link WriteOperation WriteOperation} for Avro files. */
   private static class AvroWriteOperation<DestinationT, OutputT>
       extends WriteOperation<DestinationT, OutputT> {
+    private final Class<OutputT> type;
     private final DynamicAvroDestinations<?, DestinationT, OutputT> dynamicDestinations;
-    private final boolean genericRecords;
 
-    private AvroWriteOperation(AvroSink<?, DestinationT, OutputT> sink, boolean genericRecords) {
+    private AvroWriteOperation(Class<OutputT> type, AvroSink<?, DestinationT, OutputT> sink) {
       super(sink);
       this.dynamicDestinations = sink.getDynamicDestinations();
-      this.genericRecords = genericRecords;
+      this.type = type;
     }
 
     @Override
     public Writer<DestinationT, OutputT> createWriter() throws Exception {
-      return new AvroWriter<>(this, dynamicDestinations, genericRecords);
+      return new AvroWriter<>(type, this, dynamicDestinations);
     }
   }
 
@@ -88,16 +150,16 @@ public class AvroSink<UserT, DestinationT, OutputT>
     // Initialized in prepareWrite
     private @Nullable DataFileWriter<OutputT> dataFileWriter;
 
+    private final Class<OutputT> type;
     private final DynamicAvroDestinations<?, DestinationT, OutputT> dynamicDestinations;
-    private final boolean genericRecords;
 
     public AvroWriter(
+        Class<OutputT> type,
         WriteOperation<DestinationT, OutputT> writeOperation,
-        DynamicAvroDestinations<?, DestinationT, OutputT> dynamicDestinations,
-        boolean genericRecords) {
+        DynamicAvroDestinations<?, DestinationT, OutputT> dynamicDestinations) {
       super(writeOperation, MimeTypes.BINARY);
+      this.type = type;
       this.dynamicDestinations = dynamicDestinations;
-      this.genericRecords = genericRecords;
     }
 
     @SuppressWarnings("deprecation") // uses internal test functionality.
@@ -107,17 +169,10 @@ public class AvroSink<UserT, DestinationT, OutputT>
       CodecFactory codec = dynamicDestinations.getCodec(destination);
       Schema schema = dynamicDestinations.getSchema(destination);
       Map<String, Object> metadata = dynamicDestinations.getMetadata(destination);
-      DatumWriter<OutputT> datumWriter;
-      DatumWriterFactory<OutputT> datumWriterFactory =
-          dynamicDestinations.getDatumWriterFactory(destination);
-
-      if (datumWriterFactory == null) {
-        datumWriter =
-            genericRecords ? new GenericDatumWriter<>(schema) : new ReflectDatumWriter<>(schema);
-      } else {
-        datumWriter = datumWriterFactory.apply(schema);
-      }
-
+      DatumWriter<OutputT> datumWriter =
+          Optional.ofNullable(dynamicDestinations.getDatumWriterFactory(destination))
+              .orElse(defaultWriterFactory(type))
+              .apply(schema);
       dataFileWriter = new DataFileWriter<>(datumWriter).setCodec(codec);
       for (Map.Entry<String, Object> entry : metadata.entrySet()) {
         Object v = entry.getValue();

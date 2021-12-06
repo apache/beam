@@ -639,11 +639,22 @@ public class PubsubIO {
    */
   @Experimental(Kind.SCHEMAS)
   public static <T> Read<T> readAvrosWithBeamSchema(Class<T> clazz) {
+    return readAvrosWithBeamSchema(clazz, AvroCoder.of(clazz));
+  }
+
+  /**
+   * Returns a {@link PTransform} that continuously reads binary encoded Avro messages of the
+   * specific type.
+   *
+   * <p>Beam will infer a schema for the Avro schema. This allows the output to be used by SQL and
+   * by the schema-transform library.
+   */
+  @Experimental(Kind.SCHEMAS)
+  public static <T> Read<T> readAvrosWithBeamSchema(Class<T> clazz, AvroCoder<T> coder) {
     if (clazz.equals(GenericRecord.class)) {
       throw new IllegalArgumentException("For GenericRecord, please call readAvroGenericRecords");
     }
-    org.apache.avro.Schema avroSchema = ReflectData.get().getSchema(clazz);
-    AvroCoder<T> coder = AvroCoder.of(clazz);
+    org.apache.avro.Schema avroSchema = new ReflectData(clazz.getClassLoader()).getSchema(clazz);
     Schema schema = AvroUtils.getSchema(clazz, null);
     return Read.newBuilder(parsePayloadUsingCoder(coder))
         .setCoder(

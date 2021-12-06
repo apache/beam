@@ -20,47 +20,73 @@ package org.apache.beam.runners.dataflow.util;
 import org.apache.avro.Schema;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.AvroGenericCoder;
+import org.apache.beam.sdk.coders.AvroReflectCoder;
+import org.apache.beam.sdk.coders.AvroSpecificCoder;
 
 /** A {@link CloudObjectTranslator} for {@link AvroCoder}. */
 @SuppressWarnings({
   "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
 })
-class AvroCoderCloudObjectTranslator implements CloudObjectTranslator<AvroCoder> {
+class AvroCoderCloudObjectTranslator<T extends AvroCoder> implements CloudObjectTranslator<T> {
+
+  public interface AvroCoderFactory<T extends AvroCoder> {
+    T apply(Class<?> type, Schema schema);
+  }
+
+  public static AvroCoderCloudObjectTranslator<AvroGenericCoder> generic() {
+    return new AvroCoderCloudObjectTranslator<>(
+        AvroGenericCoder.class, (t, s) -> new AvroGenericCoder(s));
+  }
+
+  public static AvroCoderCloudObjectTranslator<AvroSpecificCoder> specific() {
+    return new AvroCoderCloudObjectTranslator<>(AvroSpecificCoder.class, AvroSpecificCoder::new);
+  }
+
+  public static AvroCoderCloudObjectTranslator<AvroReflectCoder> reflect() {
+    return new AvroCoderCloudObjectTranslator<>(AvroReflectCoder.class, AvroReflectCoder::new);
+  }
+
   private static final String TYPE_FIELD = "type";
   private static final String SCHEMA_FIELD = "schema";
-  private static final String REFLECT_API_FIELD = "reflect_api";
+
+  private final Class<T> coderClass;
+  private final AvroCoderFactory<T> factory;
+
+  public AvroCoderCloudObjectTranslator(Class<T> coderClass, AvroCoderFactory<T> factory) {
+    this.coderClass = coderClass;
+    this.factory = factory;
+  }
 
   @Override
   public CloudObject toCloudObject(AvroCoder target, SdkComponents sdkComponents) {
-    CloudObject base = CloudObject.forClass(AvroCoder.class);
+    CloudObject base = CloudObject.forClass(target.getClass());
     Structs.addString(base, SCHEMA_FIELD, target.getSchema().toString());
     Structs.addString(base, TYPE_FIELD, target.getType().getName());
-    Structs.addBoolean(base, REFLECT_API_FIELD, target.useReflectApi());
     return base;
   }
 
   @Override
-  public AvroCoder<?> fromCloudObject(CloudObject cloudObject) {
+  public T fromCloudObject(CloudObject cloudObject) {
     Schema.Parser parser = new Schema.Parser();
     String className = Structs.getString(cloudObject, TYPE_FIELD);
     String schemaString = Structs.getString(cloudObject, SCHEMA_FIELD);
-    boolean useReflectApi = Structs.getBoolean(cloudObject, REFLECT_API_FIELD);
     try {
       Class<?> type = Class.forName(className);
       Schema schema = parser.parse(schemaString);
-      return AvroCoder.of(type, schema, useReflectApi);
+      return factory.apply(type, schema);
     } catch (ClassNotFoundException e) {
       throw new IllegalArgumentException(e);
     }
   }
 
   @Override
-  public Class<? extends AvroCoder> getSupportedClass() {
-    return AvroCoder.class;
+  public Class<T> getSupportedClass() {
+    return coderClass;
   }
 
   @Override
   public String cloudObjectClassName() {
-    return CloudObject.forClass(AvroCoder.class).getClassName();
+    return CloudObject.forClass(coderClass).getClassName();
   }
 }

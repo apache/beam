@@ -277,19 +277,6 @@ public class AvroIOTest implements Serializable {
       AVROIO_SINK_WITH_FORMATTER
     }
 
-    private static final String SCHEMA_STRING =
-        "{\"namespace\": \"example.avro\",\n"
-            + " \"type\": \"record\",\n"
-            + " \"name\": \"AvroGeneratedUser\",\n"
-            + " \"fields\": [\n"
-            + "     {\"name\": \"name\", \"type\": \"string\"},\n"
-            + "     {\"name\": \"favorite_number\", \"type\": [\"int\", \"null\"]},\n"
-            + "     {\"name\": \"favorite_color\", \"type\": [\"string\", \"null\"]}\n"
-            + " ]\n"
-            + "}";
-
-    private static final Schema SCHEMA = new Schema.Parser().parse(SCHEMA_STRING);
-
     @Test
     @Category(NeedsRunner.class)
     public void testWriteThenReadJavaClass() throws Throwable {
@@ -325,7 +312,7 @@ public class AvroIOTest implements Serializable {
       writePipeline
           .apply(Create.of(values))
           .apply(
-              AvroIO.<Long, GenericClass>writeCustomType()
+              AvroIO.<Long, GenericClass>writeCustomType(GenericClass.class)
                   .to(writePipeline.newProvider(outputFile.getAbsolutePath()))
                   .withFormatFunction(new CreateGenericClass())
                   .withSchema(ReflectData.get().getSchema(GenericClass.class))
@@ -353,14 +340,9 @@ public class AvroIOTest implements Serializable {
     }
 
     private <T extends GenericRecord> void testWriteThenReadGeneratedClass(
-        AvroIO.Write<T> writeTransform, AvroIO.Read<T> readTransform) throws Exception {
+        AvroIO.Write<T> writeTransform, AvroIO.Read<T> readTransform, List<T> values)
+        throws Exception {
       File outputFile = tmpFolder.newFile("output.avro");
-
-      List<T> values =
-          ImmutableList.of(
-              (T) new AvroGeneratedUser("Bob", 256, null),
-              (T) new AvroGeneratedUser("Alice", 128, null),
-              (T) new AvroGeneratedUser("Ted", null, "white"));
 
       writePipeline
           .apply(Create.of(values))
@@ -379,28 +361,51 @@ public class AvroIOTest implements Serializable {
       readPipeline.run();
     }
 
+    List<?> users =
+        ImmutableList.of(
+            AvroGeneratedUser.newBuilder()
+                .setName("Bob")
+                .setFavoriteNumber(256)
+                .setFavoriteColor(null)
+                .build(),
+            AvroGeneratedUser.newBuilder()
+                .setName("Alice")
+                .setFavoriteNumber(128)
+                .setFavoriteColor(null)
+                .build(),
+            AvroGeneratedUser.newBuilder()
+                .setName("Ted")
+                .setFavoriteNumber(256)
+                .setFavoriteColor("white")
+                .build());
+
     @Test
     @Category(NeedsRunner.class)
     public void testWriteThenReadGeneratedClassWithClass() throws Throwable {
       testWriteThenReadGeneratedClass(
           AvroIO.write(AvroGeneratedUser.class),
-          AvroIO.read(AvroGeneratedUser.class).withBeamSchemas(withBeamSchemas));
+          AvroIO.read(AvroGeneratedUser.class).withBeamSchemas(withBeamSchemas),
+          (List<AvroGeneratedUser>) users);
     }
 
     @Test
     @Category(NeedsRunner.class)
     public void testWriteThenReadGeneratedClassWithSchema() throws Throwable {
       testWriteThenReadGeneratedClass(
-          AvroIO.writeGenericRecords(SCHEMA),
-          AvroIO.readGenericRecords(SCHEMA).withBeamSchemas(withBeamSchemas));
+          AvroIO.writeGenericRecords(AvroGeneratedUser.getClassSchema()),
+          AvroIO.readGenericRecords(AvroGeneratedUser.getClassSchema())
+              .withBeamSchemas(withBeamSchemas),
+          (List<GenericRecord>) users);
     }
 
     @Test
     @Category(NeedsRunner.class)
     public void testWriteThenReadGeneratedClassWithSchemaString() throws Throwable {
       testWriteThenReadGeneratedClass(
-          AvroIO.writeGenericRecords(SCHEMA.toString()),
-          AvroIO.readGenericRecords(SCHEMA.toString()).withBeamSchemas(withBeamSchemas));
+          AvroIO.writeGenericRecords(AvroGeneratedUser.getClassSchema().toString()),
+          AvroIO.readGenericRecords(AvroGeneratedUser.getClassSchema().toString())
+              .withBeamSchemas(withBeamSchemas),
+          (List<GenericRecord>) users);
     }
 
     @Test
@@ -1520,7 +1525,7 @@ public class AvroIOTest implements Serializable {
       Schema recordSchema = SchemaBuilder.record("root").fields().requiredInt("i1").endRecord();
 
       AvroIO.TypedWrite<Integer, Void, Integer> write =
-          AvroIO.<Integer, Integer>writeCustomType()
+          AvroIO.<Integer, Integer>writeCustomType(Integer.class)
               .to(outputFilePrefix)
               .withSchema(recordSchema)
               .withFormatFunction(f -> f)

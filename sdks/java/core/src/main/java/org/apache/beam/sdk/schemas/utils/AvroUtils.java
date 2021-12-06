@@ -48,13 +48,11 @@ import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.avro.reflect.AvroIgnore;
 import org.apache.avro.reflect.AvroName;
 import org.apache.avro.reflect.ReflectData;
-import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificRecord;
 import org.apache.avro.util.Utf8;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.AvroCoder;
-import org.apache.beam.sdk.coders.AvroCoder.JodaTimestampConversion;
 import org.apache.beam.sdk.schemas.AvroRecordSchema;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
@@ -102,12 +100,6 @@ import org.joda.time.ReadableInstant;
   "rawtypes"
 })
 public class AvroUtils {
-  static {
-    // This works around a bug in the Avro library (AVRO-1891) around SpecificRecord's handling
-    // of DateTime types.
-    SpecificData.get().addLogicalTypeConversion(new JodaTimestampConversion());
-    GenericData.get().addLogicalTypeConversion(new JodaTimestampConversion());
-  }
 
   // Unwrap an AVRO schema into the base type an whether it is nullable.
   static class TypeWithNullability {
