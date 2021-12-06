@@ -16,21 +16,25 @@
 package errors
 
 import (
+	"fmt"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
-// InvalidArgumentError Returns error with InvalidArgument code error and message like "title: message"
-func InvalidArgumentError(title string, message string) error {
+// InvalidArgumentError returns error with InvalidArgument code error and message like "title: message"
+func InvalidArgumentError(title string, formatMessage string, args ...interface{}) error {
+	message := fmt.Sprintf(formatMessage, args...)
 	return status.Errorf(codes.InvalidArgument, "%s: %s", title, message)
 }
 
-// NotFoundError Returns error with NotFound code error and message like "title: message"
-func NotFoundError(title string, message string) error {
+// NotFoundError returns error with NotFound code error and message like "title: message"
+func NotFoundError(title string, formatMessage string, args ...interface{}) error {
+	message := fmt.Sprintf(formatMessage, args...)
 	return status.Errorf(codes.NotFound, "%s: %s", title, message)
 }
 
-// InternalError Returns error with Internal code error and message like "title: message"
-func InternalError(title string, message string) error {
+// InternalError returns error with Internal code error and message like "title: message"
+func InternalError(title string, formatMessage string, args ...interface{}) error {
+	message := fmt.Sprintf(formatMessage, args...)
 	return status.Errorf(codes.Internal, "%s: %s", title, message)
 }
