@@ -1301,7 +1301,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
         compute_idxmin, [self._expr],
         proxy=proxy,
         requires_partition_by=partitionings.Index(),
-        preserves_partition_by=partitionings.Singleton())
+        preserves_partition_by=partitionings.Arbitrary())
 
     with expressions.allow_non_parallel_operations(True):
       return frame_base.DeferredFrame.wrap(
@@ -1335,7 +1335,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
         compute_idxmax, [self._expr],
         proxy=proxy,
         requires_partition_by=partitionings.Index(),
-        preserves_partition_by=partitionings.Singleton())
+        preserves_partition_by=partitionings.Arbitrary())
 
     with expressions.allow_non_parallel_operations(True):
       return frame_base.DeferredFrame.wrap(
@@ -3643,8 +3643,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
         'idxmin-per-partition',
         compute_idxmin, [self._expr],
         proxy=partition_proxy,
-        requires_partition_by=partitionings.Index(),
-        preserves_partition_by=partitionings.Singleton()
+        requires_partition_by=partitionings.Arbitrary(),
+        preserves_partition_by=partitionings.Arbitrary()
       )
 
     elif axis in ('columns', 1):
@@ -3696,8 +3696,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
         'idxmax-per-partition',
         compute_idxmax, [self._expr],
         proxy=partition_proxy,
-        requires_partition_by=partitionings.Index(),
-        preserves_partition_by=partitionings.Singleton()
+        requires_partition_by=partitionings.Arbitrary(),
+        preserves_partition_by=partitionings.Arbitrary()
       )
 
     elif axis in ('columns', 1):

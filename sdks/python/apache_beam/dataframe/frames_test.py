@@ -1120,24 +1120,24 @@ class DeferredFrameTest(_AbstractFrameTest):
     s = pd.Series(data=[4, 3, None, 1], index=['A', 'B', 'C', 'D'])
     s2 = pd.Series(data=[1, 2, 3], index=[1, 2, 3])
 
-    self._run_test(lambda df: df.idxmin(), df, check_proxy=False)
-    self._run_test(lambda df: df.idxmin(skipna=False), df, check_proxy=False)
-    self._run_test(lambda df: df.idxmin(axis=1), df, check_proxy=False)
-    self._run_test(
-        lambda df: df.idxmin(axis=1, skipna=False), df, check_proxy=False)
-
-    self._run_test(lambda df2: df2.idxmin(), df2, check_proxy=False)
-    self._run_test(lambda df2: df2.idxmin(axis=1), df2, check_proxy=False)
-
+    self._run_test(lambda df: df.idxmin(), df)
+    self._run_test(lambda df: df.idxmin(skipna=False), df)
+    self._run_test(lambda df: df.idxmin(axis=1), df)
+    self._run_test(lambda df: df.idxmin(axis=1, skipna=False), df)
+    self._run_test(lambda df2: df2.idxmin(), df2)
+    self._run_test(lambda df2: df2.idxmin(axis=1), df2)
     self._run_test(lambda df2: df2.idxmin(skipna=False), df2, check_proxy=False)
     self._run_test(
         lambda df2: df2.idxmin(axis=1, skipna=False), df2, check_proxy=False)
-    self._run_test(lambda s2: s2.idxmin(skipna=False), s2, check_proxy=False)
-    self._run_test(lambda df3: df3.idxmin(), df3, check_proxy=False)
+    self._run_test(lambda df3: df3.idxmin(), df3)
+    self._run_test(lambda df3: df3.idxmin(axis=1), df3)
+    self._run_test(lambda df3: df3.idxmin(skipna=False), df3)
+    self._run_test(lambda df3: df3.idxmin(axis=1, skipna=False), df3)
 
-    self._run_test(lambda s: s.idxmin(), s, check_proxy=False)
+    self._run_test(lambda s: s.idxmin(), s)
     self._run_test(lambda s: s.idxmin(skipna=False), s, check_proxy=False)
-    self._run_test(lambda s2: s2.idxmin(), s2, check_proxy=False)
+    self._run_test(lambda s2: s2.idxmin(), s2)
+    self._run_test(lambda s2: s2.idxmin(skipna=False), s2)
 
   def test_idxmax(self):
     df = pd.DataFrame({
@@ -1159,24 +1159,24 @@ class DeferredFrameTest(_AbstractFrameTest):
     s = pd.Series(data=[1, None, 4, 1], index=['A', 'B', 'C', 'D'])
     s2 = pd.Series(data=[1, 2, 3], index=[1, 2, 3])
 
-    self._run_test(lambda df: df.idxmax(), df, check_proxy=False)
-    self._run_test(lambda df: df.idxmax(skipna=False), df, check_proxy=False)
-    self._run_test(lambda df: df.idxmax(axis=1), df, check_proxy=False)
-    self._run_test(
-        lambda df: df.idxmax(axis=1, skipna=False), df, check_proxy=False)
-
-    self._run_test(lambda df2: df2.idxmax(), df2, check_proxy=False)
-    self._run_test(lambda df2: df2.idxmax(axis=1), df2, check_proxy=False)
-
+    self._run_test(lambda df: df.idxmax(), df)
+    self._run_test(lambda df: df.idxmax(skipna=False), df)
+    self._run_test(lambda df: df.idxmax(axis=1), df)
+    self._run_test(lambda df: df.idxmax(axis=1, skipna=False), df)
+    self._run_test(lambda df2: df2.idxmax(), df2)
+    self._run_test(lambda df2: df2.idxmax(axis=1), df2)
     self._run_test(
         lambda df2: df2.idxmax(axis=1, skipna=False), df2, check_proxy=False)
     self._run_test(lambda df2: df2.idxmax(skipna=False), df2, check_proxy=False)
-    self._run_test(lambda s2: s2.idxmax(skipna=False), s2, check_proxy=False)
-    self._run_test(lambda df3: df3.idxmax(), df3, check_proxy=False)
+    self._run_test(lambda df3: df3.idxmax(), df3)
+    self._run_test(lambda df3: df3.idxmax(axis=1), df3)
+    self._run_test(lambda df3: df3.idxmax(skipna=False), df3)
+    self._run_test(lambda df3: df3.idxmax(axis=1, skipna=False), df3)
 
-    self._run_test(lambda s: s.idxmax(), s, check_proxy=False)
+    self._run_test(lambda s: s.idxmax(), s)
     self._run_test(lambda s: s.idxmax(skipna=False), s, check_proxy=False)
-    self._run_test(lambda s2: s2.idxmax(), s2, check_proxy=False)
+    self._run_test(lambda s2: s2.idxmax(), s2)
+    self._run_test(lambda s2: s2.idxmax(skipna=False), s2)
 
 
 # pandas doesn't support kurtosis on GroupBys:
