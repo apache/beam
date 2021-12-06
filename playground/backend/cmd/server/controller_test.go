@@ -125,10 +125,9 @@ func TestPlaygroundController_RunCode(t *testing.T) {
 		request *pb.RunCodeRequest
 	}
 	tests := []struct {
-		name       string
-		args       args
-		wantStatus pb.Status
-		wantErr    bool
+		name    string
+		args    args
+		wantErr bool
 	}{
 		{
 			// Test case with calling RunCode method with incorrect SDK.
@@ -154,8 +153,7 @@ func TestPlaygroundController_RunCode(t *testing.T) {
 					Sdk:  pb.Sdk_SDK_JAVA,
 				},
 			},
-			wantStatus: pb.Status_STATUS_COMPILING,
-			wantErr:    false,
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
@@ -175,19 +173,14 @@ func TestPlaygroundController_RunCode(t *testing.T) {
 					t.Errorf("PlaygroundController_RunCode() response shoudn't be nil")
 				} else {
 					if response.PipelineUuid == "" {
-						t.Errorf("PlaygroundController_RunCode() response.pipeLineId shoudn't be nil")
-					} else {
-						path := os.Getenv("APP_WORK_DIR") + "/executable_files"
-						os.RemoveAll(path)
+						t.Errorf("PlaygroundController_RunCode() response.pipelineId shoudn't be nil")
 					}
 					status, _ := cacheService.GetValue(tt.args.ctx, uuid.MustParse(response.PipelineUuid), cache.Status)
+					path := os.Getenv("APP_WORK_DIR") + "/executable_files"
+					os.RemoveAll(path)
 					if status == nil {
 						t.Errorf("PlaygroundController_RunCode() status shoudn't be nil")
 					}
-					if !reflect.DeepEqual(status, tt.wantStatus) {
-						t.Errorf("PlaygroundController_RunCode() status = %v, wantStatus %v", status, tt.wantStatus)
-					}
-
 				}
 			}
 		})

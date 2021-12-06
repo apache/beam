@@ -266,7 +266,6 @@ project.task("postCommitPy${pythonVersionSuffix}IT") {
             "apache_beam/io/external/xlang_jdbcio_it_test.py",
             "apache_beam/io/external/xlang_kafkaio_it_test.py",
             "apache_beam/io/external/xlang_kinesisio_it_test.py",
-            "apache_beam/io/gcp/tests/xlang_spannerio_it_test.py",
             "apache_beam/io/external/xlang_debeziumio_it_test.py",
     ]
     def testOpts = ["${tests.join(' ')}"] + ["--log-cli-level=INFO"]
@@ -285,6 +284,43 @@ project.task("postCommitPy${pythonVersionSuffix}IT") {
     def kafkaJar = project(":sdks:java:testing:kafka-service:").buildTestKafkaServiceJar.archivePath
     exec {
       environment "LOCAL_KAFKA_JAR", kafkaJar
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ${pythonRootDir}/scripts/run_integration_test.sh $cmdArgs"
+    }
+  }
+}
+
+project.task("xlangSpannerIOIT") {
+  dependsOn = [
+          'setupVirtualenv',
+          'installGcpTest',
+          ":runners:flink:${latestFlinkVersion}:job-server:shadowJar",
+          ':sdks:java:container:java8:docker',
+          ':sdks:java:io:expansion-service:shadowJar',
+          ':sdks:java:io:google-cloud-platform:expansion-service:shadowJar',
+          ':sdks:java:io:kinesis:expansion-service:shadowJar',
+          ':sdks:java:extensions:schemaio-expansion-service:shadowJar',
+          ':sdks:java:io:debezium:expansion-service:shadowJar'
+  ]
+
+  doLast {
+    def tests = [
+            "apache_beam/io/gcp/tests/xlang_spannerio_it_test.py",
+    ]
+    def testOpts = ["${tests.join(' ')}"] + ["--log-cli-level=INFO"]
+    def pipelineOpts = [
+        "--runner=FlinkRunner",
+        "--project=apache-beam-testing",
+        "--environment_type=LOOPBACK",
+        "--temp_location=gs://temp-storage-for-end-to-end-tests/temp-it",
+        "--flink_job_server_jar=${project(":runners:flink:${latestFlinkVersion}:job-server").shadowJar.archivePath}",
+    ]
+    def cmdArgs = mapToArgString([
+            "test_opts": testOpts,
+            "suite": "postCommitIT-flink-py${pythonVersionSuffix}",
+            "pipeline_opts": pipelineOpts.join(" "),
+    ])
+    exec {
       executable 'sh'
       args '-c', ". ${envdir}/bin/activate && ${pythonRootDir}/scripts/run_integration_test.sh $cmdArgs"
     }

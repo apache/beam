@@ -16,19 +16,29 @@
  * limitations under the License.
  */
 
-plugins { id 'org.apache.beam.module' }
-applyJavaNature( automaticModuleName: 'org.apache.beam.sdk.io.redis')
+apply plugin: 'org.apache.beam.module'
+apply plugin: 'application'
+applyJavaNature(
+  suppressUnusedVariable: true,
+  automaticModuleName: 'org.apache.beam.sdk.expansion.service.app',
+  validateShadowJar: false,
+  shadowClosure: {},
+)
+mainClassName = "org.apache.beam.sdk.expansion.service.ExpansionService"
 
-description = "Apache Beam :: SDKs :: Java :: IO :: Redis"
-ext.summary ="IO to read and write on a Redis keystore."
+
+description = "Apache Beam :: SDKs :: Java :: Expansion Service :: App"
+ext.summary = """Runs an expansion service."""
+
 
 dependencies {
-  compile library.java.vendored_guava_26_0_jre
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile "redis.clients:jedis:3.5.2"
-  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
-  testCompile library.java.junit
-  testCompile "com.github.kstyrc:embedded-redis:0.6"
-  testRuntimeOnly library.java.slf4j_jdk14
-  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+  compile project(":sdks:java:expansion-service")
+  permitUnusedDeclared project(":sdks:java:expansion-service")
+  runtimeOnly library.java.slf4j_jdk14
+}
+
+task runExpansionService (type: JavaExec) {
+  main = "org.apache.beam.sdk.expansion.service.ExpansionService"
+  classpath = sourceSets.main.runtimeClasspath
+  args = [project.findProperty("constructionService.port") ?: "8097"]
 }

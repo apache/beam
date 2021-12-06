@@ -27,7 +27,6 @@ from config import Config
 
 class GRPCClient:
   """GRPCClient is gRPC client for sending a request to the backend."""
-
   def __init__(self):
     self._channel = grpc.aio.insecure_channel(Config.SERVER_ADDRESS)
     self._stub = api_pb2_grpc.PlaygroundServiceStub(self._channel)
@@ -48,7 +47,7 @@ class GRPCClient:
       sdks = api_pb2.Sdk.keys()
       sdks.remove(api_pb2.Sdk.Name(0))  # del SDK_UNSPECIFIED
       raise Exception(
-        f'Incorrect sdk: must be from this pool: {", ".join(sdks)}')
+          f'Incorrect sdk: must be from this pool: {", ".join(sdks)}')
     request = api_pb2.RunCodeRequest(code=code, sdk=sdk, pipeline_options=pipeline_options)
     response = await self._stub.RunCode(request)
     return response.pipeline_uuid
