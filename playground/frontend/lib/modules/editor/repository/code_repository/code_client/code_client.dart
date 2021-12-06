@@ -39,6 +39,11 @@ abstract class CodeClient {
     RunCodeRequestWrapper request,
   );
 
+  Future<OutputResponse> getLogOutput(
+    String pipelineUuid,
+    RunCodeRequestWrapper request,
+  );
+
   Future<OutputResponse> getRunErrorOutput(
     String pipelineUuid,
     RunCodeRequestWrapper request,
