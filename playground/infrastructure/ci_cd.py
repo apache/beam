@@ -36,7 +36,7 @@ parser.add_argument(
     required=True,
     help="CI step to verify all beam examples/tests/katas. CD step to save all "
     "beam examples/tests/katas and their outputs on the GCS",
-    choices=config.Config.SUPPORTED_SDK)
+    choices=["CI", "CD"])
 parser.add_argument(
     "--sdk",
     dest="sdk",
