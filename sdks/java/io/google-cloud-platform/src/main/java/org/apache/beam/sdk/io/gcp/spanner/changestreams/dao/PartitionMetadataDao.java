@@ -27,6 +27,7 @@ import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Mutation.WriteBuilder;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Statement;
+import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.TransactionContext;
 import com.google.cloud.spanner.TransactionRunner;
 import com.google.cloud.spanner.Value;
@@ -38,7 +39,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.PartitionMetadataMapper;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -50,7 +50,6 @@ public class PartitionMetadataDao {
   private final String metadataTableName;
   private final String metricsTableName;
   private final DatabaseClient databaseClient;
-  private final PartitionMetadataMapper mapper;
 
   /**
    * Constructs a partition metadata dao object given the generated name of the tables.
@@ -58,17 +57,12 @@ public class PartitionMetadataDao {
    * @param metadataTableName the name of the partition metadata table
    * @param metricsTableName the name of the partition metrics table
    * @param databaseClient the {@link DatabaseClient} to perform queries
-   * @param mapper mapper from a {@link ResultSet} row to a {@link PartitionMetadata} model
    */
   PartitionMetadataDao(
-      String metadataTableName,
-      String metricsTableName,
-      DatabaseClient databaseClient,
-      PartitionMetadataMapper mapper) {
+      String metadataTableName, String metricsTableName, DatabaseClient databaseClient) {
     this.metadataTableName = metadataTableName;
     this.metricsTableName = metricsTableName;
     this.databaseClient = databaseClient;
-    this.mapper = mapper;
   }
 
   /**
@@ -237,8 +231,7 @@ public class PartitionMetadataDao {
         readWriteTransaction.run(
             transaction -> {
               final InTransactionContext transactionContext =
-                  new InTransactionContext(
-                      metadataTableName, metricsTableName, mapper, transaction);
+                  new InTransactionContext(metadataTableName, metricsTableName, transaction);
               return callable.apply(transactionContext);
             });
     return new TransactionResult<>(result, readWriteTransaction.getCommitTimestamp());
@@ -251,7 +244,6 @@ public class PartitionMetadataDao {
     private final String metadataTableName;
     private final String metricsTableName;
     private final TransactionContext transaction;
-    private final PartitionMetadataMapper mapper;
     private final Map<State, String> stateToTimestampColumn;
 
     /**
@@ -259,18 +251,13 @@ public class PartitionMetadataDao {
      *
      * @param metadataTableName the name of the partition metadata table
      * @param metricsTableName the name of the partition metrics table
-     * @param mapper mapper from a {@link ResultSet} row to a {@link PartitionMetadata} model
      * @param transaction the underlying client library transaction to be executed
      */
     public InTransactionContext(
-        String metadataTableName,
-        String metricsTableName,
-        PartitionMetadataMapper mapper,
-        TransactionContext transaction) {
+        String metadataTableName, String metricsTableName, TransactionContext transaction) {
       this.metadataTableName = metadataTableName;
       this.metricsTableName = metricsTableName;
       this.transaction = transaction;
-      this.mapper = mapper;
       this.stateToTimestampColumn = new HashMap<>();
       stateToTimestampColumn.put(State.CREATED, PartitionMetadataAdminDao.COLUMN_CREATED_AT);
       stateToTimestampColumn.put(State.SCHEDULED, PartitionMetadataAdminDao.COLUMN_SCHEDULED_AT);
@@ -450,9 +437,10 @@ public class PartitionMetadataDao {
      * Fetches the partition metadata row data for the given partition token.
      *
      * @param partitionToken the partition unique identifier
-     * @return the partition metadata for the given token if it exists. Otherwise, it returns null.
+     * @return the partition metadata for the given token if it exists as a struct. Otherwise, it
+     *     returns null.
      */
-    public @Nullable PartitionMetadata getPartition(String partitionToken) {
+    public @Nullable Struct getPartition(String partitionToken) {
       try (Scope scope =
           TRACER.spanBuilder("getPartition").setRecordEvents(true).startScopedSpan()) {
         TRACER
@@ -471,7 +459,7 @@ public class PartitionMetadataDao {
                     .to(partitionToken)
                     .build())) {
           if (resultSet.next()) {
-            return mapper.from(resultSet.getCurrentRowAsStruct());
+            return resultSet.getCurrentRowAsStruct();
           }
           return null;
         }

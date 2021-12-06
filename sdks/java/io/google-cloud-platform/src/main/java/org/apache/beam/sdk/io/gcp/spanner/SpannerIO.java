@@ -1553,7 +1553,6 @@ public class SpannerIO {
                 partitionMetadataSpannerConfig,
                 partitionMetadataTableName,
                 partitionMetricsTableName,
-                mapperFactory,
                 rpcPriority,
                 input.getPipeline().getOptions().getJobName());
         final ActionFactory actionFactory = new ActionFactory();

@@ -37,6 +37,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.DaoFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.ChangeStreamRecordMapper;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.MapperFactory;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.PartitionMetadataMapper;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.LenientOffsetRangeTracker;
@@ -158,8 +159,9 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
 
   /**
    * Constructs instances for the {@link PartitionMetadataDao}, {@link ChangeStreamDao}, {@link
-   * ChangeStreamRecordMapper}, {@link DataChangeRecordAction}, {@link HeartbeatRecordAction},
-   * {@link ChildPartitionsRecordAction} and {@link QueryChangeStreamAction}.
+   * ChangeStreamRecordMapper}, {@link PartitionMetadataMapper}, {@link DataChangeRecordAction},
+   * {@link HeartbeatRecordAction}, {@link ChildPartitionsRecordAction} and {@link
+   * QueryChangeStreamAction}.
    */
   @Setup
   public void setup() {
@@ -167,6 +169,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
     final ChangeStreamDao changeStreamDao = daoFactory.getChangeStreamDao();
     final ChangeStreamRecordMapper changeStreamRecordMapper =
         mapperFactory.changeStreamRecordMapper();
+    final PartitionMetadataMapper partitionMetadataMapper = mapperFactory.partitionMetadataMapper();
     final DataChangeRecordAction dataChangeRecordAction = actionFactory.dataChangeRecordAction();
     final HeartbeatRecordAction heartbeatRecordAction =
         actionFactory.heartbeatRecordAction(metrics);
@@ -178,6 +181,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
             changeStreamDao,
             partitionMetadataDao,
             changeStreamRecordMapper,
+            partitionMetadataMapper,
             dataChangeRecordAction,
             heartbeatRecordAction,
             childPartitionsRecordAction);

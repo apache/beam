@@ -22,6 +22,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.ChangeStreamRecordMapper;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.PartitionMetadataMapper;
 
 /**
  * Factory class for creating instances that will handle each type of record within a change stream
@@ -96,6 +97,8 @@ public class ActionFactory implements Serializable {
    * @param partitionMetadataDao DAO class to access the Connector's metadata tables
    * @param changeStreamRecordMapper mapper class to transform change stream records into the
    *     Connector's domain models
+   * @param partitionMetadataMapper mapper class to transform partition metadata rows into the
+   *     Connector's domain models
    * @param dataChangeRecordAction action class to process {@link
    *     org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord}s
    * @param heartbeatRecordAction action class to process {@link
@@ -108,6 +111,7 @@ public class ActionFactory implements Serializable {
       ChangeStreamDao changeStreamDao,
       PartitionMetadataDao partitionMetadataDao,
       ChangeStreamRecordMapper changeStreamRecordMapper,
+      PartitionMetadataMapper partitionMetadataMapper,
       DataChangeRecordAction dataChangeRecordAction,
       HeartbeatRecordAction heartbeatRecordAction,
       ChildPartitionsRecordAction childPartitionsRecordAction) {
@@ -117,6 +121,7 @@ public class ActionFactory implements Serializable {
               changeStreamDao,
               partitionMetadataDao,
               changeStreamRecordMapper,
+              partitionMetadataMapper,
               dataChangeRecordAction,
               heartbeatRecordAction,
               childPartitionsRecordAction);

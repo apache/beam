@@ -36,6 +36,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamResultSe
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao.InTransactionContext;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.ChangeStreamRecordMapper;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.PartitionMetadataMapper;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.HeartbeatRecord;
@@ -70,6 +71,7 @@ public class QueryChangeStreamActionTest {
   private RestrictionTracker<OffsetRange, Long> restrictionTracker;
   private OutputReceiver<DataChangeRecord> outputReceiver;
   private ChangeStreamRecordMapper changeStreamRecordMapper;
+  private PartitionMetadataMapper partitionMetadataMapper;
   private ManualWatermarkEstimator<Instant> watermarkEstimator;
   private BundleFinalizer bundleFinalizer;
   private DataChangeRecordAction dataChangeRecordAction;
@@ -83,6 +85,7 @@ public class QueryChangeStreamActionTest {
     partitionMetadataDao = mock(PartitionMetadataDao.class);
     transaction = mock(InTransactionContext.class);
     changeStreamRecordMapper = mock(ChangeStreamRecordMapper.class);
+    partitionMetadataMapper = mock(PartitionMetadataMapper.class);
     dataChangeRecordAction = mock(DataChangeRecordAction.class);
     heartbeatRecordAction = mock(HeartbeatRecordAction.class);
     childPartitionsRecordAction = mock(ChildPartitionsRecordAction.class);
@@ -92,10 +95,11 @@ public class QueryChangeStreamActionTest {
             changeStreamDao,
             partitionMetadataDao,
             changeStreamRecordMapper,
+            partitionMetadataMapper,
             dataChangeRecordAction,
             heartbeatRecordAction,
             childPartitionsRecordAction);
-
+    final Struct row = mock(Struct.class);
     partition =
         PartitionMetadata.newBuilder()
             .setPartitionToken(PARTITION_TOKEN)
@@ -117,7 +121,8 @@ public class QueryChangeStreamActionTest {
     when(restriction.getFrom()).thenReturn(10L);
     when(partitionMetadataDao.runInTransaction(any()))
         .thenAnswer(new TestTransactionAnswer(transaction));
-    when(transaction.getPartition(PARTITION_TOKEN)).thenReturn(partition);
+    when(transaction.getPartition(PARTITION_TOKEN)).thenReturn(row);
+    when(partitionMetadataMapper.from(row)).thenReturn(partition);
   }
 
   @Test

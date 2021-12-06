@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetri
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.SpannerException;
+import com.google.cloud.spanner.Struct;
 import io.opencensus.common.Scope;
 import io.opencensus.trace.AttributeValue;
 import io.opencensus.trace.Tracer;
@@ -33,6 +34,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamResultSet;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.ChangeStreamRecordMapper;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.PartitionMetadataMapper;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChangeStreamRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
@@ -73,6 +75,7 @@ public class QueryChangeStreamAction {
   private final ChangeStreamDao changeStreamDao;
   private final PartitionMetadataDao partitionMetadataDao;
   private final ChangeStreamRecordMapper changeStreamRecordMapper;
+  private final PartitionMetadataMapper partitionMetadataMapper;
   private final DataChangeRecordAction dataChangeRecordAction;
   private final HeartbeatRecordAction heartbeatRecordAction;
   private final ChildPartitionsRecordAction childPartitionsRecordAction;
@@ -83,6 +86,8 @@ public class QueryChangeStreamAction {
    * @param changeStreamDao DAO class to perform a change stream query
    * @param partitionMetadataDao DAO class to access the Connector's metadata tables
    * @param changeStreamRecordMapper mapper class to transform change stream records into the
+   *     Connector's domain models
+   * @param partitionMetadataMapper mapper class to transform partition metadata rows into the
    *     Connector's domain models
    * @param dataChangeRecordAction action class to process {@link
    *     org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord}s
@@ -95,12 +100,14 @@ public class QueryChangeStreamAction {
       ChangeStreamDao changeStreamDao,
       PartitionMetadataDao partitionMetadataDao,
       ChangeStreamRecordMapper changeStreamRecordMapper,
+      PartitionMetadataMapper partitionMetadataMapper,
       DataChangeRecordAction dataChangeRecordAction,
       HeartbeatRecordAction heartbeatRecordAction,
       ChildPartitionsRecordAction childPartitionsRecordAction) {
     this.changeStreamDao = changeStreamDao;
     this.partitionMetadataDao = partitionMetadataDao;
     this.changeStreamRecordMapper = changeStreamRecordMapper;
+    this.partitionMetadataMapper = partitionMetadataMapper;
     this.dataChangeRecordAction = dataChangeRecordAction;
     this.heartbeatRecordAction = heartbeatRecordAction;
     this.childPartitionsRecordAction = childPartitionsRecordAction;
@@ -184,7 +191,8 @@ public class QueryChangeStreamAction {
               .runInTransaction(
                   transaction -> {
                     transaction.updateQueryStartedAt(token);
-                    return transaction.getPartition(token);
+                    final Struct row = transaction.getPartition(token);
+                    return row != null ? partitionMetadataMapper.from(row) : null;
                   })
               .getResult();
 

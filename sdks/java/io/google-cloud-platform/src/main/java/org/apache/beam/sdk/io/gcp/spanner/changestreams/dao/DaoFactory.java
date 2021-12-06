@@ -22,7 +22,6 @@ import com.google.cloud.spanner.Options.RpcPriority;
 import java.io.Serializable;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerAccessor;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerConfig;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.MapperFactory;
 
 /**
  * Factory class to create data access objects to perform change stream queries and access the
@@ -47,7 +46,6 @@ public class DaoFactory implements Serializable {
   private final String changeStreamName;
   private final String partitionMetadataTableName;
   private final String partitionMetricsTableName;
-  private final MapperFactory mapperFactory;
   private final RpcPriority rpcPriority;
   private final String jobName;
 
@@ -59,7 +57,6 @@ public class DaoFactory implements Serializable {
    * @param metadataSpannerConfig the metadata tables configuration
    * @param partitionMetadataTableName the name of the created partition metadata table
    * @param partitionMetricsTableName the name of the created partition metrics table
-   * @param mapperFactory factory class to map change streams records into the Connectors domain
    * @param rpcPriority the priority of the requests made by the DAO queries
    * @param jobName the name of the running job
    */
@@ -69,7 +66,6 @@ public class DaoFactory implements Serializable {
       SpannerConfig metadataSpannerConfig,
       String partitionMetadataTableName,
       String partitionMetricsTableName,
-      MapperFactory mapperFactory,
       RpcPriority rpcPriority,
       String jobName) {
     if (metadataSpannerConfig.getInstanceId() == null) {
@@ -83,7 +79,6 @@ public class DaoFactory implements Serializable {
     this.metadataSpannerConfig = metadataSpannerConfig;
     this.partitionMetadataTableName = partitionMetadataTableName;
     this.partitionMetricsTableName = partitionMetricsTableName;
-    this.mapperFactory = mapperFactory;
     this.rpcPriority = rpcPriority;
     this.jobName = jobName;
   }
@@ -150,8 +145,7 @@ public class DaoFactory implements Serializable {
           new PartitionMetadataDao(
               this.partitionMetadataTableName,
               this.partitionMetricsTableName,
-              spannerAccessor.getDatabaseClient(),
-              mapperFactory.partitionMetadataMapper());
+              spannerAccessor.getDatabaseClient());
     }
     return partitionMetadataDaoInstance;
   }

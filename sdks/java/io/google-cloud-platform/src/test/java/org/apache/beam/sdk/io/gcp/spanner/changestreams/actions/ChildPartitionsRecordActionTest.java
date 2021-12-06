@@ -26,6 +26,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.cloud.Timestamp;
+import com.google.cloud.spanner.Struct;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -137,8 +138,8 @@ public class ChildPartitionsRecordActionTest {
     when(partition.getHeartbeatMillis()).thenReturn(heartbeat);
     when(partition.getPartitionToken()).thenReturn(partitionToken);
     when(tracker.tryClaim(10L)).thenReturn(true);
-    when(transaction.getPartition("childPartition1")).thenReturn(mock(PartitionMetadata.class));
-    when(transaction.getPartition("childPartition2")).thenReturn(mock(PartitionMetadata.class));
+    when(transaction.getPartition("childPartition1")).thenReturn(mock(Struct.class));
+    when(transaction.getPartition("childPartition2")).thenReturn(mock(Struct.class));
 
     final Optional<ProcessContinuation> maybeContinuation =
         action.run(partition, record, tracker, watermarkEstimator);
@@ -207,7 +208,7 @@ public class ChildPartitionsRecordActionTest {
     when(partition.getHeartbeatMillis()).thenReturn(heartbeat);
     when(partition.getPartitionToken()).thenReturn(partitionToken);
     when(tracker.tryClaim(10L)).thenReturn(true);
-    when(transaction.getPartition(childPartitionToken)).thenReturn(mock(PartitionMetadata.class));
+    when(transaction.getPartition(childPartitionToken)).thenReturn(mock(Struct.class));
 
     final Optional<ProcessContinuation> maybeContinuation =
         action.run(partition, record, tracker, watermarkEstimator);

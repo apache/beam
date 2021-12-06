@@ -37,6 +37,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.DaoFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.ChangeStreamRecordMapper;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.MapperFactory;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.PartitionMetadataMapper;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.range.OffsetRange;
@@ -82,6 +83,7 @@ public class ReadChangeStreamPartitionDoFnTest {
     final PartitionMetadataDao partitionMetadataDao = mock(PartitionMetadataDao.class);
     final ChangeStreamDao changeStreamDao = mock(ChangeStreamDao.class);
     final ChangeStreamRecordMapper changeStreamRecordMapper = mock(ChangeStreamRecordMapper.class);
+    final PartitionMetadataMapper partitionMetadataMapper = mock(PartitionMetadataMapper.class);
     dataChangeRecordAction = mock(DataChangeRecordAction.class);
     heartbeatRecordAction = mock(HeartbeatRecordAction.class);
     childPartitionsRecordAction = mock(ChildPartitionsRecordAction.class);
@@ -110,6 +112,7 @@ public class ReadChangeStreamPartitionDoFnTest {
     when(daoFactory.getPartitionMetadataDao()).thenReturn(partitionMetadataDao);
     when(daoFactory.getChangeStreamDao()).thenReturn(changeStreamDao);
     when(mapperFactory.changeStreamRecordMapper()).thenReturn(changeStreamRecordMapper);
+    when(mapperFactory.partitionMetadataMapper()).thenReturn(partitionMetadataMapper);
 
     when(actionFactory.dataChangeRecordAction()).thenReturn(dataChangeRecordAction);
     when(actionFactory.heartbeatRecordAction(metrics)).thenReturn(heartbeatRecordAction);
@@ -119,6 +122,7 @@ public class ReadChangeStreamPartitionDoFnTest {
             changeStreamDao,
             partitionMetadataDao,
             changeStreamRecordMapper,
+            partitionMetadataMapper,
             dataChangeRecordAction,
             heartbeatRecordAction,
             childPartitionsRecordAction))
