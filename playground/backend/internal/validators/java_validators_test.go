@@ -23,7 +23,7 @@ import (
 
 const unitTestFilePath = "unitTestCode.java"
 const filePath = "code.java"
-const unitTestCode = "package org.apache.beam.sdk.transforms; \n @RunWith(JUnit4.class)\npublic class Class {\n    public static void main(String[] args) {\n        System.out.println(\"Hello World!\");\n    }\n}"
+const unitTestCode = "@RunWith(JUnit4.class)\npublic class DeduplicateTest {\n\n  @Rule public TestPipeline p = TestPipeline.create();\n\n  @Test\n  @Category({NeedsRunner.class, UsesTestStream.class})\n  public void testInDifferentWindows() {}}"
 const code = "package org.apache.beam.sdk.transforms; \n public class Class {\n    public static void main(String[] args) {\n        System.out.println(\"Hello World!\");\n    }\n}"
 
 func TestMain(m *testing.M) {

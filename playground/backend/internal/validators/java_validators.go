@@ -24,7 +24,7 @@ import (
 
 const (
 	javaExtension       = ".java"
-	javaUnitTestPattern = "@RunWith(JUnit4.class)"
+	javaUnitTestPattern = "@Test"
 )
 
 // GetJavaValidators return validators methods that should be applied to Java code
