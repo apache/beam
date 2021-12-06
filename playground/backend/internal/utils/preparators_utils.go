@@ -19,6 +19,7 @@ import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/preparators"
 	"fmt"
+	"strings"
 )
 
 // GetPreparators returns slice of preparators.Preparator according to sdk
@@ -35,4 +36,17 @@ func GetPreparators(sdk pb.Sdk, filepath string) (*[]preparators.Preparator, err
 		return nil, fmt.Errorf("incorrect sdk: %s", sdk)
 	}
 	return prep, nil
+}
+
+//SpacesToEqualsOption prepares pipelineOptions by replacing spaces to equals
+func SpacesToEqualsOption(pipelineOptions string) string {
+	preparedOptions := strings.Split(pipelineOptions, " ")
+	for index, str := range preparedOptions {
+		if index%2 == 0 && index != 0 {
+			preparedOptions[index] = fmt.Sprintf(" %s", str)
+		} else if index%2 != 0 {
+			preparedOptions[index] = fmt.Sprintf("=%s", str)
+		}
+	}
+	return strings.Join(preparedOptions, "")
 }

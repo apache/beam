@@ -99,10 +99,11 @@ func Test_Process(t *testing.T) {
 	}
 
 	type args struct {
-		ctx        context.Context
-		appEnv     *environment.ApplicationEnvs
-		sdkEnv     *environment.BeamEnvs
-		pipelineId uuid.UUID
+		ctx             context.Context
+		appEnv          *environment.ApplicationEnvs
+		sdkEnv          *environment.BeamEnvs
+		pipelineId      uuid.UUID
+		pipelineOptions string
 	}
 	tests := []struct {
 		name                  string
@@ -127,10 +128,11 @@ func Test_Process(t *testing.T) {
 			expectedRunOutput:     nil,
 			expectedRunError:      nil,
 			args: args{
-				ctx:        context.Background(),
-				appEnv:     &environment.ApplicationEnvs{},
-				sdkEnv:     sdkEnv,
-				pipelineId: uuid.New(),
+				ctx:             context.Background(),
+				appEnv:          &environment.ApplicationEnvs{},
+				sdkEnv:          sdkEnv,
+				pipelineId:      uuid.New(),
+				pipelineOptions: "",
 			},
 		},
 		{
@@ -145,10 +147,11 @@ func Test_Process(t *testing.T) {
 			expectedRunOutput:     nil,
 			expectedRunError:      nil,
 			args: args{
-				ctx:        context.Background(),
-				appEnv:     appEnvs,
-				sdkEnv:     sdkEnv,
-				pipelineId: uuid.New(),
+				ctx:             context.Background(),
+				appEnv:          appEnvs,
+				sdkEnv:          sdkEnv,
+				pipelineId:      uuid.New(),
+				pipelineOptions: "",
 			},
 		},
 		{
@@ -163,10 +166,11 @@ func Test_Process(t *testing.T) {
 			expectedRunOutput:     nil,
 			expectedRunError:      nil,
 			args: args{
-				ctx:        context.Background(),
-				appEnv:     appEnvs,
-				sdkEnv:     sdkEnv,
-				pipelineId: uuid.New(),
+				ctx:             context.Background(),
+				appEnv:          appEnvs,
+				sdkEnv:          sdkEnv,
+				pipelineId:      uuid.New(),
+				pipelineOptions: "",
 			},
 		},
 		{
@@ -181,10 +185,11 @@ func Test_Process(t *testing.T) {
 			expectedRunOutput:     "",
 			expectedRunError:      "error: exit status 1, output: Exception in thread \"main\" java.lang.ArithmeticException: / by zero\n\tat HelloWorld.main(%s.java:3)\n",
 			args: args{
-				ctx:        context.Background(),
-				appEnv:     appEnvs,
-				sdkEnv:     sdkEnv,
-				pipelineId: uuid.New(),
+				ctx:             context.Background(),
+				appEnv:          appEnvs,
+				sdkEnv:          sdkEnv,
+				pipelineId:      uuid.New(),
+				pipelineOptions: "",
 			},
 		},
 		{
@@ -198,10 +203,11 @@ func Test_Process(t *testing.T) {
 			expectedCompileOutput: "",
 			expectedRunOutput:     "",
 			args: args{
-				ctx:        context.Background(),
-				appEnv:     appEnvs,
-				sdkEnv:     sdkEnv,
-				pipelineId: uuid.New(),
+				ctx:             context.Background(),
+				appEnv:          appEnvs,
+				sdkEnv:          sdkEnv,
+				pipelineId:      uuid.New(),
+				pipelineOptions: "",
 			},
 		},
 		{
@@ -216,10 +222,11 @@ func Test_Process(t *testing.T) {
 			expectedRunOutput:     "Hello world!\n",
 			expectedRunError:      nil,
 			args: args{
-				ctx:        context.Background(),
-				appEnv:     appEnvs,
-				sdkEnv:     sdkEnv,
-				pipelineId: uuid.New(),
+				ctx:             context.Background(),
+				appEnv:          appEnvs,
+				sdkEnv:          sdkEnv,
+				pipelineId:      uuid.New(),
+				pipelineOptions: "",
 			},
 		},
 	}
@@ -241,7 +248,7 @@ func Test_Process(t *testing.T) {
 					cacheService.SetValue(ctx, pipelineId, cache.Canceled, true)
 				}(tt.args.ctx, tt.args.pipelineId)
 			}
-			Process(tt.args.ctx, cacheService, lc, tt.args.pipelineId, tt.args.appEnv, tt.args.sdkEnv)
+			Process(tt.args.ctx, cacheService, lc, tt.args.pipelineId, tt.args.appEnv, tt.args.sdkEnv, tt.args.pipelineOptions)
 
 			status, _ := cacheService.GetValue(tt.args.ctx, tt.args.pipelineId, cache.Status)
 			if !reflect.DeepEqual(status, tt.expectedStatus) {

@@ -82,7 +82,7 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 	}
 
 	// TODO change using of context.TODO() to context.Background()
-	go code_processing.Process(context.TODO(), controller.cacheService, lc, pipelineId, &controller.env.ApplicationEnvs, &controller.env.BeamSdkEnvs)
+	go code_processing.Process(context.TODO(), controller.cacheService, lc, pipelineId, &controller.env.ApplicationEnvs, &controller.env.BeamSdkEnvs, info.PipelineOptions)
 
 	pipelineInfo := pb.RunCodeResponse{PipelineUuid: pipelineId.String()}
 	return &pipelineInfo, nil

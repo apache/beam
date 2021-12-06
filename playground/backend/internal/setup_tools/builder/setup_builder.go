@@ -24,8 +24,12 @@ import (
 )
 
 // SetupExecutorBuilder return executor with set args for validator, preparator, compiler and runner
-func SetupExecutorBuilder(srcFilePath, baseFolderPath, execFilePath string, sdkEnv *environment.BeamEnvs) (*executors.ExecutorBuilder, error) {
+func SetupExecutorBuilder(srcFilePath, baseFolderPath, execFilePath, pipelineOptions string, sdkEnv *environment.BeamEnvs) (*executors.ExecutorBuilder, error) {
 	sdk := sdkEnv.ApacheBeamSdk
+
+	if sdk == pb.Sdk_SDK_JAVA {
+		pipelineOptions = utils.SpacesToEqualsOption(pipelineOptions)
+	}
 
 	val, err := utils.GetValidators(sdk, srcFilePath)
 	if err != nil {
@@ -49,6 +53,7 @@ func SetupExecutorBuilder(srcFilePath, baseFolderPath, execFilePath string, sdkE
 		WithRunner().
 		WithCommand(executorConfig.RunCmd).
 		WithArgs(executorConfig.RunArgs).
+		WithPipelineOptions(pipelineOptions).
 		WithWorkingDir(baseFolderPath)
 
 	switch sdk {
