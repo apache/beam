@@ -28,8 +28,8 @@ import (
 )
 
 const (
-	preparedModDir  = "testModDir"
-	preparedWorkDir = "workingDir"
+	sourceDir      = "sourceDir"
+	destinationDir = "destinationDir"
 )
 
 func TestMain(m *testing.M) {
@@ -42,21 +42,16 @@ func TestMain(m *testing.M) {
 }
 
 func setupPreparedFiles() error {
-	err := os.Mkdir(preparedModDir, 0755)
+	err := os.Mkdir(sourceDir, 0755)
 	if err != nil {
 		return err
 	}
-	err = os.MkdirAll(filepath.Join(preparedWorkDir, baseFileFolder), 0755)
+	err = os.Mkdir(destinationDir, 0755)
 	if err != nil {
 		return err
 	}
-	testModFile := filepath.Join(preparedModDir, "go.mod")
-	testSumFile := filepath.Join(preparedModDir, "go.sum")
-	_, err = os.Create(testModFile)
-	if err != nil {
-		return err
-	}
-	_, err = os.Create(testSumFile)
+	filePath := filepath.Join(sourceDir, "file.txt")
+	_, err = os.Create(filePath)
 	if err != nil {
 		return err
 	}
@@ -64,11 +59,11 @@ func setupPreparedFiles() error {
 }
 
 func teardown() {
-	err := os.RemoveAll(preparedModDir)
+	err := os.RemoveAll(sourceDir)
 	if err != nil {
 		logger.Fatal(err)
 	}
-	err = os.RemoveAll(preparedWorkDir)
+	err = os.RemoveAll(destinationDir)
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -450,7 +445,7 @@ func TestLifeCycle_ExecutableName(t *testing.T) {
 	}
 }
 
-func TestLifeCycle_CopyFiles(t *testing.T) {
+func TestCopyFile(t *testing.T) {
 	type fields struct {
 		folderGlobs    []string
 		Folder         Folder
@@ -459,8 +454,9 @@ func TestLifeCycle_CopyFiles(t *testing.T) {
 		pipelineId     uuid.UUID
 	}
 	type args struct {
-		workingDir     string
-		preparedModDir string
+		fileName       string
+		sourceDir      string
+		destinationDir string
 	}
 	tests := []struct {
 		name    string
@@ -469,7 +465,7 @@ func TestLifeCycle_CopyFiles(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "go.mod and go.sum exists in current dir",
+			name: "file doesn't exist",
 			fields: fields{
 				folderGlobs:    nil,
 				Folder:         Folder{},
@@ -478,25 +474,27 @@ func TestLifeCycle_CopyFiles(t *testing.T) {
 				pipelineId:     uuid.UUID{},
 			},
 			args: args{
-				workingDir:     preparedWorkDir,
-				preparedModDir: preparedModDir,
-			},
-			wantErr: false,
-		},
-		{
-			name: "go.mod or go.sum does not exists in current dir",
-			fields: fields{
-				folderGlobs:    nil,
-				Folder:         Folder{},
-				Extension:      Extension{},
-				ExecutableName: nil,
-				pipelineId:     uuid.UUID{},
-			},
-			args: args{
-				workingDir:     preparedWorkDir,
-				preparedModDir: "",
+				fileName:       "file1.txt",
+				sourceDir:      sourceDir,
+				destinationDir: destinationDir,
 			},
 			wantErr: true,
+		},
+		{
+			name: "file exists",
+			fields: fields{
+				folderGlobs:    nil,
+				Folder:         Folder{},
+				Extension:      Extension{},
+				ExecutableName: nil,
+				pipelineId:     uuid.UUID{},
+			},
+			args: args{
+				fileName:       "file.txt",
+				sourceDir:      sourceDir,
+				destinationDir: destinationDir,
+			},
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
@@ -508,8 +506,16 @@ func TestLifeCycle_CopyFiles(t *testing.T) {
 				ExecutableName: tt.fields.ExecutableName,
 				pipelineId:     tt.fields.pipelineId,
 			}
-			if err := l.CopyFiles(tt.args.workingDir, tt.args.preparedModDir); (err != nil) != tt.wantErr {
-				t.Errorf("CopyFiles() error = %v, wantErr %v", err, tt.wantErr)
+			err := l.CopyFile(tt.args.fileName, tt.args.sourceDir, tt.args.destinationDir)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("CopyFile() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err == nil && !tt.wantErr {
+				newFilePath := filepath.Join(destinationDir, tt.args.fileName)
+				_, err = os.Stat(newFilePath)
+				if os.IsNotExist(err) {
+					t.Errorf("CopyFile() should create a new file: %s", newFilePath)
+				}
 			}
 		})
 	}

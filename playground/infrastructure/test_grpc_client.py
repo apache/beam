@@ -54,7 +54,7 @@ def mock_get_run_output(mocker):
 def mock_get_compile_output(mocker):
   async_mock = AsyncMock(return_value="MOCK_COMPILE_OUTPUT")
   mocker.patch(
-    "grpc_client.GRPCClient.get_compile_output", side_effect=async_mock)
+      "grpc_client.GRPCClient.get_compile_output", side_effect=async_mock)
   return async_mock
 
 

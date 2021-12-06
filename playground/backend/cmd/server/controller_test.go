@@ -37,10 +37,11 @@ import (
 )
 
 const (
-	bufSize        = 1024 * 1024
-	javaConfig     = "{\n  \"compile_cmd\": \"javac\",\n  \"run_cmd\": \"java\",\n  \"compile_args\": [\"-d\", \"bin\", \"-classpath\"],\n  \"run_args\": [\"-cp\", \"bin:\"]\n}"
-	baseFileFolder = "executable_files"
-	configFolder   = "configs"
+	bufSize               = 1024 * 1024
+	javaConfig            = "{\n  \"compile_cmd\": \"javac\",\n  \"run_cmd\": \"java\",\n  \"compile_args\": [\"-d\", \"bin\", \"-classpath\"],\n  \"run_args\": [\"-cp\", \"bin:\"]\n}"
+	javaLogConfigFilename = "logging.properties"
+	baseFileFolder        = "executable_files"
+	configFolder          = "configs"
 )
 
 var lis *bufconn.Listener
@@ -66,6 +67,12 @@ func setup() *grpc.Server {
 	}
 	filePath := filepath.Join(configFolder, pb.Sdk_SDK_JAVA.String()+".json")
 	err = os.WriteFile(filePath, []byte(javaConfig), 0600)
+	if err != nil {
+		panic(err)
+	}
+
+	// create log config file
+	_, err = os.Create(javaLogConfigFilename)
 	if err != nil {
 		panic(err)
 	}
@@ -112,6 +119,7 @@ func teardown(server *grpc.Server) {
 	server.Stop()
 
 	removeDir(configFolder)
+	removeDir(javaLogConfigFilename)
 	removeDir(baseFileFolder)
 }
 
