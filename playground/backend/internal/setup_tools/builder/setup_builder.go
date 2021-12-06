@@ -21,6 +21,13 @@ import (
 	"beam.apache.org/playground/backend/internal/executors"
 	"beam.apache.org/playground/backend/internal/utils"
 	"fmt"
+	"path/filepath"
+	"strings"
+)
+
+const (
+	javaLogConfigFileName        = "logging.properties"
+	javaLogConfigFilePlaceholder = "{logConfigFile}"
 )
 
 // SetupExecutorBuilder return executor with set args for validator, preparator, compiler and runner
@@ -53,6 +60,15 @@ func SetupExecutorBuilder(srcFilePath, baseFolderPath, execFilePath string, sdkE
 
 	switch sdk {
 	case pb.Sdk_SDK_JAVA: // Executable name for java class will be known after compilation
+		args := make([]string, 0)
+		for _, arg := range executorConfig.RunArgs {
+			if strings.Contains(arg, javaLogConfigFilePlaceholder) {
+				logConfigFilePath := filepath.Join(baseFolderPath, javaLogConfigFileName)
+				arg = strings.Replace(arg, javaLogConfigFilePlaceholder, logConfigFilePath, 1)
+			}
+			args = append(args, arg)
+		}
+		builder = builder.WithArgs(args)
 	case pb.Sdk_SDK_GO:
 		builder = builder.WithCommand(execFilePath)
 	case pb.Sdk_SDK_PYTHON:

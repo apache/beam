@@ -47,6 +47,7 @@ ENV BEAM_SDK="SDK_JAVA"
 # Copy build result
 COPY --from=build /go/bin/server_java_backend /opt/playground/backend/
 COPY --from=build /go/src/playground/backend/configs /opt/playground/backend/configs/
+COPY --from=build /go/src/playground/backend/logging.properties /opt/playground/backend/
 
 # Install Beam DirectRunner
 RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-runners-direct-java/$BEAM_VERSION/beam-runners-direct-java-$BEAM_VERSION.jar &&\
