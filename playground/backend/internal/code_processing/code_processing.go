@@ -185,12 +185,12 @@ func GetProcessingOutput(ctx context.Context, cacheService cache.Cache, key uuid
 	value, err := cacheService.GetValue(ctx, key, subKey)
 	if err != nil {
 		logger.Errorf("%s: GetStringValueFromCache(): cache.GetValue: error: %s", key, err.Error())
-		return "", errors.NotFoundError(errorTitle, fmt.Sprintf("Error during getting cache by key: %s, subKey: %s", key.String(), string(subKey)))
+		return "", errors.NotFoundError(errorTitle, "Error during getting cache by key: %s, subKey: %s", key.String(), string(subKey))
 	}
 	stringValue, converted := value.(string)
 	if !converted {
 		logger.Errorf("%s: couldn't convert value to string: %s", key, value)
-		return "", errors.InternalError(errorTitle, fmt.Sprintf("Value from cache couldn't be converted to string: %s", value))
+		return "", errors.InternalError(errorTitle, "Value from cache couldn't be converted to string: %s", value)
 	}
 	return stringValue, nil
 }
@@ -202,12 +202,12 @@ func GetProcessingStatus(ctx context.Context, cacheService cache.Cache, key uuid
 	value, err := cacheService.GetValue(ctx, key, cache.Status)
 	if err != nil {
 		logger.Errorf("%s: GetStringValueFromCache(): cache.GetValue: error: %s", key, err.Error())
-		return pb.Status_STATUS_UNSPECIFIED, errors.NotFoundError(errorTitle, fmt.Sprintf("Error during getting cache by key: %s, subKey: %s", key.String(), string(cache.Status)))
+		return pb.Status_STATUS_UNSPECIFIED, errors.NotFoundError(errorTitle, "Error during getting cache by key: %s, subKey: %s", key.String(), string(cache.Status))
 	}
 	statusValue, converted := value.(pb.Status)
 	if !converted {
 		logger.Errorf("%s: couldn't convert value to correct status enum: %s", key, value)
-		return pb.Status_STATUS_UNSPECIFIED, errors.InternalError(errorTitle, fmt.Sprintf("Value from cache couldn't be converted to correct status enum: %s", value))
+		return pb.Status_STATUS_UNSPECIFIED, errors.InternalError(errorTitle, "Value from cache couldn't be converted to correct status enum: %s", value)
 	}
 	return statusValue, nil
 }
@@ -219,12 +219,12 @@ func GetLastIndex(ctx context.Context, cacheService cache.Cache, key uuid.UUID, 
 	value, err := cacheService.GetValue(ctx, key, subKey)
 	if err != nil {
 		logger.Errorf("%s: GetLastIndex(): cache.GetValue: error: %s", key, err.Error())
-		return 0, errors.NotFoundError(errorTitle, fmt.Sprintf("Error during getting cache by key: %s, subKey: %s", key.String(), string(subKey)))
+		return 0, errors.NotFoundError(errorTitle, "Error during getting cache by key: %s, subKey: %s", key.String(), string(subKey))
 	}
 	intValue, converted := value.(int)
 	if !converted {
 		logger.Errorf("%s: couldn't convert value to int: %s", key, value)
-		return 0, errors.InternalError(errorTitle, fmt.Sprintf("Value from cache couldn't be converted to int: %s", value))
+		return 0, errors.InternalError(errorTitle, "Value from cache couldn't be converted to int: %s", value)
 	}
 	return intValue, nil
 }
