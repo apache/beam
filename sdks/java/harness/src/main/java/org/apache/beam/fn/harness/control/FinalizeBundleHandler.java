@@ -67,6 +67,8 @@ public class FinalizeBundleHandler {
   private final PriorityQueue<TimestampedValue<String>> cleanUpQueue;
 
   @SuppressWarnings("unused")
+  private final Future<Void> cleanUpResult;
+
   public FinalizeBundleHandler(ExecutorService executorService) {
     this.bundleFinalizationCallbacks = new ConcurrentHashMap<>();
     this.cleanUpQueue =
@@ -81,7 +83,7 @@ public class FinalizeBundleHandler {
     // Wait until the current time has past the expiry time for the head of the
     // queue.
     // We are notified on each element being added.
-    Future<Void> cleanUpResult =
+    cleanUpResult =
         executorService.submit(
             (Callable<Void>)
                 () -> {
