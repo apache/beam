@@ -390,7 +390,7 @@ func processCompileError(ctx context.Context, errorChannel chan error, errorOutp
 	err := <-errorChannel
 	logger.Errorf("%s: Compile(): err: %s, output: %s\n", pipelineId, err.Error(), errorOutput)
 
-	if err := utils.SetToCache(ctx, cacheService, pipelineId, cache.CompileOutput, "error: "+err.Error()+", output: "+string(errorOutput)); err != nil {
+	if err := utils.SetToCache(ctx, cacheService, pipelineId, cache.CompileOutput, fmt.Sprintf("error: %s, output: %s", err.Error(), string(errorOutput))); err != nil {
 		return err
 	}
 	return utils.SetToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_COMPILE_ERROR)
@@ -404,7 +404,7 @@ func processRunError(ctx context.Context, errorChannel chan error, errorOutput [
 	err := <-errorChannel
 	logger.Errorf("%s: Run(): err: %s, output: %s\n", pipelineId, err.Error(), errorOutput)
 
-	if err := utils.SetToCache(ctx, cacheService, pipelineId, cache.RunError, "error: "+err.Error()+", output: "+string(errorOutput)); err != nil {
+	if err := utils.SetToCache(ctx, cacheService, pipelineId, cache.RunError, fmt.Sprintf("error: %s, output: %s", err.Error(), string(errorOutput))); err != nil {
 		return err
 	}
 
