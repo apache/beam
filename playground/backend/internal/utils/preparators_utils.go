@@ -38,7 +38,9 @@ func GetPreparators(sdk pb.Sdk, filepath string) (*[]preparators.Preparator, err
 	return prep, nil
 }
 
-//SpacesToEqualsOption prepares pipelineOptions by replacing spaces to equals
+// SpacesToEqualsOption prepares pipelineOptions by replacing spaces to equals.
+// Initially, the string is converted to an array of options and their values.
+// Then, a space is added to the odd indexed words, except for the first, and an equal is added to each even word.
 func SpacesToEqualsOption(pipelineOptions string) string {
 	preparedOptions := strings.Split(pipelineOptions, " ")
 	for index, str := range preparedOptions {
