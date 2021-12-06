@@ -47,7 +47,7 @@ func TestGetPythonPreparators(t *testing.T) {
 	}
 }
 
-func Test_addToCode(t *testing.T) {
+func Test_addCodeToFile(t *testing.T) {
 	originalCode := "import logging as l\n\nif __name__ == \"__main__\":\n    logging.info(\"INFO\")\n"
 	wantCode := "import logging\nlogging.basicConfig(\n    level=logging.DEBUG,\n    format=\"%(asctime)s [%(levelname)s] %(message)s\",\n    handlers=[\n        logging.FileHandler(\"logs.log\"),\n    ]\n)\n" + originalCode
 
@@ -67,14 +67,14 @@ func Test_addToCode(t *testing.T) {
 		wantErr  bool
 	}{
 		{
-			// Test case with calling addToCode method when original file doesn't exist.
+			// Test case with calling addCodeToFile method when original file doesn't exist.
 			// As a result, want to receive error
 			name:    "original file doesn't exist",
 			args:    args{[]interface{}{"someFile.java", addLogHandlerCode}},
 			wantErr: true,
 		},
 		{
-			// Test case with calling addToCode method when original file exists.
+			// Test case with calling addCodeToFile method when original file exists.
 			// As a result, want to receive updated code in the original file
 			name:     "original file exists",
 			args:     args{[]interface{}{"original.py", addLogHandlerCode}},
@@ -84,7 +84,7 @@ func Test_addToCode(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := addToCode(tt.args.args...); (err != nil) != tt.wantErr {
+			if err := addCodeToFile(tt.args.args...); (err != nil) != tt.wantErr {
 				t.Errorf("addToCode() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if !tt.wantErr {

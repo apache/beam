@@ -29,14 +29,14 @@ const (
 // GetPythonPreparators returns preparation methods that should be applied to Python code
 func GetPythonPreparators(filePath string) *[]Preparator {
 	addLogHandler := Preparator{
-		Prepare: addToCode,
+		Prepare: addCodeToFile,
 		Args:    []interface{}{filePath, addLogHandlerCode},
 	}
 	return &[]Preparator{addLogHandler}
 }
 
-// addToCode processes file by filePath and adds additional code
-func addToCode(args ...interface{}) error {
+// addCodeToFile processes file by filePath and adds additional code
+func addCodeToFile(args ...interface{}) error {
 	filePath := args[0].(string)
 	additionalCode := args[1].(string)
 
