@@ -44,11 +44,12 @@ const (
 )
 
 type ObjectInfo struct {
-	Name        string
-	CloudPath   string
-	Description string                   `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	Type        pb.PrecompiledObjectType `protobuf:"varint,4,opt,name=type,proto3,enum=api.v1.PrecompiledObjectType" json:"type,omitempty"`
-	Categories  []string                 `json:"categories,omitempty"`
+	Name            string
+	CloudPath       string
+	Description     string                   `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	Type            pb.PrecompiledObjectType `protobuf:"varint,4,opt,name=type,proto3,enum=api.v1.PrecompiledObjectType" json:"type,omitempty"`
+	Categories      []string                 `json:"categories,omitempty"`
+	PipelineOptions string                   `protobuf:"bytes,3,opt,name=pipeline_options,proto3" json:"pipeline_options,omitempty"`
 }
 
 type PrecompiledObjects []ObjectInfo
