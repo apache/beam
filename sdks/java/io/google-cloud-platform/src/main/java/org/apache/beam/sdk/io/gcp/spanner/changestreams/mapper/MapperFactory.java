@@ -19,7 +19,10 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper;
 
 import java.io.Serializable;
 
-// TODO: Add java docs
+/**
+ * Factory class for creating instances that will map a struct to a connector model. The instances
+ * created are all singletons.
+ */
 // static fields are un-initialized, because we start them during the first fetch call (with the
 // singleton pattern)
 @SuppressWarnings("initialization.static.fields.uninitialized")
@@ -30,6 +33,15 @@ public class MapperFactory implements Serializable {
   private static ChangeStreamRecordMapper changeStreamRecordMapperInstance;
   private static PartitionMetadataMapper partitionMetadataMapperInstance;
 
+  /**
+   * Creates and returns a singleton instance of a mapper class capable of transforming a {@link
+   * com.google.cloud.spanner.Struct} into a {@link java.util.List} of {@link
+   * org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChangeStreamRecord} subclasses.
+   *
+   * <p>This method is thread safe.
+   *
+   * @return singleton instance of the {@link ChangeStreamRecordMapper}
+   */
   public synchronized ChangeStreamRecordMapper changeStreamRecordMapper() {
     if (changeStreamRecordMapperInstance == null) {
       changeStreamRecordMapperInstance = new ChangeStreamRecordMapper();
@@ -37,6 +49,15 @@ public class MapperFactory implements Serializable {
     return changeStreamRecordMapperInstance;
   }
 
+  /**
+   * Creates and returns a single instance of a mapper class capable of transforming a {@link
+   * com.google.cloud.spanner.Struct} into a {@link
+   * org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata} class.
+   *
+   * <p>This method is thread safe.
+   *
+   * @return singleton instance of the {@link PartitionMetadataMapper}
+   */
   public synchronized PartitionMetadataMapper partitionMetadataMapper() {
     if (partitionMetadataMapperInstance == null) {
       partitionMetadataMapperInstance = new PartitionMetadataMapper();

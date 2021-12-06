@@ -29,11 +29,9 @@ import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMeta
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_STATE;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_WATERMARK;
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import com.google.cloud.Timestamp;
-import com.google.cloud.spanner.ResultSet;
+import com.google.cloud.spanner.Struct;
 import java.util.Collections;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State;
@@ -44,31 +42,41 @@ import org.junit.Test;
 public class PartitionMetadataMapperTest {
 
   private PartitionMetadataMapper mapper;
-  private ResultSet resultSet;
 
   @Before
   public void setUp() {
     mapper = new PartitionMetadataMapper();
-    resultSet = mock(ResultSet.class);
   }
 
   @Test
   public void testMapPartitionMetadataFromResultSet() {
-    when(resultSet.getString(COLUMN_PARTITION_TOKEN)).thenReturn("token");
-    when(resultSet.getStringList(COLUMN_PARENT_TOKENS))
-        .thenReturn(Collections.singletonList("parentToken"));
-    when(resultSet.getTimestamp(COLUMN_START_TIMESTAMP))
-        .thenReturn(Timestamp.ofTimeMicroseconds(10));
-    when(resultSet.getTimestamp(COLUMN_END_TIMESTAMP)).thenReturn(Timestamp.ofTimeMicroseconds(20));
-    when(resultSet.getLong(COLUMN_HEARTBEAT_MILLIS)).thenReturn(5_000L);
-    when(resultSet.getString(COLUMN_STATE)).thenReturn("RUNNING");
-    when(resultSet.getTimestamp(COLUMN_WATERMARK)).thenReturn(Timestamp.ofTimeMicroseconds(30));
-    when(resultSet.getTimestamp(COLUMN_CREATED_AT)).thenReturn(Timestamp.ofTimeMicroseconds(40));
-    when(resultSet.getTimestamp(COLUMN_SCHEDULED_AT)).thenReturn(Timestamp.ofTimeMicroseconds(50));
-    when(resultSet.getTimestamp(COLUMN_RUNNING_AT)).thenReturn(Timestamp.ofTimeMicroseconds(60));
-    when(resultSet.getTimestamp(COLUMN_FINISHED_AT)).thenReturn(Timestamp.ofTimeMicroseconds(70));
+    final Struct row =
+        Struct.newBuilder()
+            .set(COLUMN_PARTITION_TOKEN)
+            .to("token")
+            .set(COLUMN_PARENT_TOKENS)
+            .toStringArray(Collections.singletonList("parentToken"))
+            .set(COLUMN_START_TIMESTAMP)
+            .to(Timestamp.ofTimeMicroseconds(10L))
+            .set(COLUMN_END_TIMESTAMP)
+            .to(Timestamp.ofTimeMicroseconds(20L))
+            .set(COLUMN_HEARTBEAT_MILLIS)
+            .to(5_000L)
+            .set(COLUMN_STATE)
+            .to(State.RUNNING.name())
+            .set(COLUMN_WATERMARK)
+            .to(Timestamp.ofTimeMicroseconds(30L))
+            .set(COLUMN_CREATED_AT)
+            .to(Timestamp.ofTimeMicroseconds(40L))
+            .set(COLUMN_SCHEDULED_AT)
+            .to(Timestamp.ofTimeMicroseconds(50L))
+            .set(COLUMN_RUNNING_AT)
+            .to(Timestamp.ofTimeMicroseconds(60L))
+            .set(COLUMN_FINISHED_AT)
+            .to(Timestamp.ofTimeMicroseconds(70L))
+            .build();
 
-    final PartitionMetadata partition = mapper.from(resultSet);
+    final PartitionMetadata partition = mapper.from(row);
 
     assertEquals(
         new PartitionMetadata(
@@ -88,17 +96,33 @@ public class PartitionMetadataMapperTest {
 
   @Test
   public void testMapPartitionMetadataFromResultSetWithNulls() {
-    when(resultSet.getString(COLUMN_PARTITION_TOKEN)).thenReturn("token");
-    when(resultSet.getStringList(COLUMN_PARENT_TOKENS))
-        .thenReturn(Collections.singletonList("parentToken"));
-    when(resultSet.getTimestamp(COLUMN_START_TIMESTAMP))
-        .thenReturn(Timestamp.ofTimeMicroseconds(10));
-    when(resultSet.getLong(COLUMN_HEARTBEAT_MILLIS)).thenReturn(5_000L);
-    when(resultSet.getString(COLUMN_STATE)).thenReturn("CREATED");
-    when(resultSet.getTimestamp(COLUMN_WATERMARK)).thenReturn(Timestamp.ofTimeMicroseconds(30));
-    when(resultSet.getTimestamp(COLUMN_CREATED_AT)).thenReturn(Timestamp.ofTimeMicroseconds(40));
+    final Struct row =
+        Struct.newBuilder()
+            .set(COLUMN_PARTITION_TOKEN)
+            .to("token")
+            .set(COLUMN_PARENT_TOKENS)
+            .toStringArray(Collections.singletonList("parentToken"))
+            .set(COLUMN_START_TIMESTAMP)
+            .to(Timestamp.ofTimeMicroseconds(10L))
+            .set(COLUMN_END_TIMESTAMP)
+            .to((Timestamp) null)
+            .set(COLUMN_HEARTBEAT_MILLIS)
+            .to(5_000L)
+            .set(COLUMN_STATE)
+            .to(State.CREATED.name())
+            .set(COLUMN_WATERMARK)
+            .to(Timestamp.ofTimeMicroseconds(30L))
+            .set(COLUMN_CREATED_AT)
+            .to(Timestamp.ofTimeMicroseconds(40L))
+            .set(COLUMN_SCHEDULED_AT)
+            .to((Timestamp) null)
+            .set(COLUMN_RUNNING_AT)
+            .to((Timestamp) null)
+            .set(COLUMN_FINISHED_AT)
+            .to((Timestamp) null)
+            .build();
 
-    final PartitionMetadata partition = mapper.from(resultSet);
+    final PartitionMetadata partition = mapper.from(row);
 
     assertEquals(
         new PartitionMetadata(
