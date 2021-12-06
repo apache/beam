@@ -115,21 +115,8 @@ func (l *LifeCycle) GetAbsoluteSourceFilePath() string {
 	return absoluteFilePath
 }
 
-// CopyFiles copies a prepared go.mod and go.sum in baseFileFolder for executing beam pipeline with go SDK
-func (l *LifeCycle) CopyFiles(workingDir, preparedModDir string) error {
-	err := copyFile("go.mod", preparedModDir, filepath.Join(workingDir, baseFileFolder))
-	if err != nil {
-		return err
-	}
-	err = copyFile("go.sum", preparedModDir, filepath.Join(workingDir, baseFileFolder))
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// copyFile copies a file with fileName from sourceDir to destinationDir.
-func copyFile(fileName, sourceDir, destinationDir string) (err error) {
+// CopyFile copies a file with fileName from sourceDir to destinationDir.
+func (l *LifeCycle) CopyFile(fileName, sourceDir, destinationDir string) error {
 	absSourcePath := filepath.Join(sourceDir, fileName)
 	absDestinationPath := filepath.Join(destinationDir, fileName)
 	sourceFileStat, err := os.Stat(absSourcePath)

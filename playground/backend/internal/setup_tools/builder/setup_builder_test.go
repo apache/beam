@@ -36,21 +36,30 @@ func TestSetupExecutor(t *testing.T) {
 	executorConfig := &environment.ExecutorConfig{
 		CompileCmd:  "MOCK_COMPILE_CMD",
 		RunCmd:      "MOCK_RUN_CMD",
+		TestCmd:     "MOCK_TEST_CMD",
 		CompileArgs: []string{"MOCK_COMPILE_ARG"},
 		RunArgs:     []string{"MOCK_RUN_ARG"},
+		TestArgs:    []string{"MOCK_TEST_ARG"},
 	}
-
-	sdkEnv := environment.NewBeamEnvs(sdk, executorConfig, "")
-	val, err := utils.GetValidators(sdk, lc.GetAbsoluteSourceFilePath())
 	if err != nil {
 		panic(err)
 	}
-	prep, err := utils.GetPreparators(sdk, lc.GetAbsoluteSourceFilePath())
+
+	srcFilePath := lc.GetAbsoluteSourceFilePath()
+
+	sdkEnv := environment.NewBeamEnvs(sdk, executorConfig, "")
+	val, err := utils.GetValidators(sdk, srcFilePath)
+	if err != nil {
+		panic(err)
+	}
+	prep, err := utils.GetPreparators(sdk, srcFilePath)
 	if err != nil {
 		panic(err)
 	}
 
 	wantExecutor := executors.NewExecutorBuilder().
+		WithExecutableFileName(lc.GetAbsoluteExecutableFilePath()).
+		WithWorkingDir(lc.GetAbsoluteBaseFolderPath()).
 		WithValidator().
 		WithSdkValidators(val).
 		WithPreparator().
@@ -58,12 +67,14 @@ func TestSetupExecutor(t *testing.T) {
 		WithCompiler().
 		WithCommand(executorConfig.CompileCmd).
 		WithArgs(executorConfig.CompileArgs).
-		WithFileName(lc.GetAbsoluteSourceFilePath()).
-		WithWorkingDir(lc.GetAbsoluteBaseFolderPath()).
+		WithFileName(srcFilePath).
 		WithRunner().
-		WithCommand(sdkEnv.ExecutorConfig.RunCmd).
-		WithArgs(sdkEnv.ExecutorConfig.RunArgs).
-		WithWorkingDir(lc.GetAbsoluteBaseFolderPath())
+		WithCommand(executorConfig.RunCmd).
+		WithArgs(executorConfig.RunArgs).
+		WithTestRunner().
+		WithCommand(executorConfig.TestCmd).
+		WithArgs(executorConfig.TestArgs).
+		ExecutorBuilder
 
 	type args struct {
 		srcFilePath    string
@@ -74,7 +85,7 @@ func TestSetupExecutor(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    *executors.RunBuilder
+		want    *executors.ExecutorBuilder
 		wantErr bool
 	}{
 		{
@@ -90,7 +101,7 @@ func TestSetupExecutor(t *testing.T) {
 			// As a result, want to receive an expected builder.
 			name:    "correct sdk",
 			args:    args{lc.GetAbsoluteSourceFilePath(), lc.GetAbsoluteBaseFolderPath(), lc.GetAbsoluteExecutableFilePath(), sdkEnv},
-			want:    wantExecutor,
+			want:    &wantExecutor,
 			wantErr: false,
 		},
 	}
@@ -102,7 +113,7 @@ func TestSetupExecutor(t *testing.T) {
 				return
 			}
 			if err == nil && fmt.Sprint(got.Build()) != fmt.Sprint(tt.want.Build()) {
-				t.Errorf("SetupExecutorBuilder() got = %v, want %v", got.Build(), tt.want.Build())
+				t.Errorf("SetupExecutorBuilder() got = %v\n, want %v", got.Build(), tt.want.Build())
 			}
 		})
 	}

@@ -135,6 +135,7 @@ message PrecompiledObject{
   string name = 2;
   string description = 3;
   PrecompiledObjectType type = 4;
+  string pipeline_options = 5;
 }
 
 // Categories represent the array of messages with sdk and categories at this sdk

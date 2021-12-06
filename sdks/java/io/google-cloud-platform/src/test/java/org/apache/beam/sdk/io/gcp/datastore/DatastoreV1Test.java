@@ -138,9 +138,6 @@ public class DatastoreV1Test {
   public void setUp() {
     MockitoAnnotations.initMocks(this);
 
-    DatastoreV1.Read initialRead =
-        DatastoreIO.v1().read().withProjectId(PROJECT_ID).withQuery(QUERY).withNamespace(NAMESPACE);
-
     when(mockDatastoreFactory.getDatastore(any(PipelineOptions.class), any(String.class), any()))
         .thenReturn(mockDatastore);
     when(mockDatastoreFactory.getQuerySplitter()).thenReturn(mockQuerySplitter);
