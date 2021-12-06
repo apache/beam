@@ -36,13 +36,9 @@ import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.Matchers;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** A {@link PipelineRunner} a {@link Pipeline} against a {@code JobService}. */
 public class TestUniversalRunner extends PipelineRunner<PipelineResult> {
-
-  private static final Logger LOG = LoggerFactory.getLogger(TestUniversalRunner.class);
 
   private final PipelineOptions options;
 

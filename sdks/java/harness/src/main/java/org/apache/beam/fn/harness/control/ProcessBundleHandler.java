@@ -456,7 +456,18 @@ public class ProcessBundleHandler {
             startFunction.run();
           }
 
-          if (!bundleProcessor.getInboundEndpointApiServiceDescriptors().isEmpty()) {
+          if (request.getProcessBundle().hasElements()) {
+            boolean inputFinished =
+                bundleProcessor
+                    .getInboundObserver()
+                    .multiplexElements(request.getProcessBundle().getElements());
+            if (!inputFinished) {
+              throw new RuntimeException(
+                  "Elements embedded in ProcessBundleRequest do not contain stream terminators for "
+                      + "all data and timer inputs. Unterminated endpoints: "
+                      + bundleProcessor.getInboundObserver().getUnfinishedEndpoints());
+            }
+          } else if (!bundleProcessor.getInboundEndpointApiServiceDescriptors().isEmpty()) {
             BeamFnDataInboundObserver2 observer = bundleProcessor.getInboundObserver();
             beamFnDataClient.registerReceiver(
                 request.getInstructionId(),

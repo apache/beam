@@ -29,7 +29,7 @@ import (
 
 var (
 	executorConfig = environment.NewExecutorConfig("javac", "java", []string{"-d", "bin", "-classpath"}, []string{"-cp", "bin:"})
-	env            = environment.NewEnvironment(environment.NetworkEnvs{}, *environment.NewBeamEnvs(pb.Sdk_SDK_JAVA, executorConfig), environment.ApplicationEnvs{})
+	env            = environment.NewEnvironment(environment.NetworkEnvs{}, *environment.NewBeamEnvs(pb.Sdk_SDK_JAVA, executorConfig, ""), environment.ApplicationEnvs{})
 )
 
 // BaseExecutorBuilder fills up an executor with base parameters
@@ -51,7 +51,7 @@ func BaseExecutorBuilder(envs environment.BeamEnvs, workingDir string, filePath 
 		WithRunner().
 		WithCommand(envs.ExecutorConfig.RunCmd).
 		WithArgs(envs.ExecutorConfig.RunArgs).
-		WithClassName("HelloWorld").
+		WithExecutableFileName("HelloWorld").
 		WithWorkingDir(workingDir).
 		WithValidator().
 		WithSdkValidators(validatorsFuncs).

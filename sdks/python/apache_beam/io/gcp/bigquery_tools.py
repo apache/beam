@@ -663,7 +663,8 @@ class BigQueryWrapper(object):
       table_id,
       rows,
       insert_ids,
-      skip_invalid_rows=False):
+      skip_invalid_rows=False,
+      ignore_unknown_values=False):
     """Calls the insertAll BigQuery API endpoint.
 
     Docs for this BQ call: https://cloud.google.com/bigquery/docs/reference\
@@ -697,7 +698,8 @@ class BigQueryWrapper(object):
           table_ref_str,
           json_rows=rows,
           row_ids=insert_ids,
-          skip_invalid_rows=True,
+          skip_invalid_rows=skip_invalid_rows,
+          ignore_unknown_values=ignore_unknown_values,
           timeout=BQ_STREAMING_INSERT_TIMEOUT_SEC)
       if not errors:
         service_call_metric.call('ok')
@@ -1217,7 +1219,8 @@ class BigQueryWrapper(object):
       table_id,
       rows,
       insert_ids=None,
-      skip_invalid_rows=False):
+      skip_invalid_rows=False,
+      ignore_unknown_values=False):
     """Inserts rows into the specified table.
 
     Args:
@@ -1228,6 +1231,10 @@ class BigQueryWrapper(object):
         each key in it is the name of a field.
       skip_invalid_rows: If there are rows with insertion errors, whether they
         should be skipped, and all others should be inserted successfully.
+      ignore_unknown_values: Set this option to true to ignore unknown column
+        names. If the input rows contain columns that are not
+        part of the existing table's schema, those columns are ignored, and
+        the rows are successfully inserted.
 
     Returns:
       A tuple (bool, errors). If first element is False then the second element
@@ -1250,7 +1257,9 @@ class BigQueryWrapper(object):
     ]
 
     result, errors = self._insert_all_rows(
-        project_id, dataset_id, table_id, rows, insert_ids)
+        project_id, dataset_id, table_id, rows, insert_ids,
+        skip_invalid_rows=skip_invalid_rows,
+        ignore_unknown_values=ignore_unknown_values)
     return result, errors
 
   def _convert_cell_value_to_dict(self, value, field):

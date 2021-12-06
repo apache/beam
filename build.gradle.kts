@@ -248,12 +248,8 @@ task("goIntegrationTests") {
 }
 
 task("playgroundPreCommit") {
-  dependsOn(":playground:backend:tidy")
-  dependsOn(":playground:backend:test")
-
-  dependsOn(":playground:frontend:pubGet")
-  dependsOn(":playground:frontend:analyze")
-  dependsOn(":playground:frontend:test")
+  dependsOn(":playground:backend:precommit")
+  dependsOn(":playground:frontend:precommit")
 }
 
 task("pythonPreCommit") {
@@ -291,11 +287,14 @@ task("python36PostCommit") {
 
 task("python37PostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py37:postCommitIT")
+  dependsOn(":sdks:python:test-suites:dataflow:py37:spannerioIT")
   dependsOn(":sdks:python:test-suites:direct:py37:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py37:directRunnerIT")
   dependsOn(":sdks:python:test-suites:direct:py37:hdfsIntegrationTest")
   dependsOn(":sdks:python:test-suites:direct:py37:mongodbioIT")
+  dependsOn(":sdks:python:test-suites:direct:py37:spannerioIT")
   dependsOn(":sdks:python:test-suites:portable:py37:postCommitPy37")
+  dependsOn(":sdks:python:test-suites:portable:py37:xlangSpannerIOIT")
 }
 
 task("python38PostCommit") {

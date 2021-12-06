@@ -255,8 +255,7 @@ public class KafkaIOExternalTest {
 
     RunnerApi.PTransform kafkaReadComposite =
         result.getComponents().getTransformsOrThrow(transform.getSubtransforms(0));
-    RunnerApi.PTransform kafkaComposite =
-        result.getComponents().getTransformsOrThrow(kafkaReadComposite.getSubtransforms(0));
+    result.getComponents().getTransformsOrThrow(kafkaReadComposite.getSubtransforms(0));
 
     verifyKafkaReadComposite(
         result.getComponents().getTransformsOrThrow(kafkaReadComposite.getSubtransforms(0)),

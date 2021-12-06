@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 ///
 //  Generated code. Do not modify.
 //  source: api/v1/api.proto
@@ -497,44 +498,246 @@ class GetRunErrorResponse extends $pb.GeneratedMessage {
     }
     return _result;
   }
-  factory GetRunErrorResponse.fromBuffer($core.List<$core.int> i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(i, r);
-  factory GetRunErrorResponse.fromJson($core.String i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(i, r);
+
+  factory GetRunErrorResponse.fromBuffer($core.List<$core.int> i,
+      [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()
+        ..mergeFromBuffer(i, r);
+
+  factory GetRunErrorResponse.fromJson($core.String i,
+      [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()
+        ..mergeFromJson(i, r);
+
   @$core.Deprecated(
-  'Using this can add significant overhead to your binary. '
-  'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
-  'Will be removed in next major version')
-  GetRunErrorResponse clone() => GetRunErrorResponse()..mergeFromMessage(this);
+      'Using this can add significant overhead to your binary. '
+          'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+          'Will be removed in next major version')
+  GetRunErrorResponse clone() =>
+      GetRunErrorResponse()
+        ..mergeFromMessage(this);
+
   @$core.Deprecated(
-  'Using this can add significant overhead to your binary. '
-  'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
-  'Will be removed in next major version')
-  GetRunErrorResponse copyWith(void Function(GetRunErrorResponse) updates) => super.copyWith((message) => updates(message as GetRunErrorResponse)) as GetRunErrorResponse; // ignore: deprecated_member_use
+      'Using this can add significant overhead to your binary. '
+          'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+          'Will be removed in next major version')
+  GetRunErrorResponse copyWith(void Function(GetRunErrorResponse) updates) =>
+      super.copyWith((message) =>
+          updates(
+              message as GetRunErrorResponse)) as GetRunErrorResponse; // ignore: deprecated_member_use
   $pb.BuilderInfo get info_ => _i;
+
   @$core.pragma('dart2js:noInline')
   static GetRunErrorResponse create() => GetRunErrorResponse._();
+
   GetRunErrorResponse createEmptyInstance() => create();
-  static $pb.PbList<GetRunErrorResponse> createRepeated() => $pb.PbList<GetRunErrorResponse>();
+
+  static $pb.PbList<GetRunErrorResponse> createRepeated() =>
+      $pb.PbList<GetRunErrorResponse>();
+
   @$core.pragma('dart2js:noInline')
-  static GetRunErrorResponse getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<GetRunErrorResponse>(create);
+  static GetRunErrorResponse getDefault() =>
+      _defaultInstance ??=
+          $pb.GeneratedMessage.$_defaultFor<GetRunErrorResponse>(create);
   static GetRunErrorResponse? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.String get output => $_getSZ(0);
+
   @$pb.TagNumber(1)
-  set output($core.String v) { $_setString(0, v); }
+  set output($core.String v) {
+    $_setString(0, v);
+  }
+
   @$pb.TagNumber(1)
   $core.bool hasOutput() => $_has(0);
+
+  @$pb.TagNumber(1)
+  void clearOutput() => clearField(1);
+}
+
+class GetLogsRequest extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      const $core.bool.fromEnvironment('protobuf.omit_message_names')
+          ? ''
+          : 'GetLogsRequest', package: const $pb.PackageName(
+      const $core.bool.fromEnvironment('protobuf.omit_message_names')
+          ? ''
+          : 'api.v1'), createEmptyInstance: create)
+    ..aOS(1, const $core.bool.fromEnvironment('protobuf.omit_field_names')
+        ? ''
+        : 'pipelineUuid')
+    ..hasRequiredFields = false
+  ;
+
+  GetLogsRequest._() : super();
+
+  factory GetLogsRequest({
+    $core.String? pipelineUuid,
+  }) {
+    final _result = create();
+    if (pipelineUuid != null) {
+      _result.pipelineUuid = pipelineUuid;
+    }
+    return _result;
+  }
+
+  factory GetLogsRequest.fromBuffer($core.List<$core.int> i,
+      [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()
+        ..mergeFromBuffer(i, r);
+
+  factory GetLogsRequest.fromJson($core.String i,
+      [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()
+        ..mergeFromJson(i, r);
+
+  @$core.Deprecated(
+      'Using this can add significant overhead to your binary. '
+          'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+          'Will be removed in next major version')
+  GetLogsRequest clone() =>
+      GetLogsRequest()
+        ..mergeFromMessage(this);
+
+  @$core.Deprecated(
+      'Using this can add significant overhead to your binary. '
+          'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+          'Will be removed in next major version')
+  GetLogsRequest copyWith(void Function(GetLogsRequest) updates) =>
+      super.copyWith((message) =>
+          updates(
+              message as GetLogsRequest)) as GetLogsRequest; // ignore: deprecated_member_use
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static GetLogsRequest create() => GetLogsRequest._();
+
+  GetLogsRequest createEmptyInstance() => create();
+
+  static $pb.PbList<GetLogsRequest> createRepeated() =>
+      $pb.PbList<GetLogsRequest>();
+
+  @$core.pragma('dart2js:noInline')
+  static GetLogsRequest getDefault() =>
+      _defaultInstance ??=
+          $pb.GeneratedMessage.$_defaultFor<GetLogsRequest>(create);
+  static GetLogsRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get pipelineUuid => $_getSZ(0);
+
+  @$pb.TagNumber(1)
+  set pipelineUuid($core.String v) {
+    $_setString(0, v);
+  }
+
+  @$pb.TagNumber(1)
+  $core.bool hasPipelineUuid() => $_has(0);
+
+  @$pb.TagNumber(1)
+  void clearPipelineUuid() => clearField(1);
+}
+
+class GetLogsResponse extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      const $core.bool.fromEnvironment('protobuf.omit_message_names')
+          ? ''
+          : 'GetLogsResponse', package: const $pb.PackageName(
+      const $core.bool.fromEnvironment('protobuf.omit_message_names')
+          ? ''
+          : 'api.v1'), createEmptyInstance: create)
+    ..aOS(1, const $core.bool.fromEnvironment('protobuf.omit_field_names')
+        ? ''
+        : 'output')
+    ..hasRequiredFields = false
+  ;
+
+  GetLogsResponse._() : super();
+
+  factory GetLogsResponse({
+    $core.String? output,
+  }) {
+    final _result = create();
+    if (output != null) {
+      _result.output = output;
+    }
+    return _result;
+  }
+
+  factory GetLogsResponse.fromBuffer($core.List<$core.int> i,
+      [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()
+        ..mergeFromBuffer(i, r);
+
+  factory GetLogsResponse.fromJson($core.String i,
+      [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()
+        ..mergeFromJson(i, r);
+
+  @$core.Deprecated(
+      'Using this can add significant overhead to your binary. '
+          'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+          'Will be removed in next major version')
+  GetLogsResponse clone() =>
+      GetLogsResponse()
+        ..mergeFromMessage(this);
+
+  @$core.Deprecated(
+      'Using this can add significant overhead to your binary. '
+          'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+          'Will be removed in next major version')
+  GetLogsResponse copyWith(void Function(GetLogsResponse) updates) =>
+      super.copyWith((message) =>
+          updates(
+              message as GetLogsResponse)) as GetLogsResponse; // ignore: deprecated_member_use
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static GetLogsResponse create() => GetLogsResponse._();
+
+  GetLogsResponse createEmptyInstance() => create();
+
+  static $pb.PbList<GetLogsResponse> createRepeated() =>
+      $pb.PbList<GetLogsResponse>();
+
+  @$core.pragma('dart2js:noInline')
+  static GetLogsResponse getDefault() =>
+      _defaultInstance ??=
+          $pb.GeneratedMessage.$_defaultFor<GetLogsResponse>(create);
+  static GetLogsResponse? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get output => $_getSZ(0);
+
+  @$pb.TagNumber(1)
+  set output($core.String v) {
+    $_setString(0, v);
+  }
+
+  @$pb.TagNumber(1)
+  $core.bool hasOutput() => $_has(0);
+
   @$pb.TagNumber(1)
   void clearOutput() => clearField(1);
 }
 
 class CancelRequest extends $pb.GeneratedMessage {
-  static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'CancelRequest', package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'api.v1'), createEmptyInstance: create)
-    ..aOS(1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'pipelineUuid')
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      const $core.bool.fromEnvironment('protobuf.omit_message_names')
+          ? ''
+          : 'CancelRequest', package: const $pb.PackageName(
+      const $core.bool.fromEnvironment('protobuf.omit_message_names')
+          ? ''
+          : 'api.v1'), createEmptyInstance: create)
+    ..aOS(1, const $core.bool.fromEnvironment('protobuf.omit_field_names')
+        ? ''
+        : 'pipelineUuid')
     ..hasRequiredFields = false
   ;
 
   CancelRequest._() : super();
+
   factory CancelRequest({
     $core.String? pipelineUuid,
   }) {

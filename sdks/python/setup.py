@@ -137,6 +137,7 @@ REQUIRED_PACKAGES = [
     # server, therefore list of allowed versions is very narrow.
     # See: https://github.com/uqfoundation/dill/issues/341.
     'dill>=0.3.1.1,<0.3.2',
+    'cloudpickle>=2.0.0,<3',
     'fastavro>=0.21.4,<2',
     'grpcio>=1.29.0,<2',
     'hdfs>=2.1.0,<3.0.0',
@@ -219,7 +220,7 @@ INTERACTIVE_BEAM_TEST = [
     # headless chrome based integration tests
     'selenium>=3.141.0,<4',
     'needle>=0.5.0,<1',
-    'chromedriver-binary>=93,<94',
+    'chromedriver-binary>=96,<97',
     # use a fixed major version of PIL for different python versions
     'pillow>=7.1.1,<8',
 ]
@@ -257,7 +258,6 @@ if sys.version_info.major == 3 and sys.version_info.minor >= 9:
       'This version of Apache Beam has not been sufficiently tested on '
       'Python %s.%s. You may encounter bugs or missing features.' %
       (sys.version_info.major, sys.version_info.minor))
-
 
 if __name__ == '__main__':
   setuptools.setup(
@@ -303,10 +303,10 @@ if __name__ == '__main__':
       # BEAM-8840: Do NOT use tests_require or setup_requires.
       extras_require={
           'docs': [
-            'Sphinx>=1.5.2,<2.0',
-            # Pinning docutils as a workaround for Sphinx issue:
-            # https://github.com/sphinx-doc/sphinx/issues/9727
-            'docutils==0.17.1'
+              'Sphinx>=1.5.2,<2.0',
+              # Pinning docutils as a workaround for Sphinx issue:
+              # https://github.com/sphinx-doc/sphinx/issues/9727
+              'docutils==0.17.1'
           ],
           'test': REQUIRED_TEST_PACKAGES,
           'gcp': GCP_REQUIREMENTS,

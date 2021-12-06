@@ -22,6 +22,10 @@ apply plugin: 'base'
 applyDockerNature()
 
 def playgroundBackendUrl = project.playgroundBackendUrl
+def playgroundBackendJavaRouteUrl = project.playgroundBackendJavaRouteUrl
+def playgroundBackendGoRouteUrl = project.playgroundBackendGoRouteUrl
+def playgroundBackendPythonRouteUrl = project.playgroundBackendPythonRouteUrl
+def playgroundBackendScioRouteUrl = project.playgroundBackendScioRouteUrl
 
 def playgroundJobServerProject = "${project.path.replace('-container', '')}"
 
@@ -94,6 +98,12 @@ task test {
   }
 }
 
+task precommit {
+  dependsOn(":playground:frontend:pubGet")
+  dependsOn(":playground:frontend:analyze")
+  dependsOn(":playground:frontend:test")
+}
+
 task copyDockerfileDependencies(type: Copy) {
    group = "build"
    description = "Copy files that required to build docker container"
@@ -153,6 +163,14 @@ task("createConfig") {
 
 const String kApiClientURL =
     '${playgroundBackendUrl}';
+const String kApiJavaClientURL =
+    '${playgroundBackendJavaRouteUrl}';
+const String kApiGoClientURL =
+    '${playgroundBackendGoRouteUrl}';
+const String kApiPythonClientURL =
+    '${playgroundBackendPythonRouteUrl}';
+const String kApiScioClientURL =
+    '${playgroundBackendScioRouteUrl}';
 """)
   }
 }

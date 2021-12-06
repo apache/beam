@@ -24,7 +24,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
-import java.util.concurrent.BlockingQueue;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 
@@ -170,21 +169,11 @@ public class DataStreams {
    * seemingly make zero progress yet will actually advance through the empty pages.
    */
   public static class DataStreamDecoder<T> implements PrefetchableIterator<T> {
-
-    private enum State {
-      READ_REQUIRED,
-      HAS_NEXT,
-      EOF
-    }
-
     private final PrefetchableIterator<ByteString> inputByteStrings;
     private final Inbound inbound;
     private final Coder<T> coder;
-    private State currentState;
-    private T next;
 
     public DataStreamDecoder(Coder<T> coder, PrefetchableIterator<ByteString> inputStream) {
-      this.currentState = State.READ_REQUIRED;
       this.coder = coder;
       this.inputByteStrings = inputStream;
       this.inbound = new Inbound();
@@ -192,19 +181,10 @@ public class DataStreams {
 
     @Override
     public boolean isReady() {
-      switch (currentState) {
-        case EOF:
-          return true;
-        case READ_REQUIRED:
-          try {
-            return inbound.isReady();
-          } catch (IOException e) {
-            throw new RuntimeException(e);
-          }
-        case HAS_NEXT:
-          return true;
-        default:
-          throw new IllegalStateException(String.format("Unknown state %s", currentState));
+      try {
+        return inbound.isReady();
+      } catch (IOException e) {
+        throw new IllegalStateException(e);
       }
     }
 
@@ -217,31 +197,11 @@ public class DataStreams {
 
     @Override
     public boolean hasNext() {
-      switch (currentState) {
-        case EOF:
-          return false;
-        case READ_REQUIRED:
-          try {
-            if (inbound.isEof()) {
-              currentState = State.EOF;
-              return false;
-            }
-
-            long previousPosition = inbound.position;
-            next = coder.decode(inbound);
-            // Skip one byte if decoding the value consumed 0 bytes.
-            if (inbound.position - previousPosition == 0) {
-              checkState(inbound.read() != -1, "Unexpected EOF reached");
-            }
-            currentState = State.HAS_NEXT;
-          } catch (IOException e) {
-            throw new IllegalStateException(e);
-          }
-          return true;
-        case HAS_NEXT:
-          return true;
+      try {
+        return !inbound.isEof();
+      } catch (IOException e) {
+        throw new IllegalStateException(e);
       }
-      throw new IllegalStateException(String.format("Unknown state %s", currentState));
     }
 
     @Override
@@ -249,8 +209,18 @@ public class DataStreams {
       if (!hasNext()) {
         throw new NoSuchElementException();
       }
-      currentState = State.READ_REQUIRED;
-      return next;
+
+      try {
+        long previousPosition = inbound.position;
+        T next = coder.decode(inbound);
+        // Skip one byte if decoding the value consumed 0 bytes.
+        if (inbound.position - previousPosition == 0) {
+          checkState(inbound.read() != -1, "Unexpected EOF reached");
+        }
+        return next;
+      } catch (IOException e) {
+        throw new IllegalStateException(e);
+      }
     }
 
     @Override
@@ -338,66 +308,6 @@ public class DataStreams {
         position += len;
         return len;
       }
-    }
-  }
-
-  /**
-   * Allows for one or more writing threads to append values to this iterator while one reading
-   * thread reads values. {@link #hasNext()} and {@link #next()} will block until a value is
-   * available or this has been closed.
-   *
-   * <p>External synchronization must be provided if multiple readers would like to access the
-   * {@link Iterator#hasNext()} and {@link Iterator#next()} methods.
-   *
-   * <p>The order or values which are appended to this iterator is nondeterministic when multiple
-   * threads call {@link #accept(Object)}.
-   */
-  public static class BlockingQueueIterator<T> implements AutoCloseable, Iterator<T> {
-    private static final Object POISION_PILL = new Object();
-    private final BlockingQueue<T> queue;
-
-    /** Only accessed by {@link Iterator#hasNext()} and {@link Iterator#next()} methods. */
-    private T currentElement;
-
-    public BlockingQueueIterator(BlockingQueue<T> queue) {
-      this.queue = queue;
-    }
-
-    @Override
-    public void close() throws Exception {
-      queue.put((T) POISION_PILL);
-    }
-
-    public void accept(T t) throws Exception {
-      queue.put(t);
-    }
-
-    @Override
-    public boolean hasNext() {
-      if (currentElement == null) {
-        try {
-          currentElement = queue.take();
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          throw new IllegalStateException(e);
-        }
-      }
-      return currentElement != POISION_PILL;
-    }
-
-    @Override
-    public T next() {
-      if (!hasNext()) {
-        throw new NoSuchElementException();
-      }
-      T rval = currentElement;
-      currentElement = null;
-      return rval;
-    }
-
-    @Override
-    public void remove() {
-      throw new UnsupportedOperationException();
     }
   }
 }
