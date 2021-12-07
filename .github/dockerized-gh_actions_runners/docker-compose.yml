@@ -1,0 +1,10 @@
+version: "3.0"
+services:
+  runner:
+    build: .
+    entrypoint: ["/home/actions/entrypoint.sh"]
+    image: beam-ga:${TAG:-latest}
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    env_file:
+      - ./var.env
