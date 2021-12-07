@@ -28,8 +28,8 @@ import (
 const (
 	classWithPublicModifierPattern    = "public class "
 	classWithoutPublicModifierPattern = "class "
-	packagePattern                    = `^package ([\w]+\.)+[\w]+;`
-	emptyStringPattern                = ""
+	packagePattern                    = `^(package) (([\w]+\.)+[\w]+);`
+	importStringPattern               = `import $2.*;`
 	newLinePattern                    = "\n"
 	pathSeparatorPattern              = os.PathSeparator
 	tmpFileSuffix                     = "tmp"
@@ -43,7 +43,7 @@ func GetJavaPreparators(filePath string) *[]Preparator {
 	}
 	additionalPackage := Preparator{
 		Prepare: replace,
-		Args:    []interface{}{filePath, packagePattern, emptyStringPattern},
+		Args:    []interface{}{filePath, packagePattern, importStringPattern},
 	}
 	return &[]Preparator{publicClassModification, additionalPackage}
 }
@@ -108,10 +108,7 @@ func replaceAndWriteLine(newLine bool, to *os.File, line string, reg *regexp.Reg
 		logger.Errorf("Preparation: Error during write \"%s\" to tmp file, err: %s\n", newLinePattern, err.Error())
 		return err
 	}
-	matches := reg.FindAllString(line, -1)
-	for _, str := range matches {
-		line = strings.ReplaceAll(line, str, newPattern)
-	}
+	line = reg.ReplaceAllString(line, newPattern)
 	if _, err = io.WriteString(to, line); err != nil {
 		logger.Errorf("Preparation: Error during write \"%s\" to tmp file, err: %s\n", line, err.Error())
 		return err

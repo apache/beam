@@ -24,6 +24,13 @@ import (
 	"sync"
 )
 
+type ExecutionType string
+
+const (
+	Run  ExecutionType = "Run"
+	Test ExecutionType = "RunTest"
+)
+
 //CmdConfiguration for base cmd code execution
 type CmdConfiguration struct {
 	fileName        string
@@ -37,24 +44,26 @@ type CmdConfiguration struct {
 type Executor struct {
 	compileArgs CmdConfiguration
 	runArgs     CmdConfiguration
+	testArgs    CmdConfiguration
 	validators  []validators.Validator
 	preparators []preparators.Preparator
 }
 
 // Validate returns the function that applies all validators of executor
-func (ex *Executor) Validate() func(chan bool, chan error) {
-	return func(doneCh chan bool, errCh chan error) {
+func (ex *Executor) Validate() func(chan bool, chan error, *sync.Map) {
+	return func(doneCh chan bool, errCh chan error, valRes *sync.Map) {
 		validationErrors := make(chan error, len(ex.validators))
 		var wg sync.WaitGroup
 		for _, validator := range ex.validators {
 			wg.Add(1)
-			go func(validationErrors chan error, validator validators.Validator) {
+			go func(validationErrors chan error, valRes *sync.Map, validator validators.Validator) {
 				defer wg.Done()
-				err := validator.Validator(validator.Args...)
+				res, err := validator.Validator(validator.Args...)
 				if err != nil {
 					validationErrors <- err
 				}
-			}(validationErrors, validator)
+				valRes.Store(validator.Name, res)
+			}(validationErrors, valRes, validator)
 		}
 		wg.Wait()
 		select {
@@ -99,5 +108,14 @@ func (ex *Executor) Run(ctx context.Context) *exec.Cmd {
 	argsWithOptions = utils.RemoveEmptyValue(argsWithOptions)
 	cmd := exec.CommandContext(ctx, ex.runArgs.commandName, argsWithOptions...)
 	cmd.Dir = ex.runArgs.workingDir
+	return cmd
+}
+
+// RunTest prepares the Cmd for execution of the unit test
+// Returns Cmd instance
+func (ex *Executor) RunTest(ctx context.Context) *exec.Cmd {
+	args := append(ex.testArgs.commandArgs, ex.testArgs.fileName)
+	cmd := exec.CommandContext(ctx, ex.testArgs.commandName, args...)
+	cmd.Dir = ex.testArgs.workingDir
 	return cmd
 }
