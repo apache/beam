@@ -4437,10 +4437,12 @@ You can define different kinds of windows to divide the elements of your
 You can also define your own `WindowFn` if you have a more complex need.
 
 Note that each element can logically belong to more than one window, depending
-on the windowing function you use. Sliding time windowing, for example, creates
-overlapping windows wherein a single element can be assigned to multiple
-windows.
-
+on the windowing function you use. Sliding time windowing, for example, can
+create overlapping windows wherein a single element can be assigned to multiple
+windows. However, each element in a `PCollection` can only be in one window, so
+if an element is assigned to multiple windows, the element is conceptually
+duplicated into each of the windows and each element is identical except for its
+window.
 
 #### 8.2.1. Fixed time windows {#fixed-time-windows}
 
