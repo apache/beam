@@ -84,6 +84,19 @@ public class FieldAccessVisitorTest {
   }
 
   @Test
+  public void testFieldAccessNoSchema() {
+    Pipeline p = Pipeline.create();
+    FieldAccessVisitor fieldAccessVisitor = new FieldAccessVisitor();
+    PCollection<String> source = p.apply(Create.of("foo", "bar"));
+    source.apply(ParDo.of(new StringDoFn()));
+
+    p.traverseTopologically(fieldAccessVisitor);
+
+    // getAllFields is vacuously true (since there are no fields to access).
+    assertTrue(fieldAccessVisitor.getPCollectionFieldAccess().get(source).getAllFields());
+  }
+
+  @Test
   public void testFieldAccessUnknownMainInput() {
     Pipeline p = Pipeline.create();
     FieldAccessVisitor fieldAccessVisitor = new FieldAccessVisitor();
@@ -174,6 +187,14 @@ public class FieldAccessVisitorTest {
 
   /** Just some random DoFn without field access information. */
   private static class UnknownDoFn extends DoFn<Row, Row> {
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      // Do nothing; we don't need to execute this DoFn.
+    }
+  }
+
+  /** Just some random DoFn that process raw strings, no Rows or Schemas involved. */
+  private static class StringDoFn extends DoFn<String, String> {
     @ProcessElement
     public void processElement(ProcessContext c) {
       // Do nothing; we don't need to execute this DoFn.
