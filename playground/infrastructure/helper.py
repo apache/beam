@@ -59,10 +59,8 @@ class Example:
   output: str = ""
 
 
-def find_examples(
-    work_dir: str,
-    supported_categories: List[str],
-    sdk: Sdk) -> List[Example]:
+def find_examples(work_dir: str, supported_categories: List[str],
+                  sdk: Sdk) -> List[Example]:
   """
   Find and return beam examples.
 
@@ -158,12 +156,7 @@ def get_tag(filepath) -> Optional[Dict[str, str]]:
   return None
 
 
-def _check_file(
-    examples,
-    filename,
-    filepath,
-    supported_categories,
-    sdk: Sdk):
+def _check_file(examples, filename, filepath, supported_categories, sdk: Sdk):
   """
   Check file by filepath for matching to beam example. If file is beam example,
   then add it to list of examples

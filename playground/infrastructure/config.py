@@ -33,8 +33,7 @@ class Config:
   """
   SERVER_ADDRESS = os.getenv("SERVER_ADDRESS", "localhost:8080")
   EXTENSION_TO_SDK = {"java": SDK_JAVA, "go": SDK_GO, "py": SDK_PYTHON}
-  SUPPORTED_SDK = (
-      Sdk.Name(SDK_JAVA), Sdk.Name(SDK_GO), Sdk.Name(SDK_PYTHON))
+  SUPPORTED_SDK = (Sdk.Name(SDK_JAVA), Sdk.Name(SDK_GO), Sdk.Name(SDK_PYTHON))
   BUCKET_NAME = "test_public_bucket_akvelon"
   TEMP_FOLDER = "temp"
   SDK_TO_EXTENSION = {SDK_JAVA: "java", SDK_GO: "go", SDK_PYTHON: "py"}
