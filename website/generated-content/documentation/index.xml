@@ -3205,6 +3205,14 @@ pipeline authors build transforms, construct their pipelines, and submit
 them to a runner.&lt;/li>
 &lt;li>&lt;a href="#runner">&lt;em>Runner&lt;/em>&lt;/a> - A runner runs a Beam pipeline using the capabilities of
 your chosen data processing engine.&lt;/li>
+&lt;li>&lt;a href="#window">&lt;em>Window&lt;/em>&lt;/a> - A &lt;code>PCollection&lt;/code> can be subdivided into windows based on
+the timestamps of the individual elements. Windows enable grouping operations
+over collections that grow over time by dividing the collection into windows
+of finite collections.&lt;/li>
+&lt;li>&lt;a href="#watermark">&lt;em>Watermark&lt;/em>&lt;/a> - A watermark is a guess as to when all data in a
+certain window is expected to have arrived. This is needed because data isn’t
+always guaranteed to arrive in a pipeline in time order, or to always arrive
+at predictable intervals.&lt;/li>
 &lt;li>&lt;a href="#trigger">&lt;em>Trigger&lt;/em>&lt;/a> - A trigger determines when to aggregate the results of
 each window.&lt;/li>
 &lt;li>&lt;a href="#state-and-timers">&lt;em>State and timers&lt;/em>&lt;/a> - Per-key state and timer callbacks
@@ -3316,8 +3324,8 @@ batch processing jobs where elements do not denote events, the timestamp will be
 the minimum representable timestamp, often referred to colloquially as &amp;ldquo;negative
 infinity&amp;rdquo;.&lt;/p>
 &lt;h4 id="watermarks">Watermarks&lt;/h4>
-&lt;p>Every &lt;code>PCollection&lt;/code> must have a watermark that estimates how complete the
-&lt;code>PCollection&lt;/code> is.&lt;/p>
+&lt;p>Every &lt;code>PCollection&lt;/code> must have a &lt;a href="#watermark">watermark&lt;/a> that estimates how
+complete the &lt;code>PCollection&lt;/code> is.&lt;/p>
 &lt;p>The watermark is a guess that &amp;ldquo;we&amp;rsquo;ll never see an element with an earlier
 timestamp&amp;rdquo;. Data sources are responsible for producing a watermark. The runner
 must implement watermark propagation as PCollections are processed, merged, and
@@ -3326,13 +3334,12 @@ partitioned.&lt;/p>
 &amp;ldquo;infinity&amp;rdquo;. In this manner, you can discover that an unbounded PCollection is
 finite.&lt;/p>
 &lt;h4 id="windowed-elements">Windowed elements&lt;/h4>
-&lt;p>Every element in a &lt;code>PCollection&lt;/code> resides in a window. No element resides in
-multiple windows; two elements can be equal except for their window, but they
-are not the same.&lt;/p>
-&lt;p>When elements are read from the outside world, they arrive in the global window.
-When they are written to the outside world, they are effectively placed back
+&lt;p>Every element in a &lt;code>PCollection&lt;/code> resides in a &lt;a href="#window">window&lt;/a>. No element
+resides in multiple windows; two elements can be equal except for their window,
+but they are not the same.&lt;/p>
+&lt;p>When elements are written to the outside world, they are effectively placed back
 into the global window. Transforms that write data and don&amp;rsquo;t take this
-perspective probably risks data loss.&lt;/p>
+perspective risk data loss.&lt;/p>
 &lt;p>A window has a maximum timestamp. When the watermark exceeds the maximum
 timestamp plus the user-specified allowed lateness, the window is expired. All
 data related to an expired window might be discarded at any time.&lt;/p>
@@ -3410,9 +3417,9 @@ a Beam pipeline can contain UDFs written in a different language, or even
 multiple languages in the same pipeline.&lt;/p>
 &lt;p>Beam has several varieties of UDFs:&lt;/p>
 &lt;ul>
-&lt;li>&lt;a href="/programming-guide/#pardo">&lt;em>DoFn&lt;/em>&lt;/a> - per-element processing function (used
-in &lt;code>ParDo&lt;/code>)&lt;/li>
-&lt;li>&lt;a href="/programming-guide/#setting-your-pcollections-windowing-function">&lt;em>WindowFn&lt;/em>&lt;/a> -
+&lt;li>&lt;a href="/documentation/programming-guide/#pardo">&lt;em>DoFn&lt;/em>&lt;/a> - per-element processing
+function (used in &lt;code>ParDo&lt;/code>)&lt;/li>
+&lt;li>&lt;a href="/documentation/programming-guide/#setting-your-pcollections-windowing-function">&lt;em>WindowFn&lt;/em>&lt;/a> -
 places elements in windows and merges windows (used in &lt;code>Window&lt;/code> and
 &lt;code>GroupByKey&lt;/code>)&lt;/li>
 &lt;li>&lt;a href="/documentation/programming-guide/#side-inputs">&lt;em>ViewFn&lt;/em>&lt;/a> - adapts a
@@ -3439,7 +3446,7 @@ pipeline. Beam also supports stateful processing through the
 &lt;ul>
 &lt;li>&lt;a href="/documentation/programming-guide/#requirements-for-writing-user-code-for-beam-transforms">Requirements for writing user code for Beam transforms&lt;/a>&lt;/li>
 &lt;li>&lt;a href="/documentation/programming-guide/#pardo">Beam Programming Guide: ParDo&lt;/a>&lt;/li>
-&lt;li>&lt;a href="/programming-guide/#setting-your-pcollections-windowing-function">Beam Programming Guide: WindowFn&lt;/a>&lt;/li>
+&lt;li>&lt;a href="/documentation/programming-guide/#setting-your-pcollections-windowing-function">Beam Programming Guide: WindowFn&lt;/a>&lt;/li>
 &lt;li>&lt;a href="/documentation/programming-guide/#combine">Beam Programming Guide: CombineFn&lt;/a>&lt;/li>
 &lt;li>&lt;a href="/documentation/programming-guide/#data-encoding-and-type-safety">Beam Programming Guide: Coder&lt;/a>&lt;/li>
 &lt;li>&lt;a href="/documentation/programming-guide/#side-inputs">Beam Programming Guide: Side inputs&lt;/a>&lt;/li>
@@ -3481,6 +3488,73 @@ model they support, see the runner
 &lt;ul>
 &lt;li>&lt;a href="/documentation/#choosing-a-runner">Choosing a Runner&lt;/a>&lt;/li>
 &lt;li>&lt;a href="/documentation/runners/capability-matrix/">Beam Capability Matrix&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;h3 id="window">Window&lt;/h3>
+&lt;p>Windowing subdivides a &lt;code>PCollection&lt;/code> into &lt;em>windows&lt;/em> according to the timestamps
+of its individual elements. Windows enable grouping operations over unbounded
+collections by dividing the collection into windows of finite collections.&lt;/p>
+&lt;p>A &lt;em>windowing function&lt;/em> tells the runner how to assign elements to one or more
+initial windows, and how to merge windows of grouped elements. Each element in a
+&lt;code>PCollection&lt;/code> can only be in one window, so if a windowing function specifies
+multiple windows for an element, the element is conceptually duplicated into
+each of the windows and each element is identical except for its window.&lt;/p>
+&lt;p>Transforms that aggregate multiple elements, such as &lt;code>GroupByKey&lt;/code> and &lt;code>Combine&lt;/code>,
+work implicitly on a per-window basis; they process each &lt;code>PCollection&lt;/code> as a
+succession of multiple, finite windows, though the entire collection itself may
+be of unbounded size.&lt;/p>
+&lt;p>Beam provides several windowing functions:&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>Fixed time windows&lt;/strong> (also known as &amp;ldquo;tumbling windows&amp;rdquo;) represent a consistent
+duration, non-overlapping time interval in the data stream.&lt;/li>
+&lt;li>&lt;strong>Sliding time windows&lt;/strong> (also known as &amp;ldquo;hopping windows&amp;rdquo;) also represent time
+intervals in the data stream; however, sliding time windows can overlap.&lt;/li>
+&lt;li>&lt;strong>Per-session windows&lt;/strong> define windows that contain elements that are within a
+certain gap duration of another element.&lt;/li>
+&lt;li>&lt;strong>Single global window&lt;/strong>: by default, all data in a &lt;code>PCollection&lt;/code> is assigned to
+the single global window, and late data is discarded.&lt;/li>
+&lt;li>&lt;strong>Calendar-based windows&lt;/strong> (not supported by the Beam SDK for Python)&lt;/li>
+&lt;/ul>
+&lt;p>You can also define your own windowing function if you have more complex
+requirements.&lt;/p>
+&lt;p>For example, let&amp;rsquo;s say we have a &lt;code>PCollection&lt;/code> that uses fixed-time windowing,
+with windows that are five minutes long. For each window, Beam must collect all
+the data with an event time timestamp in the given window range (between 0:00
+and 4:59 in the first window, for instance). Data with timestamps outside that
+range (data from 5:00 or later) belongs to a different window.&lt;/p>
+&lt;p>Two concepts are closely related to windowing and covered in the following
+sections: &lt;a href="#watermark">watermarks&lt;/a> and &lt;a href="#trigger">triggers&lt;/a>.&lt;/p>
+&lt;p>For more information about windows, see the following page:&lt;/p>
+&lt;ul>
+&lt;li>&lt;a href="/documentation/programming-guide/#windowing">Beam Programming Guide: Windowing&lt;/a>&lt;/li>
+&lt;li>&lt;a href="/documentation/programming-guide/#setting-your-pcollections-windowing-function">Beam Programming Guide: WindowFn&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;h3 id="watermark">Watermark&lt;/h3>
+&lt;p>In any data processing system, there is a certain amount of lag between the time
+a data event occurs (the “event time”, determined by the timestamp on the data
+element itself) and the time the actual data element gets processed at any stage
+in your pipeline (the “processing time”, determined by the clock on the system
+processing the element). In addition, data isn’t always guaranteed to arrive in
+a pipeline in time order, or to always arrive at predictable intervals. For
+example, you might have intermediate systems that don&amp;rsquo;t preserve order, or you
+might have two servers that timestamp data but one has a better network
+connection.&lt;/p>
+&lt;p>To address this potential unpredictability, Beam tracks a &lt;em>watermark&lt;/em>. A
+watermark is a guess as to when all data in a certain window is expected to have
+arrived in the pipeline. You can also think of this as “we’ll never see an
+element with an earlier timestamp”.&lt;/p>
+&lt;p>Data sources are responsible for producing a watermark, and every &lt;code>PCollection&lt;/code>
+must have a watermark that estimates how complete the &lt;code>PCollection&lt;/code> is. The
+contents of a &lt;code>PCollection&lt;/code> are complete when a watermark advances to
+“infinity”. In this manner, you might discover that an unbounded &lt;code>PCollection&lt;/code>
+is finite. After the watermark progresses past the end of a window, any further
+element that arrives with a timestamp in that window is considered &lt;em>late data&lt;/em>.&lt;/p>
+&lt;p>Triggers are a related concept that allow you to modify and refine the windowing
+strategy for a &lt;code>PCollection&lt;/code>. You can use triggers to decide when each
+individual window aggregates and reports its results, including how the window
+emits late elements.&lt;/p>
+&lt;p>For more information about watermarks, see the following page:&lt;/p>
+&lt;ul>
+&lt;li>&lt;a href="/documentation/programming-guide/#watermarks-and-late-data">Beam Programming Guide: Watermarks and late data&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;h3 id="trigger">Trigger&lt;/h3>
 &lt;p>When collecting and grouping data into windows, Beam uses &lt;em>triggers&lt;/em> to
@@ -8893,9 +8967,12 @@ window.&lt;/p>
 &lt;/ul>
 &lt;p>You can also define your own &lt;code>WindowFn&lt;/code> if you have a more complex need.&lt;/p>
 &lt;p>Note that each element can logically belong to more than one window, depending
-on the windowing function you use. Sliding time windowing, for example, creates
-overlapping windows wherein a single element can be assigned to multiple
-windows.&lt;/p>
+on the windowing function you use. Sliding time windowing, for example, can
+create overlapping windows wherein a single element can be assigned to multiple
+windows. However, each element in a &lt;code>PCollection&lt;/code> can only be in one window, so
+if an element is assigned to multiple windows, the element is conceptually
+duplicated into each of the windows and each element is identical except for its
+window.&lt;/p>
 &lt;h4 id="fixed-time-windows">8.2.1. Fixed time windows&lt;/h4>
 &lt;p>The simplest form of windowing is using &lt;strong>fixed time windows&lt;/strong>: given a
 timestamped &lt;code>PCollection&lt;/code> which might be continuously updating, each window
