@@ -22,7 +22,13 @@
 This guide consists of:
 
 - [Project structure](#project-structure)
-- [Configuration walkthrough](#configuration-walkthrough)
+- [State Management](#state-management)
+- [Configuration](#configuration)
+- [Theming](#theming)
+- [Adding a new page](#adding-a-new-page)
+- [Accessibility](#accessibility)
+- [Unit testing](#unit-testing)
+- [Generated Files](#generated-files)
 
 ## Project structure
 
