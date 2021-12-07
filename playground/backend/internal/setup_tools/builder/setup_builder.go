@@ -78,6 +78,10 @@ func SetupExecutorBuilder(srcFilePath, baseFolderPath, execFilePath string, sdkE
 			WithExecutableFileName("").
 			WithRunner().
 			WithCommand(execFilePath).ExecutorBuilder
+	case pb.Sdk_SDK_PYTHON:
+		// Nothing is needed for Python
+	case pb.Sdk_SDK_SCIO:
+		return nil, fmt.Errorf("SCIO is not supported yet")
 	default:
 		return nil, fmt.Errorf("incorrect sdk: %s", sdkEnv.ApacheBeamSdk)
 	}
