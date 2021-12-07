@@ -426,6 +426,9 @@ func processCompileSuccess(ctx context.Context, output []byte, pipelineId uuid.U
 	if err := utils.SetToCache(ctx, cacheService, pipelineId, cache.RunOutput, ""); err != nil {
 		return err
 	}
+	if err := utils.SetToCache(ctx, cacheService, pipelineId, cache.Logs, ""); err != nil {
+		return err
+	}
 	return utils.SetToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_EXECUTING)
 }
 
