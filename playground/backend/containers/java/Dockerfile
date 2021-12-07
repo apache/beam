@@ -71,8 +71,8 @@ RUN wget https://repo1.maven.org/maven2/junit/junit/$JUNIT_VERSION/junit-$JUNIT_
     mv junit-$JUNIT_VERSION.jar /opt/apache/beam/jars/junit.jar
 # Install Java Katas Utils
 COPY katas /go/src/katas
-WORKDIR /go/src/katas
-RUN ./gradlew jar &&\
+RUN cd /go/src/katas &&\
+    ./gradlew jar &&\
     mv util/build/libs/util.jar /opt/apache/beam/jars/util.jar
 
 RUN printenv

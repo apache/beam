@@ -49,7 +49,7 @@ COPY --from=build /go/src/playground/backend/configs /opt/playground/backend/con
 
 # Install Python Katas Utils
 COPY katas/log_elements.py /go/src/katas/
-ENV PYTHONPATH="/go/src/katas"
+ENV PYTHONPATH="$PYTHONPATH:/go/src/katas"
 
 RUN printenv
 ENTRYPOINT ["/opt/playground/backend/server_python_backend"]
