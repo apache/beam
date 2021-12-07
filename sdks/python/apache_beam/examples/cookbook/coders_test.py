@@ -19,12 +19,12 @@
 
 # pytype: skip-file
 
+import json
 import logging
 import os
 import tempfile
 import unittest
 
-import json
 import pytest
 
 import apache_beam as beam

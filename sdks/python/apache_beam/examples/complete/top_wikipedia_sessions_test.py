@@ -19,8 +19,8 @@
 
 # pytype: skip-file
 
-import logging
 import json
+import logging
 import os
 import tempfile
 import unittest

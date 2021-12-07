@@ -19,12 +19,12 @@
 
 # pytype: skip-file
 
+import json
 import logging
 import os
 import tempfile
 import unittest
 
-import json
 import pytest
 
 from apache_beam.examples.complete import estimate_pi
