@@ -20,6 +20,7 @@ package org.apache.beam.runners.core.construction.graph;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
@@ -29,7 +30,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -63,11 +63,12 @@ class FieldAccessVisitor extends PipelineVisitor.Defaults {
 
     if (transform instanceof MultiOutput) {
       // Get main input pcoll.
-      Map<TupleTag<?>, PCollection<?>> mainInputs =
+      Set<PCollection<?>> mainInputs =
           node.getInputs().entrySet().stream()
               .filter((entry) -> !transform.getAdditionalInputs().containsKey(entry.getKey()))
-              .collect(Collectors.toMap(Entry::getKey, Entry::getValue));
-      PCollection<?> mainInput = Iterables.getOnlyElement(mainInputs.values());
+              .map(Entry::getValue)
+              .collect(Collectors.toSet());
+      PCollection<?> mainInput = Iterables.getOnlyElement(mainInputs);
 
       // Get field access.
       DoFn<?, ?> fn = ((MultiOutput<?, ?>) transform).getFn();
