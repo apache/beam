@@ -23,6 +23,7 @@ import (
 	"beam.apache.org/playground/backend/internal/utils"
 	"fmt"
 	"github.com/google/uuid"
+	"strings"
 	"testing"
 )
 
@@ -69,7 +70,7 @@ func TestSetupExecutor(t *testing.T) {
 		WithRunner().
 		WithCommand(executorConfig.RunCmd).
 		WithArgs(executorConfig.RunArgs).
-		WithPipelineOptions(pipelineOptions).
+		WithPipelineOptions(strings.Split(pipelineOptions, " ")).
 		WithTestRunner().
 		WithCommand(executorConfig.TestCmd).
 		WithArgs(executorConfig.TestArgs).

@@ -27,14 +27,3 @@ func GetFuncName(i interface{}) string {
 	splitName := strings.Split(fullName, ".")
 	return splitName[len(splitName)-1]
 }
-
-//RemoveEmptyValue removes empty lines from an array
-func RemoveEmptyValue(args []string) []string {
-	var array []string
-	for _, str := range args {
-		if str != "" {
-			array = append(array, str)
-		}
-	}
-	return array
-}

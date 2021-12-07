@@ -199,7 +199,7 @@ func (b *ExecutorBuilder) Build() Executor {
 }
 
 //WithPipelineOptions adds pipeline options to executor
-func (b *RunBuilder) WithPipelineOptions(pipelineOptions string) *RunBuilder {
+func (b *RunBuilder) WithPipelineOptions(pipelineOptions []string) *RunBuilder {
 	b.actions = append(b.actions, func(e *Executor) {
 		e.runArgs.pipelineOptions = pipelineOptions
 	})

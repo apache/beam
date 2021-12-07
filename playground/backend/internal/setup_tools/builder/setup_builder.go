@@ -61,7 +61,7 @@ func SetupExecutorBuilder(srcFilePath, baseFolderPath, execFilePath, pipelineOpt
 		WithRunner().
 		WithCommand(executorConfig.RunCmd).
 		WithArgs(executorConfig.RunArgs).
-		WithPipelineOptions(pipelineOptions).
+		WithPipelineOptions(strings.Split(pipelineOptions, " ")).
 		WithTestRunner().
 		WithCommand(executorConfig.TestCmd).
 		WithArgs(executorConfig.TestArgs).
