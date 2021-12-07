@@ -1,6 +1,7 @@
 {
   "compile_cmd": "javac",
   "run_cmd": "java",
+  "test_cmd": "java",
   "compile_args": [
     "-d",
     "bin",
@@ -8,6 +9,12 @@
   ],
   "run_args": [
     "-cp",
-    "bin:"
+    "bin:",
+    "-Djava.util.logging.config.file={logConfigFile}"
+  ],
+  "test_args": [
+    "-cp",
+    "bin:",
+    "JUnit"
   ]
 }

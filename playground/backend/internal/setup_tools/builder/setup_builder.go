@@ -21,6 +21,13 @@ import (
 	"beam.apache.org/playground/backend/internal/executors"
 	"beam.apache.org/playground/backend/internal/utils"
 	"fmt"
+	"path/filepath"
+	"strings"
+)
+
+const (
+	javaLogConfigFileName        = "logging.properties"
+	javaLogConfigFilePlaceholder = "{logConfigFile}"
 )
 
 // SetupExecutorBuilder return executor with set args for validator, preparator, compiler and runner
@@ -37,6 +44,8 @@ func SetupExecutorBuilder(srcFilePath, baseFolderPath, execFilePath string, sdkE
 	}
 	executorConfig := sdkEnv.ExecutorConfig
 	builder := executors.NewExecutorBuilder().
+		WithExecutableFileName(execFilePath).
+		WithWorkingDir(baseFolderPath).
 		WithValidator().
 		WithSdkValidators(val).
 		WithPreparator().
@@ -45,20 +54,36 @@ func SetupExecutorBuilder(srcFilePath, baseFolderPath, execFilePath string, sdkE
 		WithCommand(executorConfig.CompileCmd).
 		WithArgs(executorConfig.CompileArgs).
 		WithFileName(srcFilePath).
-		WithWorkingDir(baseFolderPath).
 		WithRunner().
 		WithCommand(executorConfig.RunCmd).
 		WithArgs(executorConfig.RunArgs).
-		WithWorkingDir(baseFolderPath)
+		WithTestRunner().
+		WithCommand(executorConfig.TestCmd).
+		WithArgs(executorConfig.TestArgs).
+		ExecutorBuilder
 
 	switch sdk {
 	case pb.Sdk_SDK_JAVA: // Executable name for java class will be known after compilation
-	case pb.Sdk_SDK_GO:
-		builder = builder.WithCommand(execFilePath)
+		args := make([]string, 0)
+		for _, arg := range executorConfig.RunArgs {
+			if strings.Contains(arg, javaLogConfigFilePlaceholder) {
+				logConfigFilePath := filepath.Join(baseFolderPath, javaLogConfigFileName)
+				arg = strings.Replace(arg, javaLogConfigFilePlaceholder, logConfigFilePath, 1)
+			}
+			args = append(args, arg)
+		}
+		builder = builder.WithRunner().WithArgs(args).ExecutorBuilder
+	case pb.Sdk_SDK_GO: //go run command is executable file itself
+		builder = builder.
+			WithExecutableFileName("").
+			WithRunner().
+			WithCommand(execFilePath).ExecutorBuilder
 	case pb.Sdk_SDK_PYTHON:
-		builder = builder.WithExecutableFileName(execFilePath)
+		// Nothing is needed for Python
+	case pb.Sdk_SDK_SCIO:
+		return nil, fmt.Errorf("SCIO is not supported yet")
 	default:
 		return nil, fmt.Errorf("incorrect sdk: %s", sdkEnv.ApacheBeamSdk)
 	}
-	return &builder.ExecutorBuilder, nil
+	return &builder, nil
 }

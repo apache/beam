@@ -43,6 +43,7 @@ class PlaygroundPage extends StatelessWidget {
       shortcuts: globalShortcuts,
       child: Scaffold(
         appBar: AppBar(
+          automaticallyImplyLeading: false,
           title: Consumer<PlaygroundState>(
             builder: (context, state, child) {
               return Wrap(

@@ -386,7 +386,6 @@ public class ParquetIOTest implements Serializable {
     ArrayList<GenericRecord> data = new ArrayList<>();
     GenericRecordBuilder builder = new GenericRecordBuilder(REQUESTED_ENCODER_SCHEMA);
     for (int i = 0; i < count; i++) {
-      int index = i % SCIENTISTS.length;
       GenericRecord record = builder.set("id", Integer.toString(i)).set("name", null).build();
       data.add(record);
     }
