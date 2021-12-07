@@ -48,7 +48,7 @@ root_dir = os.getenv("BEAM_ROOT_DIR")
 categories_file = os.getenv("BEAM_EXAMPLE_CATEGORIES")
 
 
-def ci_step(examples: List[Example]):
+def _ci_step(examples: List[Example]):
   """
   CI step to verify all beam examples/tests/katas
   """
@@ -57,7 +57,7 @@ def ci_step(examples: List[Example]):
   asyncio.run(ci_helper.verify_examples(examples))
 
 
-def cd_step(examples: List[Example]):
+def _cd_step(examples: List[Example]):
   """
   CD step to save all beam examples/tests/katas and their outputs on the GCS
   """
@@ -75,17 +75,17 @@ def _check_envs():
     )
 
 
-def run_ci_cd(step: config.Config.CI_CD_LITERAL, sdk: Sdk):
+def _run_ci_cd(step: config.Config.CI_CD_LITERAL, sdk: Sdk):
   supported_categories = get_supported_categories(categories_file)
   examples = find_examples(root_dir, supported_categories, sdk)
   if step == config.Config.CI_STEP_NAME:
-    ci_step(examples=examples)
+    _ci_step(examples=examples)
   if step == config.Config.CD_STEP_NAME:
-    cd_step(examples=examples)
+    _cd_step(examples=examples)
 
 
 if __name__ == "__main__":
   parser = parser.parse_args()
   _check_envs()
   setup_logger()
-  run_ci_cd(parser.step, Sdk.Value(parser.sdk))
+  _run_ci_cd(parser.step, Sdk.Value(parser.sdk))

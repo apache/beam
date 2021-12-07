@@ -15,16 +15,16 @@
 
 import mock
 
-from ci_cd import ci_step, cd_step
+from ci_cd import _ci_step, _cd_step
 
 
 @mock.patch("ci_helper.CIHelper.verify_examples")
 def test_ci_step(mock_verify_examples):
-  ci_step([])
+  _ci_step([])
   mock_verify_examples.assert_called_once_with([])
 
 
 @mock.patch("cd_helper.CDHelper.store_examples")
 def test_cd_step(mock_store_examples):
-  cd_step([])
+  _cd_step([])
   mock_store_examples.assert_called_once_with([])
