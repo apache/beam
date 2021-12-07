@@ -78,7 +78,8 @@ class BigQuerySideInputTest(unittest.TestCase):
     }
 
     bigquery_side_input.run(
-        test_pipeline.get_full_options_as_args(**extra_opts))
+        test_pipeline.get_full_options_as_args(**extra_opts),
+        save_main_session=False)
 
     # Load result file and compare.
     with open_shards(os.path.join(temp_folder, 'result-*-of-*')) as result_file:
