@@ -98,7 +98,8 @@ class ComputeTopSessionsTest(unittest.TestCase):
         os.path.join(temp_folder, 'result'),
         '--sampling_threshold',
         '1.0'
-    ])
+    ],
+                               save_main_session=False)
 
     # Load result file and compare.
     with open_shards(os.path.join(temp_folder, 'result-*-of-*')) as result_file:

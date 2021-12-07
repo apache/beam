@@ -47,7 +47,8 @@ class EstimatePiTest(unittest.TestCase):
   def test_basics(self):
     temp_folder = tempfile.mkdtemp()
     estimate_pi.run(
-        ['--output', os.path.join(temp_folder, 'result'), '--tries', '5000'])
+        ['--output', os.path.join(temp_folder, 'result'), '--tries', '5000'],
+        save_main_session=False)
     # Load result file and compare.
     with open_shards(os.path.join(temp_folder, 'result-*-of-*')) as result_file:
       result = json.loads(result_file.read().strip())[2]

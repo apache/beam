@@ -75,7 +75,8 @@ class CodersTest(unittest.TestCase):
         '--input=%s/input.txt' % temp_folder,
         '--output',
         os.path.join(temp_folder, 'result')
-    ])
+    ],
+               save_main_session=False)
 
     # Load result file and compare.
     with open_shards(os.path.join(temp_folder, 'result-*-of-*')) as result_file:
