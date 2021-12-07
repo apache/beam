@@ -39,7 +39,7 @@ The following command is used to build and serve the website locally:
 
 Run the following command to generate a release build:
 
-`$flutter build web`
+`$ flutter build web`
 
 ### Tests
 
