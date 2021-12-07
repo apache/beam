@@ -1,21 +1,3 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 ///
 //  Generated code. Do not modify.
 //  source: api/v1/api.proto
@@ -147,9 +129,7 @@ const GetRunOutputRequest$json = const {
 };
 
 /// Descriptor for `GetRunOutputRequest`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List getRunOutputRequestDescriptor = $convert
-    .base64Decode(
-    'ChNHZXRSdW5PdXRwdXRSZXF1ZXN0EiMKDXBpcGVsaW5lX3V1aWQYASABKAlSDHBpcGVsaW5lVXVpZA==');
+final $typed_data.Uint8List getRunOutputRequestDescriptor = $convert.base64Decode('ChNHZXRSdW5PdXRwdXRSZXF1ZXN0EiMKDXBpcGVsaW5lX3V1aWQYASABKAlSDHBpcGVsaW5lVXVpZA==');
 @$core.Deprecated('Use getRunOutputResponseDescriptor instead')
 const GetRunOutputResponse$json = const {
   '1': 'GetRunOutputResponse',
@@ -235,47 +215,19 @@ const PrecompiledObject$json = const {
     const {'1': 'cloud_path', '3': 1, '4': 1, '5': 9, '10': 'cloudPath'},
     const {'1': 'name', '3': 2, '4': 1, '5': 9, '10': 'name'},
     const {'1': 'description', '3': 3, '4': 1, '5': 9, '10': 'description'},
-    const {
-      '1': 'type',
-      '3': 4,
-      '4': 1,
-      '5': 14,
-      '6': '.api.v1.PrecompiledObjectType',
-      '10': 'type'
-    },
-    const {
-      '1': 'pipeline_options',
-      '3': 5,
-      '4': 1,
-      '5': 9,
-      '10': 'pipelineOptions'
-    },
+    const {'1': 'type', '3': 4, '4': 1, '5': 14, '6': '.api.v1.PrecompiledObjectType', '10': 'type'},
+    const {'1': 'pipeline_options', '3': 5, '4': 1, '5': 9, '10': 'pipelineOptions'},
   ],
 };
 
 /// Descriptor for `PrecompiledObject`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List precompiledObjectDescriptor = $convert.base64Decode(
-    'ChFQcmVjb21waWxlZE9iamVjdBIdCgpjbG91ZF9wYXRoGAEgASgJUgljbG91ZFBhdGgSEgoEbmFtZRgCIAEoCVIEbmFtZRIgCgtkZXNjcmlwdGlvbhgDIAEoCVILZGVzY3JpcHRpb24SMQoEdHlwZRgEIAEoDjIdLmFwaS52MS5QcmVjb21waWxlZE9iamVjdFR5cGVSBHR5cGUSKQoQcGlwZWxpbmVfb3B0aW9ucxgFIAEoCVIPcGlwZWxpbmVPcHRpb25z');
+final $typed_data.Uint8List precompiledObjectDescriptor = $convert.base64Decode('ChFQcmVjb21waWxlZE9iamVjdBIdCgpjbG91ZF9wYXRoGAEgASgJUgljbG91ZFBhdGgSEgoEbmFtZRgCIAEoCVIEbmFtZRIgCgtkZXNjcmlwdGlvbhgDIAEoCVILZGVzY3JpcHRpb24SMQoEdHlwZRgEIAEoDjIdLmFwaS52MS5QcmVjb21waWxlZE9iamVjdFR5cGVSBHR5cGUSKQoQcGlwZWxpbmVfb3B0aW9ucxgFIAEoCVIPcGlwZWxpbmVPcHRpb25z');
 @$core.Deprecated('Use categoriesDescriptor instead')
 const Categories$json = const {
   '1': 'Categories',
   '2': const [
-    const {
-      '1': 'sdk',
-      '3': 1,
-      '4': 1,
-      '5': 14,
-      '6': '.api.v1.Sdk',
-      '10': 'sdk'
-    },
-    const {
-      '1': 'categories',
-      '3': 2,
-      '4': 3,
-      '5': 11,
-      '6': '.api.v1.Categories.Category',
-      '10': 'categories'
-    },
+    const {'1': 'sdk', '3': 1, '4': 1, '5': 14, '6': '.api.v1.Sdk', '10': 'sdk'},
+    const {'1': 'categories', '3': 2, '4': 3, '5': 11, '6': '.api.v1.Categories.Category', '10': 'categories'},
   ],
   '3': const [Categories_Category$json],
 };
