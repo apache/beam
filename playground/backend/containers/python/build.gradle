@@ -47,6 +47,10 @@ task copyDockerfileDependencies(type: Copy) {
       from '../../../playground'
       into 'build/playground'
    }
+   copy {
+      from '../../../../learning/katas/python'
+      into 'build/katas'
+   }
 }
 
 docker {
