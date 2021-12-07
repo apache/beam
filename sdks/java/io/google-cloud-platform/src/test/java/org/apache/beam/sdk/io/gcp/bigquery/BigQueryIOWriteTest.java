@@ -1564,45 +1564,32 @@ public class BigQueryIOWriteTest implements Serializable {
   }
 
   @Test
-  public void testCreateNever() throws Exception {
-    BigQueryIO.Write.Method method =
-        useStreaming
-            ? (useStorageApi
-                ? (useStorageApiApproximate
-                    ? Method.STORAGE_API_AT_LEAST_ONCE
-                    : Method.STORAGE_WRITE_API)
-                : Method.STREAMING_INSERTS)
-            : useStorageApi ? Method.STORAGE_WRITE_API : Method.FILE_LOADS;
+  public void testCreateNeverWithStreaming() throws Exception {
+    if (!useStreaming) {
+      return;
+    }
     p.enableAbandonedNodeEnforcement(false);
 
-    TableReference tableRef = BigQueryHelpers.parseTableSpec("project-id:dataset-id.table");
-    TableSchema tableSchema =
-        new TableSchema()
-            .setFields(
-                ImmutableList.of(
-                    new TableFieldSchema().setName("name").setType("STRING"),
-                    new TableFieldSchema().setName("number").setType("INTEGER")));
-    fakeDatasetService.createTable(new Table().setTableReference(tableRef).setSchema(tableSchema));
+    TableReference tableRef = new TableReference();
+    tableRef.setDatasetId("dataset");
+    tableRef.setTableId("sometable");
 
     PCollection<TableRow> tableRows =
-        p.apply(GenerateSequence.from(0).to(10))
+        p.apply(GenerateSequence.from(0))
             .apply(
                 MapElements.via(
                     new SimpleFunction<Long, TableRow>() {
                       @Override
                       public TableRow apply(Long input) {
-                        return new TableRow().set("name", "name " + input).set("number", input);
+                        return null;
                       }
                     }))
             .setCoder(TableRowJsonCoder.of());
     tableRows.apply(
         BigQueryIO.writeTableRows()
             .to(tableRef)
-            .withMethod(method)
             .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER)
-            .withTestServices(fakeBqServices)
             .withoutValidation());
-    p.run();
   }
 
   @Test

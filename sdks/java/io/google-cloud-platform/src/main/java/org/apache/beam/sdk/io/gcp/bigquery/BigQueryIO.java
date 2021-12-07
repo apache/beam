@@ -2893,14 +2893,13 @@ public class BigQueryIO {
         }
         return input.apply(batchLoads);
       } else if (method == Method.STORAGE_WRITE_API || method == Method.STORAGE_API_AT_LEAST_ONCE) {
-        BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
         StorageApiDynamicDestinations<T, DestinationT> storageApiDynamicDestinations;
         if (getUseBeamSchema()) {
           // This ensures that the Beam rows are directly translated into protos for Sorage API
           // writes, with no
           // need to round trip through JSON TableRow objects.
           storageApiDynamicDestinations =
-              new StorageApiDynamicDestinationsBeamRow<>(
+              new StorageApiDynamicDestinationsBeamRow<T, DestinationT>(
                   dynamicDestinations, elementSchema, elementToRowFunction);
         } else {
           RowWriterFactory.TableRowWriterFactory<T, DestinationT> tableRowWriterFactory =
@@ -2908,12 +2907,10 @@ public class BigQueryIO {
           // Fallback behavior: convert to JSON TableRows and convert those into Beam TableRows.
           storageApiDynamicDestinations =
               new StorageApiDynamicDestinationsTableRow<>(
-                  dynamicDestinations,
-                  tableRowWriterFactory.getToRowFn(),
-                  getBigQueryServices().getDatasetService(bqOptions),
-                  getCreateDisposition());
+                  dynamicDestinations, tableRowWriterFactory.getToRowFn());
         }
 
+        BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
         StorageApiLoads<DestinationT, T> storageApiLoads =
             new StorageApiLoads<DestinationT, T>(
                 destinationCoder,
