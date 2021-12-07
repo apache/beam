@@ -601,7 +601,7 @@ func Test_getRunOrTestCmd(t *testing.T) {
 		WithArgs([]string{"arg1"}).
 		Build()
 
-	wantRunExec := exec.CommandContext(context.Background(), "runCommand", "arg1", "")
+	wantRunExec := exec.CommandContext(context.Background(), "runCommand", "arg1")
 	wantTestExec := exec.CommandContext(context.Background(), "testCommand", "arg1", "")
 
 	type args struct {
