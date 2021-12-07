@@ -19,7 +19,7 @@
 import 'package:flutter/material.dart';
 import 'package:playground/config/theme.dart';
 
-Map<String, TextStyle>? createTheme(ThemeColors colors) {
+Map<String, TextStyle> createTheme(ThemeColors colors) {
   return {
     'root': TextStyle(
       backgroundColor: colors.primaryBackground,

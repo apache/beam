@@ -17,31 +17,24 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:playground/config/theme.dart';
-import 'package:playground/pages/playground/components/playground_page_providers.dart';
-import 'package:playground/pages/routes.dart';
+import 'package:playground/constants/assets.dart';
+import 'package:playground/constants/sizes.dart';
 import 'package:provider/provider.dart';
 
-class PlaygroundApp extends StatelessWidget {
-  const PlaygroundApp({Key? key}) : super(key: key);
+class ToggleThemeIconButton extends StatelessWidget {
+  const ToggleThemeIconButton({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (context) => ThemeProvider(),
-      builder: (context, _) {
-        final themeProvider = Provider.of<ThemeProvider>(context);
-        return PlaygroundPageProviders(
-          child: MaterialApp(
-            title: 'Apache Beam Playground',
-            themeMode: themeProvider.themeMode,
-            theme: kLightTheme,
-            darkTheme: kDarkTheme,
-            onGenerateRoute: Routes.generateRoute,
-            debugShowCheckedModeBanner: false,
-          ),
-        );
-      },
-    );
+    return Consumer<ThemeProvider>(builder: (context, theme, child) {
+      return IconButton(
+        iconSize: kIconSizeLg,
+        splashRadius: kIconButtonSplashRadius,
+        icon: SvgPicture.asset(kThemeIconAsset),
+        onPressed: theme.toggleTheme,
+      );
+    });
   }
 }

@@ -20,9 +20,6 @@ package org.apache.beam.fn.harness.state;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -35,11 +32,11 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest.RequestCase;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
 /** A fake implementation of a {@link BeamFnStateClient} to aid with testing. */
 public class FakeBeamFnStateClient implements BeamFnStateClient {
-  private final Map<StateKey, List<ByteString>> data;
+  private final Map<StateKey, ByteString> data;
+  private final int chunkSize;
   private int currentId;
 
   public FakeBeamFnStateClient(Map<StateKey, ByteString> initialData) {
@@ -47,34 +44,16 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
   }
 
   public FakeBeamFnStateClient(Map<StateKey, ByteString> initialData, int chunkSize) {
-    this.data =
-        new ConcurrentHashMap<>(
-            Maps.transformValues(
-                initialData,
-                (ByteString all) -> {
-                  List<ByteString> chunks = new ArrayList<>();
-                  for (int i = 0; i < Math.max(1, all.size()); i += chunkSize) {
-                    chunks.add(all.substring(i, Math.min(all.size(), i + chunkSize)));
-                  }
-                  return chunks;
-                }));
+    this.data = new ConcurrentHashMap<>(initialData);
+    this.chunkSize = chunkSize;
   }
 
   public Map<StateKey, ByteString> getData() {
-    return Maps.transformValues(
-        data,
-        bs -> {
-          ByteString all = ByteString.EMPTY;
-          for (ByteString b : bs) {
-            all = all.concat(b);
-          }
-          return all;
-        });
+    return data;
   }
 
   @Override
   public CompletableFuture<StateResponse> handle(StateRequest.Builder requestBuilder) {
-
     // The id should never be filled out
     assertEquals("", requestBuilder.getId());
     requestBuilder.setId(generateId());
@@ -92,16 +71,17 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
 
     switch (request.getRequestCase()) {
       case GET:
-        // Chunk gets into 6 byte return blocks
-        List<ByteString> byteStrings =
-            data.getOrDefault(request.getStateKey(), Collections.singletonList(ByteString.EMPTY));
+        // Chunk gets into chunkSize blocks
+        ByteString byteString = data.getOrDefault(request.getStateKey(), ByteString.EMPTY);
         int block = 0;
         if (request.getGet().getContinuationToken().size() > 0) {
           block = Integer.parseInt(request.getGet().getContinuationToken().toStringUtf8());
         }
-        ByteString returnBlock = byteStrings.get(block);
+        ByteString returnBlock =
+            byteString.substring(
+                block * chunkSize, Math.min(byteString.size(), (block + 1) * chunkSize));
         ByteString continuationToken = ByteString.EMPTY;
-        if (byteStrings.size() > block + 1) {
+        if ((block + 1) * chunkSize < byteString.size()) {
           continuationToken = ByteString.copyFromUtf8(Integer.toString(block + 1));
         }
         response =
@@ -118,18 +98,10 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
         break;
 
       case APPEND:
-        List<ByteString> previousValue =
-            data.getOrDefault(request.getStateKey(), Collections.singletonList(ByteString.EMPTY));
-        List<ByteString> newValue = new ArrayList<>();
-        newValue.addAll(previousValue);
-        ByteString newData = request.getAppend().getData();
-        if (newData.size() % 2 == 0) {
-          newValue.remove(newValue.size() - 1);
-          newValue.add(previousValue.get(previousValue.size() - 1).concat(newData));
-        } else {
-          newValue.add(newData);
-        }
-        data.put(request.getStateKey(), newValue);
+        data.put(
+            request.getStateKey(),
+            data.getOrDefault(request.getStateKey(), ByteString.EMPTY)
+                .concat(request.getAppend().getData()));
         response = StateResponse.newBuilder().setAppend(StateAppendResponse.getDefaultInstance());
         break;
 
@@ -137,6 +109,7 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
         throw new IllegalStateException(
             String.format("Unknown request type %s", request.getRequestCase()));
     }
+
     return CompletableFuture.completedFuture(response.setId(requestBuilder.getId()).build());
   }
 
