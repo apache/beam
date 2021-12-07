@@ -19,7 +19,10 @@
 
 # pytype: skip-file
 
+import logging
 import json
+import os
+import tempfile
 import unittest
 
 import pytest
@@ -29,6 +32,7 @@ from apache_beam.examples.complete import top_wikipedia_sessions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.testing.util import open_shards
 
 
 class ComputeTopSessionsTest(unittest.TestCase):
@@ -70,13 +74,37 @@ class ComputeTopSessionsTest(unittest.TestCase):
       'user3 : [3024.0, 6624.0) : 1 : [0.0, 2592000.0)',
   ]
 
-  @pytest.mark.examples_postcommit
+  def create_file(self, path, contents):
+    logging.info('Creating temp file: %s', path)
+    with open(path, 'w') as f:
+      f.write(contents)
+
   def test_compute_top_sessions(self):
     with TestPipeline() as p:
       edits = p | beam.Create(self.EDITS)
       result = edits | top_wikipedia_sessions.ComputeTopSessions(1.0)
 
       assert_that(result, equal_to(self.EXPECTED))
+
+  @pytest.mark.examples_postcommit
+  def test_basics(self):
+    # Setup the files with expected content.
+    temp_folder = tempfile.mkdtemp()
+    self.create_file(
+        os.path.join(temp_folder, 'input.txt'), '\n'.join(self.EDITS))
+    top_wikipedia_sessions.run([
+        '--input=%s/input.txt' % temp_folder,
+        '--output',
+        os.path.join(temp_folder, 'result'),
+        '--sampling_threshold',
+        '1.0'
+    ])
+
+    # Load result file and compare.
+    with open_shards(os.path.join(temp_folder, 'result-*-of-*')) as result_file:
+      result = result_file.read().strip().splitlines()
+
+    self.assertEqual(self.EXPECTED, sorted(result, key=lambda x: x.split()[0]))
 
 
 if __name__ == '__main__':
