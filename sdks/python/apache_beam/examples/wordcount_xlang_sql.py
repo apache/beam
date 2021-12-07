@@ -22,6 +22,14 @@ Java 8 must be available to run this pipeline, and the
 Docker must also be available to run this pipeline locally.
 """
 
+# beam-playground:
+#   name: WordCountXLangSQL
+#   description: A word-counting workflow that uses the SQL transform.
+#   pipeline_options: --output output.txt
+#   categories:
+#     - IO
+#     - Options
+
 import argparse
 import logging
 import re

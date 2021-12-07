@@ -15,6 +15,14 @@
 
 package main
 
+// beam-playground:
+//   name: Contains
+//   description: An example counts received substring in Shakespeare/kinglear.txt
+//   pipeline_options: --search king
+//   categories:
+//     - IO
+//	   - Options
+
 import (
 	"context"
 	"flag"

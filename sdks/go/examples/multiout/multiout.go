@@ -17,6 +17,16 @@
 // and writes 2 output files.
 package main
 
+// beam-playground:
+//   name: MultiOut
+//   description: An example that counts words in Shakespeare/kinglear.txt and writes 2 output files:
+//   -- small: file for small words
+//   -- big: file for big words
+//   pipeline_options: --small sOutput.txt --big bOutput.txt
+//   categories:
+//     - IO
+//     - Options
+
 import (
 	"context"
 	"flag"

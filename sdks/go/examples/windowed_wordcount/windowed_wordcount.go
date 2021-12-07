@@ -34,6 +34,14 @@
 //  5. Accessing the window of an element
 package main
 
+// beam-playground:
+//   name: WindowedWordCount
+//   description: An example that counts words in text, and can run over either unbounded or bounded input collections.
+//   pipeline_options: --output output.txt
+//   categories:
+//     - IO
+//	   - Options
+
 import (
 	"context"
 	"flag"

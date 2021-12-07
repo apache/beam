@@ -36,6 +36,12 @@
 // phrase "StringSplit Output".
 package main
 
+// beam-playground:
+//   name: StringsSplit
+//   description: An example of using a Splittable DoFn in the Go SDK with a portable runner.
+//   pipeline_options:
+//   categories:
+
 import (
 	"context"
 	"flag"

@@ -26,6 +26,15 @@ python -m apache_beam.examples.bitcoin \
 
 # pytype: skip-file
 
+# beam-playground:
+#   name: AvroBitcoin
+#   description: An example that collect statistics on transactions
+#   in a public bitcoin dataset that was exported to avro
+#   pipeline_options: --output output.txt
+#   categories:
+#     - IO
+#     - Options
+
 import argparse
 import logging
 

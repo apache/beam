@@ -15,6 +15,12 @@
 
 package main
 
+// beam-playground:
+//   name: Grades
+//   description:
+//   pipeline_options:
+//   categories:
+
 import (
 	"context"
 	"flag"

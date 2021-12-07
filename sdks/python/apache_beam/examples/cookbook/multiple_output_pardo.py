@@ -51,6 +51,16 @@ and an output prefix on GCS:::
 
 # pytype: skip-file
 
+# beam-playground:
+#   name: MultipleOutputPardo
+#   description: This is a slightly modified version of the
+#       basic wordcount example. In this example words are divided into 2 buckets
+#       as shorts words (3 characters in length or less) and words (other).
+#   pipeline_options: --output output.txt
+#   categories:
+#     - IO
+#     - Options
+
 import argparse
 import logging
 import re

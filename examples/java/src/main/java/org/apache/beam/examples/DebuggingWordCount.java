@@ -17,6 +17,15 @@
  */
 package org.apache.beam.examples;
 
+/* beam-playground:
+ *   name: DebuggingWordCount
+ *   description: An example that counts words in Shakespeare/kinglear.txt includes regax filter("Flourish|stomach").
+ *   pipeline_options: --output output.txt
+ *   categories:
+ *     - IO
+ *     - Options
+ */
+
 import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;

@@ -19,6 +19,14 @@
 
 # pytype: skip-file
 
+# beam-playground:
+#   name: WordCountWithMetrics
+#   description: A word-counting workflow with metrics.
+#   pipeline_options: --output output.txt
+#   categories:
+#     - IO
+#     - Options
+
 import argparse
 import logging
 import re

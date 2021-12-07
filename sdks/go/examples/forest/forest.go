@@ -27,6 +27,14 @@
 // orders.
 package main
 
+// beam-playground:
+//   name: Forest
+//   description: An example that shows that pipeline construction is normal Go code
+//   -- the pipeline "forest" is created recursively and uses a global variable
+//   -- and that a pipeline may contain non-connected parts.
+//   pipeline_options:
+//   categories:
+
 import (
 	"context"
 	"flag"

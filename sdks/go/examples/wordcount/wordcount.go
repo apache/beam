@@ -55,6 +55,14 @@
 // with --input.
 package main
 
+// beam-playground:
+//   name: WordCount
+//   description: An example that counts words in Shakespeare/kinglear.txt and includes Beam best practices.
+//   pipeline_options: --output output.txt
+//   categories:
+//     - IO
+//     - Options
+
 import (
 	"context"
 	"flag"
