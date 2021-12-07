@@ -35,7 +35,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuild
 public class StorageApiDynamicDestinationsTableRow<T, DestinationT>
     extends StorageApiDynamicDestinations<T, DestinationT> {
   private final SerializableFunction<T, TableRow> formatFunction;
-  private final DatasetService datasetService;
+  private final transient DatasetService datasetService;
   private final CreateDisposition createDisposition;
 
   // TODO: Is this cache needed? All callers of getMessageConverter are already caching the resullt.
