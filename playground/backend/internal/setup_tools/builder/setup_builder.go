@@ -35,7 +35,7 @@ func SetupExecutorBuilder(srcFilePath, baseFolderPath, execFilePath, pipelineOpt
 	sdk := sdkEnv.ApacheBeamSdk
 
 	if sdk == pb.Sdk_SDK_JAVA {
-		pipelineOptions = utils.SpacesToEqualsOption(pipelineOptions)
+		pipelineOptions = utils.ReplaceSpacesWithEquals(pipelineOptions)
 	}
 
 	val, err := utils.GetValidators(sdk, srcFilePath)
