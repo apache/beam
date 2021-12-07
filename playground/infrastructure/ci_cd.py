@@ -29,20 +29,20 @@ from helper import find_examples, get_supported_categories, Example
 from logger import setup_logger
 
 parser = argparse.ArgumentParser(
-    description="CI/CD Steps for Playground objects")
+  description="CI/CD Steps for Playground objects")
 parser.add_argument(
-    "--step",
-    dest="step",
-    required=True,
-    help="CI step to verify all beam examples/tests/katas. CD step to save all "
-    "beam examples/tests/katas and their outputs on the GCS",
-    choices=[config.Config.CI_STEP_NAME, config.Config.CD_STEP_NAME])
+  "--step",
+  dest="step",
+  required=True,
+  help="CI step to verify all beam examples/tests/katas. CD step to save all "
+       "beam examples/tests/katas and their outputs on the GCS",
+  choices=[config.Config.CI_STEP_NAME, config.Config.CD_STEP_NAME])
 parser.add_argument(
-    "--sdk",
-    dest="sdk",
-    required=True,
-    help="Supported SDKs",
-    choices=config.Config.SUPPORTED_SDK)
+  "--sdk",
+  dest="sdk",
+  required=True,
+  help="Supported SDKs",
+  choices=config.Config.SUPPORTED_SDK)
 
 root_dir = os.getenv("BEAM_ROOT_DIR")
 categories_file = os.getenv("BEAM_EXAMPLE_CATEGORIES")
@@ -68,10 +68,10 @@ def _cd_step(examples: List[Example]):
 def _check_envs():
   if root_dir is None:
     raise KeyError(
-        "BEAM_ROOT_DIR environment variable should be specified in os")
+      "BEAM_ROOT_DIR environment variable should be specified in os")
   if categories_file is None:
     raise KeyError(
-        "BEAM_EXAMPLE_CATEGORIES environment variable should be specified in os"
+      "BEAM_EXAMPLE_CATEGORIES environment variable should be specified in os"
     )
 
 
