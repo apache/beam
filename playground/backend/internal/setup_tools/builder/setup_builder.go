@@ -81,8 +81,7 @@ func SetupExecutorBuilder(lc *fs_tool.LifeCycle, sdkEnv *environment.BeamEnvs) (
 			WithRunner().
 			WithCommand(lc.GetAbsoluteExecutableFilePath()).ExecutorBuilder
 	case pb.Sdk_SDK_PYTHON:
-		builder = *builder.WithExecutableFileName(lc.GetAbsoluteExecutableFilePath()).
-			WithCommand(lc.GetAbsoluteExecutableFilePath()).ExecutorBuilder
+		builder = *builder.WithExecutableFileName(lc.GetAbsoluteExecutableFilePath())
 	case pb.Sdk_SDK_SCIO:
 		return nil, fmt.Errorf("SCIO is not supported yet")
 	default:
