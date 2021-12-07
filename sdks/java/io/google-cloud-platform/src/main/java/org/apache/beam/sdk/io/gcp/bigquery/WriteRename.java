@@ -67,7 +67,7 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, WriteTables.Result>
   private final int maxRetryJobs;
   private final String kmsKey;
   private final ValueProvider<String> loadJobProjectId;
-  private transient @Nullable DatasetService datasetService;
+  private @Nullable DatasetService datasetService;
 
   private static class PendingJobData {
     final BigQueryHelpers.PendingJob retryJob;

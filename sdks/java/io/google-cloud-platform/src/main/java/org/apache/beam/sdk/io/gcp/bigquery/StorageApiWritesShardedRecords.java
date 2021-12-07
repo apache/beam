@@ -199,7 +199,7 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
 
     private Map<DestinationT, TableDestination> destinations = Maps.newHashMap();
 
-    private transient @Nullable DatasetService datasetServiceInternal = null;
+    private @Nullable DatasetService datasetServiceInternal = null;
 
     // Stores the current stream for this key.
     @StateId("streamName")
