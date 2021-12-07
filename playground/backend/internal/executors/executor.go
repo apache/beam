@@ -17,7 +17,6 @@ package executors
 
 import (
 	"beam.apache.org/playground/backend/internal/preparators"
-	"beam.apache.org/playground/backend/internal/utils"
 	"beam.apache.org/playground/backend/internal/validators"
 	"context"
 	"os/exec"
@@ -104,9 +103,10 @@ func (ex *Executor) Compile(ctx context.Context) *exec.Cmd {
 // Returns Cmd instance
 func (ex *Executor) Run(ctx context.Context) *exec.Cmd {
 	args := append(ex.runArgs.commandArgs, ex.runArgs.fileName)
-	argsWithOptions := append(args, ex.runArgs.pipelineOptions)
-	argsWithOptions = utils.RemoveEmptyValue(argsWithOptions)
-	cmd := exec.CommandContext(ctx, ex.runArgs.commandName, argsWithOptions...)
+	if ex.runArgs.pipelineOptions != "" {
+		args = append(args, ex.runArgs.pipelineOptions)
+	}
+	cmd := exec.CommandContext(ctx, ex.runArgs.commandName, args...)
 	cmd.Dir = ex.runArgs.workingDir
 	return cmd
 }
