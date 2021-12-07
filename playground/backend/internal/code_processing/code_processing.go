@@ -161,9 +161,9 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 
 // getExecuteCmd return cmd instance based on the code type: unit test or example code
 func getExecuteCmd(valRes *sync.Map, executor *executors.Executor, ctxWithTimeout context.Context) *exec.Cmd {
-	isUnitTest, _ := valRes.Load(validators.UnitTestValidatorName)
+	isUnitTest, ok := valRes.Load(validators.UnitTestValidatorName)
 	runType := executors.Run
-	if isUnitTest.(bool) {
+	if ok && isUnitTest.(bool) {
 		runType = executors.Test
 	}
 	cmdReflect := reflect.ValueOf(executor).MethodByName(string(runType)).Call([]reflect.Value{reflect.ValueOf(ctxWithTimeout)})
@@ -424,6 +424,9 @@ func processCompileSuccess(ctx context.Context, output []byte, pipelineId uuid.U
 		return err
 	}
 	if err := utils.SetToCache(ctx, cacheService, pipelineId, cache.RunOutput, ""); err != nil {
+		return err
+	}
+	if err := utils.SetToCache(ctx, cacheService, pipelineId, cache.Logs, ""); err != nil {
 		return err
 	}
 	return utils.SetToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_EXECUTING)

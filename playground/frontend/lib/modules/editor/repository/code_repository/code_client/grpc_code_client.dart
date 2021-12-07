@@ -91,7 +91,8 @@ class GrpcCodeClient implements CodeClient {
   ) {
     return _runSafely(() => createClient(request.sdk)
         .getLogs(grpc.GetLogsRequest(pipelineUuid: pipelineUuid))
-        .then((response) => OutputResponse(response.output)));
+        .then((response) => OutputResponse(response.output))
+        .catchError((err) => OutputResponse('')));
   }
 
   @override
