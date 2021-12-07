@@ -32,6 +32,8 @@ import hamcrest as hc
 import mock
 import pytest
 import pytz
+from parameterized import param
+from parameterized import parameterized
 
 import apache_beam as beam
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
@@ -39,6 +41,7 @@ from apache_beam.io.gcp.bigquery_tools import FileFormat
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.io.gcp.bigquery import BigQueryDisposition
 
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -353,9 +356,14 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
               temp_file_format=FileFormat.JSON))
 
   @pytest.mark.it_postcommit
+  @parameterized.expand([
+      param(file_format=FileFormat.AVRO),
+      param(file_format=FileFormat.JSON),
+      param(file_format=None),
+  ])
   @mock.patch(
       "apache_beam.io.gcp.bigquery_file_loads._MAXIMUM_SOURCE_URIS", new=1)
-  def test_big_query_write_temp_table_append_schema_update(self):
+  def test_big_query_write_temp_table_append_schema_update(self, file_format):
     """
     Test that schema update options are respected when appending to an existing
     table via temporary tables.
@@ -368,9 +376,9 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
     table_id = '{}.{}'.format(self.dataset_id, table_name)
 
     input_data = [{
-        "int64": num, "bool": True, "nested_field": {
+        "int64": num, "bool": True, "nested_field": [{
             "fruit": "Apple"
-        }
+        }]
     } for num in range(1, 3)]
 
     table_schema = {
@@ -412,11 +420,103 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
           | 'write' >> beam.io.WriteToBigQuery(
               table_id,
               schema=table_schema,
-              write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
+              write_disposition=BigQueryDisposition.WRITE_APPEND,
               max_file_size=1,  # bytes
               method=beam.io.WriteToBigQuery.Method.FILE_LOADS,
               additional_bq_parameters={
-                  'schemaUpdateOptions': ['ALLOW_FIELD_ADDITION']}))
+                  'schemaUpdateOptions': ['ALLOW_FIELD_ADDITION']},
+              temp_file_format=file_format))
+
+  @pytest.mark.it_postcommit
+  @parameterized.expand([
+      param(file_format=FileFormat.AVRO),
+      param(file_format=FileFormat.JSON),
+      param(file_format=None),
+  ])
+  @mock.patch(
+      "apache_beam.io.gcp.bigquery_file_loads._DEFAULT_MAX_FILE_SIZE", new=1)
+  @mock.patch(
+      "apache_beam.io.gcp.bigquery_file_loads._MAXIMUM_SOURCE_URIS", new=1)
+  def test_append_schema_change_with_temporary_tables(self, file_format):
+    """
+      Test that schema update options are respected when appending to an
+      existing table via temporary tables with JSON or AVRO load files.
+
+      _MAXIMUM_SOURCE_URIS and _DEFAULT_MAX_FILE_SIZE are both set to 1 to
+      force multiple load jobs and usage of temporary tables.
+      """
+
+    # Define table
+    table_name = 'python_append_schema_with_temp_tables'
+    table_id = '{}.{}'.format(self.dataset_id, table_name)
+
+    table_schema = {
+        "fields": [{
+            "name": "col_int64", "type": "INT64"
+        }, {
+            "name": "col_string", "type": "STRING"
+        }]
+    }
+    data = [{"col_int64": 3, "col_string": "beam"}]
+
+    args = self.test_pipeline.get_full_options_as_args(
+        on_success_matcher=BigqueryFullResultMatcher(
+            project=self.project,
+            query="""
+              SELECT col_int64, col_string
+              FROM {}
+              ORDER BY col_int64
+              """.format(table_id),
+            data=[(3, "beam")]))
+
+    with beam.Pipeline(argv=args) as p:
+      # pylint: disable=expression-not-assigned
+      p | beam.Create(data) | beam.io.WriteToBigQuery(
+          table=table_id,
+          schema=table_schema,
+          write_disposition=BigQueryDisposition.WRITE_APPEND,
+          temp_file_format=file_format)
+
+    # Append new data with different schema
+    data = [{
+        "col_string": "terra", "col_float64": 0.23
+    }, {
+        "col_string": None, "col_float64": 0.64
+    }]
+    updated_table_schema = {
+        "fields": [{
+            "name": "col_int64", "type": "INT64"
+        }, {
+            "name": "col_string", "type": "STRING", "mode": "NULLABLE"
+        }, {
+            "name": "col_float64", "type": "FLOAT64", "mode": "NULLABLE"
+        }]
+    }
+    updated_args = self.test_pipeline.get_full_options_as_args(
+        on_success_matcher=BigqueryFullResultMatcher(
+            project=self.project,
+            query="""
+            SELECT col_int64, col_string, col_float64 FROM `{}`
+            ORDER BY 2
+            """.format(table_id),
+            data=[
+                (None, "terra", 0.23),
+                (3, "beam", None),
+                (None, None, 0.64),
+            ]))
+    with beam.Pipeline(argv=updated_args) as p:
+      # pylint: disable=expression-not-assigned
+      (
+          p
+          | beam.Create(data)
+          | beam.io.WriteToBigQuery(
+              table=table_id,
+              write_disposition=BigQueryDisposition.WRITE_APPEND,
+              schema=updated_table_schema,
+              additional_bq_parameters={
+                  'schemaUpdateOptions': ['ALLOW_FIELD_ADDITION']
+              },
+              temp_file_format=file_format))
 
 
 if __name__ == '__main__':

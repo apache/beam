@@ -335,7 +335,8 @@ class UpdateDestinationSchema(beam.DoFn):
 
   This transform emits (destination, job_reference) pairs where the
   job_reference refers to a submitted load job for performing the schema
-  modification. Note that the input and output job references are not the same.
+  modification in JSON format. Note that the input and output job references
+  are not the same.
 
   Experimental; no backwards compatibility guarantees.
   """
@@ -344,13 +345,11 @@ class UpdateDestinationSchema(beam.DoFn):
       write_disposition=None,
       test_client=None,
       additional_bq_parameters=None,
-      step_name=None,
-      source_format=None):
+      step_name=None):
     self._test_client = test_client
     self._write_disposition = write_disposition
     self._additional_bq_parameters = additional_bq_parameters or {}
     self._step_name = step_name
-    self._source_format = source_format
 
   def setup(self):
     self._bq_wrapper = bigquery_tools.BigQueryWrapper(client=self._test_client)
@@ -360,7 +359,6 @@ class UpdateDestinationSchema(beam.DoFn):
     return {
         'write_disposition': str(self._write_disposition),
         'additional_bq_params': str(self._additional_bq_parameters),
-        'source_format': str(self._source_format),
     }
 
   def process(self, element, schema_mod_job_name_prefix):
@@ -439,7 +437,9 @@ class UpdateDestinationSchema(beam.DoFn):
         create_disposition='CREATE_NEVER',
         additional_load_parameters=additional_parameters,
         job_labels=self._bq_io_metadata.add_additional_bq_job_labels(),
-        source_format=self._source_format)
+        # JSON format is hardcoded because the zero rows load with a nested schema
+        # are permitted which is in contrast with the AVRO format.
+        source_format="NEWLINE_DELIMITED_JSON")
     yield (destination, schema_update_job_reference)
 
 
@@ -1028,7 +1028,6 @@ class BigQueryBatchFileLoads(beam.PTransform):
                 test_client=self.test_client,
                 additional_bq_parameters=self.additional_bq_parameters,
                 step_name=step_name,
-                source_format=self._temp_file_format,
             ),
             schema_mod_job_name_pcv))
 
