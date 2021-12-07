@@ -437,8 +437,8 @@ class UpdateDestinationSchema(beam.DoFn):
         create_disposition='CREATE_NEVER',
         additional_load_parameters=additional_parameters,
         job_labels=self._bq_io_metadata.add_additional_bq_job_labels(),
-        # JSON format is hardcoded because the zero rows load with a nested schema
-        # are permitted which is in contrast with the AVRO format.
+        # JSON format is hardcoded because zero rows load(unlike AVRO) and
+        # a nested schema(unlike CSV, which a default one) is permitted.
         source_format="NEWLINE_DELIMITED_JSON")
     yield (destination, schema_update_job_reference)
 
