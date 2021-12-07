@@ -18,11 +18,9 @@
 package org.apache.beam.runners.core.construction.graph;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.stream.Collectors;
-import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
@@ -30,7 +28,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
-import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -41,9 +38,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 class FieldAccessVisitor extends PipelineVisitor.Defaults {
   private final Map<PCollection<?>, FieldAccessDescriptor> pCollectionFieldAccess = new HashMap<>();
 
-  /**
-   * Returns a map from PCollection to fields accessed by that PCollection.
-   */
+  /** Returns a map from PCollection to fields accessed by that PCollection. */
   ImmutableMap<PCollection<?>, FieldAccessDescriptor> getPCollectionFieldAccess() {
     return ImmutableMap.copyOf(pCollectionFieldAccess);
   }
@@ -68,8 +63,10 @@ class FieldAccessVisitor extends PipelineVisitor.Defaults {
 
     if (transform instanceof MultiOutput) {
       // Get main input pcoll.
-      Map<TupleTag<?>, PCollection<?>> mainInputs = node.getInputs().entrySet().stream().filter((entry) -> !transform.getAdditionalInputs().containsKey(entry.getKey())).collect(
-          Collectors.toMap(Entry::getKey, Entry::getValue));
+      Map<TupleTag<?>, PCollection<?>> mainInputs =
+          node.getInputs().entrySet().stream()
+              .filter((entry) -> !transform.getAdditionalInputs().containsKey(entry.getKey()))
+              .collect(Collectors.toMap(Entry::getKey, Entry::getValue));
       PCollection<?> mainInput = Iterables.getOnlyElement(mainInputs.values());
 
       // Get field access.

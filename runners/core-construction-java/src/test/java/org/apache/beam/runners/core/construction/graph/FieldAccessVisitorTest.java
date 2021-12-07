@@ -36,7 +36,6 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.junit.Test;
 
 /** Tests for {@link FieldAccessVisitor}. */
@@ -54,8 +53,7 @@ public class FieldAccessVisitorTest {
 
     p.traverseTopologically(fieldAccessVisitor);
 
-    FieldAccessDescriptor fieldAccess =
-        fieldAccessVisitor.getPCollectionFieldAccess().get(source);
+    FieldAccessDescriptor fieldAccess = fieldAccessVisitor.getPCollectionFieldAccess().get(source);
     assertFalse(fieldAccess.getAllFields());
     assertThat(fieldAccess.fieldNamesAccessed(), containsInAnyOrder("field1"));
   }
@@ -77,8 +75,7 @@ public class FieldAccessVisitorTest {
 
     p.traverseTopologically(fieldAccessVisitor);
 
-    FieldAccessDescriptor fieldAccess =
-        fieldAccessVisitor.getPCollectionFieldAccess().get(source);
+    FieldAccessDescriptor fieldAccess = fieldAccessVisitor.getPCollectionFieldAccess().get(source);
     assertFalse(fieldAccess.getAllFields());
     assertThat(fieldAccess.fieldNamesAccessed(), containsInAnyOrder("field1", "field2"));
   }
@@ -150,10 +147,8 @@ public class FieldAccessVisitorTest {
 
     p.traverseTopologically(fieldAccessVisitor);
 
-    assertTrue(
-        fieldAccessVisitor.getPCollectionFieldAccess().get(source1).getAllFields());
-    assertTrue(
-        fieldAccessVisitor.getPCollectionFieldAccess().get(source2).getAllFields());
+    assertTrue(fieldAccessVisitor.getPCollectionFieldAccess().get(source1).getAllFields());
+    assertTrue(fieldAccessVisitor.getPCollectionFieldAccess().get(source2).getAllFields());
   }
 
   private static class FieldAccessTransform extends PTransform<PCollection<Row>, PCollection<Row>> {
