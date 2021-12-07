@@ -40,7 +40,7 @@ frontend/
 │   ├── components          # general UI components used across the app
 │   ├── config              # general configs e.g. theme
 │   ├── constants           # different consts file like colors,sizes
-│   ├── modules             # different parts of the app 
+│   ├── modules             # different parts of the app
 │   │   └── actions                 # common actions for the pages like new example, reset
 │   │   └── editor                  # editor text field and run code
 │   │   └── examples                # everything related to loading/showing examples
@@ -132,4 +132,4 @@ Playground tests may be run using next commands:
 
 ## Generated Files
 
-All generated files (generated api clients, mocks) should be published to the repository. 
+All generated files (generated api clients, mocks) should be published to the repository.
