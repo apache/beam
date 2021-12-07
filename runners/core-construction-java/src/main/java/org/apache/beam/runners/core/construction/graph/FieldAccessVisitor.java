@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.stream.Collectors;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
@@ -38,20 +39,19 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 
 /** Computes which Schema fields are (or conversely, are not) accessed in a pipeline. */
 class FieldAccessVisitor extends PipelineVisitor.Defaults {
-  private final Map<String, FieldAccessDescriptor> pCollectionFieldAccess = new HashMap<>();
+  private final Map<PCollection<?>, FieldAccessDescriptor> pCollectionFieldAccess = new HashMap<>();
 
   /**
-   * Returns a map keyed by the {@link TupleTag} ID referencing a PCollection. Values are the set of
-   * fields accessed on that PCollection.
+   * Returns a map from PCollection to fields accessed by that PCollection.
    */
-  ImmutableMap<String, FieldAccessDescriptor> getPCollectionFieldAccess() {
+  ImmutableMap<PCollection<?>, FieldAccessDescriptor> getPCollectionFieldAccess() {
     return ImmutableMap.copyOf(pCollectionFieldAccess);
   }
 
   @Override
   public void visitPrimitiveTransform(Node node) {
-    Map<String, FieldAccessDescriptor> currentFieldAccess = getFieldAccess(node);
-    for (Entry<String, FieldAccessDescriptor> entry : currentFieldAccess.entrySet()) {
+    Map<PCollection<?>, FieldAccessDescriptor> currentFieldAccess = getFieldAccess(node);
+    for (Entry<PCollection<?>, FieldAccessDescriptor> entry : currentFieldAccess.entrySet()) {
       FieldAccessDescriptor previousFieldAccess = pCollectionFieldAccess.get(entry.getKey());
       FieldAccessDescriptor newFieldAccess =
           previousFieldAccess == null
@@ -62,37 +62,32 @@ class FieldAccessVisitor extends PipelineVisitor.Defaults {
     }
   }
 
-  private static Map<String, FieldAccessDescriptor> getFieldAccess(Node node) {
+  private static Map<PCollection<?>, FieldAccessDescriptor> getFieldAccess(Node node) {
     PTransform<?, ?> transform = node.getTransform();
-    HashMap<String, FieldAccessDescriptor> access = new HashMap<>();
+    HashMap<PCollection<?>, FieldAccessDescriptor> access = new HashMap<>();
 
     if (transform instanceof MultiOutput) {
+      // Get main input pcoll.
+      Map<TupleTag<?>, PCollection<?>> mainInputs = node.getInputs().entrySet().stream().filter((entry) -> !transform.getAdditionalInputs().containsKey(entry.getKey())).collect(
+          Collectors.toMap(Entry::getKey, Entry::getValue));
+      PCollection<?> mainInput = Iterables.getOnlyElement(mainInputs.values());
+
+      // Get field access.
       DoFn<?, ?> fn = ((MultiOutput<?, ?>) transform).getFn();
-      Pair<TupleTag<?>, PCollection<?>> mainInput = getMainInputTagId(node);
       FieldAccessDescriptor fields =
-          ParDo.getDoFnSchemaInformation(fn, mainInput.getRight()).getFieldAccessDescriptor();
-      access.put(mainInput.getLeft().getId(), fields);
+          ParDo.getDoFnSchemaInformation(fn, mainInput).getFieldAccessDescriptor();
+
+      // Record field access.
+      access.put(mainInput, fields);
     }
 
     // For every input without field access info, we must assume all fields need to be accessed.
-    for (TupleTag<?> tag : node.getInputs().keySet()) {
-      if (!access.containsKey(tag.getId())) {
-        access.put(tag.getId(), FieldAccessDescriptor.withAllFields());
+    for (PCollection<?> input : node.getInputs().values()) {
+      if (!access.containsKey(input)) {
+        access.put(input, FieldAccessDescriptor.withAllFields());
       }
     }
 
     return ImmutableMap.copyOf(access);
-  }
-
-  private static Pair<TupleTag<?>, PCollection<?>> getMainInputTagId(Node node) {
-    HashSet<TupleTag<?>> mainInputTags = new HashSet<>(node.getInputs().keySet());
-    PTransform<?, ?> transform = node.getTransform();
-    if (transform != null) {
-      mainInputTags.removeAll(transform.getAdditionalInputs().keySet());
-    }
-    TupleTag<?> mainInputTag = Iterables.getOnlyElement(mainInputTags);
-    PCollection<?> pCollection = node.getInputs().get(mainInputTag);
-    Preconditions.checkArgumentNotNull(pCollection);
-    return Pair.of(mainInputTag, pCollection);
   }
 }

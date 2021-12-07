@@ -55,7 +55,7 @@ public class FieldAccessVisitorTest {
     p.traverseTopologically(fieldAccessVisitor);
 
     FieldAccessDescriptor fieldAccess =
-        fieldAccessVisitor.getPCollectionFieldAccess().get(getTagId(source));
+        fieldAccessVisitor.getPCollectionFieldAccess().get(source);
     assertFalse(fieldAccess.getAllFields());
     assertThat(fieldAccess.fieldNamesAccessed(), containsInAnyOrder("field1"));
   }
@@ -78,7 +78,7 @@ public class FieldAccessVisitorTest {
     p.traverseTopologically(fieldAccessVisitor);
 
     FieldAccessDescriptor fieldAccess =
-        fieldAccessVisitor.getPCollectionFieldAccess().get(getTagId(source));
+        fieldAccessVisitor.getPCollectionFieldAccess().get(source);
     assertFalse(fieldAccess.getAllFields());
     assertThat(fieldAccess.fieldNamesAccessed(), containsInAnyOrder("field1", "field2"));
   }
@@ -96,7 +96,7 @@ public class FieldAccessVisitorTest {
 
     p.traverseTopologically(fieldAccessVisitor);
 
-    assertTrue(fieldAccessVisitor.getPCollectionFieldAccess().get(getTagId(source)).getAllFields());
+    assertTrue(fieldAccessVisitor.getPCollectionFieldAccess().get(source).getAllFields());
   }
 
   @Test
@@ -113,7 +113,7 @@ public class FieldAccessVisitorTest {
 
     p.traverseTopologically(fieldAccessVisitor);
 
-    assertTrue(fieldAccessVisitor.getPCollectionFieldAccess().get(getTagId(source)).getAllFields());
+    assertTrue(fieldAccessVisitor.getPCollectionFieldAccess().get(source).getAllFields());
   }
 
   @Test
@@ -138,9 +138,9 @@ public class FieldAccessVisitorTest {
     p.traverseTopologically(fieldAccessVisitor);
 
     assertTrue(
-        fieldAccessVisitor.getPCollectionFieldAccess().get(getTagId(source1)).getAllFields());
+        fieldAccessVisitor.getPCollectionFieldAccess().get(source1).getAllFields());
     assertTrue(
-        fieldAccessVisitor.getPCollectionFieldAccess().get(getTagId(source2)).getAllFields());
+        fieldAccessVisitor.getPCollectionFieldAccess().get(source2).getAllFields());
   }
 
   private static class FieldAccessTransform extends PTransform<PCollection<Row>, PCollection<Row>> {
@@ -186,9 +186,5 @@ public class FieldAccessVisitorTest {
       schemaBuilder.addStringField(field.getFieldName());
     }
     return schemaBuilder.build();
-  }
-
-  private static String getTagId(PCollection<?> pCollection) {
-    return Iterables.getOnlyElement(pCollection.expand().keySet()).getId();
   }
 }
