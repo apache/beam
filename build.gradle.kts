@@ -245,6 +245,39 @@ task("goIntegrationTests") {
   dependsOn(":runners:google-cloud-dataflow-java:worker:shadowJar")
 }
 
+task("goPostCommitDirect") {
+  doLast {
+    exec {
+      executable("sh")
+      args("-c", "./sdks/go/test/run_validatesrunner_tests.sh --runner direct")
+    }
+  }
+  dependsOn(":sdks:go:test:build")
+  dependsOn(":runners:direct-java:needsRunnerTests")
+}
+
+task("goPostCommitFlink") {
+  doLast {
+    exec {
+      executable("sh")
+      args("-c", "./sdks/go/test/run_validatesrunner_tests.sh --runner flink")
+    }
+  }
+  dependsOn(":sdks:go:test:build")
+  dependsOn(":runners:flink:1.13:runQuickstartJavaFlinkLocal")
+}
+
+task("goPostCommitDataflow") {
+  doLast {
+    exec {
+      executable("sh")
+      args("-c", "./sdks/go/test/run_validatesrunner_tests.sh --runner dataflow")
+    }
+  }
+  dependsOn(":sdks:go:test:build")
+  dependsOn(":runners:google-cloud-dataflow-java:worker:shadowJar")
+}
+
 task("pythonPreCommit") {
   dependsOn(":sdks:python:test-suites:tox:pycommon:preCommitPyCommon")
   dependsOn(":sdks:python:test-suites:tox:py36:preCommitPy36")
