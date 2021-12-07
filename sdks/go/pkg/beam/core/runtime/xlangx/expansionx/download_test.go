@@ -16,6 +16,10 @@
 package expansionx
 
 import (
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -60,5 +64,75 @@ func TestDropEndOfGradleTarget(t *testing.T) {
 	returned := dropEndOfGradleTarget(target)
 	if returned != expected {
 		t.Errorf("wanted %v, got %v", expected, returned)
+	}
+}
+
+func TestGetCacheDir(t *testing.T) {
+	cacheDir := getCacheDir()
+	if !strings.Contains(cacheDir, jarCache[2:]) {
+		t.Errorf("failed to get cache directory: wanted %v, got %v", jarCache[:2], cacheDir)
+	}
+}
+
+func TestCheckDir(t *testing.T) {
+	d, err := ioutil.TempDir(os.Getenv("TEST_TMPDIR"), "expansionx-*")
+	if err != nil {
+		t.Fatalf("failed to make temp directory, got %v", err)
+	}
+	defer os.RemoveAll(d)
+
+	err = checkDir(d)
+	if err != nil {
+		t.Errorf("checkDir returned error, got %v", err)
+	}
+}
+
+func TestCheckDir_create(t *testing.T) {
+	d := filepath.Join(os.Getenv("TEST_TMPDIR"), "expansion-test")
+	_, err := os.Stat(d)
+	if err == nil {
+		t.Errorf("Temp directory already exists when it shouldn't")
+	}
+
+	err = checkDir(d)
+	if err != nil {
+		t.Errorf("checkDir returned an error, got %v", err)
+	}
+	defer os.RemoveAll(d)
+
+	_, err = os.Stat(d)
+	if err != nil {
+		t.Errorf("Temp directory check returned error, got %v", err)
+	}
+}
+
+func TestJarExists(t *testing.T) {
+	d, err := ioutil.TempDir(os.Getenv("TEST_TMPDIR"), "expansionx-*")
+	if err != nil {
+		t.Fatalf("failed to make temp directory, got %v", err)
+	}
+	defer os.RemoveAll(d)
+
+	tmpFile, err := ioutil.TempFile(d, "expansion-*.jar")
+	if err != nil {
+		t.Fatalf("failed to make temp file, got %v", err)
+	}
+
+	if !jarExists(tmpFile.Name()) {
+		t.Errorf("jarExists returned unexpected value for path %v, wanted true, got false", tmpFile.Name())
+	}
+}
+
+func TestJarExists_bad(t *testing.T) {
+	d, err := ioutil.TempDir(os.Getenv("TEST_TMPDIR"), "expansionx-*")
+	if err != nil {
+		t.Fatalf("failed to make temp directory, got %v", err)
+	}
+	defer os.RemoveAll(d)
+
+	fakePath := filepath.Join(d, "not-a-file.jar")
+
+	if jarExists(fakePath) {
+		t.Errorf("jarExists returned unexpected value for path %v, wanted false, got true", fakePath)
 	}
 }
