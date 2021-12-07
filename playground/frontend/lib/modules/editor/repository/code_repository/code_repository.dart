@@ -52,17 +52,25 @@ class CodeRepository {
     RunCodeRequestWrapper request, {
     RunCodeResult? prevResult,
   }) async* {
-    final statusResponse = await _client.checkStatus(pipelineUuid, request);
-    final result = await _getPipelineResult(
-      pipelineUuid,
-      statusResponse.status,
-      prevResult,
-      request,
-    );
-    yield result;
-    if (!result.isFinished) {
-      await Future.delayed(kPipelineCheckDelay);
-      yield* _checkPipelineExecution(pipelineUuid, request, prevResult: result);
+    try {
+      final statusResponse = await _client.checkStatus(pipelineUuid, request);
+      final result = await _getPipelineResult(
+        pipelineUuid,
+        statusResponse.status,
+        prevResult,
+        request,
+      );
+      yield result;
+      if (!result.isFinished) {
+        await Future.delayed(kPipelineCheckDelay);
+        yield* _checkPipelineExecution(
+            pipelineUuid, request, prevResult: result);
+      }
+    } on RunCodeError catch (error) {
+      yield RunCodeResult(
+        status: RunCodeStatus.unknownError,
+        errorMessage: error.message ?? kUnknownErrorText,
+      );
     }
   }
 
