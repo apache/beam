@@ -19,6 +19,7 @@ import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/preparators"
 	"fmt"
+	"regexp"
 )
 
 // GetPreparators returns slice of preparators.Preparator according to sdk
@@ -35,4 +36,10 @@ func GetPreparators(sdk pb.Sdk, filepath string) (*[]preparators.Preparator, err
 		return nil, fmt.Errorf("incorrect sdk: %s", sdk)
 	}
 	return prep, nil
+}
+
+// ReplaceSpacesWithEquals prepares pipelineOptions by replacing spaces between option and them value to equals.
+func ReplaceSpacesWithEquals(pipelineOptions string) string {
+	re := regexp.MustCompile(`(--[A-z0-9]+)\s([A-z0-9]+)`)
+	return re.ReplaceAllString(pipelineOptions, "$1=$2")
 }
