@@ -22,7 +22,7 @@ package main
 //   pipeline_options: --search king
 //   categories:
 //     - IO
-//	   - Options
+//     - Options
 
 import (
 	"context"

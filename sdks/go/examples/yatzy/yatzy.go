@@ -20,12 +20,13 @@ package main
 
 // beam-playground:
 //   name: Yatzy
-//   description: An examples shows that pipeline construction is normal Go code.
+//   description: An example shows that pipeline construction is a normal Go code.
 //   It can even be non-deterministic and produce different pipelines on each invocation.
 //   multifile: false
 //   pipeline_options:
 //   categories:
 //     - IO
+//     - Side Input
 
 import (
 	"context"

@@ -27,6 +27,7 @@ package main
 //   categories:
 //     - IO
 //     - Options
+//     - Multiple Outputs
 
 import (
 	"context"

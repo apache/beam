@@ -41,7 +41,8 @@ package main
 //   pipeline_options: --output output.txt
 //   categories:
 //     - IO
-//	   - Options
+//     - Options
+//     - Combiners
 
 import (
 	"context"

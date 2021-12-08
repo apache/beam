@@ -35,6 +35,7 @@ package main
 //   multifile: false
 //   pipeline_options:
 //   categories:
+//     - Testing
 
 import (
 	"context"

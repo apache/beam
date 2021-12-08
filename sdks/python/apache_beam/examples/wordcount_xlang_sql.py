@@ -30,6 +30,7 @@ Docker must also be available to run this pipeline locally.
 #   categories:
 #     - IO
 #     - Options
+#     - Beam SQL
 
 import argparse
 import logging

@@ -62,6 +62,7 @@ and an output prefix on GCS:::
 #   categories:
 #     - IO
 #     - Options
+#     - Multiple Outputs
 
 import argparse
 import logging

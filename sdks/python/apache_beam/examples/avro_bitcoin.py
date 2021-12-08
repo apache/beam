@@ -35,6 +35,7 @@ python -m apache_beam.examples.bitcoin \
 #   categories:
 #     - IO
 #     - Options
+#     - Schemas
 
 import argparse
 import logging
