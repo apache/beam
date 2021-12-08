@@ -15,29 +15,24 @@
 
 package utils
 
-import (
-	"testing"
-)
+import "testing"
 
-func TestGetFuncName(t *testing.T) {
+func TestReduceWhiteSpacesToSinge(t *testing.T) {
 	type args struct {
-		i interface{}
+		s string
 	}
 	tests := []struct {
 		name string
 		args args
 		want string
 	}{
-		{
-			name: "get function name",
-			args: args{i: TestGetFuncName},
-			want: "TestGetFuncName",
-		},
+		{name: "reduce white spaces to single", args: args{"--option1         option"}, want: "--option1 option"},
+		{name: "nothing to reduce", args: args{"--option1 option"}, want: "--option1 option"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := GetFuncName(tt.args.i); got != tt.want {
-				t.Errorf("GetFuncName() = %v, want %v", got, tt.want)
+			if got := ReduceWhiteSpacesToSinge(tt.args.s); got != tt.want {
+				t.Errorf("ReduceWhiteSpacesToSinge() = %v, want %v", got, tt.want)
 			}
 		})
 	}

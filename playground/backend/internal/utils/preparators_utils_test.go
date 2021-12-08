@@ -15,13 +15,11 @@
 
 package utils
 
-import (
-	"testing"
-)
+import "testing"
 
-func TestGetFuncName(t *testing.T) {
+func TestSpacesToEqualsOption(t *testing.T) {
 	type args struct {
-		i interface{}
+		pipelineOptions string
 	}
 	tests := []struct {
 		name string
@@ -29,15 +27,25 @@ func TestGetFuncName(t *testing.T) {
 		want string
 	}{
 		{
-			name: "get function name",
-			args: args{i: TestGetFuncName},
-			want: "TestGetFuncName",
+			name: "args is empty string",
+			args: args{pipelineOptions: ""},
+			want: "",
+		},
+		{
+			name: "args with one option",
+			args: args{pipelineOptions: "--opt1 valOpt"},
+			want: "--opt1=valOpt",
+		},
+		{
+			name: "args with some options",
+			args: args{pipelineOptions: "--opt1 valOpt --opt2 valOpt --opt3 valOpt"},
+			want: "--opt1=valOpt --opt2=valOpt --opt3=valOpt",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := GetFuncName(tt.args.i); got != tt.want {
-				t.Errorf("GetFuncName() = %v, want %v", got, tt.want)
+			if got := ReplaceSpacesWithEquals(tt.args.pipelineOptions); got != tt.want {
+				t.Errorf("ReplaceSpacesWithEquals() = %v, want %v", got, tt.want)
 			}
 		})
 	}

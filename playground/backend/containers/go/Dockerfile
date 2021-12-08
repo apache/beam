@@ -57,5 +57,3 @@ ENV BEAM_SDK="SDK_GO"
 COPY src/configs /opt/playground/backend/configs/
 
 ENTRYPOINT ["/opt/playground/backend/server_go_backend"]
-
-

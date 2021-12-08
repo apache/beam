@@ -32,8 +32,12 @@ const (
 )
 
 // SetupExecutorBuilder return executor with set args for validator, preparator, compiler and runner
-func SetupExecutorBuilder(lc *fs_tool.LifeCycle, sdkEnv *environment.BeamEnvs) (*executors.ExecutorBuilder, error) {
+func SetupExecutorBuilder(lc *fs_tool.LifeCycle, pipelineOptions string, sdkEnv *environment.BeamEnvs) (*executors.ExecutorBuilder, error) {
 	sdk := sdkEnv.ApacheBeamSdk
+
+	if sdk == pb.Sdk_SDK_JAVA {
+		pipelineOptions = utils.ReplaceSpacesWithEquals(pipelineOptions)
+	}
 
 	val, err := utils.GetValidators(sdk, lc.GetAbsoluteSourceFilePath())
 	if err != nil {
@@ -58,6 +62,7 @@ func SetupExecutorBuilder(lc *fs_tool.LifeCycle, sdkEnv *environment.BeamEnvs) (
 		WithRunner().
 		WithCommand(executorConfig.RunCmd).
 		WithArgs(executorConfig.RunArgs).
+		WithPipelineOptions(strings.Split(pipelineOptions, " ")).
 		WithTestRunner().
 		WithCommand(executorConfig.TestCmd).
 		WithArgs(executorConfig.TestArgs).

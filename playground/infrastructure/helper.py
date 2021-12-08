@@ -335,7 +335,8 @@ async def _update_example_status(example: Example, client: GRPCClient):
       example: beam example for processing and updating status and pipeline_id.
       client: client to send requests to the server.
   """
-  pipeline_id = await client.run_code(example.code, example.sdk)
+  pipeline_id = await client.run_code(
+      example.code, example.sdk, example.tag.pipeline_options)
   example.pipeline_id = pipeline_id
   status = await client.check_status(pipeline_id)
   while status in [STATUS_VALIDATING,
