@@ -44,8 +44,8 @@ class Config:
       STATUS_RUN_TIMEOUT,
       STATUS_RUN_ERROR
   ]
-  BEAM_PLAYGROUND_TITLE = "Beam-playground:\n"
-  BEAM_PLAYGROUND = "Beam-playground"
+  BEAM_PLAYGROUND_TITLE = "beam-playground:\n"
+  BEAM_PLAYGROUND = "beam-playground"
   PAUSE_DELAY = 10
 
 
