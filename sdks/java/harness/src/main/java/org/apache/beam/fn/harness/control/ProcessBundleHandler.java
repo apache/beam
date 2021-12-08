@@ -86,7 +86,6 @@ import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Message;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
@@ -163,7 +162,7 @@ public class ProcessBundleHandler {
           };
 
   private final PipelineOptions options;
-  private final Function<String, Message> fnApiRegistry;
+  private final Function<String, BeamFnApi.ProcessBundleDescriptor> fnApiRegistry;
   private final BeamFnDataClient beamFnDataClient;
   private final BeamFnStateGrpcClientCache beamFnStateGrpcClientCache;
   private final LoadingCache<
@@ -180,7 +179,7 @@ public class ProcessBundleHandler {
   public ProcessBundleHandler(
       PipelineOptions options,
       Set<String> runnerCapabilities,
-      Function<String, Message> fnApiRegistry,
+      Function<String, BeamFnApi.ProcessBundleDescriptor> fnApiRegistry,
       BeamFnDataClient beamFnDataClient,
       BeamFnStateGrpcClientCache beamFnStateGrpcClientCache,
       FinalizeBundleHandler finalizeBundleHandler,
@@ -201,7 +200,7 @@ public class ProcessBundleHandler {
   ProcessBundleHandler(
       PipelineOptions options,
       Set<String> runnerCapabilities,
-      Function<String, Message> fnApiRegistry,
+      Function<String, BeamFnApi.ProcessBundleDescriptor> fnApiRegistry,
       BeamFnDataClient beamFnDataClient,
       BeamFnStateGrpcClientCache beamFnStateGrpcClientCache,
       FinalizeBundleHandler finalizeBundleHandler,
