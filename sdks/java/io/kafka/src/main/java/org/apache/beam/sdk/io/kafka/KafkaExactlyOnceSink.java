@@ -24,6 +24,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -641,7 +642,7 @@ class KafkaExactlyOnceSink<K, V>
       ShardWriterCache() {
         this.cache =
             CacheBuilder.newBuilder()
-                .expireAfterWrite(IDLE_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+                .expireAfterWrite(Duration.ofMillis(IDLE_TIMEOUT_MS))
                 .<Integer, ShardWriter<K, V>>removalListener(
                     notification -> {
                       if (notification.getCause() != RemovalCause.EXPLICIT) {

@@ -28,7 +28,6 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.InstantCoder;
@@ -471,7 +470,7 @@ public class Read {
       restrictionCoder = restrictionCoder();
       cachedReaders =
           CacheBuilder.newBuilder()
-              .expireAfterWrite(1, TimeUnit.MINUTES)
+              .expireAfterWrite(java.time.Duration.ofMinutes(1))
               .maximumSize(100)
               .removalListener(
                   (RemovalListener<Object, UnboundedReader>)
