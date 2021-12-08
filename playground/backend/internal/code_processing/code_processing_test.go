@@ -593,6 +593,7 @@ func Test_getRunOrTestCmd(t *testing.T) {
 		WithRunner().
 		WithCommand("runCommand").
 		WithArgs([]string{"arg1"}).
+		WithPipelineOptions([]string{""}).
 		Build()
 
 	testEx := executors.NewExecutorBuilder().
