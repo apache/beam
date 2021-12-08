@@ -31,8 +31,12 @@ const (
 )
 
 // SetupExecutorBuilder return executor with set args for validator, preparator, compiler and runner
-func SetupExecutorBuilder(srcFilePath, baseFolderPath, execFilePath string, sdkEnv *environment.BeamEnvs) (*executors.ExecutorBuilder, error) {
+func SetupExecutorBuilder(srcFilePath, baseFolderPath, execFilePath, pipelineOptions string, sdkEnv *environment.BeamEnvs) (*executors.ExecutorBuilder, error) {
 	sdk := sdkEnv.ApacheBeamSdk
+
+	if sdk == pb.Sdk_SDK_JAVA {
+		pipelineOptions = utils.ReplaceSpacesWithEquals(pipelineOptions)
+	}
 
 	val, err := utils.GetValidators(sdk, srcFilePath)
 	if err != nil {
@@ -57,6 +61,7 @@ func SetupExecutorBuilder(srcFilePath, baseFolderPath, execFilePath string, sdkE
 		WithRunner().
 		WithCommand(executorConfig.RunCmd).
 		WithArgs(executorConfig.RunArgs).
+		WithPipelineOptions(strings.Split(pipelineOptions, " ")).
 		WithTestRunner().
 		WithCommand(executorConfig.TestCmd).
 		WithArgs(executorConfig.TestArgs).
@@ -78,6 +83,10 @@ func SetupExecutorBuilder(srcFilePath, baseFolderPath, execFilePath string, sdkE
 			WithExecutableFileName("").
 			WithRunner().
 			WithCommand(execFilePath).ExecutorBuilder
+	case pb.Sdk_SDK_PYTHON:
+		// Nothing is needed for Python
+	case pb.Sdk_SDK_SCIO:
+		return nil, fmt.Errorf("SCIO is not supported yet")
 	default:
 		return nil, fmt.Errorf("incorrect sdk: %s", sdkEnv.ApacheBeamSdk)
 	}
