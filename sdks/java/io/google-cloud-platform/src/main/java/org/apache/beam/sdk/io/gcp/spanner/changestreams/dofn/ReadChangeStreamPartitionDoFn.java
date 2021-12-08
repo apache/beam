@@ -136,7 +136,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
         Optional.ofNullable(partition.getEndTimestamp())
             .map(TimestampConverter::timestampToMicros)
             .map(micros -> micros + 1)
-            .orElse(TimestampConverter.MAX_MICROS);
+            .orElse(TimestampConverter.MAX_MICROS + 1);
     final com.google.cloud.Timestamp partitionScheduledAt = partition.getScheduledAt();
     final com.google.cloud.Timestamp partitionRunningAt =
         daoFactory.getPartitionMetadataDao().updateToRunning(token);
