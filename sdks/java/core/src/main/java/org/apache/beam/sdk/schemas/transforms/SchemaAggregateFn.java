@@ -300,12 +300,10 @@ class SchemaAggregateFn {
     /** Extract multiple fields from an input {@link Row}. */
     private static class ExtractFieldsFunction extends SimpleFunction<Row, Row> {
       private final RowSelector rowSelector;
-      private final FieldAggregation fieldAggregation;
 
       private ExtractFieldsFunction(Schema inputSchema, FieldAggregation fieldAggregation) {
         rowSelector =
             new RowSelectorContainer(inputSchema, fieldAggregation.fieldsToAggregate, true);
-        this.fieldAggregation = fieldAggregation;
       }
 
       @Override

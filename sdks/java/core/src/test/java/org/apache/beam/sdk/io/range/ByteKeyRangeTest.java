@@ -271,8 +271,8 @@ public class ByteKeyRangeTest {
   @Test
   public void testInterpolateKeyIsNotEmpty() {
     String fmt = "Interpolating %s at fraction 0.0 should not return the empty key";
-    for (ByteKeyRange range : TEST_RANGES) {
-      range = ByteKeyRange.ALL_KEYS;
+    for (ByteKeyRange ignored : TEST_RANGES) {
+      ByteKeyRange range = ByteKeyRange.ALL_KEYS;
       assertFalse(String.format(fmt, range), range.interpolateKey(0.0).isEmpty());
     }
   }
