@@ -38,6 +38,7 @@ final kRequestMock = RunCodeRequestWrapper(
 
 const kPipelineUuid = '1234';
 const kRunOutput = 'RunOutput';
+const kLogOutput = 'LogOutput';
 const kCompileOutput = 'CompileOutput';
 const kRunErrorOutput = 'RunErrorOutput';
 
@@ -50,6 +51,7 @@ final kCompileErrorStatusResponse =
     CheckStatusResponse(RunCodeStatus.compileError);
 
 final kRunOutputResponse = OutputResponse(kRunOutput);
+final kLogOutputResponse = OutputResponse(kLogOutput);
 final kCompileOutputResponse = OutputResponse(kCompileOutput);
 final kRunErrorOutputResponse = OutputResponse(kRunErrorOutput);
 
@@ -71,6 +73,9 @@ void main() {
       when(client.getCompileOutput(kPipelineUuid, kRequestMock)).thenAnswer(
         (_) async => kCompileOutputResponse,
       );
+      when(client.getLogOutput(kPipelineUuid, kRequestMock)).thenAnswer(
+        (_) async => kLogOutputResponse,
+      );
 
       // test variables
       final repository = CodeRepository(client);
@@ -81,7 +86,11 @@ void main() {
         stream,
         emitsInOrder([
           RunCodeResult(status: RunCodeStatus.preparation),
-          RunCodeResult(status: RunCodeStatus.finished, output: kRunOutput),
+          RunCodeResult(
+            status: RunCodeStatus.finished,
+            output: kRunOutput,
+            log: kLogOutput,
+          ),
         ]),
       );
       // compile output should not be called
@@ -102,6 +111,9 @@ void main() {
       );
       when(client.getRunOutput(kPipelineUuid, kRequestMock)).thenAnswer(
         (_) async => kRunOutputResponse,
+      );
+      when(client.getLogOutput(kPipelineUuid, kRequestMock)).thenAnswer(
+        (_) async => kLogOutputResponse,
       );
 
       // test variables
@@ -138,6 +150,9 @@ void main() {
       when(client.getRunErrorOutput(kPipelineUuid, kRequestMock)).thenAnswer(
         (_) async => kRunErrorOutputResponse,
       );
+      when(client.getLogOutput(kPipelineUuid, kRequestMock)).thenAnswer(
+        (_) async => kLogOutputResponse,
+      );
 
       // test variables
       final repository = CodeRepository(client);
@@ -155,7 +170,8 @@ void main() {
     });
   });
 
-  test('should return full output using streaming api when finished', () async {
+  test('should return full output and log using streaming api when finished',
+      () async {
     // stubs
     final client = MockCodeClient();
     when(client.runCode(kRequestMock)).thenAnswer(
@@ -175,6 +191,9 @@ void main() {
     when(client.getRunErrorOutput(kPipelineUuid, kRequestMock)).thenAnswer(
       (_) async => kRunErrorOutputResponse,
     );
+    when(client.getLogOutput(kPipelineUuid, kRequestMock)).thenAnswer(
+      (_) async => kLogOutputResponse,
+    );
 
     // test variables
     final repository = CodeRepository(client);
@@ -185,12 +204,21 @@ void main() {
       stream,
       emitsInOrder([
         RunCodeResult(status: RunCodeStatus.preparation),
-        RunCodeResult(status: RunCodeStatus.executing, output: kRunOutput),
         RunCodeResult(
-            status: RunCodeStatus.executing, output: kRunOutput + kRunOutput),
+          status: RunCodeStatus.executing,
+          output: kRunOutput,
+          log: kLogOutput,
+        ),
         RunCodeResult(
-            status: RunCodeStatus.finished,
-            output: kRunOutput + kRunOutput + kRunOutput),
+          status: RunCodeStatus.executing,
+          output: kRunOutput * 2,
+          log: kLogOutput * 2,
+        ),
+        RunCodeResult(
+          status: RunCodeStatus.finished,
+          output: kRunOutput * 3,
+          log: kLogOutput * 3,
+        ),
       ]),
     );
   });
