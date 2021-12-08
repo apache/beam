@@ -16,6 +16,7 @@
 package executors
 
 import (
+	"beam.apache.org/playground/backend/internal/preparators"
 	"beam.apache.org/playground/backend/internal/validators"
 )
 
@@ -41,9 +42,38 @@ type ValidatorBuilder struct {
 	ExecutorBuilder
 }
 
+//PreparatorBuilder facet of ExecutorBuilder
+type PreparatorBuilder struct {
+	ExecutorBuilder
+}
+
+//UnitTestExecutorBuilder facet of ExecutorBuilder
+type UnitTestExecutorBuilder struct {
+	ExecutorBuilder
+}
+
 //NewExecutorBuilder constructor for Executor
 func NewExecutorBuilder() *ExecutorBuilder {
 	return &ExecutorBuilder{}
+}
+
+//WithExecutableFileName adds file name to executor
+func (b *ExecutorBuilder) WithExecutableFileName(name string) *ExecutorBuilder {
+	b.actions = append(b.actions, func(e *Executor) {
+		e.runArgs.fileName = name
+		e.testArgs.fileName = name
+	})
+	return b
+}
+
+//WithWorkingDir adds dir path to executor
+func (b *ExecutorBuilder) WithWorkingDir(dir string) *ExecutorBuilder {
+	b.actions = append(b.actions, func(e *Executor) {
+		e.compileArgs.workingDir = dir
+		e.runArgs.workingDir = dir
+		e.testArgs.workingDir = dir
+	})
+	return b
 }
 
 // WithCompiler - Lives chains to type *ExecutorBuilder and returns a *CompileBuilder
@@ -59,6 +89,16 @@ func (b *ExecutorBuilder) WithRunner() *RunBuilder {
 // WithValidator - Lives chains to type *ExecutorBuilder and returns a *CompileBuilder
 func (b *ExecutorBuilder) WithValidator() *ValidatorBuilder {
 	return &ValidatorBuilder{*b}
+}
+
+// WithPreparator - Lives chains to type *ExecutorBuilder and returns a *PreparatorBuilder
+func (b *ExecutorBuilder) WithPreparator() *PreparatorBuilder {
+	return &PreparatorBuilder{*b}
+}
+
+// WithTestRunner - Lives chains to type *ExecutorBuilder and returns a *UnitTestExecutorBuilder
+func (b *ExecutorBuilder) WithTestRunner() *UnitTestExecutorBuilder {
+	return &UnitTestExecutorBuilder{*b}
 }
 
 //WithCommand adds compile command to executor
@@ -85,14 +125,6 @@ func (b *CompileBuilder) WithFileName(fileName string) *CompileBuilder {
 	return b
 }
 
-//WithWorkingDir adds dir path to executor
-func (b *CompileBuilder) WithWorkingDir(dir string) *CompileBuilder {
-	b.actions = append(b.actions, func(e *Executor) {
-		e.compileArgs.workingDir = dir
-	})
-	return b
-}
-
 //WithCommand adds run command to executor
 func (b *RunBuilder) WithCommand(runCmd string) *RunBuilder {
 	b.actions = append(b.actions, func(e *Executor) {
@@ -109,14 +141,6 @@ func (b *RunBuilder) WithArgs(runArgs []string) *RunBuilder {
 	return b
 }
 
-//WithClassName adds file name to executor
-func (b *RunBuilder) WithClassName(name string) *RunBuilder {
-	b.actions = append(b.actions, func(e *Executor) {
-		e.runArgs.fileName = name
-	})
-	return b
-}
-
 //WithGraphOutput adds the need of graph output to executor
 func (b *RunBuilder) WithGraphOutput() *RunBuilder {
 	b.actions = append(b.actions, func(e *Executor) {
@@ -125,10 +149,26 @@ func (b *RunBuilder) WithGraphOutput() *RunBuilder {
 	return b
 }
 
-//WithWorkingDir adds dir path to executor
-func (b *RunBuilder) WithWorkingDir(dir string) *RunBuilder {
+//WithCommand adds test command to executor
+func (b *UnitTestExecutorBuilder) WithCommand(testCmd string) *UnitTestExecutorBuilder {
 	b.actions = append(b.actions, func(e *Executor) {
-		e.runArgs.workingDir = dir
+		e.testArgs.commandName = testCmd
+	})
+	return b
+}
+
+//WithArgs adds test args to executor
+func (b *UnitTestExecutorBuilder) WithArgs(testArgs []string) *UnitTestExecutorBuilder {
+	b.actions = append(b.actions, func(e *Executor) {
+		e.testArgs.commandArgs = testArgs
+	})
+	return b
+}
+
+//WithGraphOutput adds the need of graph output to executor
+func (b *UnitTestExecutorBuilder) WithGraphOutput() *UnitTestExecutorBuilder {
+	b.actions = append(b.actions, func(e *Executor) {
+		//todo
 	})
 	return b
 }
@@ -141,6 +181,14 @@ func (b *ValidatorBuilder) WithSdkValidators(validators *[]validators.Validator)
 	return b
 }
 
+//WithSdkPreparators sets preparators to executor
+func (b *PreparatorBuilder) WithSdkPreparators(preparators *[]preparators.Preparator) *PreparatorBuilder {
+	b.actions = append(b.actions, func(e *Executor) {
+		e.preparators = *preparators
+	})
+	return b
+}
+
 //Build builds the executor object
 func (b *ExecutorBuilder) Build() Executor {
 	executor := Executor{}
@@ -148,4 +196,12 @@ func (b *ExecutorBuilder) Build() Executor {
 		a(&executor)
 	}
 	return executor
+}
+
+//WithPipelineOptions adds pipeline options to executor
+func (b *RunBuilder) WithPipelineOptions(pipelineOptions []string) *RunBuilder {
+	b.actions = append(b.actions, func(e *Executor) {
+		e.runArgs.pipelineOptions = pipelineOptions
+	})
+	return b
 }

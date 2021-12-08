@@ -37,6 +37,7 @@ import static org.mockito.Mockito.when;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.charset.Charset;
 import java.sql.Array;
 import java.sql.Connection;
@@ -93,13 +94,11 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Test on the JdbcIO. */
 @RunWith(JUnit4.class)
 public class JdbcIOTest implements Serializable {
-  private static final Logger LOG = LoggerFactory.getLogger(JdbcIOTest.class);
+
   private static final DataSourceConfiguration DATA_SOURCE_CONFIGURATION =
       DataSourceConfiguration.create(
           "org.apache.derby.jdbc.EmbeddedDriver", "jdbc:derby:memory:testDB;create=true");
@@ -251,6 +250,25 @@ public class JdbcIOTest implements Serializable {
   }
 
   @Test
+  public void testReadWithCoderInference() {
+    PCollection<TestRow> rows =
+        pipeline.apply(
+            JdbcIO.<TestRow>read()
+                .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+                .withQuery(String.format("select name,id from %s where name = ?", READ_TABLE_NAME))
+                .withStatementPreparator(
+                    preparedStatement -> preparedStatement.setString(1, TestRow.getNameForSeed(1)))
+                .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId()));
+
+    PAssert.thatSingleton(rows.apply("Count All", Count.globally())).isEqualTo(1L);
+
+    Iterable<TestRow> expectedValues = Collections.singletonList(TestRow.fromSeed(1));
+    PAssert.that(rows).containsInAnyOrder(expectedValues);
+
+    pipeline.run();
+  }
+
+  @Test
   public void testReadRowsWithDataSourceConfiguration() {
     PCollection<Row> rows =
         pipeline.apply(
@@ -305,6 +323,40 @@ public class JdbcIOTest implements Serializable {
         .containsInAnyOrder(
             ImmutableList.of(
                 Row.withSchema(expectedSchema).addValues(BigDecimal.valueOf(1)).build()));
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testReadRowsWithNumericFieldsWithExcessPrecision() {
+    PCollection<Row> rows =
+        pipeline.apply(
+            JdbcIO.readRows()
+                .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+                .withQuery(
+                    String.format(
+                        "SELECT CAST(1 AS NUMERIC(10, 2)) AS T1 FROM %s WHERE name = ?",
+                        READ_TABLE_NAME))
+                .withStatementPreparator(
+                    preparedStatement ->
+                        preparedStatement.setString(1, TestRow.getNameForSeed(1))));
+
+    Schema expectedSchema =
+        Schema.of(
+            Schema.Field.of(
+                "T1",
+                FieldType.logicalType(FixedPrecisionNumeric.of(NUMERIC.getName(), 10, 2))
+                    .withNullable(false)));
+
+    assertEquals(expectedSchema, rows.getSchema());
+
+    PCollection<Row> output = rows.apply(Select.fieldNames("T1"));
+    PAssert.that(output)
+        .containsInAnyOrder(
+            ImmutableList.of(
+                Row.withSchema(expectedSchema)
+                    .addValues(BigDecimal.valueOf(1).setScale(2, RoundingMode.HALF_UP))
+                    .build()));
 
     pipeline.run();
   }
@@ -381,8 +433,8 @@ public class JdbcIOTest implements Serializable {
                 .withTable(READ_TABLE_NAME)
                 .withNumPartitions(1)
                 .withPartitionColumn("id")
-                .withLowerBound(0)
-                .withUpperBound(1000));
+                .withLowerBound(0L)
+                .withUpperBound(1000L));
     PAssert.thatSingleton(rows.apply("Count All", Count.globally())).isEqualTo(1000L);
     pipeline.run();
   }
@@ -398,8 +450,8 @@ public class JdbcIOTest implements Serializable {
                 .withTable(String.format("(select * from %s) as subq", READ_TABLE_NAME))
                 .withNumPartitions(10)
                 .withPartitionColumn("id")
-                .withLowerBound(0)
-                .withUpperBound(1000));
+                .withLowerBound(0L)
+                .withUpperBound(1000L));
     PAssert.thatSingleton(rows.apply("Count All", Count.globally())).isEqualTo(1000L);
     pipeline.run();
   }
@@ -408,17 +460,16 @@ public class JdbcIOTest implements Serializable {
   public void testIfNumPartitionsIsZero() {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("numPartitions can not be less than 1");
-    PCollection<TestRow> rows =
-        pipeline.apply(
-            JdbcIO.<TestRow>readWithPartitions()
-                .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
-                .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
-                .withCoder(SerializableCoder.of(TestRow.class))
-                .withTable(READ_TABLE_NAME)
-                .withNumPartitions(0)
-                .withPartitionColumn("id")
-                .withLowerBound(0)
-                .withUpperBound(1000));
+    pipeline.apply(
+        JdbcIO.<TestRow>readWithPartitions()
+            .withDataSourceConfiguration(DATA_SOURCE_CONFIGURATION)
+            .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
+            .withCoder(SerializableCoder.of(TestRow.class))
+            .withTable(READ_TABLE_NAME)
+            .withNumPartitions(0)
+            .withPartitionColumn("id")
+            .withLowerBound(0L)
+            .withUpperBound(1000L));
     pipeline.run();
   }
 
@@ -435,8 +486,8 @@ public class JdbcIOTest implements Serializable {
             .withTable(READ_TABLE_NAME)
             .withNumPartitions(200)
             .withPartitionColumn("id")
-            .withLowerBound(0)
-            .withUpperBound(100));
+            .withLowerBound(0L)
+            .withUpperBound(100L));
     pipeline.run();
   }
 
@@ -453,8 +504,8 @@ public class JdbcIOTest implements Serializable {
             .withTable(READ_TABLE_NAME)
             .withNumPartitions(5)
             .withPartitionColumn("id")
-            .withLowerBound(100)
-            .withUpperBound(100));
+            .withLowerBound(100L)
+            .withUpperBound(100L));
     pipeline.run();
   }
 
@@ -831,11 +882,13 @@ public class JdbcIOTest implements Serializable {
 
   @Test
   public void testGetPreparedStatementSetCallerForLogicalTypes() throws Exception {
+    FieldType fixedLengthStringType = LogicalTypes.fixedLengthString(JDBCType.VARCHAR, 4);
     Schema schema =
         Schema.builder()
             .addField("logical_date_col", LogicalTypes.JDBC_DATE_TYPE)
             .addField("logical_time_col", LogicalTypes.JDBC_TIME_TYPE)
             .addField("logical_time_with_tz_col", LogicalTypes.JDBC_TIMESTAMP_WITH_TIMEZONE_TYPE)
+            .addField("logical_fixed_length_string_col", fixedLengthStringType)
             .build();
 
     long epochMilli = 1558719710000L;
@@ -846,7 +899,9 @@ public class JdbcIOTest implements Serializable {
             ISOChronology.getInstanceUTC());
 
     Row row =
-        Row.withSchema(schema).addValues(dateTime.withTimeAtStartOfDay(), time, dateTime).build();
+        Row.withSchema(schema)
+            .addValues(dateTime.withTimeAtStartOfDay(), time, dateTime, "Test")
+            .build();
 
     PreparedStatement psMocked = mock(PreparedStatement.class);
 
@@ -856,6 +911,8 @@ public class JdbcIOTest implements Serializable {
         .set(row, psMocked, 1, SchemaUtil.FieldWithIndex.of(schema.getField(1), 1));
     JdbcUtil.getPreparedStatementSetCaller(LogicalTypes.JDBC_TIMESTAMP_WITH_TIMEZONE_TYPE)
         .set(row, psMocked, 2, SchemaUtil.FieldWithIndex.of(schema.getField(2), 2));
+    JdbcUtil.getPreparedStatementSetCaller(fixedLengthStringType)
+        .set(row, psMocked, 3, SchemaUtil.FieldWithIndex.of(schema.getField(3), 3));
 
     verify(psMocked, times(1)).setDate(1, new Date(row.getDateTime(0).getMillis()));
     verify(psMocked, times(1)).setTime(2, new Time(row.getDateTime(1).getMillis()));
@@ -864,6 +921,7 @@ public class JdbcIOTest implements Serializable {
     cal.setTimeInMillis(epochMilli);
 
     verify(psMocked, times(1)).setTimestamp(3, new Timestamp(cal.getTime().getTime()), cal);
+    verify(psMocked, times(1)).setString(4, row.getString(3));
   }
 
   @Test
@@ -895,7 +953,6 @@ public class JdbcIOTest implements Serializable {
 
     ArrayList<Row> data = new ArrayList<>();
     for (int i = 0; i < rowsToAdd; i++) {
-      List<Object> fields = new ArrayList<>();
 
       Row row =
           schema.getFields().stream()

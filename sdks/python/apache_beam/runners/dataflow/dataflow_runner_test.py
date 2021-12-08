@@ -515,16 +515,6 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.assertIn('beam_fn_api', experiments_for_job)
     self.assertIn('use_staged_dataflow_worker_jar', experiments_for_job)
 
-  def test_use_fastavro_experiment_is_added_on_py3_and_onwards(self):
-    remote_runner = DataflowRunner()
-
-    with Pipeline(remote_runner, PipelineOptions(self.default_properties)) as p:
-      p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
-
-    self.assertTrue(
-        remote_runner.job.options.view_as(DebugOptions).lookup_experiment(
-            'use_fastavro', False))
-
   def test_use_fastavro_experiment_is_not_added_when_use_avro_is_present(self):
     remote_runner = DataflowRunner()
     self.default_properties.append('--experiment=use_avro')

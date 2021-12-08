@@ -19,28 +19,30 @@ import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"fmt"
 	"github.com/google/uuid"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
 )
 
 const (
-	fileMode = 0600
+	fileMode    = 0600
+	logFileName = "logs.log"
 )
 
 // Folder contains names of folders with executable and compiled files.
-// For each SDK these values should be set depending on folders that need for the SDK (/src and /bin for java SDK).
+// For each SDK these values should be set depending on folders that need for the SDK.
 type Folder struct {
-	BaseFolder       string
-	ExecutableFolder string
-	CompiledFolder   string
+	BaseFolder           string
+	SourceFileFolder     string
+	ExecutableFileFolder string
 }
 
 // Extension contains executable and compiled files' extensions.
-// For each SDK these values should be set depending on SDK's extensions (.java and .class for java SDK).
+// For each SDK these values should be set depending on SDK's extensions.
 type Extension struct {
-	ExecutableExtension string
-	CompiledExtension   string
+	SourceFileExtension     string
+	ExecutableFileExtension string
 }
 
 // LifeCycle is used for preparing folders and files to process code for one request.
@@ -59,6 +61,10 @@ func NewLifeCycle(sdk pb.Sdk, pipelineId uuid.UUID, workingDir string) (*LifeCyc
 	switch sdk {
 	case pb.Sdk_SDK_JAVA:
 		return newJavaLifeCycle(pipelineId, workingDir), nil
+	case pb.Sdk_SDK_GO:
+		return newGoLifeCycle(pipelineId, workingDir), nil
+	case pb.Sdk_SDK_PYTHON:
+		return newPythonLifeCycle(pipelineId, workingDir), nil
 	default:
 		return nil, fmt.Errorf("%s isn't supported now", sdk)
 	}
@@ -86,14 +92,14 @@ func (l *LifeCycle) DeleteFolders() error {
 	return nil
 }
 
-// CreateExecutableFile creates an executable file (i.e. file.java for the Java SDK).
-func (l *LifeCycle) CreateExecutableFile(code string) (string, error) {
-	if _, err := os.Stat(l.Folder.ExecutableFolder); os.IsNotExist(err) {
+// CreateSourceCodeFile creates an executable file (i.e. file.{sourceFileExtension}).
+func (l *LifeCycle) CreateSourceCodeFile(code string) (string, error) {
+	if _, err := os.Stat(l.Folder.SourceFileFolder); os.IsNotExist(err) {
 		return "", err
 	}
 
-	fileName := getFileName(l.pipelineId, l.Extension.ExecutableExtension)
-	filePath := filepath.Join(l.Folder.ExecutableFolder, fileName)
+	fileName := l.pipelineId.String() + l.Extension.SourceFileExtension
+	filePath := filepath.Join(l.Folder.SourceFileFolder, fileName)
 	err := os.WriteFile(filePath, []byte(code), fileMode)
 	if err != nil {
 		return "", err
@@ -101,21 +107,62 @@ func (l *LifeCycle) CreateExecutableFile(code string) (string, error) {
 	return fileName, nil
 }
 
-// GetAbsoluteExecutableFilePath returns absolute filepath to executable file (/path/to/workingDir/executable_files/{pipelineId}/src/{pipelineId}.java for java SDK).
-func (l *LifeCycle) GetAbsoluteExecutableFilePath() string {
-	fileName := getFileName(l.pipelineId, l.Extension.ExecutableExtension)
-	filePath := filepath.Join(l.Folder.ExecutableFolder, fileName)
+// GetAbsoluteSourceFilePath returns absolute filepath to executable file (/path/to/workingDir/executable_files/{pipelineId}/src/{pipelineId}.{sourceFileExtension}).
+func (l *LifeCycle) GetAbsoluteSourceFilePath() string {
+	fileName := l.pipelineId.String() + l.Extension.SourceFileExtension
+	filePath := filepath.Join(l.Folder.SourceFileFolder, fileName)
 	absoluteFilePath, _ := filepath.Abs(filePath)
 	return absoluteFilePath
 }
 
-// GetAbsoluteExecutableFilesFolderPath returns absolute path to executable folder (/path/to/workingDir/executable_files/{pipelineId}).
-func (l *LifeCycle) GetAbsoluteExecutableFilesFolderPath() string {
+// CopyFile copies a file with fileName from sourceDir to destinationDir.
+func (l *LifeCycle) CopyFile(fileName, sourceDir, destinationDir string) error {
+	absSourcePath := filepath.Join(sourceDir, fileName)
+	absDestinationPath := filepath.Join(destinationDir, fileName)
+	sourceFileStat, err := os.Stat(absSourcePath)
+	if err != nil {
+		return err
+	}
+
+	if !sourceFileStat.Mode().IsRegular() {
+		return fmt.Errorf("%s is not a regular file", fileName)
+	}
+
+	sourceFile, err := os.Open(absSourcePath)
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+
+	destinationFile, err := os.Create(absDestinationPath)
+	if err != nil {
+		return err
+	}
+	defer destinationFile.Close()
+	_, err = io.Copy(destinationFile, sourceFile)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// GetAbsoluteExecutableFilePath returns absolute filepath to compiled file (/path/to/workingDir/executable_files/{pipelineId}/bin/{pipelineId}.{executableExtension}).
+func (l *LifeCycle) GetAbsoluteExecutableFilePath() string {
+	fileName := l.pipelineId.String() + l.Extension.ExecutableFileExtension
+	filePath := filepath.Join(l.Folder.ExecutableFileFolder, fileName)
+	absoluteFilePath, _ := filepath.Abs(filePath)
+	return absoluteFilePath
+}
+
+// GetAbsoluteBaseFolderPath returns absolute path to executable folder (/path/to/workingDir/executable_files/{pipelineId}).
+func (l *LifeCycle) GetAbsoluteBaseFolderPath() string {
 	absoluteFilePath, _ := filepath.Abs(l.Folder.BaseFolder)
 	return absoluteFilePath
 }
 
-// getFileName returns fileName by pipelineId and fileType ({pipelineId}.java for java SDK).
-func getFileName(pipelineId uuid.UUID, fileType string) string {
-	return fmt.Sprintf("%s.%s", pipelineId, fileType)
+// GetAbsoluteLogFilePath returns absolute path to the logs file (/path/to/workingDir/executable_files/{pipelineId}/logs.log)
+func (l *LifeCycle) GetAbsoluteLogFilePath() string {
+	filePath := filepath.Join(l.Folder.BaseFolder, logFileName)
+	absoluteFilePath, _ := filepath.Abs(filePath)
+	return absoluteFilePath
 }

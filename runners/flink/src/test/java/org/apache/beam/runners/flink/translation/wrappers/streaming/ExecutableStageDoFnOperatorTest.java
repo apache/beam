@@ -662,7 +662,7 @@ public class ExecutableStageDoFnOperatorTest {
     Mockito.verify(keyedStateBackend).setCurrentKey(key);
     assertThat(
         inMemoryTimerInternals.getNextTimer(TimeDomain.EVENT_TIME),
-        is(window.maxTimestamp().plus(1)));
+        is(window.maxTimestamp().plus(Duration.millis(1))));
     Mockito.verify(stateBackendLock).unlock();
   }
 
@@ -812,7 +812,8 @@ public class ExecutableStageDoFnOperatorTest {
     verify(receiver).accept(windowedValue);
 
     // move watermark past user timer while bundle is in progress
-    testHarness.processWatermark(new Watermark(window.maxTimestamp().plus(1).getMillis()));
+    testHarness.processWatermark(
+        new Watermark(window.maxTimestamp().plus(Duration.millis(1)).getMillis()));
 
     // Output watermark is held back and timers do not yet fire (they can still be changed!)
     assertThat(timerInputReceived.get(), is(false));
@@ -823,7 +824,8 @@ public class ExecutableStageDoFnOperatorTest {
     assertThat(timerInputReceived.getAndSet(false), is(true));
 
     // Move watermark past the cleanup timer
-    testHarness.processWatermark(new Watermark(window.maxTimestamp().plus(2).getMillis()));
+    testHarness.processWatermark(
+        new Watermark(window.maxTimestamp().plus(Duration.millis(2)).getMillis()));
     operator.invokeFinishBundle();
 
     // Cleanup timer has fired and cleanup queue is prepared for bundle finish
@@ -946,7 +948,7 @@ public class ExecutableStageDoFnOperatorTest {
 
     // Generate final watermark to trigger state cleanup
     testHarness.processWatermark(
-        new Watermark(BoundedWindow.TIMESTAMP_MAX_VALUE.plus(1).getMillis()));
+        new Watermark(BoundedWindow.TIMESTAMP_MAX_VALUE.plus(Duration.millis(1)).getMillis()));
 
     assertThat(testHarness.numKeyedStateEntries(), is(0));
   }

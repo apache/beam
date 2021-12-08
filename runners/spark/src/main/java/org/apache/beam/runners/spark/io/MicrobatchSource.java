@@ -199,8 +199,8 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
       backoffFactory =
           FluentBackoff.DEFAULT
               .withInitialBackoff(Duration.millis(10))
-              .withMaxBackoff(maxReadTime.minus(1))
-              .withMaxCumulativeBackoff(maxReadTime.minus(1));
+              .withMaxBackoff(maxReadTime.minus(Duration.millis(1)))
+              .withMaxCumulativeBackoff(maxReadTime.minus(Duration.millis(1)));
     }
 
     private boolean startIfNeeded() throws IOException {

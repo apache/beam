@@ -38,13 +38,10 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.Duration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** This {@link PTransform} manages loads into BigQuery using the Storage API. */
 public class StorageApiLoads<DestinationT, ElementT>
     extends PTransform<PCollection<KV<DestinationT, ElementT>>, WriteResult> {
-  private static final Logger LOG = LoggerFactory.getLogger(StorageApiLoads.class);
   static final int MAX_BATCH_SIZE_BYTES = 2 * 1024 * 1024;
 
   private final Coder<DestinationT> destinationCoder;
@@ -54,6 +51,7 @@ public class StorageApiLoads<DestinationT, ElementT>
   private final Duration triggeringFrequency;
   private final BigQueryServices bqServices;
   private final int numShards;
+  private final boolean allowInconsistentWrites;
 
   public StorageApiLoads(
       Coder<DestinationT> destinationCoder,
@@ -62,7 +60,8 @@ public class StorageApiLoads<DestinationT, ElementT>
       String kmsKey,
       Duration triggeringFrequency,
       BigQueryServices bqServices,
-      int numShards) {
+      int numShards,
+      boolean allowInconsistentWrites) {
     this.destinationCoder = destinationCoder;
     this.dynamicDestinations = dynamicDestinations;
     this.createDisposition = createDisposition;
@@ -70,11 +69,31 @@ public class StorageApiLoads<DestinationT, ElementT>
     this.triggeringFrequency = triggeringFrequency;
     this.bqServices = bqServices;
     this.numShards = numShards;
+    this.allowInconsistentWrites = allowInconsistentWrites;
   }
 
   @Override
   public WriteResult expand(PCollection<KV<DestinationT, ElementT>> input) {
-    return triggeringFrequency != null ? expandTriggered(input) : expandUntriggered(input);
+    if (allowInconsistentWrites) {
+      return expandInconsistent(input);
+    } else {
+      return triggeringFrequency != null ? expandTriggered(input) : expandUntriggered(input);
+    }
+  }
+
+  public WriteResult expandInconsistent(PCollection<KV<DestinationT, ElementT>> input) {
+    PCollection<KV<DestinationT, ElementT>> inputInGlobalWindow =
+        input.apply("rewindowIntoGlobal", Window.into(new GlobalWindows()));
+    PCollection<KV<DestinationT, byte[]>> convertedRecords =
+        inputInGlobalWindow
+            .apply("Convert", new StorageApiConvertMessages<>(dynamicDestinations, bqServices))
+            .setCoder(KvCoder.of(destinationCoder, ByteArrayCoder.of()));
+    convertedRecords.apply(
+        "StorageApiWriteInconsistent",
+        new StorageApiWriteRecordsInconsistent<>(
+            dynamicDestinations, createDisposition, kmsKey, bqServices, destinationCoder));
+
+    return writeResult(input.getPipeline());
   }
 
   public WriteResult expandTriggered(PCollection<KV<DestinationT, ElementT>> input) {
@@ -86,7 +105,7 @@ public class StorageApiLoads<DestinationT, ElementT>
     // TODO(reuvenlax): Add autosharding support so that users don't have to pick a shard count.
     PCollection<KV<ShardedKey<DestinationT>, byte[]>> shardedRecords =
         inputInGlobalWindow
-            .apply("Convert", new StorageApiConvertMessages<>(dynamicDestinations))
+            .apply("Convert", new StorageApiConvertMessages<>(dynamicDestinations, bqServices))
             .apply(
                 "AddShard",
                 ParDo.of(
@@ -130,7 +149,11 @@ public class StorageApiLoads<DestinationT, ElementT>
     PCollection<KV<DestinationT, ElementT>> inputInGlobalWindow =
         input.apply(
             "rewindowIntoGlobal", Window.<KV<DestinationT, ElementT>>into(new GlobalWindows()));
-    inputInGlobalWindow.apply(
+    PCollection<KV<DestinationT, byte[]>> convertedRecords =
+        inputInGlobalWindow
+            .apply("Convert", new StorageApiConvertMessages<>(dynamicDestinations, bqServices))
+            .setCoder(KvCoder.of(destinationCoder, ByteArrayCoder.of()));
+    convertedRecords.apply(
         "StorageApiWriteUnsharded",
         new StorageApiWriteUnshardedRecords<>(
             dynamicDestinations, createDisposition, kmsKey, bqServices, destinationCoder));

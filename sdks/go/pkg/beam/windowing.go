@@ -21,6 +21,7 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window/trigger"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
@@ -29,7 +30,7 @@ type WindowIntoOption interface {
 }
 
 type windowTrigger struct {
-	trigger window.Trigger
+	trigger trigger.Trigger
 }
 
 func (t windowTrigger) windowIntoOption() {}
@@ -39,7 +40,7 @@ func (t windowTrigger) windowIntoOption() {}
 // Trigger support in the Go SDK is currently experimental
 // and may have breaking changes made to it.
 // Use at your own discretion.
-func Trigger(tr window.Trigger) WindowIntoOption {
+func Trigger(tr trigger.Trigger) WindowIntoOption {
 	return windowTrigger{trigger: tr}
 }
 
@@ -87,7 +88,7 @@ func TryWindowInto(s Scope, wfn *window.Fn, col PCollection, opts ...WindowIntoO
 	if !col.IsValid() {
 		return PCollection{}, errors.New("invalid input pcollection")
 	}
-	ws := window.WindowingStrategy{Fn: wfn, Trigger: window.Trigger{}}
+	ws := window.WindowingStrategy{Fn: wfn, Trigger: trigger.DefaultTrigger{}}
 	for _, opt := range opts {
 		switch opt := opt.(type) {
 		case windowTrigger:

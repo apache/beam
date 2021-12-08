@@ -211,7 +211,9 @@ class RowCoderImpl(StreamCoderImpl):
     words.frombytes(self.NULL_MARKER_CODER.decode_from_stream(in_stream, True))
 
     if words:
-      nulls = ((words[i // 8] >> (i % 8)) & 0x01 for i in range(nvals))
+      nulls = (
+          0 if i // 8 >= len(words) else ((words[i // 8] >> (i % 8)) & 0x01)
+          for i in range(nvals))
     else:
       nulls = itertools.repeat(False, nvals)
 

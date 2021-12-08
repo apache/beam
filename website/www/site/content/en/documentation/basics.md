@@ -42,6 +42,19 @@ understand an important set of core concepts:
    them to a runner.
  * [_Runner_](#runner) - A runner runs a Beam pipeline using the capabilities of
    your chosen data processing engine.
+ * [_Window_](#window) - A `PCollection` can be subdivided into windows based on
+   the timestamps of the individual elements. Windows enable grouping operations
+   over collections that grow over time by dividing the collection into windows
+   of finite collections.
+ * [_Watermark_](#watermark) - A watermark is a guess as to when all data in a
+   certain window is expected to have arrived. This is needed because data isn’t
+   always guaranteed to arrive in a pipeline in time order, or to always arrive
+   at predictable intervals.
+ * [_Trigger_](#trigger) - A trigger determines when to aggregate the results of
+   each window.
+ * [_State and timers_](#state-and-timers) - Per-key state and timer callbacks
+   are lower level primitives that give you full control over aggregating input
+   collections that grow over time.
  * [_Splittable DoFn_](#splittable-dofn) - Splittable DoFns let you process
    elements in a non-monolithic way. You can checkpoint the processing of an
    element, and the runner can split the remaining work to yield additional
@@ -64,7 +77,7 @@ RPC interface. For example, this diagram shows a branching pipeline:
   transform produces an output collection.](/images/design-your-pipeline-multiple-pcollections.svg)
 
 In this diagram, the boxes represent the parallel computations called
-[_PTransforms_](#ptransform)  and the arrows with the circles represent the data
+[_PTransforms_](#ptransform) and the arrows with the circles represent the data
 (in the form of [_PCollections_](#pcollection)) that flows between the
 transforms. The data might be bounded, stored, data sets, or the data might also
 be unbounded streams of data. In Beam, most transforms apply equally to bounded
@@ -81,6 +94,108 @@ For more information about pipelines, see the following pages:
  * [Beam Programming Guide: Creating a pipeline](/documentation/programming-guide/#creating-a-pipeline)
  * [Design your pipeline](/documentation/pipelines/design-your-pipeline)
  * [Create your pipeline](/documentation/pipeline/create-your-pipeline)
+
+### PCollection
+
+A `PCollection` is an unordered bag of elements. Each `PCollection` is a
+potentially distributed, homogeneous data set or data stream, and is owned by
+the specific `Pipeline` object for which it is created. Multiple pipelines
+cannot share a `PCollection`. Beam pipelines process PCollections, and the
+runner is responsible for storing these elements.
+
+A `PCollection` generally contains "big data" (too much data to fit in memory on
+a single machine). Sometimes a small sample of data or an intermediate result
+might fit into memory on a single machine, but Beam's computational patterns and
+transforms are focused on situations where distributed data-parallel computation
+is required. Therefore, the elements of a `PCollection` cannot be processed
+individually, and are instead processed uniformly in parallel.
+
+The following characteristics of a `PCollection` are important to know.
+
+**Bounded vs. unbounded**:
+
+A `PCollection` can be either bounded or unbounded.
+
+ - A _bounded_ `PCollection` is a dataset of a known, fixed size (alternatively,
+   a dataset that is not growing over time). Bounded data can be processed by
+   batch pipelines.
+ - An _unbounded_ `PCollection` is a dataset that grows over time, and the
+   elements are processed as they arrive. Unbounded data must be processed by
+   streaming pipelines.
+
+These two categories derive from the intuitions of batch and stream processing,
+but the two are unified in Beam and bounded and unbounded PCollections can
+coexist in the same pipeline. If your runner can only support bounded
+PCollections, you must reject pipelines that contain unbounded PCollections. If
+your runner is only targeting streams, there are adapters in Beam's support code
+to convert everything to APIs that target unbounded data.
+
+**Timestamps**:
+
+Every element in a `PCollection` has a timestamp associated with it.
+
+When you execute a primitive connector to a storage system, that connector is
+responsible for providing initial timestamps. The runner must propagate and
+aggregate timestamps. If the timestamp is not important, such as with certain
+batch processing jobs where elements do not denote events, the timestamp will be
+the minimum representable timestamp, often referred to colloquially as "negative
+infinity".
+
+**Watermarks**:
+
+Every `PCollection` must have a [watermark](#watermark) that estimates how
+complete the `PCollection` is.
+
+The watermark is a guess that "we'll never see an element with an earlier
+timestamp". Data sources are responsible for producing a watermark. The runner
+must implement watermark propagation as PCollections are processed, merged, and
+partitioned.
+
+The contents of a `PCollection` are complete when a watermark advances to
+"infinity". In this manner, you can discover that an unbounded PCollection is
+finite.
+
+**Windowed elements**:
+
+Every element in a `PCollection` resides in a [window](#window). No element
+resides in multiple windows; two elements can be equal except for their window,
+but they are not the same.
+
+When elements are written to the outside world, they are effectively placed back
+into the global window. Transforms that write data and don't take this
+perspective risk data loss.
+
+A window has a maximum timestamp. When the watermark exceeds the maximum
+timestamp plus the user-specified allowed lateness, the window is expired. All
+data related to an expired window might be discarded at any time.
+
+**Coder**:
+
+Every `PCollection` has a coder, which is a specification of the binary format
+of the elements.
+
+In Beam, the user's pipeline can be written in a language other than the
+language of the runner. There is no expectation that the runner can actually
+deserialize user data. The Beam model operates principally on encoded data,
+"just bytes". Each `PCollection` has a declared encoding for its elements,
+called a coder. A coder has a URN that identifies the encoding, and might have
+additional sub-coders. For example, a coder for lists might contain a coder for
+the elements of the list. Language-specific serialization techniques are
+frequently used, but there are a few common key formats (such as key-value pairs
+and timestamps) so the runner can understand them.
+
+**Windowing strategy**:
+
+Every `PCollection` has a windowing strategy, which is a specification of
+essential information for grouping and triggering operations. The `Window`
+transform sets up the windowing strategy, and the `GroupByKey` transform has
+behavior that is governed by the windowing strategy.
+
+<br/>
+
+For more information about PCollections, see the following page:
+
+ * [Beam Programming Guide: PCollections](/documentation/programming-guide/#pcollections)
 
 ### PTransform
 
@@ -121,109 +236,6 @@ For more information about transforms, see the following pages:
  * Beam transform catalog ([Java](/documentation/transforms/java/overview/),
    [Python](/documentation/transforms/python/overview/))
 
-### PCollection
-
-A `PCollection` is an unordered bag of elements. Each `PCollection` is a
-potentially distributed, homogeneous data set or data stream, and is owned by
-the specific `Pipeline` object for which it is created. Multiple pipelines
-cannot share a `PCollection`. Beam pipelines process PCollections, and the
-runner is responsible for storing these elements.
-
-A `PCollection` generally contains "big data" (too much data to fit in memory on
-a single machine). Sometimes a small sample of data or an intermediate result
-might fit into memory on a single machine, but Beam's computational patterns and
-transforms are focused on situations where distributed data-parallel computation
-is required. Therefore, the elements of a `PCollection` cannot be processed
-individually, and are instead processed uniformly in parallel.
-
-The following characteristics of a `PCollection` are important to know.
-
-####  Bounded vs unbounded
-
-A `PCollection` can be either bounded or unbounded.
-
- - A _bounded_ `PCollection` is a dataset of a known, fixed size (alternatively,
-   a dataset that is not growing over time). Bounded data can be processed by
-   batch pipelines.
- - An _unbounded_ `PCollection` is a dataset that grows over time, and the
-   elements are processed as they arrive. Unbounded data must be processed by
-   streaming pipelines.
-
-These two categories derive from the intuitions of batch and stream processing,
-but the two are unified in Beam and bounded and unbounded PCollections can
-coexist in the same pipeline. If your runner can only support bounded
-PCollections, you must reject pipelines that contain unbounded PCollections. If
-your runner is only targeting streams, there are adapters in Beam's support code
-to convert everything to APIs that target unbounded data.
-
-#### Timestamps
-
-Every element in a `PCollection` has a timestamp associated with it.
-
-When you execute a primitive connector to a storage system, that connector is
-responsible for providing initial timestamps. The runner must propagate and
-aggregate timestamps. If the timestamp is not important, such as with certain
-batch processing jobs where elements do not denote events, the timestamp will be
-the minimum representable timestamp, often referred to colloquially as "negative
-infinity".
-
-#### Watermarks
-
-Every `PCollection` must have a watermark that estimates how complete the
-`PCollection` is.
-
-The watermark is a guess that "we'll never see an element with an earlier
-timestamp". Data sources are responsible for producing a watermark. The runner
-must implement watermark propagation as PCollections are processed, merged, and
-partitioned.
-
-The contents of a `PCollection` are complete when a watermark advances to
-"infinity". In this manner, you can discover that an unbounded PCollection is
-finite.
-
-#### Windowed elements
-
-Every element in a `PCollection` resides in a window. No element resides in
-multiple windows; two elements can be equal except for their window, but they
-are not the same.
-
-When elements are read from the outside world, they arrive in the global window.
-When they are written to the outside world, they are effectively placed back
-into the global window. Transforms that write data and don't take this
-perspective probably risks data loss.
-
-A window has a maximum timestamp. When the watermark exceeds the maximum
-timestamp plus the user-specified allowed lateness, the window is expired. All
-data related to an expired window might be discarded at any time.
-
-#### Coder
-
-Every `PCollection` has a coder, which is a specification of the binary format
-of the elements.
-
-In Beam, the user's pipeline can be written in a language other than the
-language of the runner. There is no expectation that the runner can actually
-deserialize user data. The Beam model operates principally on encoded data,
-"just bytes". Each `PCollection` has a declared encoding for its elements,
-called a coder. A coder has a URN that identifies the encoding, and might have
-additional sub-coders. For example, a coder for lists might contain a coder for
-the elements of the list. Language-specific serialization techniques are
-frequently used, but there are a few common key formats (such as key-value pairs
-and timestamps) so the runner can understand them.
-
-#### Windowing strategy
-
-Every `PCollection` has a windowing strategy, which is a specification of
-essential information for grouping and triggering operations. The `Window`
-transform sets up the windowing strategy, and the `GroupByKey` transform has
-behavior that is governed by the windowing strategy.
-
-<br/>
-
-For more information about PCollections, see the following page:
-
- * [Beam Programming Guide: PCollections](/documentation/programming-guide/#pcollections)
-
 ### Aggregation
 
 Aggregation is computing a value from multiple (1 or more) input elements. In
@@ -261,10 +273,10 @@ When your input is unbounded, the computational pattern of grouping elements by
 key and window is roughly the same, but governing when and how to emit the
 results of aggregation involves three concepts:
 
- * Windowing, which partitions your input into bounded subsets that can be
-   complete.
- * Watermarks, which estimate the completeness of your input.
- * Triggers, which govern when and how to emit aggregated results.
+ * [Windowing](#window), which partitions your input into bounded subsets that
+   can be complete.
+ * [Watermarks](#watermark), which estimate the completeness of your input.
+ * [Triggers](#trigger), which govern when and how to emit aggregated results.
 
 For more information about available aggregation transforms, see the following
 pages:
@@ -285,9 +297,9 @@ multiple languages in the same pipeline.
 
 Beam has several varieties of UDFs:
 
- * [_DoFn_](/programming-guide/#pardo) - per-element processing function (used
-   in `ParDo`)
- * [_WindowFn_](/programming-guide/#setting-your-pcollections-windowing-function) -
+ * [_DoFn_](/documentation/programming-guide/#pardo) - per-element processing
+   function (used in `ParDo`)
+ * [_WindowFn_](/documentation/programming-guide/#setting-your-pcollections-windowing-function) -
    places elements in windows and merges windows (used in `Window` and
    `GroupByKey`)
  * [_ViewFn_](/documentation/programming-guide/#side-inputs) - adapts a
@@ -315,7 +327,7 @@ For more information about user-defined functions, see the following pages:
 
  * [Requirements for writing user code for Beam transforms](/documentation/programming-guide/#requirements-for-writing-user-code-for-beam-transforms)
  * [Beam Programming Guide: ParDo](/documentation/programming-guide/#pardo)
- * [Beam Programming Guide: WindowFn](/programming-guide/#setting-your-pcollections-windowing-function)
+ * [Beam Programming Guide: WindowFn](/documentation/programming-guide/#setting-your-pcollections-windowing-function)
  * [Beam Programming Guide: CombineFn](/documentation/programming-guide/#combine)
  * [Beam Programming Guide: Coder](/documentation/programming-guide/#data-encoding-and-type-safety)
  * [Beam Programming Guide: Side inputs](/documentation/programming-guide/#side-inputs)
@@ -335,7 +347,7 @@ are often used as intermediate types, and these also have a clear structure that
 can be inferred by inspecting the class. By understanding the structure of a
 pipeline’s records, we can provide much more concise APIs for data processing.
 
-Beam provides a collection of transforms that operate natively on schemas.  For
+Beam provides a collection of transforms that operate natively on schemas. For
 example, [Beam SQL](/documentation/dsls/sql/overview/) is a common transform
 that operates on schemas. These transforms allow selections and aggregations in
 terms of named schema fields. Another advantage of schemas is that they allow
@@ -364,6 +376,199 @@ For more information about runners, see the following pages:
 
  * [Choosing a Runner](/documentation/#choosing-a-runner)
  * [Beam Capability Matrix](/documentation/runners/capability-matrix/)
+
+### Window
+
+Windowing subdivides a `PCollection` into _windows_ according to the timestamps
+of its individual elements. Windows enable grouping operations over unbounded
+collections by dividing the collection into windows of finite collections.
+
+A _windowing function_ tells the runner how to assign elements to one or more
+initial windows, and how to merge windows of grouped elements. Each element in a
+`PCollection` can only be in one window, so if a windowing function specifies
+multiple windows for an element, the element is conceptually duplicated into
+each of the windows and each element is identical except for its window.
+
+Transforms that aggregate multiple elements, such as `GroupByKey` and `Combine`,
+work implicitly on a per-window basis; they process each `PCollection` as a
+succession of multiple, finite windows, though the entire collection itself may
+be of unbounded size.
+
+Beam provides several windowing functions:
+
+ * **Fixed time windows** (also known as "tumbling windows") represent a consistent
+   duration, non-overlapping time interval in the data stream.
+ * **Sliding time windows** (also known as "hopping windows") also represent time
+   intervals in the data stream; however, sliding time windows can overlap.
+ * **Per-session windows** define windows that contain elements that are within a
+   certain gap duration of another element.
+ * **Single global window**: by default, all data in a `PCollection` is assigned to
+   the single global window, and late data is discarded.
+ * **Calendar-based windows** (not supported by the Beam SDK for Python)
+
+You can also define your own windowing function if you have more complex
+requirements.
+
+For example, let's say we have a `PCollection` that uses fixed-time windowing,
+with windows that are five minutes long. For each window, Beam must collect all
+the data with an event time timestamp in the given window range (between 0:00
+and 4:59 in the first window, for instance). Data with timestamps outside that
+range (data from 5:00 or later) belongs to a different window.
+
+Two concepts are closely related to windowing and covered in the following
+sections: [watermarks](#watermark) and [triggers](#trigger).
+
+For more information about windows, see the following page:
+
+ * [Beam Programming Guide: Windowing](/documentation/programming-guide/#windowing)
+ * [Beam Programming Guide: WindowFn](/documentation/programming-guide/#setting-your-pcollections-windowing-function)
+
+### Watermark
+
+In any data processing system, there is a certain amount of lag between the time
+a data event occurs (the “event time”, determined by the timestamp on the data
+element itself) and the time the actual data element gets processed at any stage
+in your pipeline (the “processing time”, determined by the clock on the system
+processing the element). In addition, data isn’t always guaranteed to arrive in
+a pipeline in time order, or to always arrive at predictable intervals. For
+example, you might have intermediate systems that don't preserve order, or you
+might have two servers that timestamp data but one has a better network
+connection.
+
+To address this potential unpredictability, Beam tracks a _watermark_. A
+watermark is a guess as to when all data in a certain window is expected to have
+arrived in the pipeline. You can also think of this as “we’ll never see an
+element with an earlier timestamp”.
+
+Data sources are responsible for producing a watermark, and every `PCollection`
+must have a watermark that estimates how complete the `PCollection` is. The
+contents of a `PCollection` are complete when a watermark advances to
+“infinity”.  In this manner, you might discover that an unbounded `PCollection`
+is finite.  After the watermark progresses past the end of a window, any further
+element that arrives with a timestamp in that window is considered _late data_.
+
+[Triggers](#trigger) are a related concept that allow you to modify and refine
+the windowing strategy for a `PCollection`. You can use triggers to decide when
+each individual window aggregates and reports its results, including how the
+window emits late elements.
+
+For more information about watermarks, see the following page:
+
+ * [Beam Programming Guide: Watermarks and late data](/documentation/programming-guide/#watermarks-and-late-data)
+
+### Trigger
+
+When collecting and grouping data into windows, Beam uses _triggers_ to
+determine when to emit the aggregated results of each window (referred to as a
+_pane_). If you use Beam’s default windowing configuration and default trigger,
+Beam outputs the aggregated result when it estimates all data has arrived, and
+discards all subsequent data for that window.
+
+At a high level, triggers provide two additional capabilities compared to
+outputting at the end of a window:
+
+ 1. Triggers allow Beam to emit early results, before all the data in a given
+    window has arrived. For example, emitting after a certain amount of time
+    elapses, or after a certain number of elements arrives.
+ 2. Triggers allow processing of late data by triggering after the event time
+    watermark passes the end of the window.
+
+These capabilities allow you to control the flow of your data and also balance
+between data completeness, latency, and cost.
+
+Beam provides a number of pre-built triggers that you can set:
+
+ * **Event time triggers**: These triggers operate on the event time, as
+   indicated by the timestamp on each data element. Beam’s default trigger is
+   event time-based.
+ * **Processing time triggers**: These triggers operate on the processing time,
+   which is the time when the data element is processed at any given stage in
+   the pipeline.
+ * **Data-driven triggers**: These triggers operate by examining the data as it
+   arrives in each window, and firing when that data meets a certain property.
+   Currently, data-driven triggers only support firing after a certain number of
+   data elements.
+ * **Composite triggers**: These triggers combine multiple triggers in various
+   ways. For example, you might want one trigger for early data and a different
+   trigger for late data.
+
+For more information about triggers, see the following page:
+
+ * [Beam Programming Guide: Triggers](/documentation/programming-guide/#triggers)
+
+### State and timers
+
+Beam’s windowing and triggers provide an abstraction for grouping and
+aggregating unbounded input data based on timestamps. However, there are
+aggregation use cases that might require an even higher degree of control. State
+and timers are two important concepts that help with these uses cases. Like
+other aggregations, state and timers are processed per window.
+
+**State**:
+
+Beam provides the State API for manually managing per-key state, allowing for
+fine-grained control over aggregations. The State API lets you augment
+element-wise operations (for example, `ParDo` or `Map`) with mutable state. Like
+other aggregations, state is processed per window.
+
+The State API models state per key. To use the state API, you start out with a
+keyed `PCollection`. A `ParDo` that processes this `PCollection` can declare
+persistent state variables. When you process each element inside the `ParDo`,
+you can use the state variables to write or update state for the current key or
+to read previous state written for that key. State is always fully scoped only
+to the current processing key.
+
+Beam provides several types of state, though different runners might support a
+different subset of these states.
+
+ * **ValueState**: ValueState is a scalar state value. For each key in the
+   input, a ValueState stores a typed value that can be read and modified inside
+   the `DoFn`.
+ * A common use case for state is to accumulate multiple elements into a group:
+   * **BagState**: BagState allows you to accumulate elements in an unordered
+     bag. This lets you add elements to a collection without needing to read any
+     of the previously accumulated elements.
+   * **MapState**: MapState allows you to accumulate elements in a map.
+   * **SetState**: SetState allows you to accumulate elements in a set.
+   * **OrderedListState**: OrderedListState allows you to accumulate elements in
+     a timestamp-sorted list.
+ * **CombiningState**: CombiningState allows you to create a state object that
+   is updated using a Beam combiner. Like BagState, you can add elements to an
+   aggregation without needing to read the current value, and the accumulator
+   can be compacted using a combiner.
+
+You can use the State API together with the Timer API to create processing tasks
+that give you fine-grained control over the workflow.
+
+**Timers**:
+
+Beam provides a per-key timer callback API that enables delayed processing of
+data stored using the State API. The Timer API lets you set timers to call back
+at either an event-time or a processing-time timestamp. For more advanced use
+cases, your timer callback can set another timer. Like other aggregations,
+timers are processed per window. You can use the timer API together with the
+State API to create processing tasks that give you fine-grained control over the
+workflow.
+
+The following timers are available:
+
+ * **Event-time timers**: Event-time timers fire when the input watermark for
+   the `DoFn` passes the time at which the timer is set, meaning that the runner
+   believes that there are no more elements to be processed with timestamps
+   before the timer timestamp. This allows for event-time aggregations.
+ * **Processing-time timers**: Processing-time timers fire when the real wall-clock
+   time passes. This is often used to create larger batches of data before
+   processing. It can also be used to schedule events that should occur at a
+   specific time.
+ * **Dynamic timer tags**: Beam also supports dynamically setting a timer tag. This
+   allows you to set multiple different timers in a `DoFn` and dynamically
+   choose timer tags (for example, based on data in the input elements).
+
+For more information about state and timers, see the following pages:
+
+ * [Beam Programming Guide: State and Timers](/documentation/programming-guide/#state-and-timers)
+ * [Stateful processing with Apache Beam](/blog/stateful-processing/)
+ * [Timely (and Stateful) Processing with Apache Beam](/blog/timely-processing/)
 
 ### Splittable DoFn
 
@@ -403,4 +608,10 @@ For more information about Splittable `DoFn`, see the following pages:
 
  * [Splittable DoFns](/documentation/programming-guide/#splittable-dofns)
  * [Splittable DoFn in Apache Beam is Ready to Use](/blog/splittable-do-fn-is-available/)
+
+### What's next
+
+Take a look at our [other documention](/documentation/) such as the Beam
+programming guide, pipeline execution information, and transform reference
+catalogs.
 

@@ -19,12 +19,12 @@ import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -33,28 +33,28 @@ const (
 	serverPortKey                 = "SERVER_PORT"
 	beamSdkKey                    = "BEAM_SDK"
 	workingDirKey                 = "APP_WORK_DIR"
+	preparedModDirKey             = "PREPARED_MOD_DIR"
 	cacheTypeKey                  = "CACHE_TYPE"
 	cacheAddressKey               = "CACHE_ADDRESS"
 	beamPathKey                   = "BEAM_PATH"
-	beamRunnerKey                 = "BEAM_RUNNER"
-	SLF4jKey                      = "SLF4J"
 	cacheKeyExpirationTimeKey     = "KEY_EXPIRATION_TIME"
 	pipelineExecuteTimeoutKey     = "PIPELINE_EXPIRATION_TIMEOUT"
+	protocolTypeKey               = "PROTOCOL_TYPE"
+	defaultProtocol               = "HTTP"
 	defaultIp                     = "localhost"
 	defaultPort                   = 8080
 	defaultSdk                    = pb.Sdk_SDK_JAVA
-	defaultBeamSdkPath            = "/opt/apache/beam/jars/beam-sdks-java-harness.jar"
+	defaultBeamJarsPath           = "/opt/apache/beam/jars/*"
 	defaultCacheType              = "local"
 	defaultCacheAddress           = "localhost:6379"
 	defaultCacheKeyExpirationTime = time.Minute * 15
 	defaultPipelineExecuteTimeout = time.Minute * 10
-	defaultBeamRunner             = "/opt/apache/beam/jars/beam-runners-direct.jar"
-	defaultSLF4j                  = "/opt/apache/beam/jars/slf4j-jdk14.jar"
 	jsonExt                       = ".json"
 	configFolderName              = "configs"
 )
 
 // Environment operates with environment structures: NetworkEnvs, BeamEnvs, ApplicationEnvs
+// Environment contains all environment variables which are used by the application
 type Environment struct {
 	NetworkEnvs     NetworkEnvs
 	BeamSdkEnvs     BeamEnvs
@@ -64,7 +64,7 @@ type Environment struct {
 // NewEnvironment is a constructor for Environment.
 // Default values:
 // LogWriters: by default using os.Stdout
-// NetworkEnvs: by default using defaultIp and defaultPort from constants
+// NetworkEnvs: by default using defaultIp, defaultPort and defaultProtocol from constants
 // BeamEnvs: by default using pb.Sdk_SDK_JAVA
 // ApplicationEnvs: required field not providing by default value
 func NewEnvironment(networkEnvs NetworkEnvs, beamEnvs BeamEnvs, appEnvs ApplicationEnvs) *Environment {
@@ -76,7 +76,14 @@ func NewEnvironment(networkEnvs NetworkEnvs, beamEnvs BeamEnvs, appEnvs Applicat
 	return &svc
 }
 
-//GetApplicationEnvsFromOsEnvs lookups in os environment variables and takes value for app working dir. If not exists - return error
+// GetApplicationEnvsFromOsEnvs returns ApplicationEnvs.
+// Lookups in os environment variables and tries to take values for all (exclude working dir) ApplicationEnvs parameters.
+// In case some value doesn't exist sets default values:
+// 	- pipeline execution timeout: 10 minutes
+//	- cache expiration time: 15 minutes
+//	- type of cache: local
+//	- cache address: localhost:6379
+// If os environment variables don't contain a value for app working dir - returns error.
 func GetApplicationEnvsFromOsEnvs() (*ApplicationEnvs, error) {
 	pipelineExecuteTimeout := defaultPipelineExecuteTimeout
 	cacheExpirationTime := defaultCacheKeyExpirationTime
@@ -104,10 +111,15 @@ func GetApplicationEnvsFromOsEnvs() (*ApplicationEnvs, error) {
 	return nil, errors.New("APP_WORK_DIR env should be provided with os.env")
 }
 
-// GetNetworkEnvsFromOsEnvs lookups in os environment variables and takes value for ip and port. If not exists - using default
+// GetNetworkEnvsFromOsEnvs returns NetworkEnvs.
+// Lookups in os environment variables and takes values for ip and port.
+// In case some value doesn't exist sets default values:
+//  - ip:	localhost
+//  - port: 8080
 func GetNetworkEnvsFromOsEnvs() (*NetworkEnvs, error) {
 	ip := getEnv(serverIpKey, defaultIp)
 	port := defaultPort
+	protocol := getEnv(protocolTypeKey, defaultProtocol)
 	var err error
 	if value, present := os.LookupEnv(serverPortKey); present {
 		port, err = strconv.Atoi(value)
@@ -115,12 +127,16 @@ func GetNetworkEnvsFromOsEnvs() (*NetworkEnvs, error) {
 			return nil, err
 		}
 	}
-	return NewNetworkEnvs(ip, port), nil
+	return NewNetworkEnvs(ip, port, protocol), nil
 }
 
-// GetSdkEnvsFromOsEnvs lookups in os environment variables and takes value for Apache Beam SDK. If not exists - using default
-func GetSdkEnvsFromOsEnvs() (*BeamEnvs, error) {
+// ConfigureBeamEnvs returns BeamEnvs.
+// Lookups in os environment variables and takes value for Apache Beam SDK.
+// If os environment variables don't contain a value for Apache Beam SDK - returns error.
+// Configures ExecutorConfig with config file.
+func ConfigureBeamEnvs(workDir string) (*BeamEnvs, error) {
 	sdk := pb.Sdk_SDK_UNSPECIFIED
+	preparedModDir, modDirExist := os.LookupEnv(preparedModDirKey)
 	if value, present := os.LookupEnv(beamSdkKey); present {
 
 		switch value {
@@ -128,6 +144,9 @@ func GetSdkEnvsFromOsEnvs() (*BeamEnvs, error) {
 			sdk = pb.Sdk_SDK_JAVA
 		case pb.Sdk_SDK_GO.String():
 			sdk = pb.Sdk_SDK_GO
+			if !modDirExist {
+				return nil, errors.New("env PREPARED_MOD_DIR must be specified in the environment variables for GO sdk")
+			}
 		case pb.Sdk_SDK_PYTHON.String():
 			sdk = pb.Sdk_SDK_PYTHON
 		case pb.Sdk_SDK_SCIO.String():
@@ -137,15 +156,16 @@ func GetSdkEnvsFromOsEnvs() (*BeamEnvs, error) {
 	if sdk == pb.Sdk_SDK_UNSPECIFIED {
 		return nil, errors.New("env BEAM_SDK must be specified in the environment variables")
 	}
-	configPath := filepath.Join(os.Getenv(workingDirKey), configFolderName, sdk.String()+jsonExt)
+	configPath := filepath.Join(workDir, configFolderName, sdk.String()+jsonExt)
 	executorConfig, err := createExecutorConfig(sdk, configPath)
 	if err != nil {
 		return nil, err
 	}
-	return NewBeamEnvs(sdk, executorConfig), nil
+	return NewBeamEnvs(sdk, executorConfig, preparedModDir), nil
 }
 
-//createExecutorConfig creates ExecutorConfig object that corresponds to specific apache beam sdk
+// createExecutorConfig creates ExecutorConfig that corresponds to specific Apache Beam SDK.
+// Configures ExecutorConfig with config file which is located at configPath.
 func createExecutorConfig(apacheBeamSdk pb.Sdk, configPath string) (*ExecutorConfig, error) {
 	executorConfig, err := getConfigFromJson(configPath)
 	if err != nil {
@@ -153,24 +173,20 @@ func createExecutorConfig(apacheBeamSdk pb.Sdk, configPath string) (*ExecutorCon
 	}
 	switch apacheBeamSdk {
 	case pb.Sdk_SDK_JAVA:
-		executorConfig.CompileArgs = append(executorConfig.CompileArgs, getEnv(beamPathKey, defaultBeamSdkPath))
-		jars := strings.Join([]string{
-			getEnv(beamPathKey, defaultBeamSdkPath),
-			getEnv(beamRunnerKey, defaultBeamRunner),
-			getEnv(SLF4jKey, defaultSLF4j),
-		}, ":")
-		executorConfig.RunArgs[1] += jars
+		executorConfig.CompileArgs = append(executorConfig.CompileArgs, getEnv(beamPathKey, defaultBeamJarsPath))
+		executorConfig.RunArgs[1] = fmt.Sprintf("%s%s", executorConfig.RunArgs[1], getEnv(beamPathKey, defaultBeamJarsPath))
+		executorConfig.TestArgs[1] = fmt.Sprintf("%s%s", executorConfig.TestArgs[1], getEnv(beamPathKey, defaultBeamJarsPath))
 	case pb.Sdk_SDK_GO:
-		return nil, errors.New("not yet supported")
+		// Go sdk doesn't need any additional arguments from the config file
 	case pb.Sdk_SDK_PYTHON:
-		return nil, errors.New("not yet supported")
+		// Python sdk doesn't need any additional arguments from the config file
 	case pb.Sdk_SDK_SCIO:
 		return nil, errors.New("not yet supported")
 	}
 	return executorConfig, nil
 }
 
-//getConfigFromJson reads a json file to ExecutorConfig struct
+// getConfigFromJson reads a json file to ExecutorConfig
 func getConfigFromJson(configPath string) (*ExecutorConfig, error) {
 	file, err := ioutil.ReadFile(configPath)
 	if err != nil {
@@ -184,7 +200,7 @@ func getConfigFromJson(configPath string) (*ExecutorConfig, error) {
 	return &executorConfig, err
 }
 
-//getEnv returns a environment variable or default value
+// getEnv returns an environment variable or default value
 func getEnv(key, defaultValue string) string {
 	if value, ok := os.LookupEnv(key); ok {
 		return value

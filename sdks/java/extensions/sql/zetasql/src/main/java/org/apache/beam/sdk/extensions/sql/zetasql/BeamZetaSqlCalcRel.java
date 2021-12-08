@@ -49,19 +49,19 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelOptCluster;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.plan.RelTraitSet;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.core.Calc;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.type.RelDataType;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexBuilder;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexNode;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rex.RexProgram;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlDialect;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlIdentifier;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.SqlNode;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptCluster;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelTraitSet;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.Calc;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexBuilder;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexProgram;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlDialect;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlIdentifier;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -73,6 +73,8 @@ import org.joda.time.Instant;
  * BeamRelNode to replace {@code Project} and {@code Filter} node based on the {@code ZetaSQL}
  * expression evaluator.
  */
+@SuppressWarnings(
+    "unused") // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
 @Internal
 public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
 

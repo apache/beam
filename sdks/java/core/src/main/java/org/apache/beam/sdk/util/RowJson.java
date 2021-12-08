@@ -72,7 +72,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.DateTime;
+import org.joda.time.ReadableInstant;
 
 /**
  * Jackson serializer and deserializer for {@link Row Rows}.
@@ -527,7 +527,8 @@ public class RowJson {
           gen.writeNumber((BigDecimal) value);
           break;
         case DATETIME:
-          gen.writeString(((DateTime) value).toString()); // ISO 8601 format
+          // ReadableInstant.toString produces ISO8601 format string
+          gen.writeString(((ReadableInstant) value).toString());
           break;
         case ARRAY:
         case ITERABLE:

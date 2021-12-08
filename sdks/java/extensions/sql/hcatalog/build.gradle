@@ -19,6 +19,7 @@
 plugins { id 'org.apache.beam.module' }
 
 applyJavaNature(
+  suppressUnusedVariable: true,
   automaticModuleName: 'org.apache.beam.sdk.extensions.sql.meta.provider.hcatalog',
   classesTriggerCheckerBugs: [
     'HCatalogTable': 'TODO: file a bug report',

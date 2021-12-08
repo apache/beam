@@ -18,6 +18,7 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
+  suppressUnusedVariable: true,
         automaticModuleName: 'org.apache.beam.sdk.tpcds',
         exportJavadoc: false,
         archivesBaseName: 'beam-sdks-java-tpcds',
@@ -54,9 +55,11 @@ configurations {
 }
 
 dependencies {
+    // TODO(BEAM-13179): Determine how to build without this dependency
+    provided "org.immutables:value:2.8.8"
     compile library.java.avro
     compile library.java.vendored_guava_26_0_jre
-    compile library.java.vendored_calcite_1_26_0
+    compile library.java.vendored_calcite_1_28_0
     compile library.java.commons_csv
     compile library.java.slf4j_api
     compile "com.googlecode.json-simple:json-simple:1.1.1"

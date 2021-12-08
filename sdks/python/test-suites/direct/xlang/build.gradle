@@ -17,7 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(publish: false, exportJavadoc: false)
+applyJavaNature(suppressUnusedVariable: true, publish: false, exportJavadoc: false)
 
 import org.apache.beam.gradle.BeamModulePlugin
 
