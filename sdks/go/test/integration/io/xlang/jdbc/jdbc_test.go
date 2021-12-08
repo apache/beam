@@ -19,6 +19,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"net"
 	"testing"
 	"time"
 
@@ -54,8 +55,14 @@ func TestJDBCIO_BasicReadWrite(t *testing.T) {
 		"POSTGRES_DB":       dbname,
 	}
 	var port = "5432/tcp"
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err != nil {
+		t.Error(err)
+	}
+	defer conn.Close()
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
 	dbURL := func(port nat.Port) string {
-		return fmt.Sprintf("postgres://test:test@localhost:%s/%s?sslmode=disable", port.Port(), dbname)
+		return fmt.Sprintf("postgres://test:test@%s:%s/%s?sslmode=disable", localAddr.IP, port.Port(), dbname)
 	}
 
 	req := testcontainers.GenericContainerRequest{
@@ -79,19 +86,36 @@ func TestJDBCIO_BasicReadWrite(t *testing.T) {
 
 	log.Println("postgres container ready and running at port: ", mappedPort)
 
-	url := fmt.Sprintf("postgres://test:test@localhost:%s/%s?sslmode=disable", mappedPort.Port(), dbname)
+	// url := fmt.Sprintf("postgres://test:test@localhost:%s/%s?sslmode=disable", mappedPort.Port(), dbname)
+	url := fmt.Sprintf("postgresql://test:test@%s:%s/%s?sslmode=disable", localAddr.IP, mappedPort.Port(), dbname)
 	db, err := sql.Open("postgres", url)
 	if err != nil {
 		t.Errorf("failed to establish database connection: %s", err)
 	}
 	defer db.Close()
 	defer container.Terminate(ctx)
-	table_name := "jdbc_external_test_write"
-	_, err = db.ExecContext(ctx, fmt.Sprintf("CREATE TABLE %s(f_id INTEGER, f_real REAL, f_string VARCHAR)", table_name))
+
+	table_name := "TestTable"
+	_, err = db.Exec(fmt.Sprintf("CREATE TABLE %s(F_id VARCHAR);", table_name))
 	if err != nil {
 		t.Errorf("table not created: %v", err)
 	}
-	write := WritePipeline(*integration.IoExpansionAddr, table_name, "org.postgresql.Driver", url, username, password)
+
+	jdbcUrl := fmt.Sprintf("jdbc:postgresql://%s:%s/%s", localAddr.IP, mappedPort.Port(), dbname)
+	write := WritePipeline(*integration.IoExpansionAddr, table_name, "org.postgresql.Driver", jdbcUrl, username, password)
 	ptest.RunAndValidate(t, write)
-	// _ = ReadPipeline(*integration.IoExpansionAddr, "org.postgresql.Driver", "postgres", url, "postgres", "password", "")
+	// _, err = db.Exec(fmt.Sprintf("CREATE TABLE %s(f_int INTEGER)", table_name))
+	// if err != nil {
+	// 	t.Error("table not created")
+	// }
+	// _, err = db.Exec(fmt.Sprintf("INSERT INTO %s VALUES(%d)", table_name, 1))
+	// if err != nil {
+	// 	t.Error("can't insert values")
+	// }
+	// read := ReadPipeline(*integration.IoExpansionAddr, table_name, "org.postgresql.Driver", url, username, password)
+	// ptest.RunAndValidate(t, read)
+}
+
+func TestMain(m *testing.M) {
+	ptest.Main(m)
 }
