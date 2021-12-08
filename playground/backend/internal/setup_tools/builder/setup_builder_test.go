@@ -78,8 +78,9 @@ func TestSetupExecutor(t *testing.T) {
 		ExecutorBuilder
 
 	type args struct {
-		lc     *fs_tool.LifeCycle
-		pipelineOptions stringsdkEnv *environment.BeamEnvs
+		lc              *fs_tool.LifeCycle
+		pipelineOptions string
+		sdkEnv          *environment.BeamEnvs
 	}
 	tests := []struct {
 		name    string
