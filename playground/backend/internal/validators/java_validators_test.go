@@ -56,12 +56,14 @@ func writeFile(path string, code string) {
 	}
 }
 
-func TestCheckIsUnitTests(t *testing.T) {
-	testValidatorArgs := make([]interface{}, 1)
+func TestCheckPipelineType(t *testing.T) {
+	testValidatorArgs := make([]interface{}, 3)
 	testValidatorArgs[0] = unitTestFilePath
+	testValidatorArgs[2] = javaUnitTestPattern
 
-	validatorArgs := make([]interface{}, 1)
+	validatorArgs := make([]interface{}, 3)
 	validatorArgs[0] = filePath
+	validatorArgs[2] = javaUnitTestPattern
 
 	type args struct {
 		args []interface{}
@@ -93,13 +95,13 @@ func TestCheckIsUnitTests(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := CheckIsUnitTests(tt.args.args...)
+			got, err := CheckPipelineType(tt.args.args...)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("CheckIsUnitTests() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("CheckPipelineType() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("CheckIsUnitTests() got = %v, want %v", got, tt.want)
+				t.Errorf("CheckPipelineType() got = %v, want %v", got, tt.want)
 			}
 		})
 	}

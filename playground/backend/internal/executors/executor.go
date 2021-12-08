@@ -76,8 +76,12 @@ func (ex *Executor) Validate() func(chan bool, chan error, *sync.Map) {
 }
 
 // Prepare returns the function that applies all preparations of executor
-func (ex *Executor) Prepare() func(chan bool, chan error) {
-	return func(doneCh chan bool, errCh chan error) {
+func (ex *Executor) Prepare() func(chan bool, chan error, *sync.Map, string) {
+	return func(doneCh chan bool, errCh chan error, valRes *sync.Map, filePath string) {
+		isUnitTest, ok := valRes.Load(validators.KatasValidatorName)
+		if ok && isUnitTest.(bool) {
+			ex.preparators = *preparators.GetJavaPreparatorsForKatas(filePath)
+		}
 		for _, preparator := range ex.preparators {
 			err := preparator.Prepare(preparator.Args...)
 			if err != nil {

@@ -48,6 +48,19 @@ func GetJavaPreparators(filePath string) *[]Preparator {
 	return &[]Preparator{publicClassModification, additionalPackage}
 }
 
+// GetJavaPreparatorsForKatas returns preparation methods that should be applied to katas with Java code
+func GetJavaPreparatorsForKatas(filePath string) *[]Preparator {
+	publicClassModification := Preparator{
+		Prepare: replace,
+		Args:    []interface{}{filePath, classWithPublicModifierPattern, classWithoutPublicModifierPattern},
+	}
+	removePackage := Preparator{
+		Prepare: replace,
+		Args:    []interface{}{filePath, packagePattern, ``},
+	}
+	return &[]Preparator{publicClassModification, removePackage}
+}
+
 // replace processes file by filePath and replaces all patterns to newPattern
 func replace(args ...interface{}) error {
 	filePath := args[0].(string)

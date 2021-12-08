@@ -25,6 +25,7 @@ import (
 const (
 	javaExtension       = ".java"
 	javaUnitTestPattern = "@Test"
+	javaKatasPattern    = "org.apache.beam.learning.katas"
 )
 
 // GetJavaValidators return validators methods that should be applied to Java code
@@ -39,21 +40,26 @@ func GetJavaValidators(filePath string) *[]Validator {
 		Name:      "Valid path",
 	}
 	unitTestValidator := Validator{
-		Validator: CheckIsUnitTests,
-		Args:      validatorArgs,
+		Validator: CheckPipelineType,
+		Args:      append(validatorArgs, javaUnitTestPattern),
 		Name:      UnitTestValidatorName,
 	}
-	validators := []Validator{pathCheckerValidator, unitTestValidator}
+	katasValidator := Validator{
+		Validator: CheckPipelineType,
+		Args:      append(validatorArgs, javaKatasPattern),
+		Name:      KatasValidatorName,
+	}
+	validators := []Validator{pathCheckerValidator, unitTestValidator, katasValidator}
 	return &validators
 }
 
-func CheckIsUnitTests(args ...interface{}) (bool, error) {
+func CheckPipelineType(args ...interface{}) (bool, error) {
 	filePath := args[0].(string)
 	code, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		logger.Errorf("Validation: Error during open file: %s, err: %s\n", filePath, err.Error())
 		return false, err
 	}
-	// check whether s contains substring unit test
-	return strings.Contains(string(code), javaUnitTestPattern), nil
+	// check whether s contains substring unit test or katas
+	return strings.Contains(string(code), args[2].(string)), nil
 }
