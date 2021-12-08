@@ -28,7 +28,6 @@ import (
 
 const (
 	workingDir              = "workingDir"
-	baseFileFolder          = "executable_files"
 	sourceFolder            = "src"
 	executableFolder        = "bin"
 	javaSourceFileExtension = ".java"

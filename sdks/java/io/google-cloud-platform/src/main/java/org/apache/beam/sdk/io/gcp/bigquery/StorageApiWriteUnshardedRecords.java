@@ -341,7 +341,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       numPendingRecordBytes = 0;
     }
 
-    DestinationState createDestinationState(ProcessContext c, DestinationT destination) {
+    DestinationState createDestinationState(
+        ProcessContext c, DestinationT destination, DatasetService datasetService) {
       TableDestination tableDestination1 = dynamicDestinations.getTable(destination);
       checkArgument(
           tableDestination1 != null,
@@ -362,7 +363,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
       MessageConverter<ElementT> messageConverter;
       try {
-        messageConverter = messageConverters.get(destination, dynamicDestinations);
+        messageConverter = messageConverters.get(destination, dynamicDestinations, datasetService);
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
@@ -379,7 +380,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       initializeDatasetService(pipelineOptions);
       dynamicDestinations.setSideInputAccessorFromProcessContext(c);
       DestinationState state =
-          destinations.computeIfAbsent(element.getKey(), k -> createDestinationState(c, k));
+          destinations.computeIfAbsent(
+              element.getKey(), k -> createDestinationState(c, k, datasetService));
       flushIfNecessary();
       state.addMessage(element.getValue());
       ++numPendingRecords;
