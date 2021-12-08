@@ -89,7 +89,7 @@ public class StorageApiLoads<DestinationT, ElementT>
         input.apply("rewindowIntoGlobal", Window.into(new GlobalWindows()));
     PCollection<KV<DestinationT, byte[]>> convertedRecords =
         inputInGlobalWindow
-            .apply("Convert", new StorageApiConvertMessages<>(dynamicDestinations))
+            .apply("Convert", new StorageApiConvertMessages<>(dynamicDestinations, bqServices))
             .setCoder(KvCoder.of(destinationCoder, ByteArrayCoder.of()));
     convertedRecords.apply(
         "StorageApiWriteInconsistent",
@@ -108,7 +108,7 @@ public class StorageApiLoads<DestinationT, ElementT>
     // TODO(reuvenlax): Add autosharding support so that users don't have to pick a shard count.
     PCollection<KV<ShardedKey<DestinationT>, byte[]>> shardedRecords =
         inputInGlobalWindow
-            .apply("Convert", new StorageApiConvertMessages<>(dynamicDestinations))
+            .apply("Convert", new StorageApiConvertMessages<>(dynamicDestinations, bqServices))
             .apply(
                 "AddShard",
                 ParDo.of(
@@ -154,7 +154,7 @@ public class StorageApiLoads<DestinationT, ElementT>
             "rewindowIntoGlobal", Window.<KV<DestinationT, ElementT>>into(new GlobalWindows()));
     PCollection<KV<DestinationT, byte[]>> convertedRecords =
         inputInGlobalWindow
-            .apply("Convert", new StorageApiConvertMessages<>(dynamicDestinations))
+            .apply("Convert", new StorageApiConvertMessages<>(dynamicDestinations, bqServices))
             .setCoder(KvCoder.of(destinationCoder, ByteArrayCoder.of()));
     convertedRecords.apply(
         "StorageApiWriteUnsharded",
