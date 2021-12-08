@@ -17,12 +17,12 @@
  */
 package org.apache.beam.fn.harness;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -253,7 +253,7 @@ public class FnHarness {
       LoadingCache<String, BeamFnApi.ProcessBundleDescriptor> processBundleDescriptors =
           CacheBuilder.newBuilder()
               .maximumSize(1000)
-              .expireAfterAccess(10, TimeUnit.MINUTES)
+              .expireAfterAccess(Duration.ofMinutes(10))
               .build(
                   new CacheLoader<String, BeamFnApi.ProcessBundleDescriptor>() {
                     @Override
