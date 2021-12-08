@@ -47,20 +47,17 @@ public class PartitionMetadataDao {
   private static final Tracer TRACER = Tracing.getTracer();
 
   private final String metadataTableName;
-  private final String metricsTableName;
   private final DatabaseClient databaseClient;
 
   /**
    * Constructs a partition metadata dao object given the generated name of the tables.
    *
    * @param metadataTableName the name of the partition metadata table
-   * @param metricsTableName the name of the partition metrics table
    * @param databaseClient the {@link DatabaseClient} to perform queries
    */
   PartitionMetadataDao(
-      String metadataTableName, String metricsTableName, DatabaseClient databaseClient) {
+      String metadataTableName, DatabaseClient databaseClient) {
     this.metadataTableName = metadataTableName;
-    this.metricsTableName = metricsTableName;
     this.databaseClient = databaseClient;
   }
 
@@ -123,7 +120,7 @@ public class PartitionMetadataDao {
   }
 
   /**
-   * Inserts the partition metadata alongside initial metrics entry.
+   * Inserts the partition metadata.
    *
    * @param row the partition metadata to be inserted
    * @return the commit timestamp of the read / write transaction
@@ -196,7 +193,7 @@ public class PartitionMetadataDao {
         readWriteTransaction.run(
             transaction -> {
               final InTransactionContext transactionContext =
-                  new InTransactionContext(metadataTableName, metricsTableName, transaction);
+                  new InTransactionContext(metadataTableName, transaction);
               return callable.apply(transactionContext);
             });
     return new TransactionResult<>(result, readWriteTransaction.getCommitTimestamp());
@@ -207,7 +204,6 @@ public class PartitionMetadataDao {
 
     private static final Tracer TRACER = Tracing.getTracer();
     private final String metadataTableName;
-    private final String metricsTableName;
     private final TransactionContext transaction;
     private final Map<State, String> stateToTimestampColumn;
 
@@ -215,13 +211,11 @@ public class PartitionMetadataDao {
      * Constructs a context to execute a user defined function transactionally.
      *
      * @param metadataTableName the name of the partition metadata table
-     * @param metricsTableName the name of the partition metrics table
      * @param transaction the underlying client library transaction to be executed
      */
     public InTransactionContext(
-        String metadataTableName, String metricsTableName, TransactionContext transaction) {
+        String metadataTableName, TransactionContext transaction) {
       this.metadataTableName = metadataTableName;
-      this.metricsTableName = metricsTableName;
       this.transaction = transaction;
       this.stateToTimestampColumn = new HashMap<>();
       stateToTimestampColumn.put(State.CREATED, PartitionMetadataAdminDao.COLUMN_CREATED_AT);
@@ -231,7 +225,7 @@ public class PartitionMetadataDao {
     }
 
     /**
-     * Inserts the partition metadata alongside initial metrics entry.
+     * Inserts the partition metadata.
      *
      * @param row the partition metadata to be inserted
      */
