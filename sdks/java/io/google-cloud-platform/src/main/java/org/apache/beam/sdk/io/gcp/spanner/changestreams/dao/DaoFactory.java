@@ -44,7 +44,6 @@ public class DaoFactory implements Serializable {
 
   private final String changeStreamName;
   private final String partitionMetadataTableName;
-  private final String partitionMetricsTableName;
   private final RpcPriority rpcPriority;
   private final String jobName;
 
@@ -55,7 +54,6 @@ public class DaoFactory implements Serializable {
    * @param changeStreamName the name of the change stream for the change streams DAO
    * @param metadataSpannerConfig the metadata tables configuration
    * @param partitionMetadataTableName the name of the created partition metadata table
-   * @param partitionMetricsTableName the name of the created partition metrics table
    * @param rpcPriority the priority of the requests made by the DAO queries
    * @param jobName the name of the running job
    */
@@ -64,7 +62,6 @@ public class DaoFactory implements Serializable {
       String changeStreamName,
       SpannerConfig metadataSpannerConfig,
       String partitionMetadataTableName,
-      String partitionMetricsTableName,
       RpcPriority rpcPriority,
       String jobName) {
     if (metadataSpannerConfig.getInstanceId() == null) {
@@ -77,7 +74,6 @@ public class DaoFactory implements Serializable {
     this.changeStreamName = changeStreamName;
     this.metadataSpannerConfig = metadataSpannerConfig;
     this.partitionMetadataTableName = partitionMetadataTableName;
-    this.partitionMetricsTableName = partitionMetricsTableName;
     this.rpcPriority = rpcPriority;
     this.jobName = jobName;
   }
@@ -117,7 +113,6 @@ public class DaoFactory implements Serializable {
       partitionMetadataDaoInstance =
           new PartitionMetadataDao(
               this.partitionMetadataTableName,
-              this.partitionMetricsTableName,
               spannerAccessor.getDatabaseClient());
     }
     return partitionMetadataDaoInstance;
