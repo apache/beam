@@ -112,8 +112,7 @@ public class DaoFactory implements Serializable {
     if (partitionMetadataDaoInstance == null) {
       partitionMetadataDaoInstance =
           new PartitionMetadataDao(
-              this.partitionMetadataTableName,
-              spannerAccessor.getDatabaseClient());
+              this.partitionMetadataTableName, spannerAccessor.getDatabaseClient());
     }
     return partitionMetadataDaoInstance;
   }

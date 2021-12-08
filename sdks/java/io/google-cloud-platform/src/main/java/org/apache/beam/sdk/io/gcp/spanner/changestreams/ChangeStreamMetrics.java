@@ -19,9 +19,7 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams;
 
 import java.io.Serializable;
 
-/**
- * Class to aggregate metrics related functionality.
- */
+/** Class to aggregate metrics related functionality. */
 public class ChangeStreamMetrics implements Serializable {
 
   private static final long serialVersionUID = 8187140831756972470L;
@@ -29,8 +27,6 @@ public class ChangeStreamMetrics implements Serializable {
   // ----
   // Tracing Labels
 
-  /**
-   * Cloud Tracing label for Partition Tokens.
-   */
+  /** Cloud Tracing label for Partition Tokens. */
   public static final String PARTITION_ID_ATTRIBUTE_LABEL = "PartitionID";
 }

@@ -55,8 +55,7 @@ public class PartitionMetadataDao {
    * @param metadataTableName the name of the partition metadata table
    * @param databaseClient the {@link DatabaseClient} to perform queries
    */
-  PartitionMetadataDao(
-      String metadataTableName, DatabaseClient databaseClient) {
+  PartitionMetadataDao(String metadataTableName, DatabaseClient databaseClient) {
     this.metadataTableName = metadataTableName;
     this.databaseClient = databaseClient;
   }
@@ -213,8 +212,7 @@ public class PartitionMetadataDao {
      * @param metadataTableName the name of the partition metadata table
      * @param transaction the underlying client library transaction to be executed
      */
-    public InTransactionContext(
-        String metadataTableName, TransactionContext transaction) {
+    public InTransactionContext(String metadataTableName, TransactionContext transaction) {
       this.metadataTableName = metadataTableName;
       this.transaction = transaction;
       this.stateToTimestampColumn = new HashMap<>();
