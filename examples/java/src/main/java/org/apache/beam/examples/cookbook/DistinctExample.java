@@ -20,6 +20,7 @@ package org.apache.beam.examples.cookbook;
 /* beam-playground:
  *   name: DistinctExample
  *   description: An example that uses Shakespeare's plays as plain text files, and removes duplicate lines across all the files.
+ *   multifile: false
  *   pipeline_options: --output output.txt
  *   categories:
  *     - IO

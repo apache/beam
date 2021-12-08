@@ -44,6 +44,7 @@ package main
 // beam-playground:
 //   name: DebuggingWordCount
 //   description: An example that counts words in Shakespeare/kinglear.txt includes regax filter("Flourish|stomach").
+//   multifile: false
 //   pipeline_options: --output output.txt
 //   categories:
 //     - IO

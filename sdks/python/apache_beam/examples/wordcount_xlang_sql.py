@@ -25,6 +25,7 @@ Docker must also be available to run this pipeline locally.
 # beam-playground:
 #   name: WordCountXLangSQL
 #   description: A word-counting workflow that uses the SQL transform.
+#   multifile: false
 #   pipeline_options: --output output.txt
 #   categories:
 #     - IO

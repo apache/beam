@@ -18,6 +18,7 @@ package main
 // beam-playground:
 //   name: Contains
 //   description: An example counts received substring in Shakespeare/kinglear.txt
+//   multifile: false
 //   pipeline_options: --search king
 //   categories:
 //     - IO

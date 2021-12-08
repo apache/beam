@@ -23,6 +23,7 @@
 #   name: WordCount
 #   description: An example that counts words in Shakespeare/kinglear.txt
 #       and includes Beam best practices.
+#   multifile: false
 #   pipeline_options: --output output.txt
 #   categories:
 #     - IO

@@ -22,6 +22,7 @@ package main
 //   description: An example that counts words in Shakespeare/kinglear.txt and writes 2 output files:
 //   -- small: file for small words
 //   -- big: file for big words
+//   multifile: false
 //   pipeline_options: --small sOutput.txt --big bOutput.txt
 //   categories:
 //     - IO

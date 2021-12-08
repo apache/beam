@@ -22,10 +22,12 @@
 # beam-playground:
 #   name: WordCountWithMetrics
 #   description: A word-counting workflow with metrics.
+#   multifile: false
 #   pipeline_options: --output output.txt
 #   categories:
 #     - IO
 #     - Options
+#     - Metrics
 
 import argparse
 import logging

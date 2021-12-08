@@ -29,7 +29,8 @@ python -m apache_beam.examples.bitcoin \
 # beam-playground:
 #   name: AvroBitcoin
 #   description: An example that collect statistics on transactions
-#   in a public bitcoin dataset that was exported to avro
+#   in a public bitcoin dataset that was exported to avro.
+#   multifile: false
 #   pipeline_options: --output output.txt
 #   categories:
 #     - IO
