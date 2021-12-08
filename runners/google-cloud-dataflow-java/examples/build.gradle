@@ -91,6 +91,17 @@ task java11PostCommit() {
   dependsOn postCommitLegacyWorkerJava11
 }
 
+task postCommitLegacyWorkerJava17(type: Test) {
+    dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
+    def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
+    systemProperty "java.specification.version", "17"
+    with commonConfig(dataflowWorkerJar)
+}
+
+task java17PostCommit() {
+    dependsOn postCommitLegacyWorkerJava17
+}
+
 task preCommit() {
   dependsOn preCommitLegacyWorker
 }
