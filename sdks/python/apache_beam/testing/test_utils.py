@@ -140,13 +140,13 @@ def delete_files(file_paths):
 def cleanup_subscriptions(sub_client, subs):
   """Cleanup PubSub subscriptions if exist."""
   for sub in subs:
-    sub_client.delete_subscription(sub.name)
+    sub_client.delete_subscription(subscription=sub.name)
 
 
 def cleanup_topics(pub_client, topics):
   """Cleanup PubSub topics if exist."""
   for topic in topics:
-    pub_client.delete_topic(topic.name)
+    pub_client.delete_topic(topic=topic.name)
 
 
 class PullResponseMessage(object):
