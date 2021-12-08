@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.kafka;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -144,7 +145,7 @@ public class ReadFromKafkaDoFnTest {
     }
 
     @Override
-    public synchronized ConsumerRecords<byte[], byte[]> poll(long timeout) {
+    public synchronized ConsumerRecords<byte[], byte[]> poll(Duration timeout) {
       if (topicPartition == null) {
         return ConsumerRecords.empty();
       }
