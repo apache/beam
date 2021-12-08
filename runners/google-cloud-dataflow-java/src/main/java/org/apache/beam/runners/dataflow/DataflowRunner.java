@@ -67,6 +67,7 @@ import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.DeduplicatedFlattenFactory;
 import org.apache.beam.runners.core.construction.EmptyFlattenAsCreateFactory;
 import org.apache.beam.runners.core.construction.Environments;
+import org.apache.beam.runners.core.construction.External;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
@@ -1842,6 +1843,43 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         }
       }
     }
+  }
+
+  private static class SingleOutputExpandableTransformTranslator
+      implements TransformTranslator<External.SingleOutputExpandableTransform> {
+    @Override
+    public void translate(
+        External.SingleOutputExpandableTransform transform, TranslationContext context) {
+      StepTranslationContext stepContext = context.addStep(transform, "ExternalTransform");
+      PCollection<?> output = (PCollection<?>) context.getOutput(transform);
+      stepContext.addOutput(PropertyNames.OUTPUT, output);
+    }
+  }
+
+  static {
+    DataflowPipelineTranslator.registerTransformTranslator(
+        External.SingleOutputExpandableTransform.class,
+        new SingleOutputExpandableTransformTranslator());
+  }
+
+  private static class MultiOutputExpandableTransformTranslator
+      implements TransformTranslator<External.MultiOutputExpandableTransform> {
+    @Override
+    public void translate(
+        External.MultiOutputExpandableTransform transform, TranslationContext context) {
+      StepTranslationContext stepContext = context.addStep(transform, "ExternalTransform");
+      Map<TupleTag<?>, PCollection<?>> outputs = context.getOutputs(transform);
+      for (Map.Entry<TupleTag<?>, PCollection<?>> taggedOutput : outputs.entrySet()) {
+        TupleTag<?> tag = taggedOutput.getKey();
+        stepContext.addOutput(tag.getId(), taggedOutput.getValue());
+      }
+    }
+  }
+
+  static {
+    DataflowPipelineTranslator.registerTransformTranslator(
+        External.MultiOutputExpandableTransform.class,
+        new MultiOutputExpandableTransformTranslator());
   }
 
   private static class ImpulseTranslator implements TransformTranslator<Impulse> {
