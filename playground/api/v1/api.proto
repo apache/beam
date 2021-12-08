@@ -56,6 +56,8 @@ enum PrecompiledObjectType {
 message RunCodeRequest {
   string code = 1;
   Sdk sdk = 2;
+  // The pipeline options as they would be passed to the program (e.g. "--option1 value1 --option2 value2")
+  string pipeline_options = 3;
 }
 
 // RunCodeResponse contains information of the pipeline uuid.
@@ -135,6 +137,7 @@ message PrecompiledObject{
   string name = 2;
   string description = 3;
   PrecompiledObjectType type = 4;
+  string pipeline_options = 5;
 }
 
 // Categories represent the array of messages with sdk and categories at this sdk

@@ -93,8 +93,6 @@ public class AvroIOIT {
                   + "}");
 
   private static String filenamePrefix;
-  private static String bigQueryDataset;
-  private static String bigQueryTable;
   private static final String AVRO_NAMESPACE = AvroIOIT.class.getName();
   private static Integer numberOfTextLines;
   private static Integer datasetSize;
@@ -108,8 +106,6 @@ public class AvroIOIT {
     FileBasedIOTestPipelineOptions options = readFileBasedIOITPipelineOptions();
 
     filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
-    bigQueryDataset = options.getBigQueryDataset();
-    bigQueryTable = options.getBigQueryTable();
     datasetSize = options.getDatasetSize();
     expectedHash = options.getExpectedHash();
     numberOfTextLines = options.getNumberOfRecords();

@@ -52,6 +52,8 @@ dependencies:
   url_launcher: ^6.0.12
   expansion_widget: ^0.0.2
   grpc: ^3.0.0
+  flutter_web_plugins:
+    sdk: flutter
 
 dev_dependencies:
   flutter_test:
