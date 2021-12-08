@@ -197,4 +197,7 @@ service PlaygroundService {
 
   // Get the precompiled details of an PrecompiledObject.
   rpc GetPrecompiledObjectOutput(GetPrecompiledObjectRequest) returns (GetRunOutputResponse);
+
+  // Get the logs of an PrecompiledObject.
+  rpc GetPrecompiledObjectLogs(GetPrecompiledObjectRequest) returns (GetLogsResponse);
 }
