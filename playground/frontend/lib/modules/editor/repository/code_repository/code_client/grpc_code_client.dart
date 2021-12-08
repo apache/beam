@@ -20,6 +20,7 @@ import 'package:grpc/grpc_web.dart';
 import 'package:playground/api/iis_workaround_channel.dart';
 import 'package:playground/api/v1/api.pbgrpc.dart' as grpc;
 import 'package:playground/config.g.dart';
+import 'package:playground/modules/editor/parsers/run_options_parser.dart';
 import 'package:playground/modules/editor/repository/code_repository/code_client/check_status_response.dart';
 import 'package:playground/modules/editor/repository/code_repository/code_client/code_client.dart';
 import 'package:playground/modules/editor/repository/code_repository/code_client/output_response.dart';
@@ -91,7 +92,8 @@ class GrpcCodeClient implements CodeClient {
   ) {
     return _runSafely(() => createClient(request.sdk)
         .getLogs(grpc.GetLogsRequest(pipelineUuid: pipelineUuid))
-        .then((response) => OutputResponse(response.output)));
+        .then((response) => OutputResponse(response.output))
+        .catchError((err) => OutputResponse('')));
   }
 
   @override
@@ -117,7 +119,8 @@ class GrpcCodeClient implements CodeClient {
   grpc.RunCodeRequest _toGrpcRequest(RunCodeRequestWrapper request) {
     return grpc.RunCodeRequest()
       ..code = request.code
-      ..sdk = _getGrpcSdk(request.sdk);
+      ..sdk = _getGrpcSdk(request.sdk)
+      ..pipelineOptions = pipelineOptionsToString(request.pipelineOptions);
   }
 
   grpc.Sdk _getGrpcSdk(SDK sdk) {

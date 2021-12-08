@@ -22,11 +22,15 @@ limitations under the License.
 
 The **Beam Programming Guide** is intended for Beam users who want to use the
 Beam SDKs to create data processing pipelines. It provides guidance for using
-the Beam SDK classes to build and test your pipeline. It is not intended as an
-exhaustive reference, but as a language-agnostic, high-level guide to
-programmatically building your Beam pipeline. As the programming guide is filled
-out, the text will include code samples in multiple languages to help illustrate
-how to implement Beam concepts in your pipelines.
+the Beam SDK classes to build and test your pipeline. The programming guide is
+not intended as an exhaustive reference, but as a language-agnostic, high-level
+guide to programmatically building your Beam pipeline. As the programming guide
+is filled out, the text will include code samples in multiple languages to help
+illustrate how to implement Beam concepts in your pipelines.
+
+If you want a brief introduction to Beam's basic concepts before reading the
+programming guide, take a look at the
+[Basics of the Beam model](/documentation/basics/) page.
 
 {{< language-switcher java py go >}}
 
@@ -4437,10 +4441,12 @@ You can define different kinds of windows to divide the elements of your
 You can also define your own `WindowFn` if you have a more complex need.
 
 Note that each element can logically belong to more than one window, depending
-on the windowing function you use. Sliding time windowing, for example, creates
-overlapping windows wherein a single element can be assigned to multiple
-windows.
-
+on the windowing function you use. Sliding time windowing, for example, can
+create overlapping windows wherein a single element can be assigned to multiple
+windows. However, each element in a `PCollection` can only be in one window, so
+if an element is assigned to multiple windows, the element is conceptually
+duplicated into each of the windows and each element is identical except for its
+window.
 
 #### 8.2.1. Fixed time windows {#fixed-time-windows}
 
