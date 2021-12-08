@@ -1178,6 +1178,48 @@ public class DataflowRunnerTest implements Serializable {
   }
 
   @Test
+  public void testApplySdkEnvironmentOverrides() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    String dockerHubPythonContainerUrl = "apache/beam_python3.8_sdk:latest";
+    String gcrPythonContainerUrl = "gcr.io/apache-beam-testing/beam-sdk/beam_python3.8_sdk:latest";
+    options.setSdkHarnessContainerImageOverrides(".*python.*," + gcrPythonContainerUrl);
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    RunnerApi.Pipeline pipeline =
+        RunnerApi.Pipeline.newBuilder()
+            .setComponents(
+                RunnerApi.Components.newBuilder()
+                    .putEnvironments(
+                        "env",
+                        RunnerApi.Environment.newBuilder()
+                            .setUrn(
+                                BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.DOCKER))
+                            .setPayload(
+                                RunnerApi.DockerPayload.newBuilder()
+                                    .setContainerImage(dockerHubPythonContainerUrl)
+                                    .build()
+                                    .toByteString())
+                            .build()))
+            .build();
+    RunnerApi.Pipeline expectedPipeline =
+        RunnerApi.Pipeline.newBuilder()
+            .setComponents(
+                RunnerApi.Components.newBuilder()
+                    .putEnvironments(
+                        "env",
+                        RunnerApi.Environment.newBuilder()
+                            .setUrn(
+                                BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.DOCKER))
+                            .setPayload(
+                                RunnerApi.DockerPayload.newBuilder()
+                                    .setContainerImage(gcrPythonContainerUrl)
+                                    .build()
+                                    .toByteString())
+                            .build()))
+            .build();
+    assertThat(runner.applySdkEnvironmentOverrides(pipeline, options), equalTo(expectedPipeline));
+  }
+
+  @Test
   public void testResolveArtifacts() throws IOException {
     DataflowPipelineOptions options = buildPipelineOptions();
     DataflowRunner runner = DataflowRunner.fromOptions(options);

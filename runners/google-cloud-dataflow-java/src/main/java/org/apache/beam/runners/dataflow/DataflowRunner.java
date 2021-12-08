@@ -857,6 +857,47 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
   }
 
+  protected RunnerApi.Pipeline applySdkEnvironmentOverrides(
+      RunnerApi.Pipeline pipeline, DataflowPipelineDebugOptions options) {
+    String sdkHarnessContainerImageOverrides = options.getSdkHarnessContainerImageOverrides();
+    if (Strings.isNullOrEmpty(sdkHarnessContainerImageOverrides)) {
+      return pipeline;
+    }
+    String[] overrides = sdkHarnessContainerImageOverrides.split(",", -1);
+    if (overrides.length % 2 != 0) {
+      throw new RuntimeException(
+          "invalid syntax for SdkHarnessContainerImageOverrides: "
+              + options.getSdkHarnessContainerImageOverrides());
+    }
+    RunnerApi.Pipeline.Builder pipelineBuilder = pipeline.toBuilder();
+    RunnerApi.Components.Builder componentsBuilder = pipelineBuilder.getComponentsBuilder();
+    componentsBuilder.clearEnvironments();
+    for (Map.Entry<String, RunnerApi.Environment> entry :
+        pipeline.getComponents().getEnvironmentsMap().entrySet()) {
+      RunnerApi.Environment.Builder environmentBuilder = entry.getValue().toBuilder();
+      if (BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.DOCKER)
+          .equals(environmentBuilder.getUrn())) {
+        RunnerApi.DockerPayload dockerPayload;
+        try {
+          dockerPayload = RunnerApi.DockerPayload.parseFrom(environmentBuilder.getPayload());
+        } catch (InvalidProtocolBufferException e) {
+          throw new RuntimeException("Error parsing environment docker payload.", e);
+        }
+        String containerImage = dockerPayload.getContainerImage();
+        for (int i = 0; i < overrides.length; i += 2) {
+          containerImage = containerImage.replaceAll(overrides[i], overrides[i + 1]);
+        }
+        environmentBuilder.setPayload(
+            RunnerApi.DockerPayload.newBuilder()
+                .setContainerImage(containerImage)
+                .build()
+                .toByteString());
+      }
+      componentsBuilder.putEnvironments(entry.getKey(), environmentBuilder.build());
+    }
+    return pipelineBuilder.build();
+  }
+
   @VisibleForTesting
   protected RunnerApi.Pipeline resolveArtifacts(RunnerApi.Pipeline pipeline) {
     RunnerApi.Pipeline.Builder pipelineBuilder = pipeline.toBuilder();
@@ -1015,6 +1056,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     // `resolveArtifact` updates local paths to staged paths in pipeline proto.
     List<DataflowPackage> packages = stageArtifacts(portablePipelineProto);
     portablePipelineProto = resolveArtifacts(portablePipelineProto);
+    portablePipelineProto = applySdkEnvironmentOverrides(portablePipelineProto, options);
     LOG.debug("Portable pipeline proto:\n{}", TextFormat.printToString(portablePipelineProto));
     // Stage the portable pipeline proto, retrieving the staged pipeline path, then update
     // the options on the new job
