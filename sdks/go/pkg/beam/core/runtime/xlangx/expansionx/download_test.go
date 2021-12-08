@@ -29,31 +29,24 @@ func TestGetURLForBeamJar(t *testing.T) {
 		target      string
 		version     string
 		expectedURL URL
-		expectedJAR string
 	}{
 		{
-			"base test",
+			"base",
 			":sdks:java:fake",
 			"VERSION",
-			"https://repo.maven.apache.org/maven2/org/apache/beam/beam-sdks-java-fake/VERSION/",
-			"beam-sdks-java-fake-VERSION.jar",
+			"https://repo.maven.apache.org/maven2/org/apache/beam/beam-sdks-java-fake/VERSION/beam-sdks-java-fake-VERSION.jar",
 		},
 		{
-			"versioned test",
+			"versioned",
 			":sdks:java:fake",
 			"1.2.3",
-			"https://repo.maven.apache.org/maven2/org/apache/beam/beam-sdks-java-fake/1.2.3/",
-			"beam-sdks-java-fake-1.2.3.jar",
+			"https://repo.maven.apache.org/maven2/org/apache/beam/beam-sdks-java-fake/1.2.3/beam-sdks-java-fake-1.2.3.jar",
 		},
 	}
 	for _, test := range tests {
-		madeURL, madeJAR := getURLForBeamJar(test.target, test.version)
+		madeURL, _ := getURLForBeamJar(test.target, test.version)
 		if madeURL != test.expectedURL {
 			t.Errorf("test %v failed: wanted URL %v, got %v", test.name, test.expectedURL, madeURL)
-		}
-
-		if madeJAR != test.expectedJAR {
-			t.Errorf("test %v failed: wanted JAR %v, got %v", test.name, test.expectedJAR, madeJAR)
 		}
 	}
 }

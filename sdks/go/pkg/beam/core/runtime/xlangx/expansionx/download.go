@@ -42,9 +42,7 @@ const (
 // JAR.
 func GetBeamJar(gradleTarget, version string) (string, error) {
 	strippedTarget := dropEndOfGradleTarget(gradleTarget)
-	baseURL, jarName := getURLForBeamJar(strippedTarget, version)
-
-	fullURL := baseURL + URL(jarName)
+	fullURL, jarName := getURLForBeamJar(strippedTarget, version)
 
 	resp, err := http.Get(string(fullURL))
 	if err != nil {
@@ -88,7 +86,7 @@ func getURLForBeamJar(gradleTarget, version string) (URL, string) {
 	fullTarget := "beam" + gradleTarget
 	targetPath := strings.ReplaceAll(fullTarget, ":", "-")
 	jarName := strings.ReplaceAll(fullTarget, ":", "-") + "-" + version + ".jar"
-	return baseURL + URL(targetPath) + "/" + URL(version) + "/", jarName
+	return baseURL + URL(targetPath+"/"+version+"/"+jarName), jarName
 }
 
 // dropEndOfGradleTarget drops the last substring off of the gradle target. This
@@ -115,11 +113,10 @@ func checkDir(dirPath string) error {
 	if err == nil {
 		return nil
 	} else if errors.Is(err, os.ErrNotExist) {
-		os.MkdirAll(dirPath, 0700)
+		return os.MkdirAll(dirPath, 0700)
 	} else {
 		return err
 	}
-	return nil
 }
 
 // jarExists checks if a file path exists/is accessible and returns true if os.Stat
