@@ -156,13 +156,6 @@ class BeamModulePlugin implements Plugin<Project> {
      */
     Closure shadowClosure
 
-    /**
-     * If set, suppress the error-prone UnusedVariable check.
-     *
-     * TODO(BEAM-11936): Address all unused variables and remove this option.
-     */
-    boolean suppressUnusedVariable = false
-
     /** Controls whether this project is published to Maven. */
     boolean publish = true
 
@@ -1154,9 +1147,6 @@ class BeamModulePlugin implements Plugin<Project> {
         options.errorprone.errorproneArgs.add("-Xep:UndefinedEquals:OFF")
         options.errorprone.errorproneArgs.add("-Xep:UnnecessaryLambda:OFF")
         options.errorprone.errorproneArgs.add("-Xep:UnsafeReflectiveConstructionCast:OFF")
-        if (configuration.suppressUnusedVariable) {
-          options.errorprone.errorproneArgs.add("-Xep:UnusedVariable:OFF")
-        }
       }
 
       if (configuration.shadowClosure) {
