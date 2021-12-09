@@ -17,7 +17,7 @@
  */
 
 RegExp pipelineOptionsRegExp =
-    RegExp(r"""--([A-z0-9]*)\s+([A-z0-9\/\"\'\*\-\:\;]*)""");
+    RegExp(r"""--([A-z0-9]*)\s+([A-z0-9\/\"\'\*\-\:\;\.]*)""");
 
 const keyValueGroupCount = 2;
 
