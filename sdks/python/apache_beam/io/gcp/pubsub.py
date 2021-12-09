@@ -334,7 +334,7 @@ class WriteToPubSub(PTransform):
   @staticmethod
   def bytes_to_proto_str(element):
     # type: (bytes) -> bytes
-    msg = pubsub.types.pubsub_pb2.PubsubMessage()
+    msg = pubsub.types.PubsubMessage()
     msg.data = element
     return msg.SerializeToString()
 
