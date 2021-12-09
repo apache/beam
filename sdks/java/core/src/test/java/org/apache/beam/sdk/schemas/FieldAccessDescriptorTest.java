@@ -265,9 +265,7 @@ public class FieldAccessDescriptorTest {
   @Test
   public void testInvalidQualifier() {
     thrown.expect(IllegalArgumentException.class);
-    FieldAccessDescriptor fieldAccessDescriptor =
-        FieldAccessDescriptor.withFieldNames("field0[]{}.field2")
-            .resolve(DOUBLE_NESTED_ARRAY_SCHEMA);
+    FieldAccessDescriptor.withFieldNames("field0[]{}.field2").resolve(DOUBLE_NESTED_ARRAY_SCHEMA);
   }
 
   private static final Schema NESTED_ARRAY_MAP_SCHEMA =
