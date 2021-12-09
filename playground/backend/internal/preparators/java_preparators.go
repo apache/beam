@@ -54,6 +54,7 @@ func GetJavaPreparators(filePath string) *[]Preparator {
 	return &[]Preparator{removePublicClassPreparator, changePackagePreparator, removePackagePreparator}
 }
 
+//removePublicClass changes the 'public class' in the code to 'class'
 func removePublicClass(args ...interface{}) error {
 	err := replace(args...)
 	if err != nil {
@@ -62,6 +63,7 @@ func removePublicClass(args ...interface{}) error {
 	return nil
 }
 
+//changePackage changes the 'package' to 'import' and the last directory in the package value to '*'
 func changePackage(args ...interface{}) error {
 	valRes := args[3].(*sync.Map)
 	isKata, ok := valRes.Load(validators.KatasValidatorName)
@@ -75,6 +77,7 @@ func changePackage(args ...interface{}) error {
 	return nil
 }
 
+//removePackage remove the package line in the katas.
 func removePackage(args ...interface{}) error {
 	valRes := args[3].(*sync.Map)
 	isKata, ok := valRes.Load(validators.KatasValidatorName)
