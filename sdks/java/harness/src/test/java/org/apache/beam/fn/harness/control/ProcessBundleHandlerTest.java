@@ -23,10 +23,13 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
 import static org.hamcrest.collection.IsEmptyCollection.empty;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
@@ -714,6 +717,13 @@ public class ProcessBundleHandlerTest {
     verify(stateTracker, times(1)).reset();
     verify(bundleFinalizationCallbacks, times(1)).clear();
     verify(resetFunction, times(1)).run();
+
+    // Ensure that the next setup produces the expected state.
+    bundleProcessor.setupForProcessBundleRequest(
+        processBundleRequestFor("instructionId2", "descriptorId2"));
+    assertNotSame(bundleCache, bundleProcessor.getBundleCache());
+    assertEquals("instructionId2", bundleProcessor.getInstructionId());
+    assertThat(bundleProcessor.getCacheTokens(), is(emptyIterable()));
   }
 
   @Test

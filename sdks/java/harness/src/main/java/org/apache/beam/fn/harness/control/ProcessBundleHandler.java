@@ -1001,6 +1001,7 @@ public class ProcessBundleHandler {
         this.cacheTokens = null;
         if (this.bundleCache != null) {
           this.bundleCache.clear();
+          this.bundleCache = null;
         }
       }
       getStartFunctionRegistry().reset();
