@@ -68,7 +68,18 @@ class GrpcExampleClient implements ExampleClient {
     return _runSafely(
       () => createClient(request.sdk)
           .getPrecompiledObjectOutput(_getExampleRequestToGrpcRequest(request))
-          .then((response) => OutputResponse(response.output)),
+          .then((response) => OutputResponse(response.output))
+          .catchError((_) => OutputResponse('')),
+    );
+  }
+
+  @override
+  Future<OutputResponse> getExampleLogs(GetExampleRequestWrapper request) {
+    return _runSafely(
+      () => createClient(request.sdk)
+          .getPrecompiledObjectLogs(_getExampleRequestToGrpcRequest(request))
+          .then((response) => OutputResponse(response.output))
+          .catchError((_) => OutputResponse('')),
     );
   }
 

@@ -29,7 +29,7 @@ import 'package:playground/modules/sdk/models/sdk.dart';
 const kTitleLength = 15;
 const kTitle = 'Catalog';
 const kPipelineOptionsParseError =
-    'Failed to parse pipeline options, please check the format (--key1 value1 --key2 value2)';
+    'Failed to parse pipeline options, please check the format (example: --key1 value1 --key2 value2), only alphanumeric and ",*,/,-,:,;,\' symbols are allowed';
 
 class PlaygroundState with ChangeNotifier {
   late SDK _sdk;
@@ -124,6 +124,7 @@ class PlaygroundState with ChangeNotifier {
       _result = RunCodeResult(
         status: RunCodeStatus.finished,
         output: _selectedExample!.outputs,
+        log: _selectedExample!.logs,
       );
       notifyListeners();
     } else {

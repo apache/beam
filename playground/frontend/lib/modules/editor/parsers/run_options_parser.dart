@@ -16,7 +16,8 @@
  * limitations under the License.
  */
 
-RegExp regExp = RegExp(r'\-\-([A-z0-9]*)\s*([A-z0-9]*)\s*');
+RegExp pipelineOptionsRegExp =
+    RegExp(r"""--([A-z0-9]*)\s+([A-z0-9\/\"\'\*\-\:\;]*)""");
 
 const keyValueGroupCount = 2;
 
@@ -30,16 +31,15 @@ Map<String, String>? parsePipelineOptions(String pipelineOptions) {
   if (pipelineOptions.isEmpty) {
     return result;
   }
-  final matches = regExp.allMatches(pipelineOptions);
+  final matches = pipelineOptionsRegExp.allMatches(pipelineOptions);
   if (matches.isEmpty) {
     return null;
   }
-  final hasError = matches
-      .where((match) =>
-          match.groupCount != keyValueGroupCount ||
-          getGroupValue(match, 1).isEmpty ||
-          getGroupValue(match, 2).isEmpty)
-      .isNotEmpty;
+  final hasError = matches.where((match) {
+    return match.groupCount != keyValueGroupCount ||
+        getGroupValue(match, 1).isEmpty ||
+        getGroupValue(match, 2).isEmpty;
+  }).isNotEmpty;
   if (hasError) {
     return null;
   }
@@ -47,6 +47,14 @@ Map<String, String>? parsePipelineOptions(String pipelineOptions) {
     final key = getGroupValue(match, 1);
     final value = getGroupValue(match, 2);
     result[key] = value;
+  }
+  var optionsCopy = pipelineOptions;
+  for (var element in result.entries) {
+    optionsCopy = optionsCopy.replaceAll('--${element.key}', '');
+    optionsCopy = optionsCopy.replaceAll(element.value, '');
+  }
+  if (optionsCopy.trim().isNotEmpty) {
+    return null;
   }
   return result;
 }

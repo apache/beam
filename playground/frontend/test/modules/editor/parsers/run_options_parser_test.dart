@@ -39,6 +39,10 @@ void main() {
         parsePipelineOptions('--key1    value1     --key2     value2'),
         {'key1': 'value1', 'key2': 'value2'},
       );
+      expect(
+        parsePipelineOptions('--output1 /dir --output2 "value"'),
+        {'output1': '/dir', 'output2': '"value"'},
+      );
     });
   });
   group('PipelineOptions to string', () {
