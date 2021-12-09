@@ -68,10 +68,10 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 		code_processing.DeleteFolders(pipelineId, lc)
 		return nil, errors.InternalError("Run code()", "Error during set value to cache: %s", err.Error())
 	}
-	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.RunOutputIndex, 0); err != nil {
+	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.RunOutputIndex, float64(0)); err != nil {
 		return nil, errors.InternalError("Run code()", "Error during set value to cache: %s", err.Error())
 	}
-	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.LogsIndex, 0); err != nil {
+	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.LogsIndex, float64(0)); err != nil {
 		return nil, errors.InternalError("Run code()", "Error during set value to cache: %s", err.Error())
 	}
 	if err = controller.cacheService.SetExpTime(ctx, pipelineId, cacheExpirationTime); err != nil {
@@ -119,7 +119,7 @@ func (controller *playgroundController) GetRunOutput(ctx context.Context, info *
 	newRunOutput := ""
 	if len(runOutput) > lastIndex {
 		newRunOutput = runOutput[lastIndex:]
-		if err := utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.RunOutputIndex, lastIndex+len(newRunOutput)); err != nil {
+		if err := utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.RunOutputIndex, float64(lastIndex+len(newRunOutput))); err != nil {
 			return nil, errors.InternalError("GetRunOutput", "Error during set value to cache: %s", err.Error())
 		}
 	}
@@ -148,7 +148,7 @@ func (controller *playgroundController) GetLogs(ctx context.Context, info *pb.Ge
 	newLogs := ""
 	if len(logs) > lastIndex {
 		newLogs = logs[lastIndex:]
-		if err := utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.LogsIndex, lastIndex+len(newLogs)); err != nil {
+		if err := utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.LogsIndex, float64(lastIndex+len(newLogs))); err != nil {
 			return nil, errors.InternalError(errorTitle, "Error during set value to cache: %s", err.Error())
 		}
 	}
