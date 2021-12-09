@@ -91,8 +91,6 @@ public class PostProcessingMetricsDoFn extends DoFn<DataChangeRecord, DataChange
             emittedTimestamp.toSqlTimestamp().getTime());
     final long commitedToEmittedMillis = committedToEmitted.getMillis();
 
-    metrics.updateDataRecordCommittedToEmitted(committedToEmitted);
-
     if (commitedToEmittedMillis > COMMITTED_TO_EMITTED_THRESHOLD_MS) {
       LOG.debug(
           "Data record took "
@@ -110,8 +108,6 @@ public class PostProcessingMetricsDoFn extends DoFn<DataChangeRecord, DataChange
         new Duration(
             streamStartedAt.toSqlTimestamp().getTime(), streamEndedAt.toSqlTimestamp().getTime());
     final long streamMillis = streamDuration.getMillis();
-
-    metrics.updateDataRecordStream(streamDuration);
 
     if (streamMillis > STREAM_THRESHOLD_MS) {
       LOG.debug("Data record took " + streamMillis + "ms to be streamed: " + metadata);

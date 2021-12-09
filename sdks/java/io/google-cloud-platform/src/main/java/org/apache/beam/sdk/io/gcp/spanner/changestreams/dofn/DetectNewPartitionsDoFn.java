@@ -17,11 +17,13 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn;
 
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics.PARTITION_ID_ATTRIBUTE_LABEL;
+
 import com.google.cloud.spanner.ResultSet;
 import io.opencensus.common.Scope;
+import io.opencensus.trace.AttributeValue;
 import io.opencensus.trace.Tracer;
 import io.opencensus.trace.Tracing;
-import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.DaoFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
@@ -222,35 +224,42 @@ public class DetectNewPartitionsDoFn extends DoFn<ChangeStreamSourceDescriptor, 
   }
 
   private com.google.cloud.Timestamp getUnfinishedMinWatermark() {
-    final com.google.cloud.Timestamp minWatermarkStartedAt = com.google.cloud.Timestamp.now();
-    final com.google.cloud.Timestamp minCurrentWatermark =
-        Optional.ofNullable(partitionMetadataDao.getUnfinishedMinWatermark()).orElse(null);
-    final com.google.cloud.Timestamp minWatermarkEndedAt = com.google.cloud.Timestamp.now();
-    metrics.updateDaoGetMinWatermark(
-        new Duration(
-            minWatermarkStartedAt.toSqlTimestamp().getTime(),
-            minWatermarkEndedAt.toSqlTimestamp().getTime()));
-
-    return minCurrentWatermark;
+    try (Scope scope =
+        TRACER
+            .spanBuilder("DetectNewPartitionsDoFn.getUnfinishedMinWatermark")
+            .setRecordEvents(true)
+            .startScopedSpan()) {
+      return partitionMetadataDao.getUnfinishedMinWatermark();
+    }
   }
 
   private com.google.cloud.Timestamp schedulePartition(PartitionMetadata partition) {
     final String token = partition.getPartitionToken();
-    final com.google.cloud.Timestamp createdAt = partition.getCreatedAt();
-    LOG.debug("[" + token + "] Scheduling partition");
-    final com.google.cloud.Timestamp scheduledAt = partitionMetadataDao.updateToScheduled(token);
-    LOG.info(
-        "["
-            + token
-            + "] Scheduled partition at "
-            + scheduledAt
-            + " with start time "
-            + partition.getStartTimestamp()
-            + " and end time "
-            + partition.getEndTimestamp());
-    metrics.updatePartitionCreatedToScheduled(
-        new Duration(createdAt.toDate().getTime(), scheduledAt.toSqlTimestamp().getTime()));
+    try (Scope scope =
+        TRACER
+            .spanBuilder("DetectNewPartitionsDoFn.getUnfinishedMinWatermark")
+            .setRecordEvents(true)
+            .startScopedSpan()) {
+      TRACER
+          .getCurrentSpan()
+          .putAttribute(PARTITION_ID_ATTRIBUTE_LABEL, AttributeValue.stringAttributeValue(token));
 
-    return scheduledAt;
+      final com.google.cloud.Timestamp createdAt = partition.getCreatedAt();
+      LOG.debug("[" + token + "] Scheduling partition");
+      final com.google.cloud.Timestamp scheduledAt = partitionMetadataDao.updateToScheduled(token);
+      LOG.info(
+          "["
+              + token
+              + "] Scheduled partition at "
+              + scheduledAt
+              + " with start time "
+              + partition.getStartTimestamp()
+              + " and end time "
+              + partition.getEndTimestamp());
+      metrics.updatePartitionCreatedToScheduled(
+          new Duration(createdAt.toDate().getTime(), scheduledAt.toSqlTimestamp().getTime()));
+
+      return scheduledAt;
+    }
   }
 }
