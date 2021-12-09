@@ -495,7 +495,7 @@ public class JavaBeanSchemaTest {
   public void testMismatchingNullable() throws NoSuchSchemaException {
     SchemaRegistry registry = SchemaRegistry.createDefault();
     thrown.expect(RuntimeException.class);
-    Schema schema = registry.getSchema(MismatchingNullableBean.class);
+    registry.getSchema(MismatchingNullableBean.class);
   }
 
   @Test

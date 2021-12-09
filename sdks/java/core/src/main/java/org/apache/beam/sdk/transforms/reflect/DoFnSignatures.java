@@ -1099,7 +1099,6 @@ public class DoFnSignatures {
               onTimerErrors,
               fnContext,
               methodContext,
-              fnClass,
               ParameterDescription.of(
                   m,
                   i,
@@ -1144,7 +1143,6 @@ public class DoFnSignatures {
               onTimerErrors,
               fnContext,
               methodContext,
-              fnClass,
               ParameterDescription.of(
                   m,
                   i,
@@ -1188,7 +1186,6 @@ public class DoFnSignatures {
               onWindowExpirationErrors,
               fnContext,
               methodContext,
-              fnClass,
               ParameterDescription.of(
                   m,
                   i,
@@ -1234,7 +1231,6 @@ public class DoFnSignatures {
               errors.forMethod(DoFn.ProcessElement.class, m),
               fnContext,
               methodContext,
-              fnClass,
               ParameterDescription.of(
                   m,
                   i,
@@ -1308,7 +1304,6 @@ public class DoFnSignatures {
       ErrorReporter methodErrors,
       FnAnalysisContext fnContext,
       MethodAnalysisContext methodContext,
-      TypeDescriptor<? extends DoFn<?, ?>> fnClass,
       ParameterDescription param,
       TypeDescriptor<?> inputT,
       TypeDescriptor<?> outputT) {
@@ -1615,7 +1610,6 @@ public class DoFnSignatures {
               errors,
               fnContext,
               methodContext,
-              fnT,
               ParameterDescription.of(
                   m, i, fnT.resolveType(params[i]), Arrays.asList(m.getParameterAnnotations()[i])),
               inputT,
@@ -1647,7 +1641,6 @@ public class DoFnSignatures {
               errors,
               fnContext,
               methodContext,
-              fnT,
               ParameterDescription.of(
                   m, i, fnT.resolveType(params[i]), Arrays.asList(m.getParameterAnnotations()[i])),
               inputT,
@@ -1679,7 +1672,6 @@ public class DoFnSignatures {
               errors,
               fnContext,
               methodContext,
-              fnT,
               ParameterDescription.of(
                   m, i, fnT.resolveType(params[i]), Arrays.asList(m.getParameterAnnotations()[i])),
               inputT,
@@ -1722,7 +1714,6 @@ public class DoFnSignatures {
               errors,
               fnContext,
               methodContext,
-              fnT,
               ParameterDescription.of(
                   m, i, fnT.resolveType(params[i]), Arrays.asList(m.getParameterAnnotations()[i])),
               inputT,
@@ -1768,7 +1759,6 @@ public class DoFnSignatures {
               errors,
               fnContext,
               methodContext,
-              fnT,
               ParameterDescription.of(
                   m, i, fnT.resolveType(params[i]), Arrays.asList(m.getParameterAnnotations()[i])),
               inputT,
@@ -1826,7 +1816,6 @@ public class DoFnSignatures {
               errors,
               fnContext,
               methodContext,
-              fnT,
               ParameterDescription.of(
                   m, i, fnT.resolveType(params[i]), Arrays.asList(m.getParameterAnnotations()[i])),
               inputT,
@@ -1879,7 +1868,6 @@ public class DoFnSignatures {
               errors,
               fnContext,
               methodContext,
-              fnT,
               ParameterDescription.of(
                   m, i, fnT.resolveType(params[i]), Arrays.asList(m.getParameterAnnotations()[i])),
               inputT,
@@ -2089,7 +2077,6 @@ public class DoFnSignatures {
               errors,
               fnContext,
               methodContext,
-              fnT,
               ParameterDescription.of(
                   m, i, fnT.resolveType(params[i]), Arrays.asList(m.getParameterAnnotations()[i])),
               inputT,
@@ -2151,7 +2138,6 @@ public class DoFnSignatures {
               errors,
               fnContext,
               methodContext,
-              fnT,
               ParameterDescription.of(
                   m, i, fnT.resolveType(params[i]), Arrays.asList(m.getParameterAnnotations()[i])),
               inputT,
@@ -2217,7 +2203,6 @@ public class DoFnSignatures {
               errors,
               fnContext,
               methodContext,
-              fnT,
               ParameterDescription.of(
                   m, i, fnT.resolveType(params[i]), Arrays.asList(m.getParameterAnnotations()[i])),
               inputT,

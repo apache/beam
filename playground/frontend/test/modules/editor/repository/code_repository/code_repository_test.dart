@@ -33,6 +33,7 @@ import 'code_repository_test.mocks.dart';
 final kRequestMock = RunCodeRequestWrapper(
   code: 'code',
   sdk: SDK.java,
+  pipelineOptions: {},
 );
 
 const kPipelineUuid = '1234';
