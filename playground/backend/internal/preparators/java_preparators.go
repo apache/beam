@@ -17,12 +17,14 @@ package preparators
 
 import (
 	"beam.apache.org/playground/backend/internal/logger"
+	"beam.apache.org/playground/backend/internal/validators"
 	"bufio"
 	"fmt"
 	"io"
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 )
 
 const (
@@ -37,28 +39,52 @@ const (
 
 // GetJavaPreparators returns preparation methods that should be applied to Java code
 func GetJavaPreparators(filePath string) *[]Preparator {
-	publicClassModification := Preparator{
-		Prepare: replace,
+	removePublicClassPreparator := Preparator{
+		Prepare: removePublicClass,
 		Args:    []interface{}{filePath, classWithPublicModifierPattern, classWithoutPublicModifierPattern},
 	}
-	additionalPackage := Preparator{
-		Prepare: replace,
+	changePackagePreparator := Preparator{
+		Prepare: changePackage,
 		Args:    []interface{}{filePath, packagePattern, importStringPattern},
 	}
-	return &[]Preparator{publicClassModification, additionalPackage}
+	removePackagePreparator := Preparator{
+		Prepare: removePackage,
+		Args:    []interface{}{filePath, packagePattern, newLinePattern},
+	}
+	return &[]Preparator{removePublicClassPreparator, changePackagePreparator, removePackagePreparator}
 }
 
-// GetJavaPreparatorsForKatas returns preparation methods that should be applied to katas with Java code
-func GetJavaPreparatorsForKatas(filePath string) *[]Preparator {
-	publicClassModification := Preparator{
-		Prepare: replace,
-		Args:    []interface{}{filePath, classWithPublicModifierPattern, classWithoutPublicModifierPattern},
+func removePublicClass(args ...interface{}) error {
+	err := replace(args...)
+	if err != nil {
+		return err
 	}
-	removePackage := Preparator{
-		Prepare: replace,
-		Args:    []interface{}{filePath, packagePattern, ``},
+	return nil
+}
+
+func changePackage(args ...interface{}) error {
+	valRes := args[3].(*sync.Map)
+	isKata, ok := valRes.Load(validators.KatasValidatorName)
+	if ok && isKata.(bool) {
+		return nil
 	}
-	return &[]Preparator{publicClassModification, removePackage}
+	err := replace(args...)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func removePackage(args ...interface{}) error {
+	valRes := args[3].(*sync.Map)
+	isKata, ok := valRes.Load(validators.KatasValidatorName)
+	if ok && isKata.(bool) {
+		err := replace(args...)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // replace processes file by filePath and replaces all patterns to newPattern
