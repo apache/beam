@@ -17,6 +17,7 @@
 
 # TODO(BEAM-8954): Consider PEP-517/PEP-518 instead of this file.
 
+pip>=20.0.1
 setuptools
 wheel>=0.36.0
 
