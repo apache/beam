@@ -58,9 +58,9 @@ class PlaygroundPageBody extends StatelessWidget {
     });
   }
 
-  Widget get codeTextArea => const Expanded(child: CodeTextAreaWrapper());
+  Widget get codeTextArea => const CodeTextAreaWrapper();
 
-  Widget get output => const Expanded(child: Output());
+  Widget get output => const Output();
 
   Widget getVerticalSeparator(BuildContext context) => Container(
         width: kMdSpacing,
