@@ -266,6 +266,15 @@ public interface DataflowPipelineDebugOptions extends ExperimentalOptions, Pipel
 
   void setSaveHeapDumpsToGcsPath(String gcsPath);
 
+  /** Overrides for SDK harness container images. */
+  @Description(
+      "Overrides for SDK harness container images. Each entry consist of two values separated by \n"
+          + "a comma where first value gives a regex to identify the container image to override \n"
+          + "and the second value gives the replacement container image.")
+  String getSdkHarnessContainerImageOverrides();
+
+  void setSdkHarnessContainerImageOverrides(String value);
+
   /** Creates a {@link Stager} object using the class specified in {@link #getStagerClass()}. */
   class StagerFactory implements DefaultValueFactory<Stager> {
     @Override

@@ -149,24 +149,26 @@ class GrpcExampleClient implements ExampleClient {
       List<CategoryModel> categoriesForSdk = [];
       for (var category in sdkMap.categories) {
         List<ExampleModel> examples = category.precompiledObjects
-            .map((e) => ExampleModel(
-                  name: e.name,
-                  description: e.description,
-                  type: _exampleTypeFromString(e.type),
-                  path: e.cloudPath,
-                ))
+            .map((example) => _toExampleModel(example))
             .toList();
         categoriesForSdk.add(CategoryModel(
           name: category.categoryName,
           examples: examples,
         ));
       }
-      entries.add(MapEntry(
-        sdk,
-        categoriesForSdk,
-      ));
+      entries.add(MapEntry(sdk, categoriesForSdk));
     }
     sdkCategoriesMap.addEntries(entries);
     return sdkCategoriesMap;
+  }
+
+  ExampleModel _toExampleModel(grpc.PrecompiledObject example) {
+    return ExampleModel(
+      name: example.name,
+      description: example.description,
+      type: _exampleTypeFromString(example.type),
+      path: example.cloudPath,
+      pipelineOptions: example.pipelineOptions,
+    );
   }
 }

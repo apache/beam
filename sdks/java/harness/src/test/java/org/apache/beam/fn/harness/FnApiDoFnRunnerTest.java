@@ -92,7 +92,6 @@ import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.Metrics;
-import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.state.BagState;
@@ -153,6 +152,7 @@ import org.junit.runners.JUnit4;
 @RunWith(Enclosed.class)
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "unused" // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
 })
 public class FnApiDoFnRunnerTest implements Serializable {
 
@@ -189,8 +189,6 @@ public class FnApiDoFnRunnerTest implements Serializable {
     }
 
     private static class TestStatefulDoFn extends DoFn<KV<String, String>, String> {
-      private static final TupleTag<String> mainOutput = new TupleTag<>("mainOutput");
-      private static final TupleTag<String> additionalOutput = new TupleTag<>("output");
 
       @StateId("value")
       private final StateSpec<ValueState<String>> valueStateSpec =
@@ -786,8 +784,6 @@ public class FnApiDoFnRunnerTest implements Serializable {
       Iterables.getOnlyElement(context.getTearDownFunctions()).run();
       assertThat(mainOutputValues, empty());
 
-      MetricsContainer mc = MetricsEnvironment.getCurrentContainer();
-
       List<MonitoringInfo> expected = new ArrayList<MonitoringInfo>();
       SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
       builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
@@ -1106,6 +1102,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
     }
 
     private static class TestTimerfulDoFn extends DoFn<KV<String, String>, String> {
+
       @StateId("bag")
       private final StateSpec<BagState<String>> bagStateSpec = StateSpecs.bag(StringUtf8Coder.of());
 
@@ -2512,7 +2509,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
         throws Exception {
       Pipeline p = Pipeline.create();
       PCollection<String> valuePCollection = p.apply(Create.of("unused"));
-      PCollectionView<String> singletonSideInputView = valuePCollection.apply(View.asSingleton());
+      valuePCollection.apply(View.asSingleton());
       valuePCollection
           .apply(Window.into(SlidingWindows.of(Duration.standardSeconds(1))))
           .apply(TEST_TRANSFORM_ID, ParDo.of(new NonWindowObservingTestSplittableDoFn()));
