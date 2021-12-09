@@ -2049,24 +2049,30 @@ class DeferredSeries(DeferredDataFrameOrSeries):
           "repeat(repeats=) value must be an int or a "
           f"DeferredSeries (encountered {type(repeats)}).")
 
-  @frame_base.with_docs_from(pd.Series)
-  @frame_base.args_to_kwargs(pd.Series)
-  @frame_base.populate_defaults(pd.Series)
-  def compare(self, other, **kwargs):
-    align_axis = kwargs.get('align_axis', 1)
+  if hasattr(pd.Series, 'compare'):
 
-    if align_axis in ('index', 0):
-      preserves_partition = partitionings.Singleton()
-    elif align_axis in ('columns', 1):
-      preserves_partition = partitionings.Arbitrary()
+    @frame_base.with_docs_from(pd.Series)
+    @frame_base.args_to_kwargs(pd.Series)
+    @frame_base.populate_defaults(pd.Series)
+    def compare(self, other, align_axis, **kwargs):
 
-    return frame_base.DeferredFrame.wrap(
-        expressions.ComputedExpression(
-            'compare',
-            lambda s,
-            other: s.compare(other, **kwargs), [self._expr, other._expr],
-            requires_partition_by=partitionings.Index(),
-            preserves_partition_by=preserves_partition))
+      if align_axis in ('index', 0):
+        preserves_partition = partitionings.Singleton()
+      elif align_axis in ('columns', 1):
+        preserves_partition = partitionings.Arbitrary()
+      else:
+        raise ValueError(
+            "align_axis must be one of ('index', 0, 'columns', 1). "
+            f"got {align_axis!r}.")
+
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'compare',
+              lambda s,
+              other: s.compare(other, align_axis, **kwargs),
+              [self._expr, other._expr],
+              requires_partition_by=partitionings.Index(),
+              preserves_partition_by=preserves_partition))
 
 
 @populate_not_implemented(pd.DataFrame)
@@ -3460,35 +3466,44 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       else:
         return result
 
-  @frame_base.with_docs_from(pd.DataFrame)
-  @frame_base.args_to_kwargs(pd.DataFrame)
-  @frame_base.populate_defaults(pd.DataFrame)
-  def compare(self, other, **kwargs):
-    align_axis = kwargs.get('align_axis', 1)
-    keep_shape = kwargs.get('keep_shape', False)
+  if hasattr(pd.DataFrame, 'compare'):
+    @frame_base.with_docs_from(pd.DataFrame)
+    @frame_base.args_to_kwargs(pd.DataFrame)
+    @frame_base.populate_defaults(pd.DataFrame)
+    def compare(self, other, align_axis, keep_shape, **kwargs):
+      """The default values ``align_axis=1 and ``keep_shape=False``
+       are not supported, because the output columns depend on the data.
+       To use ``align_axis=1``, please specify ``keep_shape=True``."""
 
-    preserve_partition = None
+      preserve_partition = None
 
-    if align_axis and not keep_shape:
-      raise frame_base.WontImplementError(
-        "compare(align_axis=1, keep_shape=False) is not allowed",
+      if align_axis in (1, 'columns') and not keep_shape:
+        raise frame_base.WontImplementError(
+          f"compare(align_axis={align_axis!r}, keep_shape={keep_shape!r}) "
+          "is not allowed because the output columns depend on the data, "
+          "please specify keep_shape=True.",
         reason='non-deferred-columns'
-      )
+        )
 
-    if align_axis:
-      preserve_partition = partitionings.Arbitrary()
-    else:
-      preserve_partition = partitionings.Singleton()
+      if align_axis in (1, 'columns'):
+        preserve_partition = partitionings.Arbitrary()
+      elif align_axis in (0, 'index'):
+        preserve_partition = partitionings.Singleton()
+      else:
+        raise ValueError(
+          "align_axis must be one of ('index', 0, 'columns', 1). "
+          f"got {align_axis!r}.")
 
-    return frame_base.DeferredFrame.wrap(
-      expressions.ComputedExpression(
-        'compare',
-        lambda df, other: df.compare(other, **kwargs),
-        [self._expr, other._expr],
-        requires_partition_by=partitionings.Index(),
-        preserves_partition_by=preserve_partition
+
+      return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+          'compare',
+          lambda df, other: df.compare(other, align_axis, keep_shape, **kwargs),
+          [self._expr, other._expr],
+          requires_partition_by=partitionings.Index(),
+          preserves_partition_by=preserve_partition
+        )
       )
-    )
 
 for io_func in dir(io):
   if io_func.startswith('to_'):
