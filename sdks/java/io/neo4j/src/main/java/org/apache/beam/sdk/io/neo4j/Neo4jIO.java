@@ -375,7 +375,12 @@ public class Neo4jIO {
       if (config == null) {
         throw new RuntimeException("please provide a neo4j config");
       }
-      if (getHasDefaultConfig() != null && getHasDefaultConfig().get()) {
+      // We're trying to work around a subtle serialisation bug in the Neo4j Java driver.
+      // The fix is work in progress.  For now, we harden our code to avoid
+      // wild goose chases.
+      //
+      Boolean hasDefaultConfig = getProvidedValue(getHasDefaultConfig());
+      if (hasDefaultConfig != null && hasDefaultConfig) {
         config = Config.defaultConfig();
       }
 
