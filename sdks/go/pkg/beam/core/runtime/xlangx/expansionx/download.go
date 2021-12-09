@@ -28,11 +28,10 @@ import (
 	"strings"
 )
 
-// URL is a type used to differentiate between strings and URLs
-type URL string
+type url string
 
 const (
-	apacheRepository = URL("https://repo.maven.apache.org/maven2")
+	apacheRepository = url("https://repo.maven.apache.org/maven2")
 	beamGroupID      = "org/apache/beam"
 	jarCache         = "~/.apache_beam/cache/jars"
 )
@@ -81,12 +80,12 @@ func GetBeamJar(gradleTarget, version string) (string, error) {
 
 // getURLForBeamJar builds the Maven URL for the JAR and the JAR name, returning both
 // separately so the JAR name can be used for saving the file later.
-func getURLForBeamJar(gradleTarget, version string) (URL, string) {
-	baseURL := URL(apacheRepository + "/" + beamGroupID + "/")
+func getURLForBeamJar(gradleTarget, version string) (url, string) {
+	baseURL := url(apacheRepository + "/" + beamGroupID + "/")
 	fullTarget := "beam" + gradleTarget
 	targetPath := strings.ReplaceAll(fullTarget, ":", "-")
 	jarName := strings.ReplaceAll(fullTarget, ":", "-") + "-" + version + ".jar"
-	return baseURL + URL(targetPath+"/"+version+"/"+jarName), jarName
+	return baseURL + url(targetPath+"/"+version+"/"+jarName), jarName
 }
 
 // dropEndOfGradleTarget drops the last substring off of the gradle target. This

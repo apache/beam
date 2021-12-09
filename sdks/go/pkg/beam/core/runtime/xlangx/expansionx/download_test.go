@@ -28,7 +28,7 @@ func TestGetURLForBeamJar(t *testing.T) {
 		name        string
 		target      string
 		version     string
-		expectedURL URL
+		expectedURL url
 	}{
 		{
 			"base",
