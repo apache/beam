@@ -144,9 +144,6 @@ public class JoinTest {
             Row.withSchema(CG_SCHEMA_2).addValues("user2", 14, "fr").build(),
             Row.withSchema(CG_SCHEMA_2).addValues("user2", 15, "ar").build(),
             Row.withSchema(CG_SCHEMA_2).addValues("user2", 16, "ar").build(),
-            Row.withSchema(CG_SCHEMA_2).addValues("user3", 17, null).build(),
-            Row.withSchema(CG_SCHEMA_2).addValues(null, 18, "ar").build(),
-            Row.withSchema(CG_SCHEMA_2).addValues(null, 19, null).build(),
             Row.withSchema(CG_SCHEMA_2).addValues("user4", 8, "ar").build());
 
     PCollection<Row> pc1 = pipeline.apply("Create1", Create.of(pc1Rows)).setRowSchema(CG_SCHEMA_1);
@@ -209,6 +206,9 @@ public class JoinTest {
             Row.withSchema(CG_SCHEMA_2N).addValues("user2", 14, "fr").build(),
             Row.withSchema(CG_SCHEMA_2N).addValues("user2", 15, "ar").build(),
             Row.withSchema(CG_SCHEMA_2N).addValues("user2", 16, "ar").build(),
+            Row.withSchema(CG_SCHEMA_2N).addValues("user3", 17, null).build(),
+            Row.withSchema(CG_SCHEMA_2N).addValues(null, 18, "ar").build(),
+            Row.withSchema(CG_SCHEMA_2N).addValues(null, 19, null).build(),
             Row.withSchema(CG_SCHEMA_2N).addValues("user4", 8, "ar").build());
 
     PCollection<Row> pc1 = pipeline.apply("Create1", Create.of(pc1Rows)).setRowSchema(CG_SCHEMA_1);
