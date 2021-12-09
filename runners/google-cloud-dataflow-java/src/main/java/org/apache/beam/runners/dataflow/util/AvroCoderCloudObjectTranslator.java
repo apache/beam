@@ -35,7 +35,7 @@ class AvroCoderCloudObjectTranslator implements CloudObjectTranslator<AvroCoder>
     CloudObject base = CloudObject.forClass(AvroCoder.class);
     Structs.addString(base, SCHEMA_FIELD, target.getSchema().toString());
     Structs.addString(base, TYPE_FIELD, target.getType().getName());
-    Structs.addBoolean(base, REFLECT_API_FIELD, target.usesReflectApi());
+    Structs.addBoolean(base, REFLECT_API_FIELD, target.useReflectApi());
     return base;
   }
 

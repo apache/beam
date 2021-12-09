@@ -358,7 +358,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
     return type;
   }
 
-  public boolean usesReflectApi() {
+  public boolean useReflectApi() {
     return useReflectApi;
   }
 
