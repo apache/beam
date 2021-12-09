@@ -113,7 +113,7 @@ class PubSubMessageMatcher(BaseMatcher):
   def _matches(self, _):
     if self.messages is None:
       self.messages = self._wait_for_messages(
-        self.expected_msg_len, self.timeout)
+          self.expected_msg_len, self.timeout)
     if self.expected_msg:
       return Counter(self.messages) == Counter(self.expected_msg)
     else:
