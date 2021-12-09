@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.core.construction.graph;
 
-import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor.CompositeBehavior;
@@ -31,9 +30,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 /** A {@link PipelineVisitor} to discover projection pushdown opportunities. */
 class ProjectionProducerVisitor extends PipelineVisitor.Defaults {
   private final Map<PCollection<?>, FieldAccessDescriptor> pCollectionFieldAccess;
-  private final Map<
+  private final ImmutableMap.Builder<
           ProjectionProducer<PTransform<?, ?>>, Map<PCollection<?>, FieldAccessDescriptor>>
-      pushdownOpportunities = new HashMap<>();
+      pushdownOpportunities = ImmutableMap.builder();
 
   /**
    * @param pCollectionFieldAccess A map from PCollection to the fields the pipeline accesses on
@@ -51,7 +50,7 @@ class ProjectionProducerVisitor extends PipelineVisitor.Defaults {
    */
   Map<ProjectionProducer<PTransform<?, ?>>, Map<PCollection<?>, FieldAccessDescriptor>>
       getPushdownOpportunities() {
-    return ImmutableMap.copyOf(pushdownOpportunities);
+    return pushdownOpportunities.build();
   }
 
   @Override
@@ -76,10 +75,9 @@ class ProjectionProducerVisitor extends PipelineVisitor.Defaults {
     Map<PCollection<?>, FieldAccessDescriptor> localOpportunities = builder.build();
     if (localOpportunities.isEmpty()) {
       return CompositeBehavior.ENTER_TRANSFORM;
-    } else {
-      pushdownOpportunities.put(pushdownProjector, localOpportunities);
-      // If there are nested PushdownProjector implementations, apply only the outermost one.
-      return CompositeBehavior.DO_NOT_ENTER_TRANSFORM;
     }
+    pushdownOpportunities.put(pushdownProjector, localOpportunities);
+    // If there are nested PushdownProjector implementations, apply only the outermost one.
+    return CompositeBehavior.DO_NOT_ENTER_TRANSFORM;
   }
 }
