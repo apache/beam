@@ -260,6 +260,7 @@ public class Neo4jIO {
     public static DriverConfiguration create() {
       return new AutoValue_Neo4jIO_DriverConfiguration.Builder()
           .build()
+          .withDefaultConfig(true)
           .withConfig(Config.defaultConfig());
     }
 
@@ -269,6 +270,7 @@ public class Neo4jIO {
       checkArgument(password != null, "password can not be null");
       return new AutoValue_Neo4jIO_DriverConfiguration.Builder()
           .build()
+          .withDefaultConfig(true)
           .withConfig(Config.defaultConfig())
           .withUrl(url)
           .withUsername(username)
@@ -284,6 +286,8 @@ public class Neo4jIO {
     abstract @Nullable ValueProvider<String> getPassword();
 
     abstract @Nullable Config getConfig();
+
+    abstract @Nullable ValueProvider<Boolean> getHasDefaultConfig();
 
     abstract Builder builder();
 
@@ -341,6 +345,20 @@ public class Neo4jIO {
       return builder().setPassword(password).build();
     }
 
+    public DriverConfiguration withDefaultConfig(boolean useDefault) {
+      return withDefaultConfig(ValueProvider.StaticValueProvider.of(useDefault));
+    }
+
+    public DriverConfiguration withDefaultConfig(ValueProvider<Boolean> useDefault) {
+      Preconditions.checkArgument(
+          useDefault != null, "withDefaultConfig parameter useDefault can not be null", useDefault);
+      Preconditions.checkArgument(
+          useDefault.get() != null,
+          "withDefaultConfig parameter useDefault can not be null",
+          useDefault);
+      return builder().setHasDefaultConfig(useDefault).build();
+    }
+
     void populateDisplayData(DisplayData.Builder builder) {
       builder.addIfNotNull(DisplayData.item("neo4j-url", getUrl()));
       builder.addIfNotNull(DisplayData.item("neo4j-username", getUsername()));
@@ -357,6 +375,10 @@ public class Neo4jIO {
       if (config == null) {
         throw new RuntimeException("please provide a neo4j config");
       }
+      if (getHasDefaultConfig() != null && getHasDefaultConfig().get()) {
+        config = Config.defaultConfig();
+      }
+
       // Get the list of the URI to connect with
       //
       List<URI> uris = new ArrayList<>();
@@ -433,6 +455,8 @@ public class Neo4jIO {
       abstract Builder setPassword(ValueProvider<String> password);
 
       abstract Builder setConfig(Config config);
+
+      abstract Builder setHasDefaultConfig(ValueProvider<Boolean> useDefault);
 
       abstract DriverConfiguration build();
     }
@@ -1176,7 +1200,6 @@ public class Neo4jIO {
               "Error writing " + unwindList.size() + " rows to Neo4j with Cypher: " + cypher, e);
         }
       }
-      LOG.info("Write transaction for unwind finished.");
 
       // Now we need to reset the number of elements read and the parameters map
       //
