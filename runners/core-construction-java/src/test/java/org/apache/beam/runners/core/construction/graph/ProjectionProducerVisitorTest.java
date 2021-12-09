@@ -41,16 +41,16 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link PushdownProjectorVisitor}. */
+/** Tests for {@link ProjectionProducerVisitor}. */
 @RunWith(JUnit4.class)
-public class PushdownProjectorVisitorTest {
+public class ProjectionProducerVisitorTest {
   @Test
   public void testMissingFieldAccessInformation_returnsNoPushdown() {
     Pipeline p = Pipeline.create();
     p.apply(new SimpleSource());
 
     Map<PCollection<?>, FieldAccessDescriptor> pCollectionFieldAccess = ImmutableMap.of();
-    PushdownProjectorVisitor visitor = new PushdownProjectorVisitor(pCollectionFieldAccess);
+    ProjectionProducerVisitor visitor = new ProjectionProducerVisitor(pCollectionFieldAccess);
     p.traverseTopologically(visitor);
 
     Map<ProjectionProducer<PTransform<?, ?>>, Map<PCollection<?>, FieldAccessDescriptor>>
@@ -65,7 +65,7 @@ public class PushdownProjectorVisitorTest {
 
     Map<PCollection<?>, FieldAccessDescriptor> pCollectionFieldAccess =
         ImmutableMap.of(output, FieldAccessDescriptor.withAllFields());
-    PushdownProjectorVisitor visitor = new PushdownProjectorVisitor(pCollectionFieldAccess);
+    ProjectionProducerVisitor visitor = new ProjectionProducerVisitor(pCollectionFieldAccess);
     p.traverseTopologically(visitor);
 
     Map<ProjectionProducer<PTransform<?, ?>>, Map<PCollection<?>, FieldAccessDescriptor>>
@@ -81,7 +81,7 @@ public class PushdownProjectorVisitorTest {
 
     Map<PCollection<?>, FieldAccessDescriptor> pCollectionFieldAccess =
         ImmutableMap.of(output, FieldAccessDescriptor.withFieldNames("field1", "field2"));
-    PushdownProjectorVisitor visitor = new PushdownProjectorVisitor(pCollectionFieldAccess);
+    ProjectionProducerVisitor visitor = new ProjectionProducerVisitor(pCollectionFieldAccess);
     p.traverseTopologically(visitor);
 
     Map<ProjectionProducer<PTransform<?, ?>>, Map<PCollection<?>, FieldAccessDescriptor>>
@@ -105,7 +105,7 @@ public class PushdownProjectorVisitorTest {
 
     Map<PCollection<?>, FieldAccessDescriptor> pCollectionFieldAccess =
         ImmutableMap.of(output, FieldAccessDescriptor.withFieldNames("field1", "field2"));
-    PushdownProjectorVisitor visitor = new PushdownProjectorVisitor(pCollectionFieldAccess);
+    ProjectionProducerVisitor visitor = new ProjectionProducerVisitor(pCollectionFieldAccess);
     p.traverseTopologically(visitor);
 
     Map<ProjectionProducer<PTransform<?, ?>>, Map<PCollection<?>, FieldAccessDescriptor>>
@@ -129,7 +129,7 @@ public class PushdownProjectorVisitorTest {
 
     Map<PCollection<?>, FieldAccessDescriptor> pCollectionFieldAccess =
         ImmutableMap.of(output, FieldAccessDescriptor.withFieldNames("field1", "field2"));
-    PushdownProjectorVisitor visitor = new PushdownProjectorVisitor(pCollectionFieldAccess);
+    ProjectionProducerVisitor visitor = new ProjectionProducerVisitor(pCollectionFieldAccess);
     p.traverseTopologically(visitor);
 
     Map<ProjectionProducer<PTransform<?, ?>>, Map<PCollection<?>, FieldAccessDescriptor>>
@@ -158,7 +158,7 @@ public class PushdownProjectorVisitorTest {
             outputs.get("output2"),
             FieldAccessDescriptor.withFieldNames("field3", "field4"));
 
-    PushdownProjectorVisitor visitor = new PushdownProjectorVisitor(pCollectionFieldAccess);
+    ProjectionProducerVisitor visitor = new ProjectionProducerVisitor(pCollectionFieldAccess);
     p.traverseTopologically(visitor);
 
     Map<ProjectionProducer<PTransform<?, ?>>, Map<PCollection<?>, FieldAccessDescriptor>>

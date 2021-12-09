@@ -29,7 +29,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** A {@link PipelineVisitor} to discover projection pushdown opportunities. */
-class PushdownProjectorVisitor extends PipelineVisitor.Defaults {
+class ProjectionProducerVisitor extends PipelineVisitor.Defaults {
   private final Map<PCollection<?>, FieldAccessDescriptor> pCollectionFieldAccess;
   private final Map<
           ProjectionProducer<PTransform<?, ?>>, Map<PCollection<?>, FieldAccessDescriptor>>
@@ -39,7 +39,7 @@ class PushdownProjectorVisitor extends PipelineVisitor.Defaults {
    * @param pCollectionFieldAccess A map from PCollection to the fields the pipeline accesses on
    *     that PCollection. See {@link FieldAccessVisitor}.
    */
-  PushdownProjectorVisitor(Map<PCollection<?>, FieldAccessDescriptor> pCollectionFieldAccess) {
+  ProjectionProducerVisitor(Map<PCollection<?>, FieldAccessDescriptor> pCollectionFieldAccess) {
     this.pCollectionFieldAccess = pCollectionFieldAccess;
   }
 
