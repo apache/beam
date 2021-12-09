@@ -61,20 +61,30 @@ func TestDropEndOfGradleTarget(t *testing.T) {
 	}
 }
 
-func TestGetCacheDir(t *testing.T) {
+func TestNewJarGetter(t *testing.T) {
 	j := defaultJarGetter
-	cacheDir := j.getCacheDir()
-	if !strings.Contains(cacheDir, j.jarCache[2:]) {
-		t.Errorf("failed to get cache directory: wanted %v, got %v", j.jarCache[:2], cacheDir)
+	if j.repository != apacheRepository {
+		t.Errorf("failed to get correct JAR repository: wanted %v, got %v", apacheRepository, j.repository)
+	}
+	if j.groupID != beamGroupID {
+		t.Errorf("failed to get correct group ID: wanted %v, got %v", beamGroupID, j.groupID)
+	}
+	if !strings.Contains(j.jarCache, jarCache[2:]) {
+		t.Errorf("failed to get correct cache directory: wanted %v, got %v", jarCache[:2], j.jarCache)
 	}
 }
 
-func TestJarExists(t *testing.T) {
+func makeTempDir(t *testing.T) string {
 	d, err := ioutil.TempDir(os.Getenv("TEST_TMPDIR"), "expansionx-*")
 	if err != nil {
 		t.Fatalf("failed to make temp directory, got %v", err)
 	}
 	t.Cleanup(func() { os.RemoveAll(d) })
+	return d
+}
+
+func TestJarExists(t *testing.T) {
+	d := makeTempDir(t)
 
 	tmpFile, err := ioutil.TempFile(d, "expansion-*.jar")
 	if err != nil {
@@ -87,15 +97,47 @@ func TestJarExists(t *testing.T) {
 }
 
 func TestJarExists_bad(t *testing.T) {
-	d, err := ioutil.TempDir(os.Getenv("TEST_TMPDIR"), "expansionx-*")
-	if err != nil {
-		t.Fatalf("failed to make temp directory, got %v", err)
-	}
-	t.Cleanup(func() { os.RemoveAll(d) })
+	d := makeTempDir(t)
 
 	fakePath := filepath.Join(d, "not-a-file.jar")
 
 	if jarExists(fakePath) {
 		t.Errorf("jarExists returned unexpected value for path %v, wanted false, got true", fakePath)
+	}
+}
+
+func getGeneratedNumberInFile(fileName, jarPrefix string) string {
+	tmpFileNameSplit := strings.Split(fileName, "/")
+	tmpFileName := tmpFileNameSplit[len(tmpFileNameSplit)-1]
+	numSuffix := strings.TrimPrefix(tmpFileName, jarPrefix)
+	return strings.TrimSuffix(numSuffix, ".jar")
+}
+
+func TestGetJar_present(t *testing.T) {
+	d := makeTempDir(t)
+
+	j := newJarGetter()
+	j.jarCache = d
+
+	gradleTarget := ":sdks:java:fake:fakeJar"
+
+	jarName := "beam-sdks-java-fake-"
+
+	tmpFile, err := ioutil.TempFile(d, jarName+"*.jar")
+	if err != nil {
+		t.Fatalf("failed to create temp JAR file, got %v", err)
+	}
+
+	genNumber := getGeneratedNumberInFile(tmpFile.Name(), jarName)
+
+	fullJarName := jarName + genNumber + ".jar"
+	expJarPath := filepath.Join(d, fullJarName)
+
+	jarPath, err := j.getJar(gradleTarget, genNumber)
+	if err != nil {
+		t.Errorf("getJar returned error when it should have succeeded, got %v", err)
+	}
+	if jarPath != expJarPath {
+		t.Errorf("Jar path mismatch: wanted %v, got %v", expJarPath, jarPath)
 	}
 }

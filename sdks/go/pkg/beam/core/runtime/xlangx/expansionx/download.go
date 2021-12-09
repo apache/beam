@@ -44,7 +44,9 @@ const (
 )
 
 func newJarGetter() *jarGetter {
-	return &jarGetter{repository: apacheRepository, groupID: beamGroupID, jarCache: jarCache}
+	usr, _ := user.Current()
+	cacheDir := filepath.Join(usr.HomeDir, jarCache[2:])
+	return &jarGetter{repository: apacheRepository, groupID: beamGroupID, jarCache: cacheDir}
 }
 
 // GetBeamJar checks a temporary directory for the desired Beam JAR, downloads the
@@ -58,13 +60,12 @@ func (j *jarGetter) getJar(gradleTarget, version string) (string, error) {
 	strippedTarget := dropEndOfGradleTarget(gradleTarget)
 	fullURL, jarName := j.getURLForBeamJar(strippedTarget, version)
 
-	cacheDir := j.getCacheDir()
-	err := os.MkdirAll(cacheDir, 0700)
+	err := os.MkdirAll(j.jarCache, 0700)
 	if err != nil {
 		return "", err
 	}
 
-	jarPath := filepath.Join(cacheDir, jarName)
+	jarPath := filepath.Join(j.jarCache, jarName)
 
 	if jarExists(jarPath) {
 		return jarPath, nil
@@ -101,13 +102,6 @@ func (j *jarGetter) getURLForBeamJar(gradleTarget, version string) (url, string)
 	targetPath := strings.ReplaceAll(fullTarget, ":", "-")
 	jarName := strings.ReplaceAll(fullTarget, ":", "-") + "-" + version + ".jar"
 	return baseURL + url(targetPath+"/"+version+"/"+jarName), jarName
-}
-
-// getCacheDir returns the absolute file path of the JAR cache from the user's HOME
-// directory.
-func (j *jarGetter) getCacheDir() string {
-	usr, _ := user.Current()
-	return filepath.Join(usr.HomeDir, j.jarCache[2:])
 }
 
 // dropEndOfGradleTarget drops the last substring off of the gradle target. This
