@@ -200,7 +200,7 @@ try:
   from google.cloud.spanner import KeySet
   from google.cloud.spanner_v1 import batch
   from google.cloud.spanner_v1.database import BatchSnapshot
-  from google.cloud.spanner_v1.proto.mutation_pb2 import Mutation
+  from google.cloud.spanner_v1.types import Mutation
   from google.api_core.exceptions import ClientError, GoogleAPICallError
   from apitools.base.py.exceptions import HttpError
 except ImportError:
