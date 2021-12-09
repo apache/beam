@@ -15,8 +15,10 @@
 
 package validators
 
-const UnitTestValidatorName = "UnitTest"
-const KatasValidatorName = "Check if the pipeline is katas"
+const (
+	UnitTestValidatorName = "UnitTest"
+	KatasValidatorName    = "Check if the pipeline is katas"
+)
 
 type Validator struct {
 	Validator func(args ...interface{}) (bool, error)
