@@ -44,7 +44,8 @@ func TestGetURLForBeamJar(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		madeURL, _ := getURLForBeamJar(test.target, test.version)
+		j := defaultJarGetter
+		madeURL, _ := j.getURLForBeamJar(test.target, test.version)
 		if madeURL != test.expectedURL {
 			t.Errorf("test %v failed: wanted URL %v, got %v", test.name, test.expectedURL, madeURL)
 		}
@@ -61,9 +62,10 @@ func TestDropEndOfGradleTarget(t *testing.T) {
 }
 
 func TestGetCacheDir(t *testing.T) {
-	cacheDir := getCacheDir()
-	if !strings.Contains(cacheDir, jarCache[2:]) {
-		t.Errorf("failed to get cache directory: wanted %v, got %v", jarCache[:2], cacheDir)
+	j := defaultJarGetter
+	cacheDir := j.getCacheDir()
+	if !strings.Contains(cacheDir, j.jarCache[2:]) {
+		t.Errorf("failed to get cache directory: wanted %v, got %v", j.jarCache[:2], cacheDir)
 	}
 }
 
