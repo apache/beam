@@ -44,7 +44,7 @@ func TestGetURLForBeamJar(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		j := defaultJarGetter
+		j := newJarGetter()
 		madeURL, _ := j.getURLForBeamJar(test.target, test.version)
 		if madeURL != test.expectedURL {
 			t.Errorf("test %v failed: wanted URL %v, got %v", test.name, test.expectedURL, madeURL)
@@ -62,7 +62,7 @@ func TestDropEndOfGradleTarget(t *testing.T) {
 }
 
 func TestNewJarGetter(t *testing.T) {
-	j := defaultJarGetter
+	j := newJarGetter()
 	if j.repository != apacheRepository {
 		t.Errorf("failed to get correct JAR repository: wanted %v, got %v", apacheRepository, j.repository)
 	}
