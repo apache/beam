@@ -29,7 +29,6 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.DaoFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.MapperFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.PartitionMetadataMapper;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChangeStreamSourceDescriptor;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State;
 import org.apache.beam.sdk.io.range.OffsetRange;
@@ -55,7 +54,7 @@ import org.slf4j.LoggerFactory;
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
-public class DetectNewPartitionsDoFn extends DoFn<ChangeStreamSourceDescriptor, PartitionMetadata> {
+public class DetectNewPartitionsDoFn extends DoFn<byte[], PartitionMetadata> {
 
   private static final long serialVersionUID = 1523712495885011374L;
   private static final Duration DEFAULT_RESUME_DURATION = Duration.millis(100L);

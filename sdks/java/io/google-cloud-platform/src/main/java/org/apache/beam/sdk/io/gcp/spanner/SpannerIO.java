@@ -69,7 +69,6 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.PipelineInitializer;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.TimestampConverter;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.actions.ActionFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.DaoFactory;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.ChangeStreamSourceDoFn;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.DetectNewPartitionsDoFn;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.PostProcessingMetricsDoFn;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.ReadChangeStreamPartitionDoFn;
@@ -1553,8 +1552,6 @@ public class SpannerIO {
                 input.getPipeline().getOptions().getJobName());
         final ActionFactory actionFactory = new ActionFactory();
 
-        final ChangeStreamSourceDoFn changeStreamSourceDoFn =
-            new ChangeStreamSourceDoFn(changeStreamName, startTimestamp, endTimestamp);
         final DetectNewPartitionsDoFn detectNewPartitionsDoFn =
             new DetectNewPartitionsDoFn(daoFactory, mapperFactory, metrics);
         final ReadChangeStreamPartitionDoFn readChangeStreamPartitionDoFn =
@@ -1576,7 +1573,6 @@ public class SpannerIO {
         //     .apply(ParDo.of(new CleanUpReadChangeStreamDoFn(daoFactory)));
         return input
             .apply(Impulse.create())
-            .apply("Generate change stream sources", ParDo.of(changeStreamSourceDoFn))
             .apply("Detect new partitions", ParDo.of(detectNewPartitionsDoFn))
             .apply("Read change stream partition", ParDo.of(readChangeStreamPartitionDoFn))
             .apply("Gather metrics", ParDo.of(postProcessingMetricsDoFn));
