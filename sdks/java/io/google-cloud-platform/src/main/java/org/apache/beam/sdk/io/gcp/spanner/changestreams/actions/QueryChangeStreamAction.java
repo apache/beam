@@ -22,7 +22,6 @@ import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetri
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.SpannerException;
-import com.google.cloud.spanner.Struct;
 import io.opencensus.common.Scope;
 import io.opencensus.trace.AttributeValue;
 import io.opencensus.trace.Tracer;
@@ -186,21 +185,20 @@ public class QueryChangeStreamAction {
           .getCurrentSpan()
           .putAttribute(PARTITION_ID_ATTRIBUTE_LABEL, AttributeValue.stringAttributeValue(token));
 
+      // TODO: Potentially we can avoid this fetch, by enriching the runningAt timestamp when the
+      // ReadChangeStreamPartitionDoFn#processElement is called
       final PartitionMetadata updatedPartition =
-          partitionMetadataDao
-              .runInTransaction(
-                  transaction -> {
-                    transaction.updateQueryStartedAt(token);
-                    final Struct row = transaction.getPartition(token);
-                    return row != null ? partitionMetadataMapper.from(row) : null;
-                  })
-              .getResult();
+          Optional.ofNullable(partitionMetadataDao.getPartition(token))
+              .map(partitionMetadataMapper::from)
+              .orElseThrow(
+                  () ->
+                      new IllegalStateException(
+                          "Partition " + token + " not found in metadata table"));
 
       try (ChangeStreamResultSet resultSet =
           changeStreamDao.changeStreamQuery(
               token, startTimestamp, endTimestamp, partition.getHeartbeatMillis())) {
 
-        long recordsProcessed = 0;
         while (resultSet.next()) {
           // TODO: Check what should we do if there is an error here
           final List<ChangeStreamRecord> records =
@@ -213,7 +211,6 @@ public class QueryChangeStreamAction {
               continue;
             }
 
-            recordsProcessed++;
             if (record instanceof DataChangeRecord) {
               maybeContinuation =
                   dataChangeRecordAction.run(
@@ -240,7 +237,6 @@ public class QueryChangeStreamAction {
             }
             if (maybeContinuation.isPresent()) {
               LOG.debug("[" + token + "] Continuation present, returning " + maybeContinuation);
-              partitionMetadataDao.updateRecordsProcessed(token, recordsProcessed);
               bundleFinalizer.afterBundleCommit(
                   Instant.now().plus(BUNDLE_FINALIZER_TIMEOUT),
                   updateWatermarkCallback(token, watermarkEstimator));
@@ -249,7 +245,6 @@ public class QueryChangeStreamAction {
           }
         }
 
-        partitionMetadataDao.updateRecordsProcessed(token, recordsProcessed);
         bundleFinalizer.afterBundleCommit(
             Instant.now().plus(BUNDLE_FINALIZER_TIMEOUT),
             updateWatermarkCallback(token, watermarkEstimator));

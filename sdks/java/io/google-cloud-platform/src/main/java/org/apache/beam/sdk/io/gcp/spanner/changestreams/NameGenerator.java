@@ -24,7 +24,6 @@ public class NameGenerator {
 
   private static final String PARTITION_METADATA_TABLE_NAME_FORMAT =
       "CDC_Partitions_Metadata_%s_%s";
-  private static final String PARTITION_METRICS_TABLE_NAME_FORMAT = "CDC_Partitions_Metrics_%s_%s";
 
   // TODO: Add java docs
   public static String generatePartitionMetadataTableName(String databaseId) {
@@ -34,17 +33,6 @@ public class NameGenerator {
     // UUID always generates a String with 36 characters.
     // 128 - (25 + 30 + 36) = 37 characters short of the limit
     return String.format(PARTITION_METADATA_TABLE_NAME_FORMAT, databaseId, UUID.randomUUID())
-        .replaceAll("-", "_");
-  }
-
-  // TODO: Add java docs
-  public static String generatePartitionMetricsTableName(String databaseId) {
-    // Maximum Spanner table name length is 128 characters.
-    // There are 24 characters in the name format.
-    // Maximum Spanner database ID length is 30 characters.
-    // UUID always generates a String with 36 characters.
-    // 128 - (24 + 30 + 36) = 38 characters short of the limit
-    return String.format(PARTITION_METRICS_TABLE_NAME_FORMAT, databaseId, UUID.randomUUID())
         .replaceAll("-", "_");
   }
 }

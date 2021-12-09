@@ -36,7 +36,6 @@ public class DaoFactory implements Serializable {
   private static final long serialVersionUID = 7929063669009832487L;
 
   private static PartitionMetadataAdminDao partitionMetadataAdminDao;
-  private static PartitionMetricsAdminDao partitionMetricsAdminDao;
   private static PartitionMetadataDao partitionMetadataDaoInstance;
   private static ChangeStreamDao changeStreamDaoInstance;
 
@@ -45,7 +44,6 @@ public class DaoFactory implements Serializable {
 
   private final String changeStreamName;
   private final String partitionMetadataTableName;
-  private final String partitionMetricsTableName;
   private final RpcPriority rpcPriority;
   private final String jobName;
 
@@ -56,7 +54,6 @@ public class DaoFactory implements Serializable {
    * @param changeStreamName the name of the change stream for the change streams DAO
    * @param metadataSpannerConfig the metadata tables configuration
    * @param partitionMetadataTableName the name of the created partition metadata table
-   * @param partitionMetricsTableName the name of the created partition metrics table
    * @param rpcPriority the priority of the requests made by the DAO queries
    * @param jobName the name of the running job
    */
@@ -65,7 +62,6 @@ public class DaoFactory implements Serializable {
       String changeStreamName,
       SpannerConfig metadataSpannerConfig,
       String partitionMetadataTableName,
-      String partitionMetricsTableName,
       RpcPriority rpcPriority,
       String jobName) {
     if (metadataSpannerConfig.getInstanceId() == null) {
@@ -78,7 +74,6 @@ public class DaoFactory implements Serializable {
     this.changeStreamName = changeStreamName;
     this.metadataSpannerConfig = metadataSpannerConfig;
     this.partitionMetadataTableName = partitionMetadataTableName;
-    this.partitionMetricsTableName = partitionMetricsTableName;
     this.rpcPriority = rpcPriority;
     this.jobName = jobName;
   }
@@ -106,32 +101,6 @@ public class DaoFactory implements Serializable {
   }
 
   /**
-   * Creates and returns a singleton DAO instance for admin operations over the partition metrics
-   * table.
-   *
-   * <p>This method is thread safe.
-   *
-   * @return singleton instance of the {@link PartitionMetricsAdminDao}
-   */
-  public synchronized PartitionMetricsAdminDao getPartitionMetricsAdminDao() {
-    assert metadataSpannerConfig != null;
-    assert metadataSpannerConfig.getInstanceId() != null;
-    assert metadataSpannerConfig.getDatabaseId() != null;
-
-    if (partitionMetricsAdminDao == null) {
-      DatabaseAdminClient databaseAdminClient =
-          SpannerAccessor.getOrCreate(metadataSpannerConfig).getDatabaseAdminClient();
-      partitionMetricsAdminDao =
-          new PartitionMetricsAdminDao(
-              databaseAdminClient,
-              metadataSpannerConfig.getInstanceId().get(),
-              metadataSpannerConfig.getDatabaseId().get(),
-              partitionMetricsTableName);
-    }
-    return partitionMetricsAdminDao;
-  }
-
-  /**
    * Creates and returns a singleton DAO instance for accessing the partition metadata table.
    *
    * <p>This method is thread safe.
@@ -143,9 +112,7 @@ public class DaoFactory implements Serializable {
     if (partitionMetadataDaoInstance == null) {
       partitionMetadataDaoInstance =
           new PartitionMetadataDao(
-              this.partitionMetadataTableName,
-              this.partitionMetricsTableName,
-              spannerAccessor.getDatabaseClient());
+              this.partitionMetadataTableName, spannerAccessor.getDatabaseClient());
     }
     return partitionMetadataDaoInstance;
   }

@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.gcp.spanner;
 import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.io.gcp.spanner.MutationUtils.isPointDelete;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.NameGenerator.generatePartitionMetadataTableName;
-import static org.apache.beam.sdk.io.gcp.spanner.changestreams.NameGenerator.generatePartitionMetricsTableName;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
@@ -1511,8 +1510,6 @@ public class SpannerIO {
           MoreObjects.firstNonNull(getMetadataDatabase(), changeStreamDatabaseId.getDatabase());
       final String partitionMetadataTableName =
           generatePartitionMetadataTableName(partitionMetadataDatabaseId);
-      final String partitionMetricsTableName =
-          generatePartitionMetricsTableName(partitionMetadataDatabaseId);
 
       if (getTraceSampler() != null) {
         TraceConfig globalTraceConfig = Tracing.getTraceConfig();
@@ -1552,7 +1549,6 @@ public class SpannerIO {
                 changeStreamName,
                 partitionMetadataSpannerConfig,
                 partitionMetadataTableName,
-                partitionMetricsTableName,
                 rpcPriority,
                 input.getPipeline().getOptions().getJobName());
         final ActionFactory actionFactory = new ActionFactory();
@@ -1568,13 +1564,11 @@ public class SpannerIO {
 
         PipelineInitializer.initialize(
             daoFactory.getPartitionMetadataAdminDao(),
-            daoFactory.getPartitionMetricsAdminDao(),
             daoFactory.getPartitionMetadataDao(),
             startTimestamp,
             endTimestamp);
 
         LOG.info("Partition metadata table that will be used is " + partitionMetadataTableName);
-        LOG.info("Partition metrics table that will be used is " + partitionMetricsTableName);
 
         // TODO: fix the watermark of these functions and enable them
         // impulseOut

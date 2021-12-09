@@ -21,7 +21,6 @@ import com.google.cloud.Timestamp;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetricsAdminDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.InitialPartition;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State;
@@ -32,12 +31,10 @@ public class PipelineInitializer {
 
   public static void initialize(
       PartitionMetadataAdminDao partitionMetadataAdminDao,
-      PartitionMetricsAdminDao partitionMetricsAdminDao,
       PartitionMetadataDao partitionMetadataDao,
       Timestamp inclusiveStartAt,
       @Nullable Timestamp inclusiveEndAt) {
     partitionMetadataAdminDao.createPartitionMetadataTable();
-    partitionMetricsAdminDao.createPartitionMetricsTable();
     createFakeParentPartition(partitionMetadataDao, inclusiveStartAt, inclusiveEndAt);
   }
 
