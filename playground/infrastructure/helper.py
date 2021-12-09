@@ -57,6 +57,7 @@ class Example:
   output: str
   status: STATUS_UNSPECIFIED
   tag: Tag
+  logs: str = ""
 
 
 def find_examples(work_dir: str,

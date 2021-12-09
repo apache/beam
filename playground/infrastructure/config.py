@@ -61,5 +61,6 @@ class TagFields:
 @dataclass(frozen=True)
 class PrecompiledExample:
   OUTPUT_EXTENSION = "output"
+  LOG_EXTENSION = "log"
   META_NAME = "meta"
   META_EXTENSION = "info"
