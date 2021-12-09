@@ -125,12 +125,6 @@ message CancelRequest {
 message CancelResponse {
 }
 
-// GetPrecompiledObjectsRequest contains information of the needed PrecompiledObjects sdk and categories.
-message GetPrecompiledObjectsRequest{
-  Sdk sdk = 1;
-  string category = 2;
-}
-
 // PrecompiledObject represents one PrecompiledObject with its information
 message PrecompiledObject{
   string cloud_path = 1;
@@ -150,20 +144,45 @@ message Categories{
   repeated Category categories = 2;
 }
 
+// GetPrecompiledObjectsRequest contains information of the needed PrecompiledObjects sdk and categories.
+message GetPrecompiledObjectsRequest{
+  Sdk sdk = 1;
+  string category = 2;
+}
+
+// GetPrecompiledObjectCodeRequest contains information of the PrecompiledObject uuid.
+message GetPrecompiledObjectCodeRequest{
+  string cloud_path = 1;
+}
+
+// GetPrecompiledObjectOutputRequest contains information of the PrecompiledObject uuid.
+message GetPrecompiledObjectOutputRequest{
+  string cloud_path = 1;
+}
+
+// GetPrecompiledObjectLogsRequest contains information of the PrecompiledObject uuid.
+message GetPrecompiledObjectLogsRequest{
+  string cloud_path = 1;
+}
 
 // GetListOfPrecompiledObjectsResponse represent the map between sdk and categories for the sdk.
 message GetPrecompiledObjectsResponse{
   repeated Categories sdk_categories = 1;
 }
 
-// GetPrecompiledObjectRequest contains information of the PrecompiledObject uuid.
-message GetPrecompiledObjectRequest{
-  string cloud_path = 1;
-}
-
 // GetPrecompiledObjectResponse represents the source code of the PrecompiledObject.
 message GetPrecompiledObjectCodeResponse{
   string code = 1;
+}
+
+// GetPrecompiledObjectOutputResponse represents the result of the executed code.
+message GetPrecompiledObjectOutputResponse {
+  string output = 1;
+}
+
+// GetPrecompiledObjectLogsResponse represents the result of the executed code.
+message GetPrecompiledObjectLogsResponse {
+  string output = 1;
 }
 
 service PlaygroundService {
@@ -193,11 +212,11 @@ service PlaygroundService {
   rpc GetPrecompiledObjects(GetPrecompiledObjectsRequest) returns (GetPrecompiledObjectsResponse);
 
   // Get the code of an PrecompiledObject.
-  rpc GetPrecompiledObjectCode(GetPrecompiledObjectRequest) returns (GetPrecompiledObjectCodeResponse);
+  rpc GetPrecompiledObjectCode(GetPrecompiledObjectCodeRequest) returns (GetPrecompiledObjectCodeResponse);
 
   // Get the precompiled details of an PrecompiledObject.
-  rpc GetPrecompiledObjectOutput(GetPrecompiledObjectRequest) returns (GetRunOutputResponse);
+  rpc GetPrecompiledObjectOutput(GetPrecompiledObjectOutputRequest) returns (GetPrecompiledObjectOutputResponse);
 
   // Get the logs of an PrecompiledObject.
-  rpc GetPrecompiledObjectLogs(GetPrecompiledObjectRequest) returns (GetLogsResponse);
+  rpc GetPrecompiledObjectLogs(GetPrecompiledObjectLogsRequest) returns (GetPrecompiledObjectLogsResponse);
 }
