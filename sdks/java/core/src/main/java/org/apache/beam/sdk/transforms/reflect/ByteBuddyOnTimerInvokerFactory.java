@@ -291,12 +291,9 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
   private static class InvokeOnTimerFamilyDelegation
       extends DoFnMethodWithExtraParametersDelegation {
 
-    private final DoFnSignature.OnTimerFamilyMethod signature;
-
     public InvokeOnTimerFamilyDelegation(
         TypeDescription clazzDescription, DoFnSignature.OnTimerFamilyMethod signature) {
       super(clazzDescription, signature);
-      this.signature = signature;
     }
 
     @Override
@@ -321,12 +318,9 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
    */
   private static class InvokeOnTimerDelegation extends DoFnMethodWithExtraParametersDelegation {
 
-    private final DoFnSignature.OnTimerMethod signature;
-
     public InvokeOnTimerDelegation(
         TypeDescription clazzDescription, DoFnSignature.OnTimerMethod signature) {
       super(clazzDescription, signature);
-      this.signature = signature;
     }
 
     @Override

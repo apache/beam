@@ -247,7 +247,7 @@ def _validate(tag: dict, supported_categories: List[str]) -> bool:
           tag.__str__())
       valid = False
 
-    name = tag.get(TagFields.NAME)
+    name = tag.get(TagFields.name)
     if name == "":
       logging.error(
           "tag's field name is incorrect: %s \nname can not be empty.",

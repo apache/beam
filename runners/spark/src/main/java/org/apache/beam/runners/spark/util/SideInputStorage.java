@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.spark.util;
 
+import java.time.Duration;
 import java.util.Objects;
-import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache;
@@ -36,7 +36,7 @@ class SideInputStorage {
 
   /** JVM deserialized side input cache. */
   private static final Cache<Key<?>, Value<?>> materializedSideInputs =
-      CacheBuilder.newBuilder().expireAfterAccess(5, TimeUnit.MINUTES).build();
+      CacheBuilder.newBuilder().expireAfterAccess(Duration.ofMinutes(5)).build();
 
   static Cache<Key<?>, Value<?>> getMaterializedSideInputs() {
     return materializedSideInputs;
