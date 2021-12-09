@@ -18,7 +18,6 @@
 package expansionx
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -30,18 +29,24 @@ import (
 
 type url string
 
-const (
-	apacheRepository = url("https://repo.maven.apache.org/maven2")
-	beamGroupID      = "org/apache/beam"
-	jarCache         = "~/.apache_beam/cache/jars"
-)
-
 // GetBeamJar checks a temporary directory for the desired Beam JAR, downloads the
 // appropriate JAR from Maven if not present, then returns the file path to the
 // JAR.
 func GetBeamJar(gradleTarget, version string) (string, error) {
 	strippedTarget := dropEndOfGradleTarget(gradleTarget)
 	fullURL, jarName := getURLForBeamJar(strippedTarget, version)
+
+	cacheDir := getCacheDir()
+	err := os.MkdirAll(cacheDir, 0700)
+	if err != nil {
+		return "", err
+	}
+
+	jarPath := filepath.Join(cacheDir, jarName)
+
+	if jarExists(jarPath) {
+		return jarPath, nil
+	}
 
 	resp, err := http.Get(string(fullURL))
 	if err != nil {
@@ -51,18 +56,6 @@ func GetBeamJar(gradleTarget, version string) (string, error) {
 
 	if resp.StatusCode != 200 {
 		return "", fmt.Errorf("Received non 200 response code, got %v", resp.StatusCode)
-	}
-
-	cacheDir := getCacheDir()
-	err = checkDir(cacheDir)
-	if err != nil {
-		return "", err
-	}
-
-	jarPath := filepath.Join(cacheDir, jarName)
-
-	if jarExists(jarPath) {
-		return jarPath, nil
 	}
 
 	file, err := os.Create(jarPath)
@@ -77,6 +70,12 @@ func GetBeamJar(gradleTarget, version string) (string, error) {
 
 	return jarPath, nil
 }
+
+const (
+	apacheRepository = url("https://repo.maven.apache.org/maven2")
+	beamGroupID      = "org/apache/beam"
+	jarCache         = "~/.apache_beam/cache/jars"
+)
 
 // getURLForBeamJar builds the Maven URL for the JAR and the JAR name, returning both
 // separately so the JAR name can be used for saving the file later.
@@ -102,20 +101,6 @@ func dropEndOfGradleTarget(gradleTarget string) string {
 func getCacheDir() string {
 	usr, _ := user.Current()
 	return filepath.Join(usr.HomeDir, jarCache[2:])
-}
-
-// checkDir checks that a given directory exists, then creates the directory and
-// parent directories if it does not. Returns another error if the returned
-// error from os.Stat is not an ErrNotExist error.
-func checkDir(dirPath string) error {
-	_, err := os.Stat(dirPath)
-	if err == nil {
-		return nil
-	} else if errors.Is(err, os.ErrNotExist) {
-		return os.MkdirAll(dirPath, 0700)
-	} else {
-		return err
-	}
 }
 
 // jarExists checks if a file path exists/is accessible and returns true if os.Stat

@@ -67,44 +67,12 @@ func TestGetCacheDir(t *testing.T) {
 	}
 }
 
-func TestCheckDir(t *testing.T) {
-	d, err := ioutil.TempDir(os.Getenv("TEST_TMPDIR"), "expansionx-*")
-	if err != nil {
-		t.Fatalf("failed to make temp directory, got %v", err)
-	}
-	defer os.RemoveAll(d)
-
-	err = checkDir(d)
-	if err != nil {
-		t.Errorf("checkDir returned error, got %v", err)
-	}
-}
-
-func TestCheckDir_create(t *testing.T) {
-	d := filepath.Join(os.Getenv("TEST_TMPDIR"), "expansion-test")
-	_, err := os.Stat(d)
-	if err == nil {
-		t.Errorf("Temp directory already exists when it shouldn't")
-	}
-
-	err = checkDir(d)
-	if err != nil {
-		t.Errorf("checkDir returned an error, got %v", err)
-	}
-	defer os.RemoveAll(d)
-
-	_, err = os.Stat(d)
-	if err != nil {
-		t.Errorf("Temp directory check returned error, got %v", err)
-	}
-}
-
 func TestJarExists(t *testing.T) {
 	d, err := ioutil.TempDir(os.Getenv("TEST_TMPDIR"), "expansionx-*")
 	if err != nil {
 		t.Fatalf("failed to make temp directory, got %v", err)
 	}
-	defer os.RemoveAll(d)
+	t.Cleanup(func() { os.RemoveAll(d) })
 
 	tmpFile, err := ioutil.TempFile(d, "expansion-*.jar")
 	if err != nil {
@@ -121,7 +89,7 @@ func TestJarExists_bad(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to make temp directory, got %v", err)
 	}
-	defer os.RemoveAll(d)
+	t.Cleanup(func() { os.RemoveAll(d) })
 
 	fakePath := filepath.Join(d, "not-a-file.jar")
 
