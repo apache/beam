@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"os"
 	"os/user"
+	"path"
 	"path/filepath"
 	"strings"
 )
@@ -97,20 +98,19 @@ func (j *jarGetter) getJar(gradleTarget, version string) (string, error) {
 // getURLForBeamJar builds the Maven URL for the JAR and the JAR name, returning both
 // separately so the JAR name can be used for saving the file later.
 func (j *jarGetter) getURLForBeamJar(gradleTarget, version string) (url, string) {
-	baseURL := j.repository + url("/"+j.groupID+"/")
-	fullTarget := "beam" + gradleTarget
-	targetPath := strings.ReplaceAll(fullTarget, ":", "-")
-	jarName := strings.ReplaceAll(fullTarget, ":", "-") + "-" + version + ".jar"
-	return baseURL + url(targetPath+"/"+version+"/"+jarName), jarName
+	gradlePath := strings.ReplaceAll(gradleTarget, ":", "-")
+	targetPath := "beam" + gradlePath
+	jarName := fmt.Sprintf("%s-%s.jar", targetPath, version)
+	finalURL := j.repository + url(path.Join("/", j.groupID, targetPath, version, jarName))
+	return finalURL, jarName
 }
 
 // dropEndOfGradleTarget drops the last substring off of the gradle target. This
 // is used to build the Maven target and JAR name (the last substring on the gradle)
 // command is usually a directive, not a reference to the desired JAR.)
 func dropEndOfGradleTarget(gradleTarget string) string {
-	elms := strings.Split(gradleTarget, ":")
-	droppedSuffix := elms[:len(elms)-1]
-	return strings.Join(droppedSuffix, ":")
+	i := strings.LastIndex(gradleTarget, ":")
+	return gradleTarget[:i]
 }
 
 // jarExists checks if a file path exists/is accessible and returns true if os.Stat
