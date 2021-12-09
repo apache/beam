@@ -1277,16 +1277,22 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       requires_partition_by=partitionings.Arbitrary(),
       preserves_partition_by=partitionings.Singleton())
 
-  @frame_base.with_docs_from(pd.Series)
-  @frame_base.args_to_kwargs(pd.Series)
-  @frame_base.populate_defaults(pd.Series)
-  def idxmin(self, **kwargs):
-    def compute_idxmin(s):
-      min_index = s.idxmin(**kwargs)
-      if pd.isna(min_index):
+  def _idxmaxmin_helper(self, op, **kwargs):
+    if op == 'idxmax':
+      func = pd.Series.idxmax
+    elif op == 'idxmin':
+      func = pd.Series.idxmin
+    else:
+      raise ValueError(
+          "op must be one of ('idxmax', 'idxmin'). "
+          f"got {op!r}.")
+
+    def compute_idx(s):
+      index = func(s, **kwargs)
+      if pd.isna(index):
         return s
       else:
-        return s.loc[[min_index]]
+        return s.loc[[index]]
 
     # Avoids empty Series error when evaluating proxy
     index_dtype = self._expr.proxy().index.dtype
@@ -1294,56 +1300,34 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     proxy = self._expr.proxy().copy()
     proxy.index = index
     proxy = proxy.append(
-        pd.Series([np.inf], index=np.asarray(['0']).astype(proxy.index.dtype)))
+        pd.Series([1], index=np.asarray(['0']).astype(proxy.index.dtype)))
 
-    idx_min = expressions.ComputedExpression(
-        'idx_min',
-        compute_idxmin, [self._expr],
+    idx_func = expressions.ComputedExpression(
+        'idx_func',
+        compute_idx, [self._expr],
         proxy=proxy,
-        requires_partition_by=partitionings.Index(),
+        requires_partition_by=partitionings.Arbitrary(),
         preserves_partition_by=partitionings.Arbitrary())
 
     with expressions.allow_non_parallel_operations(True):
       return frame_base.DeferredFrame.wrap(
           expressions.ComputedExpression(
-              'idxmin_combine',
-              lambda s: s.idxmin(**kwargs), [idx_min],
+              'idx_combine',
+              lambda s: func(s, **kwargs), [idx_func],
               requires_partition_by=partitionings.Singleton(),
               preserves_partition_by=partitionings.Singleton()))
+
+  @frame_base.with_docs_from(pd.Series)
+  @frame_base.args_to_kwargs(pd.Series)
+  @frame_base.populate_defaults(pd.Series)
+  def idxmin(self, **kwargs):
+    return self._idxmaxmin_helper('idxmin', **kwargs)
 
   @frame_base.with_docs_from(pd.Series)
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
   def idxmax(self, **kwargs):
-    def compute_idxmax(s):
-      max_index = s.idxmax(**kwargs)
-      if pd.isna(max_index):
-        return s
-      else:
-        return s.loc[[max_index]]
-
-    # Avoids empty Series error when evaluating proxy
-    index_dtype = self._expr.proxy().index.dtype
-    index = pd.Index([], dtype=index_dtype)
-    proxy = self._expr.proxy().copy()
-    proxy.index = index
-    proxy = proxy.append(
-        pd.Series([-np.inf], index=np.asarray(['0']).astype(proxy.index.dtype)))
-
-    idx_max = expressions.ComputedExpression(
-        'idx_max',
-        compute_idxmax, [self._expr],
-        proxy=proxy,
-        requires_partition_by=partitionings.Index(),
-        preserves_partition_by=partitionings.Arbitrary())
-
-    with expressions.allow_non_parallel_operations(True):
-      return frame_base.DeferredFrame.wrap(
-          expressions.ComputedExpression(
-              'idxmax_combine',
-              lambda s: s.idxmax(**kwargs), [idx_max],
-              requires_partition_by=partitionings.Singleton(),
-              preserves_partition_by=partitionings.Singleton()))
+    return self._idxmaxmin_helper('idxmax', **kwargs)
 
   @frame_base.with_docs_from(pd.Series)
   @frame_base.args_to_kwargs(pd.Series)
@@ -3615,22 +3599,26 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       else:
         return result
 
+  def _idxmaxmin_helper(self, op, **kwargs):
+    if op == 'idxmax':
+      func = pd.DataFrame.idxmax
+    elif op == 'idxmin':
+      func = pd.DataFrame.idxmin
+    else:
+      raise ValueError("op must be one of ('idxmax', 'idxmin'). "
+                       f"got {op!r}.")
 
-  @frame_base.with_docs_from(pd.DataFrame)
-  @frame_base.args_to_kwargs(pd.DataFrame)
-  @frame_base.populate_defaults(pd.DataFrame)
-  def idxmin(self, **kwargs):
     axis = kwargs.get('axis', 0)
 
     index_dtype = self._expr.proxy().index.dtype
     columns_dtype = self._expr.proxy().columns.dtype
 
-    def compute_idxmin(df):
-      min_indexes = df.idxmin(**kwargs).unique()
-      if pd.isna(min_indexes).any():
+    def compute_idx(df):
+      indexes = func(df, **kwargs).unique()
+      if pd.isna(indexes).any():
         return df
       else:
-        return df.loc[min_indexes]
+        return df.loc[indexes]
 
     if axis in ('index', 0):
       requires_partition = partitionings.Singleton()
@@ -3639,62 +3627,9 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       proxy = pd.Series([], index=proxy_index, dtype=index_dtype)
       partition_proxy = self._expr.proxy().copy()
 
-      idxmin_per_partition = expressions.ComputedExpression(
-        'idxmin-per-partition',
-        compute_idxmin, [self._expr],
-        proxy=partition_proxy,
-        requires_partition_by=partitionings.Arbitrary(),
-        preserves_partition_by=partitionings.Arbitrary()
-      )
-
-    elif axis in ('columns', 1):
-      requires_partition=partitionings.Index()
-
-      proxy_index = pd.Index([], dtype=index_dtype)
-      proxy = pd.Series([], index=proxy_index, dtype=columns_dtype)
-
-      idxmin_per_partition = self._expr
-
-
-    with expressions.allow_non_parallel_operations(True):
-      return frame_base.DeferredFrame.wrap(
-        expressions.ComputedExpression(
-          'idxmin',
-          lambda df: df.idxmin(**kwargs), [idxmin_per_partition],
-          proxy=proxy,
-          requires_partition_by=requires_partition,
-          preserves_partition_by=partitionings.Singleton()
-        )
-      )
-
-
-  @frame_base.with_docs_from(pd.DataFrame)
-  @frame_base.args_to_kwargs(pd.DataFrame)
-  @frame_base.populate_defaults(pd.DataFrame)
-  def idxmax(self, **kwargs):
-    axis = kwargs.get('axis', 0)
-
-    index_dtype = self._expr.proxy().index.dtype
-    columns_dtype = self._expr.proxy().columns.dtype
-
-    def compute_idxmax(df):
-      max_indexes = df.idxmax(**kwargs).unique()
-      if pd.isna(max_indexes).any():
-        return df
-      else:
-        return df.loc[max_indexes]
-
-    if axis in ('index', 0):
-      requires_partition = partitionings.Singleton()
-
-      proxy_index = pd.Index([], dtype=columns_dtype)
-      proxy = pd.Series([], index=proxy_index, dtype=index_dtype)
-      partition_proxy = self._expr.proxy().copy()
-
-
-      idxmax_per_partition = expressions.ComputedExpression(
-        'idxmax-per-partition',
-        compute_idxmax, [self._expr],
+      idx_per_partition = expressions.ComputedExpression(
+        'idx-per-partition',
+        compute_idx, [self._expr],
         proxy=partition_proxy,
         requires_partition_by=partitionings.Arbitrary(),
         preserves_partition_by=partitionings.Arbitrary()
@@ -3706,19 +3641,35 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       proxy_index = pd.Index([], dtype=index_dtype)
       proxy = pd.Series([], index=proxy_index, dtype=columns_dtype)
 
-      idxmax_per_partition = self._expr
+      idx_per_partition = self._expr
+
+    else:
+      raise ValueError("axis must be one of ('index', 0, 'columns', 1). "
+                       f"got {axis!r}.")
 
     with expressions.allow_non_parallel_operations(True):
       return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
-          'idxmax',
-          lambda df: df.idxmax(**kwargs), [idxmax_per_partition],
+          'idx',
+          lambda df: func(df, **kwargs), [idx_per_partition],
           proxy=proxy,
           requires_partition_by=requires_partition,
           preserves_partition_by=partitionings.Singleton()
         )
       )
 
+
+  @frame_base.with_docs_from(pd.DataFrame)
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  def idxmin(self, **kwargs):
+    return self._idxmaxmin_helper('idxmin', **kwargs)
+
+  @frame_base.with_docs_from(pd.DataFrame)
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  def idxmax(self, **kwargs):
+    return self._idxmaxmin_helper('idxmax', **kwargs)
 
 for io_func in dir(io):
   if io_func.startswith('to_'):

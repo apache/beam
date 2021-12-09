@@ -503,6 +503,9 @@ class DoctestTest(unittest.TestCase):
                 # Differs in LSB on jenkins.
                 "s1.cov(s2)",
             ],
+            # Skipped idxmax/idxmin due an issue with the test framework
+            'pandas.core.series.Series.idxmin': ['s.idxmin()'],
+            'pandas.core.series.Series.idxmax': ['s.idxmax()'],
             'pandas.core.series.Series.duplicated': ['*'],
             'pandas.core.series.Series.set_axis': ['*'],
             'pandas.core.series.Series.nonzero': ['*'],
@@ -740,6 +743,9 @@ class DoctestTest(unittest.TestCase):
                 # Dropping invalid columns during a transform is unsupported.
                 'grouped.transform(lambda x: (x - x.mean()) / x.std())'
             ],
+            # Skipped idxmax/idxmin due an issue with the test framework
+            'pandas.core.groupby.generic.SeriesGroupBy.idxmin': ['s.idxmin()'],
+            'pandas.core.groupby.generic.SeriesGroupBy.idxmax': ['s.idxmax()'],
         })
     self.assertEqual(result.failed, 0)
 
