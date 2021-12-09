@@ -183,6 +183,7 @@ public class BeamFnDataWriteRunnerTest {
     AtomicReference<String> bundleId = new AtomicReference<>("0");
     BeamFnDataWriteRunner<String> writeRunner =
         new BeamFnDataWriteRunner<>(
+            () -> Caches.noop(),
             TRANSFORM_ID,
             RemoteGrpcPortWrite.writeToPort("myWrite", PORT_SPEC).toPTransform(),
             bundleId::get,
