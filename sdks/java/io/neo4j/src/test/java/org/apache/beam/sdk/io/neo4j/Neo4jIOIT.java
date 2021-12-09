@@ -49,6 +49,7 @@ import org.neo4j.driver.Driver;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Result;
 import org.neo4j.driver.Session;
+import org.neo4j.driver.SessionConfig;
 import org.testcontainers.containers.Neo4jContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.utility.DockerImageName;
@@ -138,10 +139,9 @@ public class Neo4jIOIT {
     Neo4jIO.ReadAll<String, Row> read =
         Neo4jIO.<String, Row>readAll()
             .withCypher("RETURN 1, $par1")
-            .withDatabase(Neo4jTestUtil.NEO4J_DATABASE)
             .withDriverConfiguration(Neo4jTestUtil.getDriverConfiguration())
+            .withSessionConfig(SessionConfig.forDatabase(Neo4jTestUtil.NEO4J_DATABASE))
             .withReadTransaction()
-            .withFetchSize(5000)
             .withRowMapper(rowMapper)
             .withParametersFunction(parametersFunction)
             .withCoder(SerializableCoder.of(Row.class))
@@ -175,7 +175,7 @@ public class Neo4jIOIT {
     Neo4jIO.WriteUnwind<String> read =
         Neo4jIO.<String>writeUnwind()
             .withDriverConfiguration(Neo4jTestUtil.getDriverConfiguration())
-            .withDatabase(Neo4jTestUtil.NEO4J_DATABASE)
+            .withSessionConfig(SessionConfig.forDatabase(Neo4jTestUtil.NEO4J_DATABASE))
             .withBatchSize(5000)
             .withUnwindMapName("rows")
             .withCypher("UNWIND $rows AS row MERGE(n:Num { name : row.name })")
@@ -234,10 +234,10 @@ public class Neo4jIOIT {
     Neo4jIO.WriteUnwind<Integer> read =
         Neo4jIO.<Integer>writeUnwind()
             .withDriverConfiguration(Neo4jTestUtil.getDriverConfiguration())
+            .withSessionConfig(SessionConfig.forDatabase(Neo4jTestUtil.NEO4J_DATABASE))
             .withBatchSize(123)
             .withUnwindMapName("rows")
             .withCypher("UNWIND $rows AS row CREATE(n:Something { id : row.id })")
-            .withDatabase(Neo4jTestUtil.NEO4J_DATABASE)
             .withParametersFunction(parametersFunction)
             .withCypherLogging();
 

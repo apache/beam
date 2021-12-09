@@ -18,10 +18,12 @@
 package org.apache.beam.sdk.io.neo4j;
 
 import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.neo4j.driver.Config;
 
 @RunWith(JUnit4.class)
 public class Neo4jIOTest {
@@ -39,11 +41,27 @@ public class Neo4jIOTest {
   public void testDriverConfigurationWith() throws Exception {
     Neo4jIO.DriverConfiguration driverConfiguration = Neo4jIO.DriverConfiguration.create();
 
-    driverConfiguration = driverConfiguration.withEncryption();
-    Assert.assertEquals(true, driverConfiguration.getEncryption().get());
+    Config config =
+        Config.builder()
+            .withEncryption()
+            .withConnectionAcquisitionTimeout(54321L, TimeUnit.MILLISECONDS)
+            .withConnectionTimeout(43210L, TimeUnit.MILLISECONDS)
+            .withConnectionLivenessCheckTimeout(32109L, TimeUnit.MILLISECONDS)
+            .withMaxConnectionLifetime(21098L, TimeUnit.MILLISECONDS)
+            .withMaxConnectionPoolSize(101)
+            .build();
 
-    driverConfiguration = driverConfiguration.withoutEncryption();
-    Assert.assertEquals(false, driverConfiguration.getEncryption().get());
+    driverConfiguration = driverConfiguration.withConfig(config);
+
+    Config configVerify = driverConfiguration.getConfig();
+    Assert.assertNotNull(configVerify);
+    Assert.assertEquals(true, configVerify.encrypted());
+
+    Assert.assertEquals(54321L, configVerify.connectionAcquisitionTimeoutMillis());
+    Assert.assertEquals(43210L, configVerify.connectionTimeoutMillis());
+    Assert.assertEquals(32109L, configVerify.idleTimeBeforeConnectionTest());
+    Assert.assertEquals(21098L, configVerify.maxConnectionLifetimeMillis());
+    Assert.assertEquals(101, configVerify.maxConnectionPoolSize());
 
     driverConfiguration = driverConfiguration.withUrl("url1");
     Assert.assertEquals("url1", driverConfiguration.getUrl().get());
@@ -57,32 +75,6 @@ public class Neo4jIOTest {
 
     driverConfiguration = driverConfiguration.withPassword("password");
     Assert.assertEquals("password", driverConfiguration.getPassword().get());
-
-    driverConfiguration = driverConfiguration.withRouting();
-    Assert.assertEquals(true, driverConfiguration.getRouting().get());
-
-    driverConfiguration = driverConfiguration.withoutRouting();
-    Assert.assertEquals(false, driverConfiguration.getRouting().get());
-
-    driverConfiguration = driverConfiguration.withConnectionAcquisitionTimeoutMs(54321L);
-    Assert.assertEquals(
-        54321L, (long) driverConfiguration.getConnectionAcquisitionTimeoutMs().get());
-
-    driverConfiguration = driverConfiguration.withConnectionTimeoutMs(43210L);
-    Assert.assertEquals(43210L, (long) driverConfiguration.getConnectionTimeoutMs().get());
-
-    driverConfiguration = driverConfiguration.withConnectionLivenessCheckTimeoutMs(32109L);
-    Assert.assertEquals(
-        32109L, (long) driverConfiguration.getConnectionLivenessCheckTimeoutMs().get());
-
-    driverConfiguration = driverConfiguration.withMaxConnectionLifetimeMs(21098L);
-    Assert.assertEquals(21098L, (long) driverConfiguration.getMaxConnectionLifetimeMs().get());
-
-    driverConfiguration = driverConfiguration.withMaxTransactionRetryTimeMs(10987L);
-    Assert.assertEquals(10987L, (long) driverConfiguration.getMaxTransactionRetryTimeMs().get());
-
-    driverConfiguration = driverConfiguration.withMaxConnectionPoolSize(101);
-    Assert.assertEquals(101, (int) driverConfiguration.getMaxConnectionPoolSize().get());
   }
 
   @Test
@@ -121,28 +113,5 @@ public class Neo4jIOTest {
     } catch (Exception e) {
       throw new AssertionError("Empty password string should not throw an error", e);
     }
-  }
-
-  @Test
-  public void testDriverConfigurationBooleanNullValues() {
-    Neo4jIO.DriverConfiguration driverConfiguration = Neo4jIO.DriverConfiguration.create();
-
-    // Test the 3 states of Encryption: null, true or false
-    Assert.assertNull(driverConfiguration.getEncryption());
-    driverConfiguration = driverConfiguration.withEncryption();
-    Assert.assertNotNull(driverConfiguration.getEncryption());
-    Assert.assertTrue(driverConfiguration.getEncryption().get());
-    driverConfiguration = driverConfiguration.withoutEncryption();
-    Assert.assertNotNull(driverConfiguration.getEncryption());
-    Assert.assertFalse(driverConfiguration.getEncryption().get());
-
-    // Test the 3 states of Routing: null, true or false
-    Assert.assertNull(driverConfiguration.getRouting());
-    driverConfiguration = driverConfiguration.withRouting();
-    Assert.assertNotNull(driverConfiguration.getRouting());
-    Assert.assertTrue(driverConfiguration.getRouting().get());
-    driverConfiguration = driverConfiguration.withoutRouting();
-    Assert.assertNotNull(driverConfiguration.getRouting());
-    Assert.assertFalse(driverConfiguration.getRouting().get());
   }
 }

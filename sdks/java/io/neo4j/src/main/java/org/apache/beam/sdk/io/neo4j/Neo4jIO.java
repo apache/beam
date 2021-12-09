@@ -23,16 +23,12 @@ import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.logging.Level;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.StringUtils;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
@@ -59,7 +55,6 @@ import org.neo4j.driver.AuthTokens;
 import org.neo4j.driver.Config;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.GraphDatabase;
-import org.neo4j.driver.Logging;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Result;
 import org.neo4j.driver.Session;
@@ -79,8 +74,23 @@ import org.slf4j.LoggerFactory;
  * <h3>Driver configuration</h3>
  *
  * <p>To read from or write to Neo4j you have to provide a {@link DriverConfiguration} using<br>
- * 1. {@link DriverConfiguration#create()} (which must be {@link Serializable});<br>
- * 2. or {@link DriverConfiguration#create(String, String, String)} (URL, username and password).
+ * {@link DriverConfiguration#create()} or {@link DriverConfiguration#create(String, String,
+ * String)} (URL, username and password). Note that subclasses of DriverConfiguration must also be
+ * {@link Serializable}). <br>
+ * At the level of the Neo4j driver configuration you can specify a Neo4j {@link Config} object with
+ * {@link DriverConfiguration#withConfig(Config)}. This way you can configure the Neo4j driver
+ * characteristics. Likewise, you can control the characteristics of Neo4j sessions by optionally
+ * passing a {@link SessionConfig} object to {@link ReadAll} or {@link WriteUnwind}. For example,
+ * the session configuration will allow you to target a specific database or set a fetch size.
+ * Finally, in even rarer cases you might need to configure the various aspects of Neo4j
+ * transactions, for example their timeout. You can do this with a Neo4j {@link TransactionConfig}
+ * object.
+ *
+ * <p>
+ *
+ * <p>
+ *
+ * <h3>Neo4j Aura</h3>
  *
  * <p>If you have trouble connecting to a Neo4j Aura database please try to disable a few security
  * algorithms in your JVM. This makes sure that the right one is picked to connect:
@@ -136,11 +146,11 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Writing to Neo4j</h3>
  *
- * <p>Neo4j sink supports writing data to a graph. It writes a {@link PCollection} to the graph by
- * collecting a batch of rows after which all rows in this batch are written together to Neo4j. This
- * is done using the {@link WriteUnwind} sink transform.
+ * <p>The Neo4j {@link WriteUnwind} transform supports writing data to a graph. It writes a {@link
+ * PCollection} to the graph by collecting a batch of elements after which all elements in the batch
+ * are written together to Neo4j.
  *
- * <p>Like the source, to configure the sink, you have to provide a {@link DriverConfiguration}.
+ * <p>Like the source, to configure this sink, you have to provide a {@link DriverConfiguration}.
  *
  * <p>In the following example we'll merge a collection of {@link org.apache.beam.sdk.values.Row}
  * into Person nodes. Since this is a Sink it has no output and as such no RowMapper is needed. The
@@ -182,14 +192,12 @@ public class Neo4jIO {
    * @param <OutputT> Type of the data to be read.
    */
   public static <ParameterT, OutputT> ReadAll<ParameterT, OutputT> readAll() {
-    return new AutoValue_Neo4jIO_ReadAll.Builder<ParameterT, OutputT>()
-        .setFetchSize(ValueProvider.StaticValueProvider.of(Config.defaultConfig().fetchSize()))
-        .build();
+    return new AutoValue_Neo4jIO_ReadAll.Builder<ParameterT, OutputT>().build();
   }
 
   /**
-   * Write all rows using a Neo4j Cypher UNWIND cypher statement. This sets a default batch batch
-   * size of 5000.
+   * Write all rows using a Neo4j Cypher UNWIND cypher statement. This sets a default batch size of
+   * 5000.
    *
    * @param <ParameterT> Type of the data representing query parameters.
    */
@@ -250,7 +258,9 @@ public class Neo4jIO {
   @AutoValue
   public abstract static class DriverConfiguration implements Serializable {
     public static DriverConfiguration create() {
-      return new AutoValue_Neo4jIO_DriverConfiguration.Builder().build();
+      return new AutoValue_Neo4jIO_DriverConfiguration.Builder()
+          .build()
+          .withConfig(Config.defaultConfig());
     }
 
     public static DriverConfiguration create(String url, String username, String password) {
@@ -259,6 +269,7 @@ public class Neo4jIO {
       checkArgument(password != null, "password can not be null");
       return new AutoValue_Neo4jIO_DriverConfiguration.Builder()
           .build()
+          .withConfig(Config.defaultConfig())
           .withUrl(url)
           .withUsername(username)
           .withPassword(password);
@@ -272,25 +283,10 @@ public class Neo4jIO {
 
     abstract @Nullable ValueProvider<String> getPassword();
 
-    abstract @Nullable ValueProvider<Boolean> getEncryption();
-
-    abstract @Nullable ValueProvider<Long> getConnectionLivenessCheckTimeoutMs();
-
-    abstract @Nullable ValueProvider<Long> getMaxConnectionLifetimeMs();
-
-    abstract @Nullable ValueProvider<Integer> getMaxConnectionPoolSize();
-
-    abstract @Nullable ValueProvider<Long> getConnectionAcquisitionTimeoutMs();
-
-    abstract @Nullable ValueProvider<Long> getConnectionTimeoutMs();
-
-    abstract @Nullable ValueProvider<Long> getMaxTransactionRetryTimeMs();
-
-    abstract @Nullable ValueProvider<Boolean> getRouting();
+    abstract @Nullable Config getConfig();
 
     abstract Builder builder();
 
-    // URL
     public DriverConfiguration withUrl(String url) {
       return withUrl(ValueProvider.StaticValueProvider.of(url));
     }
@@ -319,73 +315,8 @@ public class Neo4jIO {
       return builder().setUrls(urls).build();
     }
 
-    public DriverConfiguration withEncryption() {
-      return builder().setEncryption(ValueProvider.StaticValueProvider.of(Boolean.TRUE)).build();
-    }
-
-    public DriverConfiguration withoutEncryption() {
-      return builder().setEncryption(ValueProvider.StaticValueProvider.of(Boolean.FALSE)).build();
-    }
-
-    public DriverConfiguration withConnectionLivenessCheckTimeoutMs(
-        long connectionLivenessCheckTimeoutMs) {
-      return withConnectionLivenessCheckTimeoutMs(
-          ValueProvider.StaticValueProvider.of(connectionLivenessCheckTimeoutMs));
-    }
-
-    public DriverConfiguration withConnectionLivenessCheckTimeoutMs(
-        ValueProvider<Long> connectionLivenessCheckTimeoutMs) {
-      return builder()
-          .setConnectionLivenessCheckTimeoutMs(connectionLivenessCheckTimeoutMs)
-          .build();
-    }
-
-    public DriverConfiguration withMaxConnectionLifetimeMs(long maxConnectionLifetimeMs) {
-      return withMaxConnectionLifetimeMs(
-          ValueProvider.StaticValueProvider.of(maxConnectionLifetimeMs));
-    }
-
-    public DriverConfiguration withMaxConnectionLifetimeMs(
-        ValueProvider<Long> maxConnectionLifetimeMs) {
-      return builder().setMaxConnectionLifetimeMs(maxConnectionLifetimeMs).build();
-    }
-
-    public DriverConfiguration withMaxConnectionPoolSize(int maxConnectionPoolSize) {
-      return withMaxConnectionPoolSize(ValueProvider.StaticValueProvider.of(maxConnectionPoolSize));
-    }
-
-    public DriverConfiguration withMaxConnectionPoolSize(
-        ValueProvider<Integer> maxConnectionPoolSize) {
-      return builder().setMaxConnectionPoolSize(maxConnectionPoolSize).build();
-    }
-
-    public DriverConfiguration withConnectionAcquisitionTimeoutMs(
-        long connectionAcquisitionTimeoutMs) {
-      return withConnectionAcquisitionTimeoutMs(
-          ValueProvider.StaticValueProvider.of(connectionAcquisitionTimeoutMs));
-    }
-
-    public DriverConfiguration withConnectionAcquisitionTimeoutMs(
-        ValueProvider<Long> connectionAcquisitionTimeoutMs) {
-      return builder().setConnectionAcquisitionTimeoutMs(connectionAcquisitionTimeoutMs).build();
-    }
-
-    public DriverConfiguration withConnectionTimeoutMs(long connectionTimeoutMs) {
-      return withConnectionTimeoutMs(ValueProvider.StaticValueProvider.of(connectionTimeoutMs));
-    }
-
-    public DriverConfiguration withConnectionTimeoutMs(ValueProvider<Long> connectionTimeoutMs) {
-      return builder().setConnectionTimeoutMs(connectionTimeoutMs).build();
-    }
-
-    public DriverConfiguration withMaxTransactionRetryTimeMs(long maxTransactionRetryTimeMs) {
-      return withMaxTransactionRetryTimeMs(
-          ValueProvider.StaticValueProvider.of(maxTransactionRetryTimeMs));
-    }
-
-    public DriverConfiguration withMaxTransactionRetryTimeMs(
-        ValueProvider<Long> maxTransactionRetryTimeMs) {
-      return builder().setMaxTransactionRetryTimeMs(maxTransactionRetryTimeMs).build();
+    public DriverConfiguration withConfig(Config config) {
+      return builder().setConfig(config).build();
     }
 
     public DriverConfiguration withUsername(String username) {
@@ -410,99 +341,22 @@ public class Neo4jIO {
       return builder().setPassword(password).build();
     }
 
-    public DriverConfiguration withRouting() {
-      return builder().setRouting(ValueProvider.StaticValueProvider.of(Boolean.TRUE)).build();
-    }
-
-    public DriverConfiguration withoutRouting() {
-      return builder().setRouting(ValueProvider.StaticValueProvider.of(Boolean.FALSE)).build();
-    }
-
     void populateDisplayData(DisplayData.Builder builder) {
       builder.addIfNotNull(DisplayData.item("neo4j-url", getUrl()));
       builder.addIfNotNull(DisplayData.item("neo4j-username", getUsername()));
       builder.addIfNotNull(
           DisplayData.item(
               "neo4j-password", getPassword() != null ? "<provided>" : "<not-provided>"));
-      builder.addIfNotNull(
-          DisplayData.item(
-              "neo4j-encryption", getEncryption() != null ? "<provided>" : "<not-provided>"));
     }
 
     Driver buildDriver() {
       // Create the Neo4j Driver
-      // The default is: have the driver make the determination
+      // This uses the provided Neo4j configuration along with URLs, username and password
       //
-      Config.ConfigBuilder configBuilder;
-
-      // Encryption is usually not specified in which case the driver figures things out for itself
-      //
-      ValueProvider<Boolean> encryption = getEncryption();
-      if (encryption == null) {
-        configBuilder = Config.builder();
-      } else {
-        Boolean encryptionValue = encryption.get();
-        if (encryptionValue == null) {
-          configBuilder = Config.builder();
-        } else {
-          if (encryptionValue) {
-            configBuilder =
-                Config.builder()
-                    .withEncryption()
-                    .withTrustStrategy(Config.TrustStrategy.trustAllCertificates());
-          } else {
-            configBuilder = Config.builder().withoutEncryption();
-          }
-        }
+      Config config = getConfig();
+      if (config == null) {
+        throw new RuntimeException("please provide a neo4j config");
       }
-
-      Long connectionLivenessCheckTimeoutMs =
-          getProvidedValue(getConnectionLivenessCheckTimeoutMs());
-      if (connectionLivenessCheckTimeoutMs != null && connectionLivenessCheckTimeoutMs > 0) {
-        configBuilder =
-            configBuilder.withConnectionLivenessCheckTimeout(
-                connectionLivenessCheckTimeoutMs, TimeUnit.MILLISECONDS);
-      }
-
-      Long maxConnectionLifetimeMs = getProvidedValue(getMaxConnectionLifetimeMs());
-      if (maxConnectionLifetimeMs != null && maxConnectionLifetimeMs > 0) {
-        configBuilder =
-            configBuilder.withMaxConnectionLifetime(maxConnectionLifetimeMs, TimeUnit.MILLISECONDS);
-      }
-
-      Integer maxConnectionPoolSize = getProvidedValue(getMaxConnectionPoolSize());
-      if (maxConnectionPoolSize != null && maxConnectionPoolSize > 0) {
-        configBuilder = configBuilder.withMaxConnectionPoolSize(maxConnectionPoolSize);
-      }
-
-      Long connectionAcquisitionTimeoutMs = getProvidedValue(getConnectionAcquisitionTimeoutMs());
-      if (connectionAcquisitionTimeoutMs != null && connectionAcquisitionTimeoutMs > 0) {
-        configBuilder =
-            configBuilder.withConnectionAcquisitionTimeout(
-                connectionAcquisitionTimeoutMs, TimeUnit.MILLISECONDS);
-      }
-
-      Long connectionTimeoutMs = getProvidedValue(getConnectionTimeoutMs());
-      if (connectionTimeoutMs != null && connectionTimeoutMs > 0) {
-        configBuilder =
-            configBuilder.withConnectionTimeout(connectionTimeoutMs, TimeUnit.MILLISECONDS);
-      }
-
-      Long maxTransactionRetryTimeMs = getProvidedValue(getMaxTransactionRetryTimeMs());
-      if (maxTransactionRetryTimeMs != null && maxTransactionRetryTimeMs > 0) {
-        configBuilder =
-            configBuilder.withMaxTransactionRetryTime(
-                maxTransactionRetryTimeMs, TimeUnit.MILLISECONDS);
-      }
-
-      // Set sane Logging level
-      //
-      configBuilder = configBuilder.withLogging(Logging.javaUtilLogging(Level.WARNING));
-
-      // Now we have the configuration for the driver
-      //
-      Config config = configBuilder.build();
-
       // Get the list of the URI to connect with
       //
       List<URI> uris = new ArrayList<>();
@@ -533,13 +387,13 @@ public class Neo4jIO {
 
       // A specific routing driver can be used to connect to specific clustered configurations.
       // Often we don't need it because the Java driver automatically can figure this out
-      // automatically.
+      // automatically. To keep things simple we use the routing driver in case we have more
+      // than one URL specified.  This is an exceptional case.
       //
       Driver driver;
-      Boolean routing = getProvidedValue(getRouting());
       AuthToken authTokens =
           getAuthToken(getProvidedValue(getUsername()), getProvidedValue(getPassword()));
-      if (routing != null && routing) {
+      if (uris.size() > 1) {
         driver = GraphDatabase.routingDriver(uris, authTokens, config);
       } else {
         // Just take the first URI that was provided
@@ -578,23 +432,7 @@ public class Neo4jIO {
 
       abstract Builder setPassword(ValueProvider<String> password);
 
-      abstract Builder setEncryption(ValueProvider<Boolean> encryption);
-
-      abstract Builder setConnectionLivenessCheckTimeoutMs(
-          ValueProvider<Long> connectionLivenessCheckTimeoutMs);
-
-      abstract Builder setMaxConnectionLifetimeMs(ValueProvider<Long> maxConnectionLifetimeMs);
-
-      abstract Builder setMaxConnectionPoolSize(ValueProvider<Integer> maxConnectionPoolSize);
-
-      abstract Builder setConnectionAcquisitionTimeoutMs(
-          ValueProvider<Long> connectionAcquisitionTimeoutMs);
-
-      abstract Builder setConnectionTimeoutMs(ValueProvider<Long> connectionTimeoutMs);
-
-      abstract Builder setMaxTransactionRetryTimeMs(ValueProvider<Long> maxTransactionRetryTimeMs);
-
-      abstract Builder setRouting(ValueProvider<Boolean> routing);
+      abstract Builder setConfig(Config config);
 
       abstract DriverConfiguration build();
     }
@@ -607,13 +445,13 @@ public class Neo4jIO {
 
     abstract @Nullable SerializableFunction<Void, Driver> getDriverProviderFn();
 
-    abstract @Nullable ValueProvider<String> getDatabase();
+    abstract @Nullable SessionConfig getSessionConfig();
+
+    abstract @Nullable TransactionConfig getTransactionConfig();
 
     abstract @Nullable ValueProvider<String> getCypher();
 
     abstract @Nullable ValueProvider<Boolean> getWriteTransaction();
-
-    abstract @Nullable ValueProvider<Long> getTransactionTimeoutMs();
 
     abstract @Nullable RowMapper<OutputT> getRowMapper();
 
@@ -621,8 +459,6 @@ public class Neo4jIO {
         getParametersFunction();
 
     abstract @Nullable Coder<OutputT> getCoder();
-
-    abstract @Nullable ValueProvider<Long> getFetchSize();
 
     abstract @Nullable ValueProvider<Boolean> getLogCypher();
 
@@ -645,43 +481,18 @@ public class Neo4jIO {
       return toBuilder().setCypher(cypher).build();
     }
 
-    public ReadAll<ParameterT, OutputT> withTransactionTimeoutMs(long timeout) {
+    public ReadAll<ParameterT, OutputT> withSessionConfig(SessionConfig sessionConfig) {
       checkArgument(
-          timeout > 0,
-          "Neo4jIO.readAll().withTransactionTimeOutMs(timeout) called with timeout<=0");
-      return withTransactionTimeoutMs(ValueProvider.StaticValueProvider.of(timeout));
+          sessionConfig != null,
+          "Neo4jIO.readAll().withSessionConfig(sessionConfig) called with null sessionConfig");
+      return toBuilder().setSessionConfig(sessionConfig).build();
     }
 
-    public ReadAll<ParameterT, OutputT> withTransactionTimeoutMs(ValueProvider<Long> timeout) {
+    public ReadAll<ParameterT, OutputT> withTransactionConfig(TransactionConfig transactionConfig) {
       checkArgument(
-          timeout != null && timeout.get() > 0,
-          "Neo4jIO.readAll().withTransactionTimeOutMs(timeout) called with timeout<=0");
-      return toBuilder().setTransactionTimeoutMs(timeout).build();
-    }
-
-    public ReadAll<ParameterT, OutputT> withDatabase(String database) {
-      checkArgument(
-          database != null, "Neo4jIO.readAll().withDatabase(database) called with null database");
-      return withDatabase(ValueProvider.StaticValueProvider.of(database));
-    }
-
-    public ReadAll<ParameterT, OutputT> withDatabase(ValueProvider<String> database) {
-      checkArgument(
-          database != null, "Neo4jIO.readAll().withDatabase(database) called with null database");
-      return toBuilder().setDatabase(database).build();
-    }
-
-    public ReadAll<ParameterT, OutputT> withFetchSize(long fetchSize) {
-      checkArgument(
-          fetchSize > 0, "Neo4jIO.readAll().withFetchSize(query) called with fetchSize<=0");
-      return withFetchSize(ValueProvider.StaticValueProvider.of(fetchSize));
-    }
-
-    public ReadAll<ParameterT, OutputT> withFetchSize(ValueProvider<Long> fetchSize) {
-      checkArgument(
-          fetchSize != null && fetchSize.get() >= 0,
-          "Neo4jIO.readAll().withFetchSize(query) called with fetchSize<=0");
-      return toBuilder().setFetchSize(fetchSize).build();
+          transactionConfig != null,
+          "Neo4jIO.readAll().withTransactionConfig(transactionConfig) called with null transactionConfig");
+      return toBuilder().setTransactionConfig(transactionConfig).build();
     }
 
     public ReadAll<ParameterT, OutputT> withRowMapper(RowMapper<OutputT> rowMapper) {
@@ -716,10 +527,6 @@ public class Neo4jIO {
           .build();
     }
 
-    public ReadAll<ParameterT, OutputT> withoutCypherLogging() {
-      return toBuilder().setLogCypher(ValueProvider.StaticValueProvider.of(Boolean.FALSE)).build();
-    }
-
     public ReadAll<ParameterT, OutputT> withCypherLogging() {
       return toBuilder().setLogCypher(ValueProvider.StaticValueProvider.of(Boolean.TRUE)).build();
     }
@@ -735,21 +542,21 @@ public class Neo4jIO {
       final String cypher = getProvidedValue(getCypher());
       checkArgument(cypher != null, "please provide a cypher statement to execute");
 
-      Long fetchSize = getProvidedValue(getFetchSize());
-      if (fetchSize == null || fetchSize <= 0) {
-        fetchSize = 0L;
+      SessionConfig sessionConfig = getSessionConfig();
+      if (sessionConfig == null) {
+        // Create a default session configuration as recommended by Neo4j
+        //
+        sessionConfig = SessionConfig.defaultConfig();
       }
 
-      final String databaseName = getProvidedValue(getDatabase());
+      TransactionConfig transactionConfig = getTransactionConfig();
+      if (transactionConfig == null) {
+        transactionConfig = TransactionConfig.empty();
+      }
 
       Boolean writeTransaction = getProvidedValue(getWriteTransaction());
       if (writeTransaction == null) {
         writeTransaction = Boolean.FALSE;
-      }
-
-      Long transactionTimeOutMs = getProvidedValue(getTransactionTimeoutMs());
-      if (transactionTimeOutMs == null || transactionTimeOutMs < 0) {
-        transactionTimeOutMs = -1L;
       }
 
       Boolean logCypher = getProvidedValue(getLogCypher());
@@ -770,13 +577,12 @@ public class Neo4jIO {
       ReadFn<ParameterT, OutputT> readFn =
           new ReadFn<>(
               driverProviderFn,
+              sessionConfig,
+              transactionConfig,
               cypher,
               rowMapper,
               parametersFunction,
-              fetchSize,
-              databaseName,
               writeTransaction,
-              transactionTimeOutMs,
               logCypher);
 
       return getOutputPCollection(input, readFn, getCoder());
@@ -805,13 +611,13 @@ public class Neo4jIO {
 
       abstract Builder<ParameterT, OutputT> setCypher(ValueProvider<String> cypher);
 
-      abstract Builder<ParameterT, OutputT> setDatabase(ValueProvider<String> cypher);
+      abstract Builder<ParameterT, OutputT> setSessionConfig(SessionConfig sessionConfig);
+
+      abstract Builder<ParameterT, OutputT> setTransactionConfig(
+          TransactionConfig transactionConfig);
 
       abstract Builder<ParameterT, OutputT> setWriteTransaction(
           ValueProvider<Boolean> writeTransaction);
-
-      abstract Builder<ParameterT, OutputT> setTransactionTimeoutMs(
-          ValueProvider<Long> transactionTimeoutMs);
 
       abstract Builder<ParameterT, OutputT> setRowMapper(RowMapper<OutputT> rowMapper);
 
@@ -819,8 +625,6 @@ public class Neo4jIO {
           SerializableFunction<ParameterT, Map<String, Object>> parametersFunction);
 
       abstract Builder<ParameterT, OutputT> setCoder(Coder<OutputT> coder);
-
-      abstract Builder<ParameterT, OutputT> setFetchSize(ValueProvider<Long> fetchSize);
 
       abstract Builder<ParameterT, OutputT> setLogCypher(ValueProvider<Boolean> logCypher);
 
@@ -833,44 +637,38 @@ public class Neo4jIO {
     protected static class DriverSession {
       public @Nullable Driver driver;
       public @Nullable Session session;
-      public @Nullable TransactionConfig transactionConfig;
       public @NonNull AtomicBoolean closed;
 
-      protected DriverSession(Driver driver, Session session, TransactionConfig transactionConfig) {
+      protected DriverSession(Driver driver, Session session) {
         this.driver = driver;
         this.session = session;
-        this.transactionConfig = transactionConfig;
         this.closed = new AtomicBoolean(false);
       }
 
       private DriverSession() {
         this.driver = null;
         this.session = null;
-        this.transactionConfig = null;
         this.closed = new AtomicBoolean(true);
       }
 
-      protected static DriverSession emptyClosed() {
+      protected static @NonNull DriverSession emptyClosed() {
         return new DriverSession();
       }
     }
 
     protected final @NonNull SerializableFunction<Void, Driver> driverProviderFn;
-    protected final @Nullable String databaseName;
-    protected final long fetchSize;
-    protected final long transactionTimeoutMs;
+    protected final @NonNull SessionConfig sessionConfig;
+    protected final @NonNull TransactionConfig transactionConfig;
 
-    protected transient DriverSession driverSession;
+    protected transient @NonNull DriverSession driverSession;
 
-    private ReadWriteFn(
+    protected ReadWriteFn(
         @NonNull SerializableFunction<Void, Driver> driverProviderFn,
-        @Nullable String databaseName,
-        long fetchSize,
-        long transactionTimeoutMs) {
+        @NonNull SessionConfig sessionConfig,
+        @NonNull TransactionConfig transactionConfig) {
       this.driverProviderFn = driverProviderFn;
-      this.databaseName = databaseName;
-      this.fetchSize = fetchSize;
-      this.transactionTimeoutMs = transactionTimeoutMs;
+      this.sessionConfig = sessionConfig;
+      this.transactionConfig = transactionConfig;
       this.driverSession = DriverSession.emptyClosed();
     }
 
@@ -888,29 +686,16 @@ public class Neo4jIO {
       return driver;
     }
 
-    protected @Initialized @NonNull DriverSession buildDriverSession(
-        @Nullable String databaseName, long fetchSize, long transactionTimeoutMs) {
+    protected @Initialized @NonNull DriverSession buildDriverSession() {
       @NonNull Driver driver = createDriver();
-      SessionConfig.Builder builder = SessionConfig.builder();
-      if (databaseName != null) {
-        builder = builder.withDatabase(databaseName);
-      }
-      builder = builder.withFetchSize(fetchSize);
-      @NonNull Session session = driver.session(builder.build());
-
-      TransactionConfig.Builder configBuilder = TransactionConfig.builder();
-      if (transactionTimeoutMs > 0) {
-        configBuilder = configBuilder.withTimeout(Duration.ofMillis(transactionTimeoutMs));
-      }
-      @NonNull TransactionConfig transactionConfig = configBuilder.build();
-
-      return new DriverSession(driver, session, transactionConfig);
+      @NonNull Session session = driver.session(sessionConfig);
+      return new DriverSession(driver, session);
     }
 
     @StartBundle
     public void startBundle() {
       if (driverSession == null || driverSession.closed.get()) {
-        driverSession = buildDriverSession(databaseName, fetchSize, transactionTimeoutMs);
+        driverSession = buildDriverSession();
       }
     }
 
@@ -925,8 +710,6 @@ public class Neo4jIO {
     }
 
     protected void cleanUpDriverSession() {
-      // Only close the driver and session once
-      //
       if (!driverSession.closed.get()) {
         try {
           if (driverSession.session != null) {
@@ -964,24 +747,24 @@ public class Neo4jIO {
 
   /** A {@link DoFn} to execute a Cypher query to read from Neo4j. */
   private static class ReadFn<ParameterT, OutputT> extends ReadWriteFn<ParameterT, OutputT> {
-    private final @NonNull String cypher;
-    private final @NonNull RowMapper<OutputT> rowMapper;
-    private final @Nullable SerializableFunction<ParameterT, Map<String, Object>>
+    protected final @NonNull String cypher;
+    protected final @NonNull RowMapper<OutputT> rowMapper;
+    protected final @Nullable SerializableFunction<ParameterT, Map<String, Object>>
         parametersFunction;
+
     private final boolean writeTransaction;
     private final boolean logCypher;
 
     private ReadFn(
         @NonNull SerializableFunction<Void, Driver> driverProviderFn,
+        @NonNull SessionConfig sessionConfig,
+        @NonNull TransactionConfig transactionConfig,
         @NonNull String cypher,
         @NonNull RowMapper<OutputT> rowMapper,
         @Nullable SerializableFunction<ParameterT, Map<String, Object>> parametersFunction,
-        long fetchSize,
-        String databaseName,
         boolean writeTransaction,
-        long transactionTimeoutMs,
         boolean logCypher) {
-      super(driverProviderFn, databaseName, fetchSize, transactionTimeoutMs);
+      super(driverProviderFn, sessionConfig, transactionConfig);
       this.cypher = cypher;
       this.rowMapper = rowMapper;
       this.parametersFunction = parametersFunction;
@@ -1005,7 +788,9 @@ public class Neo4jIO {
 
     private void executeReadCypherStatement(
         final ProcessContext processContext, Map<String, Object> parametersMap) {
-      // The transaction.
+      // The actual "reading" work needs to happen in a transaction.
+      // We could actually read and write here depending on the type of transaction
+      // we picked.  As long as the Cypher statement returns values it's fine.
       //
       TransactionWork<Void> transactionWork =
           transaction -> {
@@ -1020,7 +805,9 @@ public class Neo4jIO {
               }
             }
 
-            // No specific Neo4j transaction output beyond what goes to the output
+            // We deliver no specific Neo4j transaction output beyond what goes to the context
+            // output
+            //
             return null;
           };
 
@@ -1038,14 +825,15 @@ public class Neo4jIO {
       }
 
       // There are 2 ways to do a transaction on Neo4j: read or write
+      // It's important that the right type is selected, especially in clustered configurations.
       //
-      if (driverSession.session == null || driverSession.transactionConfig == null) {
+      if (driverSession.session == null) {
         throw new RuntimeException("neo4j session was not initialized correctly");
       } else {
         if (writeTransaction) {
-          driverSession.session.writeTransaction(transactionWork, driverSession.transactionConfig);
+          driverSession.session.writeTransaction(transactionWork, transactionConfig);
         } else {
-          driverSession.session.readTransaction(transactionWork, driverSession.transactionConfig);
+          driverSession.session.readTransaction(transactionWork, transactionConfig);
         }
       }
     }
@@ -1059,8 +847,6 @@ public class Neo4jIO {
    */
   public static class DriverProviderFromDriverConfiguration
       implements SerializableFunction<Void, Driver>, HasDisplayData {
-    private static final ConcurrentHashMap<DriverConfiguration, Driver> instances =
-        new ConcurrentHashMap<>();
     private final DriverConfiguration config;
 
     private DriverProviderFromDriverConfiguration(DriverConfiguration config) {
@@ -1089,13 +875,13 @@ public class Neo4jIO {
 
     abstract @Nullable SerializableFunction<Void, Driver> getDriverProviderFn();
 
-    abstract @Nullable ValueProvider<String> getDatabase();
+    abstract @Nullable ValueProvider<SessionConfig> getSessionConfig();
 
     abstract @Nullable ValueProvider<String> getCypher();
 
     abstract @Nullable ValueProvider<String> getUnwindMapName();
 
-    abstract @Nullable ValueProvider<Long> getTransactionTimeoutMs();
+    abstract @Nullable ValueProvider<TransactionConfig> getTransactionConfig();
 
     abstract @Nullable SerializableFunction<ParameterT, Map<String, Object>>
         getParametersFunction();
@@ -1106,14 +892,12 @@ public class Neo4jIO {
 
     abstract Builder<ParameterT> toBuilder();
 
-    // Driver configuration
     public WriteUnwind<ParameterT> withDriverConfiguration(DriverConfiguration config) {
       return toBuilder()
           .setDriverProviderFn(new DriverProviderFromDriverConfiguration(config))
           .build();
     }
 
-    // Cypher
     public WriteUnwind<ParameterT> withCypher(String cypher) {
       checkArgument(
           cypher != null, "Neo4jIO.writeUnwind().withCypher(query) called with null cypher query");
@@ -1126,7 +910,6 @@ public class Neo4jIO {
       return toBuilder().setCypher(cypher).build();
     }
 
-    // UnwindMapName
     public WriteUnwind<ParameterT> withUnwindMapName(String mapName) {
       checkArgument(
           mapName != null,
@@ -1141,34 +924,33 @@ public class Neo4jIO {
       return toBuilder().setUnwindMapName(mapName).build();
     }
 
-    // Transaction timeout
-    public WriteUnwind<ParameterT> withTransactionTimeoutMs(long timeout) {
+    public WriteUnwind<ParameterT> withTransactionConfig(TransactionConfig transactionConfig) {
       checkArgument(
-          timeout > 0,
-          "Neo4jIO.writeUnwind().withTransactionTimeOutMs(timeout) called with timeout<=0");
-      return withTransactionTimeoutMs(ValueProvider.StaticValueProvider.of(timeout));
+          transactionConfig != null,
+          "Neo4jIO.writeUnwind().withTransactionConfig(config) called with null transactionConfig");
+      return withTransactionConfig(ValueProvider.StaticValueProvider.of(transactionConfig));
     }
 
-    public WriteUnwind<ParameterT> withTransactionTimeoutMs(ValueProvider<Long> timeout) {
+    public WriteUnwind<ParameterT> withTransactionConfig(
+        ValueProvider<TransactionConfig> transactionConfig) {
       checkArgument(
-          timeout != null && timeout.get() > 0,
-          "Neo4jIO.writeUnwind().withTransactionTimeOutMs(timeout) called with timeout<=0");
-      return toBuilder().setTransactionTimeoutMs(timeout).build();
+          transactionConfig != null,
+          "Neo4jIO.writeUnwind().withTransactionConfig(config) called with null transactionConfig");
+      return toBuilder().setTransactionConfig(transactionConfig).build();
     }
 
-    // Database
-    public WriteUnwind<ParameterT> withDatabase(String database) {
+    public WriteUnwind<ParameterT> withSessionConfig(SessionConfig sessionConfig) {
       checkArgument(
-          database != null,
-          "Neo4jIO.writeUnwind().withDatabase(database) called with null database");
-      return withDatabase(ValueProvider.StaticValueProvider.of(database));
+          sessionConfig != null,
+          "Neo4jIO.writeUnwind().withSessionConfig(sessionConfig) called with null sessionConfig");
+      return withSessionConfig(ValueProvider.StaticValueProvider.of(sessionConfig));
     }
 
-    public WriteUnwind<ParameterT> withDatabase(ValueProvider<String> database) {
+    public WriteUnwind<ParameterT> withSessionConfig(ValueProvider<SessionConfig> sessionConfig) {
       checkArgument(
-          database != null,
-          "Neo4jIO.writeUnwind().withDatabase(database) called with null database");
-      return toBuilder().setDatabase(database).build();
+          sessionConfig != null,
+          "Neo4jIO.writeUnwind().withSessionConfig(sessionConfig) called with null sessionConfig");
+      return toBuilder().setSessionConfig(sessionConfig).build();
     }
 
     // Batch size
@@ -1185,7 +967,6 @@ public class Neo4jIO {
       return toBuilder().setBatchSize(batchSize).build();
     }
 
-    // Parameters mapper
     public WriteUnwind<ParameterT> withParametersFunction(
         SerializableFunction<ParameterT, Map<String, Object>> parametersFunction) {
       checkArgument(
@@ -1194,7 +975,6 @@ public class Neo4jIO {
       return toBuilder().setParametersFunction(parametersFunction).build();
     }
 
-    // Logging
     public WriteUnwind<ParameterT> withCypherLogging() {
       return toBuilder().setLogCypher(ValueProvider.StaticValueProvider.of(Boolean.TRUE)).build();
     }
@@ -1205,17 +985,18 @@ public class Neo4jIO {
       final SerializableFunction<Void, Driver> driverProviderFn = getDriverProviderFn();
       final SerializableFunction<ParameterT, Map<String, Object>> parametersFunction =
           getParametersFunction();
-
+      SessionConfig sessionConfig = getProvidedValue(getSessionConfig());
+      if (sessionConfig == null) {
+        sessionConfig = SessionConfig.defaultConfig();
+      }
+      TransactionConfig transactionConfig = getProvidedValue(getTransactionConfig());
+      if (transactionConfig == null) {
+        transactionConfig = TransactionConfig.empty();
+      }
       final String cypher = getProvidedValue(getCypher());
       checkArgument(cypher != null, "please provide an unwind cypher statement to execute");
       final String unwindMapName = getProvidedValue(getUnwindMapName());
       checkArgument(unwindMapName != null, "please provide an unwind map name");
-      final String databaseName = getProvidedValue(getDatabase());
-
-      Long transactionTimeOutMs = getProvidedValue(getTransactionTimeoutMs());
-      if (transactionTimeOutMs == null || transactionTimeOutMs < 0) {
-        transactionTimeOutMs = -1L;
-      }
 
       Long batchSize = getProvidedValue(getBatchSize());
       if (batchSize == null || batchSize <= 0) {
@@ -1236,11 +1017,10 @@ public class Neo4jIO {
       WriteUnwindFn<ParameterT> writeFn =
           new WriteUnwindFn<>(
               driverProviderFn,
+              sessionConfig,
+              transactionConfig,
               cypher,
               parametersFunction,
-              -1,
-              databaseName,
-              transactionTimeOutMs,
               batchSize,
               logCypher,
               unwindMapName);
@@ -1268,14 +1048,14 @@ public class Neo4jIO {
       abstract Builder<ParameterT> setDriverProviderFn(
           SerializableFunction<Void, Driver> driverProviderFn);
 
+      abstract Builder<ParameterT> setSessionConfig(ValueProvider<SessionConfig> sessionConfig);
+
+      abstract Builder<ParameterT> setTransactionConfig(
+          ValueProvider<TransactionConfig> transactionConfig);
+
       abstract Builder<ParameterT> setCypher(ValueProvider<String> cypher);
 
       abstract Builder<ParameterT> setUnwindMapName(ValueProvider<String> unwindMapName);
-
-      abstract Builder<ParameterT> setDatabase(ValueProvider<String> database);
-
-      abstract Builder<ParameterT> setTransactionTimeoutMs(
-          ValueProvider<Long> transactionTimeoutMs);
 
       abstract Builder<ParameterT> setParametersFunction(
           SerializableFunction<ParameterT, Map<String, Object>> parametersFunction);
@@ -1304,15 +1084,14 @@ public class Neo4jIO {
 
     private WriteUnwindFn(
         @NonNull SerializableFunction<Void, Driver> driverProviderFn,
+        @NonNull SessionConfig sessionConfig,
+        @NonNull TransactionConfig transactionConfig,
         @NonNull String cypher,
-        @NonNull SerializableFunction<ParameterT, Map<String, Object>> parametersFunction,
-        long fetchSize,
-        @Nullable String databaseName,
-        long transactionTimeoutMs,
+        @Nullable SerializableFunction<ParameterT, Map<String, Object>> parametersFunction,
         long batchSize,
         boolean logCypher,
         String unwindMapName) {
-      super(driverProviderFn, databaseName, fetchSize, transactionTimeoutMs);
+      super(driverProviderFn, sessionConfig, transactionConfig);
       this.cypher = cypher;
       this.parametersFunction = parametersFunction;
       this.logCypher = logCypher;
@@ -1362,7 +1141,8 @@ public class Neo4jIO {
       final Map<String, Object> parametersMap = new HashMap<>();
       parametersMap.put(unwindMapName, unwindList);
 
-      // The transaction.
+      // Every "write" transaction writes a batch of elements to Neo4j.
+      // The changes to the database are automatically committed.
       //
       TransactionWork<Void> transactionWork =
           transaction -> {
@@ -1386,11 +1166,11 @@ public class Neo4jIO {
         loggingDone = true;
       }
 
-      if (driverSession.session == null || driverSession.transactionConfig == null) {
+      if (driverSession.session == null) {
         throw new RuntimeException("neo4j session was not initialized correctly");
       } else {
         try {
-          driverSession.session.writeTransaction(transactionWork, driverSession.transactionConfig);
+          driverSession.session.writeTransaction(transactionWork, transactionConfig);
         } catch (Exception e) {
           throw new RuntimeException(
               "Error writing " + unwindList.size() + " rows to Neo4j with Cypher: " + cypher, e);
