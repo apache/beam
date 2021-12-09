@@ -18,6 +18,15 @@
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.dao;
 
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics.PARTITION_ID_ATTRIBUTE_LABEL;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_CREATED_AT;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_END_TIMESTAMP;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_FINISHED_AT;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_HEARTBEAT_MILLIS;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_PARENT_TOKENS;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_PARTITION_TOKEN;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_RUNNING_AT;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_SCHEDULED_AT;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_START_TIMESTAMP;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_STATE;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_WATERMARK;
 
@@ -61,6 +70,40 @@ public class PartitionMetadataDao {
   }
 
   /**
+   * Fetches the partition metadata row data for the given partition token.
+   *
+   * @param partitionToken the partition unique identifier
+   * @return the partition metadata for the given token if it exists as a struct. Otherwise, it
+   *     returns null.
+   */
+  public @Nullable Struct getPartition(String partitionToken) {
+    try (Scope scope = TRACER.spanBuilder("getPartition").setRecordEvents(true).startScopedSpan()) {
+      TRACER
+          .getCurrentSpan()
+          .putAttribute(
+              PARTITION_ID_ATTRIBUTE_LABEL, AttributeValue.stringAttributeValue(partitionToken));
+      try (ResultSet resultSet =
+          databaseClient
+              .singleUse()
+              .executeQuery(
+                  Statement.newBuilder(
+                          "SELECT * FROM "
+                              + metadataTableName
+                              + " WHERE "
+                              + COLUMN_PARTITION_TOKEN
+                              + " = @partition")
+                      .bind("partition")
+                      .to(partitionToken)
+                      .build())) {
+        if (resultSet.next()) {
+          return resultSet.getCurrentRowAsStruct();
+        }
+        return null;
+      }
+    }
+  }
+
+  /**
    * Fetches all the partitions from the partition metadata table that are in the given state and
    * returns them ordered by the {@link PartitionMetadataAdminDao#COLUMN_START_TIMESTAMP} column in
    * ascending order.
@@ -77,7 +120,7 @@ public class PartitionMetadataDao {
                       + metadataTableName
                       + " WHERE State = @state"
                       + " ORDER BY "
-                      + PartitionMetadataAdminDao.COLUMN_START_TIMESTAMP
+                      + COLUMN_START_TIMESTAMP
                       + " ASC")
               .bind("state")
               .to(state.toString())
@@ -216,10 +259,10 @@ public class PartitionMetadataDao {
       this.metadataTableName = metadataTableName;
       this.transaction = transaction;
       this.stateToTimestampColumn = new HashMap<>();
-      stateToTimestampColumn.put(State.CREATED, PartitionMetadataAdminDao.COLUMN_CREATED_AT);
-      stateToTimestampColumn.put(State.SCHEDULED, PartitionMetadataAdminDao.COLUMN_SCHEDULED_AT);
-      stateToTimestampColumn.put(State.RUNNING, PartitionMetadataAdminDao.COLUMN_RUNNING_AT);
-      stateToTimestampColumn.put(State.FINISHED, PartitionMetadataAdminDao.COLUMN_FINISHED_AT);
+      stateToTimestampColumn.put(State.CREATED, COLUMN_CREATED_AT);
+      stateToTimestampColumn.put(State.SCHEDULED, COLUMN_SCHEDULED_AT);
+      stateToTimestampColumn.put(State.RUNNING, COLUMN_RUNNING_AT);
+      stateToTimestampColumn.put(State.FINISHED, COLUMN_FINISHED_AT);
     }
 
     /**
@@ -334,7 +377,7 @@ public class PartitionMetadataDao {
                         "SELECT * FROM "
                             + metadataTableName
                             + " WHERE "
-                            + PartitionMetadataAdminDao.COLUMN_PARTITION_TOKEN
+                            + COLUMN_PARTITION_TOKEN
                             + " = @partition")
                     .bind("partition")
                     .to(partitionToken)
@@ -349,21 +392,21 @@ public class PartitionMetadataDao {
 
     private Mutation createInsertMetadataMutationFrom(PartitionMetadata partitionMetadata) {
       return Mutation.newInsertBuilder(metadataTableName)
-          .set(PartitionMetadataAdminDao.COLUMN_PARTITION_TOKEN)
+          .set(COLUMN_PARTITION_TOKEN)
           .to(partitionMetadata.getPartitionToken())
-          .set(PartitionMetadataAdminDao.COLUMN_PARENT_TOKENS)
+          .set(COLUMN_PARENT_TOKENS)
           .toStringArray(partitionMetadata.getParentTokens())
-          .set(PartitionMetadataAdminDao.COLUMN_START_TIMESTAMP)
+          .set(COLUMN_START_TIMESTAMP)
           .to(partitionMetadata.getStartTimestamp())
-          .set(PartitionMetadataAdminDao.COLUMN_END_TIMESTAMP)
+          .set(COLUMN_END_TIMESTAMP)
           .to(partitionMetadata.getEndTimestamp())
-          .set(PartitionMetadataAdminDao.COLUMN_HEARTBEAT_MILLIS)
+          .set(COLUMN_HEARTBEAT_MILLIS)
           .to(partitionMetadata.getHeartbeatMillis())
           .set(COLUMN_STATE)
           .to(partitionMetadata.getState().toString())
           .set(COLUMN_WATERMARK)
           .to(partitionMetadata.getWatermark())
-          .set(PartitionMetadataAdminDao.COLUMN_CREATED_AT)
+          .set(COLUMN_CREATED_AT)
           .to(Value.COMMIT_TIMESTAMP)
           .build();
     }
@@ -374,7 +417,7 @@ public class PartitionMetadataDao {
         throw new IllegalArgumentException("No timestamp column name found for state " + state);
       }
       return Mutation.newUpdateBuilder(metadataTableName)
-          .set(PartitionMetadataAdminDao.COLUMN_PARTITION_TOKEN)
+          .set(COLUMN_PARTITION_TOKEN)
           .to(partitionToken)
           .set(COLUMN_STATE)
           .to(state.toString())
@@ -386,7 +429,7 @@ public class PartitionMetadataDao {
     private Mutation createUpdateMetadataWatermarkMutationFrom(
         String partitionToken, Timestamp watermark) {
       return Mutation.newUpdateBuilder(metadataTableName)
-          .set(PartitionMetadataAdminDao.COLUMN_PARTITION_TOKEN)
+          .set(COLUMN_PARTITION_TOKEN)
           .to(partitionToken)
           .set(COLUMN_WATERMARK)
           .to(watermark)
