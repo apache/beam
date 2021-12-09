@@ -1125,8 +1125,8 @@ public class DoFnOperator<InputT, OutputT>
     }
 
     private void buffer(KV<Integer, WindowedValue<?>> taggedValue) {
+      bufferLock.lock();
       try {
-        bufferLock.lock();
         pushedBackElementsHandler.pushBack(taggedValue);
       } catch (Exception e) {
         throw new RuntimeException("Couldn't pushback element.", e);

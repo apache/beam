@@ -39,7 +39,6 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
-import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessElements;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
@@ -137,21 +136,6 @@ class TransformEvaluatorRegistry {
               SplittableParDoViaKeyedWorkItems.ProcessElements.class,
               TransformPayloadTranslator.NotSerializable.forUrn(SPLITTABLE_PROCESS_URN))
           .build();
-    }
-  }
-
-  /**
-   * A translator just to vend the URN. This will need to be moved to runners-core-construction-java
-   * once SDF is reorganized appropriately.
-   */
-  private static class SplittableParDoProcessElementsTranslator
-      extends TransformPayloadTranslator.NotSerializable<ProcessElements<?, ?, ?, ?, ?>> {
-
-    private SplittableParDoProcessElementsTranslator() {}
-
-    @Override
-    public String getUrn(ProcessElements<?, ?, ?, ?, ?> transform) {
-      return SPLITTABLE_PROCESS_URN;
     }
   }
 
