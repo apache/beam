@@ -426,7 +426,7 @@ func TestPlaygroundController_GetRunOutput(t *testing.T) {
 			// As a result want to receive response with an expected run output.
 			name: "run output exist",
 			prepare: func() {
-				_ = cacheService.SetValue(ctx, pipelineId, cache.RunOutputIndex, 0)
+				_ = cacheService.SetValue(ctx, pipelineId, cache.RunOutputIndex, float64(0))
 				_ = cacheService.SetValue(ctx, pipelineId, cache.RunOutput, runOutput)
 			},
 			args: args{
@@ -441,7 +441,7 @@ func TestPlaygroundController_GetRunOutput(t *testing.T) {
 			// As a result want to receive response with correct output (output[1:]).
 			name: "get the second part",
 			prepare: func() {
-				_ = cacheService.SetValue(ctx, pipelineId, cache.RunOutputIndex, 1)
+				_ = cacheService.SetValue(ctx, pipelineId, cache.RunOutputIndex, float64(1))
 				_ = cacheService.SetValue(ctx, pipelineId, cache.RunOutput, runOutput)
 			},
 			args: args{
@@ -535,7 +535,7 @@ func TestPlaygroundController_GetLogs(t *testing.T) {
 			// As a result want to receive response with an expected logs.
 			name: "logs exist",
 			prepare: func() {
-				_ = cacheService.SetValue(ctx, pipelineId, cache.LogsIndex, 0)
+				_ = cacheService.SetValue(ctx, pipelineId, cache.LogsIndex, float64(0))
 				_ = cacheService.SetValue(ctx, pipelineId, cache.Logs, logs)
 			},
 			args: args{
@@ -550,7 +550,7 @@ func TestPlaygroundController_GetLogs(t *testing.T) {
 			// As a result want to receive response with correct logs (logs[1:]).
 			name: "get the second part",
 			prepare: func() {
-				_ = cacheService.SetValue(ctx, pipelineId, cache.LogsIndex, 1)
+				_ = cacheService.SetValue(ctx, pipelineId, cache.LogsIndex, float64(1))
 				_ = cacheService.SetValue(ctx, pipelineId, cache.Logs, logs)
 			},
 			args: args{

@@ -452,7 +452,7 @@ func TestGetLastIndex(t *testing.T) {
 	defer goleak.VerifyNone(t, opt)
 	pipelineId := uuid.New()
 	incorrectConvertPipelineId := uuid.New()
-	err := cacheService.SetValue(context.Background(), pipelineId, cache.RunOutputIndex, 2)
+	err := cacheService.SetValue(context.Background(), pipelineId, cache.RunOutputIndex, float64(2))
 	if err != nil {
 		panic(err)
 	}
