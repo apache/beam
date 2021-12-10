@@ -336,7 +336,7 @@ class WriteToPubSub(PTransform):
     # type: (bytes) -> bytes
     msg = pubsub.types.PubsubMessage()
     msg.data = element
-    return msg.SerializeToString()
+    return pubsub.types.PubsubMessage.serialize(msg)
 
   def expand(self, pcoll):
     if self.with_attributes:
