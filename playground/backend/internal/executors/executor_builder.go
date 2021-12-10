@@ -16,7 +16,7 @@
 package executors
 
 import (
-	"beam.apache.org/playground/backend/internal/preparators"
+	"beam.apache.org/playground/backend/internal/preparers"
 	"beam.apache.org/playground/backend/internal/validators"
 )
 
@@ -181,10 +181,10 @@ func (b *ValidatorBuilder) WithSdkValidators(validators *[]validators.Validator)
 	return b
 }
 
-//WithSdkPreparators sets preparators to executor
-func (b *PreparatorBuilder) WithSdkPreparators(preparators *[]preparators.Preparator) *PreparatorBuilder {
+//WithSdkPreparators sets preparers to executor
+func (b *PreparatorBuilder) WithSdkPreparators(preparators *[]preparers.Preparer) *PreparatorBuilder {
 	b.actions = append(b.actions, func(e *Executor) {
-		e.preparators = *preparators
+		e.preparers = *preparators
 	})
 	return b
 }

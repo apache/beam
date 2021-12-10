@@ -17,21 +17,21 @@ package utils
 
 import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
-	"beam.apache.org/playground/backend/internal/preparators"
+	"beam.apache.org/playground/backend/internal/preparers"
 	"fmt"
 	"regexp"
 )
 
-// GetPreparators returns slice of preparators.Preparator according to sdk
-func GetPreparators(sdk pb.Sdk, filepath string) (*[]preparators.Preparator, error) {
-	var prep *[]preparators.Preparator
+// GetPreparators returns slice of preparers.Preparer according to sdk
+func GetPreparators(sdk pb.Sdk, filepath string) (*[]preparers.Preparer, error) {
+	var prep *[]preparers.Preparer
 	switch sdk {
 	case pb.Sdk_SDK_JAVA:
-		prep = preparators.GetJavaPreparators(filepath)
+		prep = preparers.GetJavaPreparers(filepath)
 	case pb.Sdk_SDK_GO:
-		prep = preparators.GetGoPreparators(filepath)
+		prep = preparers.GetGoPreparers(filepath)
 	case pb.Sdk_SDK_PYTHON:
-		prep = preparators.GetPythonPreparators(filepath)
+		prep = preparers.GetPythonPreparers(filepath)
 	default:
 		return nil, fmt.Errorf("incorrect sdk: %s", sdk)
 	}

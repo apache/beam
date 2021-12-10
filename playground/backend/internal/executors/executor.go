@@ -16,7 +16,7 @@
 package executors
 
 import (
-	"beam.apache.org/playground/backend/internal/preparators"
+	"beam.apache.org/playground/backend/internal/preparers"
 	"beam.apache.org/playground/backend/internal/validators"
 	"context"
 	"os/exec"
@@ -45,7 +45,7 @@ type Executor struct {
 	runArgs     CmdConfiguration
 	testArgs    CmdConfiguration
 	validators  []validators.Validator
-	preparators []preparators.Preparator
+	preparers   []preparers.Preparer
 }
 
 // Validate returns the function that applies all validators of executor
@@ -76,9 +76,9 @@ func (ex *Executor) Validate() func(chan bool, chan error, *sync.Map) {
 }
 
 // Prepare returns the function that applies all preparations of executor
-func (ex *Executor) Prepare() func(chan bool, chan error, *sync.Map, string) {
-	return func(doneCh chan bool, errCh chan error, valRes *sync.Map, filePath string) {
-		for _, preparator := range ex.preparators {
+func (ex *Executor) Prepare() func(chan bool, chan error, *sync.Map) {
+	return func(doneCh chan bool, errCh chan error, valRes *sync.Map) {
+		for _, preparator := range ex.preparers {
 			preparator.Args = append(preparator.Args, valRes)
 			err := preparator.Prepare(preparator.Args...)
 			if err != nil {

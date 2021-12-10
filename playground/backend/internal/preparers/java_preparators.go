@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package preparators
+package preparers
 
 import (
 	"beam.apache.org/playground/backend/internal/logger"
@@ -37,30 +37,21 @@ const (
 	tmpFileSuffix                     = "tmp"
 )
 
-// GetJavaPreparators returns preparation methods that should be applied to Java code
-func GetJavaPreparators(filePath string) *[]Preparator {
-	removePublicClassPreparator := Preparator{
-		Prepare: removePublicClass,
+// GetJavaPreparers returns preparation methods that should be applied to Java code
+func GetJavaPreparers(filePath string) *[]Preparer {
+	removePublicClassPreparer := Preparer{
+		Prepare: replace,
 		Args:    []interface{}{filePath, classWithPublicModifierPattern, classWithoutPublicModifierPattern},
 	}
-	changePackagePreparator := Preparator{
+	changePackagePreparer := Preparer{
 		Prepare: changePackage,
 		Args:    []interface{}{filePath, packagePattern, importStringPattern},
 	}
-	removePackagePreparator := Preparator{
+	removePackagePreparer := Preparer{
 		Prepare: removePackage,
 		Args:    []interface{}{filePath, packagePattern, newLinePattern},
 	}
-	return &[]Preparator{removePublicClassPreparator, changePackagePreparator, removePackagePreparator}
-}
-
-//removePublicClass changes the 'public class' in the code to 'class'
-func removePublicClass(args ...interface{}) error {
-	err := replace(args...)
-	if err != nil {
-		return err
-	}
-	return nil
+	return &[]Preparer{removePublicClassPreparer, changePackagePreparer, removePackagePreparer}
 }
 
 //changePackage changes the 'package' to 'import' and the last directory in the package value to '*'
@@ -71,10 +62,7 @@ func changePackage(args ...interface{}) error {
 		return nil
 	}
 	err := replace(args...)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 //removePackage remove the package line in the katas.
@@ -83,9 +71,7 @@ func removePackage(args ...interface{}) error {
 	isKata, ok := valRes.Load(validators.KatasValidatorName)
 	if ok && isKata.(bool) {
 		err := replace(args...)
-		if err != nil {
-			return err
-		}
+		return err
 	}
 	return nil
 }
