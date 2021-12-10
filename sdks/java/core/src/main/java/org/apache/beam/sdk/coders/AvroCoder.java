@@ -38,10 +38,7 @@ import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.Conversion;
 import org.apache.avro.LogicalType;
 import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericDatumReader;
-import org.apache.avro.generic.GenericDatumWriter;
-import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.generic.IndexedRecord;
+import org.apache.avro.generic.*;
 import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.DatumReader;
@@ -158,7 +155,9 @@ public class AvroCoder<T> extends CustomCoder<T> {
    * @param <T> the element type
    */
   public static <T> AvroCoder<T> of(Class<T> type, boolean useReflectApi) {
-    return of(type, new ReflectData(type.getClassLoader()).getSchema(type), useReflectApi);
+    ClassLoader cl = type.getClassLoader();
+    SpecificData data = useReflectApi ? new ReflectData(cl) : new SpecificData(cl);
+    return of(type, data.getSchema(type), useReflectApi);
   }
 
   /**
@@ -771,12 +770,13 @@ public class AvroCoder<T> extends CustomCoder<T> {
     }
     AvroCoder<?> that = (AvroCoder<?>) other;
     return Objects.equals(this.schemaSupplier.get(), that.schemaSupplier.get())
-        && Objects.equals(this.typeDescriptor, that.typeDescriptor);
+        && Objects.equals(this.typeDescriptor, that.typeDescriptor)
+        && Objects.equals(this.useReflectApi, that.useReflectApi);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(schemaSupplier.get(), typeDescriptor);
+    return Objects.hash(schemaSupplier.get(), typeDescriptor, useReflectApi);
   }
 
   /**
