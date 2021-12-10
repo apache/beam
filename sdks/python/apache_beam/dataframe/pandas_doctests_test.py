@@ -57,7 +57,10 @@ class DoctestTest(unittest.TestCase):
                 # These inputs rely on tail (wont implement, order
                 # sensitive) for verification
                 "df.tail()",
-                "df.loc['2016-01-05':'2016-01-10', :].tail()",
+                "df.truncate(before=pd.Timestamp('2016-01-05'),\n"
+                "            after=pd.Timestamp('2016-01-10')).tail()",
+                "df.truncate('2016-01-05', '2016-01-10').tail()",
+                "df.loc['2016-01-05':'2016-01-10', :].tail()"
             ],
             'pandas.core.generic.NDFrame.replace': [
                 "s.replace([1, 2], method='bfill')",

@@ -207,7 +207,7 @@ func processSetupError(err error, pipelineId uuid.UUID, cacheService cache.Cache
 func GetProcessingOutput(ctx context.Context, cacheService cache.Cache, key uuid.UUID, subKey cache.SubKey, errorTitle string) (string, error) {
 	value, err := cacheService.GetValue(ctx, key, subKey)
 	if err != nil {
-		logger.Errorf("%s: GetStringValueFromCache(): cache.GetValue: error: %s", key, err.Error())
+		logger.Errorf("%s: GetProcessingOutput(): cache.GetValue: error: %s", key, err.Error())
 		return "", errors.NotFoundError(errorTitle, "Error during getting cache by key: %s, subKey: %s", key.String(), string(subKey))
 	}
 	stringValue, converted := value.(string)
@@ -224,7 +224,7 @@ func GetProcessingOutput(ctx context.Context, cacheService cache.Cache, key uuid
 func GetProcessingStatus(ctx context.Context, cacheService cache.Cache, key uuid.UUID, errorTitle string) (pb.Status, error) {
 	value, err := cacheService.GetValue(ctx, key, cache.Status)
 	if err != nil {
-		logger.Errorf("%s: GetStringValueFromCache(): cache.GetValue: error: %s", key, err.Error())
+		logger.Errorf("%s: GetProcessingStatus(): cache.GetValue: error: %s", key, err.Error())
 		return pb.Status_STATUS_UNSPECIFIED, errors.NotFoundError(errorTitle, "Error during getting cache by key: %s, subKey: %s", key.String(), string(cache.Status))
 	}
 	statusValue, converted := value.(pb.Status)
@@ -244,12 +244,12 @@ func GetLastIndex(ctx context.Context, cacheService cache.Cache, key uuid.UUID, 
 		logger.Errorf("%s: GetLastIndex(): cache.GetValue: error: %s", key, err.Error())
 		return 0, errors.NotFoundError(errorTitle, "Error during getting cache by key: %s, subKey: %s", key.String(), string(subKey))
 	}
-	intValue, converted := value.(int)
+	convertedValue, converted := value.(float64)
 	if !converted {
-		logger.Errorf("%s: couldn't convert value to int: %s", key, value)
+		logger.Errorf("%s: couldn't convert value to int. value: %s type %s", key, value, reflect.TypeOf(value))
 		return 0, errors.InternalError(errorTitle, "Value from cache couldn't be converted to int: %s", value)
 	}
-	return intValue, nil
+	return int(convertedValue), nil
 }
 
 // runCmdWithOutput runs command with keeping stdOut and stdErr
