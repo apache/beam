@@ -10,6 +10,7 @@
   "run_args": [
   ],
   "test_args": [
-    "test"
+    "test",
+    "-v"
   ]
 }
