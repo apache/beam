@@ -27,7 +27,7 @@ enableJavaPerformanceTesting()
 description = "Apache Beam :: SDKs :: Java :: IO :: Elasticsearch-Tests :: 6.x"
 ext.summary = "Tests of ElasticsearchIO on Elasticsearch 6.x"
 
-def log4j_version = "2.14.1"
+def log4j_version = "2.15.0"
 def elastic_search_version = "6.4.0"
 
 configurations.all {
