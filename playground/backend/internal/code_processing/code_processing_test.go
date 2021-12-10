@@ -40,6 +40,8 @@ import (
 
 const (
 	javaConfig     = "{\n  \"compile_cmd\": \"javac\",\n  \"run_cmd\": \"java\",\n  \"test_cmd\": \"java\",\n  \"compile_args\": [\n    \"-d\",\n    \"bin\",\n    \"-classpath\"\n  ],\n  \"run_args\": [\n    \"-cp\",\n    \"bin:\"\n  ],\n  \"test_args\": [\n    \"-cp\",\n    \"bin:\",\n    \"JUnit\"\n  ]\n}"
+	pythonConfig   = "{\n  \"compile_cmd\": \"\",\n  \"run_cmd\": \"python3\",\n  \"compile_args\": [],\n  \"run_args\": []\n}"
+	goConfig       = "{\n  \"compile_cmd\": \"go\",\n  \"run_cmd\": \"\",\n  \"compile_args\": [\n    \"build\",\n    \"-o\",\n    \"bin\"\n  ],\n  \"run_args\": [\n  ]\n}"
 	fileName       = "fakeFileName"
 	baseFileFolder = "executable_files"
 	configFolder   = "configs"
@@ -643,5 +645,186 @@ func Test_getRunOrTestCmd(t *testing.T) {
 				t.Errorf("getExecuteCmd() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func setupBenchmarks(sdk pb.Sdk) {
+	err := os.MkdirAll(configFolder, fs.ModePerm)
+	if err != nil {
+		panic(err)
+	}
+	filePath := filepath.Join(configFolder, sdk.String()+".json")
+	switch sdk {
+	case pb.Sdk_SDK_JAVA:
+		err = os.WriteFile(filePath, []byte(javaConfig), 0600)
+	case pb.Sdk_SDK_PYTHON:
+		err = os.WriteFile(filePath, []byte(pythonConfig), 0600)
+	case pb.Sdk_SDK_GO:
+		err = os.WriteFile(filePath, []byte(goConfig), 0600)
+	}
+	if err != nil {
+		panic(err)
+	}
+
+	os.Setenv("BEAM_SDK", sdk.String())
+	os.Setenv("APP_WORK_DIR", "")
+	os.Setenv("PREPARED_MOD_DIR", "")
+
+	cacheService = local.New(context.Background())
+}
+
+func teardownBenchmarks() {
+	err := os.RemoveAll(configFolder)
+	if err != nil {
+		panic(fmt.Errorf("error during test teardown: %s", err.Error()))
+	}
+	err = os.RemoveAll(baseFileFolder)
+	if err != nil {
+		panic(fmt.Errorf("error during test teardown: %s", err.Error()))
+	}
+}
+
+func prepareFiles(b *testing.B, pipelineId uuid.UUID, code string, sdk pb.Sdk) *fs_tool.LifeCycle {
+	lc, err := fs_tool.NewLifeCycle(sdk, pipelineId, "")
+	if err != nil {
+		b.Fatalf("error during initializse lc: %s", err.Error())
+	}
+	err = lc.CreateFolders()
+	if err != nil {
+		b.Fatalf("error during prepare folders: %s", err.Error())
+	}
+	_, err = lc.CreateSourceCodeFile(code)
+	if err != nil {
+		b.Fatalf("error during prepare source code file: %s", err.Error())
+	}
+	return lc
+}
+
+func Benchmark_ProcessJava(b *testing.B) {
+	setupBenchmarks(pb.Sdk_SDK_JAVA)
+	defer teardownBenchmarks()
+
+	appEnv, err := environment.GetApplicationEnvsFromOsEnvs()
+	if err != nil {
+		b.Fatalf("error during preparing appEnv: %s", err)
+	}
+	sdkEnv, err := environment.ConfigureBeamEnvs(appEnv.WorkingDir())
+	if err != nil {
+		b.Fatalf("error during preparing sdkEnv: %s", err)
+	}
+
+	ctx := context.Background()
+	code := "class HelloWorld {\n    public static void main(String[] args) {\n        System.out.println(\"Hello world!\");\n    }\n}"
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		pipelineId := uuid.New()
+		lc := prepareFiles(b, pipelineId, code, pb.Sdk_SDK_JAVA)
+		b.StartTimer()
+
+		Process(ctx, cacheService, lc, pipelineId, appEnv, sdkEnv, "")
+	}
+}
+
+func Benchmark_ProcessPython(b *testing.B) {
+	setupBenchmarks(pb.Sdk_SDK_PYTHON)
+	defer teardownBenchmarks()
+
+	appEnv, err := environment.GetApplicationEnvsFromOsEnvs()
+	if err != nil {
+		b.Fatalf("error during preparing appEnv: %s", err)
+	}
+	sdkEnv, err := environment.ConfigureBeamEnvs(appEnv.WorkingDir())
+	if err != nil {
+		b.Fatalf("error during preparing sdkEnv: %s", err)
+	}
+
+	ctx := context.Background()
+	code := "if __name__ == \"__main__\":\n    print(\"Hello world!\")\n"
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		pipelineId := uuid.New()
+		lc := prepareFiles(b, pipelineId, code, pb.Sdk_SDK_PYTHON)
+		b.StartTimer()
+
+		Process(ctx, cacheService, lc, pipelineId, appEnv, sdkEnv, "")
+	}
+}
+
+func Benchmark_ProcessGo(b *testing.B) {
+	setupBenchmarks(pb.Sdk_SDK_GO)
+	defer teardownBenchmarks()
+
+	appEnv, err := environment.GetApplicationEnvsFromOsEnvs()
+	if err != nil {
+		b.Fatalf("error during preparing appEnv: %s", err)
+	}
+	sdkEnv, err := environment.ConfigureBeamEnvs(appEnv.WorkingDir())
+	if err != nil {
+		b.Fatalf("error during preparing sdkEnv: %s", err)
+	}
+
+	ctx := context.Background()
+	code := "package main\n\nimport \"fmt\"\n\nfunc main() {\n    fmt.Println(\"Hello world!\")\n}"
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		pipelineId := uuid.New()
+		lc := prepareFiles(b, pipelineId, code, pb.Sdk_SDK_GO)
+		b.StartTimer()
+
+		Process(ctx, cacheService, lc, pipelineId, appEnv, sdkEnv, "")
+	}
+}
+
+func Benchmark_GetProcessingOutput(b *testing.B) {
+	pipelineId := uuid.New()
+	subKey := cache.RunOutput
+	ctx := context.Background()
+
+	err := cacheService.SetValue(ctx, pipelineId, subKey, "MOCK_RUN_OUTPUT")
+	if err != nil {
+		b.Fatalf("error during prepare cache value: %s", err.Error())
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = GetProcessingOutput(ctx, cacheService, pipelineId, subKey, "")
+	}
+}
+
+func Benchmark_GetProcessingStatus(b *testing.B) {
+	pipelineId := uuid.New()
+	subKey := cache.Status
+	ctx := context.Background()
+
+	err := cacheService.SetValue(ctx, pipelineId, subKey, pb.Status_STATUS_FINISHED)
+	if err != nil {
+		b.Fatalf("error during prepare cache value: %s", err.Error())
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = GetProcessingStatus(ctx, cacheService, pipelineId, "")
+	}
+}
+
+func Benchmark_GetLastIndex(b *testing.B) {
+	pipelineId := uuid.New()
+	subKey := cache.RunOutputIndex
+	ctx := context.Background()
+
+	err := cacheService.SetValue(ctx, pipelineId, subKey, 5)
+	if err != nil {
+		b.Fatalf("error during prepare cache value: %s", err.Error())
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = GetLastIndex(ctx, cacheService, pipelineId, subKey, "")
 	}
 }
