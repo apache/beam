@@ -107,6 +107,57 @@ import redis.clients.jedis.StreamEntryID;
  *   .apply(RedisIO.write().withEndpoint("::1", 6379))
  *
  * }</pre>
+ *
+ * <h3>Writing Redis Streams</h3>
+ *
+ * <p>{@link #writeStreams()} provides a sink to write key/value pairs represented as {@link KV}
+ * where the key is a {@link String} and the value is a {@link Map} of {@link String} to {@link
+ * String} from an incoming {@link PCollection} using the Redis <a
+ * href='https://redis.io/commands/XADD'>XADD</a> API.
+ *
+ * <p>To configure the target Redis server, you have to provide a Redis server hostname and port
+ * number. The following example illustrates how to configure a sink:
+ *
+ * <pre>{@code
+ * pipeline.apply(...)
+ *   // here we have a PCollection<KV<String, Map<String, String>>>
+ *   .apply(RedisIO.writeStreams().withEndpoint("::1", 6379))
+ * }</pre>
+ *
+ * <p>Redis Streams optionally can be capped to a specific or exact length (see the documentation
+ * for the <a href="https://redis.io/commands/xtrim">XTRIM</a> API); {@link #writeStreams()} lets
+ * you specify MAXLEN using the
+ *
+ * <pre>withMaxLen()</pre>
+ *
+ * option.
+ *
+ * <p>Trimming a stream to an exact length is noted in the Redis documentation as being inefficient;
+ * the
+ *
+ * <pre>withApproximateTrim()</pre>
+ *
+ * boolean option will add the
+ *
+ * <pre>~</pre>
+ *
+ * prefix to
+ *
+ * <pre>MAXLEN</pre>
+ *
+ * , which tells Redis to use "almost exact" trimming. See the <a
+ * href="https://redis.io/topics/streams-intro">Redis Streams documentation</a> for a deeper
+ * discussion. The following example illustrates how to configure a sink with triming:
+ *
+ * <pre>{@code
+ * pipeline.apply(...)
+ *   // here we have a PCollection<KV<String, Map<String, String>>>
+ *   .apply(RedisIO.writeStreams()
+ *     .withEndpoint("::1", 6379)
+ *     .withMaxLen(1024L)
+ *     .withApproximateTrim(true)
+ *    )
+ * }</pre>
  */
 @Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
@@ -144,7 +195,7 @@ public class RedisIO {
         .build();
   }
 
-  /** Write data to a Redis server. */
+  /** Write stream data to a Redis server. */
   public static WriteStreams writeStreams() {
     return new AutoValue_RedisIO_WriteStreams.Builder()
         .setConnectionConfiguration(RedisConnectionConfiguration.create())
@@ -737,27 +788,15 @@ public class RedisIO {
   public abstract static class WriteStreams
       extends PTransform<PCollection<KV<String, Map<String, String>>>, PDone> {
 
-    abstract @Nullable RedisConnectionConfiguration connectionConfiguration();
+    abstract RedisConnectionConfiguration connectionConfiguration();
 
-    abstract @Nullable Long maxLen();
+    abstract long maxLen();
 
     abstract boolean approximateTrim();
 
     abstract Builder toBuilder();
 
-    @AutoValue.Builder
-    abstract static class Builder {
-
-      abstract Builder setConnectionConfiguration(
-          RedisConnectionConfiguration connectionConfiguration);
-
-      abstract Builder setMaxLen(Long maxLen);
-
-      abstract Builder setApproximateTrim(boolean approximateTrim);
-
-      abstract WriteStreams build();
-    }
-
+    /** Set the hostname and port of the Redis server to connect to. */
     public WriteStreams withEndpoint(String host, int port) {
       checkArgument(host != null, "host can not be null");
       checkArgument(port > 0, "port can not be negative or 0");
@@ -766,6 +805,11 @@ public class RedisIO {
           .build();
     }
 
+    /**
+     * Use the redis AUTH command when connecting to the server; the format of the string can be
+     * either just a password or a username and password separated by a space. See
+     * https://redis.io/commands/auth for details
+     */
     public WriteStreams withAuth(String auth) {
       checkArgument(auth != null, "auth can not be null");
       return toBuilder()
@@ -773,6 +817,7 @@ public class RedisIO {
           .build();
     }
 
+    /** Set the connection timeout for the Redis server connection. */
     public WriteStreams withTimeout(int timeout) {
       checkArgument(timeout >= 0, "timeout can not be negative");
       return toBuilder()
@@ -780,18 +825,37 @@ public class RedisIO {
           .build();
     }
 
+    /** Predefine a {@link RedisConnectionConfiguration} and pass it to the builder. */
     public WriteStreams withConnectionConfiguration(RedisConnectionConfiguration connection) {
       checkArgument(connection != null, "connection can not be null");
       return toBuilder().setConnectionConfiguration(connection).build();
     }
 
-    public WriteStreams withMaxLen(Long maxLen) {
+    /** When appending (XADD) to a stream, set a MAXLEN option. */
+    public WriteStreams withMaxLen(long maxLen) {
       checkArgument(maxLen >= 0L, "maxLen must be positive if set");
       return toBuilder().setMaxLen(maxLen).build();
     }
 
+    /**
+     * If {@link #withMaxLen(long)} is used, set the "~" prefix to the MAXLEN value, indicating to
+     * the server that it should use "close enough" trimming.
+     */
     public WriteStreams withApproximateTrim(boolean approximateTrim) {
       return toBuilder().setApproximateTrim(approximateTrim).build();
+    }
+
+    @AutoValue.Builder
+    abstract static class Builder {
+
+      abstract Builder setConnectionConfiguration(
+          RedisConnectionConfiguration connectionConfiguration);
+
+      abstract Builder setMaxLen(long maxLen);
+
+      abstract Builder setApproximateTrim(boolean approximateTrim);
+
+      abstract WriteStreams build();
     }
 
     @Override
