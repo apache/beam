@@ -533,8 +533,9 @@ class TriggerCopyJobs(beam.DoFn):
     if not self.bq_io_metadata:
       self.bq_io_metadata = create_bigquery_io_metadata(self._step_name)
 
-    project_id = copy_to_reference.projectId \
-        if self.load_job_project_id is None else self.load_job_project_id
+    project_id = (
+        copy_to_reference.projectId
+        if self.load_job_project_id is None else self.load_job_project_id)
     job_reference = self.bq_wrapper._insert_copy_job(
         project_id,
         copy_job_name,

@@ -1006,8 +1006,9 @@ class BigQueryWrapper(object):
           'Only one of source_uris and source_stream may be specified. '
           'Got both.')
 
-    project_id = destination.projectId if load_job_project_id is None\
-        else load_job_project_id
+    project_id = (
+        destination.projectId
+        if load_job_project_id is None else load_job_project_id)
 
     return self._insert_load_job(
         project_id,
