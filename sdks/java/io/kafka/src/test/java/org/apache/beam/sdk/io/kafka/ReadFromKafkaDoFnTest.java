@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.kafka;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -48,6 +49,7 @@ import org.apache.kafka.common.serialization.StringDeserializer;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
@@ -87,7 +89,8 @@ public class ReadFromKafkaDoFnTest {
     private boolean isRemoved = false;
     private long currentPos = 0L;
     private long startOffset = 0L;
-    private long startOffsetForTime = 0L;
+    private KV<Long, Instant> startOffsetForTime = KV.of(0L, Instant.now());
+    private KV<Long, Instant> stopOffsetForTime = KV.of(Long.MAX_VALUE, null);
     private long numOfRecordsPerPoll;
 
     public SimpleMockKafkaConsumer(
@@ -100,7 +103,8 @@ public class ReadFromKafkaDoFnTest {
       this.isRemoved = false;
       this.currentPos = 0L;
       this.startOffset = 0L;
-      this.startOffsetForTime = 0L;
+      this.startOffsetForTime = KV.of(0L, Instant.now());
+      this.stopOffsetForTime = KV.of(Long.MAX_VALUE, null);
       this.numOfRecordsPerPoll = 0L;
     }
 
@@ -116,8 +120,12 @@ public class ReadFromKafkaDoFnTest {
       this.currentPos = pos;
     }
 
-    public void setStartOffsetForTime(long pos) {
-      this.startOffsetForTime = pos;
+    public void setStartOffsetForTime(long offset, Instant time) {
+      this.startOffsetForTime = KV.of(offset, time);
+    }
+
+    public void setStopOffsetForTime(long offset, Instant time) {
+      this.stopOffsetForTime = KV.of(offset, time);
     }
 
     @Override
@@ -144,7 +152,7 @@ public class ReadFromKafkaDoFnTest {
     }
 
     @Override
-    public synchronized ConsumerRecords<byte[], byte[]> poll(long timeout) {
+    public synchronized ConsumerRecords<byte[], byte[]> poll(Duration timeout) {
       if (topicPartition == null) {
         return ConsumerRecords.empty();
       }
@@ -173,10 +181,14 @@ public class ReadFromKafkaDoFnTest {
           Iterables.getOnlyElement(
                   timestampsToSearch.keySet().stream().collect(Collectors.toList()))
               .equals(this.topicPartition));
-      return ImmutableMap.of(
-          topicPartition,
-          new OffsetAndTimestamp(
-              this.startOffsetForTime, Iterables.getOnlyElement(timestampsToSearch.values())));
+      Long timeToSearch = Iterables.getOnlyElement(timestampsToSearch.values());
+      Long returnOffset = 0L;
+      if (timeToSearch == this.startOffsetForTime.getValue().getMillis()) {
+        returnOffset = this.startOffsetForTime.getKey();
+      } else if (timeToSearch == this.stopOffsetForTime.getValue().getMillis()) {
+        returnOffset = this.stopOffsetForTime.getKey();
+      }
+      return ImmutableMap.of(topicPartition, new OffsetAndTimestamp(returnOffset, timeToSearch));
     }
 
     @Override
@@ -239,24 +251,61 @@ public class ReadFromKafkaDoFnTest {
   @Test
   public void testInitialRestrictionWhenHasStartOffset() throws Exception {
     long expectedStartOffset = 10L;
-    consumer.setStartOffsetForTime(15L);
+    consumer.setStartOffsetForTime(15L, Instant.now());
     consumer.setCurrentPos(5L);
     OffsetRange result =
         dofnInstance.initialRestriction(
             KafkaSourceDescriptor.of(
-                topicPartition, expectedStartOffset, Instant.now(), ImmutableList.of()));
+                topicPartition, expectedStartOffset, null, null, null, ImmutableList.of()));
     assertEquals(new OffsetRange(expectedStartOffset, Long.MAX_VALUE), result);
+  }
+
+  @Test
+  public void testInitialRestrictionWhenHasStopOffset() throws Exception {
+    long expectedStartOffset = 10L;
+    long expectedStopOffset = 20L;
+    consumer.setStartOffsetForTime(15L, Instant.now());
+    consumer.setStopOffsetForTime(18L, Instant.now());
+    consumer.setCurrentPos(5L);
+    OffsetRange result =
+        dofnInstance.initialRestriction(
+            KafkaSourceDescriptor.of(
+                topicPartition,
+                expectedStartOffset,
+                null,
+                expectedStopOffset,
+                null,
+                ImmutableList.of()));
+    assertEquals(new OffsetRange(expectedStartOffset, expectedStopOffset), result);
   }
 
   @Test
   public void testInitialRestrictionWhenHasStartTime() throws Exception {
     long expectedStartOffset = 10L;
-    consumer.setStartOffsetForTime(expectedStartOffset);
+    Instant startReadTime = Instant.now();
+    consumer.setStartOffsetForTime(expectedStartOffset, startReadTime);
     consumer.setCurrentPos(5L);
     OffsetRange result =
         dofnInstance.initialRestriction(
-            KafkaSourceDescriptor.of(topicPartition, null, Instant.now(), ImmutableList.of()));
+            KafkaSourceDescriptor.of(
+                topicPartition, null, startReadTime, null, null, ImmutableList.of()));
     assertEquals(new OffsetRange(expectedStartOffset, Long.MAX_VALUE), result);
+  }
+
+  @Test
+  public void testInitialRestrictionWhenHasStopTime() throws Exception {
+    long expectedStartOffset = 10L;
+    Instant startReadTime = Instant.now();
+    long expectedStopOffset = 100L;
+    Instant stopReadTime = startReadTime.plus(Duration.millis(2000));
+    consumer.setStartOffsetForTime(expectedStartOffset, startReadTime);
+    consumer.setStopOffsetForTime(expectedStopOffset, stopReadTime);
+    consumer.setCurrentPos(5L);
+    OffsetRange result =
+        dofnInstance.initialRestriction(
+            KafkaSourceDescriptor.of(
+                topicPartition, null, startReadTime, null, stopReadTime, ImmutableList.of()));
+    assertEquals(new OffsetRange(expectedStartOffset, expectedStopOffset), result);
   }
 
   @Test
@@ -265,7 +314,7 @@ public class ReadFromKafkaDoFnTest {
     consumer.setCurrentPos(5L);
     OffsetRange result =
         dofnInstance.initialRestriction(
-            KafkaSourceDescriptor.of(topicPartition, null, null, ImmutableList.of()));
+            KafkaSourceDescriptor.of(topicPartition, null, null, null, null, ImmutableList.of()));
     assertEquals(new OffsetRange(expectedStartOffset, Long.MAX_VALUE), result);
   }
 
@@ -276,7 +325,8 @@ public class ReadFromKafkaDoFnTest {
     long startOffset = 5L;
     OffsetRangeTracker tracker =
         new OffsetRangeTracker(new OffsetRange(startOffset, startOffset + 3));
-    KafkaSourceDescriptor descriptor = KafkaSourceDescriptor.of(topicPartition, null, null, null);
+    KafkaSourceDescriptor descriptor =
+        KafkaSourceDescriptor.of(topicPartition, null, null, null, null, null);
     ProcessContinuation result =
         dofnInstance.processElement(descriptor, tracker, null, (OutputReceiver) receiver);
     assertEquals(ProcessContinuation.stop(), result);
@@ -291,7 +341,7 @@ public class ReadFromKafkaDoFnTest {
     OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(0L, Long.MAX_VALUE));
     ProcessContinuation result =
         dofnInstance.processElement(
-            KafkaSourceDescriptor.of(topicPartition, null, null, null),
+            KafkaSourceDescriptor.of(topicPartition, null, null, null, null, null),
             tracker,
             null,
             (OutputReceiver) receiver);
@@ -307,7 +357,7 @@ public class ReadFromKafkaDoFnTest {
     OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(0L, Long.MAX_VALUE));
     ProcessContinuation result =
         dofnInstance.processElement(
-            KafkaSourceDescriptor.of(topicPartition, null, null, null),
+            KafkaSourceDescriptor.of(topicPartition, null, null, null, null, null),
             tracker,
             null,
             (OutputReceiver) receiver);
@@ -334,7 +384,7 @@ public class ReadFromKafkaDoFnTest {
     OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(0L, Long.MAX_VALUE));
     ProcessContinuation result =
         instance.processElement(
-            KafkaSourceDescriptor.of(topicPartition, null, null, null),
+            KafkaSourceDescriptor.of(topicPartition, null, null, null, null, null),
             tracker,
             null,
             (OutputReceiver) receiver);

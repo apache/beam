@@ -19,7 +19,6 @@
 apply plugin: 'org.apache.beam.module'
 apply plugin: 'application'
 applyJavaNature(
-  suppressUnusedVariable: true,
   automaticModuleName: 'org.apache.beam.sdk.expansion.service.app',
   validateShadowJar: false,
   shadowClosure: {},

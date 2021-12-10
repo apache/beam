@@ -202,7 +202,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
   private final PipelineOptions pipelineOptions;
-  private final BeamFnStateClient beamFnStateClient;
   private final String pTransformId;
   private final PTransform pTransform;
   private final Supplier<String> processBundleInstructionId;
@@ -211,7 +210,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private final DoFnSignature doFnSignature;
   private final TupleTag<OutputT> mainOutputTag;
   private final Coder<?> inputCoder;
-  private final SchemaCoder<InputT> schemaCoder;
+
   private final Coder<?> keyCoder;
   private final SchemaCoder<OutputT> mainOutputSchemaCoder;
   private final Coder<? extends BoundedWindow> windowCoder;
@@ -334,7 +333,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       BundleSplitListener splitListener,
       BundleFinalizer bundleFinalizer) {
     this.pipelineOptions = pipelineOptions;
-    this.beamFnStateClient = beamFnStateClient;
     this.beamFnTimerClient = beamFnTimerClient;
     this.pTransformId = pTransformId;
     this.pTransform = pTransform;
@@ -384,11 +382,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         this.keyCoder = ((KvCoder) inputCoder).getKeyCoder();
       } else {
         this.keyCoder = null;
-      }
-      if (inputCoder instanceof SchemaCoder) {
-        this.schemaCoder = ((SchemaCoder<InputT>) inputCoder);
-      } else {
-        this.schemaCoder = null;
       }
 
       windowingStrategy =
@@ -740,7 +733,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     for (Map.Entry<String, KV<TimeDomain, Coder<Timer<Object>>>> timerFamilyInfo :
         timerFamilyInfos.entrySet()) {
       String localName = timerFamilyInfo.getKey();
-      TimeDomain timeDomain = timerFamilyInfo.getValue().getKey();
       Coder<Timer<Object>> timerCoder = timerFamilyInfo.getValue().getValue();
       outboundTimerReceivers.put(
           localName,

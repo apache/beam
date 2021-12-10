@@ -156,13 +156,6 @@ class BeamModulePlugin implements Plugin<Project> {
      */
     Closure shadowClosure
 
-    /**
-     * If set, suppress the error-prone UnusedVariable check.
-     *
-     * TODO(BEAM-11936): Address all unused variables and remove this option.
-     */
-    boolean suppressUnusedVariable = false
-
     /** Controls whether this project is published to Maven. */
     boolean publish = true
 
@@ -459,7 +452,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def errorprone_version = "2.3.4"
     def google_clients_version = "1.32.1"
     def google_cloud_bigdataoss_version = "2.2.4"
-    def google_cloud_pubsublite_version = "1.4.2"
+    def google_cloud_pubsublite_version = "1.4.4"
     def google_code_gson_version = "2.8.9"
     def google_oauth_clients_version = "1.32.1"
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
@@ -1147,21 +1140,13 @@ class BeamModulePlugin implements Plugin<Project> {
         options.errorprone.errorproneArgs.add("-Xep:EqualsGetClass:OFF")
         options.errorprone.errorproneArgs.add("-Xep:EqualsUnsafeCast:OFF")
         options.errorprone.errorproneArgs.add("-Xep:ExtendsAutoValue:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:FloatingPointAssertionWithinEpsilon:OFF")
         options.errorprone.errorproneArgs.add("-Xep:JavaTimeDefaultTimeZone:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:LockNotBeforeTry:OFF")
         options.errorprone.errorproneArgs.add("-Xep:MixedMutabilityReturnType:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:PreferJavaTimeOverload:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:ModifiedButNotUsed:OFF")
         options.errorprone.errorproneArgs.add("-Xep:ThreadPriorityCheck:OFF")
         options.errorprone.errorproneArgs.add("-Xep:TimeUnitConversionChecker:OFF")
         options.errorprone.errorproneArgs.add("-Xep:UndefinedEquals:OFF")
         options.errorprone.errorproneArgs.add("-Xep:UnnecessaryLambda:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:UnusedNestedClass:OFF")
         options.errorprone.errorproneArgs.add("-Xep:UnsafeReflectiveConstructionCast:OFF")
-        if (configuration.suppressUnusedVariable) {
-          options.errorprone.errorproneArgs.add("-Xep:UnusedVariable:OFF")
-        }
       }
 
       if (configuration.shadowClosure) {
