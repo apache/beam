@@ -74,12 +74,11 @@ func TestSetupExecutor(t *testing.T) {
 		WithTestRunner().
 		WithCommand(executorConfig.TestCmd).
 		WithArgs(executorConfig.TestArgs).
+		WithWorkingDir(lc.GetAbsoluteSourceFolderPath()).
 		ExecutorBuilder
 
 	type args struct {
-		srcFilePath     string
-		baseFolderPath  string
-		execFilePath    string
+		lc              *fs_tool.LifeCycle
 		pipelineOptions string
 		sdkEnv          *environment.BeamEnvs
 	}
@@ -93,7 +92,7 @@ func TestSetupExecutor(t *testing.T) {
 			// Test case with calling Setup with incorrect SDK.
 			// As a result, want to receive an error.
 			name:    "incorrect sdk",
-			args:    args{lc.GetAbsoluteSourceFilePath(), lc.GetAbsoluteBaseFolderPath(), lc.GetAbsoluteExecutableFilePath(), pipelineOptions, environment.NewBeamEnvs(pb.Sdk_SDK_UNSPECIFIED, executorConfig, "")},
+			args:    args{lc, pipelineOptions, environment.NewBeamEnvs(pb.Sdk_SDK_UNSPECIFIED, executorConfig, "")},
 			want:    nil,
 			wantErr: true,
 		},
@@ -101,14 +100,14 @@ func TestSetupExecutor(t *testing.T) {
 			// Test case with calling Setup with correct SDK.
 			// As a result, want to receive an expected builder.
 			name:    "correct sdk",
-			args:    args{lc.GetAbsoluteSourceFilePath(), lc.GetAbsoluteBaseFolderPath(), lc.GetAbsoluteExecutableFilePath(), pipelineOptions, sdkEnv},
+			args:    args{lc, pipelineOptions, sdkEnv},
 			want:    &wantExecutor,
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := SetupExecutorBuilder(tt.args.srcFilePath, tt.args.baseFolderPath, tt.args.execFilePath, tt.args.pipelineOptions, tt.args.sdkEnv)
+			got, err := SetupExecutorBuilder(tt.args.lc, tt.args.pipelineOptions, tt.args.sdkEnv)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("SetupExecutorBuilder() error = %v, wantErr %v", err, tt.wantErr)
 				return
