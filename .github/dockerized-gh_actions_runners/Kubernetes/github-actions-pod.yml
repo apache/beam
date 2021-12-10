@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: github-actions-pod
+  labels:
+    role: github-actions-role
+spec:
+  containers:
+    - name: github-actions-runner
+      image: beam-ga:latest
+      imagePullPolicy: Never #Remove once the image is in a public registry.
+      envFrom:
+        - secretRef:
+            name: github-secrets # To handle the GITHUB env variables
+      env:
+        - name: DOCKER_HOST
+          value: tcp://localhost:2375
+    - name: dind
+      image: docker:20.10-dind
+      securityContext:
+        privileged: true
+      volumeMounts:
+        - name: dind-storage
+          mountPath: /var/lib/docker
+  volumes:
+    - name: dind-storage
+      emptyDir: {}
+
