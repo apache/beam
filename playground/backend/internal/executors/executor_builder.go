@@ -165,6 +165,14 @@ func (b *UnitTestExecutorBuilder) WithArgs(testArgs []string) *UnitTestExecutorB
 	return b
 }
 
+// WithWorkingDir adds dir path to executor
+func (b *UnitTestExecutorBuilder) WithWorkingDir(dir string) *UnitTestExecutorBuilder {
+	b.actions = append(b.actions, func(e *Executor) {
+		e.testArgs.workingDir = dir
+	})
+	return b
+}
+
 //WithGraphOutput adds the need of graph output to executor
 func (b *UnitTestExecutorBuilder) WithGraphOutput() *UnitTestExecutorBuilder {
 	b.actions = append(b.actions, func(e *Executor) {
@@ -196,4 +204,12 @@ func (b *ExecutorBuilder) Build() Executor {
 		a(&executor)
 	}
 	return executor
+}
+
+//WithPipelineOptions adds pipeline options to executor
+func (b *RunBuilder) WithPipelineOptions(pipelineOptions []string) *RunBuilder {
+	b.actions = append(b.actions, func(e *Executor) {
+		e.runArgs.pipelineOptions = pipelineOptions
+	})
+	return b
 }
