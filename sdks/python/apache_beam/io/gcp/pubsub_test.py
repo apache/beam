@@ -503,7 +503,7 @@ class TestReadFromPubSub(unittest.TestCase):
               with_attributes=True))
       assert_that(pcoll, equal_to(expected_elements), reify_windows=True)
     mock_pubsub.return_value.acknowledge.assert_has_calls(
-        [mock.call(mock.ANY, [ack_id])])
+        [mock.call(subscription=mock.ANY, ack_ids=[ack_id])])
 
     mock_pubsub.return_value.api.transport.channel.close.assert_has_calls(
         [mock.call()])
@@ -526,7 +526,7 @@ class TestReadFromPubSub(unittest.TestCase):
               'projects/fakeprj/topics/a_topic', None, None))
       assert_that(pcoll, equal_to(expected_elements))
     mock_pubsub.return_value.acknowledge.assert_has_calls(
-        [mock.call(mock.ANY, [ack_id])])
+        [mock.call(subscription=mock.ANY, ack_ids=[ack_id])])
 
     mock_pubsub.return_value.api.transport.channel.close.assert_has_calls(
         [mock.call()])
@@ -547,7 +547,7 @@ class TestReadFromPubSub(unittest.TestCase):
           | ReadFromPubSub('projects/fakeprj/topics/a_topic', None, None))
       assert_that(pcoll, equal_to(expected_elements))
     mock_pubsub.return_value.acknowledge.assert_has_calls(
-        [mock.call(mock.ANY, [ack_id])])
+        [mock.call(subscription=mock.ANY, ack_ids=[ack_id])])
 
     mock_pubsub.return_value.api.transport.channel.close.assert_has_calls(
         [mock.call()])
@@ -583,7 +583,7 @@ class TestReadFromPubSub(unittest.TestCase):
               timestamp_attribute='time'))
       assert_that(pcoll, equal_to(expected_elements), reify_windows=True)
     mock_pubsub.return_value.acknowledge.assert_has_calls(
-        [mock.call(mock.ANY, [ack_id])])
+        [mock.call(subscription=mock.ANY, ack_ids=[ack_id])])
 
     mock_pubsub.return_value.api.transport.channel.close.assert_has_calls(
         [mock.call()])
@@ -619,7 +619,7 @@ class TestReadFromPubSub(unittest.TestCase):
               timestamp_attribute='time'))
       assert_that(pcoll, equal_to(expected_elements), reify_windows=True)
     mock_pubsub.return_value.acknowledge.assert_has_calls(
-        [mock.call(mock.ANY, [ack_id])])
+        [mock.call(subscription=mock.ANY, ack_ids=[ack_id])])
 
     mock_pubsub.return_value.api.transport.channel.close.assert_has_calls(
         [mock.call()])
@@ -656,7 +656,7 @@ class TestReadFromPubSub(unittest.TestCase):
               timestamp_attribute='nonexistent'))
       assert_that(pcoll, equal_to(expected_elements), reify_windows=True)
     mock_pubsub.return_value.acknowledge.assert_has_calls(
-        [mock.call(mock.ANY, [ack_id])])
+        [mock.call(subscription=mock.ANY, ack_ids=[ack_id])])
 
     mock_pubsub.return_value.api.transport.channel.close.assert_has_calls(
         [mock.call()])
