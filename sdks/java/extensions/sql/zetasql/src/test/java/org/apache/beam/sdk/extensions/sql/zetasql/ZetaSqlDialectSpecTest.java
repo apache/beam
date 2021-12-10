@@ -2560,6 +2560,54 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
+  public void testStringAggregationBytes() {
+    String sql =
+        "SELECT STRING_AGG(CAST(fruit as bytes)) AS string_agg"
+            + " FROM UNNEST([\"apple\", \"pear\", \"banana\", \"pear\"]) AS fruit";
+    PCollection<Row> stream = execute(sql);
+
+    Schema schema = Schema.builder().addByteArrayField("bytearray_field").build();
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema)
+                .addValue("apple,pear,banana,pear".getBytes(StandardCharsets.UTF_8))
+                .build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testStringAggregationDelimiter() {
+    String sql =
+        "SELECT STRING_AGG(fruit, \"&\") AS string_agg"
+            + " FROM UNNEST([\"apple\", \"pear\", \"banana\", \"pear\"]) AS fruit";
+    PCollection<Row> stream = execute(sql);
+
+    Schema schema = Schema.builder().addStringField("string_field").build();
+    PAssert.that(stream)
+        .containsInAnyOrder(Row.withSchema(schema).addValue("apple&pear&banana&pear").build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testStringAggregationBytesDelimiter() {
+    String sql =
+        "SELECT STRING_AGG(CAST(fruit as bytes), b\"&\") AS string_agg"
+            + " FROM UNNEST([\"apple\", \"pear\", \"banana\", \"pear\"]) AS fruit";
+    PCollection<Row> stream = execute(sql);
+
+    Schema schema = Schema.builder().addByteArrayField("bytearray_field").build();
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema)
+                .addValue("apple&pear&banana&pear".getBytes(StandardCharsets.UTF_8))
+                .build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
   @Ignore("Seeing exception in Beam, need further investigation on the cause of this failed query.")
   public void testNamedUNNESTJoin() {
     String sql =

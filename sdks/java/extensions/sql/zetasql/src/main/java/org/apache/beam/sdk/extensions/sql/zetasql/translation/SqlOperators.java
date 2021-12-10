@@ -19,6 +19,8 @@ package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 
 import static org.apache.beam.sdk.extensions.sql.zetasql.BeamZetaSqlCatalog.ZETASQL_FUNCTION_GROUP_NAME;
 
+import com.google.zetasql.Value;
+import com.google.zetasql.resolvedast.ResolvedNodes;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
@@ -80,12 +82,6 @@ public class SqlOperators {
   private static final RelDataType NULLABLE_TIMESTAMP = createSqlType(SqlTypeName.TIMESTAMP, true);
   private static final RelDataType BIGINT = createSqlType(SqlTypeName.BIGINT, false);
   private static final RelDataType NULLABLE_BIGINT = createSqlType(SqlTypeName.BIGINT, true);
-
-  public static final SqlOperator STRING_AGG_STRING_FN =
-      createUdafOperator(
-          "string_agg",
-          x -> createTypeFactory().createSqlType(SqlTypeName.VARCHAR),
-          new UdafImpl<>(new StringAgg.StringAggString()));
 
   public static final SqlOperator ARRAY_AGG_FN =
       createUdafOperator(
@@ -179,6 +175,44 @@ public class SqlOperators {
           null,
           null,
           new CastFunctionImpl());
+
+  public static SqlOperator createStringAggOperator(
+      ResolvedNodes.ResolvedFunctionCallBase aggregateFunctionCall) {
+    com.google.common.collect.ImmutableList<ResolvedNodes.ResolvedExpr> args =
+        aggregateFunctionCall.getArgumentList();
+    String inputType = args.get(0).getType().typeName();
+    Value delimiter = null;
+    if (args.size() == 2) {
+      delimiter = ((ResolvedNodes.ResolvedLiteral) args.get(1)).getValue();
+    }
+    switch (inputType) {
+      case "BYTES":
+        if (delimiter != null) {
+          return SqlOperators.createUdafOperator(
+              "string_agg",
+              x -> SqlOperators.createTypeFactory().createSqlType(SqlTypeName.VARBINARY),
+              new UdafImpl<>(new StringAgg.StringAggByte(delimiter.getBytesValue().toByteArray())));
+        }
+        return SqlOperators.createUdafOperator(
+            "string_agg",
+            x -> SqlOperators.createTypeFactory().createSqlType(SqlTypeName.VARBINARY),
+            new UdafImpl<>(new StringAgg.StringAggByte()));
+      case "STRING":
+        if (delimiter != null) {
+          return SqlOperators.createUdafOperator(
+              "string_agg",
+              x -> SqlOperators.createTypeFactory().createSqlType(SqlTypeName.VARCHAR),
+              new UdafImpl<>(new StringAgg.StringAggString(delimiter.getStringValue())));
+        }
+        return SqlOperators.createUdafOperator(
+            "string_agg",
+            x -> SqlOperators.createTypeFactory().createSqlType(SqlTypeName.VARCHAR),
+            new UdafImpl<>(new StringAgg.StringAggString()));
+      default:
+        throw new UnsupportedOperationException(
+            String.format("[%s] is not supported in STRING_AGG", inputType));
+    }
+  }
 
   /**
    * Create a dummy SqlFunction of type OTHER_FUNCTION from given function name and return type.

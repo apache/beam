@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_CAST;
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_COLUMN_REF;
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_GET_STRUCT_FIELD;
+import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_LITERAL;
 
 import com.google.zetasql.FunctionSignature;
 import com.google.zetasql.ZetaSQLType.TypeKind;
@@ -148,24 +149,27 @@ class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
       // aggregation?
       ResolvedAggregateFunctionCall aggregateFunctionCall =
           ((ResolvedAggregateFunctionCall) resolvedComputedColumn.getExpr());
-      if (aggregateFunctionCall.getArgumentList() != null
-          && aggregateFunctionCall.getArgumentList().size() == 1) {
-        ResolvedExpr resolvedExpr = aggregateFunctionCall.getArgumentList().get(0);
-
-        // TODO: assume aggregate function's input is either a ColumnRef or a cast(ColumnRef).
-        // TODO: user might use multiple CAST so we need to handle this rare case.
-        projects.add(
-            getExpressionConverter()
-                .convertRexNodeFromResolvedExpr(
-                    resolvedExpr,
-                    node.getInputScan().getColumnList(),
-                    input.getRowType().getFieldList(),
-                    ImmutableMap.of()));
-        fieldNames.add(getTrait().resolveAlias(resolvedComputedColumn.getColumn()));
-      } else if (aggregateFunctionCall.getArgumentList() != null
-          && aggregateFunctionCall.getArgumentList().size() > 1) {
-        throw new IllegalArgumentException(
-            aggregateFunctionCall.getFunction().getName() + " has more than one argument.");
+      ImmutableList<ResolvedExpr> argumentList =
+          ImmutableList.copyOf(aggregateFunctionCall.getArgumentList());
+      if (argumentList != null && argumentList.size() >= 1) {
+        ResolvedExpr resolvedExpr = argumentList.get(0);
+        for (int i = 0; i < argumentList.size(); i++) {
+          if (i == 0) {
+            // TODO: assume aggregate function's input is either a ColumnRef or a cast(ColumnRef).
+            // TODO: user might use multiple CAST so we need to handle this rare case.
+            projects.add(
+                getExpressionConverter()
+                    .convertRexNodeFromResolvedExpr(
+                        resolvedExpr,
+                        node.getInputScan().getColumnList(),
+                        input.getRowType().getFieldList(),
+                        ImmutableMap.of()));
+          } else {
+            projects.add(
+                getExpressionConverter().convertRexNodeFromResolvedExpr(argumentList.get(i)));
+          }
+          fieldNames.add(getTrait().resolveAlias(resolvedComputedColumn.getColumn()));
+        }
       }
     }
 
@@ -228,10 +232,7 @@ class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
               aggregateFunctionCall.getFunction().getName(), typeInference, impl);
     } else {
       // Look up builtin functions in SqlOperatorMappingTable.
-      sqlAggFunction =
-          (SqlAggFunction)
-              SqlOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR.get(
-                  aggregateFunctionCall.getFunction().getName());
+      sqlAggFunction = (SqlAggFunction) SqlOperatorMappingTable.create(aggregateFunctionCall);
       if (sqlAggFunction == null) {
         throw new UnsupportedOperationException(
             "Does not support ZetaSQL aggregate function: "
@@ -248,6 +249,8 @@ class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
           || expr.nodeKind() == RESOLVED_COLUMN_REF
           || expr.nodeKind() == RESOLVED_GET_STRUCT_FIELD) {
         argList.add(columnRefOff);
+      } else if (expr.nodeKind() == RESOLVED_LITERAL) {
+        continue;
       } else {
         throw new UnsupportedOperationException(
             "Aggregate function only accepts Column Reference or CAST(Column Reference) as its"
