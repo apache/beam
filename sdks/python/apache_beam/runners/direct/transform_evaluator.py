@@ -691,7 +691,7 @@ class _PubSubReadEvaluator(_TransformEvaluator):
       results = [_get_element(rm.message) for rm in response.received_messages]
       ack_ids = [rm.ack_id for rm in response.received_messages]
       if ack_ids:
-        sub_client.acknowledge(self._sub_name, ack_ids)
+        sub_client.acknowledge(subscription=self._sub_name, ack_ids=ack_ids)
     finally:
       sub_client.api.transport.channel.close()
 
