@@ -49,7 +49,6 @@ import org.apache.kafka.common.serialization.StringDeserializer;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
@@ -297,7 +296,7 @@ public class ReadFromKafkaDoFnTest {
     long expectedStartOffset = 10L;
     Instant startReadTime = Instant.now();
     long expectedStopOffset = 100L;
-    Instant stopReadTime = startReadTime.plus(Duration.millis(2000));
+    Instant stopReadTime = startReadTime.plus(org.joda.time.Duration.millis(2000));
     consumer.setStartOffsetForTime(expectedStartOffset, startReadTime);
     consumer.setStopOffsetForTime(expectedStopOffset, stopReadTime);
     consumer.setCurrentPos(5L);
