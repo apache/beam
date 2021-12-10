@@ -58,7 +58,6 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.Deserializer;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -177,7 +176,8 @@ class ReadFromKafkaDoFn<K, V>
 
   private transient LoadingCache<TopicPartition, AverageRecordSize> avgRecordSize;
 
-  private static final Duration KAFKA_POLL_TIMEOUT = Duration.millis(1000);
+  private static final org.joda.time.Duration KAFKA_POLL_TIMEOUT =
+      org.joda.time.Duration.millis(1000);
 
   @VisibleForTesting final DeserializerProvider keyDeserializerProvider;
   @VisibleForTesting final DeserializerProvider valueDeserializerProvider;
@@ -290,6 +290,7 @@ class ReadFromKafkaDoFn<K, V>
     return new GrowableOffsetRangeTracker(restriction.getFrom(), offsetPoller);
   }
 
+  @SuppressWarnings("PreferJavaTimeOverload")
   @ProcessElement
   public ProcessContinuation processElement(
       @Element KafkaSourceDescriptor kafkaSourceDescriptor,
