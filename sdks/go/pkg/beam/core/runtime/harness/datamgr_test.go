@@ -40,6 +40,7 @@ type fakeDataClient struct {
 	calls          int
 	err            error
 	skipFirstError bool
+	isLastCall     int
 
 	blocked sync.Mutex // Prevent data from being read by the gotourtinr.
 }
@@ -54,6 +55,9 @@ func (f *fakeDataClient) Recv() (*fnpb.Elements, error) {
 		InstructionId: "inst_ref",
 		Data:          data,
 		TransformId:   "ptr",
+	}
+	if f.isLastCall == f.calls {
+		elemData.IsLast = true
 	}
 
 	msg := fnpb.Elements{}
@@ -128,6 +132,20 @@ func TestDataChannelTerminate_dataReader(t *testing.T) {
 			expectedError: io.EOF,
 			caseFn: func(t *testing.T, r io.ReadCloser, client *fakeDataClient, c *DataChannel) {
 				// fakeDataClient eventually returns a sentinel element.
+			},
+		}, {
+			name:          "onIsLast_withData",
+			expectedError: io.EOF,
+			caseFn: func(t *testing.T, r io.ReadCloser, client *fakeDataClient, c *DataChannel) {
+				// Set the last call with data to use is_last.
+				client.isLastCall = 2
+			},
+		}, {
+			name:          "onIsLast_withoutData",
+			expectedError: io.EOF,
+			caseFn: func(t *testing.T, r io.ReadCloser, client *fakeDataClient, c *DataChannel) {
+				// Set the call without data to use is_last.
+				client.isLastCall = 3
 			},
 		}, {
 			name:          "onRecvError",

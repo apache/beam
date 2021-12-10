@@ -26,6 +26,9 @@ applyJavaNature(
   automaticModuleName: 'org.apache.beam.sdk.io.aws',
 )
 
+provideIntegrationTestingDependencies()
+enableJavaPerformanceTesting()
+
 description = "Apache Beam :: SDKs :: Java :: IO :: Amazon Web Services"
 ext.summary = "IO library to read and write Amazon Web Services services from Beam."
 
@@ -67,4 +70,5 @@ test {
       '--awsRegion=us-west-2',
       '--awsCredentialsProvider={"@type" : "AWSStaticCredentialsProvider", "awsAccessKeyId" : "key_id_value","awsSecretKey" : "secret_value"}'
   ])
+  maxParallelForks 4
 }

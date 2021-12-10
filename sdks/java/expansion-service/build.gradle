@@ -16,9 +16,11 @@
  * limitations under the License.
  */
 
-plugins { id 'org.apache.beam.module' }
+apply plugin: 'org.apache.beam.module'
 applyJavaNature(
-  automaticModuleName: 'org.apache.beam.sdk.expansion.service')
+  automaticModuleName: 'org.apache.beam.sdk.expansion.service',
+)
+
 
 description = "Apache Beam :: SDKs :: Java :: Expansion Service"
 ext.summary = """Contains code that can be used to run an expansion service."""

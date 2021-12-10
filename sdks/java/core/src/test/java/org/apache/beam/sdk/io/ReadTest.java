@@ -529,7 +529,7 @@ public class ReadTest implements Serializable {
 
       @Override
       public Instant getCurrentTimestamp() throws NoSuchElementException {
-        return current < 0 ? now : now.plus(current);
+        return current < 0 ? now : now.plus(Duration.millis(current));
       }
 
       @Override

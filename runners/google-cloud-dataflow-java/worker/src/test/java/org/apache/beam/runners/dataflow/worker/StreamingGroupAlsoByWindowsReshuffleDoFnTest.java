@@ -41,16 +41,13 @@ import org.apache.beam.sdk.coders.CollectionCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.hamcrest.Matchers;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
@@ -90,8 +87,7 @@ public class StreamingGroupAlsoByWindowsReshuffleDoFnTest {
     TupleTag<KV<String, Iterable<String>>> outputTag = new TupleTag<>();
     ListOutputManager outputManager = new ListOutputManager();
     DoFnRunner<KeyedWorkItem<String, String>, KV<String, Iterable<String>>> runner =
-        makeRunner(
-            outputTag, outputManager, WindowingStrategy.of(FixedWindows.of(Duration.millis(10))));
+        makeRunner(outputTag, outputManager);
 
     runner.startBundle();
 
@@ -137,8 +133,7 @@ public class StreamingGroupAlsoByWindowsReshuffleDoFnTest {
     TupleTag<KV<String, Iterable<String>>> outputTag = new TupleTag<>();
     ListOutputManager outputManager = new ListOutputManager();
     DoFnRunner<KeyedWorkItem<String, String>, KV<String, Iterable<String>>> runner =
-        makeRunner(
-            outputTag, outputManager, WindowingStrategy.of(FixedWindows.of(Duration.millis(10))));
+        makeRunner(outputTag, outputManager);
 
     runner.startBundle();
 
@@ -188,21 +183,18 @@ public class StreamingGroupAlsoByWindowsReshuffleDoFnTest {
   }
 
   private DoFnRunner<KeyedWorkItem<String, String>, KV<String, Iterable<String>>> makeRunner(
-      TupleTag<KV<String, Iterable<String>>> outputTag,
-      DoFnRunners.OutputManager outputManager,
-      WindowingStrategy<? super String, IntervalWindow> windowingStrategy) {
+      TupleTag<KV<String, Iterable<String>>> outputTag, DoFnRunners.OutputManager outputManager) {
 
     GroupAlsoByWindowFn<KeyedWorkItem<String, String>, KV<String, Iterable<String>>> fn =
         new StreamingGroupAlsoByWindowReshuffleFn<>();
 
-    return makeRunner(outputTag, outputManager, windowingStrategy, fn);
+    return makeRunner(outputTag, outputManager, fn);
   }
 
   private <InputT, OutputT>
       DoFnRunner<KeyedWorkItem<String, InputT>, KV<String, OutputT>> makeRunner(
           TupleTag<KV<String, OutputT>> outputTag,
           DoFnRunners.OutputManager outputManager,
-          WindowingStrategy<? super String, IntervalWindow> windowingStrategy,
           GroupAlsoByWindowFn<KeyedWorkItem<String, InputT>, KV<String, OutputT>> fn) {
     return new GroupAlsoByWindowFnRunner<>(
         PipelineOptionsFactory.create(),

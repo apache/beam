@@ -157,9 +157,11 @@ class CodersTest(unittest.TestCase):
         coders.FastCoder,
         coders.ListLikeCoder,
         coders.ProtoCoder,
+        coders.ProtoPlusCoder,
         coders.ToBytesCoder
     ])
-    cls.seen_nested -= set([coders.ProtoCoder, CustomCoder])
+    cls.seen_nested -= set(
+        [coders.ProtoCoder, coders.ProtoPlusCoder, CustomCoder])
     assert not standard - cls.seen, str(standard - cls.seen)
     assert not cls.seen_nested - standard, str(cls.seen_nested - standard)
 
@@ -677,17 +679,16 @@ class CodersTest(unittest.TestCase):
         read_state=iterable_state_read,
         write_state=iterable_state_write,
         write_state_threshold=1)
-    context = pipeline_context.PipelineContext(
-        iterable_state_read=iterable_state_read,
-        iterable_state_write=iterable_state_write)
-    self.check_coder(
-        coder, [1, 2, 3], context=context, test_size_estimation=False)
+    # Note: do not use check_coder
+    # see https://github.com/cloudpipe/cloudpickle/issues/452
+    self._observe(coder)
+    self.assertEqual([1, 2, 3], coder.decode(coder.encode([1, 2, 3])))
     # Ensure that state was actually used.
     self.assertNotEqual(state, {})
-    self.check_coder(
-        coders.TupleCoder((coder, coder)), ([1], [2, 3]),
-        context=context,
-        test_size_estimation=False)
+    tupleCoder = coders.TupleCoder((coder, coder))
+    self._observe(tupleCoder)
+    self.assertEqual(([1], [2, 3]),
+                     tupleCoder.decode(tupleCoder.encode(([1], [2, 3]))))
 
   def test_nullable_coder(self):
     self.check_coder(coders.NullableCoder(coders.VarIntCoder()), None, 2 * 64)

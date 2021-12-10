@@ -44,9 +44,20 @@ func TestInit(t *testing.T) {
 
 func TestInit_Bad(t *testing.T) {
 	var s SideInputCache
-	err := s.Init(0)
+	err := s.Init(-1)
 	if err == nil {
 		t.Error("SideInputCache init succeeded but should have failed")
+	}
+}
+
+func TestInit_Disabled(t *testing.T) {
+	var s SideInputCache
+	err := s.Init(0)
+	if err != nil {
+		t.Errorf("SideInputCache init failed but should have succeeded, got %v", err)
+	}
+	if s.enabled {
+		t.Errorf("SideInputCache marked as enabled but should have been disabled")
 	}
 }
 

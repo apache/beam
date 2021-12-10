@@ -16,17 +16,15 @@
 package main
 
 import (
+	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/cache"
 	"beam.apache.org/playground/backend/internal/cache/local"
-	"context"
-	"log"
-	"os"
-
-	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"beam.apache.org/playground/backend/internal/cache/redis"
 	"beam.apache.org/playground/backend/internal/environment"
+	"beam.apache.org/playground/backend/internal/logger"
+	"context"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/grpclog"
 )
 
 // runServer is starting http server wrapped on grpc
@@ -49,18 +47,22 @@ func runServer() error {
 		cacheService: cacheService,
 	})
 
-	grpclog.SetLoggerV2(grpclog.NewLoggerV2(os.Stdout, os.Stdout, os.Stderr))
-	handler := Wrap(grpcServer, getGrpcWebOptions())
 	errChan := make(chan error)
 
-	go listenHttp(ctx, errChan, envService.NetworkEnvs, handler)
+	switch envService.NetworkEnvs.Protocol() {
+	case "TCP":
+		go listenTcp(ctx, errChan, envService.NetworkEnvs, grpcServer)
+	case "HTTP":
+		handler := Wrap(grpcServer, getGrpcWebOptions())
+		go listenHttp(ctx, errChan, envService.NetworkEnvs, handler)
+	}
 
 	for {
 		select {
 		case err := <-errChan:
 			return err
 		case <-ctx.Done():
-			log.Println("interrupt signal received; stopping...")
+			logger.Info("interrupt signal received; stopping...")
 			return nil
 		}
 	}
@@ -97,6 +99,8 @@ func getGrpcWebOptions() []grpcweb.Option {
 // setupCache constructs required cache by application environment
 func setupCache(ctx context.Context, appEnv environment.ApplicationEnvs) (cache.Cache, error) {
 	switch appEnv.CacheEnvs().CacheType() {
+	case "remote":
+		return redis.New(ctx, appEnv.CacheEnvs().Address())
 	default:
 		return local.New(ctx), nil
 	}

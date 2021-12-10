@@ -52,8 +52,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Integration tests for {@link org.apache.beam.sdk.io.TextIO}.
@@ -78,7 +76,6 @@ import org.slf4j.LoggerFactory;
  */
 @RunWith(JUnit4.class)
 public class TextIOIT {
-  private static final Logger LOG = LoggerFactory.getLogger(TextIOIT.class);
 
   private static String filenamePrefix;
   private static Integer numberOfTextLines;
@@ -86,8 +83,6 @@ public class TextIOIT {
   private static String expectedHash;
   private static Compression compressionType;
   private static Integer numShards;
-  private static String bigQueryDataset;
-  private static String bigQueryTable;
   private static boolean gatherGcsPerformanceMetrics;
   private static InfluxDBSettings settings;
   private static final String FILEIOIT_NAMESPACE = TextIOIT.class.getName();
@@ -103,8 +98,6 @@ public class TextIOIT {
     compressionType = Compression.valueOf(options.getCompressionType());
     filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
     numShards = options.getNumberOfShards();
-    bigQueryDataset = options.getBigQueryDataset();
-    bigQueryTable = options.getBigQueryTable();
     gatherGcsPerformanceMetrics = options.getReportGcsPerformanceMetrics();
     settings =
         InfluxDBSettings.builder()
@@ -171,7 +164,6 @@ public class TextIOIT {
 
     final IOITMetrics metrics =
         new IOITMetrics(metricSuppliers, result, FILEIOIT_NAMESPACE, uuid, timestamp.toString());
-    metrics.publish(bigQueryDataset, bigQueryTable);
     metrics.publishToInflux(settings);
   }
 

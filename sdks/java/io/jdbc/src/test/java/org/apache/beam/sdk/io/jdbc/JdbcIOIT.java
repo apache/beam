@@ -32,7 +32,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.common.DatabaseTestHelper;
 import org.apache.beam.sdk.io.common.HashingFn;
@@ -89,8 +88,6 @@ public class JdbcIOIT {
   private static int numberOfRows;
   private static PGSimpleDataSource dataSource;
   private static String tableName;
-  private static String bigQueryDataset;
-  private static String bigQueryTable;
   private static Long tableSize;
   private static InfluxDBSettings settings;
   @Rule public TestPipeline pipelineWrite = TestPipeline.create();
@@ -101,8 +98,6 @@ public class JdbcIOIT {
     PostgresIOTestPipelineOptions options =
         readIOTestPipelineOptions(PostgresIOTestPipelineOptions.class);
 
-    bigQueryDataset = options.getBigQueryDataset();
-    bigQueryTable = options.getBigQueryTable();
     numberOfRows = options.getNumberOfRecords();
     dataSource = DatabaseTestHelper.getPostgresDataSource(options);
     tableName = DatabaseTestHelper.getTestTableName("IT");
@@ -147,13 +142,11 @@ public class JdbcIOIT {
         getWriteMetricSuppliers(uuid, timestamp);
     IOITMetrics writeMetrics =
         new IOITMetrics(metricSuppliers, writeResult, NAMESPACE, uuid, timestamp);
-    writeMetrics.publish(bigQueryDataset, bigQueryTable);
     writeMetrics.publishToInflux(settings);
 
     IOITMetrics readMetrics =
         new IOITMetrics(
             getReadMetricSuppliers(uuid, timestamp), readResult, NAMESPACE, uuid, timestamp);
-    readMetrics.publish(bigQueryDataset, bigQueryTable);
     readMetrics.publishToInflux(settings);
   }
 
@@ -236,8 +229,7 @@ public class JdbcIOIT {
                 JdbcIO.<TestRow>read()
                     .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
                     .withQuery(String.format("select name,id from %s;", tableName))
-                    .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
-                    .withCoder(SerializableCoder.of(TestRow.class)))
+                    .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId()))
             .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, "read_time")));
 
     PAssert.thatSingleton(namesAndIds.apply("Count All", Count.globally()))

@@ -65,7 +65,9 @@ import org.apache.beam.sdk.transforms.DoFn.TruncateRestriction;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.FieldAccessDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.GetInitialRestrictionMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.GetInitialWatermarkEstimatorStateMethod;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.MethodWithExtraParameters;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.BundleFinalizerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.PipelineOptionsParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
@@ -1097,7 +1099,6 @@ public class DoFnSignatures {
               onTimerErrors,
               fnContext,
               methodContext,
-              fnClass,
               ParameterDescription.of(
                   m,
                   i,
@@ -1142,7 +1143,6 @@ public class DoFnSignatures {
               onTimerErrors,
               fnContext,
               methodContext,
-              fnClass,
               ParameterDescription.of(
                   m,
                   i,
@@ -1186,7 +1186,6 @@ public class DoFnSignatures {
               onWindowExpirationErrors,
               fnContext,
               methodContext,
-              fnClass,
               ParameterDescription.of(
                   m,
                   i,
@@ -1232,7 +1231,6 @@ public class DoFnSignatures {
               errors.forMethod(DoFn.ProcessElement.class, m),
               fnContext,
               methodContext,
-              fnClass,
               ParameterDescription.of(
                   m,
                   i,
@@ -1306,7 +1304,6 @@ public class DoFnSignatures {
       ErrorReporter methodErrors,
       FnAnalysisContext fnContext,
       MethodAnalysisContext methodContext,
-      TypeDescriptor<? extends DoFn<?, ?>> fnClass,
       ParameterDescription param,
       TypeDescriptor<?> inputT,
       TypeDescriptor<?> outputT) {
@@ -1613,7 +1610,6 @@ public class DoFnSignatures {
               errors,
               fnContext,
               methodContext,
-              fnT,
               ParameterDescription.of(
                   m, i, fnT.resolveType(params[i]), Arrays.asList(m.getParameterAnnotations()[i])),
               inputT,
@@ -1645,7 +1641,6 @@ public class DoFnSignatures {
               errors,
               fnContext,
               methodContext,
-              fnT,
               ParameterDescription.of(
                   m, i, fnT.resolveType(params[i]), Arrays.asList(m.getParameterAnnotations()[i])),
               inputT,
@@ -1677,7 +1672,6 @@ public class DoFnSignatures {
               errors,
               fnContext,
               methodContext,
-              fnT,
               ParameterDescription.of(
                   m, i, fnT.resolveType(params[i]), Arrays.asList(m.getParameterAnnotations()[i])),
               inputT,
@@ -1720,7 +1714,6 @@ public class DoFnSignatures {
               errors,
               fnContext,
               methodContext,
-              fnT,
               ParameterDescription.of(
                   m, i, fnT.resolveType(params[i]), Arrays.asList(m.getParameterAnnotations()[i])),
               inputT,
@@ -1766,7 +1759,6 @@ public class DoFnSignatures {
               errors,
               fnContext,
               methodContext,
-              fnT,
               ParameterDescription.of(
                   m, i, fnT.resolveType(params[i]), Arrays.asList(m.getParameterAnnotations()[i])),
               inputT,
@@ -1824,7 +1816,6 @@ public class DoFnSignatures {
               errors,
               fnContext,
               methodContext,
-              fnT,
               ParameterDescription.of(
                   m, i, fnT.resolveType(params[i]), Arrays.asList(m.getParameterAnnotations()[i])),
               inputT,
@@ -1877,7 +1868,6 @@ public class DoFnSignatures {
               errors,
               fnContext,
               methodContext,
-              fnT,
               ParameterDescription.of(
                   m, i, fnT.resolveType(params[i]), Arrays.asList(m.getParameterAnnotations()[i])),
               inputT,
@@ -2087,7 +2077,6 @@ public class DoFnSignatures {
               errors,
               fnContext,
               methodContext,
-              fnT,
               ParameterDescription.of(
                   m, i, fnT.resolveType(params[i]), Arrays.asList(m.getParameterAnnotations()[i])),
               inputT,
@@ -2149,7 +2138,6 @@ public class DoFnSignatures {
               errors,
               fnContext,
               methodContext,
-              fnT,
               ParameterDescription.of(
                   m, i, fnT.resolveType(params[i]), Arrays.asList(m.getParameterAnnotations()[i])),
               inputT,
@@ -2215,7 +2203,6 @@ public class DoFnSignatures {
               errors,
               fnContext,
               methodContext,
-              fnT,
               ParameterDescription.of(
                   m, i, fnT.resolveType(params[i]), Arrays.asList(m.getParameterAnnotations()[i])),
               inputT,
@@ -2528,6 +2515,24 @@ public class DoFnSignatures {
 
   public static boolean usesState(DoFn<?, ?> doFn) {
     return signatureForDoFn(doFn).usesState() || requiresTimeSortedInput(doFn);
+  }
+
+  private static boolean containsBundleFinalizer(List<Parameter> parameters) {
+    return parameters.stream().anyMatch(parameter -> parameter instanceof BundleFinalizerParameter);
+  }
+
+  private static boolean containsBundleFinalizer(@Nullable MethodWithExtraParameters method) {
+    if (method == null) {
+      return false;
+    }
+    return containsBundleFinalizer(method.extraParameters());
+  }
+
+  public static boolean usesBundleFinalizer(DoFn<?, ?> doFn) {
+    DoFnSignature sig = signatureForDoFn(doFn);
+    return containsBundleFinalizer(sig.startBundle())
+        || containsBundleFinalizer(sig.finishBundle())
+        || containsBundleFinalizer(sig.processElement());
   }
 
   public static boolean requiresTimeSortedInput(DoFn<?, ?> doFn) {

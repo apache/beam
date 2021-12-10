@@ -20,19 +20,19 @@ package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 import static com.google.cloud.pubsublite.internal.ExtractStatus.toCanonical;
 import static com.google.cloud.pubsublite.internal.wire.ServiceClients.addDefaultMetadata;
 import static com.google.cloud.pubsublite.internal.wire.ServiceClients.addDefaultSettings;
+import static java.util.concurrent.TimeUnit.MINUTES;
 
 import com.google.api.gax.rpc.ApiException;
 import com.google.cloud.pubsublite.Offset;
 import com.google.cloud.pubsublite.Partition;
 import com.google.cloud.pubsublite.internal.CursorClient;
 import com.google.cloud.pubsublite.internal.CursorClientSettings;
-import com.google.cloud.pubsublite.internal.wire.Committer;
-import com.google.cloud.pubsublite.internal.wire.CommitterSettings;
 import com.google.cloud.pubsublite.internal.wire.PubsubContext;
 import com.google.cloud.pubsublite.internal.wire.PubsubContext.Framework;
 import com.google.cloud.pubsublite.internal.wire.RoutingMetadata;
 import com.google.cloud.pubsublite.internal.wire.SubscriberBuilder;
 import com.google.cloud.pubsublite.internal.wire.SubscriberFactory;
+import com.google.cloud.pubsublite.proto.CommitCursorRequest;
 import com.google.cloud.pubsublite.proto.Cursor;
 import com.google.cloud.pubsublite.proto.SeekRequest;
 import com.google.cloud.pubsublite.v1.CursorServiceClient;
@@ -92,13 +92,22 @@ class SubscriberAssembler {
     }
   }
 
-  Committer getCommitter() {
-    return CommitterSettings.newBuilder()
-        .setSubscriptionPath(options.subscriptionPath())
-        .setPartition(partition)
-        .setServiceClient(newCursorServiceClient())
-        .build()
-        .instantiate();
+  BlockingCommitter getCommitter() {
+    return offset -> {
+      try {
+        newCursorServiceClient()
+            .commitCursorCallable()
+            .futureCall(
+                CommitCursorRequest.newBuilder()
+                    .setSubscription(options.subscriptionPath().toString())
+                    .setPartition(partition.value())
+                    .setCursor(Cursor.newBuilder().setOffset(offset.value()))
+                    .build())
+            .get(1, MINUTES);
+      } catch (Throwable t) {
+        throw toCanonical(t).underlying;
+      }
+    };
   }
 
   TopicBacklogReader getBacklogReader() {

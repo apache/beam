@@ -202,7 +202,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
   private final PipelineOptions pipelineOptions;
-  private final BeamFnStateClient beamFnStateClient;
   private final String pTransformId;
   private final PTransform pTransform;
   private final Supplier<String> processBundleInstructionId;
@@ -211,7 +210,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private final DoFnSignature doFnSignature;
   private final TupleTag<OutputT> mainOutputTag;
   private final Coder<?> inputCoder;
-  private final SchemaCoder<InputT> schemaCoder;
+
   private final Coder<?> keyCoder;
   private final SchemaCoder<OutputT> mainOutputSchemaCoder;
   private final Coder<? extends BoundedWindow> windowCoder;
@@ -334,7 +333,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       BundleSplitListener splitListener,
       BundleFinalizer bundleFinalizer) {
     this.pipelineOptions = pipelineOptions;
-    this.beamFnStateClient = beamFnStateClient;
     this.beamFnTimerClient = beamFnTimerClient;
     this.pTransformId = pTransformId;
     this.pTransform = pTransform;
@@ -384,11 +382,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         this.keyCoder = ((KvCoder) inputCoder).getKeyCoder();
       } else {
         this.keyCoder = null;
-      }
-      if (inputCoder instanceof SchemaCoder) {
-        this.schemaCoder = ((SchemaCoder<InputT>) inputCoder);
-      } else {
-        this.schemaCoder = null;
       }
 
       windowingStrategy =
@@ -558,7 +551,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                   }
 
                   @Override
-                  public SplitResult trySplit(double fractionOfRemainder) {
+                  public HandlesSplits.SplitResult trySplit(double fractionOfRemainder) {
                     return trySplitForWindowObservingTruncateRestriction(
                         fractionOfRemainder, splitDelegate);
                   }
@@ -598,7 +591,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                   }
 
                   @Override
-                  public SplitResult trySplit(double fractionOfRemainder) {
+                  public HandlesSplits.SplitResult trySplit(double fractionOfRemainder) {
                     return splitDelegate.trySplit(fractionOfRemainder);
                   }
 
@@ -740,7 +733,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     for (Map.Entry<String, KV<TimeDomain, Coder<Timer<Object>>>> timerFamilyInfo :
         timerFamilyInfos.entrySet()) {
       String localName = timerFamilyInfo.getKey();
-      TimeDomain timeDomain = timerFamilyInfo.getValue().getKey();
       Coder<Timer<Object>> timerCoder = timerFamilyInfo.getValue().getValue();
       outboundTimerReceivers.put(
           localName,
@@ -1099,7 +1091,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private abstract class SplittableFnDataReceiver
       implements HandlesSplits, FnDataReceiver<WindowedValue> {
     @Override
-    public SplitResult trySplit(double fractionOfRemainder) {
+    public HandlesSplits.SplitResult trySplit(double fractionOfRemainder) {
       return trySplitForElementAndRestriction(fractionOfRemainder, Duration.ZERO);
     }
 
@@ -1833,7 +1825,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         target =
             millisSinceStart == 0
                 ? fireTimestamp
-                : fireTimestamp.plus(period).minus(millisSinceStart);
+                : fireTimestamp.plus(period).minus(Duration.millis(millisSinceStart));
       }
       target = minTargetAndGcTime(target);
       timerBundleTracker.timerModified(timerIdOrFamily, timeDomain, getTimerForTime(target));
@@ -1999,7 +1991,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       }
     }
 
-    private final Context context = new Context();
+    private final StartBundleArgumentProvider.Context context =
+        new StartBundleArgumentProvider.Context();
 
     @Override
     public DoFn<InputT, OutputT>.StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
@@ -2050,7 +2043,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       }
     }
 
-    private final Context context = new Context();
+    private final FinishBundleArgumentProvider.Context context =
+        new FinishBundleArgumentProvider.Context();
 
     @Override
     public DoFn<InputT, OutputT>.FinishBundleContext finishBundleContext(
@@ -2544,7 +2538,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       }
     }
 
-    private final Context context = new Context();
+    private final OnTimerContext.Context context = new OnTimerContext.Context();
 
     @Override
     public BoundedWindow window() {

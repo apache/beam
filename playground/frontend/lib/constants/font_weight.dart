@@ -18,5 +18,7 @@
 
 import 'package:flutter/cupertino.dart';
 
+const FontWeight kLightWeight = FontWeight.w300;
 const FontWeight kNormalWeight = FontWeight.normal;
+const FontWeight kMediumWeight = FontWeight.w600;
 const FontWeight kBoldWeight = FontWeight.bold;

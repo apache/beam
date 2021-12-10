@@ -514,7 +514,7 @@ public class ReduceFnRunnerTest {
     // This timestamp falls into a window where the end of the window is before the end of the
     // global window - the "end of time" - yet its expiration time is after.
     final Instant elementTimestamp =
-        GlobalWindow.INSTANCE.maxTimestamp().minus(allowedLateness).plus(1);
+        GlobalWindow.INSTANCE.maxTimestamp().minus(allowedLateness).plus(Duration.millis(1));
 
     IntervalWindow window =
         Iterables.getOnlyElement(
@@ -828,7 +828,7 @@ public class ReduceFnRunnerTest {
     // be done by way of the timers set by the trigger, which are mocked here
     tester.setAutoAdvanceOutputWatermark(false);
 
-    tester.advanceInputWatermark(expectedWindow.maxTimestamp().plus(1));
+    tester.advanceInputWatermark(expectedWindow.maxTimestamp().plus(Duration.millis(1)));
     tester.fireTimer(expectedWindow, expectedWindow.maxTimestamp(), TimeDomain.EVENT_TIME);
 
     // Output time is end of the window, because all the new data was late, but the pane
@@ -991,7 +991,7 @@ public class ReduceFnRunnerTest {
     injectElements(tester, Arrays.asList(4));
     Instant endOfWindow = new Instant(4).plus(gapDuration);
     // We expect a GC hold to be one less than the end of window plus the allowed lateness.
-    Instant expectedGcHold = endOfWindow.plus(allowedLateness).minus(1);
+    Instant expectedGcHold = endOfWindow.plus(allowedLateness).minus(Duration.millis(1));
     assertEquals(expectedGcHold, tester.getWatermarkHold());
     tester.advanceInputWatermark(new Instant(1000));
     assertEquals(expectedGcHold, tester.getWatermarkHold());
@@ -1134,8 +1134,6 @@ public class ReduceFnRunnerTest {
             AccumulationMode.DISCARDING_FIRED_PANES,
             Duration.millis(100),
             ClosingBehavior.FIRE_IF_NON_EMPTY);
-
-    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(10));
 
     tester.advanceInputWatermark(new Instant(0));
     when(mockTriggerStateMachine.shouldFire(anyTriggerContext())).thenReturn(true);
