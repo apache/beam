@@ -53,6 +53,7 @@ from typing import TypeVar
 from typing import overload
 
 import google.protobuf.wrappers_pb2
+import proto
 
 from apache_beam.coders import coder_impl
 from apache_beam.coders.avro_record import AvroRecord
@@ -79,7 +80,7 @@ except ImportError:
 try:
   # Import dill from the pickler module to make sure our monkey-patching of dill
   # occurs.
-  from apache_beam.internal.pickler import dill
+  from apache_beam.internal.dill_pickler import dill
 except ImportError:
   # We fall back to using the stock dill library in tests that don't use the
   # full Python SDK.
@@ -99,6 +100,7 @@ __all__ = [
     'NullableCoder',
     'PickleCoder',
     'ProtoCoder',
+    'ProtoPlusCoder',
     'ShardedKeyCoder',
     'SingletonCoder',
     'StrUtf8Coder',
@@ -959,7 +961,7 @@ class ProtoCoder(FastCoder):
 
   """
   def __init__(self, proto_message_type):
-    # type: (google.protobuf.message.Message) -> None
+    # type: (Type[google.protobuf.message.Message]) -> None
     self.proto_message_type = proto_message_type
 
   def _create_impl(self):
@@ -1012,6 +1014,42 @@ class DeterministicProtoCoder(ProtoCoder):
 
   def as_deterministic_coder(self, step_label, error_message=None):
     return self
+
+
+class ProtoPlusCoder(FastCoder):
+  """A Coder for Google Protocol Buffers wrapped using the proto-plus library.
+
+  ProtoPlusCoder is registered in the global CoderRegistry as the default coder
+  for any proto.Message object.
+  """
+  def __init__(self, proto_plus_message_type):
+    # type: (Type[proto.Message]) -> None
+    self.proto_plus_message_type = proto_plus_message_type
+
+  def _create_impl(self):
+    return coder_impl.ProtoPlusCoderImpl(self.proto_plus_message_type)
+
+  def is_deterministic(self):
+    return True
+
+  def __eq__(self, other):
+    return (
+        type(self) == type(other) and
+        self.proto_plus_message_type == other.proto_plus_message_type)
+
+  def __hash__(self):
+    return hash(self.proto_plus_message_type)
+
+  @classmethod
+  def from_type_hint(cls, typehint, unused_registry):
+    if issubclass(typehint, proto.Message):
+      return cls(typehint)
+    else:
+      raise ValueError(
+          'Expected a subclass of proto.Message, but got a %s' % typehint)
+
+  def to_type_hint(self):
+    return self.proto_plus_message_type
 
 
 AVRO_GENERIC_CODER_URN = "beam:coder:avro:generic:v1"

@@ -433,6 +433,23 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_error_test(
         lambda df: df.set_index(['index2', 'bad', 'really_bad']), df)
 
+  def test_set_axis(self):
+    df = pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]}, index=['X', 'Y', 'Z'])
+
+    self._run_test(lambda df: df.set_axis(['I', 'II'], axis='columns'), df)
+    self._run_test(lambda df: df.set_axis([0, 1], axis=1), df)
+    self._run_inplace_test(
+        lambda df: df.set_axis(['i', 'ii'], axis='columns'), df)
+    with self.assertRaises(NotImplementedError):
+      self._run_test(lambda df: df.set_axis(['a', 'b', 'c'], axis='index'), df)
+      self._run_test(lambda df: df.set_axis([0, 1, 2], axis=0), df)
+
+  def test_series_set_axis(self):
+    s = pd.Series(list(range(3)), index=['X', 'Y', 'Z'])
+    with self.assertRaises(NotImplementedError):
+      self._run_test(lambda s: s.set_axis(['a', 'b', 'c']), s)
+      self._run_test(lambda s: s.set_axis([1, 2, 3]), s)
+
   def test_series_drop_ignore_errors(self):
     midx = pd.MultiIndex(
         levels=[['lama', 'cow', 'falcon'], ['speed', 'weight', 'length']],
@@ -651,6 +668,19 @@ class DeferredFrameTest(_AbstractFrameTest):
     s.index = s.index.map(float)
     self._run_test(lambda s: s[1.5:6], s)
 
+  def test_series_truncate(self):
+    s = pd.Series(['a', 'b', 'c', 'd', 'e', 'f'])
+    self._run_test(lambda s: s.truncate(before=1, after=3), s)
+
+  def test_dataframe_truncate(self):
+    df = pd.DataFrame({
+        'C': list('abcde'), 'B': list('fghij'), 'A': list('klmno')
+    },
+                      index=[1, 2, 3, 4, 5])
+    self._run_test(lambda df: df.truncate(before=1, after=3), df)
+    self._run_test(lambda df: df.truncate(before='A', after='B', axis=1), df)
+    self._run_test(lambda df: df['A'].truncate(before=2, after=4), df)
+
   @parameterized.expand([
       (pd.Series(range(10)), ),  # unique
       (pd.Series(list(range(100)) + [0]), ),  # non-unique int
@@ -729,6 +759,9 @@ class DeferredFrameTest(_AbstractFrameTest):
       self._run_test(lambda s: s.corr(s + 1), s)
       self._run_test(lambda s: s.corr(s * s), s)
       self._run_test(lambda s: s.cov(s * s), s)
+      self._run_test(lambda s: s.skew(), s)
+      self._run_test(lambda s: s.kurtosis(), s)
+      self._run_test(lambda s: s.kurt(), s)
 
   def test_dataframe_cov_corr(self):
     df = pd.DataFrame(np.random.randn(20, 3), columns=['a', 'b', 'c'])
@@ -1134,6 +1167,84 @@ class DeferredFrameTest(_AbstractFrameTest):
         df1,
         df2)
 
+  def test_idxmin(self):
+    df = pd.DataFrame({
+        'consumption': [10.51, 103.11, 55.48],
+        'co2_emissions': [37.2, 19.66, 1712]
+    },
+                      index=['Pork', 'Wheat Products', 'Beef'])
+
+    df2 = df.copy()
+    df2.loc['Pork', 'co2_emissions'] = None
+    df2.loc['Wheat Products', 'consumption'] = None
+    df2.loc['Beef', 'co2_emissions'] = None
+
+    df3 = pd.DataFrame({
+        'consumption': [1.1, 2.2, 3.3], 'co2_emissions': [3.3, 2.2, 1.1]
+    },
+                       index=[0, 1, 2])
+
+    s = pd.Series(data=[4, 3, None, 1], index=['A', 'B', 'C', 'D'])
+    s2 = pd.Series(data=[1, 2, 3], index=[1, 2, 3])
+
+    self._run_test(lambda df: df.idxmin(), df)
+    self._run_test(lambda df: df.idxmin(skipna=False), df)
+    self._run_test(lambda df: df.idxmin(axis=1), df)
+    self._run_test(lambda df: df.idxmin(axis=1, skipna=False), df)
+    self._run_test(lambda df2: df2.idxmin(), df2)
+    self._run_test(lambda df2: df2.idxmin(axis=1), df2)
+    self._run_test(lambda df2: df2.idxmin(skipna=False), df2, check_proxy=False)
+    self._run_test(
+        lambda df2: df2.idxmin(axis=1, skipna=False), df2, check_proxy=False)
+    self._run_test(lambda df3: df3.idxmin(), df3)
+    self._run_test(lambda df3: df3.idxmin(axis=1), df3)
+    self._run_test(lambda df3: df3.idxmin(skipna=False), df3)
+    self._run_test(lambda df3: df3.idxmin(axis=1, skipna=False), df3)
+
+    self._run_test(lambda s: s.idxmin(), s)
+    self._run_test(lambda s: s.idxmin(skipna=False), s, check_proxy=False)
+    self._run_test(lambda s2: s2.idxmin(), s2)
+    self._run_test(lambda s2: s2.idxmin(skipna=False), s2)
+
+  def test_idxmax(self):
+    df = pd.DataFrame({
+        'consumption': [10.51, 103.11, 55.48],
+        'co2_emissions': [37.2, 19.66, 1712]
+    },
+                      index=['Pork', 'Wheat Products', 'Beef'])
+
+    df2 = df.copy()
+    df2.loc['Pork', 'co2_emissions'] = None
+    df2.loc['Wheat Products', 'consumption'] = None
+    df2.loc['Beef', 'co2_emissions'] = None
+
+    df3 = pd.DataFrame({
+        'consumption': [1.1, 2.2, 3.3], 'co2_emissions': [3.3, 2.2, 1.1]
+    },
+                       index=[0, 1, 2])
+
+    s = pd.Series(data=[1, None, 4, 1], index=['A', 'B', 'C', 'D'])
+    s2 = pd.Series(data=[1, 2, 3], index=[1, 2, 3])
+
+    self._run_test(lambda df: df.idxmax(), df)
+    self._run_test(lambda df: df.idxmax(skipna=False), df)
+    self._run_test(lambda df: df.idxmax(axis=1), df)
+    self._run_test(lambda df: df.idxmax(axis=1, skipna=False), df)
+    self._run_test(lambda df2: df2.idxmax(), df2)
+    self._run_test(lambda df2: df2.idxmax(axis=1), df2)
+    self._run_test(
+        lambda df2: df2.idxmax(axis=1, skipna=False), df2, check_proxy=False)
+    self._run_test(lambda df2: df2.idxmax(skipna=False), df2, check_proxy=False)
+    self._run_test(lambda df3: df3.idxmax(), df3)
+    self._run_test(lambda df3: df3.idxmax(axis=1), df3)
+    self._run_test(lambda df3: df3.idxmax(skipna=False), df3)
+    self._run_test(lambda df3: df3.idxmax(axis=1, skipna=False), df3)
+
+    self._run_test(lambda s: s.idxmax(), s)
+    self._run_test(lambda s: s.idxmax(skipna=False), s, check_proxy=False)
+    self._run_test(lambda s2: s2.idxmax(), s2)
+    self._run_test(lambda s2: s2.idxmax(skipna=False), s2)
+
 
 # pandas doesn't support kurtosis on GroupBys:
 # https://github.com/pandas-dev/pandas/issues/40139
@@ -1452,15 +1563,7 @@ class AggregationTest(_AbstractFrameTest):
     s = pd.Series(list(range(16)))
 
     nonparallel = agg_method in (
-        'quantile',
-        'mean',
-        'describe',
-        'median',
-        'sem',
-        'mad',
-        'skew',
-        'kurtosis',
-        'kurt')
+        'quantile', 'mean', 'describe', 'median', 'sem', 'mad')
 
     # TODO(BEAM-12379): max and min produce the wrong proxy
     check_proxy = agg_method not in ('max', 'min')
@@ -1479,15 +1582,7 @@ class AggregationTest(_AbstractFrameTest):
     s = pd.Series(list(range(16)))
 
     nonparallel = agg_method in (
-        'quantile',
-        'mean',
-        'describe',
-        'median',
-        'sem',
-        'mad',
-        'skew',
-        'kurtosis',
-        'kurt')
+        'quantile', 'mean', 'describe', 'median', 'sem', 'mad')
 
     # TODO(BEAM-12379): max and min produce the wrong proxy
     check_proxy = agg_method not in ('max', 'min')
@@ -1503,15 +1598,7 @@ class AggregationTest(_AbstractFrameTest):
     df = pd.DataFrame({'A': [1, 2, 3, 4], 'B': [2, 3, 5, 7]})
 
     nonparallel = agg_method in (
-        'quantile',
-        'mean',
-        'describe',
-        'median',
-        'sem',
-        'mad',
-        'skew',
-        'kurtosis',
-        'kurt')
+        'quantile', 'mean', 'describe', 'median', 'sem', 'mad')
 
     # TODO(BEAM-12379): max and min produce the wrong proxy
     check_proxy = agg_method not in ('max', 'min')
@@ -1528,15 +1615,7 @@ class AggregationTest(_AbstractFrameTest):
     df = pd.DataFrame({'A': [1, 2, 3, 4], 'B': [2, 3, 5, 7]})
 
     nonparallel = agg_method in (
-        'quantile',
-        'mean',
-        'describe',
-        'median',
-        'sem',
-        'mad',
-        'skew',
-        'kurtosis',
-        'kurt')
+        'quantile', 'mean', 'describe', 'median', 'sem', 'mad')
 
     # TODO(BEAM-12379): max and min produce the wrong proxy
     check_proxy = agg_method not in ('max', 'min')

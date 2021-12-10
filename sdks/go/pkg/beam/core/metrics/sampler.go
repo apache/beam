@@ -81,10 +81,12 @@ func loadCurrentState(s *StateSampler) currentStateVal {
 	return currentStateVal{pid: bs.pid, state: bs.currentState, transitions: atomic.LoadInt64(s.store.transitions)}
 }
 
+// PTransformState stores the state of PTransform for DoFn metrics.
 type PTransformState struct {
 	states [3]BundleState
 }
 
+// NewPTransformState creates a new PTransformState.
 func NewPTransformState(pid string) *PTransformState {
 	return &PTransformState{
 		states: [3]BundleState{
@@ -95,7 +97,7 @@ func NewPTransformState(pid string) *PTransformState {
 	}
 }
 
-// SetPTransformState stores the state of PTransform in its bundle.
+// Set stores the state of PTransform in its bundle.
 func (s *PTransformState) Set(ctx context.Context, state bundleProcState) {
 	if bctx, ok := ctx.(*beamCtx); ok {
 		atomic.StorePointer((*unsafe.Pointer)(unsafe.Pointer(&bctx.store.bundleState)), unsafe.Pointer(&s.states[state]))

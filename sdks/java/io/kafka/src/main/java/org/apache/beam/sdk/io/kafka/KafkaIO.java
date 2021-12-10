@@ -55,7 +55,6 @@ import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.io.Read.Unbounded;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
-import org.apache.beam.sdk.io.kafka.KafkaIO.Read.External;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -629,6 +628,8 @@ public class KafkaIO {
 
     abstract @Nullable Instant getStartReadTime();
 
+    abstract @Nullable Instant getStopReadTime();
+
     abstract boolean isCommitOffsetsInFinalizeEnabled();
 
     abstract boolean isDynamicRead();
@@ -671,6 +672,8 @@ public class KafkaIO {
 
       abstract Builder<K, V> setStartReadTime(Instant startReadTime);
 
+      abstract Builder<K, V> setStopReadTime(Instant stopReadTime);
+
       abstract Builder<K, V> setCommitOffsetsInFinalizeEnabled(boolean commitOffsetInFinalize);
 
       abstract Builder<K, V> setDynamicRead(boolean dynamicRead);
@@ -692,7 +695,7 @@ public class KafkaIO {
 
       abstract Read<K, V> build();
 
-      static void setupExternalBuilder(Builder builder, External.Configuration config) {
+      static void setupExternalBuilder(Builder builder, Read.External.Configuration config) {
         ImmutableList.Builder<String> listBuilder = ImmutableList.builder();
         for (String topic : config.topics) {
           listBuilder.add(topic);
@@ -741,6 +744,10 @@ public class KafkaIO {
 
         if (config.startReadTime != null) {
           builder.setStartReadTime(Instant.ofEpochMilli(config.startReadTime));
+        }
+
+        if (config.stopReadTime != null) {
+          builder.setStopReadTime(Instant.ofEpochMilli(config.stopReadTime));
         }
 
         // We can expose dynamic read to external build when ReadFromKafkaDoFn is the default
@@ -804,6 +811,7 @@ public class KafkaIO {
         private String keyDeserializer;
         private String valueDeserializer;
         private Long startReadTime;
+        private Long stopReadTime;
         private Long maxNumRecords;
         private Long maxReadTime;
         private Boolean commitOffsetInFinalize;
@@ -827,6 +835,10 @@ public class KafkaIO {
 
         public void setStartReadTime(Long startReadTime) {
           this.startReadTime = startReadTime;
+        }
+
+        public void setStopReadTime(Long stopReadTime) {
+          this.stopReadTime = stopReadTime;
         }
 
         public void setMaxNumRecords(Long maxNumRecords) {
@@ -982,13 +994,26 @@ public class KafkaIO {
      * <p>Note that this take priority over start offset configuration {@code
      * ConsumerConfig.AUTO_OFFSET_RESET_CONFIG} and any auto committed offsets.
      *
-     * <p>This results in hard failures in either of the following two cases : 1. If one of more
+     * <p>This results in hard failures in either of the following two cases : 1. If one or more
      * partitions do not contain any messages with timestamp larger than or equal to desired
      * timestamp. 2. If the message format version in a partition is before 0.10.0, i.e. the
      * messages do not have timestamps.
      */
     public Read<K, V> withStartReadTime(Instant startReadTime) {
       return toBuilder().setStartReadTime(startReadTime).build();
+    }
+
+    /**
+     * Use timestamp to set up stop offset. It is only supported by Kafka Client 0.10.1.0 onwards
+     * and the message format version after 0.10.0.
+     *
+     * <p>This results in hard failures in either of the following two cases : 1. If one or more
+     * partitions do not contain any messages with timestamp larger than or equal to desired
+     * timestamp. 2. If the message format version in a partition is before 0.10.0, i.e. the
+     * messages do not have timestamps.
+     */
+    public Read<K, V> withStopReadTime(Instant stopReadTime) {
+      return toBuilder().setStopReadTime(stopReadTime).build();
     }
 
     /**
@@ -1236,6 +1261,15 @@ public class KafkaIO {
                 + ". If you are building with maven, set \"kafka.clients.version\" "
                 + "maven property to 0.10.1.0 or newer.");
       }
+      if (getStopReadTime() != null) {
+        checkArgument(
+            ConsumerSpEL.hasOffsetsForTimes(),
+            "Consumer.offsetsForTimes is only supported by Kafka Client 0.10.1.0 onwards, "
+                + "current version of Kafka Client is "
+                + AppInfoParser.getVersion()
+                + ". If you are building with maven, set \"kafka.clients.version\" "
+                + "maven property to 0.10.1.0 or newer.");
+      }
       if (isCommitOffsetsInFinalizeEnabled()) {
         checkArgument(
             getConsumerConfig().get(ConsumerConfig.GROUP_ID_CONFIG) != null,
@@ -1264,6 +1298,9 @@ public class KafkaIO {
           || getMaxNumRecords() < Long.MAX_VALUE
           || getMaxReadTime() != null
           || runnerRequiresLegacyRead(input.getPipeline().getOptions())) {
+        checkArgument(
+            getStopReadTime() == null,
+            "stopReadTime is set but it is only supported via SDF implementation.");
         return input.apply(new ReadFromKafkaViaUnbounded<>(this, keyCoder, valueCoder));
       }
       return input.apply(new ReadFromKafkaViaSDF<>(this, keyCoder, valueCoder));
@@ -1409,6 +1446,7 @@ public class KafkaIO {
                               kafkaRead.getCheckStopReadingFn(),
                               kafkaRead.getConsumerConfig(),
                               kafkaRead.getStartReadTime(),
+                              kafkaRead.getStopReadTime(),
                               topics.stream().collect(Collectors.toList()))));
 
         } else {
@@ -1434,6 +1472,7 @@ public class KafkaIO {
         this.topics = read.getTopics();
         this.topicPartitions = read.getTopicPartitions();
         this.startReadTime = read.getStartReadTime();
+        this.stopReadTime = read.getStopReadTime();
       }
 
       private final SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
@@ -1442,6 +1481,8 @@ public class KafkaIO {
       private final List<TopicPartition> topicPartitions;
 
       private final Instant startReadTime;
+
+      private final Instant stopReadTime;
 
       @VisibleForTesting final Map<String, Object> consumerConfig;
 
@@ -1460,7 +1501,9 @@ public class KafkaIO {
           }
         }
         for (TopicPartition topicPartition : partitions) {
-          receiver.output(KafkaSourceDescriptor.of(topicPartition, null, startReadTime, null));
+          receiver.output(
+              KafkaSourceDescriptor.of(
+                  topicPartition, null, startReadTime, null, stopReadTime, null));
         }
       }
     }
@@ -1537,11 +1580,12 @@ public class KafkaIO {
 
     @Experimental(Kind.PORTABILITY)
     static class Builder<K, V>
-        implements ExternalTransformBuilder<External.Configuration, PBegin, PCollection<KV<K, V>>> {
+        implements ExternalTransformBuilder<
+            Read.External.Configuration, PBegin, PCollection<KV<K, V>>> {
 
       @Override
       public PTransform<PBegin, PCollection<KV<K, V>>> buildExternal(
-          External.Configuration config) {
+          Read.External.Configuration config) {
         Read.Builder<K, V> readBuilder = new AutoValue_KafkaIO_Read.Builder();
         Read.Builder.setupExternalBuilder(readBuilder, config);
 
@@ -1647,10 +1691,11 @@ public class KafkaIO {
 
     @Experimental(Kind.PORTABILITY)
     static class Builder<K, V>
-        implements ExternalTransformBuilder<External.Configuration, PBegin, PCollection<Row>> {
+        implements ExternalTransformBuilder<Read.External.Configuration, PBegin, PCollection<Row>> {
 
       @Override
-      public PTransform<PBegin, PCollection<Row>> buildExternal(External.Configuration config) {
+      public PTransform<PBegin, PCollection<Row>> buildExternal(
+          Read.External.Configuration config) {
         Read.Builder<K, V> readBuilder = new AutoValue_KafkaIO_Read.Builder();
         Read.Builder.setupExternalBuilder(readBuilder, config);
 
@@ -2541,7 +2586,8 @@ public class KafkaIO {
     @Experimental(Kind.PORTABILITY)
     @AutoValue.Builder
     abstract static class Builder<K, V>
-        implements ExternalTransformBuilder<External.Configuration, PCollection<KV<K, V>>, PDone> {
+        implements ExternalTransformBuilder<
+            Write.External.Configuration, PCollection<KV<K, V>>, PDone> {
       abstract Builder<K, V> setTopic(String topic);
 
       abstract Builder<K, V> setWriteRecordsTransform(WriteRecords<K, V> transform);
@@ -2550,7 +2596,7 @@ public class KafkaIO {
 
       @Override
       public PTransform<PCollection<KV<K, V>>, PDone> buildExternal(
-          External.Configuration configuration) {
+          Write.External.Configuration configuration) {
         setTopic(configuration.topic);
 
         Map<String, Object> producerConfig = new HashMap<>(configuration.producerConfig);

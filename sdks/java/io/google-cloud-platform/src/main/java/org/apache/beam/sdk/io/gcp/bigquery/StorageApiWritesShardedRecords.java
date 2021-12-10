@@ -24,19 +24,15 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.bigquery.storage.v1beta2.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1beta2.ProtoRows;
 import com.google.cloud.bigquery.storage.v1beta2.WriteStream.Type;
-import com.google.protobuf.ByteString;
 import com.google.protobuf.Descriptors.Descriptor;
 import io.grpc.Status;
 import io.grpc.Status.Code;
 import java.io.IOException;
 import java.time.Instant;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -87,7 +83,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A transform to write sharded records to BigQuery using the Storage API. */
-@SuppressWarnings("FutureReturnValueIgnored")
+@SuppressWarnings({
+  "FutureReturnValueIgnored",
+  "unused" // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
+})
 public class StorageApiWritesShardedRecords<DestinationT, ElementT>
     extends PTransform<
         PCollection<KV<ShardedKey<DestinationT>, Iterable<byte[]>>>, PCollection<Void>> {
@@ -102,7 +101,7 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
 
   private static final Cache<String, StreamAppendClient> APPEND_CLIENTS =
       CacheBuilder.newBuilder()
-          .expireAfterAccess(5, TimeUnit.MINUTES)
+          .expireAfterAccess(java.time.Duration.ofMinutes(5))
           .removalListener(
               (RemovalNotification<String, StreamAppendClient> removal) -> {
                 @Nullable final StreamAppendClient streamAppendClient = removal.getValue();
@@ -179,52 +178,6 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
             "Flush and finalize writes", ParDo.of(new StorageApiFlushAndFinalizeDoFn(bqServices)));
   }
 
-  /**
-   * Takes in an iterable and batches the results into multiple ProtoRows objects. The splitSize
-   * parameter controls how many rows are batched into a single ProtoRows object before we move on
-   * to the next one.
-   */
-  static class SplittingIterable implements Iterable<ProtoRows> {
-    private final Iterable<byte[]> underlying;
-    private final long splitSize;
-
-    public SplittingIterable(Iterable<byte[]> underlying, long splitSize) {
-      this.underlying = underlying;
-      this.splitSize = splitSize;
-    }
-
-    @Override
-    public Iterator<ProtoRows> iterator() {
-      return new Iterator<ProtoRows>() {
-        final Iterator<byte[]> underlyingIterator = underlying.iterator();
-
-        @Override
-        public boolean hasNext() {
-          return underlyingIterator.hasNext();
-        }
-
-        @Override
-        public ProtoRows next() {
-          if (!hasNext()) {
-            throw new NoSuchElementException();
-          }
-
-          ProtoRows.Builder inserts = ProtoRows.newBuilder();
-          long bytesSize = 0;
-          while (underlyingIterator.hasNext()) {
-            ByteString byteString = ByteString.copyFrom(underlyingIterator.next());
-            inserts.addSerializedRows(byteString);
-            bytesSize += byteString.size();
-            if (bytesSize > splitSize) {
-              break;
-            }
-          }
-          return inserts.build();
-        }
-      };
-    }
-  }
-
   class WriteRecordsDoFn
       extends DoFn<KV<ShardedKey<DestinationT>, Iterable<byte[]>>, KV<String, Operation>> {
     private final Counter recordsAppended =
@@ -248,7 +201,7 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
 
     private Map<DestinationT, TableDestination> destinations = Maps.newHashMap();
 
-    private @Nullable DatasetService datasetServiceInternal = null;
+    private transient @Nullable DatasetService datasetServiceInternal = null;
 
     // Stores the current stream for this key.
     @StateId("streamName")
@@ -343,7 +296,7 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
       final String tableId = tableDestination.getTableUrn();
       final DatasetService datasetService = getDatasetService(pipelineOptions);
       MessageConverter<ElementT> messageConverter =
-          messageConverters.get(element.getKey().getKey(), dynamicDestinations);
+          messageConverters.get(element.getKey().getKey(), dynamicDestinations, datasetService);
       Descriptor descriptor = messageConverter.getSchemaDescriptor();
 
       // Each ProtoRows object contains at most 1MB of rows.

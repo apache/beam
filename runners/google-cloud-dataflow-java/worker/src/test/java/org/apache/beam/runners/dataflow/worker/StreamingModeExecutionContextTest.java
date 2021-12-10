@@ -168,7 +168,7 @@ public class StreamingModeExecutionContextTest {
     // still fire.
     Instant now = Instant.now();
     long offsetMillis = 60 * 1000;
-    Instant timerTimestamp = now.plus(offsetMillis);
+    Instant timerTimestamp = now.plus(Duration.millis(offsetMillis));
     timerBuilder
         .setTag(ByteString.copyFromUtf8("a"))
         .setTimestamp(timerTimestamp.getMillis() * 1000)

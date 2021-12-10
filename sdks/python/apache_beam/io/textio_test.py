@@ -69,7 +69,8 @@ def write_data(
     directory=None,
     prefix=tempfile.template,
     eol=EOL.LF,
-    custom_delimiter=None):
+    custom_delimiter=None,
+    line_value=b'line'):
   """Writes test data to a temporary file.
 
   Args:
@@ -81,7 +82,8 @@ def write_data(
     eol (int): The line ending to use when writing.
       :class:`~apache_beam.io.textio_test.EOL` exposes attributes that can be
       used here to define the eol.
-    custom_delimiter (str or bytes): The custom delimiter.
+    custom_delimiter (bytes): The custom delimiter.
+    line_value (bytes): Default value for test data, default b'line'
 
   Returns:
     Tuple[str, List[str]]: A tuple of the filename and a list of the
@@ -92,7 +94,7 @@ def write_data(
                                    prefix=prefix) as f:
     sep_values = [b'\n', b'\r\n']
     for i in range(num_lines):
-      data = b'' if no_data else b'line' + str(i).encode()
+      data = b'' if no_data else line_value + str(i).encode()
       all_data.append(data)
 
       if eol == EOL.LF:
@@ -160,17 +162,25 @@ class TextSourceTest(unittest.TestCase):
       file_or_pattern,
       expected_data,
       buffer_size=DEFAULT_NUM_RECORDS,
-      compression=CompressionTypes.UNCOMPRESSED):
+      compression=CompressionTypes.UNCOMPRESSED,
+      delimiter=None,
+      escapechar=None):
     # Since each record usually takes more than 1 byte, default buffer size is
     # smaller than the total size of the file. This is done to
     # increase test coverage for cases that hit the buffer boundary.
+    kwargs = {}
+    if delimiter:
+      kwargs['delimiter'] = delimiter
+    if escapechar:
+      kwargs['escapechar'] = escapechar
     source = TextSource(
         file_or_pattern,
         0,
         compression,
         True,
         coders.StrUtf8Coder(),
-        buffer_size)
+        buffer_size,
+        **kwargs)
     range_tracker = source.get_range_tracker(None, None)
     read_data = list(source.read(range_tracker))
     self.assertCountEqual(expected_data, read_data)
@@ -1023,13 +1033,73 @@ class TextSourceTest(unittest.TestCase):
     self.assertEqual(expected_data[2:], reference_lines)
     self.assertEqual(reference_lines, split_lines)
 
+  def test_custom_delimiter_read_from_text(self):
+    file_name, expected_data = write_data(
+      5, eol=EOL.CUSTOM_DELIMITER, custom_delimiter=b'@#')
+    assert len(expected_data) == 5
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Read' >> ReadFromText(file_name, delimiter=b'@#')
+      assert_that(pcoll, equal_to(expected_data))
+
+  def test_custom_delimiter_read_all_single_file(self):
+    file_name, expected_data = write_data(
+      5, eol=EOL.CUSTOM_DELIMITER, custom_delimiter=b'@#')
+    assert len(expected_data) == 5
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Create' >> Create(
+          [file_name]) | 'ReadAll' >> ReadAllFromText(delimiter=b'@#')
+      assert_that(pcoll, equal_to(expected_data))
+
+  def test_invalid_delimiters_are_rejected(self):
+    file_name, _ = write_data(1)
+    for delimiter in (b'', '', '\r\n', 'a', 1):
+      with self.assertRaises(
+          ValueError, msg='Delimiter must be a non-empty bytes sequence.'):
+        _ = TextSource(
+            file_pattern=file_name,
+            min_bundle_size=0,
+            buffer_size=6,
+            compression_type=CompressionTypes.UNCOMPRESSED,
+            strip_trailing_newlines=True,
+            coder=coders.StrUtf8Coder(),
+            delimiter=delimiter,
+        )
+
+  def test_non_self_overlapping_delimiter_is_accepted(self):
+    file_name, _ = write_data(1)
+    for delimiter in (b'\n', b'\r\n', b'*', b'abc', b'cabdab', b'abcabd'):
+      _ = TextSource(
+          file_pattern=file_name,
+          min_bundle_size=0,
+          buffer_size=6,
+          compression_type=CompressionTypes.UNCOMPRESSED,
+          strip_trailing_newlines=True,
+          coder=coders.StrUtf8Coder(),
+          delimiter=delimiter,
+      )
+
+  def test_self_overlapping_delimiter_is_rejected(self):
+    file_name, _ = write_data(1)
+    for delimiter in (b'||', b'***', b'aba', b'abcab'):
+      with self.assertRaises(ValueError,
+                             msg='Delimiter must not self-overlap.'):
+        _ = TextSource(
+            file_pattern=file_name,
+            min_bundle_size=0,
+            buffer_size=6,
+            compression_type=CompressionTypes.UNCOMPRESSED,
+            strip_trailing_newlines=True,
+            coder=coders.StrUtf8Coder(),
+            delimiter=delimiter,
+        )
+
   def test_read_with_customer_delimiter(self):
     delimiters = [
         b'\n',
         b'\r\n',
         b'*|',
         b'*',
-        b'***',
+        b'*=-',
     ]
 
     for delimiter in delimiters:
@@ -1050,6 +1120,248 @@ class TextSourceTest(unittest.TestCase):
       read_data = list(source.read(range_tracker))
 
       self.assertEqual(read_data, expected_data)
+
+  def test_read_with_custom_delimiter_around_split_point(self):
+    for delimiter in (b'\n', b'\r\n', b'@#', b'abc'):
+      file_name, expected_data = write_data(
+        20,
+        eol=EOL.CUSTOM_DELIMITER,
+        custom_delimiter=delimiter)
+      assert len(expected_data) == 20
+      for desired_bundle_size in (4, 5, 6, 7):
+        source = TextSource(
+            file_name,
+            0,
+            CompressionTypes.UNCOMPRESSED,
+            True,
+            coders.StrUtf8Coder(),
+            delimiter=delimiter)
+        splits = list(source.split(desired_bundle_size=desired_bundle_size))
+
+        reference_source_info = (source, None, None)
+        sources_info = ([
+            (split.source, split.start_position, split.stop_position)
+            for split in splits
+        ])
+        source_test_utils.assert_sources_equal_reference_source(
+            reference_source_info, sources_info)
+
+  def test_read_with_customer_delimiter_truncated(self):
+    """
+    Corner case: delimiter truncated at the end of the file
+    Use delimiter with length = 3, buffer_size = 6
+    and line_value with length = 4
+    to split the delimiter
+    """
+    delimiter = b'@$*'
+
+    file_name, expected_data = write_data(
+      10,
+      eol=EOL.CUSTOM_DELIMITER,
+      line_value=b'a' * 4,
+      custom_delimiter=delimiter)
+
+    assert len(expected_data) == 10
+    source = TextSource(
+        file_pattern=file_name,
+        min_bundle_size=0,
+        buffer_size=6,
+        compression_type=CompressionTypes.UNCOMPRESSED,
+        strip_trailing_newlines=True,
+        coder=coders.StrUtf8Coder(),
+        delimiter=delimiter,
+    )
+    range_tracker = source.get_range_tracker(None, None)
+    read_data = list(source.read(range_tracker))
+
+    self.assertEqual(read_data, expected_data)
+
+  def test_read_with_customer_delimiter_over_buffer_size(self):
+    """
+    Corner case: delimiter is on border of size of buffer
+    """
+    file_name, expected_data = write_data(3, eol=EOL.CRLF, line_value=b'\rline')
+    assert len(expected_data) == 3
+    self._run_read_test(
+        file_name, expected_data, buffer_size=7, delimiter=b'\r\n')
+
+  def test_read_with_customer_delimiter_truncated_and_not_equal(self):
+    """
+    Corner case: delimiter truncated at the end of the file
+    and only part of delimiter equal end of buffer
+
+    Use delimiter with length = 3, buffer_size = 6
+    and line_value with length = 4
+    to split the delimiter
+    """
+
+    write_delimiter = b'@$'
+    read_delimiter = b'@$*'
+
+    file_name, expected_data = write_data(
+      10,
+      eol=EOL.CUSTOM_DELIMITER,
+      line_value=b'a' * 4,
+      custom_delimiter=write_delimiter)
+
+    # In this case check, that the line won't be splitted
+    write_delimiter_encode = write_delimiter.decode('utf-8')
+    expected_data_str = [
+        write_delimiter_encode.join(expected_data) + write_delimiter_encode
+    ]
+
+    source = TextSource(
+        file_pattern=file_name,
+        min_bundle_size=0,
+        buffer_size=6,
+        compression_type=CompressionTypes.UNCOMPRESSED,
+        strip_trailing_newlines=True,
+        coder=coders.StrUtf8Coder(),
+        delimiter=read_delimiter,
+    )
+    range_tracker = source.get_range_tracker(None, None)
+
+    read_data = list(source.read(range_tracker))
+
+    self.assertEqual(read_data, expected_data_str)
+
+  def test_read_crlf_split_by_buffer(self):
+    file_name, expected_data = write_data(3, eol=EOL.CRLF)
+    assert len(expected_data) == 3
+    self._run_read_test(file_name, expected_data, buffer_size=6)
+
+  def test_read_escaped_lf(self):
+    file_name, expected_data = write_data(
+      self.DEFAULT_NUM_RECORDS, eol=EOL.LF, line_value=b'li\\\nne')
+    assert len(expected_data) == self.DEFAULT_NUM_RECORDS
+    self._run_read_test(file_name, expected_data, escapechar=b'\\')
+
+  def test_read_escaped_crlf(self):
+    file_name, expected_data = write_data(
+      TextSource.DEFAULT_READ_BUFFER_SIZE,
+      eol=EOL.CRLF,
+      line_value=b'li\\\r\\\nne')
+    assert len(expected_data) == TextSource.DEFAULT_READ_BUFFER_SIZE
+    self._run_read_test(file_name, expected_data, escapechar=b'\\')
+
+  def test_read_escaped_cr_before_not_escaped_lf(self):
+    file_name, expected_data_temp = write_data(
+      self.DEFAULT_NUM_RECORDS, eol=EOL.CRLF, line_value=b'li\\\r\nne')
+    expected_data = []
+    for line in expected_data_temp:
+      expected_data += line.split("\n")
+    assert len(expected_data) == self.DEFAULT_NUM_RECORDS * 2
+    self._run_read_test(file_name, expected_data, escapechar=b'\\')
+
+  def test_read_escaped_custom_delimiter_crlf(self):
+    file_name, expected_data = write_data(
+      self.DEFAULT_NUM_RECORDS, eol=EOL.CRLF, line_value=b'li\\\r\nne')
+    assert len(expected_data) == self.DEFAULT_NUM_RECORDS
+    self._run_read_test(
+        file_name, expected_data, delimiter=b'\r\n', escapechar=b'\\')
+
+  def test_read_escaped_custom_delimiter(self):
+    file_name, expected_data = write_data(
+      TextSource.DEFAULT_READ_BUFFER_SIZE,
+      eol=EOL.CUSTOM_DELIMITER,
+      custom_delimiter=b'*|',
+      line_value=b'li\\*|ne')
+    assert len(expected_data) == TextSource.DEFAULT_READ_BUFFER_SIZE
+    self._run_read_test(
+        file_name, expected_data, delimiter=b'*|', escapechar=b'\\')
+
+  def test_read_escaped_lf_at_buffer_edge(self):
+    file_name, expected_data = write_data(3, eol=EOL.LF, line_value=b'line\\\n')
+    assert len(expected_data) == 3
+    self._run_read_test(
+        file_name, expected_data, buffer_size=5, escapechar=b'\\')
+
+  def test_read_escaped_crlf_split_by_buffer(self):
+    file_name, expected_data = write_data(
+      3, eol=EOL.CRLF, line_value=b'line\\\r\n')
+    assert len(expected_data) == 3
+    self._run_read_test(
+        file_name,
+        expected_data,
+        buffer_size=6,
+        delimiter=b'\r\n',
+        escapechar=b'\\')
+
+  def test_read_escaped_lf_after_splitting(self):
+    file_name, expected_data = write_data(3, line_value=b'line\\\n')
+    assert len(expected_data) == 3
+    source = TextSource(
+        file_name,
+        0,
+        CompressionTypes.UNCOMPRESSED,
+        True,
+        coders.StrUtf8Coder(),
+        escapechar=b'\\')
+    splits = list(source.split(desired_bundle_size=6))
+
+    reference_source_info = (source, None, None)
+    sources_info = ([(split.source, split.start_position, split.stop_position)
+                     for split in splits])
+    source_test_utils.assert_sources_equal_reference_source(
+        reference_source_info, sources_info)
+
+  def test_read_escaped_lf_after_splitting_many(self):
+    file_name, expected_data = write_data(
+      3, line_value=b'\\\\\\\\\\\n')  # 5 escapes
+    assert len(expected_data) == 3
+    source = TextSource(
+        file_name,
+        0,
+        CompressionTypes.UNCOMPRESSED,
+        True,
+        coders.StrUtf8Coder(),
+        escapechar=b'\\')
+    splits = list(source.split(desired_bundle_size=6))
+
+    reference_source_info = (source, None, None)
+    sources_info = ([(split.source, split.start_position, split.stop_position)
+                     for split in splits])
+    source_test_utils.assert_sources_equal_reference_source(
+        reference_source_info, sources_info)
+
+  def test_read_escaped_escapechar_after_splitting(self):
+    file_name, expected_data = write_data(3, line_value=b'line\\\\*|')
+    assert len(expected_data) == 3
+    source = TextSource(
+        file_name,
+        0,
+        CompressionTypes.UNCOMPRESSED,
+        True,
+        coders.StrUtf8Coder(),
+        delimiter=b'*|',
+        escapechar=b'\\')
+    splits = list(source.split(desired_bundle_size=8))
+
+    reference_source_info = (source, None, None)
+    sources_info = ([(split.source, split.start_position, split.stop_position)
+                     for split in splits])
+    source_test_utils.assert_sources_equal_reference_source(
+        reference_source_info, sources_info)
+
+  def test_read_escaped_escapechar_after_splitting_many(self):
+    file_name, expected_data = write_data(
+      3, line_value=b'\\\\\\\\\\\\*|')  # 6 escapes
+    assert len(expected_data) == 3
+    source = TextSource(
+        file_name,
+        0,
+        CompressionTypes.UNCOMPRESSED,
+        True,
+        coders.StrUtf8Coder(),
+        delimiter=b'*|',
+        escapechar=b'\\')
+    splits = list(source.split(desired_bundle_size=8))
+
+    reference_source_info = (source, None, None)
+    sources_info = ([(split.source, split.start_position, split.stop_position)
+                     for split in splits])
+    source_test_utils.assert_sources_equal_reference_source(
+        reference_source_info, sources_info)
 
 
 class TextSinkTest(unittest.TestCase):

@@ -61,7 +61,7 @@ class StorageApiFinalizeWritesDoFn extends DoFn<KV<String, String>, Void> {
 
   private Map<String, Collection<String>> commitStreams;
   private final BigQueryServices bqServices;
-  @Nullable private DatasetService datasetService;
+  private transient @Nullable DatasetService datasetService;
 
   public StorageApiFinalizeWritesDoFn(BigQueryServices bqServices) {
     this.bqServices = bqServices;

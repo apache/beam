@@ -284,7 +284,15 @@ func (c *DataChannel) read(ctx context.Context) {
 			if elm.GetIsLast() {
 				// If this reader hasn't closed yet, do so now.
 				if !r.completed {
-					// Sentinel EOF segment for stream. Close buffer to signal EOF.
+					// Use the last segment if any.
+					if len(elm.GetData()) != 0 {
+						// In case of local side closing, send with select.
+						select {
+						case r.buf <- elm.GetData():
+						case <-r.done:
+						}
+					}
+					// Close buffer to signal EOF.
 					r.completed = true
 					close(r.buf)
 				}
@@ -516,6 +524,7 @@ func (w *dataWriter) Close() error {
 			{
 				InstructionId: string(w.id.instID),
 				TransformId:   w.id.ptransformID,
+				// TODO(BEAM-13142): Set IsLast true on final flush instead of w/empty sentinel?
 				// Empty data == sentinel
 				IsLast: true,
 			},

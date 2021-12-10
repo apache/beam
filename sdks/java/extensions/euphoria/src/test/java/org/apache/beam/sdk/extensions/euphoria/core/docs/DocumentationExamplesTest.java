@@ -158,10 +158,9 @@ public class DocumentationExamplesTest {
   @Test
   public void inputsAndOutputsSection() {
 
-    PCollection<String> input =
-        pipeline
-            .apply(Create.of("mouse", "rat", "elephant", "cat", "X", "duck"))
-            .setTypeDescriptor(TypeDescriptor.of(String.class));
+    pipeline
+        .apply(Create.of("mouse", "rat", "elephant", "cat", "X", "duck"))
+        .setTypeDescriptor(TypeDescriptor.of(String.class));
 
     pipeline.run();
   }
@@ -185,27 +184,25 @@ public class DocumentationExamplesTest {
 
     PCollection<String> dataset = pipeline.apply(Create.of("a", "x"));
 
-    PCollection<String> flatMapped =
-        FlatMap.named("FlatMap1")
-            .of(dataset)
-            .using(
-                (String value, Collector<String> context) -> {
-                  context.getCounter("my-counter").increment();
-                  context.collect(value);
-                })
-            .output();
+    FlatMap.named("FlatMap1")
+        .of(dataset)
+        .using(
+            (String value, Collector<String> context) -> {
+              context.getCounter("my-counter").increment();
+              context.collect(value);
+            })
+        .output();
 
-    PCollection<String> mapped =
-        MapElements.named("MapThem")
-            .of(dataset)
-            .using(
-                (value, context) -> {
-                  // use simple counter
-                  context.getCounter("my-counter").increment();
+    MapElements.named("MapThem")
+        .of(dataset)
+        .using(
+            (value, context) -> {
+              // use simple counter
+              context.getCounter("my-counter").increment();
 
-                  return value.toLowerCase();
-                })
-            .output();
+              return value.toLowerCase();
+            })
+        .output();
   }
 
   @Test
@@ -240,16 +237,15 @@ public class DocumentationExamplesTest {
     PCollection<Integer> input =
         pipeline.apply(Create.of(1, 2, 3, 4)).setTypeDescriptor(TypeDescriptors.integers());
 
-    PCollection<KV<Integer, Long>> countedElements =
-        CountByKey.of(input)
-            .keyBy(e -> e)
-            .windowBy(FixedWindows.of(Duration.standardSeconds(1)))
-            .triggeredBy(DefaultTrigger.of())
-            .discardingFiredPanes()
-            .withAllowedLateness(Duration.standardSeconds(5))
-            .withOnTimeBehavior(OnTimeBehavior.FIRE_IF_NON_EMPTY)
-            .withTimestampCombiner(TimestampCombiner.EARLIEST)
-            .output();
+    CountByKey.of(input)
+        .keyBy(e -> e)
+        .windowBy(FixedWindows.of(Duration.standardSeconds(1)))
+        .triggeredBy(DefaultTrigger.of())
+        .discardingFiredPanes()
+        .withAllowedLateness(Duration.standardSeconds(5))
+        .withOnTimeBehavior(OnTimeBehavior.FIRE_IF_NON_EMPTY)
+        .withTimestampCombiner(TimestampCombiner.EARLIEST)
+        .output();
 
     pipeline.run();
   }
@@ -520,12 +516,11 @@ public class DocumentationExamplesTest {
 
     // suppose events contain events of SomeEventObject, its 'getEventTimeInMillis()' methods
     // returns time-stamp
-    PCollection<SomeEventObject> timeStampedEvents =
-        FlatMap.named("extract-event-time")
-            .of(events)
-            .using((SomeEventObject e, Collector<SomeEventObject> c) -> c.collect(e))
-            .eventTimeBy(SomeEventObject::getEventTimeInMillis)
-            .output();
+    FlatMap.named("extract-event-time")
+        .of(events)
+        .using((SomeEventObject e, Collector<SomeEventObject> c) -> c.collect(e))
+        .eventTimeBy(SomeEventObject::getEventTimeInMillis)
+        .output();
     // Euphoria will now know event time for each event
 
     pipeline.run();
@@ -748,11 +743,10 @@ public class DocumentationExamplesTest {
 
     // suppose events contain events of SomeEventObject, its 'getEventTimeInMillis()' methods
     // returns time-stamp
-    PCollection<SomeEventObject> timeStampedEvents =
-        AssignEventTime.named("extract-event-time")
-            .of(events)
-            .using(SomeEventObject::getEventTimeInMillis)
-            .output();
+    AssignEventTime.named("extract-event-time")
+        .of(events)
+        .using(SomeEventObject::getEventTimeInMillis)
+        .output();
     // Euphoria will now know event time for each event
 
     pipeline.run();

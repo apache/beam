@@ -90,28 +90,25 @@ import org.slf4j.LoggerFactory;
  * valid or are not reachable due to permissions issues.
  *
  * <p>Message Listing Message Listing with {@link HL7v2IO.ListHL7v2Messages} supports batch use
- * cases where you want to process all the messages in an HL7v2 store or those matching a
- * filter @see <a
- * href=>https://cloud.google.com/healthcare/docs/reference/rest/v1/projects.locations.datasets.hl7V2Stores.messages/list#query-parameters</a>
- * This paginates through results of a Messages.List call @see <a
- * href=>https://cloud.google.com/healthcare/docs/reference/rest/v1/projects.locations.datasets.hl7V2Stores.messages/list</a>
- * and outputs directly to a {@link PCollection} of {@link HL7v2Message}. In these use cases, the
- * error handling similar to above is unnecessary because we are listing from the source of truth
- * the pipeline should fail transparently if this transform fails to paginate through all the
- * results.
+ * cases where you want to process all the messages in an HL7v2 store or those matching a filter
  *
- * <p>Write
- *
- * <p>A bounded or unbounded {@link PCollection} of {@link HL7v2Message} can be ingested into an
- * HL7v2 store using {@link HL7v2IO#ingestMessages(String)}. This will return a {@link
- * HL7v2IO.Write.Result} on which you can call {@link Write.Result#getFailedInsertsWithErr()} to
- * retrieve a {@link PCollection} of {@link HealthcareIOError} containing the {@link HL7v2Message}
- * that failed to be ingested and the exception. This can be used to write to the dead letter
- * storage system of your chosing.
- *
- * <p>Unbounded Read Example:
- *
- * <pre>{@code
+ * @see <a
+ *     href=>https://cloud.google.com/healthcare/docs/reference/rest/v1/projects.locations.datasets.hl7V2Stores.messages/list#query-parameters</a>
+ *     This paginates through results of a Messages.List call @see <a
+ *     href=>https://cloud.google.com/healthcare/docs/reference/rest/v1/projects.locations.datasets.hl7V2Stores.messages/list</a>
+ *     and outputs directly to a {@link PCollection} of {@link HL7v2Message}. In these use cases,
+ *     the error handling similar to above is unnecessary because we are listing from the source of
+ *     truth the pipeline should fail transparently if this transform fails to paginate through all
+ *     the results.
+ *     <p>Write
+ *     <p>A bounded or unbounded {@link PCollection} of {@link HL7v2Message} can be ingested into an
+ *     HL7v2 store using {@link HL7v2IO#ingestMessages(String)}. This will return a {@link
+ *     HL7v2IO.Write.Result} on which you can call {@link Write.Result#getFailedInsertsWithErr()} to
+ *     retrieve a {@link PCollection} of {@link HealthcareIOError} containing the {@link
+ *     HL7v2Message} that failed to be ingested and the exception. This can be used to write to the
+ *     dead letter storage system of your chosing.
+ *     <p>Unbounded Read Example:
+ *     <pre>{@code
  * PipelineOptions options = ...;
  * Pipeline p = Pipeline.create(options);
  *
@@ -135,10 +132,8 @@ import org.slf4j.LoggerFactory;
  *
  * }***
  * </pre>
- *
- * <p>Bounded Read Example:
- *
- * <pre>{@code
+ *     <p>Bounded Read Example:
+ *     <pre>{@code
  * PipelineOptions options = ...;
  * Pipeline p = Pipeline.create(options);
  *
@@ -266,6 +261,7 @@ public class HL7v2IO {
     public Read() {}
 
     public static class Result implements POutput, PInput {
+
       private PCollection<HL7v2Message> messages;
 
       private PCollection<HealthcareIOError<String>> failedReads;
@@ -318,7 +314,7 @@ public class HL7v2IO {
         new TupleTag<HealthcareIOError<String>>() {};
 
     @Override
-    public Result expand(PCollection<String> input) {
+    public Read.Result expand(PCollection<String> input) {
       CoderRegistry coderRegistry = input.getPipeline().getCoderRegistry();
       coderRegistry.registerCoderForClass(HL7v2Message.class, HL7v2MessageCoder.of());
       return input.apply("Fetch HL7v2 messages", new FetchHL7v2Message());
@@ -349,7 +345,7 @@ public class HL7v2IO {
       public FetchHL7v2Message() {}
 
       @Override
-      public Result expand(PCollection<String> msgIds) {
+      public Read.Result expand(PCollection<String> msgIds) {
         CoderRegistry coderRegistry = msgIds.getPipeline().getCoderRegistry();
         coderRegistry.registerCoderForClass(HL7v2Message.class, HL7v2MessageCoder.of());
         return new Result(
@@ -444,6 +440,7 @@ public class HL7v2IO {
    * with {@link ListHL7v2Messages#withInitialSplitDuration(Duration)}
    */
   public static class ListHL7v2Messages extends PTransform<PBegin, PCollection<HL7v2Message>> {
+
     private final ValueProvider<List<String>> hl7v2Stores;
     private final ValueProvider<String> filter;
     private Duration initialSplitDuration;
@@ -486,6 +483,7 @@ public class HL7v2IO {
   @BoundedPerElement
   @VisibleForTesting
   static class ListHL7v2MessagesFn extends DoFn<String, HL7v2Message> {
+
     // These control the initial restriction split which means that the list of integer pairs
     // must comfortably fit in memory.
     private static final Duration DEFAULT_DESIRED_SPLIT_DURATION = Duration.standardDays(1);
@@ -495,6 +493,7 @@ public class HL7v2IO {
     private ValueProvider<String> filter;
     private Duration initialSplitDuration;
     private transient HealthcareApiClient client;
+
     /**
      * Instantiates a new List HL7v2 fn.
      *
@@ -526,7 +525,10 @@ public class HL7v2IO {
       Instant from = this.client.getEarliestHL7v2SendTime(hl7v2Store, this.filter.get());
       // filters are [from, to) to match logic of OffsetRangeTracker but need latest element to be
       // included in results set to add an extra ms to the upper bound.
-      Instant to = this.client.getLatestHL7v2SendTime(hl7v2Store, this.filter.get()).plus(1);
+      Instant to =
+          this.client
+              .getLatestHL7v2SendTime(hl7v2Store, this.filter.get())
+              .plus(Duration.millis(1));
       return new OffsetRange(from.getMillis(), to.getMillis());
     }
 
@@ -597,7 +599,7 @@ public class HL7v2IO {
     }
   }
 
-  /** The type Write. */
+  /** The type Write that writes the given PCollection of HL7v2 messages. */
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<HL7v2Message>, Write.Result> {
 
@@ -609,7 +611,7 @@ public class HL7v2IO {
         new TupleTag<HealthcareIOError<HL7v2Message>>() {};
 
     /**
-     * Gets HL7v2 store.
+     * Gets HL7v2 store that is being written to.
      *
      * @return the HL7v2 store
      */
@@ -623,7 +625,7 @@ public class HL7v2IO {
     abstract WriteMethod getWriteMethod();
 
     @Override
-    public Result expand(PCollection<HL7v2Message> messages) {
+    public Write.Result expand(PCollection<HL7v2Message> messages) {
       CoderRegistry coderRegistry = messages.getPipeline().getCoderRegistry();
       coderRegistry.registerCoderForClass(HL7v2Message.class, HL7v2MessageCoder.of());
       return messages.apply(new WriteHL7v2(this.getHL7v2Store(), this.getWriteMethod()));
@@ -637,8 +639,8 @@ public class HL7v2IO {
        */
       INGEST,
       /**
-       * Batch import write method. This is not yet supported by the HL7v2 API, but can be used to
-       * improve throughput once available.
+       * Batch import write method. This is not yet supported by HL7v2IO. @see <a
+       * href=https://cloud.google.com/healthcare/docs/reference/rest/v1/projects.locations.datasets.hl7V2Stores/import></a>
        */
       BATCH_IMPORT
     }
@@ -672,6 +674,7 @@ public class HL7v2IO {
     }
 
     public static class Result implements POutput {
+
       private final Pipeline pipeline;
       private final PCollection<HealthcareIOError<HL7v2Message>> failedInsertsWithErr;
 
@@ -708,15 +711,16 @@ public class HL7v2IO {
     }
   }
 
-  /** The type Write hl 7 v 2. */
+  /** The type Write HL7v2 for writing HL7v2 messages. */
   static class WriteHL7v2 extends PTransform<PCollection<HL7v2Message>, Write.Result> {
+
     private final ValueProvider<String> hl7v2Store;
     private final Write.WriteMethod writeMethod;
 
     /**
-     * Instantiates a new Write hl 7 v 2.
+     * Instantiates a new Write HL7v2.
      *
-     * @param hl7v2Store the hl 7 v 2 store
+     * @param hl7v2Store the HL7v2 store
      * @param writeMethod the write method
      */
     WriteHL7v2(ValueProvider<String> hl7v2Store, Write.WriteMethod writeMethod) {
@@ -733,18 +737,16 @@ public class HL7v2IO {
       return Write.Result.in(input.getPipeline(), failedInserts);
     }
 
-    /** The type Write hl 7 v 2 fn. */
+    /** The type Write hl HL7v2 fn. */
     static class WriteHL7v2Fn extends DoFn<HL7v2Message, HealthcareIOError<HL7v2Message>> {
-      // TODO when the healthcare API releases a bulk import method this should use that to improve
-      // throughput.
 
       private Distribution messageIngestLatencyMs =
-          Metrics.distribution(WriteHL7v2Fn.class, "message-ingest-latency-ms");
+          Metrics.distribution(WriteHL7v2Fn.class, "hl7v2-message-ingest-latency-ms");
       private Counter failedMessageWrites =
           Metrics.counter(WriteHL7v2Fn.class, "failed-hl7v2-message-writes");
-      private final ValueProvider<String> hl7v2Store;
       private final Counter successfulHL7v2MessageWrites =
-          Metrics.counter(WriteHL7v2.class, "successful-hl7v2-message-writes");
+          Metrics.counter(WriteHL7v2Fn.class, "successful-hl7v2-message-writes");
+      private final ValueProvider<String> hl7v2Store;
       private final Write.WriteMethod writeMethod;
 
       private static final Logger LOG = LoggerFactory.getLogger(WriteHL7v2.WriteHL7v2Fn.class);
@@ -785,14 +787,14 @@ public class HL7v2IO {
         model.setLabels(msg.getLabels());
         switch (writeMethod) {
           case BATCH_IMPORT:
-            // TODO once healthcare API exposes batch import API add that functionality here to
-            // improve performance this should be the new default behavior/List.
-            throw new UnsupportedOperationException("The Batch import API is not available yet");
+            // TODO: add support for HL7v2 import.
+            throw new UnsupportedOperationException("The batch import API is not supported yet");
           case INGEST:
           default:
             try {
               long requestTimestamp = Instant.now().getMillis();
               client.ingestHL7v2Message(hl7v2Store.get(), model);
+              successfulHL7v2MessageWrites.inc();
               messageIngestLatencyMs.update(Instant.now().getMillis() - requestTimestamp);
             } catch (Exception e) {
               failedMessageWrites.inc();

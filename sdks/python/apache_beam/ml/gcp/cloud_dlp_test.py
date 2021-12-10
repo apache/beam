@@ -64,7 +64,7 @@ class TestDeidentifyFn(unittest.TestCase):
         operation.item = item
         return operation
 
-      def project_path(self, *args):
+      def common_project_path(self, *args):
         return 'test'
 
     with mock.patch('google.cloud.dlp_v2.DlpServiceClient', ClientMock):
@@ -112,7 +112,7 @@ class TestDeidentifyFn(unittest.TestCase):
         operation.result.findings = [None]
         return operation
 
-      def project_path(self, *args):
+      def common_project_path(self, *args):
         return 'test'
 
     with mock.patch('google.cloud.dlp_v2.DlpServiceClient', ClientMock):

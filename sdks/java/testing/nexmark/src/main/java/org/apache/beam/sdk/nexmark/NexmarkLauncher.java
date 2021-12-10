@@ -113,7 +113,6 @@ import org.apache.kafka.common.serialization.StringSerializer;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.slf4j.LoggerFactory;
 
 /** Run a single Nexmark query using a given configuration. */
 @SuppressWarnings({
@@ -121,8 +120,6 @@ import org.slf4j.LoggerFactory;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class NexmarkLauncher<OptionT extends NexmarkOptions> {
-
-  private static final org.slf4j.Logger LOG = LoggerFactory.getLogger(NexmarkLauncher.class);
 
   /** Command line parameter value for query language. */
   private static final String SQL = "sql";

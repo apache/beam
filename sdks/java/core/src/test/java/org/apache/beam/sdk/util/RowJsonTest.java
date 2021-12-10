@@ -42,6 +42,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
+import org.joda.time.ReadableInstant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.runners.Enclosed;
@@ -93,6 +95,7 @@ public class RowJsonTest {
               .addBooleanField("f_boolean")
               .addStringField("f_string")
               .addDecimalField("f_decimal")
+              .addDateTimeField("f_timestamp")
               .build();
 
       String rowString =
@@ -105,7 +108,8 @@ public class RowJsonTest {
               + "\"f_double\" : 62.2,\n"
               + "\"f_boolean\" : true,\n"
               + "\"f_string\" : \"hello\",\n"
-              + "\"f_decimal\" : 123.12\n"
+              + "\"f_decimal\" : 123.12,\n"
+              + "\"f_timestamp\" : \"2021-11-18T08:45:38.000Z\"\n"
               + "}";
 
       Row expectedRow =
@@ -119,7 +123,8 @@ public class RowJsonTest {
                   62.2d,
                   true,
                   "hello",
-                  new BigDecimal("123.12"))
+                  new BigDecimal("123.12"),
+                  new DateTime(2021, 11, 18, 8, 45, 38, DateTimeZone.UTC).toInstant())
               .build();
 
       return new Object[] {"Flat row", schema, rowString, expectedRow};
@@ -325,7 +330,8 @@ public class RowJsonTest {
     private static final Double DOUBLE_VALUE = 1.02d;
     private static final String DOUBLE_STRING = "1.02";
     private static final String DATETIME_STRING = "2014-09-27T20:30:00.450Z";
-    private static final DateTime DATETIME_VALUE = DateTime.parse(DATETIME_STRING);
+    private static final ReadableInstant DATETIME_VALUE =
+        DateTime.parse(DATETIME_STRING).toInstant();
 
     @Rule public ExpectedException thrown = ExpectedException.none();
 

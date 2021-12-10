@@ -88,7 +88,7 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
       LOG.info("Creating reader cache. Cache interval = {} ms.", readerCacheInterval);
       readerCache =
           CacheBuilder.newBuilder()
-              .expireAfterAccess(readerCacheInterval, TimeUnit.MILLISECONDS)
+              .expireAfterAccess(java.time.Duration.ofMillis(readerCacheInterval))
               .removalListener(new ReaderCacheRemovalListener())
               .build();
     }
@@ -199,8 +199,8 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
       backoffFactory =
           FluentBackoff.DEFAULT
               .withInitialBackoff(Duration.millis(10))
-              .withMaxBackoff(maxReadTime.minus(1))
-              .withMaxCumulativeBackoff(maxReadTime.minus(1));
+              .withMaxBackoff(maxReadTime.minus(Duration.millis(1)))
+              .withMaxCumulativeBackoff(maxReadTime.minus(Duration.millis(1)));
     }
 
     private boolean startIfNeeded() throws IOException {

@@ -57,6 +57,8 @@ builder.build {
     }
     jacocoCodeCoverage {
       execPattern('**/build/jacoco/*.exec')
+      exclusionPattern('**/org/apache/beam/gradle/**,**/org/apache/beam/model/**,' +
+          '**/org/apache/beam/runners/dataflow/worker/windmill/**,**/AutoValue_*')
     }
   }
 }

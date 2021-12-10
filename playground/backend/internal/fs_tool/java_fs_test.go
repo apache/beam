@@ -27,7 +27,7 @@ import (
 func Test_newJavaLifeCycle(t *testing.T) {
 	pipelineId := uuid.New()
 	workingDir := "workingDir"
-	baseFileFolder := fmt.Sprintf("%s/%s/%s", workingDir, javaBaseFileFolder, pipelineId)
+	baseFileFolder := fmt.Sprintf("%s/%s/%s", workingDir, baseFileFolder, pipelineId)
 	srcFileFolder := baseFileFolder + "/src"
 	binFileFolder := baseFileFolder + "/bin"
 
@@ -41,6 +41,8 @@ func Test_newJavaLifeCycle(t *testing.T) {
 		want *LifeCycle
 	}{
 		{
+			// Test case with calling newJavaLifeCycle method with correct pipelineId and workingDir.
+			// As a result, want to receive an expected java life cycle.
 			name: "newJavaLifeCycle",
 			args: args{
 				pipelineId: pipelineId,
@@ -49,13 +51,13 @@ func Test_newJavaLifeCycle(t *testing.T) {
 			want: &LifeCycle{
 				folderGlobs: []string{baseFileFolder, srcFileFolder, binFileFolder},
 				Folder: Folder{
-					BaseFolder:       baseFileFolder,
-					ExecutableFolder: srcFileFolder,
-					CompiledFolder:   binFileFolder,
+					BaseFolder:           baseFileFolder,
+					SourceFileFolder:     srcFileFolder,
+					ExecutableFileFolder: binFileFolder,
 				},
 				Extension: Extension{
-					ExecutableExtension: javaExecutableFileExtension,
-					CompiledExtension:   javaCompiledFileExtension,
+					SourceFileExtension:     javaSourceFileExtension,
+					ExecutableFileExtension: javaCompiledFileExtension,
 				},
 				ExecutableName: executableName,
 				pipelineId:     pipelineId,
@@ -101,9 +103,11 @@ func Test_executableName(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "all success",
+			// Test case with calling sourceFileName method with correct pipelineId and workingDir.
+			// As a result, want to receive a name that should be executed
+			name: "get executable name",
 			prepare: func() {
-				compiled := filepath.Join(workDir, javaBaseFileFolder, pipelineId.String(), javaCompiledFolderName)
+				compiled := filepath.Join(workDir, baseFileFolder, pipelineId.String(), compiledFolderName)
 				filePath := filepath.Join(compiled, "temp.class")
 				err := os.WriteFile(filePath, []byte("TEMP_DATA"), 0600)
 				if err != nil {
@@ -118,6 +122,8 @@ func Test_executableName(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			// Test case with calling sourceFileName method with correct pipelineId and workingDir.
+			// As a result, want to receive an error.
 			name:    "directory doesn't exist",
 			prepare: func() {},
 			args: args{
@@ -133,11 +139,11 @@ func Test_executableName(t *testing.T) {
 			tt.prepare()
 			got, err := executableName(tt.args.pipelineId, tt.args.workingDir)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("executableName() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("sourceFileName() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("executableName() got = %v, want %v", got, tt.want)
+				t.Errorf("sourceFileName() got = %v, want %v", got, tt.want)
 			}
 		})
 	}

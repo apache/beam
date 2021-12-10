@@ -25,10 +25,13 @@ import re
 import tempfile
 import unittest
 
+import pytest
+
 from apache_beam.examples.complete.juliaset.juliaset import juliaset
 from apache_beam.testing.util import open_shards
 
 
+@pytest.mark.examples_postcommit
 class JuliaSetTest(unittest.TestCase):
   def setUp(self):
     self.test_files = {}

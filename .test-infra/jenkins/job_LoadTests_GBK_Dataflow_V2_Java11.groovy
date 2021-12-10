@@ -23,7 +23,7 @@ import PhraseTriggeringPostCommitBuilder
 import CronJobBuilder
 import InfluxDBCredentialsHelper
 
-def loadTestConfigurations = { mode, isStreaming, datasetName ->
+def loadTestConfigurations = { mode, isStreaming ->
   [
     [
       title          : 'Load test: 2GB of 10B records',
@@ -34,9 +34,6 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
         region                : 'us-central1',
         appName               : "load_tests_Java11_Dataflow_V2_${mode}_GBK_1",
         tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
-        publishToBigQuery     : true,
-        bigQueryDataset       : datasetName,
-        bigQueryTable         : "java11_Dataflow_V2_${mode}_GBK_1",
         influxMeasurement     : "java_${mode}_gbk_1",
         influxTags            : """
                                   {
@@ -68,9 +65,6 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
         region                : 'us-central1',
         appName               : "load_tests_Java11_Dataflow_V2_${mode}_GBK_2",
         tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
-        publishToBigQuery     : true,
-        bigQueryDataset       : datasetName,
-        bigQueryTable         : "java11_dataflow_v2_${mode}_GBK_2",
         influxMeasurement     : "java_${mode}_gbk_2",
         influxTags            : """
                                   {
@@ -103,9 +97,6 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
         region                : 'us-central1',
         appName               : "load_tests_Java11_Dataflow_V2_${mode}_GBK_3",
         tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
-        publishToBigQuery     : true,
-        bigQueryDataset       : datasetName,
-        bigQueryTable         : "java11_dataflow_v2_${mode}_GBK_3",
         influxMeasurement     : "java_${mode}_gbk_3",
         influxTags            : """
                                   {
@@ -138,9 +129,6 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
         region                : 'us-central1',
         appName               : "load_tests_Java11_Dataflow_V2_${mode}_GBK_4",
         tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
-        publishToBigQuery     : true,
-        bigQueryDataset       : datasetName,
-        bigQueryTable         : "java11_dataflow_v2_${mode}_GBK_4",
         influxMeasurement     : "java_${mode}_gbk_4",
         influxTags            : """
                                   {
@@ -172,9 +160,6 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
         region                : 'us-central1',
         appName               : "load_tests_Java11_Dataflow_V2_${mode}_GBK_5",
         tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
-        publishToBigQuery     : true,
-        bigQueryDataset       : datasetName,
-        bigQueryTable         : "java11_dataflow_v2_${mode}_GBK_5",
         influxMeasurement     : "java_${mode}_gbk_5",
         influxTags            : """
                                   {
@@ -206,9 +191,6 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
         region                : 'us-central1',
         appName               : "load_tests_Java11_Dataflow_V2_${mode}_GBK_6",
         tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
-        publishToBigQuery     : true,
-        bigQueryDataset       : datasetName,
-        bigQueryTable         : "java11_dataflow_v2_${mode}_GBK_6",
         influxMeasurement     : "java_${mode}_gbk_6",
         influxTags            : """
                                   {
@@ -242,9 +224,6 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
         region                : 'us-central1',
         appName               : "load_tests_Java11_Dataflow_V2_${mode}_GBK_7",
         tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
-        publishToBigQuery     : true,
-        bigQueryDataset       : datasetName,
-        bigQueryTable         : "java11_dataflow_v2_${mode}_GBK_7",
         influxMeasurement     : "java_${mode}_gbk_7",
         influxTags            : """
                                   {
@@ -282,8 +261,7 @@ def streamingLoadTestJob = { scope, triggeringContext ->
   scope.description('Runs Java 11 GBK load tests on Dataflow runner V2 in streaming mode')
   commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
 
-  def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
-  for (testConfiguration in loadTestConfigurations('streaming', true, datasetName)) {
+  for (testConfiguration in loadTestConfigurations('streaming', true)) {
     testConfiguration.pipelineOptions << [inputWindowDurationSec: 1200]
     loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.JAVA,
         testConfiguration.pipelineOptions, testConfiguration.test, JOB_SPECIFIC_SWITCHES)
@@ -310,8 +288,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
 
 
 def batchLoadTestJob = { scope, triggeringContext ->
-  def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
-  loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.JAVA, loadTestConfigurations('batch', false, datasetName),
+  loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.JAVA, loadTestConfigurations('batch', false),
       "GBK", "batch", JOB_SPECIFIC_SWITCHES)
 }
 

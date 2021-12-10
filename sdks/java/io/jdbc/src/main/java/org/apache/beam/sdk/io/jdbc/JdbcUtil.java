@@ -23,25 +23,17 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
-import java.util.Arrays;
 import java.util.Calendar;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.TimeZone;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import javax.sql.DataSource;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.DateTime;
 
@@ -217,7 +209,7 @@ class JdbcUtil {
       if (field.getType().getTypeName().isLogicalType()
           && field.getType().getLogicalType().getArgument() != null) {
         int maxLimit = (Integer) field.getType().getLogicalType().getArgument();
-        if (length >= maxLimit) {
+        if (length > maxLimit) {
           throw new RuntimeException(
               String.format(
                   "Length of Schema.Field[%s] data exceeds database column capacity",
@@ -264,70 +256,30 @@ class JdbcUtil {
   }
 
   /** Create partitions on a table. */
-  static class PartitioningFn extends DoFn<List<Integer>, KV<String, Integer>> {
+  static class PartitioningFn extends DoFn<KV<Integer, KV<Long, Long>>, KV<String, Long>> {
     @ProcessElement
     public void processElement(ProcessContext c) {
-      List<Integer> params = c.element();
-      Integer lowerBound = params.get(0);
-      Integer upperBound = params.get(1);
-      Integer numPartitions = params.get(2);
+      Integer numPartitions = c.element().getKey();
+      Long lowerBound = c.element().getValue().getKey();
+      Long upperBound = c.element().getValue().getValue();
       if (lowerBound > upperBound) {
         throw new RuntimeException(
             String.format(
                 "Lower bound [%s] is higher than upper bound [%s]", lowerBound, upperBound));
       }
-      int stride = (upperBound - lowerBound) / numPartitions + 1;
-      for (int i = lowerBound; i < upperBound - stride; i += stride) {
+      long stride = (upperBound - lowerBound) / numPartitions + 1;
+      for (long i = lowerBound; i < upperBound - stride; i += stride) {
         String range = String.format("%s,%s", i, i + stride);
-        KV<String, Integer> kvRange = KV.of(range, 1);
+        KV<String, Long> kvRange = KV.of(range, 1L);
         c.output(kvRange);
       }
       if (upperBound - lowerBound > stride * (numPartitions - 1)) {
-        int indexFrom = (numPartitions - 1) * stride;
-        int indexTo = upperBound + 1;
+        long indexFrom = (numPartitions - 1) * stride;
+        long indexTo = upperBound + 1;
         String range = String.format("%s,%s", indexFrom, indexTo);
-        KV<String, Integer> kvRange = KV.of(range, 1);
+        KV<String, Long> kvRange = KV.of(range, 1L);
         c.output(kvRange);
       }
     }
-  }
-
-  /**
-   * Select maximal and minimal value from a table by partitioning column.
-   *
-   * @return pair of integers corresponds to the upper and lower bounds.
-   */
-  static Integer[] getBounds(
-      PBegin input,
-      String table,
-      SerializableFunction<Void, DataSource> providerFunctionFn,
-      String partitionColumn) {
-    final Integer[] bounds = {0, 0};
-    input
-        .apply(
-            String.format("Read min and max value by %s", partitionColumn),
-            JdbcIO.<String>read()
-                .withDataSourceProviderFn(providerFunctionFn)
-                .withQuery(
-                    String.format("select min(%1$s), max(%1$s) from %2$s", partitionColumn, table))
-                .withRowMapper(
-                    (JdbcIO.RowMapper<String>)
-                        resultSet ->
-                            String.join(
-                                ",", Arrays.asList(resultSet.getString(1), resultSet.getString(2))))
-                .withOutputParallelization(false)
-                .withCoder(StringUtf8Coder.of()))
-        .apply(
-            ParDo.of(
-                new DoFn<String, String>() {
-                  @ProcessElement
-                  public void processElement(ProcessContext context) {
-                    List<String> elements = Splitter.on(',').splitToList(context.element());
-                    bounds[0] = Integer.parseInt(Objects.requireNonNull(elements.get(0)));
-                    bounds[1] = Integer.parseInt(Objects.requireNonNull(elements.get(1)));
-                    context.output(context.element());
-                  }
-                }));
-    return bounds;
   }
 }

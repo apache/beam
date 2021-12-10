@@ -19,6 +19,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:playground/modules/editor/parsers/run_options_parser.dart';
 import 'package:playground/modules/editor/repository/code_repository/code_repository.dart';
 import 'package:playground/modules/editor/repository/code_repository/run_code_request.dart';
 import 'package:playground/modules/editor/repository/code_repository/run_code_result.dart';
@@ -27,6 +28,8 @@ import 'package:playground/modules/sdk/models/sdk.dart';
 
 const kTitleLength = 15;
 const kTitle = 'Catalog';
+const kPipelineOptionsParseError =
+    'Failed to parse pipeline options, please check the format (--key1 value1 --key2 value2)';
 
 class PlaygroundState with ChangeNotifier {
   late SDK _sdk;
@@ -34,11 +37,8 @@ class PlaygroundState with ChangeNotifier {
   ExampleModel? _selectedExample;
   String _source = '';
   RunCodeResult? _result;
-
-  String get examplesTitle {
-    final name = _selectedExample?.name ?? '';
-    return name.substring(0, min(kTitleLength, name.length));
-  }
+  String _pipelineOptions = '';
+  DateTime? resetKey;
 
   PlaygroundState({
     SDK sdk = SDK.java,
@@ -46,9 +46,15 @@ class PlaygroundState with ChangeNotifier {
     CodeRepository? codeRepository,
   }) {
     _selectedExample = selectedExample;
+    _pipelineOptions = selectedExample?.pipelineOptions ?? '';
     _sdk = sdk;
-    _source = _selectedExample?.sources[_sdk] ?? '';
+    _source = _selectedExample?.source ?? '';
     _codeRepository = codeRepository;
+  }
+
+  String get examplesTitle {
+    final name = _selectedExample?.name ?? kTitle;
+    return name.substring(0, min(kTitleLength, name.length));
   }
 
   ExampleModel? get selectedExample => _selectedExample;
@@ -57,13 +63,17 @@ class PlaygroundState with ChangeNotifier {
 
   String get source => _source;
 
-  bool get isCodeRunning => result?.status == RunCodeStatus.executing;
+  bool get isCodeRunning => !(result?.isFinished ?? true);
 
   RunCodeResult? get result => _result;
 
+  String get pipelineOptions => _pipelineOptions;
+
   setExample(ExampleModel example) {
     _selectedExample = example;
-    _source = example.sources[_sdk] ?? '';
+    _pipelineOptions = example.pipelineOptions ?? '';
+    _source = example.source ?? '';
+    _result = null;
     notifyListeners();
   }
 
@@ -82,8 +92,8 @@ class PlaygroundState with ChangeNotifier {
   }
 
   reset() {
-    _sdk = SDK.java;
-    _source = _selectedExample?.sources[_sdk] ?? '';
+    _source = _selectedExample?.source ?? '';
+    resetKey = DateTime.now();
     notifyListeners();
   }
 
@@ -95,12 +105,42 @@ class PlaygroundState with ChangeNotifier {
     notifyListeners();
   }
 
+  setPipelineOptions(String options) {
+    _pipelineOptions = options;
+  }
+
   void runCode() {
-    _codeRepository
-        ?.runCode(RunCodeRequestWrapper(code: source, sdk: sdk))
-        .listen((event) {
-      _result = event;
+    final parsedPipelineOptions = parsePipelineOptions(pipelineOptions);
+    if (parsedPipelineOptions == null) {
+      _result = RunCodeResult(
+        status: RunCodeStatus.compileError,
+        errorMessage: kPipelineOptionsParseError,
+      );
       notifyListeners();
-    });
+      return;
+    }
+    if (_selectedExample?.source == source &&
+        _selectedExample?.outputs != null &&
+        !_arePipelineOptionsChanges) {
+      _result = RunCodeResult(
+        status: RunCodeStatus.finished,
+        output: _selectedExample!.outputs,
+      );
+      notifyListeners();
+    } else {
+      final request = RunCodeRequestWrapper(
+        code: source,
+        sdk: sdk,
+        pipelineOptions: parsedPipelineOptions,
+      );
+      _codeRepository?.runCode(request).listen((event) {
+        _result = event;
+        notifyListeners();
+      });
+    }
+  }
+
+  bool get _arePipelineOptionsChanges {
+    return pipelineOptions != (_selectedExample?.pipelineOptions ?? '');
   }
 }

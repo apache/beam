@@ -111,7 +111,7 @@ public class WindowEvaluatorFactoryTest {
 
     CommittedBundle<Long> inputBundle = createInputBundle();
 
-    UncommittedBundle<Long> outputBundle = createOutputBundle(windowed, inputBundle);
+    UncommittedBundle<Long> outputBundle = createOutputBundle(windowed);
 
     BoundedWindow firstSecondWindow = new IntervalWindow(EPOCH, EPOCH.plus(windowDuration));
     BoundedWindow thirdWindow = new IntervalWindow(EPOCH.minus(windowDuration), EPOCH);
@@ -147,7 +147,7 @@ public class WindowEvaluatorFactoryTest {
     PCollection<Long> windowed = input.apply(transform);
 
     CommittedBundle<Long> inputBundle = createInputBundle();
-    UncommittedBundle<Long> outputBundle = createOutputBundle(windowed, inputBundle);
+    UncommittedBundle<Long> outputBundle = createOutputBundle(windowed);
 
     TransformResult<Long> result = runEvaluator(windowed, inputBundle);
 
@@ -202,7 +202,7 @@ public class WindowEvaluatorFactoryTest {
     PCollection<Long> windowed = input.apply(transform);
 
     CommittedBundle<Long> inputBundle = createInputBundle();
-    UncommittedBundle<Long> outputBundle = createOutputBundle(windowed, inputBundle);
+    UncommittedBundle<Long> outputBundle = createOutputBundle(windowed);
 
     TransformResult<Long> result = runEvaluator(windowed, inputBundle);
 
@@ -218,7 +218,7 @@ public class WindowEvaluatorFactoryTest {
                 valueInGlobalWindow.getTimestamp(),
                 new IntervalWindow(
                     valueInGlobalWindow.getTimestamp(),
-                    valueInGlobalWindow.getTimestamp().plus(1L)),
+                    valueInGlobalWindow.getTimestamp().plus(Duration.millis(1L))),
                 valueInGlobalWindow.getPane()),
 
             // Value in interval window mapped to the same window
@@ -234,7 +234,7 @@ public class WindowEvaluatorFactoryTest {
                 valueInGlobalAndTwoIntervalWindows.getTimestamp(),
                 new IntervalWindow(
                     valueInGlobalAndTwoIntervalWindows.getTimestamp(),
-                    valueInGlobalAndTwoIntervalWindows.getTimestamp().plus(1L)),
+                    valueInGlobalAndTwoIntervalWindows.getTimestamp().plus(Duration.millis(1L))),
                 valueInGlobalAndTwoIntervalWindows.getPane()),
             isSingleWindowedValue(
                 valueInGlobalAndTwoIntervalWindows.getValue(),
@@ -259,8 +259,7 @@ public class WindowEvaluatorFactoryTest {
     return inputBundle;
   }
 
-  private UncommittedBundle<Long> createOutputBundle(
-      PCollection<Long> output, CommittedBundle<Long> inputBundle) {
+  private UncommittedBundle<Long> createOutputBundle(PCollection<Long> output) {
     UncommittedBundle<Long> outputBundle = bundleFactory.createBundle(output);
     when(evaluationContext.createBundle(output)).thenReturn(outputBundle);
     return outputBundle;
@@ -281,7 +280,8 @@ public class WindowEvaluatorFactoryTest {
     @Override
     public Collection<BoundedWindow> assignWindows(AssignContext c) throws Exception {
       if (c.window().equals(GlobalWindow.INSTANCE)) {
-        return Collections.singleton(new IntervalWindow(c.timestamp(), c.timestamp().plus(1L)));
+        return Collections.singleton(
+            new IntervalWindow(c.timestamp(), c.timestamp().plus(Duration.millis(1L))));
       }
       return Collections.singleton(c.window());
     }

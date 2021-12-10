@@ -19,6 +19,7 @@ import (
 	"beam.apache.org/playground/backend/internal/cache"
 	"context"
 	"github.com/google/uuid"
+	"go.uber.org/goleak"
 	"reflect"
 	"testing"
 	"time"
@@ -228,6 +229,11 @@ func TestLocalCache_SetExpTime(t *testing.T) {
 }
 
 func TestLocalCache_startGC(t *testing.T) {
+	defer goleak.VerifyNone(t)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	preparedId, _ := uuid.NewUUID()
 	preparedItemsMap := make(map[uuid.UUID]map[cache.SubKey]interface{})
 	preparedItemsMap[preparedId] = make(map[cache.SubKey]interface{})
@@ -260,7 +266,7 @@ func TestLocalCache_startGC(t *testing.T) {
 				items:               tt.fields.items,
 				pipelinesExpiration: tt.fields.pipelinesExpiration,
 			}
-			go lc.startGC()
+			go lc.startGC(ctx)
 			time.Sleep(time.Millisecond)
 			if len(tt.fields.items) != 0 {
 				t.Errorf("Pipeline: %s not deleted in time.", preparedId)

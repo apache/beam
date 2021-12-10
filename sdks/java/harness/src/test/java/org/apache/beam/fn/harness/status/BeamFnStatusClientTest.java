@@ -124,12 +124,11 @@ public class BeamFnStatusClientTest {
       BundleProcessorCache processorCache = mock(BundleProcessorCache.class);
       when(processorCache.getActiveBundleProcessors()).thenReturn(Collections.emptyMap());
       ManagedChannelFactory channelFactory = InProcessManagedChannelFactory.create();
-      BeamFnStatusClient client =
-          new BeamFnStatusClient(
-              apiServiceDescriptor,
-              channelFactory::forDescriptor,
-              processorCache,
-              PipelineOptionsFactory.create());
+      new BeamFnStatusClient(
+          apiServiceDescriptor,
+          channelFactory::forDescriptor,
+          processorCache,
+          PipelineOptionsFactory.create());
       StreamObserver<WorkerStatusRequest> requestObserver = requestObservers.take();
       requestObserver.onNext(WorkerStatusRequest.newBuilder().setId("id").build());
       WorkerStatusResponse response = values.take();

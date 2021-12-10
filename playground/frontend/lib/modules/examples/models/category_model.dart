@@ -22,5 +22,5 @@ class CategoryModel {
   final String name;
   final List<ExampleModel> examples;
 
-  CategoryModel(this.name, this.examples);
+  const CategoryModel({required this.name, required this.examples});
 }
