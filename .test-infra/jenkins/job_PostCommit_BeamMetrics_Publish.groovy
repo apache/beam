@@ -20,8 +20,10 @@ import CommonJobProperties as commonJobProperties
 import Kubernetes
 import PostcommitJobBuilder
 
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_BeamMetrics_Publish', 'Run Beam Metrics deployment',
-    'Beam Metrics deployment', this) {
+PostcommitJobBuilder.postCommitJob(
+        'beam_PostCommit_BeamMetrics_Publish',
+        './gradlew :beam-test-infra-metrics:deploy',
+        'Beam Metrics deployment (./gradlew :beam-test-infra-metrics:deploy)', this) {
 
       description('Applies new configuration to Beam Metrics infrastructure.')
 

@@ -34,8 +34,8 @@ job('beam_Metrics_Report') {
   // Allows triggering this build against pull requests.
   commonJobProperties.enablePhraseTriggeringFromPullRequest(
       delegate,
-      'Beam Metrics Report',
-      'Run Metrics Report',
+      'Beam Metrics Report (./gradlew :beam-test-jenkins:generateMetricsReport)',
+      './gradlew :beam-test-jenkins:generateMetricsReport',
       false
       )
 

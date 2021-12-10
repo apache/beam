@@ -30,8 +30,8 @@ job("beam_CancelStaleDataflowJobs") {
   // Allows triggering this build against pull requests.
   commonJobProperties.enablePhraseTriggeringFromPullRequest(
       delegate,
-      'Cancel Stale Dataflow Jobs',
-      'Run Cancel Stale Dataflow Jobs')
+      'Cancel Stale Dataflow Jobs (:beam-test-tools:cancelStaleDataflowJobs)',
+      './gradlew :beam-test-tools:cancelStaleDataflowJobs')
 
   // Gradle goals for this job.
   steps {
