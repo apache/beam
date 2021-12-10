@@ -158,6 +158,9 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 		return
 	}
 	if !ok {
+		if runOutput.Error != nil {
+			runError.Write([]byte(runOutput.Error.Error()))
+		}
 		_ = processRunError(ctxWithTimeout, errorChannel, runError.Bytes(), pipelineId, cacheService, stopReadLogsChannel, finishReadLogsChannel)
 		return
 	}
