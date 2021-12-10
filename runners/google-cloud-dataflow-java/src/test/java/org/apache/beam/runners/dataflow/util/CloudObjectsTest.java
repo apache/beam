@@ -157,7 +157,7 @@ public class CloudObjectsTest {
               .add(VarLongCoder.of())
               .add(SerializableCoder.of(Record.class))
               .add(AvroCoder.of(Record.class, true))
-              .add(AvroCoder.of(GenericRecord.class, SCHEMA, false))
+              .add(AvroCoder.of(GenericRecord.class, avroSchema, false))
               .add(CollectionCoder.of(VarLongCoder.of()))
               .add(ListCoder.of(VarLongCoder.of()))
               .add(SetCoder.of(VarLongCoder.of()))
@@ -250,7 +250,7 @@ public class CloudObjectsTest {
 
   private static class Record implements Serializable {}
 
-  private static org.apache.avro.Schema SCHEMA =
+  private static org.apache.avro.Schema avroSchema =
       new org.apache.avro.Schema.Parser()
           .parse(
               "{\"namespace\": \"example.avro\",\n"
