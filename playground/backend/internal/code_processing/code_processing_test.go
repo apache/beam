@@ -456,10 +456,6 @@ func TestGetLastIndex(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	err = cacheService.SetValue(context.Background(), incorrectConvertPipelineId, cache.RunOutputIndex, "MOCK_LAST_INDEX")
-	if err != nil {
-		panic(err)
-	}
 
 	type args struct {
 		ctx          context.Context
@@ -475,7 +471,7 @@ func TestGetLastIndex(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			// Test case with calling GetLastIndex with pipelineId which doesn't contain status.
+			// Test case with calling GetLastIndex with pipelineId which doesn't contain last index.
 			// As a result, want to receive an error.
 			name: "get last index with incorrect pipelineId",
 			args: args{
@@ -503,7 +499,7 @@ func TestGetLastIndex(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			// Test case with calling GetLastIndex with pipelineId which contains status.
+			// Test case with calling GetLastIndex with pipelineId which contains last index.
 			// As a result, want to receive an expected last index.
 			name: "get last index with correct pipelineId",
 			args: args{

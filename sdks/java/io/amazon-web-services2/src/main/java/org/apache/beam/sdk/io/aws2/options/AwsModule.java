@@ -25,6 +25,7 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.SerializerProvider;
@@ -33,11 +34,15 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.jsontype.TypeDeserializer;
 import com.fasterxml.jackson.databind.jsontype.TypeSerializer;
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.util.NameTransformer;
 import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.net.URI;
 import java.time.Duration;
 import java.util.Map;
+import java.util.function.Supplier;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.aws2.s3.SSECustomerKey;
@@ -54,6 +59,9 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.SystemPropertyCredentialsProvider;
 import software.amazon.awssdk.http.SdkHttpConfigurationOption;
 import software.amazon.awssdk.http.apache.ProxyConfiguration;
+import software.amazon.awssdk.services.sts.StsClient;
+import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
+import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
 import software.amazon.awssdk.utils.AttributeMap;
 
 /**
@@ -101,27 +109,28 @@ public class AwsModule extends SimpleModule {
     public AwsCredentialsProvider deserializeWithType(
         JsonParser jsonParser, DeserializationContext context, TypeDeserializer typeDeserializer)
         throws IOException {
-      Map<String, String> asMap =
+      ObjectNode json =
           checkNotNull(
-              jsonParser.readValueAs(new TypeReference<Map<String, String>>() {}),
+              jsonParser.readValueAs(new TypeReference<ObjectNode>() {}),
               "Serialized AWS credentials provider is null");
 
       String typeNameKey = typeDeserializer.getPropertyName();
-      String typeName = getNotNull(asMap, typeNameKey, "unknown");
+      String typeName = getNotNull(json, typeNameKey, "unknown");
+      json.remove(typeNameKey);
 
       if (hasName(StaticCredentialsProvider.class, typeName)) {
-        boolean isSession = asMap.containsKey(SESSION_TOKEN);
+        boolean isSession = json.has(SESSION_TOKEN);
         if (isSession) {
           return StaticCredentialsProvider.create(
               AwsSessionCredentials.create(
-                  getNotNull(asMap, ACCESS_KEY_ID, typeName),
-                  getNotNull(asMap, SECRET_ACCESS_KEY, typeName),
-                  getNotNull(asMap, SESSION_TOKEN, typeName)));
+                  getNotNull(json, ACCESS_KEY_ID, typeName),
+                  getNotNull(json, SECRET_ACCESS_KEY, typeName),
+                  getNotNull(json, SESSION_TOKEN, typeName)));
         } else {
           return StaticCredentialsProvider.create(
               AwsBasicCredentials.create(
-                  getNotNull(asMap, ACCESS_KEY_ID, typeName),
-                  getNotNull(asMap, SECRET_ACCESS_KEY, typeName)));
+                  getNotNull(json, ACCESS_KEY_ID, typeName),
+                  getNotNull(json, SECRET_ACCESS_KEY, typeName)));
         }
       } else if (hasName(DefaultCredentialsProvider.class, typeName)) {
         return DefaultCredentialsProvider.create();
@@ -133,16 +142,23 @@ public class AwsModule extends SimpleModule {
         return ProfileCredentialsProvider.create();
       } else if (hasName(ContainerCredentialsProvider.class, typeName)) {
         return ContainerCredentialsProvider.builder().build();
+      } else if (typeName.equals(StsAssumeRoleCredentialsProvider.class.getSimpleName())) {
+        Class<? extends AssumeRoleRequest.Builder> clazz =
+            AssumeRoleRequest.serializableBuilderClass();
+        return StsAssumeRoleCredentialsProvider.builder()
+            .refreshRequest(jsonParser.getCodec().treeToValue(json, clazz).build())
+            .stsClient(StsClient.create())
+            .build();
       } else {
         throw new IOException(
             String.format("AWS credential provider type '%s' is not supported", typeName));
       }
     }
 
-    @SuppressWarnings({"nullness"})
-    private String getNotNull(Map<String, String> map, String key, String typeName) {
-      return checkNotNull(
-          map.get(key), "AWS credentials provider type '%s' is missing '%s'", typeName, key);
+    private String getNotNull(JsonNode json, String key, String typeName) {
+      JsonNode node = json.get(key);
+      checkNotNull(node, "AWS credentials provider type '%s' is missing '%s'", typeName, key);
+      return node.textValue();
     }
 
     private boolean hasName(Class<? extends AwsCredentialsProvider> clazz, String typeName) {
@@ -191,12 +207,32 @@ public class AwsModule extends SimpleModule {
           jsonGenerator.writeStringField(ACCESS_KEY_ID, credentials.accessKeyId());
           jsonGenerator.writeStringField(SECRET_ACCESS_KEY, credentials.secretAccessKey());
         }
+      } else if (providerClass.equals(StsAssumeRoleCredentialsProvider.class)) {
+        Supplier<AssumeRoleRequest> reqSupplier =
+            (Supplier<AssumeRoleRequest>)
+                readField(credentialsProvider, "assumeRoleRequestSupplier");
+        serializer
+            .findValueSerializer(AssumeRoleRequest.serializableBuilderClass())
+            .unwrappingSerializer(NameTransformer.NOP)
+            .serialize(reqSupplier.get().toBuilder(), jsonGenerator, serializer);
       } else if (!SINGLETON_CREDENTIAL_PROVIDERS.contains(providerClass)) {
         throw new IllegalArgumentException(
             "Unsupported AWS credentials provider type " + providerClass);
       }
       // BEAM-11958 Use deprecated Jackson APIs to be compatible with older versions of jackson
       typeSerializer.writeTypeSuffixForObject(credentialsProvider, jsonGenerator);
+    }
+
+    private Object readField(AwsCredentialsProvider provider, String fieldName) throws IOException {
+      try {
+        return FieldUtils.readField(provider, fieldName, true);
+      } catch (IllegalArgumentException | IllegalAccessException e) {
+        throw new IOException(
+            String.format(
+                "Failed to access private field '%s' of AWS credential provider type '%s' with reflection",
+                fieldName, provider.getClass().getSimpleName()),
+            e);
+      }
     }
   }
 
