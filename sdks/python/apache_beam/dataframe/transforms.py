@@ -178,7 +178,7 @@ class _DataframeExpressionsTransform(transforms.PTransform):
         return '%s:%s' % (self.stage.ops, id(self))
 
       def expand(self, pcolls):
-        logging.info('Computing stage %s for %s', self, self.stage)
+        logging.info('Computing dataframe stage %s for %s', self, self.stage)
         scalar_inputs = [expr for expr in self.stage.inputs if is_scalar(expr)]
         tabular_inputs = [
             expr for expr in self.stage.inputs if not is_scalar(expr)
@@ -304,7 +304,7 @@ class _DataframeExpressionsTransform(transforms.PTransform):
       """Return the output partitioning of expr when computed in stage,
       or returns None if the expression cannot be computed in this stage.
       """
-      def upgrade_to_join_index(partitioning):
+      def maybe_upgrade_to_join_index(partitioning):
         if partitioning.is_subpartitioning_of(partitionings.JoinIndex()):
           return partitionings.JoinIndex(expr)
         else:
@@ -312,7 +312,7 @@ class _DataframeExpressionsTransform(transforms.PTransform):
 
       if expr in stage.inputs or expr in inputs:
         # Inputs are all partitioned by stage.partitioning.
-        return upgrade_to_join_index(stage.partitioning)
+        return maybe_upgrade_to_join_index(stage.partitioning)
 
       # Anything that's not an input must have arguments
       assert len(expr.args())
@@ -324,7 +324,7 @@ class _DataframeExpressionsTransform(transforms.PTransform):
       if len(arg_partitionings) == 0:
         # All inputs are scalars, output partitioning isn't dependent on the
         # input.
-        return upgrade_to_join_index(expr.preserves_partition_by())
+        return maybe_upgrade_to_join_index(expr.preserves_partition_by())
 
       if len(arg_partitionings) > 1:
         # Arguments must be identically partitioned, can't compute this
@@ -338,7 +338,7 @@ class _DataframeExpressionsTransform(transforms.PTransform):
         # Arguments aren't partitioned sufficiently for this expression
         return None
 
-      return upgrade_to_join_index(
+      return maybe_upgrade_to_join_index(
           expressions.output_partitioning(expr, arg_partitioning))
 
     def is_computable_in_stage(expr, stage):
@@ -374,6 +374,7 @@ class _DataframeExpressionsTransform(transforms.PTransform):
               inputs_by_stage[stage] += 1 + 100 * (
                   expr.requires_partition_by() == stage.partitioning)
         if inputs_by_stage:
+          # Take the stage with the largest count.
           stage = sorted(inputs_by_stage.items(), key=lambda kv: kv[1])[-1][0]
         else:
           stage = None
