@@ -1420,6 +1420,43 @@ public class JdbcIO {
     }
   }
 
+  static <T> PCollection<Iterable<T>> batchElements(
+      PCollection<T> input, Boolean withAutoSharding) {
+    PCollection<Iterable<T>> iterables;
+    if (input.isBounded() == IsBounded.UNBOUNDED && withAutoSharding != null && withAutoSharding) {
+      iterables =
+          input
+              .apply(WithKeys.<String, T>of(""))
+              .apply(
+                  GroupIntoBatches.<String, T>ofSize(DEFAULT_BATCH_SIZE)
+                      .withMaxBufferingDuration(Duration.millis(200))
+                      .withShardedKey())
+              .apply(Values.create());
+    } else {
+      iterables =
+          input.apply(
+              ParDo.of(
+                  new DoFn<T, Iterable<T>>() {
+                    List<T> outputList;
+
+                    @ProcessElement
+                    public void process(ProcessContext c) {
+                      if (outputList == null) {
+                        outputList = new ArrayList<>();
+                      }
+                      outputList.add(c.element());
+                    }
+
+                    @FinishBundle
+                    public void finish(FinishBundleContext c) {
+                      c.output(outputList, Instant.now(), GlobalWindow.INSTANCE);
+                      outputList = null;
+                    }
+                  }));
+    }
+    return iterables;
+  }
+
   /** Interface implemented by functions that sets prepared statement data. */
   @FunctionalInterface
   interface PreparedStatementSetCaller extends Serializable {
@@ -1576,40 +1613,7 @@ public class JdbcIO {
           "Autosharding is only supported for streaming pipelines.");
       ;
 
-      PCollection<Iterable<T>> iterables;
-      if (input.isBounded() == IsBounded.UNBOUNDED
-          && getAutoSharding() != null
-          && getAutoSharding()) {
-        iterables =
-            input
-                .apply(WithKeys.<String, T>of(""))
-                .apply(
-                    GroupIntoBatches.<String, T>ofSize(DEFAULT_BATCH_SIZE)
-                        .withMaxBufferingDuration(Duration.millis(200))
-                        .withShardedKey())
-                .apply(Values.create());
-      } else {
-        iterables =
-            input.apply(
-                ParDo.of(
-                    new DoFn<T, Iterable<T>>() {
-                      List<T> outputList;
-
-                      @ProcessElement
-                      public void process(ProcessContext c) {
-                        if (outputList == null) {
-                          outputList = new ArrayList<>();
-                        }
-                        outputList.add(c.element());
-                      }
-
-                      @FinishBundle
-                      public void finish(FinishBundleContext c) {
-                        c.output(outputList, Instant.now(), GlobalWindow.INSTANCE);
-                        outputList = null;
-                      }
-                    }));
-      }
+      PCollection<Iterable<T>> iterables = JdbcIO.<T>batchElements(input, getAutoSharding());
       return iterables.apply(
           ParDo.of(
               new WriteFn<T, V>(
@@ -1777,40 +1781,9 @@ public class JdbcIO {
         checkArgument(
             spec.getPreparedStatementSetter() != null, "withPreparedStatementSetter() is required");
       }
-      PCollection<Iterable<T>> iterables;
-      if (input.isBounded() == IsBounded.UNBOUNDED
-          && getAutoSharding() != null
-          && getAutoSharding()) {
-        iterables =
-            input
-                .apply(WithKeys.<String, T>of(""))
-                .apply(
-                    GroupIntoBatches.<String, T>ofSize(DEFAULT_BATCH_SIZE)
-                        .withMaxBufferingDuration(Duration.millis(200))
-                        .withShardedKey())
-                .apply(Values.create());
-      } else {
-        iterables =
-            input.apply(
-                ParDo.of(
-                    new DoFn<T, Iterable<T>>() {
-                      List<T> outputList;
 
-                      @ProcessElement
-                      public void process(ProcessContext c) {
-                        if (outputList == null) {
-                          outputList = new ArrayList<>();
-                        }
-                        outputList.add(c.element());
-                      }
+      PCollection<Iterable<T>> iterables = JdbcIO.<T>batchElements(input, getAutoSharding());
 
-                      @FinishBundle
-                      public void finish(FinishBundleContext c) {
-                        c.output(outputList, Instant.now(), GlobalWindow.INSTANCE);
-                        outputList = null;
-                      }
-                    }));
-      }
       return iterables
           .apply(
               ParDo.of(
