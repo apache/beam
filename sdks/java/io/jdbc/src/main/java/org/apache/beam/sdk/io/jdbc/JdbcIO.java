@@ -1420,6 +1420,9 @@ public class JdbcIO {
     }
   }
 
+  /* The maximum number of elements that will be included in a batch. */
+  private static final Integer MAX_BUNDLE_SIZE = 5000;
+
   static <T> PCollection<Iterable<T>> batchElements(
       PCollection<T> input, Boolean withAutoSharding) {
     PCollection<Iterable<T>> iterables;
@@ -1445,6 +1448,10 @@ public class JdbcIO {
                         outputList = new ArrayList<>();
                       }
                       outputList.add(c.element());
+                      if (outputList.size() > MAX_BUNDLE_SIZE) {
+                        c.output(outputList);
+                        outputList = null;
+                      }
                     }
 
                     @FinishBundle
