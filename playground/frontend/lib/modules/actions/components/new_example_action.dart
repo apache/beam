@@ -17,13 +17,12 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground/config/theme.dart';
 import 'package:playground/modules/actions/components/header_icon_button.dart';
 import 'package:playground/modules/shortcuts/components/shortcut_tooltip.dart';
 import 'package:playground/modules/shortcuts/constants/global_shortcuts.dart';
 import 'package:url_launcher/url_launcher.dart';
-
-const kNewExampleButtonText = 'New Example';
 
 class NewExampleAction extends StatelessWidget {
   const NewExampleAction({Key? key}) : super(key: key);
@@ -37,7 +36,7 @@ class NewExampleAction extends StatelessWidget {
           Icons.add_circle_outline,
           color: ThemeColors.of(context).grey1Color,
         ),
-        label: kNewExampleButtonText,
+        label: AppLocalizations.of(context)!.newExample,
         onPressed: () => launch('/'),
       ),
     );

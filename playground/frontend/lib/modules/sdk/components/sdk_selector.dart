@@ -17,6 +17,7 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground/components/dropdown_button/dropdown_button.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
@@ -27,8 +28,6 @@ import 'package:provider/provider.dart';
 
 typedef SetSdk = void Function(SDK sdk);
 typedef SetExample = void Function(ExampleModel example);
-
-const kSdkSelectorLabel = 'Select SDK Dropdown';
 
 const double kWidth = 150;
 const double kHeight = 172;
@@ -49,7 +48,7 @@ class SDKSelector extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       container: true,
-      label: kSdkSelectorLabel,
+      label: AppLocalizations.of(context)!.selectSdkDropdown,
       child: AppDropdownButton(
         buttonText: Text(
           'SDK: ${sdk.displayName}',
