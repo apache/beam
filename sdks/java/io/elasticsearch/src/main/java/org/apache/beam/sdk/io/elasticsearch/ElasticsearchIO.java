@@ -88,10 +88,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
-import org.apache.http.ConnectionClosedException;
-import org.apache.http.Header;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpHost;
+import org.apache.http.HttpRequestInterceptor;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
@@ -308,6 +305,11 @@ public class ElasticsearchIO {
     return responses;
   }
 
+  /** TODO describe interface purpose **/
+  public abstract interface AuthorizationInterceptorProvider {
+    HttpRequestInterceptor getAuthorizationRequestInterceptor();
+  }
+
   /** A POJO describing a connection configuration to Elasticsearch. */
   @AutoValue
   public abstract static class ConnectionConfiguration implements Serializable {
@@ -325,6 +327,8 @@ public class ElasticsearchIO {
     public abstract @Nullable String getKeystorePath();
 
     public abstract @Nullable String getKeystorePassword();
+
+    public abstract @Nullable AuthorizationInterceptorProvider getAuthorizationInterceptorProvider();
 
     public abstract String getIndex();
 
@@ -353,6 +357,8 @@ public class ElasticsearchIO {
       abstract Builder setKeystorePath(String keystorePath);
 
       abstract Builder setKeystorePassword(String password);
+
+      abstract Builder setAuthorizationInterceptorProvider(AuthorizationInterceptorProvider provider);
 
       abstract Builder setIndex(String index);
 
@@ -533,6 +539,16 @@ public class ElasticsearchIO {
     }
 
     /**
+     *  TODO
+     * @param authorizationInterceptorProvider
+     * @return
+     */
+    public ConnectionConfiguration withAuthorizationInterceptorProvider(AuthorizationInterceptorProvider authorizationInterceptorProvider) {
+      checkArgument(authorizationInterceptorProvider != null, "authorizationInterceptorProvider can not be null");
+      return builder().setAuthorizationInterceptorProvider(authorizationInterceptorProvider).build();
+    }
+
+    /**
      * If Elasticsearch uses SSL/TLS then configure whether to trust self signed certs or not. The
      * default is false.
      *
@@ -626,6 +642,12 @@ public class ElasticsearchIO {
         } catch (Exception e) {
           throw new IOException("Can't load the client certificate from the keystore", e);
         }
+      }
+      if (getAuthorizationInterceptorProvider() != null) {
+        restClientBuilder.setHttpClientConfigCallback(
+                httpAsyncClientBuilder ->
+                        httpAsyncClientBuilder.addInterceptorLast(getAuthorizationInterceptorProvider()
+                                .getAuthorizationRequestInterceptor()));
       }
       restClientBuilder.setRequestConfigCallback(
           new RestClientBuilder.RequestConfigCallback() {
