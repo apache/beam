@@ -45,6 +45,7 @@ import org.apache.beam.fn.harness.state.FnApiTimerBundleTracker;
 import org.apache.beam.fn.harness.state.FnApiTimerBundleTracker.Modifications;
 import org.apache.beam.fn.harness.state.FnApiTimerBundleTracker.TimerInfo;
 import org.apache.beam.fn.harness.state.SideInputSpec;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.DelayedBundleApplication;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
@@ -173,13 +174,16 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               context.getPTransformId(),
               context.getPTransform(),
               context.getProcessBundleInstructionIdSupplier(),
+              context.getCacheTokensSupplier(),
+              context.getBundleCacheSupplier(),
+              context.getProcessWideCache(),
               context.getPCollections(),
               context.getCoders(),
               context.getWindowingStrategies(),
               context::addStartBundleFunction,
               context::addFinishBundleFunction,
               context::addTearDownFunction,
-              pCollectionId -> context.getPCollectionConsumer(pCollectionId),
+              context::getPCollectionConsumer,
               (pCollectionId, consumer, valueCoder) ->
                   context.addPCollectionConsumer(
                       pCollectionId, (FnDataReceiver) consumer, (Coder) valueCoder),
@@ -321,6 +325,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       String pTransformId,
       PTransform pTransform,
       Supplier<String> processBundleInstructionId,
+      Supplier<List<BeamFnApi.ProcessBundleRequest.CacheToken>> cacheTokens,
+      Supplier<Cache<?, ?>> bundleCache,
+      Cache<?, ?> processWideCache,
       Map<String, PCollection> pCollections,
       Map<String, RunnerApi.Coder> coders,
       Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
@@ -699,6 +706,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             pipelineOptions,
             pTransformId,
             processBundleInstructionId,
+            cacheTokens,
+            bundleCache,
+            processWideCache,
             tagToSideInputSpecMap,
             beamFnStateClient,
             keyCoder,

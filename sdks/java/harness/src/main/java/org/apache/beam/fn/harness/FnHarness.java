@@ -19,7 +19,6 @@ package org.apache.beam.fn.harness;
 
 import java.util.Collections;
 import java.util.EnumMap;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
@@ -169,8 +168,7 @@ public class FnHarness {
       @Nullable Endpoints.ApiServiceDescriptor statusApiServiceDescriptor)
       throws Exception {
     ManagedChannelFactory channelFactory;
-    List<String> experiments = options.as(ExperimentalOptions.class).getExperiments();
-    if (experiments != null && experiments.contains("beam_fn_api_epoll")) {
+    if (ExperimentalOptions.hasExperiment(options, "beam_fn_api_epoll")) {
       channelFactory = ManagedChannelFactory.createEpoll();
     } else {
       channelFactory = ManagedChannelFactory.createDefault();
@@ -214,7 +212,7 @@ public class FnHarness {
       Endpoints.ApiServiceDescriptor statusApiServiceDescriptor,
       ManagedChannelFactory channelFactory,
       OutboundObserverFactory outboundObserverFactory,
-      Cache<?, ?> processWideCache)
+      Cache<Object, Object> processWideCache)
       throws Exception {
     channelFactory =
         channelFactory.withInterceptors(ImmutableList.of(AddHarnessIdInterceptor.create(id)));
@@ -279,7 +277,8 @@ public class FnHarness {
               beamFnDataMultiplexer,
               beamFnStateGrpcClientCache,
               finalizeBundleHandler,
-              metricsShortIds);
+              metricsShortIds,
+              processWideCache);
 
       BeamFnStatusClient beamFnStatusClient = null;
       if (statusApiServiceDescriptor != null) {
