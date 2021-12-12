@@ -31,7 +31,7 @@ public final class SbeSchema {
    * <p> This builder will not do any schema generation. The resulting {@link SbeSchema} will only
    * contain the fields that are provided to the builder.
    */
-  public static Builder builder() {
+  static Builder builder() {
     return new Builder();
   }
 
@@ -40,6 +40,8 @@ public final class SbeSchema {
   public Schema schema() {
     return schema;
   }
+
+  // TODO(BEAM-12697): Add PayloadSerializer
 
   /** Builder for {@link SbeSchema} */
   public static final class Builder {
@@ -75,10 +77,10 @@ public final class SbeSchema {
      * after the remaining fields are filled in, then an {@link IllegalStateException} will be
      * thrown during {@link Builder#build()}.
      *
-     * @param field the field to insert
      * @param position the position to insert the field at
+     * @param field the field to insert
      */
-    public Builder insertField(Field field, int position) {
+    public Builder insertField(int position, Field field) {
       for (int i = fields.size(); i < position; ++i) {
         fields.add(null);
       }
@@ -91,7 +93,7 @@ public final class SbeSchema {
      *
      * <p> If anything was provided for custom schema generation, that will be done on the call
      * to this method. If fields were inserted in such a way that nulls filled in empty space, such as
-     * through {@link Builder#insertField(Field, int)}, then the remaining fields must be filled in by
+     * through {@link Builder#insertField(int, Field)}, then the remaining fields must be filled in by
      * the time that this generation completes. Otherwise, an {@link IllegalStateException} will be
      * thrown.
      */

@@ -21,7 +21,7 @@ public final class SbeSchemaTest {
   public void testNoSchemaGenerationValid() {
     SbeSchema sbeSchema = SbeSchema.builder()
         .addField(STRING_FIELD)
-        .insertField(UINT_8_FIELD, 1)
+        .insertField(1, UINT_8_FIELD)
         .build();
 
     Schema expectedSchema = Schema.builder()
@@ -38,7 +38,7 @@ public final class SbeSchemaTest {
 
   @Test
   public void testNoSchemaGenerationInvalid() {
-    SbeSchema.Builder builder = SbeSchema.builder().insertField(STRING_FIELD, 1);
+    SbeSchema.Builder builder = SbeSchema.builder().insertField(1, STRING_FIELD);
     assertThrows(IllegalStateException.class, builder::build);
   }
 }
