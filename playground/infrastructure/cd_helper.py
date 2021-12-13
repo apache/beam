@@ -147,7 +147,7 @@ class CDHelper:
     Returns: file name
     """
     if extension is None:
-      extension = Config.EXTENSIONS[Sdk.Name(sdk)]
+      extension = Config.SDK_TO_EXTENSION[sdk]
     return os.path.join(
         Sdk.Name(sdk), base_folder_name, f"{file_name}.{extension}")
 

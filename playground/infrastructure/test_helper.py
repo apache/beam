@@ -18,13 +18,16 @@ from unittest.mock import mock_open
 import mock
 import pytest
 
-from api.v1.api_pb2 import SDK_UNSPECIFIED, STATUS_UNSPECIFIED, SDK_JAVA, \
-    SDK_PYTHON, SDK_GO, STATUS_VALIDATING, \
-    STATUS_FINISHED, PRECOMPILED_OBJECT_TYPE_EXAMPLE, PRECOMPILED_OBJECT_TYPE_KATA, PRECOMPILED_OBJECT_TYPE_UNIT_TEST
+from api.v1.api_pb2 import SDK_UNSPECIFIED, STATUS_UNSPECIFIED, \
+  STATUS_VALIDATING, \
+  STATUS_FINISHED, SDK_JAVA, SDK_PYTHON, SDK_GO, \
+  PRECOMPILED_OBJECT_TYPE_EXAMPLE, PRECOMPILED_OBJECT_TYPE_KATA, \
+  PRECOMPILED_OBJECT_TYPE_UNIT_TEST
 from grpc_client import GRPCClient
-from helper import find_examples, Example, _get_example, _get_name, _get_sdk, \
-    get_tag, _validate, Tag, get_statuses, \
-    _update_example_status, get_supported_categories, _check_file, _get_object_type
+from helper import find_examples, Example, _get_example, _get_name, get_tag, \
+  _validate, Tag, get_statuses, \
+  _update_example_status, get_supported_categories, _check_file, \
+  _get_object_type
 
 
 @mock.patch("helper._check_file")
@@ -32,14 +35,17 @@ from helper import find_examples, Example, _get_example, _get_name, _get_sdk, \
 def test_find_examples_with_valid_tag(mock_os_walk, mock_check_file):
   mock_os_walk.return_value = [("/root", (), ("file.java", ))]
   mock_check_file.return_value = False
-
-  result = find_examples("", [])
+  sdk = SDK_UNSPECIFIED
+  result = find_examples(work_dir="", supported_categories=[], sdk=sdk)
 
   assert result == []
   mock_os_walk.assert_called_once_with("")
-  mock_check_file.assert_called_once_with([],
-                                          "file.java",
-                                          "/root/file.java", [])
+  mock_check_file.assert_called_once_with(
+      examples=[],
+      filename="file.java",
+      filepath="/root/file.java",
+      supported_categories=[],
+      sdk=sdk)
 
 
 @mock.patch("helper._check_file")
@@ -47,18 +53,21 @@ def test_find_examples_with_valid_tag(mock_os_walk, mock_check_file):
 def test_find_examples_with_invalid_tag(mock_os_walk, mock_check_file):
   mock_os_walk.return_value = [("/root", (), ("file.java", ))]
   mock_check_file.return_value = True
-
+  sdk = SDK_UNSPECIFIED
   with pytest.raises(
       ValueError,
       match=
       "Some of the beam examples contain beam playground tag with an incorrect format"
   ):
-    find_examples("", [])
+    find_examples("", [], sdk=sdk)
 
   mock_os_walk.assert_called_once_with("")
-  mock_check_file.assert_called_once_with([],
-                                          "file.java",
-                                          "/root/file.java", [])
+  mock_check_file.assert_called_once_with(
+      examples=[],
+      filename="file.java",
+      filepath="/root/file.java",
+      supported_categories=[],
+      sdk=sdk)
 
 
 @pytest.mark.asyncio
@@ -66,13 +75,14 @@ def test_find_examples_with_invalid_tag(mock_os_walk, mock_check_file):
 @mock.patch("helper._update_example_status")
 async def test_get_statuses(mock_update_example_status, mock_grpc_client):
   example = Example(
-      "file",
-      "pipeline_id",
-      SDK_UNSPECIFIED,
-      "root/file.extension",
-      "code",
-      "output",
-      STATUS_UNSPECIFIED, {"name": "Name"})
+      name="file",
+      pipeline_id="pipeline_id",
+      sdk=SDK_UNSPECIFIED,
+      filepath="root/file.extension",
+      code="code",
+      output="output",
+      status=STATUS_UNSPECIFIED,
+      tag={"name": "Name"})
   client = None
 
   mock_grpc_client.return_value = client
@@ -106,21 +116,20 @@ def test__check_file_with_correct_tag(
     mock_get_tag, mock_validate, mock_get_example):
   tag = {"name": "Name"}
   example = Example(
-      "filename",
-      "",
-      SDK_UNSPECIFIED,
-      "/root/filename.java",
-      "data",
-      "",
-      STATUS_UNSPECIFIED,
-      Tag("Name", "Description", False, [], '--option option'))
+      name="filename",
+      sdk=SDK_JAVA,
+      filepath="/root/filename.java",
+      code="data",
+      status=STATUS_UNSPECIFIED,
+      tag=Tag("Name", "Description", False, [], '--option option'))
   examples = []
 
   mock_get_tag.return_value = tag
   mock_validate.return_value = True
   mock_get_example.return_value = example
 
-  result = _check_file(examples, "filename.java", "/root/filename.java", [])
+  result = _check_file(
+      examples, "filename.java", "/root/filename.java", [], sdk=SDK_JAVA)
 
   assert result is False
   assert len(examples) == 1
@@ -136,11 +145,12 @@ def test__check_file_with_correct_tag(
 def test__check_file_with_incorrect_tag(mock_get_tag, mock_validate):
   tag = {"name": "Name"}
   examples = []
-
+  sdk = SDK_JAVA
   mock_get_tag.return_value = tag
   mock_validate.return_value = False
 
-  result = _check_file(examples, "filename.java", "/root/filename.java", [])
+  result = _check_file(
+      examples, "filename.java", "/root/filename.java", [], sdk)
 
   assert result is True
   assert len(examples) == 0
@@ -157,15 +167,13 @@ def test_get_supported_categories():
 
 
 @mock.patch("builtins.open", mock_open(read_data="data"))
-@mock.patch("helper._get_sdk")
 @mock.patch("helper._get_name")
-def test__get_example(mock_get_name, mock_get_sdk):
+def test__get_example(mock_get_name):
   mock_get_name.return_value = "filepath"
-  mock_get_sdk.return_value = SDK_UNSPECIFIED
 
   result = _get_example(
-      "/root/filepath.extension",
-      "filepath.extension",
+      "/root/filepath.java",
+      "filepath.java",
       {
           "name": "Name",
           "description": "Description",
@@ -175,16 +183,13 @@ def test__get_example(mock_get_name, mock_get_sdk):
       })
 
   assert result == Example(
-      "filepath",
-      "",
-      SDK_UNSPECIFIED,
-      "/root/filepath.extension",
-      "data",
-      "",
-      STATUS_UNSPECIFIED,
-      Tag("Name", "Description", "False", [""], "--option option"))
-  mock_get_name.assert_called_once_with("filepath.extension")
-  mock_get_sdk.assert_called_once_with("filepath.extension")
+      name="filepath",
+      sdk=SDK_JAVA,
+      filepath="/root/filepath.java",
+      code="data",
+      status=STATUS_UNSPECIFIED,
+      tag=Tag("Name", "Description", "False", [""], "--option option"))
+  mock_get_name.assert_called_once_with("filepath.java")
 
 
 def test__validate_without_name_field():
@@ -249,30 +254,20 @@ def test__get_name():
   assert result == "filepath"
 
 
-def test__get_sdk_with_supported_extension():
-  assert _get_sdk("filename.java") == SDK_JAVA
-  assert _get_sdk("filename.go") == SDK_GO
-  assert _get_sdk("filename.py") == SDK_PYTHON
-
-
-def test__get_sdk_with_unsupported_extension():
-  with pytest.raises(ValueError, match="extension is not supported"):
-    _get_sdk("filename.extension")
-
-
 @pytest.mark.asyncio
 @mock.patch("grpc_client.GRPCClient.check_status")
 @mock.patch("grpc_client.GRPCClient.run_code")
 async def test__update_example_status(
     mock_grpc_client_run_code, mock_grpc_client_check_status):
   example = Example(
-      "file",
-      "pipeline_id",
-      SDK_UNSPECIFIED,
-      "root/file.extension",
-      "code",
-      "output",
-      STATUS_UNSPECIFIED, {"name": "Name"})
+      name="file",
+      pipeline_id="pipeline_id",
+      sdk=SDK_UNSPECIFIED,
+      filepath="root/file.extension",
+      code="code",
+      output="output",
+      status=STATUS_UNSPECIFIED,
+      tag={"name": "Name"})
 
   mock_grpc_client_run_code.return_value = "pipeline_id"
   mock_grpc_client_check_status.side_effect = [
