@@ -120,6 +120,7 @@ class FiltersTest(unittest.TestCase):
     # and start pipeline job by calling pipeline main function.
     filters.run(test_pipeline.get_full_options_as_args(**extra_opts))
 
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
