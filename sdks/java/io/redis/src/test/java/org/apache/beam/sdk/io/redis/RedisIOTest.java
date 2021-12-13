@@ -17,18 +17,21 @@
  */
 package org.apache.beam.sdk.io.redis;
 
+import static java.util.stream.Collectors.toList;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists.transform;
+import static org.hamcrest.CoreMatchers.hasItems;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.MapCoder;
@@ -262,23 +265,18 @@ public class RedisIOTest {
 
   @Test
   public void testWriteStreams() {
-    ArrayList<String> streams = new ArrayList<String>();
-    for (int i = 0; i <= 10; i++) {
-      UUID uuid = UUID.randomUUID();
-      /* stream keys are uuids to ensure that test runs are idempotent */
-      streams.add(uuid.toString());
-    }
+
+    /* test data is 10 keys (stream IDs), each with two entries, each entry having one k/v pair of data */
+    List<String> redisKeys =
+        IntStream.range(0, 9).boxed().map(idx -> UUID.randomUUID().toString()).collect(toList());
+
     Map<String, String> fooValues = ImmutableMap.of("sensor-id", "1234", "temperature", "19.8");
     Map<String, String> barValues = ImmutableMap.of("sensor-id", "9999", "temperature", "18.2");
 
-    List<KV<String, Map<String, String>>> fooData =
-        streams.stream().map(key -> KV.of(key, fooValues)).collect(Collectors.toList());
-
-    List<KV<String, Map<String, String>>> barData =
-        streams.stream().map(key -> KV.of(key, barValues)).collect(Collectors.toList());
-
     List<KV<String, Map<String, String>>> allData =
-        Stream.of(fooData, barData).flatMap(Collection::stream).collect(Collectors.toList());
+        redisKeys.stream()
+            .flatMap(id -> Stream.of(KV.of(id, fooValues), KV.of(id, barValues)))
+            .collect(toList());
 
     PCollection<KV<String, Map<String, String>>> write =
         p.apply(
@@ -290,51 +288,26 @@ public class RedisIOTest {
     write.apply(RedisIO.writeStreams().withEndpoint(REDIS_HOST, port));
     p.run();
 
-    for (String stream : streams) {
-      long count = client.xlen(stream);
-      assertEquals(2L, count);
-      List<StreamEntry> results = client.xrange(stream, null, null, 99);
-      assertEquals(2, results.size());
-      ArrayList<Map<String, String>> allVals = new ArrayList<Map<String, String>>();
-      allVals.add(fooValues);
-      allVals.add(barValues);
-      /*
-       validation logic here is tricky: redis stream entry IDs are strictly sequential by creation
-       time (and XRANGE returns entries in order), but beam does not necessarily preserve order
-       inside pcollections and of course any given pcollection might have its write stage handled
-       by multiple nodes, so we can't rely on results[n] equalling allData[n].
-
-       What we can verify is that results.size() == allData.size() and that for each entry in
-       results, we will find exactly one copy of its fields in allData.
-      */
-      for (StreamEntry result : results) {
-        Map<String, String> fields = result.getFields();
-        assertTrue(allVals.contains(fields));
-        allVals.removeIf(x -> x.equals(fields));
-      }
-      assertEquals(0, allVals.size());
+    for (String key : redisKeys) {
+      List<StreamEntry> streamEntries = client.xrange(key, null, null, Integer.MAX_VALUE);
+      assertEquals(2, streamEntries.size());
+      assertThat(transform(streamEntries, StreamEntry::getFields), hasItems(fooValues, barValues));
     }
   }
 
   @Test
   public void testWriteStreamsWithTruncation() {
-    ArrayList<String> streams = new ArrayList<String>();
-    for (int i = 0; i <= 10; i++) {
-      UUID uuid = UUID.randomUUID();
-      /* stream keys are uuids to ensure that test runs are idempotent */
-      streams.add(uuid.toString());
-    }
+    /* test data is 10 keys (stream IDs), each with two entries, each entry having one k/v pair of data */
+    List<String> redisKeys =
+        IntStream.range(0, 9).boxed().map(idx -> UUID.randomUUID().toString()).collect(toList());
+
     Map<String, String> fooValues = ImmutableMap.of("sensor-id", "1234", "temperature", "19.8");
     Map<String, String> barValues = ImmutableMap.of("sensor-id", "9999", "temperature", "18.2");
 
-    List<KV<String, Map<String, String>>> fooData =
-        streams.stream().map(key -> KV.of(key, fooValues)).collect(Collectors.toList());
-
-    List<KV<String, Map<String, String>>> barData =
-        streams.stream().map(key -> KV.of(key, barValues)).collect(Collectors.toList());
-
     List<KV<String, Map<String, String>>> allData =
-        Stream.of(fooData, barData).flatMap(Collection::stream).collect(Collectors.toList());
+        redisKeys.stream()
+            .flatMap(id -> Stream.of(KV.of(id, fooValues), KV.of(id, barValues)))
+            .collect(toList());
 
     PCollection<KV<String, Map<String, String>>> write =
         p.apply(
@@ -350,7 +323,7 @@ public class RedisIOTest {
             .withApproximateTrim(false));
     p.run();
 
-    for (String stream : streams) {
+    for (String stream : redisKeys) {
       long count = client.xlen(stream);
       assertEquals(1, count);
     }

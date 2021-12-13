@@ -110,9 +110,8 @@ import redis.clients.jedis.StreamEntryID;
  *
  * <h3>Writing Redis Streams</h3>
  *
- * <p>{@link #writeStreams()} provides a sink to write key/value pairs represented as {@link KV}
- * where the key is a {@link String} and the value is a {@link Map} of {@link String} to {@link
- * String} from an incoming {@link PCollection} using the Redis <a
+ * <p>{@link #writeStreams()} appends the entries of a {@link PCollection} of key/value pairs
+ * represented as {@link KV} to the Redis stream at the specified key using the <a
  * href='https://redis.io/commands/XADD'>XADD</a> API.
  *
  * <p>To configure the target Redis server, you have to provide a Redis server hostname and port
@@ -126,28 +125,16 @@ import redis.clients.jedis.StreamEntryID;
  *
  * <p>Redis Streams optionally can be capped to a specific or exact length (see the documentation
  * for the <a href="https://redis.io/commands/xtrim">XTRIM</a> API); {@link #writeStreams()} lets
- * you specify MAXLEN using the
- *
- * <pre>withMaxLen()</pre>
- *
- * option.
+ * you specify MAXLEN using the {@code withMaxLen()} option.
  *
  * <p>Trimming a stream to an exact length is noted in the Redis documentation as being inefficient;
- * the
+ * the {@code withApproximateTrim()} boolean option will add the {@code ~} prefix to {@code MAXLEN},
+ * which tells Redis to use "almost exact" trimming.
  *
- * <pre>withApproximateTrim()</pre>
+ * <p>See the <a href="https://redis.io/topics/streams-intro">Redis Streams documentation</a> for a
+ * deeper discussion of the issues involved.
  *
- * boolean option will add the
- *
- * <pre>~</pre>
- *
- * prefix to
- *
- * <pre>MAXLEN</pre>
- *
- * , which tells Redis to use "almost exact" trimming. See the <a
- * href="https://redis.io/topics/streams-intro">Redis Streams documentation</a> for a deeper
- * discussion. The following example illustrates how to configure a sink with triming:
+ * <p>The following example illustrates how to configure a sink with trimming:
  *
  * <pre>{@code
  * pipeline.apply(...)
