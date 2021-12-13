@@ -17,7 +17,7 @@ package validators
 
 const (
 	UnitTestValidatorName = "UnitTest"
-	KatasValidatorName    = "Check if the pipeline is katas"
+	KatasValidatorName    = "Katas"
 )
 
 type Validator struct {

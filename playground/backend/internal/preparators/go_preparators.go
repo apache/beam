@@ -55,8 +55,8 @@ func formatCode(args ...interface{}) error {
 
 func changeFileName(args ...interface{}) error {
 	filePath := args[0].(string)
-	valRes := args[1].(*sync.Map)
-	isUnitTest, ok := valRes.Load(validators.UnitTestValidatorName)
+	validationResults := args[1].(*sync.Map)
+	isUnitTest, ok := validationResults.Load(validators.UnitTestValidatorName)
 	if ok && isUnitTest.(bool) {
 		testFileName := fmt.Sprintf("%s_test.%s", strings.Split(filePath, sep)[0], goName)
 		cmd := exec.Command(mvCmd, filePath, testFileName)

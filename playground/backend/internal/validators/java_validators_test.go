@@ -75,8 +75,8 @@ func TestCheckIsUnitTestJava(t *testing.T) {
 }
 
 func TestCheckIsKataJava(t *testing.T) {
-	testValidatorArgs := getValidatorsArgs(javaUnitTestFilePath, javaUnitTestPattern)
-	validatorArgs := getValidatorsArgs(javaCodePath, javaUnitTestPattern)
+	testValidatorArgs := getValidatorsArgs(javaKataFilePath, javaKatasPattern)
+	validatorArgs := getValidatorsArgs(javaCodePath, javaKatasPattern)
 	type args struct {
 		args []interface{}
 	}

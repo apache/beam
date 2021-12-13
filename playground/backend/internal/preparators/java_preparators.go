@@ -56,8 +56,8 @@ func GetJavaPreparators(filePath string) *[]Preparator {
 
 //changePackage changes the 'package' to 'import' and the last directory in the package value to '*'
 func changePackage(args ...interface{}) error {
-	valRes := args[3].(*sync.Map)
-	isKata, ok := valRes.Load(validators.KatasValidatorName)
+	validationResults := args[3].(*sync.Map)
+	isKata, ok := validationResults.Load(validators.KatasValidatorName)
 	if ok && isKata.(bool) {
 		return nil
 	}
@@ -67,8 +67,8 @@ func changePackage(args ...interface{}) error {
 
 //removePackage remove the package line in the katas.
 func removePackage(args ...interface{}) error {
-	valRes := args[3].(*sync.Map)
-	isKata, ok := valRes.Load(validators.KatasValidatorName)
+	validationResults := args[3].(*sync.Map)
+	isKata, ok := validationResults.Load(validators.KatasValidatorName)
 	if ok && isKata.(bool) {
 		err := replace(args...)
 		return err
