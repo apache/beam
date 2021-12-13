@@ -123,37 +123,28 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 		return
 	}
 
-	switch sdkEnv.ApacheBeamSdk {
-	case pb.Sdk_SDK_JAVA, pb.Sdk_SDK_GO:
-		if sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_GO && isUnitTest {
-			if err := processCompileSuccess(ctxWithTimeout, []byte(""), pipelineId, cacheService); err != nil {
-				return
-			}
-		} else {
-			// Compile
-			logger.Infof("%s: Compile() ...\n", pipelineId)
-			compileCmd := executor.Compile(ctxWithTimeout)
-			var compileError bytes.Buffer
-			var compileOutput bytes.Buffer
-			runCmdWithOutput(compileCmd, &compileOutput, &compileError, successChannel, errorChannel)
-
-			// Start of the monitoring of background tasks (compile step/cancellation/timeout)
-			ok, err = reconcileBackgroundTask(ctxWithTimeout, pipelineId, cacheService, cancelChannel, successChannel)
-			if err != nil {
-				return
-			}
-			if !ok {
-				// Compile step is finished, but code couldn't be compiled (some typos for example)
-				_ = processCompileError(ctxWithTimeout, errorChannel, compileError.Bytes(), pipelineId, cacheService)
-				return
-			}
-			// Compile step is finished and code is compiled
-			if err := processCompileSuccess(ctxWithTimeout, compileOutput.Bytes(), pipelineId, cacheService); err != nil {
-				return
-			}
-		}
-	case pb.Sdk_SDK_PYTHON:
+	if sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_PYTHON || (sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_GO && isUnitTest) {
 		if err := processCompileSuccess(ctxWithTimeout, []byte(""), pipelineId, cacheService); err != nil {
+			return
+		}
+	} else { // in case of Java, Go (not unit test), Scala - need compile step
+		// Compile
+		logger.Infof("%s: Compile() ...\n", pipelineId)
+		compileCmd := executor.Compile(ctxWithTimeout)
+		var compileError bytes.Buffer
+		var compileOutput bytes.Buffer
+		runCmdWithOutput(compileCmd, &compileOutput, &compileError, successChannel, errorChannel)
+
+		// Start of the monitoring of background tasks (compile step/cancellation/timeout)
+			ok, err = reconcileBackgroundTask(ctxWithTimeout, pipelineId, cacheService, cancelChannel, successChannel)
+		if err != nil {
+			return
+		}
+		if !ok {// Compile step is finished, but code couldn't be compiled (some typos for example)
+			_ = processCompileError(ctxWithTimeout, errorChannel, compileError.Bytes(), pipelineId, cacheService)
+			return
+		}// Compile step is finished and code is compiled
+		if err := processCompileSuccess(ctxWithTimeout, compileOutput.Bytes(), pipelineId, cacheService); err != nil {
 			return
 		}
 	}
@@ -193,6 +184,9 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 		return
 	}
 	if !ok {
+		if runOutput.Error != nil {
+			runError.Write([]byte(runOutput.Error.Error()))
+		}
 		// Run step is finished, but code contains some error (divide by 0 for example)
 		if sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_GO {
 			// For Go SDK stdErr was redirected to the log file.
