@@ -23,6 +23,7 @@ import java.util.function.Function;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlOperator;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** SqlOperatorMappingTable. */
 class SqlOperatorMappingTable {
@@ -113,7 +114,7 @@ class SqlOperatorMappingTable {
           .put("$in", new SqlInOperatorRewriter())
           .build();
 
-  public static SqlOperator create(ResolvedNodes.ResolvedFunctionCallBase aggregateFunctionCall) {
+  public static @Nullable SqlOperator create(ResolvedNodes.ResolvedFunctionCallBase aggregateFunctionCall) {
 
     Function<ResolvedNodes.ResolvedFunctionCallBase, SqlOperator> sqlOperatorFactory =
         ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR.get(aggregateFunctionCall.getFunction().getName());
