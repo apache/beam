@@ -202,7 +202,7 @@ public class ProjectionProducerVisitorTest {
 
     @Override
     public PTransform<PBegin, PCollection<Row>> actuateProjectionPushdown(
-        String outputId, FieldAccessDescriptor fields) {
+        Map<TupleTag<?>, FieldAccessDescriptor> fields) {
       return this;
     }
   }
@@ -218,7 +218,7 @@ public class ProjectionProducerVisitorTest {
 
     @Override
     public PTransform<PBegin, PCollection<Row>> actuateProjectionPushdown(
-        String outputId, FieldAccessDescriptor fields) {
+        Map<TupleTag<?>, FieldAccessDescriptor> fields) {
       return this;
     }
 
@@ -267,7 +267,7 @@ public class ProjectionProducerVisitorTest {
 
     @Override
     public PTransform<PBegin, PCollectionTuple> actuateProjectionPushdown(
-        String outputId, FieldAccessDescriptor fields) {
+        Map<TupleTag<?>, FieldAccessDescriptor> fields) {
       return this;
     }
   }
