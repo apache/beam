@@ -243,7 +243,9 @@ jobs:
         CIBW_BEFORE_BUILD: pip install cython
       run: cibuildwheel --print-build-identifiers && cibuildwheel --output-dir wheelhouse
       shell: bash
-    - name: install sha512sum on MacOS
+    - name: Install brew on MacOS
+      run: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    - name: Install sha512sum on MacOS
       if: startsWith(matrix.os_python.os, 'macos')
       run: brew install coreutils
     - name: Add checksums
