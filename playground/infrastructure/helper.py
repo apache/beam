@@ -235,8 +235,7 @@ def _get_example(
       code=content,
       status=STATUS_UNSPECIFIED,
       tag=Tag(**tag),
-      type=object_type
-)
+      type=object_type)
 
 
 def _validate(tag: dict, supported_categories: List[str]) -> bool:
