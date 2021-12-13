@@ -16,11 +16,13 @@
 package preparators
 
 import (
+	"beam.apache.org/playground/backend/internal/validators"
 	"errors"
 	"fmt"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 const (
@@ -53,8 +55,9 @@ func formatCode(args ...interface{}) error {
 
 func changeFileName(args ...interface{}) error {
 	filePath := args[0].(string)
-	isUnitTest := args[1].(bool)
-	if isUnitTest {
+	valRes := args[1].(*sync.Map)
+	isUnitTest, ok := valRes.Load(validators.UnitTestValidatorName)
+	if ok && isUnitTest.(bool) {
 		testFileName := fmt.Sprintf("%s_test.%s", strings.Split(filePath, sep)[0], goName)
 		cmd := exec.Command(mvCmd, filePath, testFileName)
 		fmt.Println(cmd.String())
