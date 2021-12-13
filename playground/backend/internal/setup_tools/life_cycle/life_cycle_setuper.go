@@ -33,6 +33,7 @@ const (
 	javaLogFilePlaceholder = "{logFilePath}"
 	goModFileName          = "go.mod"
 	goSumFileName          = "go.sum"
+	baseFileFolder         = "executable_files"
 )
 
 // Setup returns fs_tool.LifeCycle.
@@ -79,11 +80,11 @@ func Setup(sdk pb.Sdk, code string, pipelineId uuid.UUID, workingDir string, pre
 // prepareGoFiles prepares file for Go environment.
 // Copy go.mod and go.sum file from /path/to/preparedModDir to /path/to/workingDir.
 func prepareGoFiles(lc *fs_tool.LifeCycle, preparedModDir, workingDir string, pipelineId uuid.UUID) error {
-	if err := lc.CopyFile(goModFileName, preparedModDir, workingDir); err != nil {
+	if err := lc.CopyFile(goModFileName, preparedModDir, filepath.Join(workingDir, baseFileFolder)); err != nil {
 		logger.Errorf("%s: error during copying %s file: %s\n", pipelineId, goModFileName, err.Error())
 		return err
 	}
-	if err := lc.CopyFile(goSumFileName, preparedModDir, workingDir); err != nil {
+	if err := lc.CopyFile(goSumFileName, preparedModDir, filepath.Join(workingDir, baseFileFolder)); err != nil {
 		logger.Errorf("%s: error during copying %s file: %s\n", pipelineId, goSumFileName, err.Error())
 		return err
 	}

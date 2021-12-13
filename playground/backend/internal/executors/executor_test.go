@@ -52,6 +52,10 @@ func BaseExecutorBuilder(envs environment.BeamEnvs, workingDir string, filePath 
 	builder := NewExecutorBuilder().
 		WithExecutableFileName("HelloWorld").
 		WithWorkingDir(workingDir).
+		WithValidator().
+		WithSdkValidators(validatorsFuncs).
+		WithPreparator().
+		WithSdkPreparators(preparatorsFuncs).
 		WithCompiler().
 		WithCommand(envs.ExecutorConfig.CompileCmd).
 		WithArgs(envs.ExecutorConfig.CompileArgs).
@@ -62,10 +66,7 @@ func BaseExecutorBuilder(envs environment.BeamEnvs, workingDir string, filePath 
 		WithTestRunner().
 		WithCommand(envs.ExecutorConfig.TestCmd).
 		WithArgs(envs.ExecutorConfig.TestArgs).
-		WithValidator().
-		WithSdkValidators(validatorsFuncs).
-		WithPreparator().
-		WithSdkPreparators(preparatorsFuncs).
+		WithWorkingDir(workingDir).
 		ExecutorBuilder
 	return &builder
 }
@@ -85,10 +86,11 @@ func TestExecutor_Compile(t *testing.T) {
 			name: "TestCompile",
 			fields: fields{
 				compileArgs: CmdConfiguration{
-					fileName:    "filePath",
-					workingDir:  "./",
-					commandName: "testCommand",
-					commandArgs: []string{"-d", "bin", "-classpath", "/opt/apache/beam/jars/beam-sdks-java-harness.jar"},
+					fileName:        "filePath",
+					workingDir:      "./",
+					commandName:     "testCommand",
+					commandArgs:     []string{"-d", "bin", "-classpath", "/opt/apache/beam/jars/beam-sdks-java-harness.jar"},
+					pipelineOptions: []string{""},
 				},
 			},
 			want: &exec.Cmd{
@@ -140,6 +142,7 @@ func TestExecutor_Run(t *testing.T) {
 					commandName: "testCommand",
 					commandArgs: []string{"-cp", "bin:/opt/apache/beam/jars/beam-sdks-java-harness.jar:" +
 						"/opt/apache/beam/jars/beam-runners-direct.jar:/opt/apache/beam/jars/slf4j-jdk14.jar"},
+					pipelineOptions: []string{""},
 				},
 			},
 			want: &exec.Cmd{

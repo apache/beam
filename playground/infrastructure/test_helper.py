@@ -20,11 +20,14 @@ import pytest
 
 from api.v1.api_pb2 import SDK_UNSPECIFIED, STATUS_UNSPECIFIED, \
   STATUS_VALIDATING, \
-  STATUS_FINISHED, SDK_JAVA
+  STATUS_FINISHED, SDK_JAVA, SDK_PYTHON, SDK_GO, \
+  PRECOMPILED_OBJECT_TYPE_EXAMPLE, PRECOMPILED_OBJECT_TYPE_KATA, \
+  PRECOMPILED_OBJECT_TYPE_UNIT_TEST
 from grpc_client import GRPCClient
 from helper import find_examples, Example, _get_example, _get_name, get_tag, \
   _validate, Tag, get_statuses, \
-  _update_example_status, get_supported_categories, _check_file
+  _update_example_status, get_supported_categories, _check_file, \
+  _get_object_type
 
 
 @mock.patch("helper._check_file")
@@ -277,3 +280,16 @@ async def test__update_example_status(
   assert example.status == STATUS_FINISHED
   mock_grpc_client_run_code.assert_called_once_with(example.code, example.sdk)
   mock_grpc_client_check_status.assert_has_calls([mock.call("pipeline_id")])
+
+
+def test__get_object_type():
+  result_example = _get_object_type(
+      "filename.extension", "filepath/examples/filename.extension")
+  result_kata = _get_object_type(
+      "filename.extension", "filepath/katas/filename.extension")
+  result_test = _get_object_type(
+      "filename_test.extension", "filepath/examples/filename_test.extension")
+
+  assert result_example == PRECOMPILED_OBJECT_TYPE_EXAMPLE
+  assert result_kata == PRECOMPILED_OBJECT_TYPE_KATA
+  assert result_test == PRECOMPILED_OBJECT_TYPE_UNIT_TEST

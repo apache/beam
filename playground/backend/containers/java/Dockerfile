@@ -69,5 +69,11 @@ RUN wget https://repo1.maven.org/maven2/org/hamcrest/hamcrest-all/$HAMCREST_VERS
 # Install JUnit
 RUN wget https://repo1.maven.org/maven2/junit/junit/$JUNIT_VERSION/junit-$JUNIT_VERSION.jar &&\
     mv junit-$JUNIT_VERSION.jar /opt/apache/beam/jars/junit.jar
+# Install Java Katas Utils
+COPY katas /go/src/katas
+RUN cd /go/src/katas &&\
+    ./gradlew jar &&\
+    mv util/build/libs/util.jar /opt/apache/beam/jars/util.jar
+
 RUN printenv
 ENTRYPOINT ["/opt/playground/backend/server_java_backend"]

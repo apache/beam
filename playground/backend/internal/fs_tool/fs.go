@@ -166,3 +166,9 @@ func (l *LifeCycle) GetAbsoluteLogFilePath() string {
 	absoluteFilePath, _ := filepath.Abs(filePath)
 	return absoluteFilePath
 }
+
+// GetAbsoluteSourceFolderPath returns absolute path to executable folder (/path/to/workingDir/executable_files/{pipelineId}/src).
+func (l *LifeCycle) GetAbsoluteSourceFolderPath() string {
+	absoluteFilePath, _ := filepath.Abs(l.Folder.SourceFileFolder)
+	return absoluteFilePath
+}

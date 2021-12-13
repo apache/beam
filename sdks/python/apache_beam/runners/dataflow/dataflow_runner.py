@@ -595,7 +595,9 @@ class DataflowRunner(PipelineRunner):
       if not debug_options.lookup_experiment('disable_runner_v2'):
         debug_options.add_experiment('beam_fn_api')
         debug_options.add_experiment('use_runner_v2')
-        debug_options.add_experiment('use_portable_job_submission')
+        if not debug_options.lookup_experiment(
+            'disable_portable_job_submission'):
+          debug_options.add_experiment('use_portable_job_submission')
     # set default beam_fn_api experiment if use unified
     # worker experiment flag exists, no-op otherwise.
     from apache_beam.runners.dataflow.internal import apiclient

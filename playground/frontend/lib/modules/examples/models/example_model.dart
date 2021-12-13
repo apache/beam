@@ -45,6 +45,7 @@ class ExampleModel {
   final String description;
   String? source;
   String? outputs;
+  String? pipelineOptions;
 
   ExampleModel({
     required this.name,
@@ -53,6 +54,7 @@ class ExampleModel {
     required this.type,
     this.source,
     this.outputs,
+    this.pipelineOptions,
   });
 
   setSource(String source) {

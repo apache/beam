@@ -46,8 +46,8 @@ class Config:
       STATUS_RUN_TIMEOUT,
       STATUS_RUN_ERROR
   ]
-  BEAM_PLAYGROUND_TITLE = "Beam-playground:\n"
-  BEAM_PLAYGROUND = "Beam-playground"
+  BEAM_PLAYGROUND_TITLE = "beam-playground:\n"
+  BEAM_PLAYGROUND = "beam-playground"
   PAUSE_DELAY = 10
   CI_STEP_NAME = "CI"
   CD_STEP_NAME = "CD"
@@ -68,3 +68,10 @@ class PrecompiledExample:
   OUTPUT_EXTENSION = "output"
   META_NAME = "meta"
   META_EXTENSION = "info"
+
+
+@dataclass(frozen=True)
+class PrecompiledExampleType:
+  examples = "examples"
+  katas = "katas"
+  test_ends = ("test", "it")
