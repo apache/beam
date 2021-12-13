@@ -21,6 +21,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.function.Consumer;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
@@ -38,7 +40,9 @@ public class FakeBeamFnTimerClient implements BeamFnTimerClient {
 
   @Override
   public <K> CloseableFnDataReceiver<Timer<K>> register(
-      LogicalEndpoint timerEndpoint, Coder<Timer<K>> coder) {
+      LogicalEndpoint timerEndpoint,
+      Coder<Timer<K>> coder,
+      Consumer<Elements> embedOutputElementsConsumer) {
     setTimers.put(timerEndpoint, new ArrayList<>());
     wasClosed.put(timerEndpoint, false);
 

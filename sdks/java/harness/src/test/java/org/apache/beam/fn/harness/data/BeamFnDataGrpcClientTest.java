@@ -321,7 +321,7 @@ public class BeamFnDataGrpcClientTest {
               OutboundObserverFactory.trivial());
 
       try (CloseableFnDataReceiver<WindowedValue<String>> consumer =
-          clientFactory.send(apiServiceDescriptor, ENDPOINT_A, CODER)) {
+          clientFactory.send(apiServiceDescriptor, ENDPOINT_A, CODER, null)) {
         consumer.accept(valueInGlobalWindow("ABC"));
         consumer.accept(valueInGlobalWindow("DEF"));
         consumer.accept(valueInGlobalWindow("GHI"));

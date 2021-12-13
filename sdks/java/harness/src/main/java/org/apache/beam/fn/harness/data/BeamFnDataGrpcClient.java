@@ -20,6 +20,7 @@ package org.apache.beam.fn.harness.data;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
@@ -93,14 +94,19 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
    */
   @Override
   public <T> CloseableFnDataReceiver<T> send(
-      Endpoints.ApiServiceDescriptor apiServiceDescriptor,
+      ApiServiceDescriptor apiServiceDescriptor,
       LogicalEndpoint outputLocation,
-      Coder<T> coder) {
+      Coder<T> coder,
+      Consumer<Elements> responseEmbedElementsConsumer) {
     BeamFnDataGrpcMultiplexer2 client = getClientFor(apiServiceDescriptor);
 
     LOG.debug("Creating output consumer for {}", outputLocation);
     return BeamFnDataBufferingOutboundObserver.forLocation(
-        options, outputLocation, coder, client.getOutboundObserver());
+        options,
+        outputLocation,
+        coder,
+        client.getOutboundObserver(),
+        responseEmbedElementsConsumer);
   }
 
   private BeamFnDataGrpcMultiplexer2 getClientFor(

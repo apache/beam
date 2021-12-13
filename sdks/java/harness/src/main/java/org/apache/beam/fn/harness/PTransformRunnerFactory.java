@@ -20,11 +20,15 @@ package org.apache.beam.fn.harness;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.data.BeamFnTimerClient;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
@@ -83,6 +87,16 @@ public interface PTransformRunnerFactory<T> {
 
     /** An immutable mapping from windowing strategy id to windowing strategy definition. */
     Map<String, RunnerApi.WindowingStrategy> getWindowingStrategies();
+
+    /** An immutable set containing the runner capability urns. */
+    Set<String> getRunnerCapabilities();
+
+    /**
+     * If Non-null, the consumer may accept the Elements from the outbound data stream to embed in
+     * the ProcessBundleResponse.
+     */
+    @Nullable
+    Consumer<Elements> getResponseEmbedElementsConsumer();
 
     /** Register as a consumer for a given PCollection id. */
     <T> void addPCollectionConsumer(

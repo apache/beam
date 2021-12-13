@@ -19,6 +19,8 @@ package org.apache.beam.sdk.fn.data;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Consumer;
+import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.ExperimentalOptions;
@@ -59,16 +61,25 @@ public interface BeamFnDataBufferingOutboundObserver<T> extends CloseableFnDataR
       PipelineOptions options,
       LogicalEndpoint endpoint,
       Coder<T> coder,
-      StreamObserver<BeamFnApi.Elements> outboundObserver) {
+      StreamObserver<BeamFnApi.Elements> outboundObserver,
+      @Nullable Consumer<BeamFnApi.Elements> responseEmbedElementsConsumer) {
     int sizeLimit = getSizeLimit(options);
     long timeLimit = getTimeLimit(options);
     if (timeLimit > 0) {
       return new BeamFnDataTimeBasedBufferingOutboundObserver<>(
-          sizeLimit, timeLimit, endpoint, coder, outboundObserver);
+          sizeLimit, timeLimit, endpoint, coder, outboundObserver, responseEmbedElementsConsumer);
     } else {
       return new BeamFnDataSizeBasedBufferingOutboundObserver<>(
-          sizeLimit, endpoint, coder, outboundObserver);
+          sizeLimit, endpoint, coder, outboundObserver, responseEmbedElementsConsumer);
     }
+  }
+
+  static <T> BeamFnDataSizeBasedBufferingOutboundObserver<T> forLocation(
+      PipelineOptions options,
+      LogicalEndpoint endpoint,
+      Coder<T> coder,
+      StreamObserver<BeamFnApi.Elements> outboundObserver) {
+    return forLocation(options, endpoint, coder, outboundObserver, null);
   }
 
   static int getSizeLimit(PipelineOptions options) {

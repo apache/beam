@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.fn.data;
 
 import java.io.IOException;
+import java.util.function.Consumer;
+import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
@@ -44,24 +46,29 @@ public class BeamFnDataSizeBasedBufferingOutboundObserver<T>
 
   private long byteCounter;
   private long counter;
+  private boolean hasFlushed;
   private boolean closed;
   private final int sizeLimit;
   private final Coder<T> coder;
   private final LogicalEndpoint outputLocation;
   private final StreamObserver<BeamFnApi.Elements> outboundObserver;
+  private final Consumer<BeamFnApi.Elements> embedElementsConsumer;
   private final ByteString.Output bufferedElements;
 
   BeamFnDataSizeBasedBufferingOutboundObserver(
       int sizeLimit,
       LogicalEndpoint outputLocation,
       Coder<T> coder,
-      StreamObserver<BeamFnApi.Elements> outboundObserver) {
+      StreamObserver<BeamFnApi.Elements> outboundObserver,
+      @Nullable Consumer<BeamFnApi.Elements> embedElementsConsumer) {
     this.sizeLimit = sizeLimit;
     this.outputLocation = outputLocation;
     this.coder = coder;
     this.outboundObserver = outboundObserver;
     this.bufferedElements = ByteString.newOutput();
     this.closed = false;
+    this.hasFlushed = false;
+    this.embedElementsConsumer = embedElementsConsumer;
   }
 
   @Override
@@ -94,13 +101,18 @@ public class BeamFnDataSizeBasedBufferingOutboundObserver<T>
         outputLocation.getTransformId(),
         counter,
         byteCounter);
-    outboundObserver.onNext(elements.build());
+    if (embedElementsConsumer != null && !hasFlushed) {
+      embedElementsConsumer.accept(elements.build());
+    } else {
+      outboundObserver.onNext(elements.build());
+    }
   }
 
   @Override
   public void flush() throws IOException {
     if (bufferedElements.size() > 0) {
       outboundObserver.onNext(convertBufferForTransmission().build());
+      this.hasFlushed = true;
     }
   }
 

@@ -124,6 +124,7 @@ public class BeamFnDataWriteRunnerTest {
                     RunnerApi.PCollection.newBuilder().setCoderId(ELEM_CODER_ID).build()))
             .coders(COMPONENTS.getCodersMap())
             .windowingStrategies(COMPONENTS.getWindowingStrategiesMap())
+            .responseEmbedElementsConsumer(null)
             .build();
 
     new BeamFnDataWriteRunner.Factory<String>().createRunnerForPTransform(context);
@@ -152,14 +153,16 @@ public class BeamFnDataWriteRunnerTest {
           }
         };
 
-    when(mockBeamFnDataClient.send(any(), any(), Matchers.<Coder<WindowedValue<String>>>any()))
+    when(mockBeamFnDataClient.send(
+            any(), any(), Matchers.<Coder<WindowedValue<String>>>any(), any()))
         .thenReturn(outputConsumer);
     Iterables.getOnlyElement(context.getStartBundleFunctions()).run();
     verify(mockBeamFnDataClient)
         .send(
             eq(PORT_SPEC.getApiServiceDescriptor()),
             eq(LogicalEndpoint.data(bundleId, TRANSFORM_ID)),
-            eq(WIRE_CODER));
+            eq(WIRE_CODER),
+            eq(null));
 
     assertThat(context.getPCollectionConsumers().keySet(), containsInAnyOrder(localInputId));
     context.getPCollectionConsumer(localInputId).accept(valueInGlobalWindow("TestValue"));
@@ -177,7 +180,8 @@ public class BeamFnDataWriteRunnerTest {
   public void testReuseForMultipleBundles() throws Exception {
     RecordingReceiver<WindowedValue<String>> valuesA = new RecordingReceiver<>();
     RecordingReceiver<WindowedValue<String>> valuesB = new RecordingReceiver<>();
-    when(mockBeamFnDataClient.send(any(), any(), Matchers.<Coder<WindowedValue<String>>>any()))
+    when(mockBeamFnDataClient.send(
+            any(), any(), Matchers.<Coder<WindowedValue<String>>>any(), any()))
         .thenReturn(valuesA)
         .thenReturn(valuesB);
     AtomicReference<String> bundleId = new AtomicReference<>("0");
@@ -189,7 +193,8 @@ public class BeamFnDataWriteRunnerTest {
             bundleId::get,
             COMPONENTS.getCodersMap(),
             mockBeamFnDataClient,
-            null /* beamFnStateClient */);
+            null, /* beamFnStateClient */
+            null);
 
     // Process for bundle id 0
     writeRunner.registerForOutput();
@@ -198,7 +203,8 @@ public class BeamFnDataWriteRunnerTest {
         .send(
             eq(PORT_SPEC.getApiServiceDescriptor()),
             eq(LogicalEndpoint.data(bundleId.get(), TRANSFORM_ID)),
-            eq(WIRE_CODER));
+            eq(WIRE_CODER),
+            any());
 
     writeRunner.consume(valueInGlobalWindow("ABC"));
     writeRunner.consume(valueInGlobalWindow("DEF"));
@@ -217,7 +223,8 @@ public class BeamFnDataWriteRunnerTest {
         .send(
             eq(PORT_SPEC.getApiServiceDescriptor()),
             eq(LogicalEndpoint.data(bundleId.get(), TRANSFORM_ID)),
-            eq(WIRE_CODER));
+            eq(WIRE_CODER),
+            any());
 
     writeRunner.consume(valueInGlobalWindow("GHI"));
     writeRunner.consume(valueInGlobalWindow("JKL"));

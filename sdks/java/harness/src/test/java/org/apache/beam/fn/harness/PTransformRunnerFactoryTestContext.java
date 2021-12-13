@@ -21,11 +21,14 @@ import com.google.auto.value.AutoValue;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.ProgressRequestCallback;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
@@ -87,7 +90,8 @@ public abstract class PTransformRunnerFactoryTestContext
               public <T> CloseableFnDataReceiver<T> send(
                   ApiServiceDescriptor apiServiceDescriptor,
                   LogicalEndpoint outputLocation,
-                  Coder<T> coder) {
+                  Coder<T> coder,
+                  Consumer<Elements> embedOutputElementsConsumer) {
                 throw new UnsupportedOperationException("Unexpected call during test.");
               }
             })
@@ -103,7 +107,9 @@ public abstract class PTransformRunnerFactoryTestContext
 
               @Override
               public <K> CloseableFnDataReceiver<Timer<K>> register(
-                  LogicalEndpoint timerEndpoint, Coder<Timer<K>> coder) {
+                  LogicalEndpoint timerEndpoint,
+                  Coder<Timer<K>> coder,
+                  Consumer<Elements> embedOutputElementsConsumer) {
                 throw new UnsupportedOperationException("Unexpected call during test.");
               }
             })
@@ -142,7 +148,9 @@ public abstract class PTransformRunnerFactoryTestContext
               public void afterBundleCommit(Instant callbackExpiry, Callback callback) {
                 throw new UnsupportedOperationException("Unexpected call during test.");
               }
-            });
+            })
+        .runnerCapabilities(new HashSet<>())
+        .responseEmbedElementsConsumer(null);
   }
 
   /** A builder to create a context for tests. */
@@ -177,6 +185,10 @@ public abstract class PTransformRunnerFactoryTestContext
     Builder coders(Map<String, RunnerApi.Coder> value);
 
     Builder windowingStrategies(Map<String, RunnerApi.WindowingStrategy> value);
+
+    Builder runnerCapabilities(java.util.Set<String> value);
+
+    Builder responseEmbedElementsConsumer(@Nullable Consumer<Elements> value);
 
     Builder pCollectionConsumers(Map<String, List<FnDataReceiver<?>>> value);
 

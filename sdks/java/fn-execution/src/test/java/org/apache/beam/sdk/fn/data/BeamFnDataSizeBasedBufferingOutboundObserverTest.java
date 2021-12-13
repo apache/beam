@@ -171,6 +171,102 @@ public class BeamFnDataSizeBasedBufferingOutboundObserverTest {
     assertEquals(builder.build(), values.get(1));
   }
 
+  @Test
+  public void testOutputAcceptedByEmbedOutputConsumer() throws Exception {
+    List<BeamFnApi.Elements> dataReceiverReceivedValues = new ArrayList<>();
+    List<BeamFnApi.Elements> embedElementsConsumerReceivedValues = new ArrayList<>();
+    AtomicBoolean onCompletedWasCalled = new AtomicBoolean();
+    PipelineOptions options = PipelineOptionsFactory.create();
+    options
+        .as(ExperimentalOptions.class)
+        .setExperiments(Arrays.asList("data_buffer_size_limit=100"));
+    CloseableFnDataReceiver<byte[]> consumer =
+        BeamFnDataBufferingOutboundObserver.forLocation(
+            options,
+            endpoint,
+            CODER,
+            TestStreams.<Elements>withOnNext(dataReceiverReceivedValues::add)
+                .withOnCompleted(() -> onCompletedWasCalled.set(true))
+                .build(),
+            embedElementsConsumerReceivedValues::add);
+
+    // Test that nothing is emitted till the default buffer size is surpassed.
+    consumer.accept(new byte[90]);
+    assertThat(dataReceiverReceivedValues, empty());
+    assertThat(embedElementsConsumerReceivedValues, empty());
+    consumer.close();
+
+    BeamFnApi.Elements.Builder builder = messageWithDataBuilder(new byte[90]);
+    if (endpoint.isTimer()) {
+      builder.addTimers(
+          BeamFnApi.Elements.Timers.newBuilder()
+              .setInstructionId(endpoint.getInstructionId())
+              .setTransformId(endpoint.getTransformId())
+              .setTimerFamilyId(endpoint.getTimerFamilyId())
+              .setIsLast(true));
+    } else {
+      builder.addData(
+          BeamFnApi.Elements.Data.newBuilder()
+              .setInstructionId(endpoint.getInstructionId())
+              .setTransformId(endpoint.getTransformId())
+              .setIsLast(true));
+    }
+    assertThat(dataReceiverReceivedValues, empty());
+    assertEquals(builder.build(), embedElementsConsumerReceivedValues.get(0));
+  }
+
+  @Test
+  public void testOutputFlushedAndSkippedByEmbedOutputConsumer() throws Exception {
+    List<BeamFnApi.Elements> dataReceiverReceivedValues = new ArrayList<>();
+    List<BeamFnApi.Elements> embedElementsConsumerReceivedValues = new ArrayList<>();
+    AtomicBoolean onCompletedWasCalled = new AtomicBoolean();
+    PipelineOptions options = PipelineOptionsFactory.create();
+    options
+        .as(ExperimentalOptions.class)
+        .setExperiments(Arrays.asList("data_buffer_size_limit=100"));
+    CloseableFnDataReceiver<byte[]> consumer =
+        BeamFnDataBufferingOutboundObserver.forLocation(
+            options,
+            endpoint,
+            CODER,
+            TestStreams.<Elements>withOnNext(dataReceiverReceivedValues::add)
+                .withOnCompleted(() -> onCompletedWasCalled.set(true))
+                .build(),
+            embedElementsConsumerReceivedValues::add);
+
+    // Test that nothing is emitted till the default buffer size is surpassed.
+    consumer.accept(new byte[51]);
+    assertThat(dataReceiverReceivedValues, empty());
+    assertThat(embedElementsConsumerReceivedValues, empty());
+
+    // Test that when we cross the buffer, we emit.
+    consumer.accept(new byte[49]);
+    assertEquals(messageWithData(new byte[51], new byte[49]), dataReceiverReceivedValues.get(0));
+
+    // Test that when we close we empty the value, and then the stream terminator as part
+    // of the same message
+    consumer.accept(new byte[1]);
+    consumer.close();
+
+    BeamFnApi.Elements.Builder builder = messageWithDataBuilder(new byte[1]);
+    if (endpoint.isTimer()) {
+      builder.addTimers(
+          BeamFnApi.Elements.Timers.newBuilder()
+              .setInstructionId(endpoint.getInstructionId())
+              .setTransformId(endpoint.getTransformId())
+              .setTimerFamilyId(endpoint.getTimerFamilyId())
+              .setIsLast(true));
+    } else {
+      builder.addData(
+          BeamFnApi.Elements.Data.newBuilder()
+              .setInstructionId(endpoint.getInstructionId())
+              .setTransformId(endpoint.getTransformId())
+              .setIsLast(true));
+    }
+    assertThat(embedElementsConsumerReceivedValues, empty());
+    assertEquals(builder.build(), dataReceiverReceivedValues.get(1));
+  }
+
   BeamFnApi.Elements.Builder messageWithDataBuilder(byte[]... datum) throws IOException {
     ByteString.Output output = ByteString.newOutput();
     for (byte[] data : datum) {

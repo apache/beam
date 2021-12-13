@@ -17,6 +17,8 @@
  */
 package org.apache.beam.fn.harness.data;
 
+import java.util.function.Consumer;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
@@ -36,5 +38,7 @@ public interface BeamFnTimerClient {
    * returned receiver.
    */
   <K> CloseableFnDataReceiver<Timer<K>> register(
-      LogicalEndpoint logicalEndpoint, Coder<Timer<K>> coder);
+      LogicalEndpoint logicalEndpoint,
+      Coder<Timer<K>> coder,
+      Consumer<Elements> responseEmbedElementsConsumer);
 }

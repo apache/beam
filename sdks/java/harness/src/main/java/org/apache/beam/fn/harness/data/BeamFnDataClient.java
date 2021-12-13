@@ -18,8 +18,8 @@
 package org.apache.beam.fn.harness.data;
 
 import java.util.List;
+import java.util.function.Consumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
-import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
@@ -74,7 +74,8 @@ public interface BeamFnDataClient {
    * <p>The returned closeable receiver is not thread safe.
    */
   <T> CloseableFnDataReceiver<T> send(
-      Endpoints.ApiServiceDescriptor apiServiceDescriptor,
+      ApiServiceDescriptor apiServiceDescriptor,
       LogicalEndpoint outputLocation,
-      Coder<T> coder);
+      Coder<T> coder,
+      Consumer<Elements> responseEmbedElementsConsumer);
 }

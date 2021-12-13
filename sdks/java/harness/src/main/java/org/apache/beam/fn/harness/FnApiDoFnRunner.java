@@ -48,6 +48,7 @@ import org.apache.beam.fn.harness.state.SideInputSpec;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.DelayedBundleApplication;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
@@ -189,7 +190,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                       pCollectionId, (FnDataReceiver) consumer, (Coder) valueCoder),
               context::addProgressRequestCallback,
               context.getSplitListener(),
-              context.getBundleFinalizer());
+              context.getBundleFinalizer(),
+              context.getResponseEmbedElementsConsumer());
 
       for (Map.Entry<String, KV<TimeDomain, Coder<Timer<Object>>>> entry :
           runner.timerFamilyInfos.entrySet()) {
@@ -314,6 +316,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   /** Only valid during {@link #processTimer}, null otherwise. */
   private TimeDomain currentTimeDomain;
 
+  private Consumer<Elements> outputEmbedElementsConsumer;
+
   private interface TriFunction<FirstT, SecondT, ThirdT> {
     void accept(FirstT x, SecondT y, ThirdT z);
   }
@@ -338,12 +342,14 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       TriFunction<String, FnDataReceiver<WindowedValue<?>>, Coder<?>> addPCollectionConsumer,
       Consumer<ProgressRequestCallback> addProgressRequestCallback,
       BundleSplitListener splitListener,
-      BundleFinalizer bundleFinalizer) {
+      BundleFinalizer bundleFinalizer,
+      Consumer<Elements> outputEmbedElementsConsumer) {
     this.pipelineOptions = pipelineOptions;
     this.beamFnTimerClient = beamFnTimerClient;
     this.pTransformId = pTransformId;
     this.pTransform = pTransform;
     this.processBundleInstructionId = processBundleInstructionId;
+    this.outputEmbedElementsConsumer = outputEmbedElementsConsumer;
     ImmutableMap.Builder<TupleTag<?>, SideInputSpec> tagToSideInputSpecMapBuilder =
         ImmutableMap.builder();
     try {
@@ -746,9 +752,10 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       Coder<Timer<Object>> timerCoder = timerFamilyInfo.getValue().getValue();
       outboundTimerReceivers.put(
           localName,
-          beamFnTimerClient.<Object>register(
+          beamFnTimerClient.register(
               LogicalEndpoint.timer(processBundleInstructionId.get(), pTransformId, localName),
-              timerCoder));
+              timerCoder,
+              outputEmbedElementsConsumer));
     }
 
     doFnInvoker.invokeStartBundle(startBundleArgumentProvider);

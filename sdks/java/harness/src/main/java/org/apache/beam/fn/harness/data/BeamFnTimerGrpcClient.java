@@ -19,6 +19,8 @@ package org.apache.beam.fn.harness.data;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
+import java.util.function.Consumer;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.sdk.coders.Coder;
@@ -38,11 +40,14 @@ public class BeamFnTimerGrpcClient implements BeamFnTimerClient {
 
   @Override
   public <K> CloseableFnDataReceiver<Timer<K>> register(
-      LogicalEndpoint timerEndpoint, Coder<Timer<K>> coder) {
+      LogicalEndpoint timerEndpoint,
+      Coder<Timer<K>> coder,
+      Consumer<Elements> responseEmbedElementsConsumer) {
     checkArgument(
         timerEndpoint.isTimer(),
         "Expected to receive timer endpoint but received %s",
         timerEndpoint);
-    return beamFnDataClient.send(timerApiServiceDescriptor, timerEndpoint, coder);
+    return beamFnDataClient.send(
+        timerApiServiceDescriptor, timerEndpoint, coder, responseEmbedElementsConsumer);
   }
 }

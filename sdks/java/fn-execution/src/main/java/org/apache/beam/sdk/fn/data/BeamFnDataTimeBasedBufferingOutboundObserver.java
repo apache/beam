@@ -23,6 +23,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
@@ -46,8 +48,9 @@ public class BeamFnDataTimeBasedBufferingOutboundObserver<T>
       long timeLimit,
       LogicalEndpoint outputLocation,
       Coder<T> coder,
-      StreamObserver<BeamFnApi.Elements> outboundObserver) {
-    super(sizeLimit, outputLocation, coder, outboundObserver);
+      StreamObserver<BeamFnApi.Elements> outboundObserver,
+      @Nullable Consumer<BeamFnApi.Elements> embedElementsConsumer) {
+    super(sizeLimit, outputLocation, coder, outboundObserver, embedElementsConsumer);
     this.flushFuture =
         Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder()

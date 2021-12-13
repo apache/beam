@@ -22,11 +22,13 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.I
 import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.StateBackedIterable.StateBackedIterableTranslationContext;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -80,7 +82,8 @@ public class BeamFnDataWriteRunner<InputT> {
               context.getProcessBundleInstructionIdSupplier(),
               context.getCoders(),
               context.getBeamFnDataClient(),
-              context.getBeamFnStateClient());
+              context.getBeamFnStateClient(),
+              context.getResponseEmbedElementsConsumer());
       context.addStartBundleFunction(runner::registerForOutput);
       context.addPCollectionConsumer(
           getOnlyElement(context.getPTransform().getInputsMap().values()),
@@ -97,7 +100,7 @@ public class BeamFnDataWriteRunner<InputT> {
   private final Coder<WindowedValue<InputT>> coder;
   private final BeamFnDataClient beamFnDataClientFactory;
   private final Supplier<String> processBundleInstructionIdSupplier;
-
+  private final Consumer<Elements> responseEmbedElementsConsumer;
   private CloseableFnDataReceiver<WindowedValue<InputT>> consumer;
 
   BeamFnDataWriteRunner(
@@ -107,9 +110,11 @@ public class BeamFnDataWriteRunner<InputT> {
       Supplier<String> processBundleInstructionIdSupplier,
       Map<String, RunnerApi.Coder> coders,
       BeamFnDataClient beamFnDataClientFactory,
-      BeamFnStateClient beamFnStateClient)
+      BeamFnStateClient beamFnStateClient,
+      Consumer<Elements> responseEmbedElementsConsumer)
       throws IOException {
     this.pTransformId = pTransformId;
+    this.responseEmbedElementsConsumer = responseEmbedElementsConsumer;
     RemoteGrpcPort port = RemoteGrpcPortWrite.fromPTransform(remoteWriteNode).getPort();
     this.apiServiceDescriptor = port.getApiServiceDescriptor();
     this.beamFnDataClientFactory = beamFnDataClientFactory;
@@ -145,7 +150,8 @@ public class BeamFnDataWriteRunner<InputT> {
         beamFnDataClientFactory.send(
             apiServiceDescriptor,
             LogicalEndpoint.data(processBundleInstructionIdSupplier.get(), pTransformId),
-            coder);
+            coder,
+            responseEmbedElementsConsumer);
   }
 
   public void close() throws Exception {
