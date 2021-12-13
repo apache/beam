@@ -128,7 +128,9 @@ class CDHelper:
         extension=PrecompiledExample.META_EXTENSION)
     file_names[code_path] = example.code
     file_names[output_path] = example.output
-    file_names[meta_path] = json.dumps(example.tag._asdict())
+    meta = example.tag._asdict()
+    meta["type"] = example.type
+    file_names[meta_path] = json.dumps(meta)
     file_names[log_path] = example.logs
     for file_name, file_content in file_names.items():
       local_file_path = os.path.join(

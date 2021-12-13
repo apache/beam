@@ -29,8 +29,10 @@ from yaml import YAMLError
 
 from api.v1.api_pb2 import SDK_UNSPECIFIED, STATUS_UNSPECIFIED, Sdk, \
   STATUS_VALIDATING, STATUS_PREPARING, \
-  STATUS_COMPILING, STATUS_EXECUTING
-from config import Config, TagFields
+  STATUS_COMPILING, STATUS_EXECUTING, PRECOMPILED_OBJECT_TYPE_UNIT_TEST, \
+  PRECOMPILED_OBJECT_TYPE_KATA, PRECOMPILED_OBJECT_TYPE_UNSPECIFIED, \
+  PRECOMPILED_OBJECT_TYPE_EXAMPLE, PrecompiledObjectType
+from config import Config, TagFields, PrecompiledExampleType
 from grpc_client import GRPCClient
 
 Tag = namedtuple(
@@ -58,6 +60,7 @@ class Example:
   status: STATUS_UNSPECIFIED
   tag: Tag
   logs: str = ""
+  type: PrecompiledObjectType = PRECOMPILED_OBJECT_TYPE_UNSPECIFIED
 
 
 def find_examples(work_dir: str,
@@ -214,11 +217,20 @@ def _get_example(filepath: str, filename: str, tag: dict) -> Example:
   """
   name = _get_name(filename)
   sdk = _get_sdk(filename)
+  object_type = _get_object_type(filename, filepath)
   with open(filepath, encoding="utf-8") as parsed_file:
     content = parsed_file.read()
 
   return Example(
-      name, "", sdk, filepath, content, "", STATUS_UNSPECIFIED, Tag(**tag))
+      name,
+      "",
+      sdk,
+      filepath,
+      content,
+      "",
+      STATUS_UNSPECIFIED,
+      Tag(**tag),
+      object_type)
 
 
 def _validate(tag: dict, supported_categories: List[str]) -> bool:
@@ -347,3 +359,25 @@ async def _update_example_status(example: Example, client: GRPCClient):
     await asyncio.sleep(Config.PAUSE_DELAY)
     status = await client.check_status(pipeline_id)
   example.status = status
+
+
+def _get_object_type(filename, filepath):
+  """
+  Get type of an object based on it filename/filepath
+
+  Args:
+      filename: object's filename
+      filepath: object's filepath
+
+  Returns: type of the object (example, kata, unit-test)
+  """
+  filename_no_ext = (os.path.splitext(filename)[0]).lower()
+  if filename_no_ext.endswith(PrecompiledExampleType.test_ends):
+    object_type = PRECOMPILED_OBJECT_TYPE_UNIT_TEST
+  elif PrecompiledExampleType.katas in filepath.split(os.sep):
+    object_type = PRECOMPILED_OBJECT_TYPE_KATA
+  elif PrecompiledExampleType.examples in filepath.split(os.sep):
+    object_type = PRECOMPILED_OBJECT_TYPE_EXAMPLE
+  else:
+    object_type = PRECOMPILED_OBJECT_TYPE_UNSPECIFIED
+  return object_type

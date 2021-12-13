@@ -64,3 +64,10 @@ class PrecompiledExample:
   LOG_EXTENSION = "log"
   META_NAME = "meta"
   META_EXTENSION = "info"
+
+
+@dataclass(frozen=True)
+class PrecompiledExampleType:
+  examples = "examples"
+  katas = "katas"
+  test_ends = ("test", "it")
