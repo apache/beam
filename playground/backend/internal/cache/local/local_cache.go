@@ -83,6 +83,12 @@ func (lc *Cache) SetValue(ctx context.Context, pipelineId uuid.UUID, subKey cach
 	if !ok {
 		lc.items[pipelineId] = make(map[cache.SubKey]interface{})
 	}
+
+	switch subKey {
+	case cache.RunOutputIndex, cache.LogsIndex:
+		value = float64(value.(int))
+	}
+
 	lc.items[pipelineId][subKey] = value
 	return nil
 }

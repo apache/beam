@@ -28,7 +28,7 @@ func GetValidators(sdk pb.Sdk, filepath string) (*[]validators.Validator, error)
 	case pb.Sdk_SDK_JAVA:
 		val = validators.GetJavaValidators(filepath)
 	case pb.Sdk_SDK_GO:
-		val = validators.GetGoValidators()
+		val = validators.GetGoValidators(filepath)
 	case pb.Sdk_SDK_PYTHON:
 		val = validators.GetPythonValidators()
 	default:
