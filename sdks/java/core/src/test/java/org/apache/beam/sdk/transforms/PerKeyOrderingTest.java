@@ -44,14 +44,12 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@SuppressWarnings(
+    "unused") // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
 @RunWith(JUnit4.class)
 public class PerKeyOrderingTest implements Serializable {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
-
-  private static final Logger LOG = LoggerFactory.getLogger(PerKeyOrderingTest.class);
 
   private static class VerifyDoFn<T> extends DoFn<KV<String, T>, KV<String, Boolean>> {
 
@@ -224,7 +222,6 @@ public class PerKeyOrderingTest implements Serializable {
   @Category({ValidatesRunner.class, UsesPerKeyOrderedDelivery.class})
   public void testMultipleStatefulOrderingWithShuffle() {
     // Here we test that the output of a single process call in a DoFn will be output in order
-    Instant instant = Instant.ofEpochMilli(0);
     List<Long> perKeyElements =
         Lists.newArrayList(
             -8L,
@@ -286,8 +283,6 @@ public class PerKeyOrderingTest implements Serializable {
   @Test
   @Category({ValidatesRunner.class, UsesPerKeyOrderInBundle.class})
   public void testMultipleStatefulOrderingWithoutShuffle() {
-    // Here we test that the output of a single process call in a DoFn will be output in order
-    Instant instant = Instant.ofEpochMilli(0);
     List<Integer> perKeyElements =
         Lists.newArrayList(-8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 123456789);
     Collections.shuffle(perKeyElements);

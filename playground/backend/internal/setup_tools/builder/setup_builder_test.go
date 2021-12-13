@@ -23,6 +23,7 @@ import (
 	"beam.apache.org/playground/backend/internal/utils"
 	"fmt"
 	"github.com/google/uuid"
+	"strings"
 	"testing"
 )
 
@@ -30,6 +31,10 @@ func TestSetupExecutor(t *testing.T) {
 	pipelineId := uuid.New()
 	sdk := pb.Sdk_SDK_JAVA
 	lc, err := fs_tool.NewLifeCycle(sdk, pipelineId, "")
+	if err != nil {
+		t.Error(err)
+	}
+	pipelineOptions := ""
 	executorConfig := &environment.ExecutorConfig{
 		CompileCmd:  "MOCK_COMPILE_CMD",
 		RunCmd:      "MOCK_RUN_CMD",
@@ -68,16 +73,17 @@ func TestSetupExecutor(t *testing.T) {
 		WithRunner().
 		WithCommand(executorConfig.RunCmd).
 		WithArgs(executorConfig.RunArgs).
+		WithPipelineOptions(strings.Split(pipelineOptions, " ")).
 		WithTestRunner().
 		WithCommand(executorConfig.TestCmd).
 		WithArgs(executorConfig.TestArgs).
+		WithWorkingDir(lc.GetAbsoluteSourceFolderPath()).
 		ExecutorBuilder
 
 	type args struct {
-		srcFilePath    string
-		baseFolderPath string
-		execFilePath   string
-		sdkEnv         *environment.BeamEnvs
+		lc              *fs_tool.LifeCycle
+		pipelineOptions string
+		sdkEnv          *environment.BeamEnvs
 	}
 	tests := []struct {
 		name    string
@@ -89,7 +95,7 @@ func TestSetupExecutor(t *testing.T) {
 			// Test case with calling Setup with incorrect SDK.
 			// As a result, want to receive an error.
 			name:    "incorrect sdk",
-			args:    args{lc.GetAbsoluteSourceFilePath(), lc.GetAbsoluteBaseFolderPath(), lc.GetAbsoluteExecutableFilePath(), environment.NewBeamEnvs(pb.Sdk_SDK_UNSPECIFIED, executorConfig, "")},
+			args:    args{lc, pipelineOptions, environment.NewBeamEnvs(pb.Sdk_SDK_UNSPECIFIED, executorConfig, "")},
 			want:    nil,
 			wantErr: true,
 		},
@@ -97,14 +103,14 @@ func TestSetupExecutor(t *testing.T) {
 			// Test case with calling Setup with correct SDK.
 			// As a result, want to receive an expected builder.
 			name:    "correct sdk",
-			args:    args{lc.GetAbsoluteSourceFilePath(), lc.GetAbsoluteBaseFolderPath(), lc.GetAbsoluteExecutableFilePath(), sdkEnv},
+			args:    args{lc, pipelineOptions, sdkEnv},
 			want:    &wantExecutor,
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := SetupExecutorBuilder(tt.args.srcFilePath, tt.args.baseFolderPath, tt.args.execFilePath, tt.args.sdkEnv)
+			got, err := SetupExecutorBuilder(tt.args.lc, tt.args.pipelineOptions, tt.args.sdkEnv)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("SetupExecutorBuilder() error = %v, wantErr %v", err, tt.wantErr)
 				return

@@ -77,8 +77,6 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class JavaClassLookupTransformProviderTest {
 
-  private static final String TEST_URN = "test:beam:transforms:count";
-
   private static final String TEST_NAME = "TestName";
 
   private static final String TEST_NAMESPACE = "namespace";

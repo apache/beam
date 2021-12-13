@@ -89,6 +89,9 @@ class PlaygroundPageProviders extends StatelessWidget {
         .expand((sdkCategory) => sdkCategory.map((e) => e.examples))
         .expand((element) => element)
         .toList();
+    if (allExamples?.isEmpty ?? true) {
+      return null;
+    }
     final defaultExample = exampleState.defaultExamplesMap![playground.sdk]!;
     return allExamples?.firstWhere(
       (example) => example.path == examplePath,

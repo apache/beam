@@ -25,7 +25,6 @@ plugins {
 }
 
 applyJavaNature(
-  suppressUnusedVariable: true,
         exportJavadoc: false,
         automaticModuleName: 'org.apache.beam.examples.twitterstreamgenerator',
 )

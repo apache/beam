@@ -21,13 +21,13 @@ import static org.apache.beam.runners.core.construction.PTransformTranslation.WR
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
@@ -368,7 +368,7 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
         cache =
             CacheBuilder.newBuilder()
                 .maximumSize(CACHE_MAX_SIZE)
-                .expireAfterAccess(CACHE_EXPIRE_SECONDS, TimeUnit.SECONDS)
+                .expireAfterAccess(Duration.ofSeconds(CACHE_EXPIRE_SECONDS))
                 .build();
       }
 
