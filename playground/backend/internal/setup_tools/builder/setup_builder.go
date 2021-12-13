@@ -19,6 +19,7 @@ import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/executors"
+	"beam.apache.org/playground/backend/internal/fs_tool"
 	"beam.apache.org/playground/backend/internal/utils"
 	"fmt"
 	"path/filepath"
@@ -31,25 +32,25 @@ const (
 )
 
 // SetupExecutorBuilder return executor with set args for validator, preparator, compiler and runner
-func SetupExecutorBuilder(srcFilePath, baseFolderPath, execFilePath, pipelineOptions string, sdkEnv *environment.BeamEnvs) (*executors.ExecutorBuilder, error) {
+func SetupExecutorBuilder(lc *fs_tool.LifeCycle, pipelineOptions string, sdkEnv *environment.BeamEnvs) (*executors.ExecutorBuilder, error) {
 	sdk := sdkEnv.ApacheBeamSdk
 
 	if sdk == pb.Sdk_SDK_JAVA {
 		pipelineOptions = utils.ReplaceSpacesWithEquals(pipelineOptions)
 	}
 
-	val, err := utils.GetValidators(sdk, srcFilePath)
+	val, err := utils.GetValidators(sdk, lc.GetAbsoluteSourceFilePath())
 	if err != nil {
 		return nil, err
 	}
-	prep, err := utils.GetPreparators(sdk, srcFilePath)
+	prep, err := utils.GetPreparators(sdk, lc.GetAbsoluteSourceFilePath())
 	if err != nil {
 		return nil, err
 	}
 	executorConfig := sdkEnv.ExecutorConfig
 	builder := executors.NewExecutorBuilder().
-		WithExecutableFileName(execFilePath).
-		WithWorkingDir(baseFolderPath).
+		WithExecutableFileName(lc.GetAbsoluteExecutableFilePath()).
+		WithWorkingDir(lc.GetAbsoluteBaseFolderPath()).
 		WithValidator().
 		WithSdkValidators(val).
 		WithPreparator().
@@ -57,7 +58,7 @@ func SetupExecutorBuilder(srcFilePath, baseFolderPath, execFilePath, pipelineOpt
 		WithCompiler().
 		WithCommand(executorConfig.CompileCmd).
 		WithArgs(executorConfig.CompileArgs).
-		WithFileName(srcFilePath).
+		WithFileName(lc.GetAbsoluteSourceFilePath()).
 		WithRunner().
 		WithCommand(executorConfig.RunCmd).
 		WithArgs(executorConfig.RunArgs).
@@ -65,6 +66,7 @@ func SetupExecutorBuilder(srcFilePath, baseFolderPath, execFilePath, pipelineOpt
 		WithTestRunner().
 		WithCommand(executorConfig.TestCmd).
 		WithArgs(executorConfig.TestArgs).
+		WithWorkingDir(lc.GetAbsoluteSourceFolderPath()).
 		ExecutorBuilder
 
 	switch sdk {
@@ -72,7 +74,7 @@ func SetupExecutorBuilder(srcFilePath, baseFolderPath, execFilePath, pipelineOpt
 		args := make([]string, 0)
 		for _, arg := range executorConfig.RunArgs {
 			if strings.Contains(arg, javaLogConfigFilePlaceholder) {
-				logConfigFilePath := filepath.Join(baseFolderPath, javaLogConfigFileName)
+				logConfigFilePath := filepath.Join(lc.GetAbsoluteBaseFolderPath(), javaLogConfigFileName)
 				arg = strings.Replace(arg, javaLogConfigFilePlaceholder, logConfigFilePath, 1)
 			}
 			args = append(args, arg)
@@ -82,9 +84,9 @@ func SetupExecutorBuilder(srcFilePath, baseFolderPath, execFilePath, pipelineOpt
 		builder = builder.
 			WithExecutableFileName("").
 			WithRunner().
-			WithCommand(execFilePath).ExecutorBuilder
+			WithCommand(lc.GetAbsoluteExecutableFilePath()).ExecutorBuilder
 	case pb.Sdk_SDK_PYTHON:
-		// Nothing is needed for Python
+		builder = *builder.WithExecutableFileName(lc.GetAbsoluteExecutableFilePath())
 	case pb.Sdk_SDK_SCIO:
 		return nil, fmt.Errorf("SCIO is not supported yet")
 	default:
