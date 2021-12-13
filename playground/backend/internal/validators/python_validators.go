@@ -15,7 +15,7 @@
 
 package validators
 
-// GetPythonValidators return validators methods that should be applied to Go code
+// GetPythonValidators return validators methods that should be applied to Go javaCode
 func GetPythonValidators() *[]Validator {
 	//TODO: Will be added in task [BEAM-13292]
 	return &[]Validator{}

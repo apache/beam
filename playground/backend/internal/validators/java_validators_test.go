@@ -16,55 +16,21 @@
 package validators
 
 import (
-	"fmt"
-	"os"
 	"testing"
 )
 
 const (
-	unitTestFilePath = "unitTestCode.java"
-	kataFilePath     = "kataCode.java"
-	filePath         = "code.java"
-	unitTestCode     = "@RunWith(JUnit4.class)\npublic class DeduplicateTest {\n\n  @Rule public TestPipeline p = TestPipeline.create();\n\n  @Test\n  @Category({NeedsRunner.class, UsesTestStream.class})\n  public void testInDifferentWindows() {}}"
-	kataCode         = "package org.apache.beam.learning.katas.commontransforms.aggregation.max;\n\nimport org.apache.beam.learning.katas.util.Log;\nimport org.apache.beam.sdk.Pipeline;\nimport org.apache.beam.sdk.options.PipelineOptions;\nimport org.apache.beam.sdk.options.PipelineOptionsFactory;\nimport org.apache.beam.sdk.transforms.Create;\nimport org.apache.beam.sdk.transforms.Max;\nimport org.apache.beam.sdk.values.PCollection;\n\npublic class Task {\n\n  public static void main(String[] args) {\n    PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();\n    Pipeline pipeline = Pipeline.create(options);\n\n    PCollection<Integer> numbers = pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));\n\n    PCollection<Integer> output = applyTransform(numbers);\n\n    output.apply(Log.ofElements());\n\n    pipeline.run();\n  }\n\n  static PCollection<Integer> applyTransform(PCollection<Integer> input) {\n    return input.apply(Max.integersGlobally());\n  }\n\n}"
-	code             = "package org.apache.beam.sdk.transforms; \n public class Class {\n    public static void main(String[] args) {\n        System.out.println(\"Hello World!\");\n    }\n}"
+	javaUnitTestFilePath = "unitTestCode.java"
+	javaKataFilePath     = "kataCode.java"
+	javaCodePath         = "code.java"
+	javaUnitTestCode     = "@RunWith(JUnit4.class)\npublic class DeduplicateTest {\n\n  @Rule public TestPipeline p = TestPipeline.create();\n\n  @Test\n  @Category({NeedsRunner.class, UsesTestStream.class})\n  public void testInDifferentWindows() {}}"
+	javaKataCode         = "package org.apache.beam.learning.katas.commontransforms.aggregation.max;\n\nimport org.apache.beam.learning.katas.util.Log;\nimport org.apache.beam.sdk.Pipeline;\nimport org.apache.beam.sdk.options.PipelineOptions;\nimport org.apache.beam.sdk.options.PipelineOptionsFactory;\nimport org.apache.beam.sdk.transforms.Create;\nimport org.apache.beam.sdk.transforms.Max;\nimport org.apache.beam.sdk.values.PCollection;\n\npublic class Task {\n\n  public static void main(String[] args) {\n    PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();\n    Pipeline pipeline = Pipeline.create(options);\n\n    PCollection<Integer> numbers = pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));\n\n    PCollection<Integer> output = applyTransform(numbers);\n\n    output.apply(Log.ofElements());\n\n    pipeline.run();\n  }\n\n  static PCollection<Integer> applyTransform(PCollection<Integer> input) {\n    return input.apply(Max.integersGlobally());\n  }\n\n}"
+	javaCode             = "package org.apache.beam.sdk.transforms; \n public class Class {\n    public static void main(String[] args) {\n        System.out.println(\"Hello World!\");\n    }\n}"
 )
 
-func TestMain(m *testing.M) {
-	setup()
-	defer teardown()
-	m.Run()
-}
-
-func setup() {
-	writeFile(unitTestFilePath, unitTestCode)
-	writeFile(filePath, code)
-	writeFile(kataFilePath, kataCode)
-}
-
-func teardown() {
-	removeFile(unitTestFilePath)
-	removeFile(filePath)
-	removeFile(kataFilePath)
-}
-
-func removeFile(path string) {
-	err := os.Remove(path)
-	if err != nil {
-		panic(fmt.Errorf("error during test teardown: %s", err.Error()))
-	}
-}
-
-func writeFile(path string, code string) {
-	err := os.WriteFile(path, []byte(code), 0600)
-	if err != nil {
-		panic(fmt.Errorf("error during test setup: %s", err.Error()))
-	}
-}
-
 func TestCheckIsUnitTestJava(t *testing.T) {
-	testValidatorArgs := getValidatorsArgs(unitTestFilePath, javaUnitTestPattern)
-	validatorArgs := getValidatorsArgs(filePath, javaUnitTestPattern)
+	testValidatorArgs := getValidatorsArgs(javaUnitTestFilePath, javaUnitTestPattern)
+	validatorArgs := getValidatorsArgs(javaCodePath, javaUnitTestPattern)
 
 	type args struct {
 		args []interface{}
@@ -109,8 +75,8 @@ func TestCheckIsUnitTestJava(t *testing.T) {
 }
 
 func TestCheckIsKataJava(t *testing.T) {
-	testValidatorArgs := getValidatorsArgs(unitTestFilePath, javaUnitTestPattern)
-	validatorArgs := getValidatorsArgs(filePath, javaUnitTestPattern)
+	testValidatorArgs := getValidatorsArgs(javaUnitTestFilePath, javaUnitTestPattern)
+	validatorArgs := getValidatorsArgs(javaCodePath, javaUnitTestPattern)
 	type args struct {
 		args []interface{}
 	}
