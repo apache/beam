@@ -21,7 +21,6 @@ import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -219,6 +218,9 @@ public class FlinkStateInternals<K> implements StateInternals {
   }
 
   public void applyToAllGlobalWindowStateKeys(Consumer<ByteBuffer> fn) {
+    // NB: This forces us to materialize all keys in memory in order to remove duplicates. We should
+    // figure out
+    // whether there's a way to implement this without the Set.
     Set<ByteBuffer> keys = Sets.newHashSet();
     for (StateAndNamespaceDescriptor stateAndNamespace : globalWindowStateDescriptors) {
       try {
@@ -335,7 +337,7 @@ public class FlinkStateInternals<K> implements StateInternals {
     }
 
     @Override
-      public WatermarkHoldState bindWatermark(
+    public WatermarkHoldState bindWatermark(
         String id, StateSpec<WatermarkHoldState> spec, TimestampCombiner timestampCombiner) {
       collectGlobalWindowStateDescriptor(
           watermarkHoldStateDescriptor, VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE);

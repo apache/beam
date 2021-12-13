@@ -33,7 +33,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.locks.Lock;
 import java.util.stream.Collectors;
@@ -798,8 +797,7 @@ public class DoFnOperator<InputT, OutputT>
   private void maybeEmitWatermark(long watermark) {
     if (watermark > currentOutputWatermark) {
       // If this is the end of the global window, then call onWindowExpiration callbacks. For other
-      // windows, this will
-      // be called as part of the garbage-collection timer.
+      // windows, this will be called as part of the garbage-collection timer.
       if (usesOnWindowExpiration
           && keyedStateInternals != null
           && watermark
@@ -807,7 +805,7 @@ public class DoFnOperator<InputT, OutputT>
         final KeyedStateBackend<Object> keyedStateBackend = getKeyedStateBackend();
         Instant outputTimestamp = GlobalWindow.INSTANCE.maxTimestamp().minus(Duration.millis(1));
         keyedStateInternals.applyToAllGlobalWindowStateKeys(
-         k -> {
+            k -> {
               keyedStateBackend.setCurrentKey(k);
               pushbackDoFnRunner.onWindowExpiration(
                   GlobalWindow.INSTANCE, outputTimestamp, FlinkKeyUtils.decodeKey(k, keyCoder));
