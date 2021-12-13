@@ -21,6 +21,9 @@ import (
 	"testing"
 )
 
+// TestMain setups and teardown all necessary functionality for tests
+// in 'validators' package (i.e. for java_validators_test, go_validators_test,
+// python_validators_test)
 func TestMain(m *testing.M) {
 	setup()
 	defer teardown()
