@@ -13,26 +13,44 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package utils
+package validators
 
 import (
-	pb "beam.apache.org/playground/backend/internal/api/v1"
-	"beam.apache.org/playground/backend/internal/validators"
 	"fmt"
+	"os"
+	"testing"
 )
 
-// GetValidators returns slice of validators.Validator according to sdk
-func GetValidators(sdk pb.Sdk, filepath string) (*[]validators.Validator, error) {
-	var val *[]validators.Validator
-	switch sdk {
-	case pb.Sdk_SDK_JAVA:
-		val = validators.GetJavaValidators(filepath)
-	case pb.Sdk_SDK_GO:
-		val = validators.GetGoValidators(filepath)
-	case pb.Sdk_SDK_PYTHON:
-		val = validators.GetPythonValidators()
-	default:
-		return nil, fmt.Errorf("incorrect sdk: %s", sdk)
+func TestMain(m *testing.M) {
+	setup()
+	defer teardown()
+	m.Run()
+}
+
+func setup() {
+	writeFile(javaUnitTestFilePath, javaUnitTestCode)
+	writeFile(javaCodePath, javaCode)
+	writeFile(goUnitTestFilePath, goUnitTestCode)
+	writeFile(goCodePath, goCode)
+}
+
+func teardown() {
+	removeFile(javaUnitTestFilePath)
+	removeFile(javaCodePath)
+	removeFile(goUnitTestFilePath)
+	removeFile(goCodePath)
+}
+
+func removeFile(path string) {
+	err := os.Remove(path)
+	if err != nil {
+		panic(fmt.Errorf("error during test teardown: %s", err.Error()))
 	}
-	return val, nil
+}
+
+func writeFile(path string, code string) {
+	err := os.WriteFile(path, []byte(code), 0600)
+	if err != nil {
+		panic(fmt.Errorf("error during test setup: %s", err.Error()))
+	}
 }
