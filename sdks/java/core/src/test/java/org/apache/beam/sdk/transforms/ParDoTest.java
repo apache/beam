@@ -6070,7 +6070,18 @@ public class ParDoTest implements Serializable {
       UsesOnWindowExpiration.class
     })
     public void testOnWindowExpirationSimpleBounded() {
-      runOnWindowExpirationSimple(false);
+      runOnWindowExpirationSimple(false, false);
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesTimersInParDo.class,
+      UsesOnWindowExpiration.class
+    })
+    public void testOnWindowExpirationSimpleBoundedGlobal() {
+      runOnWindowExpirationSimple(false, true);
     }
 
     @Test
@@ -6082,10 +6093,22 @@ public class ParDoTest implements Serializable {
       UsesUnboundedPCollections.class
     })
     public void testOnWindowExpirationSimpleUnbounded() {
-      runOnWindowExpirationSimple(true);
+      runOnWindowExpirationSimple(true, false);
     }
 
-    public void runOnWindowExpirationSimple(boolean useStreaming) {
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesTimersInParDo.class,
+      UsesOnWindowExpiration.class,
+      UsesUnboundedPCollections.class
+    })
+    public void testOnWindowExpirationSimpleUnboundedGlobal() {
+      runOnWindowExpirationSimple(true, true);
+    }
+
+    public void runOnWindowExpirationSimple(boolean useStreaming, boolean globalWindow) {
       final String stateId = "foo";
       final String timerId = "bar";
       IntervalWindow firstWindow = new IntervalWindow(new Instant(0), new Instant(10));
@@ -6123,6 +6146,7 @@ public class ParDoTest implements Serializable {
               Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
               // verify state
               assertEquals(1, (int) currentValue);
+              System.err.println("KEY " + key + " VALUE " + currentValue);
               // To check output is received from OnWindowExpiration
               r.output(currentValue);
             }
@@ -6131,25 +6155,31 @@ public class ParDoTest implements Serializable {
       if (useStreaming) {
         pipeline.getOptions().as(StreamingOptions.class).setStreaming(true);
       }
-      PCollection<Integer> output =
-          pipeline
-              .apply(
-                  Create.timestamped(
-                      // first window
-                      TimestampedValue.of(KV.of("hello", 7), new Instant(3)),
 
-                      // second window
-                      TimestampedValue.of(KV.of("hi", 35), new Instant(13))))
-              .apply(Window.into(FixedWindows.of(Duration.millis(10))))
-              .apply(ParDo.of(fn));
+      PCollection<KV<String, Integer>> intermediate =
+          pipeline.apply(
+              Create.timestamped(
+                  // first window
+                  TimestampedValue.of(KV.of("hello", 7), new Instant(3)),
 
-      PAssert.that(output)
-          .inWindow(firstWindow)
-          // verify output
-          .containsInAnyOrder(1)
-          .inWindow(secondWindow)
-          // verify output
-          .containsInAnyOrder(1);
+                  // second window
+                  TimestampedValue.of(KV.of("hi", 35), new Instant(13))));
+      if (!globalWindow) {
+        intermediate = intermediate.apply(Window.into(FixedWindows.of(Duration.millis(10))));
+      }
+      PCollection<Integer> output = intermediate.apply(ParDo.of(fn));
+
+      if (!globalWindow) {
+        PAssert.that(output)
+            .inWindow(firstWindow)
+            // verify output
+            .containsInAnyOrder(1)
+            .inWindow(secondWindow)
+            // verify output
+            .containsInAnyOrder(1);
+      } else {
+        PAssert.that(output).inWindow(GlobalWindow.INSTANCE).containsInAnyOrder(1, 1);
+      }
       pipeline.run();
     }
   }

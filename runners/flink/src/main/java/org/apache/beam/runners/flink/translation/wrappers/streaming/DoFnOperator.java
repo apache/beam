@@ -121,7 +121,6 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.OutputTag;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -345,11 +344,12 @@ public class DoFnOperator<InputT, OutputT>
               timerInternals, windowingStrategy) {
             @Override
             public void setForWindow(InputT input, BoundedWindow window) {
-              if (!window.equals(GlobalWindow.INSTANCE)) {
+              if (!window.equals(GlobalWindow.INSTANCE) || usesOnWindowExpiration) {
                 // Skip setting a cleanup timer for the global window as these timers
                 // lead to potentially unbounded state growth in the runner, depending on key
                 // cardinality. Cleanup for global window will be performed upon arrival of the
                 // final watermark.
+                // In the case of OnWindowExpiration, we still set the timer.
                 super.setForWindow(input, window);
               }
             }
@@ -796,22 +796,6 @@ public class DoFnOperator<InputT, OutputT>
 
   private void maybeEmitWatermark(long watermark) {
     if (watermark > currentOutputWatermark) {
-      // If this is the end of the global window, then call onWindowExpiration callbacks. For other
-      // windows, this will be called as part of the garbage-collection timer.
-      if (usesOnWindowExpiration
-          && keyedStateInternals != null
-          && watermark
-              > adjustTimestampForFlink(GlobalWindow.INSTANCE.maxTimestamp().getMillis())) {
-        final KeyedStateBackend<Object> keyedStateBackend = getKeyedStateBackend();
-        Instant outputTimestamp = GlobalWindow.INSTANCE.maxTimestamp().minus(Duration.millis(1));
-        keyedStateInternals.applyToAllGlobalWindowStateKeys(
-            k -> {
-              keyedStateBackend.setCurrentKey(k);
-              pushbackDoFnRunner.onWindowExpiration(
-                  GlobalWindow.INSTANCE, outputTimestamp, FlinkKeyUtils.decodeKey(k, keyCoder));
-            });
-      }
-
       // Must invoke finishBatch before emit the +Inf watermark otherwise there are some late
       // events.
       if (watermark >= BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()) {
@@ -823,6 +807,7 @@ public class DoFnOperator<InputT, OutputT>
       output.emitWatermark(new Watermark(watermark));
 
       // Check if the final watermark was triggered to perform state cleanup for global window
+      // TODO: Do we need to do this when OnWindowExpiration is set, since in that case we have a cleanup timer?
       if (keyedStateInternals != null
           && currentOutputWatermark
               > adjustTimestampForFlink(GlobalWindow.INSTANCE.maxTimestamp().getMillis())) {
