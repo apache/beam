@@ -268,7 +268,7 @@ public class RedisIOTest {
 
     /* test data is 10 keys (stream IDs), each with two entries, each entry having one k/v pair of data */
     List<String> redisKeys =
-        IntStream.range(0, 9).boxed().map(idx -> UUID.randomUUID().toString()).collect(toList());
+        IntStream.range(0, 10).boxed().map(idx -> UUID.randomUUID().toString()).collect(toList());
 
     Map<String, String> fooValues = ImmutableMap.of("sensor-id", "1234", "temperature", "19.8");
     Map<String, String> barValues = ImmutableMap.of("sensor-id", "9999", "temperature", "18.2");
@@ -299,7 +299,7 @@ public class RedisIOTest {
   public void testWriteStreamsWithTruncation() {
     /* test data is 10 keys (stream IDs), each with two entries, each entry having one k/v pair of data */
     List<String> redisKeys =
-        IntStream.range(0, 9).boxed().map(idx -> UUID.randomUUID().toString()).collect(toList());
+        IntStream.range(0, 10).boxed().map(idx -> UUID.randomUUID().toString()).collect(toList());
 
     Map<String, String> fooValues = ImmutableMap.of("sensor-id", "1234", "temperature", "19.8");
     Map<String, String> barValues = ImmutableMap.of("sensor-id", "9999", "temperature", "18.2");
