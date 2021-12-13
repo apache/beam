@@ -225,7 +225,7 @@ func (controller *playgroundController) GetPrecompiledObjectCode(ctx context.Con
 		logger.Errorf("GetPrecompiledObject(): cloud storage error: %s", err.Error())
 		return nil, errors.InternalError("GetPrecompiledObjects(): ", err.Error())
 	}
-	response := pb.GetPrecompiledObjectCodeResponse{Code: *codeString}
+	response := pb.GetPrecompiledObjectCodeResponse{Code: codeString}
 	return &response, nil
 }
 
@@ -237,6 +237,6 @@ func (controller *playgroundController) GetPrecompiledObjectOutput(ctx context.C
 		logger.Errorf("GetPrecompiledObjectOutput(): cloud storage error: %s", err.Error())
 		return nil, errors.InternalError("GetPrecompiledObjectOutput(): ", err.Error())
 	}
-	response := pb.GetRunOutputResponse{Output: *output}
+	response := pb.GetRunOutputResponse{Output: output}
 	return &response, nil
 }
