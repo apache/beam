@@ -90,8 +90,8 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 	}
 	// Check if unit test
 	isUnitTest := false
-	valResult, ok := validationResults.Load(validators.UnitTestValidatorName)
-	if ok && valResult.(bool) {
+	validateIsUnitTest, ok := validationResults.Load(validators.UnitTestValidatorName)
+	if ok && validateIsUnitTest.(bool) {
 		isUnitTest = true
 	}
 	if err := processSuccess(ctxWithTimeout, pipelineId, cacheService, "Validate", pb.Status_STATUS_PREPARING); err != nil {
