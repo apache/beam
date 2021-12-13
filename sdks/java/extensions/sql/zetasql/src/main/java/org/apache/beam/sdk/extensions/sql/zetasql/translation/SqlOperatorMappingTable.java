@@ -114,7 +114,8 @@ class SqlOperatorMappingTable {
           .put("$in", new SqlInOperatorRewriter())
           .build();
 
-  public static @Nullable SqlOperator create(ResolvedNodes.ResolvedFunctionCallBase aggregateFunctionCall) {
+  public static @Nullable SqlOperator create(
+      ResolvedNodes.ResolvedFunctionCallBase aggregateFunctionCall) {
 
     Function<ResolvedNodes.ResolvedFunctionCallBase, SqlOperator> sqlOperatorFactory =
         ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR.get(aggregateFunctionCall.getFunction().getName());
