@@ -88,12 +88,7 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 		_ = processError(ctxWithTimeout, errorChannel, pipelineId, cacheService, "Validate", pb.Status_STATUS_VALIDATION_ERROR)
 		return
 	}
-	// Check if unit test
-	isUnitTest := false
-	validateIsUnitTest, ok := validationResults.Load(validators.UnitTestValidatorName)
-	if ok && validateIsUnitTest.(bool) {
-		isUnitTest = true
-	}
+
 	if err := processSuccess(ctxWithTimeout, pipelineId, cacheService, "Validate", pb.Status_STATUS_PREPARING); err != nil {
 		return
 	}
@@ -113,6 +108,13 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 	}
 	if err := processSuccess(ctxWithTimeout, pipelineId, cacheService, "Prepare", pb.Status_STATUS_COMPILING); err != nil {
 		return
+	}
+
+	// Check if unit test
+	isUnitTest := false
+	validateIsUnitTest, ok := validationResults.Load(validators.UnitTestValidatorName)
+	if ok && validateIsUnitTest.(bool) {
+		isUnitTest = true
 	}
 
 	switch sdkEnv.ApacheBeamSdk {
