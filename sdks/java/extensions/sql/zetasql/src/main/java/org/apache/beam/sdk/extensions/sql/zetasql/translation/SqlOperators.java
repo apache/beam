@@ -178,7 +178,7 @@ public class SqlOperators {
 
   public static SqlOperator createStringAggOperator(
       ResolvedNodes.ResolvedFunctionCallBase aggregateFunctionCall) {
-    com.google.common.collect.ImmutableList<ResolvedNodes.ResolvedExpr> args =
+    List<ResolvedNodes.ResolvedExpr> args =
         aggregateFunctionCall.getArgumentList();
     String inputType = args.get(0).getType().typeName();
     Value delimiter = null;
