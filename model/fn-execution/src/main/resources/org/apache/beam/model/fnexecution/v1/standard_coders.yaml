@@ -411,25 +411,24 @@ examples:
 
 ---
 # Binary data generated with the python SDK:
-# 
 # schema1 = schema_pb2.Schema(
-#    id="testcase",
-#    fields=[
-#      schema_pb2.Field(
-#        name="str",
-#        type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING),
-#        encoding_position=2
-#      ),
-#      schema_pb2.Field(
-#        name="f_bool",
-#        type=schema_pb2.FieldType(atomic_type=schema_pb2.BOOLEAN),
-#        encoding_position=3),
-#      schema_pb2.Field(
-#        name="i32",
-#        type=schema_pb2.FieldType(
-#          atomic_type=schema_pb2.INT32, nullable=True),
-#        encoding_position=1)
-#   ])
+# id="30ea5a25-dcd8-4cdb-abeb-5332d15ab4b9",
+# fields=[
+#     schema_pb2.Field(
+#         name="str",
+#         type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING),
+#         encoding_position=2),
+#     schema_pb2.Field(
+#         name="f_bool",
+#         type=schema_pb2.FieldType(atomic_type=schema_pb2.BOOLEAN),
+#         encoding_position=3),
+#     schema_pb2.Field(
+#         name="i32",
+#         type=schema_pb2.FieldType(
+#             atomic_type=schema_pb2.INT32, nullable=True),
+#         encoding_position=1)
+#   ],
+#   encoding_positions_set=True)
 #
 # coder = RowCoder(schema1)
 # c = coder.schema.SerializeToString()
@@ -439,9 +438,9 @@ examples:
 # print("example = %s" % example)
 coder:
   urn: "beam:coder:row:v1"
-  payload: "\n\x0b\n\x03str\x1a\x02\x10\x07(\x02\n\x0c\n\x06f_bool\x1a\x02\x10\x08\n\r\n\x03i32\x1a\x04\x08\x01\x10\x03(\x01\x12$30ea5a25-dcd8-4cdb-abeb-5332d15ab4b9"
+  payload: "\n\x0b\n\x03str\x1a\x02\x10\x07(\x02\n\x0e\n\x06f_bool\x1a\x02\x10\x08(\x03\n\r\n\x03i32\x1a\x04\x08\x01\x10\x03(\x01\x12$30ea5a25-dcd8-4cdb-abeb-5332d15ab4b9 \x01"
 examples:
-  "\x03\x00\x04str2\x00\x15": {f_bool: False, i32: 21, str: "str2"}
+  "\x03\x00\x15\x04str2\x00": { str: "str2", f_bool: False, i32: 21 }
 
 ---
 

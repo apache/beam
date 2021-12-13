@@ -20,6 +20,8 @@
 import itertools
 from array import array
 
+import numpy as np
+
 from apache_beam.coders import typecoders
 from apache_beam.coders.coder_impl import StreamCoderImpl
 from apache_beam.coders.coders import BooleanCoder
@@ -170,7 +172,6 @@ class RowCoderImpl(StreamCoderImpl):
         raise ValueError(
             f'''Schema with id {schema.id} has encoding_positions_set=True,
             but not all fields have encoding_position set''')
-    if any(field.encoding_position for field in self.schema.fields):
       self.encoding_positions = list(
           field.encoding_position for field in self.schema.fields)
     self.components = list(
@@ -192,18 +193,16 @@ class RowCoderImpl(StreamCoderImpl):
         for i, is_null in enumerate(nulls):
           words[i // 8] |= is_null << (i % 8)
 
-    attrs = self._enc_pos_idx(attrs)
-    fields = self._enc_pos_idx(self.schema.fields)
     self.NULL_MARKER_CODER.encode_to_stream(words.tobytes(), out, True)
 
-    for c, field, attr in zip(self.components, fields, attrs):
-      if attr is None:
-        if not field.type.nullable:
+    for i in np.argsort(self.encoding_positions):
+      if attrs[i] is None:
+        if not self.schema.fields[i].type.nullable:
           raise ValueError(
               "Attempted to encode null for non-nullable field \"{}\".".format(
-                  field.name))
+                  self.schema.fields[i].name))
         continue
-      c.encode_to_stream(attr, out, True)
+      self.components[i].encode_to_stream(attrs[i], out, True)
 
   def decode_from_stream(self, in_stream, nested):
     nvals = self.SIZE_CODER.decode_from_stream(in_stream, True)
@@ -226,10 +225,14 @@ class RowCoderImpl(StreamCoderImpl):
     # Note that if this coder's schema has *fewer* attributes than the encoded
     # value, we just need to ignore the additional values, which will occur
     # here because we only decode as many values as we have coders for.
-    return self.constructor(
-        *(
-            None if is_null else c.decode_from_stream(in_stream, True) for c,
-            is_null in zip(self.components, nulls)))
+
+    d = [
+        None if is_null else self.components[c].decode_from_stream(
+            in_stream, True) for c,
+        is_null in zip(np.argsort(self.encoding_positions), nulls)
+    ]
+
+    return self.constructor(*[d[i - 1] for i in self.encoding_positions])
 
   def _make_value_coder(self, nulls=itertools.repeat(False)):
     components = [
@@ -237,10 +240,6 @@ class RowCoderImpl(StreamCoderImpl):
         is_null in zip(self.components, nulls) if not is_null
     ] if self.has_nullable_fields else self.components
     return TupleCoder(components).get_impl()
-
-  def _enc_pos_idx(self, l):
-    return list(
-        l[self.encoding_positions.index(i)] for i in self.encoding_positions)
 
 
 class LogicalTypeCoder(FastCoder):
