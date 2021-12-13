@@ -22,7 +22,7 @@ import logging
 import os
 from collections import namedtuple
 from dataclasses import dataclass, fields
-from typing import List
+from typing import List, Optional, Dict, Union
 
 import yaml
 from yaml import YAMLError
@@ -52,18 +52,18 @@ class Example:
   Class which contains all information about beam example
   """
   name: str
-  pipeline_id: str
   sdk: SDK_UNSPECIFIED
   filepath: str
   code: str
-  output: str
   status: STATUS_UNSPECIFIED
   tag: Tag
   type: PrecompiledObjectType = PRECOMPILED_OBJECT_TYPE_UNSPECIFIED
+  pipeline_id: str = ""
+  output: str = ""
 
 
-def find_examples(work_dir: str,
-                  supported_categories: List[str]) -> List[Example]:
+def find_examples(work_dir: str, supported_categories: List[str],
+                  sdk: Sdk) -> List[Example]:
   """
   Find and return beam examples.
 
@@ -81,6 +81,7 @@ def find_examples(work_dir: str,
   Args:
       work_dir: directory where to search examples.
       supported_categories: list of supported categories.
+      sdk: sdk that using to find examples for the specific sdk.
 
   Returns:
       List of Examples.
@@ -91,7 +92,11 @@ def find_examples(work_dir: str,
     for filename in files:
       filepath = os.path.join(root, filename)
       error_during_check_file = _check_file(
-          examples, filename, filepath, supported_categories)
+          examples=examples,
+          filename=filename,
+          filepath=filepath,
+          supported_categories=supported_categories,
+          sdk=sdk)
       has_error = has_error or error_during_check_file
   if has_error:
     raise ValueError(
@@ -116,7 +121,7 @@ async def get_statuses(examples: List[Example]):
   await asyncio.gather(*tasks)
 
 
-def get_tag(filepath):
+def get_tag(filepath) -> Optional[Dict[str, str]]:
   """
   Parse file by filepath and find beam tag
 
@@ -154,7 +159,7 @@ def get_tag(filepath):
   return None
 
 
-def _check_file(examples, filename, filepath, supported_categories):
+def _check_file(examples, filename, filepath, supported_categories, sdk: Sdk):
   """
   Check file by filepath for matching to beam example. If file is beam example,
   then add it to list of examples
@@ -164,6 +169,7 @@ def _check_file(examples, filename, filepath, supported_categories):
       filename: name of the file.
       filepath: path to the file.
       supported_categories: list of supported categories.
+      sdk: sdk that using to find examples for the specific sdk.
 
   Returns:
       True if file has beam playground tag with incorrect format.
@@ -175,9 +181,9 @@ def _check_file(examples, filename, filepath, supported_categories):
 
   has_error = False
   extension = filepath.split(os.extsep)[-1]
-  if extension in Config.SUPPORTED_SDK:
+  if extension == Config.SDK_TO_EXTENSION[sdk]:
     tag = get_tag(filepath)
-    if tag:
+    if tag is not None:
       if _validate(tag, supported_categories) is False:
         logging.error(
             "%s contains beam playground tag with incorrect format", filepath)
@@ -202,7 +208,9 @@ def get_supported_categories(categories_path: str) -> List[str]:
     return yaml_object[TagFields.categories]
 
 
-def _get_example(filepath: str, filename: str, tag: dict) -> Example:
+def _get_example(
+    filepath: str, filename: str, tag: Dict[str, Union[str,
+                                                       List[str]]]) -> Example:
   """
   Return an Example by filepath and filename.
 
@@ -215,21 +223,19 @@ def _get_example(filepath: str, filename: str, tag: dict) -> Example:
       Parsed Example object.
   """
   name = _get_name(filename)
-  sdk = _get_sdk(filename)
+  sdk = Config.EXTENSION_TO_SDK[filename.split(os.extsep)[-1]]
   object_type = _get_object_type(filename, filepath)
   with open(filepath, encoding="utf-8") as parsed_file:
     content = parsed_file.read()
 
   return Example(
-      name,
-      "",
-      sdk,
-      filepath,
-      content,
-      "",
-      STATUS_UNSPECIFIED,
-      Tag(**tag),
-      object_type)
+      name=name,
+      sdk=sdk,
+      filepath=filepath,
+      code=content,
+      status=STATUS_UNSPECIFIED,
+      tag=Tag(**tag),
+      type=object_type)
 
 
 def _validate(tag: dict, supported_categories: List[str]) -> bool:
@@ -312,25 +318,6 @@ def _get_name(filename: str) -> str:
       example's name.
   """
   return filename.split(os.extsep)[0]
-
-
-def _get_sdk(filename: str) -> Sdk:
-  """
-  Return SDK of example by his filename.
-
-  Get extension of the example's file and returns associated SDK.
-
-  Args:
-      filename: filename of the beam example.
-
-  Returns:
-      Sdk according to file extension.
-  """
-  extension = filename.split(os.extsep)[-1]
-  if extension in Config.SUPPORTED_SDK:
-    return Config.SUPPORTED_SDK[extension]
-  else:
-    raise ValueError(extension + " is not supported")
 
 
 async def _update_example_status(example: Example, client: GRPCClient):

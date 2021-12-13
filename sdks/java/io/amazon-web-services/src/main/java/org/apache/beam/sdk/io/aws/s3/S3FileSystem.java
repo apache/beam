@@ -591,7 +591,8 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
         keys.size());
     List<KeyVersion> deleteKeyVersions =
         keys.stream().map(KeyVersion::new).collect(Collectors.toList());
-    DeleteObjectsRequest request = new DeleteObjectsRequest(bucket).withKeys(deleteKeyVersions);
+    DeleteObjectsRequest request =
+        new DeleteObjectsRequest(bucket).withKeys(deleteKeyVersions).withQuiet(true);
     try {
       amazonS3.get().deleteObjects(request);
     } catch (AmazonClientException e) {
