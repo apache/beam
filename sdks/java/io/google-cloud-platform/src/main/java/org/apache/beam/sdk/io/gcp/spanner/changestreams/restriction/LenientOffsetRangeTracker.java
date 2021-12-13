@@ -25,7 +25,14 @@ import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 
-// TODO: Add java docs
+/**
+ * This restriction tracker is a decorator on top of the {@link OffsetRangeTracker}. It modifies the
+ * behaviour of {@link OffsetRangeTracker#tryClaim(Long)} to allow for claiming the same long
+ * multiple times. This is because several change stream records might have the same timestamp, thus
+ * leading to multiple claims of the same {@link Long}. Other than that, it modifies the {@link
+ * OffsetRangeTracker#trySplit(double)} method to always deny splits for the {@link
+ * InitialPartition#PARTITION_TOKEN}, since we only need to perform this query once.
+ */
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
@@ -33,12 +40,26 @@ public class LenientOffsetRangeTracker extends OffsetRangeTracker {
 
   private final PartitionMetadata partition;
 
+  /**
+   * Receives the partition that will be queried and be using this tracker, alongside the range
+   * itself.
+   *
+   * @param partition the partition that will use the tracker
+   * @param range closed / open range interval representing the start / end times for a partition
+   */
   public LenientOffsetRangeTracker(PartitionMetadata partition, OffsetRange range) {
     super(range);
     this.partition = partition;
   }
 
-  /** We allow for claiming the same offset multiple times. */
+  /**
+   * Attempts to claim the given offset.
+   *
+   * <p>Must be equal or larger than the last successfully claimed offset.
+   *
+   * @return {@code true} if the offset was successfully claimed, {@code false} if it is outside the
+   *     current {@link OffsetRange} of this tracker (in that case this operation is a no-op).
+   */
   @Override
   public boolean tryClaim(Long i) {
     checkArgument(
@@ -57,6 +78,10 @@ public class LenientOffsetRangeTracker extends OffsetRangeTracker {
     return true;
   }
 
+  /**
+   * If the partition token is the {@link InitialPartition#PARTITION_TOKEN}, it does not allow for
+   * splits (returns null).
+   */
   @Override
   public SplitResult<OffsetRange> trySplit(double fractionOfRemainder) {
     if (InitialPartition.isInitialPartition(partition.getPartitionToken())) {

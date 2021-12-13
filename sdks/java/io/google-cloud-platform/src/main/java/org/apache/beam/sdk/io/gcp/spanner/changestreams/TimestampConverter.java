@@ -20,12 +20,18 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams;
 import com.google.cloud.Timestamp;
 import java.math.BigDecimal;
 
-// TODO: javadocs
-// TODO: This class probably does not belong in the cdc change
+/** Util class to manage timestamp conversions. */
 public class TimestampConverter {
 
+  /** The number of microseconds in a {@link Timestamp#MAX_VALUE}. */
   public static final long MAX_MICROS = timestampToMicros(Timestamp.MAX_VALUE);
 
+  /**
+   * Converts a {@link Timestamp} to its number of microseconds. Note there is precision loss here.
+   *
+   * @param timestamp the timestamp to be converted
+   * @return the number of microseconds in the given timestamp
+   */
   public static long timestampToMicros(Timestamp timestamp) {
     final BigDecimal seconds = BigDecimal.valueOf(timestamp.getSeconds());
     final BigDecimal nanos = BigDecimal.valueOf(timestamp.getNanos());
@@ -34,10 +40,24 @@ public class TimestampConverter {
     return seconds.scaleByPowerOfTen(6).add(micros).longValue();
   }
 
+  /**
+   * Creates a {@link Timestamp} from a number of milliseconds. Note that microseconds and
+   * nanoseconds will always be zeroed here.
+   *
+   * @param millis the number of milliseconds
+   * @return a timestamp with the given milliseconds
+   */
   public static Timestamp timestampFromMillis(long millis) {
     return Timestamp.ofTimeMicroseconds(millis * 1_000L);
   }
 
+  /**
+   * Zeroes nanoseconds from the given {@link Timestamp} (precision is lost). The timestamp returned
+   * will be precise up to microseconds only.
+   *
+   * @param timestamp the timestamp to be truncated
+   * @return the timestamp with microseconds precision
+   */
   public static Timestamp truncateNanos(Timestamp timestamp) {
     return Timestamp.ofTimeMicroseconds(timestampToMicros(timestamp));
   }

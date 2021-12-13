@@ -16,8 +16,6 @@
  * limitations under the License.
  */
 
-/** User model for the Spanner change stream API. */
-
 /** Custom restriction tracker related classes. */
 @Experimental
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction;

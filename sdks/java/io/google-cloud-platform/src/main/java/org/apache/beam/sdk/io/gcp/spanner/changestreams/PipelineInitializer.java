@@ -25,10 +25,25 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.InitialPartition;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State;
 
+/**
+ * This class is responsible for initializing the Connector. It handles the creation of the
+ * partition metadata table and the insertion of a fake partition (see {@link
+ * InitialPartition#PARTITION_TOKEN}), which will be used to dispatch the change streams query.
+ */
 public class PipelineInitializer {
 
   private static final long DEFAULT_HEARTBEAT_MILLIS = 5000;
 
+  /**
+   * Creates a partition metadata table and creates an initial partition to serve as the parent of
+   * all the partitions in the change stream query. This initial partition will be used to dispatch
+   * the first change streams query in the job.
+   *
+   * @param partitionMetadataAdminDao DAO used to create the partition metadata table
+   * @param partitionMetadataDao DAO used to insert the initial partition
+   * @param inclusiveStartAt the change streams query start time
+   * @param inclusiveEndAt the change streams query end time
+   */
   public static void initialize(
       PartitionMetadataAdminDao partitionMetadataAdminDao,
       PartitionMetadataDao partitionMetadataDao,

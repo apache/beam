@@ -19,13 +19,22 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams;
 
 import java.util.UUID;
 
-// TODO: Add java docs
+/**
+ * This class generates an unique name for the partition metadata table, which is created when the
+ * Connector is initialized.
+ */
 public class NameGenerator {
 
   private static final String PARTITION_METADATA_TABLE_NAME_FORMAT =
       "CDC_Partitions_Metadata_%s_%s";
 
-  // TODO: Add java docs
+  /**
+   * Generates an unique name for the partition metadata table in the form of {@code
+   * "CDC_Partitions_Metadata_<databaseId>_<uuid>"}.
+   *
+   * @param databaseId The database id where the table will be created
+   * @return the unique generated name of the partition metadata table
+   */
   public static String generatePartitionMetadataTableName(String databaseId) {
     // Maximum Spanner table name length is 128 characters.
     // There are 25 characters in the name format.
