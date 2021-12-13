@@ -807,7 +807,8 @@ public class DoFnOperator<InputT, OutputT>
       output.emitWatermark(new Watermark(watermark));
 
       // Check if the final watermark was triggered to perform state cleanup for global window
-      // TODO: Do we need to do this when OnWindowExpiration is set, since in that case we have a cleanup timer?
+      // TODO: Do we need to do this when OnWindowExpiration is set, since in that case we have a
+      // cleanup timer?
       if (keyedStateInternals != null
           && currentOutputWatermark
               > adjustTimestampForFlink(GlobalWindow.INSTANCE.maxTimestamp().getMillis())) {

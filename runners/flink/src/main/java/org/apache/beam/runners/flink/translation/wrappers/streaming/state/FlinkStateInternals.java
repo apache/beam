@@ -24,7 +24,6 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import javax.annotation.Nonnull;
@@ -61,7 +60,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditio
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.TreeMultiset;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -215,25 +213,6 @@ public class FlinkStateInternals<K> implements StateInternals {
     } catch (Exception e) {
       throw new RuntimeException("Failed to cleanup global state.", e);
     }
-  }
-
-  public void applyToAllGlobalWindowStateKeys(Consumer<ByteBuffer> fn) {
-    // NB: This forces us to materialize all keys in memory in order to remove duplicates. We should
-    // figure out
-    // whether there's a way to implement this without the Set.
-    Set<ByteBuffer> keys = Sets.newHashSet();
-    for (StateAndNamespaceDescriptor stateAndNamespace : globalWindowStateDescriptors) {
-      try {
-        flinkStateBackend.applyToAllKeys(
-            stateAndNamespace.namespace,
-            stateAndNamespace.namespaceSerializer,
-            stateAndNamespace.stateDescriptor,
-            (key, state) -> keys.add(key));
-      } catch (Exception e) {
-        throw new RuntimeException("Failed to list global-state keys.", e);
-      }
-    }
-    keys.forEach(fn);
   }
 
   private class FlinkStateBinder implements StateBinder {
