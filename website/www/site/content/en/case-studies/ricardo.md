@@ -237,5 +237,8 @@ to value.
 
 Apache Beam has been a technology that multiplied possibilities, allowing Ricardo to maximize technology benefits at all
 stages of their modernization and cloud journey.
+
+{{< case_study_feedback >}}
+
 </div>
 <div class="clear-nav"></div>
