@@ -76,8 +76,8 @@ func (ex *Executor) Validate() func(chan bool, chan error, *sync.Map) {
 }
 
 // Prepare returns the function that applies all preparations of executor
-func (ex *Executor) Prepare() func(chan bool, chan error, *sync.Map, string) {
-	return func(doneCh chan bool, errCh chan error, valRes *sync.Map, filePath string) {
+func (ex *Executor) Prepare() func(chan bool, chan error, *sync.Map) {
+	return func(doneCh chan bool, errCh chan error, valRes *sync.Map) {
 		for _, preparator := range ex.preparators {
 			preparator.Args = append(preparator.Args, valRes)
 			err := preparator.Prepare(preparator.Args...)
