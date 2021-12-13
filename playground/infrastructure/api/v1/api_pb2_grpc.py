@@ -17,7 +17,7 @@
 """Client and server classes corresponding to protobuf-defined services."""
 import grpc
 
-import api_pb2 as api__pb2
+from api.v1 import api_pb2 as api__pb2
 
 
 class PlaygroundServiceStub(object):

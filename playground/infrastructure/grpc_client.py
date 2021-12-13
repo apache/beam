@@ -99,6 +99,21 @@ class GRPCClient:
     response = await self._stub.GetRunOutput(request)
     return response.output
 
+  async def get_log(self, pipeline_uuid: str) -> str:
+    """
+    Get the result of pipeline execution.
+
+    Args:
+        pipeline_uuid: uuid of the pipeline
+
+    Returns:
+        output: contain the result of pipeline execution
+    """
+    self._verify_pipeline_uuid(pipeline_uuid)
+    request = api_pb2.GetLogsRequest(pipeline_uuid=pipeline_uuid)
+    response = await self._stub.GetLogs(request)
+    return response.output
+
   async def get_compile_output(self, pipeline_uuid: str) -> str:
     """
     Get the result of pipeline compilation.
