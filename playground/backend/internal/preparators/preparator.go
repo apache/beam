@@ -13,9 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package preparers
+package preparators
 
-// GetPythonPreparers returns preparation methods that should be applied to Python code
-func GetPythonPreparers(filePath string) *[]Preparer {
-	return &[]Preparer{}
+// Preparator is used to make preparations with file with code.
+type Preparator struct {
+	Prepare func(args ...interface{}) error
+	Args    []interface{}
 }

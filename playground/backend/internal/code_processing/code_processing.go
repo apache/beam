@@ -95,7 +95,7 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 	// Prepare
 	logger.Infof("%s: Prepare() ...\n", pipelineId)
 	prepareFunc := executor.Prepare()
-	go prepareFunc(successChannel, errorChannel, &validationResults)
+	go prepareFunc(successChannel, errorChannel, &validationResults, lc.GetAbsoluteSourceFilePath())
 
 	ok, err = processStep(ctxWithTimeout, pipelineId, cacheService, cancelChannel, successChannel)
 	if err != nil {

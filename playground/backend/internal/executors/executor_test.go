@@ -18,7 +18,7 @@ package executors
 import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/environment"
-	"beam.apache.org/playground/backend/internal/preparers"
+	"beam.apache.org/playground/backend/internal/preparators"
 	"beam.apache.org/playground/backend/internal/validators"
 	"context"
 	"os"
@@ -40,13 +40,13 @@ var (
 )
 
 // BaseExecutorBuilder fills up an executor with base parameters
-func BaseExecutorBuilder(envs environment.BeamEnvs, workingDir string, filePath string, validatorsFuncs *[]validators.Validator, preparatorsFuncs *[]preparers.Preparer) *ExecutorBuilder {
+func BaseExecutorBuilder(envs environment.BeamEnvs, workingDir string, filePath string, validatorsFuncs *[]validators.Validator, preparatorsFuncs *[]preparators.Preparator) *ExecutorBuilder {
 	if validatorsFuncs == nil {
 		v := make([]validators.Validator, 0)
 		validatorsFuncs = &v
 	}
 	if preparatorsFuncs == nil {
-		v := make([]preparers.Preparer, 0)
+		v := make([]preparators.Preparator, 0)
 		preparatorsFuncs = &v
 	}
 	builder := NewExecutorBuilder().
@@ -176,14 +176,14 @@ func TestExecutor_Run(t *testing.T) {
 
 func TestBaseExecutorBuilder(t *testing.T) {
 	validatorsFuncs := validators.GetJavaValidators("filePath")
-	preparatorsFuncs := preparers.GetJavaPreparers("filePath")
+	preparatorsFuncs := preparators.GetJavaPreparators("filePath")
 
 	type args struct {
 		envs             environment.BeamEnvs
 		workingDir       string
 		filePath         string
 		validatorsFuncs  *[]validators.Validator
-		preparatorsFuncs *[]preparers.Preparer
+		preparatorsFuncs *[]preparators.Preparator
 	}
 	tests := []struct {
 		name string
@@ -218,8 +218,8 @@ func TestBaseExecutorBuilder(t *testing.T) {
 					commandName: "java",
 					commandArgs: []string{"-cp", "bin:" + defaultBeamJarsPath, "JUnit"},
 				},
-				validators: *validatorsFuncs,
-				preparers:  *preparatorsFuncs,
+				validators:  *validatorsFuncs,
+				preparators: *preparatorsFuncs,
 			},
 		},
 	}

@@ -13,35 +13,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package preparers
+package preparators
 
-import (
-	"errors"
-	"os/exec"
-	"path/filepath"
-)
-
-const (
-	nameBinGo = "go"
-	fmtArgs   = "fmt"
-)
-
-// GetGoPreparers returns reparation methods that should be applied to Go code
-func GetGoPreparers(filePath string) *[]Preparer {
-	preparatorArgs := make([]interface{}, 1)
-	preparatorArgs[0] = filePath
-	formatCodePreparator := Preparer{Prepare: formatCode, Args: preparatorArgs}
-	return &[]Preparer{formatCodePreparator}
-}
-
-// formatCode formats go code
-func formatCode(args ...interface{}) error {
-	filePath := args[0].(string)
-	cmd := exec.Command(nameBinGo, fmtArgs, filepath.Base(filePath))
-	cmd.Dir = filepath.Dir(filePath)
-	stdout, err := cmd.CombinedOutput()
-	if err != nil {
-		return errors.New(string(stdout))
-	}
-	return nil
+// GetPythonPreparators returns preparation methods that should be applied to Python code
+func GetPythonPreparators(filePath string) *[]Preparator {
+	return &[]Preparator{}
 }

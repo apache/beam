@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package preparers
+package preparators
 
 import (
 	"beam.apache.org/playground/backend/internal/logger"
@@ -88,27 +88,27 @@ func getPreparedArgs(args ...interface{}) []interface{} {
 	return preparedArgs
 }
 
-func TestGetGoPreparers(t *testing.T) {
-	expectedPreparer := Preparer{Prepare: formatCode, Args: nil}
+func TestGetGoPreparators(t *testing.T) {
+	expectedPreparator := Preparator{Prepare: formatCode, Args: nil}
 	type args struct {
 		filePath string
 	}
 	tests := []struct {
 		name string
 		args args
-		want *[]Preparer
+		want *[]Preparator
 	}{
 		{
-			// getting the expected preparer
-			name: "get expected preparer",
+			// getting the expected preparator
+			name: "get expected preparator",
 			args: args{filePath: ""},
-			want: &[]Preparer{expectedPreparer},
+			want: &[]Preparator{expectedPreparator},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := GetGoPreparers(tt.args.filePath); !reflect.DeepEqual(fmt.Sprint(got), fmt.Sprint(tt.want)) {
-				t.Errorf("GetGoPreparers() = %v, want %v", got, tt.want)
+			if got := GetGoPreparators(tt.args.filePath); !reflect.DeepEqual(fmt.Sprint(got), fmt.Sprint(tt.want)) {
+				t.Errorf("GetGoPreparators() = %v, want %v", got, tt.want)
 			}
 		})
 	}

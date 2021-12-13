@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package preparers
+package preparators
 
 import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
@@ -85,7 +85,7 @@ func Test_replace(t *testing.T) {
 	}
 }
 
-func TestGetJavaPreparers(t *testing.T) {
+func TestGetJavaPreparators(t *testing.T) {
 	type args struct {
 		filePath string
 	}
@@ -102,8 +102,8 @@ func TestGetJavaPreparers(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := GetJavaPreparers(tt.args.filePath); len(*got) != tt.want {
-				t.Errorf("GetJavaPreparation() returns %v Preparers, want %v", len(*got), tt.want)
+			if got := GetJavaPreparators(tt.args.filePath); len(*got) != tt.want {
+				t.Errorf("GetJavaPreparation() returns %v Preparators, want %v", len(*got), tt.want)
 			}
 		})
 	}
