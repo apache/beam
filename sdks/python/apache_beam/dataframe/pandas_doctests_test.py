@@ -300,6 +300,7 @@ class DoctestTest(unittest.TestCase):
                 # Returns deferred index.
                 'df.axes',
             ],
+            # Skipped because the relies on loc to set cells in df2
             'pandas.core.frame.DataFrame.compare': ['*'],
             'pandas.core.frame.DataFrame.cov': [
                 # Relies on setting entries ahead of time.
@@ -307,8 +308,6 @@ class DoctestTest(unittest.TestCase):
                 "df.loc[df.index[5:10], 'b'] = np.nan",
                 'df.cov(min_periods=12)',
             ],
-            'pandas.core.frame.DataFrame.idxmax': ['*'],
-            'pandas.core.frame.DataFrame.idxmin': ['*'],
             'pandas.core.frame.DataFrame.rename': [
                 # Returns deferred index.
                 'df.index',
@@ -502,15 +501,14 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.append': [
                 's1.append(s2, verify_integrity=True)',
             ],
-            # Throws NotImplementedError when modifying df
-            'pandas.core.series.Series.compare': ['*'],
             'pandas.core.series.Series.cov': [
                 # Differs in LSB on jenkins.
                 "s1.cov(s2)",
             ],
+            # Skipped idxmax/idxmin due an issue with the test framework
+            'pandas.core.series.Series.idxmin': ['s.idxmin()'],
+            'pandas.core.series.Series.idxmax': ['s.idxmax()'],
             'pandas.core.series.Series.duplicated': ['*'],
-            'pandas.core.series.Series.idxmax': ['*'],
-            'pandas.core.series.Series.idxmin': ['*'],
             'pandas.core.series.Series.set_axis': ['*'],
             'pandas.core.series.Series.nonzero': ['*'],
             'pandas.core.series.Series.pop': ['ser'],  # testing side effect
@@ -747,6 +745,9 @@ class DoctestTest(unittest.TestCase):
                 # Dropping invalid columns during a transform is unsupported.
                 'grouped.transform(lambda x: (x - x.mean()) / x.std())'
             ],
+            # Skipped idxmax/idxmin due an issue with the test framework
+            'pandas.core.groupby.generic.SeriesGroupBy.idxmin': ['s.idxmin()'],
+            'pandas.core.groupby.generic.SeriesGroupBy.idxmax': ['s.idxmax()'],
         })
     self.assertEqual(result.failed, 0)
 
