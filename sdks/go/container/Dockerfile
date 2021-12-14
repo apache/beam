@@ -16,7 +16,7 @@
 # limitations under the License.
 ###############################################################################
 
-FROM debian:buster
+FROM debian:bullseye
 MAINTAINER "Apache Beam <dev@beam.apache.org>"
 
 ARG pull_licenses
