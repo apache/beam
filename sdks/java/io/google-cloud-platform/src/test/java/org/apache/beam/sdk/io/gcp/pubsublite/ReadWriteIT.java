@@ -58,6 +58,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.Rule;
@@ -200,9 +201,11 @@ public class ReadWriteIT {
                     // real pipeline!
                     .setMinBundleTimeout(Duration.standardSeconds(5))
                     .build()));
+    return messages;
+    // TODO(BEAM-13230): Fix and re-enable
     // Deduplicate messages based on the uuids added in PubsubLiteIO.addUuids() when writing.
-    return messages.apply(
-        "dedupeMessages", PubsubLiteIO.deduplicate(UuidDeduplicationOptions.newBuilder().build()));
+    // return messages.apply(
+    //   "dedupeMessages", PubsubLiteIO.deduplicate(UuidDeduplicationOptions.newBuilder().build()));
   }
 
   public static SimpleFunction<SequencedMessage, Integer> extractIds() {
@@ -235,6 +238,7 @@ public class ReadWriteIT {
       Thread.sleep(1000);
       try {
         subscription = createSubscription(topic);
+        break;
       } catch (Exception e) {
         lastException = e;
         LOG.info("Retrying exception on subscription creation.", e);
@@ -252,8 +256,10 @@ public class ReadWriteIT {
     PCollection<SequencedMessage> messages = readMessages(subscription, pipeline);
     PCollection<Integer> ids = messages.apply(MapElements.via(extractIds()));
     ids.apply("PubsubSignalTest", signal.signalSuccessWhen(BigEndianIntegerCoder.of(), testIds()));
+    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(5));
     pipeline.apply(signal.signalStart());
     PipelineResult job = pipeline.run();
+    start.get();
     LOG.info("Running!");
     signal.waitForSuccess(Duration.standardMinutes(5));
     // A runner may not support cancel

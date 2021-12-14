@@ -91,6 +91,7 @@ import apache_beam.internal.pickler
 
 from apache_beam import coders
 from apache_beam import io
+from apache_beam import metrics
 from apache_beam import typehints
 from apache_beam import version
 from apache_beam.pipeline import Pipeline

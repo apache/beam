@@ -23,12 +23,8 @@ import 'package:playground/modules/editor/repository/code_repository/run_code_re
 
 const kPipelineCheckDelay = Duration(seconds: 1);
 const kTimeoutErrorText = 'Code execution exceeded timeout';
-const kFinishedStatuses = [
-  RunCodeStatus.finished,
-  RunCodeStatus.error,
-  RunCodeStatus.timeout,
-  RunCodeStatus.compileError,
-];
+const kUnknownErrorText =
+    'Something went wrong. Please try again later or create a jira ticket';
 
 class CodeRepository {
   late final CodeClient _client;
@@ -39,54 +35,80 @@ class CodeRepository {
 
   Stream<RunCodeResult> runCode(RunCodeRequestWrapper request) async* {
     try {
-      yield RunCodeResult(status: RunCodeStatus.executing);
+      yield RunCodeResult(status: RunCodeStatus.preparation);
       var runCodeResponse = await _client.runCode(request);
       final pipelineUuid = runCodeResponse.pipelineUuid;
-      final resultStatus = await _waitPipelineExecution(pipelineUuid);
-      final result = await _getPipelineResult(pipelineUuid, resultStatus);
-      yield result;
+      yield* _checkPipelineExecution(pipelineUuid, request);
     } on RunCodeError catch (error) {
       yield RunCodeResult(
-        status: RunCodeStatus.error,
-        errorMessage: error.message,
+        status: RunCodeStatus.unknownError,
+        errorMessage: error.message ?? kUnknownErrorText,
       );
     }
   }
 
-  Future<RunCodeStatus> _waitPipelineExecution(String pipelineUuid) async {
-    final statusResponse = await _client.checkStatus(pipelineUuid);
-    final isFinished = kFinishedStatuses.contains(statusResponse.status);
-    if (isFinished) {
-      return statusResponse.status;
+  Stream<RunCodeResult> _checkPipelineExecution(
+    String pipelineUuid,
+    RunCodeRequestWrapper request, {
+    RunCodeResult? prevResult,
+  }) async* {
+    try {
+      final statusResponse = await _client.checkStatus(pipelineUuid, request);
+      final result = await _getPipelineResult(
+        pipelineUuid,
+        statusResponse.status,
+        prevResult,
+        request,
+      );
+      yield result;
+      if (!result.isFinished) {
+        await Future.delayed(kPipelineCheckDelay);
+        yield* _checkPipelineExecution(
+            pipelineUuid, request, prevResult: result);
+      }
+    } on RunCodeError catch (error) {
+      yield RunCodeResult(
+        status: RunCodeStatus.unknownError,
+        errorMessage: error.message ?? kUnknownErrorText,
+      );
     }
-
-    return Future.delayed(
-      kPipelineCheckDelay,
-      () => _waitPipelineExecution(pipelineUuid),
-    );
   }
 
   Future<RunCodeResult> _getPipelineResult(
     String pipelineUuid,
     RunCodeStatus status,
+    RunCodeResult? prevResult,
+    RunCodeRequestWrapper request,
   ) async {
-    return _getFinishedPipelineResult(pipelineUuid, status);
-  }
-
-  Future<RunCodeResult> _getFinishedPipelineResult(
-    String pipelineUuid,
-    RunCodeStatus status,
-  ) async {
+    final prevOutput = prevResult?.output ?? '';
+    final prevLog = prevResult?.log ?? '';
     switch (status) {
       case RunCodeStatus.compileError:
-        final compileOutput = await _client.getCompileOutput(pipelineUuid);
+        final compileOutput = await _client.getCompileOutput(
+          pipelineUuid,
+          request,
+        );
         return RunCodeResult(status: status, output: compileOutput.output);
       case RunCodeStatus.timeout:
         return RunCodeResult(status: status, errorMessage: kTimeoutErrorText);
-      case RunCodeStatus.error:
-      case RunCodeStatus.finished:
-        final output = await _client.getRunOutput(pipelineUuid);
+      case RunCodeStatus.runError:
+        final output = await _client.getRunErrorOutput(pipelineUuid, request);
         return RunCodeResult(status: status, output: output.output);
+      case RunCodeStatus.unknownError:
+        return RunCodeResult(status: status, errorMessage: kUnknownErrorText);
+      case RunCodeStatus.executing:
+      case RunCodeStatus.finished:
+        final responses = await Future.wait([
+          _client.getRunOutput(pipelineUuid, request),
+          _client.getLogOutput(pipelineUuid, request)
+        ]);
+        final output = responses[0];
+        final log = responses[1];
+        return RunCodeResult(
+          status: status,
+          output: prevOutput + output.output,
+          log: prevLog + log.output,
+        );
       default:
         return RunCodeResult(status: status);
     }

@@ -19,12 +19,12 @@ import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -33,11 +33,10 @@ const (
 	serverPortKey                 = "SERVER_PORT"
 	beamSdkKey                    = "BEAM_SDK"
 	workingDirKey                 = "APP_WORK_DIR"
+	preparedModDirKey             = "PREPARED_MOD_DIR"
 	cacheTypeKey                  = "CACHE_TYPE"
 	cacheAddressKey               = "CACHE_ADDRESS"
 	beamPathKey                   = "BEAM_PATH"
-	beamRunnerKey                 = "BEAM_RUNNER"
-	SLF4jKey                      = "SLF4J"
 	cacheKeyExpirationTimeKey     = "KEY_EXPIRATION_TIME"
 	pipelineExecuteTimeoutKey     = "PIPELINE_EXPIRATION_TIMEOUT"
 	protocolTypeKey               = "PROTOCOL_TYPE"
@@ -45,13 +44,11 @@ const (
 	defaultIp                     = "localhost"
 	defaultPort                   = 8080
 	defaultSdk                    = pb.Sdk_SDK_JAVA
-	defaultBeamSdkPath            = "/opt/apache/beam/jars/beam-sdks-java-harness.jar"
+	defaultBeamJarsPath           = "/opt/apache/beam/jars/*"
 	defaultCacheType              = "local"
 	defaultCacheAddress           = "localhost:6379"
 	defaultCacheKeyExpirationTime = time.Minute * 15
 	defaultPipelineExecuteTimeout = time.Minute * 10
-	defaultBeamRunner             = "/opt/apache/beam/jars/beam-runners-direct.jar"
-	defaultSLF4j                  = "/opt/apache/beam/jars/slf4j-jdk14.jar"
 	jsonExt                       = ".json"
 	configFolderName              = "configs"
 )
@@ -139,6 +136,7 @@ func GetNetworkEnvsFromOsEnvs() (*NetworkEnvs, error) {
 // Configures ExecutorConfig with config file.
 func ConfigureBeamEnvs(workDir string) (*BeamEnvs, error) {
 	sdk := pb.Sdk_SDK_UNSPECIFIED
+	preparedModDir, modDirExist := os.LookupEnv(preparedModDirKey)
 	if value, present := os.LookupEnv(beamSdkKey); present {
 
 		switch value {
@@ -146,6 +144,9 @@ func ConfigureBeamEnvs(workDir string) (*BeamEnvs, error) {
 			sdk = pb.Sdk_SDK_JAVA
 		case pb.Sdk_SDK_GO.String():
 			sdk = pb.Sdk_SDK_GO
+			if !modDirExist {
+				return nil, errors.New("env PREPARED_MOD_DIR must be specified in the environment variables for GO sdk")
+			}
 		case pb.Sdk_SDK_PYTHON.String():
 			sdk = pb.Sdk_SDK_PYTHON
 		case pb.Sdk_SDK_SCIO.String():
@@ -160,7 +161,7 @@ func ConfigureBeamEnvs(workDir string) (*BeamEnvs, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewBeamEnvs(sdk, executorConfig), nil
+	return NewBeamEnvs(sdk, executorConfig, preparedModDir), nil
 }
 
 // createExecutorConfig creates ExecutorConfig that corresponds to specific Apache Beam SDK.
@@ -172,17 +173,13 @@ func createExecutorConfig(apacheBeamSdk pb.Sdk, configPath string) (*ExecutorCon
 	}
 	switch apacheBeamSdk {
 	case pb.Sdk_SDK_JAVA:
-		executorConfig.CompileArgs = append(executorConfig.CompileArgs, getEnv(beamPathKey, defaultBeamSdkPath))
-		jars := strings.Join([]string{
-			getEnv(beamPathKey, defaultBeamSdkPath),
-			getEnv(beamRunnerKey, defaultBeamRunner),
-			getEnv(SLF4jKey, defaultSLF4j),
-		}, ":")
-		executorConfig.RunArgs[1] += jars
+		executorConfig.CompileArgs = append(executorConfig.CompileArgs, getEnv(beamPathKey, defaultBeamJarsPath))
+		executorConfig.RunArgs[1] = fmt.Sprintf("%s%s", executorConfig.RunArgs[1], getEnv(beamPathKey, defaultBeamJarsPath))
+		executorConfig.TestArgs[1] = fmt.Sprintf("%s%s", executorConfig.TestArgs[1], getEnv(beamPathKey, defaultBeamJarsPath))
 	case pb.Sdk_SDK_GO:
-		return nil, errors.New("not yet supported")
+		// Go sdk doesn't need any additional arguments from the config file
 	case pb.Sdk_SDK_PYTHON:
-		return nil, errors.New("not yet supported")
+		// Python sdk doesn't need any additional arguments from the config file
 	case pb.Sdk_SDK_SCIO:
 		return nil, errors.New("not yet supported")
 	}

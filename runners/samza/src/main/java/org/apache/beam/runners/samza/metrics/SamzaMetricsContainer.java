@@ -42,7 +42,6 @@ import org.apache.samza.metrics.MetricsRegistryMap;
 })
 public class SamzaMetricsContainer {
   private static final String BEAM_METRICS_GROUP = "BeamMetrics";
-  private static final String DELIMITER = "-";
 
   private final MetricsContainerStepMap metricsContainers = new MetricsContainerStepMap();
   private final MetricsRegistryMap metricsRegistry;

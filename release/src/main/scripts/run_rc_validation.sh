@@ -207,133 +207,6 @@ kubectl version
 
 
 echo ""
-echo ""
-echo "====================Starting Java Quickstart======================="
-echo "[Current task] Java quickstart with direct runner"
-if [[ "$java_quickstart_direct" = true ]]; then
-  echo "*************************************************************"
-  echo "* Running Java Quickstart with DirectRunner"
-  echo "*************************************************************"
-  ./gradlew :runners:direct-java:runQuickstartJavaDirect \
-  -Prepourl=${REPO_URL} \
-  -Pver=${RELEASE_VER}
-else
-  echo "* Skip Java quickstart with direct runner"
-fi
-
-echo "[Current task] Java quickstart with Flink local runner"
-if [[ "$java_quickstart_flink_local" = true ]]; then
-  echo "*************************************************************"
-  echo "* Running Java Quickstart with Flink local runner"
-  echo "*************************************************************"
-  ./gradlew :runners:flink:1.13:runQuickstartJavaFlinkLocal \
-  -Prepourl=${REPO_URL} \
-  -Pver=${RELEASE_VER}
-else
-  echo "* Skip Java quickstart with Flink local runner"
-fi
-
-echo "[Current task] Java quickstart with Spark local runner"
-if [[ "$java_quickstart_spark_local" = true ]]; then
-  echo "*************************************************************"
-  echo "* Running Java Quickstart with Spark local runner"
-  echo "*************************************************************"
-  ./gradlew :runners:spark:2:runQuickstartJavaSpark \
-  -Prepourl=${REPO_URL} \
-  -Pver=${RELEASE_VER}
-else
-  echo "* Skip Java quickstart with Spark local runner"
-fi
-
-echo "[Current task] Java quickstart with Dataflow runner"
-if [[ "$java_quickstart_dataflow" = true && ! -z `which gcloud` ]]; then
-  echo "*************************************************************"
-  echo "* Running Java Quickstart with DataflowRunner"
-  echo "*************************************************************"
-  ./gradlew :runners:google-cloud-dataflow-java:runQuickstartJavaDataflow \
-  -Prepourl=${REPO_URL} \
-  -Pver=${RELEASE_VER} \
-  -PgcpProject=${USER_GCP_PROJECT} \
-  -PgcsBucket=${USER_GCS_BUCKET:5}  # skip 'gs://' prefix
-else
-  echo "* Skip Java quickstart with Dataflow runner. Google Cloud SDK is required."
-fi
-
-echo "[Current task] Java quickstart with Twister2 local runner"
-if [[ "$java_quickstart_twister2_local" = true ]]; then
-  echo "*************************************************************"
-  echo "* Running Java Quickstart with Twister2 local runner"
-  echo "*************************************************************"
-  ./gradlew :runners:twister2:runQuickstartJavaTwister2 \
-  -Prepourl=${REPO_URL} \
-  -Pver=${RELEASE_VER}
-else
-  echo "* Skip Java quickstart with Twister2 local runner"
-fi
-
-echo ""
-echo "====================Starting Java Mobile Game====================="
-if [[ ("$java_mobile_game_direct" = true || "$java_mobile_game_dataflow" = true) \
-      && ! -z `which gcloud` ]]; then
-  MOBILE_GAME_DATASET=${USER}_java_validations_$(date +%m%d)_$RANDOM
-  MOBILE_GAME_PUBSUB_TOPIC=leader_board-${USER}-java-topic-$(date +%m%d)_$RANDOM
-  echo "Using GCP project: ${USER_GCP_PROJECT}"
-  echo "Will create BigQuery dataset: ${MOBILE_GAME_DATASET}"
-  echo "Will create Pubsub topic: ${MOBILE_GAME_PUBSUB_TOPIC}"
-
-  echo "-----------------Creating BigQuery Dataset-----------------"
-  bq mk --project_id=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
-
-  echo "-----------------Creating Pubsub Topic-----------------"
-  gcloud pubsub topics create --project=${USER_GCP_PROJECT} ${MOBILE_GAME_PUBSUB_TOPIC}
-
-  if [[ "$java_mobile_game_direct" = true ]]; then
-    echo "**************************************************************************"
-    echo "* Java mobile game on DirectRunner: UserScore, HourlyTeamScore, Leaderboard"
-    echo "**************************************************************************"
-    ./gradlew :runners:direct-java:runMobileGamingJavaDirect \
-    -Prepourl=${REPO_URL} \
-    -Pver=${RELEASE_VER} \
-    -PgcpProject=${USER_GCP_PROJECT} \
-    -PbqDataset=${MOBILE_GAME_DATASET} \
-    -PpubsubTopic=${MOBILE_GAME_PUBSUB_TOPIC} \
-    -PgcsBucket=${USER_GCS_BUCKET:5}  # skip 'gs://' prefix
-  else
-   echo "* Skip Java Mobile Game on DirectRunner."
-  fi
-
-  if [[ "$java_mobile_game_dataflow" = true ]]; then
-    echo "**************************************************************************"
-    echo "* Java mobile game on DataflowRunner: UserScore, HourlyTeamScore, Leaderboard"
-    echo "**************************************************************************"
-    ./gradlew :runners:google-cloud-dataflow-java:runMobileGamingJavaDataflow \
-    -Prepourl=${REPO_URL} \
-    -Pver=${RELEASE_VER} \
-    -PgcpProject=${USER_GCP_PROJECT} \
-    -PbqDataset=${MOBILE_GAME_DATASET} \
-    -PpubsubTopic=${MOBILE_GAME_PUBSUB_TOPIC} \
-    -PgcsBucket=${USER_GCS_BUCKET:5}  # skip 'gs://' prefix
-
-    echo "**************************************************************************"
-    echo "* Java mobile game on DataflowRunner using Beam GCP BOM: UserScore, HourlyTeamScore, Leaderboard"
-    echo "**************************************************************************"
-    ./gradlew :runners:google-cloud-dataflow-java:runMobileGamingJavaDataflowBom \
-    -Prepourl=${REPO_URL} \
-    -Pver=${RELEASE_VER} \
-    -PgcpProject=${USER_GCP_PROJECT} \
-    -PbqDataset=${MOBILE_GAME_DATASET} \
-    -PpubsubTopic=${MOBILE_GAME_PUBSUB_TOPIC} \
-    -PgcsBucket=${USER_GCS_BUCKET:5}  # skip 'gs://' prefix
-  else
-    echo "* Skip Java Mobile Game on DataflowRunner."
-  fi
-
-  echo "-----------------Cleaning up BigQuery & Pubsub-----------------"
-  bq rm -r -f --project_id=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
-  gcloud pubsub topics delete projects/${USER_GCP_PROJECT}/topics/${MOBILE_GAME_PUBSUB_TOPIC}
-fi
-
-echo ""
 echo "====================Starting Python Quickstart and MobileGame==================="
 echo "This task will create a PR against apache/beam, trigger a jenkins job to run:"
 echo "1. Python quickstart validations(batch & streaming)"
@@ -357,6 +230,7 @@ else
   echo "* Skip Python Quickstart and MobileGame. Hub is required."
 fi
 
+# TODO(BEAM-13220) Run the remaining tests on Jenkins.
 echo ""
 echo "====================Starting Python Leaderboard & GameStates Validations==============="
 if [[ ("$python_leaderboard_direct" = true \
@@ -378,7 +252,6 @@ if [[ ("$python_leaderboard_direct" = true \
 
   `which pip` install --upgrade pip
   `which pip` install --upgrade setuptools
-  `which pip` install --upgrade virtualenv
 
   echo "--------------------------Updating ~/.m2/settings.xml-------------------------"
     cd ~
@@ -444,7 +317,7 @@ if [[ ("$python_leaderboard_direct" = true \
   do
     rm -rf ./beam_env_${py_version}
     echo "--------------Setting up virtualenv with $py_version interpreter----------------"
-    virtualenv beam_env_${py_version} -p $py_version
+    $py_version -m venv beam_env_${py_version} 
     . beam_env_${py_version}/bin/activate
 
     echo "--------------------------Installing Python SDK-------------------------------"
@@ -621,7 +494,6 @@ if [[ ("$python_xlang_kafka_taxi_dataflow" = true
 
   `which pip` install --upgrade pip
   `which pip` install --upgrade setuptools
-  `which pip` install --upgrade virtualenv
 
   echo "-----------------------Setting up Shell Env Vars------------------------------"
   set_bashrc
@@ -648,7 +520,7 @@ if [[ ("$python_xlang_kafka_taxi_dataflow" = true
   do
     rm -rf ./beam_env_${py_version}
     echo "--------------Setting up virtualenv with $py_version interpreter----------------"
-    virtualenv beam_env_${py_version} -p $py_version
+    $py_version -m venv beam_env_${py_version}
     . beam_env_${py_version}/bin/activate
     ln -s ${LOCAL_BEAM_DIR}/sdks beam_env_${py_version}/lib/sdks
 

@@ -102,6 +102,7 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
       excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
       excludeCategories 'org.apache.beam.sdk.testing.UsesFailureMessage'
       excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderedDelivery'
       excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
       excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
       excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'

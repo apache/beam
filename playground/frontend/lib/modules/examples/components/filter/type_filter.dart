@@ -19,6 +19,7 @@
 import 'package:flutter/material.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/examples/components/examples_components.dart';
+import 'package:playground/modules/examples/models/example_model.dart';
 
 class TypeFilter extends StatelessWidget {
   const TypeFilter({Key? key}) : super(key: key);
@@ -32,10 +33,10 @@ class TypeFilter extends StatelessWidget {
       ),
       child: Row(
         children: const <CategoryBubble>[
-          CategoryBubble(name: 'All'),
-          CategoryBubble(name: 'Examples'),
-          CategoryBubble(name: 'Katas'),
-          CategoryBubble(name: 'Unit tests'),
+          CategoryBubble(type: ExampleType.all),
+          CategoryBubble(type: ExampleType.example),
+          CategoryBubble(type: ExampleType.kata),
+          CategoryBubble(type: ExampleType.test),
         ],
       ),
     );

@@ -22,6 +22,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window/trigger"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/teststream"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
@@ -163,7 +164,7 @@ func TriggerDefault(s beam.Scope) {
 	windowSize := 10 * time.Second
 	validateEquals(s.Scope("Fixed"), window.NewFixedWindows(windowSize), col,
 		[]beam.WindowIntoOption{
-			beam.Trigger(window.TriggerDefault()),
+			beam.Trigger(trigger.Default()),
 		}, 6.0, 9.0)
 }
 
@@ -177,7 +178,7 @@ func TriggerAlways(s beam.Scope) {
 
 	validateEquals(s.Scope("Fixed"), window.NewFixedWindows(windowSize), col,
 		[]beam.WindowIntoOption{
-			beam.Trigger(window.TriggerAlways()),
+			beam.Trigger(trigger.Always()),
 		}, 1.0, 2.0, 3.0)
 }
 
@@ -208,7 +209,7 @@ func TriggerElementCount(s beam.Scope) {
 	// For the trigger to fire every 2 elements, combine it with Repeat Trigger
 	validateCount(s.Scope("Fixed"), window.NewFixedWindows(windowSize), col,
 		[]beam.WindowIntoOption{
-			beam.Trigger(window.TriggerAfterCount(2)),
+			beam.Trigger(trigger.AfterCount(2)),
 		}, 2)
 }
 
@@ -226,7 +227,7 @@ func TriggerAfterProcessingTime(s beam.Scope) {
 
 	validateEquals(s.Scope("Global"), window.NewGlobalWindows(), col,
 		[]beam.WindowIntoOption{
-			beam.Trigger(window.TriggerAfterProcessingTime().PlusDelay(5 * time.Second)),
+			beam.Trigger(trigger.AfterProcessingTime().PlusDelay(5 * time.Second)),
 		}, 6.0)
 }
 
@@ -244,7 +245,7 @@ func TriggerRepeat(s beam.Scope) {
 
 	validateCount(s.Scope("Global"), window.NewGlobalWindows(), col,
 		[]beam.WindowIntoOption{
-			beam.Trigger(window.TriggerRepeat(window.TriggerAfterCount(2))),
+			beam.Trigger(trigger.Repeat(trigger.AfterCount(2))),
 		}, 3)
 }
 
@@ -257,9 +258,9 @@ func TriggerAfterEndOfWindow(s beam.Scope) {
 
 	col := teststream.Create(s, con)
 	windowSize := 10 * time.Second
-	trigger := window.TriggerAfterEndOfWindow().
-		EarlyFiring(window.TriggerAfterCount(2)).
-		LateFiring(window.TriggerAfterCount(1))
+	trigger := trigger.AfterEndOfWindow().
+		EarlyFiring(trigger.AfterCount(2)).
+		LateFiring(trigger.AfterCount(1))
 
 	validateCount(s.Scope("Fixed"), window.NewFixedWindows(windowSize), col,
 		[]beam.WindowIntoOption{

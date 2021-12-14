@@ -25,6 +25,8 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.util.InstanceBuilder;
+import org.checkerframework.checker.index.qual.NonNegative;
 
 /** Options that are used to control configuration of the SDK harness. */
 @Experimental(Kind.PORTABILITY)
@@ -95,6 +97,76 @@ public interface SdkHarnessOptions extends PipelineOptions {
   int getGroupingTableMaxSizeMb();
 
   void setGroupingTableMaxSizeMb(int value);
+
+  /**
+   * Size (in MB) for the process wide cache within the SDK harness. The cache is responsible for
+   * storing all values which are cached within a bundle and across bundles such as side inputs and
+   * user state.
+   *
+   * <p>CAUTION: If set too large, SDK harness instances may run into OOM conditions more easily.
+   */
+  @Description(
+      "The size (in MB) for the process wide cache within the SDK harness. The cache is responsible for "
+          + "storing all values which are cached within a bundle and across bundles such as side inputs "
+          + "and user state. CAUTION: If set too large, SDK harness instances may run into OOM conditions more easily.")
+  @Default.InstanceFactory(DefaultMaxCacheMemoryUsageMbFactory.class)
+  @NonNegative
+  int getMaxCacheMemoryUsageMb();
+
+  void setMaxCacheMemoryUsageMb(@NonNegative int value);
+
+  /**
+   * An instance of this class will be used to specify the maximum amount of memory to allocate to a
+   * cache within an SDK harness instance.
+   *
+   * <p>This parameter will only be used if an explicit value was not specified for {@link
+   * #getMaxCacheMemoryUsageMb() maxCacheMemoryUsageMb}.
+   */
+  @Description(
+      "An instance of this class will be used to specify the maximum amount of memory to allocate to a "
+          + " process wide cache within an SDK harness instance. This parameter will only be used if an explicit value was not specified for --maxCacheMemoryUsageMb.")
+  @Default.Class(DefaultMaxCacheMemoryUsageMb.class)
+  Class<? extends MaxCacheMemoryUsageMb> getMaxCacheMemoryUsageMbClass();
+
+  void setMaxCacheMemoryUsageMbClass(Class<? extends MaxCacheMemoryUsageMb> kls);
+
+  /**
+   * A {@link DefaultValueFactory} which specifies the maximum amount of memory to allocate to the
+   * process wide cache within an SDK harness instance.
+   */
+  class DefaultMaxCacheMemoryUsageMbFactory implements DefaultValueFactory<@NonNegative Integer> {
+
+    @Override
+    public @NonNegative Integer create(PipelineOptions options) {
+      SdkHarnessOptions sdkHarnessOptions = options.as(SdkHarnessOptions.class);
+      return (Integer)
+          checkNotNull(
+              InstanceBuilder.ofType(MaxCacheMemoryUsageMb.class)
+                  .fromClass(sdkHarnessOptions.getMaxCacheMemoryUsageMbClass())
+                  .build()
+                  .getMaxCacheMemoryUsage(options));
+    }
+  }
+
+  /** Specifies the maximum amount of memory to use within the current SDK harness instance. */
+  interface MaxCacheMemoryUsageMb {
+    @NonNegative
+    int getMaxCacheMemoryUsage(PipelineOptions options);
+  }
+
+  /**
+   * The default implementation which detects how much memory to use for a process wide cache.
+   *
+   * <p>TODO(BEAM-13015): Detect the amount of memory to use instead of hard-coding to 100.
+   */
+  class DefaultMaxCacheMemoryUsageMb implements MaxCacheMemoryUsageMb {
+    @Override
+    public int getMaxCacheMemoryUsage(PipelineOptions options) {
+      // TODO(BEAM-13015): Detect environment type and produce a value based upon the maximum amount
+      // of memory available.
+      return 100;
+    }
+  }
 
   /**
    * Defines a log level override for a specific class, package, or name.

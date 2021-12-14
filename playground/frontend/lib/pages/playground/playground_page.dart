@@ -42,6 +42,7 @@ class PlaygroundPage extends StatelessWidget {
       shortcuts: globalShortcuts,
       child: Scaffold(
         appBar: AppBar(
+          automaticallyImplyLeading: false,
           title: Consumer<PlaygroundState>(
             builder: (context, state, child) {
               return Wrap(
@@ -51,10 +52,18 @@ class PlaygroundPage extends StatelessWidget {
                   const Logo(),
                   Consumer<ExampleState>(
                     builder: (context, state, child) {
-                      return ExampleSelector(categories: state.categories!);
+                      return ExampleSelector(
+                        changeSelectorVisibility:
+                            state.changeSelectorVisibility,
+                        isSelectorOpened: state.isSelectorOpened,
+                      );
                     },
                   ),
-                  SDKSelector(sdk: state.sdk, setSdk: state.setSdk),
+                  SDKSelector(
+                    sdk: state.sdk,
+                    setSdk: state.setSdk,
+                    setExample: state.setExample,
+                  ),
                   const NewExampleAction(),
                   ResetAction(reset: state.reset),
                 ],

@@ -499,7 +499,7 @@ public class BigQueryIO {
    */
   private static final String DATASET_TABLE_REGEXP =
       String.format(
-          "((?<PROJECT>%s):)?(?<DATASET>%s)\\.(?<TABLE>%s)",
+          "((?<PROJECT>%s)[:\\.])?(?<DATASET>%s)\\.(?<TABLE>%s)",
           PROJECT_ID_REGEXP, DATASET_REGEXP, TABLE_REGEXP);
 
   static final Pattern TABLE_SPEC = Pattern.compile(DATASET_TABLE_REGEXP);
@@ -1706,6 +1706,7 @@ public class BigQueryIO {
         .setOptimizeWrites(false)
         .setUseBeamSchema(false)
         .setAutoSharding(false)
+        .setDeterministicRecordIdFn(null)
         .build();
   }
 
@@ -1844,6 +1845,9 @@ public class BigQueryIO {
     @Experimental
     abstract Boolean getAutoSharding();
 
+    @Experimental
+    abstract @Nullable SerializableFunction<T, String> getDeterministicRecordIdFn();
+
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -1927,6 +1931,10 @@ public class BigQueryIO {
 
       @Experimental
       abstract Builder<T> setAutoSharding(Boolean autoSharding);
+
+      @Experimental
+      abstract Builder<T> setDeterministicRecordIdFn(
+          SerializableFunction<T, String> toUniqueIdFunction);
 
       abstract Write<T> build();
     }
@@ -2427,6 +2435,22 @@ public class BigQueryIO {
       return toBuilder().setAutoSharding(true).build();
     }
 
+    /**
+     * Provides a function which can serve as a source of deterministic unique ids for each record
+     * to be written, replacing the unique ids generated with the default scheme. When used with
+     * {@link Method#STREAMING_INSERTS} This also elides the re-shuffle from the BigQueryIO Write by
+     * using the keys on which the data is grouped at the point at which BigQueryIO Write is
+     * applied, since the reshuffle is necessary only for the checkpointing of the default-generated
+     * ids for determinism. This may be beneficial as a performance optimization in the case when
+     * the current sharding is already sufficient for writing to BigQuery. Thi behavior takes
+     * precedence over {@link #withAutoSharding}.
+     */
+    @Experimental
+    public Write<T> withDeterministicRecordIdFn(
+        SerializableFunction<T, String> toUniqueIdFunction) {
+      return toBuilder().setDeterministicRecordIdFn(toUniqueIdFunction).build();
+    }
+
     @VisibleForTesting
     /** This method is for test usage only */
     public Write<T> withTestServices(BigQueryServices testServices) {
@@ -2588,9 +2612,9 @@ public class BigQueryIO {
       } else {
         checkArgument(
             getTriggeringFrequency() == null && getNumFileShards() == 0,
-            "Triggering frequency or number of file shards can be specified only when writing "
-                + "an unbounded PCollection via FILE_LOADS or STORAGE_API_WRITES, but: the collection was %s "
-                + "and the method was %s",
+            "Triggering frequency or number of file shards can be specified only when writing an"
+                + " unbounded PCollection via FILE_LOADS or STORAGE_API_WRITES, but: the collection"
+                + " was %s and the method was %s",
             input.isBounded(),
             method);
       }
@@ -2719,7 +2743,8 @@ public class BigQueryIO {
         if (avroRowWriterFactory != null) {
           checkArgument(
               formatFunction == null,
-              "Only one of withFormatFunction or withAvroFormatFunction/withAvroWriter maybe set, not both.");
+              "Only one of withFormatFunction or withAvroFormatFunction/withAvroWriter maybe set,"
+                  + " not both.");
 
           SerializableFunction<TableSchema, org.apache.avro.Schema> avroSchemaFactory =
               getAvroSchemaFactory();
@@ -2813,6 +2838,7 @@ public class BigQueryIO {
                 .withIgnoreUnknownValues(getIgnoreUnknownValues())
                 .withIgnoreInsertIds(getIgnoreInsertIds())
                 .withAutoSharding(getAutoSharding())
+                .withDeterministicRecordIdFn(getDeterministicRecordIdFn())
                 .withKmsKey(getKmsKey());
         return input.apply(streamingInserts);
       } else if (method == Write.Method.FILE_LOADS) {
@@ -2867,13 +2893,14 @@ public class BigQueryIO {
         }
         return input.apply(batchLoads);
       } else if (method == Method.STORAGE_WRITE_API || method == Method.STORAGE_API_AT_LEAST_ONCE) {
+        BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
         StorageApiDynamicDestinations<T, DestinationT> storageApiDynamicDestinations;
         if (getUseBeamSchema()) {
           // This ensures that the Beam rows are directly translated into protos for Sorage API
           // writes, with no
           // need to round trip through JSON TableRow objects.
           storageApiDynamicDestinations =
-              new StorageApiDynamicDestinationsBeamRow<T, DestinationT>(
+              new StorageApiDynamicDestinationsBeamRow<>(
                   dynamicDestinations, elementSchema, elementToRowFunction);
         } else {
           RowWriterFactory.TableRowWriterFactory<T, DestinationT> tableRowWriterFactory =
@@ -2881,10 +2908,9 @@ public class BigQueryIO {
           // Fallback behavior: convert to JSON TableRows and convert those into Beam TableRows.
           storageApiDynamicDestinations =
               new StorageApiDynamicDestinationsTableRow<>(
-                  dynamicDestinations, tableRowWriterFactory.getToRowFn());
+                  dynamicDestinations, tableRowWriterFactory.getToRowFn(), getCreateDisposition());
         }
 
-        BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
         StorageApiLoads<DestinationT, T> storageApiLoads =
             new StorageApiLoads<DestinationT, T>(
                 destinationCoder,

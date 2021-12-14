@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.auto.value.AutoValue;
 import com.google.cloud.ServiceFactory;
+import com.google.cloud.spanner.Options.RpcPriority;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import java.io.Serializable;
@@ -42,6 +43,8 @@ public abstract class SpannerConfig implements Serializable {
   private static final Duration DEFAULT_COMMIT_DEADLINE = Duration.standardSeconds(15);
   // Total allowable backoff time.
   private static final Duration DEFAULT_MAX_CUMULATIVE_BACKOFF = Duration.standardMinutes(15);
+  // A default priority for batch traffic.
+  private static final RpcPriority DEFAULT_RPC_PRIORITY = RpcPriority.MEDIUM;
 
   public abstract @Nullable ValueProvider<String> getProjectId();
 
@@ -57,6 +60,8 @@ public abstract class SpannerConfig implements Serializable {
 
   public abstract @Nullable ValueProvider<Duration> getMaxCumulativeBackoff();
 
+  public abstract RpcPriority getRpcPriority();
+
   @VisibleForTesting
   abstract @Nullable ServiceFactory<Spanner, SpannerOptions> getServiceFactory();
 
@@ -68,6 +73,7 @@ public abstract class SpannerConfig implements Serializable {
         .setCommitDeadline(ValueProvider.StaticValueProvider.of(DEFAULT_COMMIT_DEADLINE))
         .setMaxCumulativeBackoff(
             ValueProvider.StaticValueProvider.of(DEFAULT_MAX_CUMULATIVE_BACKOFF))
+        .setRpcPriority(DEFAULT_RPC_PRIORITY)
         .build();
   }
 
@@ -116,6 +122,8 @@ public abstract class SpannerConfig implements Serializable {
     abstract Builder setMaxCumulativeBackoff(ValueProvider<Duration> maxCumulativeBackoff);
 
     abstract Builder setServiceFactory(ServiceFactory<Spanner, SpannerOptions> serviceFactory);
+
+    abstract Builder setRpcPriority(RpcPriority rpcPriority);
 
     public abstract SpannerConfig build();
   }
@@ -171,5 +179,9 @@ public abstract class SpannerConfig implements Serializable {
   @VisibleForTesting
   SpannerConfig withServiceFactory(ServiceFactory<Spanner, SpannerOptions> serviceFactory) {
     return toBuilder().setServiceFactory(serviceFactory).build();
+  }
+
+  public SpannerConfig withRpcPriority(RpcPriority rpcPriority) {
+    return toBuilder().setRpcPriority(rpcPriority).build();
   }
 }

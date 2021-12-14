@@ -31,6 +31,7 @@ import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.data.BeamFnTimerClient;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.DelayedBundleApplication;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
@@ -112,6 +113,9 @@ public abstract class PTransformRunnerFactoryTestContext
             () -> {
               throw new UnsupportedOperationException("Unexpected call during test.");
             })
+        .cacheTokensSupplier(() -> Collections.emptyList())
+        .bundleCacheSupplier(() -> Caches.noop())
+        .processWideCache(Caches.noop())
         .pCollections(Collections.emptyMap()) // expected to be immutable
         .coders(Collections.emptyMap()) // expected to be immutable
         .windowingStrategies(Collections.emptyMap()) // expected to be immutable
@@ -157,6 +161,12 @@ public abstract class PTransformRunnerFactoryTestContext
     Builder pTransform(RunnerApi.PTransform value);
 
     Builder processBundleInstructionIdSupplier(Supplier<String> value);
+
+    Builder cacheTokensSupplier(Supplier<List<BeamFnApi.ProcessBundleRequest.CacheToken>> value);
+
+    Builder bundleCacheSupplier(Supplier<Cache<?, ?>> value);
+
+    Builder processWideCache(Cache<?, ?> value);
 
     default Builder processBundleInstructionId(String value) {
       return processBundleInstructionIdSupplier(() -> value);

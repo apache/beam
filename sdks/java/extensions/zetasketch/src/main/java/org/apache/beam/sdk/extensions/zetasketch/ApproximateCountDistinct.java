@@ -36,8 +36,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * {@code PTransform}s for estimating the number of distinct elements in a {@code PCollection}, or
@@ -78,8 +76,6 @@ import org.slf4j.LoggerFactory;
  */
 @Experimental
 public class ApproximateCountDistinct {
-
-  private static final Logger LOG = LoggerFactory.getLogger(ApproximateCountDistinct.class);
 
   private static final List<TypeDescriptor<?>> HLL_IMPLEMENTED_TYPES =
       ImmutableList.of(

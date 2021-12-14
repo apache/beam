@@ -376,7 +376,6 @@ public class WindmillStateCacheTest {
         cache.forComputation("comp1").forKey(computationKey("comp1", "key1", SHARDING_KEY), 0L, 0L);
     WindmillStateCache.ForKeyAndFamily family1 = keyCache.forFamily("family1");
     WindmillStateCache.ForKeyAndFamily family2 = keyCache.forFamily("family2");
-    WindmillStateCache.ForKeyAndFamily family3 = keyCache.forFamily("family3");
 
     TestState state1 = new TestState("g1");
     family1.put(StateNamespaces.global(), tag, state1, 2);
@@ -392,7 +391,7 @@ public class WindmillStateCacheTest {
         cache.forComputation("comp1").forKey(computationKey("comp1", "key1", SHARDING_KEY), 0L, 1L);
     family1 = keyCache.forFamily("family1");
     family2 = keyCache.forFamily("family2");
-    family3 = keyCache.forFamily("family3");
+    WindmillStateCache.ForKeyAndFamily family3 = keyCache.forFamily("family3");
     assertEquals(state1, family1.get(StateNamespaces.global(), tag));
     assertEquals(state2, family2.get(StateNamespaces.global(), tag));
     assertNull(family3.get(StateNamespaces.global(), tag));
