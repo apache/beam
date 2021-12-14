@@ -33,6 +33,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
+import org.apache.beam.fn.harness.Cache;
+import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -70,12 +72,10 @@ public class MultimapUserStateTest {
     FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(Collections.emptyMap());
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
+            Caches.noop(),
             fakeClient,
             "instructionId",
-            pTransformId,
-            stateId,
-            encode(encodedWindow),
-            encode(encodedKey),
+            createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of());
     assertThat(userState.keys(), is(emptyIterable()));
@@ -92,12 +92,10 @@ public class MultimapUserStateTest {
                 KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
+            Caches.noop(),
             fakeClient,
             "instructionId",
-            pTransformId,
-            stateId,
-            encode(encodedWindow),
-            encode(encodedKey),
+            createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of());
 
@@ -122,12 +120,10 @@ public class MultimapUserStateTest {
                 KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
+            Caches.noop(),
             fakeClient,
             "instructionId",
-            pTransformId,
-            stateId,
-            encode(encodedWindow),
-            encode(encodedKey),
+            createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of());
 
@@ -158,12 +154,10 @@ public class MultimapUserStateTest {
                 KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
+            Caches.noop(),
             fakeClient,
             "instructionId",
-            pTransformId,
-            stateId,
-            encode(encodedWindow),
-            encode(encodedKey),
+            createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of());
 
@@ -192,12 +186,10 @@ public class MultimapUserStateTest {
                 KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
+            Caches.noop(),
             fakeClient,
             "instructionId",
-            pTransformId,
-            stateId,
-            encode(encodedWindow),
-            encode(encodedKey),
+            createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of());
 
@@ -221,20 +213,17 @@ public class MultimapUserStateTest {
                 KV.of(StringUtf8Coder.of(), asList("V1"))));
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
+            Caches.noop(),
             fakeClient,
             "instructionId",
-            pTransformId,
-            stateId,
-            encode(encodedWindow),
-            encode(encodedKey),
+            createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of());
     userState.remove(A0);
     userState.put(A0, "V2");
     assertArrayEquals(new String[] {"V2"}, Iterables.toArray(userState.get(A0), String.class));
     userState.asyncClose();
-    Map<StateKey, ByteString> data = fakeClient.getData();
-    assertEquals(encode("V2"), data.get(createMultimapValueStateKey(A0)));
+    assertEquals(encode("V2"), fakeClient.getData().get(createMultimapValueStateKey(A0)));
   }
 
   @Test
@@ -248,12 +237,10 @@ public class MultimapUserStateTest {
                 KV.of(StringUtf8Coder.of(), asList("V1"))));
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
+            Caches.noop(),
             fakeClient,
             "instructionId",
-            pTransformId,
-            stateId,
-            encode(encodedWindow),
-            encode(encodedKey),
+            createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of());
     userState.clear();
@@ -272,12 +259,10 @@ public class MultimapUserStateTest {
                 KV.of(StringUtf8Coder.of(), asList("V1"))));
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
+            Caches.noop(),
             fakeClient,
             "instructionId",
-            pTransformId,
-            stateId,
-            encode(encodedWindow),
-            encode(encodedKey),
+            createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of());
     userState.remove(A0);
@@ -292,12 +277,10 @@ public class MultimapUserStateTest {
     FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(Collections.emptyMap());
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
+            Caches.noop(),
             fakeClient,
             "instructionId",
-            pTransformId,
-            stateId,
-            encode(encodedWindow),
-            encode(encodedKey),
+            createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of());
     userState.put(A0, "V0");
@@ -315,12 +298,10 @@ public class MultimapUserStateTest {
     FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(Collections.emptyMap());
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
+            Caches.noop(),
             fakeClient,
             "instructionId",
-            pTransformId,
-            stateId,
-            encode(encodedWindow),
-            encode(encodedKey),
+            createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of());
     userState.put(A0, "V0");
@@ -346,12 +327,10 @@ public class MultimapUserStateTest {
                 KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
+            Caches.noop(),
             fakeClient,
             "instructionId",
-            pTransformId,
-            stateId,
-            encode(encodedWindow),
-            encode(encodedKey),
+            createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of());
 
@@ -376,12 +355,10 @@ public class MultimapUserStateTest {
                 KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
+            Caches.noop(),
             fakeClient,
             "instructionId",
-            pTransformId,
-            stateId,
-            encode(encodedWindow),
-            encode(encodedKey),
+            createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of());
     Iterable<byte[]> keys = userState.keys();
@@ -401,12 +378,10 @@ public class MultimapUserStateTest {
                 KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
+            Caches.noop(),
             fakeClient,
             "instructionId",
-            pTransformId,
-            stateId,
-            encode(encodedWindow),
-            encode(encodedKey),
+            createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of());
     Iterable<String> values = userState.get(A1);
@@ -426,12 +401,10 @@ public class MultimapUserStateTest {
                 KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
+            Caches.noop(),
             fakeClient,
             "instructionId",
-            pTransformId,
-            stateId,
-            encode(encodedWindow),
-            encode(encodedKey),
+            createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of());
     userState.clear();
@@ -452,12 +425,10 @@ public class MultimapUserStateTest {
                 KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
+            Caches.noop(),
             fakeClient,
             "instructionId",
-            pTransformId,
-            stateId,
-            encode(encodedWindow),
-            encode(encodedKey),
+            createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of());
     userState.asyncClose();
@@ -478,12 +449,10 @@ public class MultimapUserStateTest {
                 KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
+            Caches.noop(),
             fakeClient,
             "instructionId",
-            pTransformId,
-            stateId,
-            encode(encodedWindow),
-            encode(encodedKey),
+            createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of());
     userState.remove(A0);
@@ -509,12 +478,10 @@ public class MultimapUserStateTest {
                 KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
+            Caches.noop(),
             fakeClient,
             "instructionId",
-            pTransformId,
-            stateId,
-            encode(encodedWindow),
-            encode(encodedKey),
+            createMultimapKeyStateKey(),
             NullableCoder.of(ByteArrayCoder.of()),
             NullableCoder.of(StringUtf8Coder.of()));
     userState.put(null, null);
@@ -529,12 +496,10 @@ public class MultimapUserStateTest {
     FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(Collections.emptyMap());
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
+            Caches.eternal(),
             fakeClient,
             "instructionId",
-            pTransformId,
-            stateId,
-            encode(encodedWindow),
-            encode(encodedKey),
+            createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of());
     assertArrayEquals(new String[] {}, Iterables.toArray(userState.get(A1), String.class));
@@ -553,12 +518,10 @@ public class MultimapUserStateTest {
                 KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
+            Caches.eternal(),
             fakeClient,
             "instructionId",
-            pTransformId,
-            stateId,
-            encode(encodedWindow),
-            encode(encodedKey),
+            createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of());
 
@@ -581,12 +544,10 @@ public class MultimapUserStateTest {
                 KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
+            Caches.eternal(),
             fakeClient,
             "instructionId",
-            pTransformId,
-            stateId,
-            encode(encodedWindow),
-            encode(encodedKey),
+            createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of());
 
@@ -609,12 +570,10 @@ public class MultimapUserStateTest {
                 KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
+            Caches.eternal(),
             fakeClient,
             "instructionId",
-            pTransformId,
-            stateId,
-            encode(encodedWindow),
-            encode(encodedKey),
+            createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of());
 
@@ -638,12 +597,10 @@ public class MultimapUserStateTest {
                 KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
+            Caches.noop(),
             fakeClient,
             "instructionId",
-            pTransformId,
-            stateId,
-            encode(encodedWindow),
-            encode(encodedKey),
+            createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of());
 
@@ -670,12 +627,10 @@ public class MultimapUserStateTest {
                 KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
+            Caches.noop(),
             fakeClient,
             "instructionId",
-            pTransformId,
-            stateId,
-            encode(encodedWindow),
-            encode(encodedKey),
+            createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of());
 
@@ -702,12 +657,10 @@ public class MultimapUserStateTest {
                 KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
+            Caches.eternal(),
             fakeClient,
             "instructionId",
-            pTransformId,
-            stateId,
-            encode(encodedWindow),
-            encode(encodedKey),
+            createMultimapKeyStateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of());
 
@@ -718,6 +671,369 @@ public class MultimapUserStateTest {
     assertEquals(1, fakeClient.getCallCount());
     assertArrayEquals(new String[] {"V1", "V2", "V3"}, Iterables.toArray(values, String.class));
     assertEquals(1, fakeClient.getCallCount());
+  }
+
+  @Test
+  public void testNoPersistedValuesCached() throws Exception {
+    FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(Collections.emptyMap());
+    Cache<?, ?> cache = Caches.eternal();
+    {
+      // First user state populates the cache.
+      MultimapUserState<byte[], String> userState =
+          new MultimapUserState<>(
+              cache,
+              fakeClient,
+              "instructionId",
+              createMultimapKeyStateKey(),
+              ByteArrayCoder.of(),
+              StringUtf8Coder.of());
+      assertThat(userState.keys(), is(emptyIterable()));
+      assertThat(userState.get(A1), is(emptyIterable()));
+    }
+
+    {
+      // The next user state will load all of its contents from the cache.
+      MultimapUserState<byte[], String> userState =
+          new MultimapUserState<>(
+              cache,
+              requestBuilder -> {
+                throw new IllegalStateException("Unexpected call for test.");
+              },
+              "instructionId",
+              createMultimapKeyStateKey(),
+              ByteArrayCoder.of(),
+              StringUtf8Coder.of());
+      assertThat(userState.keys(), is(emptyIterable()));
+      assertThat(userState.get(A1), is(emptyIterable()));
+    }
+  }
+
+  @Test
+  public void testGetCached() throws Exception {
+    FakeBeamFnStateClient fakeClient =
+        new FakeBeamFnStateClient(
+            ImmutableMap.of(
+                createMultimapKeyStateKey(),
+                KV.of(ByteArrayCoder.of(), singletonList(A1)),
+                createMultimapValueStateKey(A1),
+                KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
+    Cache<?, ?> cache = Caches.eternal();
+    {
+      // First user state populates the cache.
+      MultimapUserState<byte[], String> userState =
+          new MultimapUserState<>(
+              cache,
+              fakeClient,
+              "instructionId",
+              createMultimapKeyStateKey(),
+              ByteArrayCoder.of(),
+              StringUtf8Coder.of());
+
+      assertArrayEquals(
+          new String[] {"V1", "V2"}, Iterables.toArray(userState.get(A1), String.class));
+      userState.asyncClose();
+    }
+
+    {
+      // The next user state will load all of its contents from the cache.
+      MultimapUserState<byte[], String> userState =
+          new MultimapUserState<>(
+              cache,
+              requestBuilder -> {
+                throw new IllegalStateException("Unexpected call for test.");
+              },
+              "instructionId",
+              createMultimapKeyStateKey(),
+              ByteArrayCoder.of(),
+              StringUtf8Coder.of());
+
+      assertArrayEquals(
+          new String[] {"V1", "V2"}, Iterables.toArray(userState.get(A1), String.class));
+      userState.asyncClose();
+    }
+  }
+
+  @Test
+  public void testClearCached() throws Exception {
+    FakeBeamFnStateClient fakeClient =
+        new FakeBeamFnStateClient(
+            ImmutableMap.of(
+                createMultimapKeyStateKey(),
+                KV.of(ByteArrayCoder.of(), singletonList(A1)),
+                createMultimapValueStateKey(A1),
+                KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
+    Cache<?, ?> cache = Caches.eternal();
+    {
+      // First user state populates the cache.
+      MultimapUserState<byte[], String> userState =
+          new MultimapUserState<>(
+              cache,
+              fakeClient,
+              "instructionId",
+              createMultimapKeyStateKey(),
+              ByteArrayCoder.of(),
+              StringUtf8Coder.of());
+
+      userState.clear();
+      assertThat(userState.keys(), is(emptyIterable()));
+      userState.asyncClose();
+    }
+
+    {
+      // The next user state will load all of its contents from the cache including the mutations
+      // persisted via asyncClose.
+      MultimapUserState<byte[], String> userState =
+          new MultimapUserState<>(
+              cache,
+              requestBuilder -> {
+                throw new IllegalStateException("Unexpected call for test.");
+              },
+              "instructionId",
+              createMultimapKeyStateKey(),
+              ByteArrayCoder.of(),
+              StringUtf8Coder.of());
+
+      assertThat(userState.keys(), is(emptyIterable()));
+      userState.asyncClose();
+    }
+  }
+
+  @Test
+  public void testKeysCached() throws Exception {
+    FakeBeamFnStateClient fakeClient =
+        new FakeBeamFnStateClient(
+            ImmutableMap.of(
+                createMultimapKeyStateKey(),
+                KV.of(ByteArrayCoder.of(), singletonList(A1)),
+                createMultimapValueStateKey(A1),
+                KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
+    Cache<?, ?> cache = Caches.eternal();
+    {
+      // First user state populates the cache.
+      MultimapUserState<byte[], String> userState =
+          new MultimapUserState<>(
+              cache,
+              fakeClient,
+              "instructionId",
+              createMultimapKeyStateKey(),
+              ByteArrayCoder.of(),
+              StringUtf8Coder.of());
+
+      userState.put(A2, "V1");
+      userState.put(A3, "V1");
+      assertArrayEquals(
+          new byte[][] {A1, A2, A3}, Iterables.toArray(userState.keys(), byte[].class));
+      userState.asyncClose();
+    }
+
+    {
+      // The next user state will load all of its contents from the cache including the mutations
+      // persisted via asyncClose.
+      MultimapUserState<byte[], String> userState =
+          new MultimapUserState<>(
+              cache,
+              requestBuilder -> {
+                throw new IllegalStateException("Unexpected call for test.");
+              },
+              "instructionId",
+              createMultimapKeyStateKey(),
+              ByteArrayCoder.of(),
+              StringUtf8Coder.of());
+
+      assertArrayEquals(
+          new byte[][] {A1, A2, A3}, Iterables.toArray(userState.keys(), byte[].class));
+      userState.asyncClose();
+    }
+  }
+
+  @Test
+  public void testPutCached() throws Exception {
+    FakeBeamFnStateClient fakeClient =
+        new FakeBeamFnStateClient(
+            ImmutableMap.of(
+                createMultimapKeyStateKey(),
+                KV.of(ByteArrayCoder.of(), singletonList(A1)),
+                createMultimapValueStateKey(A1),
+                KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
+    Cache<?, ?> cache = Caches.eternal();
+    {
+      // First user state populates the cache.
+      MultimapUserState<byte[], String> userState =
+          new MultimapUserState<>(
+              cache,
+              fakeClient,
+              "instructionId",
+              createMultimapKeyStateKey(),
+              ByteArrayCoder.of(),
+              StringUtf8Coder.of());
+
+      userState.put(A1, "V3");
+      userState.put(A2, "V1");
+      assertArrayEquals(
+          new String[] {"V1", "V2", "V3"}, Iterables.toArray(userState.get(A1), String.class));
+      userState.asyncClose();
+    }
+
+    {
+      // The next user state will load all of its contents from the cache including the mutations
+      // persisted via asyncClose except for A2 since it was never loaded so the mutation is
+      // discarded.
+      int callCount = fakeClient.getCallCount();
+      MultimapUserState<byte[], String> userState =
+          new MultimapUserState<>(
+              cache,
+              fakeClient,
+              "instructionId",
+              createMultimapKeyStateKey(),
+              ByteArrayCoder.of(),
+              StringUtf8Coder.of());
+
+      assertArrayEquals(
+          new String[] {"V1", "V2", "V3"}, Iterables.toArray(userState.get(A1), String.class));
+      assertEquals(callCount, fakeClient.getCallCount());
+      // We expect one call when loading A2 since the append would have been discarded since the
+      // key was never fully loaded.
+      assertArrayEquals(new String[] {"V1"}, Iterables.toArray(userState.get(A2), String.class));
+      assertEquals(callCount + 1, fakeClient.getCallCount());
+      userState.asyncClose();
+    }
+  }
+
+  @Test
+  public void testPutAfterRemoveCached() throws Exception {
+    FakeBeamFnStateClient fakeClient =
+        new FakeBeamFnStateClient(
+            ImmutableMap.of(
+                createMultimapKeyStateKey(),
+                KV.of(ByteArrayCoder.of(), singletonList(A0)),
+                createMultimapValueStateKey(A0),
+                KV.of(StringUtf8Coder.of(), asList("V1"))));
+    Cache<?, ?> cache = Caches.eternal();
+    {
+      // First user state populates the cache.
+      MultimapUserState<byte[], String> userState =
+          new MultimapUserState<>(
+              cache,
+              fakeClient,
+              "instructionId",
+              createMultimapKeyStateKey(),
+              ByteArrayCoder.of(),
+              StringUtf8Coder.of());
+
+      userState.remove(A0);
+      userState.put(A0, "V2");
+      userState.asyncClose();
+    }
+
+    {
+      // The next user state will load all of its contents from the cache including the mutations
+      // persisted via asyncClose.
+      MultimapUserState<byte[], String> userState =
+          new MultimapUserState<>(
+              cache,
+              requestBuilder -> {
+                throw new IllegalStateException("Unexpected call for test.");
+              },
+              "instructionId",
+              createMultimapKeyStateKey(),
+              ByteArrayCoder.of(),
+              StringUtf8Coder.of());
+      assertArrayEquals(new String[] {"V2"}, Iterables.toArray(userState.get(A0), String.class));
+      userState.asyncClose();
+    }
+  }
+
+  @Test
+  public void testPutAfterClearCached() throws Exception {
+    FakeBeamFnStateClient fakeClient =
+        new FakeBeamFnStateClient(
+            ImmutableMap.of(
+                createMultimapKeyStateKey(),
+                KV.of(ByteArrayCoder.of(), singletonList(A0)),
+                createMultimapValueStateKey(A0),
+                KV.of(StringUtf8Coder.of(), asList("V1"))));
+    Cache<?, ?> cache = Caches.eternal();
+    {
+      // First user state populates the cache.
+      MultimapUserState<byte[], String> userState =
+          new MultimapUserState<>(
+              cache,
+              fakeClient,
+              "instructionId",
+              createMultimapKeyStateKey(),
+              ByteArrayCoder.of(),
+              StringUtf8Coder.of());
+      userState.clear();
+      userState.put(A0, "V2");
+      userState.asyncClose();
+    }
+
+    {
+      // The next user state will load all of its contents from the cache including the mutations
+      // persisted via asyncClose.
+      MultimapUserState<byte[], String> userState =
+          new MultimapUserState<>(
+              cache,
+              requestBuilder -> {
+                throw new IllegalStateException("Unexpected call for test.");
+              },
+              "instructionId",
+              createMultimapKeyStateKey(),
+              ByteArrayCoder.of(),
+              StringUtf8Coder.of());
+      assertArrayEquals(new String[] {"V2"}, Iterables.toArray(userState.get(A0), String.class));
+      // Even though we never load
+      assertArrayEquals(new byte[][] {A0}, Iterables.toArray(userState.keys(), byte[].class));
+      userState.asyncClose();
+    }
+  }
+
+  @Test
+  public void testRemoveCached() throws Exception {
+    FakeBeamFnStateClient fakeClient =
+        new FakeBeamFnStateClient(
+            ImmutableMap.of(
+                createMultimapKeyStateKey(),
+                KV.of(ByteArrayCoder.of(), singletonList(A1)),
+                createMultimapValueStateKey(A1),
+                KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
+    Cache<?, ?> cache = Caches.eternal();
+    {
+      // First user state populates the cache.
+      MultimapUserState<byte[], String> userState =
+          new MultimapUserState<>(
+              cache,
+              fakeClient,
+              "instructionId",
+              createMultimapKeyStateKey(),
+              ByteArrayCoder.of(),
+              StringUtf8Coder.of());
+      assertArrayEquals(
+          new String[] {"V1", "V2"}, Iterables.toArray(userState.get(A1), String.class));
+      userState.remove(A1);
+      userState.remove(A2);
+      assertThat(userState.keys(), is(emptyIterable()));
+      userState.asyncClose();
+    }
+
+    {
+      // The next user state will load all of its contents from the cache including the mutations
+      // persisted via asyncClose.
+      MultimapUserState<byte[], String> userState =
+          new MultimapUserState<>(
+              cache,
+              requestBuilder -> {
+                throw new IllegalStateException("Unexpected call for test.");
+              },
+              "instructionId",
+              createMultimapKeyStateKey(),
+              ByteArrayCoder.of(),
+              StringUtf8Coder.of());
+      assertThat(userState.get(A1), is(emptyIterable()));
+      assertThat(userState.get(A2), is(emptyIterable()));
+      assertThat(userState.keys(), is(emptyIterable()));
+      userState.asyncClose();
+    }
   }
 
   private StateKey createMultimapKeyStateKey() throws IOException {

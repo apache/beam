@@ -191,7 +191,6 @@ public class PrefetchableIteratorsTest {
 
     @Override
     public boolean hasNext() {
-      advancedSincePrefetch = true;
       return super.hasNext();
     }
   }

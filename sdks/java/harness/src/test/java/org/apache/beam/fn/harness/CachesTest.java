@@ -17,10 +17,6 @@
  */
 package org.apache.beam.fn.harness;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.emptyIterable;
-import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
@@ -39,7 +35,6 @@ public class CachesTest {
     assertNull(cache.peek("key"));
     assertEquals("value", cache.computeIfAbsent("key", (unused) -> "value"));
     assertNull(cache.peek("key"));
-    assertThat(cache.keys(), is(emptyIterable()));
   }
 
   @Test
@@ -70,16 +65,6 @@ public class CachesTest {
     assertEquals("valueA", cacheA.peek("keyA"));
     assertEquals("valueA", cacheACopy.peek("keyA"));
     assertNull(cacheB.peek("keyA"));
-
-    // Test clearing a cache with a different prefix doesn't impact keys without the same prefix
-    cacheB.clear();
-    assertEquals("valueA", cacheA.peek("keyA"));
-    assertEquals("valueA", cacheACopy.peek("keyA"));
-
-    // Test clearing a cache with the same prefix impacts other instances
-    cacheACopy.clear();
-    assertNull(cacheA.peek("keyA"));
-    assertNull(cacheACopy.peek("keyA"));
   }
 
   @Test
@@ -109,15 +94,6 @@ public class CachesTest {
     childOfChild.remove("keyB");
     assertEquals("childB", child.peek("keyB"));
     assertNull(childOfChild.peek("keyB"));
-
-    // Test that clearing the middle cache impacts children but not parent
-    parent.put("keyA", "parentA");
-    parent.put("keyB", "parentB");
-    child.clear();
-    assertThat(child.keys(), is(emptyIterable()));
-    assertThat(childOfChild.keys(), is(emptyIterable()));
-    assertEquals("parentA", parent.peek("keyA"));
-    assertEquals("parentB", parent.peek("keyB"));
   }
 
   private void testCache(Cache<String, String> cache) {
@@ -135,18 +111,9 @@ public class CachesTest {
     assertEquals("value2", cache.computeIfAbsent("key2", (unused) -> "value2"));
     assertEquals("value2", cache.peek("key2"));
 
-    assertThat(cache.keys(), containsInAnyOrder("key1", "key2"));
-
     // Test removal
     cache.remove("key1");
     assertNull(cache.peek("key1"));
     assertEquals("value2", cache.peek("key2"));
-    assertThat(cache.keys(), containsInAnyOrder("key2"));
-
-    // Test clear
-    cache.clear();
-    assertNull(cache.peek("key1"));
-    assertNull(cache.peek("key2"));
-    assertThat(cache.keys(), is(emptyIterable()));
   }
 }

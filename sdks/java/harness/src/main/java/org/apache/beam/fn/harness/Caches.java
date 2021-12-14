@@ -21,20 +21,49 @@ import java.util.Arrays;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import org.apache.beam.fn.harness.Cache.Shrinkable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.SdkHarnessOptions;
+import org.apache.beam.sdk.util.Weighted;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.cache2k.Cache2kBuilder;
+import org.cache2k.CacheEntry;
+import org.cache2k.event.CacheEntryEvictedListener;
 import org.cache2k.operation.Weigher;
 import org.github.jamm.MemoryMeter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Utility methods used to instantiate and operate over cache instances. */
 @SuppressWarnings("nullness")
 public final class Caches {
+  private static final Logger LOGGER = LoggerFactory.getLogger(Caches.class);
+
+  private static final int WEIGHT_RATIO = 64;
+
+  private static final MemoryMeter MEMORY_METER = MemoryMeter.builder().build();
+
+  public static long weigh(Object o) {
+    return MEMORY_METER.measureDeep(o);
+  }
+
+  private static class ShrinkOnEviction implements CacheEntryEvictedListener<CompositeKey, Object> {
+    private static final ShrinkOnEviction INSTANCE = new ShrinkOnEviction();
+    @Override
+    public void onEntryEvicted(org.cache2k.Cache<CompositeKey, Object> cache, CacheEntry<CompositeKey, Object> entry) throws Exception {
+      if (!(entry instanceof Cache.Shrinkable)) {
+        return;
+      }
+      Object updatedEntry = ((Shrinkable<?>) entry).shrink();
+      if (updatedEntry != null) {
+        cache.put(entry.getKey(), updatedEntry);
+      }
+    }
+  }
 
   /** A cache that never stores any values. */
   public static <K, V> Cache<K, V> noop() {
@@ -45,6 +74,7 @@ public final class Caches {
             .entryCapacity(1)
             .storeByReference(true)
             .expireAfterWrite(0, TimeUnit.NANOSECONDS)
+            .addListener(ShrinkOnEviction.INSTANCE)
             .sharpExpiry(true)
             .executor(MoreExecutors.directExecutor())
             .build();
@@ -60,6 +90,7 @@ public final class Caches {
         Cache2kBuilder.of(CompositeKey.class, Object.class)
             .entryCapacity(Long.MAX_VALUE)
             .storeByReference(true)
+            .addListener(ShrinkOnEviction.INSTANCE)
             .executor(MoreExecutors.directExecutor())
             .build();
     return (Cache<K, V>) forCache(cache);
@@ -78,15 +109,25 @@ public final class Caches {
                 options.as(SdkHarnessOptions.class).getMaxCacheMemoryUsageMb() * 1024L * 1024L)
             .weigher(
                 new Weigher<CompositeKey, Object>() {
-                  private final MemoryMeter memoryMeter = MemoryMeter.builder().build();
 
                   @Override
                   public int weigh(CompositeKey key, Object value) {
-                    long size = memoryMeter.measureDeep(key) + memoryMeter.measureDeep(value);
-                    return size > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) size;
+                    long size;
+                    if (value instanceof Weighted) {
+                      size = Caches.weigh(key) + ((Weighted) value).getWeight();
+                    } else {
+                      size = Caches.weigh(key) + Caches.weigh(value);
+                    }
+                    size = size / WEIGHT_RATIO + 1;
+                    if (size >= Integer.MAX_VALUE) {
+                      LOGGER.warn("Entry with size {} MiBs inserted into the cache. This is larger than the maximum individual entry size of {} MiBs. The cache will under report its memory usage by the difference. This may lead to OutOfMemoryErrors.", (size / 1048576L) + 1, 2 * WEIGHT_RATIO * 1024);
+                      return Integer.MAX_VALUE;
+                    }
+                    return (int) size;
                   }
                 })
             .storeByReference(true)
+            .addListener(ShrinkOnEviction.INSTANCE)
             .executor(MoreExecutors.directExecutor())
             .build();
 
@@ -98,9 +139,6 @@ public final class Caches {
    *
    * <p>All lookups, insertions, and removals into the parent {@link Cache} will be prefixed by the
    * specified prefixes.
-   *
-   * <p>Operations which operate over the entire caches contents such as {@link Cache#clear} only
-   * operate over keys with the specified prefixes.
    */
   public static <K, V> Cache<K, V> subCache(
       Cache<?, ?> cache, Object keyPrefix, Object... additionalKeyPrefix) {
@@ -124,9 +162,6 @@ public final class Caches {
    *
    * <p>All lookups, insertions, and removals into the parent {@link Cache} will be prefixed by the
    * specified prefixes.
-   *
-   * <p>Operations which operate over the entire caches contents such as {@link Cache#clear} only
-   * operate over keys with the specified prefixes.
    */
   private static class SubCache<K, V> implements Cache<K, V> {
     private final org.cache2k.Cache<CompositeKey, Object> cache;
@@ -151,20 +186,6 @@ public final class Caches {
     @Override
     public void put(K key, V value) {
       cache.put(keyPrefix.valueKey(key), value);
-    }
-
-    @Override
-    public void clear() {
-      for (CompositeKey key : Sets.filter(cache.keys(), keyPrefix::isProperPrefixOf)) {
-        cache.remove(key);
-      }
-    }
-
-    @Override
-    public Iterable<K> keys() {
-      return Iterables.transform(
-          Sets.filter(cache.keys(), keyPrefix::isEquivalentNamespace),
-          input -> (K) Preconditions.checkNotNull(input.key));
     }
 
     @Override

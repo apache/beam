@@ -17,7 +17,6 @@
  */
 package org.apache.beam.fn.harness.state;
 
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -27,20 +26,19 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
-import org.apache.beam.fn.harness.state.StateFetchingIterators.FirstPageAndRemainder;
+import org.apache.beam.fn.harness.Caches;
+import org.apache.beam.fn.harness.state.StateFetchingIterators.CachingStateIterable;
 import org.apache.beam.fn.harness.state.StateFetchingIterators.LazyBlockingStateFetchingIterator;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateGetRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateGetResponse;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.fn.stream.PrefetchableIterable;
+import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterator;
-import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Ints;
 import org.junit.Test;
 import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
@@ -68,7 +66,6 @@ public class StateFetchingIteratorsTest {
       if (!ByteString.EMPTY.equals(continuationToken)) {
         requestedPosition = Integer.parseInt(continuationToken.toStringUtf8());
       }
-
       // Compute the new continuation token
       ByteString newContinuationToken = ByteString.EMPTY;
       if (requestedPosition != expected.length - 1) {
@@ -83,6 +80,82 @@ public class StateFetchingIteratorsTest {
                       .setContinuationToken(newContinuationToken))
               .build());
     };
+  }
+
+  /** Tests for {@link CachingStateIterable}. */
+  @RunWith(JUnit4.class)
+  public static class CachingStateIterableTest {
+
+    @Test
+    public void testEmpty() throws Exception {
+      testFetch(4);
+    }
+
+    @Test
+    public void testNonEmpty() throws Exception {
+      testFetch(4, 0);
+    }
+
+    @Test
+    public void testMultipleElementsPerChunk() throws Exception {
+      testFetch(8, 0, 1, 2, 3, 4, 5);
+    }
+
+    @Test
+    public void testSingleElementPerChunk() throws Exception {
+      testFetch(4, 0, 1, 2, 3, 4, 5);
+    }
+
+    @Test
+    public void testChunkSmallerThenElementSize() throws Exception {
+      testFetch(3, 0, 1, 2, 3, 4, 5);
+    }
+
+    @Test
+    public void testChunkLargerThenElementSize() throws Exception {
+      testFetch(5, 0, 1, 2, 3, 4, 5);
+    }
+
+    private void testFetch(int chunkSize, int... expected) throws Exception {
+      StateRequest requestForFirstChunk =
+          StateRequest.newBuilder()
+              .setStateKey(
+                  StateKey.newBuilder()
+                      .setBagUserState(
+                          StateKey.BagUserState.newBuilder()
+                              .setTransformId("transformId")
+                              .setUserStateId("stateId")
+                              .setKey(ByteString.copyFromUtf8("key"))
+                              .setWindow(ByteString.copyFromUtf8("window"))))
+              .setGet(StateGetRequest.getDefaultInstance())
+              .build();
+      FakeBeamFnStateClient fakeStateClient =
+          new FakeBeamFnStateClient(
+              BigEndianIntegerCoder.of(),
+              ImmutableMap.of(requestForFirstChunk.getStateKey(), Ints.asList(expected)),
+              chunkSize);
+
+      PrefetchableIterator<Integer> byteStrings =
+          new CachingStateIterable<>(
+                  Caches.eternal(),
+                  fakeStateClient,
+                  requestForFirstChunk,
+                  BigEndianIntegerCoder.of())
+              .iterator();
+
+      assertEquals(0, fakeStateClient.getCallCount()); // Ensure it's fully lazy.
+      assertFalse(byteStrings.isReady());
+
+      List<Integer> results = new ArrayList<>();
+      for (int i = 0; i < expected.length; ++i) {
+        assertTrue(byteStrings.hasNext());
+        results.add(byteStrings.next());
+      }
+      assertFalse(byteStrings.hasNext());
+      assertTrue(byteStrings.isReady());
+
+      assertEquals(Ints.asList(expected), results);
+    }
   }
 
   /** Tests for {@link StateFetchingIterators.LazyBlockingStateFetchingIterator}. */
@@ -120,40 +193,6 @@ public class StateFetchingIteratorsTest {
           ByteString.EMPTY);
     }
 
-    private BeamFnStateClient fakeStateClient(AtomicInteger callCount, ByteString... expected) {
-      return (requestBuilder) -> {
-        callCount.incrementAndGet();
-        if (expected.length == 0) {
-          return CompletableFuture.completedFuture(
-              StateResponse.newBuilder()
-                  .setId(requestBuilder.getId())
-                  .setGet(StateGetResponse.newBuilder())
-                  .build());
-        }
-
-        ByteString continuationToken = requestBuilder.getGet().getContinuationToken();
-
-        int requestedPosition = 0; // Default position is 0
-        if (!ByteString.EMPTY.equals(continuationToken)) {
-          requestedPosition = Integer.parseInt(continuationToken.toStringUtf8());
-        }
-
-        // Compute the new continuation token
-        ByteString newContinuationToken = ByteString.EMPTY;
-        if (requestedPosition != expected.length - 1) {
-          newContinuationToken = ByteString.copyFromUtf8(Integer.toString(requestedPosition + 1));
-        }
-        return CompletableFuture.completedFuture(
-            StateResponse.newBuilder()
-                .setId(requestBuilder.getId())
-                .setGet(
-                    StateGetResponse.newBuilder()
-                        .setData(expected[requestedPosition])
-                        .setContinuationToken(newContinuationToken))
-                .build());
-      };
-    }
-
     @Test
     public void testPrefetchIgnoredWhenExistingPrefetchOngoing() throws Exception {
       AtomicInteger callCount = new AtomicInteger();
@@ -166,7 +205,8 @@ public class StateFetchingIteratorsTest {
             }
           };
       PrefetchableIterator<ByteString> byteStrings =
-          new LazyBlockingStateFetchingIterator(fakeStateClient, StateRequest.getDefaultInstance());
+          new LazyBlockingStateFetchingIterator(
+              Caches.noop(), fakeStateClient, StateRequest.getDefaultInstance());
       assertEquals(0, callCount.get());
       byteStrings.prefetch();
       assertEquals(1, callCount.get()); // first prefetch
@@ -174,11 +214,53 @@ public class StateFetchingIteratorsTest {
       assertEquals(1, callCount.get()); // subsequent is ignored
     }
 
+    @Test
+    public void testSeekToContinuationToken() throws Exception {
+      BeamFnStateClient fakeStateClient =
+          new BeamFnStateClient() {
+            @Override
+            public CompletableFuture<StateResponse> handle(StateRequest.Builder requestBuilder) {
+              int token = 0;
+              if (!ByteString.EMPTY.equals(requestBuilder.getGet().getContinuationToken())) {
+                token =
+                    Integer.parseInt(requestBuilder.getGet().getContinuationToken().toStringUtf8());
+              }
+              return CompletableFuture.completedFuture(
+                  StateResponse.newBuilder()
+                      .setGet(
+                          StateGetResponse.newBuilder()
+                              .setData(ByteString.copyFromUtf8("value" + token))
+                              .setContinuationToken(
+                                  ByteString.copyFromUtf8(Integer.toString(token + 1))))
+                      .build());
+            }
+          };
+      LazyBlockingStateFetchingIterator byteStrings =
+          new LazyBlockingStateFetchingIterator(
+              Caches.noop(), fakeStateClient, StateRequest.getDefaultInstance());
+      assertEquals(ByteString.copyFromUtf8("value" + 0), byteStrings.next());
+      assertEquals(ByteString.copyFromUtf8("value" + 1), byteStrings.next());
+      assertEquals(ByteString.copyFromUtf8("value" + 2), byteStrings.next());
+
+      // Seek to the beginning
+      byteStrings.seekToContinuationToken(ByteString.EMPTY);
+      assertEquals(ByteString.copyFromUtf8("value" + 0), byteStrings.next());
+      assertEquals(ByteString.copyFromUtf8("value" + 1), byteStrings.next());
+      assertEquals(ByteString.copyFromUtf8("value" + 2), byteStrings.next());
+
+      // Seek to an arbitrary offset
+      byteStrings.seekToContinuationToken(ByteString.copyFromUtf8("42"));
+      assertEquals(ByteString.copyFromUtf8("value" + 42), byteStrings.next());
+      assertEquals(ByteString.copyFromUtf8("value" + 43), byteStrings.next());
+      assertEquals(ByteString.copyFromUtf8("value" + 44), byteStrings.next());
+    }
+
     private void testFetch(ByteString... expected) {
       AtomicInteger callCount = new AtomicInteger();
       BeamFnStateClient fakeStateClient = fakeStateClient(callCount, expected);
       PrefetchableIterator<ByteString> byteStrings =
-          new LazyBlockingStateFetchingIterator(fakeStateClient, StateRequest.getDefaultInstance());
+          new LazyBlockingStateFetchingIterator(
+              Caches.noop(), fakeStateClient, StateRequest.getDefaultInstance());
       assertEquals(0, callCount.get()); // Ensure it's fully lazy.
       assertFalse(byteStrings.isReady());
 
@@ -198,83 +280,6 @@ public class StateFetchingIteratorsTest {
       assertTrue(byteStrings.isReady());
 
       assertEquals(Arrays.asList(expected), results);
-    }
-  }
-
-  @RunWith(JUnit4.class)
-  public static class FirstPageAndRemainderTest {
-
-    @Test
-    public void testEmptyValues() throws Exception {
-      testFetchValues(VarIntCoder.of());
-    }
-
-    @Test
-    public void testOneValue() throws Exception {
-      testFetchValues(VarIntCoder.of(), 4);
-    }
-
-    @Test
-    public void testManyValues() throws Exception {
-      testFetchValues(VarIntCoder.of(), 1, 22, 333, 4444, 55555, 666666);
-    }
-
-    private <T> void testFetchValues(Coder<T> coder, T... expected) {
-      List<ByteString> byteStrings =
-          Arrays.stream(expected)
-              .map(
-                  value -> {
-                    try {
-                      return CoderUtils.encodeToByteArray(coder, value);
-                    } catch (CoderException exn) {
-                      throw new RuntimeException(exn);
-                    }
-                  })
-              .map(ByteString::copyFrom)
-              .collect(Collectors.toList());
-
-      AtomicInteger callCount = new AtomicInteger();
-      BeamFnStateClient fakeStateClient =
-          fakeStateClient(callCount, Iterables.toArray(byteStrings, ByteString.class));
-      PrefetchableIterable<T> values =
-          new FirstPageAndRemainder<>(fakeStateClient, StateRequest.getDefaultInstance(), coder);
-
-      // Ensure it's fully lazy.
-      assertEquals(0, callCount.get());
-      PrefetchableIterator<T> valuesIter = values.iterator();
-      assertFalse(valuesIter.isReady());
-      assertEquals(0, callCount.get());
-
-      // Ensure that the first page result is cached across multiple iterators and subsequent
-      // iterators are ready and prefetch does nothing
-      valuesIter.prefetch();
-      assertTrue(valuesIter.isReady());
-      assertEquals(1, callCount.get());
-
-      PrefetchableIterator<T> valuesIter2 = values.iterator();
-      assertTrue(valuesIter2.isReady());
-      valuesIter2.prefetch();
-      assertEquals(1, callCount.get());
-
-      // Prefetch every second element in the iterator capturing the results
-      List<T> results = new ArrayList<>();
-      for (int i = 0; i < expected.length; ++i) {
-        if (i % 2 == 1) {
-          // Ensure that prefetch performs the call
-          valuesIter2.prefetch();
-          assertTrue(valuesIter2.isReady());
-          // Note that this is i+2 because we expect to prefetch the page after the current one
-          // We also have to bound it to the max number of pages
-          assertEquals(Math.min(i + 2, expected.length), callCount.get());
-        }
-        assertTrue(valuesIter2.hasNext());
-        results.add(valuesIter2.next());
-      }
-      assertFalse(valuesIter2.hasNext());
-      assertTrue(valuesIter2.isReady());
-      // The contents agree.
-      assertArrayEquals(expected, Iterables.toArray(results, Object.class));
-      assertArrayEquals(expected, Iterables.toArray(values, Object.class));
     }
   }
 }
