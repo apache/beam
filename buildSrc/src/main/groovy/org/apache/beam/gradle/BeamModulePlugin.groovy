@@ -1132,25 +1132,59 @@ class BeamModulePlugin implements Plugin<Project> {
       project.tasks.withType(JavaCompile) {
         options.errorprone.disableWarningsInGeneratedCode = true
         options.errorprone.excludedPaths = '(.*/)?(build/generated-src|build/generated.*avro-java|build/generated)/.*'
-        options.errorprone.errorproneArgs.add("MutableConstantField:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:Slf4jLoggerShouldBeNonStatic:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:Slf4jFormatShouldBeConst:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:Slf4jSignOnlyFormat:OFF")
+
+        // TODO(BEAM-11936): Enable errorprone checks
         options.errorprone.errorproneArgs.add("-Xep:AutoValueImmutableFields:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:AutoValueSubclassLeaked:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:BadImport:OFF")
         options.errorprone.errorproneArgs.add("-Xep:BadInstanceof:OFF")
         options.errorprone.errorproneArgs.add("-Xep:BigDecimalEquals:OFF")
         options.errorprone.errorproneArgs.add("-Xep:ComparableType:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:EmptyBlockTag:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:EmptyCatch:OFF")
         options.errorprone.errorproneArgs.add("-Xep:EqualsGetClass:OFF")
         options.errorprone.errorproneArgs.add("-Xep:EqualsUnsafeCast:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:EscapedEntity:OFF")
         options.errorprone.errorproneArgs.add("-Xep:ExtendsAutoValue:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:InlineFormatString:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:InlineMeSuggester:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:InvalidBlockTag:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:InvalidInlineTag:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:InvalidLink:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:InvalidParam:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:InvalidThrows:OFF")
         options.errorprone.errorproneArgs.add("-Xep:JavaTimeDefaultTimeZone:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:JavaUtilDate:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:JodaConstructors:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:MalformedInlineTag:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:MissingSummary:OFF")
         options.errorprone.errorproneArgs.add("-Xep:MixedMutabilityReturnType:OFF")
         options.errorprone.errorproneArgs.add("-Xep:PreferJavaTimeOverload:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:MutablePublicArray:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:NonCanonicalType:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:ProtectedMembersInFinalClass:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:Slf4jFormatShouldBeConst:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:Slf4jSignOnlyFormat:OFF")
         options.errorprone.errorproneArgs.add("-Xep:ThreadPriorityCheck:OFF")
         options.errorprone.errorproneArgs.add("-Xep:TimeUnitConversionChecker:OFF")
         options.errorprone.errorproneArgs.add("-Xep:UndefinedEquals:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:UnescapedEntity:OFF")
         options.errorprone.errorproneArgs.add("-Xep:UnnecessaryLambda:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:UnnecessaryMethodReference:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:UnnecessaryParentheses:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:UnrecognisedJavadocTag:OFF")
         options.errorprone.errorproneArgs.add("-Xep:UnsafeReflectiveConstructionCast:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:UseCorrectAssertInTests:OFF")
+
+        // This check raises NoSuchMethodError for some projects that have
+        // a transitive dependency on older guava
+        // See https://github.com/google/error-prone/issues/2745
+        options.errorprone.errorproneArgs.add("-Xep:ArgumentSelectionDefectChecker:OFF")
+
+        // Sometimes a static logger is preferred, which is the convention
+        // currently used in beam. See docs:
+        // https://github.com/KengoTODA/findbugs-slf4j#slf4j_logger_should_be_non_static
+        options.errorprone.errorproneArgs.add("-Xep:Slf4jLoggerShouldBeNonStatic:OFF")
       }
 
       if (configuration.shadowClosure) {
