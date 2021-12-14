@@ -1149,6 +1149,16 @@ class BeamModulePlugin implements Plugin<Project> {
         options.errorprone.errorproneArgs.add("-Xep:UnsafeReflectiveConstructionCast:OFF")
       }
 
+      def log4j_version = "2.15.0"
+      project.configurations.all {
+        resolutionStrategy {
+          // Make sure the log4j versions for api and core match instead of taking the default
+          // Gradle rule of using the latest.
+          force "org.apache.logging.log4j:log4j-core:$log4j_version"
+          force "org.apache.logging.log4j:log4j-api:$log4j_version"
+        }
+      }
+
       if (configuration.shadowClosure) {
         // Enables a plugin which can perform shading of classes. See the general comments
         // above about dependency management for Java projects and how the shadow plugin
