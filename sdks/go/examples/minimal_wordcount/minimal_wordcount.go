@@ -38,7 +38,7 @@ package main
 
 // beam-playground:
 //   name: MinimalWordCount
-//   description: An example that counts words in Shakespeare and includes Beam best practices.
+//   description: An example that counts words in Shakespeare.
 //   multifile: false
 //   pipeline_options:
 //   categories:

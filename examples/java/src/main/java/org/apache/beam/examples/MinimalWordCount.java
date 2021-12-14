@@ -19,7 +19,7 @@ package org.apache.beam.examples;
 
 // beam-playground:
 //   name: MinimalWordCount
-//   description: An example that counts words in Shakespeare/kinglear.txt and includes Beam best practices.
+//   description: An example that counts words in Shakespeare/kinglear.txt.
 //   multifile: false
 //   pipeline_options:
 //   categories:

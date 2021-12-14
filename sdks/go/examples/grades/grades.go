@@ -17,7 +17,7 @@ package main
 
 // beam-playground:
 //   name: Grades
-//   description: An example that combines grades data
+//   description: An example that combines grades data.
 //   multifile: false
 //   pipeline_options:
 //   categories:

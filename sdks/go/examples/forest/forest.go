@@ -29,9 +29,12 @@ package main
 
 // beam-playground:
 //   name: Forest
-//   description: An example that shows that pipeline construction is normal Go code,
-//     -- the pipeline "forest" is created recursively and uses a global variable
-//     -- and that a pipeline may contain non-connected parts.
+//   description: An example that shows that pipeline construction is normal Go
+//     code -- the pipeline "forest" is created recursively and uses a global
+//     variable -- and that a pipeline may contain non-connected parts. The pipeline
+//     generated has the shape of a forest where the output of each singleton leaf
+//     is flattened together over several rounds. This is most clearly seen via a
+//     visual representation of the pipeline, such as the one produced by the 'dot' runner.
 //   multifile: false
 //   pipeline_options:
 //   categories:
