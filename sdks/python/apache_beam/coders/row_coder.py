@@ -166,9 +166,12 @@ class RowCoderImpl(StreamCoderImpl):
   def __init__(self, schema, components):
     self.schema = schema
     self.constructor = named_tuple_from_schema(schema)
-    self.encoding_positions = list(range(1, len(self.schema.fields) + 1))
+    self.encoding_positions = list(range(len(self.schema.fields)))
     if self.schema.encoding_positions_set:
-      if not all(field.encoding_position for field in self.schema.fields):
+      # should never be duplicate encoding positions.
+      enc_posx = list(
+          set(field.encoding_position for field in self.schema.fields))
+      if len(enc_posx) != len(self.schema.fields):
         raise ValueError(
             f'''Schema with id {schema.id} has encoding_positions_set=True,
             but not all fields have encoding_position set''')
@@ -226,13 +229,14 @@ class RowCoderImpl(StreamCoderImpl):
     # value, we just need to ignore the additional values, which will occur
     # here because we only decode as many values as we have coders for.
 
-    d = [
+    sorted_components = [
         None if is_null else self.components[c].decode_from_stream(
             in_stream, True) for c,
         is_null in zip(np.argsort(self.encoding_positions), nulls)
     ]
 
-    return self.constructor(*[d[i - 1] for i in self.encoding_positions])
+    return self.constructor(
+        *[sorted_components[i] for i in self.encoding_positions])
 
   def _make_value_coder(self, nulls=itertools.repeat(False)):
     components = [

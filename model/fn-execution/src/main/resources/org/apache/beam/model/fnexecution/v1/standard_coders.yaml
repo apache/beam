@@ -438,9 +438,9 @@ examples:
 # print("example = %s" % example)
 coder:
   urn: "beam:coder:row:v1"
-  payload: "\n\x0b\n\x03str\x1a\x02\x10\x07(\x02\n\x0e\n\x06f_bool\x1a\x02\x10\x08(\x03\n\r\n\x03i32\x1a\x04\x08\x01\x10\x03(\x01\x12$30ea5a25-dcd8-4cdb-abeb-5332d15ab4b9 \x01"
+  payload: "\n\x0b\n\x03str\x1a\x02\x10\x07(\x01\n\x0e\n\x06f_bool\x1a\x02\x10\x08(\x02\n\x0b\n\x03i32\x1a\x04\x08\x01\x10\x03\x12$30ea5a25-dcd8-4cdb-abeb-5332d15ab4b9 \x01"
 examples:
-  "\x03\x00\x15\x04str2\x00": { str: "str2", f_bool: False, i32: 21 }
+  "\x03\x00\x15\x04str2\x00": {f_bool: False, i32: 21, str: "str2"}
 
 ---
 
