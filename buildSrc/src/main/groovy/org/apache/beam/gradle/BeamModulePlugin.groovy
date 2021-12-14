@@ -444,6 +444,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // Maven artifacts.
     def activemq_version = "5.14.5"
     def autovalue_version = "1.8.2"
+    def autoservice_version = "1.0.1"
     def aws_java_sdk_version = "1.12.135"
     def aws_java_sdk2_version = "2.17.106"
     def cassandra_driver_version = "3.10.2"
@@ -969,7 +970,7 @@ class BeamModulePlugin implements Plugin<Project> {
       // configurations because they are never required to be shaded or become a
       // dependency of the output.
       def compileOnlyAnnotationDeps = [
-        "com.google.auto.service:auto-service-annotations:1.0-rc6",
+        "com.google.auto.service:auto-service-annotations:$autoservice_version",
         "com.google.auto.value:auto-value-annotations:$autovalue_version",
         "com.google.code.findbugs:jsr305:$jsr305_version",
         "com.google.j2objc:j2objc-annotations:1.3",
@@ -1009,7 +1010,7 @@ class BeamModulePlugin implements Plugin<Project> {
         // Add common annotation processors to all Java projects
         def annotationProcessorDeps = [
           "com.google.auto.value:auto-value:$autovalue_version",
-          "com.google.auto.service:auto-service:1.0-rc6",
+          "com.google.auto.service:auto-service:$autoservice_version",
         ]
 
         annotationProcessorDeps.each { dep ->
