@@ -24,19 +24,28 @@ import (
 
 func TestNewExpansionServiceRunner(t *testing.T) {
 	testPath := "path/to/jar"
-	serviceRunner := NewExpansionServiceRunner(testPath)
+	testPort := "8097"
+	serviceRunner := NewExpansionServiceRunner(testPath, testPort)
 	if serviceRunner.jarPath != testPath {
 		t.Errorf("JAR path mismatch: wanted %v, got %v", testPath, serviceRunner.jarPath)
 	}
+	if serviceRunner.servicePort != testPort {
+		t.Errorf("service port mismatch: wanted %v, got %v", testPort, serviceRunner.servicePort)
+	}
 	commandString := strings.Join(serviceRunner.serviceCommand.Args, " ")
-	expCommandString := "java -jar " + testPath + " 8097"
-	if commandString != expCommandString {
-		t.Errorf("command mismatch: wanted %v, got %v", expCommandString, commandString)
+	if !strings.Contains(commandString, "java") {
+		t.Errorf("command string missing java invocation, got %v", commandString)
+	}
+	if !strings.Contains(commandString, "-jar") {
+		t.Errorf("command string missing -jar flag, got %v", commandString)
+	}
+	if !strings.Contains(commandString, testPath) {
+		t.Errorf("command string missing test path: want %v, got %v", testPath, commandString)
 	}
 }
 
 func TestStartService_badCommand(t *testing.T) {
-	serviceRunner := NewExpansionServiceRunner("")
+	serviceRunner := NewExpansionServiceRunner("", "")
 	serviceRunner.serviceCommand = exec.Command("jahva", "-jar")
 	err := serviceRunner.StartService()
 	if err == nil {
@@ -45,8 +54,7 @@ func TestStartService_badCommand(t *testing.T) {
 }
 
 func TestStartService_good(t *testing.T) {
-	testPath := "path/to/jar"
-	serviceRunner := NewExpansionServiceRunner(testPath)
+	serviceRunner := NewExpansionServiceRunner("", "")
 	serviceRunner.serviceCommand = exec.Command("which", "go")
 	err := serviceRunner.StartService()
 	if err != nil {
@@ -54,8 +62,12 @@ func TestStartService_good(t *testing.T) {
 	}
 }
 
+func makeTestServiceRunner() *ExpansionServiceRunner {
+	return &ExpansionServiceRunner{jarPath: "", serviceCommand: &exec.Cmd{}}
+}
+
 func TestStopService_NoStart(t *testing.T) {
-	processStruct := NewExpansionServiceRunner("test/path")
+	processStruct := makeTestServiceRunner()
 	err := processStruct.StopService()
 	if err == nil {
 		t.Errorf("StopService succeeded when it should have failed")
@@ -63,7 +75,7 @@ func TestStopService_NoStart(t *testing.T) {
 }
 
 func TestStopService_AlreadyStopped(t *testing.T) {
-	processStruct := NewExpansionServiceRunner("test/path")
+	processStruct := makeTestServiceRunner()
 	// Set ProcessState to non-nil, indicating that the process exited
 	processStruct.serviceCommand.ProcessState = &os.ProcessState{}
 	err := processStruct.StopService()

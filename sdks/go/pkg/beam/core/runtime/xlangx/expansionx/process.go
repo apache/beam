@@ -25,18 +25,22 @@ import (
 // process running the service to enable shutdown as well.
 type ExpansionServiceRunner struct {
 	jarPath        string
+	servicePort    string
 	serviceCommand *exec.Cmd
 }
 
 // NewExpansionServiceRunner builds an ExpansionServiceRunner struct for a given gradle target and
 // Beam version and returns a pointer to it.
-func NewExpansionServiceRunner(jarPath string) *ExpansionServiceRunner {
-	serviceCommand := exec.Command("java", "-jar", jarPath, "8097")
-	return &ExpansionServiceRunner{jarPath: jarPath, serviceCommand: serviceCommand}
+func NewExpansionServiceRunner(jarPath, servicePort string) *ExpansionServiceRunner {
+	if servicePort == "" {
+		servicePort = "8097"
+	}
+	serviceCommand := exec.Command("java", "-jar", jarPath, servicePort)
+	return &ExpansionServiceRunner{jarPath: jarPath, servicePort: servicePort, serviceCommand: serviceCommand}
 }
 
 func (e *ExpansionServiceRunner) String() string {
-	return fmt.Sprintf("JAR: %v, Process: %v", e.jarPath, e.serviceCommand.Process)
+	return fmt.Sprintf("JAR: %v, Port: %v, Process: %v", e.jarPath, e.servicePort, e.serviceCommand.Process)
 }
 
 // StartService starts the expansion service for a given ExpansionServiceRunner. If this is
