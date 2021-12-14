@@ -957,6 +957,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   protected List<DataflowPackage> stageArtifacts(RunnerApi.Pipeline pipeline) {
     ImmutableList.Builder<StagedFile> filesToStageBuilder = ImmutableList.builder();
+    Set<String> stagedNames = new HashSet<>();
     for (Map.Entry<String, RunnerApi.Environment> entry :
         pipeline.getComponents().getEnvironmentsMap().entrySet()) {
       for (RunnerApi.ArtifactInformation info : entry.getValue().getDependenciesList()) {
@@ -990,6 +991,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                 String.format("Error creating staged name for artifact %s", filePayload.getPath()),
                 e);
           }
+        }
+        if (stagedNames.contains(stagedName)) {
+          continue;
+        } else {
+          stagedNames.add(stagedName);
         }
         filesToStageBuilder.add(
             StagedFile.of(filePayload.getPath(), filePayload.getSha256(), stagedName));
