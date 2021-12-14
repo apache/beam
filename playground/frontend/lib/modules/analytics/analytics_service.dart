@@ -106,8 +106,9 @@ class AnalyticsService {
         action,
         label: label,
       );
-    } catch (_) {
+    } catch (e) {
       // ignore analytics errors sync they don't affect app
+      print(e);
     }
   }
 }
