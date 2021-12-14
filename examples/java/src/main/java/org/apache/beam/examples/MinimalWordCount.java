@@ -17,15 +17,15 @@
  */
 package org.apache.beam.examples;
 
-/* beam-playground:
- *   name: MinimalWordCount
- *   description: An example that counts words in Shakespeare/kinglear.txt and includes Beam best practices.
- *   multifile: false
- *   pipeline_options:
- *   categories:
- *     - IO
- *     - Options
- */
+// beam-playground:
+//   name: MinimalWordCount
+//   description: An example that counts words in Shakespeare/kinglear.txt and includes Beam best practices.
+//   multifile: false
+//   pipeline_options:
+//   categories:
+//     - IO
+//     - Options
+//
 
 import java.util.Arrays;
 import org.apache.beam.sdk.Pipeline;
