@@ -14,6 +14,15 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
+# beam-playground:
+#   name: WindowingParDo
+#   description: Task from katas to assign each element a timestamp based on the the `Event.timestamp`.
+#   multifile: false
+#   pipeline_options:
+#   categories:
+#     - Combiners
+#     - Testing
+
 import datetime
 import pytz
 

@@ -14,6 +14,16 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+# beam-playground:
+#   name: SideOutput
+#   description: Task from katas to implement additional output to your ParDo for numbers bigger than 100.
+#   multifile: false
+#   pipeline_options:
+#   categories:
+#     - Combiners
+#     - Testing
+#     - Multiple Outputs
+
 import apache_beam as beam
 from apache_beam import pvalue
 

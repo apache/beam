@@ -14,6 +14,16 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+# beam-playground:
+#   name: CompositeTransform
+#   description: Task from katas to implement a composite transform "ExtractAndMultiplyNumbers"
+#     that extracts numbers from comma separated line and then multiplies each number by 10.
+#   multifile: false
+#   pipeline_options:
+#   categories:
+#     - Combiners
+#     - Testing
+
 import apache_beam as beam
 
 from log_elements import LogElements

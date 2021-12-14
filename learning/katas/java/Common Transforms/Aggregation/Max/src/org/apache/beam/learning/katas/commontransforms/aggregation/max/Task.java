@@ -18,6 +18,15 @@
 
 package org.apache.beam.learning.katas.commontransforms.aggregation.max;
 
+// beam-playground:
+//   name: AggregationMax
+//   description: Task from katas to compute the maximum of elements.
+//   multifile: false
+//   pipeline_options:
+//   categories:
+//     - Combiners
+//     - Testing
+
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;

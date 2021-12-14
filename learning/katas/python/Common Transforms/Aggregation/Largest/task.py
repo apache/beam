@@ -14,6 +14,15 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
+# beam-playground:
+#   name: AggregationLargest
+#   description: Task from katas to compute a list of the two largest elements.
+#   multifile: false
+#   pipeline_options:
+#   categories:
+#     - Combiners
+#     - Testing
+
 import apache_beam as beam
 
 from log_elements import LogElements

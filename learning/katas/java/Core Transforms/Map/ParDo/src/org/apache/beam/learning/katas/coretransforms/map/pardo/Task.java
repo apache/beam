@@ -18,6 +18,15 @@
 
 package org.apache.beam.learning.katas.coretransforms.map.pardo;
 
+// beam-playground:
+//   name: MapPardo
+//   description: Task from katas that maps the input element by multiplying it by 10.
+//   multifile: false
+//   pipeline_options:
+//   categories:
+//     - Combiners
+//     - Testing
+
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;

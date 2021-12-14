@@ -14,6 +14,15 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
+# beam-playground:
+#   name: AggregationSum
+#   description: Task from katas to compute the sum of all elements.
+#   multifile: false
+#   pipeline_options:
+#   categories:
+#     - Combiners
+#     - Testing
+
 import apache_beam as beam
 
 from log_elements import LogElements

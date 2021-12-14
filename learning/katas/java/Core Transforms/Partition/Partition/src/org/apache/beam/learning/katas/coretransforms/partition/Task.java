@@ -18,6 +18,16 @@
 
 package org.apache.beam.learning.katas.coretransforms.partition;
 
+// beam-playground:
+//   name: Partition
+//   description: Task from katas that splits a PCollection of numbers into two PCollections. The first PCollection
+//     contains numbers greater than 100, and the second PCollection contains the remaining numbers.
+//   multifile: false
+//   pipeline_options:
+//   categories:
+//     - Combiners
+//     - Testing
+
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;

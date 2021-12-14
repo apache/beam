@@ -18,6 +18,15 @@
 
 package org.apache.beam.learning.katas.commontransforms.withkeys;
 
+// beam-playground:
+//   name: WithKeys
+//   description: Task from katas to convert each fruit name into a KV of its first letter and itself.
+//   multifile: false
+//   pipeline_options:
+//   categories:
+//     - Combiners
+//     - Testing
+
 import static org.apache.beam.sdk.values.TypeDescriptors.strings;
 
 import org.apache.beam.learning.katas.util.Log;
