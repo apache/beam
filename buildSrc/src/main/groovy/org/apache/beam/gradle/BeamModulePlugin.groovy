@@ -1140,6 +1140,7 @@ class BeamModulePlugin implements Plugin<Project> {
         options.errorprone.errorproneArgs.add("-Xep:BadInstanceof:OFF")
         options.errorprone.errorproneArgs.add("-Xep:BigDecimalEquals:OFF")
         options.errorprone.errorproneArgs.add("-Xep:ComparableType:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:DoNotMockAutoValue:OFF")
         options.errorprone.errorproneArgs.add("-Xep:EmptyBlockTag:OFF")
         options.errorprone.errorproneArgs.add("-Xep:EmptyCatch:OFF")
         options.errorprone.errorproneArgs.add("-Xep:EqualsGetClass:OFF")
@@ -1165,6 +1166,7 @@ class BeamModulePlugin implements Plugin<Project> {
         options.errorprone.errorproneArgs.add("-Xep:ProtectedMembersInFinalClass:OFF")
         options.errorprone.errorproneArgs.add("-Xep:Slf4jFormatShouldBeConst:OFF")
         options.errorprone.errorproneArgs.add("-Xep:Slf4jSignOnlyFormat:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:StaticAssignmentInConstructor:OFF")
         options.errorprone.errorproneArgs.add("-Xep:ThreadPriorityCheck:OFF")
         options.errorprone.errorproneArgs.add("-Xep:TimeUnitConversionChecker:OFF")
         options.errorprone.errorproneArgs.add("-Xep:UndefinedEquals:OFF")
@@ -1176,10 +1178,12 @@ class BeamModulePlugin implements Plugin<Project> {
         options.errorprone.errorproneArgs.add("-Xep:UnsafeReflectiveConstructionCast:OFF")
         options.errorprone.errorproneArgs.add("-Xep:UseCorrectAssertInTests:OFF")
 
-        // This check raises NoSuchMethodError for some projects that have
+        // These checks raise NoSuchMethodError for some projects that have
         // a transitive dependency on older guava
         // See https://github.com/google/error-prone/issues/2745
         options.errorprone.errorproneArgs.add("-Xep:ArgumentSelectionDefectChecker:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:AssertEqualsArgumentOrderChecker:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:AutoValueConstructorOrderChecker:OFF")
 
         // Sometimes a static logger is preferred, which is the convention
         // currently used in beam. See docs:
