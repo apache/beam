@@ -17,7 +17,9 @@
  */
 package org.apache.beam.sdk.schemas;
 
+import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * A factory for operations that execute a projection on a {@link Schema}-aware {@link
@@ -35,12 +37,12 @@ public interface ProjectionProducer<T> {
   /**
    * Actuate a projection pushdown.
    *
-   * @param outputId The {@link org.apache.beam.sdk.values.TupleTag} id of the target {@link
-   *     org.apache.beam.sdk.values.PCollection} for the pushdown.
-   * @param fields The fields that must be output. Other fields can be dropped.
+   * @param outputFields Map keyed by the {@link TupleTag} for each output on which pushdown is
+   *     requested. The value is the {@link FieldAccessDescriptor} containing the list of fields
+   *     needed for that output; fields not present in the descriptor should be dropped.
    * @return {@code T} that implements the projection pushdown. The return value is assumed to be a
    *     drop-in replacement for {@code this}; it must have all the same functionality. For this
    *     reason, {@code T} is usually the same class as {@code this}.
    */
-  T actuateProjectionPushdown(String outputId, FieldAccessDescriptor fields);
+  T actuateProjectionPushdown(Map<TupleTag<?>, FieldAccessDescriptor> outputFields);
 }

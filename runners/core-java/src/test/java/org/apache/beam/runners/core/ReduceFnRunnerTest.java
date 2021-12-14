@@ -1135,8 +1135,6 @@ public class ReduceFnRunnerTest {
             Duration.millis(100),
             ClosingBehavior.FIRE_IF_NON_EMPTY);
 
-    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(10));
-
     tester.advanceInputWatermark(new Instant(0));
     when(mockTriggerStateMachine.shouldFire(anyTriggerContext())).thenReturn(true);
     injectElement(tester, 1);

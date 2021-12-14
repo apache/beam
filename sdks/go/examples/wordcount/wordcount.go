@@ -60,6 +60,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"reflect"
 	"regexp"
 	"strings"
 
@@ -107,6 +108,7 @@ var (
 // by calling beam.RegisterFunction in an init() call.
 func init() {
 	beam.RegisterFunction(formatFn)
+	beam.RegisterType(reflect.TypeOf((*extractFn)(nil)))
 }
 
 var (

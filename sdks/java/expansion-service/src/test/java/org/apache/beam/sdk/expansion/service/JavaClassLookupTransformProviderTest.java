@@ -18,11 +18,15 @@
 package org.apache.beam.sdk.expansion.service;
 
 import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
+import static org.apache.beam.sdk.expansion.service.JavaClassLookupTransformProvider.ALLOW_LIST_VERSION;
+import static org.apache.beam.sdk.expansion.service.JavaClassLookupTransformProvider.AllowList;
+import static org.apache.beam.sdk.expansion.service.JavaClassLookupTransformProvider.AllowedClass;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
@@ -32,6 +36,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.model.expansion.v1.ExpansionApi;
@@ -71,8 +76,6 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link JavaClassLookupTransformProvider}. */
 @RunWith(JUnit4.class)
 public class JavaClassLookupTransformProviderTest {
-
-  private static final String TEST_URN = "test:beam:transforms:count";
 
   private static final String TEST_NAME = "TestName";
 
@@ -1149,5 +1152,42 @@ public class JavaClassLookupTransformProviderTest {
     }
 
     return outputStream.toByteString();
+  }
+
+  @Test
+  public void testNothingAllowList() {
+    AllowList nothing = AllowList.nothing();
+    RuntimeException thrown =
+        assertThrows(
+            RuntimeException.class,
+            () -> nothing.getAllowedClass("org.apache.beam.sdk.transforms.KvSwap"));
+    assertTrue(thrown.getMessage(), thrown.getMessage().contains("allow list does not enable"));
+    assertTrue(
+        thrown.getMessage(), thrown.getMessage().contains("org.apache.beam.sdk.transforms.KvSwap"));
+  }
+
+  @Test
+  public void testEverythingAllowList() {
+    AllowList everything = AllowList.everything();
+    AllowedClass allowedClass = everything.getAllowedClass("org.apache.beam.sdk.transforms.KvSwap");
+    assertTrue(allowedClass.isAllowedBuilderMethod("builder"));
+    assertTrue(allowedClass.isAllowedConstructorMethod("constructor"));
+  }
+
+  @Test
+  public void testPackageAllowList() {
+    AllowList allowList =
+        AllowList.create(
+            ALLOW_LIST_VERSION,
+            Collections.singletonList(
+                AllowedClass.create(
+                    "good.package.*",
+                    Collections.singletonList("goodBuilder"),
+                    AllowedClass.WILDCARD)));
+    assertThrows(RuntimeException.class, () -> allowList.getAllowedClass("bad.package.Transform"));
+    AllowedClass allowedClass = allowList.getAllowedClass("good.package.Transform");
+    assertTrue(allowedClass.isAllowedBuilderMethod("goodBuilder"));
+    assertFalse(allowedClass.isAllowedBuilderMethod("badBuilder"));
+    assertTrue(allowedClass.isAllowedConstructorMethod("anyConstructor"));
   }
 }

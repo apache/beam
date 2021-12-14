@@ -38,16 +38,14 @@ import org.slf4j.LoggerFactory;
 public class SamzaJobInvoker extends JobInvoker {
 
   private static final Logger LOG = LoggerFactory.getLogger(SamzaJobInvoker.class);
-  private final SamzaJobServerDriver.SamzaServerConfiguration configuration;
 
   public static SamzaJobInvoker create(
       SamzaJobServerDriver.SamzaServerConfiguration configuration) {
-    return new SamzaJobInvoker(configuration);
+    return new SamzaJobInvoker();
   }
 
-  private SamzaJobInvoker(SamzaJobServerDriver.SamzaServerConfiguration configuration) {
+  private SamzaJobInvoker() {
     super("samza-runner-job-invoker-%d");
-    this.configuration = configuration;
   }
 
   @Override

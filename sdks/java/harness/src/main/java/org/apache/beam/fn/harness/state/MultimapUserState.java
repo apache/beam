@@ -21,24 +21,23 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateAppendRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateClearRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.fn.stream.PrefetchableIterable;
+import org.apache.beam.sdk.fn.stream.PrefetchableIterables;
+import org.apache.beam.sdk.fn.stream.PrefetchableIterator;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -65,13 +64,11 @@ public class MultimapUserState<K, V> {
   private boolean isClosed;
   private boolean isCleared;
   // Pending updates to persistent storage
-  private HashSet<K> pendingRemoves = Sets.newHashSet();
-  private HashMap<K, List<V>> pendingAdds = Maps.newHashMap();
-  // Map keys with no values in persistent storage
-  private HashSet<K> negativeCache = Sets.newHashSet();
+  private HashMap<Object, K> pendingRemoves = Maps.newHashMap();
+  private HashMap<Object, KV<K, List<V>>> pendingAdds = Maps.newHashMap();
   // Values retrieved from persistent storage
-  private Multimap<K, V> persistedValues = ArrayListMultimap.create();
-  private @Nullable Iterable<K> persistedKeys = null;
+  private HashMap<K, PrefetchableIterable<V>> persistedValues = Maps.newHashMap();
+  private @Nullable PrefetchableIterable<K> persistedKeys = null;
 
   public MultimapUserState(
       BeamFnStateClient beamFnStateClient,
@@ -117,32 +114,36 @@ public class MultimapUserState<K, V> {
         keysStateRequest.getStateKey());
 
     isCleared = true;
-    persistedValues = ArrayListMultimap.create();
+    persistedValues = Maps.newHashMap();
     persistedKeys = null;
-    pendingRemoves = Sets.newHashSet();
+    pendingRemoves = Maps.newHashMap();
     pendingAdds = Maps.newHashMap();
-    negativeCache = Sets.newHashSet();
   }
 
   /*
    * Returns an iterable of the values associated with key in this multimap, if any.
    * If there are no values, this returns an empty collection, not null.
    */
-  public Iterable<V> get(K key) {
+  public PrefetchableIterable<V> get(K key) {
     checkState(
         !isClosed,
         "Multimap user state is no longer usable because it is closed for %s",
         keysStateRequest.getStateKey());
 
-    List<V> pendingAddValues = pendingAdds.getOrDefault(key, Collections.emptyList());
-    Collection<V> pendingValues =
-        Collections.unmodifiableCollection(pendingAddValues.subList(0, pendingAddValues.size()));
-    if (isCleared || pendingRemoves.contains(key)) {
+    Object structuralKey = mapKeyCoder.structuralValue(key);
+    KV<K, List<V>> pendingAddValues = pendingAdds.get(structuralKey);
+
+    PrefetchableIterable<V> pendingValues =
+        pendingAddValues == null
+            ? PrefetchableIterables.fromArray()
+            : PrefetchableIterables.limit(
+                pendingAddValues.getValue(), pendingAddValues.getValue().size());
+    if (isCleared || pendingRemoves.containsKey(structuralKey)) {
       return pendingValues;
     }
 
-    Iterable<V> persistedValues = getPersistedValues(key);
-    return Iterables.concat(persistedValues, pendingValues);
+    PrefetchableIterable<V> persistedValues = getPersistedValues(key);
+    return PrefetchableIterables.concat(persistedValues, pendingValues);
   }
 
   @SuppressWarnings({
@@ -151,19 +152,89 @@ public class MultimapUserState<K, V> {
   /*
    * Returns an iterables containing all distinct keys in this multimap.
    */
-  public Iterable<K> keys() {
+  public PrefetchableIterable<K> keys() {
     checkState(
         !isClosed,
         "Multimap user state is no longer usable because it is closed for %s",
         keysStateRequest.getStateKey());
     if (isCleared) {
-      return Collections.unmodifiableCollection(Lists.newArrayList(pendingAdds.keySet()));
+      List<K> keys = new ArrayList<>(pendingAdds.size());
+      for (Map.Entry<?, KV<K, List<V>>> entry : pendingAdds.entrySet()) {
+        keys.add(entry.getValue().getKey());
+      }
+      return PrefetchableIterables.concat(keys);
     }
 
-    Set<K> keys = Sets.newHashSet(getPersistedKeys());
-    keys.removeAll(pendingRemoves);
-    keys.addAll(pendingAdds.keySet());
-    return Collections.unmodifiableCollection(keys);
+    PrefetchableIterable<K> persistedKeys = getPersistedKeys();
+    Set<Object> pendingRemovesNow = new HashSet<>(pendingRemoves.keySet());
+    Map<Object, K> pendingAddsNow = new HashMap<>();
+    for (Map.Entry<Object, KV<K, List<V>>> entry : pendingAdds.entrySet()) {
+      pendingAddsNow.put(entry.getKey(), entry.getValue().getKey());
+    }
+    return new PrefetchableIterable<K>() {
+      @Override
+      public PrefetchableIterator<K> iterator() {
+        return new PrefetchableIterator<K>() {
+          PrefetchableIterator<K> persistedKeysIterator = persistedKeys.iterator();
+          Iterator<K> pendingAddsNowIterator;
+          boolean hasNext;
+          K nextKey;
+
+          @Override
+          public boolean isReady() {
+            return persistedKeysIterator.isReady();
+          }
+
+          @Override
+          public void prefetch() {
+            if (!isReady()) {
+              persistedKeysIterator.prefetch();
+            }
+          }
+
+          @Override
+          public boolean hasNext() {
+            if (hasNext) {
+              return true;
+            }
+
+            while (persistedKeysIterator.hasNext()) {
+              nextKey = persistedKeysIterator.next();
+              Object nextKeyStructuralValue = mapKeyCoder.structuralValue(nextKey);
+              if (!pendingRemovesNow.contains(nextKeyStructuralValue)) {
+                // Remove all keys that we will visit when passing over the persistedKeysIterator
+                // so we do not revisit them when passing over the pendingAddsNowIterator
+                if (pendingAddsNow.containsKey(nextKeyStructuralValue)) {
+                  pendingAddsNow.remove(nextKeyStructuralValue);
+                }
+                hasNext = true;
+                return true;
+              }
+            }
+
+            if (pendingAddsNowIterator == null) {
+              pendingAddsNowIterator = pendingAddsNow.values().iterator();
+            }
+            while (pendingAddsNowIterator.hasNext()) {
+              nextKey = pendingAddsNowIterator.next();
+              hasNext = true;
+              return true;
+            }
+
+            return false;
+          }
+
+          @Override
+          public K next() {
+            if (!hasNext()) {
+              throw new NoSuchElementException();
+            }
+            hasNext = false;
+            return nextKey;
+          }
+        };
+      }
+    };
   }
 
   /*
@@ -175,8 +246,9 @@ public class MultimapUserState<K, V> {
         !isClosed,
         "Multimap user state is no longer usable because it is closed for %s",
         keysStateRequest.getStateKey());
-    pendingAdds.putIfAbsent(key, new ArrayList<>());
-    pendingAdds.get(key).add(value);
+    Object keyStructuralValue = mapKeyCoder.structuralValue(key);
+    pendingAdds.putIfAbsent(keyStructuralValue, KV.of(key, new ArrayList<>()));
+    pendingAdds.get(keyStructuralValue).getValue().add(value);
   }
 
   /*
@@ -187,9 +259,10 @@ public class MultimapUserState<K, V> {
         !isClosed,
         "Multimap user state is no longer usable because it is closed for %s",
         keysStateRequest.getStateKey());
-    pendingAdds.remove(key);
+    Object keyStructuralValue = mapKeyCoder.structuralValue(key);
+    pendingAdds.remove(keyStructuralValue);
     if (!isCleared) {
-      pendingRemoves.add(key);
+      pendingRemoves.put(keyStructuralValue, key);
     }
   }
 
@@ -215,7 +288,7 @@ public class MultimapUserState<K, V> {
           .handle(keysStateRequest.toBuilder().setClear(StateClearRequest.getDefaultInstance()))
           .get();
     } else if (!pendingRemoves.isEmpty()) {
-      for (K key : pendingRemoves) {
+      for (K key : pendingRemoves.values()) {
         beamFnStateClient
             .handle(
                 createUserStateRequest(key)
@@ -227,7 +300,7 @@ public class MultimapUserState<K, V> {
 
     // Persist pending key-values
     if (!pendingAdds.isEmpty()) {
-      for (Map.Entry<K, List<V>> entry : pendingAdds.entrySet()) {
+      for (KV<K, List<V>> entry : pendingAdds.values()) {
         beamFnStateClient
             .handle(
                 createUserStateRequest(entry.getKey())
@@ -265,30 +338,22 @@ public class MultimapUserState<K, V> {
     }
   }
 
-  private Iterable<V> getPersistedValues(K key) {
-    if (negativeCache.contains(key)) {
-      return Collections.emptyList();
-    }
-
-    if (persistedValues.get(key).isEmpty()) {
-      Iterable<V> values =
+  private PrefetchableIterable<V> getPersistedValues(K key) {
+    if (!persistedValues.containsKey(key)) {
+      PrefetchableIterable<V> values =
           StateFetchingIterators.readAllAndDecodeStartingFrom(
               beamFnStateClient, createUserStateRequest(key), valueCoder);
-      if (Iterables.isEmpty(values)) {
-        negativeCache.add(key);
-      }
-      persistedValues.putAll(key, values);
+      persistedValues.put(key, values);
     }
-    return Iterables.unmodifiableIterable(persistedValues.get(key));
+    return persistedValues.get(key);
   }
 
-  private Iterable<K> getPersistedKeys() {
+  private PrefetchableIterable<K> getPersistedKeys() {
     checkState(!isCleared);
     if (persistedKeys == null) {
-      Iterable<K> keys =
+      persistedKeys =
           StateFetchingIterators.readAllAndDecodeStartingFrom(
               beamFnStateClient, keysStateRequest, mapKeyCoder);
-      persistedKeys = Iterables.unmodifiableIterable(keys);
     }
     return persistedKeys;
   }

@@ -47,7 +47,9 @@ import java.util.stream.IntStream;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.WriteFn.WriteFnSpec;
@@ -84,6 +86,8 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.sdk.values.TypeDescriptors.TypeVariableExtractor;
 import org.apache.commons.dbcp2.BasicDataSource;
 import org.apache.commons.dbcp2.DataSourceConnectionFactory;
 import org.apache.commons.dbcp2.PoolableConnectionFactory;
@@ -118,7 +122,6 @@ import org.slf4j.LoggerFactory;
  *        .withUsername("username")
  *        .withPassword("password"))
  *   .withQuery("select id,name from Person")
- *   .withCoder(KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of()))
  *   .withRowMapper(new JdbcIO.RowMapper<KV<Integer, String>>() {
  *     public KV<Integer, String> mapRow(ResultSet resultSet) throws Exception {
  *       return KV.of(resultSet.getInt(1), resultSet.getString(2));
@@ -136,7 +139,6 @@ import org.slf4j.LoggerFactory;
  *       "com.mysql.jdbc.Driver", "jdbc:mysql://hostname:3306/mydb",
  *       "username", "password"))
  *   .withQuery("select id,name from Person where name = ?")
- *   .withCoder(KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of()))
  *   .withStatementPreparator(new JdbcIO.StatementPreparator() {
  *     public void setParameters(PreparedStatement preparedStatement) throws Exception {
  *       preparedStatement.setString(1, "Darwin");
@@ -202,7 +204,6 @@ import org.slf4j.LoggerFactory;
  *  .withLowerBound(0)
  *  .withUpperBound(1000)
  *  .withNumPartitions(5)
- *  .withCoder(KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of()))
  *  .withRowMapper(new JdbcIO.RowMapper<KV<Integer, String>>() {
  *    public KV<Integer, String> mapRow(ResultSet resultSet) throws Exception {
  *      return KV.of(resultSet.getInt(1), resultSet.getString(2));
@@ -226,7 +227,6 @@ import org.slf4j.LoggerFactory;
  *  .withLowerBound(0)
  *  .withUpperBound(1000)
  *  .withNumPartitions(5)
- *  .withCoder(KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of()))
  *  .withRowMapper(new JdbcIO.RowMapper<KV<Integer, String>>() {
  *    public KV<Integer, String> mapRow(ResultSet resultSet) throws Exception {
  *      return KV.of(resultSet.getInt(1), resultSet.getString(2));
@@ -737,6 +737,11 @@ public class JdbcIO {
       return toBuilder().setRowMapper(rowMapper).build();
     }
 
+    /**
+     * @deprecated
+     *     <p>{@link JdbcIO} is able to infer aprppriate coders from other parameters.
+     */
+    @Deprecated
     public Read<T> withCoder(Coder<T> coder) {
       checkArgument(coder != null, "coder can not be null");
       return toBuilder().setCoder(coder).build();
@@ -764,27 +769,28 @@ public class JdbcIO {
     public PCollection<T> expand(PBegin input) {
       checkArgument(getQuery() != null, "withQuery() is required");
       checkArgument(getRowMapper() != null, "withRowMapper() is required");
-      checkArgument(getCoder() != null, "withCoder() is required");
       checkArgument(
           (getDataSourceProviderFn() != null),
           "withDataSourceConfiguration() or withDataSourceProviderFn() is required");
 
-      return input
-          .apply(Create.of((Void) null))
-          .apply(
-              JdbcIO.<Void, T>readAll()
-                  .withDataSourceProviderFn(getDataSourceProviderFn())
-                  .withQuery(getQuery())
-                  .withCoder(getCoder())
-                  .withRowMapper(getRowMapper())
-                  .withFetchSize(getFetchSize())
-                  .withOutputParallelization(getOutputParallelization())
-                  .withParameterSetter(
-                      (element, preparedStatement) -> {
-                        if (getStatementPreparator() != null) {
-                          getStatementPreparator().setParameters(preparedStatement);
-                        }
-                      }));
+      JdbcIO.ReadAll<Void, T> readAll =
+          JdbcIO.<Void, T>readAll()
+              .withDataSourceProviderFn(getDataSourceProviderFn())
+              .withQuery(getQuery())
+              .withRowMapper(getRowMapper())
+              .withFetchSize(getFetchSize())
+              .withOutputParallelization(getOutputParallelization())
+              .withParameterSetter(
+                  (element, preparedStatement) -> {
+                    if (getStatementPreparator() != null) {
+                      getStatementPreparator().setParameters(preparedStatement);
+                    }
+                  });
+
+      if (getCoder() != null) {
+        readAll = readAll.withCoder(getCoder());
+      }
+      return input.apply(Create.of((Void) null)).apply(readAll);
     }
 
     @Override
@@ -792,7 +798,9 @@ public class JdbcIO {
       super.populateDisplayData(builder);
       builder.add(DisplayData.item("query", getQuery()));
       builder.add(DisplayData.item("rowMapper", getRowMapper().getClass().getName()));
-      builder.add(DisplayData.item("coder", getCoder().getClass().getName()));
+      if (getCoder() != null) {
+        builder.add(DisplayData.item("coder", getCoder().getClass().getName()));
+      }
       if (getDataSourceProviderFn() instanceof HasDisplayData) {
         ((HasDisplayData) getDataSourceProviderFn()).populateDisplayData(builder);
       }
@@ -848,6 +856,11 @@ public class JdbcIO {
 
     public ReadAll<ParameterT, OutputT> withDataSourceProviderFn(
         SerializableFunction<Void, DataSource> dataSourceProviderFn) {
+      if (getDataSourceProviderFn() != null) {
+        throw new IllegalArgumentException(
+            "A dataSourceConfiguration or dataSourceProviderFn has "
+                + "already been provided, and does not need to be provided again.");
+      }
       return toBuilder().setDataSourceProviderFn(dataSourceProviderFn).build();
     }
 
@@ -877,6 +890,11 @@ public class JdbcIO {
       return toBuilder().setRowMapper(rowMapper).build();
     }
 
+    /**
+     * @deprecated
+     *     <p>{@link JdbcIO} is able to infer aprppriate coders from other parameters.
+     */
+    @Deprecated
     public ReadAll<ParameterT, OutputT> withCoder(Coder<OutputT> coder) {
       checkArgument(coder != null, "JdbcIO.readAll().withCoder(coder) called with null coder");
       return toBuilder().setCoder(coder).build();
@@ -900,8 +918,33 @@ public class JdbcIO {
       return toBuilder().setOutputParallelization(outputParallelization).build();
     }
 
+    private Coder<OutputT> inferCoder(CoderRegistry registry) {
+      if (getCoder() != null) {
+        return getCoder();
+      } else {
+        RowMapper<OutputT> rowMapper = getRowMapper();
+        TypeDescriptor<OutputT> outputType =
+            TypeDescriptors.extractFromTypeParameters(
+                rowMapper,
+                RowMapper.class,
+                new TypeVariableExtractor<RowMapper<OutputT>, OutputT>() {});
+        try {
+          return registry.getCoder(outputType);
+        } catch (CannotProvideCoderException e) {
+          LOG.warn("Unable to infer a coder for type {}", outputType);
+          return null;
+        }
+      }
+    }
+
     @Override
     public PCollection<OutputT> expand(PCollection<ParameterT> input) {
+      Coder<OutputT> coder = inferCoder(input.getPipeline().getCoderRegistry());
+      checkNotNull(
+          coder,
+          "Unable to infer a coder for JdbcIO.readAll() transform. "
+              + "Provide a coder via withCoder, or ensure that one can be inferred from the"
+              + " provided RowMapper.");
       PCollection<OutputT> output =
           input
               .apply(
@@ -912,14 +955,14 @@ public class JdbcIO {
                           getParameterSetter(),
                           getRowMapper(),
                           getFetchSize())))
-              .setCoder(getCoder());
+              .setCoder(coder);
 
       if (getOutputParallelization()) {
         output = output.apply(new Reparallelize<>());
       }
 
       try {
-        TypeDescriptor<OutputT> typeDesc = getCoder().getEncodedTypeDescriptor();
+        TypeDescriptor<OutputT> typeDesc = coder.getEncodedTypeDescriptor();
         SchemaRegistry registry = input.getPipeline().getSchemaRegistry();
         Schema schema = registry.getSchema(typeDesc);
         output.setSchema(
@@ -939,7 +982,9 @@ public class JdbcIO {
       super.populateDisplayData(builder);
       builder.add(DisplayData.item("query", getQuery()));
       builder.add(DisplayData.item("rowMapper", getRowMapper().getClass().getName()));
-      builder.add(DisplayData.item("coder", getCoder().getClass().getName()));
+      if (getCoder() != null) {
+        builder.add(DisplayData.item("coder", getCoder().getClass().getName()));
+      }
       if (getDataSourceProviderFn() instanceof HasDisplayData) {
         ((HasDisplayData) getDataSourceProviderFn()).populateDisplayData(builder);
       }
@@ -1005,6 +1050,11 @@ public class JdbcIO {
       return toBuilder().setRowMapper(rowMapper).build();
     }
 
+    /**
+     * @deprecated
+     *     <p>{@link JdbcIO} is able to infer aprppriate coders from other parameters.
+     */
+    @Deprecated
     public ReadWithPartitions<T> withCoder(Coder<T> coder) {
       checkNotNull(coder, "coder can not be null");
       return toBuilder().setCoder(coder).build();
@@ -1043,7 +1093,6 @@ public class JdbcIO {
     @Override
     public PCollection<T> expand(PBegin input) {
       checkNotNull(getRowMapper(), "withRowMapper() is required");
-      checkNotNull(getCoder(), "withCoder() is required");
       checkNotNull(
           getDataSourceProviderFn(),
           "withDataSourceConfiguration() or withDataSourceProviderFn() is required");
@@ -1069,15 +1118,13 @@ public class JdbcIO {
               .apply("Partitioning", ParDo.of(new PartitioningFn()))
               .apply("Group partitions", GroupByKey.create());
 
-      return ranges.apply(
-          "Read ranges",
+      JdbcIO.ReadAll<KV<String, Iterable<Long>>, T> readAll =
           JdbcIO.<KV<String, Iterable<Long>>, T>readAll()
               .withDataSourceProviderFn(getDataSourceProviderFn())
               .withQuery(
                   String.format(
                       "select * from %1$s where %2$s >= ? and %2$s < ?",
                       getTable(), getPartitionColumn()))
-              .withCoder(getCoder())
               .withRowMapper(getRowMapper())
               .withParameterSetter(
                   (PreparedStatementSetter<KV<String, Iterable<Long>>>)
@@ -1086,14 +1133,22 @@ public class JdbcIO {
                         preparedStatement.setLong(1, Long.parseLong(range[0]));
                         preparedStatement.setLong(2, Long.parseLong(range[1]));
                       })
-              .withOutputParallelization(false));
+              .withOutputParallelization(false);
+
+      if (getCoder() != null) {
+        readAll = readAll.withCoder(getCoder());
+      }
+
+      return ranges.apply("Read ranges", readAll);
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder.add(DisplayData.item("rowMapper", getRowMapper().getClass().getName()));
-      builder.add(DisplayData.item("coder", getCoder().getClass().getName()));
+      if (getCoder() != null) {
+        builder.add(DisplayData.item("coder", getCoder().getClass().getName()));
+      }
       builder.add(DisplayData.item("partitionColumn", getPartitionColumn()));
       builder.add(DisplayData.item("table", getTable()));
       builder.add(DisplayData.item("numPartitions", getNumPartitions()));

@@ -34,8 +34,6 @@ import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Implementation detail of {@link ContextualTextIO.Read}.
@@ -56,8 +54,6 @@ import org.slf4j.LoggerFactory;
 })
 class ContextualTextIOSource extends FileBasedSource<Row> {
   byte[] delimiter;
-
-  private static final Logger LOG = LoggerFactory.getLogger(ContextualTextIOSource.class);
 
   // Used to Override isSplittable
   private boolean hasMultilineCSVRecords;

@@ -29,7 +29,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -83,7 +82,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
   private static final Cache<String, StreamAppendClient> APPEND_CLIENTS =
       CacheBuilder.newBuilder()
-          .expireAfterAccess(5, TimeUnit.MINUTES)
+          .expireAfterAccess(java.time.Duration.ofMinutes(5))
           .removalListener(
               (RemovalNotification<String, StreamAppendClient> removal) -> {
                 @Nullable final StreamAppendClient streamAppendClient = removal.getValue();
@@ -154,7 +153,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       private @Nullable StreamAppendClient streamAppendClient = null;
       private long currentOffset = 0;
       private List<ByteString> pendingMessages;
-      private @Nullable DatasetService datasetService;
+      private transient @Nullable DatasetService datasetService;
       private final Counter recordsAppended =
           Metrics.counter(WriteRecordsDoFn.class, "recordsAppended");
       private final Counter appendFailures =
@@ -273,7 +272,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
     private Map<DestinationT, DestinationState> destinations = Maps.newHashMap();
     private final TwoLevelMessageConverterCache<DestinationT, ElementT> messageConverters;
-    private @Nullable DatasetService datasetService;
+    private transient @Nullable DatasetService datasetService;
     private int numPendingRecords = 0;
     private int numPendingRecordBytes = 0;
     private static final int FLUSH_THRESHOLD_RECORDS = 100;
@@ -341,7 +340,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       numPendingRecordBytes = 0;
     }
 
-    DestinationState createDestinationState(ProcessContext c, DestinationT destination) {
+    DestinationState createDestinationState(
+        ProcessContext c, DestinationT destination, DatasetService datasetService) {
       TableDestination tableDestination1 = dynamicDestinations.getTable(destination);
       checkArgument(
           tableDestination1 != null,
@@ -362,7 +362,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
       MessageConverter<ElementT> messageConverter;
       try {
-        messageConverter = messageConverters.get(destination, dynamicDestinations);
+        messageConverter = messageConverters.get(destination, dynamicDestinations, datasetService);
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
@@ -379,7 +379,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       initializeDatasetService(pipelineOptions);
       dynamicDestinations.setSideInputAccessorFromProcessContext(c);
       DestinationState state =
-          destinations.computeIfAbsent(element.getKey(), k -> createDestinationState(c, k));
+          destinations.computeIfAbsent(
+              element.getKey(), k -> createDestinationState(c, k, datasetService));
       flushIfNecessary();
       state.addMessage(element.getValue());
       ++numPendingRecords;

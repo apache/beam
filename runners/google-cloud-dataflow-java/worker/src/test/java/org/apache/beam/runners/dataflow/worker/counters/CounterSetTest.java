@@ -46,8 +46,8 @@ public class CounterSetTest {
 
   @Test
   public void testAddWithDifferentNamesAddsAll() {
-    Counter<?, ?> c1 = counterSet.longSum(name1);
-    Counter<?, ?> c2 = counterSet.intMax(name2);
+    counterSet.longSum(name1);
+    counterSet.intMax(name2);
 
     assertThat(counterSet.size(), equalTo(2L));
   }

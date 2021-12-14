@@ -47,7 +47,6 @@ _LOGGER = logging.getLogger(__name__)
 _TEST_INSTANCE_ID = 'beam-test'
 
 
-@unittest.skip("BEAM-13222")
 @unittest.skipIf(spanner is None, 'GCP dependencies are not installed.')
 class SpannerWriteIntegrationTest(unittest.TestCase):
   TEST_DATABASE = None
@@ -113,7 +112,7 @@ class SpannerWriteIntegrationTest(unittest.TestCase):
     cls._create_database()
     _LOGGER.info('Spanner Write IT Setup Complete...')
 
-  @pytest.mark.it_postcommit
+  @pytest.mark.spannerio_it
   def test_write_batches(self):
     _prefex = 'test_write_batches'
     mutations = [
@@ -139,7 +138,7 @@ class SpannerWriteIntegrationTest(unittest.TestCase):
     res.wait_until_finish()
     self.assertEqual(self._count_data(_prefex), len(mutations))
 
-  @pytest.mark.it_postcommit
+  @pytest.mark.spannerio_it
   def test_spanner_update(self):
     _prefex = 'test_update'
 
@@ -175,7 +174,7 @@ class SpannerWriteIntegrationTest(unittest.TestCase):
     res.wait_until_finish()
     self.assertEqual(self._count_data(_prefex), 2)
 
-  @pytest.mark.it_postcommit
+  @pytest.mark.spannerio_it
   def test_spanner_error(self):
     mutations_update = [
         WriteMutation.update(
@@ -191,7 +190,7 @@ class SpannerWriteIntegrationTest(unittest.TestCase):
               database_id=self.TEST_DATABASE))
       p.run()
 
-  @pytest.mark.it_postcommit
+  @pytest.mark.spannerio_it
   def test_metrics_ok_call(self):
     if 'DirectRunner' not in self.runner_name:
       raise unittest.SkipTest('This test only runs with DirectRunner.')
@@ -220,7 +219,7 @@ class SpannerWriteIntegrationTest(unittest.TestCase):
     self.verify_write_call_metric(
         self.project, self.TEST_DATABASE, 'Albums', 'ok', 1)
 
-  @pytest.mark.it_postcommit
+  @pytest.mark.spannerio_it
   def test_metrics_error_call(self):
     if 'DirectRunner' not in self.runner_name:
       raise unittest.SkipTest('This test only runs with DirectRunner.')

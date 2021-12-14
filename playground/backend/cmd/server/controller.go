@@ -17,12 +17,13 @@ package main
 import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/cache"
+	"beam.apache.org/playground/backend/internal/cloud_bucket"
+	"beam.apache.org/playground/backend/internal/code_processing"
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/errors"
-	"beam.apache.org/playground/backend/internal/executors"
-	"beam.apache.org/playground/backend/internal/fs_tool"
 	"beam.apache.org/playground/backend/internal/logger"
-	"beam.apache.org/playground/backend/internal/validators"
+	"beam.apache.org/playground/backend/internal/setup_tools/life_cycle"
+	"beam.apache.org/playground/backend/internal/utils"
 	"context"
 	"github.com/google/uuid"
 )
@@ -44,416 +45,198 @@ type playgroundController struct {
 //   Returns id of code processing (pipelineId)
 func (controller *playgroundController) RunCode(ctx context.Context, info *pb.RunCodeRequest) (*pb.RunCodeResponse, error) {
 	// check for correct sdk
+	if info.Sdk != controller.env.BeamSdkEnvs.ApacheBeamSdk {
+		logger.Errorf("RunCode(): request contains incorrect sdk: %s\n", info.Sdk)
+		return nil, errors.InvalidArgumentError("Run code()", "incorrect sdk: %s", info.Sdk.String())
+	}
 	switch info.Sdk {
-	case pb.Sdk_SDK_UNSPECIFIED, pb.Sdk_SDK_GO, pb.Sdk_SDK_PYTHON, pb.Sdk_SDK_SCIO:
+	case pb.Sdk_SDK_UNSPECIFIED, pb.Sdk_SDK_SCIO:
 		logger.Errorf("RunCode(): unimplemented sdk: %s\n", info.Sdk)
-		return nil, errors.InvalidArgumentError("Run code()", "unimplemented sdk: "+info.Sdk.String())
+		return nil, errors.InvalidArgumentError("Run code()", "unimplemented sdk: %s", info.Sdk.String())
 	}
 
 	cacheExpirationTime := controller.env.ApplicationEnvs.CacheEnvs().KeyExpirationTime()
 	pipelineId := uuid.New()
 
-	lc, err := setupLifeCycle(info.Sdk, info.Code, pipelineId, controller.env.ApplicationEnvs.WorkingDir())
+	lc, err := life_cycle.Setup(info.Sdk, info.Code, pipelineId, controller.env.ApplicationEnvs.WorkingDir(), controller.env.BeamSdkEnvs.PreparedModDir())
 	if err != nil {
-		return nil, errors.InternalError("Run code", "Error during setup file system: "+err.Error())
+		logger.Errorf("RunCode(): error during setup file system: %s\n", err.Error())
+		return nil, errors.InternalError("Run code", "Error during setup file system: %s", err.Error())
 	}
 
-	compileBuilder := setupCompileBuilder(lc, info.Sdk, controller.env.BeamSdkEnvs.ExecutorConfig)
-
-	setToCache(ctx, controller.cacheService, pipelineId, cache.Status, pb.Status_STATUS_VALIDATING)
-	if err := controller.cacheService.SetExpTime(ctx, pipelineId, cacheExpirationTime); err != nil {
+	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.Status, pb.Status_STATUS_VALIDATING); err != nil {
+		code_processing.DeleteFolders(pipelineId, lc)
+		return nil, errors.InternalError("Run code()", "Error during set value to cache: %s", err.Error())
+	}
+	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.RunOutputIndex, 0); err != nil {
+		return nil, errors.InternalError("Run code()", "Error during set value to cache: %s", err.Error())
+	}
+	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.LogsIndex, 0); err != nil {
+		return nil, errors.InternalError("Run code()", "Error during set value to cache: %s", err.Error())
+	}
+	if err = controller.cacheService.SetExpTime(ctx, pipelineId, cacheExpirationTime); err != nil {
 		logger.Errorf("%s: RunCode(): cache.SetExpTime(): %s\n", pipelineId, err.Error())
-		return nil, errors.InternalError("Run code()", "Error during set expiration to cache: "+err.Error())
+		code_processing.DeleteFolders(pipelineId, lc)
+		return nil, errors.InternalError("Run code()", "Error during set expiration to cache: %s", err.Error())
 	}
 
-	// TODO change using of context.TODO() to context.Background()
-	go processCode(context.TODO(), controller.cacheService, lc, compileBuilder, pipelineId, controller.env, info.Sdk)
+	go code_processing.Process(context.Background(), controller.cacheService, lc, pipelineId, &controller.env.ApplicationEnvs, &controller.env.BeamSdkEnvs, info.PipelineOptions)
 
 	pipelineInfo := pb.RunCodeResponse{PipelineUuid: pipelineId.String()}
 	return &pipelineInfo, nil
 }
 
-//CheckStatus is checking status for the specific pipeline by PipelineUuid
+// CheckStatus is checking status for the specific pipeline by PipelineUuid
 func (controller *playgroundController) CheckStatus(ctx context.Context, info *pb.CheckStatusRequest) (*pb.CheckStatusResponse, error) {
-	pipelineId := info.PipelineUuid
-	statusInterface, err := controller.cacheService.GetValue(ctx, uuid.MustParse(pipelineId), cache.Status)
+	pipelineId, err := uuid.Parse(info.PipelineUuid)
 	if err != nil {
-		logger.Errorf("%s: CheckStatus(): cache.GetValue: error: %s", pipelineId, err.Error())
-		return nil, errors.NotFoundError("CheckStatus", "Error during getting cache by pipelineId: "+pipelineId+", subKey: cache.SubKey_Status")
+		logger.Errorf("%s: CheckStatus(): pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid, err.Error())
+		return nil, errors.InvalidArgumentError("CheckStatus", "pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid)
 	}
-	status, converted := statusInterface.(pb.Status)
-	if !converted {
-		return nil, errors.InternalError("CheckStatus", "status value from cache couldn't be converted to correct status enum")
+	status, err := code_processing.GetProcessingStatus(ctx, controller.cacheService, pipelineId, "CheckStatus")
+	if err != nil {
+		return nil, err
 	}
 	return &pb.CheckStatusResponse{Status: status}, nil
 }
 
-//GetRunOutput is returning output of execution for specific pipeline by PipelineUuid
+// GetRunOutput is returning output of execution for specific pipeline by PipelineUuid
 func (controller *playgroundController) GetRunOutput(ctx context.Context, info *pb.GetRunOutputRequest) (*pb.GetRunOutputResponse, error) {
-	pipelineId := info.PipelineUuid
-	runOutputInterface, err := controller.cacheService.GetValue(ctx, uuid.MustParse(pipelineId), cache.RunOutput)
+	pipelineId, err := uuid.Parse(info.PipelineUuid)
 	if err != nil {
-		logger.Errorf("%s: GetRunOutput(): cache.GetValue: error: %s", pipelineId, err.Error())
-		return nil, errors.NotFoundError("GetRunOutput", "there is no run output for pipelineId: "+pipelineId+", subKey: cache.SubKey_RunOutput")
+		logger.Errorf("%s: GetRunOutput(): pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid, err.Error())
+		return nil, errors.InvalidArgumentError("GetRunOutput", "pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid)
 	}
-	runOutput, converted := runOutputInterface.(string)
-	if !converted {
-		return nil, errors.InternalError("GetRunOutput", "run output can't be converted to string")
+	lastIndex, err := code_processing.GetLastIndex(ctx, controller.cacheService, pipelineId, cache.RunOutputIndex, "GetRunOutput")
+	if err != nil {
+		return nil, err
 	}
-	pipelineResult := pb.GetRunOutputResponse{Output: runOutput}
+	runOutput, err := code_processing.GetProcessingOutput(ctx, controller.cacheService, pipelineId, cache.RunOutput, "GetRunOutput")
+	if err != nil {
+		return nil, err
+	}
+	newRunOutput := ""
+	if len(runOutput) > lastIndex {
+		newRunOutput = runOutput[lastIndex:]
+		if err := utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.RunOutputIndex, lastIndex+len(newRunOutput)); err != nil {
+			return nil, errors.InternalError("GetRunOutput", "Error during set value to cache: %s", err.Error())
+		}
+	}
+
+	pipelineResult := pb.GetRunOutputResponse{Output: newRunOutput}
 
 	return &pipelineResult, nil
 }
 
-//GetRunError is returning error output of execution for specific pipeline by PipelineUuid
-func (controller *playgroundController) GetRunError(ctx context.Context, info *pb.GetRunErrorRequest) (*pb.GetRunErrorResponse, error) {
-	pipelineId := info.PipelineUuid
-	runErrorInterface, err := controller.cacheService.GetValue(ctx, uuid.MustParse(pipelineId), cache.RunError)
+// GetLogs is returning logs of execution for specific pipeline by PipelineUuid
+func (controller *playgroundController) GetLogs(ctx context.Context, info *pb.GetLogsRequest) (*pb.GetLogsResponse, error) {
+	errorTitle := utils.GetFuncName(controller.GetRunOutput)
+	pipelineId, err := uuid.Parse(info.PipelineUuid)
 	if err != nil {
-		logger.Errorf("%s: GetRunError(): cache.GetValue: error: %s", pipelineId, err.Error())
-		return nil, errors.NotFoundError("GetRunError", "there is no run error output for pipelineId: "+pipelineId+", subKey: cache.RunError")
+		logger.Errorf("%s: %s: pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid, errorTitle, err.Error())
+		return nil, errors.InvalidArgumentError(errorTitle, "pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid)
 	}
-	runError, converted := runErrorInterface.(string)
-	if !converted {
-		return nil, errors.InternalError("GetRunError", "run output can't be converted to string")
+	lastIndex, err := code_processing.GetLastIndex(ctx, controller.cacheService, pipelineId, cache.LogsIndex, errorTitle)
+	if err != nil {
+		return nil, err
 	}
-	pipelineResult := pb.GetRunErrorResponse{Output: runError}
+	logs, err := code_processing.GetProcessingOutput(ctx, controller.cacheService, pipelineId, cache.Logs, errorTitle)
+	if err != nil {
+		return nil, err
+	}
+	newLogs := ""
+	if len(logs) > lastIndex {
+		newLogs = logs[lastIndex:]
+		if err := utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.LogsIndex, lastIndex+len(newLogs)); err != nil {
+			return nil, errors.InternalError(errorTitle, "Error during set value to cache: %s", err.Error())
+		}
+	}
+
+	pipelineResult := pb.GetLogsResponse{Output: newLogs}
 
 	return &pipelineResult, nil
+}
+
+// GetRunError is returning error output of execution for specific pipeline by PipelineUuid
+func (controller *playgroundController) GetRunError(ctx context.Context, info *pb.GetRunErrorRequest) (*pb.GetRunErrorResponse, error) {
+	pipelineId, err := uuid.Parse(info.PipelineUuid)
+	if err != nil {
+		logger.Errorf("%s: GetRunError(): pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid, err.Error())
+		return nil, errors.InvalidArgumentError("GetRunError", "pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid)
+	}
+	runError, err := code_processing.GetProcessingOutput(ctx, controller.cacheService, pipelineId, cache.RunError, "GetRunError")
+	if err != nil {
+		return nil, err
+	}
+	return &pb.GetRunErrorResponse{Output: runError}, nil
 }
 
 //GetCompileOutput is returning output of compilation for specific pipeline by PipelineUuid
 func (controller *playgroundController) GetCompileOutput(ctx context.Context, info *pb.GetCompileOutputRequest) (*pb.GetCompileOutputResponse, error) {
-	pipelineId := info.PipelineUuid
-	compileOutputInterface, err := controller.cacheService.GetValue(ctx, uuid.MustParse(pipelineId), cache.CompileOutput)
+	pipelineId, err := uuid.Parse(info.PipelineUuid)
 	if err != nil {
-		logger.Errorf("%s: GetCompileOutput(): cache.GetValue: error: %s", pipelineId, err.Error())
-		return nil, errors.NotFoundError("GetCompileOutput", "there is no compile output for pipelineId: "+pipelineId+", subKey: cache.SubKey_CompileOutput")
+		logger.Errorf("%s: GetCompileOutput(): pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid, err.Error())
+		return nil, errors.InvalidArgumentError("GetCompileOutput", "pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid)
 	}
-	compileOutput, converted := compileOutputInterface.(string)
-	if !converted {
-		return nil, errors.InternalError("GetCompileOutput", "compile output can't be converted to string")
+	compileOutput, err := code_processing.GetProcessingOutput(ctx, controller.cacheService, pipelineId, cache.CompileOutput, "GetCompileOutput")
+	if err != nil {
+		return nil, err
 	}
-	pipelineResult := pb.GetCompileOutputResponse{Output: compileOutput}
-
-	return &pipelineResult, nil
+	return &pb.GetCompileOutputResponse{Output: compileOutput}, nil
 }
 
-//GetListOfExamples returns the list of examples
-func (controller *playgroundController) GetListOfExamples(ctx context.Context, info *pb.GetListOfExamplesRequest) (*pb.GetListOfExamplesResponse, error) {
-	// TODO implement this method
-	example1 := pb.Example{ExampleUuid: "001", Name: "Example1", Description: "Test example 1", Type: pb.ExampleType_EXAMPLE_TYPE_DEFAULT}
-	example2 := pb.Example{ExampleUuid: "003", Name: "Example3", Description: "Test example 3", Type: pb.ExampleType_EXAMPLE_TYPE_KATA}
+// Cancel is setting cancel flag to stop code processing
+func (controller *playgroundController) Cancel(ctx context.Context, info *pb.CancelRequest) (*pb.CancelResponse, error) {
+	pipelineId, err := uuid.Parse(info.PipelineUuid)
+	if err != nil {
+		logger.Errorf("%s: Cancel(): pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid, err.Error())
+		return nil, errors.InvalidArgumentError("Cancel", "pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid)
+	}
+	if err := utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.Canceled, true); err != nil {
+		return nil, errors.InternalError("Cancel", "error during set cancel flag to cache")
+	}
+	return &pb.CancelResponse{}, nil
+}
 
-	cat1 := pb.Categories_Category{
-		CategoryName: "Common",
-		Examples:     []*pb.Example{&example1, {ExampleUuid: "002", Name: "Example2", Description: "Test example 1", Type: pb.ExampleType_EXAMPLE_TYPE_UNIT_TEST}},
+// GetPrecompiledObjects returns the list of examples
+func (controller *playgroundController) GetPrecompiledObjects(ctx context.Context, info *pb.GetPrecompiledObjectsRequest) (*pb.GetPrecompiledObjectsResponse, error) {
+	bucket := cloud_bucket.New()
+	sdkToCategories, err := bucket.GetPrecompiledObjects(ctx, info.Sdk, info.Category)
+	if err != nil {
+		logger.Errorf("GetPrecompiledObjects(): cloud storage error: %s", err.Error())
+		return nil, errors.InternalError("GetPrecompiledObjects(): ", err.Error())
 	}
-	cat2 := pb.Categories_Category{
-		CategoryName: "I/O",
-		Examples:     []*pb.Example{&example2},
+	response := pb.GetPrecompiledObjectsResponse{SdkCategories: make([]*pb.Categories, 0)}
+	for sdkName, categories := range *sdkToCategories {
+		sdkCategory := pb.Categories{Sdk: pb.Sdk(pb.Sdk_value[sdkName]), Categories: make([]*pb.Categories_Category, 0)}
+		for categoryName, precompiledObjects := range categories {
+			utils.PutPrecompiledObjectsToCategory(categoryName, &precompiledObjects, &sdkCategory)
+		}
+		response.SdkCategories = append(response.SdkCategories, &sdkCategory)
 	}
-	javaCats := pb.Categories{Sdk: pb.Sdk_SDK_JAVA, Categories: []*pb.Categories_Category{&cat1, &cat2}}
-	goCats := pb.Categories{Sdk: pb.Sdk_SDK_GO, Categories: []*pb.Categories_Category{&cat1, &cat2}}
-	response := pb.GetListOfExamplesResponse{SdkExamples: []*pb.Categories{&javaCats, &goCats}}
 	return &response, nil
 }
 
-// GetExample returns the code of the specific example
-func (controller *playgroundController) GetExample(ctx context.Context, info *pb.GetExampleRequest) (*pb.GetExampleResponse, error) {
-	// TODO implement this method
-	response := pb.GetExampleResponse{Code: "example code"}
+// GetPrecompiledObjectCode returns the code of the specific example
+func (controller *playgroundController) GetPrecompiledObjectCode(ctx context.Context, info *pb.GetPrecompiledObjectRequest) (*pb.GetPrecompiledObjectCodeResponse, error) {
+	cd := cloud_bucket.New()
+	codeString, err := cd.GetPrecompiledObject(ctx, info.GetCloudPath())
+	if err != nil {
+		logger.Errorf("GetPrecompiledObject(): cloud storage error: %s", err.Error())
+		return nil, errors.InternalError("GetPrecompiledObjects(): ", err.Error())
+	}
+	response := pb.GetPrecompiledObjectCodeResponse{Code: codeString}
 	return &response, nil
 }
 
-// GetExampleOutput returns the output of the compiled and run example
-func (controller *playgroundController) GetExampleOutput(ctx context.Context, info *pb.GetExampleRequest) (*pb.GetRunOutputResponse, error) {
-	// TODO implement this method
-	response := pb.GetRunOutputResponse{Output: "Response Output"}
+// GetPrecompiledObjectOutput returns the output of the compiled and run example
+func (controller *playgroundController) GetPrecompiledObjectOutput(ctx context.Context, info *pb.GetPrecompiledObjectRequest) (*pb.GetRunOutputResponse, error) {
+	cd := cloud_bucket.New()
+	output, err := cd.GetPrecompiledObjectOutput(ctx, info.GetCloudPath())
+	if err != nil {
+		logger.Errorf("GetPrecompiledObjectOutput(): cloud storage error: %s", err.Error())
+		return nil, errors.InternalError("GetPrecompiledObjectOutput(): ", err.Error())
+	}
+	response := pb.GetRunOutputResponse{Output: output}
 	return &response, nil
-}
-
-// setupLifeCycle creates fs_tool.LifeCycle and prepares files and folders needed to code processing
-func setupLifeCycle(sdk pb.Sdk, code string, pipelineId uuid.UUID, workingDir string) (*fs_tool.LifeCycle, error) {
-	// create file system service
-	lc, err := fs_tool.NewLifeCycle(sdk, pipelineId, workingDir)
-	if err != nil {
-		logger.Errorf("%s: RunCode(): NewLifeCycle(): %s\n", pipelineId, err.Error())
-		return nil, err
-	}
-
-	// create folders
-	err = lc.CreateFolders()
-	if err != nil {
-		logger.Errorf("%s: RunCode(): CreateFolders(): %s\n", pipelineId, err.Error())
-		return nil, err
-	}
-
-	// create file with code
-	_, err = lc.CreateExecutableFile(code)
-	if err != nil {
-		logger.Errorf("%s: RunCode(): CreateExecutableFile(): %s\n", pipelineId, err.Error())
-		return nil, err
-	}
-	return lc, nil
-}
-
-// setupCompileBuilder returns executors.CompileBuilder with validators and compiler based on sdk
-func setupCompileBuilder(lc *fs_tool.LifeCycle, sdk pb.Sdk, executorConfig *environment.ExecutorConfig) *executors.CompileBuilder {
-	filePath := lc.GetAbsoluteExecutableFilePath()
-	val := setupValidators(sdk, filePath)
-
-	compileBuilder := executors.NewExecutorBuilder().
-		WithValidator().
-		WithSdkValidators(val).
-		WithCompiler()
-
-	switch sdk {
-	case pb.Sdk_SDK_JAVA:
-		workingDir := lc.GetAbsoluteExecutableFilesFolderPath()
-
-		compileBuilder = compileBuilder.
-			WithCommand(executorConfig.CompileCmd).
-			WithArgs(executorConfig.CompileArgs).
-			WithFileName(filePath).
-			WithWorkingDir(workingDir)
-	}
-	return compileBuilder
-}
-
-// setupRunBuilder returns executors.RunBuilder based on sdk
-func setupRunBuilder(pipelineId uuid.UUID, lc *fs_tool.LifeCycle, sdk pb.Sdk, env *environment.Environment, compileBuilder *executors.CompileBuilder) (*executors.RunBuilder, error) {
-	runBuilder := compileBuilder.
-		WithRunner().
-		WithCommand(env.BeamSdkEnvs.ExecutorConfig.RunCmd).
-		WithArgs(env.BeamSdkEnvs.ExecutorConfig.RunArgs).
-		WithWorkingDir(lc.GetAbsoluteExecutableFilesFolderPath())
-
-	switch sdk {
-	case pb.Sdk_SDK_JAVA:
-		className, err := lc.ExecutableName(pipelineId, env.ApplicationEnvs.WorkingDir())
-		if err != nil {
-			logger.Errorf("%s: get executable file name: %s\n", pipelineId, err.Error())
-			return nil, err
-		}
-
-		runBuilder = runBuilder.
-			WithClassName(className)
-	}
-	return runBuilder, nil
-}
-
-// setupValidators returns slice of validators.Validator based on sdk
-func setupValidators(sdk pb.Sdk, filepath string) *[]validators.Validator {
-	var val *[]validators.Validator
-	switch sdk {
-	case pb.Sdk_SDK_JAVA:
-		val = validators.GetJavaValidators(filepath)
-	}
-	return val
-}
-
-// processCode validates, compiles and runs code by pipelineId.
-// During each operation updates status of execution and saves it into cache:
-// - In case of processing works more that timeout duration saves playground.Status_STATUS_RUN_TIMEOUT as cache.Status into cache.
-// - In case of validation step is failed saves playground.Status_STATUS_VALIDATION_ERROR as cache.Status into cache.
-// - In case of compile step is failed saves playground.Status_STATUS_COMPILE_ERROR as cache.Status and compile logs as cache.CompileOutput into cache.
-// - In case of compile step is completed with no errors saves compile output as cache.CompileOutput into cache.
-// - In case of run step is failed saves playground.Status_STATUS_RUN_ERROR as cache.Status and run logs as cache.RunError into cache.
-// - In case of run step is completed with no errors saves playground.Status_STATUS_FINISHED as cache.Status and run output as cache.RunOutput into cache.
-// At the end of this method deletes all created folders.
-func processCode(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycle, compileBuilder *executors.CompileBuilder, pipelineId uuid.UUID, env *environment.Environment, sdk pb.Sdk) {
-	ctxWithTimeout, cancelByTimeoutFunc := context.WithTimeout(ctx, env.ApplicationEnvs.PipelineExecuteTimeout())
-	defer func(lc *fs_tool.LifeCycle) {
-		cancelByTimeoutFunc()
-		cleanUp(pipelineId, lc)
-	}(lc)
-
-	errorChannel := make(chan error, 1)
-	dataChannel := make(chan interface{}, 1)
-	successChannel := make(chan bool, 1)
-
-	// build executor for validate and compile steps
-	exec := compileBuilder.Build()
-
-	// validate
-	logger.Infof("%s: Validate() ...\n", pipelineId)
-	validateFunc := exec.Validate()
-	go validateFunc(successChannel, errorChannel)
-
-	select {
-	case <-ctxWithTimeout.Done():
-		finishByContext(ctxWithTimeout, pipelineId, cacheService)
-		return
-	case ok := <-successChannel:
-		if !ok {
-			err := <-errorChannel
-			processError(ctx, err, nil, pipelineId, cacheService, pb.Status_STATUS_VALIDATION_ERROR)
-			return
-		}
-		processSuccess(ctx, nil, pipelineId, cacheService, pb.Status_STATUS_PREPARING)
-	}
-
-	// prepare
-	logger.Info("%s: Prepare() ...\n", pipelineId)
-	prepareFunc := exec.Prepare()
-	go prepareFunc(successChannel, errorChannel)
-
-	select {
-	case <-ctxWithTimeout.Done():
-		finishByContext(ctxWithTimeout, pipelineId, cacheService)
-		return
-	case ok := <-successChannel:
-		if !ok {
-			err := <-errorChannel
-			processError(ctx, err, nil, pipelineId, cacheService, pb.Status_STATUS_PREPARATION_ERROR)
-			return
-		}
-		processSuccess(ctx, nil, pipelineId, cacheService, pb.Status_STATUS_COMPILING)
-	}
-
-	// compile
-	logger.Infof("%s: Compile() ...\n", pipelineId)
-	compileCmd := exec.Compile(ctxWithTimeout)
-	go func(successCh chan bool, errCh chan error, dataCh chan interface{}) {
-		// TODO separate stderr from stdout
-		data, err := compileCmd.CombinedOutput()
-		dataCh <- data
-		if err != nil {
-			errCh <- err
-			successCh <- false
-		} else {
-			successCh <- true
-		}
-	}(successChannel, errorChannel, dataChannel)
-
-	select {
-	case <-ctxWithTimeout.Done():
-		finishByContext(ctxWithTimeout, pipelineId, cacheService)
-		return
-	case ok := <-successChannel:
-		data := <-dataChannel
-		if !ok {
-			err := <-errorChannel
-			processError(ctxWithTimeout, err, data.([]byte), pipelineId, cacheService, pb.Status_STATUS_COMPILE_ERROR)
-			return
-		}
-		processSuccess(ctxWithTimeout, data.([]byte), pipelineId, cacheService, pb.Status_STATUS_EXECUTING)
-	}
-
-	runBuilder, err := setupRunBuilder(pipelineId, lc, sdk, env, compileBuilder)
-	if err != nil {
-		logger.Errorf("%s: error during setup runBuilder: %s\n", pipelineId, err.Error())
-		setToCache(ctxWithTimeout, cacheService, pipelineId, cache.Status, pb.Status_STATUS_ERROR)
-		return
-	}
-
-	// build executor for run step
-	exec = runBuilder.Build()
-
-	// run
-	logger.Infof("%s: Run() ...\n", pipelineId)
-	runCmd := exec.Run(ctxWithTimeout)
-	go func(successCh chan bool, errCh chan error, dataCh chan interface{}) {
-		// TODO separate stderr from stdout
-		data, err := runCmd.CombinedOutput()
-		dataCh <- data
-		if err != nil {
-			errCh <- err
-			successChannel <- false
-		} else {
-			successChannel <- true
-		}
-	}(successChannel, errorChannel, dataChannel)
-
-	select {
-	case <-ctxWithTimeout.Done():
-		finishByContext(ctxWithTimeout, pipelineId, cacheService)
-		return
-	case ok := <-successChannel:
-		data := <-dataChannel
-		if !ok {
-			err := <-errorChannel
-			processError(ctxWithTimeout, err.(error), data.([]byte), pipelineId, cacheService, pb.Status_STATUS_RUN_ERROR)
-			return
-		}
-		processSuccess(ctxWithTimeout, data.([]byte), pipelineId, cacheService, pb.Status_STATUS_FINISHED)
-	}
-}
-
-// finishByContext is used in case of runCode method finished by timeout
-func finishByContext(ctx context.Context, pipelineId uuid.UUID, cacheService cache.Cache) {
-	logger.Errorf("%s: processCode finish because of timeout\n", pipelineId)
-
-	// set to cache pipelineId: cache.SubKey_Status: Status_STATUS_RUN_TIMEOUT
-	setToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_RUN_TIMEOUT)
-}
-
-// cleanUp removes all prepared folders for received LifeCycle
-func cleanUp(pipelineId uuid.UUID, lc *fs_tool.LifeCycle) {
-	logger.Infof("%s: DeleteFolders() ...\n", pipelineId)
-	if err := lc.DeleteFolders(); err != nil {
-		logger.Error("%s: DeleteFolders(): %s\n", pipelineId, err.Error())
-	}
-	logger.Infof("%s: DeleteFolders() complete\n", pipelineId)
-	logger.Infof("%s: complete\n", pipelineId)
-}
-
-// processError processes error received during processing code via setting a corresponding status and output to cache
-func processError(ctx context.Context, err error, data []byte, pipelineId uuid.UUID, cacheService cache.Cache, status pb.Status) {
-	switch status {
-	case pb.Status_STATUS_VALIDATION_ERROR:
-		logger.Errorf("%s: Validate(): %s\n", pipelineId, err.Error())
-
-		setToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_VALIDATION_ERROR)
-	case pb.Status_STATUS_PREPARATION_ERROR:
-		logger.Errorf("%s: Prepare(): %s\n", pipelineId, err.Error())
-
-		setToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_PREPARATION_ERROR)
-	case pb.Status_STATUS_COMPILE_ERROR:
-		logger.Errorf("%s: Compile(): err: %s, output: %s\n", pipelineId, err.Error(), data)
-
-		setToCache(ctx, cacheService, pipelineId, cache.CompileOutput, "error: "+err.Error()+", output: "+string(data))
-
-		setToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_COMPILE_ERROR)
-	case pb.Status_STATUS_RUN_ERROR:
-		logger.Errorf("%s: Run(): err: %s, output: %s\n", pipelineId, err.Error(), data)
-
-		setToCache(ctx, cacheService, pipelineId, cache.RunError, "error: "+err.Error()+", output: "+string(data))
-
-		setToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_RUN_ERROR)
-	}
-}
-
-// processSuccess processes case after successful code processing via setting a corresponding status and output to cache
-func processSuccess(ctx context.Context, output []byte, pipelineId uuid.UUID, cacheService cache.Cache, status pb.Status) {
-	switch status {
-	case pb.Status_STATUS_PREPARING:
-		logger.Infof("%s: Validate() finish\n", pipelineId)
-
-		setToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_PREPARING)
-	case pb.Status_STATUS_COMPILING:
-		logger.Infof("%s: Prepare() finish\n", pipelineId)
-
-		setToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_COMPILING)
-	case pb.Status_STATUS_EXECUTING:
-		logger.Infof("%s: Compile() finish\n", pipelineId)
-
-		setToCache(ctx, cacheService, pipelineId, cache.CompileOutput, string(output))
-
-		setToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_EXECUTING)
-	case pb.Status_STATUS_FINISHED:
-		logger.Infof("%s: Run() finish\n", pipelineId)
-
-		setToCache(ctx, cacheService, pipelineId, cache.RunOutput, string(output))
-
-		setToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_FINISHED)
-	}
-}
-
-// setToCache puts value to cache by key and subKey
-func setToCache(ctx context.Context, cacheService cache.Cache, key uuid.UUID, subKey cache.SubKey, value interface{}) {
-	if err := cacheService.SetValue(ctx, key, subKey, value); err != nil {
-		logger.Errorf("%s: cache.SetValue: %s\n", key, err.Error())
-	}
 }

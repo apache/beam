@@ -1151,10 +1151,21 @@ class GlobalCachingStateHandler(CachingStateHandler):
         # When a corrupt value made it into the cache, we have to fail.
         raise Exception("Unexpected cached value: %s" % cached_value)
     # Write to state handler
+    futures = []
     out = coder_impl.create_OutputStream()
     for element in elements:
       coder.encode_to_stream(element, out, True)
-    return self._underlying.append_raw(state_key, out.get())
+      if out.size() > data_plane._DEFAULT_SIZE_FLUSH_THRESHOLD:
+        futures.append(self._underlying.append_raw(state_key, out.get()))
+        out = coder_impl.create_OutputStream()
+    if out.size():
+      futures.append(self._underlying.append_raw(state_key, out.get()))
+    return _DeferredCall(
+        lambda *results: beam_fn_api_pb2.StateResponse(
+            error='\n'.join(
+                result.error for result in results if result and result.error),
+            append=beam_fn_api_pb2.StateAppendResponse()),
+        *futures)
 
   def clear(self, state_key):
     # type: (beam_fn_api_pb2.StateKey) -> _Future
@@ -1266,9 +1277,10 @@ class _Future(Generic[T]):
       raise LookupError()
 
   def set(self, value):
-    # type: (T) -> None
+    # type: (T) -> _Future[T]
     self._value = value
     self._event.set()
+    return self
 
   @classmethod
   def done(cls):
@@ -1278,6 +1290,27 @@ class _Future(Generic[T]):
       done_future.set(None)
       cls.DONE = done_future  # type: ignore[attr-defined]
     return cls.DONE  # type: ignore[attr-defined]
+
+
+class _DeferredCall(_Future[T]):
+  def __init__(self, func, *args):
+    # type: (Callable[..., Any], *Any) -> None
+    self._func = func
+    self._args = [
+        arg if isinstance(arg, _Future) else _Future().set(arg) for arg in args
+    ]
+
+  def wait(self, timeout=None):
+    # type: (Optional[float]) -> bool
+    return all(arg.wait(timeout) for arg in self._args)
+
+  def get(self, timeout=None):
+    # type: (Optional[float]) -> T
+    return self._func(*(arg.get(timeout) for arg in self._args))
+
+  def set(self, value):
+    # type: (T) -> _Future[T]
+    raise NotImplementedError()
 
 
 class KeyedDefaultDict(DefaultDict[_KT, _VT]):
