@@ -2145,7 +2145,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
             'Schema auto-detection is not supported for streaming '
             'inserts into BigQuery. Only for File Loads.')
 
-      if self.triggering_frequency and not self.with_auto_sharding:
+      if self.triggering_frequency is not None and not self.with_auto_sharding:
         raise ValueError(
             'triggering_frequency with STREAMING_INSERTS can only be used with '
             'with_auto_sharding=True.')
