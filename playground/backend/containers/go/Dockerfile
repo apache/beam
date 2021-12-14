@@ -16,7 +16,7 @@
 # limitations under the License.
 ###############################################################################
 #Dokerfile to set up the Beam Go SDK
-ARG BASE_IMAGE=golang:1.16-buster
+ARG BASE_IMAGE=golang:1.16-bullseye
 FROM $BASE_IMAGE
 
 # Setup Go Environment
