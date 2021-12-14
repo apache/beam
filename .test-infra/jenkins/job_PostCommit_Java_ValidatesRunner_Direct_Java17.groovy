@@ -46,7 +46,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Direct_
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(':runners:direct-java:validatesRunner')
-          switches("-Dorg.gradle.java.home=${JAVA_17_HOME}")
+          switches("-Dorg.gradle.java.home=${JAVA_8_HOME}") //TODO: change to JAVA_17_HOME once Java SDK 17 image is available.
           switches('-x shadowJar')
           switches('-x shadowTestJar')
           switches('-x compileJava')

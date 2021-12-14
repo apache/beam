@@ -53,7 +53,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Dataflo
           switches('-x testJar')
           switches('-x classes')
           switches('-x testClasses')
-          switches("-Dorg.gradle.java.home=${JAVA_17_HOME}")
+          switches("-Dorg.gradle.java.home=${JAVA_8_HOME}") //TODO: change to JAVA_17_HOME once Java SDK 17 image is available.
 
           commonJobProperties.setGradleSwitches(delegate, 3 * Runtime.runtime.availableProcessors())
         }
