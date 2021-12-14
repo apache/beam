@@ -21,7 +21,7 @@ package org.apache.beam.learning.katas.coretransforms.map.flatmapelements;
 //  eam-playground:
 //   name: FlatMap
 //   description: Task from katas to implement a function that maps each input sentence
-//     into words splitted by whitespace (" ").
+//     into words split by whitespace (" ").
 //   multifile: false
 //   pipeline_options:
 //   categories:
