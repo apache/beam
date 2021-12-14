@@ -58,6 +58,10 @@ func GetBeamJar(gradleTarget, version string) (string, error) {
 }
 
 func (j *jarGetter) getJar(gradleTarget, version string) (string, error) {
+	if strings.Contains(version, ".dev") {
+		return "", fmt.Errorf("Cannot pull dev versions of JARs, please run \"gradlew %v\" to start your expansion service",
+			gradleTarget)
+	}
 	strippedTarget := dropEndOfGradleTarget(gradleTarget)
 	fullURL, jarName := j.getURLForBeamJar(strippedTarget, version)
 
