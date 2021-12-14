@@ -167,9 +167,9 @@ public class Bid implements KnownSize, Serializable {
     }
 
     Bid other = (Bid) otherObject;
-    return Objects.equals(auction, other.auction)
-        && Objects.equals(bidder, other.bidder)
-        && Objects.equals(price, other.price)
+    return auction == other.auction
+        && bidder == other.bidder
+        && price == other.price
         && Objects.equals(dateTime, other.dateTime)
         && Objects.equals(extra, other.extra);
   }

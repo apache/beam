@@ -163,11 +163,11 @@ public class DisplayData implements Serializable {
      * }
      * }</pre>
      *
-     * <p>Using {@code include(path, subcomponent)} will associate each of the registered items with
-     * the namespace of the {@code subcomponent} being registered, with the specified path element
+     * <p>Using {@code include(path, subComponent)} will associate each of the registered items with
+     * the namespace of the {@code subComponent} being registered, with the specified path element
      * relative to the current path. To register display data in the current path and namespace,
      * such as from a base class implementation, use {@code
-     * subcomponent.populateDisplayData(builder)} instead.
+     * subComponent.populateDisplayData(builder)} instead.
      *
      * @see HasDisplayData#populateDisplayData(DisplayData.Builder)
      */
