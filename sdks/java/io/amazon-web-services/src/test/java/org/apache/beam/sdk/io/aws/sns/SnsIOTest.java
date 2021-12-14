@@ -54,6 +54,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
+import org.slf4j.helpers.MessageFormatter;
 
 /** Tests to verify writes to Sns. */
 @RunWith(JUnit4.class)
@@ -138,9 +139,12 @@ public class SnsIOTest implements Serializable {
       p.run();
     } catch (final Pipeline.PipelineExecutionException e) {
       // check 3 retries were initiated by inspecting the log before passing on the exception
-      snsWriterFnLogs.verifyWarn(String.format(SnsIO.Write.SnsWriterFn.RETRY_ATTEMPT_LOG, 1));
-      snsWriterFnLogs.verifyWarn(String.format(SnsIO.Write.SnsWriterFn.RETRY_ATTEMPT_LOG, 2));
-      snsWriterFnLogs.verifyWarn(String.format(SnsIO.Write.SnsWriterFn.RETRY_ATTEMPT_LOG, 3));
+      snsWriterFnLogs.verifyWarn(
+          MessageFormatter.format(SnsIO.Write.SnsWriterFn.RETRY_ATTEMPT_LOG, 1).getMessage());
+      snsWriterFnLogs.verifyWarn(
+          MessageFormatter.format(SnsIO.Write.SnsWriterFn.RETRY_ATTEMPT_LOG, 2).getMessage());
+      snsWriterFnLogs.verifyWarn(
+          MessageFormatter.format(SnsIO.Write.SnsWriterFn.RETRY_ATTEMPT_LOG, 3).getMessage());
       throw e.getCause();
     }
   }
