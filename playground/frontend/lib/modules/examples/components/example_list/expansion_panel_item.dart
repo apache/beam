@@ -42,7 +42,7 @@ class ExpansionPanelItem extends StatelessWidget {
                 playgroundState.sdk,
               );
               playgroundState.setExample(exampleWithInfo);
-              AnalyticsService.get(context).trackSelectExample(example);
+              AnalyticsService.get(context).trackSelectExample(exampleWithInfo);
             }
           },
           child: Container(
