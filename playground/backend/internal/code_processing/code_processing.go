@@ -82,7 +82,7 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 	go validateFunc(successChannel, errorChannel, &validationResults)
 
 	// Start of the monitoring of background tasks (validate function/cancellation/timeout)
-	ok, err := reconcileBackgroundTask(ctxWithTimeout, pipelineId, cacheService, cancelChannel, successChannel)
+	ok, err := reconcileBackgroundTask(ctxWithTimeout, ctx, pipelineId, cacheService, cancelChannel, successChannel)
 	if err != nil {
 		return
 	}
@@ -109,7 +109,7 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 	go prepareFunc(successChannel, errorChannel, isUnitTest)
 
 	// Start of the monitoring of background tasks (prepare function/cancellation/timeout)
-	ok, err = reconcileBackgroundTask(ctxWithTimeout, pipelineId, cacheService, cancelChannel, successChannel)
+	ok, err = reconcileBackgroundTask(ctxWithTimeout, ctx, pipelineId, cacheService, cancelChannel, successChannel)
 	if err != nil {
 		return
 	}
@@ -136,14 +136,14 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 		runCmdWithOutput(compileCmd, &compileOutput, &compileError, successChannel, errorChannel)
 
 		// Start of the monitoring of background tasks (compile step/cancellation/timeout)
-			ok, err = reconcileBackgroundTask(ctxWithTimeout, pipelineId, cacheService, cancelChannel, successChannel)
+		ok, err = reconcileBackgroundTask(ctxWithTimeout, ctx, pipelineId, cacheService, cancelChannel, successChannel)
 		if err != nil {
 			return
 		}
-		if !ok {// Compile step is finished, but code couldn't be compiled (some typos for example)
+		if !ok { // Compile step is finished, but code couldn't be compiled (some typos for example)
 			_ = processCompileError(ctxWithTimeout, errorChannel, compileError.Bytes(), pipelineId, cacheService)
 			return
-		}// Compile step is finished and code is compiled
+		} // Compile step is finished and code is compiled
 		if err := processCompileSuccess(ctxWithTimeout, compileOutput.Bytes(), pipelineId, cacheService); err != nil {
 			return
 		}
@@ -160,7 +160,7 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 	runCmd := getExecuteCmd(&validationResults, &executor, ctxWithTimeout)
 	var runError bytes.Buffer
 	runOutput := streaming.RunOutputWriter{Ctx: ctxWithTimeout, CacheService: cacheService, PipelineId: pipelineId}
-	go readLogFile(ctxWithTimeout, cacheService, lc.GetAbsoluteLogFilePath(), pipelineId, stopReadLogsChannel, finishReadLogsChannel)
+	go readLogFile(ctxWithTimeout, ctx, cacheService, lc.GetAbsoluteLogFilePath(), pipelineId, stopReadLogsChannel, finishReadLogsChannel)
 
 	if sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_GO {
 		// For go SDK all logs are placed to stdErr.
@@ -179,7 +179,7 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 	}
 
 	// Start of the monitoring of background tasks (run step/cancellation/timeout)
-	ok, err = reconcileBackgroundTask(ctxWithTimeout, pipelineId, cacheService, cancelChannel, successChannel)
+	ok, err = reconcileBackgroundTask(ctxWithTimeout, ctx, pipelineId, cacheService, cancelChannel, successChannel)
 	if err != nil {
 		return
 	}
@@ -309,13 +309,13 @@ func runCmdWithOutput(cmd *exec.Cmd, stdOutput io.Writer, stdError io.Writer, su
 //  during step processing - returns true.
 // If cmd operation (Validate/Prepare/Compile/Run/RunTest) finishes successfully but with some error
 //  during step processing - returns false.
-func reconcileBackgroundTask(ctx context.Context, pipelineId uuid.UUID, cacheService cache.Cache, cancelChannel, successChannel chan bool) (bool, error) {
+func reconcileBackgroundTask(ctxWithTimeout, ctx context.Context, pipelineId uuid.UUID, cacheService cache.Cache, cancelChannel, successChannel chan bool) (bool, error) {
 	select {
-	case <-ctx.Done():
+	case <-ctxWithTimeout.Done():
 		_ = finishByTimeout(ctx, pipelineId, cacheService)
 		return false, fmt.Errorf("%s: context was done", pipelineId)
 	case <-cancelChannel:
-		_ = processCancel(ctx, cacheService, pipelineId)
+		_ = processCancel(ctxWithTimeout, cacheService, pipelineId)
 		return false, fmt.Errorf("%s: code processing was canceled", pipelineId)
 	case ok := <-successChannel:
 		return ok, nil
@@ -352,21 +352,21 @@ func cancelCheck(ctx context.Context, pipelineId uuid.UUID, cancelChannel chan b
 // 	and it waits until the method stops the work to change status to the pb.Status_STATUS_FINISHED. Write last logs
 //	to the cache and set value to the finishReadLogChannel channel to unblock the code processing.
 // In other case each pauseDuration write to cache logs of the code processing.
-func readLogFile(ctx context.Context, cacheService cache.Cache, logFilePath string, pipelineId uuid.UUID, stopReadLogsChannel, finishReadLogChannel chan bool) {
+func readLogFile(ctxWithTimeout, ctx context.Context, cacheService cache.Cache, logFilePath string, pipelineId uuid.UUID, stopReadLogsChannel, finishReadLogChannel chan bool) {
 	ticker := time.NewTicker(pauseDuration)
 	for {
 		select {
 		// in case of timeout or cancel
-		case <-ctx.Done():
+		case <-ctxWithTimeout.Done():
 			_ = finishReadLogFile(ctx, ticker, cacheService, logFilePath, pipelineId)
 			return
 		// in case of pipeline finish successfully or has error on the run step
 		case <-stopReadLogsChannel:
-			_ = finishReadLogFile(ctx, ticker, cacheService, logFilePath, pipelineId)
+			_ = finishReadLogFile(ctxWithTimeout, ticker, cacheService, logFilePath, pipelineId)
 			finishReadLogChannel <- true
 			return
 		case <-ticker.C:
-			_ = writeLogsToCache(ctx, cacheService, logFilePath, pipelineId)
+			_ = writeLogsToCache(ctxWithTimeout, cacheService, logFilePath, pipelineId)
 		}
 	}
 }
