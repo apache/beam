@@ -28,6 +28,7 @@ import 'package:playground/modules/examples/repositories/models/get_example_resp
 import 'package:playground/modules/examples/repositories/models/get_list_of_examples_request.dart';
 import 'package:playground/modules/examples/repositories/models/get_list_of_examples_response.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
+import 'package:playground/utils/replace_incorrect_symbols.dart';
 
 class GrpcExampleClient implements ExampleClient {
   grpc.PlaygroundServiceClient createClient(SDK? sdk) {
@@ -60,7 +61,8 @@ class GrpcExampleClient implements ExampleClient {
       () => createClient(request.sdk)
           .getPrecompiledObjectCode(
               _getExampleCodeRequestToGrpcRequest(request))
-          .then((response) => GetExampleResponse(response.code)),
+          .then((response) =>
+              GetExampleResponse(replaceIncorrectSymbols(response.code))),
     );
   }
 
@@ -71,7 +73,8 @@ class GrpcExampleClient implements ExampleClient {
           createClient(request.sdk)
           .getPrecompiledObjectOutput(
               _getExampleOutputRequestToGrpcRequest(request))
-          .then((response) => OutputResponse(response.output)),
+          .then((response) =>
+              OutputResponse(replaceIncorrectSymbols(response.output))),
     );
   }
 
