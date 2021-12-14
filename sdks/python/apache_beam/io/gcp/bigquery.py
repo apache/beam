@@ -1926,7 +1926,8 @@ class WriteToBigQuery(PTransform):
       ignore_insert_ids=False,
       # TODO(BEAM-11857): Switch the default when the feature is mature.
       with_auto_sharding=False,
-      ignore_unknown_columns=False):
+      ignore_unknown_columns=False,
+      load_job_project_id=None):
     """Initialize a WriteToBigQuery transform.
 
     Args:
@@ -2058,6 +2059,9 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         which treats unknown values as errors. This option is only valid for
         method=STREAMING_INSERTS. See reference:
         https://cloud.google.com/bigquery/docs/reference/rest/v2/tabledata/insertAll
+      load_job_project_id: Specifies an alternate GCP project id to use for
+        billingBatch File Loads. By default, the project id of the table is
+        used.
     """
     self._table = table
     self._dataset = dataset
@@ -2092,6 +2096,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     self.schema_side_inputs = schema_side_inputs or ()
     self._ignore_insert_ids = ignore_insert_ids
     self._ignore_unknown_columns = ignore_unknown_columns
+    self.load_job_project_id = load_job_project_id
 
   # Dict/schema methods were moved to bigquery_tools, but keep references
   # here for backward compatibility.
@@ -2185,7 +2190,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           schema_side_inputs=self.schema_side_inputs,
           additional_bq_parameters=self.additional_bq_parameters,
           validate=self._validate,
-          is_streaming_pipeline=is_streaming_pipeline)
+          is_streaming_pipeline=is_streaming_pipeline,
+          load_job_project_id=self.load_job_project_id)
 
   def display_data(self):
     res = {}
