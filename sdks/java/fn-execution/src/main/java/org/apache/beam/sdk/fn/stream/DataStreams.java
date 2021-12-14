@@ -22,7 +22,9 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.NoSuchElementException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
@@ -179,6 +181,24 @@ public class DataStreams {
       this.inbound = new Inbound();
     }
 
+    public void seekToNextByteString() {
+      inbound.currentStream = inputByteStrings.next().newInput();
+      inbound.position = 0;
+    }
+
+    public List<T> decodeTillAtChunkBoundary() {
+      try {
+        InputStream previousStream = inbound.currentStream;
+        List<T> rvals = new ArrayList<>();
+        while (previousStream == inbound.currentStream && inbound.currentStream.available() != 0) {
+          rvals.add(next());
+        }
+        return rvals;
+      } catch (IOException e) {
+        throw new IllegalStateException(e);
+      }
+    }
+
     @Override
     public boolean isReady() {
       try {
@@ -212,9 +232,10 @@ public class DataStreams {
 
       try {
         long previousPosition = inbound.position;
+        InputStream previousStream = inbound.currentStream;
         T next = coder.decode(inbound);
         // Skip one byte if decoding the value consumed 0 bytes.
-        if (inbound.position - previousPosition == 0) {
+        if (previousPosition == inbound.position && previousStream == inbound.currentStream) {
           checkState(inbound.read() != -1, "Unexpected EOF reached");
         }
         return next;
@@ -237,7 +258,7 @@ public class DataStreams {
      * <p>Closing this input stream has no effect.
      */
     private class Inbound extends InputStream {
-      private long position;
+      private int position; // Position within the current input stream.
       private InputStream currentStream;
 
       public Inbound() {
@@ -256,6 +277,7 @@ public class DataStreams {
             return true;
           }
           currentStream = inputByteStrings.next().newInput();
+          position = 0;
         }
         return true;
       }
@@ -269,6 +291,7 @@ public class DataStreams {
             return true;
           }
           currentStream = inputByteStrings.next().newInput();
+          position = 0;
         }
         return false;
       }
@@ -282,6 +305,7 @@ public class DataStreams {
             return -1;
           }
           currentStream = inputByteStrings.next().newInput();
+          position = 0;
         }
         position += 1;
         return read;
@@ -302,6 +326,7 @@ public class DataStreams {
               return bytesRead > 0 ? bytesRead : -1;
             }
             currentStream = inputByteStrings.next().newInput();
+            position = 0;
           }
           remainingLen -= read;
         }
