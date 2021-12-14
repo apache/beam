@@ -165,9 +165,10 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 			SdkPipelineOptions: newMsg(pipelineOptions{
 				DisplayData: printOptions(opts, images),
 				Options: dataflowOptions{
-					PipelineURL: modelURL,
-					Region:      opts.Region,
-					Experiments: experiments,
+					PipelineURL:  modelURL,
+					Region:       opts.Region,
+					Experiments:  experiments,
+					TempLocation: opts.TempLocation,
 				},
 				GoOptions: opts.Options,
 			}),
@@ -279,10 +280,14 @@ func GetMetrics(ctx context.Context, client *df.Service, project, region, jobID 
 	return client.Projects.Locations.Jobs.GetMetrics(project, region, jobID).Do()
 }
 
+// dataflowOptions provides Dataflow with non Go-specific pipeline options. These are the only
+// pipeline options that are communicated to cross-language SDK harnesses, so any pipeline options
+// needed for cross-language transforms in Dataflow must be declared here.
 type dataflowOptions struct {
-	Experiments []string `json:"experiments,omitempty"`
-	PipelineURL string   `json:"pipelineUrl"`
-	Region      string   `json:"region"`
+	Experiments  []string `json:"experiments,omitempty"`
+	PipelineURL  string   `json:"pipelineUrl"`
+	Region       string   `json:"region"`
+	TempLocation string   `json:"tempLocation"`
 }
 
 func printOptions(opts *JobOptions, images []string) []*displayData {
