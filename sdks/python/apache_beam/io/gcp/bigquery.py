@@ -2104,6 +2104,11 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     self._ignore_insert_ids = ignore_insert_ids
     self._ignore_unknown_columns = ignore_unknown_columns
 
+    if self.triggering_frequency is not None and not self.with_auto_sharding:
+      raise ValueError(
+          'triggering_frequency with STREAMING_INSERTS can only be used with '
+          'with_auto_sharding=True.')
+
   # Dict/schema methods were moved to bigquery_tools, but keep references
   # here for backward compatibility.
   get_table_schema_from_string = \
@@ -2144,11 +2149,6 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         raise ValueError(
             'Schema auto-detection is not supported for streaming '
             'inserts into BigQuery. Only for File Loads.')
-
-      if self.triggering_frequency is not None and not self.with_auto_sharding:
-        raise ValueError(
-            'triggering_frequency with STREAMING_INSERTS can only be used with '
-            'with_auto_sharding=True.')
 
       outputs = pcoll | _StreamToBigQuery(
           table_reference=self.table_reference,
