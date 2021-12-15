@@ -170,7 +170,6 @@ class _SplitViewState extends State<SplitView> {
   }
 
   void _calculateMaxSize(double maxSize) {
-    _maxSize ??= maxSize - widget.dividerSize;
     if (_maxSize != maxSize) {
       _maxSize = maxSize - widget.dividerSize;
     }
