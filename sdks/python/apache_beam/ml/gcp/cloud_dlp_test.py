@@ -25,6 +25,7 @@ import mock
 import apache_beam as beam
 from apache_beam.metrics import Metrics
 from apache_beam.testing.test_pipeline import TestPipeline
+from google.cloud.dlp_v2.types import dlp
 
 # Protect against environments with google-cloud-dlp unavailable.
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -56,6 +57,9 @@ class TestDeidentifyFn(unittest.TestCase):
   def test_deidentify_called(self):
     class ClientMock(object):
       def deidentify_content(self, *args, **kwargs):
+        # Check that we can marshal a valid request.
+        dlp.DeidentifyContentRequest(kwargs['request'])
+
         called = Metrics.counter('test_deidentify_text', 'called')
         called.inc()
         operation = mock.Mock()
@@ -69,22 +73,24 @@ class TestDeidentifyFn(unittest.TestCase):
 
     with mock.patch('google.cloud.dlp_v2.DlpServiceClient', ClientMock):
       p = TestPipeline()
-      deidentify_config = {
-          "info_type_transformations": {
-              "transformations": [{
-                  "primitive_transformation": {
-                      "character_mask_config": {
-                          "masking_character": '#'
+      config = {
+          "deidentify_config": {
+              "info_type_transformations": {
+                  "transformations": [{
+                      "primitive_transformation": {
+                          "character_mask_config": {
+                              "masking_character": '#'
+                          }
                       }
-                  }
-              }]
+                  }]
+              }
           }
       }
       # pylint: disable=expression-not-assigned
       (
           p
           | beam.Create(['mary.sue@example.com', 'john.doe@example.com'])
-          | beam.ParDo(_DeidentifyFn(config=deidentify_config)))
+          | beam.ParDo(_DeidentifyFn(config=config)))
       result = p.run()
       result.wait_until_finish()
     called = result.metrics().query()['counters'][0]
@@ -101,10 +107,13 @@ class TestInspectText(unittest.TestCase):
 
 
 @unittest.skipIf(dlp_v2 is None, 'GCP dependencies are not installed')
-class TestDeidentifyFn(unittest.TestCase):
+class TestInspectFn(unittest.TestCase):
   def test_inspect_called(self):
     class ClientMock(object):
       def inspect_content(self, *args, **kwargs):
+        # Check that we can marshal a valid request.
+        dlp.InspectContentRequest(kwargs['request'])
+
         called = Metrics.counter('test_inspect_text', 'called')
         called.inc()
         operation = mock.Mock()
@@ -117,12 +126,12 @@ class TestDeidentifyFn(unittest.TestCase):
 
     with mock.patch('google.cloud.dlp_v2.DlpServiceClient', ClientMock):
       p = TestPipeline()
-      inspect_config = {"info_types": [{"name": "EMAIL_ADDRESS"}]}
+      config = {"inspect_config": {"info_types": [{"name": "EMAIL_ADDRESS"}]}}
       # pylint: disable=expression-not-assigned
       (
           p
           | beam.Create(['mary.sue@example.com', 'john.doe@example.com'])
-          | beam.ParDo(_InspectFn(config=inspect_config)))
+          | beam.ParDo(_InspectFn(config=config)))
       result = p.run()
       result.wait_until_finish()
       called = result.metrics().query()['counters'][0]

@@ -190,13 +190,13 @@ class _DeidentifyFn(DoFn):
       self.client = dlp_v2.DlpServiceClient()
     self.params = {
         'timeout': self.timeout,
-        'parent': self.client.common_project_path(self.project)
     }
-    self.params.update(self.config)
+    self.parent = self.client.common_project_path(self.project)
 
   def process(self, element, **kwargs):
-    operation = self.client.deidentify_content(
-        item={"value": element}, **self.params)
+    request = {'item': {'value': element}, 'parent': self.parent}
+    request.update(self.config)
+    operation = self.client.deidentify_content(request=request, **self.params)
     yield operation.item.value
 
 
@@ -213,12 +213,12 @@ class _InspectFn(DoFn):
       self.client = dlp_v2.DlpServiceClient()
     self.params = {
         'timeout': self.timeout,
-        "parent": self.client.common_project_path(self.project)
     }
-    self.params.update(self.config)
+    self.parent = self.client.common_project_path(self.project)
 
   def process(self, element, **kwargs):
-    operation = self.client.inspect_content(
-        item={"value": element}, **self.params)
+    request = {'item': {'value': element}, 'parent': self.parent}
+    request.update(self.config)
+    operation = self.client.inspect_content(request=request, **self.params)
     hits = [x for x in operation.result.findings]
     yield hits
