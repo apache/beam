@@ -40,6 +40,10 @@ const (
 	cacheKeyExpirationTimeKey     = "KEY_EXPIRATION_TIME"
 	pipelineExecuteTimeoutKey     = "PIPELINE_EXPIRATION_TIMEOUT"
 	protocolTypeKey               = "PROTOCOL_TYPE"
+	launchSiteKey                 = "LAUNCH_SITE"
+	googleProjectIdKey            = "GOOGLE_CLOUD_PROJECT"
+	defaultLaunchSite             = "local"
+	defaultGoogleProjectId        = ""
 	defaultProtocol               = "HTTP"
 	defaultIp                     = "localhost"
 	defaultPort                   = 8080
@@ -89,6 +93,8 @@ func GetApplicationEnvsFromOsEnvs() (*ApplicationEnvs, error) {
 	cacheExpirationTime := defaultCacheKeyExpirationTime
 	cacheType := getEnv(cacheTypeKey, defaultCacheType)
 	cacheAddress := getEnv(cacheAddressKey, defaultCacheAddress)
+	launchSite := getEnv(launchSiteKey, defaultLaunchSite)
+	googleCloudProjectId := getEnv(googleProjectIdKey, defaultGoogleProjectId)
 
 	if value, present := os.LookupEnv(cacheKeyExpirationTimeKey); present {
 		if converted, err := time.ParseDuration(value); err == nil {
@@ -106,7 +112,7 @@ func GetApplicationEnvsFromOsEnvs() (*ApplicationEnvs, error) {
 	}
 
 	if value, present := os.LookupEnv(workingDirKey); present {
-		return NewApplicationEnvs(value, NewCacheEnvs(cacheType, cacheAddress, cacheExpirationTime), pipelineExecuteTimeout), nil
+		return NewApplicationEnvs(value, launchSite, googleCloudProjectId, NewCacheEnvs(cacheType, cacheAddress, cacheExpirationTime), pipelineExecuteTimeout), nil
 	}
 	return nil, errors.New("APP_WORK_DIR env should be provided with os.env")
 }

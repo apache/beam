@@ -36,6 +36,9 @@ func runServer() error {
 	if err != nil {
 		return err
 	}
+
+	logger.SetupLogger(ctx, envService.ApplicationEnvs)
+
 	grpcServer := grpc.NewServer()
 
 	cacheService, err := setupCache(ctx, envService.ApplicationEnvs)
