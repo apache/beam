@@ -16,7 +16,7 @@
 # limitations under the License.
 ###############################################################################
 ARG BASE_IMAGE=apache/beam_python3.7_sdk:latest
-ARG GO_BASE_IMAGE=golang:1.17-buster
+ARG GO_BASE_IMAGE=golang:1.17-bullseye
 FROM $GO_BASE_IMAGE AS build
 
 # Setup Go Environment
