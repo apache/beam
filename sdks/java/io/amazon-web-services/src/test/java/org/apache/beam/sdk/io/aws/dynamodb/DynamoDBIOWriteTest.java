@@ -20,9 +20,12 @@ package org.apache.beam.sdk.io.aws.dynamodb;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.IntStream.range;
 import static java.util.stream.IntStream.rangeClosed;
+import static org.apache.beam.sdk.io.aws.dynamodb.DynamoDBIO.Write.WriteFn.RETRY_ERROR_LOG;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps.transformValues;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -43,6 +46,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.IntStream;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.AvroCoder;
@@ -67,8 +71,11 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatcher;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
+import org.slf4j.helpers.MessageFormatter;
 
 @RunWith(MockitoJUnitRunner.class)
 public class DynamoDBIOWriteTest {
@@ -82,7 +89,7 @@ public class DynamoDBIOWriteTest {
 
   @Test
   public void testWritePutItems() {
-    List<Item> items = range(0, 100).mapToObj(Item::of).collect(toList());
+    List<Item> items = Item.range(0, 100);
 
     Supplier<List<Item>> capturePuts =
         captureBatchWrites(client, req -> req.getPutRequest().getItem());
@@ -103,7 +110,7 @@ public class DynamoDBIOWriteTest {
 
   @Test
   public void testWritePutItemsWithDuplicates() {
-    List<Item> items = range(0, 100).mapToObj(Item::of).collect(toList());
+    List<Item> items = Item.range(0, 100);
 
     Supplier<List<Item>> capturePuts =
         captureBatchWrites(client, req -> req.getPutRequest().getItem());
@@ -125,7 +132,7 @@ public class DynamoDBIOWriteTest {
 
   @Test
   public void testWritePutItemsWithDuplicatesByKey() {
-    List<Item> items = range(0, 100).mapToObj(Item::of).collect(toList());
+    List<Item> items = Item.range(0, 100);
 
     Supplier<List<Item>> capturePuts =
         captureBatchWrites(client, req -> req.getPutRequest().getItem());
@@ -148,7 +155,7 @@ public class DynamoDBIOWriteTest {
 
   @Test
   public void testWriteDeleteItems() {
-    List<Item> items = range(0, 100).mapToObj(Item::of).collect(toList());
+    List<Item> items = Item.range(0, 100);
 
     Supplier<List<Item>> captureDeletes =
         captureBatchWrites(client, req -> req.getDeleteRequest().getKey());
@@ -170,7 +177,7 @@ public class DynamoDBIOWriteTest {
 
   @Test
   public void testWriteDeleteItemsWithDuplicates() {
-    List<Item> items = range(0, 100).mapToObj(Item::of).collect(toList());
+    List<Item> items = Item.range(0, 100);
 
     Supplier<List<Item>> captureDeletes =
         captureBatchWrites(client, req -> req.getDeleteRequest().getKey());
@@ -197,7 +204,7 @@ public class DynamoDBIOWriteTest {
             AmazonDynamoDBException.class,
             AmazonDynamoDBException.class,
             AmazonDynamoDBException.class)
-        .thenReturn(new BatchWriteItemResult());
+        .thenReturn(new BatchWriteItemResult().withUnprocessedItems(ImmutableMap.of()));
 
     pipeline
         .apply(Create.of(Item.of(1)))
@@ -212,7 +219,36 @@ public class DynamoDBIOWriteTest {
     result.waitUntilFinish();
 
     verify(client, times(4)).batchWriteItem(any(BatchWriteItemRequest.class));
-    range(1, 4).forEach(i -> writeFnLogs.verifyWarn(String.format(WriteFn.RETRY_ATTEMPT_LOG, i)));
+  }
+
+  @Test
+  public void testWritePutItemsWithPartialSuccess() {
+    List<WriteRequest> writes = putRequests(Item.range(0, 10));
+
+    when(client.batchWriteItem(any(BatchWriteItemRequest.class)))
+        .thenReturn(partialWriteSuccess(writes.subList(4, 10)))
+        .thenReturn(partialWriteSuccess(writes.subList(8, 10)))
+        .thenReturn(new BatchWriteItemResult().withUnprocessedItems(ImmutableMap.of()));
+
+    pipeline
+        .apply(Create.of(10)) // number if items to produce
+        .apply(ParDo.of(new GenerateItems())) // 10 items in one bundle
+        .apply(
+            "write",
+            DynamoDBIO.<Item>write()
+                .withWriteRequestMapperFn(putRequestMapper)
+                .withAwsClientsProvider(StaticAwsClientsProvider.of(client))
+                .withRetryConfiguration(try4Times));
+
+    PipelineResult result = pipeline.run();
+    result.waitUntilFinish();
+
+    verify(client, times(3)).batchWriteItem(any(BatchWriteItemRequest.class));
+
+    InOrder ordered = inOrder(client);
+    ordered.verify(client).batchWriteItem(argThat(matchWritesUnordered(writes)));
+    ordered.verify(client).batchWriteItem(argThat(matchWritesUnordered(writes.subList(4, 10))));
+    ordered.verify(client).batchWriteItem(argThat(matchWritesUnordered(writes.subList(8, 10))));
   }
 
   @Test
@@ -236,7 +272,7 @@ public class DynamoDBIOWriteTest {
       pipeline.run().waitUntilFinish();
     } catch (final Pipeline.PipelineExecutionException e) {
       verify(client, times(4)).batchWriteItem(any(BatchWriteItemRequest.class));
-      range(1, 4).forEach(i -> writeFnLogs.verifyWarn(String.format(WriteFn.RETRY_ATTEMPT_LOG, i)));
+      writeFnLogs.verifyWarn(MessageFormatter.format(RETRY_ERROR_LOG, 4, "").getMessage());
       throw e.getCause();
     }
   }
@@ -257,6 +293,10 @@ public class DynamoDBIOWriteTest {
 
     static Item of(Map<String, AttributeValue> attributes) {
       return new Item(ImmutableMap.copyOf(transformValues(attributes, a -> a.getS())));
+    }
+
+    static List<Item> range(int startInclusive, int endExclusive) {
+      return IntStream.range(startInclusive, endExclusive).mapToObj(Item::of).collect(toList());
     }
 
     Item withEntry(String key, String value) {
@@ -294,7 +334,8 @@ public class DynamoDBIOWriteTest {
       AmazonDynamoDB mock, Function<WriteRequest, Map<String, AttributeValue>> extractor) {
     ArgumentCaptor<BatchWriteItemRequest> reqCaptor =
         ArgumentCaptor.forClass(BatchWriteItemRequest.class);
-    when(mock.batchWriteItem(reqCaptor.capture())).thenReturn(new BatchWriteItemResult());
+    when(mock.batchWriteItem(reqCaptor.capture()))
+        .thenReturn(new BatchWriteItemResult().withUnprocessedItems(ImmutableMap.of()));
 
     return () ->
         reqCaptor.getAllValues().stream()
@@ -305,20 +346,43 @@ public class DynamoDBIOWriteTest {
             .collect(toList());
   }
 
+  private static ArgumentMatcher<BatchWriteItemRequest> matchWritesUnordered(
+      List<WriteRequest> writes) {
+    return (BatchWriteItemRequest req) ->
+        req != null
+            && req.getRequestItems().get(tableName).size() == writes.size()
+            && req.getRequestItems().get(tableName).containsAll(writes);
+  }
+
+  private static BatchWriteItemResult partialWriteSuccess(List<WriteRequest> unprocessed) {
+    return new BatchWriteItemResult().withUnprocessedItems(ImmutableMap.of(tableName, unprocessed));
+  }
+
+  private static List<WriteRequest> putRequests(List<Item> items) {
+    return items.stream().map(putRequest).collect(toList());
+  }
+
+  private static Function<Item, WriteRequest> putRequest =
+      item -> new WriteRequest().withPutRequest(new PutRequest().withItem(item.attributeMap()));
+
+  private static Function<Item, WriteRequest> deleteRequest =
+      key -> new WriteRequest().withDeleteRequest(new DeleteRequest().withKey(key.attributeMap()));
+
   private static SerializableFunction<Item, KV<String, WriteRequest>> putRequestMapper =
-      item -> {
-        PutRequest req = new PutRequest().withItem(item.attributeMap());
-        return KV.of(tableName, new WriteRequest().withPutRequest(req));
-      };
+      item -> KV.of(tableName, putRequest.apply(item));
 
   private static SerializableFunction<Item, KV<String, WriteRequest>> deleteRequestMapper =
-      key -> {
-        DeleteRequest req = new DeleteRequest().withKey(key.attributeMap());
-        return KV.of(tableName, new WriteRequest().withDeleteRequest(req));
-      };
+      key -> KV.of(tableName, deleteRequest.apply(key));
 
   private static RetryConfiguration try4Times =
       RetryConfiguration.create(4, Duration.standardSeconds(1), Duration.millis(1));
+
+  private static class GenerateItems extends DoFn<Integer, Item> {
+    @ProcessElement
+    public void processElement(ProcessContext ctx) {
+      range(0, ctx.element()).forEach(i -> ctx.output(Item.of(i)));
+    }
+  }
 
   /**
    * A DoFn that adds N duplicates to a bundle. The original is emitted last and is the only item
