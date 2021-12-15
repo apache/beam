@@ -24,8 +24,7 @@ package org.apache.beam.learning.katas.coretransforms.map.mapelements;
 //   multifile: false
 //   pipeline_options:
 //   categories:
-//     - Combiners
-//     - Testing
+//     - Core Transforms
 
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;

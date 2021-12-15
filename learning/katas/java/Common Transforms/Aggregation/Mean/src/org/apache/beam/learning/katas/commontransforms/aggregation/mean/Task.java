@@ -25,7 +25,6 @@ package org.apache.beam.learning.katas.commontransforms.aggregation.mean;
 //   pipeline_options:
 //   categories:
 //     - Combiners
-//     - Testing
 
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;

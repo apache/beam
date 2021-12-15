@@ -25,7 +25,7 @@ package org.apache.beam.learning.katas.coretransforms.groupbykey;
 //   pipeline_options:
 //   categories:
 //     - Combiners
-//     - Testing
+//     - Core Transforms
 
 import static org.apache.beam.sdk.values.TypeDescriptors.kvs;
 import static org.apache.beam.sdk.values.TypeDescriptors.strings;

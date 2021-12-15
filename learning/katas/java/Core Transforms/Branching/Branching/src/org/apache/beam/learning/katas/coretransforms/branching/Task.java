@@ -25,8 +25,8 @@ package org.apache.beam.learning.katas.coretransforms.branching;
 //   multifile: false
 //   pipeline_options:
 //   categories:
-//     - Combiners
-//     - Testing
+//     - Branching
+//     - Core Transforms
 
 import static org.apache.beam.sdk.values.TypeDescriptors.integers;
 

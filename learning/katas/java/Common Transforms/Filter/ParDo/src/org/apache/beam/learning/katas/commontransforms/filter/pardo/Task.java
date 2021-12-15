@@ -24,8 +24,7 @@ package org.apache.beam.learning.katas.commontransforms.filter.pardo;
 //   multifile: false
 //   pipeline_options:
 //   categories:
-//     - Combiners
-//     - Testing
+//     - Filtering
 
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;

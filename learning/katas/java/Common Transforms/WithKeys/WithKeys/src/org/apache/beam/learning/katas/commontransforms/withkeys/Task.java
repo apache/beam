@@ -25,7 +25,6 @@ package org.apache.beam.learning.katas.commontransforms.withkeys;
 //   pipeline_options:
 //   categories:
 //     - Combiners
-//     - Testing
 
 import static org.apache.beam.sdk.values.TypeDescriptors.strings;
 

@@ -21,8 +21,8 @@
 #   multifile: false
 #   pipeline_options:
 #   categories:
-#     - Combiners
-#     - Testing
+#     - Branching
+#     - Multiple Outputs
 
 import apache_beam as beam
 

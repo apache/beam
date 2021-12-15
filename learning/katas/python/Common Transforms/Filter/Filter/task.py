@@ -20,8 +20,7 @@
 #   multifile: false
 #   pipeline_options:
 #   categories:
-#     - Combiners
-#     - Testing
+#     - Filtering
 
 import apache_beam as beam
 

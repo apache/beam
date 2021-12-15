@@ -25,7 +25,7 @@ package org.apache.beam.learning.katas.coretransforms.sideoutput;
 //   pipeline_options:
 //   categories:
 //     - Combiners
-//     - Testing
+//     - Core Transforms
 //     - Multiple Outputs
 
 import org.apache.beam.learning.katas.util.Log;

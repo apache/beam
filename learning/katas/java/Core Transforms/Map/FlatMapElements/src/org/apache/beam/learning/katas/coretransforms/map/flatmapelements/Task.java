@@ -25,8 +25,7 @@ package org.apache.beam.learning.katas.coretransforms.map.flatmapelements;
 //   multifile: false
 //   pipeline_options:
 //   categories:
-//     - Combiners
-//     - Testing
+//     - Flatten
 
 import java.util.Arrays;
 import org.apache.beam.learning.katas.util.Log;

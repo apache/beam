@@ -26,7 +26,8 @@ package org.apache.beam.learning.katas.coretransforms.composite;
 //   pipeline_options:
 //   categories:
 //     - Combiners
-//     - Testing
+//     - Flatten
+//     - Core Transforms
 
 import static org.apache.beam.sdk.values.TypeDescriptors.integers;
 

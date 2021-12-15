@@ -25,7 +25,7 @@ package org.apache.beam.learning.katas.coretransforms.combine.binarycombinefnlam
 //   pipeline_options:
 //   categories:
 //     - Combiners
-//     - Testing
+//     - Core Transforms
 
 import java.math.BigInteger;
 import org.apache.beam.learning.katas.util.Log;

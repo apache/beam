@@ -25,7 +25,7 @@ package org.apache.beam.learning.katas.coretransforms.combine.simple;
 //   pipeline_options:
 //   categories:
 //     - Combiners
-//     - Testing
+//     - Core Transforms
 
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;

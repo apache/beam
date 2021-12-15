@@ -25,8 +25,8 @@ package org.apache.beam.learning.katas.coretransforms.partition;
 //   multifile: false
 //   pipeline_options:
 //   categories:
-//     - Combiners
-//     - Testing
+//     - Core Transforms
+//     - Multiple Outputs
 
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;

@@ -20,8 +20,7 @@
 #   multifile: false
 #   pipeline_options:
 #   categories:
-#     - Combiners
-#     - Testing
+#     - Streaming
 
 from datetime import datetime
 import pytz

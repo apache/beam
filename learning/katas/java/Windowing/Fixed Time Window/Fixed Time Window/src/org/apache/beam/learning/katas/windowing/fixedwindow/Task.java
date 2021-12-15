@@ -25,7 +25,7 @@ package org.apache.beam.learning.katas.windowing.fixedwindow;
 //   pipeline_options:
 //   categories:
 //     - Combiners
-//     - Testing
+//     - Streaming
 
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;

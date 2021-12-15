@@ -29,8 +29,6 @@
 #   pipeline_options:
 #   categories:
 #     - Side Input
-#     - Combiners
-#     - Testing
 
 import apache_beam as beam
 

@@ -21,8 +21,7 @@
 #   multifile: false
 #   pipeline_options:
 #   categories:
-#     - Combiners
-#     - Testing
+#     - Core Transforms
 
 import apache_beam as beam
 

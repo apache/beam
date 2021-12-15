@@ -21,8 +21,7 @@
 #   multifile: false
 #   pipeline_options:
 #   categories:
-#     - Combiners
-#     - Testing
+#     - Flatten
 
 import apache_beam as beam
 

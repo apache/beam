@@ -25,7 +25,6 @@ package org.apache.beam.learning.katas.examples.wordcount;
 //   pipeline_options:
 //   categories:
 //     - Combiners
-//     - Testing
 
 import java.util.Arrays;
 import org.apache.beam.learning.katas.util.Log;
