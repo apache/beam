@@ -20,6 +20,7 @@ import (
 	"beam.apache.org/playground/backend/internal/fs_tool"
 	"beam.apache.org/playground/backend/internal/logger"
 	"bufio"
+	"errors"
 	"github.com/google/uuid"
 	"io"
 	"os"
@@ -43,14 +44,14 @@ func Setup(sdk pb.Sdk, code string, pipelineId uuid.UUID, workingDir string, pre
 	lc, err := fs_tool.NewLifeCycle(sdk, pipelineId, workingDir)
 	if err != nil {
 		logger.Errorf("%s: error during create new life cycle: %s\n", pipelineId, err.Error())
-		return nil, err
+		return nil, errors.New("error during create a new file system")
 	}
 
 	// create folders
 	err = lc.CreateFolders()
 	if err != nil {
 		logger.Errorf("%s: error during create folders: %s\n", pipelineId, err.Error())
-		return nil, err
+		return nil, errors.New("error during prepare necessary folders")
 	}
 
 	// copy necessary files
@@ -58,12 +59,12 @@ func Setup(sdk pb.Sdk, code string, pipelineId uuid.UUID, workingDir string, pre
 	case pb.Sdk_SDK_GO:
 		if err = prepareGoFiles(lc, preparedModDir, workingDir, pipelineId); err != nil {
 			lc.DeleteFolders()
-			return nil, err
+			return nil, errors.New("error during create necessary files for the Go sdk")
 		}
 	case pb.Sdk_SDK_JAVA:
 		if err = prepareJavaFiles(lc, workingDir, pipelineId); err != nil {
 			lc.DeleteFolders()
-			return nil, err
+			return nil, errors.New("error during create necessary files for the Java sdk")
 		}
 	}
 
@@ -72,7 +73,7 @@ func Setup(sdk pb.Sdk, code string, pipelineId uuid.UUID, workingDir string, pre
 	if err != nil {
 		logger.Errorf("%s: RunCode(): CreateSourceCodeFile(): %s\n", pipelineId, err.Error())
 		lc.DeleteFolders()
-		return nil, err
+		return nil, errors.New("error during create file with code")
 	}
 	return lc, nil
 }
