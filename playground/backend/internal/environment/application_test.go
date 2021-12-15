@@ -277,7 +277,7 @@ func TestApplicationEnvs_LaunchSite(t *testing.T) {
 		{
 			// Test case with calling LaunchSite method.
 			// As a result, want to receive an expected launch site.
-			name: "all success",
+			name: "get launch site",
 			fields: fields{
 				workingDir:             "",
 				cacheEnvs:              &CacheEnvs{},
@@ -318,7 +318,7 @@ func TestApplicationEnvs_GoogleProjectId(t *testing.T) {
 		{
 			// Test case with calling GoogleProjectId method.
 			// As a result, want to receive an expected project id.
-			name: "all success",
+			name: "get google project id",
 			fields: fields{
 				workingDir:             "",
 				cacheEnvs:              &CacheEnvs{},

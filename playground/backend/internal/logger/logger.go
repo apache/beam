@@ -16,7 +16,6 @@
 package logger
 
 import (
-	"beam.apache.org/playground/backend/internal/environment"
 	"cloud.google.com/go/logging"
 	"context"
 	"log"
@@ -38,10 +37,10 @@ var handlers []Handler
 // Add handlers in root logger:
 //   CloudLoggingHandler - for logs to the Cloud Logging service if server running on App Engine
 //   StdHandler - for logs to the stderr/stdout if server running locally
-func SetupLogger(ctx context.Context, appEnv environment.ApplicationEnvs) {
-	switch appEnv.LaunchSite() {
+func SetupLogger(ctx context.Context, launchSite, googleProjectId string) {
+	switch launchSite {
 	case "app_engine":
-		client, err := logging.NewClient(ctx, appEnv.GoogleProjectId())
+		client, err := logging.NewClient(ctx, googleProjectId)
 		if err != nil {
 			log.Fatalf("Failed to create client: %v", err)
 		}

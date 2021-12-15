@@ -37,7 +37,7 @@ func runServer() error {
 		return err
 	}
 
-	logger.SetupLogger(ctx, envService.ApplicationEnvs)
+	logger.SetupLogger(ctx, envService.ApplicationEnvs.LaunchSite(), envService.ApplicationEnvs.GoogleProjectId())
 
 	grpcServer := grpc.NewServer()
 
