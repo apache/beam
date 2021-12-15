@@ -17,6 +17,7 @@
  */
 package org.apache.beam.fn.harness.state;
 
+import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -38,7 +39,9 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateGetResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheLoader;
@@ -79,7 +82,8 @@ public class CachingBeamFnStateClientTest {
   @SuppressWarnings("FutureReturnValueIgnored")
   public void testNoCacheWithoutToken() throws Exception {
     FakeBeamFnStateClient fakeClient =
-        new FakeBeamFnStateClient(ImmutableMap.of(key("A"), encode("A1", "A2", "A3")));
+        new FakeBeamFnStateClient(
+            ImmutableMap.of(key("A"), KV.of(StringUtf8Coder.of(), asList("A1", "A2", "A3"))));
 
     CachingBeamFnStateClient cachingClient =
         new CachingBeamFnStateClient(fakeClient, stateCache, cacheTokenList);
@@ -100,7 +104,8 @@ public class CachingBeamFnStateClientTest {
   @Test
   public void testCachingUserState() throws Exception {
     FakeBeamFnStateClient fakeClient =
-        new FakeBeamFnStateClient(ImmutableMap.of(key("A"), encode("A1", "A2", "A3")), 3);
+        new FakeBeamFnStateClient(
+            ImmutableMap.of(key("A"), KV.of(StringUtf8Coder.of(), asList("A1", "A2", "A3"))), 3);
 
     cacheTokenList.add(userStateToken);
 
@@ -126,7 +131,10 @@ public class CachingBeamFnStateClientTest {
             .build();
 
     FakeBeamFnStateClient fakeClient =
-        new FakeBeamFnStateClient(ImmutableMap.of(iterableSideInput, encode("S1", "S2", "S3")), 3);
+        new FakeBeamFnStateClient(
+            ImmutableMap.of(
+                iterableSideInput, KV.of(StringUtf8Coder.of(), asList("S1", "S2", "S3"))),
+            3);
 
     CacheToken iterableToken = sideInputCacheToken("GBK", "Iterable");
     cacheTokenList.add(iterableToken);
@@ -166,9 +174,9 @@ public class CachingBeamFnStateClientTest {
                     .build())
             .build();
 
-    Map<StateKey, ByteString> clientData = new HashMap<>();
-    clientData.put(multimapKeys, encode("K1", "K2"));
-    clientData.put(multimapValues, encode("V1", "V2", "V3"));
+    Map<StateKey, KV<Coder<?>, List<?>>> clientData = new HashMap<>();
+    clientData.put(multimapKeys, KV.of(StringUtf8Coder.of(), asList("K1", "K2")));
+    clientData.put(multimapValues, KV.of(StringUtf8Coder.of(), asList("V1", "V2", "V3")));
 
     FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(clientData, 3);
 
@@ -199,7 +207,12 @@ public class CachingBeamFnStateClientTest {
   public void testAppendInvalidatesLastPage() throws Exception {
     FakeBeamFnStateClient fakeClient =
         new FakeBeamFnStateClient(
-            ImmutableMap.of(key("A"), encode("A1"), key("B"), encode("B1")), 3);
+            ImmutableMap.of(
+                key("A"),
+                KV.of(StringUtf8Coder.of(), asList("A1")),
+                key("B"),
+                KV.of(StringUtf8Coder.of(), asList("B1"))),
+            3);
 
     cacheTokenList.add(userStateToken);
 
@@ -238,7 +251,12 @@ public class CachingBeamFnStateClientTest {
   public void testCacheClear() throws Exception {
     FakeBeamFnStateClient fakeClient =
         new FakeBeamFnStateClient(
-            ImmutableMap.of(key("A"), encode("A1"), key("B"), encode("B1", "B2")), 3);
+            ImmutableMap.of(
+                key("A"),
+                KV.of(StringUtf8Coder.of(), asList("A1")),
+                key("B"),
+                KV.of(StringUtf8Coder.of(), asList("B1", "B2"))),
+            3);
 
     cacheTokenList.add(userStateToken);
 
