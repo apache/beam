@@ -74,6 +74,9 @@
 
 * MultiMap side inputs are now supported by the Go SDK ([BEAM-3293](https://issues.apache.org/jira/browse/BEAM-3293)).
 * Side inputs are supported within Splittable DoFns for Dataflow Runner V1 and Dataflow Runner V2. ([BEAM-12522](https://issues.apache.org/jira/browse/BEAM-12522)).
+* Upgrades Log4j version used in test suites to 2.16.0([BEAM-13434](https://issues.apache.org/jira/browse/BEAM-13434)).
+    Note that Apache Beam versions do not depend on the Log4j 2 dependency (log4j-core) impacted by [CVE-2021-44228](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-44228).
+    However we urge users to update direct and indirect dependencies (if any) on Log4j 2 to the latest version by updating their build configuration and redeploying impacted pipelines.
 
 ## I/Os
 
