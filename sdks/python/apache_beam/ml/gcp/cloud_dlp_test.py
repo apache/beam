@@ -25,7 +25,6 @@ import mock
 import apache_beam as beam
 from apache_beam.metrics import Metrics
 from apache_beam.testing.test_pipeline import TestPipeline
-from google.cloud.dlp_v2.types import dlp
 
 # Protect against environments with google-cloud-dlp unavailable.
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -38,6 +37,7 @@ else:
   from apache_beam.ml.gcp.cloud_dlp import MaskDetectedDetails
   from apache_beam.ml.gcp.cloud_dlp import _DeidentifyFn
   from apache_beam.ml.gcp.cloud_dlp import _InspectFn
+  from google.cloud.dlp_v2.types import dlp
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 _LOGGER = logging.getLogger(__name__)
