@@ -53,11 +53,11 @@ class SplitView extends StatefulWidget {
 class _SplitViewState extends State<SplitView> {
   //from minRatio to maxRatio
   double _ratio = defaultRatio;
-  double? _maxSize;
+  double _maxSize = 0;
 
-  get _sizeFirst => _ratio * _maxSize!;
+  get _sizeFirst => _ratio * _maxSize;
 
-  get _sizeSecond => (1 - _ratio) * _maxSize!;
+  get _sizeSecond => (1 - _ratio) * _maxSize;
 
   get _isHorizontal => widget.direction == SplitViewDirection.horizontal;
 
@@ -144,10 +144,13 @@ class _SplitViewState extends State<SplitView> {
   }
 
   void _updateRatio(DragUpdateDetails details) {
+    if (_maxSize == 0) {
+      return;
+    }
     if (_isHorizontal) {
-      _ratio += details.delta.dx / _maxSize!;
+      _ratio += details.delta.dx / _maxSize;
     } else {
-      _ratio += details.delta.dy / _maxSize!;
+      _ratio += details.delta.dy / _maxSize;
     }
     _checkRatioSafe();
   }
