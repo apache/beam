@@ -63,8 +63,12 @@ class PlaygroundPageProviders extends StatelessWidget {
                 selectedExample: null,
               );
               if (example != null) {
-                exampleState.loadExampleInfo(example, playground.sdk,).then(
-                    (exampleWithInfo) =>
+                exampleState
+                    .loadExampleInfo(
+                      example,
+                      playground.sdk,
+                    )
+                    .then((exampleWithInfo) =>
                         newPlayground.setExample(exampleWithInfo));
               }
               return newPlayground;
