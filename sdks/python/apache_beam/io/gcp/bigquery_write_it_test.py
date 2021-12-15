@@ -383,13 +383,11 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
       "apache_beam.io.gcp.bigquery_file_loads._MAXIMUM_SOURCE_URIS", new=1)
   def test_big_query_write_temp_table_append_schema_update(self, file_format):
     """
-    Test that nested schema update options and schema relaxation[1] are respected
-    when appending to an existing table via temporary tables.
+    Test that nested schema update options and schema relaxation
+    are respected when appending to an existing table via temporary tables.
 
     _MAXIMUM_SOURCE_URIS and max_file_size are both set to 1 to force multiple
     load jobs and usage of temporary tables.
-
-    [1]: https://cloud.google.com/bigquery/docs/managing-table-schemas#changing_required_to_nullable_in_a_load_or_query_job
     """
     table_name = 'python_append_schema_update'
     self.create_table(table_name)
@@ -459,7 +457,8 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
               max_file_size=1,  # bytes
               method=beam.io.WriteToBigQuery.Method.FILE_LOADS,
               additional_bq_parameters={
-                  'schemaUpdateOptions': ['ALLOW_FIELD_ADDITION', 'ALLOW_FIELD_RELAXATION']},
+                  'schemaUpdateOptions': ['ALLOW_FIELD_ADDITION',
+                                          'ALLOW_FIELD_RELAXATION']},
               temp_file_format=file_format))
 
 
