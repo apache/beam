@@ -153,13 +153,14 @@ class GrpcExampleClient implements ExampleClient {
       for (var category in sdkMap.categories) {
         List<ExampleModel> examples = category.precompiledObjects
             .map((example) => _toExampleModel(example))
-            .toList();
+            .toList()
+          ..sort();
         categoriesForSdk.add(CategoryModel(
           name: category.categoryName,
           examples: examples,
         ));
       }
-      entries.add(MapEntry(sdk, categoriesForSdk));
+      entries.add(MapEntry(sdk, categoriesForSdk..sort()));
     }
     sdkCategoriesMap.addEntries(entries);
     return sdkCategoriesMap;
