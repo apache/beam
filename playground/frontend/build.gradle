@@ -41,7 +41,7 @@ dependencies {
 
 task removeBuild  {
   group = "verification"
-  description = "remove build artefacts"
+  description = "remove build artifacts"
   doLast {
     exec {
       executable("rm")
