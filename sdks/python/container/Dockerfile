@@ -17,7 +17,7 @@
 ###############################################################################
 
 ARG py_version
-FROM python:"${py_version}"-buster as beam
+FROM python:"${py_version}"-bullseye as beam
 MAINTAINER "Apache Beam <dev@beam.apache.org>"
 
 # Install native bindings required for dependencies.
