@@ -525,7 +525,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
             .withNewIdPrefix(request.getNamespace());
     sdkComponents.registerEnvironment(
         Environments.createOrGetDefaultEnvironment(
-            pipelineOptions.as(PortablePipelineOptions.class)));
+            pipeline.getOptions().as(PortablePipelineOptions.class)));
     Map<String, String> outputMap =
         outputs.entrySet().stream()
             .collect(
