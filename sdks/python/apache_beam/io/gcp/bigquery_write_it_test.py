@@ -36,7 +36,6 @@ from parameterized import param
 from parameterized import parameterized
 
 import apache_beam as beam
-from apache_beam.io.gcp.bigquery import BigQueryDisposition
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.bigquery_tools import FileFormat
 from apache_beam.io.gcp.internal.clients import bigquery
@@ -474,7 +473,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
       p | beam.Create(data) | beam.io.WriteToBigQuery(
           table=table_id,
           schema=table_schema,
-          write_disposition=BigQueryDisposition.WRITE_APPEND,
+          write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
           temp_file_format=file_format)
 
     # Append new data with different schema
