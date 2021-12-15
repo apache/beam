@@ -40,12 +40,10 @@ try:
 except (ImportError, ModuleNotFoundError):
   pass
 
-
 try:
   from _thread import RLock as RLockType
 except (ImportError, ModuleNotFoundError):
   pass
-
 
 # Pickling, especially unpickling, causes broken module imports on Python 3
 # if executed concurrently, see: BEAM-8651, http://bugs.python.org/issue38884.
