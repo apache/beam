@@ -40,6 +40,13 @@ try:
 except (ImportError, ModuleNotFoundError):
   pass
 
+
+try:
+  from _thread import RLock as RLockType
+except (ImportError, ModuleNotFoundError):
+  pass
+
+
 # Pickling, especially unpickling, causes broken module imports on Python 3
 # if executed concurrently, see: BEAM-8651, http://bugs.python.org/issue38884.
 _pickle_lock = threading.RLock()
@@ -54,6 +61,10 @@ def dumps(o, enable_trace=True, use_zlib=False):
       pickler = cloudpickle.CloudPickler(file)
       try:
         pickler.dispatch_table[type(flags.FLAGS)] = _pickle_absl_flags
+      except NameError:
+        pass
+      try:
+        pickler.dispatch_table[RLockType] = _pickle_rlock
       except NameError:
         pass
       pickler.dump(o)
@@ -97,6 +108,14 @@ def _pickle_absl_flags(obj):
 
 def _create_absl_flags():
   return flags.FLAGS
+
+
+def _pickle_rlock(obj):
+  return _create_rlock, tuple([])
+
+
+def _create_rlock():
+  return RLockType()
 
 
 def dump_session(file_path):
