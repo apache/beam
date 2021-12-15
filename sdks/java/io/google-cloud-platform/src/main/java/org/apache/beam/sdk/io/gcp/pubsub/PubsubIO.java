@@ -1085,6 +1085,8 @@ public class PubsubIO {
     /** The format function for input PubsubMessage objects. */
     abstract SerializableFunction<T, PubsubMessage> getFormatFn();
 
+    abstract @Nullable PubsubDynamicDestinations<T, ?> getDynamicDestinations();
+
     abstract Builder<T> toBuilder();
 
     static <T> Builder<T> newBuilder(SerializableFunction<T, PubsubMessage> formatFn) {
@@ -1113,6 +1115,9 @@ public class PubsubIO {
       abstract Builder<T> setIdAttribute(String idAttribute);
 
       abstract Builder<T> setFormatFn(SerializableFunction<T, PubsubMessage> formatFn);
+
+      abstract Builder<T> setDynamicDestinations(
+          PubsubDynamicDestinations<T, ?> dynamicDestinations);
 
       abstract Write<T> build();
     }
