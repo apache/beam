@@ -25,18 +25,11 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
-
-// var (
-// 	JdbcCSType = reflect.TypeOf((*jdbcConfigSchema)(nil)).Elem()
-// )
 
 func init() {
 	beam.RegisterType(reflect.TypeOf((*JdbcConfigSchema)(nil)).Elem())
-	beam.RegisterType(reflect.TypeOf((*config)(nil)).Elem())
-	beam.RegisterType(reflect.TypeOf((*Payload)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*Config)(nil)).Elem())
 }
 
 const (
@@ -44,28 +37,23 @@ const (
 	writeURN = "beam:transform:org.apache.beam:schemaio_jdbc_write:v1"
 )
 
-type Payload struct {
+type JdbcConfigSchema struct {
 	Location   string  `beam:"location"`
 	Config     []byte  `beam:"config"`
 	DataSchema *[]byte `beam:"dataSchema"`
 }
 
-type JdbcConfigSchema struct {
-	Location string `beam:"location"`
-	Config   []byte `beam:"config"`
-}
-
-type config struct {
-	DriverClassName       string
-	JDBCUrl               string
-	Username              string
-	Password              string
-	ConnectionProperties  string
-	ConnectionInitSQLs    []string
-	WriteStatement        string
-	ReadQuery             string
-	FetchSize             int16
-	OutputParallelization bool
+type Config struct {
+	DriverClassName       string    `beam:"driverClassName"`
+	JDBCUrl               string    `beam:"jdbcUrl"`
+	Username              string    `beam:"username"`
+	Password              string    `beam:"password"`
+	ConnectionProperties  *string   `beam:"connectionProperties"`
+	ConnectionInitSQLs    *[]string `beam:"connectionInitSqls"`
+	ReadQuery             *string   `beam:"readQuery"`
+	WriteStatement        *string   `beam:"writeStatement"`
+	FetchSize             *int16    `beam:"fetchSize"`
+	OutputParallelization *bool     `beam:"outputParallelization"`
 }
 
 func toRow(pl interface{}) []byte {
@@ -73,92 +61,25 @@ func toRow(pl interface{}) []byte {
 
 	enc, err := coder.RowEncoderForStruct(rt)
 	if err != nil {
-		panic(fmt.Errorf("error 1"))
+		panic(fmt.Errorf("unable to get row encoder"))
 	}
 	var buf bytes.Buffer
 	if err := enc(pl, &buf); err != nil {
-		panic(fmt.Errorf("error 2"))
+		panic(fmt.Errorf("unable to do row encoding"))
 	}
 	return buf.Bytes()
 }
 
-type readOption func(*config)
-
-func Read(s beam.Scope, addr, tableName, driverClassName, jdbcUrl, username, password string, opts ...readOption) beam.PCollection {
-	s = s.Scope("jdbcio.Read")
-
-	rpl := config{
-		DriverClassName:       driverClassName,
-		JDBCUrl:               jdbcUrl,
-		Username:              username,
-		Password:              password,
-		ConnectionProperties:  "",
-		ConnectionInitSQLs:    []string{},
-		WriteStatement:        "",
-		ReadQuery:             "",
-		FetchSize:             0,
-		OutputParallelization: true,
-	}
-	for _, opt := range opts {
-		opt(&rpl)
-	}
-	jcs := JdbcConfigSchema{
-		Location: tableName,
-		Config:   toRow(rpl),
-	}
-	cp := toRow(jcs)
-	pl := beam.CrossLanguagePayload(Payload{Config: cp, DataSchema: nil})
-	outT := beam.UnnamedOutput(typex.New(reflectx.ByteSlice))
-	out := beam.CrossLanguage(s, readURN, pl, addr, nil, outT)
-	return out[beam.UnnamedOutputTag()]
-}
-
-func ReadQuery(query string) readOption {
-	return func(pl *config) {
-		pl.ReadQuery = query
-	}
-}
-
-func OutputParallelization(status bool) readOption {
-	return func(pl *config) {
-		pl.OutputParallelization = status
-	}
-}
-
-func FetchSize(size int16) readOption {
-	return func(pl *config) {
-		pl.FetchSize = size
-	}
-}
-
-func ReadConnectionProperties(properties string) readOption {
-	return func(pl *config) {
-		pl.ConnectionProperties = properties
-	}
-}
-
-func ReadConnectionInitSQLs(initStatements []string) readOption {
-	return func(pl *config) {
-		pl.ConnectionInitSQLs = initStatements
-	}
-}
-
-type writeOption func(*config)
+type writeOption func(*Config)
 
 func Write(s beam.Scope, addr, tableName, driverClassName, jdbcUrl, username, password string, col beam.PCollection, opts ...writeOption) {
 	s = s.Scope("jdbcio.Write")
 
-	wpl := config{
-		DriverClassName:       driverClassName,
-		JDBCUrl:               jdbcUrl,
-		Username:              username,
-		Password:              password,
-		ConnectionProperties:  "",
-		ConnectionInitSQLs:    []string{},
-		WriteStatement:        "",
-		ReadQuery:             "",
-		FetchSize:             0,
-		OutputParallelization: true,
+	wpl := Config{
+		DriverClassName: driverClassName,
+		JDBCUrl:         jdbcUrl,
+		Username:        username,
+		Password:        password,
 	}
 	for _, opt := range opts {
 		opt(&wpl)
@@ -167,26 +88,76 @@ func Write(s beam.Scope, addr, tableName, driverClassName, jdbcUrl, username, pa
 		Location: tableName,
 		Config:   toRow(wpl),
 	}
-	cp := toRow(jcs)
-	pl := beam.CrossLanguagePayload(Payload{Config: cp, DataSchema: nil})
-	outT := beam.UnnamedOutput(typex.New(reflect.TypeOf(col)))
-	beam.CrossLanguage(s, writeURN, pl, addr, beam.UnnamedInput(col), outT)
+	pl := beam.CrossLanguagePayload(jcs)
+	beam.CrossLanguage(s, writeURN, pl, addr, beam.UnnamedInput(col), nil)
 }
 
 func WriteStatement(statement string) writeOption {
-	return func(pl *config) {
-		pl.WriteStatement = statement
+	return func(pl *Config) {
+		pl.WriteStatement = &statement
 	}
 }
 
 func WriteConnectionProperties(properties string) writeOption {
-	return func(pl *config) {
-		pl.ConnectionProperties = properties
+	return func(pl *Config) {
+		pl.ConnectionProperties = &properties
 	}
 }
 
 func ConnectionInitSQLs(initStatements []string) writeOption {
-	return func(pl *config) {
-		pl.ConnectionInitSQLs = initStatements
+	return func(pl *Config) {
+		pl.ConnectionInitSQLs = &initStatements
+	}
+}
+
+type readOption func(*Config)
+
+func Read(s beam.Scope, addr, tableName, driverClassName, jdbcUrl, username, password string, opts ...readOption) {
+	s = s.Scope("jdbcio.Read")
+
+	rpl := Config{
+		DriverClassName: driverClassName,
+		JDBCUrl:         jdbcUrl,
+		Username:        username,
+		Password:        password,
+	}
+	for _, opt := range opts {
+		opt(&rpl)
+	}
+	jcs := JdbcConfigSchema{
+		Location: tableName,
+		Config:   toRow(rpl),
+	}
+	pl := beam.CrossLanguagePayload(jcs)
+	beam.CrossLanguage(s, readURN, pl, addr, nil, nil)
+}
+
+func ReadQuery(query string) readOption {
+	return func(pl *Config) {
+		pl.ReadQuery = &query
+	}
+}
+
+func OutputParallelization(status bool) readOption {
+	return func(pl *Config) {
+		pl.OutputParallelization = &status
+	}
+}
+
+func FetchSize(size int16) readOption {
+	return func(pl *Config) {
+		pl.FetchSize = &size
+	}
+}
+
+func ReadConnectionProperties(properties string) readOption {
+	return func(pl *Config) {
+		pl.ConnectionProperties = &properties
+	}
+}
+
+func ReadConnectionInitSQLs(initStatements []string) readOption {
+	return func(pl *Config) {
+		pl.ConnectionInitSQLs = &initStatements
 	}
 }

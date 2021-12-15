@@ -18,6 +18,7 @@
 package jdbc
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
@@ -29,34 +30,23 @@ func init() {
 }
 
 type JdbcWriteTestRow struct {
-	F_id string `beam:F_id`
+	F_id string `beam:"f_id"`
 }
 
 // writeList encodes a list of ints and sends encoded ints to Kafka.
-func writeRows(s beam.Scope, expansionAddr, tableName, driverClassName, jdbcUrl, username, password string, rows beam.PCollection) {
+func writeRows(s beam.Scope, expansionAddr, tableName, driverClassName, jdbcUrl, username, password string) {
 	s = s.Scope("jdbc_test.WriteToJdbc")
-	jdbcio.Write(s, expansionAddr, tableName, driverClassName, jdbcUrl, username, password, rows) //, jdbcio.WriteStatement(statement))
+	statement := fmt.Sprintf("CREATE TABLE %s(f_id int(10));", tableName)
+	rows := []JdbcWriteTestRow{{"row1"}, {"row2"}}
+	input := beam.CreateList(s, rows)
+	jdbcio.Write(s, expansionAddr, tableName, driverClassName, jdbcUrl, username, password, input, jdbcio.WriteStatement(statement))
 }
 
 // WritePipeline creates a pipeline that writes a given slice of ints to Kafka.
 func WritePipeline(expansionAddr, tableName, driverClassName, jdbcUrl, username, password string) *beam.Pipeline {
 	beam.Init()
 	p, s := beam.NewPipelineWithRoot()
-	rows := []JdbcWriteTestRow{{"row1"}, {"row2"}}
 
-	writeRows(s, expansionAddr, tableName, driverClassName, jdbcUrl, username, password, beam.Create(s, rows))
-	return p
-}
-
-// readRows encodes a list of ints and sends encoded ints to Kafka.
-func readRows(s beam.Scope, expansionAddr, tableName, driverClassName, jdbcUrl, username, password string) {
-	s = s.Scope("jdbc_test.WriteToJdbc")
-	jdbcio.Read(s, expansionAddr, tableName, driverClassName, jdbcUrl, username, password, jdbcio.ReadQuery("SELECT * FROM jdbc_external_test_write"))
-}
-
-// ReadPipeline creates a pipeline that writes a given slice of ints to Kafka.
-func ReadPipeline(expansionAddr, tableName, driverClassName, jdbcUrl, username, password string) *beam.Pipeline {
-	p, s := beam.NewPipelineWithRoot()
-	readRows(s, expansionAddr, tableName, driverClassName, jdbcUrl, username, password)
+	writeRows(s, expansionAddr, tableName, driverClassName, jdbcUrl, username, password)
 	return p
 }

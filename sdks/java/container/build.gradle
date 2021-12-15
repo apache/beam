@@ -26,6 +26,7 @@ applyPythonNature()
 
 evaluationDependsOn(":sdks:java:harness")
 evaluationDependsOn(":sdks:java:io:kafka")
+evaluationDependsOn(":sdks:java:io:jdbc")
 
 description = "Apache Beam :: SDKs :: Java :: Container"
 
@@ -53,6 +54,7 @@ dependencies {
   dockerDependency project(":sdks:java:io:kafka")
   // This dependency is set to 'provided' scope in :sdks:java:io:kafka
   dockerDependency library.java.kafka_clients
+  dockerDependency project(":sdks:java:io:jdbc")
 }
 
 golang {
@@ -82,7 +84,8 @@ import com.github.jk1.license.render.*
 licenseReport {
   projects = [project,
               project.rootProject.findProject(':sdks:java:harness'),
-              project.rootProject.findProject(':sdks:java:io:kafka')]
+              project.rootProject.findProject(':sdks:java:io:kafka'),
+              project.rootProject.findProject(':sdks:java:io:jdbc')]
   excludeOwnGroup = true
   excludeGroups = ["beam.*"] // project dependencies do not match their maven coords
   configurations = ALL
