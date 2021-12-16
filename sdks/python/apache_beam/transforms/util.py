@@ -123,7 +123,7 @@ class CoGroupByKey(PTransform):
       pc2 = beam.Create([])
       pc3 = beam.Create([(k1, v31), (k1, v32), (k2, v33)])
 
-  The output PCollection would consists of items::
+  The output PCollection would consist of items::
 
       [(k1, {'tag1': [v1], 'tag2': [], 333: [v31, v32]}),
        (k2, {'tag1': [], 'tag2': [], 333: [v33]})]
