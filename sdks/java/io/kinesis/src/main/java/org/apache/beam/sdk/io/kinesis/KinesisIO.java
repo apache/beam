@@ -34,7 +34,6 @@ import com.amazonaws.services.kinesis.producer.UserRecordResult;
 import com.google.auto.value.AutoValue;
 import com.google.common.util.concurrent.ListenableFuture;
 import java.io.IOException;
-import java.io.ObjectInputStream;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -884,28 +883,79 @@ public final class KinesisIO {
           getPartitionKey() == null || (getPartitioner() == null),
           "only one of either withPartitionKey() or withPartitioner() is possible");
       checkArgument(getAWSClientsProvider() != null, "withAWSClientsProvider() is required");
+      createProducerConfiguration(); // verify Kinesis producer configuration can be built
 
       input.apply(ParDo.of(new KinesisWriterFn(this)));
       return PDone.in(input.getPipeline());
     }
 
-    private static class KinesisWriterFn extends DoFn<byte[], Void> {
+    private KinesisProducerConfiguration createProducerConfiguration() {
+      Properties props = getProducerProperties();
+      if (props == null) {
+        props = new Properties();
+      }
+      return KinesisProducerConfiguration.fromProperties(props);
+    }
 
+    private static class KinesisWriterFn extends DoFn<byte[], Void> {
       private static final int MAX_NUM_FAILURES = 10;
 
+      /** Usage count of static, shared Kinesis producer. */
+      private static int producerRefCount = 0;
+
+      /** Static, shared Kinesis producer. */
+      private static IKinesisProducer producer;
+
       private final KinesisIO.Write spec;
-      private static transient IKinesisProducer producer;
+
       private transient KinesisPartitioner partitioner;
       private transient LinkedBlockingDeque<KinesisWriteException> failures;
       private transient List<Future<UserRecordResult>> putFutures;
 
       KinesisWriterFn(KinesisIO.Write spec) {
         this.spec = spec;
-        initKinesisProducer();
+      }
+
+      /**
+       * Initialize statically shared Kinesis producer if required and count usage.
+       *
+       * <p>NOTE: If there is, for whatever reasons, another instance of a {@link KinesisWriterFn}
+       * with different producer properties or even a different implementation of {@link
+       * AWSClientsProvider}, these changes will be silently discarded in favor of an existing
+       * producer instance.
+       */
+      private void setupSharedProducer() {
+        synchronized (KinesisWriterFn.class) {
+          if (producer == null) {
+            producer =
+                spec.getAWSClientsProvider()
+                    .createKinesisProducer(spec.createProducerConfiguration());
+            producerRefCount = 0;
+          }
+          producerRefCount++;
+        }
+      }
+
+      /**
+       * Discard statically shared producer if it is not used anymore according to the usage count.
+       */
+      private void teardownSharedProducer() {
+        IKinesisProducer obsolete = null;
+        synchronized (KinesisWriterFn.class) {
+          if (--producerRefCount == 0) {
+            obsolete = producer;
+            producer = null;
+          }
+        }
+        if (obsolete != null) {
+          obsolete.flushSync(); // should be a noop, but just in case
+          obsolete.destroy();
+        }
       }
 
       @Setup
       public void setup() {
+        setupSharedProducer();
         // Use custom partitioner if it exists
         if (spec.getPartitioner() != null) {
           partitioner = spec.getPartitioner();
@@ -917,30 +967,6 @@ public final class KinesisIO {
         putFutures = Collections.synchronizedList(new ArrayList<>());
         /** Keep only the first {@link MAX_NUM_FAILURES} occurred exceptions */
         failures = new LinkedBlockingDeque<>(MAX_NUM_FAILURES);
-        initKinesisProducer();
-      }
-
-      private synchronized void initKinesisProducer() {
-        // Init producer config
-        Properties props = spec.getProducerProperties();
-        if (props == null) {
-          props = new Properties();
-        }
-        KinesisProducerConfiguration config = KinesisProducerConfiguration.fromProperties(props);
-        // Fix to avoid the following message "WARNING: Exception during updateCredentials" during
-        // producer.destroy() call. More details can be found in this thread:
-        // https://github.com/awslabs/amazon-kinesis-producer/issues/10
-        config.setCredentialsRefreshDelay(100);
-
-        // Init Kinesis producer
-        if (producer == null) {
-          producer = spec.getAWSClientsProvider().createKinesisProducer(config);
-        }
-      }
-
-      private void readObject(ObjectInputStream is) throws IOException, ClassNotFoundException {
-        is.defaultReadObject();
-        initKinesisProducer();
       }
 
       /**
@@ -1067,10 +1093,7 @@ public final class KinesisIO {
 
       @Teardown
       public void teardown() throws Exception {
-        if (producer != null && producer.getOutstandingRecordsCount() > 0) {
-          producer.flushSync();
-        }
-        producer = null;
+        teardownSharedProducer();
       }
     }
   }

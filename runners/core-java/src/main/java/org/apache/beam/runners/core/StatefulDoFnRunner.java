@@ -141,7 +141,6 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
 
   @Override
   public void processElement(WindowedValue<InputT> input) {
-
     // StatefulDoFnRunner always observes windows, so we need to explode
     for (WindowedValue<InputT> value : input.explodeWindows()) {
       BoundedWindow window = value.getWindows().iterator().next();
@@ -220,7 +219,7 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
       if (requiresTimeSortedInput) {
         onSortFlushTimer(window, BoundedWindow.TIMESTAMP_MAX_VALUE);
       }
-      doFnRunner.onWindowExpiration(window, outputTimestamp, key);
+      onWindowExpiration(window, outputTimestamp, key);
       stateCleaner.clearForWindow(window);
     } else {
       // An event-time timer can never be late because we don't allow setting timers after GC time.

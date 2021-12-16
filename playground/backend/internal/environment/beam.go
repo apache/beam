@@ -22,18 +22,22 @@ import (
 // ExecutorConfig contains all environment variables needed for compiling and execution of the code commands:
 // - CompileCmd: command to compile files with code
 // - RunCmd: command to run compiled code
+// - TestCmd: command to run unit test code
 // - CompileArgs: arguments which are needed to compile files with code
 // - RunArgs: arguments which are needed to run compiled code
+// - TestArgs: arguments which are needed to run unit test code
 type ExecutorConfig struct {
 	CompileCmd  string   `json:"compile_cmd"`
 	RunCmd      string   `json:"run_cmd"`
+	TestCmd     string   `json:"test_cmd"`
 	CompileArgs []string `json:"compile_args"`
 	RunArgs     []string `json:"run_args"`
+	TestArgs    []string `json:"test_args"`
 }
 
 // NewExecutorConfig creates and returns ExecutorConfig
-func NewExecutorConfig(compileCmd string, runCmd string, compileArgs []string, runArgs []string) *ExecutorConfig {
-	return &ExecutorConfig{CompileCmd: compileCmd, RunCmd: runCmd, CompileArgs: compileArgs, RunArgs: runArgs}
+func NewExecutorConfig(compileCmd, runCmd, testCmd string, compileArgs, runArgs, testArgs []string) *ExecutorConfig {
+	return &ExecutorConfig{CompileCmd: compileCmd, RunCmd: runCmd, TestCmd: testCmd, CompileArgs: compileArgs, RunArgs: runArgs, TestArgs: testArgs}
 }
 
 // BeamEnvs contains all environments related of ApacheBeam. These will use to run pipelines

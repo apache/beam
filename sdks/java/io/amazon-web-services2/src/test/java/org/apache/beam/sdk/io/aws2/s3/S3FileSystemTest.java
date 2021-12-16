@@ -181,7 +181,7 @@ public class S3FileSystemTest {
     HeadObjectResponse bigHeadObjectResponse =
         headObjectResponse.toBuilder().contentLength(5_368_709_120L).build();
     assertGetObjectHead(
-        s3FileSystem, createObjectHeadRequest(sourcePath, options), options, headObjectResponse);
+        s3FileSystem, createObjectHeadRequest(sourcePath, options), options, bigHeadObjectResponse);
 
     try {
       s3FileSystem.copy(sourcePath, destinationPath);
