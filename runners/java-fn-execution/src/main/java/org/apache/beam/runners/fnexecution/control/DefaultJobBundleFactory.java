@@ -19,6 +19,7 @@ package org.apache.beam.runners.fnexecution.control;
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -26,7 +27,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -223,7 +223,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
                   });
 
       if (environmentExpirationMillis > 0) {
-        cacheBuilder.expireAfterWrite(environmentExpirationMillis, TimeUnit.MILLISECONDS);
+        cacheBuilder.expireAfterWrite(Duration.ofMillis(environmentExpirationMillis));
       }
 
       LoadingCache<Environment, WrappedSdkHarnessClient> cache =

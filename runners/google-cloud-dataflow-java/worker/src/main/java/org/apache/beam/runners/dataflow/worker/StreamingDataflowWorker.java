@@ -412,7 +412,7 @@ public class StreamingDataflowWorker {
   // Using Cache with time eviction policy helps us to prevent memory leak when callback ids are
   // discarded by Dataflow service and calling commitCallback is best-effort.
   private final Cache<Long, Runnable> commitCallbacks =
-      CacheBuilder.newBuilder().expireAfterWrite(5L, TimeUnit.MINUTES).build();
+      CacheBuilder.newBuilder().expireAfterWrite(java.time.Duration.ofMinutes(5L)).build();
 
   // Map of user state names to system state names.
   // TODO(drieber): obsolete stateNameMap. Use transformUserNameToStateFamily in
