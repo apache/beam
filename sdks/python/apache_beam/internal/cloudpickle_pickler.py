@@ -108,7 +108,7 @@ def _pickle_rlock(obj):
 
 
 def _create_rlock():
-  return RLockType()
+  return RLOCK_TYPE()
 
 
 def dump_session(file_path):
