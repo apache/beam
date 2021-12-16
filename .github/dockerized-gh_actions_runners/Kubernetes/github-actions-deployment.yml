@@ -15,13 +15,36 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-
-apiVersion: v1
-kind: Secret
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: github-actions-secrets
-type: Opaque
-data:
-  GITHUB_TOKEN:
-  GITHUB_REPO:
-  IMAGE_URL:
+  name: github-actions-runners-deployment
+  labels:
+    name: github-actions
+spec:
+  selector:
+    matchLabels:
+      name: github-actions
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        name: github-actions
+    spec:
+      containers:
+        - name: github-actions-runner
+          image: $IMAGE_URL:dev  #Replace IMAGE_URL for the corresponding image url
+          securityContext:
+            privileged: true
+          envFrom:
+            - secretRef:
+                name: github-actions-secrets
+          volumeMounts:
+            - name: docker-sock
+              mountPath:  /var/run/docker.sock
+          ports:
+            - containerPort: 80
+      volumes:
+        - name: docker-sock
+          hostPath:
+            path: /var/run/docker.sock
