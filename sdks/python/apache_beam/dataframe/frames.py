@@ -3848,6 +3848,12 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   def idxmax(self, **kwargs):
     return self._idxmaxmin_helper('idxmax', **kwargs)
 
+  @frame_base.with_docs_from(pd.DataFrame)
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  def pipe(self, func, *args, **kwargs):
+    result = func(self, *args, **kwargs)
+    return result
+
 for io_func in dir(io):
   if io_func.startswith('to_'):
     setattr(DeferredDataFrame, io_func, getattr(io, io_func))
