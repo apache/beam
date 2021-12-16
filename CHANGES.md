@@ -79,6 +79,8 @@
 
 * Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 * Properly check output timestamps on elements output from DoFns, timers, and onWindowExpiration in Java [BEAM-12931](https://issues.apache.org/jira/browse/BEAM-12931).
+* Fixed a bug with DeferredDataFrame.xs when used with a non-tuple key
+  ([BEAM-13421](https://issues.apache.org/jira/browse/BEAM-13421])).
 
 ## Known Issues
 
