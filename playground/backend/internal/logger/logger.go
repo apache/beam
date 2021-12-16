@@ -35,8 +35,8 @@ var handlers []Handler
 
 // SetupLogger constructs logger by application environment
 // Add handlers in root logger:
-//   CloudLoggingHandler - for logs to the Cloud Logging service if server running on App Engine
-//   StdHandler - for logs to the stderr/stdout if server running locally
+//   CloudLoggingHandler - if server running on App Engine
+//   StdHandler - if server running locally
 func SetupLogger(ctx context.Context, launchSite, googleProjectId string) {
 	switch launchSite {
 	case "app_engine":

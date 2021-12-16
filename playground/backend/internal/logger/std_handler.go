@@ -20,6 +20,7 @@ import (
 	"log"
 )
 
+// StdHandler represents standard 'log' package that logs to stderr
 type StdHandler struct {
 }
 
