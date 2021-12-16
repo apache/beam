@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.testing;
 
-import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 import org.apache.beam.sdk.util.Sleeper;
 
@@ -41,7 +41,7 @@ public class SystemNanoTimeSleeper implements Sleeper {
   @Override
   public void sleep(long millis) throws InterruptedException {
     long currentTime;
-    long endTime = System.nanoTime() + Duration.ofMillis(millis).toNanos();
+    long endTime = System.nanoTime() + TimeUnit.NANOSECONDS.convert(millis, TimeUnit.MILLISECONDS);
     while ((currentTime = System.nanoTime()) < endTime) {
       if (Thread.interrupted()) {
         throw new InterruptedException();

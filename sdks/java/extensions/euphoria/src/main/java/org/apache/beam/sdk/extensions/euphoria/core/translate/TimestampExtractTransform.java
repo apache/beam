@@ -86,6 +86,14 @@ public class TimestampExtractTransform<InputT, OutputT>
     }
   }
 
+  private static class Unwrap<T> extends DoFn<KV<Long, T>, T> {
+
+    @ProcessElement
+    public void processElement(ProcessContext ctx) {
+      ctx.output(ctx.element().getValue());
+    }
+  }
+
   private final PCollectionTransform<InputT, OutputT> timestampedTransform;
 
   private TimestampExtractTransform(
