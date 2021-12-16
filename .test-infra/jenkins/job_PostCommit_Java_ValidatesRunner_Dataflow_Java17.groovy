@@ -26,8 +26,16 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Dataflo
 
       description('Runs the ValidatesRunner suite on the Dataflow runner with Java 17 worker harness.')
 
-      def JAVA_17_HOME = '/usr/lib/jvm/java-17-openjdk-amd64'
-      def JAVA_8_HOME = '/usr/lib/jvm/java-8-openjdk-amd64'
+      def compiler = javaToolchains.compilerFor {
+        languageVersion = JavaLanguageVersion.of(8)
+      }
+
+      def launcher = javaToolchains.compilerFor {
+        languageVersion = JavaLanguageVersion.of(17)
+      }
+
+      def JAVA_17_HOME = launcher.get().metadata.installationPath.asFile.absolutePath
+      def JAVA_8_HOME = compiler.get().metadata.installationPath.asFile.absolutePath
 
       commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 420)
       publishers {
@@ -53,7 +61,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Dataflo
           switches('-x testJar')
           switches('-x classes')
           switches('-x testClasses')
-          switches("-Dorg.gradle.java.home=${JAVA_8_HOME}") //TODO: change to JAVA_17_HOME once Java SDK 17 image is available.
+          switches("-Dorg.gradle.java.home=${JAVA_17_HOME}")
 
           commonJobProperties.setGradleSwitches(delegate, 3 * Runtime.runtime.availableProcessors())
         }
