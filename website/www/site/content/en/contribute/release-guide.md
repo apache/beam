@@ -561,10 +561,6 @@ See the source of the script for more details, or to run commands manually in ca
 
 ### Run build_release_candidate.sh to create a release candidate
 
-Before you start, run this command to make sure you'll be using the latest docker images:
-
-      docker system prune -a
-
 * **Script:** [build_release_candidate.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/build_release_candidate.sh)
 
 * **Usage**
