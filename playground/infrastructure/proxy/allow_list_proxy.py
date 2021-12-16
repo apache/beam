@@ -18,8 +18,8 @@ from allow_list import ALLOW_LIST
 
 
 def request(flow: http.HTTPFlow) -> None:
-    if flow.request.pretty_host not in ALLOW_LIST:
-        flow.response = http.Response.make(
-            status_code=403,
-            content='Making requests to the hosts that are not listed in the allowed list is forbidden.'
-        )
+  if flow.request.pretty_host not in ALLOW_LIST:
+    flow.response = http.Response.make(
+        status_code=403,
+        content='Making requests to the hosts that are not listed '
+        'in the allowed list is forbidden.')
