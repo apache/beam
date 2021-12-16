@@ -17,6 +17,8 @@
  */
 package org.apache.beam.fn.harness.state;
 
+import static java.util.Arrays.asList;
+import static java.util.Collections.singletonList;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.core.Is.is;
@@ -37,6 +39,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterable;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -84,9 +87,9 @@ public class MultimapUserStateTest {
         new FakeBeamFnStateClient(
             ImmutableMap.of(
                 createMultimapKeyStateKey(),
-                encode(A1),
+                KV.of(ByteArrayCoder.of(), singletonList(A1)),
                 createMultimapValueStateKey(A1),
-                encode("V1", "V2")));
+                KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
             fakeClient,
@@ -114,9 +117,9 @@ public class MultimapUserStateTest {
         new FakeBeamFnStateClient(
             ImmutableMap.of(
                 createMultimapKeyStateKey(),
-                encode(A1),
+                KV.of(ByteArrayCoder.of(), singletonList(A1)),
                 createMultimapValueStateKey(A1),
-                encode("V1", "V2")));
+                KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
             fakeClient,
@@ -150,9 +153,9 @@ public class MultimapUserStateTest {
         new FakeBeamFnStateClient(
             ImmutableMap.of(
                 createMultimapKeyStateKey(),
-                encode(A1),
+                KV.of(ByteArrayCoder.of(), singletonList(A1)),
                 createMultimapValueStateKey(A1),
-                encode("V1", "V2")));
+                KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
             fakeClient,
@@ -184,9 +187,9 @@ public class MultimapUserStateTest {
         new FakeBeamFnStateClient(
             ImmutableMap.of(
                 createMultimapKeyStateKey(),
-                encode(A1),
+                KV.of(ByteArrayCoder.of(), singletonList(A1)),
                 createMultimapValueStateKey(A1),
-                encode("V1", "V2")));
+                KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
             fakeClient,
@@ -213,9 +216,9 @@ public class MultimapUserStateTest {
         new FakeBeamFnStateClient(
             ImmutableMap.of(
                 createMultimapKeyStateKey(),
-                encode(A0),
+                KV.of(ByteArrayCoder.of(), singletonList(A0)),
                 createMultimapValueStateKey(A0),
-                encode("V1")));
+                KV.of(StringUtf8Coder.of(), asList("V1"))));
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
             fakeClient,
@@ -240,9 +243,9 @@ public class MultimapUserStateTest {
         new FakeBeamFnStateClient(
             ImmutableMap.of(
                 createMultimapKeyStateKey(),
-                encode(A0),
+                KV.of(ByteArrayCoder.of(), singletonList(A0)),
                 createMultimapValueStateKey(A0),
-                encode("V1")));
+                KV.of(StringUtf8Coder.of(), asList("V1"))));
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
             fakeClient,
@@ -264,9 +267,9 @@ public class MultimapUserStateTest {
         new FakeBeamFnStateClient(
             ImmutableMap.of(
                 createMultimapKeyStateKey(),
-                encode(A0),
+                KV.of(ByteArrayCoder.of(), singletonList(A0)),
                 createMultimapValueStateKey(A0),
-                encode("V1")));
+                KV.of(StringUtf8Coder.of(), asList("V1"))));
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
             fakeClient,
@@ -338,9 +341,9 @@ public class MultimapUserStateTest {
         new FakeBeamFnStateClient(
             ImmutableMap.of(
                 createMultimapKeyStateKey(),
-                encode(A1),
+                KV.of(ByteArrayCoder.of(), singletonList(A1)),
                 createMultimapValueStateKey(A1),
-                encode("V1", "V2")));
+                KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
             fakeClient,
@@ -368,9 +371,9 @@ public class MultimapUserStateTest {
         new FakeBeamFnStateClient(
             ImmutableMap.of(
                 createMultimapKeyStateKey(),
-                encode(A1),
+                KV.of(ByteArrayCoder.of(), singletonList(A1)),
                 createMultimapValueStateKey(A1),
-                encode("V1", "V2")));
+                KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
             fakeClient,
@@ -393,9 +396,9 @@ public class MultimapUserStateTest {
         new FakeBeamFnStateClient(
             ImmutableMap.of(
                 createMultimapKeyStateKey(),
-                encode(A1),
+                KV.of(ByteArrayCoder.of(), singletonList(A1)),
                 createMultimapValueStateKey(A1),
-                encode("V1", "V2")));
+                KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
             fakeClient,
@@ -418,9 +421,9 @@ public class MultimapUserStateTest {
         new FakeBeamFnStateClient(
             ImmutableMap.of(
                 createMultimapKeyStateKey(),
-                encode(A1),
+                KV.of(ByteArrayCoder.of(), singletonList(A1)),
                 createMultimapValueStateKey(A1),
-                encode("V1", "V2")));
+                KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
             fakeClient,
@@ -444,9 +447,9 @@ public class MultimapUserStateTest {
         new FakeBeamFnStateClient(
             ImmutableMap.of(
                 createMultimapKeyStateKey(),
-                encode(A1),
+                KV.of(ByteArrayCoder.of(), singletonList(A1)),
                 createMultimapValueStateKey(A1),
-                encode("V1", "V2")));
+                KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
             fakeClient,
@@ -468,11 +471,11 @@ public class MultimapUserStateTest {
         new FakeBeamFnStateClient(
             ImmutableMap.of(
                 createMultimapKeyStateKey(),
-                encode(A0, A1),
+                KV.of(ByteArrayCoder.of(), asList(A0, A1)),
                 createMultimapValueStateKey(A0),
-                encode("V1"),
+                KV.of(StringUtf8Coder.of(), asList("V1")),
                 createMultimapValueStateKey(A1),
-                encode("V1", "V2")));
+                KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
             fakeClient,
@@ -501,9 +504,9 @@ public class MultimapUserStateTest {
         new FakeBeamFnStateClient(
             ImmutableMap.of(
                 createMultimapKeyStateKey(),
-                encode(A1),
+                KV.of(ByteArrayCoder.of(), singletonList(A1)),
                 createMultimapValueStateKey(A1),
-                encode("V1", "V2")));
+                KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
             fakeClient,
@@ -545,9 +548,9 @@ public class MultimapUserStateTest {
         new FakeBeamFnStateClient(
             ImmutableMap.of(
                 createMultimapKeyStateKey(),
-                encode(A1),
+                KV.of(ByteArrayCoder.of(), singletonList(A1)),
                 createMultimapValueStateKey(A1),
-                encode("V1", "V2")));
+                KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
             fakeClient,
@@ -573,9 +576,9 @@ public class MultimapUserStateTest {
         new FakeBeamFnStateClient(
             ImmutableMap.of(
                 createMultimapKeyStateKey(),
-                encode(A1),
+                KV.of(ByteArrayCoder.of(), singletonList(A1)),
                 createMultimapValueStateKey(A1),
-                encode("V1", "V2")));
+                KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
             fakeClient,
@@ -601,9 +604,9 @@ public class MultimapUserStateTest {
         new FakeBeamFnStateClient(
             ImmutableMap.of(
                 createMultimapKeyStateKey(),
-                encode(A1),
+                KV.of(ByteArrayCoder.of(), singletonList(A1)),
                 createMultimapValueStateKey(A1),
-                encode("V1", "V2")));
+                KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
             fakeClient,
@@ -630,9 +633,9 @@ public class MultimapUserStateTest {
         new FakeBeamFnStateClient(
             ImmutableMap.of(
                 createMultimapKeyStateKey(),
-                encode(A1),
+                KV.of(ByteArrayCoder.of(), singletonList(A1)),
                 createMultimapValueStateKey(A1),
-                encode("V1", "V2")));
+                KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
             fakeClient,
@@ -662,9 +665,9 @@ public class MultimapUserStateTest {
         new FakeBeamFnStateClient(
             ImmutableMap.of(
                 createMultimapKeyStateKey(),
-                encode(A1),
+                KV.of(ByteArrayCoder.of(), singletonList(A1)),
                 createMultimapValueStateKey(A1),
-                encode("V1", "V2")));
+                KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
             fakeClient,
@@ -694,9 +697,9 @@ public class MultimapUserStateTest {
         new FakeBeamFnStateClient(
             ImmutableMap.of(
                 createMultimapKeyStateKey(),
-                encode(A1),
+                KV.of(ByteArrayCoder.of(), singletonList(A1)),
                 createMultimapValueStateKey(A1),
-                encode("V1", "V2")));
+                KV.of(StringUtf8Coder.of(), asList("V1", "V2"))));
     MultimapUserState<byte[], String> userState =
         new MultimapUserState<>(
             fakeClient,

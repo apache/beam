@@ -1166,7 +1166,7 @@ class DeferredFrameTest(_AbstractFrameTest):
         df2: df1.compare(df2, align_axis=0, keep_shape=True, keep_equal=True),
         df1,
         df2)
-    
+
   def test_idxmin(self):
     df = pd.DataFrame({
         'consumption': [10.51, 103.11, 55.48],
@@ -1244,6 +1244,7 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(lambda s: s.idxmax(skipna=False), s, check_proxy=False)
     self._run_test(lambda s2: s2.idxmax(), s2)
     self._run_test(lambda s2: s2.idxmax(skipna=False), s2)
+
 
 # pandas doesn't support kurtosis on GroupBys:
 # https://github.com/pandas-dev/pandas/issues/40139

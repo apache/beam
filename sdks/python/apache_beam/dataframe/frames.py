@@ -3737,6 +3737,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
         return result
 
   if hasattr(pd.DataFrame, 'compare'):
+
     @frame_base.with_docs_from(pd.DataFrame)
     @frame_base.args_to_kwargs(pd.DataFrame)
     @frame_base.populate_defaults(pd.DataFrame)
@@ -3846,8 +3847,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   @frame_base.populate_defaults(pd.DataFrame)
   def idxmax(self, **kwargs):
     return self._idxmaxmin_helper('idxmax', **kwargs)
-  
-  
+
 for io_func in dir(io):
   if io_func.startswith('to_'):
     setattr(DeferredDataFrame, io_func, getattr(io, io_func))

@@ -120,6 +120,11 @@ public class SimplePushbackSideInputDoFnRunner<InputT, OutputT>
   }
 
   @Override
+  public <KeyT> void onWindowExpiration(BoundedWindow window, Instant outputTimestamp, KeyT key) {
+    underlying.onWindowExpiration(window, outputTimestamp, key);
+  }
+
+  @Override
   public void finishBundle() {
     notReadyWindows = null;
     underlying.finishBundle();

@@ -31,6 +31,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+import org.apache.beam.fn.harness.Cache;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.runners.core.construction.CoderTranslation.TranslationContext;
 import org.apache.beam.runners.core.construction.CoderTranslator;
@@ -171,6 +172,8 @@ public class StateBackedIterable<T> implements Iterable<T>, Serializable {
 
   /** Additional parameters required by the {@link StateBackedIterable.Coder}. */
   public interface StateBackedIterableTranslationContext extends TranslationContext {
+    Supplier<Cache<?, ?>> getCache();
+
     BeamFnStateClient getStateClient();
 
     Supplier<String> getCurrentInstructionId();
