@@ -110,7 +110,7 @@ class CoGroupByKey(PTransform):
                              ...],
                     'tag2': ... ,
                     ... })
-  
+
   where `[]` refers to an iterable, not a list.
 
   For example, given::
@@ -127,7 +127,7 @@ class CoGroupByKey(PTransform):
 
       [(k1, {'tag1': [v1], 'tag2': [], 333: [v31, v32]}),
        (k2, {'tag1': [], 'tag2': [], 333: [v33]})]
-  
+
   where `[]` refers to an iterable, not a list.
 
   CoGroupByKey also works for tuples, lists, or other flat iterables of
@@ -142,7 +142,7 @@ class CoGroupByKey(PTransform):
 
       [(k1, ([v1], [], [v31, v32]),
        (k2, ([], [], [v33]))]
-  
+
   where, again, `[]` refers to an iterable, not a list.
 
   Attributes:
