@@ -19,7 +19,6 @@ package org.apache.beam.runners.fnexecution.control;
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
-import java.time.Duration;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -27,6 +26,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -204,11 +204,11 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
                   notification -> {
                     WrappedSdkHarnessClient client = notification.getValue();
                     final int refCount;
-                    // We need to use a lock here to ensure we are not causing the environment to
-                    // be removed if beforehand a StageBundleFactory has retrieved it but not yet
-                    // issued ref() on it.
-                    refLock.lock();
                     try {
+                      // We need to use a lock here to ensure we are not causing the environment to
+                      // be removed if beforehand a StageBundleFactory has retrieved it but not yet
+                      // issued ref() on it.
+                      refLock.lock();
                       refCount = client.unref();
                     } finally {
                       refLock.unlock();
@@ -223,7 +223,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
                   });
 
       if (environmentExpirationMillis > 0) {
-        cacheBuilder.expireAfterWrite(Duration.ofMillis(environmentExpirationMillis));
+        cacheBuilder.expireAfterWrite(environmentExpirationMillis, TimeUnit.MILLISECONDS);
       }
 
       LoadingCache<Environment, WrappedSdkHarnessClient> cache =
@@ -474,8 +474,8 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
         currentCache = availableCaches.take();
         // Lock because the environment expiration can remove the ref for the client
         // which would close the underlying environment before we can ref it.
-        currentCache.lock.lock();
         try {
+          currentCache.lock.lock();
           client = currentCache.cache.getUnchecked(executableStage.getEnvironment());
           client.ref();
         } finally {
@@ -494,8 +494,8 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
         currentCache = environmentCaches.get(environmentIndex);
         // Lock because the environment expiration can remove the ref for the client which would
         // close the underlying environment before we can ref it.
-        currentCache.lock.lock();
         try {
+          currentCache.lock.lock();
           client = currentCache.cache.getUnchecked(executableStage.getEnvironment());
           client.ref();
         } finally {
