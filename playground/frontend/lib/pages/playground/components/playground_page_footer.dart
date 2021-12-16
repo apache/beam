@@ -19,10 +19,14 @@
 import 'package:flutter/material.dart';
 import 'package:playground/config/theme.dart';
 import 'package:playground/constants/font_weight.dart';
+import 'package:playground/constants/links.dart';
 import 'package:playground/constants/sizes.dart';
+import 'package:playground/modules/analytics/analytics_service.dart';
 import 'package:playground/pages/playground/components/playground_feedback.dart';
+import 'package:playground/pages/playground/components/playground_privacy_policy.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-const kPrivacyPolicyText = 'Privacy Policy';
+const kPrivacyPolicyNameText = 'Privacy Policy';
 const kReportIssueText = 'Report issue in Jira';
 const kCopyright = '© The Apache Software Foundation';
 
@@ -48,17 +52,24 @@ class PlaygroundPageFooter extends StatelessWidget {
               style: TextButton.styleFrom(
                 textStyle: const TextStyle(fontWeight: kNormalWeight),
               ),
-              // ignore: avoid_print
-              onPressed: () => print(kPrivacyPolicyText),
+              onPressed: () {
+                launch(kReportIssueLink);
+                AnalyticsService.get(context).trackClickReportIssue();
+              },
               child: const Text(kReportIssueText),
             ),
             TextButton(
               style: TextButton.styleFrom(
                 textStyle: const TextStyle(fontWeight: kNormalWeight),
               ),
-              // ignore: avoid_print
-              onPressed: () => print(kPrivacyPolicyText),
-              child: const Text(kPrivacyPolicyText),
+              onPressed: () {
+                showDialog<void>(
+                  context: context,
+                  builder: (BuildContext context) =>
+                      const PlaygroundPrivacyPolicy(),
+                );
+              },
+              child: const Text(kPrivacyPolicyNameText),
             ),
             const Text(kCopyright),
           ],
