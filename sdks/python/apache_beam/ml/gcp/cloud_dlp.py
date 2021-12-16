@@ -20,7 +20,6 @@ functionality.
 """
 
 import logging
-
 from typing import List
 
 from google.cloud import dlp_v2
