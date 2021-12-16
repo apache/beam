@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.util.Clock;
@@ -1198,11 +1199,22 @@ public class PubsubIO {
       return toBuilder().setIdAttribute(idAttribute).build();
     }
 
+    public Write<T> withDynamicDestination(PubsubDynamicDestinations<T, ?> dynamicDestinations) {
+      checkArgument(dynamicDestinations != null, "dynamicDestinations can not be null");
+      return toBuilder().setDynamicDestinations(dynamicDestinations).build();
+    }
+
     @Override
     public PDone expand(PCollection<T> input) {
-      if (getTopicProvider() == null) {
-        throw new IllegalStateException("need to set the topic of a PubsubIO.Write transform");
+      if (getTopicProvider() == null && getDynamicDestinations() == null) {
+        throw new IllegalStateException(
+            "need to set the topic or dynamic destination of a PubsubIO.Write transform");
       }
+
+      PCollection<KV<PubsubTopic, PubsubMessage>> pubsubMessages =
+          input.apply(
+              new PreparePubsubWrite<>(
+                  getDynamicDestinations(), getFormatFn(), getTopicProvider()));
 
       switch (input.isBounded()) {
         case BOUNDED:
@@ -1214,19 +1226,21 @@ public class PubsubIO {
                           getMaxBatchBytesSize(), MAX_PUBLISH_BATCH_BYTE_SIZE_DEFAULT))));
           return PDone.in(input.getPipeline());
         case UNBOUNDED:
-          return input
+          return pubsubMessages
               .apply(
-                  MapElements.into(new TypeDescriptor<PubsubMessage>() {})
-                      .via(
-                          elem -> {
-                            PubsubMessage message = getFormatFn().apply(elem);
-                            try {
-                              validatePubsubMessage(message);
-                            } catch (SizeLimitExceededException e) {
-                              throw new IllegalArgumentException(e);
-                            }
-                            return message;
-                          }))
+                  ParDo.of(
+                      new DoFn<KV<PubsubTopic, PubsubMessage>, KV<PubsubTopic, PubsubMessage>>() {
+                        @ProcessElement
+                        public void processElement(ProcessContext c) {
+                          KV<PubsubTopic, PubsubMessage> pubsubElement = c.element();
+                          try {
+                            validatePubsubMessage(pubsubElement.getValue());
+                          } catch (SizeLimitExceededException e) {
+                            throw new IllegalArgumentException(e);
+                          }
+                          c.output(pubsubElement);
+                        }
+                      }))
               .apply(
                   new PubsubUnboundedSink(
                       getPubsubClientFactory(),
