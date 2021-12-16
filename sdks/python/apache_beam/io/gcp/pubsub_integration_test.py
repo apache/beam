@@ -206,6 +206,8 @@ class PubSubIntegrationTest(unittest.TestCase):
 
   @pytest.mark.it_postcommit
   def test_streaming_data_only(self):
+    if self.runner_name == 'TestDataflowRunner':
+      pytest.skip("BEAM-13218")
     self._test_streaming(with_attributes=False)
 
   @pytest.mark.it_postcommit
