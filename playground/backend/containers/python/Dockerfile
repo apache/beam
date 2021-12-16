@@ -62,4 +62,5 @@ COPY allow_list_proxy.py /opt/mitmproxy/
 COPY allow_list.py /opt/mitmproxy/
 ENV HTTP_PROXY="http://127.0.0.1:8081"
 ENV HTTPS_PROXY="http://127.0.0.1:8081"
+
 ENTRYPOINT ["/entrypoint.sh"]
