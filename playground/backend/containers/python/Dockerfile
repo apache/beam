@@ -16,7 +16,7 @@
 # limitations under the License.
 ###############################################################################
 ARG BASE_IMAGE=apache/beam_python3.7_sdk:latest
-ARG GO_BASE_IMAGE=golang:1.17-buster
+ARG GO_BASE_IMAGE=golang:1.17-bullseye
 FROM $GO_BASE_IMAGE AS build
 
 # Setup Go Environment
@@ -46,6 +46,10 @@ ENV BEAM_SDK="SDK_PYTHON"
 # Copy build result
 COPY --from=build /go/bin/server_python_backend /opt/playground/backend/
 COPY --from=build /go/src/playground/backend/configs /opt/playground/backend/configs/
+
+# Install Python Katas Utils
+COPY katas/log_elements.py /go/src/katas/
+ENV PYTHONPATH="$PYTHONPATH:/go/src/katas"
 
 RUN printenv
 ENTRYPOINT ["/opt/playground/backend/server_python_backend"]

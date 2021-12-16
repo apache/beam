@@ -190,7 +190,7 @@ class _DeidentifyFn(DoFn):
       self.client = dlp_v2.DlpServiceClient()
     self.params = {
         'timeout': self.timeout,
-        'parent': self.client.project_path(self.project)
+        'parent': self.client.common_project_path(self.project)
     }
     self.params.update(self.config)
 
@@ -213,7 +213,7 @@ class _InspectFn(DoFn):
       self.client = dlp_v2.DlpServiceClient()
     self.params = {
         'timeout': self.timeout,
-        "parent": self.client.project_path(self.project)
+        "parent": self.client.common_project_path(self.project)
     }
     self.params.update(self.config)
 

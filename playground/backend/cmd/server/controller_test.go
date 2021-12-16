@@ -33,11 +33,15 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 const (
-	bufSize    = 1024 * 1024
-	javaConfig = "{\n  \"compile_cmd\": \"javac\",\n  \"run_cmd\": \"java\",\n  \"compile_args\": [\"-d\", \"bin\", \"-classpath\"],\n  \"run_args\": [\"-cp\", \"bin:\"]\n}"
+	bufSize               = 1024 * 1024
+	javaConfig            = "{\n  \"compile_cmd\": \"javac\",\n  \"run_cmd\": \"java\",\n  \"test_cmd\": \"java\",\n  \"compile_args\": [\n    \"-d\",\n    \"bin\",\n    \"-classpath\"\n  ],\n  \"run_args\": [\n    \"-cp\",\n    \"bin:\"\n  ],\n  \"test_args\": [\n    \"-cp\",\n    \"bin:\",\n    \"JUnit\"\n  ]\n}"
+	javaLogConfigFilename = "logging.properties"
+	baseFileFolder        = "executable_files"
+	configFolder          = "configs"
 )
 
 var lis *bufconn.Listener
@@ -57,12 +61,18 @@ func setup() *grpc.Server {
 	s := grpc.NewServer()
 
 	// create configs for java
-	err := os.MkdirAll("configs", fs.ModePerm)
+	err := os.MkdirAll(configFolder, fs.ModePerm)
 	if err != nil {
 		panic(err)
 	}
-	filePath := filepath.Join("configs", pb.Sdk_SDK_JAVA.String()+".json")
+	filePath := filepath.Join(configFolder, pb.Sdk_SDK_JAVA.String()+".json")
 	err = os.WriteFile(filePath, []byte(javaConfig), 0600)
+	if err != nil {
+		panic(err)
+	}
+
+	// create log config file
+	_, err = os.Create(javaLogConfigFilename)
 	if err != nil {
 		panic(err)
 	}
@@ -74,8 +84,12 @@ func setup() *grpc.Server {
 	if err != nil {
 		panic(err)
 	}
-	os.Setenv("BEAM_SDK", pb.Sdk_SDK_JAVA.String())
-	os.Setenv("APP_WORK_DIR", path)
+	if err = os.Setenv("BEAM_SDK", pb.Sdk_SDK_JAVA.String()); err != nil {
+		panic(err)
+	}
+	if err = os.Setenv("APP_WORK_DIR", path); err != nil {
+		panic(err)
+	}
 
 	networkEnv, err := environment.GetNetworkEnvsFromOsEnvs()
 	if err != nil {
@@ -104,13 +118,14 @@ func setup() *grpc.Server {
 func teardown(server *grpc.Server) {
 	server.Stop()
 
-	err := os.RemoveAll("configs")
-	if err != nil {
-		panic(fmt.Errorf("error during test teardown: %s", err.Error()))
-	}
-	err = os.RemoveAll("executable_files")
-	if err != nil {
-		panic(fmt.Errorf("error during test teardown: %s", err.Error()))
+	removeDir(configFolder)
+	removeDir(javaLogConfigFilename)
+	removeDir(baseFileFolder)
+}
+
+func removeDir(dir string) {
+	if err := os.RemoveAll(dir); err != nil {
+		panic(fmt.Errorf("error during remove dir %s: %s", dir, err.Error()))
 	}
 }
 
@@ -172,14 +187,14 @@ func TestPlaygroundController_RunCode(t *testing.T) {
 				if response == nil {
 					t.Errorf("PlaygroundController_RunCode() response shoudn't be nil")
 				} else {
+					// wait for code processing is finished
+					time.Sleep(time.Second * 10)
 					if response.PipelineUuid == "" {
-						t.Errorf("PlaygroundController_RunCode() response.pipelineId shoudn't be nil")
+						t.Errorf("PlaygroundController_RunCode() response.pipeLineId shoudn't be nil")
 					}
-					status, _ := cacheService.GetValue(tt.args.ctx, uuid.MustParse(response.PipelineUuid), cache.Status)
-					path := os.Getenv("APP_WORK_DIR") + "/executable_files"
-					os.RemoveAll(path)
-					if status == nil {
-						t.Errorf("PlaygroundController_RunCode() status shoudn't be nil")
+					_, err := cacheService.GetValue(tt.args.ctx, uuid.MustParse(response.PipelineUuid), cache.Status)
+					if err != nil {
+						t.Errorf("PlaygroundController_RunCode() status should exist")
 					}
 				}
 			}
