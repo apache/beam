@@ -17,14 +17,15 @@
  */
 package org.apache.beam.fn.harness;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.emptyIterable;
-import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 
+import org.apache.beam.fn.harness.Cache.Shrinkable;
+import org.apache.beam.fn.harness.Caches.ClearableCache;
+import org.apache.beam.fn.harness.Caches.ShrinkOnEviction;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -33,32 +34,53 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class CachesTest {
   @Test
-  public void testNoopCache() {
+  public void testNoopCache() throws Exception {
     Cache<String, String> cache = Caches.noop();
     cache.put("key", "value");
     assertNull(cache.peek("key"));
     assertEquals("value", cache.computeIfAbsent("key", (unused) -> "value"));
     assertNull(cache.peek("key"));
-    assertThat(cache.keys(), is(emptyIterable()));
   }
 
   @Test
-  public void testEternalCache() {
+  public void testShrinkableIsShrunk() throws Exception {
+    Shrinkable<Object> shrinkable =
+        new Shrinkable<Object>() {
+
+          @Override
+          public Object shrink() {
+            return "wasShrunk";
+          }
+        };
+
+    Cache<Object, Object> cache =
+        Caches.forCache(new ShrinkOnEviction(CacheBuilder.newBuilder().maximumSize(1)).getCache());
+    cache.put("shrinkable", shrinkable);
+    // Check that we didn't evict it yet
+    assertSame(shrinkable, cache.peek("shrinkable"));
+
+    // The next insertion should cause the value to b "shrunk"
+    cache.put("other", "value");
+    assertEquals("wasShrunk", cache.peek("shrinkable"));
+  }
+
+  @Test
+  public void testEternalCache() throws Exception {
     testCache(Caches.eternal());
   }
 
   @Test
-  public void testDefaultCache() {
+  public void testDefaultCache() throws Exception {
     testCache(Caches.fromOptions(PipelineOptionsFactory.create()));
   }
 
   @Test
-  public void testSubCache() {
+  public void testSubCache() throws Exception {
     testCache(Caches.subCache(Caches.eternal(), "prefix"));
   }
 
   @Test
-  public void testSiblingSubCaches() {
+  public void testSiblingSubCaches() throws Exception {
     Cache<String, String> parent = Caches.eternal();
     Cache<String, String> cacheA = Caches.subCache(parent, "prefixA");
     Cache<String, String> cacheACopy = Caches.subCache(parent, "prefixA");
@@ -70,20 +92,10 @@ public class CachesTest {
     assertEquals("valueA", cacheA.peek("keyA"));
     assertEquals("valueA", cacheACopy.peek("keyA"));
     assertNull(cacheB.peek("keyA"));
-
-    // Test clearing a cache with a different prefix doesn't impact keys without the same prefix
-    cacheB.clear();
-    assertEquals("valueA", cacheA.peek("keyA"));
-    assertEquals("valueA", cacheACopy.peek("keyA"));
-
-    // Test clearing a cache with the same prefix impacts other instances
-    cacheACopy.clear();
-    assertNull(cacheA.peek("keyA"));
-    assertNull(cacheACopy.peek("keyA"));
   }
 
   @Test
-  public void testNestedSubCaches() {
+  public void testNestedSubCaches() throws Exception {
     Cache<String, String> parent = Caches.eternal();
     Cache<String, String> child = Caches.subCache(parent, "child");
     Cache<String, String> childOfChild = Caches.subCache(child, "childOfChild");
@@ -109,15 +121,27 @@ public class CachesTest {
     childOfChild.remove("keyB");
     assertEquals("childB", child.peek("keyB"));
     assertNull(childOfChild.peek("keyB"));
+  }
 
-    // Test that clearing the middle cache impacts children but not parent
-    parent.put("keyA", "parentA");
-    parent.put("keyB", "parentB");
-    child.clear();
-    assertThat(child.keys(), is(emptyIterable()));
-    assertThat(childOfChild.keys(), is(emptyIterable()));
-    assertEquals("parentA", parent.peek("keyA"));
-    assertEquals("parentB", parent.peek("keyB"));
+  @Test
+  public void testClearableCache() {
+    ClearableCache<String, String> cache = new ClearableCache<>(Caches.eternal());
+    testCache(cache);
+  }
+
+  @Test
+  public void testClearableCacheClearing() {
+    Cache<String, String> parent = Caches.eternal();
+    ClearableCache<String, String> cache = new ClearableCache<>(parent);
+
+    parent.put("untracked", "untrackedValue");
+    parent.put("tracked", "parentValue");
+    cache.put("tracked", "parentValueNowTracked");
+    cache.computeIfAbsent("tracked2", (unused) -> "trackedValue2");
+    cache.clear();
+    assertNull(parent.peek("tracked"));
+    assertNull(parent.peek("tracked2"));
+    assertEquals("untrackedValue", parent.peek("untracked"));
   }
 
   private void testCache(Cache<String, String> cache) {
@@ -134,19 +158,5 @@ public class CachesTest {
     // Test compute with load
     assertEquals("value2", cache.computeIfAbsent("key2", (unused) -> "value2"));
     assertEquals("value2", cache.peek("key2"));
-
-    assertThat(cache.keys(), containsInAnyOrder("key1", "key2"));
-
-    // Test removal
-    cache.remove("key1");
-    assertNull(cache.peek("key1"));
-    assertEquals("value2", cache.peek("key2"));
-    assertThat(cache.keys(), containsInAnyOrder("key2"));
-
-    // Test clear
-    cache.clear();
-    assertNull(cache.peek("key1"));
-    assertNull(cache.peek("key2"));
-    assertThat(cache.keys(), is(emptyIterable()));
   }
 }
