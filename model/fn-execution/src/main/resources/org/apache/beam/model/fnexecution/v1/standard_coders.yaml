@@ -417,16 +417,16 @@ examples:
 #     schema_pb2.Field(
 #         name="str",
 #         type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING),
-#         encoding_position=2),
+#         encoding_position=1),
 #     schema_pb2.Field(
 #         name="f_bool",
 #         type=schema_pb2.FieldType(atomic_type=schema_pb2.BOOLEAN),
-#         encoding_position=3),
+#         encoding_position=2),
 #     schema_pb2.Field(
 #         name="i32",
 #         type=schema_pb2.FieldType(
 #             atomic_type=schema_pb2.INT32, nullable=True),
-#         encoding_position=1)
+#         encoding_position=0)
 #   ],
 #   encoding_positions_set=True)
 #

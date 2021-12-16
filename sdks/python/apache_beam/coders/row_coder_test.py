@@ -329,7 +329,7 @@ class RowCoderTest(unittest.TestCase):
               ("field3", typing.Optional[str])]
 
     Old = typing.NamedTuple("Old", fields[:-1])
-    New = typing.NamedTuple("New", fields[::1])
+    New = typing.NamedTuple("New", fields)
 
     old_coder = RowCoder.from_type_hint(Old, None)
     new_coder = RowCoder.from_type_hint(New, None)

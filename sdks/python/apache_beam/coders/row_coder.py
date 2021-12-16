@@ -177,6 +177,7 @@ class RowCoderImpl(StreamCoderImpl):
             but not all fields have encoding_position set''')
       self.encoding_positions = list(
           field.encoding_position for field in self.schema.fields)
+    self.encoding_positions_argsort = np.argsort(self.encoding_positions)
     self.components = list(
         components[self.encoding_positions.index(i)].get_impl()
         for i in self.encoding_positions)
@@ -198,7 +199,7 @@ class RowCoderImpl(StreamCoderImpl):
 
     self.NULL_MARKER_CODER.encode_to_stream(words.tobytes(), out, True)
 
-    for i in np.argsort(self.encoding_positions):
+    for i in self.encoding_positions_argsort:
       if attrs[i] is None:
         if not self.schema.fields[i].type.nullable:
           raise ValueError(
@@ -232,7 +233,7 @@ class RowCoderImpl(StreamCoderImpl):
     sorted_components = [
         None if is_null else self.components[c].decode_from_stream(
             in_stream, True) for c,
-        is_null in zip(np.argsort(self.encoding_positions), nulls)
+        is_null in zip(self.encoding_positions_argsort, nulls)
     ]
 
     return self.constructor(
