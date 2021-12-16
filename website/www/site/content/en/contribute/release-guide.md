@@ -233,17 +233,10 @@ If you are not a PMC, please ask for help in dev@ mailing list.
 
 ## 3. Update base image dependencies for Python container images
 
-1. Check the versions specified in sdks/python/container/base_image_requirements_manual.txt` and update them if necessary.
-1. Regenerate full dependency list by running:
-`./gradlew :sdks:python:container:generatePythonRequirementsAll` and commiting
-the changes. Exectution takes about ~5 min per Python version and is somewhat resource-demanding.
-You can also regenerate the dependencies indiviually per version with targets like `./gradlew :sdks:python:container:py38:generatePythonRequirements`.
+See instructions at: https://s.apache.org/beam-python-requirements-generate
 
-
-Ideally, do this at least a week before the release cut, so that any issues
+Ideally, do the update at least a week before the release cut, so that any issues
 related to the update have time to surface.
-You will need Python intepreters for all versions supported by Beam, see:
-https://s.apache.org/beam-python-dev-wiki for tips how to install them.
 
 ## 4. Investigate performance regressions
 
@@ -589,12 +582,12 @@ See the source of the script for more details, or to run commands manually in ca
           Please note that dependencies for the SDKs with different Python versions vary.
           Need to verify all Python images by replacing `${ver}` with each supported Python version `X.Y`.
           ```
-          docker run -it --entrypoint=/bin/bash apache/beam_python${ver}_sdk:${RELEASE}_rc{RC_NUM}
+          docker run --rm -it --entrypoint=/bin/bash apache/beam_python${ver}_sdk:${RELEASE}_rc{RC_NUM}
           ls -al /opt/apache/beam/third_party_licenses/ | wc -l
           ```
           - For Java SDK images, there should be around 200 dependencies.
           ```
-          docker run -it --entrypoint=/bin/bash apache/beam_java${ver}_sdk:${RELEASE}_rc{RC_NUM}
+          docker run --rm -it --entrypoint=/bin/bash apache/beam_java${ver}_sdk:${RELEASE}_rc{RC_NUM}
           ls -al /opt/apache/beam/third_party_licenses/ | wc -l
           ```
   1. Publish staging artifacts
@@ -785,8 +778,8 @@ Here’s an email template; please adjust as you see fit.
     * all artifacts to be deployed to the Maven Central Repository [4],
     * source code tag "v1.2.3-RC3" [5],
     * website pull request listing the release [6], the blog post [6], and publishing the API reference manual [7].
-    * Java artifacts were built with Maven MAVEN_VERSION and OpenJDK/Oracle JDK JDK_VERSION.
-    * Python artifacts are deployed along with the source release to the dist.apache.org [2] and pypy[8].
+    * Java artifacts were built with Gradle GRADLE_VERSION and OpenJDK/Oracle JDK JDK_VERSION.
+    * Python artifacts are deployed along with the source release to the dist.apache.org [2] and PyPI[8].
     * Validation sheet with a tab for 1.2.3 release to help with validation [9].
     * Docker images published to Docker Hub [10].
 
