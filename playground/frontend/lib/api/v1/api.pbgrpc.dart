@@ -50,6 +50,12 @@ class PlaygroundServiceClient extends $grpc.Client {
           ($0.GetRunOutputRequest value) => value.writeToBuffer(),
           ($core.List<$core.int> value) =>
               $0.GetRunOutputResponse.fromBuffer(value));
+  static final _$getLogs =
+      $grpc.ClientMethod<$0.GetLogsRequest, $0.GetLogsResponse>(
+          '/api.v1.PlaygroundService/GetLogs',
+          ($0.GetLogsRequest value) => value.writeToBuffer(),
+          ($core.List<$core.int> value) =>
+              $0.GetLogsResponse.fromBuffer(value));
   static final _$getRunError =
       $grpc.ClientMethod<$0.GetRunErrorRequest, $0.GetRunErrorResponse>(
           '/api.v1.PlaygroundService/GetRunError',
@@ -106,6 +112,11 @@ class PlaygroundServiceClient extends $grpc.Client {
       $0.GetRunOutputRequest request,
       {$grpc.CallOptions? options}) {
     return $createUnaryCall(_$getRunOutput, request, options: options);
+  }
+
+  $grpc.ResponseFuture<$0.GetLogsResponse> getLogs($0.GetLogsRequest request,
+      {$grpc.CallOptions? options}) {
+    return $createUnaryCall(_$getLogs, request, options: options);
   }
 
   $grpc.ResponseFuture<$0.GetRunErrorResponse> getRunError(
@@ -175,6 +186,13 @@ abstract class PlaygroundServiceBase extends $grpc.Service {
             ($core.List<$core.int> value) =>
                 $0.GetRunOutputRequest.fromBuffer(value),
             ($0.GetRunOutputResponse value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.GetLogsRequest, $0.GetLogsResponse>(
+        'GetLogs',
+        getLogs_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.GetLogsRequest.fromBuffer(value),
+        ($0.GetLogsResponse value) => value.writeToBuffer()));
     $addMethod(
         $grpc.ServiceMethod<$0.GetRunErrorRequest, $0.GetRunErrorResponse>(
             'GetRunError',
@@ -245,6 +263,11 @@ abstract class PlaygroundServiceBase extends $grpc.Service {
     return getRunOutput(call, await request);
   }
 
+  $async.Future<$0.GetLogsResponse> getLogs_Pre(
+      $grpc.ServiceCall call, $async.Future<$0.GetLogsRequest> request) async {
+    return getLogs(call, await request);
+  }
+
   $async.Future<$0.GetRunErrorResponse> getRunError_Pre($grpc.ServiceCall call,
       $async.Future<$0.GetRunErrorRequest> request) async {
     return getRunError(call, await request);
@@ -285,6 +308,8 @@ abstract class PlaygroundServiceBase extends $grpc.Service {
       $grpc.ServiceCall call, $0.CheckStatusRequest request);
   $async.Future<$0.GetRunOutputResponse> getRunOutput(
       $grpc.ServiceCall call, $0.GetRunOutputRequest request);
+  $async.Future<$0.GetLogsResponse> getLogs(
+      $grpc.ServiceCall call, $0.GetLogsRequest request);
   $async.Future<$0.GetRunErrorResponse> getRunError(
       $grpc.ServiceCall call, $0.GetRunErrorRequest request);
   $async.Future<$0.GetCompileOutputResponse> getCompileOutput(

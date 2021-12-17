@@ -67,7 +67,6 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
   private final StateRequestHandler stateRequestHandler;
   private final BundleProgressHandler progressHandler;
   private RemoteBundle remoteBundle;
-  private ExecutableStage executableStage;
 
   public ProcessRemoteBundleOperation(
       ExecutableStage executableStage,
@@ -81,7 +80,6 @@ public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
 
     this.stageBundleFactory = stageBundleFactory;
     this.progressHandler = BundleProgressHandler.ignored();
-    this.executableStage = executableStage;
     this.outputReceiverMap = outputReceiverMap;
 
     StateRequestHandlers.SideInputHandlerFactory sideInputHandlerFactory =

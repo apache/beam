@@ -16,8 +16,11 @@
  * limitations under the License.
  */
 
+import 'package:playground/modules/sdk/models/sdk.dart';
+
 class GetExampleRequestWrapper {
   final String path;
+  final SDK sdk;
 
-  GetExampleRequestWrapper(this.path);
+  GetExampleRequestWrapper(this.path, this.sdk);
 }

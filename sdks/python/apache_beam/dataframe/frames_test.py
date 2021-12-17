@@ -668,6 +668,19 @@ class DeferredFrameTest(_AbstractFrameTest):
     s.index = s.index.map(float)
     self._run_test(lambda s: s[1.5:6], s)
 
+  def test_series_truncate(self):
+    s = pd.Series(['a', 'b', 'c', 'd', 'e', 'f'])
+    self._run_test(lambda s: s.truncate(before=1, after=3), s)
+
+  def test_dataframe_truncate(self):
+    df = pd.DataFrame({
+        'C': list('abcde'), 'B': list('fghij'), 'A': list('klmno')
+    },
+                      index=[1, 2, 3, 4, 5])
+    self._run_test(lambda df: df.truncate(before=1, after=3), df)
+    self._run_test(lambda df: df.truncate(before='A', after='B', axis=1), df)
+    self._run_test(lambda df: df['A'].truncate(before=2, after=4), df)
+
   @parameterized.expand([
       (pd.Series(range(10)), ),  # unique
       (pd.Series(list(range(100)) + [0]), ),  # non-unique int
@@ -1102,18 +1115,148 @@ class DeferredFrameTest(_AbstractFrameTest):
             'Europe/Warsaw', ambiguous='NaT', nonexistent=pd.Timedelta('1H')),
         s)
 
+  def test_compare_series(self):
+    s1 = pd.Series(["a", "b", "c", "d", "e"])
+    s2 = pd.Series(["a", "a", "c", "b", "e"])
+
+    self._run_test(lambda s1, s2: s1.compare(s2), s1, s2)
+    self._run_test(lambda s1, s2: s1.compare(s2, align_axis=0), s1, s2)
+    self._run_test(lambda s1, s2: s1.compare(s2, keep_shape=True), s1, s2)
+    self._run_test(
+        lambda s1, s2: s1.compare(s2, keep_shape=True, keep_equal=True), s1, s2)
+
+  def test_compare_dataframe(self):
+    df1 = pd.DataFrame(
+        {
+            "col1": ["a", "a", "b", "b", "a"],
+            "col2": [1.0, 2.0, 3.0, np.nan, 5.0],
+            "col3": [1.0, 2.0, 3.0, 4.0, 5.0]
+        },
+        columns=["col1", "col2", "col3"],
+    )
+    df2 = df1.copy()
+    df2.loc[0, 'col1'] = 'c'
+    df2.loc[2, 'col3'] = 4.0
+
+    # Skipped because keep_shape=False won't be implemented
+    with self.assertRaisesRegex(
+        frame_base.WontImplementError,
+        r"compare\(align_axis\=1, keep_shape\=False\) is not allowed"):
+      self._run_test(lambda df1, df2: df1.compare(df2), df1, df2)
+
+    self._run_test(
+        lambda df1,
+        df2: df1.compare(df2, align_axis=0),
+        df1,
+        df2,
+        check_proxy=False)
+    self._run_test(lambda df1, df2: df1.compare(df2, keep_shape=True), df1, df2)
+    self._run_test(
+        lambda df1,
+        df2: df1.compare(df2, align_axis=0, keep_shape=True),
+        df1,
+        df2)
+    self._run_test(
+        lambda df1,
+        df2: df1.compare(df2, keep_shape=True, keep_equal=True),
+        df1,
+        df2)
+    self._run_test(
+        lambda df1,
+        df2: df1.compare(df2, align_axis=0, keep_shape=True, keep_equal=True),
+        df1,
+        df2)
+
+  def test_idxmin(self):
+    df = pd.DataFrame({
+        'consumption': [10.51, 103.11, 55.48],
+        'co2_emissions': [37.2, 19.66, 1712]
+    },
+                      index=['Pork', 'Wheat Products', 'Beef'])
+
+    df2 = df.copy()
+    df2.loc['Pork', 'co2_emissions'] = None
+    df2.loc['Wheat Products', 'consumption'] = None
+    df2.loc['Beef', 'co2_emissions'] = None
+
+    df3 = pd.DataFrame({
+        'consumption': [1.1, 2.2, 3.3], 'co2_emissions': [3.3, 2.2, 1.1]
+    },
+                       index=[0, 1, 2])
+
+    s = pd.Series(data=[4, 3, None, 1], index=['A', 'B', 'C', 'D'])
+    s2 = pd.Series(data=[1, 2, 3], index=[1, 2, 3])
+
+    self._run_test(lambda df: df.idxmin(), df)
+    self._run_test(lambda df: df.idxmin(skipna=False), df)
+    self._run_test(lambda df: df.idxmin(axis=1), df)
+    self._run_test(lambda df: df.idxmin(axis=1, skipna=False), df)
+    self._run_test(lambda df2: df2.idxmin(), df2)
+    self._run_test(lambda df2: df2.idxmin(axis=1), df2)
+    self._run_test(lambda df2: df2.idxmin(skipna=False), df2, check_proxy=False)
+    self._run_test(
+        lambda df2: df2.idxmin(axis=1, skipna=False), df2, check_proxy=False)
+    self._run_test(lambda df3: df3.idxmin(), df3)
+    self._run_test(lambda df3: df3.idxmin(axis=1), df3)
+    self._run_test(lambda df3: df3.idxmin(skipna=False), df3)
+    self._run_test(lambda df3: df3.idxmin(axis=1, skipna=False), df3)
+
+    self._run_test(lambda s: s.idxmin(), s)
+    self._run_test(lambda s: s.idxmin(skipna=False), s, check_proxy=False)
+    self._run_test(lambda s2: s2.idxmin(), s2)
+    self._run_test(lambda s2: s2.idxmin(skipna=False), s2)
+
+  def test_idxmax(self):
+    df = pd.DataFrame({
+        'consumption': [10.51, 103.11, 55.48],
+        'co2_emissions': [37.2, 19.66, 1712]
+    },
+                      index=['Pork', 'Wheat Products', 'Beef'])
+
+    df2 = df.copy()
+    df2.loc['Pork', 'co2_emissions'] = None
+    df2.loc['Wheat Products', 'consumption'] = None
+    df2.loc['Beef', 'co2_emissions'] = None
+
+    df3 = pd.DataFrame({
+        'consumption': [1.1, 2.2, 3.3], 'co2_emissions': [3.3, 2.2, 1.1]
+    },
+                       index=[0, 1, 2])
+
+    s = pd.Series(data=[1, None, 4, 1], index=['A', 'B', 'C', 'D'])
+    s2 = pd.Series(data=[1, 2, 3], index=[1, 2, 3])
+
+    self._run_test(lambda df: df.idxmax(), df)
+    self._run_test(lambda df: df.idxmax(skipna=False), df)
+    self._run_test(lambda df: df.idxmax(axis=1), df)
+    self._run_test(lambda df: df.idxmax(axis=1, skipna=False), df)
+    self._run_test(lambda df2: df2.idxmax(), df2)
+    self._run_test(lambda df2: df2.idxmax(axis=1), df2)
+    self._run_test(
+        lambda df2: df2.idxmax(axis=1, skipna=False), df2, check_proxy=False)
+    self._run_test(lambda df2: df2.idxmax(skipna=False), df2, check_proxy=False)
+    self._run_test(lambda df3: df3.idxmax(), df3)
+    self._run_test(lambda df3: df3.idxmax(axis=1), df3)
+    self._run_test(lambda df3: df3.idxmax(skipna=False), df3)
+    self._run_test(lambda df3: df3.idxmax(axis=1, skipna=False), df3)
+
+    self._run_test(lambda s: s.idxmax(), s)
+    self._run_test(lambda s: s.idxmax(skipna=False), s, check_proxy=False)
+    self._run_test(lambda s2: s2.idxmax(), s2)
+    self._run_test(lambda s2: s2.idxmax(skipna=False), s2)
+
   def test_pipe(self):
-    def change_age(x):
-      x['A'] = [10, 20, 30]
-      return x
+    # def sum(x):
+    #   x['A'] = x['A'] * 2
 
     df = pd.DataFrame({'A': [1, 2, 3], 'B': [4, 5, 6]}, index=[0, 1, 2])
 
-    # func_1 = pd.DataFrame.idxmin
-    func_2 = change_age
-    # func_3 =
+    # func_1 = sum
+    func_2 = frames.DeferredDataFrame.sum
 
-    self._run_test(lambda df: df.pipe(func_2), df, nonparallel=True)
+    # _expr or proxy doesnt exist
+    # self._run_test(lambda df: df.pipe(func_1), df)
+    self._run_test(lambda df: df.pipe(func_2), df)
 
 
 # pandas doesn't support kurtosis on GroupBys:

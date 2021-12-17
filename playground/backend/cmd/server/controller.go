@@ -47,12 +47,12 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 	// check for correct sdk
 	if info.Sdk != controller.env.BeamSdkEnvs.ApacheBeamSdk {
 		logger.Errorf("RunCode(): request contains incorrect sdk: %s\n", info.Sdk)
-		return nil, errors.InvalidArgumentError("Run code()", "incorrect sdk: "+info.Sdk.String())
+		return nil, errors.InvalidArgumentError("Run code()", "incorrect sdk: %s", info.Sdk.String())
 	}
 	switch info.Sdk {
 	case pb.Sdk_SDK_UNSPECIFIED, pb.Sdk_SDK_SCIO:
 		logger.Errorf("RunCode(): unimplemented sdk: %s\n", info.Sdk)
-		return nil, errors.InvalidArgumentError("Run code()", "unimplemented sdk: "+info.Sdk.String())
+		return nil, errors.InvalidArgumentError("Run code()", "unimplemented sdk: %s", info.Sdk.String())
 	}
 
 	cacheExpirationTime := controller.env.ApplicationEnvs.CacheEnvs().KeyExpirationTime()
@@ -61,24 +61,26 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 	lc, err := life_cycle.Setup(info.Sdk, info.Code, pipelineId, controller.env.ApplicationEnvs.WorkingDir(), controller.env.BeamSdkEnvs.PreparedModDir())
 	if err != nil {
 		logger.Errorf("RunCode(): error during setup file system: %s\n", err.Error())
-		return nil, errors.InternalError("Run code", "Error during setup file system: "+err.Error())
+		return nil, errors.InternalError("Run code", "Error during setup file system: %s", err.Error())
 	}
 
 	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.Status, pb.Status_STATUS_VALIDATING); err != nil {
 		code_processing.DeleteFolders(pipelineId, lc)
-		return nil, errors.InternalError("Run code()", "Error during set value to cache: "+err.Error())
+		return nil, errors.InternalError("Run code()", "Error during set value to cache: %s", err.Error())
 	}
 	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.RunOutputIndex, 0); err != nil {
-		return nil, errors.InternalError("Run code()", "Error during set value to cache: "+err.Error())
+		return nil, errors.InternalError("Run code()", "Error during set value to cache: %s", err.Error())
+	}
+	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.LogsIndex, 0); err != nil {
+		return nil, errors.InternalError("Run code()", "Error during set value to cache: %s", err.Error())
 	}
 	if err = controller.cacheService.SetExpTime(ctx, pipelineId, cacheExpirationTime); err != nil {
 		logger.Errorf("%s: RunCode(): cache.SetExpTime(): %s\n", pipelineId, err.Error())
 		code_processing.DeleteFolders(pipelineId, lc)
-		return nil, errors.InternalError("Run code()", "Error during set expiration to cache: "+err.Error())
+		return nil, errors.InternalError("Run code()", "Error during set expiration to cache: %s", err.Error())
 	}
 
-	// TODO change using of context.TODO() to context.Background()
-	go code_processing.Process(context.TODO(), controller.cacheService, lc, pipelineId, &controller.env.ApplicationEnvs, &controller.env.BeamSdkEnvs)
+	go code_processing.Process(context.Background(), controller.cacheService, lc, pipelineId, &controller.env.ApplicationEnvs, &controller.env.BeamSdkEnvs, info.PipelineOptions)
 
 	pipelineInfo := pb.RunCodeResponse{PipelineUuid: pipelineId.String()}
 	return &pipelineInfo, nil
@@ -89,7 +91,7 @@ func (controller *playgroundController) CheckStatus(ctx context.Context, info *p
 	pipelineId, err := uuid.Parse(info.PipelineUuid)
 	if err != nil {
 		logger.Errorf("%s: CheckStatus(): pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid, err.Error())
-		return nil, errors.InvalidArgumentError("CheckStatus", "pipelineId has incorrect value and couldn't be parsed as uuid value: "+info.PipelineUuid)
+		return nil, errors.InvalidArgumentError("CheckStatus", "pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid)
 	}
 	status, err := code_processing.GetProcessingStatus(ctx, controller.cacheService, pipelineId, "CheckStatus")
 	if err != nil {
@@ -103,9 +105,9 @@ func (controller *playgroundController) GetRunOutput(ctx context.Context, info *
 	pipelineId, err := uuid.Parse(info.PipelineUuid)
 	if err != nil {
 		logger.Errorf("%s: GetRunOutput(): pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid, err.Error())
-		return nil, errors.InvalidArgumentError("GetRunOutput", "pipelineId has incorrect value and couldn't be parsed as uuid value: "+info.PipelineUuid)
+		return nil, errors.InvalidArgumentError("GetRunOutput", "pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid)
 	}
-	lastIndex, err := code_processing.GetRunOutputLastIndex(ctx, controller.cacheService, pipelineId, "GetRunOutput")
+	lastIndex, err := code_processing.GetLastIndex(ctx, controller.cacheService, pipelineId, cache.RunOutputIndex, "GetRunOutput")
 	if err != nil {
 		return nil, err
 	}
@@ -117,11 +119,40 @@ func (controller *playgroundController) GetRunOutput(ctx context.Context, info *
 	if len(runOutput) > lastIndex {
 		newRunOutput = runOutput[lastIndex:]
 		if err := utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.RunOutputIndex, lastIndex+len(newRunOutput)); err != nil {
-			return nil, errors.InternalError("GetRunOutput", "Error during set value to cache: "+err.Error())
+			return nil, errors.InternalError("GetRunOutput", "Error during set value to cache: %s", err.Error())
 		}
 	}
 
 	pipelineResult := pb.GetRunOutputResponse{Output: newRunOutput}
+
+	return &pipelineResult, nil
+}
+
+// GetLogs is returning logs of execution for specific pipeline by PipelineUuid
+func (controller *playgroundController) GetLogs(ctx context.Context, info *pb.GetLogsRequest) (*pb.GetLogsResponse, error) {
+	errorTitle := utils.GetFuncName(controller.GetRunOutput)
+	pipelineId, err := uuid.Parse(info.PipelineUuid)
+	if err != nil {
+		logger.Errorf("%s: %s: pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid, errorTitle, err.Error())
+		return nil, errors.InvalidArgumentError(errorTitle, "pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid)
+	}
+	lastIndex, err := code_processing.GetLastIndex(ctx, controller.cacheService, pipelineId, cache.LogsIndex, errorTitle)
+	if err != nil {
+		return nil, err
+	}
+	logs, err := code_processing.GetProcessingOutput(ctx, controller.cacheService, pipelineId, cache.Logs, errorTitle)
+	if err != nil {
+		return nil, err
+	}
+	newLogs := ""
+	if len(logs) > lastIndex {
+		newLogs = logs[lastIndex:]
+		if err := utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.LogsIndex, lastIndex+len(newLogs)); err != nil {
+			return nil, errors.InternalError(errorTitle, "Error during set value to cache: %s", err.Error())
+		}
+	}
+
+	pipelineResult := pb.GetLogsResponse{Output: newLogs}
 
 	return &pipelineResult, nil
 }
@@ -131,7 +162,7 @@ func (controller *playgroundController) GetRunError(ctx context.Context, info *p
 	pipelineId, err := uuid.Parse(info.PipelineUuid)
 	if err != nil {
 		logger.Errorf("%s: GetRunError(): pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid, err.Error())
-		return nil, errors.InvalidArgumentError("GetRunError", "pipelineId has incorrect value and couldn't be parsed as uuid value: "+info.PipelineUuid)
+		return nil, errors.InvalidArgumentError("GetRunError", "pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid)
 	}
 	runError, err := code_processing.GetProcessingOutput(ctx, controller.cacheService, pipelineId, cache.RunError, "GetRunError")
 	if err != nil {
@@ -145,7 +176,7 @@ func (controller *playgroundController) GetCompileOutput(ctx context.Context, in
 	pipelineId, err := uuid.Parse(info.PipelineUuid)
 	if err != nil {
 		logger.Errorf("%s: GetCompileOutput(): pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid, err.Error())
-		return nil, errors.InvalidArgumentError("GetCompileOutput", "pipelineId has incorrect value and couldn't be parsed as uuid value: "+info.PipelineUuid)
+		return nil, errors.InvalidArgumentError("GetCompileOutput", "pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid)
 	}
 	compileOutput, err := code_processing.GetProcessingOutput(ctx, controller.cacheService, pipelineId, cache.CompileOutput, "GetCompileOutput")
 	if err != nil {
@@ -159,7 +190,7 @@ func (controller *playgroundController) Cancel(ctx context.Context, info *pb.Can
 	pipelineId, err := uuid.Parse(info.PipelineUuid)
 	if err != nil {
 		logger.Errorf("%s: Cancel(): pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid, err.Error())
-		return nil, errors.InvalidArgumentError("Cancel", "pipelineId has incorrect value and couldn't be parsed as uuid value: "+info.PipelineUuid)
+		return nil, errors.InvalidArgumentError("Cancel", "pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid)
 	}
 	if err := utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.Canceled, true); err != nil {
 		return nil, errors.InternalError("Cancel", "error during set cancel flag to cache")
@@ -194,7 +225,7 @@ func (controller *playgroundController) GetPrecompiledObjectCode(ctx context.Con
 		logger.Errorf("GetPrecompiledObject(): cloud storage error: %s", err.Error())
 		return nil, errors.InternalError("GetPrecompiledObjects(): ", err.Error())
 	}
-	response := pb.GetPrecompiledObjectCodeResponse{Code: *codeString}
+	response := pb.GetPrecompiledObjectCodeResponse{Code: codeString}
 	return &response, nil
 }
 
@@ -206,6 +237,6 @@ func (controller *playgroundController) GetPrecompiledObjectOutput(ctx context.C
 		logger.Errorf("GetPrecompiledObjectOutput(): cloud storage error: %s", err.Error())
 		return nil, errors.InternalError("GetPrecompiledObjectOutput(): ", err.Error())
 	}
-	response := pb.GetRunOutputResponse{Output: *output}
+	response := pb.GetRunOutputResponse{Output: output}
 	return &response, nil
 }

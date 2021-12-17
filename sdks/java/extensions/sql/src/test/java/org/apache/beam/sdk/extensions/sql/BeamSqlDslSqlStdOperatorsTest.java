@@ -66,7 +66,6 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
   private static final BigDecimal ZERO_1 = BigDecimal.valueOf(0).setScale(1, UNNECESSARY);
   private static final BigDecimal ONE_0 = BigDecimal.valueOf(1).setScale(0, UNNECESSARY);
   private static final BigDecimal ONE_1 = BigDecimal.valueOf(1).setScale(1, UNNECESSARY);
-  private static final BigDecimal ONE_2 = BigDecimal.valueOf(1).setScale(2, UNNECESSARY);
   private static final BigDecimal TWO_0 = BigDecimal.valueOf(2).setScale(0, UNNECESSARY);
   private static final BigDecimal TWO_1 = BigDecimal.valueOf(2).setScale(1, UNNECESSARY);
 

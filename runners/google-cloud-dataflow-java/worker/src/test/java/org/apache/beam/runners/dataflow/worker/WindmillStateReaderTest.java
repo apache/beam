@@ -31,7 +31,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataReq
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.SortedListEntry;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.SortedListRange;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -56,7 +55,6 @@ import org.mockito.MockitoAnnotations;
   "FutureReturnValueIgnored",
 })
 public class WindmillStateReaderTest {
-  private static final StringUtf8Coder STRING_CODER = StringUtf8Coder.of();
   private static final VarIntCoder INT_CODER = VarIntCoder.of();
 
   private static final String COMPUTATION = "computation";

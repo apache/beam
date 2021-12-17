@@ -22,6 +22,8 @@
 import logging
 import unittest
 
+import pytest
+
 import apache_beam as beam
 from apache_beam.examples.cookbook import custom_ptransform
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -29,6 +31,7 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
 
+@pytest.mark.examples_postcommit
 class CustomCountTest(unittest.TestCase):
   def test_count1(self):
     self.run_pipeline(custom_ptransform.Count1())

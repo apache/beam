@@ -72,7 +72,7 @@ def read_csv(path, *args, splittable=False, **kwargs):
       args,
       kwargs,
       incremental=True,
-      splitter=_CsvSplitter(args, kwargs) if splittable else None)
+      splitter=_TextFileSplitter(args, kwargs) if splittable else None)
 
 
 def _as_pc(df, label=None):
@@ -93,7 +93,14 @@ def to_csv(df, path, transform_label=None, *args, **kwargs):
 
 @frame_base.with_docs_from(pd)
 def read_fwf(path, *args, **kwargs):
-  return _ReadFromPandas(pd.read_fwf, path, args, kwargs, incremental=True)
+  return _ReadFromPandas(
+      pd.read_fwf,
+      path,
+      args,
+      kwargs,
+      incremental=True,
+      binary=False,
+      splitter=_TextFileSplitter(args, kwargs))
 
 
 @frame_base.with_docs_from(pd)
@@ -350,7 +357,7 @@ def _maybe_encode(str_or_bytes):
     return str_or_bytes
 
 
-class _CsvSplitter(_DelimSplitter):
+class _TextFileSplitter(_DelimSplitter):
   """Splitter for dynamically sharding CSV files and newline record boundaries.
 
   Currently does not handle quoted newlines, so is off by default, but such
@@ -442,6 +449,7 @@ class _TruncatingFileHandle(object):
     self._done = False
     self._header, self._buffer = self._splitter.read_header(self._underlying)
     self._buffer_start_pos = len(self._header)
+    self._iterator = None
     start = self._tracker.current_restriction().start
     # Seek to first delimiter after the start position.
     if start > len(self._header):
@@ -471,9 +479,40 @@ class _TruncatingFileHandle(object):
 
   def __iter__(self):
     # For pandas is_file_like.
-    raise NotImplementedError()
+    return self
+
+  def __next__(self):
+    if self._iterator is None:
+      self._iterator = self._line_iterator()
+    return next(self._iterator)
+
+  def readline(self):
+    # This attribute is checked, but unused, by pandas.
+    return next(self)
+
+  def _line_iterator(self):
+    line_start = 0
+    chunk = self._read()
+    while True:
+      line_end = chunk.find(self._splitter._delim, line_start)
+      while line_end == -1:
+        more = self._read()
+        if not more:
+          if line_start < len(chunk):
+            yield chunk[line_start:]
+          return
+        chunk = chunk[line_start:] + more
+        line_start = 0
+        line_end = chunk.find(self._splitter._delim, line_start)
+      yield chunk[line_start:line_end + 1]
+      line_start = line_end + 1
 
   def read(self, size=-1):
+    if self._iterator:
+      raise NotImplementedError('Cannot call read after iterating.')
+    return self._read(size)
+
+  def _read(self, size=-1):
     if self._header:
       res = self._header
       self._header = None
@@ -537,7 +576,7 @@ class _ReadFromPandasDoFn(beam.DoFn, beam.RestrictionProvider):
     reader = self.reader
     if isinstance(reader, str):
       reader = getattr(pd, self.reader)
-    indices_per_file = 10**int(math.log(2**64 // len(path_indices), 10))
+    indices_per_file = 10**int(math.log(2**63 // len(path_indices), 10))
     if readable_file.metadata.size_in_bytes > indices_per_file:
       raise RuntimeError(
           f'Cannot safely index records from {len(path_indices)} files '

@@ -22,6 +22,11 @@ apply plugin: 'base'
 applyDockerNature()
 
 def playgroundBackendUrl = project.playgroundBackendUrl
+def analyticsUA = project.analyticsUA
+def playgroundBackendJavaRouteUrl = project.playgroundBackendJavaRouteUrl
+def playgroundBackendGoRouteUrl = project.playgroundBackendGoRouteUrl
+def playgroundBackendPythonRouteUrl = project.playgroundBackendPythonRouteUrl
+def playgroundBackendScioRouteUrl = project.playgroundBackendScioRouteUrl
 
 def playgroundJobServerProject = "${project.path.replace('-container', '')}"
 
@@ -159,6 +164,15 @@ task("createConfig") {
 
 const String kApiClientURL =
     '${playgroundBackendUrl}';
+const String kAnalyticsUA = '${analyticsUA}';
+const String kApiJavaClientURL =
+    '${playgroundBackendJavaRouteUrl}';
+const String kApiGoClientURL =
+    '${playgroundBackendGoRouteUrl}';
+const String kApiPythonClientURL =
+    '${playgroundBackendPythonRouteUrl}';
+const String kApiScioClientURL =
+    '${playgroundBackendScioRouteUrl}';
 """)
   }
 }

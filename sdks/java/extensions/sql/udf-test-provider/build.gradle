@@ -21,7 +21,6 @@ plugins {
 }
 
 applyJavaNature(
-  suppressUnusedVariable: true,
     automaticModuleName: 'org.apache.beam.sdk.extensions.sql.provider',
     publish: false,
 )

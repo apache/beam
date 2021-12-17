@@ -169,7 +169,7 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
     // generated
     SamzaPipelineOptionsValidator.validate(options);
     ApplicationRunner runner = runSamzaApp(app, config);
-    return new SamzaPipelineResult(app, runner, executionContext, listener, config);
+    return new SamzaPipelineResult(runner, executionContext, listener, config);
   }
 
   private Map<String, MetricsReporterFactory> getMetricsReporters() {

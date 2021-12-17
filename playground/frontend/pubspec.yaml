@@ -52,6 +52,8 @@ dependencies:
   url_launcher: ^6.0.12
   expansion_widget: ^0.0.2
   grpc: ^3.0.0
+  flutter_web_plugins:
+    sdk: flutter
 
 dev_dependencies:
   flutter_test:
@@ -59,6 +61,7 @@ dev_dependencies:
   mockito: ^5.0.16
   build_runner: ^2.1.4
   google_fonts: ^2.1.0
+  usage: ^4.0.2
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is

@@ -67,7 +67,6 @@ class MockExampleClient extends _i1.Mock implements _i5.ExampleClient {
               returnValue: Future<_i2.GetListOfExampleResponse>.value(
                   _FakeGetListOfExampleResponse_0()))
           as _i6.Future<_i2.GetListOfExampleResponse>);
-
   @override
   _i6.Future<_i3.GetExampleResponse> getExample(
           _i8.GetExampleRequestWrapper? request) =>
@@ -75,7 +74,6 @@ class MockExampleClient extends _i1.Mock implements _i5.ExampleClient {
               returnValue: Future<_i3.GetExampleResponse>.value(
                   _FakeGetExampleResponse_1()))
           as _i6.Future<_i3.GetExampleResponse>);
-
   @override
   _i6.Future<_i4.OutputResponse> getExampleOutput(
           _i8.GetExampleRequestWrapper? request) =>
@@ -83,7 +81,6 @@ class MockExampleClient extends _i1.Mock implements _i5.ExampleClient {
               returnValue:
                   Future<_i4.OutputResponse>.value(_FakeOutputResponse_2()))
           as _i6.Future<_i4.OutputResponse>);
-
   @override
   String toString() => super.toString();
 }
