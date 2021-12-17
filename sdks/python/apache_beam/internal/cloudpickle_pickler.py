@@ -45,6 +45,7 @@ except (ImportError, ModuleNotFoundError):
 _pickle_lock = threading.RLock()
 RLOCK_TYPE = type(_pickle_lock)
 
+
 def dumps(o, enable_trace=True, use_zlib=False):
   # type: (...) -> bytes
 
