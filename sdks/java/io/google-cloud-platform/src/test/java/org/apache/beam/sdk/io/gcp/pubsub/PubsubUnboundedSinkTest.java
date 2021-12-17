@@ -34,6 +34,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
@@ -56,7 +57,7 @@ public class PubsubUnboundedSinkTest implements Serializable {
   private static final String ID_ATTRIBUTE = "id";
   private static final int NUM_SHARDS = 10;
 
-  private static class Stamp extends DoFn<String, PubsubMessage> {
+  private static class Stamp extends DoFn<String, KV<PubsubIO.PubsubTopic, PubsubMessage>> {
     private final Map<String, String> attributes;
 
     private Stamp() {
@@ -70,7 +71,8 @@ public class PubsubUnboundedSinkTest implements Serializable {
     @ProcessElement
     public void processElement(ProcessContext c) {
       c.outputWithTimestamp(
-          new PubsubMessage(c.element().getBytes(StandardCharsets.UTF_8), attributes),
+              KV.of(PubsubIO.PubsubTopic.fromPath(TOPIC.getPath()),
+                      new PubsubMessage(c.element().getBytes(StandardCharsets.UTF_8), attributes)),
           new Instant(TIMESTAMP));
     }
   }

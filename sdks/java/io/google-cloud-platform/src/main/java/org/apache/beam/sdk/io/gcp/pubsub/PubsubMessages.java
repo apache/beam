@@ -51,6 +51,15 @@ public final class PubsubMessages {
 
   // Convert the PubsubMessage to a PubsubMessage proto, then return its serialized representation.
   public static class ParsePayloadAsPubsubMessageProto
+      implements SerializableFunction<PubsubMessage, byte[]> {
+    @Override
+    public byte[] apply(PubsubMessage input) {
+      return toProto(input).toByteArray();
+    }
+  }
+
+  // Convert the PubsubMessage to a PubsubMessage proto, then return its serialized representation.
+  public static class ParsePayloadAsPubsubMessageProtoWithTopic
       implements SerializableFunction<
           KV<PubsubIO.PubsubTopic, PubsubMessage>, KV<PubsubIO.PubsubTopic, byte[]>> {
     @Override

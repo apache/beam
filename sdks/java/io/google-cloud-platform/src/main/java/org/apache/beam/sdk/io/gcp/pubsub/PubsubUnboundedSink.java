@@ -408,7 +408,7 @@ public class PubsubUnboundedSink
         .apply(
             "Output Serialized PubsubMessage Proto",
             MapElements.into(new TypeDescriptor<KV<PubsubIO.PubsubTopic, byte[]>>() {})
-                .via(new PubsubMessages.ParsePayloadAsPubsubMessageProto()))
+                .via(new PubsubMessages.ParsePayloadAsPubsubMessageProtoWithTopic()))
         .setCoder(KvCoder.of(SerializableCoder.of(PubsubIO.PubsubTopic.class), ByteArrayCoder.of()))
         .apply(new PubsubSink(this));
   }

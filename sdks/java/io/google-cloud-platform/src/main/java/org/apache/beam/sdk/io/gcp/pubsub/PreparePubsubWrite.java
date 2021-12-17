@@ -17,10 +17,12 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubIO.validatePubsubMessage;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
 import java.util.Map;
+import javax.naming.SizeLimitExceededException;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -77,6 +79,11 @@ public class PreparePubsubWrite<InputT, DestinationT>
                     "formatFunction may not return null, but %s returned null on element %s",
                     formatFunction,
                     element);
+                try {
+                  validatePubsubMessage(outputValue);
+                } catch (SizeLimitExceededException e) {
+                  throw new IllegalArgumentException(e);
+                }
                 context.output(KV.of(topic, outputValue));
               }
             }));

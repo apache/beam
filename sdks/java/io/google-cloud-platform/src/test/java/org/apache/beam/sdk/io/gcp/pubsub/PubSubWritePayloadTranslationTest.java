@@ -35,6 +35,7 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PValues;
@@ -69,7 +70,7 @@ public class PubSubWritePayloadTranslationTest {
             Duration.ZERO,
             null);
     PubsubUnboundedSink.PubsubSink pubsubSink = new PubsubSink(pubsubUnboundedSink);
-    PCollection<byte[]> input = pipeline.apply(Create.of(new byte[0]));
+    PCollection<KV<PubsubIO.PubsubTopic, byte[]>> input = pipeline.apply(Create.of(KV.of(PubsubIO.PubsubTopic.fromPath(TOPIC.getPath()), new byte[0])));
     PDone output = input.apply(pubsubSink);
     AppliedPTransform<?, ?, PubsubSink> appliedPTransform =
         AppliedPTransform.of(
@@ -98,7 +99,7 @@ public class PubSubWritePayloadTranslationTest {
         new PubsubUnboundedSink(
             null, runtimeProvider, TIMESTAMP_ATTRIBUTE, ID_ATTRIBUTE, 0, 0, 0, Duration.ZERO, null);
     PubsubSink pubsubSink = new PubsubSink(pubsubUnboundedSinkSink);
-    PCollection<byte[]> input = pipeline.apply(Create.of(new byte[0]));
+    PCollection<KV<PubsubIO.PubsubTopic, byte[]>> input = pipeline.apply(Create.of(KV.of(PubsubIO.PubsubTopic.fromPath(TOPIC.getPath()), new byte[0])));
     PDone output = input.apply(pubsubSink);
     AppliedPTransform<?, ?, PubsubSink> appliedPTransform =
         AppliedPTransform.of(
