@@ -19,6 +19,7 @@ import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/fs_tool"
 	"beam.apache.org/playground/backend/internal/validators"
+	"fmt"
 	"github.com/google/uuid"
 	"os"
 	"path/filepath"
@@ -128,21 +129,30 @@ func Test_changeJavaTestFileName(t *testing.T) {
 		args []interface{}
 	}
 	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
+		name     string
+		args     args
+		wantErr  bool
+		wantName string
 	}{
 		{
-			// Test that file where package is used changes to import all dependencies from this package
-			name:    "original file with package",
-			args:    args{[]interface{}{lc.GetAbsoluteSourceFilePath(), &validationResults}},
-			wantErr: false,
+			// Test that file changes its name to the name of its public class
+			name:     "file with java unit test code to be renamed",
+			args:     args{[]interface{}{lc.GetAbsoluteSourceFilePath(), &validationResults}},
+			wantErr:  false,
+			wantName: "Class.java",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if err := changeJavaTestFileName(tt.args.args...); (err != nil) != tt.wantErr {
 				t.Errorf("changeJavaTestFileName() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			files, err := filepath.Glob(fmt.Sprintf("%s/*java", lc.GetAbsoluteSourceFolderPath()))
+			if err != nil {
+				t.Errorf("changeJavaTestFileName() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if filepath.Base(files[0]) != "Class.java" {
+				t.Errorf("changeJavaTestFileName() expected name = %v, got %v", tt.wantName, filepath.Base(files[0]))
 			}
 		})
 	}
