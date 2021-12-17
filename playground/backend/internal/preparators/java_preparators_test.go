@@ -18,10 +18,12 @@ package preparators
 import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/fs_tool"
+	"beam.apache.org/playground/backend/internal/validators"
 	"github.com/google/uuid"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -97,13 +99,50 @@ func TestGetJavaPreparators(t *testing.T) {
 		{
 			name: "all success",
 			args: args{"MOCK_FILEPATH"},
-			want: 2,
+			want: 3,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := GetJavaPreparators(tt.args.filePath); len(*got) != tt.want {
 				t.Errorf("GetJavaPreparation() returns %v Preparators, want %v", len(*got), tt.want)
+			}
+		})
+	}
+}
+
+func Test_changeJavaTestFileName(t *testing.T) {
+	codeWithPublicClass := "package org.apache.beam.sdk.transforms; \n public class Class {\n    public static void main(String[] args) {\n        System.out.println(\"Hello World!\");\n    }\n}"
+	path, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
+	lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, uuid.New(), filepath.Join(path, "temp"))
+	_ = lc.CreateFolders()
+	defer os.RemoveAll(filepath.Join(path, "temp"))
+	_, _ = lc.CreateSourceCodeFile(codeWithPublicClass)
+	validationResults := sync.Map{}
+	validationResults.Store(validators.UnitTestValidatorName, true)
+
+	type args struct {
+		args []interface{}
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			// Test that file where package is used changes to import all dependencies from this package
+			name:    "original file with package",
+			args:    args{[]interface{}{lc.GetAbsoluteSourceFilePath(), &validationResults}},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := changeJavaTestFileName(tt.args.args...); (err != nil) != tt.wantErr {
+				t.Errorf("changeJavaTestFileName() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
