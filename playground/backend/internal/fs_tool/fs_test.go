@@ -303,7 +303,7 @@ func TestLifeCycle_GetAbsoluteExecutableFilePath(t *testing.T) {
 	baseFileFolder := fmt.Sprintf("%s_%s", baseFileFolder, pipelineId)
 	srcFileFolder := baseFileFolder + "/src"
 
-	filePath := fmt.Sprintf("%s/%s", srcFileFolder, pipelineId.String()+JavaSourceFileExtension)
+	filePath := filepath.Join(srcFileFolder, fmt.Sprintf("%s%s", pipelineId.String(), JavaSourceFileExtension))
 	absolutePath, _ := filepath.Abs(filePath)
 	type fields struct {
 		folderGlobs []string

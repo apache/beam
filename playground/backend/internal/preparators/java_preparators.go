@@ -185,7 +185,7 @@ func renameJavaFile(filePath string, className string) error {
 func getPublicClassName(filePath string) (error, string) {
 	code, err := ioutil.ReadFile(filePath)
 	if err != nil {
-		logger.Errorf("Preparer: Error during open file: %s, err: %s\n", filePath, err.Error())
+		logger.Errorf("Preparator: Error during open file: %s, err: %s\n", filePath, err.Error())
 		return err, ""
 	}
 	re := regexp.MustCompile(publicClassNamePattern)
