@@ -42,7 +42,7 @@ jobs:
   check_gcp_variables:
     timeout-minutes: 5
     name: "Check GCP variables set"
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     outputs:
       gcp-variables-set: ${{ steps.check_gcp_variables.outputs.gcp-variables-set }}
     steps:
@@ -60,7 +60,7 @@ jobs:
 
   java_unit_tests:
     name: 'Java Unit Tests'
-    runs-on: ${{ matrix.os }}
+    runs-on: self-hosted
     strategy:
       fail-fast: false
       matrix:
@@ -71,7 +71,17 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
-      # :sdks:java:core:test
+      - name: Install Java
+        uses: actions/setup-java@v2
+        with:
+          distribution: 'temurin'
+          java-version: '8'
+      - name: Remove default github maven configuration
+        # This step is a workaround to avoid a decryption issue of Beam's
+        # net.linguica.gradle.maven.settings plugin and github's provided maven
+        # settings.xml file
+        run: rm ~/.m2/settings.xml
+        # :sdks:java:core:test
       - name: Run :sdks:java:core:test
         uses: ./.github/actions/gradle-command-action
         with:
@@ -109,7 +119,7 @@ jobs:
 
   java_wordcount_direct_runner:
     name: 'Java Wordcount Direct Runner'
-    runs-on: ${{ matrix.os }}
+    runs-on: self-hosted
     strategy:
       fail-fast: false
       matrix:
@@ -120,6 +130,16 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
+      - name: Install Java
+        uses: actions/setup-java@v2
+        with:
+          distribution: 'temurin'
+          java-version: '8'
+      - name: Remove default github maven configuration
+        # This step is a workaround to avoid a decryption issue of Beam's
+        # net.linguica.gradle.maven.settings plugin and github's provided maven
+        # settings.xml file
+        run: rm ~/.m2/settings.xml
       - name: Run WordCount Unix
         uses: ./.github/actions/gradle-command-action
         with:
@@ -137,7 +157,7 @@ jobs:
     name: 'Java Wordcount Dataflow'
     needs:
       - check_gcp_variables
-    runs-on: ${{ matrix.os }}
+    runs-on: self-hosted
     if: |
       needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && (
         (github.event_name == 'push' || github.event_name == 'schedule') ||
@@ -160,13 +180,14 @@ jobs:
           service_account_key: ${{ secrets.GCP_SA_KEY }}
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           export_default_credentials: true
-      - name: Set Java Version
-        uses: actions/setup-java@v1
+      - name: Install Java
+        uses: actions/setup-java@v2
         with:
-          java-version: 8
+          distribution: 'temurin'
+          java-version: '8'
       - name: Remove default github maven configuration
         # This step is a workaround to avoid a decryption issue of Beam's
-        # gradle-command-action plugin and github's provided maven
+        # net.linguica.gradle.maven.settings plugin and github's provided maven
         # settings.xml file
         run: rm ~/.m2/settings.xml
       - name: Run WordCount
