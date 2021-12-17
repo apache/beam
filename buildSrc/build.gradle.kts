@@ -31,13 +31,14 @@ repositories {
     url = uri("https://repo.spring.io/plugins-release/")
     content { includeGroup("io.spring.gradle") }
   }
+  flatDir { dirs("jarlibs") }
 }
 
 // Dependencies on other plugins used when this plugin is invoked
 dependencies {
   compile(gradleApi())
   compile(localGroovy())
-  compile("com.github.jengelman.gradle.plugins:shadow:6.1.0")
+  compile("com.github.jengelman.gradle.plugins:shadow:6.1.0-SNAPSHOT")
   compile("gradle.plugin.com.github.spotbugs.snom:spotbugs-gradle-plugin:4.5.0")
 
   runtime("net.ltgt.gradle:gradle-apt-plugin:0.21")                                                    // Enable a Java annotation processor
