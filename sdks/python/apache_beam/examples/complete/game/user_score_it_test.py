@@ -60,7 +60,6 @@ class UserScoreIT(unittest.TestCase):
     self.output = '/'.join(
         [self.test_pipeline.get_option('output'), self.uuid, 'results'])
 
-  @pytest.mark.examples_postcommit
   @pytest.mark.it_postcommit
   def test_user_score_it(self):
 
@@ -72,6 +71,32 @@ class UserScoreIT(unittest.TestCase):
 
     extra_opts = {
         'input': self.DEFAULT_INPUT_FILE,
+        'output': self.output + '/user-score',
+        'on_success_matcher': all_of(state_verifier, file_verifier)
+    }
+
+    # Register clean up before pipeline execution
+    self.addCleanup(delete_files, [self.output + '*'])
+
+    # Get pipeline options from command argument: --test-pipeline-options,
+    # and start pipeline job by calling pipeline main function.
+    user_score.run(
+        self.test_pipeline.get_full_options_as_args(**extra_opts),
+        save_main_session=False)
+
+  @pytest.mark.examples_postcommit
+  def test_basics(self):
+    # Small dataset to prevent OOM when running in local runners
+    INPUT_FILE = 'gs://apache-beam-samples/game/small/gaming_data.csv'
+    EXPECTED_CHECKSUM = '5b1bc0e8080e3c0f162809ac4c0f49acab23854e'
+    state_verifier = PipelineStateMatcher(PipelineState.DONE)
+    arg_sleep_secs = self.test_pipeline.get_option('sleep_secs')
+    sleep_secs = int(arg_sleep_secs) if arg_sleep_secs is not None else None
+    file_verifier = FileChecksumMatcher(
+        self.output + '/*-of-*', EXPECTED_CHECKSUM, sleep_secs)
+
+    extra_opts = {
+        'input': INPUT_FILE,
         'output': self.output + '/user-score',
         'on_success_matcher': all_of(state_verifier, file_verifier)
     }
