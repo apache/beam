@@ -16,15 +16,14 @@
  * limitations under the License.
  */
 
+import 'package:aligned_dialog/aligned_dialog.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:playground/constants/assets.dart';
 import 'package:playground/constants/colors.dart';
-import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/notifications/components/base_notification.dart';
 
-const kNotificationWidth = 400;
-const kNotificationTopOffset = 100;
+const kDialogOffset = Offset(0, 30);
 
 class NotificationManager {
   static void showError(
@@ -95,23 +94,18 @@ class NotificationManager {
     BuildContext context,
     Widget content,
   ) {
-    final screenSize = MediaQuery.of(context).size;
-    final horizontalMargin = (screenSize.width - kNotificationWidth) / 2;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        padding: EdgeInsets.zero,
-        content: content,
-        backgroundColor: Theme.of(context).backgroundColor,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(kLgBorderRadius),
-        ),
-        margin: EdgeInsets.only(
-          bottom: screenSize.height - kNotificationTopOffset,
-          right: horizontalMargin,
-          left: horizontalMargin,
-        ),
-      ),
+    showAlignedDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      targetAnchor: Alignment.topCenter,
+      offset: kDialogOffset,
+      barrierColor: Colors.transparent,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          contentPadding: EdgeInsets.zero,
+          content: content,
+        );
+      },
     );
   }
 }
