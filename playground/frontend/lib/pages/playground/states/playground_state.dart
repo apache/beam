@@ -93,6 +93,7 @@ class PlaygroundState with ChangeNotifier {
 
   reset() {
     _source = _selectedExample?.source ?? '';
+    _pipelineOptions = '';
     resetKey = DateTime.now();
     notifyListeners();
   }
