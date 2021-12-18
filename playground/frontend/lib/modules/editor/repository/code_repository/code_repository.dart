@@ -22,7 +22,11 @@ import 'package:playground/modules/editor/repository/code_repository/run_code_re
 import 'package:playground/modules/editor/repository/code_repository/run_code_result.dart';
 
 const kPipelineCheckDelay = Duration(seconds: 1);
-const kTimeoutErrorText = 'Code execution exceeded timeout';
+const kTimeoutErrorText =
+    'Pipeline exceeded Playground execution timeout and was terminated. '
+    'We recommend installing Apache Beam '
+    'https://beam.apache.org/get-started/downloads/ '
+    'to try examples without timeout limitation.';
 const kUnknownErrorText =
     'Something went wrong. Please try again later or create a jira ticket';
 
