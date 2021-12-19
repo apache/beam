@@ -1685,8 +1685,8 @@ public class SpannerIO {
                 this.spannerConfig.getInstanceId().toString(),
                 "Write");
         try {
-          if (spannerConfig.getRpcPriority() != null &&
-              spannerConfig.getRpcPriority().get() != null) {
+          if (spannerConfig.getRpcPriority() != null
+              && spannerConfig.getRpcPriority().get() != null) {
             spannerAccessor
                 .getDatabaseClient()
                 .writeAtLeastOnceWithOptions(

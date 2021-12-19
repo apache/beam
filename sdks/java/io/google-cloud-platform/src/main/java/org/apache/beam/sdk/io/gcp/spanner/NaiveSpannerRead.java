@@ -121,22 +121,15 @@ abstract class NaiveSpannerRead
       }
       if (op.getIndex() != null) {
         return readOnlyTransaction.readUsingIndex(
-            op.getTable(),
-            op.getIndex(),
-            op.getKeySet(),
-            op.getColumns());
+            op.getTable(), op.getIndex(), op.getKeySet(), op.getColumns());
       }
-      return readOnlyTransaction.read(
-          op.getTable(),
-          op.getKeySet(),
-          op.getColumns());
+      return readOnlyTransaction.read(op.getTable(), op.getKeySet(), op.getColumns());
     }
 
     private ResultSet executeWithPriority(
         ReadOperation op, BatchReadOnlyTransaction readOnlyTransaction, RpcPriority rpcPriority) {
       if (op.getQuery() != null) {
-        return readOnlyTransaction.executeQuery(
-            op.getQuery(), Options.priority(rpcPriority));
+        return readOnlyTransaction.executeQuery(op.getQuery(), Options.priority(rpcPriority));
       }
       if (op.getIndex() != null) {
         return readOnlyTransaction.readUsingIndex(
@@ -147,10 +140,7 @@ abstract class NaiveSpannerRead
             Options.priority(rpcPriority));
       }
       return readOnlyTransaction.read(
-          op.getTable(),
-          op.getKeySet(),
-          op.getColumns(),
-          Options.priority(rpcPriority));
+          op.getTable(), op.getKeySet(), op.getColumns(), Options.priority(rpcPriority));
     }
   }
 }
