@@ -182,7 +182,7 @@ public abstract class SpannerConfig implements Serializable {
   }
 
   public SpannerConfig withRpcPriority(RpcPriority rpcPriority) {
-    return withRpcPriority(ValueProvider.StaticValueProvider.of(rpcPriority)).build();
+    return withRpcPriority(ValueProvider.StaticValueProvider.of(rpcPriority));
   }
 
   public SpannerConfig withRpcPriority(ValueProvider<RpcPriority> rpcPriority) {
