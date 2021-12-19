@@ -50,7 +50,8 @@ import org.junit.runners.JUnit4;
 public class PubSubWritePayloadTranslationTest {
   private static final String TIMESTAMP_ATTRIBUTE = "timestamp";
   private static final String ID_ATTRIBUTE = "id";
-  private static final TopicPath TOPIC = PubsubClient.topicPathFromName("testProject", "testTopic");
+  private static final TopicPath TOPIC =
+      PubsubClient.topicPathFromName("test-project", "testTopic");
   private final PubSubPayloadTranslation.PubSubWritePayloadTranslator sinkTranslator =
       new PubSubWritePayloadTranslator();
 
@@ -70,7 +71,9 @@ public class PubSubWritePayloadTranslationTest {
             Duration.ZERO,
             null);
     PubsubUnboundedSink.PubsubSink pubsubSink = new PubsubSink(pubsubUnboundedSink);
-    PCollection<KV<PubsubIO.PubsubTopic, byte[]>> input = pipeline.apply(Create.of(KV.of(PubsubIO.PubsubTopic.fromPath(TOPIC.getPath()), new byte[0])));
+    PCollection<KV<PubsubIO.PubsubTopic, byte[]>> input =
+        pipeline.apply(
+            Create.of(KV.of(PubsubIO.PubsubTopic.fromPath(TOPIC.getPath()), new byte[0])));
     PDone output = input.apply(pubsubSink);
     AppliedPTransform<?, ?, PubsubSink> appliedPTransform =
         AppliedPTransform.of(
@@ -99,7 +102,9 @@ public class PubSubWritePayloadTranslationTest {
         new PubsubUnboundedSink(
             null, runtimeProvider, TIMESTAMP_ATTRIBUTE, ID_ATTRIBUTE, 0, 0, 0, Duration.ZERO, null);
     PubsubSink pubsubSink = new PubsubSink(pubsubUnboundedSinkSink);
-    PCollection<KV<PubsubIO.PubsubTopic, byte[]>> input = pipeline.apply(Create.of(KV.of(PubsubIO.PubsubTopic.fromPath(TOPIC.getPath()), new byte[0])));
+    PCollection<KV<PubsubIO.PubsubTopic, byte[]>> input =
+        pipeline.apply(
+            Create.of(KV.of(PubsubIO.PubsubTopic.fromPath(TOPIC.getPath()), new byte[0])));
     PDone output = input.apply(pubsubSink);
     AppliedPTransform<?, ?, PubsubSink> appliedPTransform =
         AppliedPTransform.of(

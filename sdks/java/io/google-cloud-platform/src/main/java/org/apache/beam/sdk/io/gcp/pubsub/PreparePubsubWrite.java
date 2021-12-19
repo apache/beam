@@ -69,10 +69,8 @@ public class PreparePubsubWrite<InputT, DestinationT>
                   @Timestamp Instant timestamp,
                   BoundedWindow window,
                   PaneInfo pane) {
-                ValueInSingleWindow<InputT> windowedElement =
-                    ValueInSingleWindow.of(element, timestamp, window, pane);
-                DestinationT topicDestination = dynamicDestinations.getDestination(windowedElement);
-                PubsubIO.PubsubTopic topic = getTopic(topicDestination, element);
+
+                PubsubIO.PubsubTopic topic = getTopic(element, timestamp, window, pane);
                 PubsubMessage outputValue = formatFunction.apply(element);
                 checkArgument(
                     outputValue != null,
@@ -89,10 +87,14 @@ public class PreparePubsubWrite<InputT, DestinationT>
             }));
   }
 
-  private PubsubIO.PubsubTopic getTopic(DestinationT topicDestination, InputT element) {
+  private PubsubIO.PubsubTopic getTopic(
+      InputT element, Instant timestamp, BoundedWindow window, PaneInfo pane) {
     if (this.dynamicDestinations == null) {
       return this.pubsubTopicValueProvider.get();
     } else {
+      ValueInSingleWindow<InputT> windowedElement =
+          ValueInSingleWindow.of(element, timestamp, window, pane);
+      DestinationT topicDestination = dynamicDestinations.getDestination(windowedElement);
       PubsubIO.PubsubTopic topic =
           destinationTopics.computeIfAbsent(
               topicDestination, elem -> dynamicDestinations.getTopic(elem));

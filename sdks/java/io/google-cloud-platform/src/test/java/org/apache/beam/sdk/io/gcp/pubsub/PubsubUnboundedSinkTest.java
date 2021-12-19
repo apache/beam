@@ -48,7 +48,8 @@ import org.junit.runners.JUnit4;
 /** Test PubsubUnboundedSink. */
 @RunWith(JUnit4.class)
 public class PubsubUnboundedSinkTest implements Serializable {
-  private static final TopicPath TOPIC = PubsubClient.topicPathFromName("testProject", "testTopic");
+  private static final TopicPath TOPIC =
+      PubsubClient.topicPathFromName("test-project", "testTopic");
   private static final String DATA = "testData";
   private static final ImmutableMap<String, String> ATTRIBUTES =
       ImmutableMap.<String, String>builder().put("a", "b").put("c", "d").build();
@@ -71,8 +72,9 @@ public class PubsubUnboundedSinkTest implements Serializable {
     @ProcessElement
     public void processElement(ProcessContext c) {
       c.outputWithTimestamp(
-              KV.of(PubsubIO.PubsubTopic.fromPath(TOPIC.getPath()),
-                      new PubsubMessage(c.element().getBytes(StandardCharsets.UTF_8), attributes)),
+          KV.of(
+              PubsubIO.PubsubTopic.fromPath(TOPIC.getPath()),
+              new PubsubMessage(c.element().getBytes(StandardCharsets.UTF_8), attributes)),
           new Instant(TIMESTAMP));
     }
   }
