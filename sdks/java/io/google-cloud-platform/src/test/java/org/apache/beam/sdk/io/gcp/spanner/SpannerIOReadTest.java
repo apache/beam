@@ -179,7 +179,7 @@ public class SpannerIOReadTest implements Serializable {
             ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(2, 6)));
 
     PAssert.that(one).containsInAnyOrder(FAKE_ROWS);
-    assertEquals(RpcPriority.HIGH, read.getSpannerConfig().getRpcPriority());
+    assertEquals(RpcPriority.HIGH, read.getSpannerConfig().getRpcPriority().get());
     pipeline.run();
   }
 
@@ -277,7 +277,7 @@ public class SpannerIOReadTest implements Serializable {
             ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(4, 6)));
 
     PAssert.that(one).containsInAnyOrder(FAKE_ROWS);
-    assertEquals(RpcPriority.LOW, read.getSpannerConfig().getRpcPriority());
+    assertEquals(RpcPriority.LOW, read.getSpannerConfig().getRpcPriority().get());
     pipeline.run();
   }
 
