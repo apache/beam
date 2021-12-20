@@ -19,10 +19,12 @@ package org.apache.beam.runners.flink.translation.functions;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.InMemoryStateInternals;
@@ -45,6 +47,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
@@ -56,6 +59,7 @@ import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /** A {@link RichGroupReduceFunction} for stateful {@link ParDo} in Flink Batch Runner. */
@@ -67,6 +71,7 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
     extends RichGroupReduceFunction<WindowedValue<KV<K, V>>, WindowedValue<RawUnionValue>> {
 
   private final DoFn<KV<K, V>, OutputT> dofn;
+  private final boolean usesOnWindowExpiration;
   private String stepName;
   private final WindowingStrategy<?, ?> windowingStrategy;
   private final Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs;
@@ -95,6 +100,8 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
       Map<String, PCollectionView<?>> sideInputMapping) {
 
     this.dofn = dofn;
+    this.usesOnWindowExpiration =
+        DoFnSignatures.signatureForDoFn(dofn).onWindowExpiration() != null;
     this.stepName = stepName;
     this.windowingStrategy = windowingStrategy;
     this.sideInputs = sideInputs;
@@ -137,6 +144,8 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
     timerInternals.advanceProcessingTime(Instant.now());
     timerInternals.advanceSynchronizedProcessingTime(Instant.now());
 
+    final Set<BoundedWindow> windowsSeen = new HashSet<>();
+
     List<TupleTag<?>> additionalOutputTags = Lists.newArrayList(outputMap.keySet());
 
     DoFnRunner<KV<K, V>, OutputT> doFnRunner =
@@ -172,8 +181,14 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
     doFnRunner.startBundle();
 
     doFnRunner.processElement(currentValue);
+    if (usesOnWindowExpiration) {
+      windowsSeen.addAll(currentValue.getWindows());
+    }
     while (iterator.hasNext()) {
       currentValue = iterator.next();
+      if (usesOnWindowExpiration) {
+        windowsSeen.addAll(currentValue.getWindows());
+      }
       doFnRunner.processElement(currentValue);
     }
 
@@ -185,6 +200,12 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
     timerInternals.advanceSynchronizedProcessingTime(BoundedWindow.TIMESTAMP_MAX_VALUE);
 
     fireEligibleTimers(key, timerInternals, doFnRunner);
+
+    if (usesOnWindowExpiration) {
+      for (BoundedWindow window : windowsSeen) {
+        doFnRunner.onWindowExpiration(window, window.maxTimestamp().minus(Duration.millis(1)), key);
+      }
+    }
 
     doFnRunner.finishBundle();
   }

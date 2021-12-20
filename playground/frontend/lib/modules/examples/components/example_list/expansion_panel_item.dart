@@ -18,6 +18,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:playground/constants/sizes.dart';
+import 'package:playground/modules/analytics/analytics_service.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/pages/playground/states/examples_state.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
@@ -41,6 +42,7 @@ class ExpansionPanelItem extends StatelessWidget {
                 playgroundState.sdk,
               );
               playgroundState.setExample(exampleWithInfo);
+              AnalyticsService.get(context).trackSelectExample(example);
             }
           },
           child: Container(

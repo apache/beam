@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.aws2.kinesis;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -33,6 +34,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -109,7 +111,8 @@ class ShardReadersPool {
     if (!shardIteratorsMap.get().isEmpty()) {
       recordsQueue =
           new ArrayBlockingQueue<>(queueCapacityPerShard * shardIteratorsMap.get().size());
-      startReadingShards(shardIteratorsMap.get().values());
+      String streamName = initialCheckpoint.getStreamName();
+      startReadingShards(shardIteratorsMap.get().values(), streamName);
     } else {
       // There are no shards to handle when restoring from an empty checkpoint. Empty checkpoints
       // are generated when the last shard handled by this pool was closed
@@ -119,7 +122,15 @@ class ShardReadersPool {
 
   // Note: readLoop() will log any Throwable raised so opt to ignore the future result
   @SuppressWarnings("FutureReturnValueIgnored")
-  void startReadingShards(Iterable<ShardRecordsIterator> shardRecordsIterators) {
+  void startReadingShards(Iterable<ShardRecordsIterator> shardRecordsIterators, String streamName) {
+    if (!shardRecordsIterators.iterator().hasNext()) {
+      LOG.info("Stream {} will not be read, no shard records iterators available", streamName);
+      return;
+    }
+    LOG.info(
+        "Starting to read {} stream from {} shards",
+        streamName,
+        getShardIdsFromRecordsIterators(shardRecordsIterators));
     for (final ShardRecordsIterator recordsIterator : shardRecordsIterators) {
       numberOfRecordsInAQueueByShard.put(recordsIterator.getShardId(), new AtomicInteger());
       executorService.submit(
@@ -318,7 +329,36 @@ class ShardReadersPool {
               current, closedShardIterator, successiveShardRecordIterators);
     } while (!shardIteratorsMap.compareAndSet(current, updated));
     numberOfRecordsInAQueueByShard.remove(closedShardIterator.getShardId());
-    startReadingShards(successiveShardRecordIterators);
+
+    logSuccessiveShardsFromRecordsIterators(closedShardIterator, successiveShardRecordIterators);
+
+    String streamName = closedShardIterator.getStreamName();
+    startReadingShards(successiveShardRecordIterators, streamName);
+  }
+
+  private static void logSuccessiveShardsFromRecordsIterators(
+      final ShardRecordsIterator closedShardIterator,
+      final Collection<ShardRecordsIterator> shardRecordsIterators) {
+    if (shardRecordsIterators.isEmpty()) {
+      LOG.info(
+          "Shard {} for {} stream is closed. Found no successive shards to read from "
+              + "as it was merged with another shard and this one is considered adjacent by merge operation",
+          closedShardIterator.getShardId(),
+          closedShardIterator.getStreamName());
+    } else {
+      LOG.info(
+          "Shard {} for {} stream is closed, found successive shards to read from: {}",
+          closedShardIterator.getShardId(),
+          closedShardIterator.getStreamName(),
+          getShardIdsFromRecordsIterators(shardRecordsIterators));
+    }
+  }
+
+  private static List<String> getShardIdsFromRecordsIterators(
+      final Iterable<ShardRecordsIterator> iterators) {
+    return StreamSupport.stream(iterators.spliterator(), false)
+        .map(ShardRecordsIterator::getShardId)
+        .collect(Collectors.toList());
   }
 
   private ImmutableMap<String, ShardRecordsIterator> createMapWithSuccessiveShards(

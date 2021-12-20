@@ -69,12 +69,6 @@ dependencies {
   compile library.java.slf4j_api
   compile library.java.vendored_grpc_1_36_0
 
-  compile 'org.cache2k:cache2k-api:2.4.1.Final'
-  runtime 'org.cache2k:cache2k-core:2.4.1.Final'
-  // cache2k-api:2.4.1.Final has a provided dependency on kotlin-annotations-jvm
-  // providing this dependency is necessary to pass checkerframework validation
-  provided 'org.jetbrains.kotlin:kotlin-annotations-jvm:1.4.10'
-
   // Swap to use the officially published version of 0.4.x once available
   // instead of relying on a community published copy. See
   // https://github.com/jbellis/jamm/issues/44 for additional details.

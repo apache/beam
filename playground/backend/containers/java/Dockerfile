@@ -16,7 +16,7 @@
 # limitations under the License.
 ###############################################################################
 ARG BASE_IMAGE=apache/beam_java8_sdk:latest
-FROM golang:1.17-buster AS build
+FROM golang:1.17-bullseye AS build
 
 # Setup Go Environment
 ENV GOPATH /go

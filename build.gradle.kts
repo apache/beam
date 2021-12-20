@@ -184,6 +184,7 @@ task("javaPostCommit") {
   dependsOn(":sdks:java:io:debezium:integrationTest")
   dependsOn(":sdks:java:io:google-cloud-platform:postCommit")
   dependsOn(":sdks:java:io:kinesis:integrationTest")
+  dependsOn(":sdks:java:io:amazon-web-services:integrationTest")
   dependsOn(":sdks:java:io:amazon-web-services2:integrationTest")
   dependsOn(":sdks:java:extensions:ml:postCommit")
   dependsOn(":sdks:java:io:kafka:kafkaVersionsCompatibilityTest")

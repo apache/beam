@@ -20,8 +20,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground/config/theme.dart';
 import 'package:playground/constants/font_weight.dart';
+import 'package:playground/constants/links.dart';
 import 'package:playground/constants/sizes.dart';
+import 'package:playground/modules/analytics/analytics_service.dart';
 import 'package:playground/pages/playground/components/playground_feedback.dart';
+import 'package:playground/pages/playground/components/playground_privacy_policy.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class PlaygroundPageFooter extends StatelessWidget {
   const PlaygroundPageFooter({Key? key}) : super(key: key);
@@ -47,16 +51,23 @@ class PlaygroundPageFooter extends StatelessWidget {
               style: TextButton.styleFrom(
                 textStyle: const TextStyle(fontWeight: kNormalWeight),
               ),
-              // ignore: avoid_print
-              onPressed: () => print(appLocale.privacyPolicy),
+              onPressed: () {
+                launch(kReportIssueLink);
+                AnalyticsService.get(context).trackClickReportIssue();
+              },
               child: Text(appLocale.reportIssue),
             ),
             TextButton(
               style: TextButton.styleFrom(
                 textStyle: const TextStyle(fontWeight: kNormalWeight),
               ),
-              // ignore: avoid_print
-              onPressed: () => print(appLocale.privacyPolicy),
+              onPressed: () {
+                showDialog<void>(
+                  context: context,
+                  builder: (BuildContext context) =>
+                      const PlaygroundPrivacyPolicy(),
+                );
+              },
               child: Text(appLocale.privacyPolicy),
             ),
             Text(appLocale.copyright),

@@ -74,6 +74,7 @@ public class BeamFnDataWriteRunner<InputT> {
 
       BeamFnDataWriteRunner<InputT> runner =
           new BeamFnDataWriteRunner<>(
+              context.getBundleCacheSupplier(),
               context.getPTransformId(),
               context.getPTransform(),
               context.getProcessBundleInstructionIdSupplier(),
@@ -100,6 +101,7 @@ public class BeamFnDataWriteRunner<InputT> {
   private CloseableFnDataReceiver<WindowedValue<InputT>> consumer;
 
   BeamFnDataWriteRunner(
+      Supplier<Cache<?, ?>> cache,
       String pTransformId,
       RunnerApi.PTransform remoteWriteNode,
       Supplier<String> processBundleInstructionIdSupplier,
@@ -121,6 +123,11 @@ public class BeamFnDataWriteRunner<InputT> {
                 coders.get(port.getCoderId()),
                 components,
                 new StateBackedIterableTranslationContext() {
+                  @Override
+                  public Supplier<Cache<?, ?>> getCache() {
+                    return cache;
+                  }
+
                   @Override
                   public BeamFnStateClient getStateClient() {
                     return beamFnStateClient;

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 
+import static java.util.concurrent.TimeUnit.MINUTES;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.gax.rpc.ApiException;
@@ -65,7 +66,8 @@ abstract class TopicBacklogReaderSettings implements Serializable {
                   .setRegion(subscriptionPath.location().extractRegion())
                   .build())) {
         return setTopicPath(
-            TopicPath.parse(adminClient.getSubscription(subscriptionPath).get().getTopic()));
+            TopicPath.parse(
+                adminClient.getSubscription(subscriptionPath).get(1, MINUTES).getTopic()));
       } catch (ExecutionException e) {
         @Nonnull Throwable cause = checkNotNull(e.getCause());
         throw ExtractStatus.toCanonical(cause).underlying;
