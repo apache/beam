@@ -26,8 +26,9 @@ import (
 )
 
 const (
-	javaConfig = "{\n  \"compile_cmd\": \"javac\",\n  \"run_cmd\": \"java\",\n  \"test_cmd\": \"java\",\n  \"compile_args\": [\n    \"-d\",\n    \"bin\",\n    \"-classpath\"\n  ],\n  \"run_args\": [\n    \"-cp\",\n    \"bin:\"\n  ],\n  \"test_args\": [\n    \"-cp\",\n    \"bin:\",\n    \"JUnit\"\n  ]\n}"
-	jarsPath   = "/opt/apache/beam/jars/*"
+	javaConfig       = "{\n  \"compile_cmd\": \"javac\",\n  \"run_cmd\": \"java\",\n  \"test_cmd\": \"java\",\n  \"compile_args\": [\n    \"-d\",\n    \"bin\",\n    \"-classpath\"\n  ],\n  \"run_args\": [\n    \"-cp\",\n    \"bin:\"\n  ],\n  \"test_args\": [\n    \"-cp\",\n    \"bin:\",\n    \"JUnit\"\n  ]\n}"
+	jarsPath         = "/opt/apache/beam/jars/*"
+	defaultProjectId = ""
 )
 
 var executorConfig *ExecutorConfig
@@ -89,7 +90,7 @@ func TestNewEnvironment(t *testing.T) {
 		{name: "create env service with default envs", want: &Environment{
 			NetworkEnvs:     *NewNetworkEnvs(defaultIp, defaultPort, defaultProtocol),
 			BeamSdkEnvs:     *NewBeamEnvs(defaultSdk, executorConfig, preparedModDir),
-			ApplicationEnvs: *NewApplicationEnvs("/app", defaultLaunchSite, defaultGoogleProjectId, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout),
+			ApplicationEnvs: *NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout),
 		}},
 	}
 	for _, tt := range tests {
@@ -97,7 +98,7 @@ func TestNewEnvironment(t *testing.T) {
 			if got := NewEnvironment(
 				*NewNetworkEnvs(defaultIp, defaultPort, defaultProtocol),
 				*NewBeamEnvs(defaultSdk, executorConfig, preparedModDir),
-				*NewApplicationEnvs("/app", defaultLaunchSite, defaultGoogleProjectId, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout)); !reflect.DeepEqual(got, tt.want) {
+				*NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout)); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewEnvironment() = %v, want %v", got, tt.want)
 			}
 		})
@@ -206,9 +207,9 @@ func Test_getApplicationEnvsFromOsEnvs(t *testing.T) {
 	}{
 		{
 			name:      "working dir is provided",
-			want:      NewApplicationEnvs("/app", defaultLaunchSite, defaultGoogleProjectId, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout),
+			want:      NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout),
 			wantErr:   false,
-			envsToSet: map[string]string{workingDirKey: "/app", launchSiteKey: defaultLaunchSite, googleProjectIdKey: defaultGoogleProjectId},
+			envsToSet: map[string]string{workingDirKey: "/app", launchSiteKey: defaultLaunchSite, projectIdKey: defaultProjectId},
 		},
 		{
 			name:    "working dir isn't provided",

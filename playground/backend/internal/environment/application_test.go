@@ -294,7 +294,7 @@ func TestApplicationEnvs_LaunchSite(t *testing.T) {
 				cacheEnvs:              tt.fields.cacheEnvs,
 				pipelineExecuteTimeout: tt.fields.pipelineExecuteTimeout,
 				launchSite:             tt.fields.launchSite,
-				googleProjectId:        tt.fields.googleProjectId,
+				projectId:              tt.fields.googleProjectId,
 			}
 			if got := ae.LaunchSite(); got != tt.want {
 				t.Errorf("LaunchSite() = %v, want %v", got, tt.want)
@@ -334,7 +334,7 @@ func TestApplicationEnvs_GoogleProjectId(t *testing.T) {
 				workingDir:             tt.fields.workingDir,
 				cacheEnvs:              tt.fields.cacheEnvs,
 				pipelineExecuteTimeout: tt.fields.pipelineExecuteTimeout,
-				googleProjectId:        tt.fields.googleProjectId,
+				projectId:              tt.fields.googleProjectId,
 			}
 			if got := ae.GoogleProjectId(); got != tt.want {
 				t.Errorf("GoogleProjectId() = %v, want %v", got, tt.want)

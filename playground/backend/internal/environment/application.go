@@ -94,18 +94,18 @@ type ApplicationEnvs struct {
 	// launchSite is a launch site of application
 	launchSite string
 
-	// googleProjectId is the Google Сloud project id
-	googleProjectId string
+	// projectId is the Google Сloud project id
+	projectId string
 }
 
 // NewApplicationEnvs constructor for ApplicationEnvs
-func NewApplicationEnvs(workingDir, launchSite, googleCloudProjectId string, cacheEnvs *CacheEnvs, pipelineExecuteTimeout time.Duration) *ApplicationEnvs {
+func NewApplicationEnvs(workingDir, launchSite, projectId string, cacheEnvs *CacheEnvs, pipelineExecuteTimeout time.Duration) *ApplicationEnvs {
 	return &ApplicationEnvs{
 		workingDir:             workingDir,
 		cacheEnvs:              cacheEnvs,
 		pipelineExecuteTimeout: pipelineExecuteTimeout,
 		launchSite:             launchSite,
-		googleProjectId:        googleCloudProjectId,
+		projectId:              projectId,
 	}
 }
 
@@ -131,5 +131,5 @@ func (ae *ApplicationEnvs) LaunchSite() string {
 
 // GoogleProjectId returns Google Сloud project id
 func (ae *ApplicationEnvs) GoogleProjectId() string {
-	return ae.googleProjectId
+	return ae.projectId
 }

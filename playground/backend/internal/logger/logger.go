@@ -24,11 +24,12 @@ import (
 type Severity string
 
 const (
-	INFO  Severity = "[INFO]:"
-	WARN  Severity = "[WARN]:"
-	ERROR Severity = "[ERROR]:"
-	FATAL Severity = "[FATAL]:"
-	DEBUG Severity = "[DEBUG]:"
+	INFO      Severity = "[INFO]:"
+	WARN      Severity = "[WARN]:"
+	ERROR     Severity = "[ERROR]:"
+	FATAL     Severity = "[FATAL]:"
+	DEBUG     Severity = "[DEBUG]:"
+	appEngine          = "app_engine"
 )
 
 var handlers []Handler
@@ -39,7 +40,7 @@ var handlers []Handler
 //   StdHandler - if server running locally
 func SetupLogger(ctx context.Context, launchSite, googleProjectId string) {
 	switch launchSite {
-	case "app_engine":
+	case appEngine:
 		client, err := logging.NewClient(ctx, googleProjectId)
 		if err != nil {
 			log.Fatalf("Failed to create client: %v", err)
