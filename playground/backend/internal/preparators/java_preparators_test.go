@@ -100,7 +100,7 @@ func TestGetJavaPreparators(t *testing.T) {
 		{
 			name: "all success",
 			args: args{"MOCK_FILEPATH"},
-			want: 3,
+			want: 4,
 		},
 	}
 	for _, tt := range tests {
