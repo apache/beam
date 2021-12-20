@@ -27,7 +27,6 @@ import (
 
 const (
 	javaConfig = "{\n  \"compile_cmd\": \"javac\",\n  \"run_cmd\": \"java\",\n  \"test_cmd\": \"java\",\n  \"compile_args\": [\n    \"-d\",\n    \"bin\",\n    \"-classpath\"\n  ],\n  \"run_args\": [\n    \"-cp\",\n    \"bin:\"\n  ],\n  \"test_args\": [\n    \"-cp\",\n    \"bin:\",\n    \"org.junit.runner.JUnitCore\"\n  ]\n}"
-	jarsPath   = "/opt/apache/beam/jars/*"
 )
 
 var executorConfig *ExecutorConfig
@@ -54,6 +53,9 @@ func setup() error {
 	os.Clearenv()
 
 	jars, err := ConcatBeamJarsToString()
+	if err != nil {
+		return err
+	}
 	executorConfig = NewExecutorConfig(
 		"javac", "java", "java",
 		[]string{"-d", "bin", "-classpath", jars},
