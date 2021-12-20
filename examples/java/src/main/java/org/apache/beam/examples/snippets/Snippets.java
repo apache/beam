@@ -191,7 +191,6 @@ public class Snippets {
     }
 
     {
-      @SuppressWarnings("ModifiedButNotUsed")
       // [START BigQueryDataTypes]
       TableRow row = new TableRow();
       row.set("string", "abc");
@@ -1175,7 +1174,6 @@ public class Snippets {
     }
   }
 
-  @SuppressWarnings("unused")
   private static class BundleFinalization {
     private static class BundleFinalizationDoFn extends DoFn<String, Integer> {
       // [START BundleFinalize]
@@ -1193,7 +1191,6 @@ public class Snippets {
     }
   }
 
-  @SuppressWarnings("unused")
   private static class SplittableDoFn {
 
     private static void seekToNextRecordBoundaryInFile(
@@ -1233,7 +1230,6 @@ public class Snippets {
     }
     // [END SDF_BasicExample]
 
-    @SuppressWarnings("unused")
     private static class BasicExampleWithInitialSplitting extends FileToWordsFn {
       // [START SDF_BasicExampleWithSplitting]
       void splitRestriction(
@@ -1252,7 +1248,6 @@ public class Snippets {
       // [END SDF_BasicExampleWithSplitting]
     }
 
-    @SuppressWarnings("unused")
     private static class BasicExampleWithBadTryClaimLoop extends DoFn<String, Integer> {
       // [START SDF_BadTryClaimLoop]
       @ProcessElement
@@ -1276,7 +1271,6 @@ public class Snippets {
       // [END SDF_BadTryClaimLoop]
     }
 
-    @SuppressWarnings("unused")
     private static class CustomWatermarkEstimatorExample extends DoFn<String, Integer> {
       private static Instant currentWatermark = Instant.now();
 
@@ -1342,7 +1336,6 @@ public class Snippets {
     }
     // [END SDF_CustomWatermarkEstimator]
 
-    @SuppressWarnings("unused")
     private static class UserInitiatedCheckpointExample extends DoFn<String, Integer> {
       public static class ThrottlingException extends Exception {}
 
@@ -1405,7 +1398,6 @@ public class Snippets {
       // [END SDF_Truncate]
     }
 
-    @SuppressWarnings("unused")
     private static class GetSizeExample extends DoFn<String, Integer> {
       // [START SDF_GetSize]
       @GetSize
