@@ -91,12 +91,7 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 		_ = processError(ctxWithTimeout, errorChannel, pipelineId, cacheService, "Validate", pb.Status_STATUS_VALIDATION_ERROR)
 		return
 	}
-	// Check if unit test
-	isUnitTest := false
-	valResult, ok := validationResults.Load(validators.UnitTestValidatorName)
-	if ok && valResult.(bool) {
-		isUnitTest = true
-	}
+
 	// Validate step is finished and code is valid
 	if err := processSuccess(ctxWithTimeout, pipelineId, cacheService, "Validate", pb.Status_STATUS_PREPARING); err != nil {
 		return
@@ -106,7 +101,7 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 	logger.Infof("%s: Prepare() ...\n", pipelineId)
 	prepareFunc := executor.Prepare()
 	// Run prepare function
-	go prepareFunc(successChannel, errorChannel, isUnitTest)
+	go prepareFunc(successChannel, errorChannel, &validationResults)
 
 	// Start of the monitoring of background tasks (prepare function/cancellation/timeout)
 	ok, err = reconcileBackgroundTask(ctxWithTimeout, pipelineId, cacheService, cancelChannel, successChannel)
@@ -123,12 +118,21 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 		return
 	}
 
+	// Check if unit test
+	validateIsUnitTest, _ := validationResults.Load(validators.UnitTestValidatorName)
+	isUnitTest := validateIsUnitTest.(bool)
+
+        // This condition is used for cases when the playground doesn't compile source files. For the Python code and the Go Unit Tests
 	if sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_PYTHON || (sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_GO && isUnitTest) {
 		if err := processCompileSuccess(ctxWithTimeout, []byte(""), pipelineId, cacheService); err != nil {
 			return
 		}
 	} else { // in case of Java, Go (not unit test), Scala - need compile step
 		// Compile
+		if sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_JAVA {
+			executor = executorBuilder.WithCompiler().
+				WithFileName(builder.GetFileNameFromFolder(lc.GetAbsoluteSourceFolderPath())).Build() // Need changed name for unit tests
+		}
 		logger.Infof("%s: Compile() ...\n", pipelineId)
 		compileCmd := executor.Compile(ctxWithTimeout)
 		var compileError bytes.Buffer
