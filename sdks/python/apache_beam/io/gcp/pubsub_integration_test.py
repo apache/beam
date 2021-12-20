@@ -201,7 +201,7 @@ class PubSubIntegrationTest(unittest.TestCase):
     # Generate input data and inject to PubSub.
     for msg in self.INPUT_MESSAGES[self.runner_name]:
       self.pub_client.publish(
-        self.input_topic.name, msg.data, **msg.attributes).get()
+          self.input_topic.name, msg.data, **msg.attributes).get()
 
     # Get pipeline options from command argument: --test-pipeline-options,
     # and start pipeline job by calling pipeline main function.
