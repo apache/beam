@@ -42,10 +42,7 @@ import org.apache.avro.reflect.ReflectData;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.coders.AvroCoder;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.*;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoDomain;
 import org.apache.beam.sdk.extensions.protobuf.ProtoDynamicMessageSchema;
@@ -1213,9 +1210,14 @@ public class PubsubIO {
       }
 
       PCollection<KV<PubsubTopic, PubsubMessage>> pubsubMessages =
-          input.apply(
-              new PreparePubsubWrite<>(
-                  getDynamicDestinations(), getFormatFn(), getTopicProvider()));
+          input
+              .apply(
+                  new PreparePubsubWrite<>(
+                      getDynamicDestinations(), getFormatFn(), getTopicProvider()))
+              .setCoder(
+                  KvCoder.of(
+                      SerializableCoder.of(PubsubTopic.class),
+                      PubsubMessageWithAttributesCoder.of()));
 
       switch (input.isBounded()) {
         case BOUNDED:

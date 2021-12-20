@@ -52,9 +52,15 @@ public class PubsubMessageWithAttributesAndMessageIdCoder extends CustomCoder<Pu
 
   @Override
   public void encode(PubsubMessage value, OutputStream outStream) throws IOException {
-    PAYLOAD_CODER.encode(value.getPayload(), outStream);
-    ATTRIBUTES_CODER.encode(value.getAttributeMap(), outStream);
-    MESSAGE_ID_CODER.encode(value.getMessageId(), outStream);
+    if (value.getPayload() != null) {
+      PAYLOAD_CODER.encode(value.getPayload(), outStream);
+    }
+    if (value.getAttributeMap() != null) {
+      ATTRIBUTES_CODER.encode(value.getAttributeMap(), outStream);
+    }
+    if (value.getMessageId() != null) {
+      MESSAGE_ID_CODER.encode(value.getMessageId(), outStream);
+    }
   }
 
   @Override

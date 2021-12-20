@@ -107,11 +107,7 @@ import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.io.WriteFilesResult;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageWithAttributesAndMessageIdCoder;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageWithAttributesCoder;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSink;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSource;
+import org.apache.beam.sdk.io.gcp.pubsub.*;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
@@ -1696,7 +1692,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    * instead defer to Windmill's implementation.
    */
   private static class StreamingPubsubIOWrite
-      extends PTransform<PCollection<PubsubMessage>, PDone> {
+      extends PTransform<PCollection<KV<PubsubIO.PubsubTopic, PubsubMessage>>, PDone> {
 
     private final PubsubUnboundedSink transform;
 
@@ -1710,7 +1706,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     @Override
-    public PDone expand(PCollection<PubsubMessage> input) {
+    public PDone expand(PCollection<KV<PubsubIO.PubsubTopic, PubsubMessage>> input) {
       return PDone.in(input.getPipeline());
     }
 
@@ -2130,7 +2126,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   private static class StreamingPubsubIOWriteOverrideFactory
-      implements PTransformOverrideFactory<PCollection<PubsubMessage>, PDone, PubsubUnboundedSink> {
+      implements PTransformOverrideFactory<
+          PCollection<KV<PubsubIO.PubsubTopic, PubsubMessage>>, PDone, PubsubUnboundedSink> {
 
     private final DataflowRunner runner;
 
@@ -2139,8 +2136,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     @Override
-    public PTransformReplacement<PCollection<PubsubMessage>, PDone> getReplacementTransform(
-        AppliedPTransform<PCollection<PubsubMessage>, PDone, PubsubUnboundedSink> transform) {
+    public PTransformReplacement<PCollection<KV<PubsubIO.PubsubTopic, PubsubMessage>>, PDone>
+        getReplacementTransform(
+            AppliedPTransform<
+                    PCollection<KV<PubsubIO.PubsubTopic, PubsubMessage>>,
+                    PDone,
+                    PubsubUnboundedSink>
+                transform) {
       return PTransformReplacement.of(
           PTransformReplacements.getSingletonMainInput(transform),
           new StreamingPubsubIOWrite(runner, transform.getTransform()));
