@@ -24,7 +24,6 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
 	"io/fs"
 	"log"
@@ -208,8 +207,7 @@ func TestPlaygroundController_CheckStatus(t *testing.T) {
 	ctx := context.Background()
 	pipelineId := uuid.New()
 	wantStatus := pb.Status_STATUS_FINISHED
-	opts := []grpc.DialOption{grpc.WithContextDialer(bufDialer), grpc.WithTransportCredentials(insecure.NewCredentials())}
-	conn, err := grpc.DialContext(ctx, "bufnet", opts...)
+	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithInsecure())
 	if err != nil {
 		t.Fatalf("Failed to dial bufnet: %v", err)
 	}
