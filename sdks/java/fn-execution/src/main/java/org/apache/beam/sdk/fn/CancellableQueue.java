@@ -112,8 +112,8 @@ public class CancellableQueue<T extends @NonNull Object> {
    * queue clears the exception.
    */
   public void cancel(Exception exception) {
-    lock.lock();
     try {
+      lock.lock();
       cancellationException = exception;
       notEmpty.signalAll();
       notFull.signalAll();
@@ -124,8 +124,8 @@ public class CancellableQueue<T extends @NonNull Object> {
 
   /** Enables the queue to be re-used after it has been cancelled. */
   public void reset() {
-    lock.lock();
     try {
+      lock.lock();
       cancellationException = null;
       addIndex = 0;
       takeIndex = 0;

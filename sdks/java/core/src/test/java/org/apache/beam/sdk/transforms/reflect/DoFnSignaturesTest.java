@@ -1602,6 +1602,15 @@ public class DoFnSignaturesTest {
         ProcessContext context, @StateId(STATE_ID) ValueState<String> state);
   }
 
+  private abstract static class DoFnDeclaringMyTimerId extends DoFn<KV<String, Integer>, Long> {
+
+    @TimerId("my-timer-id")
+    private final TimerSpec bizzle = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+    @ProcessElement
+    public void foo(ProcessContext context) {}
+  }
+
   private abstract static class DoFnDeclaringTimerAndCallback
       extends DoFn<KV<String, Integer>, Long> {
     public static final String TIMER_ID = "my-timer-id";

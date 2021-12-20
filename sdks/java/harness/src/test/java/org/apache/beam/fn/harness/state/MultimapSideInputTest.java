@@ -17,11 +17,15 @@
  */
 package org.apache.beam.fn.harness.state;
 
+import static java.util.Arrays.asList;
 import static org.junit.Assert.assertArrayEquals;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -32,48 +36,58 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link MultimapSideInput}. */
 @RunWith(JUnit4.class)
 public class MultimapSideInputTest {
+  private static final byte[] A = "A".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] B = "B".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] UNKNOWN = "UNKNOWN".getBytes(StandardCharsets.UTF_8);
+
   @Test
   public void testGet() throws Exception {
     FakeBeamFnStateClient fakeBeamFnStateClient =
         new FakeBeamFnStateClient(
             ImmutableMap.of(
-                key("A"), encode("A1", "A2", "A3"),
-                key("B"), encode("B1", "B2")));
+                stateKey(), KV.of(ByteArrayCoder.of(), asList(A, B)),
+                key(A), KV.of(StringUtf8Coder.of(), asList("A1", "A2", "A3")),
+                key(B), KV.of(StringUtf8Coder.of(), asList("B1", "B2"))));
 
-    MultimapSideInput<String, String> multimapSideInput =
+    MultimapSideInput<byte[], String> multimapSideInput =
         new MultimapSideInput<>(
             fakeBeamFnStateClient,
             "instructionId",
             "ptransformId",
             "sideInputId",
             ByteString.copyFromUtf8("encodedWindow"),
-            StringUtf8Coder.of(),
+            ByteArrayCoder.of(),
             StringUtf8Coder.of());
     assertArrayEquals(
-        new String[] {"A1", "A2", "A3"},
-        Iterables.toArray(multimapSideInput.get("A"), String.class));
+        new String[] {"A1", "A2", "A3"}, Iterables.toArray(multimapSideInput.get(A), String.class));
     assertArrayEquals(
-        new String[] {"B1", "B2"}, Iterables.toArray(multimapSideInput.get("B"), String.class));
+        new String[] {"B1", "B2"}, Iterables.toArray(multimapSideInput.get(B), String.class));
     assertArrayEquals(
-        new String[] {}, Iterables.toArray(multimapSideInput.get("unknown"), String.class));
+        new String[] {}, Iterables.toArray(multimapSideInput.get(UNKNOWN), String.class));
+    assertArrayEquals(
+        new byte[][] {A, B}, Iterables.toArray(multimapSideInput.get(), byte[].class));
   }
 
-  private StateKey key(String id) throws IOException {
+  private StateKey stateKey() throws IOException {
+    return StateKey.newBuilder()
+        .setMultimapKeysSideInput(
+            StateKey.MultimapKeysSideInput.newBuilder()
+                .setTransformId("ptransformId")
+                .setSideInputId("sideInputId")
+                .setWindow(ByteString.copyFromUtf8("encodedWindow")))
+        .build();
+  }
+
+  private StateKey key(byte[] key) throws IOException {
+    ByteString.Output out = ByteString.newOutput();
+    ByteArrayCoder.of().encode(key, out);
     return StateKey.newBuilder()
         .setMultimapSideInput(
             StateKey.MultimapSideInput.newBuilder()
                 .setTransformId("ptransformId")
                 .setSideInputId("sideInputId")
                 .setWindow(ByteString.copyFromUtf8("encodedWindow"))
-                .setKey(encode(id)))
+                .setKey(out.toByteString()))
         .build();
-  }
-
-  private ByteString encode(String... values) throws IOException {
-    ByteString.Output out = ByteString.newOutput();
-    for (String value : values) {
-      StringUtf8Coder.of().encode(value, out);
-    }
-    return out.toByteString();
   }
 }

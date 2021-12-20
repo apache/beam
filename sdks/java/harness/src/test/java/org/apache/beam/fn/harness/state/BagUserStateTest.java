@@ -17,10 +17,12 @@
  */
 package org.apache.beam.fn.harness.state;
 
+import static java.util.Arrays.asList;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
 
 import java.io.IOException;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
@@ -28,21 +30,18 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Tests for {@link BagUserState}. */
 @RunWith(JUnit4.class)
 public class BagUserStateTest {
-  @Rule public ExpectedException thrown = ExpectedException.none();
-
   @Test
   public void testGet() throws Exception {
     FakeBeamFnStateClient fakeClient =
-        new FakeBeamFnStateClient(ImmutableMap.of(key("A"), encode("A1", "A2", "A3")));
+        new FakeBeamFnStateClient(
+            StringUtf8Coder.of(), ImmutableMap.of(key("A"), asList("A1", "A2", "A3")));
     BagUserState<String> userState =
         new BagUserState<>(
             fakeClient,
@@ -56,14 +55,13 @@ public class BagUserStateTest {
         new String[] {"A1", "A2", "A3"}, Iterables.toArray(userState.get(), String.class));
 
     userState.asyncClose();
-    thrown.expect(IllegalStateException.class);
-    userState.get();
+    assertThrows(IllegalStateException.class, () -> userState.get());
   }
 
   @Test
   public void testAppend() throws Exception {
     FakeBeamFnStateClient fakeClient =
-        new FakeBeamFnStateClient(ImmutableMap.of(key("A"), encode("A1")));
+        new FakeBeamFnStateClient(StringUtf8Coder.of(), ImmutableMap.of(key("A"), asList("A1")));
     BagUserState<String> userState =
         new BagUserState<>(
             fakeClient,
@@ -83,14 +81,14 @@ public class BagUserStateTest {
     userState.asyncClose();
 
     assertEquals(encode("A1", "A2", "A3"), fakeClient.getData().get(key("A")));
-    thrown.expect(IllegalStateException.class);
-    userState.append("A4");
+    assertThrows(IllegalStateException.class, () -> userState.append("A4"));
   }
 
   @Test
   public void testClear() throws Exception {
     FakeBeamFnStateClient fakeClient =
-        new FakeBeamFnStateClient(ImmutableMap.of(key("A"), encode("A1", "A2", "A3")));
+        new FakeBeamFnStateClient(
+            StringUtf8Coder.of(), ImmutableMap.of(key("A"), asList("A1", "A2", "A3")));
     BagUserState<String> userState =
         new BagUserState<>(
             fakeClient,
@@ -111,8 +109,7 @@ public class BagUserStateTest {
     userState.asyncClose();
 
     assertNull(fakeClient.getData().get(key("A")));
-    thrown.expect(IllegalStateException.class);
-    userState.clear();
+    assertThrows(IllegalStateException.class, () -> userState.clear());
   }
 
   private StateKey key(String id) throws IOException {
