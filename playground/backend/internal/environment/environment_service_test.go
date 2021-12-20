@@ -121,13 +121,13 @@ func Test_getSdkEnvsFromOsEnvs(t *testing.T) {
 		},
 		{
 			name:      "default beam envs",
-			want:      NewBeamEnvs(defaultSdk, executorConfig, preparedModDir, defaultCountOfPossibleCodeProcessing),
+			want:      NewBeamEnvs(defaultSdk, executorConfig, preparedModDir, defaultNumOfParallelJobs),
 			envsToSet: map[string]string{beamSdkKey: "SDK_JAVA"},
 			wantErr:   false,
 		},
 		{
 			name:      "specific sdk key in os envs",
-			want:      NewBeamEnvs(defaultSdk, executorConfig, preparedModDir, defaultCountOfPossibleCodeProcessing),
+			want:      NewBeamEnvs(defaultSdk, executorConfig, preparedModDir, defaultNumOfParallelJobs),
 			envsToSet: map[string]string{beamSdkKey: "SDK_JAVA"},
 			wantErr:   false,
 		},

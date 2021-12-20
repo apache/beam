@@ -30,30 +30,30 @@ import (
 )
 
 const (
-	serverIpKey                          = "SERVER_IP"
-	serverPortKey                        = "SERVER_PORT"
-	beamSdkKey                           = "BEAM_SDK"
-	workingDirKey                        = "APP_WORK_DIR"
-	preparedModDirKey                    = "PREPARED_MOD_DIR"
-	countOfPossibleCodeProcessingKey     = "POSSIBLE_COUNT"
-	cacheTypeKey                         = "CACHE_TYPE"
-	cacheAddressKey                      = "CACHE_ADDRESS"
-	beamPathKey                          = "BEAM_PATH"
-	cacheKeyExpirationTimeKey            = "KEY_EXPIRATION_TIME"
-	pipelineExecuteTimeoutKey            = "PIPELINE_EXPIRATION_TIMEOUT"
-	protocolTypeKey                      = "PROTOCOL_TYPE"
-	defaultProtocol                      = "HTTP"
-	defaultIp                            = "localhost"
-	defaultPort                          = 8080
-	defaultSdk                           = pb.Sdk_SDK_JAVA
-	defaultBeamJarsPath                  = "/opt/apache/beam/jars/*"
-	defaultCacheType                     = "local"
-	defaultCacheAddress                  = "localhost:6379"
-	defaultCacheKeyExpirationTime        = time.Minute * 15
-	defaultPipelineExecuteTimeout        = time.Minute * 10
-	jsonExt                              = ".json"
-	configFolderName                     = "configs"
-	defaultCountOfPossibleCodeProcessing = 20
+	serverIpKey                   = "SERVER_IP"
+	serverPortKey                 = "SERVER_PORT"
+	beamSdkKey                    = "BEAM_SDK"
+	workingDirKey                 = "APP_WORK_DIR"
+	preparedModDirKey             = "PREPARED_MOD_DIR"
+	numOfParallelJobsKey          = "NUM_PARALLEL_JOBS"
+	cacheTypeKey                  = "CACHE_TYPE"
+	cacheAddressKey               = "CACHE_ADDRESS"
+	beamPathKey                   = "BEAM_PATH"
+	cacheKeyExpirationTimeKey     = "KEY_EXPIRATION_TIME"
+	pipelineExecuteTimeoutKey     = "PIPELINE_EXPIRATION_TIMEOUT"
+	protocolTypeKey               = "PROTOCOL_TYPE"
+	defaultProtocol               = "HTTP"
+	defaultIp                     = "localhost"
+	defaultPort                   = 8080
+	defaultSdk                    = pb.Sdk_SDK_JAVA
+	defaultBeamJarsPath           = "/opt/apache/beam/jars/*"
+	defaultCacheType              = "local"
+	defaultCacheAddress           = "localhost:6379"
+	defaultCacheKeyExpirationTime = time.Minute * 15
+	defaultPipelineExecuteTimeout = time.Minute * 10
+	jsonExt                       = ".json"
+	configFolderName              = "configs"
+	defaultNumOfParallelJobs      = 20
 )
 
 // Environment operates with environment structures: NetworkEnvs, BeamEnvs, ApplicationEnvs
@@ -141,13 +141,13 @@ func ConfigureBeamEnvs(workDir string) (*BeamEnvs, error) {
 	sdk := pb.Sdk_SDK_UNSPECIFIED
 	preparedModDir, modDirExist := os.LookupEnv(preparedModDirKey)
 
-	countOfPossibleCodeProcessing := defaultCountOfPossibleCodeProcessing
-	if value, present := os.LookupEnv(countOfPossibleCodeProcessingKey); present {
-		possibleCount, err := strconv.Atoi(value)
+	numOfParallelJobs := defaultNumOfParallelJobs
+	if value, present := os.LookupEnv(numOfParallelJobsKey); present {
+		convertedValue, err := strconv.Atoi(value)
 		if err != nil {
-			logger.Errorf("Incorrect value for %s. Should be integer. Will be used default value: %d", countOfPossibleCodeProcessingKey, countOfPossibleCodeProcessing)
+			logger.Errorf("Incorrect value for %s. Should be integer. Will be used default value: %d", numOfParallelJobsKey, defaultNumOfParallelJobs)
 		} else {
-			countOfPossibleCodeProcessing = possibleCount
+			numOfParallelJobs = convertedValue
 		}
 	}
 
@@ -175,7 +175,7 @@ func ConfigureBeamEnvs(workDir string) (*BeamEnvs, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewBeamEnvs(sdk, executorConfig, preparedModDir, countOfPossibleCodeProcessing), nil
+	return NewBeamEnvs(sdk, executorConfig, preparedModDir, numOfParallelJobs), nil
 }
 
 // createExecutorConfig creates ExecutorConfig that corresponds to specific Apache Beam SDK.

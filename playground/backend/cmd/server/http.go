@@ -32,8 +32,8 @@ func listenHttp(ctx context.Context, errChan chan error, envs *environment.Envir
 	mux.Handle("/", handler)
 	mux.HandleFunc("/readiness", func(w http.ResponseWriter, r *http.Request) {
 		workingDir := envs.ApplicationEnvs.WorkingDir()
-		countOfPossibleCodeProcessing := envs.BeamSdkEnvs.CountOfPossibleCodeProcessing()
-		if isReady(workingDir, countOfPossibleCodeProcessing) {
+		numOfParallelJobs := envs.BeamSdkEnvs.NumOfParallelJobs()
+		if isReady(workingDir, numOfParallelJobs) {
 			w.WriteHeader(http.StatusOK)
 		} else {
 			w.WriteHeader(http.StatusLocked)
@@ -52,9 +52,9 @@ func listenHttp(ctx context.Context, errChan chan error, envs *environment.Envir
 
 // isReady checks the number of already working code processing.
 //  It counts by the number of the /path/to/workingDir/executable_files/{pipelineId} folders.
-// If it is equals or more than countOfPossibleCodeProcessing, then returns false.
-// If it is less than countOfPossibleCodeProcessing, then returns true.
-func isReady(workingDir string, countOfPossibleCodeProcessing int) bool {
+// If it is equals or more than numOfParallelJobs, then returns false.
+// If it is less than numOfParallelJobs, then returns true.
+func isReady(workingDir string, numOfParallelJobs int) bool {
 	// TODO add getting of dir executable_files from environments.
 	baseFileFolder := filepath.Join(workingDir, "executable_files")
 	_, err := os.Stat(baseFileFolder)
@@ -68,8 +68,8 @@ func isReady(workingDir string, countOfPossibleCodeProcessing int) bool {
 		return false
 	}
 
-	if len(dirEntries) >= countOfPossibleCodeProcessing {
-		logger.Errorf("Readiness: Count of code processing is equals or more than possible: %d / %d", len(dirEntries), countOfPossibleCodeProcessing)
+	if len(dirEntries) >= numOfParallelJobs {
+		logger.Errorf("Readiness: Count of code processing is equals or more than possible: %d / %d", len(dirEntries), numOfParallelJobs)
 		return false
 	}
 	return true

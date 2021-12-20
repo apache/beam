@@ -42,15 +42,15 @@ func NewExecutorConfig(compileCmd, runCmd, testCmd string, compileArgs, runArgs,
 
 // BeamEnvs contains all environments related of ApacheBeam. These will use to run pipelines
 type BeamEnvs struct {
-	ApacheBeamSdk                 pb.Sdk
-	ExecutorConfig                *ExecutorConfig
-	preparedModDir                string
-	countOfPossibleCodeProcessing int
+	ApacheBeamSdk     pb.Sdk
+	ExecutorConfig    *ExecutorConfig
+	preparedModDir    string
+	numOfParallelJobs int
 }
 
 // NewBeamEnvs is a BeamEnvs constructor
-func NewBeamEnvs(apacheBeamSdk pb.Sdk, executorConfig *ExecutorConfig, preparedModDir string, countOfPossibleCodeProcessing int) *BeamEnvs {
-	return &BeamEnvs{ApacheBeamSdk: apacheBeamSdk, ExecutorConfig: executorConfig, preparedModDir: preparedModDir, countOfPossibleCodeProcessing: countOfPossibleCodeProcessing}
+func NewBeamEnvs(apacheBeamSdk pb.Sdk, executorConfig *ExecutorConfig, preparedModDir string, numOfParallelJobs int) *BeamEnvs {
+	return &BeamEnvs{ApacheBeamSdk: apacheBeamSdk, ExecutorConfig: executorConfig, preparedModDir: preparedModDir, numOfParallelJobs: numOfParallelJobs}
 }
 
 // PreparedModDir returns the path to the directory where prepared go.mod and go.sum are located
@@ -58,7 +58,7 @@ func (b *BeamEnvs) PreparedModDir() string {
 	return b.preparedModDir
 }
 
-// CountOfPossibleCodeProcessing returns the count of the possible code processing for the sdk on that instance
-func (b *BeamEnvs) CountOfPossibleCodeProcessing() int {
-	return b.countOfPossibleCodeProcessing
+// NumOfParallelJobs returns the max number of the possible code processing for the SDK on that instance at the same time
+func (b *BeamEnvs) NumOfParallelJobs() int {
+	return b.numOfParallelJobs
 }
