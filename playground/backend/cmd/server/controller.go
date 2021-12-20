@@ -197,7 +197,7 @@ func (controller *playgroundController) Cancel(ctx context.Context, info *pb.Can
 		return nil, errors.InvalidArgumentError("Cancel", "pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid)
 	}
 	if err := utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.Canceled, true); err != nil {
-		return nil, errors.InternalError("Cancel", "Error during set cancel flag to cache as a true")
+		return nil, errors.InternalError("Cancel", "Error during set cancel flag to cache")
 	}
 	return &pb.CancelResponse{}, nil
 }
