@@ -109,7 +109,7 @@ class PlaygroundState with ChangeNotifier {
     _pipelineOptions = options;
   }
 
-  void runCode() {
+  void runCode({Function? onFinish}) {
     final parsedPipelineOptions = parsePipelineOptions(pipelineOptions);
     if (parsedPipelineOptions == null) {
       _result = RunCodeResult(
@@ -135,6 +135,9 @@ class PlaygroundState with ChangeNotifier {
       );
       _codeRepository?.runCode(request).listen((event) {
         _result = event;
+        if (event.isFinished && onFinish != null) {
+          onFinish();
+        }
         notifyListeners();
       });
     }

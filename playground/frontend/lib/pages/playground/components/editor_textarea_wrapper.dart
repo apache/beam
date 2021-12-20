@@ -67,7 +67,15 @@ class CodeTextAreaWrapper extends StatelessWidget {
                   child: RunButton(
                     isRunning: state.isCodeRunning,
                     runCode: () {
-                      state.runCode();
+                      final stopwatch = Stopwatch()..start();
+                      state.runCode(
+                        onFinish: () {
+                          AnalyticsService.get(context).trackRunTimeEvent(
+                            (state.selectedExample),
+                            stopwatch.elapsedMilliseconds,
+                          );
+                        },
+                      );
                       AnalyticsService.get(context)
                           .trackClickRunEvent(state.selectedExample);
                     },
