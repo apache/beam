@@ -100,7 +100,6 @@ class AnalyticsService {
   }
 
   void trackRunTimeEvent(ExampleModel? example, int runTimeMs) {
-    print(runTimeMs);
     safeSendEvent(
       kRunCodeCategory,
       kRunTimeEvent,
