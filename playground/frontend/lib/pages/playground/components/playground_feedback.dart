@@ -20,6 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:playground/constants/assets.dart';
 import 'package:playground/constants/font_weight.dart';
+import 'package:playground/modules/analytics/analytics_service.dart';
 
 const kFeedbackText = 'Enjoying Playground?';
 
@@ -37,14 +38,16 @@ class PlaygroundFeedback extends StatelessWidget {
         ),
         IconButton(
           padding: EdgeInsets.zero,
-          // ignore: avoid_print
-          onPressed: () => print('Feedback Up'),
+          onPressed: () {
+            AnalyticsService.get(context).trackClickEnjoyPlayground(true);
+          },
           icon: SvgPicture.asset(kThumbUpIconAsset),
         ),
         IconButton(
           padding: EdgeInsets.zero,
-          // ignore: avoid_print
-          onPressed: () => print('Feedback down'),
+          onPressed: () {
+            AnalyticsService.get(context).trackClickEnjoyPlayground(false);
+          },
           icon: SvgPicture.asset(kThumbDownIconAsset),
         ),
       ],

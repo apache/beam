@@ -74,6 +74,10 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.LogsIndex, 0); err != nil {
 		return nil, errors.InternalError("Run code()", "Error during set value to cache: %s", err.Error())
 	}
+	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.Canceled, false); err != nil {
+		code_processing.DeleteFolders(pipelineId, lc)
+		return nil, errors.InternalError("Run code()", "Error during set cancel flag to cache")
+	}
 	if err = controller.cacheService.SetExpTime(ctx, pipelineId, cacheExpirationTime); err != nil {
 		logger.Errorf("%s: RunCode(): cache.SetExpTime(): %s\n", pipelineId, err.Error())
 		code_processing.DeleteFolders(pipelineId, lc)
@@ -193,7 +197,7 @@ func (controller *playgroundController) Cancel(ctx context.Context, info *pb.Can
 		return nil, errors.InvalidArgumentError("Cancel", "pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid)
 	}
 	if err := utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.Canceled, true); err != nil {
-		return nil, errors.InternalError("Cancel", "error during set cancel flag to cache")
+		return nil, errors.InternalError("Cancel", "Error during set cancel flag to cache")
 	}
 	return &pb.CancelResponse{}, nil
 }
@@ -218,7 +222,7 @@ func (controller *playgroundController) GetPrecompiledObjects(ctx context.Contex
 }
 
 // GetPrecompiledObjectCode returns the code of the specific example
-func (controller *playgroundController) GetPrecompiledObjectCode(ctx context.Context, info *pb.GetPrecompiledObjectRequest) (*pb.GetPrecompiledObjectCodeResponse, error) {
+func (controller *playgroundController) GetPrecompiledObjectCode(ctx context.Context, info *pb.GetPrecompiledObjectCodeRequest) (*pb.GetPrecompiledObjectCodeResponse, error) {
 	cd := cloud_bucket.New()
 	codeString, err := cd.GetPrecompiledObject(ctx, info.GetCloudPath())
 	if err != nil {
@@ -230,13 +234,25 @@ func (controller *playgroundController) GetPrecompiledObjectCode(ctx context.Con
 }
 
 // GetPrecompiledObjectOutput returns the output of the compiled and run example
-func (controller *playgroundController) GetPrecompiledObjectOutput(ctx context.Context, info *pb.GetPrecompiledObjectRequest) (*pb.GetRunOutputResponse, error) {
+func (controller *playgroundController) GetPrecompiledObjectOutput(ctx context.Context, info *pb.GetPrecompiledObjectOutputRequest) (*pb.GetPrecompiledObjectOutputResponse, error) {
 	cd := cloud_bucket.New()
 	output, err := cd.GetPrecompiledObjectOutput(ctx, info.GetCloudPath())
 	if err != nil {
 		logger.Errorf("GetPrecompiledObjectOutput(): cloud storage error: %s", err.Error())
 		return nil, errors.InternalError("GetPrecompiledObjectOutput(): ", err.Error())
 	}
-	response := pb.GetRunOutputResponse{Output: output}
+	response := pb.GetPrecompiledObjectOutputResponse{Output: output}
+	return &response, nil
+}
+
+// GetPrecompiledObjectLogs returns the logs of the compiled and run example
+func (controller *playgroundController) GetPrecompiledObjectLogs(ctx context.Context, info *pb.GetPrecompiledObjectLogsRequest) (*pb.GetPrecompiledObjectLogsResponse, error) {
+	cd := cloud_bucket.New()
+	logs, err := cd.GetPrecompiledObjectLogs(ctx, info.GetCloudPath())
+	if err != nil {
+		logger.Errorf("GetPrecompiledObjectLogs(): cloud storage error: %s", err.Error())
+		return nil, errors.InternalError("GetPrecompiledObjectLogs(): ", err.Error())
+	}
+	response := pb.GetPrecompiledObjectLogsResponse{Output: logs}
 	return &response, nil
 }

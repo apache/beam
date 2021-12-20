@@ -54,7 +54,7 @@ const (
 // - In case of run step is completed with no errors saves playground.Status_STATUS_FINISHED as cache.Status and run output as cache.RunOutput into cache.
 // At the end of this method deletes all created folders.
 func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycle, pipelineId uuid.UUID, appEnv *environment.ApplicationEnvs, sdkEnv *environment.BeamEnvs, pipelineOptions string) {
-	ctxWithTimeout, finishCtxFunc := context.WithTimeout(ctx, appEnv.PipelineExecuteTimeout())
+	pipelineLifeCycleCtx, finishCtxFunc := context.WithTimeout(ctx, appEnv.PipelineExecuteTimeout())
 	defer func(lc *fs_tool.LifeCycle) {
 		finishCtxFunc()
 		DeleteFolders(pipelineId, lc)
@@ -67,11 +67,11 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 	finishReadLogsChannel := make(chan bool, 1)
 	var validationResults sync.Map
 
-	go cancelCheck(ctxWithTimeout, pipelineId, cancelChannel, cacheService)
+	go cancelCheck(pipelineLifeCycleCtx, pipelineId, cancelChannel, cacheService)
 
 	executorBuilder, err := builder.SetupExecutorBuilder(lc, utils.ReduceWhiteSpacesToSinge(pipelineOptions), sdkEnv)
 	if err != nil {
-		_ = processSetupError(err, pipelineId, cacheService, ctxWithTimeout)
+		_ = processSetupError(err, pipelineId, cacheService, pipelineLifeCycleCtx)
 		return
 	}
 	executor := executorBuilder.Build()
@@ -82,13 +82,13 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 	go validateFunc(successChannel, errorChannel, &validationResults)
 
 	// Start of the monitoring of background tasks (validate function/cancellation/timeout)
-	ok, err := reconcileBackgroundTask(ctxWithTimeout, ctx, pipelineId, cacheService, cancelChannel, successChannel)
+	ok, err := reconcileBackgroundTask(pipelineLifeCycleCtx, ctx, pipelineId, cacheService, cancelChannel, successChannel)
 	if err != nil {
 		return
 	}
 	if !ok {
 		// Validate step is finished, but code isn't valid
-		_ = processError(ctxWithTimeout, errorChannel, pipelineId, cacheService, "Validate", pb.Status_STATUS_VALIDATION_ERROR)
+		_ = processError(pipelineLifeCycleCtx, errorChannel, pipelineId, cacheService, "Validate", pb.Status_STATUS_VALIDATION_ERROR)
 		return
 	}
 	// Check if unit test
@@ -98,7 +98,7 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 		isUnitTest = true
 	}
 	// Validate step is finished and code is valid
-	if err := processSuccess(ctxWithTimeout, pipelineId, cacheService, "Validate", pb.Status_STATUS_PREPARING); err != nil {
+	if err := processSuccess(pipelineLifeCycleCtx, pipelineId, cacheService, "Validate", pb.Status_STATUS_PREPARING); err != nil {
 		return
 	}
 
@@ -109,58 +109,58 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 	go prepareFunc(successChannel, errorChannel, isUnitTest)
 
 	// Start of the monitoring of background tasks (prepare function/cancellation/timeout)
-	ok, err = reconcileBackgroundTask(ctxWithTimeout, ctx, pipelineId, cacheService, cancelChannel, successChannel)
+	ok, err = reconcileBackgroundTask(pipelineLifeCycleCtx, ctx, pipelineId, cacheService, cancelChannel, successChannel)
 	if err != nil {
 		return
 	}
 	if !ok {
 		// Prepare step is finished, but code couldn't be prepared (some error during prepare step)
-		_ = processError(ctxWithTimeout, errorChannel, pipelineId, cacheService, "Prepare", pb.Status_STATUS_PREPARATION_ERROR)
+		_ = processError(pipelineLifeCycleCtx, errorChannel, pipelineId, cacheService, "Prepare", pb.Status_STATUS_PREPARATION_ERROR)
 		return
 	}
 	// Prepare step is finished and code is prepared
-	if err := processSuccess(ctxWithTimeout, pipelineId, cacheService, "Prepare", pb.Status_STATUS_COMPILING); err != nil {
+	if err := processSuccess(pipelineLifeCycleCtx, pipelineId, cacheService, "Prepare", pb.Status_STATUS_COMPILING); err != nil {
 		return
 	}
 
 	if sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_PYTHON || (sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_GO && isUnitTest) {
-		if err := processCompileSuccess(ctxWithTimeout, []byte(""), pipelineId, cacheService); err != nil {
+		if err := processCompileSuccess(pipelineLifeCycleCtx, []byte(""), pipelineId, cacheService); err != nil {
 			return
 		}
 	} else { // in case of Java, Go (not unit test), Scala - need compile step
 		// Compile
 		logger.Infof("%s: Compile() ...\n", pipelineId)
-		compileCmd := executor.Compile(ctxWithTimeout)
+		compileCmd := executor.Compile(pipelineLifeCycleCtx)
 		var compileError bytes.Buffer
 		var compileOutput bytes.Buffer
 		runCmdWithOutput(compileCmd, &compileOutput, &compileError, successChannel, errorChannel)
 
 		// Start of the monitoring of background tasks (compile step/cancellation/timeout)
-		ok, err = reconcileBackgroundTask(ctxWithTimeout, ctx, pipelineId, cacheService, cancelChannel, successChannel)
+		ok, err = reconcileBackgroundTask(pipelineLifeCycleCtx, ctx, pipelineId, cacheService, cancelChannel, successChannel)
 		if err != nil {
 			return
 		}
 		if !ok { // Compile step is finished, but code couldn't be compiled (some typos for example)
-			_ = processCompileError(ctxWithTimeout, errorChannel, compileError.Bytes(), pipelineId, cacheService)
+			_ = processCompileError(pipelineLifeCycleCtx, errorChannel, compileError.Bytes(), pipelineId, cacheService)
 			return
 		} // Compile step is finished and code is compiled
-		if err := processCompileSuccess(ctxWithTimeout, compileOutput.Bytes(), pipelineId, cacheService); err != nil {
+		if err := processCompileSuccess(pipelineLifeCycleCtx, compileOutput.Bytes(), pipelineId, cacheService); err != nil {
 			return
 		}
 	}
 
 	// Run
 	if sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_JAVA {
-		executor, err = setJavaExecutableFile(lc, pipelineId, cacheService, ctxWithTimeout, executorBuilder, appEnv.WorkingDir())
+		executor, err = setJavaExecutableFile(lc, pipelineId, cacheService, pipelineLifeCycleCtx, executorBuilder, appEnv.WorkingDir())
 		if err != nil {
 			return
 		}
 	}
 	logger.Infof("%s: Run() ...\n", pipelineId)
-	runCmd := getExecuteCmd(&validationResults, &executor, ctxWithTimeout)
+	runCmd := getExecuteCmd(&validationResults, &executor, pipelineLifeCycleCtx)
 	var runError bytes.Buffer
-	runOutput := streaming.RunOutputWriter{Ctx: ctxWithTimeout, CacheService: cacheService, PipelineId: pipelineId}
-	go readLogFile(ctxWithTimeout, ctx, cacheService, lc.GetAbsoluteLogFilePath(), pipelineId, stopReadLogsChannel, finishReadLogsChannel)
+	runOutput := streaming.RunOutputWriter{Ctx: pipelineLifeCycleCtx, CacheService: cacheService, PipelineId: pipelineId}
+	go readLogFile(pipelineLifeCycleCtx, ctx, cacheService, lc.GetAbsoluteLogFilePath(), pipelineId, stopReadLogsChannel, finishReadLogsChannel)
 
 	if sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_GO {
 		// For go SDK all logs are placed to stdErr.
@@ -179,7 +179,7 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 	}
 
 	// Start of the monitoring of background tasks (run step/cancellation/timeout)
-	ok, err = reconcileBackgroundTask(ctxWithTimeout, ctx, pipelineId, cacheService, cancelChannel, successChannel)
+	ok, err = reconcileBackgroundTask(pipelineLifeCycleCtx, ctx, pipelineId, cacheService, cancelChannel, successChannel)
 	if err != nil {
 		return
 	}
@@ -196,11 +196,11 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 			}
 			runError.Write(errData)
 		}
-		_ = processRunError(ctxWithTimeout, errorChannel, runError.Bytes(), pipelineId, cacheService, stopReadLogsChannel, finishReadLogsChannel)
+		_ = processRunError(pipelineLifeCycleCtx, errorChannel, runError.Bytes(), pipelineId, cacheService, stopReadLogsChannel, finishReadLogsChannel)
 		return
 	}
 	// Run step is finished and code is executed
-	_ = processRunSuccess(ctxWithTimeout, pipelineId, cacheService, stopReadLogsChannel, finishReadLogsChannel)
+	_ = processRunSuccess(pipelineLifeCycleCtx, pipelineId, cacheService, stopReadLogsChannel, finishReadLogsChannel)
 }
 
 // getExecuteCmd return cmd instance based on the code type: unit test or example code
@@ -309,13 +309,13 @@ func runCmdWithOutput(cmd *exec.Cmd, stdOutput io.Writer, stdError io.Writer, su
 //  during step processing - returns true.
 // If cmd operation (Validate/Prepare/Compile/Run/RunTest) finishes successfully but with some error
 //  during step processing - returns false.
-func reconcileBackgroundTask(ctxWithTimeout, ctx context.Context, pipelineId uuid.UUID, cacheService cache.Cache, cancelChannel, successChannel chan bool) (bool, error) {
+func reconcileBackgroundTask(pipelineLifeCycleCtx, backgroundCtx context.Context, pipelineId uuid.UUID, cacheService cache.Cache, cancelChannel, successChannel chan bool) (bool, error) {
 	select {
-	case <-ctxWithTimeout.Done():
-		_ = finishByTimeout(ctx, pipelineId, cacheService)
+	case <-pipelineLifeCycleCtx.Done():
+		_ = finishByTimeout(backgroundCtx, pipelineId, cacheService)
 		return false, fmt.Errorf("%s: context was done", pipelineId)
 	case <-cancelChannel:
-		_ = processCancel(ctxWithTimeout, cacheService, pipelineId)
+		_ = processCancel(pipelineLifeCycleCtx, cacheService, pipelineId)
 		return false, fmt.Errorf("%s: code processing was canceled", pipelineId)
 	case ok := <-successChannel:
 		return ok, nil
@@ -336,12 +336,12 @@ func cancelCheck(ctx context.Context, pipelineId uuid.UUID, cancelChannel chan b
 		case <-ticker.C:
 			cancel, err := cacheService.GetValue(ctx, pipelineId, cache.Canceled)
 			if err != nil {
-				continue
+				logger.Errorf("%s: Error during getting value from the cache: %s", pipelineId, err.Error())
 			}
 			if cancel.(bool) {
 				cancelChannel <- true
+				return
 			}
-			return
 		}
 	}
 }
@@ -352,21 +352,21 @@ func cancelCheck(ctx context.Context, pipelineId uuid.UUID, cancelChannel chan b
 // 	and it waits until the method stops the work to change status to the pb.Status_STATUS_FINISHED. Write last logs
 //	to the cache and set value to the finishReadLogChannel channel to unblock the code processing.
 // In other case each pauseDuration write to cache logs of the code processing.
-func readLogFile(ctxWithTimeout, ctx context.Context, cacheService cache.Cache, logFilePath string, pipelineId uuid.UUID, stopReadLogsChannel, finishReadLogChannel chan bool) {
+func readLogFile(pipelineLifeCycleCtx, backgroundCtx context.Context, cacheService cache.Cache, logFilePath string, pipelineId uuid.UUID, stopReadLogsChannel, finishReadLogChannel chan bool) {
 	ticker := time.NewTicker(pauseDuration)
 	for {
 		select {
 		// in case of timeout or cancel
-		case <-ctxWithTimeout.Done():
-			_ = finishReadLogFile(ctx, ticker, cacheService, logFilePath, pipelineId)
+		case <-pipelineLifeCycleCtx.Done():
+			_ = finishReadLogFile(backgroundCtx, ticker, cacheService, logFilePath, pipelineId)
 			return
 		// in case of pipeline finish successfully or has error on the run step
 		case <-stopReadLogsChannel:
-			_ = finishReadLogFile(ctxWithTimeout, ticker, cacheService, logFilePath, pipelineId)
+			_ = finishReadLogFile(pipelineLifeCycleCtx, ticker, cacheService, logFilePath, pipelineId)
 			finishReadLogChannel <- true
 			return
 		case <-ticker.C:
-			_ = writeLogsToCache(ctxWithTimeout, cacheService, logFilePath, pipelineId)
+			_ = writeLogsToCache(pipelineLifeCycleCtx, cacheService, logFilePath, pipelineId)
 		}
 	}
 }

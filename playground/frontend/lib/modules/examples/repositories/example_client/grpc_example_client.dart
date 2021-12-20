@@ -28,6 +28,7 @@ import 'package:playground/modules/examples/repositories/models/get_example_resp
 import 'package:playground/modules/examples/repositories/models/get_list_of_examples_request.dart';
 import 'package:playground/modules/examples/repositories/models/get_list_of_examples_response.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
+import 'package:playground/utils/replace_incorrect_symbols.dart';
 
 class GrpcExampleClient implements ExampleClient {
   grpc.PlaygroundServiceClient createClient(SDK? sdk) {
@@ -58,17 +59,22 @@ class GrpcExampleClient implements ExampleClient {
   Future<GetExampleResponse> getExample(GetExampleRequestWrapper request) {
     return _runSafely(
       () => createClient(request.sdk)
-          .getPrecompiledObjectCode(_getExampleRequestToGrpcRequest(request))
-          .then((response) => GetExampleResponse(response.code)),
+          .getPrecompiledObjectCode(
+              _getExampleCodeRequestToGrpcRequest(request))
+          .then((response) =>
+              GetExampleResponse(replaceIncorrectSymbols(response.code))),
     );
   }
 
   @override
   Future<OutputResponse> getExampleOutput(GetExampleRequestWrapper request) {
     return _runSafely(
-      () => createClient(request.sdk)
-          .getPrecompiledObjectOutput(_getExampleRequestToGrpcRequest(request))
-          .then((response) => OutputResponse(response.output)),
+      () =>
+          createClient(request.sdk)
+          .getPrecompiledObjectOutput(
+              _getExampleOutputRequestToGrpcRequest(request))
+          .then((response) =>
+              OutputResponse(replaceIncorrectSymbols(response.output))),
     );
   }
 
@@ -90,10 +96,16 @@ class GrpcExampleClient implements ExampleClient {
           : _getGrpcSdk(request.sdk!);
   }
 
-  grpc.GetPrecompiledObjectRequest _getExampleRequestToGrpcRequest(
+  grpc.GetPrecompiledObjectCodeRequest _getExampleCodeRequestToGrpcRequest(
     GetExampleRequestWrapper request,
   ) {
-    return grpc.GetPrecompiledObjectRequest()..cloudPath = request.path;
+    return grpc.GetPrecompiledObjectCodeRequest()..cloudPath = request.path;
+  }
+
+  grpc.GetPrecompiledObjectOutputRequest _getExampleOutputRequestToGrpcRequest(
+    GetExampleRequestWrapper request,
+  ) {
+    return grpc.GetPrecompiledObjectOutputRequest()..cloudPath = request.path;
   }
 
   grpc.Sdk _getGrpcSdk(SDK sdk) {
