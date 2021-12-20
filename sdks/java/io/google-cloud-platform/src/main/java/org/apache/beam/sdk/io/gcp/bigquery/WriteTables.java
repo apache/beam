@@ -147,7 +147,7 @@ class WriteTables<DestinationT>
   private final boolean useAvroLogicalTypes;
   private @Nullable DatasetService datasetService;
   private @Nullable JobService jobService;
-  private @Nullable String tempDataset;
+  private final @Nullable String tempDataset;
 
   private class WriteTablesDoFn
       extends DoFn<
