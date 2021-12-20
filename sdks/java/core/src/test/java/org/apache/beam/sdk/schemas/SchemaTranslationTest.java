@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core.construction;
+package org.apache.beam.sdk.schemas;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.model.pipeline.v1.SchemaApi.ArrayType;
 import org.apache.beam.model.pipeline.v1.SchemaApi.ArrayTypeValue;
@@ -33,10 +34,8 @@ import org.apache.beam.model.pipeline.v1.SchemaApi.AtomicType;
 import org.apache.beam.model.pipeline.v1.SchemaApi.AtomicTypeValue;
 import org.apache.beam.model.pipeline.v1.SchemaApi.FieldValue;
 import org.apache.beam.model.pipeline.v1.SchemaApi.LogicalType;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
 import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
 import org.apache.beam.sdk.values.Row;
@@ -171,6 +170,9 @@ public class SchemaTranslationTest {
           .add(
               Schema.of(Field.of("field", FieldType.STRING).withOptions(optionsBuilder))
                   .withOptions(optionsBuilder))
+          .add(
+              Schema.of(
+                  Field.of("null_argument", FieldType.logicalType(new NullArgumentLogicalType()))))
           .build();
     }
 
@@ -313,6 +315,38 @@ public class SchemaTranslationTest {
 
       assertThat(exception.getMessage(), containsString("field_no_typeInfo"));
       assertThat(exception.getCause().getMessage(), containsString("TYPEINFO_NOT_SET"));
+    }
+  }
+
+  /** A simple logical type that has no argument. */
+  private static class NullArgumentLogicalType implements Schema.LogicalType<String, String> {
+    public static final String IDENTIFIER = "beam:logical_type:null_argument:v1";
+
+    public NullArgumentLogicalType() {}
+
+    @Override
+    public String toBaseType(String input) {
+      return input;
+    }
+
+    @Override
+    public String toInputType(String base) {
+      return base;
+    }
+
+    @Override
+    public String getIdentifier() {
+      return IDENTIFIER;
+    }
+
+    @Override
+    public @Nullable Schema.FieldType getArgumentType() {
+      return null;
+    }
+
+    @Override
+    public Schema.FieldType getBaseType() {
+      return FieldType.STRING;
     }
   }
 }

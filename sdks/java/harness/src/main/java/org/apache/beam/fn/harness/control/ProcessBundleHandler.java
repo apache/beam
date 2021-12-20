@@ -41,6 +41,7 @@ import java.util.function.Supplier;
 import org.apache.beam.fn.harness.BeamFnDataReadRunner;
 import org.apache.beam.fn.harness.Cache;
 import org.apache.beam.fn.harness.Caches;
+import org.apache.beam.fn.harness.Caches.ClearableCache;
 import org.apache.beam.fn.harness.PTransformRunnerFactory;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Context;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.ProgressRequestCallback;
@@ -927,7 +928,7 @@ public class ProcessBundleHandler {
 
     private String instructionId;
     private List<CacheToken> cacheTokens;
-    private Cache<Object, Object> bundleCache;
+    private ClearableCache<Object, Object> bundleCache;
 
     abstract Cache<?, ?> getProcessWideCache();
 
@@ -973,7 +974,9 @@ public class ProcessBundleHandler {
 
     synchronized Cache<Object, Object> getBundleCache() {
       if (this.bundleCache == null) {
-        this.bundleCache = Caches.subCache(getProcessWideCache(), "Bundle", this.instructionId);
+        this.bundleCache =
+            new Caches.ClearableCache<>(
+                Caches.subCache(getProcessWideCache(), "Bundle", this.instructionId));
       }
       return this.bundleCache;
     }

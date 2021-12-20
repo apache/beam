@@ -336,12 +336,12 @@ func cancelCheck(ctx context.Context, pipelineId uuid.UUID, cancelChannel chan b
 		case <-ticker.C:
 			cancel, err := cacheService.GetValue(ctx, pipelineId, cache.Canceled)
 			if err != nil {
-				continue
+				logger.Errorf("%s: Error during getting value from the cache: %s", pipelineId, err.Error())
 			}
 			if cancel.(bool) {
 				cancelChannel <- true
+				return
 			}
-			return
 		}
 	}
 }
