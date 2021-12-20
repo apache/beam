@@ -17,6 +17,7 @@
  */
 package org.apache.beam.fn.harness.state;
 
+import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
 
 import java.io.ByteArrayInputStream;
@@ -85,9 +86,10 @@ public class StateBackedIterableTest {
     public void testReiteration() throws Exception {
       FakeBeamFnStateClient fakeBeamFnStateClient =
           new FakeBeamFnStateClient(
+              StringUtf8Coder.of(),
               ImmutableMap.of(
-                  key("nonEmptySuffix"), encode("C", "D", "E", "F", "G", "H", "I", "J", "K"),
-                  key("emptySuffix"), encode()));
+                  key("nonEmptySuffix"), asList("C", "D", "E", "F", "G", "H", "I", "J", "K"),
+                  key("emptySuffix"), asList()));
 
       StateBackedIterable<String> iterable =
           new StateBackedIterable<>(
@@ -106,9 +108,10 @@ public class StateBackedIterableTest {
     public void testUsingInterleavedReiteration() throws Exception {
       FakeBeamFnStateClient fakeBeamFnStateClient =
           new FakeBeamFnStateClient(
+              StringUtf8Coder.of(),
               ImmutableMap.of(
-                  key("nonEmptySuffix"), encode("C", "D", "E", "F", "G", "H", "I", "J", "K"),
-                  key("emptySuffix"), encode()));
+                  key("nonEmptySuffix"), asList("C", "D", "E", "F", "G", "H", "I", "J", "K"),
+                  key("emptySuffix"), asList()));
 
       StateBackedIterable<String> iterable =
           new StateBackedIterable<>(
@@ -178,9 +181,10 @@ public class StateBackedIterableTest {
     public void testSerializability() throws Exception {
       FakeBeamFnStateClient fakeBeamFnStateClient =
           new FakeBeamFnStateClient(
+              StringUtf8Coder.of(),
               ImmutableMap.of(
-                  key("suffix"), encode("C", "D", "E"),
-                  key("emptySuffix"), encode()));
+                  key("suffix"), asList("C", "D", "E"),
+                  key("emptySuffix"), asList()));
 
       StateBackedIterable<String> iterable =
           new StateBackedIterable<>(

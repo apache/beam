@@ -73,6 +73,7 @@ class PlaygroundState with ChangeNotifier {
     _selectedExample = example;
     _pipelineOptions = example.pipelineOptions ?? '';
     _source = example.source ?? '';
+    _result = null;
     notifyListeners();
   }
 

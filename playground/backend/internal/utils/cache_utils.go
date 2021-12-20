@@ -28,7 +28,7 @@ func SetToCache(ctx context.Context, cacheService cache.Cache, key uuid.UUID, su
 	err := cacheService.SetValue(ctx, key, subKey, value)
 	if err != nil {
 		logger.Errorf("%s: cache.SetValue: %s\n", key, err.Error())
-		//TODO send email to fix error with writing to cache
+		// TODO send email to fix error with writing to cache
 	}
 	return err
 }
