@@ -249,6 +249,7 @@ task("goIntegrationTests") {
 }
 
 task("playgroundPreCommit") {
+  dependsOn(":playground:lintProto")
   dependsOn(":playground:backend:precommit")
   dependsOn(":playground:frontend:precommit")
 }
