@@ -21,6 +21,7 @@ Integration test for Google Cloud Pub/Sub.
 # pytype: skip-file
 
 import logging
+import time
 import unittest
 import uuid
 
@@ -152,6 +153,9 @@ class PubSubIntegrationTest(unittest.TestCase):
         name=self.sub_client.subscription_path(
             self.project, OUTPUT_SUB + self.uuid),
         topic=self.output_topic.name)
+    # Add a 30 second sleep after resource creation to ensure subscriptions will
+    # receive messages.
+    time.sleep(30)
 
   def tearDown(self):
     test_utils.cleanup_subscriptions(
@@ -196,7 +200,8 @@ class PubSubIntegrationTest(unittest.TestCase):
 
     # Generate input data and inject to PubSub.
     for msg in self.INPUT_MESSAGES[self.runner_name]:
-      self.pub_client.publish(self.input_topic.name, msg.data, **msg.attributes)
+      self.pub_client.publish(
+        self.input_topic.name, msg.data, **msg.attributes).get()
 
     # Get pipeline options from command argument: --test-pipeline-options,
     # and start pipeline job by calling pipeline main function.
