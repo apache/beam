@@ -101,7 +101,7 @@ func TestGetGoPreparators(t *testing.T) {
 			// getting the expected preparator
 			name: "get expected preparator",
 			args: args{filePath: ""},
-			want: &[]Preparator{{Prepare: formatCode, Args: nil}, {Prepare: changeFileName, Args: nil}},
+			want: &[]Preparator{{Prepare: formatCode, Args: nil}, {Prepare: changeGoTestFileName, Args: nil}},
 		},
 	}
 	for _, tt := range tests {
