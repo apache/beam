@@ -32,6 +32,24 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 @Experimental(Kind.PORTABILITY)
 @ThreadSafe
 public interface Cache<K, V> {
+  /**
+   * An interface that marks an object that can be reduced in size instead of being evicted
+   * completely.
+   *
+   * <p>Types should consider implementing {@link org.apache.beam.sdk.util.Weighted} to not invoke
+   * the overhead of using the {@link Caches#weigh default weigher} multiple times.
+   */
+  interface Shrinkable<V> {
+    /**
+     * Returns a new object that is smaller than the object being evicted.
+     *
+     * <p>It is recommended to return an object that is at most half as large as the one being
+     * evicted. If {@code null} is returned then the object will be evicted.
+     */
+    @Nullable
+    V shrink();
+  }
+
   /** Looks up the specified key returning {@code null} if the value is not within the cache. */
   @Nullable
   V peek(K key);
@@ -52,14 +70,4 @@ public interface Cache<K, V> {
 
   /** Removes the mapping for a key from the cache if it is present. */
   void remove(K key);
-
-  /** Clears all keys and values in the cache. */
-  void clear();
-
-  /**
-   * A view of all keys in the cache. The view is guaranteed to contain all keys present in the
-   * cache at the time of calling the method, and may or may not reflect concurrent inserts or
-   * removals.
-   */
-  Iterable<K> keys();
 }

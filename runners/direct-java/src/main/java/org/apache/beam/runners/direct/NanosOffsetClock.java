@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
-import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 import org.joda.time.Instant;
 
 /** A {@link Clock} that uses {@link System#nanoTime()} to track the progress of time. */
@@ -37,6 +37,8 @@ class NanosOffsetClock implements Clock {
   @Override
   public Instant now() {
     return new Instant(
-        baseMillis + Duration.ofNanos(System.nanoTime() - nanosAtBaseMillis).toMillis());
+        baseMillis
+            + TimeUnit.MILLISECONDS.convert(
+                System.nanoTime() - nanosAtBaseMillis, TimeUnit.NANOSECONDS));
   }
 }
