@@ -22,6 +22,7 @@ import (
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/executors"
 	"beam.apache.org/playground/backend/internal/fs_tool"
+	"beam.apache.org/playground/backend/internal/utils"
 	"beam.apache.org/playground/backend/internal/validators"
 	"context"
 	"fmt"
@@ -249,7 +250,9 @@ func Test_Process(t *testing.T) {
 			if tt.createExecFile {
 				_, _ = lc.CreateSourceCodeFile(tt.code)
 			}
-
+			if err = utils.SetToCache(tt.args.ctx, cacheService, tt.args.pipelineId, cache.Canceled, false); err != nil {
+				t.Fatalf("error during set cancel flag to cache as a false")
+			}
 			if tt.cancelFunc {
 				go func(ctx context.Context, pipelineId uuid.UUID) {
 					// to imitate behavior of cancellation

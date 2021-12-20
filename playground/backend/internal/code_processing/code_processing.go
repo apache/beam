@@ -136,14 +136,14 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 		runCmdWithOutput(compileCmd, &compileOutput, &compileError, successChannel, errorChannel)
 
 		// Start of the monitoring of background tasks (compile step/cancellation/timeout)
-			ok, err = reconcileBackgroundTask(ctxWithTimeout, pipelineId, cacheService, cancelChannel, successChannel)
+		ok, err = reconcileBackgroundTask(ctxWithTimeout, pipelineId, cacheService, cancelChannel, successChannel)
 		if err != nil {
 			return
 		}
-		if !ok {// Compile step is finished, but code couldn't be compiled (some typos for example)
+		if !ok { // Compile step is finished, but code couldn't be compiled (some typos for example)
 			_ = processCompileError(ctxWithTimeout, errorChannel, compileError.Bytes(), pipelineId, cacheService)
 			return
-		}// Compile step is finished and code is compiled
+		} // Compile step is finished and code is compiled
 		if err := processCompileSuccess(ctxWithTimeout, compileOutput.Bytes(), pipelineId, cacheService); err != nil {
 			return
 		}
@@ -336,12 +336,13 @@ func cancelCheck(ctx context.Context, pipelineId uuid.UUID, cancelChannel chan b
 		case <-ticker.C:
 			cancel, err := cacheService.GetValue(ctx, pipelineId, cache.Canceled)
 			if err != nil {
-				continue
+				logger.Errorf("%s: Process: cache.GetValue: error: %s", cancel, err.Error())
 			}
 			if cancel.(bool) {
 				cancelChannel <- true
+				return
 			}
-			return
+			continue
 		}
 	}
 }
