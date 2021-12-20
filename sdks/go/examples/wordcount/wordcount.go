@@ -57,7 +57,7 @@ package main
 
 // beam-playground:
 //   name: WordCount
-//   description: An example that counts words in Shakespeare/kinglear.txt.
+//   description: An example that counts words in Shakespeare's works.
 //   multifile: false
 //   pipeline_options: --output output.txt
 //   categories:

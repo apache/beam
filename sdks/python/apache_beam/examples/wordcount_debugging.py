@@ -44,7 +44,7 @@ and an output prefix on GCS::
 
 # beam-playground:
 #   name: WordCountDebugging
-#   description: An example that counts words in Shakespeare/kinglear.txt
+#   description: An example that counts words in Shakespeare's works.
 #     includes regex filter("Flourish|stomach").
 #   multifile: false
 #   pipeline_options: --output output.txt
