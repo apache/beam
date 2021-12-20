@@ -77,7 +77,7 @@ func TestSetupExecutor(t *testing.T) {
 		WithTestRunner().
 		WithCommand(executorConfig.TestCmd).
 		WithArgs(executorConfig.TestArgs).
-		WithWorkingDir(lc.GetAbsoluteSourceFolderPath()).
+		WithWorkingDir(lc.GetAbsoluteBaseFolderPath()).
 		ExecutorBuilder
 
 	type args struct {
