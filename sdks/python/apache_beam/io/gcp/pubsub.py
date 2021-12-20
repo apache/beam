@@ -147,7 +147,7 @@ class PubsubMessage(object):
     if self.message_id and not for_publish:
       msg.message_id = self.message_id
     if self.publish_time and not for_publish:
-      msg.publish_time = msg.publish_time.FromDatetime(self.publish_time)
+      msg.publish_time = self.publish_time
     msg.ordering_key = self.ordering_key
     return pubsub.types.PubsubMessage.serialize(msg)
 
