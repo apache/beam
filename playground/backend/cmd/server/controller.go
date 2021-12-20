@@ -222,7 +222,7 @@ func (controller *playgroundController) GetPrecompiledObjects(ctx context.Contex
 }
 
 // GetPrecompiledObjectCode returns the code of the specific example
-func (controller *playgroundController) GetPrecompiledObjectCode(ctx context.Context, info *pb.GetPrecompiledObjectRequest) (*pb.GetPrecompiledObjectCodeResponse, error) {
+func (controller *playgroundController) GetPrecompiledObjectCode(ctx context.Context, info *pb.GetPrecompiledObjectCodeRequest) (*pb.GetPrecompiledObjectCodeResponse, error) {
 	cd := cloud_bucket.New()
 	codeString, err := cd.GetPrecompiledObject(ctx, info.GetCloudPath())
 	if err != nil {
@@ -234,13 +234,25 @@ func (controller *playgroundController) GetPrecompiledObjectCode(ctx context.Con
 }
 
 // GetPrecompiledObjectOutput returns the output of the compiled and run example
-func (controller *playgroundController) GetPrecompiledObjectOutput(ctx context.Context, info *pb.GetPrecompiledObjectRequest) (*pb.GetRunOutputResponse, error) {
+func (controller *playgroundController) GetPrecompiledObjectOutput(ctx context.Context, info *pb.GetPrecompiledObjectOutputRequest) (*pb.GetPrecompiledObjectOutputResponse, error) {
 	cd := cloud_bucket.New()
 	output, err := cd.GetPrecompiledObjectOutput(ctx, info.GetCloudPath())
 	if err != nil {
 		logger.Errorf("GetPrecompiledObjectOutput(): cloud storage error: %s", err.Error())
 		return nil, errors.InternalError("GetPrecompiledObjectOutput(): ", err.Error())
 	}
-	response := pb.GetRunOutputResponse{Output: output}
+	response := pb.GetPrecompiledObjectOutputResponse{Output: output}
+	return &response, nil
+}
+
+// GetPrecompiledObjectLogs returns the logs of the compiled and run example
+func (controller *playgroundController) GetPrecompiledObjectLogs(ctx context.Context, info *pb.GetPrecompiledObjectLogsRequest) (*pb.GetPrecompiledObjectLogsResponse, error) {
+	cd := cloud_bucket.New()
+	logs, err := cd.GetPrecompiledObjectLogs(ctx, info.GetCloudPath())
+	if err != nil {
+		logger.Errorf("GetPrecompiledObjectLogs(): cloud storage error: %s", err.Error())
+		return nil, errors.InternalError("GetPrecompiledObjectLogs(): ", err.Error())
+	}
+	response := pb.GetPrecompiledObjectLogsResponse{Output: logs}
 	return &response, nil
 }
