@@ -47,6 +47,7 @@ class CodeRepository {
       yield RunCodeResult(
         status: RunCodeStatus.unknownError,
         errorMessage: error.message ?? kUnknownErrorText,
+        output: error.message ?? kUnknownErrorText,
       );
     }
   }
@@ -67,13 +68,14 @@ class CodeRepository {
       yield result;
       if (!result.isFinished) {
         await Future.delayed(kPipelineCheckDelay);
-        yield* _checkPipelineExecution(
-            pipelineUuid, request, prevResult: result);
+        yield* _checkPipelineExecution(pipelineUuid, request,
+            prevResult: result);
       }
     } on RunCodeError catch (error) {
       yield RunCodeResult(
         status: RunCodeStatus.unknownError,
         errorMessage: error.message ?? kUnknownErrorText,
+        output: error.message ?? kUnknownErrorText,
       );
     }
   }
@@ -94,12 +96,20 @@ class CodeRepository {
         );
         return RunCodeResult(status: status, output: compileOutput.output);
       case RunCodeStatus.timeout:
-        return RunCodeResult(status: status, errorMessage: kTimeoutErrorText);
+        return RunCodeResult(
+          status: status,
+          errorMessage: kTimeoutErrorText,
+          output: kTimeoutErrorText,
+        );
       case RunCodeStatus.runError:
         final output = await _client.getRunErrorOutput(pipelineUuid, request);
         return RunCodeResult(status: status, output: output.output);
       case RunCodeStatus.unknownError:
-        return RunCodeResult(status: status, errorMessage: kUnknownErrorText);
+        return RunCodeResult(
+          status: status,
+          errorMessage: kUnknownErrorText,
+          output: kUnknownErrorText,
+        );
       case RunCodeStatus.executing:
       case RunCodeStatus.finished:
         final responses = await Future.wait([
