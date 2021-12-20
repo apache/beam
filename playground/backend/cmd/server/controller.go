@@ -75,7 +75,8 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 		return nil, errors.InternalError("Run code()", "Error during set value to cache: %s", err.Error())
 	}
 	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.Canceled, false); err != nil {
-		return nil, errors.InternalError("Run code()", "Error during set cancel flag to cache as a false")
+		code_processing.DeleteFolders(pipelineId, lc)
+		return nil, errors.InternalError("Run code()", "Error during set cancel flag to cache")
 	}
 	if err = controller.cacheService.SetExpTime(ctx, pipelineId, cacheExpirationTime); err != nil {
 		logger.Errorf("%s: RunCode(): cache.SetExpTime(): %s\n", pipelineId, err.Error())

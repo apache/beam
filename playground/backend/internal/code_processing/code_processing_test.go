@@ -720,6 +720,9 @@ func Benchmark_ProcessJava(b *testing.B) {
 		b.StopTimer()
 		pipelineId := uuid.New()
 		lc := prepareFiles(b, pipelineId, code, pb.Sdk_SDK_JAVA)
+		if err = utils.SetToCache(ctx, cacheService, pipelineId, cache.Canceled, false); err != nil {
+			b.Fatal("error during set cancel flag to cache")
+		}
 		b.StartTimer()
 
 		Process(ctx, cacheService, lc, pipelineId, appEnv, sdkEnv, "")
@@ -747,6 +750,9 @@ func Benchmark_ProcessPython(b *testing.B) {
 		b.StopTimer()
 		pipelineId := uuid.New()
 		lc := prepareFiles(b, pipelineId, code, pb.Sdk_SDK_PYTHON)
+		if err = utils.SetToCache(ctx, cacheService, pipelineId, cache.Canceled, false); err != nil {
+			b.Fatal("error during set cancel flag to cache")
+		}
 		b.StartTimer()
 
 		Process(ctx, cacheService, lc, pipelineId, appEnv, sdkEnv, "")
@@ -774,6 +780,9 @@ func Benchmark_ProcessGo(b *testing.B) {
 		b.StopTimer()
 		pipelineId := uuid.New()
 		lc := prepareFiles(b, pipelineId, code, pb.Sdk_SDK_GO)
+		if err = utils.SetToCache(ctx, cacheService, pipelineId, cache.Canceled, false); err != nil {
+			b.Fatal("error during set cancel flag to cache")
+		}
 		b.StartTimer()
 
 		Process(ctx, cacheService, lc, pipelineId, appEnv, sdkEnv, "")
