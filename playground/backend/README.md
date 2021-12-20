@@ -33,35 +33,62 @@ users to see and run examples of Apache Beam pipelines in a web interface that r
 See [playground/README.md](../README.md) for details on requirements and setup.
 
 This section describes what is needed to run the backend application.
-- Generating models from proto file
-- Go commands to run/test application locally
+- Go commands to run/test the backend locally
+- Set up environment variables to run the backend locally
+- Running the backend via Docker
 
 ### Go commands to run/test application locally
 
 The following command is used to build and serve the backend locally:
 
 ```
-go run ./cmd/server/server.go
+$ cd backend
+$ go run ./cmd/server/server.go
 ```
 
 Run the following command to generate a release build file:
 
 ```
-go build ./cmd/server/server.go
+$ cd backend
+$ go build ./cmd/server/server.go
 ```
 
 Playground tests may be run using this command:
 
 ```
-go test ... -v
+$ cd backend
+$ go test ... -v
 ```
 
 The full list of commands can be found [here](https://pkg.go.dev/cmd/go).
 
-## Running the server app
+### Set up environment variables to run the backend locally
 
-To run the server using Docker images there are `Docker` files in the `containers` folder for Go and Java languages.
-Each of them processes the corresponding SDK, so the backend with Go SDK will work with Go examples/katas/tests only.
+These environment variables should be set to run the backend locally:
+
+- BEAM_SDK - is the SDK which backend could process (`SDK_GO` / `SDK_JAVA` / `SDK_PYTHON`)
+- APP_WORK_DIR - is the directory where all folders will be placed to process each code processing request
+- PREPARED_MOD_DIR - is the directory where prepared go.mod and go.sum files are placed. It is used only for Go SDK
+
+There are also environment variables which have default value and developer do not need to set them up (optional):
+
+- SERVER_IP - is the IP address of the backend server (default value = `localhost`)
+- SERVER_PORT - is the PORT of the backend server (default value = `8080`)
+- CACHE_TYPE - is a type of the cache service which is used for the backend server. If it is set as a `remote`, then the
+  backend server will use Redis to keep all cache values (default value = `local`)
+- CACHE_ADDRESS - is an address of the Redis server. It is used only when `CACHE_TYPE=remote` (default value
+  = `localhost:6379`)
+- BEAM_PATH - it is the place where all required for the Java SDK libs are placed
+  (default value = `/opt/apache/beam/jars/*`)
+- KEY_EXPIRATION_TIME - is the expiration time of the keys in the cache (default value = `15 min`)
+- PIPELINE_EXPIRATION_TIMEOUT - is the expiration time of the code processing (default value = `15 min`)
+- PROTOCOL_TYPE - is the type of the backend server protocol. It could be `TCP` or `HTTP` (default value = `HTTP`)
+
+### Running the server app via Docker
+
+To run the server using Docker images there are `Docker` files in the `containers` folder for Java, Python and Go
+languages. Each of them processes the corresponding SDK, so the backend with Go SDK will work with Go
+examples/katas/tests only.
 
 One more way to run the server is to run it locally how it is described above.
 
@@ -70,11 +97,3 @@ One more way to run the server is to run it locally how it is described above.
 To call the server from another client – models and client code should be generated using the
 `playground/api/v1/api.proto` file. More information about generating models and client's code using `.proto`
 files for each language can be found [here](https://grpc.io/docs/languages/).
-
-## Deployment
-
-TBD
-
-## How to Contribute
-
-TBD
