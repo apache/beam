@@ -78,7 +78,6 @@ class _FeedbackDropdownIconButton extends State<FeedbackDropdownIconButton>
     return IconButton(
       key: feedbackKey,
       padding: EdgeInsets.zero,
-      // ignore: avoid_print
       onPressed: () {
         _changeSelectorVisibility();
         AnalyticsService.get(context)
