@@ -19,12 +19,28 @@ import (
 	"beam.apache.org/playground/backend/internal/logger"
 	"context"
 	"net/http"
+	"os"
+	"path/filepath"
 )
 
 // listenHttp binds the http.Handler on the TCP network address
-func listenHttp(ctx context.Context, errChan chan error, envs environment.NetworkEnvs, handler http.Handler) {
-	logger.Infof("listening HTTP at %s\n", envs.Address())
-	if err := http.ListenAndServe(envs.Address(), handler); err != nil {
+func listenHttp(ctx context.Context, errChan chan error, envs *environment.Environment, handler http.Handler) {
+	address := envs.NetworkEnvs.Address()
+	logger.Infof("listening HTTP at %s\n", address)
+
+	mux := http.NewServeMux()
+	mux.Handle("/", handler)
+	mux.HandleFunc("/readiness", func(w http.ResponseWriter, r *http.Request) {
+		workingDir := envs.ApplicationEnvs.WorkingDir()
+		countOfPossibleCodeProcessing := envs.BeamSdkEnvs.CountOfPossibleCodeProcessing()
+		if isReady(workingDir, countOfPossibleCodeProcessing) {
+			w.WriteHeader(http.StatusOK)
+		} else {
+			w.WriteHeader(http.StatusLocked)
+		}
+	})
+
+	if err := http.ListenAndServe(address, mux); err != nil {
 		errChan <- err
 		return
 	}
@@ -32,4 +48,29 @@ func listenHttp(ctx context.Context, errChan chan error, envs environment.Networ
 		<-ctx.Done()
 		return
 	}
+}
+
+// isReady checks the number of already working code processing.
+//  It counts by the number of the /path/to/workingDir/executable_files/{pipelineId} folders.
+// If it is equals or more than countOfPossibleCodeProcessing, then returns false.
+// If it is less than countOfPossibleCodeProcessing, then returns true.
+func isReady(workingDir string, countOfPossibleCodeProcessing int) bool {
+	// TODO add getting of dir executable_files from environments.
+	baseFileFolder := filepath.Join(workingDir, "executable_files")
+	_, err := os.Stat(baseFileFolder)
+	if os.IsNotExist(err) {
+		return true
+	}
+
+	dirEntries, err := os.ReadDir(baseFileFolder)
+	if err != nil {
+		logger.Errorf("Readiness: Error during read %s: %s", baseFileFolder, err.Error())
+		return false
+	}
+
+	if len(dirEntries) >= countOfPossibleCodeProcessing {
+		logger.Errorf("Readiness: Count of code processing is equals or more than possible: %d / %d", len(dirEntries), countOfPossibleCodeProcessing)
+		return false
+	}
+	return true
 }

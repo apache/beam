@@ -54,7 +54,7 @@ func runServer() error {
 		go listenTcp(ctx, errChan, envService.NetworkEnvs, grpcServer)
 	case "HTTP":
 		handler := Wrap(grpcServer, getGrpcWebOptions())
-		go listenHttp(ctx, errChan, envService.NetworkEnvs, handler)
+		go listenHttp(ctx, errChan, envService, handler)
 	}
 
 	for {

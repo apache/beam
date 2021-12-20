@@ -69,9 +69,11 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 		return nil, errors.InternalError("Run code()", "Error during set value to cache: %s", err.Error())
 	}
 	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.RunOutputIndex, 0); err != nil {
+		code_processing.DeleteFolders(pipelineId, lc)
 		return nil, errors.InternalError("Run code()", "Error during set value to cache: %s", err.Error())
 	}
 	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.LogsIndex, 0); err != nil {
+		code_processing.DeleteFolders(pipelineId, lc)
 		return nil, errors.InternalError("Run code()", "Error during set value to cache: %s", err.Error())
 	}
 	if err = controller.cacheService.SetExpTime(ctx, pipelineId, cacheExpirationTime); err != nil {
