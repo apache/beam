@@ -147,7 +147,11 @@ func ConfigureBeamEnvs(workDir string) (*BeamEnvs, error) {
 		if err != nil {
 			logger.Errorf("Incorrect value for %s. Should be integer. Will be used default value: %d", numOfParallelJobsKey, defaultNumOfParallelJobs)
 		} else {
-			numOfParallelJobs = convertedValue
+			if convertedValue <= 0 {
+				logger.Errorf("Incorrect value for %s. Should be a positive integer value but it is %d. Will be used default value: %d", numOfParallelJobsKey, convertedValue, defaultNumOfParallelJobs)
+			} else {
+				numOfParallelJobs = convertedValue
+			}
 		}
 	}
 
