@@ -22,6 +22,7 @@ import (
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/executors"
 	"beam.apache.org/playground/backend/internal/fs_tool"
+	"beam.apache.org/playground/backend/internal/utils"
 	"beam.apache.org/playground/backend/internal/validators"
 	"context"
 	"fmt"
@@ -249,7 +250,9 @@ func Test_Process(t *testing.T) {
 			if tt.createExecFile {
 				_, _ = lc.CreateSourceCodeFile(tt.code)
 			}
-
+			if err = utils.SetToCache(tt.args.ctx, cacheService, tt.args.pipelineId, cache.Canceled, false); err != nil {
+				t.Fatal("error during set cancel flag to cache")
+			}
 			if tt.cancelFunc {
 				go func(ctx context.Context, pipelineId uuid.UUID) {
 					// to imitate behavior of cancellation
@@ -717,6 +720,9 @@ func Benchmark_ProcessJava(b *testing.B) {
 		b.StopTimer()
 		pipelineId := uuid.New()
 		lc := prepareFiles(b, pipelineId, code, pb.Sdk_SDK_JAVA)
+		if err = utils.SetToCache(ctx, cacheService, pipelineId, cache.Canceled, false); err != nil {
+			b.Fatal("error during set cancel flag to cache")
+		}
 		b.StartTimer()
 
 		Process(ctx, cacheService, lc, pipelineId, appEnv, sdkEnv, "")
@@ -744,6 +750,9 @@ func Benchmark_ProcessPython(b *testing.B) {
 		b.StopTimer()
 		pipelineId := uuid.New()
 		lc := prepareFiles(b, pipelineId, code, pb.Sdk_SDK_PYTHON)
+		if err = utils.SetToCache(ctx, cacheService, pipelineId, cache.Canceled, false); err != nil {
+			b.Fatal("error during set cancel flag to cache")
+		}
 		b.StartTimer()
 
 		Process(ctx, cacheService, lc, pipelineId, appEnv, sdkEnv, "")
@@ -771,6 +780,9 @@ func Benchmark_ProcessGo(b *testing.B) {
 		b.StopTimer()
 		pipelineId := uuid.New()
 		lc := prepareFiles(b, pipelineId, code, pb.Sdk_SDK_GO)
+		if err = utils.SetToCache(ctx, cacheService, pipelineId, cache.Canceled, false); err != nil {
+			b.Fatal("error during set cancel flag to cache")
+		}
 		b.StartTimer()
 
 		Process(ctx, cacheService, lc, pipelineId, appEnv, sdkEnv, "")
