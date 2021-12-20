@@ -94,7 +94,7 @@ class BeamModulePlugin implements Plugin<Project> {
   }
 
   /** A class defining the set of configurable properties accepted by applyJavaNature. */
-  class JavaNatureConfiguration {
+  static class JavaNatureConfiguration {
     /** Controls whether the spotbugs plugin is enabled and configured. */
     boolean enableSpotbugs = true
 
@@ -177,7 +177,7 @@ class BeamModulePlugin implements Plugin<Project> {
   }
 
   /** A class defining the set of configurable properties accepted by applyPortabilityNature. */
-  class PortabilityNatureConfiguration {
+  static class PortabilityNatureConfiguration {
     /**
      * The set of excludes that should be used during validation of the shadow jar. Projects should override
      * the default with the most specific set of excludes that is valid for the contents of its shaded jar.
@@ -211,7 +211,7 @@ class BeamModulePlugin implements Plugin<Project> {
   }
 
   // A class defining the set of configurable properties for createJavaExamplesArchetypeValidationTask
-  class JavaExamplesArchetypeValidationConfiguration {
+  static class JavaExamplesArchetypeValidationConfiguration {
     // Type [Quickstart, MobileGaming] for the postrelease validation is required.
     // Used both for the test name run${type}Java${runner}
     // and also for the script name, ${type}-java-${runner}.toLowerCase().
@@ -237,7 +237,7 @@ class BeamModulePlugin implements Plugin<Project> {
   }
 
   // Reads and contains all necessary performance test parameters
-  class JavaPerformanceTestConfiguration {
+  static class JavaPerformanceTestConfiguration {
     // Optional. Runner which will be used for running the tests. Possible values: dataflow/direct.
     // PerfKitBenchmarker will have trouble reading 'null' value. It expects empty string if no config file is expected.
     String runner = System.getProperty('integrationTestRunner', '')
@@ -251,7 +251,7 @@ class BeamModulePlugin implements Plugin<Project> {
   }
 
   // Reads and contains all necessary performance test parameters
-  class PythonPerformanceTestConfiguration {
+  static class PythonPerformanceTestConfiguration {
     // Fully qualified name of the test to run.
     String tests = System.getProperty('tests')
 
@@ -269,14 +269,14 @@ class BeamModulePlugin implements Plugin<Project> {
   }
 
   // A class defining the set of configurable properties accepted by containerImageName.
-  class ContainerImageNameConfiguration {
+  static class ContainerImageNameConfiguration {
     String root = null // Sets the docker repository root (optional).
     String name = null // Sets the short container image name, such as "go" (required).
     String tag = null // Sets the image tag (optional).
   }
 
   // A class defining the configuration for PortableValidatesRunner.
-  class PortableValidatesRunnerConfiguration {
+  static class PortableValidatesRunnerConfiguration {
     // Task name for validate runner case.
     String name = 'validatesPortableRunner'
     // Fully qualified JobServerClass name to use.
@@ -315,7 +315,7 @@ class BeamModulePlugin implements Plugin<Project> {
   }
 
   // A class defining the configuration for CrossLanguageValidatesRunner.
-  class CrossLanguageValidatesRunnerConfiguration {
+  static class CrossLanguageValidatesRunnerConfiguration {
     // Task name for cross-language validate runner case.
     String name = 'validatesCrossLanguageRunner'
     // Java pipeline options to use.
@@ -684,7 +684,7 @@ class BeamModulePlugin implements Plugin<Project> {
         arrow_memory_netty                          : "org.apache.arrow:arrow-memory-netty:$arrow_version",
       ],
       groovy: [
-        groovy_all: "org.codehaus.groovy:groovy-all:2.4.13",
+        groovy_all: "org.codehaus.groovy:groovy-all:3.0.9",
       ],
       // For generating pom.xml from archetypes.
       maven: [
@@ -1011,15 +1011,8 @@ class BeamModulePlugin implements Plugin<Project> {
         // This contains many improved annotations beyond javax.annotations for enhanced static checking
         // of the codebase. It is runtime so users can also take advantage of them. The annotations themselves
         // are MIT licensed (checkerframework is GPL and cannot be distributed)
-        compile "org.checkerframework:checker-qual:$checkerframework_version"
+        implementation "org.checkerframework:checker-qual:$checkerframework_version"
       }
-
-      // Add the optional and provided configurations for dependencies
-      // TODO: Either remove these plugins and find another way to generate the Maven poms
-      // with the correct dependency scopes configured.
-      project.apply plugin: 'propdeps'
-      project.apply plugin: 'propdeps-maven'
-      project.apply plugin: 'propdeps-idea'
 
       // Defines Targets for sonarqube analysis reporting.
       project.apply plugin: "org.sonarqube"
@@ -1167,7 +1160,7 @@ class BeamModulePlugin implements Plugin<Project> {
         // Create a new configuration 'shadowTest' like 'shadow' for the test scope
         project.configurations {
           shadow { description = "Dependencies for shaded source set 'main'" }
-          compile.extendsFrom shadow
+          implementation.extendsFrom shadow
           shadowTest {
             description = "Dependencies for shaded source set 'test'"
             extendsFrom shadow
@@ -1213,7 +1206,7 @@ class BeamModulePlugin implements Plugin<Project> {
           classifier = "tests"
           from project.sourceSets.test.output
           configurations = [
-            project.configurations.testRuntime
+            project.configurations.testRuntimeOnly
           ]
           zip64 true
           exclude "META-INF/INDEX.LIST"
@@ -1277,7 +1270,7 @@ class BeamModulePlugin implements Plugin<Project> {
           exclude "META-INF/*.DSA"
           exclude "META-INF/*.RSA"
         })
-        project.artifacts.testRuntime project.testJar
+        project.artifacts.testRuntimeOnly project.testJar
       }
 
       if (configuration.enableJmh) {
@@ -1549,10 +1542,8 @@ class BeamModulePlugin implements Plugin<Project> {
                   }
                 }
 
-                // TODO: Should we use the runtime scope instead of the compile scope
-                // which forces all our consumers to declare what they consume?
                 generateDependenciesFromConfiguration(
-                    configuration: (configuration.shadowClosure ? 'shadow' : 'compile'), scope: 'compile')
+                    configuration: (configuration.shadowClosure ? 'shadow' : 'implementation'), scope: 'implementation')
                 generateDependenciesFromConfiguration(configuration: 'provided', scope: 'provided')
 
                 if (!boms.isEmpty()) {
@@ -1742,22 +1733,22 @@ class BeamModulePlugin implements Plugin<Project> {
         /* include dependencies required by runners */
         //if (runner?.contains('dataflow')) {
         if (runner?.equalsIgnoreCase('dataflow')) {
-          testRuntime it.project(path: ":runners:google-cloud-dataflow-java", configuration: 'testRuntime')
-          testRuntime it.project(path: ":runners:google-cloud-dataflow-java:worker:legacy-worker", configuration: 'shadow')
+          testRuntimeOnly it.project(path: ":runners:google-cloud-dataflow-java", configuration: 'testRuntime')
+          testRuntimeOnly it.project(path: ":runners:google-cloud-dataflow-java:worker:legacy-worker", configuration: 'shadow')
         }
 
         if (runner?.equalsIgnoreCase('direct')) {
-          testRuntime it.project(path: ":runners:direct-java", configuration: 'shadowTest')
+          testRuntimeOnly it.project(path: ":runners:direct-java", configuration: 'shadowTest')
         }
 
         if (runner?.equalsIgnoreCase('flink')) {
-          testRuntime it.project(path: ":runners:flink:${project.ext.latestFlinkVersion}", configuration: 'testRuntime')
+          testRuntimeOnly it.project(path: ":runners:flink:${project.ext.latestFlinkVersion}", configuration: 'testRuntime')
         }
 
         if (runner?.equalsIgnoreCase('spark')) {
-          testRuntime it.project(path: ":runners:spark:2", configuration: 'testRuntime')
-          testRuntime project.library.java.spark_core
-          testRuntime project.library.java.spark_streaming
+          testRuntimeOnly it.project(path: ":runners:spark:2", configuration: 'testRuntime')
+          testRuntimeOnly project.library.java.spark_core
+          testRuntimeOnly project.library.java.spark_streaming
 
           // Testing the Spark runner causes a StackOverflowError if slf4j-jdk14 is on the classpath
           project.configurations.testRuntimeClasspath {
@@ -1767,13 +1758,13 @@ class BeamModulePlugin implements Plugin<Project> {
 
         /* include dependencies required by filesystems */
         if (filesystem?.equalsIgnoreCase('hdfs')) {
-          testRuntime it.project(path: ":sdks:java:io:hadoop-file-system", configuration: 'testRuntime')
-          testRuntime project.library.java.hadoop_client
+          testRuntimeOnly it.project(path: ":sdks:java:io:hadoop-file-system", configuration: 'testRuntime')
+          testRuntimeOnly project.library.java.hadoop_client
         }
 
         /* include dependencies required by AWS S3 */
         if (filesystem?.equalsIgnoreCase('s3')) {
-          testRuntime it.project(path: ":sdks:java:io:amazon-web-services", configuration: 'testRuntime')
+          testRuntimeOnly it.project(path: ":sdks:java:io:amazon-web-services", configuration: 'testRuntime')
         }
       }
       project.task('packageIntegrationTests', type: Jar)

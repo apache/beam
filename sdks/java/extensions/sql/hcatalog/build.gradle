@@ -29,12 +29,12 @@ def hive_version = "2.1.0"
 def netty_version = "4.1.51.Final"
 
 dependencies {
-  provided project(":sdks:java:extensions:sql")
-  provided project(":sdks:java:io:hcatalog")
+  compileOnly project(":sdks:java:extensions:sql")
+  compileOnly project(":sdks:java:io:hcatalog")
 
   // Needed for HCatalogTableProvider tests,
   // they use HCat* types
-  testCompile "io.netty:netty-all:$netty_version"
+  testCompileOnly "io.netty:netty-all:$netty_version"
   testCompile("org.apache.hive.hcatalog:hive-hcatalog-core:$hive_version") {
     // Hive brings full Calcite 1.6 + Avatica with JDBC driver which
     // gets registered and gets started instead of ours

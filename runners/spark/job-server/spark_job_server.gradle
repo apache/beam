@@ -50,16 +50,16 @@ configurations.all {
 }
 
 dependencies {
-  compile project(sparkRunnerProject)
+  implementation project(sparkRunnerProject)
   permitUnusedDeclared project(sparkRunnerProject)
-  compile project(path: sparkRunnerProject, configuration: "provided")
+  implementation project(path: sparkRunnerProject, configuration: "provided")
   validatesPortableRunner project(path: sparkRunnerProject, configuration: "testRuntime")
   validatesPortableRunner project(path: sparkRunnerProject, configuration: "provided")
   validatesPortableRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesPortableRunner project(path: ":runners:core-java", configuration: "testRuntime")
   validatesPortableRunner project(path: ":runners:portability:java", configuration: "testRuntime")
-  runtime project(":sdks:java:extensions:google-cloud-platform-core")
-  runtime project(":sdks:java:io:amazon-web-services2")
+  runtimeOnly project(":sdks:java:extensions:google-cloud-platform-core")
+  runtimeOnly project(":sdks:java:io:amazon-web-services2")
 //  TODO: Enable HDFS file system.
 }
 

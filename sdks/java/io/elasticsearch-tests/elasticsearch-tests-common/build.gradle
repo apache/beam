@@ -38,15 +38,15 @@ configurations.all {
 }
 
 dependencies {
-  testCompile library.java.jackson_databind
-  testCompile project(path: ":sdks:java:core", configuration: "shadow")
-  testCompile project(":sdks:java:io:elasticsearch")
-  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
-  testCompile library.java.slf4j_api
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile library.java.junit
-  testCompile "org.elasticsearch.client:elasticsearch-rest-client:$elastic_search_version"
+  testCompileOnly library.java.jackson_databind
+  testCompileOnly project(path: ":sdks:java:core", configuration: "shadow")
+  testCompileOnly project(":sdks:java:io:elasticsearch")
+  testCompileOnly project(path: ":sdks:java:io:common", configuration: "testRuntime")
+  testCompileOnly library.java.slf4j_api
+  testCompileOnly library.java.hamcrest_core
+  testCompileOnly library.java.hamcrest_library
+  testCompileOnly library.java.junit
+  testCompileOnly "org.elasticsearch.client:elasticsearch-rest-client:$elastic_search_version"
   testImplementation "org.elasticsearch.client:elasticsearch-rest-high-level-client:${elastic_search_version}"
   testImplementation "org.testcontainers:elasticsearch:1.15.3"
 

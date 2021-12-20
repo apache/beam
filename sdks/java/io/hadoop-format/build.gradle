@@ -48,32 +48,32 @@ configurations.sparkRunner {
   exclude group: "org.slf4j", module: "slf4j-jdk14"
 }
 
-// Ban dependencies from the test runtime classpath
+// Ban dependencies from the test runtimeOnly classpath
 configurations.testRuntimeClasspath {
   // Prevent a StackOverflow because of wiring LOG4J -> SLF4J -> LOG4J
   exclude group: "org.slf4j", module: "log4j-over-slf4j"
 }
 
 dependencies {
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile library.java.vendored_guava_26_0_jre
-  compile library.java.slf4j_api
-  compile project(":sdks:java:io:hadoop-common")
-  compile library.java.joda_time
-  provided library.java.hadoop_common
-  provided library.java.hadoop_hdfs
-  provided library.java.hadoop_mapreduce_client_core
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
-  testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
-  testCompile project(":sdks:java:io:jdbc")
-  testCompile project(path: ":examples:java", configuration: "testRuntime")
-  testCompile project(path: ":examples:java:twitter", configuration: "testRuntime")
-  testCompile "org.elasticsearch.plugin:transport-netty4-client:$elastic_search_version"
-  testCompile library.java.testcontainers_elasticsearch
-  testCompile "org.elasticsearch.client:elasticsearch-rest-high-level-client:$elastic_search_version"
-  testCompile "org.elasticsearch:elasticsearch:$elastic_search_version"
-  testCompile ("org.elasticsearch:elasticsearch-hadoop:$elastic_search_version") {
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.slf4j_api
+  implementation project(":sdks:java:io:hadoop-common")
+  implementation library.java.joda_time
+  compileOnly library.java.hadoop_common
+  compileOnly library.java.hadoop_hdfs
+  compileOnly library.java.hadoop_mapreduce_client_core
+  testCompileOnly project(path: ":sdks:java:core", configuration: "shadowTest")
+  testCompileOnly project(path: ":sdks:java:io:common", configuration: "testRuntime")
+  testCompileOnly project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
+  testCompileOnly project(":sdks:java:io:jdbc")
+  testCompileOnly project(path: ":examples:java", configuration: "testRuntime")
+  testCompileOnly project(path: ":examples:java:twitter", configuration: "testRuntime")
+  testCompileOnly "org.elasticsearch.plugin:transport-netty4-client:$elastic_search_version"
+  testCompileOnly library.java.testcontainers_elasticsearch
+  testCompileOnly "org.elasticsearch.client:elasticsearch-rest-high-level-client:$elastic_search_version"
+  testCompileOnly "org.elasticsearch:elasticsearch:$elastic_search_version"
+  testCompileOnly ("org.elasticsearch:elasticsearch-hadoop:$elastic_search_version") {
     // TODO(https://issues.apache.org/jira/browse/BEAM-3715)
     // These are all optional deps of elasticsearch-hadoop. Why do they have to be excluded?
     exclude group: "cascading", module: "cascading-local"
@@ -85,18 +85,18 @@ dependencies {
     exclude group: "org.apache.spark", module: "spark-sql_2.10"
     exclude group: "org.apache.storm", module: "storm-core"
   }
-  testCompile "org.apache.httpcomponents:httpclient:4.5.13"
-  testCompile library.java.commons_lang3
-  testCompile library.java.commons_io
-  testCompile library.java.cassandra_driver_core
-  testCompile library.java.cassandra_driver_mapping
-  testCompile "org.apache.cassandra:cassandra-all:3.11.8"
-  testCompile library.java.postgres
-  testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile library.java.testcontainers_postgresql
-  testCompile library.java.netty_all
+  testCompileOnly "org.apache.httpcomponents:httpclient:4.5.13"
+  testCompileOnly library.java.commons_lang3
+  testCompileOnly library.java.commons_io
+  testCompileOnly library.java.cassandra_driver_core
+  testCompileOnly library.java.cassandra_driver_mapping
+  testCompileOnly "org.apache.cassandra:cassandra-all:3.11.8"
+  testCompileOnly library.java.postgres
+  testCompileOnly library.java.junit
+  testCompileOnly library.java.hamcrest_core
+  testCompileOnly library.java.hamcrest_library
+  testCompileOnly library.java.testcontainers_postgresql
+  testCompileOnly library.java.netty_all
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 

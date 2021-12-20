@@ -50,28 +50,28 @@ test {
 }
 
 dependencies {
-  compile project(path: ":model:pipeline", configuration: "shadow")
-  compile project(path: ":model:job-management", configuration: "shadow")
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(path: ":sdks:java:fn-execution")
-  compile library.java.vendored_grpc_1_36_0
-  compile library.java.vendored_guava_26_0_jre
-  compile library.java.classgraph
-  compile library.java.jackson_core
-  compile library.java.jackson_databind
-  compile library.java.joda_time
-  compile library.java.slf4j_api
-  compile library.java.jackson_annotations
-  compile library.java.avro
+  implementation project(path: ":model:pipeline", configuration: "shadow")
+  implementation project(path: ":model:job-management", configuration: "shadow")
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(path: ":sdks:java:fn-execution")
+  implementation library.java.vendored_grpc_1_36_0
+  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.classgraph
+  implementation library.java.jackson_core
+  implementation library.java.jackson_databind
+  implementation library.java.joda_time
+  implementation library.java.slf4j_api
+  implementation library.java.jackson_annotations
+  implementation library.java.avro
   compileOnly library.java.error_prone_annotations
-  // Avro 1.8 leaks an older version of paranamer that conflicts in runtime with the dependencies
+  // Avro 1.8 leaks an older version of paranamer that conflicts in runtimeOnly with the dependencies
   // of some runners so we need to fix it to a more recent but still compatible version.
   runtimeOnly "com.thoughtworks.paranamer:paranamer:2.8"
-  testCompile library.java.junit
-  testCompile library.java.mockito_core
-  testCompile library.java.jackson_annotations
-  testCompile library.java.jackson_dataformat_yaml
-  testCompile project(path: ":model:fn-execution", configuration: "shadow")
-  testCompile project(path: ":sdks:java:core", configuration: "testRuntime")
+  testCompileOnly library.java.junit
+  testCompileOnly library.java.mockito_core
+  testCompileOnly library.java.jackson_annotations
+  testCompileOnly library.java.jackson_dataformat_yaml
+  testCompileOnly project(path: ":model:fn-execution", configuration: "shadow")
+  testCompileOnly project(path: ":sdks:java:core", configuration: "testRuntime")
   testRuntimeOnly library.java.slf4j_jdk14
 }

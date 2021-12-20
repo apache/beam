@@ -57,27 +57,27 @@ ext.summary = "This contains the SDK Fn Harness for Beam Java"
 
 dependencies {
   dependOnShadedProjects.each {
-    compile project(path: it, configuration: "shadow")
+    implementation project(path: it, configuration: "shadow")
   }
   dependOnProjects.each {
-    compile project(it)
+    implementation project(it)
   }
   shadow library.java.vendored_guava_26_0_jre
   shadowTest library.java.powermock
   shadowTest library.java.powermock_mockito
-  compile library.java.joda_time
-  compile library.java.slf4j_api
-  compile library.java.vendored_grpc_1_36_0
+  implementation library.java.joda_time
+  implementation library.java.slf4j_api
+  implementation library.java.vendored_grpc_1_36_0
 
   // Swap to use the officially published version of 0.4.x once available
   // instead of relying on a community published copy. See
   // https://github.com/jbellis/jamm/issues/44 for additional details.
-  compile 'io.github.stephankoelle:jamm:0.4.1'
-  testCompile library.java.junit
-  testCompile library.java.mockito_core
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile project(":runners:core-construction-java")
-  testCompile project(path: ":sdks:java:fn-execution", configuration: "testRuntime")
+  implementation 'io.github.stephankoelle:jamm:0.4.1'
+  testCompileOnly library.java.junit
+  testCompileOnly library.java.mockito_core
+  testCompileOnly project(path: ":sdks:java:core", configuration: "shadowTest")
+  testCompileOnly project(":runners:core-construction-java")
+  testCompileOnly project(path: ":sdks:java:fn-execution", configuration: "testRuntime")
   shadowTestRuntimeClasspath library.java.slf4j_jdk14
   jmhCompile project(path: ":sdks:java:harness", configuration: "shadowTest")
   jmhCompile project(":runners:java-fn-execution")

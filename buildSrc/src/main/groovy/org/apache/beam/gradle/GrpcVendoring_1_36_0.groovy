@@ -174,7 +174,7 @@ class GrpcVendoring_1_36_0 {
    */
   static Object dependenciesClosure() {
     return {
-      dependencies().each { compile it }
+      dependencies().each { implementation it }
       runtimeDependencies().each { shadow it }
     }
   }

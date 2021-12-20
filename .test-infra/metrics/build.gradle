@@ -27,8 +27,8 @@ applyGroovyNature()
 repositories { mavenCentral() }
 
 dependencies {
-  testCompile library.groovy.groovy_all
-  testCompile library.java.junit
+  testCompileOnly library.groovy.groovy_all
+  testCompileOnly library.java.junit
 }
 
 task testMetricsStack {

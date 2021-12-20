@@ -27,9 +27,9 @@ ext.summary = """Testing Expansion Service used for executing cross-language tra
 
 
 dependencies {
-  testCompile project(path: ":sdks:java:io:parquet")
-  testCompile project(":sdks:java:expansion-service")
-  testRuntime library.java.hadoop_client
+  testCompileOnly project(path: ":sdks:java:io:parquet")
+  testCompileOnly project(":sdks:java:expansion-service")
+  testRuntimeOnly library.java.hadoop_client
 }
 
 task runTestExpansionService (type: JavaExec) {
@@ -53,7 +53,7 @@ task buildTestExpansionServiceJar(type: ShadowJar) {
   exclude "META-INF/*.DSA"
   exclude "META-INF/*.RSA"
   configurations = [
-    project.configurations.testRuntime
+    project.configurations.testRuntimeOnly
   ]
   from sourceSets.main.output
   from sourceSets.test.output

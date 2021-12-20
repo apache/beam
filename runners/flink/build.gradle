@@ -20,7 +20,7 @@ apply plugin: 'com.diffplug.spotless'
 
 /*
  * This build.gradle file is empty except to configure the spotless task on the java sources.
- * These java sources are included in the subproject's sources in order to compile against the different versions.
+ * These java sources are included in the subproject's sources in order to implementation against the different versions.
  * We configure spotless here once in order to only check these java sources once.
  */
 spotless {
