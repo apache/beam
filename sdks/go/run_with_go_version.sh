@@ -32,7 +32,6 @@ set -e
 # This variable is also used as the execution command downscript.
 # The list of downloadable versions are at https://go.dev/dl/ 
 GOVERS=go1.16.12
-GOBIN=$GOPATH/bin
 
 if ! command -v go &> /dev/null
 then
@@ -49,8 +48,7 @@ case $key in
         shift # past argument
         shift # past value
         ;;
-    *)    # unknown options
-        echo "breaking out: $@"
+    *)  # unknown options are go tool args.
         break
         ;;
 esac
@@ -60,7 +58,14 @@ done
 echo "System Go installation: `which go` is `go version`"
 echo "Preparing to use $GOBIN/$GOVERS"
 
-GOBIN=$GOPATH/bin go install golang.org/dl/$GOVERS@latest
+
+GOPATH=`go env GOPATH`
+GOBIN=$GOPATH/bin
+
+echo GOPATH=$GOPATH
+echo GOBIN=$GOBIN
+
+GOBIN=$GOBIN go install golang.org/dl/$GOVERS@latest
 
 # This operation is cached on system and won't be re-downloaded.
 $GOBIN/$GOVERS download
