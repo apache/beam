@@ -16,8 +16,11 @@
  * limitations under the License.
  */
 
-/** User model for the Spanner change stream API. */
-@Experimental
-package org.apache.beam.sdk.io.gcp.spanner.changestreams.encoder;
+const kIncorrectTabSymbol = '	';
+const kTabSymbolReplacement = '  ';
 
-import org.apache.beam.sdk.annotations.Experimental;
+/// sometimes code contains incorrect symbols (like tab which doesn't look properly),
+/// replace it with correct ones
+String replaceIncorrectSymbols(String output) {
+  return output.replaceAll(kIncorrectTabSymbol, kTabSymbolReplacement);
+}
