@@ -119,11 +119,8 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 	}
 
 	// Check if unit test
-	isUnitTest := false
-	validateIsUnitTest, ok := validationResults.Load(validators.UnitTestValidatorName)
-	if ok && validateIsUnitTest.(bool) {
-		isUnitTest = true
-	}
+	validateIsUnitTest, _ := validationResults.Load(validators.UnitTestValidatorName)
+	isUnitTest := validateIsUnitTest.(bool)
 
         // This condition is used for cases when the playground doesn't compile source files. For the Python code and the Go Unit Tests
 	if sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_PYTHON || (sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_GO && isUnitTest) {
