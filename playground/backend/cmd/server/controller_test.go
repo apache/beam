@@ -174,8 +174,7 @@ func TestPlaygroundController_RunCode(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			opts := []grpc.DialOption{grpc.WithContextDialer(bufDialer), grpc.WithTransportCredentials(insecure.NewCredentials())}
-			conn, err := grpc.DialContext(tt.args.ctx, "bufnet", opts...)
+			conn, err := grpc.DialContext(tt.args.ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithInsecure())
 			if err != nil {
 				t.Fatalf("Failed to dial bufnet: %v", err)
 			}
@@ -289,8 +288,7 @@ func TestPlaygroundController_GetCompileOutput(t *testing.T) {
 	ctx := context.Background()
 	pipelineId := uuid.New()
 	compileOutput := "MOCK_COMPILE_OUTPUT"
-	opts := []grpc.DialOption{grpc.WithContextDialer(bufDialer), grpc.WithTransportCredentials(insecure.NewCredentials())}
-	conn, err := grpc.DialContext(ctx, "bufnet", opts...)
+	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithInsecure())
 	if err != nil {
 		t.Fatalf("Failed to dial bufnet: %v", err)
 	}
@@ -369,8 +367,7 @@ func TestPlaygroundController_GetRunOutput(t *testing.T) {
 	ctx := context.Background()
 	pipelineId := uuid.New()
 	runOutput := "MOCK_RUN_OUTPUT"
-	opts := []grpc.DialOption{grpc.WithContextDialer(bufDialer), grpc.WithTransportCredentials(insecure.NewCredentials())}
-	conn, err := grpc.DialContext(ctx, "bufnet", opts...)
+	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithInsecure())
 	if err != nil {
 		t.Fatalf("Failed to dial bufnet: %v", err)
 	}
@@ -479,8 +476,7 @@ func TestPlaygroundController_GetLogs(t *testing.T) {
 	ctx := context.Background()
 	pipelineId := uuid.New()
 	logs := "MOCK_LOGS"
-	opts := []grpc.DialOption{grpc.WithContextDialer(bufDialer), grpc.WithTransportCredentials(insecure.NewCredentials())}
-	conn, err := grpc.DialContext(ctx, "bufnet", opts...)
+	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithInsecure())
 	if err != nil {
 		t.Fatalf("Failed to dial bufnet: %v", err)
 	}
@@ -589,8 +585,7 @@ func TestPlaygroundController_GetRunError(t *testing.T) {
 	ctx := context.Background()
 	pipelineId := uuid.New()
 	runError := "MOCK_RUN_ERROR"
-	opts := []grpc.DialOption{grpc.WithContextDialer(bufDialer), grpc.WithTransportCredentials(insecure.NewCredentials())}
-	conn, err := grpc.DialContext(ctx, "bufnet", opts...)
+	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithInsecure())
 	if err != nil {
 		t.Fatalf("Failed to dial bufnet: %v", err)
 	}
@@ -682,8 +677,7 @@ func TestPlaygroundController_Cancel(t *testing.T) {
 	defer goleak.VerifyNone(t, opt)
 	ctx := context.Background()
 	pipelineId := uuid.New()
-	opts := []grpc.DialOption{grpc.WithContextDialer(bufDialer), grpc.WithTransportCredentials(insecure.NewCredentials())}
-	conn, err := grpc.DialContext(ctx, "bufnet", opts...)
+	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithInsecure())
 	if err != nil {
 		t.Fatalf("Failed to dial bufnet: %v", err)
 	}
