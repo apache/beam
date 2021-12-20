@@ -19,7 +19,8 @@ package org.apache.beam.examples;
 
 // beam-playground:
 //   name: DebuggingWordCount
-//   description: An example that counts words in Shakespeare/kinglear.txt includes regex filter("Flourish|stomach").
+//   description: An example that counts words in Shakespeare/kinglear.txt includes regex
+//     filter("Flourish|stomach").
 //   multifile: false
 //   pipeline_options: --output output.txt
 //   categories:
