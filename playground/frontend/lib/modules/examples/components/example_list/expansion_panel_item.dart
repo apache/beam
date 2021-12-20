@@ -26,8 +26,15 @@ import 'package:provider/provider.dart';
 
 class ExpansionPanelItem extends StatelessWidget {
   final ExampleModel example;
+  final AnimationController animationController;
+  final OverlayEntry? dropdown;
 
-  const ExpansionPanelItem({Key? key, required this.example}) : super(key: key);
+  const ExpansionPanelItem({
+    Key? key,
+    required this.example,
+    required this.animationController,
+    required this.dropdown,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -37,6 +44,9 @@ class ExpansionPanelItem extends StatelessWidget {
         child: GestureDetector(
           onTap: () async {
             if (playgroundState.selectedExample != example) {
+              animationController.reverse();
+              dropdown?.remove();
+              exampleState.changeSelectorVisibility();
               final exampleWithInfo = await exampleState.loadExampleInfo(
                 example,
                 playgroundState.sdk,

@@ -159,7 +159,11 @@ class _ExampleSelectorState extends State<ExampleSelector>
                           children: [
                             SearchField(controller: textController),
                             const TypeFilter(),
-                            ExampleList(controller: scrollController),
+                            ExampleList(
+                              controller: scrollController,
+                              animationController: animationController,
+                              dropdown: examplesDropdown,
+                            ),
                           ],
                         ),
                       ),
