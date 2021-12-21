@@ -54,14 +54,14 @@ def mock_get_run_output(mocker):
 def mock_get_compile_output(mocker):
   async_mock = AsyncMock(return_value="MOCK_COMPILE_OUTPUT")
   mocker.patch(
-    "grpc_client.GRPCClient.get_compile_output", side_effect=async_mock)
+      "grpc_client.GRPCClient.get_compile_output", side_effect=async_mock)
   return async_mock
 
 
 class TestGRPCClient:
   @pytest.mark.asyncio
   async def test_run_code(self, mock_run_code):
-    result = await GRPCClient().run_code("", api_pb2.SDK_GO)
+    result = await GRPCClient().run_code("", api_pb2.SDK_GO, "")
     assert isinstance(result, str)
 
   @pytest.mark.asyncio

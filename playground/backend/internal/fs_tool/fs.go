@@ -26,7 +26,8 @@ import (
 )
 
 const (
-	fileMode = 0600
+	fileMode    = 0600
+	logFileName = "logs.log"
 )
 
 // Folder contains names of folders with executable and compiled files.
@@ -114,21 +115,8 @@ func (l *LifeCycle) GetAbsoluteSourceFilePath() string {
 	return absoluteFilePath
 }
 
-// CopyFiles copies a prepared go.mod and go.sum in baseFileFolder for executing beam pipeline with go SDK
-func (l *LifeCycle) CopyFiles(workingDir, preparedModDir string) error {
-	err := copyFile("go.mod", preparedModDir, filepath.Join(workingDir, baseFileFolder))
-	if err != nil {
-		return err
-	}
-	err = copyFile("go.sum", preparedModDir, filepath.Join(workingDir, baseFileFolder))
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// copyFile copies a file with fileName from sourceDir to destinationDir.
-func copyFile(fileName, sourceDir, destinationDir string) (err error) {
+// CopyFile copies a file with fileName from sourceDir to destinationDir.
+func (l *LifeCycle) CopyFile(fileName, sourceDir, destinationDir string) error {
 	absSourcePath := filepath.Join(sourceDir, fileName)
 	absDestinationPath := filepath.Join(destinationDir, fileName)
 	sourceFileStat, err := os.Stat(absSourcePath)
@@ -169,5 +157,18 @@ func (l *LifeCycle) GetAbsoluteExecutableFilePath() string {
 // GetAbsoluteBaseFolderPath returns absolute path to executable folder (/path/to/workingDir/executable_files/{pipelineId}).
 func (l *LifeCycle) GetAbsoluteBaseFolderPath() string {
 	absoluteFilePath, _ := filepath.Abs(l.Folder.BaseFolder)
+	return absoluteFilePath
+}
+
+// GetAbsoluteLogFilePath returns absolute path to the logs file (/path/to/workingDir/executable_files/{pipelineId}/logs.log)
+func (l *LifeCycle) GetAbsoluteLogFilePath() string {
+	filePath := filepath.Join(l.Folder.BaseFolder, logFileName)
+	absoluteFilePath, _ := filepath.Abs(filePath)
+	return absoluteFilePath
+}
+
+// GetAbsoluteSourceFolderPath returns absolute path to executable folder (/path/to/workingDir/executable_files/{pipelineId}/src).
+func (l *LifeCycle) GetAbsoluteSourceFolderPath() string {
+	absoluteFilePath, _ := filepath.Abs(l.Folder.SourceFileFolder)
 	return absoluteFilePath
 }

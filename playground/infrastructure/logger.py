@@ -33,7 +33,7 @@ def setup_logger():
   log = logging.getLogger()
   log.setLevel(logging.INFO)
   formatter = logging.Formatter(
-    '[%(asctime)s] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s'
+      '[%(asctime)s] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s'
   )
 
   stdout_handler = logging.StreamHandler(sys.stdout)

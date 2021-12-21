@@ -16,7 +16,7 @@
 # limitations under the License.
 ###############################################################################
 
-FROM golang:1.16.0-buster
+FROM golang:1.16-bullseye
 RUN go get github.com/google/go-licenses
 COPY get-licenses.sh /opt/apache/beam/
 ARG sdk_location

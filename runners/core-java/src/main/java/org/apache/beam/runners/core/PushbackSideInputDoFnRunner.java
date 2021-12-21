@@ -52,6 +52,9 @@ public interface PushbackSideInputDoFnRunner<InputT, OutputT> {
       Instant outputTimestamp,
       TimeDomain timeDomain);
 
+  /** Calls the underlying {@link DoFn.OnWindowExpiration} method. */
+  <KeyT> void onWindowExpiration(BoundedWindow window, Instant outputTimestamp, KeyT key);
+
   /** Calls the underlying {@link DoFn.FinishBundle} method. */
   void finishBundle();
 

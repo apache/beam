@@ -38,15 +38,15 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.junit.AfterClass;
+import org.junit.ClassRule;
 import org.junit.Ignore;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class RecommendationAICatalogItemIT {
-  @Rule public static TestPipeline testPipeline = TestPipeline.create();
+  @ClassRule public static TestPipeline testPipeline = TestPipeline.create();
   private static String projectId = testPipeline.getOptions().as(GcpOptions.class).getProject();
   private static final String randomId =
       "aitest-" + Instant.now().getEpochSecond() + UUID.randomUUID().toString();

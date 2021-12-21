@@ -38,6 +38,7 @@ from apache_beam.dataframe import convert
 from apache_beam.dataframe import io
 from apache_beam.io import restriction_trackers
 from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 
 
 class SimpleRow(typing.NamedTuple):
@@ -75,6 +76,19 @@ class IOTest(unittest.TestCase):
           yield line.rstrip('\n')
       if delete:
         os.remove(path)
+
+  def test_read_fwf(self):
+    input = self.temp_dir(
+        {'all.fwf': '''
+A     B
+11a   0
+37a   1
+389a  2
+    '''.strip()})
+    with beam.Pipeline() as p:
+      df = p | io.read_fwf(input + 'all.fwf')
+      rows = convert.to_pcollection(df) | beam.Map(tuple)
+      assert_that(rows, equal_to([('11a', 0), ('37a', 1), ('389a', 2)]))
 
   def test_read_write_csv(self):
     input = self.temp_dir({'1.csv': 'a,b\n1,2\n', '2.csv': 'a,b\n3,4\n'})
@@ -229,6 +243,19 @@ class IOTest(unittest.TestCase):
     self.assertGreater(
         min(len(s) for s in splits), len(numbers) * 0.9**20 * 0.1)
 
+  def _run_truncating_file_handle_iter_test(self, s, delim=' ', chunk_size=10):
+    tracker = restriction_trackers.OffsetRestrictionTracker(
+        restriction_trackers.OffsetRange(0, len(s)))
+    handle = io._TruncatingFileHandle(
+        StringIO(s), tracker, splitter=io._DelimSplitter(delim, chunk_size))
+    self.assertEqual(s, ''.join(list(handle)))
+
+  def test_truncating_filehandle_iter(self):
+    self._run_truncating_file_handle_iter_test('a b c')
+    self._run_truncating_file_handle_iter_test('aaaaaaaaaaaaaaaaaaaa b ccc')
+    self._run_truncating_file_handle_iter_test('aaa b cccccccccccccccccccc')
+    self._run_truncating_file_handle_iter_test('aaa b ccccccccccccccccc ')
+
   @parameterized.expand([
       ('defaults', {}),
       ('header', dict(header=1)),
@@ -259,7 +286,7 @@ class IOTest(unittest.TestCase):
               BytesIO(contents.encode('ascii')),
               restriction_trackers.OffsetRestrictionTracker(
                   restriction_trackers.OffsetRange(start, stop)),
-              splitter=io._CsvSplitter((), kwargs, read_chunk_size=7)),
+              splitter=io._TextFileSplitter((), kwargs, read_chunk_size=7)),
           index_col=0,
           **kwargs)
 

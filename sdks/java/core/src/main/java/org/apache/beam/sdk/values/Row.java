@@ -732,7 +732,6 @@ public abstract class Row implements Serializable {
   public static class Builder {
     private List<Object> values = Lists.newArrayList();
     private final Schema schema;
-    private Row nullRow;
 
     Builder(Schema schema) {
       this.schema = schema;

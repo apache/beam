@@ -41,8 +41,6 @@ import org.apache.beam.sdk.fn.data.RemoteGrpcPortWrite;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Registers as a consumer with the Beam Fn Data Api. Consumes elements and encodes them for
@@ -56,8 +54,6 @@ import org.slf4j.LoggerFactory;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class BeamFnDataWriteRunner<InputT> {
-
-  private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataWriteRunner.class);
 
   /** A registrar which provides a factory to handle writing to the Fn Api Data Plane. */
   @AutoService(PTransformRunnerFactory.Registrar.class)
@@ -78,6 +74,7 @@ public class BeamFnDataWriteRunner<InputT> {
 
       BeamFnDataWriteRunner<InputT> runner =
           new BeamFnDataWriteRunner<>(
+              context.getBundleCacheSupplier(),
               context.getPTransformId(),
               context.getPTransform(),
               context.getProcessBundleInstructionIdSupplier(),
@@ -104,6 +101,7 @@ public class BeamFnDataWriteRunner<InputT> {
   private CloseableFnDataReceiver<WindowedValue<InputT>> consumer;
 
   BeamFnDataWriteRunner(
+      Supplier<Cache<?, ?>> cache,
       String pTransformId,
       RunnerApi.PTransform remoteWriteNode,
       Supplier<String> processBundleInstructionIdSupplier,
@@ -125,6 +123,11 @@ public class BeamFnDataWriteRunner<InputT> {
                 coders.get(port.getCoderId()),
                 components,
                 new StateBackedIterableTranslationContext() {
+                  @Override
+                  public Supplier<Cache<?, ?>> getCache() {
+                    return cache;
+                  }
+
                   @Override
                   public BeamFnStateClient getStateClient() {
                     return beamFnStateClient;

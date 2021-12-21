@@ -208,7 +208,6 @@ public class PCollectionConsumerRegistry {
    */
   private class MetricTrackingFnDataReceiver<T> implements FnDataReceiver<WindowedValue<T>> {
     private final FnDataReceiver<WindowedValue<T>> delegate;
-    private final String pTransformId;
     private final SimpleExecutionState state;
     private final Counter unboundedElementCountCounter;
     private final SampleByteSizeDistribution<T> unboundedSampledByteSizeDistribution;
@@ -219,7 +218,6 @@ public class PCollectionConsumerRegistry {
         String pCollectionId, ConsumerAndMetadata consumerAndMetadata) {
       this.delegate = consumerAndMetadata.getConsumer();
       this.state = consumerAndMetadata.getExecutionState();
-      this.pTransformId = consumerAndMetadata.getPTransformId();
       HashMap<String, String> labels = new HashMap<String, String>();
       labels.put(Labels.PCOLLECTION, pCollectionId);
 
