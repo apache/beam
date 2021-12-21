@@ -1785,42 +1785,6 @@ class BeamModulePlugin implements Plugin<Project> {
       // Define common lifecycle tasks and artifact types
       project.apply plugin: 'base'
 
-      // project.apply plugin: "com.github.blindpirate.gogradle"
-      // project.golang { goVersion = '1.16.12' }
-
-      // project.repositories {
-      //   golang {
-      //     // Gogradle doesn't like thrift: https://github.com/gogradle/gogradle/issues/183
-      //     root 'git.apache.org/thrift.git'
-      //     emptyDir()
-      //   }
-      //   golang {
-      //     root 'github.com/apache/thrift'
-      //     emptyDir()
-      //   }
-      //   project.clean.dependsOn project.goClean
-      //   project.check.dependsOn project.goCheck
-      //   project.assemble.dependsOn project.goBuild
-      // }
-
-      // project.idea {
-      //   module {
-      //     // The gogradle plugin downloads all dependencies into the source tree here,
-      //     // which is a path baked into golang
-      //     excludeDirs += project.file("${project.path}/vendor")
-
-      //     // gogradle's private working directory
-      //     excludeDirs += project.file("${project.path}/.gogradle")
-      //   }
-      // }
-
-      // // Clean up the vendor directory that the gogragle plugin sets up on build.
-      // project.tasks.create(name: 'cleanVendor', type: Delete) {
-      //   doFirst {
-      //     delete project.file("vendor")
-      //   }
-      // }
-
       // For some reason base doesn't define a test task  so we define it below and make
       // check depend on it. This makes the Go project similar to the task layout like
       // Java projects, see https://docs.gradle.org/4.2.1/userguide/img/javaPluginTasks.png
