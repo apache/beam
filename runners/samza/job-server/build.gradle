@@ -42,14 +42,14 @@ configurations {
 }
 
 dependencies {
-  compile project(samzaRunnerProject)
+  implementation project(samzaRunnerProject)
   permitUnusedDeclared project(samzaRunnerProject)
-  runtime group: "org.slf4j", name: "jcl-over-slf4j", version: dependencies.create(project.library.java.slf4j_api).getVersion()
+  runtimeOnly group: "org.slf4j", name: "jcl-over-slf4j", version: dependencies.create(project.library.java.slf4j_api).getVersion()
   validatesPortableRunner project(path: samzaRunnerProject, configuration: "testRuntime")
   validatesPortableRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesPortableRunner project(path: ":runners:core-java", configuration: "testRuntime")
   validatesPortableRunner project(path: ":runners:portability:java", configuration: "testRuntime")
-  runtime library.java.slf4j_simple
+  runtimeOnly library.java.slf4j_simple
 }
 
 runShadow {
