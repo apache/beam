@@ -44,9 +44,7 @@ class ExpansionPanelItem extends StatelessWidget {
         child: GestureDetector(
           onTap: () async {
             if (playgroundState.selectedExample != example) {
-              animationController.reverse();
-              dropdown?.remove();
-              exampleState.changeSelectorVisibility();
+              closeDropdown(exampleState);
               final exampleWithInfo = await exampleState.loadExampleInfo(
                 example,
                 playgroundState.sdk,
@@ -69,5 +67,11 @@ class ExpansionPanelItem extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  void closeDropdown(ExampleState exampleState) {
+    animationController.reverse();
+    dropdown?.remove();
+    exampleState.changeSelectorVisibility();
   }
 }
