@@ -21,14 +21,16 @@
 
 ## About
 
-Beam Playground helps facilitate trying out and adopting [Apache Beam](https://beam.apache.org/) by providing a very quick way for prospective Beam
-users to see and run examples of Apache Beam pipelines in a web interface that requires no setup.
+Beam Playground helps facilitate trying out and adopting [Apache Beam](https://beam.apache.org/) by providing a very
+quick way for prospective Beam users to see and run examples of Apache Beam pipelines in a web interface that requires
+no setup.
 
 ## Getting Started
 
 See [playground/README.md](../README.md) for details on requirements and setup.
 
 This section describes what is needed to run the backend application.
+
 - Go commands to run/test the backend locally
 - Set up environment variables to run the backend locally
 - Running the backend via Docker
@@ -69,13 +71,13 @@ These environment variables should be set to run the backend locally:
 - `APP_WORK_DIR` - is the directory where all folders will be placed to process each code processing request
 - `PREPARED_MOD_DIR` - is the directory where prepared go.mod and go.sum files are placed. It is used only for Go SDK
 
-There are also environment variables which are needed for the deployment of Apache Beam Playground.
-These variables have default value and there is no need to set them up to launch locally:
+There are also environment variables which are needed for the deployment of Apache Beam Playground. These variables have
+default value and there is no need to set them up to launch locally:
 
 - `SERVER_IP` - is the IP address of the backend server (default value = `localhost`)
 - `SERVER_PORT` - is the PORT of the backend server (default value = `8080`)
-- `CACHE_TYPE` - is a type of the cache service which is used for the backend server. If it is set as a `remote`, then the
-  backend server will use Redis to keep all cache values (default value = `local`)
+- `CACHE_TYPE` - is a type of the cache service which is used for the backend server. If it is set as a `remote`, then
+  the backend server will use Redis to keep all cache values (default value = `local`)
 - `CACHE_ADDRESS` - is an address of the Redis server. It is used only when `CACHE_TYPE=remote` (default value
   = `localhost:6379`)
 - `BEAM_PATH` - it is the place where all required for the Java SDK libs are placed
@@ -83,6 +85,9 @@ These variables have default value and there is no need to set them up to launch
 - `KEY_EXPIRATION_TIME` - is the expiration time of the keys in the cache (default value = `15 min`)
 - `PIPELINE_EXPIRATION_TIMEOUT` - is the expiration time of the code processing (default value = `15 min`)
 - `PROTOCOL_TYPE` - is the type of the backend server protocol. It could be `TCP` or `HTTP` (default value = `HTTP`)
+- `NUM_PARALLEL_JOBS` - is the max number of the code processing requests which could be processed on the backend server
+  at the same time (default value = `20`). This value is used to check readiness of the backend server. If server
+  processes max number of the code processing requests then need to deploy a new instance.
 
 ### Running the server app via Docker
 
