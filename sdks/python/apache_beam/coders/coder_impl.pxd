@@ -236,13 +236,18 @@ cdef class LengthPrefixCoderImpl(StreamCoderImpl):
 
 cdef class RowCoderImpl(StreamCoderImpl):
   cdef object schema
+  cdef int num_fields
+  cdef list field_names
   cdef object constructor
   cdef list encoding_positions
-  cdef object encoding_positions_argsort
+  cdef list encoding_positions_argsort
   cdef list components
   cdef bint has_nullable_fields
 
+  @cython.locals(i=int, component_coder=CoderImpl)
   cpdef decode_from_stream(self, InputStream stream, bint nested)
+
+  @cython.locals(i=int, component_coder=CoderImpl)
   cpdef encode_to_stream(self, value, OutputStream stream, bint nested)
 
 
