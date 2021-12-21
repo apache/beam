@@ -1580,11 +1580,11 @@ class TimestampPrefixingWindowCoderImpl(StreamCoderImpl):
 
 class RowCoderImpl(StreamCoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
-  SIZE_CODER = VarIntCoderImpl()
-  NULL_MARKER_CODER = BytesCoderImpl()
 
   def __init__(self, schema, components):
     self.schema = schema
+    self.num_fields = len(self.schema.fields)
+    self.field_names = [f.name for f in self.schema.fields]
     self.constructor = named_tuple_from_schema(schema)
     self.encoding_positions = list(range(len(self.schema.fields)))
     if self.schema.encoding_positions_set:
@@ -1597,7 +1597,7 @@ class RowCoderImpl(StreamCoderImpl):
             but not all fields have encoding_position set''')
       self.encoding_positions = list(
           field.encoding_position for field in self.schema.fields)
-    self.encoding_positions_argsort = np.argsort(self.encoding_positions)
+    self.encoding_positions_argsort = list(np.argsort(self.encoding_positions))
     self.components = list(
         components[self.encoding_positions.index(i)].get_impl()
         for i in self.encoding_positions)
@@ -1605,19 +1605,24 @@ class RowCoderImpl(StreamCoderImpl):
         field.type.nullable for field in self.schema.fields)
 
   def encode_to_stream(self, value, out, nested):
-    nvals = len(self.schema.fields)
-    self.SIZE_CODER.encode_to_stream(nvals, out, True)
-    attrs = [getattr(value, f.name) for f in self.schema.fields]
+    out.write_var_int64(self.num_fields)
+    attrs = [getattr(value, name) for name in self.field_names]
 
-    words = array('B')
     if self.has_nullable_fields:
-      nulls = [attr is None for attr in attrs]
-      if any(nulls):
-        words = array('B', itertools.repeat(0, (nvals + 7) // 8))
-        for i, is_null in enumerate(nulls):
-          words[i // 8] |= is_null << (i % 8)
-
-    self.NULL_MARKER_CODER.encode_to_stream(words.tobytes(), out, True)
+      any_nulls = False
+      for attr in attrs:
+        if attr is None:
+          any_nulls = True
+          break
+      if any_nulls:
+        words = array('B', itertools.repeat(0, (self.num_fields + 7) // 8))
+        for i, attr in enumerate(attrs):
+          words[i // 8] |= (attr is None) << (i % 8)
+        out.write(words.tobytes(), True)
+      else:
+        out.write_byte(0)
+    else:
+      out.write_byte(0)
 
     for i in self.encoding_positions_argsort:
       if attrs[i] is None:
@@ -1626,35 +1631,38 @@ class RowCoderImpl(StreamCoderImpl):
               "Attempted to encode null for non-nullable field \"{}\".".format(
                   self.schema.fields[i].name))
         continue
-      self.components[i].encode_to_stream(attrs[i], out, True)
+      component_coder = self.components[i]  # for typing
+      component_coder.encode_to_stream(attrs[i], out, True)
 
   def decode_from_stream(self, in_stream, nested):
-    nvals = self.SIZE_CODER.decode_from_stream(in_stream, True)
-    words = array('B')
-    words.frombytes(self.NULL_MARKER_CODER.decode_from_stream(in_stream, True))
-
-    if words:
+    nvals = in_stream.read_var_int64()
+    words_bytes = in_stream.read_all(True)
+    if words_bytes:
+      has_nulls = True
+      words = array('B')
+      words.frombytes(words_bytes)
       nulls = [
           0 if i // 8 >= len(words) else ((words[i // 8] >> (i % 8)) & 0x01)
           for i in range(nvals)]
+      # If this coder's schema has more attributes than the encoded value, then
+      # the schema must have changed. Populate the unencoded fields with nulls.
+      if len(self.components) > nvals:
+        nulls += [True] * (len(self.components) - nvals)
     else:
-      nulls = itertools.repeat(False, nvals)
-
-    # If this coder's schema has more attributes than the encoded value, then
-    # the schema must have changed. Populate the unencoded fields with nulls.
-    if len(self.components) > nvals:
-      nulls = itertools.chain(
-          nulls, itertools.repeat(True, len(self.components) - nvals))
+      has_nulls = False
 
     # Note that if this coder's schema has *fewer* attributes than the encoded
     # value, we just need to ignore the additional values, which will occur
     # here because we only decode as many values as we have coders for.
 
-    sorted_components = [
-        None if is_null else self.components[c].decode_from_stream(
-            in_stream, True) for c,
-        is_null in zip(self.encoding_positions_argsort, nulls)
-    ]
+    sorted_components = []
+    for i in self.encoding_positions_argsort:
+      if has_nulls and nulls[i]:
+        item = None
+      else:
+        component_coder = self.components[i]  # for typing
+        item = component_coder.decode_from_stream(in_stream, True)
+      sorted_components.append(item)
 
     return self.constructor(
         *[sorted_components[i] for i in self.encoding_positions])
