@@ -1210,14 +1210,9 @@ public class PubsubIO {
       }
 
       PCollection<KV<PubsubTopic, PubsubMessage>> pubsubMessages =
-          input
-              .apply(
-                  new PreparePubsubWrite<>(
-                      getDynamicDestinations(), getFormatFn(), getTopicProvider()))
-              .setCoder(
-                  KvCoder.of(
-                      SerializableCoder.of(PubsubTopic.class),
-                      PubsubMessageWithAttributesCoder.of()));
+          input.apply(
+              new PreparePubsubWrite<>(
+                  getDynamicDestinations(), getFormatFn(), getTopicProvider()));
 
       switch (input.isBounded()) {
         case BOUNDED:

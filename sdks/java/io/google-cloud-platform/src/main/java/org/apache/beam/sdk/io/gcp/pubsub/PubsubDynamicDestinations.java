@@ -18,19 +18,10 @@
 package org.apache.beam.sdk.io.gcp.pubsub;
 
 import java.io.Serializable;
-
-import org.apache.beam.sdk.coders.CannotProvideCoderException;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinations;
 import org.apache.beam.sdk.io.gcp.bigquery.TableDestination;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.checkerframework.checker.nullness.qual.Nullable;
-
-import static org.apache.beam.sdk.values.TypeDescriptors.extractFromTypeParameters;
 
 public abstract class PubsubDynamicDestinations<T, DestinationT> implements Serializable {
 
