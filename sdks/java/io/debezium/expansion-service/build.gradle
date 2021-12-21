@@ -31,11 +31,11 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Debezium :: Expansion Servic
 ext.summary = "Expansion service serving DebeziumIO"
 
 dependencies {
-    compile project(":sdks:java:expansion-service")
+    implementation project(":sdks:java:expansion-service")
     permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
-    compile project(":sdks:java:io:debezium")
+    implementation project(":sdks:java:io:debezium")
     permitUnusedDeclared project(":sdks:java:io:debezium") // BEAM-11761
-    runtime library.java.slf4j_jdk14
+    runtimeOnly library.java.slf4j_jdk14
 
     // Debezium runtime dependencies
     def debezium_version = '1.3.1.Final'

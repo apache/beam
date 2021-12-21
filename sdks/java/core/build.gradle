@@ -78,9 +78,9 @@ dependencies {
   shadow library.java.vendored_bytebuddy_1_11_0
   shadow library.java.vendored_grpc_1_36_0
   shadow library.java.vendored_guava_26_0_jre
-  compile library.java.antlr_runtime
-  compile library.java.commons_compress
-  compile library.java.commons_lang3
+  implementation library.java.antlr_runtime
+  implementation library.java.commons_compress
+  implementation library.java.commons_lang3
   shadow library.java.jsr305
   shadow library.java.error_prone_annotations
   shadow library.java.jackson_core

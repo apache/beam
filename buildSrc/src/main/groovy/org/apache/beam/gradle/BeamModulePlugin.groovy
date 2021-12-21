@@ -94,7 +94,7 @@ class BeamModulePlugin implements Plugin<Project> {
   }
 
   /** A class defining the set of configurable properties accepted by applyJavaNature. */
-  class JavaNatureConfiguration {
+  static class JavaNatureConfiguration {
     /** Controls whether the spotbugs plugin is enabled and configured. */
     boolean enableSpotbugs = true
 
@@ -177,7 +177,7 @@ class BeamModulePlugin implements Plugin<Project> {
   }
 
   /** A class defining the set of configurable properties accepted by applyPortabilityNature. */
-  class PortabilityNatureConfiguration {
+  static class PortabilityNatureConfiguration {
     /**
      * The set of excludes that should be used during validation of the shadow jar. Projects should override
      * the default with the most specific set of excludes that is valid for the contents of its shaded jar.
@@ -211,7 +211,7 @@ class BeamModulePlugin implements Plugin<Project> {
   }
 
   // A class defining the set of configurable properties for createJavaExamplesArchetypeValidationTask
-  class JavaExamplesArchetypeValidationConfiguration {
+  static class JavaExamplesArchetypeValidationConfiguration {
     // Type [Quickstart, MobileGaming] for the postrelease validation is required.
     // Used both for the test name run${type}Java${runner}
     // and also for the script name, ${type}-java-${runner}.toLowerCase().
@@ -237,7 +237,7 @@ class BeamModulePlugin implements Plugin<Project> {
   }
 
   // Reads and contains all necessary performance test parameters
-  class JavaPerformanceTestConfiguration {
+  static class JavaPerformanceTestConfiguration {
     // Optional. Runner which will be used for running the tests. Possible values: dataflow/direct.
     // PerfKitBenchmarker will have trouble reading 'null' value. It expects empty string if no config file is expected.
     String runner = System.getProperty('integrationTestRunner', '')
@@ -251,7 +251,7 @@ class BeamModulePlugin implements Plugin<Project> {
   }
 
   // Reads and contains all necessary performance test parameters
-  class PythonPerformanceTestConfiguration {
+  static class PythonPerformanceTestConfiguration {
     // Fully qualified name of the test to run.
     String tests = System.getProperty('tests')
 
@@ -269,14 +269,14 @@ class BeamModulePlugin implements Plugin<Project> {
   }
 
   // A class defining the set of configurable properties accepted by containerImageName.
-  class ContainerImageNameConfiguration {
+  static class ContainerImageNameConfiguration {
     String root = null // Sets the docker repository root (optional).
     String name = null // Sets the short container image name, such as "go" (required).
     String tag = null // Sets the image tag (optional).
   }
 
   // A class defining the configuration for PortableValidatesRunner.
-  class PortableValidatesRunnerConfiguration {
+  static class PortableValidatesRunnerConfiguration {
     // Task name for validate runner case.
     String name = 'validatesPortableRunner'
     // Fully qualified JobServerClass name to use.
@@ -315,7 +315,7 @@ class BeamModulePlugin implements Plugin<Project> {
   }
 
   // A class defining the configuration for CrossLanguageValidatesRunner.
-  class CrossLanguageValidatesRunnerConfiguration {
+  static class CrossLanguageValidatesRunnerConfiguration {
     // Task name for cross-language validate runner case.
     String name = 'validatesCrossLanguageRunner'
     // Java pipeline options to use.
@@ -435,8 +435,8 @@ class BeamModulePlugin implements Plugin<Project> {
     //
     // Example usage:
     // configuration {
-    //   compile library.java.avro
-    //   testCompile library.java.junit
+    //   implementation library.java.avro
+    //   testImplementation library.java.junit
     // }
 
     // These versions are defined here because they represent
@@ -766,16 +766,16 @@ class BeamModulePlugin implements Plugin<Project> {
     // When the shadowClosure argument is specified, the shadow plugin is enabled to perform shading
     // of commonly found dependencies. Because of this it is important that dependencies are added
     // to the correct configuration. Dependencies should fall into one of these four configurations:
-    //  * compile     - Required during compilation or runtime of the main source set.
-    //                  This configuration represents all dependencies that much also be shaded away
-    //                  otherwise the generated Maven pom will be missing this dependency.
-    //  * shadow      - Required during compilation or runtime of the main source set.
-    //                  Will become a runtime dependency of the generated Maven pom.
-    //  * testCompile - Required during compilation or runtime of the test source set.
-    //                  This must be shaded away in the shaded test jar.
-    //  * shadowTest  - Required during compilation or runtime of the test source set.
-    //                  TODO: Figure out whether this should be a test scope dependency
-    //                  of the generated Maven pom.
+    //  * implementation     - Required during compilation or runtime of the main source set.
+    //                         This configuration represents all dependencies that much also be shaded away
+    //                         otherwise the generated Maven pom will be missing this dependency.
+    //  * shadow             - Required during compilation or runtime of the main source set.
+    //                         Will become a runtime dependency of the generated Maven pom.
+    //  * testImplementation - Required during compilation or runtime of the test source set.
+    //                         This must be shaded away in the shaded test jar.
+    //  * shadowTest  -        Required during compilation or runtime of the test source set.
+    //                         TODO: Figure out whether this should be a test scope dependency
+    //                         of the generated Maven pom.
     //
     // When creating a cross-project dependency between two Java projects, one should only rely on
     // the shaded configurations if the project has a shadowClosure being specified. This allows
@@ -797,6 +797,16 @@ class BeamModulePlugin implements Plugin<Project> {
       }
 
       project.apply plugin: "java"
+
+      // TODO(BEAM-13430): We update the testRuntime configuration here to
+      // extend testImplementation and testRuntimeOnly. This allows for the
+      // start of the migration to Gradle 7. We want to remove this and migrate
+      // usages onto testImplementation, testRuntimeOnly or both when declared
+      // as a dependency.
+      project.configurations {
+        testRuntime.extendsFrom(testImplementation)
+        testRuntime.extendsFrom(testRuntimeOnly)
+      }
 
       // Configure the Java compiler source language and target compatibility levels. Also ensure that
       // we configure the Java compiler to use UTF-8.
@@ -892,6 +902,13 @@ class BeamModulePlugin implements Plugin<Project> {
         } else {
           skipCheckerFramework = true
         }
+        // TODO(BEAM-13430): Re-enable checkerframework. This currently crashes
+        // when compiling :runners:google-cloud-dataflow-java:compileJava with
+        // java/src/main/java/org/apache/beam/runners/dataflow/util/
+        // DefaultCoderCloudObjectTranslatorRegistrar.java; message: class file
+        // for com.google.api.services.bigquery.model.TableRow not found
+        //  ; The Checker Framework crashed.  Please report the crash.
+        skipCheckerFramework = true
 
         // Always exclude checkerframework on tests. It's slow, and it often
         // raises erroneous error because we don't have checker annotations for
@@ -1011,7 +1028,7 @@ class BeamModulePlugin implements Plugin<Project> {
         // This contains many improved annotations beyond javax.annotations for enhanced static checking
         // of the codebase. It is runtime so users can also take advantage of them. The annotations themselves
         // are MIT licensed (checkerframework is GPL and cannot be distributed)
-        compile "org.checkerframework:checker-qual:$checkerframework_version"
+        implementation "org.checkerframework:checker-qual:$checkerframework_version"
       }
 
       // Add the optional and provided configurations for dependencies
@@ -1103,6 +1120,10 @@ class BeamModulePlugin implements Plugin<Project> {
         }
         permitUnusedDeclared "org.checkerframework:checker-qual:$checkerframework_version"
       }
+      // TODO(BEAM-13430): Re-enable strict dependency checking. The dependency
+      // checker seems to state that certain classes aren't being used but
+      // they clearly are failing the compilation without it.
+      configuration.enableStrictDependencies = false
       if (configuration.enableStrictDependencies) {
         project.tasks.analyzeClassesDependencies.enabled = true
         project.tasks.analyzeDependencies.enabled = true
@@ -1167,12 +1188,12 @@ class BeamModulePlugin implements Plugin<Project> {
         // Create a new configuration 'shadowTest' like 'shadow' for the test scope
         project.configurations {
           shadow { description = "Dependencies for shaded source set 'main'" }
-          compile.extendsFrom shadow
+          implementation.extendsFrom shadow
           shadowTest {
             description = "Dependencies for shaded source set 'test'"
             extendsFrom shadow
           }
-          testCompile.extendsFrom shadowTest
+          testImplementation.extendsFrom shadowTest
         }
 
         // Ensure build task depends on shadowJar (required for shadow plugin >=4.0.4)
@@ -1296,7 +1317,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
         project.dependencies {
           jmhAnnotationProcessor "org.openjdk.jmh:jmh-generator-annprocess:$jmh_version"
-          jmhCompile "org.openjdk.jmh:jmh-core:$jmh_version"
+          jmhImplementation "org.openjdk.jmh:jmh-core:$jmh_version"
         }
 
         project.compileJmhJava {
@@ -1742,22 +1763,22 @@ class BeamModulePlugin implements Plugin<Project> {
         /* include dependencies required by runners */
         //if (runner?.contains('dataflow')) {
         if (runner?.equalsIgnoreCase('dataflow')) {
-          testRuntime it.project(path: ":runners:google-cloud-dataflow-java", configuration: 'testRuntime')
-          testRuntime it.project(path: ":runners:google-cloud-dataflow-java:worker:legacy-worker", configuration: 'shadow')
+          testRuntimeOnly it.project(path: ":runners:google-cloud-dataflow-java", configuration: "testRuntime")
+          testRuntimeOnly it.project(path: ":runners:google-cloud-dataflow-java:worker:legacy-worker", configuration: 'shadow')
         }
 
         if (runner?.equalsIgnoreCase('direct')) {
-          testRuntime it.project(path: ":runners:direct-java", configuration: 'shadowTest')
+          testRuntimeOnly it.project(path: ":runners:direct-java", configuration: 'shadowTest')
         }
 
         if (runner?.equalsIgnoreCase('flink')) {
-          testRuntime it.project(path: ":runners:flink:${project.ext.latestFlinkVersion}", configuration: 'testRuntime')
+          testRuntimeOnly it.project(path: ":runners:flink:${project.ext.latestFlinkVersion}", configuration: "testRuntime")
         }
 
         if (runner?.equalsIgnoreCase('spark')) {
-          testRuntime it.project(path: ":runners:spark:2", configuration: 'testRuntime')
-          testRuntime project.library.java.spark_core
-          testRuntime project.library.java.spark_streaming
+          testRuntimeOnly it.project(path: ":runners:spark:2", configuration: "testRuntime")
+          testRuntimeOnly project.library.java.spark_core
+          testRuntimeOnly project.library.java.spark_streaming
 
           // Testing the Spark runner causes a StackOverflowError if slf4j-jdk14 is on the classpath
           project.configurations.testRuntimeClasspath {
@@ -1767,13 +1788,13 @@ class BeamModulePlugin implements Plugin<Project> {
 
         /* include dependencies required by filesystems */
         if (filesystem?.equalsIgnoreCase('hdfs')) {
-          testRuntime it.project(path: ":sdks:java:io:hadoop-file-system", configuration: 'testRuntime')
-          testRuntime project.library.java.hadoop_client
+          testRuntimeOnly it.project(path: ":sdks:java:io:hadoop-file-system", configuration: "testRuntime")
+          testRuntimeOnly project.library.java.hadoop_client
         }
 
         /* include dependencies required by AWS S3 */
         if (filesystem?.equalsIgnoreCase('s3')) {
-          testRuntime it.project(path: ":sdks:java:io:amazon-web-services", configuration: 'testRuntime')
+          testRuntimeOnly it.project(path: ":sdks:java:io:amazon-web-services", configuration: "testRuntime")
         }
       }
       project.task('packageIntegrationTests', type: Jar)
@@ -2036,6 +2057,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // ./gradlew :release:runJavaExamplesValidationTask -Pver=2.3.0 -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-1027
     project.ext.createJavaExamplesArchetypeValidationTask = {
       JavaExamplesArchetypeValidationConfiguration config = it as JavaExamplesArchetypeValidationConfiguration
+
       def taskName = "run${config.type}Java${config.runner}"
       def releaseVersion = project.findProperty('ver') ?: project.version
       def releaseRepo = project.findProperty('repourl') ?: 'https://repository.apache.org/content/repositories/snapshots'
@@ -2082,6 +2104,7 @@ class BeamModulePlugin implements Plugin<Project> {
       project.evaluationDependsOn(":sdks:java:core")
       project.evaluationDependsOn(":runners:core-java")
       def config = it ? it as PortableValidatesRunnerConfiguration : new PortableValidatesRunnerConfiguration()
+
       def name = config.name
       def beamTestPipelineOptions = [
         "--runner=org.apache.beam.runners.portability.testing.TestPortableRunner",
