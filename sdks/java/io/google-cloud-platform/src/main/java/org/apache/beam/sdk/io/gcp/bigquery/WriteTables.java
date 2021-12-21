@@ -23,6 +23,7 @@ import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.EncryptionConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobReference;
+import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
@@ -30,6 +31,7 @@ import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -269,6 +271,19 @@ class WriteTables<DestinationT>
         createDisposition = CreateDisposition.CREATE_IF_NEEDED;
       }
 
+      BigQueryHelpers.PendingJob schemaJob =
+          startZeroLoadJob(
+              getJobService(c.getPipelineOptions().as(BigQueryOptions.class)),
+              getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class)),
+              jobIdPrefix,
+              tableReference,
+              tableDestination.getTimePartitioning(),
+              tableDestination.getClustering(),
+              tableSchema,
+              writeDisposition,
+              createDisposition,
+              schemaUpdateOptions);
+
       BigQueryHelpers.PendingJob retryJob =
           startLoad(
               getJobService(c.getPipelineOptions().as(BigQueryOptions.class)),
@@ -282,6 +297,16 @@ class WriteTables<DestinationT>
               writeDisposition,
               createDisposition,
               schemaUpdateOptions);
+      if (schemaJob != null) {
+        pendingJobs.add(
+            new PendingJobData(
+                window,
+                schemaJob,
+                partitionFiles,
+                tableDestination,
+                tableReference,
+                element.getValue().isFirstPane()));
+      }
       pendingJobs.add(
           new PendingJobData(
               window,
@@ -507,6 +532,122 @@ class WriteTables<DestinationT>
               LOG.info(
                   "Loading {} files into {} using job {}, job id iteration {}",
                   gcsUris.size(),
+                  ref,
+                  jobRef,
+                  jobId.getRetryIndex());
+              try {
+                jobService.startLoadJob(jobRef, loadConfig);
+              } catch (IOException | InterruptedException e) {
+                LOG.warn("Load job {} failed with {}", jobRef, e.toString());
+                throw new RuntimeException(e);
+              }
+              return null;
+            },
+            // Function to poll the result of a load job.
+            jobId -> {
+              JobReference jobRef =
+                  new JobReference()
+                      .setProjectId(projectId)
+                      .setJobId(jobId.getJobId())
+                      .setLocation(bqLocation);
+              try {
+                return jobService.pollJob(jobRef, BatchLoads.LOAD_JOB_POLL_MAX_RETRIES);
+              } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+              }
+            },
+            // Function to lookup a job.
+            jobId -> {
+              JobReference jobRef =
+                  new JobReference()
+                      .setProjectId(projectId)
+                      .setJobId(jobId.getJobId())
+                      .setLocation(bqLocation);
+              try {
+                return jobService.getJob(jobRef);
+              } catch (InterruptedException | IOException e) {
+                throw new RuntimeException(e);
+              }
+            },
+            maxRetryJobs,
+            jobIdPrefix);
+    return retryJob;
+  }
+
+  private PendingJob startZeroLoadJob(
+      JobService jobService,
+      DatasetService datasetService,
+      String jobIdPrefix,
+      TableReference ref,
+      TimePartitioning timePartitioning,
+      Clustering clustering,
+      @Nullable TableSchema schema,
+      WriteDisposition writeDisposition,
+      CreateDisposition createDisposition,
+      Set<SchemaUpdateOption> schemaUpdateOptions) {
+    JobConfigurationLoad loadConfig =
+        new JobConfigurationLoad()
+            .setDestinationTable(ref)
+            .setSchema(schema)
+            .setSourceUris(Collections.EMPTY_LIST)
+            .setWriteDisposition(writeDisposition.name())
+            .setCreateDisposition(createDisposition.name())
+            .setSourceFormat(sourceFormat)
+            .setIgnoreUnknownValues(ignoreUnknownValues)
+            .setUseAvroLogicalTypes(useAvroLogicalTypes);
+    if (schemaUpdateOptions != null) {
+      List<String> options =
+          schemaUpdateOptions.stream()
+              .map(Enum<SchemaUpdateOption>::name)
+              .collect(Collectors.toList());
+      loadConfig.setSchemaUpdateOptions(options);
+    }
+    if (!loadConfig.getWriteDisposition().equals(WriteDisposition.WRITE_TRUNCATE.toString())
+        || !loadConfig.getWriteDisposition().equals(WriteDisposition.WRITE_APPEND.toString())) {
+      return null;
+    }
+    Table destinationTable = null;
+    try {
+      destinationTable = datasetService.getTable(ref);
+      if (destinationTable == null) {
+        return null; // no need to update schema ahead if table does not exists
+      }
+    } catch (IOException | InterruptedException e) {
+      LOG.warn("Failed to get table {} with {}", ref, e.toString());
+      throw new RuntimeException(e);
+    }
+    if (destinationTable.getSchema().equals(schema)) {
+      return null; // no need to update schema ahead if schema is already the same
+    }
+    if (timePartitioning != null) {
+      loadConfig.setTimePartitioning(timePartitioning);
+      // only set clustering if timePartitioning is set
+      if (clustering != null) {
+        loadConfig.setClustering(clustering);
+      }
+    }
+    if (kmsKey != null) {
+      loadConfig.setDestinationEncryptionConfiguration(
+          new EncryptionConfiguration().setKmsKeyName(kmsKey));
+    }
+    String projectId =
+        loadJobProjectId == null || loadJobProjectId.get() == null
+            ? ref.getProjectId()
+            : loadJobProjectId.get();
+    String bqLocation =
+        BigQueryHelpers.getDatasetLocation(datasetService, ref.getProjectId(), ref.getDatasetId());
+
+    PendingJob retryJob =
+        new PendingJob(
+            // Function to load the data.
+            jobId -> {
+              JobReference jobRef =
+                  new JobReference()
+                      .setProjectId(projectId)
+                      .setJobId(jobId.getJobId())
+                      .setLocation(bqLocation);
+              LOG.info(
+                  "Loading zero rows using job {}, job id {} iteration {}",
                   ref,
                   jobRef,
                   jobId.getRetryIndex());
