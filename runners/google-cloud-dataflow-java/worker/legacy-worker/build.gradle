@@ -185,6 +185,8 @@ compileTestJava {
 }
 
 dependencies {
+    implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+
     // Note that any dependency that is modified here should also be modified within
     // runners/google-cloud-dataflow-java/worker/build.gradle using the rules provided
     // there.
@@ -195,7 +197,7 @@ dependencies {
         compileOnly project(path: it, configuration: "shadow")
     }
     sdk_provided_project_dependencies.each {
-        compileOnly project(it)
+        compileOnly project(path: it)
     }
 
     implementation project(path: ":model:fn-execution", configuration: "shadow")
@@ -207,6 +209,9 @@ dependencies {
     implementation project(":sdks:java:fn-execution")
     implementation project(path: ":runners:google-cloud-dataflow-java:worker:windmill", configuration: "shadow")
     shadow library.java.vendored_guava_26_0_jre
+
+    implementation library.java.google_auth_library_credentials
+    implementation library.java.proto_google_common_protos
 
     // Conscrypt shouldn't be included here because Conscrypt won't work when being shaded.
     // (Context: https://github.com/apache/beam/pull/13846)
