@@ -31,13 +31,14 @@ repositories {
     url = uri("https://repo.spring.io/plugins-release/")
     content { includeGroup("io.spring.gradle") }
   }
+  flatDir { dirs("jarlibs") }
 }
 
 // Dependencies on other plugins used when this plugin is invoked
 dependencies {
   compile(gradleApi())
   compile(localGroovy())
-  compile("com.github.jengelman.gradle.plugins:shadow:6.1.0")
+  compile("com.github.jengelman.gradle.plugins:shadow:6.1.0-log4jfix-SNAPSHOT")
   compile("gradle.plugin.com.github.spotbugs.snom:spotbugs-gradle-plugin:4.5.0")
 
   runtime("net.ltgt.gradle:gradle-apt-plugin:0.21")                                                    // Enable a Java annotation processor
@@ -48,7 +49,7 @@ dependencies {
   runtime("gradle.plugin.com.github.blindpirate:gogradle:0.11.4")                                      // Enable Go code compilation
   runtime("gradle.plugin.com.palantir.gradle.docker:gradle-docker:0.22.0")                             // Enable building Docker containers
   runtime("gradle.plugin.com.dorongold.plugins:task-tree:1.5")                                       // Adds a 'taskTree' task to print task dependency tree
-  runtime("com.github.jengelman.gradle.plugins:shadow:6.1.0")                                          // Enable shading Java dependencies
+  runtime("com.github.jengelman.gradle.plugins:shadow:6.1.0-log4jfix-SNAPSHOT")                        // Enable shading Java dependencies
   runtime("ca.coglinc:javacc-gradle-plugin:2.4.0")                                                     // Enable the JavaCC parser generator
   runtime("net.linguica.gradle:maven-settings-plugin:0.5")
   runtime("gradle.plugin.io.pry.gradle.offline_dependencies:gradle-offline-dependencies-plugin:0.5.0") // Enable creating an offline repository
