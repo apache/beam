@@ -63,9 +63,13 @@ echo "System Go installation: `which go` is `go version`; Preparing to use $GOBI
 # Ensure it's installed in the GOBIN directory.
 GOBIN=$GOBIN go install golang.org/dl/$GOVERS@latest
 
-# This operation is cached on system and won't be re-downloaded.
-$GOBIN/$GOVERS download
+LOCKFILE=$GOBIN/$GOVERS.lock
+# The download command isn't concurrency safe so we get an exclusive lock, without wait.
+# If we're first, we ensure the command is downloaded, releasing the lock afterwards.
+# This operation is cached on system and won't be re-downloaded at least.
+flock --exclusive --nonblock --conflict-exit-code 0 --no-fork $LOCKFILE --command $GOBIN/$GOVERS download
 
 # Execute the script with the remaining arguments.
+# We get a shared lock for the ordinary go command execution.
 echo $GOBIN/$GOVERS $@
-$GOBIN/$GOVERS $@
+flock --shared --timeout=10 --no-fork $LOCKFILE --command $GOBIN/$GOVERS $@
