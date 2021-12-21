@@ -99,11 +99,11 @@ class AnalyticsService {
     );
   }
 
-  void trackRunTimeEvent(ExampleModel? example, int runTimeMs) {
+  void trackRunTimeEvent(String exampleName, int runTimeMs) {
     safeSendEvent(
       kRunCodeCategory,
       kRunTimeEvent,
-      label: example?.path ?? '',
+      label: exampleName,
       value: runTimeMs,
     );
   }
