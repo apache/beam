@@ -55,25 +55,25 @@ configurations.testRuntimeClasspath {
 }
 
 dependencies {
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile library.java.vendored_guava_26_0_jre
-  compile library.java.slf4j_api
-  compile project(":sdks:java:io:hadoop-common")
-  compile library.java.joda_time
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.slf4j_api
+  implementation project(":sdks:java:io:hadoop-common")
+  implementation library.java.joda_time
   provided library.java.hadoop_common
   provided library.java.hadoop_hdfs
   provided library.java.hadoop_mapreduce_client_core
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
-  testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
-  testCompile project(":sdks:java:io:jdbc")
-  testCompile project(path: ":examples:java", configuration: "testRuntime")
-  testCompile project(path: ":examples:java:twitter", configuration: "testRuntime")
-  testCompile "org.elasticsearch.plugin:transport-netty4-client:$elastic_search_version"
-  testCompile library.java.testcontainers_elasticsearch
-  testCompile "org.elasticsearch.client:elasticsearch-rest-high-level-client:$elastic_search_version"
-  testCompile "org.elasticsearch:elasticsearch:$elastic_search_version"
-  testCompile ("org.elasticsearch:elasticsearch-hadoop:$elastic_search_version") {
+  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntime")
+  testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
+  testImplementation project(":sdks:java:io:jdbc")
+  testImplementation project(path: ":examples:java", configuration: "testRuntime")
+  testImplementation project(path: ":examples:java:twitter", configuration: "testRuntime")
+  testImplementation "org.elasticsearch.plugin:transport-netty4-client:$elastic_search_version"
+  testImplementation library.java.testcontainers_elasticsearch
+  testImplementation "org.elasticsearch.client:elasticsearch-rest-high-level-client:$elastic_search_version"
+  testImplementation "org.elasticsearch:elasticsearch:$elastic_search_version"
+  testImplementation ("org.elasticsearch:elasticsearch-hadoop:$elastic_search_version") {
     // TODO(https://issues.apache.org/jira/browse/BEAM-3715)
     // These are all optional deps of elasticsearch-hadoop. Why do they have to be excluded?
     exclude group: "cascading", module: "cascading-local"
@@ -85,18 +85,18 @@ dependencies {
     exclude group: "org.apache.spark", module: "spark-sql_2.10"
     exclude group: "org.apache.storm", module: "storm-core"
   }
-  testCompile "org.apache.httpcomponents:httpclient:4.5.13"
-  testCompile library.java.commons_lang3
-  testCompile library.java.commons_io
-  testCompile library.java.cassandra_driver_core
-  testCompile library.java.cassandra_driver_mapping
-  testCompile "org.apache.cassandra:cassandra-all:3.11.8"
-  testCompile library.java.postgres
-  testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile library.java.testcontainers_postgresql
-  testCompile library.java.netty_all
+  testImplementation "org.apache.httpcomponents:httpclient:4.5.13"
+  testImplementation library.java.commons_lang3
+  testImplementation library.java.commons_io
+  testImplementation library.java.cassandra_driver_core
+  testImplementation library.java.cassandra_driver_mapping
+  testImplementation "org.apache.cassandra:cassandra-all:3.11.8"
+  testImplementation library.java.postgres
+  testImplementation library.java.junit
+  testImplementation library.java.hamcrest_core
+  testImplementation library.java.hamcrest_library
+  testImplementation library.java.testcontainers_postgresql
+  testImplementation library.java.netty_all
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 

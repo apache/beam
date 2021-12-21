@@ -39,12 +39,12 @@ applyJavaNature( automaticModuleName: 'org.apache.beam.sdk.extensions.kryo',
 description = 'Apache Beam :: SDKs :: Java :: Extensions :: Kryo'
 
 dependencies {
-    compile library.java.jackson_annotations
-    compile library.java.vendored_guava_26_0_jre
-    compile "com.esotericsoftware:kryo:${kryoVersion}"
-    compile "org.objenesis:objenesis:3.2"
+    implementation library.java.jackson_annotations
+    implementation library.java.vendored_guava_26_0_jre
+    implementation "com.esotericsoftware:kryo:${kryoVersion}"
+    implementation "org.objenesis:objenesis:3.2"
     shadow project(path: ':sdks:java:core', configuration: 'shadow')
-    testCompile project(path: ':sdks:java:core', configuration: 'shadowTest')
+    testImplementation project(path: ':sdks:java:core', configuration: 'shadowTest')
     testRuntimeOnly project(path: ':runners:direct-java', configuration: 'shadow')
 }
 
