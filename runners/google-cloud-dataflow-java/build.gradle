@@ -614,6 +614,7 @@ task examplesJavaRunnerV2IntegrationTest(type: Test) {
   dependsOn buildAndPushDockerContainer
 
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2PipelineOptions)
+  systemProperty "JAVA_17_HOME", JAVA_17_HOME
 
   // The examples/java preCommit task already covers running WordCountIT/WindowedWordCountIT so
   // this postCommit integration test excludes them.
