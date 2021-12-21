@@ -1580,7 +1580,6 @@ class TimestampPrefixingWindowCoderImpl(StreamCoderImpl):
 
 class RowCoderImpl(StreamCoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
-
   def __init__(self, schema, components):
     self.schema = schema
     self.num_fields = len(self.schema.fields)
@@ -1598,6 +1597,8 @@ class RowCoderImpl(StreamCoderImpl):
       self.encoding_positions = list(
           field.encoding_position for field in self.schema.fields)
     self.encoding_positions_argsort = list(np.argsort(self.encoding_positions))
+    self.encoding_positions_are_trivial = self.encoding_positions == list(
+        range(len(self.encoding_positions)))
     self.components = list(
         components[self.encoding_positions.index(i)].get_impl()
         for i in self.encoding_positions)
@@ -1624,7 +1625,9 @@ class RowCoderImpl(StreamCoderImpl):
     else:
       out.write_byte(0)
 
-    for i in self.encoding_positions_argsort:
+    for i in range(self.num_fields):
+      if not self.encoding_positions_are_trivial:
+        i = self.encoding_positions_argsort[i]
       if attrs[i] is None:
         if not self.schema.fields[i].type.nullable:
           raise ValueError(
@@ -1643,11 +1646,8 @@ class RowCoderImpl(StreamCoderImpl):
       words.frombytes(words_bytes)
       nulls = [
           0 if i // 8 >= len(words) else ((words[i // 8] >> (i % 8)) & 0x01)
-          for i in range(nvals)]
-      # If this coder's schema has more attributes than the encoded value, then
-      # the schema must have changed. Populate the unencoded fields with nulls.
-      if len(self.components) > nvals:
-        nulls += [True] * (len(self.components) - nvals)
+          for i in range(nvals)
+      ]
     else:
       has_nulls = False
 
@@ -1656,7 +1656,9 @@ class RowCoderImpl(StreamCoderImpl):
     # here because we only decode as many values as we have coders for.
 
     sorted_components = []
-    for i in self.encoding_positions_argsort:
+    for i in range(min(self.num_fields, nvals)):
+      if not self.encoding_positions_are_trivial:
+        i = self.encoding_positions_argsort[i]
       if has_nulls and nulls[i]:
         item = None
       else:
@@ -1664,8 +1666,15 @@ class RowCoderImpl(StreamCoderImpl):
         item = component_coder.decode_from_stream(in_stream, True)
       sorted_components.append(item)
 
+    # If this coder's schema has more attributes than the encoded value, then
+    # the schema must have changed. Populate the unencoded fields with nulls.
+    while len(sorted_components) < self.num_fields:
+      sorted_components.append(None)
+
     return self.constructor(
-        *[sorted_components[i] for i in self.encoding_positions])
+        *(
+            sorted_components if self.encoding_positions_are_trivial else
+            [sorted_components[i] for i in self.encoding_positions]))
 
 
 class LogicalTypeCoderImpl(StreamCoderImpl):
