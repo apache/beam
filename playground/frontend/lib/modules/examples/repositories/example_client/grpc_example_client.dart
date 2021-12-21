@@ -69,8 +69,7 @@ class GrpcExampleClient implements ExampleClient {
   @override
   Future<OutputResponse> getExampleOutput(GetExampleRequestWrapper request) {
     return _runSafely(
-      () =>
-          createClient(request.sdk)
+      () => createClient(request.sdk)
           .getPrecompiledObjectOutput(
               _getExampleOutputRequestToGrpcRequest(request))
           .then((response) =>
@@ -83,7 +82,7 @@ class GrpcExampleClient implements ExampleClient {
   Future<OutputResponse> getExampleLogs(GetExampleRequestWrapper request) {
     return _runSafely(
       () => createClient(request.sdk)
-          .getPrecompiledObjectLogs(_getExampleRequestToGrpcRequest(request))
+          .getPrecompiledObjectLogs(_getExampleLogRequestToGrpcRequest(request))
           .then((response) =>
               OutputResponse(replaceIncorrectSymbols(response.output)))
           .catchError((_) => OutputResponse('')),
@@ -118,6 +117,12 @@ class GrpcExampleClient implements ExampleClient {
     GetExampleRequestWrapper request,
   ) {
     return grpc.GetPrecompiledObjectOutputRequest()..cloudPath = request.path;
+  }
+
+  grpc.GetPrecompiledObjectLogsRequest _getExampleLogRequestToGrpcRequest(
+    GetExampleRequestWrapper request,
+  ) {
+    return grpc.GetPrecompiledObjectLogsRequest()..cloudPath = request.path;
   }
 
   grpc.Sdk _getGrpcSdk(SDK sdk) {
