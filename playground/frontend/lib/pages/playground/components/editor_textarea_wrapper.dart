@@ -29,6 +29,7 @@ import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:provider/provider.dart';
 
 const kNotificationTitle = 'Run Code';
+const kUnknownExamplePrefix = 'Unknown Example';
 
 class CodeTextAreaWrapper extends StatelessWidget {
   const CodeTextAreaWrapper({Key? key}) : super(key: key);
@@ -67,7 +68,16 @@ class CodeTextAreaWrapper extends StatelessWidget {
                   child: RunButton(
                     isRunning: state.isCodeRunning,
                     runCode: () {
-                      state.runCode();
+                      final stopwatch = Stopwatch()..start();
+                      state.runCode(
+                        onFinish: () {
+                          AnalyticsService.get(context).trackRunTimeEvent(
+                            state.selectedExample?.path ??
+                                '$kUnknownExamplePrefix, sdk ${state.sdk.displayName}',
+                            stopwatch.elapsedMilliseconds,
+                          );
+                        },
+                      );
                       AnalyticsService.get(context)
                           .trackClickRunEvent(state.selectedExample);
                     },
