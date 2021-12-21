@@ -43,8 +43,11 @@ configurations.all {
 }
 
 dependencies {
-  provided project(":sdks:java:extensions:sql")
-  provided project(":sdks:java:io:hcatalog")
+  implementation project(":sdks:java:extensions:sql")
+  implementation project(":sdks:java:io:hcatalog")
+  implementation project(":sdks:java:core")
+  implementation "com.alibaba:fastjson:1.2.69"
+  implementation library.java.vendored_guava_26_0_jre
 
   // Needed for HCatalogTableProvider tests,
   // they use HCat* types

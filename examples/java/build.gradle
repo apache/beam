@@ -77,8 +77,8 @@ dependencies {
   implementation library.java.proto_google_cloud_bigtable_v2
   implementation library.java.proto_google_cloud_datastore_v1
   implementation library.java.slf4j_api
-  provided library.java.commons_io
-  provided library.java.commons_csv
+  implementation library.java.commons_io
+  implementation library.java.commons_csv
   runtimeOnly project(path: ":runners:direct-java", configuration: "shadow")
   implementation library.java.vendored_grpc_1_36_0
   implementation library.java.vendored_guava_26_0_jre
