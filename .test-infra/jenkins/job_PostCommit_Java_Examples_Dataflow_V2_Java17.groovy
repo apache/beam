@@ -24,6 +24,12 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Examples_Dataflow_V2_ja
 
       description('Runs the Java Examples suite on Dataflow runner V2 using the Java 17 SDK harness.')
 
+    def compiler = javaToolchains.compilerFor {
+        languageVersion = JavaLanguageVersion.of(8)
+    }
+
+    def JAVA_17_HOME = launcher.get().metadata.installationPath.asFile.absolutePath
+
       commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 180)
 
       publishers {
@@ -44,7 +50,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Examples_Dataflow_V2_ja
           switches '-PdisableSpotlessCheck=true'
           switches '-PcompileAndRunTestsWithJava17'
           switches '-PskipCheckerFramework'
-          switches "-Pjava17Home=${commonJobProperties.JAVA_17_HOME}"
+          switches "-Pjava17Home=${JAVA_17_HOME}"
         }
       }
     }
