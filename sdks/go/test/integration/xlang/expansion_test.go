@@ -24,6 +24,8 @@ import (
 )
 
 const (
+	// TODO(BEAN-13505): Select the most recent Beam release instead of a hard-coded
+	// string.
 	beamVersion  = "2.34.0"
 	gradleTarget = ":sdks:java:io:expansion-service:runExpansionService"
 )
