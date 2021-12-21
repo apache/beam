@@ -54,6 +54,7 @@ dependencies {
   implementation library.java.avro
   // Get back to "compileOnly" since 2.14
   compileOnly library.java.kafka_clients
+  testImplementation library.java.kafka_clients
   implementation library.java.slf4j_api
   implementation library.java.joda_time
   implementation library.java.jackson_annotations

@@ -39,6 +39,9 @@ dependencies {
   compileOnly library.java.hadoop_common
   compileOnly library.java.hadoop_mapreduce_client_core
   testImplementation library.java.junit
+  testImplementation library.java.hadoop_client
+  testImplementation library.java.hadoop_common
+  testImplementation library.java.hadoop_mapreduce_client_core
   hadoopVersions.each {kv ->
     "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-client:$kv.value"
     "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-common:$kv.value"

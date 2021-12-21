@@ -93,6 +93,9 @@ dependencies {
   testImplementation library.java.cassandra_driver_core
   testImplementation library.java.cassandra_driver_mapping
   testImplementation "org.apache.cassandra:cassandra-all:3.11.8"
+  testImplementation library.java.hadoop_common
+  testImplementation library.java.hadoop_hdfs
+  testImplementation library.java.hadoop_mapreduce_client_core
   testImplementation library.java.postgres
   testImplementation library.java.junit
   testImplementation library.java.hamcrest_core

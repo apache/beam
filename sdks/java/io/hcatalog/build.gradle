@@ -92,6 +92,7 @@ dependencies {
   testImplementation "org.apache.hive:hive-exec:$hive_version"
   testImplementation "org.apache.hive:hive-common:$hive_version"
   testImplementation "org.apache.hive:hive-cli:$hive_version"
+  testImplementation "org.apache.hive.hcatalog:hive-hcatalog-core:$hive_version"
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
   hadoopVersions.each {kv ->
     "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-common:$kv.value"

@@ -107,7 +107,9 @@ dependencies {
   testImplementation project(":sdks:java:io:kafka")
   testImplementation project(":sdks:java:io:parquet")
   testImplementation project(path: ":sdks:java:io:mongodb", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:io:thrift")
   testImplementation project(path: ":sdks:java:io:thrift", configuration: "testRuntimeMigration")
+  testImplementation project(":sdks:java:extensions:protobuf")
   testImplementation project(path: ":sdks:java:extensions:protobuf", configuration: "testRuntimeMigration")
   testCompileOnly project(":sdks:java:extensions:sql:udf-test-provider")
   testRuntimeOnly library.java.slf4j_jdk14

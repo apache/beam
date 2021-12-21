@@ -39,6 +39,7 @@ dependencies {
   testImplementation project(":sdks:java:harness")
   testImplementation project(":runners:core-construction-java")
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation project(path: ":runners:core-java", configuration: "testRuntimeMigration")
   testImplementation library.java.junit
   testImplementation library.java.mockito_core
   testRuntimeOnly library.java.slf4j_simple

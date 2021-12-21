@@ -178,6 +178,15 @@ dependencies {
   compileOnly library.java.hamcrest_core
   compileOnly library.java.hamcrest_library
   compileOnly "com.esotericsoftware.kryo:kryo:2.21"
+  testImplementation "org.apache.spark:spark-core_$spark_scala_version:$spark_version"
+  testImplementation "org.apache.spark:spark-network-common_$spark_scala_version:$spark_version"
+  testImplementation "org.apache.spark:spark-sql_$spark_scala_version:$spark_version"
+  testImplementation "org.apache.spark:spark-streaming_$spark_scala_version:$spark_version"
+  testImplementation library.java.hadoop_common
+  testImplementation library.java.commons_io
+  testImplementation library.java.hamcrest_core
+  testImplementation library.java.hamcrest_library
+  testImplementation "com.esotericsoftware.kryo:kryo:2.21"
   testImplementation project(":sdks:java:io:kafka")
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   // SparkStateInternalsTest extends abstract StateInternalsTest
