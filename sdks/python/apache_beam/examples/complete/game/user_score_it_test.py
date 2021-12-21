@@ -51,14 +51,15 @@ from apache_beam.testing.test_utils import delete_files
 class UserScoreIT(unittest.TestCase):
 
   DEFAULT_INPUT_FILE = 'gs://dataflow-samples/game/gaming_data*'
+  DEFAULT_OUTPUT_FILE = \
+      'gs://temp-storage-for-end-to-end-tests/py-it-cloud/output'
   DEFAULT_EXPECTED_CHECKSUM = '9f3bd81669607f0d98ec80ddd477f3277cfba0a2'
 
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
     self.uuid = str(uuid.uuid4())
 
-    self.output = '/'.join(
-        [self.test_pipeline.get_option('output'), self.uuid, 'results'])
+    self.output = '/'.join([self.DEFAULT_OUTPUT_FILE, self.uuid, 'results'])
 
   @pytest.mark.it_postcommit
   def test_user_score_it(self):
