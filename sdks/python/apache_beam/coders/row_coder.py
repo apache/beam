@@ -20,6 +20,8 @@
 import itertools
 from array import array
 
+import numpy as np
+
 from apache_beam.coders import typecoders
 from apache_beam.coders.coder_impl import StreamCoderImpl
 from apache_beam.coders.coders import BooleanCoder
@@ -164,7 +166,21 @@ class RowCoderImpl(StreamCoderImpl):
   def __init__(self, schema, components):
     self.schema = schema
     self.constructor = named_tuple_from_schema(schema)
-    self.components = list(c.get_impl() for c in components)
+    self.encoding_positions = list(range(len(self.schema.fields)))
+    if self.schema.encoding_positions_set:
+      # should never be duplicate encoding positions.
+      enc_posx = list(
+          set(field.encoding_position for field in self.schema.fields))
+      if len(enc_posx) != len(self.schema.fields):
+        raise ValueError(
+            f'''Schema with id {schema.id} has encoding_positions_set=True,
+            but not all fields have encoding_position set''')
+      self.encoding_positions = list(
+          field.encoding_position for field in self.schema.fields)
+    self.encoding_positions_argsort = np.argsort(self.encoding_positions)
+    self.components = list(
+        components[self.encoding_positions.index(i)].get_impl()
+        for i in self.encoding_positions)
     self.has_nullable_fields = any(
         field.type.nullable for field in self.schema.fields)
 
@@ -183,14 +199,14 @@ class RowCoderImpl(StreamCoderImpl):
 
     self.NULL_MARKER_CODER.encode_to_stream(words.tobytes(), out, True)
 
-    for c, field, attr in zip(self.components, self.schema.fields, attrs):
-      if attr is None:
-        if not field.type.nullable:
+    for i in self.encoding_positions_argsort:
+      if attrs[i] is None:
+        if not self.schema.fields[i].type.nullable:
           raise ValueError(
               "Attempted to encode null for non-nullable field \"{}\".".format(
-                  field.name))
+                  self.schema.fields[i].name))
         continue
-      c.encode_to_stream(attr, out, True)
+      self.components[i].encode_to_stream(attrs[i], out, True)
 
   def decode_from_stream(self, in_stream, nested):
     nvals = self.SIZE_CODER.decode_from_stream(in_stream, True)
@@ -213,10 +229,15 @@ class RowCoderImpl(StreamCoderImpl):
     # Note that if this coder's schema has *fewer* attributes than the encoded
     # value, we just need to ignore the additional values, which will occur
     # here because we only decode as many values as we have coders for.
+
+    sorted_components = [
+        None if is_null else self.components[c].decode_from_stream(
+            in_stream, True) for c,
+        is_null in zip(self.encoding_positions_argsort, nulls)
+    ]
+
     return self.constructor(
-        *(
-            None if is_null else c.decode_from_stream(in_stream, True) for c,
-            is_null in zip(self.components, nulls)))
+        *[sorted_components[i] for i in self.encoding_positions])
 
   def _make_value_coder(self, nulls=itertools.repeat(False)):
     components = [

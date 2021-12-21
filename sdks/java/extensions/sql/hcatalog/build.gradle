@@ -28,6 +28,20 @@ applyJavaNature(
 def hive_version = "2.1.0"
 def netty_version = "4.1.51.Final"
 
+configurations.all {
+  resolutionStrategy {
+    // Pin log4j as workaround for CVE-2021-44228
+    // HIVE-25804 should address this upstream, but only in 4.0
+    // TODO(BEAM-9351): Upgrade Hive and remove this pin
+    def log4j_version = "2.17.0"
+    force "org.apache.logging.log4j:log4j-api:${log4j_version}"
+    force "org.apache.logging.log4j:log4j-core:${log4j_version}"
+    force "org.apache.logging.log4j:log4j-slf4j-impl:${log4j_version}"
+    force "org.apache.logging.log4j:log4j-1.2-api:${log4j_version}"
+    force "org.apache.logging.log4j:log4j-web:${log4j_version}"
+  }
+}
+
 dependencies {
   provided project(":sdks:java:extensions:sql")
   provided project(":sdks:java:io:hcatalog")

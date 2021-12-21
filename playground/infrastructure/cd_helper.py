@@ -63,8 +63,15 @@ class CDHelper:
     client = GRPCClient()
     tasks = [client.get_run_output(example.pipeline_id) for example in examples]
     outputs = await asyncio.gather(*tasks)
+
+    tasks = [client.get_log(example.pipeline_id) for example in examples]
+    logs = await asyncio.gather(*tasks)
+
     for output, example in zip(outputs, examples):
       example.output = output
+
+    for log, example in zip(logs, examples):
+        example.logs = log
 
   def _save_to_cloud_storage(self, examples: List[Example]):
     """
@@ -109,6 +116,11 @@ class CDHelper:
         base_folder_name=example.tag.name,
         file_name=example.tag.name,
         extension=PrecompiledExample.OUTPUT_EXTENSION)
+    log_path = self._get_gcs_object_name(
+      sdk=example.sdk,
+      base_folder_name=example.tag.name,
+      file_name=example.tag.name,
+      extension=PrecompiledExample.LOG_EXTENSION)
     meta_path = self._get_gcs_object_name(
         sdk=example.sdk,
         base_folder_name=example.tag.name,
@@ -119,6 +131,7 @@ class CDHelper:
     meta = example.tag._asdict()
     meta["type"] = example.type
     file_names[meta_path] = json.dumps(meta)
+    file_names[log_path] = example.logs
     for file_name, file_content in file_names.items():
       local_file_path = os.path.join(
           Config.TEMP_FOLDER, example.pipeline_id, file_name)
@@ -147,7 +160,7 @@ class CDHelper:
     Returns: file name
     """
     if extension is None:
-      extension = Config.EXTENSIONS[Sdk.Name(sdk)]
+      extension = Config.SDK_TO_EXTENSION[sdk]
     return os.path.join(
         Sdk.Name(sdk), base_folder_name, f"{file_name}.{extension}")
 
