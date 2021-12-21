@@ -262,15 +262,3 @@ func (controller *playgroundController) GetPrecompiledObjectLogs(ctx context.Con
 	response := pb.GetPrecompiledObjectLogsResponse{Output: logs}
 	return &response, nil
 }
-
-// GetPrecompiledObjectLogs returns the logs of the compiled and run example
-func (controller *playgroundController) GetPrecompiledObjectLogs(ctx context.Context, info *pb.GetPrecompiledObjectRequest) (*pb.GetLogsResponse, error) {
-	cd := cloud_bucket.New()
-	logs, err := cd.GetPrecompiledObjectLogs(ctx, info.GetCloudPath())
-	if err != nil {
-		logger.Errorf("GetPrecompiledObjectLogs(): cloud storage error: %s", err.Error())
-		return nil, errors.InternalError("GetPrecompiledObjectLogs(): ", err.Error())
-	}
-	response := pb.GetLogsResponse{Output: logs}
-	return &response, nil
-}
