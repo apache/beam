@@ -77,7 +77,7 @@ dependencies {
   testImplementation library.java.mockito_core
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation project(":runners:core-construction-java")
-  testImplementation project(path: ":sdks:java:fn-execution", configuration: "testRuntime")
+  testImplementation project(path: ":sdks:java:fn-execution", configuration: "testRuntimeMigration")
   shadowTestRuntimeClasspath library.java.slf4j_jdk14
   jmhImplementation project(path: ":sdks:java:harness", configuration: "shadowTest")
   jmhImplementation project(":runners:java-fn-execution")

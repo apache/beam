@@ -134,11 +134,11 @@ dependencies {
 
   testImplementation library.java.arrow_memory_netty
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
-  testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
-  testImplementation project(path: ":sdks:java:extensions:protobuf", configuration: "testRuntime")
+  testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:extensions:protobuf", configuration: "testRuntimeMigration")
   testImplementation project(path: ":runners:direct-java", configuration: "shadow")
-  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntime")
-  testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
+  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
   testImplementation library.java.mockito_core
   testImplementation library.java.powermock
   testImplementation library.java.powermock_mockito

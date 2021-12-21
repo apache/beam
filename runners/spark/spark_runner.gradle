@@ -181,7 +181,7 @@ dependencies {
   testImplementation project(":sdks:java:io:kafka")
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   // SparkStateInternalsTest extends abstract StateInternalsTest
-  testImplementation project(path: ":runners:core-java", configuration: "testRuntime")
+  testImplementation project(path: ":runners:core-java", configuration: "testRuntimeMigration")
   testImplementation project(":sdks:java:harness")
   testImplementation library.java.avro
   testImplementation "org.apache.kafka:kafka_$spark_scala_version:2.4.1"
@@ -190,11 +190,11 @@ dependencies {
   testImplementation library.java.mockito_core
   testImplementation "org.apache.zookeeper:zookeeper:3.4.11"
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
-  validatesRunner project(path: ":runners:core-java", configuration: "testRuntime")
+  validatesRunner project(path: ":runners:core-java", configuration: "testRuntimeMigration")
   validatesRunner project(":sdks:java:io:hadoop-format")
   validatesRunner project(":sdks:java:io:hadoop-format").sourceSets.test.output
-  validatesRunner project(path: ":examples:java", configuration: "testRuntime")
-  validatesRunner project(path: project.path, configuration: "testRuntime")
+  validatesRunner project(path: ":examples:java", configuration: "testRuntimeMigration")
+  validatesRunner project(path: project.path, configuration: "testRuntimeMigration")
   validatesRunner project(project.path)
   validatesRunner project(path: project.path, configuration: "provided")
   hadoopVersions.each {kv ->

@@ -41,7 +41,7 @@ dependencies {
   testImplementation library.java.jackson_databind
   testImplementation project(path: ":sdks:java:core", configuration: "shadow")
   testImplementation project(":sdks:java:io:elasticsearch")
-  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntime")
+  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
   testImplementation library.java.slf4j_api
   testImplementation library.java.hamcrest_core
   testImplementation library.java.hamcrest_library

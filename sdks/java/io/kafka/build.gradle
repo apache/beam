@@ -76,8 +76,9 @@ dependencies {
   provided library.java.jackson_dataformat_csv
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation project(":sdks:java:io:synthetic")
-  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntime")
-  testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
+  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+  testImplementation project(":sdks:java:testing:test-utils")
+  testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
   // For testing Cross-language transforms
   testImplementation project(":runners:core-construction-java")
   testImplementation library.java.avro

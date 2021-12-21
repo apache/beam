@@ -73,7 +73,7 @@ dependencies {
     implementation project(":runners:google-cloud-dataflow-java")
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     testRuntimeOnly library.java.slf4j_jdk14
-    testImplementation project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntime")
+    testImplementation project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntimeMigration")
     gradleRun project(project.path)
     gradleRun project(path: tpcdsRunnerDependency, configuration: runnerConfiguration)
 

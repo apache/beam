@@ -60,7 +60,7 @@ dependencies {
     validatesRunner (project(path: ":sdks:java:core", configuration: "shadowTest")){
         exclude group: 'com.esotericsoftware.kryo', module: 'kryo'
     }
-    validatesRunner (project(path: ":runners:core-java", configuration: "testRuntime")){
+    validatesRunner (project(path: ":runners:core-java", configuration: "testRuntimeMigration")){
         exclude group: 'com.esotericsoftware.kryo', module: 'kryo'
     }
     validatesRunner (project(project.path)){

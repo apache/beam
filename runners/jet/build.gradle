@@ -50,21 +50,21 @@ dependencies {
     implementation library.java.slf4j_api
 
     testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
-    testImplementation project(path: ":runners:core-java", configuration: "testRuntime")
-    testImplementation project(path: ":runners:core-construction-java", configuration: "testRuntime")
+    testImplementation project(path: ":runners:core-java", configuration: "testRuntimeMigration")
+    testImplementation project(path: ":runners:core-construction-java", configuration: "testRuntimeMigration")
     testImplementation library.java.joda_time
     testImplementation "com.hazelcast.jet:hazelcast-jet-core:$jet_version:tests"
     testImplementation "com.hazelcast:hazelcast:$hazelcast_version:tests"
 
     needsRunner project(path: ":sdks:java:core", configuration: "shadowTest")
-    needsRunner project(path: ":runners:core-java", configuration: "testRuntime")
-    needsRunner project(path: ":runners:core-construction-java", configuration: "testRuntime")
-    needsRunner project(path: project.path, configuration: "testRuntime")
+    needsRunner project(path: ":runners:core-java", configuration: "testRuntimeMigration")
+    needsRunner project(path: ":runners:core-construction-java", configuration: "testRuntimeMigration")
+    needsRunner project(path: project.path, configuration: "testRuntimeMigration")
 
     validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
-    validatesRunner project(path: ":runners:core-java", configuration: "testRuntime")
-    validatesRunner project(path: ":runners:core-construction-java", configuration: "testRuntime")
-    validatesRunner project(path: project.path, configuration: "testRuntime")
+    validatesRunner project(path: ":runners:core-java", configuration: "testRuntimeMigration")
+    validatesRunner project(path: ":runners:core-construction-java", configuration: "testRuntimeMigration")
+    validatesRunner project(path: project.path, configuration: "testRuntimeMigration")
 }
 
 task validatesRunnerBatch(type: Test) {

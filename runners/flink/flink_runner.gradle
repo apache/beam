@@ -151,7 +151,7 @@ dependencies {
   provided "org.apache.flink:flink-statebackend-rocksdb_2.11:$flink_version"
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   // FlinkStateInternalsTest extends abstract StateInternalsTest
-  testImplementation project(path: ":runners:core-java", configuration: "testRuntime")
+  testImplementation project(path: ":runners:core-java", configuration: "testRuntimeMigration")
   testImplementation library.java.hamcrest_core
   testImplementation library.java.junit
   testImplementation library.java.mockito_core
@@ -166,7 +166,7 @@ dependencies {
   testImplementation project(":sdks:java:harness")
   testRuntimeOnly library.java.slf4j_simple
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
-  validatesRunner project(path: ":runners:core-java", configuration: "testRuntime")
+  validatesRunner project(path: ":runners:core-java", configuration: "testRuntimeMigration")
   validatesRunner project(project.path)
   miniCluster "org.apache.flink:flink-runtime-web_2.11:$flink_version"
   implementation project(path: ":model:fn-execution", configuration: "shadow")

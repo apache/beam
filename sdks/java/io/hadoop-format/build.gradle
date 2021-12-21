@@ -64,11 +64,13 @@ dependencies {
   provided library.java.hadoop_hdfs
   provided library.java.hadoop_mapreduce_client_core
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
-  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntime")
-  testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
+  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+  testImplementation project(":sdks:java:testing:test-utils")
+  testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
   testImplementation project(":sdks:java:io:jdbc")
-  testImplementation project(path: ":examples:java", configuration: "testRuntime")
-  testImplementation project(path: ":examples:java:twitter", configuration: "testRuntime")
+  testImplementation project(":examples:java")
+  testImplementation project(path: ":examples:java", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":examples:java:twitter", configuration: "testRuntimeMigration")
   testImplementation "org.elasticsearch.plugin:transport-netty4-client:$elastic_search_version"
   testImplementation library.java.testcontainers_elasticsearch
   testImplementation "org.elasticsearch.client:elasticsearch-rest-high-level-client:$elastic_search_version"
@@ -101,10 +103,10 @@ dependencies {
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 
   delegate.add("sparkRunner", project(":sdks:java:io:hadoop-format"))
-  delegate.add("sparkRunner", project(path: ":sdks:java:io:hadoop-format", configuration: "testRuntime"))
+  delegate.add("sparkRunner", project(path: ":sdks:java:io:hadoop-format", configuration: "testRuntimeMigration"))
 
-  sparkRunner project(path: ":examples:java", configuration: "testRuntime")
-  sparkRunner project(path: ":examples:java:twitter", configuration: "testRuntime")
+  sparkRunner project(path: ":examples:java", configuration: "testRuntimeMigration")
+  sparkRunner project(path: ":examples:java:twitter", configuration: "testRuntimeMigration")
   sparkRunner project(":runners:spark:2")
   sparkRunner project(":sdks:java:io:hadoop-file-system")
   sparkRunner library.java.spark_streaming
