@@ -1785,39 +1785,77 @@ class BeamModulePlugin implements Plugin<Project> {
       // Define common lifecycle tasks and artifact types
       project.apply plugin: 'base'
 
-      project.apply plugin: "com.github.blindpirate.gogradle"
-      project.golang { goVersion = '1.16.5' }
+      // project.apply plugin: "com.github.blindpirate.gogradle"
+      // project.golang { goVersion = '1.16.12' }
 
-      project.repositories {
-        golang {
-          // Gogradle doesn't like thrift: https://github.com/gogradle/gogradle/issues/183
-          root 'git.apache.org/thrift.git'
-          emptyDir()
+      // project.repositories {
+      //   golang {
+      //     // Gogradle doesn't like thrift: https://github.com/gogradle/gogradle/issues/183
+      //     root 'git.apache.org/thrift.git'
+      //     emptyDir()
+      //   }
+      //   golang {
+      //     root 'github.com/apache/thrift'
+      //     emptyDir()
+      //   }
+      //   project.clean.dependsOn project.goClean
+      //   project.check.dependsOn project.goCheck
+      //   project.assemble.dependsOn project.goBuild
+      // }
+
+      // project.idea {
+      //   module {
+      //     // The gogradle plugin downloads all dependencies into the source tree here,
+      //     // which is a path baked into golang
+      //     excludeDirs += project.file("${project.path}/vendor")
+
+      //     // gogradle's private working directory
+      //     excludeDirs += project.file("${project.path}/.gogradle")
+      //   }
+      // }
+
+      // // Clean up the vendor directory that the gogragle plugin sets up on build.
+      // project.tasks.create(name: 'cleanVendor', type: Delete) {
+      //   doFirst {
+      //     delete project.file("vendor")
+      //   }
+      // }
+
+      // For some reason base doesn't define a test task  so we define it below and make
+      // check depend on it. This makes the Go project similar to the task layout like
+      // Java projects, see https://docs.gradle.org/4.2.1/userguide/img/javaPluginTasks.png
+      if (project.tasks.findByName('test') == null) {
+        project.task('test') {}
+      }
+      project.check.dependsOn project.test
+
+      def goRootDir = "${project.rootDir}/sdks/go"
+      project.ext.goCmd = "${goRootDir}/run_with_go_version.sh"
+
+      project.tasks.create(name: "goBuild") {
+        ext.goTargets = './...'
+        ext.outputLocation = './build/bin/${GOOS}_${GOARCH}/'
+        doLast {
+          project.exec {
+            // Set these so the substitutions work.
+            // May cause issues for the folks running gradle commands on other architectures
+            // and operating systems.
+            environment "GOOS", "linux"
+            environment "GOARCH", "amd64"
+
+            executable 'sh'
+            args '-c', "${project.ext.goCmd} build -o "+ ext.outputLocation + ' ' + ext.goTargets
+          }
         }
-        golang {
-          root 'github.com/apache/thrift'
-          emptyDir()
-        }
-        project.clean.dependsOn project.goClean
-        project.check.dependsOn project.goCheck
-        project.assemble.dependsOn project.goBuild
       }
 
-      project.idea {
-        module {
-          // The gogradle plugin downloads all dependencies into the source tree here,
-          // which is a path baked into golang
-          excludeDirs += project.file("${project.path}/vendor")
-
-          // gogradle's private working directory
-          excludeDirs += project.file("${project.path}/.gogradle")
-        }
-      }
-
-      // Clean up the vendor directory that the gogragle plugin sets up on build.
-      project.tasks.create(name: 'cleanVendor', type: Delete) {
-        doFirst {
-          delete project.file("vendor")
+      project.tasks.create(name: "goTest") {
+        dependsOn project.goBuild
+        doLast {
+          project.exec {
+            executable 'sh'
+            args '-c', "${project.ext.goCmd} test ./..."
+          }
         }
       }
     }

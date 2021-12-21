@@ -54,20 +54,18 @@ case $key in
 esac
 done
 
-# Outputing the system Go version for debugging purposes.
-echo "System Go installation: `which go` is `go version`"
-echo "Preparing to use $GOBIN/$GOVERS"
-
-
 GOPATH=`go env GOPATH`
 GOBIN=$GOPATH/bin
 
-echo GOPATH=$GOPATH
-echo GOBIN=$GOBIN
+# Outputing the system Go version for debugging purposes.
+echo "System Go installation: `which go` is `go version`; Preparing to use $GOBIN/$GOVERS"
 
+# Ensure it's installed in the GOBIN directory.
 GOBIN=$GOBIN go install golang.org/dl/$GOVERS@latest
 
 # This operation is cached on system and won't be re-downloaded.
 $GOBIN/$GOVERS download
 
+# Execute the script with the remaining arguments.
+echo $GOBIN/$GOVERS $@
 $GOBIN/$GOVERS $@
