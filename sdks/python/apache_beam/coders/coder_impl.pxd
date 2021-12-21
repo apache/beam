@@ -241,10 +241,11 @@ cdef class RowCoderImpl(StreamCoderImpl):
   cdef object constructor
   cdef list encoding_positions
   cdef list encoding_positions_argsort
+  cdef bint encoding_positions_are_trivial
   cdef list components
   cdef bint has_nullable_fields
 
-  @cython.locals(i=int, component_coder=CoderImpl)
+  @cython.locals(i=int, nvals=libc.stdint.int64_t, component_coder=CoderImpl)
   cpdef decode_from_stream(self, InputStream stream, bint nested)
 
   @cython.locals(i=int, component_coder=CoderImpl)
