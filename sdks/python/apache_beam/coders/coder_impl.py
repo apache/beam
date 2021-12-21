@@ -37,7 +37,6 @@ import itertools
 import json
 import logging
 import pickle
-from array import array
 from io import BytesIO
 from typing import TYPE_CHECKING
 from typing import Any
@@ -1584,6 +1583,7 @@ class RowCoderImpl(StreamCoderImpl):
     self.schema = schema
     self.num_fields = len(self.schema.fields)
     self.field_names = [f.name for f in self.schema.fields]
+    self.field_nullable = [field.type.nullable for field in self.schema.fields]
     self.constructor = named_tuple_from_schema(schema)
     self.encoding_positions = list(range(len(self.schema.fields)))
     if self.schema.encoding_positions_set:
@@ -1616,10 +1616,15 @@ class RowCoderImpl(StreamCoderImpl):
           any_nulls = True
           break
       if any_nulls:
-        words = array('B', itertools.repeat(0, (self.num_fields + 7) // 8))
+        out.write_var_int64((self.num_fields + 7) // 8)
+        # Pack the bits, little-endian, in consecutive bytes.
+        running = 0
         for i, attr in enumerate(attrs):
-          words[i // 8] |= (attr is None) << (i % 8)
-        out.write(words.tobytes(), True)
+          if i and i % 8 == 0:
+            out.write_byte(running)
+            running = 0
+          running |= (attr is None) << (i % 8)
+        out.write_byte(running)
       else:
         out.write_byte(0)
     else:
@@ -1628,26 +1633,26 @@ class RowCoderImpl(StreamCoderImpl):
     for i in range(self.num_fields):
       if not self.encoding_positions_are_trivial:
         i = self.encoding_positions_argsort[i]
-      if attrs[i] is None:
-        if not self.schema.fields[i].type.nullable:
+      attr = attrs[i]
+      if attr is None:
+        if not self.field_nullable[i]:
           raise ValueError(
               "Attempted to encode null for non-nullable field \"{}\".".format(
                   self.schema.fields[i].name))
         continue
       component_coder = self.components[i]  # for typing
-      component_coder.encode_to_stream(attrs[i], out, True)
+      component_coder.encode_to_stream(attr, out, True)
 
   def decode_from_stream(self, in_stream, nested):
     nvals = in_stream.read_var_int64()
-    words_bytes = in_stream.read_all(True)
-    if words_bytes:
+    null_mask = in_stream.read_all(True)
+    if null_mask:
       has_nulls = True
-      words = array('B')
-      words.frombytes(words_bytes)
-      nulls = [
-          0 if i // 8 >= len(words) else ((words[i // 8] >> (i % 8)) & 0x01)
-          for i in range(nvals)
-      ]
+      nulls = []
+      for i in range(nvals):
+        if i % 8 == 0:
+          running = 0 if i // 8 >= len(null_mask) else null_mask[i // 8]
+        nulls.append((running >> (i % 8)) & 0x01)
     else:
       has_nulls = False
 
