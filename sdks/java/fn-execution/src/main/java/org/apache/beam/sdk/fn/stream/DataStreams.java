@@ -181,12 +181,14 @@ public class DataStreams {
       this.inbound = new Inbound();
     }
 
-    public void seekToNextByteString() {
+    /**
+     * Skips any remaining bytes in the current {@link ByteString} moving to the next {@link
+     * ByteString} in the underlying {@link ByteString} {@link Iterator iterator} and decoding
+     * elements till at the next boundary.
+     */
+    public List<T> decodeFromChunkBoundaryToChunkBoundary() {
       inbound.currentStream = inputByteStrings.next().newInput();
       inbound.position = 0;
-    }
-
-    public List<T> decodeTillAtChunkBoundary() {
       try {
         InputStream previousStream = inbound.currentStream;
         List<T> rvals = new ArrayList<>();
