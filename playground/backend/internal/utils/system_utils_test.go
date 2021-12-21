@@ -15,7 +15,9 @@
 
 package utils
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestGetFuncName(t *testing.T) {
 	type args struct {

@@ -1043,8 +1043,6 @@ public class BigQueryServicesImplTest {
     List<FailsafeValueInSingleWindow<TableRow, TableRow>> rows = new ArrayList<>();
     rows.add(wrapValue(new TableRow()));
 
-    final TableDataInsertAllResponse allRowsSucceeded =
-        new TableDataInsertAllResponse().setInsertErrors(ImmutableList.of());
     // First response is 403 non-{rate-limited, quota-exceeded}, second response has valid payload
     // but should not be invoked.
     setupMockResponses(
@@ -1318,8 +1316,6 @@ public class BigQueryServicesImplTest {
 
   @Test
   public void testGetErrorInfo() throws IOException {
-    DatasetServiceImpl dataService =
-        new DatasetServiceImpl(bigquery, null, PipelineOptionsFactory.create());
     ErrorInfo info = new ErrorInfo();
     List<ErrorInfo> infoList = new ArrayList<>();
     infoList.add(info);

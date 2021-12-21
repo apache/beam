@@ -33,7 +33,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -84,7 +83,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A transform to write sharded records to BigQuery using the Storage API. */
-@SuppressWarnings("FutureReturnValueIgnored")
+@SuppressWarnings({
+  "FutureReturnValueIgnored",
+  "unused" // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
+})
 public class StorageApiWritesShardedRecords<DestinationT, ElementT>
     extends PTransform<
         PCollection<KV<ShardedKey<DestinationT>, Iterable<byte[]>>>, PCollection<Void>> {
@@ -99,7 +101,7 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
 
   private static final Cache<String, StreamAppendClient> APPEND_CLIENTS =
       CacheBuilder.newBuilder()
-          .expireAfterAccess(5, TimeUnit.MINUTES)
+          .expireAfterAccess(java.time.Duration.ofMinutes(5))
           .removalListener(
               (RemovalNotification<String, StreamAppendClient> removal) -> {
                 @Nullable final StreamAppendClient streamAppendClient = removal.getValue();
@@ -294,7 +296,7 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
       final String tableId = tableDestination.getTableUrn();
       final DatasetService datasetService = getDatasetService(pipelineOptions);
       MessageConverter<ElementT> messageConverter =
-          messageConverters.get(element.getKey().getKey(), dynamicDestinations);
+          messageConverters.get(element.getKey().getKey(), dynamicDestinations, datasetService);
       Descriptor descriptor = messageConverter.getSchemaDescriptor();
 
       // Each ProtoRows object contains at most 1MB of rows.

@@ -17,8 +17,10 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:playground/constants/params.dart';
 import 'package:playground/modules/editor/repository/code_repository/code_client/grpc_code_client.dart';
 import 'package:playground/modules/editor/repository/code_repository/code_repository.dart';
+import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/examples/repositories/example_client/grpc_example_client.dart';
 import 'package:playground/modules/examples/repositories/example_repository.dart';
 import 'package:playground/modules/output/models/output_placement_state.dart';
@@ -54,13 +56,18 @@ class PlaygroundPageProviders extends StatelessWidget {
 
             if (exampleState.sdkCategories != null &&
                 playground.selectedExample == null) {
-              final defaultExample =
-                  exampleState.defaultExamplesMap![playground.sdk]!;
-              return PlaygroundState(
+              final example = _getExample(exampleState, playground);
+              final newPlayground = PlaygroundState(
                 codeRepository: kCodeRepository,
                 sdk: playground.sdk,
-                selectedExample: defaultExample,
+                selectedExample: null,
               );
+              if (example != null) {
+                exampleState.loadExampleInfo(example, playground.sdk,).then(
+                    (exampleWithInfo) =>
+                        newPlayground.setExample(exampleWithInfo));
+              }
+              return newPlayground;
             }
             return playground;
           },
@@ -70,6 +77,25 @@ class PlaygroundPageProviders extends StatelessWidget {
         ),
       ],
       child: child,
+    );
+  }
+
+  ExampleModel? _getExample(
+    ExampleState exampleState,
+    PlaygroundState playground,
+  ) {
+    final examplePath = Uri.base.queryParameters[kExampleParam];
+    final allExamples = exampleState.sdkCategories?.values
+        .expand((sdkCategory) => sdkCategory.map((e) => e.examples))
+        .expand((element) => element)
+        .toList();
+    if (allExamples?.isEmpty ?? true) {
+      return null;
+    }
+    final defaultExample = exampleState.defaultExamplesMap![playground.sdk]!;
+    return allExamples?.firstWhere(
+      (example) => example.path == examplePath,
+      orElse: () => defaultExample,
     );
   }
 }

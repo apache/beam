@@ -20,7 +20,6 @@ import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  suppressUnusedVariable: true,
   automaticModuleName: 'org.apache.beam.sdk.io.gcp',
   enableSpotbugs: false,
   classesTriggerCheckerBugs: [
@@ -131,7 +130,7 @@ dependencies {
   compile library.java.arrow_memory_core
   compile library.java.arrow_vector
 
-  compile "io.opencensus:opencensus-api:0.28.0"
+  compile "io.opencensus:opencensus-api:0.30.0"
   compile "org.threeten:threetenbp:1.4.4"
 
   testCompile library.java.arrow_memory_netty

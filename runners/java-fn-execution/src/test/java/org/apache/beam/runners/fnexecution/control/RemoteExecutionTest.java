@@ -55,6 +55,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.fn.harness.FnHarness;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleProgressResponse;
@@ -220,7 +221,8 @@ public class RemoteExecutionTest implements Serializable {
                     controlServer.getApiServiceDescriptor(),
                     null,
                     InProcessManagedChannelFactory.create(),
-                    OutboundObserverFactory.clientDirect());
+                    OutboundObserverFactory.clientDirect(),
+                    Caches.eternal());
               } catch (Exception e) {
                 throw new RuntimeException(e);
               }
@@ -799,11 +801,9 @@ public class RemoteExecutionTest implements Serializable {
             stateDelegator);
 
     Map<String, Coder> remoteOutputCoders = descriptor.getRemoteOutputCoders();
-    Map<String, Collection<WindowedValue<?>>> outputValues = new HashMap<>();
     Map<String, RemoteOutputReceiver<?>> outputReceivers = new HashMap<>();
     for (Entry<String, Coder> remoteOutputCoder : remoteOutputCoders.entrySet()) {
       List<WindowedValue<?>> outputContents = Collections.synchronizedList(new ArrayList<>());
-      outputValues.put(remoteOutputCoder.getKey(), outputContents);
       outputReceivers.put(
           remoteOutputCoder.getKey(),
           RemoteOutputReceiver.of(

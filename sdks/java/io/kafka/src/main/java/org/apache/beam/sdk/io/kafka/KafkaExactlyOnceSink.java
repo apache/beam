@@ -24,6 +24,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -90,7 +91,8 @@ import org.slf4j.LoggerFactory;
  */
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "unused" // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
 })
 class KafkaExactlyOnceSink<K, V>
     extends PTransform<PCollection<ProducerRecord<K, V>>, PCollection<Void>> {
@@ -253,6 +255,7 @@ class KafkaExactlyOnceSink<K, V>
     // started with same groupId used for storing state on Kafka side, including the case where
     // a job is restarted with same groupId, but the metadata from previous run was not cleared.
     // Better to be safe and error out with a clear message.
+
     @StateId(WRITER_ID)
     private final StateSpec<ValueState<String>> writerIdSpec = StateSpecs.value();
 
@@ -639,7 +642,7 @@ class KafkaExactlyOnceSink<K, V>
       ShardWriterCache() {
         this.cache =
             CacheBuilder.newBuilder()
-                .expireAfterWrite(IDLE_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+                .expireAfterWrite(Duration.ofMillis(IDLE_TIMEOUT_MS))
                 .<Integer, ShardWriter<K, V>>removalListener(
                     notification -> {
                       if (notification.getCause() != RemovalCause.EXPLICIT) {

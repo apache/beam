@@ -178,6 +178,8 @@ def portableValidatesRunnerTask(String name, Boolean streaming, Boolean checkpoi
           excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
           excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
           excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+          excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderedDelivery'
+          excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderInStage'
         }
       }
     },

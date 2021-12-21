@@ -2908,10 +2908,7 @@ public class BigQueryIO {
           // Fallback behavior: convert to JSON TableRows and convert those into Beam TableRows.
           storageApiDynamicDestinations =
               new StorageApiDynamicDestinationsTableRow<>(
-                  dynamicDestinations,
-                  tableRowWriterFactory.getToRowFn(),
-                  getBigQueryServices().getDatasetService(bqOptions),
-                  getCreateDisposition());
+                  dynamicDestinations, tableRowWriterFactory.getToRowFn(), getCreateDisposition());
         }
 
         StorageApiLoads<DestinationT, T> storageApiLoads =

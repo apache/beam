@@ -27,18 +27,19 @@ from config import Config
 
 class GRPCClient:
   """GRPCClient is gRPC client for sending a request to the backend."""
-
   def __init__(self):
     self._channel = grpc.aio.insecure_channel(Config.SERVER_ADDRESS)
     self._stub = api_pb2_grpc.PlaygroundServiceStub(self._channel)
 
-  async def run_code(self, code: str, sdk: api_pb2.Sdk) -> str:
+  async def run_code(
+      self, code: str, sdk: api_pb2.Sdk, pipeline_options: str) -> str:
     """
     Run example by his code and SDK
 
     Args:
         code: code of the example.
         sdk: SDK of the example.
+        pipeline_options: pipeline options of the example.
 
     Returns:
         pipeline_uuid: uuid of the pipeline
@@ -47,8 +48,9 @@ class GRPCClient:
       sdks = api_pb2.Sdk.keys()
       sdks.remove(api_pb2.Sdk.Name(0))  # del SDK_UNSPECIFIED
       raise Exception(
-        f'Incorrect sdk: must be from this pool: {", ".join(sdks)}')
-    request = api_pb2.RunCodeRequest(code=code, sdk=sdk)
+          f'Incorrect sdk: must be from this pool: {", ".join(sdks)}')
+    request = api_pb2.RunCodeRequest(
+        code=code, sdk=sdk, pipeline_options=pipeline_options)
     response = await self._stub.RunCode(request)
     return response.pipeline_uuid
 
@@ -95,6 +97,21 @@ class GRPCClient:
     self._verify_pipeline_uuid(pipeline_uuid)
     request = api_pb2.GetRunOutputRequest(pipeline_uuid=pipeline_uuid)
     response = await self._stub.GetRunOutput(request)
+    return response.output
+
+  async def get_log(self, pipeline_uuid: str) -> str:
+    """
+    Get the result of pipeline execution.
+
+    Args:
+        pipeline_uuid: uuid of the pipeline
+
+    Returns:
+        output: contain the result of pipeline execution
+    """
+    self._verify_pipeline_uuid(pipeline_uuid)
+    request = api_pb2.GetLogsRequest(pipeline_uuid=pipeline_uuid)
+    response = await self._stub.GetLogs(request)
     return response.output
 
   async def get_compile_output(self, pipeline_uuid: str) -> str:
