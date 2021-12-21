@@ -36,11 +36,11 @@ dependencies {
   implementation library.java.vendored_guava_26_0_jre
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation "org.threeten:threetenbp:1.4.5"
-  provided project(":sdks:java:extensions:sql")
+  compileOnly project(":sdks:java:extensions:sql")
 
   // Dependencies for the example
-  provided project(":sdks:java:io:google-cloud-platform")
-  provided library.java.slf4j_api
+  compileOnly project(":sdks:java:io:google-cloud-platform")
+  compileOnly library.java.slf4j_api
 
   testImplementation project(":sdks:java:extensions:sql:zetasql")
   testRuntimeOnly library.java.slf4j_simple

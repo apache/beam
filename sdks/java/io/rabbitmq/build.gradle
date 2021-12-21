@@ -29,7 +29,7 @@ dependencies {
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation library.java.joda_time
   implementation "com.rabbitmq:amqp-client:5.7.3"
-  provided library.java.jackson_dataformat_xml
+  compileOnly library.java.jackson_dataformat_xml
   testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
   testImplementation "org.apache.qpid:qpid-broker-core:$qpid_version"
   testImplementation "org.apache.qpid:qpid-broker-plugins-memory-store:$qpid_version"

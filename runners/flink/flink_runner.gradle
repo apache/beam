@@ -148,7 +148,7 @@ dependencies {
   implementation "org.apache.flink:flink-runtime_2.11:$flink_version"
   implementation "org.apache.flink:flink-streaming-java_2.11:$flink_version"
   // RocksDB state backend (included in the Flink distribution)
-  provided "org.apache.flink:flink-statebackend-rocksdb_2.11:$flink_version"
+  compileOnly "org.apache.flink:flink-statebackend-rocksdb_2.11:$flink_version"
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   // FlinkStateInternalsTest extends abstract StateInternalsTest
   testImplementation project(path: ":runners:core-java", configuration: "testRuntimeMigration")

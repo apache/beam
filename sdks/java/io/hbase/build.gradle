@@ -41,7 +41,7 @@ dependencies {
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(":sdks:java:io:hadoop-common")
   implementation library.java.slf4j_api
-  provided "org.apache.hbase:hbase-shaded-client:$hbase_version"
+  compileOnly "org.apache.hbase:hbase-shaded-client:$hbase_version"
   testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation library.java.junit

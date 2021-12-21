@@ -54,7 +54,7 @@ hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
 
 dependencies {
   // TODO(BEAM-13179): Determine how to build without this dependency
-  provided "org.immutables:value:2.8.8"
+  compileOnly "org.immutables:value:2.8.8"
   javacc "net.java.dev.javacc:javacc:4.0"
   fmppTask "com.googlecode.fmpp-maven-plugin:fmpp-maven-plugin:1.0"
   fmppTask "org.freemarker:freemarker:2.3.31"
@@ -77,14 +77,14 @@ dependencies {
   implementation library.java.slf4j_api
   implementation library.java.joda_time
   implementation library.java.vendored_guava_26_0_jre
-  provided project(":sdks:java:io:kafka")
-  provided project(":sdks:java:io:google-cloud-platform")
+  compileOnly project(":sdks:java:io:kafka")
+  compileOnly project(":sdks:java:io:google-cloud-platform")
   implementation project(":sdks:java:io:mongodb")
   implementation library.java.avro
-  provided project(":sdks:java:io:parquet")
-  provided library.java.jackson_dataformat_xml
-  provided library.java.hadoop_client
-  provided library.java.kafka_clients
+  compileOnly project(":sdks:java:io:parquet")
+  compileOnly library.java.jackson_dataformat_xml
+  compileOnly library.java.hadoop_client
+  compileOnly library.java.kafka_clients
   testImplementation library.java.vendored_calcite_1_28_0
   testImplementation library.java.vendored_guava_26_0_jre
   testImplementation library.java.junit

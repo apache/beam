@@ -1254,7 +1254,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
           project.dependencies {
             shadowTestRuntimeClasspath it.project(path: project.path, configuration: "shadowTest")
-            shadowTestRuntimeClasspath it.project(path: project.path, configuration: "provided")
+            shadowTestRuntimeClasspath it.project(path: project.path, configuration: "compileOnly")
           }
 
           project.test { classpath = project.configurations.shadowTestRuntimeClasspath }
@@ -1580,8 +1580,8 @@ class BeamModulePlugin implements Plugin<Project> {
                 // TODO: Should we use the runtime scope instead of the compile scope
                 // which forces all our consumers to declare what they consume?
                 generateDependenciesFromConfiguration(
-                    configuration: (configuration.shadowClosure ? 'shadow' : 'compile'), scope: 'compile')
-                generateDependenciesFromConfiguration(configuration: 'provided', scope: 'provided')
+                    configuration: (configuration.shadowClosure ? 'shadow' : 'implementation'), scope: 'compile')
+                generateDependenciesFromConfiguration(configuration: 'compileOnly', scope: 'provided')
 
                 if (!boms.isEmpty()) {
                   def dependencyManagementNode = root.appendNode('dependencyManagement')

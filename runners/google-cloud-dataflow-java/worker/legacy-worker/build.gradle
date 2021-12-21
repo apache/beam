@@ -189,13 +189,13 @@ dependencies {
     // runners/google-cloud-dataflow-java/worker/build.gradle using the rules provided
     // there.
     sdk_provided_dependencies.each {
-        provided(it)
+        compileOnly(it)
     }
     sdk_provided_shaded_project_dependencies.each {
-        provided project(path: it, configuration: "shadow")
+        compileOnly project(path: it, configuration: "shadow")
     }
     sdk_provided_project_dependencies.each {
-        provided project(it)
+        compileOnly project(it)
     }
 
     implementation project(path: ":model:fn-execution", configuration: "shadow")
@@ -223,7 +223,7 @@ dependencies {
     implementation library.java.joda_time
     implementation library.java.slf4j_api
     implementation library.java.vendored_grpc_1_36_0
-    provided library.java.error_prone_annotations
+    implementation library.java.error_prone_annotations
     runtimeOnly library.java.slf4j_jdk14
 
     // Any test dependency which intersects with our relocation rules above needs to be relocated
