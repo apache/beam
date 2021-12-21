@@ -1246,17 +1246,33 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(lambda s2: s2.idxmax(skipna=False), s2)
 
   def test_pipe(self):
-    # def sum(x):
-    #   x['A'] = x['A'] * 2
+    # copies df or it gets modified two times
+    def times(df, column, times):
+      copy = df.copy()
+      copy[column] = copy[column] * times
+      return copy
 
     df = pd.DataFrame({'A': [1, 2, 3], 'B': [4, 5, 6]}, index=[0, 1, 2])
+    s = pd.Series([1, 2, 3, 4, 5], index=[0, 1, 2, 3, 4])
 
-    # func_1 = sum
+    func_1 = times
     func_2 = frames.DeferredDataFrame.sum
+    func_3 = frames.DeferredSeries.sum
 
-    # _expr or proxy doesnt exist
-    # self._run_test(lambda df: df.pipe(func_1), df)
+    # custom function needs to return something otherwise fails with _expr
+    # or proxy doesnt exist
+    self._run_test(lambda df: df.pipe(func_1, 'A', 2), df)
+
+    # passes
     self._run_test(lambda df: df.pipe(func_2), df)
+
+    # fails type assertion when axis=1
+    # self._run_test(lambda df: df.pipe(func_2, axis=1), df)
+
+    # passes but need to return a copy of the df in the custom function
+    self._run_test(lambda df: df.pipe(func_1, 'A', 2).pipe(func_2), df)
+
+    self._run_test(lambda s: s.pipe(func_3), s)
 
 
 # pandas doesn't support kurtosis on GroupBys:

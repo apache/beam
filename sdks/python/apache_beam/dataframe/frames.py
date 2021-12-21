@@ -1092,6 +1092,10 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
       # Manipulates index, partitioning is not preserved
       preserves_partition_by=partitionings.Singleton())
 
+  @frame_base.with_docs_from(pd.DataFrame)
+  def pipe(self, func, *args, **kwargs):
+    return func(self, *args, **kwargs)
+
 
 @populate_not_implemented(pd.Series)
 @frame_base.DeferredFrame._register_for(pd.Series)
@@ -3848,11 +3852,6 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   def idxmax(self, **kwargs):
     return self._idxmaxmin_helper('idxmax', **kwargs)
 
-  @frame_base.with_docs_from(pd.DataFrame)
-  @frame_base.args_to_kwargs(pd.DataFrame)
-  def pipe(self, func, *args, **kwargs):
-    result = func(self, *args, **kwargs)
-    return result
 
 for io_func in dir(io):
   if io_func.startswith('to_'):
