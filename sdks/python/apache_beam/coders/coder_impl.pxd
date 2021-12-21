@@ -232,3 +232,23 @@ cdef class ParamWindowedValueCoderImpl(WindowedValueCoderImpl):
 
 cdef class LengthPrefixCoderImpl(StreamCoderImpl):
   cdef CoderImpl _value_coder
+
+
+cdef class RowCoderImpl(StreamCoderImpl):
+  cdef object schema
+  cdef object constructor
+  cdef list encoding_positions
+  cdef object encoding_positions_argsort
+  cdef list components
+  cdef bint has_nullable_fields
+
+  cpdef decode_from_stream(self, InputStream stream, bint nested)
+  cpdef encode_to_stream(self, value, OutputStream stream, bint nested)
+
+
+cdef class LogicalTypeCoderImpl(StreamCoderImpl):
+  cdef object logical_type
+  cdef CoderImpl representation_coder
+
+  cpdef decode_from_stream(self, InputStream stream, bint nested)
+  cpdef encode_to_stream(self, value, OutputStream stream, bint nested)
