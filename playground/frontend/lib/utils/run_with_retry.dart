@@ -19,10 +19,20 @@
 const kDefaultRetryCount = 5;
 const kDefaultRetryWaitMs = 2000;
 
+/// Runs [fn] future [retryCount] times if error occurs
+/// Each run except the first one delayed [retryWaitMs]ms
 Future<T> runWithRetry<T>(Future<T> Function() fn,
     {int retryCount = kDefaultRetryCount,
-    int retryWaitMs = kDefaultRetryWaitMs,
-    int attemptNumber = 1}) async {
+    int retryWaitMs = kDefaultRetryWaitMs}) async {
+  return _runWithRetry(fn, retryWaitMs: retryWaitMs, retryCount: retryCount);
+}
+
+Future<T> _runWithRetry<T>(
+  Future<T> Function() fn, {
+  required int retryCount,
+  required int retryWaitMs,
+  int attemptNumber = 1,
+}) async {
   try {
     return await fn();
   } catch (e) {
@@ -31,7 +41,7 @@ Future<T> runWithRetry<T>(Future<T> Function() fn,
     }
     return Future.delayed(
       Duration(milliseconds: retryWaitMs),
-      () => runWithRetry(
+      () => _runWithRetry(
         fn,
         retryCount: retryCount,
         retryWaitMs: retryWaitMs,

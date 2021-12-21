@@ -82,9 +82,12 @@ class GrpcCodeClient implements CodeClient {
     RunCodeRequestWrapper request,
   ) {
     return _runSafely(() => createClient(request.sdk)
-        .getRunOutput(grpc.GetRunOutputRequest(pipelineUuid: pipelineUuid))
-        .then((response) => _toOutputResponse(response.output))
-        .catchError((err) => _toOutputResponse('')));
+            .getRunOutput(grpc.GetRunOutputRequest(pipelineUuid: pipelineUuid))
+            .then((response) => _toOutputResponse(response.output))
+            .catchError((err) {
+          print(err);
+          return _toOutputResponse('');
+        }));
   }
 
   @override
@@ -93,9 +96,12 @@ class GrpcCodeClient implements CodeClient {
     RunCodeRequestWrapper request,
   ) {
     return _runSafely(() => createClient(request.sdk)
-        .getLogs(grpc.GetLogsRequest(pipelineUuid: pipelineUuid))
-        .then((response) => _toOutputResponse(response.output))
-        .catchError((err) => _toOutputResponse('')));
+            .getLogs(grpc.GetLogsRequest(pipelineUuid: pipelineUuid))
+            .then((response) => _toOutputResponse(response.output))
+            .catchError((err) {
+          print(err);
+          return _toOutputResponse('');
+        }));
   }
 
   @override
