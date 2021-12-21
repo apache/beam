@@ -37,6 +37,7 @@ class AutocompleteTest(unittest.TestCase):
   KINGLEAR_HASH_SUM = 268011785062540
   KINGLEAR_INPUT = 'gs://dataflow-samples/shakespeare/kinglear.txt'
 
+  @pytest.mark.examples_postcommit
   def test_top_prefixes(self):
     with TestPipeline() as p:
       words = p | beam.Create(self.WORDS)

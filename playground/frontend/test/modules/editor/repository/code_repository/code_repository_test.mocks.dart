@@ -64,32 +64,45 @@ class MockCodeClient extends _i1.Mock implements _i5.CodeClient {
                   Future<_i2.RunCodeResponse>.value(_FakeRunCodeResponse_0()))
           as _i6.Future<_i2.RunCodeResponse>);
   @override
-  _i6.Future<_i3.CheckStatusResponse> checkStatus(String? pipelineUuid) =>
-      (super.noSuchMethod(Invocation.method(#checkStatus, [pipelineUuid]),
+  _i6.Future<_i3.CheckStatusResponse> checkStatus(
+          String? pipelineUuid, _i7.RunCodeRequestWrapper? request) =>
+      (super.noSuchMethod(
+              Invocation.method(#checkStatus, [pipelineUuid, request]),
               returnValue: Future<_i3.CheckStatusResponse>.value(
                   _FakeCheckStatusResponse_1()))
           as _i6.Future<_i3.CheckStatusResponse>);
   @override
-  _i6.Future<_i4.OutputResponse> getCompileOutput(String? pipelineUuid) =>
-      (super.noSuchMethod(Invocation.method(#getCompileOutput, [pipelineUuid]),
+  _i6.Future<_i4.OutputResponse> getCompileOutput(
+          String? pipelineUuid, _i7.RunCodeRequestWrapper? request) =>
+      (super.noSuchMethod(
+              Invocation.method(#getCompileOutput, [pipelineUuid, request]),
               returnValue:
                   Future<_i4.OutputResponse>.value(_FakeOutputResponse_2()))
           as _i6.Future<_i4.OutputResponse>);
-
   @override
-  _i6.Future<_i4.OutputResponse> getRunOutput(String? pipelineUuid) =>
-      (super.noSuchMethod(Invocation.method(#getRunOutput, [pipelineUuid]),
+  _i6.Future<_i4.OutputResponse> getRunOutput(
+          String? pipelineUuid, _i7.RunCodeRequestWrapper? request) =>
+      (super.noSuchMethod(
+              Invocation.method(#getRunOutput, [pipelineUuid, request]),
               returnValue:
                   Future<_i4.OutputResponse>.value(_FakeOutputResponse_2()))
           as _i6.Future<_i4.OutputResponse>);
-
   @override
-  _i6.Future<_i4.OutputResponse> getRunErrorOutput(String? pipelineUuid) =>
-      (super.noSuchMethod(Invocation.method(#getRunErrorOutput, [pipelineUuid]),
+  _i6.Future<_i4.OutputResponse> getLogOutput(
+          String? pipelineUuid, _i7.RunCodeRequestWrapper? request) =>
+      (super.noSuchMethod(
+              Invocation.method(#getLogOutput, [pipelineUuid, request]),
               returnValue:
                   Future<_i4.OutputResponse>.value(_FakeOutputResponse_2()))
           as _i6.Future<_i4.OutputResponse>);
-
+  @override
+  _i6.Future<_i4.OutputResponse> getRunErrorOutput(
+          String? pipelineUuid, _i7.RunCodeRequestWrapper? request) =>
+      (super.noSuchMethod(
+              Invocation.method(#getRunErrorOutput, [pipelineUuid, request]),
+              returnValue:
+                  Future<_i4.OutputResponse>.value(_FakeOutputResponse_2()))
+          as _i6.Future<_i4.OutputResponse>);
   @override
   String toString() => super.toString();
 }

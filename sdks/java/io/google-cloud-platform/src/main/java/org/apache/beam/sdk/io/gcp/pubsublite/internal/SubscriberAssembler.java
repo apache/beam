@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 import static com.google.cloud.pubsublite.internal.ExtractStatus.toCanonical;
 import static com.google.cloud.pubsublite.internal.wire.ServiceClients.addDefaultMetadata;
 import static com.google.cloud.pubsublite.internal.wire.ServiceClients.addDefaultSettings;
+import static java.util.concurrent.TimeUnit.MINUTES;
 
 import com.google.api.gax.rpc.ApiException;
 import com.google.cloud.pubsublite.Offset;
@@ -92,14 +93,21 @@ class SubscriberAssembler {
   }
 
   BlockingCommitter getCommitter() {
-    return offset ->
+    return offset -> {
+      try {
         newCursorServiceClient()
-            .commitCursor(
+            .commitCursorCallable()
+            .futureCall(
                 CommitCursorRequest.newBuilder()
                     .setSubscription(options.subscriptionPath().toString())
                     .setPartition(partition.value())
                     .setCursor(Cursor.newBuilder().setOffset(offset.value()))
-                    .build());
+                    .build())
+            .get(1, MINUTES);
+      } catch (Throwable t) {
+        throw toCanonical(t).underlying;
+      }
+    };
   }
 
   TopicBacklogReader getBacklogReader() {

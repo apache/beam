@@ -17,19 +17,24 @@
  */
 package org.apache.beam.fn.harness.control;
 
+import static java.util.Arrays.asList;
 import static org.apache.beam.fn.harness.control.ProcessBundleHandler.REGISTERED_RUNNER_FACTORIES;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
 import static org.hamcrest.collection.IsEmptyCollection.empty;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.eq;
@@ -49,6 +54,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.BeamFnDataReadRunner;
+import org.apache.beam.fn.harness.Cache;
+import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.fn.harness.PTransformRunnerFactory;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.ProgressRequestCallback;
 import org.apache.beam.fn.harness.control.FinalizeBundleHandler.CallbackRegistration;
@@ -67,6 +74,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements.Timers;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest.CacheToken;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
@@ -117,7 +125,6 @@ import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Message;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
@@ -135,6 +142,7 @@ import org.mockito.MockitoAnnotations;
 @RunWith(JUnit4.class)
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "unused", // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
 })
 public class ProcessBundleHandlerTest {
   private static final String DATA_INPUT_URN = "beam:runner:source:v1";
@@ -203,6 +211,11 @@ public class ProcessBundleHandlerTest {
 
     TestBundleProcessor(BundleProcessor wrappedBundleProcessor) {
       this.wrappedBundleProcessor = wrappedBundleProcessor;
+    }
+
+    @Override
+    Cache<?, ?> getProcessWideCache() {
+      return wrappedBundleProcessor.getProcessWideCache();
     }
 
     @Override
@@ -296,11 +309,9 @@ public class ProcessBundleHandlerTest {
 
     @Override
     BundleProcessor get(
-        String bundleDescriptorId,
-        String instructionId,
+        InstructionRequest processBundleRequest,
         Supplier<BundleProcessor> bundleProcessorSupplier) {
-      return new TestBundleProcessor(
-          super.get(bundleDescriptorId, instructionId, bundleProcessorSupplier));
+      return new TestBundleProcessor(super.get(processBundleRequest, bundleProcessorSupplier));
     }
   }
 
@@ -316,6 +327,7 @@ public class ProcessBundleHandlerTest {
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
             ImmutableMap.of(),
+            Caches.noop(),
             new BundleProcessorCache());
 
     BeamFnApi.InstructionResponse response =
@@ -344,6 +356,7 @@ public class ProcessBundleHandlerTest {
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
             ImmutableMap.of(),
+            Caches.noop(),
             new BundleProcessorCache());
 
     handler.progress(
@@ -384,7 +397,8 @@ public class ProcessBundleHandlerTest {
                     .build())
             .putPcollections("2L-output-pc", RunnerApi.PCollection.getDefaultInstance())
             .build();
-    Map<String, Message> fnApiRegistry = ImmutableMap.of("1L", processBundleDescriptor);
+    Map<String, BeamFnApi.ProcessBundleDescriptor> fnApiRegistry =
+        ImmutableMap.of("1L", processBundleDescriptor);
 
     List<RunnerApi.PTransform> transformsProcessed = new ArrayList<>();
     List<String> orderOfOperations = new ArrayList<>();
@@ -420,6 +434,7 @@ public class ProcessBundleHandlerTest {
             ImmutableMap.of(
                 DATA_INPUT_URN, startFinishRecorder,
                 DATA_OUTPUT_URN, startFinishRecorder),
+            Caches.noop(),
             new BundleProcessorCache());
 
     handler.processBundle(
@@ -504,7 +519,8 @@ public class ProcessBundleHandlerTest {
                             .build())
                     .build())
             .build();
-    Map<String, Message> fnApiRegistry = ImmutableMap.of("1L", processBundleDescriptor);
+    Map<String, BeamFnApi.ProcessBundleDescriptor> fnApiRegistry =
+        ImmutableMap.of("1L", processBundleDescriptor);
 
     Map<String, PTransformRunnerFactory> urnToPTransformRunnerFactoryMap =
         Maps.newHashMap(REGISTERED_RUNNER_FACTORIES);
@@ -520,6 +536,7 @@ public class ProcessBundleHandlerTest {
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
             urnToPTransformRunnerFactoryMap,
+            Caches.noop(),
             new BundleProcessorCache());
 
     handler.processBundle(
@@ -556,7 +573,8 @@ public class ProcessBundleHandlerTest {
                     .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(DATA_INPUT_URN).build())
                     .build())
             .build();
-    Map<String, Message> fnApiRegistry = ImmutableMap.of("1L", processBundleDescriptor);
+    Map<String, BeamFnApi.ProcessBundleDescriptor> fnApiRegistry =
+        ImmutableMap.of("1L", processBundleDescriptor);
 
     ProcessBundleHandler handler =
         new ProcessBundleHandler(
@@ -568,6 +586,7 @@ public class ProcessBundleHandlerTest {
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
             ImmutableMap.of(DATA_INPUT_URN, (context) -> null),
+            Caches.noop(),
             new TestBundleProcessorCache());
 
     assertThat(TestBundleProcessor.resetCnt, equalTo(0));
@@ -607,6 +626,17 @@ public class ProcessBundleHandlerTest {
         handler.bundleProcessorCache.getCachedBundleProcessors().get("1L").size(), equalTo(0));
   }
 
+  private static InstructionRequest processBundleRequestFor(
+      String instructionId, String bundleDescriptorId, CacheToken... cacheTokens) {
+    return InstructionRequest.newBuilder()
+        .setInstructionId(instructionId)
+        .setProcessBundle(
+            ProcessBundleRequest.newBuilder()
+                .setProcessBundleDescriptorId(bundleDescriptorId)
+                .addAllCacheTokens(asList(cacheTokens)))
+        .build();
+  }
+
   @Test
   public void testBundleProcessorIsFoundWhenActive() {
     BundleProcessor bundleProcessor = mock(BundleProcessor.class);
@@ -617,7 +647,7 @@ public class ProcessBundleHandlerTest {
     assertNull(cache.find("unknown"));
 
     // Once it is active, ensure the bundle processor is found
-    cache.get("descriptorId", "known", () -> bundleProcessor);
+    cache.get(processBundleRequestFor("known", "descriptorId"), () -> bundleProcessor);
     assertSame(bundleProcessor, cache.find("known"));
 
     // After it is released, ensure the bundle processor is no longer found
@@ -625,11 +655,12 @@ public class ProcessBundleHandlerTest {
     assertNull(cache.find("known"));
 
     // Once it is active, ensure the bundle processor is found
-    cache.get("descriptorId", "known", () -> bundleProcessor);
+    cache.get(processBundleRequestFor("known", "descriptorId"), () -> bundleProcessor);
     assertSame(bundleProcessor, cache.find("known"));
 
     // After it is discarded, ensure the bundle processor is no longer found
     cache.discard(bundleProcessor);
+    verify(bundleProcessor).discard();
     assertNull(cache.find("known"));
   }
 
@@ -646,8 +677,10 @@ public class ProcessBundleHandlerTest {
     ProcessBundleHandler.HandleStateCallsForBundle beamFnStateClient =
         mock(ProcessBundleHandler.HandleStateCallsForBundle.class);
     ThrowingRunnable resetFunction = mock(ThrowingRunnable.class);
+    Cache<Object, Object> processWideCache = Caches.eternal();
     BundleProcessor bundleProcessor =
         BundleProcessor.create(
+            processWideCache,
             ProcessBundleDescriptor.getDefaultInstance(),
             startFunctionRegistry,
             finishFunctionRegistry,
@@ -661,9 +694,21 @@ public class ProcessBundleHandlerTest {
             beamFnStateClient,
             bundleFinalizationCallbacks);
     bundleProcessor.finish();
-
+    CacheToken cacheToken =
+        CacheToken.newBuilder()
+            .setSideInput(CacheToken.SideInput.newBuilder().setTransformId("transformId"))
+            .build();
+    bundleProcessor.setupForProcessBundleRequest(
+        processBundleRequestFor("instructionId", "descriptorId", cacheToken));
+    assertEquals("instructionId", bundleProcessor.getInstructionId());
+    assertThat(bundleProcessor.getCacheTokens(), containsInAnyOrder(cacheToken));
+    Cache<Object, Object> bundleCache = bundleProcessor.getBundleCache();
+    bundleCache.put("A", "B");
+    assertEquals("B", bundleCache.peek("A"));
     bundleProcessor.reset();
     assertNull(bundleProcessor.getInstructionId());
+    assertNull(bundleProcessor.getCacheTokens());
+    assertNull(bundleCache.peek("A"));
     verify(startFunctionRegistry, times(1)).reset();
     verify(finishFunctionRegistry, times(1)).reset();
     verify(splitListener, times(1)).clear();
@@ -672,6 +717,13 @@ public class ProcessBundleHandlerTest {
     verify(stateTracker, times(1)).reset();
     verify(bundleFinalizationCallbacks, times(1)).clear();
     verify(resetFunction, times(1)).run();
+
+    // Ensure that the next setup produces the expected state.
+    bundleProcessor.setupForProcessBundleRequest(
+        processBundleRequestFor("instructionId2", "descriptorId2"));
+    assertNotSame(bundleCache, bundleProcessor.getBundleCache());
+    assertEquals("instructionId2", bundleProcessor.getInstructionId());
+    assertThat(bundleProcessor.getCacheTokens(), is(emptyIterable()));
   }
 
   @Test
@@ -684,7 +736,8 @@ public class ProcessBundleHandlerTest {
                     .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(DATA_INPUT_URN).build())
                     .build())
             .build();
-    Map<String, Message> fnApiRegistry = ImmutableMap.of("1L", processBundleDescriptor);
+    Map<String, BeamFnApi.ProcessBundleDescriptor> fnApiRegistry =
+        ImmutableMap.of("1L", processBundleDescriptor);
 
     ProcessBundleHandler handler =
         new ProcessBundleHandler(
@@ -700,6 +753,7 @@ public class ProcessBundleHandlerTest {
                 (context) -> {
                   throw new IllegalStateException("TestException");
                 }),
+            Caches.noop(),
             new BundleProcessorCache());
     assertThrows(
         "TestException",
@@ -723,7 +777,8 @@ public class ProcessBundleHandlerTest {
                     .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(DATA_INPUT_URN).build())
                     .build())
             .build();
-    Map<String, Message> fnApiRegistry = ImmutableMap.of("1L", processBundleDescriptor);
+    Map<String, BeamFnApi.ProcessBundleDescriptor> fnApiRegistry =
+        ImmutableMap.of("1L", processBundleDescriptor);
     FinalizeBundleHandler mockFinalizeBundleHandler = mock(FinalizeBundleHandler.class);
     BundleFinalizer.Callback mockCallback = mock(BundleFinalizer.Callback.class);
 
@@ -747,6 +802,7 @@ public class ProcessBundleHandlerTest {
                                   Instant.ofEpochMilli(42L), mockCallback));
                       return null;
                     }),
+            Caches.noop(),
             new BundleProcessorCache());
     BeamFnApi.InstructionResponse.Builder response =
         handler.processBundle(
@@ -779,7 +835,8 @@ public class ProcessBundleHandlerTest {
                     .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(DATA_INPUT_URN).build())
                     .build())
             .build();
-    Map<String, Message> fnApiRegistry = ImmutableMap.of("1L", processBundleDescriptor);
+    Map<String, BeamFnApi.ProcessBundleDescriptor> fnApiRegistry =
+        ImmutableMap.of("1L", processBundleDescriptor);
 
     ProcessBundleHandler handler =
         new ProcessBundleHandler(
@@ -797,6 +854,7 @@ public class ProcessBundleHandlerTest {
                       context.addStartBundleFunction(ProcessBundleHandlerTest::throwException);
                       return null;
                     }),
+            Caches.noop(),
             new BundleProcessorCache());
     assertThrows(
         "TestException",
@@ -832,7 +890,7 @@ public class ProcessBundleHandlerTest {
     }
   }
 
-  private ProcessBundleHandler setupProcessBundleHanlderForSimpleRecordingDoFn(
+  private ProcessBundleHandler setupProcessBundleHandlerForSimpleRecordingDoFn(
       List<String> dataOutput, List<String> timerOutput) throws Exception {
     DoFnWithExecutionInformation doFnWithExecutionInformation =
         DoFnWithExecutionInformation.of(
@@ -918,7 +976,8 @@ public class ProcessBundleHandlerTest {
                     .addComponentCoderIds("window-strategy-coder")
                     .build())
             .build();
-    Map<String, Message> fnApiRegistry = ImmutableMap.of("1L", processBundleDescriptor);
+    Map<String, BeamFnApi.ProcessBundleDescriptor> fnApiRegistry =
+        ImmutableMap.of("1L", processBundleDescriptor);
 
     Map<String, PTransformRunnerFactory> urnToPTransformRunnerFactoryMap =
         Maps.newHashMap(REGISTERED_RUNNER_FACTORIES);
@@ -962,6 +1021,7 @@ public class ProcessBundleHandlerTest {
         null /* finalizeBundleHandler */,
         new ShortIdMap(),
         urnToPTransformRunnerFactoryMap,
+        Caches.noop(),
         new BundleProcessorCache());
   }
 
@@ -970,7 +1030,7 @@ public class ProcessBundleHandlerTest {
     List<String> dataOutput = new ArrayList<>();
     List<String> timerOutput = new ArrayList<>();
     ProcessBundleHandler handler =
-        setupProcessBundleHanlderForSimpleRecordingDoFn(dataOutput, timerOutput);
+        setupProcessBundleHandlerForSimpleRecordingDoFn(dataOutput, timerOutput);
 
     ByteString.Output encodedData = ByteString.newOutput();
     KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()).encode(KV.of("", "data"), encodedData);
@@ -1037,7 +1097,7 @@ public class ProcessBundleHandlerTest {
     List<String> dataOutput = new ArrayList<>();
     List<String> timerOutput = new ArrayList<>();
     ProcessBundleHandler handler =
-        setupProcessBundleHanlderForSimpleRecordingDoFn(dataOutput, timerOutput);
+        setupProcessBundleHandlerForSimpleRecordingDoFn(dataOutput, timerOutput);
 
     ByteString.Output encodedData = ByteString.newOutput();
     KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()).encode(KV.of("", "data"), encodedData);
@@ -1093,7 +1153,7 @@ public class ProcessBundleHandlerTest {
     List<String> dataOutput = new ArrayList<>();
     List<String> timerOutput = new ArrayList<>();
     ProcessBundleHandler handler =
-        setupProcessBundleHanlderForSimpleRecordingDoFn(dataOutput, timerOutput);
+        setupProcessBundleHandlerForSimpleRecordingDoFn(dataOutput, timerOutput);
 
     ByteString.Output encodedTimer = ByteString.newOutput();
     Timer.Coder.of(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE)
@@ -1192,7 +1252,8 @@ public class ProcessBundleHandlerTest {
                     .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(DATA_INPUT_URN).build())
                     .build())
             .build();
-    Map<String, Message> fnApiRegistry = ImmutableMap.of("1L", processBundleDescriptor);
+    Map<String, BeamFnApi.ProcessBundleDescriptor> fnApiRegistry =
+        ImmutableMap.of("1L", processBundleDescriptor);
 
     Mockito.doAnswer(
             (invocation) -> {
@@ -1231,6 +1292,7 @@ public class ProcessBundleHandlerTest {
                           (input) -> {});
                       return null;
                     }),
+            Caches.noop(),
             new BundleProcessorCache());
     handler.processBundle(
         BeamFnApi.InstructionRequest.newBuilder()
@@ -1255,7 +1317,8 @@ public class ProcessBundleHandlerTest {
                     .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(DATA_INPUT_URN).build())
                     .build())
             .build();
-    Map<String, Message> fnApiRegistry = ImmutableMap.of("1L", processBundleDescriptor);
+    Map<String, BeamFnApi.ProcessBundleDescriptor> fnApiRegistry =
+        ImmutableMap.of("1L", processBundleDescriptor);
 
     Mockito.doAnswer(
             (invocation) -> {
@@ -1300,6 +1363,7 @@ public class ProcessBundleHandlerTest {
                           });
                       return null;
                     }),
+            Caches.noop(),
             new BundleProcessorCache());
     assertThrows(
         "TestException",
@@ -1328,7 +1392,8 @@ public class ProcessBundleHandlerTest {
                     .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(DATA_INPUT_URN).build())
                     .build())
             .build();
-    Map<String, Message> fnApiRegistry = ImmutableMap.of("1L", processBundleDescriptor);
+    Map<String, BeamFnApi.ProcessBundleDescriptor> fnApiRegistry =
+        ImmutableMap.of("1L", processBundleDescriptor);
 
     ProcessBundleHandler handler =
         new ProcessBundleHandler(
@@ -1346,6 +1411,7 @@ public class ProcessBundleHandlerTest {
                       context.addFinishBundleFunction(ProcessBundleHandlerTest::throwException);
                       return null;
                     }),
+            Caches.noop(),
             new BundleProcessorCache());
     assertThrows(
         "TestException",
@@ -1374,7 +1440,8 @@ public class ProcessBundleHandlerTest {
                     .build())
             .setStateApiServiceDescriptor(ApiServiceDescriptor.getDefaultInstance())
             .build();
-    Map<String, Message> fnApiRegistry = ImmutableMap.of("1L", processBundleDescriptor);
+    Map<String, BeamFnApi.ProcessBundleDescriptor> fnApiRegistry =
+        ImmutableMap.of("1L", processBundleDescriptor);
 
     CompletableFuture<StateResponse>[] successfulResponse = new CompletableFuture[1];
     CompletableFuture<StateResponse>[] unsuccessfulResponse = new CompletableFuture[1];
@@ -1438,6 +1505,7 @@ public class ProcessBundleHandlerTest {
                             StateRequest.newBuilder().setInstructionId("FAIL"));
                   }
                 }),
+            Caches.noop(),
             new BundleProcessorCache());
     handler.processBundle(
         BeamFnApi.InstructionRequest.newBuilder()
@@ -1459,7 +1527,8 @@ public class ProcessBundleHandlerTest {
                     .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(DATA_INPUT_URN).build())
                     .build())
             .build();
-    Map<String, Message> fnApiRegistry = ImmutableMap.of("1L", processBundleDescriptor);
+    Map<String, BeamFnApi.ProcessBundleDescriptor> fnApiRegistry =
+        ImmutableMap.of("1L", processBundleDescriptor);
 
     ProcessBundleHandler handler =
         new ProcessBundleHandler(
@@ -1485,6 +1554,7 @@ public class ProcessBundleHandlerTest {
                     beamFnStateClient.handle(StateRequest.newBuilder().setInstructionId("SUCCESS"));
                   }
                 }),
+            Caches.noop(),
             new BundleProcessorCache());
     assertThrows(
         "State API calls are unsupported",
@@ -1508,7 +1578,8 @@ public class ProcessBundleHandlerTest {
                     .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(DATA_INPUT_URN).build())
                     .build())
             .build();
-    Map<String, Message> fnApiRegistry = ImmutableMap.of("1L", processBundleDescriptor);
+    Map<String, BeamFnApi.ProcessBundleDescriptor> fnApiRegistry =
+        ImmutableMap.of("1L", processBundleDescriptor);
 
     ProcessBundleHandler handler =
         new ProcessBundleHandler(
@@ -1535,6 +1606,7 @@ public class ProcessBundleHandlerTest {
                         Timer.Coder.of(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE));
                   }
                 }),
+            Caches.noop(),
             new BundleProcessorCache());
     assertThrows(
         "Timers are unsupported",

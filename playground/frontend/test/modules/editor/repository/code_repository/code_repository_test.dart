@@ -33,10 +33,12 @@ import 'code_repository_test.mocks.dart';
 final kRequestMock = RunCodeRequestWrapper(
   code: 'code',
   sdk: SDK.java,
+  pipelineOptions: {},
 );
 
 const kPipelineUuid = '1234';
 const kRunOutput = 'RunOutput';
+const kLogOutput = 'LogOutput';
 const kCompileOutput = 'CompileOutput';
 const kRunErrorOutput = 'RunErrorOutput';
 
@@ -49,6 +51,7 @@ final kCompileErrorStatusResponse =
     CheckStatusResponse(RunCodeStatus.compileError);
 
 final kRunOutputResponse = OutputResponse(kRunOutput);
+final kLogOutputResponse = OutputResponse(kLogOutput);
 final kCompileOutputResponse = OutputResponse(kCompileOutput);
 final kRunErrorOutputResponse = OutputResponse(kRunErrorOutput);
 
@@ -61,14 +64,17 @@ void main() {
       when(client.runCode(kRequestMock)).thenAnswer(
         (_) async => kRunCodeResponse,
       );
-      when(client.checkStatus(kPipelineUuid)).thenAnswer(
+      when(client.checkStatus(kPipelineUuid, kRequestMock)).thenAnswer(
         (_) async => kFinishedStatusResponse,
       );
-      when(client.getRunOutput(kPipelineUuid)).thenAnswer(
+      when(client.getRunOutput(kPipelineUuid, kRequestMock)).thenAnswer(
         (_) async => kRunOutputResponse,
       );
-      when(client.getCompileOutput(kPipelineUuid)).thenAnswer(
+      when(client.getCompileOutput(kPipelineUuid, kRequestMock)).thenAnswer(
         (_) async => kCompileOutputResponse,
+      );
+      when(client.getLogOutput(kPipelineUuid, kRequestMock)).thenAnswer(
+        (_) async => kLogOutputResponse,
       );
 
       // test variables
@@ -80,11 +86,15 @@ void main() {
         stream,
         emitsInOrder([
           RunCodeResult(status: RunCodeStatus.preparation),
-          RunCodeResult(status: RunCodeStatus.finished, output: kRunOutput),
+          RunCodeResult(
+            status: RunCodeStatus.finished,
+            output: kRunOutput,
+            log: kLogOutput,
+          ),
         ]),
       );
       // compile output should not be called
-      verifyNever(client.getCompileOutput(kPipelineUuid));
+      verifyNever(client.getCompileOutput(kPipelineUuid, kRequestMock));
     });
 
     test('should return output from compilation if failed', () async {
@@ -93,14 +103,17 @@ void main() {
       when(client.runCode(kRequestMock)).thenAnswer(
         (_) async => kRunCodeResponse,
       );
-      when(client.checkStatus(kPipelineUuid)).thenAnswer(
+      when(client.checkStatus(kPipelineUuid, kRequestMock)).thenAnswer(
         (_) async => kCompileErrorStatusResponse,
       );
-      when(client.getCompileOutput(kPipelineUuid)).thenAnswer(
+      when(client.getCompileOutput(kPipelineUuid, kRequestMock)).thenAnswer(
         (_) async => kCompileOutputResponse,
       );
-      when(client.getRunOutput(kPipelineUuid)).thenAnswer(
+      when(client.getRunOutput(kPipelineUuid, kRequestMock)).thenAnswer(
         (_) async => kRunOutputResponse,
+      );
+      when(client.getLogOutput(kPipelineUuid, kRequestMock)).thenAnswer(
+        (_) async => kLogOutputResponse,
       );
 
       // test variables
@@ -125,17 +138,20 @@ void main() {
       when(client.runCode(kRequestMock)).thenAnswer(
         (_) async => kRunCodeResponse,
       );
-      when(client.checkStatus(kPipelineUuid)).thenAnswer(
+      when(client.checkStatus(kPipelineUuid, kRequestMock)).thenAnswer(
         (_) async => kRunErrorStatusResponse,
       );
-      when(client.getCompileOutput(kPipelineUuid)).thenAnswer(
+      when(client.getCompileOutput(kPipelineUuid, kRequestMock)).thenAnswer(
         (_) async => kCompileOutputResponse,
       );
-      when(client.getRunOutput(kPipelineUuid)).thenAnswer(
+      when(client.getRunOutput(kPipelineUuid, kRequestMock)).thenAnswer(
         (_) async => kRunOutputResponse,
       );
-      when(client.getRunErrorOutput(kPipelineUuid)).thenAnswer(
+      when(client.getRunErrorOutput(kPipelineUuid, kRequestMock)).thenAnswer(
         (_) async => kRunErrorOutputResponse,
+      );
+      when(client.getLogOutput(kPipelineUuid, kRequestMock)).thenAnswer(
+        (_) async => kLogOutputResponse,
       );
 
       // test variables
@@ -154,7 +170,8 @@ void main() {
     });
   });
 
-  test('should return full output using streaming api when finished', () async {
+  test('should return full output and log using streaming api when finished',
+      () async {
     // stubs
     final client = MockCodeClient();
     when(client.runCode(kRequestMock)).thenAnswer(
@@ -165,14 +182,17 @@ void main() {
       kExecutingStatusResponse,
       kFinishedStatusResponse
     ];
-    when(client.checkStatus(kPipelineUuid)).thenAnswer(
+    when(client.checkStatus(kPipelineUuid, kRequestMock)).thenAnswer(
       (_) async => answers.removeAt(0),
     );
-    when(client.getRunOutput(kPipelineUuid)).thenAnswer(
+    when(client.getRunOutput(kPipelineUuid, kRequestMock)).thenAnswer(
       (_) async => kRunOutputResponse,
     );
-    when(client.getRunErrorOutput(kPipelineUuid)).thenAnswer(
+    when(client.getRunErrorOutput(kPipelineUuid, kRequestMock)).thenAnswer(
       (_) async => kRunErrorOutputResponse,
+    );
+    when(client.getLogOutput(kPipelineUuid, kRequestMock)).thenAnswer(
+      (_) async => kLogOutputResponse,
     );
 
     // test variables
@@ -184,12 +204,21 @@ void main() {
       stream,
       emitsInOrder([
         RunCodeResult(status: RunCodeStatus.preparation),
-        RunCodeResult(status: RunCodeStatus.executing, output: kRunOutput),
         RunCodeResult(
-            status: RunCodeStatus.executing, output: kRunOutput + kRunOutput),
+          status: RunCodeStatus.executing,
+          output: kRunOutput,
+          log: kLogOutput,
+        ),
         RunCodeResult(
-            status: RunCodeStatus.finished,
-            output: kRunOutput + kRunOutput + kRunOutput),
+          status: RunCodeStatus.executing,
+          output: kRunOutput * 2,
+          log: kLogOutput * 2,
+        ),
+        RunCodeResult(
+          status: RunCodeStatus.finished,
+          output: kRunOutput * 3,
+          log: kLogOutput * 3,
+        ),
       ]),
     );
   });

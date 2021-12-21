@@ -995,7 +995,6 @@ public class SpannerIOWriteTest implements Serializable {
           g(range)
         };
 
-    long mutationSize = MutationSizeEstimator.sizeOf(m(1L));
     BatchableMutationFilterFn testFn = new BatchableMutationFilterFn(null, null, 1000, 1000, 3);
 
     BatchableMutationFilterFn.ProcessContext mockProcessContext =

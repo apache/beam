@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.Objects;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.MapState;
@@ -46,8 +45,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
   "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
 })
 public class StateTags {
-
-  private static final CoderRegistry STANDARD_REGISTRY = CoderRegistry.createDefault();
 
   public static final Equivalence<StateTag> ID_EQUIVALENCE =
       new Equivalence<StateTag>() {

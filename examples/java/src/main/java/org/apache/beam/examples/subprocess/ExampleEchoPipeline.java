@@ -44,7 +44,6 @@ import org.slf4j.LoggerFactory;
  * SubProcessPipelineOptions}
  */
 public class ExampleEchoPipeline {
-  private static final Logger LOG = LoggerFactory.getLogger(ExampleEchoPipeline.class);
 
   public static void main(String[] args) throws Exception {
 

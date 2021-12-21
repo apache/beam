@@ -18,14 +18,13 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  suppressUnusedVariable: true,
   automaticModuleName: 'org.apache.beam.sdk.io.solr',
 )
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Solr"
 ext.summary = "IO to read and write from/to Solr."
 
-String solrVersion = "8.5.2"
+String solrVersion = "8.11.1"
 
 dependencies {
   compile library.java.vendored_guava_26_0_jre

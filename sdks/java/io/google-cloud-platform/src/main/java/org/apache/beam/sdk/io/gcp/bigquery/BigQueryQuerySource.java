@@ -24,14 +24,10 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** A {@link BigQuerySourceBase} for querying BigQuery tables. */
 @VisibleForTesting
 class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
-
-  private static final Logger LOG = LoggerFactory.getLogger(BigQueryQuerySource.class);
 
   static <T> BigQueryQuerySource<T> create(
       String stepUuid,

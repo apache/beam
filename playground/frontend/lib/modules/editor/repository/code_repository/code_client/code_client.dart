@@ -24,11 +24,28 @@ import 'package:playground/modules/editor/repository/code_repository/run_code_re
 abstract class CodeClient {
   Future<RunCodeResponse> runCode(RunCodeRequestWrapper request);
 
-  Future<CheckStatusResponse> checkStatus(String pipelineUuid);
+  Future<CheckStatusResponse> checkStatus(
+    String pipelineUuid,
+    RunCodeRequestWrapper request,
+  );
 
-  Future<OutputResponse> getCompileOutput(String pipelineUuid);
+  Future<OutputResponse> getCompileOutput(
+    String pipelineUuid,
+    RunCodeRequestWrapper request,
+  );
 
-  Future<OutputResponse> getRunOutput(String pipelineUuid);
+  Future<OutputResponse> getRunOutput(
+    String pipelineUuid,
+    RunCodeRequestWrapper request,
+  );
 
-  Future<OutputResponse> getRunErrorOutput(String pipelineUuid);
+  Future<OutputResponse> getLogOutput(
+    String pipelineUuid,
+    RunCodeRequestWrapper request,
+  );
+
+  Future<OutputResponse> getRunErrorOutput(
+    String pipelineUuid,
+    RunCodeRequestWrapper request,
+  );
 }

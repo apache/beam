@@ -137,6 +137,7 @@ REQUIRED_PACKAGES = [
     # server, therefore list of allowed versions is very narrow.
     # See: https://github.com/uqfoundation/dill/issues/341.
     'dill>=0.3.1.1,<0.3.2',
+    'cloudpickle>=2.0.0,<3',
     'fastavro>=0.21.4,<2',
     'grpcio>=1.29.0,<2',
     'hdfs>=2.1.0,<3.0.0',
@@ -194,7 +195,7 @@ GCP_REQUIREMENTS = [
     'google-cloud-spanner>=1.13.0,<2',
     'grpcio-gcp>=0.2.2,<1',
     # GCP Packages required by ML functionality
-    'google-cloud-dlp>=0.12.0,<4',
+    'google-cloud-dlp>=3.0.0,<4',
     'google-cloud-language>=1.3.0,<2',
     'google-cloud-videointelligence>=1.8.0,<2',
     'google-cloud-vision>=0.38.0,<2',
@@ -258,7 +259,6 @@ if sys.version_info.major == 3 and sys.version_info.minor >= 9:
       'Python %s.%s. You may encounter bugs or missing features.' %
       (sys.version_info.major, sys.version_info.minor))
 
-
 if __name__ == '__main__':
   setuptools.setup(
       name=PACKAGE_NAME,
@@ -303,10 +303,10 @@ if __name__ == '__main__':
       # BEAM-8840: Do NOT use tests_require or setup_requires.
       extras_require={
           'docs': [
-            'Sphinx>=1.5.2,<2.0',
-            # Pinning docutils as a workaround for Sphinx issue:
-            # https://github.com/sphinx-doc/sphinx/issues/9727
-            'docutils==0.17.1'
+              'Sphinx>=1.5.2,<2.0',
+              # Pinning docutils as a workaround for Sphinx issue:
+              # https://github.com/sphinx-doc/sphinx/issues/9727
+              'docutils==0.17.1'
           ],
           'test': REQUIRED_TEST_PACKAGES,
           'gcp': GCP_REQUIREMENTS,

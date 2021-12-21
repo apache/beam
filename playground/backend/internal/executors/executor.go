@@ -23,36 +23,46 @@ import (
 	"sync"
 )
 
+type ExecutionType string
+
+const (
+	Run  ExecutionType = "Run"
+	Test ExecutionType = "RunTest"
+)
+
 //CmdConfiguration for base cmd code execution
 type CmdConfiguration struct {
-	fileName    string
-	workingDir  string
-	commandName string
-	commandArgs []string
+	fileName        string
+	workingDir      string
+	commandName     string
+	commandArgs     []string
+	pipelineOptions []string
 }
 
 // Executor struct for all sdks (Java/Python/Go/SCIO)
 type Executor struct {
 	compileArgs CmdConfiguration
 	runArgs     CmdConfiguration
+	testArgs    CmdConfiguration
 	validators  []validators.Validator
 	preparators []preparators.Preparator
 }
 
 // Validate returns the function that applies all validators of executor
-func (ex *Executor) Validate() func(chan bool, chan error) {
-	return func(doneCh chan bool, errCh chan error) {
+func (ex *Executor) Validate() func(chan bool, chan error, *sync.Map) {
+	return func(doneCh chan bool, errCh chan error, valRes *sync.Map) {
 		validationErrors := make(chan error, len(ex.validators))
 		var wg sync.WaitGroup
 		for _, validator := range ex.validators {
 			wg.Add(1)
-			go func(validationErrors chan error, validator validators.Validator) {
+			go func(validationErrors chan error, valRes *sync.Map, validator validators.Validator) {
 				defer wg.Done()
-				err := validator.Validator(validator.Args...)
+				res, err := validator.Validator(validator.Args...)
 				if err != nil {
 					validationErrors <- err
 				}
-			}(validationErrors, validator)
+				valRes.Store(validator.Name, res)
+			}(validationErrors, valRes, validator)
 		}
 		wg.Wait()
 		select {
@@ -66,9 +76,10 @@ func (ex *Executor) Validate() func(chan bool, chan error) {
 }
 
 // Prepare returns the function that applies all preparations of executor
-func (ex *Executor) Prepare() func(chan bool, chan error) {
-	return func(doneCh chan bool, errCh chan error) {
+func (ex *Executor) Prepare() func(chan bool, chan error, *sync.Map) {
+	return func(doneCh chan bool, errCh chan error, validationResults *sync.Map) {
 		for _, preparator := range ex.preparators {
+			preparator.Args = append(preparator.Args, validationResults)
 			err := preparator.Prepare(preparator.Args...)
 			if err != nil {
 				errCh <- err
@@ -92,8 +103,23 @@ func (ex *Executor) Compile(ctx context.Context) *exec.Cmd {
 // Run prepares the Cmd for execution of the code
 // Returns Cmd instance
 func (ex *Executor) Run(ctx context.Context) *exec.Cmd {
-	args := append(ex.runArgs.commandArgs, ex.runArgs.fileName)
+	args := ex.runArgs.commandArgs
+	if ex.runArgs.fileName != "" {
+		args = append(args, ex.runArgs.fileName)
+	}
+	if ex.runArgs.pipelineOptions[0] != "" {
+		args = append(args, ex.runArgs.pipelineOptions...)
+	}
 	cmd := exec.CommandContext(ctx, ex.runArgs.commandName, args...)
 	cmd.Dir = ex.runArgs.workingDir
+	return cmd
+}
+
+// RunTest prepares the Cmd for execution of the unit test
+// Returns Cmd instance
+func (ex *Executor) RunTest(ctx context.Context) *exec.Cmd {
+	args := append(ex.testArgs.commandArgs, ex.testArgs.fileName)
+	cmd := exec.CommandContext(ctx, ex.testArgs.commandName, args...)
+	cmd.Dir = ex.testArgs.workingDir
 	return cmd
 }

@@ -18,3 +18,12 @@
 
 const String kApiClientURL =
     'https://backend-dot-datatokenization.uc.r.appspot.com';
+const String kAnalyticsUA = 'UA-73650088-1';
+const String kApiJavaClientURL =
+    'https://backend-dot-datatokenization.uc.r.appspot.com/java/';
+const String kApiGoClientURL =
+    'https://backend-dot-datatokenization.uc.r.appspot.com/go/';
+const String kApiPythonClientURL =
+    'https://backend-dot-datatokenization.uc.r.appspot.com/python/';
+const String kApiScioClientURL =
+    'https://backend-dot-datatokenization.uc.r.appspot.com/scio/';

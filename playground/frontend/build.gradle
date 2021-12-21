@@ -22,6 +22,11 @@ apply plugin: 'base'
 applyDockerNature()
 
 def playgroundBackendUrl = project.playgroundBackendUrl
+def analyticsUA = project.analyticsUA
+def playgroundBackendJavaRouteUrl = project.playgroundBackendJavaRouteUrl
+def playgroundBackendGoRouteUrl = project.playgroundBackendGoRouteUrl
+def playgroundBackendPythonRouteUrl = project.playgroundBackendPythonRouteUrl
+def playgroundBackendScioRouteUrl = project.playgroundBackendScioRouteUrl
 
 def playgroundJobServerProject = "${project.path.replace('-container', '')}"
 
@@ -35,9 +40,20 @@ dependencies {
   dockerDependency project(path: playgroundJobServerProject, configuration: "shadow")
 }
 
+task removeBuild  {
+  group = "verification"
+  description = "remove build artifacts"
+  doLast {
+    exec {
+      executable("rm")
+      args("-r", "build")
+    }
+  }
+}
+
 task analyze  {
-  // TODO: create a frontend:precommit that bundles pubGet and analyze
   dependsOn("pubGet")
+  dependsOn("removeBuild")
   group = "verification"
   description = "Analyze dart code"
   doLast {
@@ -82,7 +98,6 @@ task run {
 }
 
 task test {
-  // TODO: create a frontend:precommit that bundles pubGet and analyze
   dependsOn("pubGet")
   group = "verification"
   description = "flutter test"
@@ -95,6 +110,7 @@ task test {
 }
 
 task precommit {
+  dependsOn(":playground:frontend:removeBuild")
   dependsOn(":playground:frontend:pubGet")
   dependsOn(":playground:frontend:analyze")
   dependsOn(":playground:frontend:test")
@@ -159,6 +175,15 @@ task("createConfig") {
 
 const String kApiClientURL =
     '${playgroundBackendUrl}';
+const String kAnalyticsUA = '${analyticsUA}';
+const String kApiJavaClientURL =
+    '${playgroundBackendJavaRouteUrl}';
+const String kApiGoClientURL =
+    '${playgroundBackendGoRouteUrl}';
+const String kApiPythonClientURL =
+    '${playgroundBackendPythonRouteUrl}';
+const String kApiScioClientURL =
+    '${playgroundBackendScioRouteUrl}';
 """)
   }
 }

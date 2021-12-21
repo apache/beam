@@ -18,8 +18,11 @@
 package org.apache.beam.sdk.io.aws2.dynamodb;
 
 import static org.apache.beam.sdk.io.aws2.dynamodb.DynamoDBIO.RetryConfiguration.DEFAULT_RETRY_PREDICATE;
+import static org.apache.beam.sdk.io.aws2.dynamodb.DynamoDBIO.Write.WriteFn.RETRY_ERROR_LOG;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -54,9 +57,11 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
+import org.slf4j.helpers.MessageFormatter;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.BatchWriteItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.BatchWriteItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.DynamoDbException;
 import software.amazon.awssdk.services.dynamodb.model.PutRequest;
 import software.amazon.awssdk.services.dynamodb.model.ScanRequest;
@@ -337,10 +342,8 @@ public class DynamoDBIOTest implements Serializable {
     try {
       pipeline.run().waitUntilFinish();
     } catch (final Pipeline.PipelineExecutionException e) {
-      // check 3 retries were initiated by inspecting the log before passing on the exception
-      writeFnLogs.verifyWarn(String.format(DynamoDBIO.Write.WriteFn.RETRY_ATTEMPT_LOG, 1));
-      writeFnLogs.verifyWarn(String.format(DynamoDBIO.Write.WriteFn.RETRY_ATTEMPT_LOG, 2));
-      writeFnLogs.verifyWarn(String.format(DynamoDBIO.Write.WriteFn.RETRY_ATTEMPT_LOG, 3));
+      // check 4 retries were initiated by inspecting the log before passing on the exception
+      writeFnLogs.verifyWarn(MessageFormatter.format(RETRY_ERROR_LOG, 4, "").getMessage());
       throw e.getCause();
     }
   }
@@ -369,6 +372,8 @@ public class DynamoDBIOTest implements Serializable {
     final List<String> deduplicateKeys = Arrays.asList("hashKey1", "rangeKey2");
 
     DynamoDbClient amazonDynamoDBMock = Mockito.mock(DynamoDbClient.class);
+    when(amazonDynamoDBMock.batchWriteItem(any(BatchWriteItemRequest.class)))
+        .thenReturn(BatchWriteItemResponse.builder().build());
 
     pipeline
         .apply(Create.of(duplications))

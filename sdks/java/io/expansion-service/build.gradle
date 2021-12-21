@@ -21,7 +21,6 @@ apply plugin: 'application'
 mainClassName = "org.apache.beam.sdk.expansion.service.ExpansionService"
 
 applyJavaNature(
-  suppressUnusedVariable: true,
   automaticModuleName: 'org.apache.beam.sdk.io.expansion.service',
   exportJavadoc: false,
   validateShadowJar: false,
@@ -36,8 +35,6 @@ dependencies {
   permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
   compile project(":sdks:java:io:kafka")
   permitUnusedDeclared project(":sdks:java:io:kafka") // BEAM-11761
-  compile project(":sdks:java:io:jdbc")
-  permitUnusedDeclared project(":sdks:java:io:jdbc") // BEAM-11761
   // Include postgres so it can be used with external JDBC
   compile library.java.postgres
   permitUnusedDeclared library.java.postgres // BEAM-11761

@@ -37,7 +37,7 @@ class OutputArea extends StatelessWidget {
             physics: const NeverScrollableScrollPhysics(),
             children: <Widget>[
               OutputResult(text: state.result?.output ?? ''),
-              const Center(child: Text(kLogText)),
+              OutputResult(text: state.result?.log ?? ''),
               const Center(child: Text(kGraphText)),
             ],
           );

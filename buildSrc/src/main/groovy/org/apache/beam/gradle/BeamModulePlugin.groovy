@@ -156,13 +156,6 @@ class BeamModulePlugin implements Plugin<Project> {
      */
     Closure shadowClosure
 
-    /**
-     * If set, suppress the error-prone UnusedVariable check.
-     *
-     * TODO(BEAM-11936): Address all unused variables and remove this option.
-     */
-    boolean suppressUnusedVariable = false
-
     /** Controls whether this project is published to Maven. */
     boolean publish = true
 
@@ -459,7 +452,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def errorprone_version = "2.3.4"
     def google_clients_version = "1.32.1"
     def google_cloud_bigdataoss_version = "2.2.4"
-    def google_cloud_pubsublite_version = "1.2.0"
+    def google_cloud_pubsublite_version = "1.4.6"
     def google_code_gson_version = "2.8.9"
     def google_oauth_clients_version = "1.32.1"
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
@@ -542,7 +535,7 @@ class BeamModulePlugin implements Plugin<Project> {
         commons_lang3                               : "org.apache.commons:commons-lang3:3.9",
         commons_math3                               : "org.apache.commons:commons-math3:3.6.1",
         error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:$errorprone_version",
-        flogger_system_backend                      : "com.google.flogger:flogger-system-backend:0.7.1",
+        flogger_system_backend                      : "com.google.flogger:flogger-system-backend:0.7.3",
         gax                                         : "com.google.api:gax", // google_cloud_platform_libraries_bom sets version
         gax_grpc                                    : "com.google.api:gax-grpc", // google_cloud_platform_libraries_bom sets version
         gax_httpjson                                : "com.google.api:gax-httpjson", // google_cloud_platform_libraries_bom sets version
@@ -1157,11 +1150,9 @@ class BeamModulePlugin implements Plugin<Project> {
         options.errorprone.errorproneArgs.add("-Xep:TimeUnitConversionChecker:OFF")
         options.errorprone.errorproneArgs.add("-Xep:UndefinedEquals:OFF")
         options.errorprone.errorproneArgs.add("-Xep:UnnecessaryLambda:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:UnusedVariable:OFF")
         options.errorprone.errorproneArgs.add("-Xep:UnusedNestedClass:OFF")
         options.errorprone.errorproneArgs.add("-Xep:UnsafeReflectiveConstructionCast:OFF")
-        if (configuration.suppressUnusedVariable) {
-          options.errorprone.errorproneArgs.add("-Xep:UnusedVariable:OFF")
-        }
       }
 
       if (configuration.shadowClosure) {
@@ -1794,39 +1785,41 @@ class BeamModulePlugin implements Plugin<Project> {
       // Define common lifecycle tasks and artifact types
       project.apply plugin: 'base'
 
-      project.apply plugin: "com.github.blindpirate.gogradle"
-      project.golang { goVersion = '1.16.5' }
+      // For some reason base doesn't define a test task  so we define it below and make
+      // check depend on it. This makes the Go project similar to the task layout like
+      // Java projects, see https://docs.gradle.org/4.2.1/userguide/img/javaPluginTasks.png
+      if (project.tasks.findByName('test') == null) {
+        project.task('test') {}
+      }
+      project.check.dependsOn project.test
 
-      project.repositories {
-        golang {
-          // Gogradle doesn't like thrift: https://github.com/gogradle/gogradle/issues/183
-          root 'git.apache.org/thrift.git'
-          emptyDir()
+      def goRootDir = "${project.rootDir}/sdks/go"
+      project.ext.goCmd = "${goRootDir}/run_with_go_version.sh"
+
+      project.tasks.create(name: "goBuild") {
+        ext.goTargets = './...'
+        ext.outputLocation = './build/bin/${GOOS}_${GOARCH}/'
+        doLast {
+          project.exec {
+            // Set these so the substitutions work.
+            // May cause issues for the folks running gradle commands on other architectures
+            // and operating systems.
+            environment "GOOS", "linux"
+            environment "GOARCH", "amd64"
+
+            executable 'sh'
+            args '-c', "${project.ext.goCmd} build -o "+ ext.outputLocation + ' ' + ext.goTargets
+          }
         }
-        golang {
-          root 'github.com/apache/thrift'
-          emptyDir()
-        }
-        project.clean.dependsOn project.goClean
-        project.check.dependsOn project.goCheck
-        project.assemble.dependsOn project.goBuild
       }
 
-      project.idea {
-        module {
-          // The gogradle plugin downloads all dependencies into the source tree here,
-          // which is a path baked into golang
-          excludeDirs += project.file("${project.path}/vendor")
-
-          // gogradle's private working directory
-          excludeDirs += project.file("${project.path}/.gogradle")
-        }
-      }
-
-      // Clean up the vendor directory that the gogragle plugin sets up on build.
-      project.tasks.create(name: 'cleanVendor', type: Delete) {
-        doFirst {
-          delete project.file("vendor")
+      project.tasks.create(name: "goTest") {
+        dependsOn project.goBuild
+        doLast {
+          project.exec {
+            executable 'sh'
+            args '-c', "${project.ext.goCmd} test ./..."
+          }
         }
       }
     }

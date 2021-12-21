@@ -38,13 +38,14 @@ extension ExampleTypeToString on ExampleType {
   }
 }
 
-class ExampleModel {
+class ExampleModel with Comparable<ExampleModel> {
   final ExampleType type;
   final String name;
   final String path;
   final String description;
   String? source;
   String? outputs;
+  String? pipelineOptions;
 
   ExampleModel({
     required this.name,
@@ -53,6 +54,7 @@ class ExampleModel {
     required this.type,
     this.source,
     this.outputs,
+    this.pipelineOptions,
   });
 
   setSource(String source) {
@@ -69,4 +71,9 @@ class ExampleModel {
 
   @override
   int get hashCode => path.hashCode;
+
+  @override
+  int compareTo(ExampleModel other) {
+    return name.toLowerCase().compareTo(other.name.toLowerCase());
+  }
 }
