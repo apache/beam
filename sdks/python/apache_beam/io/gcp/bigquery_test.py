@@ -780,17 +780,24 @@ class TestWriteToBigQuery(unittest.TestCase):
   def test_triggering_frequency_with_streaming_inserts_usage(self):
     # triggering_frequency with STREAMING_INSERTS can only be
     # used with with_auto_sharding=True
-    beam.io.gcp.bigquery.WriteToBigQuery(
-        "dataset.table",
-        method=WriteToBigQuery.Method.STREAMING_INSERTS,
-        triggering_frequency=0.5,
-        with_auto_sharding=True)
-    with self.assertRaises(ValueError):
-      beam.io.gcp.bigquery.WriteToBigQuery(
-          "dataset.table",
-          method=WriteToBigQuery.Method.STREAMING_INSERTS,
-          triggering_frequency=0.5,
-          with_auto_sharding=False)
+    with TestPipeline() as p:
+      pc = p | beam.Impulse()
+      _ = (
+          pc
+          | 'valid' >> beam.io.gcp.bigquery.WriteToBigQuery(
+              "dataset.table",
+              method=WriteToBigQuery.Method.STREAMING_INSERTS,
+              triggering_frequency=0.5,
+              with_auto_sharding=True))
+
+      with self.assertRaises(ValueError):
+        _ = (
+            pc
+            | 'invalid' >> beam.io.gcp.bigquery.WriteToBigQuery(
+                "dataset.table",
+                method=WriteToBigQuery.Method.STREAMING_INSERTS,
+                triggering_frequency=0.5,
+                with_auto_sharding=False))
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
