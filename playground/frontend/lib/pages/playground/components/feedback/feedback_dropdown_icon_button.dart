@@ -19,7 +19,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:playground/constants/sizes.dart';
-import 'package:playground/modules/analytics/analytics_service.dart';
 import 'package:playground/modules/examples/example_selector.dart';
 import 'package:playground/pages/playground/components/feedback/feedback_dropdown_content.dart';
 
@@ -32,12 +31,16 @@ const double kFeedbackDropdownWidth = 400.0;
 
 class FeedbackDropdownIconButton extends StatefulWidget {
   final String iconAsset;
-  final bool isEnjoying;
+  final String filledIconAsset;
+  final bool isSelected;
+  final Function onClick;
 
   const FeedbackDropdownIconButton({
     Key? key,
     required this.iconAsset,
-    required this.isEnjoying,
+    required this.filledIconAsset,
+    required this.isSelected,
+    required this.onClick,
   }) : super(key: key);
 
   @override
@@ -80,10 +83,11 @@ class _FeedbackDropdownIconButton extends State<FeedbackDropdownIconButton>
       padding: EdgeInsets.zero,
       onPressed: () {
         _changeSelectorVisibility();
-        AnalyticsService.get(context)
-            .trackClickEnjoyPlayground(widget.isEnjoying);
+        widget.onClick();
       },
-      icon: SvgPicture.asset(widget.iconAsset),
+      icon: SvgPicture.asset(
+        widget.isSelected ? widget.filledIconAsset : widget.iconAsset,
+      ),
     );
   }
 
