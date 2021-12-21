@@ -18,4 +18,5 @@
 ALLOW_LIST = [
     'localhost',
     '127.0.0.1',
+    'storage.googleapis.com'
 ]
