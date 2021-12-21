@@ -45,15 +45,15 @@ dependencies {
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(":sdks:java:fn-execution")
 
-  testImplementation project(path: ":runners:core-construction-java", configuration: "testRuntime")
+  testImplementation project(path: ":runners:core-construction-java", configuration: "testRuntimeMigration")
   testImplementation library.java.hamcrest_core
   testImplementation library.java.junit
   testImplementation library.java.mockito_core
   testImplementation library.java.slf4j_jdk14
 
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
-  validatesRunner project(path: ":runners:core-java", configuration: "testRuntime")
-  validatesRunner project(path: project.path, configuration: "testRuntime")
+  validatesRunner project(path: ":runners:core-java", configuration: "testRuntimeMigration")
+  validatesRunner project(path: project.path, configuration: "testRuntimeMigration")
 }
 
 project.evaluationDependsOn(":sdks:java:core")

@@ -48,7 +48,7 @@ dependencies {
     implementation project(path: ":runners:spark:3")
     implementation project(path: ":runners:flink:${latestFlinkVersion}")
     implementation project(path: ":runners:core-java")
-    implementation project(path: ":runners:core-java", configuration: "testRuntime")
+    implementation project(path: ":runners:core-java", configuration: "testRuntimeMigration")
 }
 
 

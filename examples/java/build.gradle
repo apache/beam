@@ -106,7 +106,7 @@ dependencies {
   // For each runner a project level dependency on the examples project.
   for (String runner : preCommitRunners) {
     delegate.add(runner + "PreCommit", project(":examples:java"))
-    delegate.add(runner + "PreCommit", project(path: ":examples:java", configuration: "testRuntime"))
+    delegate.add(runner + "PreCommit", project(path: ":examples:java", configuration: "testRuntimeMigration"))
   }
   directRunnerPreCommit project(path: ":runners:direct-java", configuration: "shadow")
   flinkRunnerPreCommit project(":runners:flink:${project.ext.latestFlinkVersion}")

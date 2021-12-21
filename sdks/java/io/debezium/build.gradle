@@ -38,7 +38,7 @@ dependencies {
     implementation library.java.joda_time
     provided library.java.jackson_dataformat_csv
     testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
-    testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntime")
+    testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
 
     // Test dependencies
     testImplementation library.java.junit

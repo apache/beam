@@ -798,14 +798,15 @@ class BeamModulePlugin implements Plugin<Project> {
 
       project.apply plugin: "java"
 
-      // TODO(BEAM-13430): We update the testRuntime configuration here to
-      // extend testImplementation and testRuntimeOnly. This allows for the
-      // start of the migration to Gradle 7. We want to remove this and migrate
-      // usages onto testImplementation, testRuntimeOnly or both when declared
-      // as a dependency.
+      // TODO(BEAM-13430): We create a testRuntimeMigration configuration here
+      // to extend testImplementation and testRuntimeOnly (similar to what
+      // testRuntime did). This allows for the start of the migration to Gradle
+      // 7. We want to remove this and migrate usages onto testImplementation,
+      // testRuntimeOnly or both when declared as a dependency.
       project.configurations {
-        testRuntime.extendsFrom(testImplementation)
-        testRuntime.extendsFrom(testRuntimeOnly)
+        testRuntimeMigration
+        testRuntimeMigration.extendsFrom(testImplementation)
+        testRuntimeMigration.extendsFrom(testRuntimeOnly)
       }
 
       // Configure the Java compiler source language and target compatibility levels. Also ensure that
@@ -1234,7 +1235,7 @@ class BeamModulePlugin implements Plugin<Project> {
           classifier = "tests"
           from project.sourceSets.test.output
           configurations = [
-            project.configurations.testRuntime
+            project.configurations.testRuntimeMigration
           ]
           zip64 true
           exclude "META-INF/INDEX.LIST"
@@ -1298,7 +1299,9 @@ class BeamModulePlugin implements Plugin<Project> {
           exclude "META-INF/*.DSA"
           exclude "META-INF/*.RSA"
         })
-        project.artifacts.testRuntime project.testJar
+        // TODO(BEAM-13430): Figure out whether the artifact should be part of
+        // testImplementation, testRuntimeOnly, or a new configuration.
+        project.artifacts.testRuntimeMigration project.testJar
       }
 
       if (configuration.enableJmh) {
@@ -1763,7 +1766,7 @@ class BeamModulePlugin implements Plugin<Project> {
         /* include dependencies required by runners */
         //if (runner?.contains('dataflow')) {
         if (runner?.equalsIgnoreCase('dataflow')) {
-          testRuntimeOnly it.project(path: ":runners:google-cloud-dataflow-java", configuration: "testRuntime")
+          testRuntimeOnly it.project(path: ":runners:google-cloud-dataflow-java", configuration: "testRuntimeMigration")
           testRuntimeOnly it.project(path: ":runners:google-cloud-dataflow-java:worker:legacy-worker", configuration: 'shadow')
         }
 
@@ -1772,11 +1775,11 @@ class BeamModulePlugin implements Plugin<Project> {
         }
 
         if (runner?.equalsIgnoreCase('flink')) {
-          testRuntimeOnly it.project(path: ":runners:flink:${project.ext.latestFlinkVersion}", configuration: "testRuntime")
+          testRuntimeOnly it.project(path: ":runners:flink:${project.ext.latestFlinkVersion}", configuration: "testRuntimeMigration")
         }
 
         if (runner?.equalsIgnoreCase('spark')) {
-          testRuntimeOnly it.project(path: ":runners:spark:2", configuration: "testRuntime")
+          testRuntimeOnly it.project(path: ":runners:spark:2", configuration: "testRuntimeMigration")
           testRuntimeOnly project.library.java.spark_core
           testRuntimeOnly project.library.java.spark_streaming
 
@@ -1788,13 +1791,13 @@ class BeamModulePlugin implements Plugin<Project> {
 
         /* include dependencies required by filesystems */
         if (filesystem?.equalsIgnoreCase('hdfs')) {
-          testRuntimeOnly it.project(path: ":sdks:java:io:hadoop-file-system", configuration: "testRuntime")
+          testRuntimeOnly it.project(path: ":sdks:java:io:hadoop-file-system", configuration: "testRuntimeMigration")
           testRuntimeOnly project.library.java.hadoop_client
         }
 
         /* include dependencies required by AWS S3 */
         if (filesystem?.equalsIgnoreCase('s3')) {
-          testRuntimeOnly it.project(path: ":sdks:java:io:amazon-web-services", configuration: "testRuntime")
+          testRuntimeOnly it.project(path: ":sdks:java:io:amazon-web-services", configuration: "testRuntimeMigration")
         }
       }
       project.task('packageIntegrationTests', type: Jar)
