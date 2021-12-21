@@ -26,17 +26,6 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Dataflo
 
       description('Runs the ValidatesRunner suite on the Dataflow runner with Java 17 worker harness.')
 
-      def compiler = javaToolchains.compilerFor {
-        languageVersion = JavaLanguageVersion.of(8)
-      }
-
-      def launcher = javaToolchains.compilerFor {
-        languageVersion = JavaLanguageVersion.of(17)
-      }
-
-      def JAVA_17_HOME = launcher.get().metadata.installationPath.asFile.absolutePath
-      def JAVA_8_HOME = compiler.get().metadata.installationPath.asFile.absolutePath
-
       commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 420)
       publishers {
         archiveJunit('**/build/test-results/**/*.xml')

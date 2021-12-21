@@ -172,6 +172,18 @@ def gcsBucket = project.findProperty('gcsBucket') ?: 'temp-storage-for-release-v
 def bqDataset = project.findProperty('bqDataset') ?: 'beam_postrelease_mobile_gaming'
 def pubsubTopic = project.findProperty('pubsubTopic') ?: 'java_mobile_gaming_topic'
 
+def javasdk17compiler = javaToolchains.compilerFor {
+  languageVersion = JavaLanguageVersion.of(17)
+}
+
+def JAVA_17_HOME = javasdk17compiler.get().metadata.installationPath.asFile.absolutePath
+
+def javasdk8compiler = javaToolchains.compilerFor {
+  languageVersion = JavaLanguageVersion.of(8)
+}
+
+def JAVA_8_HOME = javasdk8compiler.get().metadata.installationPath.asFile.absolutePath
+
 // Generates :runners:direct-java:runQuickstartJavaDirect
 createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'Direct')
 

@@ -27,16 +27,6 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Direct_
 
       description('Builds the Direct Runner with Java 8 and runs ValidatesRunner test suite in Java 17.')
 
-      def compiler = javaToolchains.compilerFor {
-        languageVersion = JavaLanguageVersion.of(8)
-      }
-
-      def launcher = javaToolchains.compilerFor {
-        languageVersion = JavaLanguageVersion.of(17)
-      }
-
-      def JAVA_17_HOME = launcher.get().metadata.installationPath.asFile.absolutePath
-      def JAVA_8_HOME = compiler.get().metadata.installationPath.asFile.absolutePath
       commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 180)
 
       publishers {

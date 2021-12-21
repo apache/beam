@@ -249,6 +249,18 @@ def createRunnerV2ValidatesRunnerTest = { Map args ->
   }
 }
 
+def javasdk17compiler = javaToolchains.compilerFor {
+  languageVersion = JavaLanguageVersion.of(17)
+}
+
+def JAVA_17_HOME = javasdk17compiler.get().metadata.installationPath.asFile.absolutePath
+
+def javasdk8compiler = javaToolchains.compilerFor {
+  languageVersion = JavaLanguageVersion.of(8)
+}
+
+def JAVA_8_HOME = javasdk8compiler.get().metadata.installationPath.asFile.absolutePath
+
 // Push docker images to a container registry for use within tests.
 // NB: Tasks which consume docker images from the registry should depend on this
 // task directly ('dependsOn buildAndPushDockerContainer'). This ensures the correct

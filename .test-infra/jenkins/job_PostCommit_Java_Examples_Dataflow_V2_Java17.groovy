@@ -24,12 +24,6 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Examples_Dataflow_V2_ja
 
       description('Runs the Java Examples suite on Dataflow runner V2 using the Java 17 SDK harness.')
 
-    def compiler = javaToolchains.compilerFor {
-        languageVersion = JavaLanguageVersion.of(8)
-    }
-
-    def JAVA_17_HOME = launcher.get().metadata.installationPath.asFile.absolutePath
-
       commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 180)
 
       publishers {
