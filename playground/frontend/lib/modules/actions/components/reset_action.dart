@@ -21,6 +21,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:playground/config/theme.dart';
 import 'package:playground/constants/assets.dart';
 import 'package:playground/modules/actions/components/header_icon_button.dart';
+import 'package:playground/modules/analytics/analytics_service.dart';
 import 'package:playground/modules/shortcuts/components/shortcut_tooltip.dart';
 import 'package:playground/modules/shortcuts/constants/global_shortcuts.dart';
 
@@ -41,7 +42,10 @@ class ResetAction extends StatelessWidget {
           color: ThemeColors.of(context).grey1Color,
         ),
         label: kResetButtonText,
-        onPressed: reset,
+        onPressed: () {
+          reset();
+          AnalyticsService.get(context).trackReset();
+        },
       ),
     );
   }

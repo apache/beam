@@ -25,6 +25,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -178,9 +179,13 @@ func createExecutorConfig(apacheBeamSdk pb.Sdk, configPath string) (*ExecutorCon
 	}
 	switch apacheBeamSdk {
 	case pb.Sdk_SDK_JAVA:
-		executorConfig.CompileArgs = append(executorConfig.CompileArgs, getEnv(beamPathKey, defaultBeamJarsPath))
-		executorConfig.RunArgs[1] = fmt.Sprintf("%s%s", executorConfig.RunArgs[1], getEnv(beamPathKey, defaultBeamJarsPath))
-		executorConfig.TestArgs[1] = fmt.Sprintf("%s%s", executorConfig.TestArgs[1], getEnv(beamPathKey, defaultBeamJarsPath))
+		args, err := ConcatBeamJarsToString()
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf("Error during proccessing jars: %s", err.Error()))
+		}
+		executorConfig.CompileArgs = append(executorConfig.CompileArgs, args)
+		executorConfig.RunArgs[1] = fmt.Sprintf("%s%s", executorConfig.RunArgs[1], args)
+		executorConfig.TestArgs[1] = fmt.Sprintf("%s%s", executorConfig.TestArgs[1], args)
 	case pb.Sdk_SDK_GO:
 		// Go sdk doesn't need any additional arguments from the config file
 	case pb.Sdk_SDK_PYTHON:
@@ -189,6 +194,15 @@ func createExecutorConfig(apacheBeamSdk pb.Sdk, configPath string) (*ExecutorCon
 		return nil, errors.New("not yet supported")
 	}
 	return executorConfig, nil
+}
+
+func ConcatBeamJarsToString() (string, error) {
+	jars, err := filepath.Glob(getEnv(beamPathKey, defaultBeamJarsPath))
+	if err != nil {
+		return "", err
+	}
+	args := strings.Join(jars, ":")
+	return args, nil
 }
 
 // getConfigFromJson reads a json file to ExecutorConfig

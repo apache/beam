@@ -17,7 +17,7 @@
 ###############################################################################
 
 ARG py_version
-FROM python:"${py_version}"-buster as beam
+FROM python:"${py_version}"-bullseye as beam
 MAINTAINER "Apache Beam <dev@beam.apache.org>"
 
 # Install native bindings required for dependencies.
@@ -69,7 +69,7 @@ RUN ccache --set-config=sloppiness=file_macro && ccache --set-config=hash_dir=fa
 ####
 COPY target/apache-beam.tar.gz /opt/apache/beam/tars/
 RUN pip install --no-deps -v /opt/apache/beam/tars/apache-beam.tar.gz[gcp]
-RUN pip check
+RUN pip check || (echo "Container does not include required Beam dependencies or has conflicting dependencies. If Beam dependencies have changed, you need to regenerate base_image_requirements.txt files. See: https://s.apache.org/beam-python-requirements-generate" && exit 1)
 # Log complete list of what exact packages and versions are installed.
 RUN pip freeze --all
 

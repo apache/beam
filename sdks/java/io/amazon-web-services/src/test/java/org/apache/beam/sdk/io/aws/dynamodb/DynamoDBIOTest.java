@@ -17,13 +17,17 @@
  */
 package org.apache.beam.sdk.io.aws.dynamodb;
 
+import static org.apache.beam.sdk.io.aws.dynamodb.DynamoDBIO.Write.WriteFn.RETRY_ERROR_LOG;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.model.AmazonDynamoDBException;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import com.amazonaws.services.dynamodbv2.model.BatchWriteItemRequest;
+import com.amazonaws.services.dynamodbv2.model.BatchWriteItemResult;
 import com.amazonaws.services.dynamodbv2.model.ScanRequest;
 import com.amazonaws.services.dynamodbv2.model.WriteRequest;
 import java.io.IOException;
@@ -43,6 +47,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -51,6 +56,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
+import org.slf4j.helpers.MessageFormatter;
 
 /** Test Coverage for the IO. */
 public class DynamoDBIOTest implements Serializable {
@@ -204,7 +210,7 @@ public class DynamoDBIOTest implements Serializable {
     final List<WriteRequest> writeRequests = DynamoDBIOTestHelper.generateWriteRequests(numOfItems);
 
     AmazonDynamoDB amazonDynamoDBMock = Mockito.mock(AmazonDynamoDB.class);
-    Mockito.when(amazonDynamoDBMock.batchWriteItem(Mockito.any(BatchWriteItemRequest.class)))
+    when(amazonDynamoDBMock.batchWriteItem(any(BatchWriteItemRequest.class)))
         .thenThrow(new AmazonDynamoDBException("Service unavailable"));
 
     pipeline
@@ -220,10 +226,8 @@ public class DynamoDBIOTest implements Serializable {
     try {
       pipeline.run().waitUntilFinish();
     } catch (final Pipeline.PipelineExecutionException e) {
-      // check 3 retries were initiated by inspecting the log before passing on the exception
-      writeFnLogs.verifyWarn(String.format(DynamoDBIO.Write.WriteFn.RETRY_ATTEMPT_LOG, 1));
-      writeFnLogs.verifyWarn(String.format(DynamoDBIO.Write.WriteFn.RETRY_ATTEMPT_LOG, 2));
-      writeFnLogs.verifyWarn(String.format(DynamoDBIO.Write.WriteFn.RETRY_ATTEMPT_LOG, 3));
+      // check 4 retries were initiated by inspecting the log before passing on the exception
+      writeFnLogs.verifyWarn(MessageFormatter.format(RETRY_ERROR_LOG, 4, "").getMessage());
       throw e.getCause();
     }
   }
@@ -250,6 +254,8 @@ public class DynamoDBIOTest implements Serializable {
         Arrays.asList(DynamoDBIOTestHelper.ATTR_NAME_1, DynamoDBIOTestHelper.ATTR_NAME_2);
 
     AmazonDynamoDB amazonDynamoDBMock = Mockito.mock(AmazonDynamoDB.class);
+    when(amazonDynamoDBMock.batchWriteItem(any(BatchWriteItemRequest.class)))
+        .thenReturn(new BatchWriteItemResult().withUnprocessedItems(ImmutableMap.of()));
 
     pipeline
         .apply(Create.of(duplications))

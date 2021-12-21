@@ -26,8 +26,7 @@ import (
 )
 
 const (
-	javaConfig       = "{\n  \"compile_cmd\": \"javac\",\n  \"run_cmd\": \"java\",\n  \"test_cmd\": \"java\",\n  \"compile_args\": [\n    \"-d\",\n    \"bin\",\n    \"-classpath\"\n  ],\n  \"run_args\": [\n    \"-cp\",\n    \"bin:\"\n  ],\n  \"test_args\": [\n    \"-cp\",\n    \"bin:\",\n    \"JUnit\"\n  ]\n}"
-	jarsPath         = "/opt/apache/beam/jars/*"
+	javaConfig       = "{\n  \"compile_cmd\": \"javac\",\n  \"run_cmd\": \"java\",\n  \"test_cmd\": \"java\",\n  \"compile_args\": [\n    \"-d\",\n    \"bin\",\n    \"-classpath\"\n  ],\n  \"run_args\": [\n    \"-cp\",\n    \"bin:\"\n  ],\n  \"test_args\": [\n    \"-cp\",\n    \"bin:\",\n    \"org.junit.runner.JUnitCore\"\n  ]\n}"
 	defaultProjectId = ""
 )
 
@@ -54,11 +53,12 @@ func setup() error {
 	}
 	os.Clearenv()
 
+	jars, err := ConcatBeamJarsToString()
 	executorConfig = NewExecutorConfig(
 		"javac", "java", "java",
-		[]string{"-d", "bin", "-classpath", jarsPath},
-		[]string{"-cp", "bin:" + jarsPath},
-		[]string{"-cp", "bin:" + jarsPath, "JUnit"},
+		[]string{"-d", "bin", "-classpath", jars},
+		[]string{"-cp", "bin:" + jars},
+		[]string{"-cp", "bin:" + jars, "org.junit.runner.JUnitCore"},
 	)
 	return nil
 }
@@ -263,7 +263,7 @@ func Test_createExecutorConfig(t *testing.T) {
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("createExecutorConfig() got = %v, want %v", got, tt.want)
+				t.Errorf("createExecutorConfig() got = %v\n, want %v\n", got, tt.want)
 			}
 		})
 	}
@@ -282,7 +282,7 @@ func Test_getConfigFromJson(t *testing.T) {
 		{
 			name:    "get object from json",
 			args:    args{filepath.Join(configFolderName, defaultSdk.String()+jsonExt)},
-			want:    NewExecutorConfig("javac", "java", "java", []string{"-d", "bin", "-classpath"}, []string{"-cp", "bin:"}, []string{"-cp", "bin:", "JUnit"}),
+			want:    NewExecutorConfig("javac", "java", "java", []string{"-d", "bin", "-classpath"}, []string{"-cp", "bin:"}, []string{"-cp", "bin:", "org.junit.runner.JUnitCore"}),
 			wantErr: false,
 		},
 		{
