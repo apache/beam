@@ -65,8 +65,10 @@ dependencies {
   provided library.java.hadoop_mapreduce_client_core
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+  testImplementation project(":sdks:java:testing:test-utils")
   testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
   testImplementation project(":sdks:java:io:jdbc")
+  testImplementation project(":examples:java")
   testImplementation project(path: ":examples:java", configuration: "testRuntimeMigration")
   testImplementation project(path: ":examples:java:twitter", configuration: "testRuntimeMigration")
   testImplementation "org.elasticsearch.plugin:transport-netty4-client:$elastic_search_version"

@@ -1301,6 +1301,10 @@ class BeamModulePlugin implements Plugin<Project> {
         })
         // TODO(BEAM-13430): Figure out whether the artifact should be part of
         // testImplementation, testRuntimeOnly, or a new configuration.
+        // Also, should the normal project jar also be part of this
+        // configuration removing the need to declare a dependency on project(X)
+        // and on project(X/testRuntimeConfiguration) and should it mirror what
+        // we are doing with shadowTest or not?
         project.artifacts.testRuntimeMigration project.testJar
       }
 

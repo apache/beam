@@ -92,6 +92,7 @@ dependencies {
   testImplementation library.java.testcontainers_kafka
   testImplementation library.java.google_cloud_bigtable_emulator
   testImplementation project(path: ":sdks:java:io:mongodb", configuration: "testRuntimeMigration")
+  testImplementation project(":sdks:java:io:thrift")
   testImplementation project(path: ":sdks:java:io:thrift", configuration: "testRuntimeMigration")
   testImplementation project(path: ":sdks:java:extensions:protobuf", configuration: "testRuntimeMigration")
   testCompileOnly project(":sdks:java:extensions:sql:udf-test-provider")
