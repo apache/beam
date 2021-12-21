@@ -40,9 +40,9 @@ dependencies {
   implementation library.java.jackson_core
   implementation library.java.jackson_databind
   implementation library.java.slf4j_api
-  provided library.java.hadoop_client
-  provided library.java.hadoop_common
-  provided library.java.hadoop_mapreduce_client_core
+  compileOnly library.java.hadoop_client
+  compileOnly library.java.hadoop_common
+  compileOnly library.java.hadoop_mapreduce_client_core
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation library.java.mockito_core
   testImplementation library.java.junit

@@ -748,9 +748,6 @@ class BeamModulePlugin implements Plugin<Project> {
     //  * java
     //  * maven
     //  * net.ltgt.apt (plugin to configure annotation processing tool)
-    //  * propdeps (provide optional and provided dependency configurations)
-    //  * propdeps-maven
-    //  * propdeps-idea
     //  * checkstyle
     //  * spotbugs
     //  * shadow (conditional on shadowClosure being specified)
@@ -1032,13 +1029,6 @@ class BeamModulePlugin implements Plugin<Project> {
         implementation "org.checkerframework:checker-qual:$checkerframework_version"
       }
 
-      // Add the optional and provided configurations for dependencies
-      // TODO: Either remove these plugins and find another way to generate the Maven poms
-      // with the correct dependency scopes configured.
-      project.apply plugin: 'propdeps'
-      project.apply plugin: 'propdeps-maven'
-      project.apply plugin: 'propdeps-idea'
-
       // Defines Targets for sonarqube analysis reporting.
       project.apply plugin: "org.sonarqube"
 
@@ -1254,7 +1244,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
           project.dependencies {
             shadowTestRuntimeClasspath it.project(path: project.path, configuration: "shadowTest")
-            shadowTestRuntimeClasspath it.project(path: project.path, configuration: "provided")
+            shadowTestRuntimeClasspath it.project(path: project.path, configuration: "compileOnly")
           }
 
           project.test { classpath = project.configurations.shadowTestRuntimeClasspath }
@@ -1580,8 +1570,8 @@ class BeamModulePlugin implements Plugin<Project> {
                 // TODO: Should we use the runtime scope instead of the compile scope
                 // which forces all our consumers to declare what they consume?
                 generateDependenciesFromConfiguration(
-                    configuration: (configuration.shadowClosure ? 'shadow' : 'compile'), scope: 'compile')
-                generateDependenciesFromConfiguration(configuration: 'provided', scope: 'provided')
+                    configuration: (configuration.shadowClosure ? 'shadow' : 'implementation'), scope: 'compile')
+                generateDependenciesFromConfiguration(configuration: 'compileOnly', scope: 'provided')
 
                 if (!boms.isEmpty()) {
                   def dependencyManagementNode = root.appendNode('dependencyManagement')

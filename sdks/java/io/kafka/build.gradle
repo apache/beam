@@ -52,8 +52,9 @@ dependencies {
   implementation project(":sdks:java:expansion-service")
   permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
   implementation library.java.avro
-  // Get back to "provided" since 2.14
-  provided library.java.kafka_clients
+  // Get back to "compileOnly" since 2.14
+  compileOnly library.java.kafka_clients
+  testImplementation library.java.kafka_clients
   implementation library.java.slf4j_api
   implementation library.java.joda_time
   implementation library.java.jackson_annotations
@@ -63,17 +64,17 @@ dependencies {
     // zookeeper depends on "spotbugs-annotations:3.1.9" which clashes with current
     // "spotbugs-annotations:3.1.12" used in Beam. Not required.
     exclude group: "org.apache.zookeeper", module: "zookeeper"
-    // "kafka-clients" has to be provided since user can use its own version.
+    // "kafka-clients" has to be compileOnly since user can use its own version.
     exclude group: "org.apache.kafka", module: "kafka-clients"
   }
   implementation ("io.confluent:kafka-schema-registry-client:5.3.2") {
     // It depends on "spotbugs-annotations:3.1.9" which clashes with current
     // "spotbugs-annotations:3.1.12" used in Beam. Not required.
     exclude group: "org.apache.zookeeper", module: "zookeeper"
-    // "kafka-clients" has to be provided since user can use its own version.
+    // "kafka-clients" has to be compileOnly since user can use its own version.
     exclude group: "org.apache.kafka", module: "kafka-clients"
   }
-  provided library.java.jackson_dataformat_csv
+  compileOnly library.java.jackson_dataformat_csv
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation project(":sdks:java:io:synthetic")
   testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")

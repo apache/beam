@@ -52,7 +52,7 @@ dependencies {
   implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
   implementation library.java.vendored_guava_26_0_jre
   implementation project(path: ":sdks:java:core", configuration: "shadow")
-  // Add the dependency that sdks:java:core that is marked as provided
+  // Add the dependency that sdks:java:core that is marked as compileOnly
   implementation library.java.hamcrest_core
   implementation project(":sdks:java:extensions:google-cloud-platform-core")
   implementation project(":sdks:java:io:google-cloud-platform")

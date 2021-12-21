@@ -43,7 +43,6 @@ dependencies {
 
   runtimeOnly("net.ltgt.gradle:gradle-apt-plugin:0.21")                                                    // Enable a Java annotation processor
   runtimeOnly("com.google.protobuf:protobuf-gradle-plugin:0.8.13")                                          // Enable proto code generation
-  runtimeOnly("io.spring.gradle:propdeps-plugin:0.0.9.RELEASE")                                            // Enable provided and optional configurations
   runtimeOnly("com.commercehub.gradle.plugin:gradle-avro-plugin:0.11.0")                                   // Enable Avro code generation
   runtimeOnly("com.diffplug.spotless:spotless-plugin-gradle:5.6.1")                                       // Enable a code formatting plugin
   runtimeOnly("gradle.plugin.com.github.blindpirate:gogradle:0.11.4")                                      // Enable Go code compilation
