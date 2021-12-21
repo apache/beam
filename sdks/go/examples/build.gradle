@@ -26,8 +26,8 @@ task wordCount() {
   description "Run the Go word count example"
   doLast {
     project.exec {
-      executable "sh" 
-      args '-c', "${project.ext.goCmd} build -o ./build/bin/wordcount github.com/apache/beam/sdks/v2/go/examples/wordcount" 
+      executable "sh"
+      args '-c', "${project.ext.goCmd} build -o ./build/bin/wordcount github.com/apache/beam/sdks/v2/go/examples/wordcount"
     }
   }
 }
