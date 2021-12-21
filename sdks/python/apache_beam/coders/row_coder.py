@@ -17,8 +17,6 @@
 
 # pytype: skip-file
 
-import itertools
-
 from apache_beam.coders import typecoders
 from apache_beam.coders.coder_impl import LogicalTypeCoderImpl
 from apache_beam.coders.coder_impl import RowCoderImpl
@@ -31,7 +29,6 @@ from apache_beam.coders.coders import IterableCoder
 from apache_beam.coders.coders import MapCoder
 from apache_beam.coders.coders import NullableCoder
 from apache_beam.coders.coders import StrUtf8Coder
-from apache_beam.coders.coders import TupleCoder
 from apache_beam.coders.coders import VarIntCoder
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import schema_pb2
