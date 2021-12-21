@@ -17,6 +17,8 @@ package xlang
 
 import (
 	"os"
+	"os/exec"
+	"strings"
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/xlangx/expansionx"
@@ -26,9 +28,22 @@ import (
 const (
 	// TODO(BEAN-13505): Select the most recent Beam release instead of a hard-coded
 	// string.
-	beamVersion  = "2.34.0"
-	gradleTarget = ":sdks:java:io:expansion-service:runExpansionService"
+	beamVersion   = "2.34.0"
+	gradleTarget  = ":sdks:java:io:expansion-service:runExpansionService"
+	expansionPort = "8097"
 )
+
+func checkPort(t *testing.T, port string) {
+	ping := exec.Command("nc", "-vz", "localhost", port)
+	output, err := ping.CombinedOutput()
+	if err != nil {
+		t.Errorf("failed to run ping to localhost:%v", port)
+	}
+	outputStr := string(output)
+	if strings.Contains(outputStr, "failed") {
+		t.Errorf("failed to connect to localhost:%v, got err %v", port, outputStr)
+	}
+}
 
 func TestAutomatedExpansionService(t *testing.T) {
 	integration.CheckFilters(t)
@@ -38,11 +53,13 @@ func TestAutomatedExpansionService(t *testing.T) {
 	}
 	t.Cleanup(func() { os.Remove(jarPath) })
 
-	serviceRunner := expansionx.NewExpansionServiceRunner(jarPath, "8097")
+	serviceRunner := expansionx.NewExpansionServiceRunner(jarPath, expansionPort)
 	err = serviceRunner.StartService()
 	if err != nil {
 		t.Errorf("failed to start expansion service JAR, got %v", err)
 	}
+
+	checkPort(t, expansionPort)
 
 	err = serviceRunner.StopService()
 	if err != nil {
