@@ -38,7 +38,7 @@ repositories {
 dependencies {
   compile(gradleApi())
   compile(localGroovy())
-  compile("com.github.jengelman.gradle.plugins:shadow:6.1.0-SNAPSHOT")
+  compile("com.github.jengelman.gradle.plugins:shadow:6.1.0-log4jfix-SNAPSHOT")
   compile("gradle.plugin.com.github.spotbugs.snom:spotbugs-gradle-plugin:4.5.0")
 
   runtime("net.ltgt.gradle:gradle-apt-plugin:0.21")                                                    // Enable a Java annotation processor
