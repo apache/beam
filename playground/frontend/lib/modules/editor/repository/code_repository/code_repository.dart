@@ -20,6 +20,7 @@ import 'package:playground/modules/editor/repository/code_repository/code_client
 import 'package:playground/modules/editor/repository/code_repository/run_code_error.dart';
 import 'package:playground/modules/editor/repository/code_repository/run_code_request.dart';
 import 'package:playground/modules/editor/repository/code_repository/run_code_result.dart';
+import 'package:playground/utils/run_with_retry.dart';
 
 const kPipelineCheckDelay = Duration(seconds: 1);
 const kTimeoutErrorText =
@@ -58,7 +59,9 @@ class CodeRepository {
     RunCodeResult? prevResult,
   }) async* {
     try {
-      final statusResponse = await _client.checkStatus(pipelineUuid, request);
+      final statusResponse = await runWithRetry(
+        () => _client.checkStatus(pipelineUuid, request),
+      );
       final result = await _getPipelineResult(
         pipelineUuid,
         statusResponse.status,
@@ -68,8 +71,11 @@ class CodeRepository {
       yield result;
       if (!result.isFinished) {
         await Future.delayed(kPipelineCheckDelay);
-        yield* _checkPipelineExecution(pipelineUuid, request,
-            prevResult: result);
+        yield* _checkPipelineExecution(
+          pipelineUuid,
+          request,
+          prevResult: result,
+        );
       }
     } on RunCodeError catch (error) {
       yield RunCodeResult(
