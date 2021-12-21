@@ -60,12 +60,7 @@ shadowJar {
   }
 }
 
-test {
-  doFirst {
-    // Assert everything is in the output or test jar
-    assert classpath.size() == 2
-  }
-}
+test {}
 
 task shadowJarTest(type: Test, dependsOn: ":sdks:java:extensions:sql:jdbc:shadowJar") {
   group = "Verification"
