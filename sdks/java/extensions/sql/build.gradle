@@ -53,6 +53,8 @@ def hadoopVersions = [
 hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
 
 dependencies {
+  implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+
   // TODO(BEAM-13179): Determine how to build without this dependency
   compileOnly "org.immutables:value:2.8.8"
   javacc "net.java.dev.javacc:javacc:4.0"
@@ -78,7 +80,12 @@ dependencies {
   implementation library.java.joda_time
   implementation library.java.vendored_guava_26_0_jre
   compileOnly project(":sdks:java:io:kafka")
-  compileOnly project(":sdks:java:io:google-cloud-platform")
+  implementation project(":sdks:java:extensions:google-cloud-platform-core")
+  implementation project(":sdks:java:io:google-cloud-platform")
+  implementation library.java.proto_google_cloud_bigtable_v2
+  implementation library.java.google_api_services_bigquery
+  implementation library.java.proto_google_cloud_pubsublite_v1
+  implementation library.java.google_cloud_pubsublite
   implementation project(":sdks:java:io:mongodb")
   implementation library.java.avro
   compileOnly project(":sdks:java:io:parquet")
