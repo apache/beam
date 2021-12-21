@@ -51,6 +51,7 @@
 
 * ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 -->
+
 # [2.36.0] - Unreleased
 
 ## Highlights
