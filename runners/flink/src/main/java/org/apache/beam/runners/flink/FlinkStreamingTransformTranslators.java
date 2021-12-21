@@ -1417,6 +1417,23 @@ class FlinkStreamingTransformTranslators {
     }
   }
 
+  /**
+   * A translator just to vend the URN. This will need to be moved to runners-core-construction-java
+   * once SDF is reorganized appropriately.
+   */
+  private static class SplittableParDoProcessElementsTranslator
+      extends PTransformTranslation.TransformPayloadTranslator.NotSerializable<
+          SplittableParDoViaKeyedWorkItems.ProcessElements<?, ?, ?, ?, ?>> {
+
+    private SplittableParDoProcessElementsTranslator() {}
+
+    @Override
+    public String getUrn(
+        SplittableParDoViaKeyedWorkItems.ProcessElements<?, ?, ?, ?, ?> transform) {
+      return SPLITTABLE_PROCESS_URN;
+    }
+  }
+
   /** Registers classes specialized to the Flink runner. */
   @AutoService(TransformPayloadTranslatorRegistrar.class)
   public static class FlinkTransformsRegistrar implements TransformPayloadTranslatorRegistrar {

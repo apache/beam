@@ -38,7 +38,7 @@ extension ExampleTypeToString on ExampleType {
   }
 }
 
-class ExampleModel {
+class ExampleModel with Comparable<ExampleModel> {
   final ExampleType type;
   final String name;
   final String path;
@@ -63,5 +63,10 @@ class ExampleModel {
 
   setOutputs(String outputs) {
     this.outputs = outputs;
+  }
+
+  @override
+  int compareTo(ExampleModel other) {
+    return name.toLowerCase().compareTo(other.name.toLowerCase());
   }
 }
