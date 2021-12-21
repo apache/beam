@@ -72,6 +72,6 @@ dependencies {
   testImplementation library.java.jackson_annotations
   testImplementation library.java.jackson_dataformat_yaml
   testImplementation project(path: ":model:fn-execution", configuration: "shadow")
-  testImplementation project(path: ":sdks:java:core", configuration: "testRuntime")
+  testImplementation project(path: ":sdks:java:core", configuration: "testRuntimeMigration")
   testRuntimeOnly library.java.slf4j_jdk14
 }

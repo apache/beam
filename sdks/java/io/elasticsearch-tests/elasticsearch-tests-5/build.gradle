@@ -44,7 +44,7 @@ test {
 }
 
 dependencies {
-  testImplementation project(path: ":sdks:java:io:elasticsearch-tests:elasticsearch-tests-common", configuration: "testRuntime")
+  testImplementation project(path: ":sdks:java:io:elasticsearch-tests:elasticsearch-tests-common", configuration: "testRuntimeMigration")
   testImplementation "org.elasticsearch.test:framework:$elastic_search_version"
   testImplementation "org.elasticsearch.plugin:transport-netty4-client:$elastic_search_version"
   testImplementation "com.carrotsearch.randomizedtesting:randomizedtesting-runner:2.5.0"
@@ -53,7 +53,7 @@ dependencies {
 
   testImplementation project(path: ":sdks:java:core", configuration: "shadow")
   testImplementation project(":sdks:java:io:elasticsearch")
-  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntime")
+  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
   testImplementation library.java.slf4j_api
   testImplementation library.java.hamcrest_core
   testImplementation library.java.hamcrest_library

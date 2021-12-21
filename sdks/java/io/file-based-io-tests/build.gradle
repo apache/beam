@@ -26,10 +26,13 @@ ext.summary = "Integration tests for reading/writing using file-based sources/si
 
 dependencies {
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
-  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntime")
-  testImplementation project(path: ":sdks:java:io:xml", configuration: "testRuntime")
-  testImplementation project(path: ":sdks:java:io:parquet", configuration: "testRuntime")
-  testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
+  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+  testImplementation project(":sdks:java:io:xml")
+  testImplementation project(path: ":sdks:java:io:xml", configuration: "testRuntimeMigration")
+  testImplementation project(":sdks:java:io:parquet")
+  testImplementation project(path: ":sdks:java:io:parquet", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:testing:test-utils")
+  testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
   testImplementation library.java.jaxb_api
   testImplementation library.java.junit
   testImplementation library.java.hadoop_client

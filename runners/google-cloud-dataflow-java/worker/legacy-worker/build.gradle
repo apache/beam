@@ -229,8 +229,8 @@ dependencies {
     // Any test dependency which intersects with our relocation rules above needs to be relocated
     // as well and placed within the testImplementation configuration. Otherwise we can place it within
     // the shadowTest configuration.
-    testImplementation project(path: ":runners:core-java", configuration: "testRuntime")
-    shadowTest project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
+    testImplementation project(path: ":runners:core-java", configuration: "testRuntimeMigration")
+    shadowTest project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntimeMigration")
     shadowTest project(path: ":runners:direct-java", configuration: "shadow")
     shadowTest project(path: ":sdks:java:harness", configuration: "shadowTest")
     shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")

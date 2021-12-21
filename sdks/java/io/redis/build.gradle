@@ -26,7 +26,7 @@ dependencies {
   implementation library.java.vendored_guava_26_0_jre
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation "redis.clients:jedis:3.5.2"
-  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntime")
+  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
   testImplementation library.java.junit
   testImplementation "io.oden:embedded-redis:0.0.3"
   testRuntimeOnly library.java.slf4j_jdk14

@@ -115,10 +115,10 @@ dependencies {
 
   // All test sourceset dependencies can be marked as shadowTest since we create an uber jar without
   // relocating any code.
-  shadowTest project(path: ":runners:core-java", configuration: "testRuntime")
+  shadowTest project(path: ":runners:core-java", configuration: "testRuntimeMigration")
   shadowTest project(path: ":sdks:java:harness", configuration: "shadowTest")
   shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
-  shadowTest project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
+  shadowTest project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntimeMigration")
   shadowTest project(path: ":runners:direct-java", configuration: "shadow")
   shadowTest library.java.jsonassert
   shadowTest library.java.junit
