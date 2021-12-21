@@ -28,10 +28,12 @@ import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.*;
-import java.util.Map;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -47,24 +49,16 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.Validation;
-import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
-import org.apache.beam.sdk.state.TimeDomain;
-import org.apache.beam.sdk.state.Timer;
-import org.apache.beam.sdk.state.TimerSpec;
-import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.Instant;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -84,8 +78,8 @@ public class SpannerChangeStreamTransactionBoundariesIT {
   private static final int MAX_TABLE_NAME_LENGTH = 128;
   private static final int MAX_CHANGE_STREAM_NAME_LENGTH = 30;
   private static final String TABLE_NAME_PREFIX = "Singers";
-  private static final Logger LOG = LoggerFactory.getLogger(
-      SpannerChangeStreamTransactionBoundariesIT.class);
+  private static final Logger LOG =
+      LoggerFactory.getLogger(SpannerChangeStreamTransactionBoundariesIT.class);
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
@@ -138,11 +132,7 @@ public class SpannerChangeStreamTransactionBoundariesIT {
     databaseId = options.getDatabaseId();
     tableName = generateTableName();
     changeStreamName = generateChangeStreamName();
-    spanner =
-        SpannerOptions.newBuilder()
-            .setProjectId(projectId)
-            .build()
-            .getService();
+    spanner = SpannerOptions.newBuilder().setProjectId(projectId).build().getService();
     databaseAdminClient = spanner.getDatabaseAdminClient();
     databaseClient = spanner.getDatabaseClient(DatabaseId.of(projectId, instanceId, databaseId));
 
@@ -203,45 +193,49 @@ public class SpannerChangeStreamTransactionBoundariesIT {
     pipeline.getOptions().as(SpannerTestPipelineOptions.class).setStreaming(true);
     pipeline.getOptions().as(SpannerTestPipelineOptions.class).setBlockOnRun(false);
 
-    LOG.debug("Reading Spanner Change Stream from: " + now.toString());
+    LOG.debug("Reading Spanner Change Stream from: " + now);
     final PCollection<String> tokens =
-      pipeline
-          .apply(
-              SpannerIO.readChangeStream()
-                  .withSpannerConfig(spannerConfig)
-                  .withChangeStreamName(changeStreamName)
-                  .withMetadataDatabase(databaseId)
-                  .withInclusiveStartAt(now))
-          .apply(ParDo.of(new org.apache.beam.sdk.io.gcp.spanner.
-              SpannerChangeStreamTransactionBoundariesIT.KeyByTransactionIdFn()))
-          .apply(ParDo.of(new org.apache.beam.sdk.io.gcp.spanner.
-              SpannerChangeStreamTransactionBoundariesIT.TransactionBoundaryFn()))
-          .apply(ParDo.of(new org.apache.beam.sdk.io.gcp.spanner.
-              SpannerChangeStreamTransactionBoundariesIT.ToStringFn()));
+        pipeline
+            .apply(
+                SpannerIO.readChangeStream()
+                    .withSpannerConfig(spannerConfig)
+                    .withChangeStreamName(changeStreamName)
+                    .withMetadataDatabase(databaseId)
+                    .withInclusiveStartAt(now))
+            .apply(
+                ParDo.of(
+                    new org.apache.beam.sdk.io.gcp.spanner
+                        .SpannerChangeStreamTransactionBoundariesIT.KeyByTransactionIdFn()))
+            .apply(
+                ParDo.of(
+                    new org.apache.beam.sdk.io.gcp.spanner
+                        .SpannerChangeStreamTransactionBoundariesIT.TransactionBoundaryFn()))
+            .apply(
+                ParDo.of(
+                    new org.apache.beam.sdk.io.gcp.spanner
+                        .SpannerChangeStreamTransactionBoundariesIT.ToStringFn()));
 
     // Assert that the returned PCollection contains all six transactions (in string representation)
     // and that each transaction contains, in order, the list of mutations added.
-    PAssert.that(tokens).containsInAnyOrder(
-        // Insert Singer 1 and 2 into the table,
-        "{\"SingerId\":\"1\"}{\"SingerId\":\"2\"},INSERT\n",
+    PAssert.that(tokens)
+        .containsInAnyOrder(
+            // Insert Singer 1 and 2 into the table,
+            "{\"SingerId\":\"1\"}{\"SingerId\":\"2\"},INSERT\n",
 
-        // Delete Singer 1 and Insert Singer 3 into the table.
-        "{\"SingerId\":\"1\"},DELETE\n" +
-            "{\"SingerId\":\"3\"},INSERT\n",
+            // Delete Singer 1 and Insert Singer 3 into the table.
+            "{\"SingerId\":\"1\"},DELETE\n" + "{\"SingerId\":\"3\"},INSERT\n",
 
-        // Insert Singers 4, 5, 6 into the table.
-        "{\"SingerId\":\"4\"}{\"SingerId\":\"5\"}{\"SingerId\":\"6\"},INSERT\n",
+            // Insert Singers 4, 5, 6 into the table.
+            "{\"SingerId\":\"4\"}{\"SingerId\":\"5\"}{\"SingerId\":\"6\"},INSERT\n",
 
-        // Update Singer 6 and Insert Singer 7
-        "{\"SingerId\":\"6\"},UPDATE\n" +
-            "{\"SingerId\":\"7\"},INSERT\n",
+            // Update Singer 6 and Insert Singer 7
+            "{\"SingerId\":\"6\"},UPDATE\n" + "{\"SingerId\":\"7\"},INSERT\n",
 
-        // Update Singers 4 and 5 in the table.
-        "{\"SingerId\":\"4\"}{\"SingerId\":\"5\"},UPDATE\n",
+            // Update Singers 4 and 5 in the table.
+            "{\"SingerId\":\"4\"}{\"SingerId\":\"5\"},UPDATE\n",
 
-        // Delete Singers 3, 4, 5 from the table.
-        "{\"SingerId\":\"3\"}{\"SingerId\":\"4\"}{\"SingerId\":\"5\"},DELETE\n"
-    );
+            // Delete Singers 3, 4, 5 from the table.
+            "{\"SingerId\":\"3\"}{\"SingerId\":\"4\"}{\"SingerId\":\"5\"},DELETE\n");
 
     final PipelineResult pipelineResult = pipeline.run();
 
@@ -270,23 +264,22 @@ public class SpannerChangeStreamTransactionBoundariesIT {
 
     try {
       pipelineResult.waitUntilFinish(org.joda.time.Duration.standardSeconds(30));
-      final PipelineResult.State cancelled = pipelineResult.cancel();
+      pipelineResult.cancel();
     } catch (IOException e) {
       LOG.debug("IOException while cancelling job");
     }
   }
 
   // Create an update mutation.
-  private static Mutation updateRecordMutation(
-      long singerId, String firstName, String lastName) {
+  private static Mutation updateRecordMutation(long singerId, String firstName, String lastName) {
     return Mutation.newUpdateBuilder(tableName)
-                .set("SingerId")
-                .to(singerId)
-                .set("FirstName")
-                .to(firstName)
-                .set("LastName")
-                .to(lastName)
-                .build();
+        .set("SingerId")
+        .to(singerId)
+        .set("FirstName")
+        .to(firstName)
+        .set("LastName")
+        .to(lastName)
+        .build();
   }
 
   // Create an insert mutation.
@@ -318,7 +311,7 @@ public class SpannerChangeStreamTransactionBoundariesIT {
     return TABLE_NAME_PREFIX
         + "Stream"
         + RandomUtils.randomAlphaNumeric(
-        MAX_CHANGE_STREAM_NAME_LENGTH - 1 - (TABLE_NAME_PREFIX + "Stream").length());
+            MAX_CHANGE_STREAM_NAME_LENGTH - 1 - (TABLE_NAME_PREFIX + "Stream").length());
   }
 
   // Create the data table.
@@ -357,16 +350,15 @@ public class SpannerChangeStreamTransactionBoundariesIT {
 
   // KeyByTransactionIdFn takes in a DataChangeRecord and outputs a key-value pair of
   // {TransactionId, DataChangeRecord}
-  private static class KeyByTransactionIdFn extends
-      DoFn<DataChangeRecord, KV<String, DataChangeRecord>> {
+  private static class KeyByTransactionIdFn
+      extends DoFn<DataChangeRecord, KV<String, DataChangeRecord>> {
 
     private static final long serialVersionUID = 1270485392415293532L;
 
     @ProcessElement
     public void processElement(
         @Element DataChangeRecord record,
-        OutputReceiver<KV<String, DataChangeRecord>> outputReceiver
-    ) {
+        OutputReceiver<KV<String, DataChangeRecord>> outputReceiver) {
       outputReceiver.output(KV.of(record.getServerTransactionId(), record));
     }
   }
@@ -377,16 +369,20 @@ public class SpannerChangeStreamTransactionBoundariesIT {
   // entire transaction, this function sorts the DataChangeRecords in the group by record sequence
   // and outputs a key-value pair of SortKey(CommitTimestamp, TransactionId),
   // Iterable<DataChangeRecord>.
-  private static class TransactionBoundaryFn extends
-      DoFn<KV<String, DataChangeRecord>, KV<
-          org.apache.beam.sdk.io.gcp.spanner.SpannerChangeStreamTransactionBoundariesIT.SortKey,
-          Iterable<DataChangeRecord>>> {
+  private static class TransactionBoundaryFn
+      extends DoFn<
+          KV<String, DataChangeRecord>,
+          KV<
+              org.apache.beam.sdk.io.gcp.spanner.SpannerChangeStreamTransactionBoundariesIT.SortKey,
+              Iterable<DataChangeRecord>>> {
 
     private static final long serialVersionUID = 5050535558953049259L;
 
+    @SuppressWarnings("UnusedVariable")
     @StateId("buffer")
     private final StateSpec<BagState<DataChangeRecord>> buffer = StateSpecs.bag();
 
+    @SuppressWarnings("UnusedVariable")
     @StateId("count")
     private final StateSpec<ValueState<Integer>> countState = StateSpecs.value();
 
@@ -394,8 +390,7 @@ public class SpannerChangeStreamTransactionBoundariesIT {
     public void process(
         ProcessContext context,
         @StateId("buffer") BagState<DataChangeRecord> buffer,
-        @StateId("count") ValueState<Integer> countState
-    ) {
+        @StateId("count") ValueState<Integer> countState) {
       final KV<String, DataChangeRecord> element = context.element();
       final DataChangeRecord record = element.getValue();
 
@@ -405,18 +400,17 @@ public class SpannerChangeStreamTransactionBoundariesIT {
       countState.write(count);
 
       if (count == record.getNumberOfRecordsInTransaction()) {
-        final List<DataChangeRecord> sortedRecords = StreamSupport
-            .stream(buffer.read().spliterator(), false)
-            .sorted(Comparator.comparing(DataChangeRecord::getRecordSequence))
-            .collect(Collectors.toList());
-        context.output(KV.of(
-            new org.apache.beam.sdk.io.gcp.spanner.
-                SpannerChangeStreamTransactionBoundariesIT.SortKey(
-                sortedRecords.get(0).getCommitTimestamp(),
-                sortedRecords.get(0).getServerTransactionId()
-            ),
-            sortedRecords
-        ));
+        final List<DataChangeRecord> sortedRecords =
+            StreamSupport.stream(buffer.read().spliterator(), false)
+                .sorted(Comparator.comparing(DataChangeRecord::getRecordSequence))
+                .collect(Collectors.toList());
+        context.output(
+            KV.of(
+                new org.apache.beam.sdk.io.gcp.spanner.SpannerChangeStreamTransactionBoundariesIT
+                    .SortKey(
+                    sortedRecords.get(0).getCommitTimestamp(),
+                    sortedRecords.get(0).getServerTransactionId()),
+                sortedRecords));
         buffer.clear();
         countState.clear();
       }
@@ -425,52 +419,53 @@ public class SpannerChangeStreamTransactionBoundariesIT {
 
   // ToStringFn takes in a key-value pair of SortKey, Iterable<DataChangeRecord> and outputs
   // a string representation.
-  private static class ToStringFn extends DoFn<KV<
-      org.apache.beam.sdk.io.gcp.spanner.SpannerChangeStreamTransactionBoundariesIT.SortKey,
-      Iterable<DataChangeRecord>>, String> {
+  private static class ToStringFn
+      extends DoFn<
+          KV<
+              org.apache.beam.sdk.io.gcp.spanner.SpannerChangeStreamTransactionBoundariesIT.SortKey,
+              Iterable<DataChangeRecord>>,
+          String> {
 
     private static final long serialVersionUID = 2307936669684679038L;
 
     @ProcessElement
     public void processElement(
-        @Element KV<org.apache.beam.sdk.io.gcp.spanner.
-            SpannerChangeStreamTransactionBoundariesIT.SortKey,
-            Iterable<DataChangeRecord>> element,
-        OutputReceiver<String> outputReceiver
-    ) {
+        @Element
+            KV<
+                    org.apache.beam.sdk.io.gcp.spanner.SpannerChangeStreamTransactionBoundariesIT
+                        .SortKey,
+                    Iterable<DataChangeRecord>>
+                element,
+        OutputReceiver<String> outputReceiver) {
       final StringBuilder builder = new StringBuilder();
-      final org.apache.beam.sdk.io.gcp.spanner.SpannerChangeStreamTransactionBoundariesIT.SortKey
-          sortKey = element.getKey();
       final Iterable<DataChangeRecord> sortedRecords = element.getValue();
-      sortedRecords
-          .forEach(record -> {
+      sortedRecords.forEach(
+          record -> {
             // Output the string representation of the mods and the mod type for each data change
             // record.
             String modString = "";
             for (Mod mod : record.getMods()) {
               modString += mod.getKeysJson();
             }
-            builder.append(String.join(
-                ",",
-                modString,
-                record.getModType().toString())
-            );
+            builder.append(String.join(",", modString, record.getModType().toString()));
             builder.append("\n");
           });
       outputReceiver.output(builder.toString());
     }
   }
 
-  private static class SortKey implements Serializable, Comparable<
-      org.apache.beam.sdk.io.gcp.spanner.SpannerChangeStreamTransactionBoundariesIT.SortKey> {
+  private static class SortKey
+      implements Serializable,
+          Comparable<
+              org.apache.beam.sdk.io.gcp.spanner.SpannerChangeStreamTransactionBoundariesIT
+                  .SortKey> {
 
     private static final long serialVersionUID = 2105939115467195036L;
 
     private Timestamp commitTimestamp;
     private String transactionId;
 
-    public SortKey() {
-    }
+    public SortKey() {}
 
     public SortKey(Timestamp commitTimestamp, String transactionId) {
       this.commitTimestamp = commitTimestamp;
@@ -506,9 +501,12 @@ public class SpannerChangeStreamTransactionBoundariesIT {
         return false;
       }
       org.apache.beam.sdk.io.gcp.spanner.SpannerChangeStreamTransactionBoundariesIT.SortKey
-          sortKey = (org.apache.beam.sdk.io.gcp.spanner.SpannerChangeStreamTransactionBoundariesIT.SortKey) o;
-      return Objects.equals(commitTimestamp, sortKey.commitTimestamp) &&
-          Objects.equals(transactionId, sortKey.transactionId);
+          sortKey =
+              (org.apache.beam.sdk.io.gcp.spanner.SpannerChangeStreamTransactionBoundariesIT
+                      .SortKey)
+                  o;
+      return Objects.equals(commitTimestamp, sortKey.commitTimestamp)
+          && Objects.equals(transactionId, sortKey.transactionId);
     }
 
     @Override
@@ -517,12 +515,14 @@ public class SpannerChangeStreamTransactionBoundariesIT {
     }
 
     @Override
-    public int compareTo(org.apache.beam.sdk.io.gcp.spanner.SpannerChangeStreamTransactionBoundariesIT.SortKey other) {
+    public int compareTo(
+        org.apache.beam.sdk.io.gcp.spanner.SpannerChangeStreamTransactionBoundariesIT.SortKey
+            other) {
       return Comparator
-          .<org.apache.beam.sdk.io.gcp.spanner.SpannerChangeStreamTransactionBoundariesIT.SortKey>comparingLong(sortKey -> sortKey.getCommitTimestamp().getSeconds())
+          .<org.apache.beam.sdk.io.gcp.spanner.SpannerChangeStreamTransactionBoundariesIT.SortKey>
+              comparingLong(sortKey -> sortKey.getCommitTimestamp().getSeconds())
           .thenComparing(sortKey -> sortKey.getTransactionId())
           .compare(this, other);
     }
   }
 }
-
