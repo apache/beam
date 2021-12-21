@@ -396,7 +396,7 @@ ARGS="$ARGS $PIPELINE_OPTS"
 
 cd sdks/go
 echo ">>> RUNNING $RUNNER integration tests with pipeline options: $ARGS"
-go test -v $TESTS $ARGS 1>&2 \
+./run_with_go_version.sh test -v $TESTS $ARGS 1>&2 \
     || TEST_EXIT_CODE=$? # don't fail fast here; clean up environment before exiting
 cd ../..
 
