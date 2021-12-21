@@ -67,9 +67,9 @@ LOCKFILE=$GOBIN/$GOVERS.lock
 # The download command isn't concurrency safe so we get an exclusive lock, without wait.
 # If we're first, we ensure the command is downloaded, releasing the lock afterwards.
 # This operation is cached on system and won't be re-downloaded at least.
-flock --exclusive --nonblock --conflict-exit-code 0 $LOCKFILE --command $GOBIN/$GOVERS download
+flock --exclusive --nonblock --conflict-exit-code 0 $LOCKFILE $GOBIN/$GOVERS download
 
 # Execute the script with the remaining arguments.
 # We get a shared lock for the ordinary go command execution.
 echo $GOBIN/$GOVERS $@
-flock --shared --timeout=10 $LOCKFILE --command $GOBIN/$GOVERS $@
+flock --shared --timeout=10 $LOCKFILE $GOBIN/$GOVERS $@
