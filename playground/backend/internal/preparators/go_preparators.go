@@ -16,11 +16,14 @@
 package preparators
 
 import (
+	"beam.apache.org/playground/backend/internal/validators"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 const (
@@ -35,7 +38,7 @@ func GetGoPreparators(filePath string) *[]Preparator {
 	preparatorArgs := make([]interface{}, 1)
 	preparatorArgs[0] = filePath
 	formatCodePreparator := Preparator{Prepare: formatCode, Args: preparatorArgs}
-	changeNamePreparator := Preparator{Prepare: changeFileName, Args: preparatorArgs}
+	changeNamePreparator := Preparator{Prepare: changeGoTestFileName, Args: preparatorArgs}
 	return &[]Preparator{formatCodePreparator, changeNamePreparator}
 }
 
@@ -51,16 +54,15 @@ func formatCode(args ...interface{}) error {
 	return nil
 }
 
-func changeFileName(args ...interface{}) error {
+func changeGoTestFileName(args ...interface{}) error {
 	filePath := args[0].(string)
-	isUnitTest := args[1].(bool)
-	if isUnitTest {
+	validationResults := args[1].(*sync.Map)
+	isUnitTest, ok := validationResults.Load(validators.UnitTestValidatorName)
+	if ok && isUnitTest.(bool) {
 		testFileName := fmt.Sprintf("%s_test.%s", strings.Split(filePath, sep)[0], goName)
-		cmd := exec.Command(mvCmd, filePath, testFileName)
-		fmt.Println(cmd.String())
-		stdout, err := cmd.CombinedOutput()
+		err := os.Rename(filePath, testFileName)
 		if err != nil {
-			return errors.New(string(stdout))
+			return err
 		}
 	}
 	return nil

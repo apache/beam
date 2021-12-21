@@ -8,6 +8,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "29.0.0"
+  aligned_dialog:
+    dependency: "direct main"
+    description:
+      name: aligned_dialog
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.0.6"
   analyzer:
     dependency: transitive
     description:
