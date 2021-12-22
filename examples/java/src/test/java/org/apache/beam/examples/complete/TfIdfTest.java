@@ -17,6 +17,14 @@
  */
 package org.apache.beam.examples.complete;
 
+// beam-playground:
+//   name: TfIdfTest
+//   description: Unit-test for TfIdf example
+//   multifile: false
+//   pipeline_options:
+//   categories:
+//     - Side Input
+
 import java.net.URI;
 import java.util.Arrays;
 import org.apache.beam.sdk.coders.StringDelegateCoder;

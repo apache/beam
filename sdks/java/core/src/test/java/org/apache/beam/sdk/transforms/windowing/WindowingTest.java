@@ -17,6 +17,15 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
+// beam-playground:
+//   name: WindowingTest
+//   description: Unit-test for Windowing katas
+//   multifile: false
+//   pipeline_options:
+//   categories:
+//     - Windowing
+//     - Streaming
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.PrintStream;

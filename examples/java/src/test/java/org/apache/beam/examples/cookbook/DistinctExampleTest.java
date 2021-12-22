@@ -17,6 +17,15 @@
  */
 package org.apache.beam.examples.cookbook;
 
+// beam-playground:
+//   name: DistinctExampleTest
+//   description: Unit-test for DistinctExample example
+//   multifile: false
+//   pipeline_options:
+//   categories:
+//     - IO
+//     - Options
+
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.coders.StringUtf8Coder;

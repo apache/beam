@@ -17,6 +17,14 @@
  */
 package org.apache.beam.sdk.io;
 
+// beam-playground:
+//   name: FileBasedSourceTest
+//   description: Unit-test for FileBasedSource example
+//   multifile: false
+//   pipeline_options:
+//   categories:
+//     - IO
+
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionExhaustive;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionFails;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionSucceedsAndConsistent;
