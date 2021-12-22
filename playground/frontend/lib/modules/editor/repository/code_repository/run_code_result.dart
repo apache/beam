@@ -56,7 +56,7 @@ class RunCodeResult {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-          other is RunCodeResult &&
+      other is RunCodeResult &&
           runtimeType == other.runtimeType &&
           status == other.status &&
           output == other.output &&

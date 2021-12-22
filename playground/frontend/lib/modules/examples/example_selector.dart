@@ -124,11 +124,7 @@ class _ExampleSelectorState extends State<ExampleSelector>
           builder: (context, exampleState, playgroundState, child) => Stack(
             children: [
               GestureDetector(
-                onTap: () {
-                  animationController.reverse();
-                  examplesDropdown?.remove();
-                  exampleState.changeSelectorVisibility();
-                },
+                onTap: () => closeDropdown(exampleState),
                 child: Container(
                   color: Colors.transparent,
                   height: double.infinity,
@@ -162,6 +158,8 @@ class _ExampleSelectorState extends State<ExampleSelector>
                             ExampleList(
                               controller: scrollController,
                               selectedExample: playgroundState.selectedExample!,
+                              animationController: animationController,
+                              dropdown: examplesDropdown,
                             ),
                           ],
                         ),
@@ -185,5 +183,11 @@ class _ExampleSelectorState extends State<ExampleSelector>
       yAlignment: rBox.localToGlobal(Offset.zero).dy,
     );
     return positionModel;
+  }
+
+  void closeDropdown(ExampleState exampleState) {
+    animationController.reverse();
+    examplesDropdown?.remove();
+    exampleState.changeSelectorVisibility();
   }
 }
