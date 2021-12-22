@@ -26,9 +26,6 @@
 # will be provided to the go version tool.
 #    --version -> A string for a fully qualified go version, eg go1.16.5 or go1.18beta1
 #        The list of available versions are at https://go.dev/dl/ 
-#    --gocmd -> a specific path to a Go command to execute. If present, ignores --version flag
-#        and avoids doing the download check step.
-
 
 
 set -e
@@ -37,7 +34,7 @@ set -e
 #
 # This variable is also used as the execution command downscript.
 # The list of downloadable versions are at https://go.dev/dl/ 
-GOVERS=go1.16.12
+GOVERS="invalid"
 
 if ! command -v go &> /dev/null
 then
@@ -54,13 +51,9 @@ case $key in
         shift # past argument
         shift # past value
         ;;
-    --gocmd)
-        GOCMD="$2"
-        shift # past argument
-        shift # past value
-        ;;
     *)  # unknown options are go tool args.
-        break
+        echo "prepare_go_version requires the --version flag. See https://go.dev/dl/ for available versions."
+        exit 1
         ;;
 esac
 done
@@ -70,30 +63,17 @@ GOBIN=$GOPATH/bin
 GOHOSTOS=`go env GOHOSTOS`
 GOHOSTARCH=`go env GOHOSTARCH`
 
+# Outputing the system Go version for debugging purposes.
+echo "System Go installation: `which go` is `go version`; Preparing to use $GOBIN/$GOVERS"
 
-# Check if we've already prepared the Go command. If so, then we don't need to
-# do the download and versioning check.
-if [ -z "$GOCMD" ] ; then
-    # Outputing the system Go version for debugging purposes.
-    echo "System Go installation: `which go` is `go version`; Preparing to use $GOBIN/$GOVERS"
-    # Ensure it's installed in the GOBIN directory, using the local host platform.
-    GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH GOBIN=$GOBIN go install golang.org/dl/$GOVERS@latest
+# Ensure it's installed in the GOBIN directory, using the local host platform.
+GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH GOBIN=$GOBIN go install golang.org/dl/$GOVERS@latest
 
-    LOCKFILE=$GOBIN/$GOVERS.lock
-    # The download command isn't concurrency safe so we get an exclusive lock, without wait.
-    # If we're first, we ensure the command is downloaded, releasing the lock afterwards.
-    # This operation is cached on system and won't be re-downloaded at least.
-    flock --exclusive --nonblock --conflict-exit-code 0 $LOCKFILE $GOBIN/$GOVERS download
+LOCKFILE=$GOBIN/$GOVERS.lock
 
-    # Execute the script with the remaining arguments.
-    # We get a shared lock for the ordinary go command execution.
-    echo $GOBIN/$GOVERS $@
-    flock --shared --timeout=10 $LOCKFILE $GOBIN/$GOVERS $@
-else
-    # Minor TODO: Figure out if we can pull out the GOCMD env variable after goPrepare
-    # completion, and avoid this brittle GOBIN substitution.
-    GOCMD=${GOCMD/GOBIN/$GOBIN}
+# The download command isn't concurrency safe so prepare should be done at most once
+# per gogradle chain.
+$GOBIN/$GOVERS download
 
-    echo $GOCMD $@
-    $GOCMD $@
-fi
+export GOCMD=$GOBIN/$GOVERS
+echo "GOCMD=$GOCMD"
