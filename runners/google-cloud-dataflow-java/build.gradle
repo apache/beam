@@ -318,10 +318,10 @@ task validatesRunner {
   dependsOn(createLegacyWorkerValidatesRunnerTest(name: 'validatesRunnerLegacyWorkerTest'))
 }
 
-task validatesRunnerJavaSDK17 {
+task validatesRunnerJavaSDK17(type: Test) {
   group = "Verification"
-  description "Validates Dataflow runner"
-  dependsOn(createLegacyWorkerValidatesRunnerTest(name: 'validatesRunnerLegacyWorkerTest'))
+  description "Validates Dataflow runner on Java SDK 17"
+  dependsOn(createLegacyWorkerValidatesRunnerTest(name: 'validatesRunnerLegacyWorkerTestOnJava17'))
 
   javaLauncher = javaToolchains.launcherFor {
     languageVersion = JavaLanguageVersion.of(17)
