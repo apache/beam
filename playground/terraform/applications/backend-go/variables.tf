@@ -38,3 +38,11 @@ variable "docker_image_tag" {
 variable "service_name" {
   default = "backend"
 }
+
+variable "cache_type" {
+  default = "remote"
+}
+
+variable "cache_address" {
+  default = ""
+}
