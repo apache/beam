@@ -45,6 +45,7 @@ import org.apache.beam.fn.harness.state.FnApiTimerBundleTracker;
 import org.apache.beam.fn.harness.state.FnApiTimerBundleTracker.Modifications;
 import org.apache.beam.fn.harness.state.FnApiTimerBundleTracker.TimerInfo;
 import org.apache.beam.fn.harness.state.SideInputSpec;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.DelayedBundleApplication;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
@@ -128,6 +129,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.joda.time.format.PeriodFormat;
 
 /**
  * A {@link DoFnRunner} specific to integrating with the Fn Api. This is to remove the layers of
@@ -173,13 +175,16 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               context.getPTransformId(),
               context.getPTransform(),
               context.getProcessBundleInstructionIdSupplier(),
+              context.getCacheTokensSupplier(),
+              context.getBundleCacheSupplier(),
+              context.getProcessWideCache(),
               context.getPCollections(),
               context.getCoders(),
               context.getWindowingStrategies(),
               context::addStartBundleFunction,
               context::addFinishBundleFunction,
               context::addTearDownFunction,
-              pCollectionId -> context.getPCollectionConsumer(pCollectionId),
+              context::getPCollectionConsumer,
               (pCollectionId, consumer, valueCoder) ->
                   context.addPCollectionConsumer(
                       pCollectionId, (FnDataReceiver) consumer, (Coder) valueCoder),
@@ -321,6 +326,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       String pTransformId,
       PTransform pTransform,
       Supplier<String> processBundleInstructionId,
+      Supplier<List<BeamFnApi.ProcessBundleRequest.CacheToken>> cacheTokens,
+      Supplier<Cache<?, ?>> bundleCache,
+      Cache<?, ?> processWideCache,
       Map<String, PCollection> pCollections,
       Map<String, RunnerApi.Coder> coders,
       Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
@@ -699,6 +707,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             pipelineOptions,
             pTransformId,
             processBundleInstructionId,
+            cacheTokens,
+            bundleCache,
+            processWideCache,
             tagToSideInputSpecMap,
             beamFnStateClient,
             keyCoder,
@@ -1877,14 +1888,28 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       return Timer.cleared(userKey, dynamicTimerTag, Collections.singletonList(boundedWindow));
     }
 
+    @SuppressWarnings("deprecation") // Allowed Skew is deprecated for users, but must be respected
     private Timer<K> getTimerForTime(Instant scheduledTime) {
       if (outputTimestamp != null) {
-        checkArgument(
-            !outputTimestamp.isBefore(elementTimestampOrTimerHoldTimestamp),
-            "output timestamp %s should be after input message timestamp or output timestamp of"
-                + " firing timers %s",
-            outputTimestamp,
-            elementTimestampOrTimerHoldTimestamp);
+        Instant lowerBound;
+        try {
+          lowerBound = elementTimestampOrTimerHoldTimestamp.minus(doFn.getAllowedTimestampSkew());
+        } catch (ArithmeticException e) {
+          lowerBound = BoundedWindow.TIMESTAMP_MIN_VALUE;
+        }
+        if (outputTimestamp.isBefore(lowerBound)
+            || outputTimestamp.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+          throw new IllegalArgumentException(
+              String.format(
+                  "Cannot output timer with output timestamp %s. Output timestamps must be no "
+                      + "earlier than the timestamp of the current input (%s) minus the allowed skew "
+                      + "(%s) and no later than %s. See the DoFn#getAllowedTimestampSkew() Javadoc for "
+                      + "details on changing the allowed skew.",
+                  outputTimestamp,
+                  elementTimestampOrTimerHoldTimestamp,
+                  PeriodFormat.getDefault().print(doFn.getAllowedTimestampSkew().toPeriod()),
+                  BoundedWindow.TIMESTAMP_MAX_VALUE));
+        }
       }
 
       // Output timestamp is set to the delivery time if not initialized by an user.
@@ -1976,6 +2001,28 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           elementTimestampOrTimerFireTimestamp,
           paneInfo,
           timeDomain);
+    }
+  }
+
+  @SuppressWarnings("deprecation") // Allowed Skew is deprecated for users, but must be respected
+  private void checkTimestamp(Instant timestamp) {
+    Instant lowerBound;
+    try {
+      lowerBound = currentElement.getTimestamp().minus(doFn.getAllowedTimestampSkew());
+    } catch (ArithmeticException e) {
+      lowerBound = BoundedWindow.TIMESTAMP_MIN_VALUE;
+    }
+    if (timestamp.isBefore(lowerBound) || timestamp.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Cannot output with timestamp %s. Output timestamps must be no earlier than the "
+                  + "timestamp of the current input (%s) minus the allowed skew (%s) and no later "
+                  + "than %s. See the DoFn#getAllowedTimestampSkew() Javadoc for details on "
+                  + "changing the allowed skew.",
+              timestamp,
+              currentElement.getTimestamp(),
+              PeriodFormat.getDefault().print(doFn.getAllowedTimestampSkew().toPeriod()),
+              BoundedWindow.TIMESTAMP_MAX_VALUE));
     }
   }
 
@@ -2139,6 +2186,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public void outputWithTimestamp(OutputT output, Instant timestamp) {
+      // TODO: Check that timestamp is valid once all runners can provide proper timestamps.
       outputTo(
           mainOutputConsumers,
           WindowedValue.of(output, timestamp, currentWindow, currentElement.getPane()));
@@ -2146,6 +2194,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+      // TODO: Check that timestamp is valid once all runners can provide proper timestamps.
       Collection<FnDataReceiver<WindowedValue<T>>> consumers =
           (Collection) localNameToConsumer.get(tag.getId());
       if (consumers == null) {
@@ -2168,6 +2217,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     @Override
     // OutputT == RestrictionT
     public void outputWithTimestamp(OutputT output, Instant timestamp) {
+      checkTimestamp(timestamp);
       double size =
           doFnInvoker.invokeGetSize(
               new DelegatingArgumentProvider<InputT, OutputT>(
@@ -2214,6 +2264,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     @Override
     // OutputT == RestrictionT
     public void outputWithTimestamp(OutputT output, Instant timestamp) {
+      checkTimestamp(timestamp);
       double size =
           doFnInvoker.invokeGetSize(
               new DelegatingArgumentProvider<InputT, OutputT>(
@@ -2252,6 +2303,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private class NonWindowObservingProcessBundleContext extends ProcessBundleContextBase {
     @Override
     public void outputWithTimestamp(OutputT output, Instant timestamp) {
+      checkTimestamp(timestamp);
       outputTo(
           mainOutputConsumers,
           WindowedValue.of(
@@ -2260,6 +2312,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+      checkTimestamp(timestamp);
       Collection<FnDataReceiver<WindowedValue<T>>> consumers =
           (Collection) localNameToConsumer.get(tag.getId());
       if (consumers == null) {
@@ -2483,11 +2536,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
       @Override
       public void outputWithTimestamp(OutputT output, Instant timestamp) {
-        checkArgument(
-            !currentTimer.getHoldTimestamp().isAfter(timestamp),
-            "Output time %s can not be before timer timestamp %s.",
-            timestamp,
-            currentTimer.getHoldTimestamp());
+        checkTimerTimestamp(timestamp);
         outputTo(
             mainOutputConsumers,
             WindowedValue.of(output, timestamp, currentWindow, currentTimer.getPane()));
@@ -2508,11 +2557,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
       @Override
       public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
-        checkArgument(
-            !currentTimer.getHoldTimestamp().isAfter(timestamp),
-            "Output time %s can not be before timer timestamp %s.",
-            timestamp,
-            currentTimer.getHoldTimestamp());
+        checkTimerTimestamp(timestamp);
         Collection<FnDataReceiver<WindowedValue<T>>> consumers =
             (Collection) localNameToConsumer.get(tag.getId());
         if (consumers == null) {
@@ -2535,6 +2580,30 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       @Override
       public Instant timestamp() {
         return currentTimer.getHoldTimestamp();
+      }
+
+      @SuppressWarnings(
+          "deprecation") // Allowed Skew is deprecated for users, but must be respected
+      private void checkTimerTimestamp(Instant timestamp) {
+        Instant lowerBound;
+        try {
+          lowerBound = currentTimer.getHoldTimestamp().minus(doFn.getAllowedTimestampSkew());
+        } catch (ArithmeticException e) {
+          lowerBound = BoundedWindow.TIMESTAMP_MIN_VALUE;
+        }
+        if (timestamp.isBefore(lowerBound)
+            || timestamp.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+          throw new IllegalArgumentException(
+              String.format(
+                  "Cannot output with timestamp %s. Output timestamps must be no earlier than the "
+                      + "timestamp of the timer (%s) minus the allowed skew (%s) and no later "
+                      + "than %s. See the DoFn#getAllowedTimestampSkew() Javadoc for details on "
+                      + "changing the allowed skew.",
+                  timestamp,
+                  currentTimer.getHoldTimestamp(),
+                  PeriodFormat.getDefault().print(doFn.getAllowedTimestampSkew().toPeriod()),
+                  BoundedWindow.TIMESTAMP_MAX_VALUE));
+        }
       }
     }
 

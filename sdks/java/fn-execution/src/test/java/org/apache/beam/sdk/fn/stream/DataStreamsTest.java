@@ -19,6 +19,8 @@ package org.apache.beam.sdk.fn.stream;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.is;
 import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -29,7 +31,6 @@ import static org.junit.Assume.assumeTrue;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import org.apache.beam.sdk.coders.Coder;
@@ -80,19 +81,9 @@ public class DataStreamsTest {
     @Test
     public void testPrefetch() throws Exception {
       List<ByteString> encodings = new ArrayList<>();
-      {
-        ByteString.Output encoding = ByteString.newOutput();
-        StringUtf8Coder.of().encode("A", encoding);
-        StringUtf8Coder.of().encode("BC", encoding);
-        encodings.add(encoding.toByteString());
-      }
+      encodings.add(encode("A", "BC"));
       encodings.add(ByteString.EMPTY);
-      {
-        ByteString.Output encoding = ByteString.newOutput();
-        StringUtf8Coder.of().encode("DEF", encoding);
-        StringUtf8Coder.of().encode("GHIJ", encoding);
-        encodings.add(encoding.toByteString());
-      }
+      encodings.add(encode("DEF", "GHIJ"));
 
       PrefetchableIteratorsTest.ReadyAfterPrefetchUntilNext<ByteString> iterator =
           new PrefetchableIteratorsTest.ReadyAfterPrefetchUntilNext<>(encodings.iterator());
@@ -126,6 +117,41 @@ public class DataStreamsTest {
       assertTrue(decoder.isReady());
     }
 
+    @Test
+    public void testDecodeFromChunkBoundaryToChunkBoundary() throws Exception {
+      ByteString multipleElementsToSplit = encode("B", "BigElementC");
+      ByteString singleElementToSplit = encode("BigElementG");
+      DataStreamDecoder<String> decoder =
+          new DataStreamDecoder<>(
+              StringUtf8Coder.of(),
+              new PrefetchableIteratorsTest.ReadyAfterPrefetchUntilNext<>(
+                  Iterators.forArray(
+                      encode("A"),
+                      multipleElementsToSplit.substring(0, multipleElementsToSplit.size() - 1),
+                      multipleElementsToSplit.substring(multipleElementsToSplit.size() - 1),
+                      encode("D"),
+                      encode(),
+                      encode("E", "F"),
+                      singleElementToSplit.substring(0, singleElementToSplit.size() - 1),
+                      singleElementToSplit.substring(singleElementToSplit.size() - 1))));
+
+      assertThat(decoder.decodeFromChunkBoundaryToChunkBoundary(), contains("A"));
+      assertThat(decoder.decodeFromChunkBoundaryToChunkBoundary(), contains("B", "BigElementC"));
+      assertThat(decoder.decodeFromChunkBoundaryToChunkBoundary(), contains("D"));
+      assertThat(decoder.decodeFromChunkBoundaryToChunkBoundary(), is(empty()));
+      assertThat(decoder.decodeFromChunkBoundaryToChunkBoundary(), contains("E", "F"));
+      assertThat(decoder.decodeFromChunkBoundaryToChunkBoundary(), contains("BigElementG"));
+      assertFalse(decoder.hasNext());
+    }
+
+    private ByteString encode(String... values) throws IOException {
+      ByteString.Output out = ByteString.newOutput();
+      for (String value : values) {
+        StringUtf8Coder.of().encode(value, out);
+      }
+      return out.toByteString();
+    }
+
     private <T> void testDecoderWith(Coder<T> coder, T... expected) throws IOException {
       ByteString.Output output = ByteString.newOutput();
       for (T value : expected) {
@@ -142,7 +168,7 @@ public class DataStreamsTest {
     }
 
     private <T> void testDecoderWith(Coder<T> coder, T[] expected, List<ByteString> encoded) {
-      Iterator<T> decoder =
+      DataStreamDecoder<T> decoder =
           new DataStreamDecoder<>(
               coder, PrefetchableIterators.maybePrefetchable(encoded.iterator()));
 

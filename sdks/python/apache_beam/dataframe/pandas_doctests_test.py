@@ -300,6 +300,7 @@ class DoctestTest(unittest.TestCase):
                 # Returns deferred index.
                 'df.axes',
             ],
+            # Skipped because the relies on loc to set cells in df2
             'pandas.core.frame.DataFrame.compare': ['*'],
             'pandas.core.frame.DataFrame.cov': [
                 # Relies on setting entries ahead of time.
@@ -500,8 +501,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.append': [
                 's1.append(s2, verify_integrity=True)',
             ],
-            # Throws NotImplementedError when modifying df
-            'pandas.core.series.Series.compare': ['*'],
             'pandas.core.series.Series.cov': [
                 # Differs in LSB on jenkins.
                 "s1.cov(s2)",

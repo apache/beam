@@ -24,13 +24,13 @@ import (
 )
 
 const (
-	javaSourceFileExtension   = ".java"
+	JavaSourceFileExtension   = ".java"
 	javaCompiledFileExtension = ".class"
 )
 
 // newJavaLifeCycle creates LifeCycle with java SDK environment.
 func newJavaLifeCycle(pipelineId uuid.UUID, workingDir string) *LifeCycle {
-	javaLifeCycle := newCompilingLifeCycle(pipelineId, workingDir, javaSourceFileExtension, javaCompiledFileExtension)
+	javaLifeCycle := newCompilingLifeCycle(pipelineId, workingDir, JavaSourceFileExtension, javaCompiledFileExtension)
 	javaLifeCycle.ExecutableName = executableName
 	return javaLifeCycle
 }

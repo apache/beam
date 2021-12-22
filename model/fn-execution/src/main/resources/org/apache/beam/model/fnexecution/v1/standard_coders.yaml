@@ -410,6 +410,39 @@ examples:
   "\x01\x00\x00\x00\x00\x04\neverything\x00\x02is\x00\x05null!\x00\r\xc2\xaf\\_(\xe3\x83\x84)_/\xc2\xaf\x00": {f_map: {"everything": null, "is": null, "null!": null, "¯\\_(ツ)_/¯": null}}
 
 ---
+# Binary data generated with the python SDK:
+# schema1 = schema_pb2.Schema(
+# id="30ea5a25-dcd8-4cdb-abeb-5332d15ab4b9",
+# fields=[
+#     schema_pb2.Field(
+#         name="str",
+#         type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING),
+#         encoding_position=1),
+#     schema_pb2.Field(
+#         name="f_bool",
+#         type=schema_pb2.FieldType(atomic_type=schema_pb2.BOOLEAN),
+#         encoding_position=2),
+#     schema_pb2.Field(
+#         name="i32",
+#         type=schema_pb2.FieldType(
+#             atomic_type=schema_pb2.INT32, nullable=True),
+#         encoding_position=0)
+#   ],
+#   encoding_positions_set=True)
+#
+# coder = RowCoder(schema1)
+# c = coder.schema.SerializeToString()
+# print("payload = %s" % c)
+# test = typing.NamedTuple("test", [ ("f_bool", bool), ("i32", np.int32), ("str", str) ])
+# example = coder.encode(test(False,21,"str2"))
+# print("example = %s" % example)
+coder:
+  urn: "beam:coder:row:v1"
+  payload: "\n\x0b\n\x03str\x1a\x02\x10\x07(\x01\n\x0e\n\x06f_bool\x1a\x02\x10\x08(\x02\n\x0b\n\x03i32\x1a\x04\x08\x01\x10\x03\x12$30ea5a25-dcd8-4cdb-abeb-5332d15ab4b9 \x01"
+examples:
+  "\x03\x00\x15\x04str2\x00": {f_bool: False, i32: 21, str: "str2"}
+
+---
 
 coder:
   urn: "beam:coder:row:v1"

@@ -621,7 +621,7 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
         keys.stream()
             .map((key) -> ObjectIdentifier.builder().key(key).build())
             .collect(Collectors.toList());
-    Delete delete = Delete.builder().objects(deleteKeyVersions).build();
+    Delete delete = Delete.builder().objects(deleteKeyVersions).quiet(true).build();
     DeleteObjectsRequest deleteObjectsRequest =
         DeleteObjectsRequest.builder().bucket(bucket).delete(delete).build();
     try {

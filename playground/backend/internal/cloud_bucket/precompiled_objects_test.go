@@ -16,9 +16,24 @@
 package cloud_bucket
 
 import (
+	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"context"
 	"reflect"
 	"testing"
 )
+
+const (
+	precompiledObjectPath = "SDK_JAVA/MinimalWordCount"
+	targetSdk             = pb.Sdk_SDK_UNSPECIFIED
+)
+
+var bucket *CloudStorage
+var ctx context.Context
+
+func init() {
+	bucket = New()
+	ctx = context.Background()
+}
 
 func Test_getFullFilePath(t *testing.T) {
 	type args struct {
@@ -193,7 +208,7 @@ func Test_getFileExtensionBySdk(t *testing.T) {
 		{
 			// Try to get an extension of a file by the sdk at file path:
 			// SDK_JAVA/HelloWorld -> java
-			name: "Test getFileExtensionBySdk() valid sdk",
+			name:    "Test getFileExtensionBySdk() valid sdk",
 			args:    args{precompiledObjectPath: "SDK_JAVA/HelloWorld"},
 			want:    "java",
 			wantErr: false,
@@ -201,7 +216,7 @@ func Test_getFileExtensionBySdk(t *testing.T) {
 		{
 			// Try to get an error if sdk is not a valid one:
 			// INVALID_SDK/HelloWorld -> ""
-			name: "Test getFileExtensionBySdk() invalid sdk",
+			name:    "Test getFileExtensionBySdk() invalid sdk",
 			args:    args{precompiledObjectPath: "INVALID_SDK/HelloWorld"},
 			want:    "",
 			wantErr: true,
@@ -218,5 +233,23 @@ func Test_getFileExtensionBySdk(t *testing.T) {
 				t.Errorf("getFileExtensionBySdk() got = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func Benchmark_GetPrecompiledObjects(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_, _ = bucket.GetPrecompiledObjects(ctx, targetSdk, "")
+	}
+}
+
+func Benchmark_GetPrecompiledObjectOutput(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_, _ = bucket.GetPrecompiledObjectOutput(ctx, precompiledObjectPath)
+	}
+}
+
+func Benchmark_GetPrecompiledObject(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_, _ = bucket.GetPrecompiledObject(ctx, precompiledObjectPath)
 	}
 }
