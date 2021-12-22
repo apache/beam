@@ -88,6 +88,8 @@ default value and there is no need to set them up to launch locally:
 - `NUM_PARALLEL_JOBS` - is the max number of the code processing requests which could be processed on the backend server
   at the same time (default value = `20`). This value is used to check readiness of the backend server. If server
   processes max number of the code processing requests then need to deploy a new instance.
+- `LAUNCH_SITE` - is the value to configure log (default value = local). If developers want to use log service on the
+  App Engine then need to change this value to `app_engine`.
 
 ### Running the server app via Docker
 
