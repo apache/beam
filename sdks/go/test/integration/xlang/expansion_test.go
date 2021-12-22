@@ -20,6 +20,7 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/xlangx/expansionx"
 	"github.com/apache/beam/sdks/v2/go/test/integration"
@@ -33,16 +34,21 @@ const (
 	expansionPort = "8097"
 )
 
-func checkPort(t *testing.T, port string) {
-	ping := exec.Command("nc", "-vz", "localhost", port)
-	output, err := ping.CombinedOutput()
-	if err != nil {
-		t.Errorf("failed to run ping to localhost:%v", port)
+func checkPort(t *testing.T, port string, durationSeconds float64) {
+	var outputStr string
+	for i := 0.0; i < durationSeconds; i += 0.5 {
+		ping := exec.Command("nc", "-vz", "localhost", port)
+		output, err := ping.CombinedOutput()
+		if err != nil {
+			t.Fatalf("failed to run ping to port, got %v", err)
+		}
+		outputStr = string(output)
+		if !strings.Contains(outputStr, "failed") {
+			return
+		}
+		time.Sleep(500 * time.Millisecond)
 	}
-	outputStr := string(output)
-	if strings.Contains(outputStr, "failed") {
-		t.Errorf("failed to connect to localhost:%v, got err %v", port, outputStr)
-	}
+	t.Errorf("Failed to connect to expansion service after %f seconds", durationSeconds)
 }
 
 func TestAutomatedExpansionService(t *testing.T) {
@@ -59,7 +65,7 @@ func TestAutomatedExpansionService(t *testing.T) {
 		t.Errorf("failed to start expansion service JAR, got %v", err)
 	}
 
-	checkPort(t, expansionPort)
+	checkPort(t, expansionPort, 15.0)
 
 	err = serviceRunner.StopService()
 	if err != nil {
