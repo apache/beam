@@ -167,22 +167,38 @@ task validatesRunner(type: Test) {
   }
 }
 
+task validatesRunnerOnJavaSDK17(type: Test) {
+  group = "Verification"
+  description "Validates Direct runner"
+
+  String[] pipelineOptions = ["--runner=DirectRunner", "--runnerDeterminedSharding=false"]
+  systemProperty "beamTestPipelineOptions", pipelineOptionsStringCrossPlatformHandling(pipelineOptions)
+
+  javaLauncher = javaToolchains.launcherFor {
+    languageVersion = JavaLanguageVersion.of(17)
+  }
+
+  classpath = configurations.validatesRunner
+  // NOTE: We only add to the test class dirs to ensure that the direct runner
+  // tests (i.e., those from this subproject) get scanned.
+  testClassesDirs += files(project(":runners:core-construction-java").sourceSets.test.output.classesDirs)
+  testClassesDirs += files(project(":runners:core-java").sourceSets.test.output.classesDirs)
+  testClassesDirs += files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+  useJUnit {
+    includeCategories "org.apache.beam.sdk.testing.ValidatesRunner"
+    excludeCategories "org.apache.beam.sdk.testing.LargeKeys\$Above100MB"
+    excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
+    excludeCategories "org.apache.beam.sdk.testing.UsesCrossLanguageTransforms"
+    excludeCategories "org.apache.beam.sdk.testing.UsesPythonExpansionService"
+    // https://issues.apache.org/jira/browse/BEAM-2791
+    excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'
+  }
+}
+
 def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
 def gcsBucket = project.findProperty('gcsBucket') ?: 'temp-storage-for-release-validation-tests/nightly-snapshot-validation'
 def bqDataset = project.findProperty('bqDataset') ?: 'beam_postrelease_mobile_gaming'
 def pubsubTopic = project.findProperty('pubsubTopic') ?: 'java_mobile_gaming_topic'
-
-def javasdk17compiler = javaToolchains.compilerFor {
-  languageVersion = JavaLanguageVersion.of(17)
-}
-
-def JAVA_17_HOME = javasdk17compiler.get().metadata.installationPath.asFile.absolutePath
-
-def javasdk8compiler = javaToolchains.compilerFor {
-  languageVersion = JavaLanguageVersion.of(8)
-}
-
-def JAVA_8_HOME = javasdk8compiler.get().metadata.installationPath.asFile.absolutePath
 
 // Generates :runners:direct-java:runQuickstartJavaDirect
 createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'Direct')

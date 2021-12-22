@@ -33,7 +33,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Examples_Dataflow_V2_ja
       steps {
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
-          tasks(':runners:google-cloud-dataflow-java:examplesJavaRunnerV2IntegrationTest')
+          tasks(':runners:google-cloud-dataflow-java:examplesJavaRunnerV2IntegrationTestJavaSDK17')
 
           // Increase parallel worker threads above processor limit since most time is
           // spent waiting on Dataflow jobs. ValidatesRunner tests on Dataflow are slow
@@ -44,7 +44,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Examples_Dataflow_V2_ja
           switches '-PdisableSpotlessCheck=true'
           switches '-PcompileAndRunTestsWithJava17'
           switches '-PskipCheckerFramework'
-          switches "-Pjava17Home=${JAVA_17_HOME}"
+          //switches "-Pjava17Home=${commonJobProperties.JAVA_17_HOME}"
         }
       }
     }
