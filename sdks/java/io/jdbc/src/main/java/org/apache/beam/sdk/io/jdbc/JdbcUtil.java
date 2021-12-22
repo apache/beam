@@ -190,17 +190,21 @@ class JdbcUtil {
 
   private static JdbcIO.PreparedStatementSetCaller createBytesCaller() {
     return (element, ps, i, fieldWithIndex) -> {
-      validateLogicalTypeLength(
-          fieldWithIndex.getField(), element.getBytes(fieldWithIndex.getIndex()).length);
-      ps.setBytes(i + 1, element.getBytes(fieldWithIndex.getIndex()));
+      byte[] value = element.getBytes(fieldWithIndex.getIndex());
+      if (value != null) {
+        validateLogicalTypeLength(fieldWithIndex.getField(), value.length);
+      }
+      ps.setBytes(i + 1, value);
     };
   }
 
   private static JdbcIO.PreparedStatementSetCaller createStringCaller() {
     return (element, ps, i, fieldWithIndex) -> {
-      validateLogicalTypeLength(
-          fieldWithIndex.getField(), element.getString(fieldWithIndex.getIndex()).length());
-      ps.setString(i + 1, element.getString(fieldWithIndex.getIndex()));
+      String value = element.getString(fieldWithIndex.getIndex());
+      if (value != null) {
+        validateLogicalTypeLength(fieldWithIndex.getField(), value.length());
+      }
+      ps.setString(i + 1, value);
     };
   }
 
