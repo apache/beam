@@ -20,9 +20,9 @@ ALLOWED_LIST = [
     "127.0.0.1",
 ]
 
-# ALLOW_BUCKET_LIST contains all public Google Cloud Storage buckets
+# ALLOWED_BUCKET_LIST contains all public Google Cloud Storage buckets
 # that are allowed to make requests from Beam Playground
-ALLOW_BUCKET_LIST = [
+ALLOWED_BUCKET_LIST = [
     "dataflow-samples",
     "beam-samples",
     "apache-beam-samples",
