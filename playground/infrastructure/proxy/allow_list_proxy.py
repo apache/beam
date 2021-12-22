@@ -25,6 +25,6 @@ def request(flow: http.HTTPFlow) -> None:
   allowed_host = flow.request.pretty_host in ALLOWED_LIST
   if not (allowed_bucket or allowed_host):
     flow.response = http.Response.make(
-      status_code=403,
-      content="Making requests to the hosts that are not listed "
-              "in the allowed list is forbidden.")
+        status_code=403,
+        content="Making requests to the hosts that are not listed "
+        "in the allowed list is forbidden.")
