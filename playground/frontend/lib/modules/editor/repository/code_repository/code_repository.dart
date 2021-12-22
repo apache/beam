@@ -20,9 +20,14 @@ import 'package:playground/modules/editor/repository/code_repository/code_client
 import 'package:playground/modules/editor/repository/code_repository/run_code_error.dart';
 import 'package:playground/modules/editor/repository/code_repository/run_code_request.dart';
 import 'package:playground/modules/editor/repository/code_repository/run_code_result.dart';
+import 'package:playground/utils/run_with_retry.dart';
 
 const kPipelineCheckDelay = Duration(seconds: 1);
-const kTimeoutErrorText = 'Code execution exceeded timeout';
+const kTimeoutErrorText =
+    'Pipeline exceeded Playground execution timeout and was terminated. '
+    'We recommend installing Apache Beam '
+    'https://beam.apache.org/get-started/downloads/ '
+    'to try examples without timeout limitation.';
 const kUnknownErrorText =
     'Something went wrong. Please try again later or create a jira ticket';
 
@@ -43,6 +48,7 @@ class CodeRepository {
       yield RunCodeResult(
         status: RunCodeStatus.unknownError,
         errorMessage: error.message ?? kUnknownErrorText,
+        output: error.message ?? kUnknownErrorText,
       );
     }
   }
@@ -53,7 +59,9 @@ class CodeRepository {
     RunCodeResult? prevResult,
   }) async* {
     try {
-      final statusResponse = await _client.checkStatus(pipelineUuid, request);
+      final statusResponse = await runWithRetry(
+        () => _client.checkStatus(pipelineUuid, request),
+      );
       final result = await _getPipelineResult(
         pipelineUuid,
         statusResponse.status,
@@ -64,12 +72,16 @@ class CodeRepository {
       if (!result.isFinished) {
         await Future.delayed(kPipelineCheckDelay);
         yield* _checkPipelineExecution(
-            pipelineUuid, request, prevResult: result);
+          pipelineUuid,
+          request,
+          prevResult: result,
+        );
       }
     } on RunCodeError catch (error) {
       yield RunCodeResult(
         status: RunCodeStatus.unknownError,
         errorMessage: error.message ?? kUnknownErrorText,
+        output: error.message ?? kUnknownErrorText,
       );
     }
   }
@@ -90,12 +102,20 @@ class CodeRepository {
         );
         return RunCodeResult(status: status, output: compileOutput.output);
       case RunCodeStatus.timeout:
-        return RunCodeResult(status: status, errorMessage: kTimeoutErrorText);
+        return RunCodeResult(
+          status: status,
+          errorMessage: kTimeoutErrorText,
+          output: kTimeoutErrorText,
+        );
       case RunCodeStatus.runError:
         final output = await _client.getRunErrorOutput(pipelineUuid, request);
         return RunCodeResult(status: status, output: output.output);
       case RunCodeStatus.unknownError:
-        return RunCodeResult(status: status, errorMessage: kUnknownErrorText);
+        return RunCodeResult(
+          status: status,
+          errorMessage: kUnknownErrorText,
+          output: kUnknownErrorText,
+        );
       case RunCodeStatus.executing:
       case RunCodeStatus.finished:
         final responses = await Future.wait([

@@ -33,7 +33,8 @@ class PipelineOptionsTextField extends StatefulWidget {
       : super(key: key);
 
   @override
-  State<PipelineOptionsTextField> createState() => _PipelineOptionsTextFieldState();
+  State<PipelineOptionsTextField> createState() =>
+      _PipelineOptionsTextFieldState();
 }
 
 class _PipelineOptionsTextFieldState extends State<PipelineOptionsTextField> {

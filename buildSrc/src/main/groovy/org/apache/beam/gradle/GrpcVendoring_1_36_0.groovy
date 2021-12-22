@@ -36,7 +36,7 @@ class GrpcVendoring_1_36_0 {
   static def opencensus_version = "0.28.0"
   static def conscrypt_version = "2.5.1"
 
-  /** Returns the list of compile time dependencies. */
+  /** Returns the list of implementation time dependencies. */
   static List<String> dependencies() {
     return [
       "com.google.guava:guava:$guava_version",
@@ -174,7 +174,7 @@ class GrpcVendoring_1_36_0 {
    */
   static Object dependenciesClosure() {
     return {
-      dependencies().each { compile it }
+      dependencies().each { implementation it }
       runtimeDependencies().each { shadow it }
     }
   }
