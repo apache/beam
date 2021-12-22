@@ -18,6 +18,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:playground/constants/sizes.dart';
+import 'package:playground/modules/analytics/analytics_service.dart';
 import 'package:playground/modules/editor/components/editor_textarea.dart';
 import 'package:playground/modules/editor/components/run_button.dart';
 import 'package:playground/modules/editor/components/pipeline_options_text_field.dart';
@@ -28,6 +29,7 @@ import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:provider/provider.dart';
 
 const kNotificationTitle = 'Run Code';
+const kUnknownExamplePrefix = 'Unknown Example';
 
 class CodeTextAreaWrapper extends StatelessWidget {
   const CodeTextAreaWrapper({Key? key}) : super(key: key);
@@ -65,7 +67,20 @@ class CodeTextAreaWrapper extends StatelessWidget {
                   height: kRunButtonHeight,
                   child: RunButton(
                     isRunning: state.isCodeRunning,
-                    runCode: state.runCode,
+                    runCode: () {
+                      final stopwatch = Stopwatch()..start();
+                      state.runCode(
+                        onFinish: () {
+                          AnalyticsService.get(context).trackRunTimeEvent(
+                            state.selectedExample?.path ??
+                                '$kUnknownExamplePrefix, sdk ${state.sdk.displayName}',
+                            stopwatch.elapsedMilliseconds,
+                          );
+                        },
+                      );
+                      AnalyticsService.get(context)
+                          .trackClickRunEvent(state.selectedExample);
+                    },
                   ),
                 ),
               ],

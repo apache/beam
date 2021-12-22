@@ -118,6 +118,7 @@ import org.apache.beam.sdk.testing.UsesTimerMap;
 import org.apache.beam.sdk.testing.UsesTimersInParDo;
 import org.apache.beam.sdk.testing.UsesUnboundedPCollections;
 import org.apache.beam.sdk.testing.ValidatesRunner;
+import org.apache.beam.sdk.transforms.Create.TimestampedValues;
 import org.apache.beam.sdk.transforms.DoFn.OnTimer;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.Mean.CountSum;
@@ -158,6 +159,7 @@ import org.joda.time.DateTimeUtils;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.MutableDateTime;
+import org.joda.time.format.PeriodFormat;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -1789,6 +1791,172 @@ public class ParDoTest implements Serializable {
   /** Tests to validate output timestamps. */
   @RunWith(JUnit4.class)
   public static class TimestampTests extends SharedTestBase implements Serializable {
+
+    static final String TIMER_ELEMENT = "timer";
+    static final String OUTPUT_ELEMENT = "output";
+
+    /**
+     * Checks that the given message is correct and includes the element timestamp, allowed skew,
+     * and output timestamp.
+     */
+    static boolean hasExpectedError(
+        IllegalArgumentException e,
+        Duration allowedSkew,
+        Instant elementTimestamp,
+        Instant outputTimestamp) {
+      return e.getMessage().contains("timestamp of the ")
+          && e.getMessage().contains(elementTimestamp.toString())
+          && e.getMessage().contains("timestamp " + outputTimestamp)
+          && e.getMessage()
+              .contains("allowed skew (" + PeriodFormat.getDefault().print(allowedSkew.toPeriod()))
+          && e.getMessage().contains("getAllowedTimestampSkew");
+    }
+
+    /**
+     * A {@link DoFn} that outputs an element at and creates/sets a timer with an output timestamp
+     * equal to the input timestamp minus the input element's value. Keys are ignored but required
+     * for timers.
+     */
+    private static class ProcessElementTimestampSkewingDoFn
+        extends DoFn<KV<String, Duration>, String> {
+
+      static final String TIMER_ID = "testTimerId";
+      private final Duration allowedSkew;
+
+      @TimerId(TIMER_ID)
+      private static final TimerSpec timer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+
+      private ProcessElementTimestampSkewingDoFn(Duration allowedSkew) {
+        this.allowedSkew = allowedSkew;
+      }
+
+      @ProcessElement
+      public void processElement(ProcessContext context, @TimerId(TIMER_ID) Timer timer) {
+        Instant outputTimestamp = context.timestamp().minus(context.element().getValue());
+        try {
+          context.outputWithTimestamp(OUTPUT_ELEMENT, outputTimestamp);
+        } catch (IllegalArgumentException e) {
+          if (hasExpectedError(e, allowedSkew, context.timestamp(), outputTimestamp)) {
+            context.output(OUTPUT_ELEMENT + outputTimestamp.toString());
+          }
+        }
+        try {
+          timer.withOutputTimestamp(outputTimestamp).set(new Instant(0));
+          context.output(TIMER_ELEMENT);
+        } catch (IllegalArgumentException e) {
+          if (hasExpectedError(e, allowedSkew, context.timestamp(), outputTimestamp)) {
+            context.output(TIMER_ELEMENT + outputTimestamp.toString());
+          }
+        }
+      }
+
+      @OnTimer(TIMER_ID)
+      public void onTimer(OnTimerContext context) {}
+
+      @Override
+      public Duration getAllowedTimestampSkew() {
+        return allowedSkew;
+      }
+    }
+
+    /**
+     * A {@link DoFn} that sets a timer that outputs an element and sets a second timer with an
+     * output timestamp equal to the input timestamp minus the input element's value. Keys are
+     * ignored but required for timers.
+     */
+    private static class OnTimerTimestampSkewingDoFn extends DoFn<KV<String, String>, String> {
+
+      static final String FIRST_TIMER_ID = "firstTestTimerId";
+      static final String SECOND_TIMER_ID = "secondTestTimerId";
+      private final Duration allowedSkew;
+      private final Duration outputTimestampSkew;
+
+      @TimerId(FIRST_TIMER_ID)
+      private static final TimerSpec firstTimer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+      @TimerId(SECOND_TIMER_ID)
+      private static final TimerSpec secondTimer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+      private OnTimerTimestampSkewingDoFn(Duration allowedSkew, Duration outputTimestampSkew) {
+        this.allowedSkew = allowedSkew;
+        this.outputTimestampSkew = outputTimestampSkew;
+      }
+
+      @ProcessElement
+      public void processElement(ProcessContext context, @TimerId(FIRST_TIMER_ID) Timer timer) {
+        timer.set(context.timestamp());
+      }
+
+      @OnTimer(SECOND_TIMER_ID)
+      public void onSecondTimer(OnTimerContext context) {}
+
+      @OnTimer(FIRST_TIMER_ID)
+      public void onFirstTimer(OnTimerContext context, @TimerId(SECOND_TIMER_ID) Timer timer) {
+        Instant outputTimestamp = context.timestamp().minus(outputTimestampSkew);
+        try {
+          context.outputWithTimestamp(OUTPUT_ELEMENT, outputTimestamp);
+        } catch (IllegalArgumentException e) {
+          if (hasExpectedError(e, allowedSkew, context.timestamp(), outputTimestamp)) {
+            context.output(OUTPUT_ELEMENT + outputTimestamp);
+          }
+        }
+        try {
+          timer.withOutputTimestamp(outputTimestamp).set(context.timestamp());
+          context.output(TIMER_ELEMENT);
+        } catch (IllegalArgumentException e) {
+          if (hasExpectedError(e, allowedSkew, context.timestamp(), outputTimestamp)) {
+            context.output(TIMER_ELEMENT + outputTimestamp);
+          }
+        }
+      }
+
+      @Override
+      public Duration getAllowedTimestampSkew() {
+        return allowedSkew;
+      }
+    }
+
+    /**
+     * A {@link DoFn} that on window expiration outputs an element with an output timestamp equal to
+     * the input timestamp minus the input element's value. Keys are ignored but required by timers.
+     */
+    private static class OnWindowExpirationTimestampSkewingDoFn
+        extends DoFn<KV<String, String>, String> {
+
+      private final Duration allowedSkew;
+      private final Duration outputTimestampSkew;
+
+      // Using state is required because of BEAM-13213.
+      @StateId("ignored")
+      private final StateSpec<ValueState<String>> ignoredState = StateSpecs.value();
+
+      private OnWindowExpirationTimestampSkewingDoFn(
+          Duration allowedSkew, Duration outputTimestampSkew) {
+        this.allowedSkew = allowedSkew;
+        this.outputTimestampSkew = outputTimestampSkew;
+      }
+
+      @ProcessElement
+      public void processElement(ProcessContext context) {}
+
+      @OnWindowExpiration
+      public void onWindowExpiration(@Timestamp Instant timestamp, OutputReceiver<String> output) {
+        Instant outputTimestamp = timestamp.minus(outputTimestampSkew);
+        try {
+          output.outputWithTimestamp(OUTPUT_ELEMENT, outputTimestamp);
+        } catch (IllegalArgumentException e) {
+          if (hasExpectedError(e, allowedSkew, timestamp, outputTimestamp)) {
+            output.output(OUTPUT_ELEMENT + outputTimestamp);
+          }
+        }
+      }
+
+      @Override
+      public Duration getAllowedTimestampSkew() {
+        return allowedSkew;
+      }
+    }
+
     @Test
     @Category(ValidatesRunner.class)
     public void testParDoOutputWithTimestamp() {
@@ -1886,7 +2054,7 @@ public class ParDoTest implements Serializable {
       thrown.expectMessage("Cannot output with timestamp");
       thrown.expectMessage(
           "Output timestamps must be no earlier than the timestamp of the current input");
-      thrown.expectMessage("minus the allowed skew (1 second).");
+      thrown.expectMessage("minus the allowed skew (1 second)");
       pipeline.run();
     }
 
@@ -1903,7 +2071,7 @@ public class ParDoTest implements Serializable {
       thrown.expectMessage("Cannot output with timestamp");
       thrown.expectMessage(
           "Output timestamps must be no earlier than the timestamp of the current input");
-      thrown.expectMessage("minus the allowed skew (0 milliseconds).");
+      thrown.expectMessage("minus the allowed skew (0 milliseconds)");
       pipeline.run();
     }
 
@@ -1954,6 +2122,90 @@ public class ParDoTest implements Serializable {
                 return null;
               });
 
+      pipeline.run();
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
+    public void testProcessElementSkew() {
+      TimestampedValues<KV<String, Duration>> input =
+          Create.timestamped(Arrays.asList(KV.of("2", Duration.millis(1L))), Arrays.asList(1L));
+
+      PCollection<String> noSkew =
+          pipeline
+              .apply("createNoSkew", input)
+              .apply("noSkew", ParDo.of(new ProcessElementTimestampSkewingDoFn(Duration.ZERO)));
+      PAssert.that(noSkew)
+          .containsInAnyOrder(TIMER_ELEMENT + new Instant(0L), OUTPUT_ELEMENT + new Instant(0L));
+
+      PCollection<String> skew =
+          pipeline
+              .apply("createSkew", input)
+              .apply("skew", ParDo.of(new ProcessElementTimestampSkewingDoFn(Duration.millis(2L))));
+      PAssert.that(skew).containsInAnyOrder(TIMER_ELEMENT, OUTPUT_ELEMENT);
+      pipeline.run();
+    }
+
+    @Test
+    @Category({UsesTimersInParDo.class, ValidatesRunner.class})
+    public void testOnTimerTimestampSkew() {
+      TimestampedValues<KV<String, String>> input =
+          Create.timestamped(Arrays.asList(KV.of("0", "0")), Arrays.asList(0L));
+      PCollection<String> noSkew =
+          pipeline
+              .apply("createNoSkew", input)
+              .apply(
+                  "noskew",
+                  ParDo.of(
+                      new OnTimerTimestampSkewingDoFn(Duration.millis(0L), Duration.millis(3L))));
+      PAssert.that(noSkew)
+          .containsInAnyOrder(OUTPUT_ELEMENT + new Instant(-3L), TIMER_ELEMENT + new Instant(-3L));
+      PCollection<String> skew =
+          pipeline
+              .apply("createSkew", input)
+              .apply(
+                  "skew",
+                  ParDo.of(
+                      new OnTimerTimestampSkewingDoFn(Duration.millis(3L), Duration.millis(2L))));
+      PAssert.that(skew).containsInAnyOrder(OUTPUT_ELEMENT, TIMER_ELEMENT);
+      pipeline.run();
+    }
+
+    @Test
+    @Category({UsesOnWindowExpiration.class, UsesTimersInParDo.class, ValidatesRunner.class})
+    public void testOnWindowTimestampSkew() {
+      Duration windowDuration = Duration.millis(10L);
+      TimestampedValues<KV<String, String>> input =
+          Create.timestamped(Arrays.asList(KV.of("key", "0")), Arrays.asList(0L));
+
+      PCollection<String> noSkew =
+          pipeline
+              .apply("createNoSkew", input)
+              .apply("noSkewWindow", Window.into(FixedWindows.of(windowDuration)))
+              .apply(
+                  "noskew",
+                  ParDo.of(
+                      new OnWindowExpirationTimestampSkewingDoFn(
+                          Duration.millis(0L), Duration.millis(3L))));
+      PAssert.that(noSkew)
+          .containsInAnyOrder(
+              OUTPUT_ELEMENT
+                  + new Instant(
+                      windowDuration
+                          .minus(Duration.millis(3L))
+                          .minus(Duration.millis(1L))
+                          .getMillis()));
+
+      PCollection<String> skew =
+          pipeline
+              .apply("createSkew", input)
+              .apply("skewWindow", Window.into(FixedWindows.of(windowDuration)))
+              .apply(
+                  "skew",
+                  ParDo.of(
+                      new OnWindowExpirationTimestampSkewingDoFn(
+                          Duration.millis(4L), Duration.millis(3L))));
+      PAssert.that(skew).containsInAnyOrder(OUTPUT_ELEMENT);
       pipeline.run();
     }
   }

@@ -260,3 +260,85 @@ func TestApplicationEnvs_PipelineExecuteTimeout(t *testing.T) {
 		})
 	}
 }
+
+func TestApplicationEnvs_LaunchSite(t *testing.T) {
+	type fields struct {
+		workingDir             string
+		cacheEnvs              *CacheEnvs
+		pipelineExecuteTimeout time.Duration
+		launchSite             string
+		googleProjectId        string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{
+			// Test case with calling LaunchSite method.
+			// As a result, want to receive an expected launch site.
+			name: "get launch site",
+			fields: fields{
+				workingDir:             "",
+				cacheEnvs:              &CacheEnvs{},
+				pipelineExecuteTimeout: 0,
+				launchSite:             "local",
+			},
+			want: "local",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ae := &ApplicationEnvs{
+				workingDir:             tt.fields.workingDir,
+				cacheEnvs:              tt.fields.cacheEnvs,
+				pipelineExecuteTimeout: tt.fields.pipelineExecuteTimeout,
+				launchSite:             tt.fields.launchSite,
+				projectId:              tt.fields.googleProjectId,
+			}
+			if got := ae.LaunchSite(); got != tt.want {
+				t.Errorf("LaunchSite() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestApplicationEnvs_GoogleProjectId(t *testing.T) {
+	type fields struct {
+		workingDir             string
+		cacheEnvs              *CacheEnvs
+		pipelineExecuteTimeout time.Duration
+		googleProjectId        string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{
+			// Test case with calling GoogleProjectId method.
+			// As a result, want to receive an expected project id.
+			name: "get google project id",
+			fields: fields{
+				workingDir:             "",
+				cacheEnvs:              &CacheEnvs{},
+				pipelineExecuteTimeout: 0,
+				googleProjectId:        "MOCK_GOOGLE_PROJECT_ID",
+			},
+			want: "MOCK_GOOGLE_PROJECT_ID",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ae := &ApplicationEnvs{
+				workingDir:             tt.fields.workingDir,
+				cacheEnvs:              tt.fields.cacheEnvs,
+				pipelineExecuteTimeout: tt.fields.pipelineExecuteTimeout,
+				projectId:              tt.fields.googleProjectId,
+			}
+			if got := ae.GoogleProjectId(); got != tt.want {
+				t.Errorf("GoogleProjectId() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

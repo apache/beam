@@ -72,6 +72,11 @@ func (j *jarGetter) getJar(gradleTarget, version string) (string, error) {
 		return jarPath, nil
 	}
 
+	if strings.Contains(version, ".dev") {
+		return "", fmt.Errorf("Cannot pull dev versions of JARs, please run \"gradlew %v\" to start your expansion service",
+			gradleTarget)
+	}
+
 	resp, err := http.Get(string(fullURL))
 	if err != nil {
 		return "", err

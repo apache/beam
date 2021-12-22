@@ -35,6 +35,7 @@ func setup() {
 	writeFile(javaCodePath, javaCode)
 	writeFile(goUnitTestFilePath, goUnitTestCode)
 	writeFile(goCodePath, goCode)
+	writeFile(javaKataFilePath, javaKataCode)
 }
 
 func teardown() {
@@ -42,6 +43,7 @@ func teardown() {
 	removeFile(javaCodePath)
 	removeFile(goUnitTestFilePath)
 	removeFile(goCodePath)
+	removeFile(javaKataFilePath)
 }
 
 func removeFile(path string) {

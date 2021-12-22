@@ -276,6 +276,21 @@ class DeferredFrameTest(_AbstractFrameTest):
         lambda df: df.num_legs.xs(('bird', 'walks'), level=[0, 'locomotion']),
         df)
 
+  def test_dataframe_xs(self):
+    # Test cases reported in BEAM-13421
+    df = pd.DataFrame(
+        np.array([
+            ['state', 'day1', 12],
+            ['state', 'day1', 1],
+            ['state', 'day2', 14],
+            ['county', 'day1', 9],
+        ]),
+        columns=['provider', 'time', 'value'])
+
+    self._run_test(lambda df: df.xs('state'), df.set_index(['provider']))
+    self._run_test(
+        lambda df: df.xs('state'), df.set_index(['provider', 'time']))
+
   def test_set_column(self):
     def new_column(df):
       df['NewCol'] = df['Speed']
