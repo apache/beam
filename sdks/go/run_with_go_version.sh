@@ -19,6 +19,9 @@
 # It requires an existing Go installation on the system, which
 # will be used to download specific versions of Go.
 #
+# The Go installation will use the local host platform, while the actual
+# go command will use the set GOOS and GOARCH env variables.
+#
 # Accepts the following optional flags, after which all following parameters
 # will be provided to the go version tool.
 #    --version -> A string for a fully qualified go version, eg go1.16.5 or go1.18beta1
@@ -35,7 +38,7 @@ GOVERS=go1.16.12
 
 if ! command -v go &> /dev/null
 then
-    echo "go could not be found. This script requires a go installation to boostrap using specific go versions. "
+    echo "go could not be found. This script requires a go installation > 1.16 to bootstrap using specific go versions."
     exit 1
 fi
 
@@ -56,12 +59,14 @@ done
 
 GOPATH=`go env GOPATH`
 GOBIN=$GOPATH/bin
+GOHOSTOS=`go env GOHOSTOS`
+GOHOSTARCH=`go env GOHOSTARCH`
 
 # Outputing the system Go version for debugging purposes.
 echo "System Go installation: `which go` is `go version`; Preparing to use $GOBIN/$GOVERS"
 
-# Ensure it's installed in the GOBIN directory.
-GOBIN=$GOBIN go install golang.org/dl/$GOVERS@latest
+# Ensure it's installed in the GOBIN directory, using the local host platform.
+GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH GOBIN=$GOBIN go install golang.org/dl/$GOVERS@latest
 
 LOCKFILE=$GOBIN/$GOVERS.lock
 # The download command isn't concurrency safe so we get an exclusive lock, without wait.
