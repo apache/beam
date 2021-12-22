@@ -79,6 +79,8 @@
 
 * Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 * Properly check output timestamps on elements output from DoFns, timers, and onWindowExpiration in Java [BEAM-12931](https://issues.apache.org/jira/browse/BEAM-12931).
+* Fixed a bug with DeferredDataFrame.xs when used with a non-tuple key
+  ([BEAM-13421](https://issues.apache.org/jira/browse/BEAM-13421])).
 
 ## Known Issues
 
@@ -111,6 +113,7 @@
   see [this table](https://storage.googleapis.com/cloud-opensource-java-dashboard/com.google.cloud/libraries-bom/24.0.0/artifact_details.html).
 * Removed avro-python3 dependency in AvroIO. Fastavro has already been our Avro library of choice on Python 3. Boolean use_fastavro is left for api compatibility, but will have no effect.([BEAM-13016](https://github.com/apache/beam/pull/15900)).
 * MultiMap side inputs are now supported by the Go SDK ([BEAM-3293](https://issues.apache.org/jira/browse/BEAM-3293)).
+* Specify triggering frequency when streaming to BigQuery (Python) ([BEAM-12865](https://issues.apache.org/jira/browse/BEAM-12865)).
 
 ## Breaking Changes
 
@@ -135,7 +138,7 @@
 
 ## Known Issues
 
-* ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Users of beam-sdks-java-io-hcatalog (and beam-sdks-java-extensions-sql-hcatalog) must take care to override the transitive log4j dependency when they add a hive dependency ([BEAM-13499](https://issues.apache.org/jira/browse/BEAM-13499)).
 
 # [2.34.0] - 2021-11-11
 ## Highlights
