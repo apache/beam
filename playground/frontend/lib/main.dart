@@ -29,7 +29,7 @@ void main() {
     yield LicenseEntryWithLineBreaks(['google_fonts'], license);
   });
   LicenseRegistry.addLicense(() async* {
-    final license = await rootBundle.loadString('google_fonts/License.txt');
+    final license = await rootBundle.loadString('google_fonts/LICENSE.txt');
     yield LicenseEntryWithLineBreaks(['google_fonts'], license);
   });
 
