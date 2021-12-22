@@ -12,13 +12,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 apiVersion: v2
 name: playground
-description: A Helm Chart To Deploy Apache Beam Playground Application To K8s
-
+description: A Helm chart for Apache Beam Application Deployment
 type: application
-
-version: 0.1.0
-
-appVersion: "beta"
+version: beta
+appVersion: "1.16.0"
