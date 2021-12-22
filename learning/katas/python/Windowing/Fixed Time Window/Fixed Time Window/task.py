@@ -20,7 +20,8 @@
 #   multifile: false
 #   pipeline_options:
 #   categories:
-#     - Streaming
+#     - Windowing
+#     - Combiners
 
 from datetime import datetime
 import pytz
