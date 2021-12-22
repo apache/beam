@@ -69,8 +69,7 @@ class GrpcExampleClient implements ExampleClient {
   @override
   Future<OutputResponse> getExampleOutput(GetExampleRequestWrapper request) {
     return _runSafely(
-      () =>
-          createClient(request.sdk)
+      () => createClient(request.sdk)
           .getPrecompiledObjectOutput(
               _getExampleOutputRequestToGrpcRequest(request))
           .then((response) =>
