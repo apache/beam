@@ -1848,6 +1848,8 @@ public class BigQueryIO {
     @Experimental
     abstract @Nullable SerializableFunction<T, String> getDeterministicRecordIdFn();
 
+    abstract @Nullable String getWriteTempDataset();
+
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -1935,6 +1937,8 @@ public class BigQueryIO {
       @Experimental
       abstract Builder<T> setDeterministicRecordIdFn(
           SerializableFunction<T, String> toUniqueIdFunction);
+
+      abstract Builder<T> setWriteTempDataset(String writeTempDataset);
 
       abstract Write<T> build();
     }
@@ -2509,6 +2513,18 @@ public class BigQueryIO {
       return toBuilder().setMaxBytesPerPartition(maxBytesPerPartition).build();
     }
 
+    /**
+     * Temporary dataset. When writing to BigQuery from large file loads, the {@link
+     * BigQueryIO#write()} will create temporary tables in a dataset to store staging data from
+     * partitions. With this option, you can set an existing dataset to create the temporary tables.
+     * BigQueryIO will create temporary tables in that dataset, and will remove it once it is not
+     * needed. No other tables in the dataset will be modified. Remember that the dataset must exist
+     * and your job needs permissions to create and remove tables inside that dataset.
+     */
+    public Write<T> withWriteTempDataset(String writeTempDataset) {
+      return toBuilder().setWriteTempDataset(writeTempDataset).build();
+    }
+
     @Override
     public void validate(PipelineOptions pipelineOptions) {
       BigQueryOptions options = pipelineOptions.as(BigQueryOptions.class);
@@ -2866,7 +2882,8 @@ public class BigQueryIO {
                 rowWriterFactory,
                 getKmsKey(),
                 getClustering() != null,
-                getUseAvroLogicalTypes());
+                getUseAvroLogicalTypes(),
+                getWriteTempDataset());
         batchLoads.setTestServices(getBigQueryServices());
         if (getSchemaUpdateOptions() != null) {
           batchLoads.setSchemaUpdateOptions(getSchemaUpdateOptions());

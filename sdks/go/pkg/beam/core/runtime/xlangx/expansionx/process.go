@@ -18,6 +18,7 @@ package expansionx
 import (
 	"fmt"
 	"os/exec"
+	"time"
 )
 
 // ExpansionServiceRunner is a type that holds information required to
@@ -51,6 +52,9 @@ func (e *ExpansionServiceRunner) StartService() error {
 	if err != nil {
 		return err
 	}
+	// Start() is non-blocking so a brief sleep to let the JAR start up and begin accepting
+	// connections is necessary.
+	time.Sleep(2 * time.Second)
 	if e.serviceCommand.ProcessState != nil {
 		return fmt.Errorf("process %v exited when it should still be running", e.serviceCommand.Process)
 	}

@@ -31,33 +31,33 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Debezium"
 ext.summary = "Library to work with Debezium data."
 
 dependencies {
-    compile library.java.vendored_guava_26_0_jre
-    compile library.java.vendored_grpc_1_36_0
-    compile project(path: ":sdks:java:core", configuration: "shadow")
-    compile library.java.slf4j_api
-    compile library.java.joda_time
-    provided library.java.jackson_dataformat_csv
-    testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-    testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
+    implementation library.java.vendored_guava_26_0_jre
+    implementation library.java.vendored_grpc_1_36_0
+    implementation project(path: ":sdks:java:core", configuration: "shadow")
+    implementation library.java.slf4j_api
+    implementation library.java.joda_time
+    compileOnly library.java.jackson_dataformat_csv
+    testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+    testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
 
     // Test dependencies
-    testCompile library.java.junit
+    testImplementation library.java.junit
     testRuntimeOnly library.java.slf4j_jdk14
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
-    testCompile project(":runners:google-cloud-dataflow-java")
-    testCompile "org.testcontainers:testcontainers:1.15.1"
-    testCompile "org.testcontainers:mysql:1.15.1"
-    testCompile "org.testcontainers:postgresql:1.15.1"
+    testImplementation project(":runners:google-cloud-dataflow-java")
+    testImplementation "org.testcontainers:testcontainers:1.15.1"
+    testImplementation "org.testcontainers:mysql:1.15.1"
+    testImplementation "org.testcontainers:postgresql:1.15.1"
 
     // Kafka connect dependencies
-    compile "org.apache.kafka:connect-api:2.5.0"
-    compile "org.apache.kafka:connect-json:2.5.0"
+    implementation "org.apache.kafka:connect-api:2.5.0"
+    implementation "org.apache.kafka:connect-json:2.5.0"
     permitUnusedDeclared "org.apache.kafka:connect-json:2.5.0" // BEAM-11761
 
     // Debezium dependencies
-    compile group: 'io.debezium', name: 'debezium-core', version: '1.3.1.Final'
-    testCompile group: 'io.debezium', name: 'debezium-connector-mysql', version: '1.3.1.Final'
-    testCompile group: 'io.debezium', name: 'debezium-connector-postgres', version: '1.3.1.Final'
+    implementation group: 'io.debezium', name: 'debezium-core', version: '1.3.1.Final'
+    testImplementation group: 'io.debezium', name: 'debezium-connector-mysql', version: '1.3.1.Final'
+    testImplementation group: 'io.debezium', name: 'debezium-connector-postgres', version: '1.3.1.Final'
 }
 
 test {
