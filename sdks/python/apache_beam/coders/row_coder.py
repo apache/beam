@@ -17,13 +17,9 @@
 
 # pytype: skip-file
 
-import itertools
-from array import array
-
-import numpy as np
-
 from apache_beam.coders import typecoders
-from apache_beam.coders.coder_impl import StreamCoderImpl
+from apache_beam.coders.coder_impl import LogicalTypeCoderImpl
+from apache_beam.coders.coder_impl import RowCoderImpl
 from apache_beam.coders.coders import BooleanCoder
 from apache_beam.coders.coders import BytesCoder
 from apache_beam.coders.coders import Coder
@@ -33,7 +29,6 @@ from apache_beam.coders.coders import IterableCoder
 from apache_beam.coders.coders import MapCoder
 from apache_beam.coders.coders import NullableCoder
 from apache_beam.coders.coders import StrUtf8Coder
-from apache_beam.coders.coders import TupleCoder
 from apache_beam.coders.coders import VarIntCoder
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import schema_pb2
@@ -158,95 +153,6 @@ def _nonnull_coder_from_type(field_type):
       field_type)
 
 
-class RowCoderImpl(StreamCoderImpl):
-  """For internal use only; no backwards-compatibility guarantees."""
-  SIZE_CODER = VarIntCoder().get_impl()
-  NULL_MARKER_CODER = BytesCoder().get_impl()
-
-  def __init__(self, schema, components):
-    self.schema = schema
-    self.constructor = named_tuple_from_schema(schema)
-    self.encoding_positions = list(range(len(self.schema.fields)))
-    if self.schema.encoding_positions_set:
-      # should never be duplicate encoding positions.
-      enc_posx = list(
-          set(field.encoding_position for field in self.schema.fields))
-      if len(enc_posx) != len(self.schema.fields):
-        raise ValueError(
-            f'''Schema with id {schema.id} has encoding_positions_set=True,
-            but not all fields have encoding_position set''')
-      self.encoding_positions = list(
-          field.encoding_position for field in self.schema.fields)
-    self.encoding_positions_argsort = np.argsort(self.encoding_positions)
-    self.components = list(
-        components[self.encoding_positions.index(i)].get_impl()
-        for i in self.encoding_positions)
-    self.has_nullable_fields = any(
-        field.type.nullable for field in self.schema.fields)
-
-  def encode_to_stream(self, value, out, nested):
-    nvals = len(self.schema.fields)
-    self.SIZE_CODER.encode_to_stream(nvals, out, True)
-    attrs = [getattr(value, f.name) for f in self.schema.fields]
-
-    words = array('B')
-    if self.has_nullable_fields:
-      nulls = list(attr is None for attr in attrs)
-      if any(nulls):
-        words = array('B', itertools.repeat(0, (nvals + 7) // 8))
-        for i, is_null in enumerate(nulls):
-          words[i // 8] |= is_null << (i % 8)
-
-    self.NULL_MARKER_CODER.encode_to_stream(words.tobytes(), out, True)
-
-    for i in self.encoding_positions_argsort:
-      if attrs[i] is None:
-        if not self.schema.fields[i].type.nullable:
-          raise ValueError(
-              "Attempted to encode null for non-nullable field \"{}\".".format(
-                  self.schema.fields[i].name))
-        continue
-      self.components[i].encode_to_stream(attrs[i], out, True)
-
-  def decode_from_stream(self, in_stream, nested):
-    nvals = self.SIZE_CODER.decode_from_stream(in_stream, True)
-    words = array('B')
-    words.frombytes(self.NULL_MARKER_CODER.decode_from_stream(in_stream, True))
-
-    if words:
-      nulls = (
-          0 if i // 8 >= len(words) else ((words[i // 8] >> (i % 8)) & 0x01)
-          for i in range(nvals))
-    else:
-      nulls = itertools.repeat(False, nvals)
-
-    # If this coder's schema has more attributes than the encoded value, then
-    # the schema must have changed. Populate the unencoded fields with nulls.
-    if len(self.components) > nvals:
-      nulls = itertools.chain(
-          nulls, itertools.repeat(True, len(self.components) - nvals))
-
-    # Note that if this coder's schema has *fewer* attributes than the encoded
-    # value, we just need to ignore the additional values, which will occur
-    # here because we only decode as many values as we have coders for.
-
-    sorted_components = [
-        None if is_null else self.components[c].decode_from_stream(
-            in_stream, True) for c,
-        is_null in zip(self.encoding_positions_argsort, nulls)
-    ]
-
-    return self.constructor(
-        *[sorted_components[i] for i in self.encoding_positions])
-
-  def _make_value_coder(self, nulls=itertools.repeat(False)):
-    components = [
-        component for component,
-        is_null in zip(self.components, nulls) if not is_null
-    ] if self.has_nullable_fields else self.components
-    return TupleCoder(components).get_impl()
-
-
 class LogicalTypeCoder(FastCoder):
   def __init__(self, logical_type, representation_coder):
     self.logical_type = logical_type
@@ -260,17 +166,3 @@ class LogicalTypeCoder(FastCoder):
 
   def to_type_hint(self):
     return self.logical_type.language_type()
-
-
-class LogicalTypeCoderImpl(StreamCoderImpl):
-  def __init__(self, logical_type, representation_coder):
-    self.logical_type = logical_type
-    self.representation_coder = representation_coder.get_impl()
-
-  def encode_to_stream(self, value, out, nested):
-    return self.representation_coder.encode_to_stream(
-        self.logical_type.to_representation_type(value), out, nested)
-
-  def decode_from_stream(self, in_stream, nested):
-    return self.logical_type.to_language_type(
-        self.representation_coder.decode_from_stream(in_stream, nested))

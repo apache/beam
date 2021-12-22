@@ -31,36 +31,36 @@ configurations {
 description = "Apache Beam :: Runners :: Twister2"
 def twister2_version = '0.6.0'
 dependencies {
-    compile library.java.vendored_guava_26_0_jre
+    implementation library.java.vendored_guava_26_0_jre
 
-    compile (project(path: ":runners:core-java")){
+    implementation(project(path: ":runners:core-java")){
         exclude group: 'com.esotericsoftware.kryo', module: 'kryo'
     }
-    compile project(path: ":model:pipeline", configuration: "shadow")
-    compile project(path: ":runners:core-construction-java")
-    compile project(path: ":sdks:java:core", configuration: "shadow")
-    compile library.java.jackson_annotations
-    compile library.java.joda_time
-    compile library.java.vendored_grpc_1_36_0
-    compile library.java.slf4j_api
-    compile "org.mortbay.jetty:jetty-util:6.1.26"
-    compile "org.twister2:comms-api-java:$twister2_version"
-    compile "org.twister2:config-api-java:$twister2_version"
-    compile "org.twister2:dataset-api-java:$twister2_version"
-    compile "org.twister2:driver-api-java:$twister2_version"
-    compile "org.twister2:exceptions-java:$twister2_version"
-    compile "org.twister2:scheduler-api-java:$twister2_version"
-    compile "org.twister2:task-api-java:$twister2_version"
-    compile "org.twister2:api-java:$twister2_version"
-    compile "org.twister2:tset-api-java:$twister2_version"
-    compile "org.twister2:tset-java:$twister2_version"
-    compile "org.twister2:resource-scheduler-java:$twister2_version"
-    compile "org.twister2:local-runner-java:$twister2_version"
-    testCompile library.java.junit
+    implementation project(path: ":model:pipeline", configuration: "shadow")
+    implementation project(path: ":runners:core-construction-java")
+    implementation project(path: ":sdks:java:core", configuration: "shadow")
+    implementation library.java.jackson_annotations
+    implementation library.java.joda_time
+    implementation library.java.vendored_grpc_1_36_0
+    implementation library.java.slf4j_api
+    implementation "org.mortbay.jetty:jetty-util:6.1.26"
+    implementation "org.twister2:comms-api-java:$twister2_version"
+    implementation "org.twister2:config-api-java:$twister2_version"
+    implementation "org.twister2:dataset-api-java:$twister2_version"
+    implementation "org.twister2:driver-api-java:$twister2_version"
+    implementation "org.twister2:exceptions-java:$twister2_version"
+    implementation "org.twister2:scheduler-api-java:$twister2_version"
+    implementation "org.twister2:task-api-java:$twister2_version"
+    implementation "org.twister2:api-java:$twister2_version"
+    implementation "org.twister2:tset-api-java:$twister2_version"
+    implementation "org.twister2:tset-java:$twister2_version"
+    implementation "org.twister2:resource-scheduler-java:$twister2_version"
+    implementation "org.twister2:local-runner-java:$twister2_version"
+    testImplementation library.java.junit
     validatesRunner (project(path: ":sdks:java:core", configuration: "shadowTest")){
         exclude group: 'com.esotericsoftware.kryo', module: 'kryo'
     }
-    validatesRunner (project(path: ":runners:core-java", configuration: "testRuntime")){
+    validatesRunner (project(path: ":runners:core-java", configuration: "testRuntimeMigration")){
         exclude group: 'com.esotericsoftware.kryo', module: 'kryo'
     }
     validatesRunner (project(project.path)){
