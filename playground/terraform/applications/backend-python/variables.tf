@@ -27,7 +27,7 @@ variable "docker_registry_address" {
 
 variable "docker_image_name" {
   description = "Docker Image Name To Be Deployed"
-  default = "beam_playground-backend"
+  default = "beam_playground-backend-python"
 }
 
 variable "docker_image_tag" {
@@ -37,4 +37,11 @@ variable "docker_image_tag" {
 
 variable "service_name" {
   default = "backend-python"
+}
+variable "cache_type" {
+  default = "remote"
+}
+
+variable "cache_address" {
+  default = ""
 }
