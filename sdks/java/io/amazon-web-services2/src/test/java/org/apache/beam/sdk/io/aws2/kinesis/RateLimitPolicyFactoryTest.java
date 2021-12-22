@@ -15,38 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.kinesis;
+package org.apache.beam.sdk.io.aws2.kinesis;
 
-import static org.apache.beam.sdk.io.kinesis.RateLimitPolicyFactory.withDefaultRateLimiter;
+import static org.apache.beam.sdk.io.aws2.kinesis.RateLimitPolicyFactory.withDefaultRateLimiter;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.joda.time.Duration.millis;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.verifyStatic;
 
-import java.util.concurrent.atomic.AtomicLong;
-import org.apache.beam.sdk.io.kinesis.RateLimitPolicyFactory.DefaultRateLimiter;
+import org.apache.beam.sdk.io.aws2.kinesis.RateLimitPolicyFactory.DefaultRateLimiter;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(RateLimitPolicyFactory.class)
 public class RateLimitPolicyFactoryTest {
-
   @Test
   public void defaultRateLimiterShouldUseBackoffs() throws Exception {
     assertThat(withDefaultRateLimiter().getRateLimitPolicy())
@@ -89,56 +77,5 @@ public class RateLimitPolicyFactoryTest {
     verify(sleeper).sleep(111L);
     verify(sleeper).sleep(222L);
     verifyNoMoreInteractions(sleeper, throttled, emptySuccess);
-  }
-
-  @Test
-  public void withoutLimiterShouldDoNothing() throws Exception {
-    PowerMockito.spy(Thread.class);
-    PowerMockito.doNothing().when(Thread.class);
-    Thread.sleep(anyLong());
-    RateLimitPolicy rateLimitPolicy = RateLimitPolicyFactory.withoutLimiter().getRateLimitPolicy();
-    rateLimitPolicy.onSuccess(ImmutableList.of());
-    verifyStatic(Thread.class, never());
-    Thread.sleep(anyLong());
-  }
-
-  @Test
-  public void shouldDelayDefaultInterval() throws Exception {
-    PowerMockito.spy(Thread.class);
-    PowerMockito.doNothing().when(Thread.class);
-    Thread.sleep(anyLong());
-    RateLimitPolicy rateLimitPolicy = RateLimitPolicyFactory.withFixedDelay().getRateLimitPolicy();
-    rateLimitPolicy.onSuccess(ImmutableList.of());
-    verifyStatic(Thread.class);
-    Thread.sleep(eq(1000L));
-  }
-
-  @Test
-  public void shouldDelayFixedInterval() throws Exception {
-    PowerMockito.spy(Thread.class);
-    PowerMockito.doNothing().when(Thread.class);
-    Thread.sleep(anyLong());
-    RateLimitPolicy rateLimitPolicy =
-        RateLimitPolicyFactory.withFixedDelay(millis(500)).getRateLimitPolicy();
-    rateLimitPolicy.onSuccess(ImmutableList.of());
-    verifyStatic(Thread.class);
-    Thread.sleep(eq(500L));
-  }
-
-  @Test
-  public void shouldDelayDynamicInterval() throws Exception {
-    PowerMockito.spy(Thread.class);
-    PowerMockito.doNothing().when(Thread.class);
-    Thread.sleep(anyLong());
-    AtomicLong delay = new AtomicLong(0L);
-    RateLimitPolicy rateLimitPolicy =
-        RateLimitPolicyFactory.withDelay(() -> millis(delay.getAndUpdate(d -> d ^ 1)))
-            .getRateLimitPolicy();
-    rateLimitPolicy.onSuccess(ImmutableList.of());
-    verifyStatic(Thread.class);
-    Thread.sleep(eq(0L));
-    Thread.sleep(eq(1L));
-    Thread.sleep(eq(0L));
-    Thread.sleep(eq(1L));
   }
 }
