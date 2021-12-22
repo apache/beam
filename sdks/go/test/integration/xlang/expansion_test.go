@@ -34,9 +34,9 @@ const (
 	expansionPort = "8097"
 )
 
-func checkPort(t *testing.T, port string, durationSeconds float64) {
+func checkPort(t *testing.T, port string, duration time.Duration) {
 	var outputStr string
-	for i := 0.0; i < durationSeconds; i += 0.5 {
+	for i := 0.0; i < duration.Seconds(); i += 0.5 {
 		ping := exec.Command("nc", "-vz", "localhost", port)
 		output, err := ping.CombinedOutput()
 		if err != nil {
@@ -48,7 +48,7 @@ func checkPort(t *testing.T, port string, durationSeconds float64) {
 		}
 		time.Sleep(500 * time.Millisecond)
 	}
-	t.Errorf("Failed to connect to expansion service after %f seconds", durationSeconds)
+	t.Errorf("Failed to connect to expansion service after %f seconds", duration.Seconds())
 }
 
 func TestAutomatedExpansionService(t *testing.T) {
@@ -65,7 +65,7 @@ func TestAutomatedExpansionService(t *testing.T) {
 		t.Errorf("failed to start expansion service JAR, got %v", err)
 	}
 
-	checkPort(t, expansionPort, 15.0)
+	checkPort(t, expansionPort, 15*time.Second)
 
 	err = serviceRunner.StopService()
 	if err != nil {
