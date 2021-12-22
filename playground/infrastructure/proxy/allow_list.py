@@ -13,14 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# ALLOW_LIST contains all hosts that are allowed to make requests to
+# ALLOWED_LIST contains all hosts that are allowed to make requests
 # from Beam Playground
-ALLOW_LIST = [
+ALLOWED_LIST = [
   "localhost",
   "127.0.0.1",
 ]
 
-ALLOW_BUCKET_LIST = [
+ALLOWED_BUCKET_LIST = [
   "dataflow-samples",
   "beam-samples",
   "apache-beam-samples",

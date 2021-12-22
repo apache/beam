@@ -14,15 +14,15 @@
 # limitations under the License.
 from mitmproxy import http
 
-from allow_list import ALLOW_LIST, ALLOW_BUCKET_LIST
+from allow_list import ALLOWED_LIST, ALLOWED_BUCKET_LIST
 
 GCS_HOST = "storage.googleapis.com"
 
 
 def request(flow: http.HTTPFlow) -> None:
   allowed_bucket = flow.request.pretty_host == GCS_HOST and \
-                   flow.request.path.split("/")[1] in ALLOW_BUCKET_LIST
-  allowed_host = flow.request.pretty_host in ALLOW_LIST
+                   flow.request.path.split("/")[1] in ALLOWED_BUCKET_LIST
+  allowed_host = flow.request.pretty_host in ALLOWED_LIST
   if not (allowed_bucket or allowed_host):
     flow.response = http.Response.make(
       status_code=403,
