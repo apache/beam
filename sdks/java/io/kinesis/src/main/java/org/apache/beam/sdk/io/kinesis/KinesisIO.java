@@ -379,7 +379,7 @@ public final class KinesisIO {
           .setMaxNumRecords(Long.MAX_VALUE)
           .setUpToDateThreshold(Duration.ZERO)
           .setWatermarkPolicyFactory(WatermarkPolicyFactory.withArrivalTimePolicy())
-          .setRateLimitPolicyFactory(RateLimitPolicyFactory.withoutLimiter())
+          .setRateLimitPolicyFactory(RateLimitPolicyFactory.withDefaultRateLimiter())
           .setMaxCapacityPerShard(ShardReadersPool.DEFAULT_CAPACITY_PER_SHARD);
     }
 
