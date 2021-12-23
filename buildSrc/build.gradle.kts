@@ -31,7 +31,6 @@ repositories {
     url = uri("https://repo.spring.io/plugins-release/")
     content { includeGroup("io.spring.gradle") }
   }
-  flatDir { dirs("jarlibs") }
 }
 
 // Dependencies on other plugins used when this plugin is invoked
