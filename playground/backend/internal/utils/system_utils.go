@@ -29,7 +29,7 @@ func GetFuncName(i interface{}) string {
 	return splitName[len(splitName)-1]
 }
 
-// GetLivenessFunction returns the function that checks the liveness of the server
+// GetLivenessFunction returns the function for the liveness check of the server.
 func GetLivenessFunction() func(writer http.ResponseWriter, request *http.Request) {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		writer.WriteHeader(http.StatusOK)
