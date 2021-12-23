@@ -185,52 +185,60 @@ compileTestJava {
 }
 
 dependencies {
+    implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+
     // Note that any dependency that is modified here should also be modified within
     // runners/google-cloud-dataflow-java/worker/build.gradle using the rules provided
     // there.
     sdk_provided_dependencies.each {
-        provided(it)
+        compileOnly(it)
+        testImplementation(it)
     }
     sdk_provided_shaded_project_dependencies.each {
-        provided project(path: it, configuration: "shadow")
+        compileOnly project(path: it, configuration: "shadow")
+        testImplementation project(path: it, configuration: "shadow")
     }
     sdk_provided_project_dependencies.each {
-        provided project(it)
+        compileOnly project(path: it)
+        testImplementation project(path: it)
     }
 
-    compile project(path: ":model:fn-execution", configuration: "shadow")
-    compile project(path: ":model:pipeline", configuration: "shadow")
-    compile project(path: ":sdks:java:core", configuration: "shadow")
-    compile project(":runners:core-construction-java")
-    compile project(":runners:core-java")
-    compile project(":runners:java-fn-execution")
-    compile project(":sdks:java:fn-execution")
-    compile project(path: ":runners:google-cloud-dataflow-java:worker:windmill", configuration: "shadow")
+    implementation project(path: ":model:fn-execution", configuration: "shadow")
+    implementation project(path: ":model:pipeline", configuration: "shadow")
+    implementation project(path: ":sdks:java:core", configuration: "shadow")
+    implementation project(":runners:core-construction-java")
+    implementation project(":runners:core-java")
+    implementation project(":runners:java-fn-execution")
+    implementation project(":sdks:java:fn-execution")
+    implementation project(path: ":runners:google-cloud-dataflow-java:worker:windmill", configuration: "shadow")
     shadow library.java.vendored_guava_26_0_jre
+
+    implementation library.java.google_auth_library_credentials
+    implementation library.java.proto_google_common_protos
 
     // Conscrypt shouldn't be included here because Conscrypt won't work when being shaded.
     // (Context: https://github.com/apache/beam/pull/13846)
     // Conscrypt will be added to runtime dependencies by GrpcVendoring so compileOnly works for now.
     compileOnly "org.conscrypt:conscrypt-openjdk-uber:2.5.1"
 
-    compile "javax.servlet:javax.servlet-api:3.1.0"
-    compile "org.eclipse.jetty:jetty-server:9.2.10.v20150310"
-    compile "org.eclipse.jetty:jetty-servlet:9.2.10.v20150310"
-    compile library.java.avro
-    compile library.java.jackson_annotations
-    compile library.java.jackson_core
-    compile library.java.jackson_databind
-    compile library.java.joda_time
-    compile library.java.slf4j_api
-    compile library.java.vendored_grpc_1_36_0
-    provided library.java.error_prone_annotations
-    runtime library.java.slf4j_jdk14
+    implementation "javax.servlet:javax.servlet-api:3.1.0"
+    implementation "org.eclipse.jetty:jetty-server:9.2.10.v20150310"
+    implementation "org.eclipse.jetty:jetty-servlet:9.2.10.v20150310"
+    implementation library.java.avro
+    implementation library.java.jackson_annotations
+    implementation library.java.jackson_core
+    implementation library.java.jackson_databind
+    implementation library.java.joda_time
+    implementation library.java.slf4j_api
+    implementation library.java.vendored_grpc_1_36_0
+    implementation library.java.error_prone_annotations
+    runtimeOnly library.java.slf4j_jdk14
 
     // Any test dependency which intersects with our relocation rules above needs to be relocated
-    // as well and placed within the testCompile configuration. Otherwise we can place it within
+    // as well and placed within the testImplementation configuration. Otherwise we can place it within
     // the shadowTest configuration.
-    testCompile project(path: ":runners:core-java", configuration: "testRuntime")
-    shadowTest project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
+    testImplementation project(path: ":runners:core-java", configuration: "testRuntimeMigration")
+    shadowTest project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntimeMigration")
     shadowTest project(path: ":runners:direct-java", configuration: "shadow")
     shadowTest project(path: ":sdks:java:harness", configuration: "shadowTest")
     shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")

@@ -147,6 +147,7 @@ class BatchLoads<DestinationT, ElementT>
   private final RowWriterFactory<ElementT, DestinationT> rowWriterFactory;
   private final String kmsKey;
   private final boolean clusteringEnabled;
+  private final String tempDataset;
 
   // The maximum number of times to retry failed load or copy jobs.
   private int maxRetryJobs = DEFAULT_MAX_RETRY_JOBS;
@@ -164,7 +165,8 @@ class BatchLoads<DestinationT, ElementT>
       RowWriterFactory<ElementT, DestinationT> rowWriterFactory,
       @Nullable String kmsKey,
       boolean clusteringEnabled,
-      boolean useAvroLogicalTypes) {
+      boolean useAvroLogicalTypes,
+      String tempDataset) {
     bigQueryServices = new BigQueryServicesImpl();
     this.writeDisposition = writeDisposition;
     this.createDisposition = createDisposition;
@@ -186,6 +188,7 @@ class BatchLoads<DestinationT, ElementT>
     this.rowWriterFactory = rowWriterFactory;
     this.clusteringEnabled = clusteringEnabled;
     schemaUpdateOptions = Collections.emptySet();
+    this.tempDataset = tempDataset;
   }
 
   void setSchemaUpdateOptions(Set<SchemaUpdateOption> schemaUpdateOptions) {
@@ -700,7 +703,8 @@ class BatchLoads<DestinationT, ElementT>
                 useAvroLogicalTypes,
                 // Note that we can't pass through the schema update options when creating temporary
                 // tables. They also shouldn't be needed. See BEAM-12482 for additional details.
-                Collections.emptySet()))
+                Collections.emptySet(),
+                tempDataset))
         .setCoder(KvCoder.of(tableDestinationCoder, WriteTables.ResultCoder.INSTANCE));
   }
 
@@ -741,7 +745,8 @@ class BatchLoads<DestinationT, ElementT>
                 kmsKey,
                 rowWriterFactory.getSourceFormat(),
                 useAvroLogicalTypes,
-                schemaUpdateOptions))
+                schemaUpdateOptions,
+                null))
         .setCoder(KvCoder.of(tableDestinationCoder, WriteTables.ResultCoder.INSTANCE));
   }
 

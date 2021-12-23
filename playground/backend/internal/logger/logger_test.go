@@ -29,8 +29,8 @@ import (
 var preparedHandler testHandler
 
 const (
-	codeFatal     = "package main\n\nimport (\n\t\"beam.apache.org/playground/backend/internal/logger\"\n)\n\nfunc main() {\n\tlogger.Fatal(\"%v\")\n}"
-	codeFatalf    = "package main\n\nimport (\n\t\"beam.apache.org/playground/backend/internal/logger\"\n)\n\nfunc main() {\n\tlogger.Fatalf(\"%v\",\"%s\")\n}"
+	codeFatal     = "package main\n\nimport (\n\t\"beam.apache.org/playground/backend/internal/logger\"\n)\n\nfunc main() {\n\tlogger.AddHandler(logger.StdHandler{})\n\tlogger.Fatal(\"%v\")\n}"
+	codeFatalf    = "package main\n\nimport (\n\t\"beam.apache.org/playground/backend/internal/logger\"\n)\n\nfunc main() {\n\tlogger.AddHandler(logger.StdHandler{})\n\tlogger.Fatalf(\"%v\",\"%s\")\n}"
 	testLoggerDir = "testLogger"
 	testFatalDir  = "testFatal"
 	testFatalfDir = "testFatalf"

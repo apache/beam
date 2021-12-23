@@ -54,6 +54,7 @@ dependencies:
   grpc: ^3.0.0
   flutter_web_plugins:
     sdk: flutter
+  aligned_dialog: ^0.0.6
 
 dev_dependencies:
   flutter_test:
