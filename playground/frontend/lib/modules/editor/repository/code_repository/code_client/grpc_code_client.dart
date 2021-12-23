@@ -122,6 +122,9 @@ class GrpcCodeClient implements CodeClient {
     }
   }
 
+  /// Run Code request should use different urls for each sdk
+  /// instead of the default one, because we need to code
+  /// sdk services for it
   grpc.PlaygroundServiceClient _createRunCodeClient(SDK? sdk) {
     String apiClientURL = kApiClientURL;
     if (sdk != null) {
