@@ -16,6 +16,7 @@
 package utils
 
 import (
+	"net/http"
 	"reflect"
 	"runtime"
 	"strings"
@@ -26,4 +27,11 @@ func GetFuncName(i interface{}) string {
 	fullName := runtime.FuncForPC(reflect.ValueOf(i).Pointer()).Name()
 	splitName := strings.Split(fullName, ".")
 	return splitName[len(splitName)-1]
+}
+
+// GetLivenessFunction returns the function that checks the liveness of the server
+func GetLivenessFunction() func(writer http.ResponseWriter, request *http.Request) {
+	return func(writer http.ResponseWriter, request *http.Request) {
+		writer.WriteHeader(http.StatusOK)
+	}
 }
