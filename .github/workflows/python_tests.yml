@@ -120,7 +120,7 @@ jobs:
         if: startsWith(matrix.os, 'windows')
         run: pip install --upgrade pip tox virtualenv
       - name: Install tox
-        run: pip install --upgrade pip tox
+        run: pip install tox
         if: startsWith(matrix.os, 'ubuntu') || startsWith(matrix.os, 'macos')
       - name: Run tests basic unix
         if: startsWith(matrix.os, 'ubuntu') || startsWith(matrix.os, 'macos')
