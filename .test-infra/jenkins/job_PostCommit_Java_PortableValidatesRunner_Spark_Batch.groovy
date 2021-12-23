@@ -20,19 +20,19 @@ import PrecommitJobBuilder
 
 // This job runs the suite of Java ValidatesRunner tests against the Spark runner in batch mode.
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
-        scope: this,
-        nameBase: 'Java_PVR_Spark_Batch',
-        gradleTask: ':sparkValidatesPortableRunnerBatch',
-        triggerPathPatterns: [
-                '^sdks/java/core/src/test/java/org/apache/beam/sdk/transforms/.*$',
-                '^runners/spark/.*$',
-                '^runners/java-fn-execution/.*$',
-        ]
-)
+    scope: this,
+    nameBase: 'Java_PVR_Spark_Batch',
+    gradleTask: ':sparkValidatesPortableRunnerBatch',
+    triggerPathPatterns: [
+      '^sdks/java/core/src/test/java/org/apache/beam/sdk/transforms/.*$',
+      '^runners/spark/.*$',
+      '^runners/java-fn-execution/.*$',
+    ]
+    )
 builder.build {
-    previousNames('beam_PostCommit_Java_PVR_Spark_Batch')
-    // Publish all test results to Jenkins.
-    publishers {
-        archiveJunit('**/build/test-results/**/*.xml')
-    }
+  previousNames('beam_PostCommit_Java_PVR_Spark_Batch')
+  // Publish all test results to Jenkins.
+  publishers {
+    archiveJunit('**/build/test-results/**/*.xml')
+  }
 }
