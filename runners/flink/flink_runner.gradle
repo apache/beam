@@ -59,7 +59,7 @@ def copyResourcesOverrides = tasks.register('copyResourcesOverrides', Copy) {
   it.into "${sourceOverridesBase}/main/resources"
   it.duplicatesStrategy DuplicatesStrategy.INCLUDE
 }
-compileJava.dependsOn copyResourcesOverrides
+processResources.dependsOn copyResourcesOverrides
 
 def copyTestSourceOverrides = tasks.register('copyTestSourceOverrides', Copy) {
   it.from test_source_overrides
@@ -73,7 +73,7 @@ def copyTestResourcesOverrides = tasks.register('copyTestResourcesOverrides', Co
   it.into "${sourceOverridesBase}/test/resources"
   it.duplicatesStrategy DuplicatesStrategy.INCLUDE
 }
-compileJava.dependsOn copyTestResourcesOverrides
+processTestResources.dependsOn copyTestResourcesOverrides
 
 /*
  * We have to explicitly set all directories here to make sure each
