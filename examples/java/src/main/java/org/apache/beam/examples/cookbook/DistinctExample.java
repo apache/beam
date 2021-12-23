@@ -39,8 +39,8 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Distinct;
 
 /**
- * This example uses as input text of King Lear, by William Shakespeare as plaintext files, and will remove any duplicate
- * lines from this file. (The output does not preserve any input order).
+ * This example uses as input text of King Lear, by William Shakespeare as plaintext files, and will
+ * remove any duplicate lines from this file. (The output does not preserve any input order).
  *
  * <p>Concepts: the Distinct transform, and how to wire transforms together. Demonstrates {@link
  * org.apache.beam.sdk.io.TextIO.Read}/ {@link Distinct}/{@link
