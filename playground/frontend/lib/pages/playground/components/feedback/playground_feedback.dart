@@ -17,10 +17,9 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:playground/constants/assets.dart';
 import 'package:playground/constants/font_weight.dart';
-import 'package:playground/modules/analytics/analytics_service.dart';
+import 'package:playground/pages/playground/components/feedback/feedback_dropdown_icon_button.dart';
 
 const kFeedbackText = 'Enjoying Playground?';
 
@@ -31,24 +30,18 @@ class PlaygroundFeedback extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       mainAxisSize: MainAxisSize.min,
-      children: [
-        const Text(
+      children: const [
+        Text(
           kFeedbackText,
           style: TextStyle(fontWeight: kBoldWeight),
         ),
-        IconButton(
-          padding: EdgeInsets.zero,
-          onPressed: () {
-            AnalyticsService.get(context).trackClickEnjoyPlayground(true);
-          },
-          icon: SvgPicture.asset(kThumbUpIconAsset),
+        FeedbackDropdownIconButton(
+          iconAsset: kThumbUpIconAsset,
+          isEnjoying: true,
         ),
-        IconButton(
-          padding: EdgeInsets.zero,
-          onPressed: () {
-            AnalyticsService.get(context).trackClickEnjoyPlayground(false);
-          },
-          icon: SvgPicture.asset(kThumbDownIconAsset),
+        FeedbackDropdownIconButton(
+          iconAsset: kThumbDownIconAsset,
+          isEnjoying: false,
         ),
       ],
     );
