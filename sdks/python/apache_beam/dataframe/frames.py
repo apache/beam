@@ -966,10 +966,12 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
           f"got {axis!r}.")
 
     if not isinstance(key, tuple):
-      key = (key, )
+      key_size = 1
+      key_series = pd.Series([key], index=[key])
+    else:
+      key_size = len(key)
+      key_series = pd.Series([key], pd.MultiIndex.from_tuples([key]))
 
-    key_size = len(key)
-    key_series = pd.Series([key], pd.MultiIndex.from_tuples([key]))
     key_expr = expressions.ConstantExpression(
         key_series, proxy=key_series.iloc[:0])
 
@@ -992,7 +994,11 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     def xs_partitioned(frame, key):
       if not len(key):
         # key is not in this partition, return empty dataframe
-        return frame.iloc[:0].droplevel(list(range(key_size)))
+        result = frame.iloc[:0]
+        if key_size < frame.index.nlevels:
+          return result.droplevel(list(range(key_size)))
+        else:
+          return result
 
       # key should be in this partition, call xs. Will raise KeyError if not
       # present.
@@ -2289,6 +2295,31 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       raise TypeError(
           "repeat(repeats=) value must be an int or a "
           f"DeferredSeries (encountered {type(repeats)}).")
+
+  if hasattr(pd.Series, 'compare'):
+
+    @frame_base.with_docs_from(pd.Series)
+    @frame_base.args_to_kwargs(pd.Series)
+    @frame_base.populate_defaults(pd.Series)
+    def compare(self, other, align_axis, **kwargs):
+
+      if align_axis in ('index', 0):
+        preserves_partition = partitionings.Singleton()
+      elif align_axis in ('columns', 1):
+        preserves_partition = partitionings.Arbitrary()
+      else:
+        raise ValueError(
+            "align_axis must be one of ('index', 0, 'columns', 1). "
+            f"got {align_axis!r}.")
+
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'compare',
+              lambda s,
+              other: s.compare(other, align_axis, **kwargs),
+              [self._expr, other._expr],
+              requires_partition_by=partitionings.Index(),
+              preserves_partition_by=preserves_partition))
 
 
 @populate_not_implemented(pd.DataFrame)
@@ -3711,6 +3742,46 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       else:
         return result
 
+  if hasattr(pd.DataFrame, 'compare'):
+
+    @frame_base.with_docs_from(pd.DataFrame)
+    @frame_base.args_to_kwargs(pd.DataFrame)
+    @frame_base.populate_defaults(pd.DataFrame)
+    def compare(self, other, align_axis, keep_shape, **kwargs):
+      """The default values ``align_axis=1 and ``keep_shape=False``
+       are not supported, because the output columns depend on the data.
+       To use ``align_axis=1``, please specify ``keep_shape=True``."""
+
+      preserve_partition = None
+
+      if align_axis in (1, 'columns') and not keep_shape:
+        raise frame_base.WontImplementError(
+          f"compare(align_axis={align_axis!r}, keep_shape={keep_shape!r}) "
+          "is not allowed because the output columns depend on the data, "
+          "please specify keep_shape=True.",
+        reason='non-deferred-columns'
+        )
+
+      if align_axis in (1, 'columns'):
+        preserve_partition = partitionings.Arbitrary()
+      elif align_axis in (0, 'index'):
+        preserve_partition = partitionings.Singleton()
+      else:
+        raise ValueError(
+          "align_axis must be one of ('index', 0, 'columns', 1). "
+          f"got {align_axis!r}.")
+
+
+      return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+          'compare',
+          lambda df, other: df.compare(other, align_axis, keep_shape, **kwargs),
+          [self._expr, other._expr],
+          requires_partition_by=partitionings.Index(),
+          preserves_partition_by=preserve_partition
+        )
+      )
+
   def _idxmaxmin_helper(self, op, **kwargs):
     if op == 'idxmax':
       func = pd.DataFrame.idxmax
@@ -3782,6 +3853,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   @frame_base.populate_defaults(pd.DataFrame)
   def idxmax(self, **kwargs):
     return self._idxmaxmin_helper('idxmax', **kwargs)
+
 
 for io_func in dir(io):
   if io_func.startswith('to_'):

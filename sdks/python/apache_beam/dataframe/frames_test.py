@@ -276,6 +276,21 @@ class DeferredFrameTest(_AbstractFrameTest):
         lambda df: df.num_legs.xs(('bird', 'walks'), level=[0, 'locomotion']),
         df)
 
+  def test_dataframe_xs(self):
+    # Test cases reported in BEAM-13421
+    df = pd.DataFrame(
+        np.array([
+            ['state', 'day1', 12],
+            ['state', 'day1', 1],
+            ['state', 'day2', 14],
+            ['county', 'day1', 9],
+        ]),
+        columns=['provider', 'time', 'value'])
+
+    self._run_test(lambda df: df.xs('state'), df.set_index(['provider']))
+    self._run_test(
+        lambda df: df.xs('state'), df.set_index(['provider', 'time']))
+
   def test_set_column(self):
     def new_column(df):
       df['NewCol'] = df['Speed']
@@ -1114,6 +1129,58 @@ class DeferredFrameTest(_AbstractFrameTest):
         lambda s: s.dt.tz_localize(
             'Europe/Warsaw', ambiguous='NaT', nonexistent=pd.Timedelta('1H')),
         s)
+
+  def test_compare_series(self):
+    s1 = pd.Series(["a", "b", "c", "d", "e"])
+    s2 = pd.Series(["a", "a", "c", "b", "e"])
+
+    self._run_test(lambda s1, s2: s1.compare(s2), s1, s2)
+    self._run_test(lambda s1, s2: s1.compare(s2, align_axis=0), s1, s2)
+    self._run_test(lambda s1, s2: s1.compare(s2, keep_shape=True), s1, s2)
+    self._run_test(
+        lambda s1, s2: s1.compare(s2, keep_shape=True, keep_equal=True), s1, s2)
+
+  def test_compare_dataframe(self):
+    df1 = pd.DataFrame(
+        {
+            "col1": ["a", "a", "b", "b", "a"],
+            "col2": [1.0, 2.0, 3.0, np.nan, 5.0],
+            "col3": [1.0, 2.0, 3.0, 4.0, 5.0]
+        },
+        columns=["col1", "col2", "col3"],
+    )
+    df2 = df1.copy()
+    df2.loc[0, 'col1'] = 'c'
+    df2.loc[2, 'col3'] = 4.0
+
+    # Skipped because keep_shape=False won't be implemented
+    with self.assertRaisesRegex(
+        frame_base.WontImplementError,
+        r"compare\(align_axis\=1, keep_shape\=False\) is not allowed"):
+      self._run_test(lambda df1, df2: df1.compare(df2), df1, df2)
+
+    self._run_test(
+        lambda df1,
+        df2: df1.compare(df2, align_axis=0),
+        df1,
+        df2,
+        check_proxy=False)
+    self._run_test(lambda df1, df2: df1.compare(df2, keep_shape=True), df1, df2)
+    self._run_test(
+        lambda df1,
+        df2: df1.compare(df2, align_axis=0, keep_shape=True),
+        df1,
+        df2)
+    self._run_test(
+        lambda df1,
+        df2: df1.compare(df2, keep_shape=True, keep_equal=True),
+        df1,
+        df2)
+    self._run_test(
+        lambda df1,
+        df2: df1.compare(df2, align_axis=0, keep_shape=True, keep_equal=True),
+        df1,
+        df2)
 
   def test_idxmin(self):
     df = pd.DataFrame({

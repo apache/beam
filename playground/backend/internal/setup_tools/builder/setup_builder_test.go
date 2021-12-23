@@ -31,6 +31,9 @@ func TestSetupExecutor(t *testing.T) {
 	pipelineId := uuid.New()
 	sdk := pb.Sdk_SDK_JAVA
 	lc, err := fs_tool.NewLifeCycle(sdk, pipelineId, "")
+	if err != nil {
+		t.Error(err)
+	}
 	pipelineOptions := ""
 	executorConfig := &environment.ExecutorConfig{
 		CompileCmd:  "MOCK_COMPILE_CMD",
@@ -74,7 +77,7 @@ func TestSetupExecutor(t *testing.T) {
 		WithTestRunner().
 		WithCommand(executorConfig.TestCmd).
 		WithArgs(executorConfig.TestArgs).
-		WithWorkingDir(lc.GetAbsoluteSourceFolderPath()).
+		WithWorkingDir(lc.GetAbsoluteBaseFolderPath()).
 		ExecutorBuilder
 
 	type args struct {

@@ -18,6 +18,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:playground/constants/params.dart';
+import 'package:playground/modules/analytics/analytics_service.dart';
 import 'package:playground/modules/editor/repository/code_repository/code_client/grpc_code_client.dart';
 import 'package:playground/modules/editor/repository/code_repository/code_repository.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
@@ -44,6 +45,7 @@ class PlaygroundPageProviders extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        Provider<AnalyticsService>(create: (context) => AnalyticsService()),
         ChangeNotifierProvider<ExampleState>(
           create: (context) => ExampleState(kExampleRepository)..init(),
         ),
@@ -63,8 +65,12 @@ class PlaygroundPageProviders extends StatelessWidget {
                 selectedExample: null,
               );
               if (example != null) {
-                exampleState.loadExampleInfo(example, playground.sdk,).then(
-                    (exampleWithInfo) =>
+                exampleState
+                    .loadExampleInfo(
+                      example,
+                      playground.sdk,
+                    )
+                    .then((exampleWithInfo) =>
                         newPlayground.setExample(exampleWithInfo));
               }
               return newPlayground;
@@ -89,6 +95,9 @@ class PlaygroundPageProviders extends StatelessWidget {
         .expand((sdkCategory) => sdkCategory.map((e) => e.examples))
         .expand((element) => element)
         .toList();
+    if (allExamples?.isEmpty ?? true) {
+      return null;
+    }
     final defaultExample = exampleState.defaultExamplesMap![playground.sdk]!;
     return allExamples?.firstWhere(
       (example) => example.path == examplePath,

@@ -21,13 +21,13 @@ import static org.apache.beam.sdk.testing.SystemNanoTimeSleeper.sleepMillis;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.CompletionService;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.LogRecord;
 import org.hamcrest.TypeSafeMatcher;
 import org.junit.Rule;
@@ -143,7 +143,8 @@ public class ExpectedLogsTest {
   public void testThreadSafetyOfLogSaver() throws Throwable {
     CompletionService<Void> completionService =
         new ExecutorCompletionService<>(Executors.newCachedThreadPool());
-    final long scheduledLogTime = Duration.ofNanos(System.nanoTime()).toMillis() + 500L;
+    final long scheduledLogTime =
+        TimeUnit.MILLISECONDS.convert(System.nanoTime(), TimeUnit.NANOSECONDS) + 500L;
 
     List<String> expectedStrings = new ArrayList<>();
     for (int i = 0; i < 100; i++) {
@@ -153,7 +154,10 @@ public class ExpectedLogsTest {
           () -> {
             // Have all threads started and waiting to log at about the same moment.
             sleepMillis(
-                Math.max(1, scheduledLogTime - Duration.ofNanos(System.nanoTime()).toMillis()));
+                Math.max(
+                    1,
+                    scheduledLogTime
+                        - TimeUnit.MILLISECONDS.convert(System.nanoTime(), TimeUnit.NANOSECONDS)));
             LOG.trace(expected);
             return null;
           });

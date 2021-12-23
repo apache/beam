@@ -19,6 +19,7 @@
 import 'package:flutter/material.dart';
 import 'package:playground/config/theme.dart';
 import 'package:playground/modules/actions/components/header_icon_button.dart';
+import 'package:playground/modules/analytics/analytics_service.dart';
 import 'package:playground/modules/shortcuts/components/shortcut_tooltip.dart';
 import 'package:playground/modules/shortcuts/constants/global_shortcuts.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -38,7 +39,10 @@ class NewExampleAction extends StatelessWidget {
           color: ThemeColors.of(context).grey1Color,
         ),
         label: kNewExampleButtonText,
-        onPressed: () => launch('/'),
+        onPressed: () {
+          launch('/');
+          AnalyticsService.get(context).trackClickNewExample();
+        },
       ),
     );
   }

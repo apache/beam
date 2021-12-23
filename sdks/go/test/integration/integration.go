@@ -101,6 +101,8 @@ var samzaFilters = []string{
 	"TestTrigger.*",
 	// TODO(BEAM-13006): Samza doesn't yet support post job metrics, used by WordCount
 	"TestWordCount.*",
+	// TODO(BEAM-13534): Ping command to check if service port is alive fails in Samza
+	"TestAutomatedExpansionService",
 }
 
 var sparkFilters = []string{
@@ -112,6 +114,8 @@ var sparkFilters = []string{
 	"TestTestStream.*",
 	// The trigger tests uses TestStream
 	"TestTrigger.*",
+	// TODO(BEAM-13534): Ping command to check if service port is alive fails in Spark
+	"TestAutomatedExpansionService",
 }
 
 var dataflowFilters = []string{
