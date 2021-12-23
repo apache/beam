@@ -29,6 +29,7 @@ typedef SetSdk = void Function(SDK sdk);
 typedef SetExample = void Function(ExampleModel example);
 
 const kSdkSelectorLabel = 'Select SDK Dropdown';
+const kEmptyExampleName = 'Catalog';
 
 const double kWidth = 150;
 const double kHeight = 172;
@@ -66,7 +67,16 @@ class SDKSelector extends StatelessWidget {
                     onSelect: () {
                       close();
                       setSdk(value);
-                      setExample(state.defaultExamplesMap![value]!);
+                      setExample(
+                        state.defaultExamplesMap![value] ??
+                            ExampleModel(
+                              name: kEmptyExampleName,
+                              path: '',
+                              description: '',
+                              type: ExampleType.example,
+                            ),
+                      );
+                      //setExample(state.defaultExamplesMap![value]!);
                     },
                   ),
                 ),
