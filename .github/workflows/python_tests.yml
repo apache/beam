@@ -95,11 +95,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
         params: [
-          # {"py_ver": "3.6", "tox_env": "py36"},
-          {"py_ver": "3.7", "tox_env": "py37"}
-          # {"py_ver": "3.8", "tox_env": "py38"}
+          {"py_ver": "3.6", "tox_env": "py36"},
+          {"py_ver": "3.7", "tox_env": "py37"},
+          {"py_ver": "3.8", "tox_env": "py38"}
         ]
         exclude:
           # TODO remove exclusion after issue with protobuf is solved
@@ -116,9 +116,10 @@ jobs:
       - name: Get build dependencies
         working-directory: ./sdks/python
         run: pip install -r build-requirements.txt
-      - name: Install tox (Windows)
-        if: startsWith(matrix.os, 'windows')
-        run: pip install --upgrade pip tox virtualenv
+        # Commented by the moment to run memory&cpu resources.
+#        - name: Install tox (Windows)
+#        if: startsWith(matrix.os, 'windows')
+#        run: pip install --upgrade pip tox virtualenv
       - name: Install tox
         run: pip install tox
         if: startsWith(matrix.os, 'ubuntu') || startsWith(matrix.os, 'macos')
@@ -143,8 +144,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest]
-        python: [3.7]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: [3.6, 3.7, 3.8]
         exclude:
           # TODO remove exclusion after issue with protobuf is solved
           # https://github.com/protocolbuffers/protobuf/issues/7765
@@ -176,8 +177,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest]
-        python: [3.7]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: [3.6, 3.7, 3.8]
         exclude:
           # TODO remove exclusion after issue with protobuf is solved
           # https://github.com/protocolbuffers/protobuf/issues/7765
