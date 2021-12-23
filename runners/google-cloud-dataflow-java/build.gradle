@@ -437,7 +437,9 @@ task validatesRunnerV2Streaming {
       'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleWithTimestampsStreaming',
 
       'org.apache.beam.sdk.transforms.ParDoTest$OnWindowExpirationTests.testOnWindowExpirationSimpleBounded',
+      'org.apache.beam.sdk.transforms.ParDoTest$OnWindowExpirationTests.testOnWindowExpirationSimpleBoundedGlobal',
       'org.apache.beam.sdk.transforms.ParDoTest$OnWindowExpirationTests.testOnWindowExpirationSimpleUnbounded',
+      'org.apache.beam.sdk.transforms.ParDoTest$OnWindowExpirationTests.testOnWindowExpirationSimpleUnboundedGlobal',
 
       // TODO(BEAM-11858) reading a side input twice fails
       'org.apache.beam.sdk.transforms.ParDoTest$MultipleInputsAndOutputTests.testSameSideInputReadTwice',
@@ -487,6 +489,10 @@ task validatesRunnerV2Streaming {
 
       // TODO(BEAM-12353): Identify whether it's bug or a feature gap.
       'org.apache.beam.sdk.transforms.GroupByKeyTest$WindowTests.testRewindowWithTimestampCombiner',
+
+      // TODO(BEAM-13525)
+      'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testProcessElementSkew',
+      'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testOnWindowTimestampSkew',
     ]
   ))
 }
