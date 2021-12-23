@@ -24,6 +24,7 @@ import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.Calendar;
+import java.util.Collection;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +37,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.DateTime;
+import org.joda.time.ReadableDateTime;
 
 /** Provides utility functions for working with {@link JdbcIO}. */
 @SuppressWarnings({
@@ -64,44 +66,85 @@ class JdbcUtil {
           ImmutableMap.<Schema.TypeName, JdbcIO.PreparedStatementSetCaller>builder()
               .put(
                   Schema.TypeName.BYTE,
-                  (element, ps, i, fieldWithIndex) ->
-                      ps.setByte(i + 1, element.getByte(fieldWithIndex.getIndex())))
+                  (element, ps, i, fieldWithIndex) -> {
+                    Byte value = element.getByte(fieldWithIndex.getIndex());
+                    if (value == null) {
+                      setNullToPreparedStatement(ps, i);
+                    } else {
+                      ps.setByte(i + 1, value);
+                    }
+                  })
               .put(
                   Schema.TypeName.INT16,
-                  (element, ps, i, fieldWithIndex) ->
-                      ps.setInt(i + 1, element.getInt16(fieldWithIndex.getIndex())))
+                  (element, ps, i, fieldWithIndex) -> {
+                    Short value = element.getInt16(fieldWithIndex.getIndex());
+                    if (value == null) {
+                      setNullToPreparedStatement(ps, i);
+                    } else {
+                      ps.setInt(i + 1, value);
+                    }
+                  })
               .put(
                   Schema.TypeName.INT64,
-                  (element, ps, i, fieldWithIndex) ->
-                      ps.setLong(i + 1, element.getInt64(fieldWithIndex.getIndex())))
+                  (element, ps, i, fieldWithIndex) -> {
+                    Long value = element.getInt64(fieldWithIndex.getIndex());
+                    if (value == null) {
+                      setNullToPreparedStatement(ps, i);
+                    } else {
+                      ps.setLong(i + 1, value);
+                    }
+                  })
               .put(
                   Schema.TypeName.DECIMAL,
                   (element, ps, i, fieldWithIndex) ->
                       ps.setBigDecimal(i + 1, element.getDecimal(fieldWithIndex.getIndex())))
               .put(
                   Schema.TypeName.FLOAT,
-                  (element, ps, i, fieldWithIndex) ->
-                      ps.setFloat(i + 1, element.getFloat(fieldWithIndex.getIndex())))
+                  (element, ps, i, fieldWithIndex) -> {
+                    Float value = element.getFloat(fieldWithIndex.getIndex());
+                    if (value == null) {
+                      setNullToPreparedStatement(ps, i);
+                    } else {
+                      ps.setFloat(i + 1, value);
+                    }
+                  })
               .put(
                   Schema.TypeName.DOUBLE,
-                  (element, ps, i, fieldWithIndex) ->
-                      ps.setDouble(i + 1, element.getDouble(fieldWithIndex.getIndex())))
+                  (element, ps, i, fieldWithIndex) -> {
+                    Double value = element.getDouble(fieldWithIndex.getIndex());
+                    if (value == null) {
+                      setNullToPreparedStatement(ps, i);
+                    } else {
+                      ps.setDouble(i + 1, value);
+                    }
+                  })
               .put(
                   Schema.TypeName.DATETIME,
-                  (element, ps, i, fieldWithIndex) ->
-                      ps.setTimestamp(
-                          i + 1,
-                          new Timestamp(
-                              element.getDateTime(fieldWithIndex.getIndex()).getMillis())))
+                  (element, ps, i, fieldWithIndex) -> {
+                    ReadableDateTime value = element.getDateTime(fieldWithIndex.getIndex());
+                    ps.setTimestamp(i + 1, value == null ? null : new Timestamp(value.getMillis()));
+                  })
               .put(
                   Schema.TypeName.BOOLEAN,
-                  (element, ps, i, fieldWithIndex) ->
-                      ps.setBoolean(i + 1, element.getBoolean(fieldWithIndex.getIndex())))
+                  (element, ps, i, fieldWithIndex) -> {
+                    Boolean value = element.getBoolean(fieldWithIndex.getIndex());
+                    if (value == null) {
+                      setNullToPreparedStatement(ps, i);
+                    } else {
+                      ps.setBoolean(i + 1, value);
+                    }
+                  })
               .put(Schema.TypeName.BYTES, createBytesCaller())
               .put(
                   Schema.TypeName.INT32,
-                  (element, ps, i, fieldWithIndex) ->
-                      ps.setInt(i + 1, element.getInt32(fieldWithIndex.getIndex())))
+                  (element, ps, i, fieldWithIndex) -> {
+                    Integer value = element.getInt32(fieldWithIndex.getIndex());
+                    if (value == null) {
+                      setNullToPreparedStatement(ps, i);
+                    } else {
+                      ps.setInt(i + 1, value);
+                    }
+                  })
               .put(Schema.TypeName.STRING, createStringCaller())
               .build());
 
@@ -111,43 +154,57 @@ class JdbcUtil {
     switch (fieldType.getTypeName()) {
       case ARRAY:
       case ITERABLE:
-        return (element, ps, i, fieldWithIndex) ->
+        return (element, ps, i, fieldWithIndex) -> {
+          Collection<Object> value = element.getArray(fieldWithIndex.getIndex());
+          if (value == null) {
+            ps.setArray(i + 1, null);
+          } else {
             ps.setArray(
                 i + 1,
                 ps.getConnection()
                     .createArrayOf(
                         fieldType.getCollectionElementType().getTypeName().name(),
-                        element.getArray(fieldWithIndex.getIndex()).toArray()));
+                        value.toArray()));
+          }
+        };
       case LOGICAL_TYPE:
         {
           String logicalTypeName = fieldType.getLogicalType().getIdentifier();
           JDBCType jdbcType = JDBCType.valueOf(logicalTypeName);
           switch (jdbcType) {
             case DATE:
-              return (element, ps, i, fieldWithIndex) ->
-                  ps.setDate(
-                      i + 1,
-                      new Date(
-                          getDateOrTimeOnly(
-                                  element.getDateTime(fieldWithIndex.getIndex()).toDateTime(), true)
-                              .getTime()
-                              .getTime()));
+              return (element, ps, i, fieldWithIndex) -> {
+                ReadableDateTime value = element.getDateTime(fieldWithIndex.getIndex());
+                ps.setDate(
+                    i + 1,
+                    value == null
+                        ? null
+                        : new Date(
+                            getDateOrTimeOnly(value.toDateTime(), true).getTime().getTime()));
+              };
             case TIME:
-              return (element, ps, i, fieldWithIndex) ->
-                  ps.setTime(
-                      i + 1,
-                      new Time(
-                          getDateOrTimeOnly(
-                                  element.getDateTime(fieldWithIndex.getIndex()).toDateTime(),
-                                  false)
-                              .getTime()
-                              .getTime()));
+              return (element, ps, i, fieldWithIndex) -> {
+                ReadableDateTime value = element.getDateTime(fieldWithIndex.getIndex());
+                ps.setTime(
+                    i + 1,
+                    value == null
+                        ? null
+                        : new Time(
+                            getDateOrTimeOnly(
+                                    element.getDateTime(fieldWithIndex.getIndex()).toDateTime(),
+                                    false)
+                                .getTime()
+                                .getTime()));
+              };
             case TIMESTAMP_WITH_TIMEZONE:
               return (element, ps, i, fieldWithIndex) -> {
-                Calendar calendar =
-                    withTimestampAndTimezone(
-                        element.getDateTime(fieldWithIndex.getIndex()).toDateTime());
-                ps.setTimestamp(i + 1, new Timestamp(calendar.getTime().getTime()), calendar);
+                ReadableDateTime value = element.getDateTime(fieldWithIndex.getIndex());
+                if (value == null) {
+                  ps.setTimestamp(i + 1, null);
+                } else {
+                  Calendar calendar = withTimestampAndTimezone(value.toDateTime());
+                  ps.setTimestamp(i + 1, new Timestamp(calendar.getTime().getTime()), calendar);
+                }
               };
             default:
               return getPreparedStatementSetCaller(fieldType.getLogicalType().getBaseType());
@@ -164,6 +221,10 @@ class JdbcUtil {
           }
         }
     }
+  }
+
+  static void setNullToPreparedStatement(PreparedStatement ps, int i) throws SQLException {
+    ps.setNull(i + 1, JDBCType.NULL.getVendorTypeNumber());
   }
 
   static class BeamRowPreparedStatementSetter implements JdbcIO.PreparedStatementSetter<Row> {
