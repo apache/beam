@@ -20,6 +20,14 @@
 
 # pytype: skip-file
 
+# beam-playground:
+#   name: WordCountTest
+#   description: Unit-test for the WordCount example.
+#   multifile: false
+#   pipeline_options:
+#   categories:
+#     - IO
+
 import collections
 import logging
 import re

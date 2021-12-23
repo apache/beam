@@ -17,7 +17,7 @@ package synthetic
 
 // beam-playground:
 //   name: SyntheticTest
-//   description: Unit-test for Synthetic example
+//   description: Unit-test for Synthetic example.
 //   multifile: false
 //   pipeline_options:
 //   categories:

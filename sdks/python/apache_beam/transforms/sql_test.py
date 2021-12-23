@@ -19,6 +19,14 @@
 
 # pytype: skip-file
 
+# beam-playground:
+#   name: SQLTest
+#   description: Unit-test for transforms that use the SQL Expansion service.
+#   multifile: false
+#   pipeline_options:
+#   categories:
+#     - Beam SQL
+
 import logging
 import typing
 import unittest

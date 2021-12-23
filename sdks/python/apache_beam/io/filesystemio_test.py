@@ -19,6 +19,14 @@
 
 # pytype: skip-file
 
+# beam-playground:
+#   name: FileSystemIOTest
+#   description: Unit-test for FileSystemIO example.
+#   multifile: false
+#   pipeline_options:
+#   categories:
+#     - IO
+
 import io
 import logging
 import multiprocessing

@@ -17,7 +17,7 @@ package xlang
 
 // beam-playground:
 //   name: XLangTest
-//   description: Unit-test for XLang example
+//   description: Unit-test for XLang example.
 //   multifile: false
 //   pipeline_options:
 //   categories:
