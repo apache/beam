@@ -58,7 +58,7 @@ func (b *BeamEnvs) PreparedModDir() string {
 	return b.preparedModDir
 }
 
-// NumOfParallelJobs returns the max number of the possible code processing for the SDK on that instance at the same time
+// NumOfParallelJobs returns the max number of the possible code executions on the instance simultaneously.
 func (b *BeamEnvs) NumOfParallelJobs() int {
 	return b.numOfParallelJobs
 }
