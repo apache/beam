@@ -26,11 +26,15 @@ import 'package:playground/modules/examples/components/example_list/expansion_pa
 class CategoryExpansionPanel extends StatelessWidget {
   final String categoryName;
   final List examples;
+  final AnimationController animationController;
+  final OverlayEntry? dropdown;
 
   const CategoryExpansionPanel({
     Key? key,
     required this.categoryName,
     required this.examples,
+    required this.animationController,
+    required this.dropdown,
   }) : super(key: key);
 
   @override
@@ -70,7 +74,11 @@ class CategoryExpansionPanel extends StatelessWidget {
     List<Widget> items = [];
     for (var example in examples) {
       items.add(
-        ExpansionPanelItem(example: example),
+        ExpansionPanelItem(
+          example: example,
+          animationController: animationController,
+          dropdown: dropdown,
+        ),
       );
     }
     return items;

@@ -1598,49 +1598,53 @@ public class RemoteExecutionTest implements Serializable {
     // Set the current system time to a fixed value to get stable values for processing time timer
     // output.
     DateTimeUtils.setCurrentMillisFixed(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis() + 10000L);
-
-    try (RemoteBundle bundle =
-        processor.newBundle(
-            outputReceivers,
-            timerReceivers,
-            StateRequestHandler.unsupported(),
-            BundleProgressHandler.ignored(),
-            null,
-            null)) {
-      Iterables.getOnlyElement(bundle.getInputReceivers().values())
-          .accept(valueInGlobalWindow(KV.of("X", "X")));
-      bundle
-          .getTimerReceivers()
-          .get(KV.of(eventTimerSpec.transformId(), eventTimerSpec.timerId()))
-          .accept(timerForTest("Y", 1000L, 100L));
-      bundle
-          .getTimerReceivers()
-          .get(KV.of(processingTimerSpec.transformId(), processingTimerSpec.timerId()))
-          .accept(timerForTest("Z", 2000L, 200L));
+    try {
+      try (RemoteBundle bundle =
+          processor.newBundle(
+              outputReceivers,
+              timerReceivers,
+              StateRequestHandler.unsupported(),
+              BundleProgressHandler.ignored(),
+              null,
+              null)) {
+        Iterables.getOnlyElement(bundle.getInputReceivers().values())
+            .accept(valueInGlobalWindow(KV.of("X", "X")));
+        bundle
+            .getTimerReceivers()
+            .get(KV.of(eventTimerSpec.transformId(), eventTimerSpec.timerId()))
+            .accept(timerForTest("Y", 1000L, 100L));
+        bundle
+            .getTimerReceivers()
+            .get(KV.of(processingTimerSpec.transformId(), processingTimerSpec.timerId()))
+            .accept(timerForTest("Z", 2000L, 200L));
+      }
+      String mainOutputTransform =
+          Iterables.getOnlyElement(descriptor.getRemoteOutputCoders().keySet());
+      assertThat(
+          outputValues.get(mainOutputTransform),
+          containsInAnyOrder(
+              valueInGlobalWindow(KV.of("mainX", "")),
+              WindowedValue.timestampedValueInGlobalWindow(
+                  KV.of("event", ""),
+                  BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(100L))),
+              WindowedValue.timestampedValueInGlobalWindow(
+                  KV.of("processing", ""),
+                  BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(200L)))));
+      assertThat(
+          timerValues.get(KV.of(eventTimerSpec.transformId(), eventTimerSpec.timerId())),
+          containsInAnyOrder(
+              timerForTest("X", 1L, 0L),
+              timerForTest("Y", 1011L, 100L),
+              timerForTest("Z", 2021L, 200L)));
+      assertThat(
+          timerValues.get(KV.of(processingTimerSpec.transformId(), processingTimerSpec.timerId())),
+          containsInAnyOrder(
+              timerForTest("X", 10002L, 0L),
+              timerForTest("Y", 10012L, 100L),
+              timerForTest("Z", 10022L, 200L)));
+    } finally {
+      DateTimeUtils.setCurrentMillisSystem();
     }
-    String mainOutputTransform =
-        Iterables.getOnlyElement(descriptor.getRemoteOutputCoders().keySet());
-    assertThat(
-        outputValues.get(mainOutputTransform),
-        containsInAnyOrder(
-            valueInGlobalWindow(KV.of("mainX", "")),
-            WindowedValue.timestampedValueInGlobalWindow(
-                KV.of("event", ""), BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(100L))),
-            WindowedValue.timestampedValueInGlobalWindow(
-                KV.of("processing", ""),
-                BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(200L)))));
-    assertThat(
-        timerValues.get(KV.of(eventTimerSpec.transformId(), eventTimerSpec.timerId())),
-        containsInAnyOrder(
-            timerForTest("X", 1L, 0L),
-            timerForTest("Y", 1011L, 100L),
-            timerForTest("Z", 2021L, 200L)));
-    assertThat(
-        timerValues.get(KV.of(processingTimerSpec.transformId(), processingTimerSpec.timerId())),
-        containsInAnyOrder(
-            timerForTest("X", 10002L, 0L),
-            timerForTest("Y", 10012L, 100L),
-            timerForTest("Z", 10022L, 200L)));
   }
 
   @Test

@@ -26,8 +26,10 @@ description = "Apache Beam :: SDKs :: Java :: Extensions :: SQL :: IO Performanc
 ext.summary = "Performance tests for SQL IO sources"
 
 dependencies {
-    testCompile project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntime")
-    testCompile project(path: ":sdks:java:extensions:sql", configuration: "testRuntime")
+    testImplementation project(":sdks:java:io:google-cloud-platform")
+    testImplementation project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntimeMigration")
+    testImplementation project(":sdks:java:extensions:sql")
+    testImplementation project(path: ":sdks:java:extensions:sql", configuration: "testRuntimeMigration")
 }
 
 

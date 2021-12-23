@@ -20,6 +20,7 @@ import 'package:playground/modules/editor/repository/code_repository/code_client
 import 'package:playground/modules/editor/repository/code_repository/run_code_error.dart';
 import 'package:playground/modules/editor/repository/code_repository/run_code_request.dart';
 import 'package:playground/modules/editor/repository/code_repository/run_code_result.dart';
+import 'package:playground/utils/run_with_retry.dart';
 
 const kPipelineCheckDelay = Duration(seconds: 1);
 const kTimeoutErrorText =
@@ -29,6 +30,7 @@ const kTimeoutErrorText =
     'to try examples without timeout limitation.';
 const kUnknownErrorText =
     'Something went wrong. Please try again later or create a jira ticket';
+const kProcessingStartedText = 'The processing has started';
 
 class CodeRepository {
   late final CodeClient _client;
@@ -39,10 +41,18 @@ class CodeRepository {
 
   Stream<RunCodeResult> runCode(RunCodeRequestWrapper request) async* {
     try {
-      yield RunCodeResult(status: RunCodeStatus.preparation);
+      final initResult = RunCodeResult(
+        status: RunCodeStatus.preparation,
+        log: kProcessingStartedText,
+      );
+      yield initResult;
       var runCodeResponse = await _client.runCode(request);
       final pipelineUuid = runCodeResponse.pipelineUuid;
-      yield* _checkPipelineExecution(pipelineUuid, request);
+      yield* _checkPipelineExecution(
+        pipelineUuid,
+        request,
+        prevResult: initResult,
+      );
     } on RunCodeError catch (error) {
       yield RunCodeResult(
         status: RunCodeStatus.unknownError,
@@ -58,7 +68,9 @@ class CodeRepository {
     RunCodeResult? prevResult,
   }) async* {
     try {
-      final statusResponse = await _client.checkStatus(pipelineUuid, request);
+      final statusResponse = await runWithRetry(
+        () => _client.checkStatus(pipelineUuid, request),
+      );
       final result = await _getPipelineResult(
         pipelineUuid,
         statusResponse.status,
@@ -68,8 +80,11 @@ class CodeRepository {
       yield result;
       if (!result.isFinished) {
         await Future.delayed(kPipelineCheckDelay);
-        yield* _checkPipelineExecution(pipelineUuid, request,
-            prevResult: result);
+        yield* _checkPipelineExecution(
+          pipelineUuid,
+          request,
+          prevResult: result,
+        );
       }
     } on RunCodeError catch (error) {
       yield RunCodeResult(
@@ -94,7 +109,11 @@ class CodeRepository {
           pipelineUuid,
           request,
         );
-        return RunCodeResult(status: status, output: compileOutput.output);
+        return RunCodeResult(
+          status: status,
+          output: compileOutput.output,
+          log: prevLog,
+        );
       case RunCodeStatus.timeout:
         return RunCodeResult(
           status: status,
@@ -103,12 +122,17 @@ class CodeRepository {
         );
       case RunCodeStatus.runError:
         final output = await _client.getRunErrorOutput(pipelineUuid, request);
-        return RunCodeResult(status: status, output: output.output);
+        return RunCodeResult(
+          status: status,
+          output: output.output,
+          log: prevLog,
+        );
       case RunCodeStatus.unknownError:
         return RunCodeResult(
           status: status,
           errorMessage: kUnknownErrorText,
           output: kUnknownErrorText,
+          log: prevLog,
         );
       case RunCodeStatus.executing:
       case RunCodeStatus.finished:
