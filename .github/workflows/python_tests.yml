@@ -118,7 +118,7 @@ jobs:
         run: pip install -r build-requirements.txt
       - name: Install tox (Windows)
         if: startsWith(matrix.os, 'windows')
-        run: sudo -H pip install --upgrade pip tox virtualenv
+        run: pip install --upgrade pip tox virtualenv
       - name: Install tox
         run: pip install --upgrade pip tox
         if: startsWith(matrix.os, 'ubuntu') || startsWith(matrix.os, 'macos')
