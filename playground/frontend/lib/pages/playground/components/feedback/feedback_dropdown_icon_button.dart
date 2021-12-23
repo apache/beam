@@ -25,7 +25,6 @@ import 'package:playground/pages/playground/components/feedback/feedback_dropdow
 
 const double kFeedbackTitleFontSize = 24.0;
 const double kFeedbackContentFontSize = 14.0;
-const double kFeedbackDropdownHeight = 259.0;
 const double kFeedbackDyBottomAlignment = 50.0;
 const double kFeedbackDxLeftAlignment = 10.0;
 const double kFeedbackDropdownWidth = 400.0;
@@ -111,7 +110,6 @@ class _FeedbackDropdownIconButton extends State<FeedbackDropdownIconButton>
                   elevation: kElevation * 2,
                   borderRadius: BorderRadius.circular(kMdBorderRadius),
                   child: Container(
-                    height: kFeedbackDropdownHeight,
                     width: kFeedbackDropdownWidth,
                     decoration: BoxDecoration(
                       color: Theme.of(context).backgroundColor,
