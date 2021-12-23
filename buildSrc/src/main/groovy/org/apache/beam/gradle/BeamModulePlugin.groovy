@@ -1812,9 +1812,24 @@ class BeamModulePlugin implements Plugin<Project> {
       project.check.dependsOn project.test
 
       def goRootDir = "${project.rootDir}/sdks/go"
-      project.ext.goCmd = "${goRootDir}/run_with_go_version.sh"
+
+      // This sets the whole project Go version.
+      project.ext.goVersion = "go1.16.12"
+
+      // Minor TODO: Figure out if we can pull out the GOCMD env variable after goPrepare script
+      // completion, and avoid this GOBIN substitution.
+      project.ext.goCmd = "${goRootDir}/run_with_go_version.sh --gocmd GOBIN/${project.ext.goVersion}"
+
+      project.tasks.create(name: "goPrepare") {
+        description "Prepare ${project.ext.goVersion} for builds and tests."
+        project.exec {
+          executable 'sh'
+          args '-c', "${goRootDir}/prepare_go_version.sh --version ${project.ext.goVersion}"
+        }
+      }
 
       project.tasks.create(name: "goBuild") {
+        dependsOn ":sdks:go:goPrepare"
         ext.goTargets = './...'
         ext.outputLocation = './build/bin/${GOOS}_${GOARCH}/'
         doLast {

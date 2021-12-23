@@ -16,7 +16,7 @@
 #    limitations under the License.
 
 # This script sets the go version used by all Beam SDK scripts.
-# It requires an existing Go installation on the system, which
+# It requires an existing Go installation greater than 1.16 on the system, which
 # will be used to download specific versions of Go.
 #
 # The Go installation will use the local host platform, while the actual
@@ -26,6 +26,9 @@
 # will be provided to the go version tool.
 #    --version -> A string for a fully qualified go version, eg go1.16.5 or go1.18beta1
 #        The list of available versions are at https://go.dev/dl/ 
+#    --gocmd -> a specific path to a Go command to execute. If present, ignores --version flag
+#        and avoids doing the download check step.
+
 
 
 set -e
@@ -51,6 +54,11 @@ case $key in
         shift # past argument
         shift # past value
         ;;
+    --gocmd)
+        GOCMD="$2"
+        shift # past argument
+        shift # past value
+        ;;
     *)  # unknown options are go tool args.
         break
         ;;
@@ -62,19 +70,30 @@ GOBIN=$GOPATH/bin
 GOHOSTOS=`go env GOHOSTOS`
 GOHOSTARCH=`go env GOHOSTARCH`
 
-# Outputing the system Go version for debugging purposes.
-echo "System Go installation: `which go` is `go version`; Preparing to use $GOBIN/$GOVERS"
 
-# Ensure it's installed in the GOBIN directory, using the local host platform.
-GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH GOBIN=$GOBIN go install golang.org/dl/$GOVERS@latest
+# Check if we've already prepared the Go command. If so, then we don't need to
+# do the download and versioning check.
+if [ -z "$GOCMD" ] ; then
+    # Outputing the system Go version for debugging purposes.
+    echo "System Go installation: `which go` is `go version`; Preparing to use $GOBIN/$GOVERS"
+    # Ensure it's installed in the GOBIN directory, using the local host platform.
+    GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH GOBIN=$GOBIN go install golang.org/dl/$GOVERS@latest
 
-LOCKFILE=$GOBIN/$GOVERS.lock
-# The download command isn't concurrency safe so we get an exclusive lock, without wait.
-# If we're first, we ensure the command is downloaded, releasing the lock afterwards.
-# This operation is cached on system and won't be re-downloaded at least.
-flock --exclusive --nonblock --conflict-exit-code 0 $LOCKFILE $GOBIN/$GOVERS download
+    LOCKFILE=$GOBIN/$GOVERS.lock
+    # The download command isn't concurrency safe so we get an exclusive lock, without wait.
+    # If we're first, we ensure the command is downloaded, releasing the lock afterwards.
+    # This operation is cached on system and won't be re-downloaded at least.
+    flock --exclusive --nonblock --conflict-exit-code 0 $LOCKFILE $GOBIN/$GOVERS download
 
-# Execute the script with the remaining arguments.
-# We get a shared lock for the ordinary go command execution.
-echo $GOBIN/$GOVERS $@
-flock --shared --timeout=10 $LOCKFILE $GOBIN/$GOVERS $@
+    # Execute the script with the remaining arguments.
+    # We get a shared lock for the ordinary go command execution.
+    echo $GOBIN/$GOVERS $@
+    flock --shared --timeout=10 $LOCKFILE $GOBIN/$GOVERS $@
+else
+    # Minor TODO: Figure out if we can pull out the GOCMD env variable after goPrepare
+    # completion, and avoid this brittle GOBIN substitution.
+    GOCMD=${GOCMD/GOBIN/$GOBIN}
+
+    echo $GOCMD $@
+    $GOCMD $@
+fi
