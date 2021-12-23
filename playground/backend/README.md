@@ -67,7 +67,7 @@ The full list of commands can be found [here](https://pkg.go.dev/cmd/go).
 
 These environment variables should be set to run the backend locally:
 
-- `BEAM_SDK` - is the SDK which backend could process (`SDK_GO` / `SDK_JAVA` / `SDK_PYTHON`)
+- `BEAM_SDK` - is the SDK which backend could process (`SDK_GO` / `SDK_JAVA` / `SDK_PYTHON` / `SDK_SCIO`)
 - `APP_WORK_DIR` - is the directory where all folders will be placed to process each code processing request
 - `PREPARED_MOD_DIR` - is the directory where prepared go.mod and go.sum files are placed. It is used only for Go SDK
 
@@ -86,8 +86,9 @@ default value and there is no need to set them up to launch locally:
 - `PIPELINE_EXPIRATION_TIMEOUT` - is the expiration time of the code processing (default value = `15 min`)
 - `PROTOCOL_TYPE` - is the type of the backend server protocol. It could be `TCP` or `HTTP` (default value = `HTTP`)
 - `NUM_PARALLEL_JOBS` - is the max number of the code processing requests which could be processed on the backend server
-  at the same time (default value = `20`). This value is used to check readiness of the backend server. If server
-  processes max number of the code processing requests then need to deploy a new instance.
+  at the same time (default value = `20`). This value is used to check the readiness of the backend server. If the
+  server reaches the max number of concurrent code-processing requests, then the load-balancer will route all other
+  incoming requests to other instances while the instance will not ready.
 - `LAUNCH_SITE` - is the value to configure log (default value = local). If developers want to use log service on the
   App Engine then need to change this value to `app_engine`.
 
