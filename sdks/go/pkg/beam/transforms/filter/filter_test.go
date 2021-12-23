@@ -15,6 +15,14 @@
 
 package filter_test
 
+// beam-playground:
+//   name: FilterTest
+//   description: Unit-test for Filter example
+//   multifile: false
+//   pipeline_options:
+//   categories:
+//     - Filtering
+
 import (
 	"testing"
 

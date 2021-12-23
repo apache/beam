@@ -34,6 +34,16 @@
 // environment setup, or by calling gradle commands in :sdks:go:test.
 package integration
 
+// beam-playground:
+//   name: CheckFiltersTest
+//   description: Unit-test checks if an integration test is filtered to be skipped, either
+//     because the intended runner does not support it, or the test is sickbayed.
+//   multifile: false
+//   pipeline_options:
+//   categories:
+//     - Filtering
+//     - Testing
+
 import (
 	"fmt"
 	"regexp"
