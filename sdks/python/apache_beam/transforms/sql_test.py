@@ -21,7 +21,8 @@
 
 # beam-playground:
 #   name: SQLTest
-#   description: Unit-test for the transforms that use the SQL Expansion service.
+#   description: Unit-test for the transforms that use
+#     the SQL Expansion service.
 #   multifile: false
 #   pipeline_options:
 #   categories:
