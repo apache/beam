@@ -16,6 +16,7 @@
 package xlang
 
 import (
+	"context"
 	"os"
 	"testing"
 	"time"
@@ -47,7 +48,9 @@ func TestAutomatedExpansionService(t *testing.T) {
 		t.Errorf("failed to start expansion service JAR, got %v", err)
 	}
 
-	conn, err := grpc.Dial("localhost:"+expansionPort, grpc.WithInsecure(), grpc.WithTimeout(15*time.Second))
+	ctx, canFunc := context.WithTimeout(context.Background(), 15*time.Second)
+	t.Cleanup(func() { canFunc() })
+	conn, err := grpc.DialContext(ctx, "localhost:"+expansionPort, grpc.WithInsecure())
 	if err != nil {
 		t.Fatalf("could not connect to port %v, got %v", expansionPort, err)
 	}
