@@ -19,7 +19,7 @@ package org.apache.beam.sdk.testing;
 
 // beam-playground:
 //   name: TestStreamTest
-//   description: Unit-test for TestStream example
+//   description: Unit-test for the TestStream example.
 //   multifile: false
 //   pipeline_options:
 //   categories:

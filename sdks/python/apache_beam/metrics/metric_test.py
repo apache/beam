@@ -19,7 +19,7 @@
 
 # beam-playground:
 #   name: MetricTest
-#   description: Unit-test for Metric example.
+#   description: Unit-test for the Metric example.
 #   multifile: false
 #   pipeline_options:
 #   categories:

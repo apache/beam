@@ -18,7 +18,7 @@ package ptest
 
 // beam-playground:
 //   name: PTest
-//   description: Contains utilities for pipeline unit testing
+//   description: Contains utilities for pipeline unit testing.
 //   multifile: false
 //   pipeline_options:
 //   categories:

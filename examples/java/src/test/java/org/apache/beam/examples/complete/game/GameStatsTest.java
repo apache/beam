@@ -19,7 +19,7 @@ package org.apache.beam.examples.complete.game;
 
 // beam-playground:
 //   name: GameStatsTest
-//   description: Unit-test for GameStats example
+//   description: Unit-test for the GameStats example.
 //   multifile: false
 //   pipeline_options:
 //   categories:

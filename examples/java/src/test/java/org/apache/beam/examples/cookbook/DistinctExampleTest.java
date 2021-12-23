@@ -19,7 +19,7 @@ package org.apache.beam.examples.cookbook;
 
 // beam-playground:
 //   name: DistinctExampleTest
-//   description: Unit-test for DistinctExample example
+//   description: Unit-test for the DistinctExample example.
 //   multifile: false
 //   pipeline_options:
 //   categories:

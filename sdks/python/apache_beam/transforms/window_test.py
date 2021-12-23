@@ -20,7 +20,7 @@
 
 # beam-playground:
 #   name: MetricTest
-#   description: Unit-test for Window example.
+#   description: Unit-test for the Window example.
 #   multifile: false
 #   pipeline_options:
 #   categories:

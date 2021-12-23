@@ -17,7 +17,7 @@ package beam_test
 
 // beam-playground:
 //   name: CombineTest
-//   description: Unit-test for Combine example
+//   description: Unit-test for the Combine example.
 //   multifile: false
 //   pipeline_options:
 //   categories:

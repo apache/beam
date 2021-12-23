@@ -17,7 +17,7 @@ package filter_test
 
 // beam-playground:
 //   name: DistinctTest
-//   description: Unit-test for Distinct example
+//   description: Unit-test for the Distinct example.
 //   multifile: false
 //   pipeline_options:
 //   categories:

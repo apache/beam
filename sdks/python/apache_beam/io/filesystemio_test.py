@@ -21,7 +21,7 @@
 
 # beam-playground:
 #   name: FileSystemIOTest
-#   description: Unit-test for FileSystemIO example.
+#   description: Unit-test for the FileSystemIO example.
 #   multifile: false
 #   pipeline_options:
 #   categories:

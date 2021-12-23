@@ -19,7 +19,7 @@ package org.apache.beam.sdk.io;
 
 // beam-playground:
 //   name: FileBasedSourceTest
-//   description: Unit-test for FileBasedSource example
+//   description: Unit-test for the FileBasedSource example.
 //   multifile: false
 //   pipeline_options:
 //   categories:

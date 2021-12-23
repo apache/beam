@@ -17,7 +17,7 @@ package symtab
 
 // beam-playground:
 //   name: SymtabTest
-//   description: Unit-test for Symtab example
+//   description: Unit-test for the Symtab example.
 //   multifile: false
 //   pipeline_options:
 //   categories:

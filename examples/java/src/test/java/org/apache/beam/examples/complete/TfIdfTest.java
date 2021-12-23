@@ -19,7 +19,7 @@ package org.apache.beam.examples.complete;
 
 // beam-playground:
 //   name: TfIdfTest
-//   description: Unit-test for TfIdf example
+//   description: Unit-test for the TfIdf example.
 //   multifile: false
 //   pipeline_options:
 //   categories:

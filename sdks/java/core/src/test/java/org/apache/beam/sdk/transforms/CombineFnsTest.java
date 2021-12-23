@@ -19,7 +19,7 @@ package org.apache.beam.sdk.transforms;
 
 // beam-playground:
 //   name: CombineFnsTest
-//   description: Unit-test for CombineFn example
+//   description: Unit-test for the CombineFn example.
 //   multifile: false
 //   pipeline_options:
 //   categories:

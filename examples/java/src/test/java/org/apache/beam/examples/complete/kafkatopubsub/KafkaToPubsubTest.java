@@ -19,7 +19,7 @@ package org.apache.beam.examples.complete.kafkatopubsub;
 
 // beam-playground:
 //   name: KafkaToPubsubTest
-//   description: Unit-test for KafkaToPubsub example
+//   description: Unit-test for the KafkaToPubsub example.
 //   multifile: false
 //   pipeline_options:
 //   categories:
