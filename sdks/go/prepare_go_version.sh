@@ -16,14 +16,10 @@
 #    limitations under the License.
 
 # This script sets the go version used by all Beam SDK scripts.
-# It requires an existing Go installation on the system, which
+# It requires an existing Go installation 1.16 or greater on the system, which
 # will be used to download specific versions of Go.
 #
-# The Go installation will use the local host platform, while the actual
-# go command will use the set GOOS and GOARCH env variables.
-#
-# Accepts the following optional flags, after which all following parameters
-# will be provided to the go version tool.
+# Accepts the following require flag:
 #    --version -> A string for a fully qualified go version, eg go1.16.5 or go1.18beta1
 #        The list of available versions are at https://go.dev/dl/ 
 
@@ -51,7 +47,7 @@ case $key in
         shift # past argument
         shift # past value
         ;;
-    *)  # unknown options are go tool args.
+    *)  # unknown args
         echo "prepare_go_version requires the --version flag. See https://go.dev/dl/ for available versions."
         exit 1
         ;;
@@ -68,8 +64,6 @@ echo "System Go installation: `which go` is `go version`; Preparing to use $GOBI
 
 # Ensure it's installed in the GOBIN directory, using the local host platform.
 GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH GOBIN=$GOBIN go install golang.org/dl/$GOVERS@latest
-
-LOCKFILE=$GOBIN/$GOVERS.lock
 
 # The download command isn't concurrency safe so prepare should be done at most once
 # per gogradle chain.

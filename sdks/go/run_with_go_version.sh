@@ -16,7 +16,7 @@
 #    limitations under the License.
 
 # This script sets the go version used by all Beam SDK scripts.
-# It requires an existing Go installation on the system, which
+# It requires an existing Go installation greater than 1.16 on the system, which
 # will be used to download specific versions of Go.
 #
 # The Go installation will use the local host platform, while the actual
