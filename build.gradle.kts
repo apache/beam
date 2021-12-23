@@ -317,6 +317,11 @@ task("pythonSparkPostCommit") {
   dependsOn(":sdks:python:test-suites:portable:py38:sparkValidatesRunner")
 }
 
+task("sparkValidatesPortableRunnerBatch") {
+  dependsOn(":runners:spark:2:job-server:validatesPortableRunnerBatch")
+  dependsOn(":runners:spark:3:job-server:validatesPortableRunnerBatch")
+}
+
 task("websitePreCommit") {
   dependsOn(":website:preCommit")
 }
