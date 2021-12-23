@@ -27,6 +27,7 @@ import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 
 const kTitleLength = 15;
+const kPrecompiledDelay = Duration(seconds: 1);
 const kTitle = 'Catalog';
 const kPipelineOptionsParseError =
     'Failed to parse pipeline options, please check the format (--key1 value1 --key2 value2)';
@@ -123,11 +124,7 @@ class PlaygroundState with ChangeNotifier {
     if (_selectedExample?.source == source &&
         _selectedExample?.outputs != null &&
         !_arePipelineOptionsChanges) {
-      _result = RunCodeResult(
-        status: RunCodeStatus.finished,
-        output: _selectedExample!.outputs,
-      );
-      notifyListeners();
+      _showPrecompiledResult();
     } else {
       final request = RunCodeRequestWrapper(
         code: source,
@@ -146,5 +143,19 @@ class PlaygroundState with ChangeNotifier {
 
   bool get _arePipelineOptionsChanges {
     return pipelineOptions != (_selectedExample?.pipelineOptions ?? '');
+  }
+
+  _showPrecompiledResult() async {
+    _result = RunCodeResult(
+      status: RunCodeStatus.preparation,
+    );
+    notifyListeners();
+    // add a little delay to improve user experience
+    await Future.delayed(kPrecompiledDelay);
+    _result = RunCodeResult(
+      status: RunCodeStatus.finished,
+      output: _selectedExample!.outputs,
+    );
+    notifyListeners();
   }
 }
