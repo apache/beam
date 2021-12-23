@@ -96,9 +96,11 @@ class LeaderBoardIT(unittest.TestCase):
     logging.debug(
         'Injecting %d game events to topic %s', message_count, topic.name)
 
-    for _ in range(message_count):
-      self.pub_client.publish(
+    for i in range(message_count):
+      future = self.pub_client.publish(
           topic.name, (self.INPUT_EVENT % self._test_timestamp).encode('utf-8'))
+      logging.debug(
+          'Published message %s - %d of %d', future.result(), i, message_count)
 
   def _cleanup_pubsub(self):
     test_utils.cleanup_subscriptions(self.sub_client, [self.input_sub])
@@ -154,12 +156,12 @@ class LeaderBoardIT(unittest.TestCase):
         self.test_pipeline.get_full_options_as_args(**extra_opts),
         save_main_session=False)
 
-  # Test using fewer events to be successful in all runners
+  # Test using fewer events to be successful in local runners
   @pytest.mark.examples_postcommit
   def test_basics(self):
     state_verifier = PipelineStateMatcher(PipelineState.RUNNING)
     EXPECTED_CHECKSUM = 'f3bc37a9581911f4288af5f3a70861d97265bf2f'
-    STOP_AFTER_SECS = 180
+    STOP_AFTER_SECS = 60 * 3
     INPUT_COUNT = 50
     success_condition = 'total_score=500 LIMIT 1'
     users_query = (
@@ -172,16 +174,6 @@ class LeaderBoardIT(unittest.TestCase):
     bq_users_verifier = BigqueryMatcher(
         self.project, users_query, EXPECTED_CHECKSUM, STOP_AFTER_SECS)
 
-    teams_query = (
-        'SELECT total_score FROM `%s.%s.%s` '
-        'WHERE %s' % (
-            self.project,
-            self.dataset_ref.dataset_id,
-            self.OUTPUT_TABLE_TEAMS,
-            success_condition))
-    bq_teams_verifier = BigqueryMatcher(
-        self.project, teams_query, EXPECTED_CHECKSUM, STOP_AFTER_SECS)
-
     extra_opts = {
         'allow_unsafe_triggers': True,
         'subscription': self.input_sub.name,
@@ -189,8 +181,7 @@ class LeaderBoardIT(unittest.TestCase):
         'topic': self.input_topic.name,
         'team_window_duration': 1,
         'wait_until_finish_duration': self.WAIT_UNTIL_FINISH_DURATION,
-        'on_success_matcher': all_of(
-            state_verifier, bq_users_verifier, bq_teams_verifier)
+        'on_success_matcher': all_of(state_verifier, bq_users_verifier)
     }
 
     # Register cleanup before pipeline execution.
