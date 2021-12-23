@@ -130,7 +130,6 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
-          ref: 'beam-12812-githubactions'
       - name: Install Java
         uses: actions/setup-java@v2
         with:
@@ -174,7 +173,6 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
-          ref: 'beam-12812-githubactions'
       - name: Authenticate on GCP
         uses: google-github-actions/setup-gcloud@master
         with:

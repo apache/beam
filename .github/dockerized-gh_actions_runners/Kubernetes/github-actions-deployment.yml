@@ -33,7 +33,7 @@ spec:
     spec:
       containers:
         - name: github-actions-runner
-          image: $IMAGE_URL:dev  #Replace IMAGE_URL for the corresponding image url
+          image: $IMAGE_URL:dev # replace variable manually
           securityContext:
             privileged: true
           envFrom:
@@ -42,8 +42,14 @@ spec:
           volumeMounts:
             - name: docker-sock
               mountPath:  /var/run/docker.sock
-          ports:
-            - containerPort: 80
+          resources:
+            requests:
+              memory: "1024Mi"
+              cpu: "2"
+          lifecycle:
+            preStop:
+              exec:
+                command: [./config.sh remove --token $GITHUB_TOKEN] # replace variable manually
       volumes:
         - name: docker-sock
           hostPath:
