@@ -55,7 +55,6 @@ dependencies:
   flutter_web_plugins:
     sdk: flutter
   aligned_dialog: ^0.0.6
-  shared_preferences: ^2.0.11
 
 dev_dependencies:
   flutter_test:

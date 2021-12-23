@@ -17,27 +17,16 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 const kFeedbackKey = 'feedback';
 
 class FeedbackState with ChangeNotifier {
-  late SharedPreferences _pref;
   bool? isEnjoying;
 
-  FeedbackState() {
-    _initPrefs();
-  }
-
-  _initPrefs() async {
-    _pref = await SharedPreferences.getInstance();
-    isEnjoying = _pref.getBool(kFeedbackKey);
-    notifyListeners();
-  }
+  FeedbackState();
 
   setEnjoying(bool isEnjoying) {
     this.isEnjoying = isEnjoying;
-    _pref.setBool(kFeedbackKey, isEnjoying);
     notifyListeners();
   }
 }
