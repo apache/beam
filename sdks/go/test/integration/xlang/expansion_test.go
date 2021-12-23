@@ -50,7 +50,7 @@ func TestAutomatedExpansionService(t *testing.T) {
 
 	ctx, canFunc := context.WithTimeout(context.Background(), 15*time.Second)
 	t.Cleanup(func() { canFunc() })
-	conn, err := grpc.DialContext(ctx, "localhost:"+expansionPort, grpc.WithInsecure())
+	conn, err := grpc.DialContext(ctx, "localhost:"+expansionPort, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
 		t.Fatalf("could not connect to port %v, got %v", expansionPort, err)
 	}
