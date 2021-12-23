@@ -19,8 +19,16 @@
 set -ex
 rm -rf /output/*
 
-export GO111MODULE=off
-go get $sdk_location
+# TODO(BEAM-13538): Replace w/current RC tag (eg v2.34.0_RC01 or similar) passed in from gradle.
+# Or that tag's commit for reproducible go-licenses.
+VERSION=master
+
+# Make a dummy dir for the go mod file project.
+mkdir dummy; cd dummy
+go mod init dummy.com/release
+
+# We just need to download the package, not build it.
+go get -d $sdk_location@$VERSION
 
 go-licenses save $sdk_location --save_path=/output/licenses
 go-licenses csv $sdk_location | tee /output/licenses/list.csv

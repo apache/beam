@@ -23,7 +23,7 @@ docker {
   dockerfile file('../Dockerfile')
   files '../get-licenses.sh'
   noCache false
-  buildArgs(['sdk_location': "github.com/apache/beam/sdks/${sdkName}/container"])
+  buildArgs(['sdk_location': "github.com/apache/beam/sdks/v2/${sdkName}/container"])
 }
 
 // The mkdir happens at configuration time to allow dockerRun volume to be declared.
