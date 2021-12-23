@@ -1044,7 +1044,7 @@ class BeamModulePlugin implements Plugin<Project> {
       }
       project.check.dependsOn project.javadoc
 
-      // Apply the eclipse plugis.  This adds the "eclipse" task and
+      // Apply the eclipse plugins.  This adds the "eclipse" task and
       // connects the apt-eclipse plugin to update the eclipse project files
       // with the instructions needed to run apt within eclipse to handle the AutoValue
       // and additional annotations
