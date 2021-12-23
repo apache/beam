@@ -67,7 +67,7 @@ class ExampleModel with Comparable<ExampleModel> {
 
   @override
   bool operator ==(Object other) =>
-      identical(this, other) || other is ExampleModel && path == other.path;
+      identical(this, other) || (other is ExampleModel && path == other.path);
 
   @override
   int get hashCode => path.hashCode;
