@@ -82,70 +82,68 @@ public class CoGbkResult {
       int inMemoryElementCount,
       int minElementsPerTag) {
     this.schema = schema;
-    valueMap = new ArrayList<>();
-    Iterator<RawUnionValue> taggedIter = taggedValues.iterator();
+    List<List<Object>> valuesByTag = new ArrayList<>();
+    for (int unionTag = 0; unionTag < schema.size(); unionTag++) {
+      valuesByTag.add(new ArrayList<>());
+    }
 
-    if (taggedIter instanceof Reiterator) {
+    // Demultiplex the first imMemoryElementCount tagged union values
+    // according to their tag.
+    final Iterator<RawUnionValue> taggedIter = taggedValues.iterator();
+    int elementCount = 0;
+    while (taggedIter.hasNext()) {
+      if (elementCount++ >= inMemoryElementCount && taggedIter instanceof Reiterator) {
+        // Let the tails be lazy.
+        break;
+      }
+      RawUnionValue value = taggedIter.next();
+      // Make sure the given union tag has a corresponding tuple tag in the
+      // schema.
+      int unionTag = value.getUnionTag();
+      if (schema.size() <= unionTag) {
+        throw new IllegalStateException(
+                "union tag " + unionTag + " has no corresponding tuple tag in the result schema");
+      }
+      valuesByTag.get(unionTag).add(value.getValue());
+    }
 
-      // Cache at least inMemoryElementCount elements.
-      Supplier<Boolean> useCache =
-          new Supplier<Boolean>() {
-            int count = 0;
-
-            @Override
-            public Boolean get() {
-              count += 1;
-              if (count == inMemoryElementCount + 1) {
-                LOG.info(
-                    "CoGbkResult has more than {} elements, reiteration (which may be slow) is required.",
-                    inMemoryElementCount);
-              }
-              return count <= inMemoryElementCount;
-            }
-          };
+    if (taggedIter.hasNext()) {
+      // If we get here, there were more elements than we can afford to
+      // keep in memory, so we copy the re-iterable of remaining items
+      // and append filtered views to each of the sorted lists computed earlier.
+      LOG.info(
+              "CoGbkResult has more than {} elements, reiteration (which may be slow) is required.",
+              inMemoryElementCount);
+      final Reiterator<RawUnionValue> tail = (Reiterator<RawUnionValue>) taggedIter;
 
       // As we iterate over this re-iterable (e.g. while iterating for one tag) we populate values
       // for other observed tags, if any.
       ObservingReiterator<RawUnionValue> tip =
-          new ObservingReiterator<>(
-              (Reiterator<RawUnionValue>) taggedIter,
-              new ObservingReiterator.Observer<RawUnionValue>() {
-                @Override
-                public void observeAt(ObservingReiterator<RawUnionValue> reiterator) {
-                  ((TagIterable<?>) valueMap.get(reiterator.peek().getUnionTag()))
-                      .offer(reiterator);
-                }
+              new ObservingReiterator<>(
+                      (Reiterator<RawUnionValue>) taggedIter,
+                      new ObservingReiterator.Observer<RawUnionValue>() {
+                        @Override
+                        public void observeAt(ObservingReiterator<RawUnionValue> reiterator) {
+                          ((TagIterable<?>) valueMap.get(reiterator.peek().getUnionTag()))
+                                  .offer(reiterator);
+                        }
 
-                @Override
-                public void done() {
-                  // Inform all tags that we have reached the end of the iterable, so anything that
-                  // can be observed has been observed.
-                  for (Iterable<?> iter : valueMap) {
-                    ((TagIterable<?>) iter).finish();
-                  }
-                }
-              });
+                        @Override
+                        public void done() {
+                          // Inform all tags that we have reached the end of the iterable, so anything that
+                          // can be observed has been observed.
+                          for (Iterable<?> iter : valueMap) {
+                            ((TagIterable<?>) iter).finish();
+                          }
+                        }
+                      });
 
+      valueMap = new ArrayList<>();
       for (int unionTag = 0; unionTag < schema.size(); unionTag++) {
-        valueMap.add(new TagIterable<>(unionTag, minElementsPerTag, useCache, tip));
+        valueMap.add(new TagIterable<Object>(valuesByTag.get(unionTag), unionTag, minElementsPerTag, tip));
       }
-
     } else {
-      for (int unionTag = 0; unionTag < schema.size(); unionTag++) {
-        valueMap.add(new ArrayList<>());
-      }
-      while (taggedIter.hasNext()) {
-        RawUnionValue value = taggedIter.next();
-        // Make sure the given union tag has a corresponding tuple tag in the
-        // schema.
-        int unionTag = value.getUnionTag();
-        if (schema.size() <= unionTag) {
-          throw new IllegalStateException(
-              "union tag " + unionTag + " has no corresponding tuple tag in the result schema");
-        }
-        List<Object> valueList = (List<Object>) valueMap.get(unionTag);
-        valueList.add(value.getValue());
-      }
+      valueMap = (List) valuesByTag;
     }
   }
 
@@ -590,21 +588,20 @@ public class CoGbkResult {
     boolean finished;
 
     public TagIterable(
+        List<T> head,
         int tag,
         int cacheSize,
-        Supplier<Boolean> forceCache,
         ObservingReiterator<RawUnionValue> tip) {
       this.tag = tag;
       this.cacheSize = cacheSize;
-      this.forceCache = forceCache;
-      this.head = new ArrayList<>();
+      this.head = head;
       this.tip = tip;
     }
 
     void offer(ObservingReiterator<RawUnionValue> tail) {
       assert !finished;
       assert tail.peek().getUnionTag() == tag;
-      if (forceCache.get() || head.size() < cacheSize) {
+      if (head.size() < cacheSize) {
         head.add((T) tail.peek().getValue());
       } else if (this.tail == null) {
         this.tail = tail.copy();

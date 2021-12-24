@@ -65,7 +65,7 @@ public class CoGbkResultTest {
     int valueLen = 7;
     TestUnionValues values = new TestUnionValues(0, 1, 0, 3, 0, 3, 3);
     CoGbkResult result = new CoGbkResult(createSchema(5), values, cacheSize, 0);
-    assertThat(values.maxPos(), equalTo(0));
+    assertThat(values.maxPos(), equalTo(Math.min(cacheSize, valueLen)));
     assertThat(result.getAll(new TupleTag<>("tag0")), contains(0, 2, 4));
     assertThat(values.maxPos(), equalTo(valueLen));
     assertThat(result.getAll(new TupleTag<>("tag3")), contains(3, 5, 6));
