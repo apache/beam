@@ -352,7 +352,8 @@ public class TestPubsub implements TestRule {
                 new PubsubMessage(
                     message.getData().toByteArray(),
                     message.getAttributesMap(),
-                    message.getMessageId()))
+                    message.getMessageId(),
+                    null))
         .collect(Collectors.toList());
   }
 

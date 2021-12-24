@@ -22,8 +22,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.io.IOException;
 import javax.naming.SizeLimitExceededException;
-import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -31,13 +29,12 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.joda.time.Instant;
 
 public class PreparePubsubWrite<InputT, DestinationT>
-    extends PTransform<PCollection<InputT>, PCollection<KV<PubsubIO.PubsubTopic, PubsubMessage>>> {
+    extends PTransform<PCollection<InputT>, PCollection<PubsubMessage>> {
   protected PubsubDynamicDestinations<InputT, DestinationT> dynamicDestinations;
   protected SerializableFunction<InputT, PubsubMessage> formatFunction;
   // private Map<DestinationT, PubsubIO.PubsubTopic> destinationTopics;
@@ -58,17 +55,13 @@ public class PreparePubsubWrite<InputT, DestinationT>
   }
 
   @Override
-  public PCollection<KV<PubsubIO.PubsubTopic, PubsubMessage>> expand(PCollection<InputT> input) {
+  public PCollection<PubsubMessage> expand(PCollection<InputT> input) {
     return input
         .apply(ParDo.of(new PreparePubsubWriteDoFn()))
-        .setCoder(
-            KvCoder.of(
-                SerializableCoder.of(PubsubIO.PubsubTopic.class),
-                PubsubMessageWithAttributesAndMessageIdCoder.of()));
+        .setCoder(PubsubMessageWithAttributesAndMessageIdCoder.of());
   }
 
-  public class PreparePubsubWriteDoFn
-      extends DoFn<InputT, KV<PubsubIO.PubsubTopic, PubsubMessage>> {
+  public class PreparePubsubWriteDoFn extends DoFn<InputT, PubsubMessage> {
     @ProcessElement
     public void processElement(
         ProcessContext context,
@@ -94,7 +87,7 @@ public class PreparePubsubWrite<InputT, DestinationT>
       } catch (SizeLimitExceededException e) {
         throw new IllegalArgumentException(e);
       }
-      context.output(KV.of(topic, outputValue));
+      context.output(outputValue);
     }
 
     private PubsubIO.PubsubTopic getTopic(
@@ -112,8 +105,8 @@ public class PreparePubsubWrite<InputT, DestinationT>
             dynamicDestinations,
             element);
         PubsubIO.PubsubTopic topic = dynamicDestinations.getTopic(topicDestination);
-        /* destinationTopics.computeIfAbsent(
-        topicDestination, elem -> dynamicDestinations.getTopic(elem));*/
+      /* destinationTopics.computeIfAbsent(
+      topicDestination, elem -> dynamicDestinations.getTopic(elem));*/
         return topic;
       }
     }

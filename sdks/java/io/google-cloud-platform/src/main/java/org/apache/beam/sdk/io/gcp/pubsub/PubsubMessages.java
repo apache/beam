@@ -46,7 +46,7 @@ public final class PubsubMessages {
 
   public static PubsubMessage fromProto(com.google.pubsub.v1.PubsubMessage input) {
     return new PubsubMessage(
-        input.getData().toByteArray(), input.getAttributesMap(), input.getMessageId());
+        input.getData().toByteArray(), input.getAttributesMap(), input.getMessageId(), null);
   }
 
   // Convert the PubsubMessage to a PubsubMessage proto, then return its serialized representation.
@@ -60,11 +60,10 @@ public final class PubsubMessages {
 
   // Convert the PubsubMessage to a PubsubMessage proto, then return its serialized representation.
   public static class ParsePayloadAsPubsubMessageProtoWithTopic
-      implements SerializableFunction<
-          KV<PubsubIO.PubsubTopic, PubsubMessage>, KV<PubsubIO.PubsubTopic, byte[]>> {
+      implements SerializableFunction<PubsubMessage, KV<String, byte[]>> {
     @Override
-    public KV<PubsubIO.PubsubTopic, byte[]> apply(KV<PubsubIO.PubsubTopic, PubsubMessage> input) {
-      return KV.of(input.getKey(), toProto(input.getValue()).toByteArray());
+    public KV<String, byte[]> apply(PubsubMessage input) {
+      return KV.of(input.getTopic(), toProto(input).toByteArray());
     }
   }
 
@@ -73,6 +72,7 @@ public final class PubsubMessages {
       implements SerializableFunction<KV<T, PubsubMessage>, KV<T, byte[]>> {
     @Override
     public KV<T, byte[]> apply(KV<T, PubsubMessage> input) {
+      System.out.println(input.getKey() + " this is the topic in the parse value payload");
       return KV.of(input.getKey(), toProto(input.getValue()).toByteArray());
     }
   }

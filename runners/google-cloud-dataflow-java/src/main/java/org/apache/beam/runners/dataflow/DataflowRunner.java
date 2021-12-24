@@ -1698,7 +1698,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    * instead defer to Windmill's implementation.
    */
   private static class StreamingPubsubIOWrite
-      extends PTransform<PCollection<KV<PubsubIO.PubsubTopic, PubsubMessage>>, PDone> {
+      extends PTransform<PCollection<PubsubMessage>, PDone> {
 
     private final PubsubUnboundedSink transform;
 
@@ -1712,7 +1712,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     @Override
-    public PDone expand(PCollection<KV<PubsubIO.PubsubTopic, PubsubMessage>> input) {
+    public PDone expand(PCollection<PubsubMessage> input) {
       return PDone.in(input.getPipeline());
     }
 
@@ -2236,8 +2236,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   private static class StreamingPubsubIOWriteOverrideFactory
-      implements PTransformOverrideFactory<
-          PCollection<KV<PubsubIO.PubsubTopic, PubsubMessage>>, PDone, PubsubUnboundedSink> {
+      implements PTransformOverrideFactory<PCollection<PubsubMessage>, PDone, PubsubUnboundedSink> {
 
     private final DataflowRunner runner;
 
@@ -2246,13 +2245,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     @Override
-    public PTransformReplacement<PCollection<KV<PubsubIO.PubsubTopic, PubsubMessage>>, PDone>
-        getReplacementTransform(
-            AppliedPTransform<
-                    PCollection<KV<PubsubIO.PubsubTopic, PubsubMessage>>,
-                    PDone,
-                    PubsubUnboundedSink>
-                transform) {
+    public PTransformReplacement<PCollection<PubsubMessage>, PDone> getReplacementTransform(
+        AppliedPTransform<PCollection<PubsubMessage>, PDone, PubsubUnboundedSink> transform) {
       return PTransformReplacement.of(
           PTransformReplacements.getSingletonMainInput(transform),
           new StreamingPubsubIOWrite(runner, transform.getTransform()));

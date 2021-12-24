@@ -52,6 +52,6 @@ public class PubsubMessageWithMessageIdCoder extends CustomCoder<PubsubMessage> 
   public PubsubMessage decode(InputStream inStream) throws IOException {
     byte[] payload = PAYLOAD_CODER.decode(inStream);
     String messageId = MESSAGE_ID_CODER.decode(inStream);
-    return new PubsubMessage(payload, ImmutableMap.of(), messageId);
+    return new PubsubMessage(payload, ImmutableMap.of(), messageId, null);
   }
 }

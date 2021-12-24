@@ -42,6 +42,8 @@ public class PubsubMessageWithAttributesAndMessageIdCoder extends CustomCoder<Pu
   // A message's messageId cannot be null
   private static final Coder<String> MESSAGE_ID_CODER = NullableCoder.of(StringUtf8Coder.of());
 
+  private static final Coder<String> TOPIC_CODER = NullableCoder.of(StringUtf8Coder.of());
+
   public static Coder<PubsubMessage> of(TypeDescriptor<PubsubMessage> ignored) {
     return of();
   }
@@ -55,6 +57,7 @@ public class PubsubMessageWithAttributesAndMessageIdCoder extends CustomCoder<Pu
     PAYLOAD_CODER.encode(value.getPayload(), outStream);
     ATTRIBUTES_CODER.encode(value.getAttributeMap(), outStream);
     MESSAGE_ID_CODER.encode(value.getMessageId(), outStream);
+    TOPIC_CODER.encode(value.getTopic(), outStream);
   }
 
   @Override
@@ -62,6 +65,7 @@ public class PubsubMessageWithAttributesAndMessageIdCoder extends CustomCoder<Pu
     byte[] payload = PAYLOAD_CODER.decode(inStream);
     Map<String, String> attributes = ATTRIBUTES_CODER.decode(inStream);
     String messageId = MESSAGE_ID_CODER.decode(inStream);
-    return new PubsubMessage(payload, attributes, messageId);
+    String topic = TOPIC_CODER.decode(inStream);
+    return new PubsubMessage(payload, attributes, messageId, topic);
   }
 }

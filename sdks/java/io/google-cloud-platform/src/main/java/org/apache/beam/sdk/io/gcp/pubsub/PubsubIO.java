@@ -58,7 +58,6 @@ import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.WithFailures;
@@ -1209,20 +1208,20 @@ public class PubsubIO {
             "need to set the topic or dynamic destination of a PubsubIO.Write transform");
       }
 
-      PCollection<KV<PubsubTopic, PubsubMessage>> pubsubMessages =
+      PCollection<PubsubMessage> pubsubMessages =
           input.apply(
               new PreparePubsubWrite<>(
                   getDynamicDestinations(), getFormatFn(), getTopicProvider()));
 
       switch (input.isBounded()) {
         case BOUNDED:
-          pubsubMessages.apply(
+          /*pubsubMessages.apply(
               ParDo.of(
                   new PubsubBoundedWriter(
                       MoreObjects.firstNonNull(getMaxBatchSize(), MAX_PUBLISH_BATCH_SIZE),
                       MoreObjects.firstNonNull(
                           getMaxBatchBytesSize(), MAX_PUBLISH_BATCH_BYTE_SIZE_DEFAULT))));
-          return PDone.in(input.getPipeline());
+          return PDone.in(input.getPipeline());*/
         case UNBOUNDED:
           return pubsubMessages.apply(
               new PubsubUnboundedSink(
