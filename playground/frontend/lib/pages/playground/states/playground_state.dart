@@ -78,17 +78,8 @@ class PlaygroundState with ChangeNotifier {
     notifyListeners();
   }
 
-  setSdk(SDK sdk, Map<SDK, ExampleModel>? defaultExamplesMap) {
+  setSdk(SDK sdk) {
     _sdk = sdk;
-    setExample(
-      defaultExamplesMap![sdk] ??
-          ExampleModel(
-            name: kTitle,
-            path: '',
-            description: '',
-            type: ExampleType.example,
-          ),
-    );
     notifyListeners();
   }
 

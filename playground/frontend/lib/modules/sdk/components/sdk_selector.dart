@@ -25,10 +25,11 @@ import 'package:playground/modules/sdk/models/sdk.dart';
 import 'package:playground/pages/playground/states/examples_state.dart';
 import 'package:provider/provider.dart';
 
-typedef SetSdk = void Function(SDK sdk, Map<SDK, ExampleModel>?);
+typedef SetSdk = void Function(SDK sdk);
 typedef SetExample = void Function(ExampleModel example);
 
 const kSdkSelectorLabel = 'Select SDK Dropdown';
+const kEmptyExampleName = 'Catalog';
 
 const double kWidth = 150;
 const double kHeight = 172;
@@ -65,7 +66,16 @@ class SDKSelector extends StatelessWidget {
                     sdk: value,
                     onSelect: () {
                       close();
-                      setSdk(value, state.defaultExamplesMap);
+                      setSdk(value);
+                      setExample(
+                        state.defaultExamplesMap![value] ??
+                            ExampleModel(
+                              name: kEmptyExampleName,
+                              path: '',
+                              description: '',
+                              type: ExampleType.example,
+                            ),
+                      );
                     },
                   ),
                 ),
