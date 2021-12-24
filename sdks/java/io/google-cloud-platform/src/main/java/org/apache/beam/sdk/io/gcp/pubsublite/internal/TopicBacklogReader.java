@@ -25,7 +25,7 @@ import com.google.cloud.pubsublite.proto.ComputeMessageStatsResponse;
  * The TopicBacklogReader uses the TopicStats API to aggregate the backlog, or the distance between
  * the current cursor and HEAD for a single {subscription, partition} pair.
  */
-interface TopicBacklogReader {
+interface TopicBacklogReader extends AutoCloseable {
   /**
    * Compute and aggregate message statistics for message between the provided start offset and
    * HEAD. This method is blocking.
@@ -35,4 +35,7 @@ interface TopicBacklogReader {
    *     backlog.
    */
   ComputeMessageStatsResponse computeMessageStats(Offset offset) throws ApiException;
+
+  @Override
+  void close();
 }

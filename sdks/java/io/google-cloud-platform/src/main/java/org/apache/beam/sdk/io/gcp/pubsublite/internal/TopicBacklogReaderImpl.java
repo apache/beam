@@ -28,13 +28,13 @@ import com.google.cloud.pubsublite.internal.TopicStatsClient;
 import com.google.cloud.pubsublite.proto.ComputeMessageStatsResponse;
 
 final class TopicBacklogReaderImpl implements TopicBacklogReader {
-  private final TopicStatsClient unownedClient;
+  private final TopicStatsClient client;
   private final TopicPath topicPath;
   private final Partition partition;
 
   public TopicBacklogReaderImpl(
-      TopicStatsClient unownedClient, TopicPath topicPath, Partition partition) {
-    this.unownedClient = unownedClient;
+      TopicStatsClient client, TopicPath topicPath, Partition partition) {
+    this.client = client;
     this.topicPath = topicPath;
     this.partition = partition;
   }
@@ -43,11 +43,16 @@ final class TopicBacklogReaderImpl implements TopicBacklogReader {
   @SuppressWarnings("assignment.type.incompatible")
   public ComputeMessageStatsResponse computeMessageStats(Offset offset) throws ApiException {
     try {
-      return unownedClient
+      return client
           .computeMessageStats(topicPath, partition, offset, Offset.of(Integer.MAX_VALUE))
           .get(1, MINUTES);
     } catch (Throwable t) {
       throw toCanonical(t).underlying;
     }
+  }
+
+  @Override
+  public void close() {
+    client.close();
   }
 }
