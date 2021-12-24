@@ -255,6 +255,7 @@ def _validate(tag: dict, supported_categories: List[str]) -> bool:
       In case tag is not valid, False
   """
   valid = True
+  # check that all fields exist and they have no empty value
   for field in fields(TagFields):
     if field.default not in tag:
       logging.error(
@@ -274,6 +275,10 @@ def _validate(tag: dict, supported_categories: List[str]) -> bool:
           field.default.__str__())
       valid = False
 
+  if valid is False:
+    return valid
+
+  # check that multifile's value is boolean
   multifile = tag.get(TagFields.multifile)
   if str(multifile).lower() not in ["true", "false"]:
     logging.error(
@@ -283,6 +288,7 @@ def _validate(tag: dict, supported_categories: List[str]) -> bool:
         str(multifile))
     valid = False
 
+  # check that categories' value is a list of supported categories
   categories = tag.get(TagFields.categories)
   if not isinstance(categories, list):
     logging.error(
