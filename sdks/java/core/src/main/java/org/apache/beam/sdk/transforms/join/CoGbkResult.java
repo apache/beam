@@ -102,7 +102,7 @@ public class CoGbkResult {
       int unionTag = value.getUnionTag();
       if (schema.size() <= unionTag) {
         throw new IllegalStateException(
-                "union tag " + unionTag + " has no corresponding tuple tag in the result schema");
+            "union tag " + unionTag + " has no corresponding tuple tag in the result schema");
       }
       valuesByTag.get(unionTag).add(value.getValue());
     }
@@ -112,35 +112,36 @@ public class CoGbkResult {
       // keep in memory, so we copy the re-iterable of remaining items
       // and append filtered views to each of the sorted lists computed earlier.
       LOG.info(
-              "CoGbkResult has more than {} elements, reiteration (which may be slow) is required.",
-              inMemoryElementCount);
+          "CoGbkResult has more than {} elements, reiteration (which may be slow) is required.",
+          inMemoryElementCount);
       final Reiterator<RawUnionValue> tail = (Reiterator<RawUnionValue>) taggedIter;
 
       // As we iterate over this re-iterable (e.g. while iterating for one tag) we populate values
       // for other observed tags, if any.
       ObservingReiterator<RawUnionValue> tip =
-              new ObservingReiterator<>(
-                      (Reiterator<RawUnionValue>) taggedIter,
-                      new ObservingReiterator.Observer<RawUnionValue>() {
-                        @Override
-                        public void observeAt(ObservingReiterator<RawUnionValue> reiterator) {
-                          ((TagIterable<?>) valueMap.get(reiterator.peek().getUnionTag()))
-                                  .offer(reiterator);
-                        }
+          new ObservingReiterator<>(
+              (Reiterator<RawUnionValue>) taggedIter,
+              new ObservingReiterator.Observer<RawUnionValue>() {
+                @Override
+                public void observeAt(ObservingReiterator<RawUnionValue> reiterator) {
+                  ((TagIterable<?>) valueMap.get(reiterator.peek().getUnionTag()))
+                      .offer(reiterator);
+                }
 
-                        @Override
-                        public void done() {
-                          // Inform all tags that we have reached the end of the iterable, so anything that
-                          // can be observed has been observed.
-                          for (Iterable<?> iter : valueMap) {
-                            ((TagIterable<?>) iter).finish();
-                          }
-                        }
-                      });
+                @Override
+                public void done() {
+                  // Inform all tags that we have reached the end of the iterable, so anything that
+                  // can be observed has been observed.
+                  for (Iterable<?> iter : valueMap) {
+                    ((TagIterable<?>) iter).finish();
+                  }
+                }
+              });
 
       valueMap = new ArrayList<>();
       for (int unionTag = 0; unionTag < schema.size(); unionTag++) {
-        valueMap.add(new TagIterable<Object>(valuesByTag.get(unionTag), unionTag, minElementsPerTag, tip));
+        valueMap.add(
+            new TagIterable<Object>(valuesByTag.get(unionTag), unionTag, minElementsPerTag, tip));
       }
     } else {
       valueMap = (List) valuesByTag;
@@ -588,10 +589,7 @@ public class CoGbkResult {
     boolean finished;
 
     public TagIterable(
-        List<T> head,
-        int tag,
-        int cacheSize,
-        ObservingReiterator<RawUnionValue> tip) {
+        List<T> head, int tag, int cacheSize, ObservingReiterator<RawUnionValue> tip) {
       this.tag = tag;
       this.cacheSize = cacheSize;
       this.head = head;
