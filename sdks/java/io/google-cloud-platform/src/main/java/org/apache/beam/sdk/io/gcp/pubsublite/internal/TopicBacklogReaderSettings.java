@@ -17,32 +17,25 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 
-import static java.util.concurrent.TimeUnit.MINUTES;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
-
 import com.google.api.gax.rpc.ApiException;
 import com.google.auto.value.AutoValue;
-import com.google.cloud.pubsublite.AdminClient;
-import com.google.cloud.pubsublite.AdminClientSettings;
+import com.google.cloud.pubsublite.CloudRegion;
 import com.google.cloud.pubsublite.Partition;
-import com.google.cloud.pubsublite.SubscriptionPath;
 import com.google.cloud.pubsublite.TopicPath;
-import com.google.cloud.pubsublite.internal.ExtractStatus;
 import com.google.cloud.pubsublite.internal.TopicStatsClient;
 import com.google.cloud.pubsublite.internal.TopicStatsClientSettings;
 import java.io.Serializable;
-import java.util.concurrent.ExecutionException;
-import javax.annotation.Nonnull;
+import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Ticker;
 
 @AutoValue
 abstract class TopicBacklogReaderSettings implements Serializable {
   private static final long serialVersionUID = -4001752066450248673L;
 
-  /**
-   * The topic path for this backlog reader. Either topicPath or subscriptionPath must be set. If
-   * both are set, subscriptionPath will be ignored.
-   */
+  private static final ConcurrentHashMap<CloudRegion, TopicStatsClient> CLIENTS =
+      new ConcurrentHashMap<>();
+
+  /** The topic path for this backlog reader. */
   abstract TopicPath topicPath();
 
   abstract Partition partition();
@@ -57,37 +50,21 @@ abstract class TopicBacklogReaderSettings implements Serializable {
     // Required parameters.
     abstract Builder setTopicPath(TopicPath topicPath);
 
-    @SuppressWarnings("assignment.type.incompatible")
-    Builder setTopicPathFromSubscriptionPath(SubscriptionPath subscriptionPath)
-        throws ApiException {
-      try (AdminClient adminClient =
-          AdminClient.create(
-              AdminClientSettings.newBuilder()
-                  .setRegion(subscriptionPath.location().extractRegion())
-                  .build())) {
-        return setTopicPath(
-            TopicPath.parse(
-                adminClient.getSubscription(subscriptionPath).get(1, MINUTES).getTopic()));
-      } catch (ExecutionException e) {
-        @Nonnull Throwable cause = checkNotNull(e.getCause());
-        throw ExtractStatus.toCanonical(cause).underlying;
-      } catch (Throwable t) {
-        throw ExtractStatus.toCanonical(t).underlying;
-      }
-    }
-
     abstract Builder setPartition(Partition partition);
 
     abstract TopicBacklogReaderSettings build();
   }
 
+  private TopicStatsClient getClient() {
+    return CLIENTS.computeIfAbsent(
+        topicPath().location().extractRegion(),
+        region ->
+            TopicStatsClient.create(
+                TopicStatsClientSettings.newBuilder().setRegion(region).build()));
+  }
+
   TopicBacklogReader instantiate() throws ApiException {
-    TopicStatsClientSettings settings =
-        TopicStatsClientSettings.newBuilder()
-            .setRegion(topicPath().location().extractRegion())
-            .build();
-    TopicBacklogReader impl =
-        new TopicBacklogReaderImpl(TopicStatsClient.create(settings), topicPath(), partition());
+    TopicBacklogReader impl = new TopicBacklogReaderImpl(getClient(), topicPath(), partition());
     return new LimitingTopicBacklogReader(impl, Ticker.systemTicker());
   }
 }
