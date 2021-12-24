@@ -23,7 +23,11 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.function.Consumer;
+
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
@@ -417,6 +421,267 @@ public class CoGbkResult {
     @Override
     public void remove() {
       throw new UnsupportedOperationException();
+    }
+  }
+
+  private static class ObservingReiterator<T> implements Reiterator<T> {
+
+    public interface Observer<T> {
+      void observeAt(ObservingReiterator<T> reiterator);
+      void done();
+    }
+
+    private final PeekingReiterator<IndexingReiterator.Indexed<T>> underlying;
+    private Observer<T> observer;
+    private final int[] lastObserved;
+    private final boolean[] doneHasRun;
+
+    public ObservingReiterator(Reiterator<T> underlying, Observer<T> observer) {
+      this(new PeekingReiterator<>(new IndexingReiterator<>(underlying)), observer, new int[] {-1}, new boolean[] {false});
+    }
+
+    private ObservingReiterator(PeekingReiterator<IndexingReiterator.Indexed<T>> underlying, Observer<T> observer, int[] lastObserved, boolean[] doneHasRun) {
+      this.underlying = underlying;
+      this.observer = observer;
+      this.lastObserved = lastObserved;
+      this.doneHasRun = doneHasRun;
+    }
+
+    @Override
+    public Reiterator<T> copy() {
+      return new ObservingReiterator<T>(underlying.copy(), observer, lastObserved, doneHasRun);
+    }
+
+    @Override
+    public boolean hasNext() {
+      if (doneHasRun[0]) {
+        return false;
+      } else {
+        boolean hasNext = underlying.hasNext();
+        if (hasNext) {
+          observer.done();
+          doneHasRun[0] = true;
+        }
+        return hasNext;
+      }
+    }
+
+    @Override
+    public T next() {
+      peek();  // trigger observation before incrementing
+      return underlying.next().value;
+    }
+
+    public T peek() {
+      IndexingReiterator.Indexed<T> next = underlying.peek();
+      if (next.index > lastObserved[0]) {
+        assert next.index == lastObserved[0] + 1;
+        lastObserved[0] = next.index;
+        observer.observeAt(this);
+      }
+      return next.value;
+    }
+  }
+
+  private static class IndexingReiterator<T> implements Reiterator<IndexingReiterator.Indexed<T>> {
+
+    private Reiterator<T> underlying;
+    private int index;
+
+    public IndexingReiterator(Reiterator<T> underlying) {
+      this(underlying, 0);
+    }
+
+    public IndexingReiterator(Reiterator<T> underlying, int start) {
+      this.underlying = underlying;
+      this.index = start;
+    }
+
+    @Override
+    public IndexingReiterator<T> copy() {
+      return new IndexingReiterator(underlying.copy(), index);
+    }
+
+    @Override
+    public boolean hasNext() {
+      return underlying.hasNext();
+    }
+
+    @Override
+    public Indexed<T> next() {
+      return new Indexed<T>(index++, underlying.next());
+    }
+
+    public static class Indexed<T> {
+      public final int index;
+      public final T value;
+      public Indexed(int index, T value) {
+        this.index = index;
+        this.value = value;
+      }
+    }
+  }
+
+  private static class PeekingReiterator<T> implements Reiterator<T> {
+    private Reiterator<T> underlying;
+    private T next;
+    private boolean nextIsValid;
+
+    public PeekingReiterator(Reiterator<T> underlying) {
+      this(underlying, null, false);
+    }
+
+    private PeekingReiterator(Reiterator<T> underlying, T next, boolean nextIsValid) {
+      this.underlying = underlying;
+      this.next = next;
+      this.nextIsValid = nextIsValid;
+    }
+
+    @Override
+    public PeekingReiterator<T> copy() {
+      return new PeekingReiterator(underlying.copy(), next, nextIsValid);
+    }
+
+    @Override
+    public boolean hasNext() {
+      return nextIsValid || underlying.hasNext();
+    }
+
+    @Override
+    public T next() {
+      if (nextIsValid) {
+        nextIsValid = false;
+        return next;
+      } else {
+        return underlying.next();
+      }
+    }
+
+    public T peek() {
+      if (!nextIsValid) {
+        next = underlying.next();
+        nextIsValid = true;
+      }
+      return next;
+    }
+  }
+
+  private static class CachingFilteringIterable<T> implements Iterable<T> {
+    int tag;
+    int cacheSize;
+
+    PeekingReiterator<RawUnionValue> tip;
+
+    List<T> head;
+    Reiterator<RawUnionValue> tail;
+    boolean finished;
+
+    // Note that while we don't use the fact that tip is an ObservingReiterator, this class depends on iterating over
+    // it having the correct side effects of calling offer.
+    public CachingFilteringIterable(int tag, int cacheSize, ObservingReiterator<RawUnionValue> tip) {
+      this.tag = tag;
+      this.cacheSize = cacheSize;
+      this.head = new ArrayList<>();
+      this.tip = new PeekingReiterator<>(tip);
+    }
+
+    void offer(PeekingReiterator<RawUnionValue> tail) {
+      assert !finished;
+      assert tail.peek().getUnionTag() == tag;
+      if (head.size() < cacheSize) {
+        head.add((T) tail.peek().getValue());
+      } else if (this.tail == null) {
+        this.tail = tail.copy();
+      }
+    }
+
+    void finish() {
+      finished = true;
+    }
+
+    boolean fullyCached() {
+      return finished && tail == null;
+    }
+
+    void seek(int tag) {
+      while (tip.hasNext() && tip.peek().getUnionTag() != tag) {
+        tip.next();
+      }
+    }
+
+    @Override
+    public Iterator<T> iterator() {
+      return new Iterator<T>() {
+
+        boolean isDone;
+        boolean advanced;
+        T next;
+
+        int index = -1;
+        Iterator<T> tailIter;
+
+        @Override
+        public boolean hasNext() {
+          if (!advanced) {
+            advance();
+          }
+          return !isDone;
+        }
+
+        @Override
+        public T next() {
+          if (!advanced) {
+            advance();
+          }
+          if (isDone) {
+            throw new NoSuchElementException();
+          }
+          advanced = false;
+          return next;
+        }
+
+        private void advance() {
+          assert !advanced;
+          assert !isDone;
+          advanced = true;
+
+          index++;
+          if (maybeAdvance()) {
+            return;
+          }
+
+          tip.next();
+          seek(tag);
+          if (index >= head.size() && tailIter == null && !fullyCached()) {
+            assert tail != null;
+            tailIter = Iterators.transform(
+                    Iterators.filter(tail.copy(),
+                            taggedUnion -> taggedUnion.getUnionTag() == tag),
+                    taggedUnion -> (T) taggedUnion.getValue());
+          }
+
+          assert maybeAdvance();
+        }
+
+        private boolean maybeAdvance() {
+          if (index < head.size()) {
+            assert tailIter == null;
+            next = head.get(index);
+            return true;
+          } else if (tailIter != null) {
+            if (tailIter.hasNext()) {
+              next = tailIter.next();
+            } else {
+              isDone = true;
+            }
+            return true;
+          } else if (fullyCached()) {
+            isDone = true;
+            return true;
+          }
+          return false;
+        }
+      };
     }
   }
 }

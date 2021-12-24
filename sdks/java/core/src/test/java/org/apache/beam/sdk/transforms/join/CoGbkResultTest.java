@@ -23,9 +23,16 @@ import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Random;
+
 import org.apache.beam.sdk.util.common.Reiterable;
 import org.apache.beam.sdk.util.common.Reiterator;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.junit.Test;
@@ -55,6 +62,62 @@ public class CoGbkResultTest {
     assertThat(result.getAll(new TupleTag<Integer>("tag2")), emptyIterable());
     assertThat(result.getOnly(new TupleTag<>("tag1")), equalTo(1));
     assertThat(result.getAll(new TupleTag<>("tag0")), contains(0, 2, 4));
+  }
+
+  @Test
+  public void testCrazyIteration() {
+    runCrazyIteration(new Random(), 1, 2, 3);
+    runCrazyIteration(new Random(), 1, 5, 6, 7);
+    runCrazyIteration(new Random(), 5, 2, 3);
+    runCrazyIteration(new Random(), 5, 5, 6, 7);
+  }
+
+  public void runCrazyIteration(Random random, int numIterations, int... tagSizes) {
+    int totalValues = 0;
+    List<Integer> tags = new ArrayList<>();
+    for (int tagNum = 0; tagNum < tagSizes.length; tagNum++) {
+      totalValues += tagSizes[tagNum];
+      for (int i = 0; i < tagSizes[tagNum]; i++) {
+        tags.add(tagNum);
+      }
+    }
+    Collections.shuffle(tags, random);
+
+    Map<TupleTag<Integer>, List<Integer>> expected = new HashMap<>();
+    for (int tagNum = 0; tagNum < tagSizes.length; tagNum++) {
+      expected.put(new TupleTag<>("tag" + tagNum), new ArrayList<>());
+    }
+    for (int i = 0; i < tags.size(); i++) {
+      expected.get(new TupleTag<>("tag" + tags.get(i))).add(i);
+    }
+
+    List<KV<Integer, TupleTag<Integer>>> callOrder = new ArrayList<>();
+    for (int i = 0; i < numIterations; i++) {
+      for (int tagNum = 0; tagNum < tagSizes.length; tagNum++) {
+        for (int k = 0; k < tagSizes[tagNum]; k++) {
+          callOrder.add(KV.of(i, new TupleTag<>("tag" + tagNum)));
+        }
+      }
+    }
+    Collections.shuffle(callOrder, random);
+
+    Map<KV<Integer, TupleTag<Integer>>, Iterator<Integer>> iters = new HashMap<>();
+    Map<KV<Integer, TupleTag<Integer>>, List<Integer>> actual = new HashMap<>();
+    TestUnionValues values = new TestUnionValues(tags.stream().mapToInt(i->i).toArray());
+    CoGbkResult coGbkResult = new CoGbkResult(createSchema(tagSizes.length), values, 0);
+
+    for (KV<Integer, TupleTag<Integer>> call : callOrder) {
+      if (!iters.containsKey(call)) {
+        iters.put(call, coGbkResult.getAll(call.getValue()).iterator());
+        actual.put(call, new ArrayList<>());
+      }
+      actual.get(call).add(iters.get(call).next());
+      iters.get(call).hasNext();
+    }
+
+    for (Map.Entry<KV<Integer, TupleTag<Integer>>, List<Integer>> result : actual.entrySet()) {
+      assertThat(result.getValue(), contains(expected.get(result.getKey().getValue()).toArray()));
+    }
   }
 
   private CoGbkResultSchema createSchema(int size) {
