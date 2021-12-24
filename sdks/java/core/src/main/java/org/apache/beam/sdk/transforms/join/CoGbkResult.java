@@ -57,7 +57,7 @@ public class CoGbkResult {
 
   private final CoGbkResultSchema schema;
 
-  private static final int DEFAULT_IN_MEMORY_ELEMENT_COUNT = 30_000;
+  private static final int DEFAULT_IN_MEMORY_ELEMENT_COUNT = 10_000;
 
   private static final Logger LOG = LoggerFactory.getLogger(CoGbkResult.class);
 
