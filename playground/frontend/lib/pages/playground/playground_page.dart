@@ -62,10 +62,10 @@ class PlaygroundPage extends StatelessWidget {
                   ),
                   SDKSelector(
                     sdk: state.sdk,
-                    setSdk: (newSdk) {
+                    setSdk: (newSdk, defaultExamplesMap) {
                       AnalyticsService.get(context)
                           .trackSelectSdk(state.sdk, newSdk);
-                      state.setSdk(newSdk);
+                      state.setSdk(newSdk, defaultExamplesMap);
                     },
                     setExample: state.setExample,
                   ),
