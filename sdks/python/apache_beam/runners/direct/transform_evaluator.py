@@ -646,7 +646,7 @@ class _PubSubReadEvaluator(_TransformEvaluator):
         'beam_%d_%x' % (int(time.time()), random.randrange(1 << 32)))
     topic_name = sub_client.topic_path(project, short_topic_name)
     sub_client.create_subscription(name=sub_name, topic=topic_name)
-    atexit.register(sub_client.delete_subscription, sub_name)
+    atexit.register(sub_client.delete_subscription, subscription=sub_name)
     cls._subscription_cache[transform] = sub_name
     return cls._subscription_cache[transform]
 
@@ -687,7 +687,7 @@ class _PubSubReadEvaluator(_TransformEvaluator):
     sub_client = pubsub.SubscriberClient()
     try:
       response = sub_client.pull(
-          self._sub_name, max_messages=10, return_immediately=True)
+          subscription=self._sub_name, max_messages=10, timeout=10)
       results = [_get_element(rm.message) for rm in response.received_messages]
       ack_ids = [rm.ack_id for rm in response.received_messages]
       if ack_ids:
