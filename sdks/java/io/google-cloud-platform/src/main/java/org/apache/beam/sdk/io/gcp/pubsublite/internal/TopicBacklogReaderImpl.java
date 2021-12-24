@@ -32,8 +32,7 @@ final class TopicBacklogReaderImpl implements TopicBacklogReader {
   private final TopicPath topicPath;
   private final Partition partition;
 
-  public TopicBacklogReaderImpl(
-      TopicStatsClient client, TopicPath topicPath, Partition partition) {
+  public TopicBacklogReaderImpl(TopicStatsClient client, TopicPath topicPath, Partition partition) {
     this.client = client;
     this.topicPath = topicPath;
     this.partition = partition;
