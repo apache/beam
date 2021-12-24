@@ -16,14 +16,6 @@
 // Package ptest contains utilities for pipeline unit testing.
 package ptest
 
-// beam-playground:
-//   name: PTest
-//   description: Contains utilities for pipeline unit testing.
-//   multifile: false
-//   pipeline_options:
-//   categories:
-//     - Testing
-
 import (
 	"context"
 	"flag"

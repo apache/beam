@@ -23,7 +23,7 @@ package org.apache.beam.examples.complete.game;
 //   multifile: false
 //   pipeline_options:
 //   categories:
-//
+//     - Testing
 
 import java.io.Serializable;
 import java.util.Arrays;

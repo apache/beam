@@ -21,6 +21,7 @@ package beam_test
 //   multifile: false
 //   pipeline_options:
 //   categories:
+//     - Testing
 
 import (
 	"testing"
