@@ -54,7 +54,7 @@ public class CoGbkResult {
    * easier.
    */
   private final List<Iterable<?>> valueMap;
-
+//test
   private final CoGbkResultSchema schema;
 
   private static final int DEFAULT_IN_MEMORY_ELEMENT_COUNT = 30_000;
