@@ -687,13 +687,17 @@ class _PubSubReadEvaluator(_TransformEvaluator):
     sub_client = pubsub.SubscriberClient()
     try:
       response = sub_client.pull(
-          subscription=self._sub_name, max_messages=10, timeout=10)
+          subscription=self._sub_name, max_messages=10, timeout=30)
       results = [_get_element(rm.message) for rm in response.received_messages]
       ack_ids = [rm.ack_id for rm in response.received_messages]
       if ack_ids:
         sub_client.acknowledge(subscription=self._sub_name, ack_ids=ack_ids)
+    except Exception as e:
+      import traceback
+      traceback.print_exc()
+      raise e
     finally:
-      sub_client.api.transport.channel.close()
+      sub_client.close()
 
     return results
 
