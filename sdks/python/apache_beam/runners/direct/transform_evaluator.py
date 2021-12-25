@@ -692,10 +692,6 @@ class _PubSubReadEvaluator(_TransformEvaluator):
       ack_ids = [rm.ack_id for rm in response.received_messages]
       if ack_ids:
         sub_client.acknowledge(subscription=self._sub_name, ack_ids=ack_ids)
-    except Exception as e:
-      import traceback
-      traceback.print_exc()
-      raise e
     finally:
       sub_client.close()
 
