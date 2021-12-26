@@ -472,7 +472,7 @@ public class PubsubIO {
    * PubsubMessage#getAttributeMap() attributes}.
    */
   public static Read<PubsubMessage> readMessages() {
-    return Read.newBuilder().setCoder(PubsubMessageCoder.of()).build();
+    return Read.newBuilder().setCoder(PubsubMessagePayloadOnlyCoder.of()).build();
   }
 
   /**
@@ -1193,8 +1193,7 @@ public class PubsubIO {
     @Override
     public PDone expand(PCollection<T> input) {
       if (getTopicProvider() == null) {
-        throw new IllegalStateException(
-            "need to set the topic or dynamic destination of a PubsubIO.Write transform");
+        throw new IllegalStateException("need to set the topic of a PubsubIO.Write transform");
       }
 
       PCollection<PubsubMessage> pubsubMessages =
