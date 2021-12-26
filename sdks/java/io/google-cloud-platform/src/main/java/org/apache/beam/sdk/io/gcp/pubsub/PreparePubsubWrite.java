@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.io.gcp.pubsub.PubsubIO.validatePubsubMessage;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import javax.naming.SizeLimitExceededException;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -29,10 +30,14 @@ import org.apache.beam.sdk.values.PCollection;
 
 public class PreparePubsubWrite<InputT>
     extends PTransform<PCollection<InputT>, PCollection<PubsubMessage>> {
-  protected SerializableFunction<InputT, PubsubMessage> formatFunction;
+  private SerializableFunction<InputT, PubsubMessage> formatFunction;
+  private ValueProvider<PubsubIO.PubsubTopic> topicValueProvider;
 
-  public PreparePubsubWrite(SerializableFunction<InputT, PubsubMessage> formatFunction) {
+  public PreparePubsubWrite(
+      ValueProvider<PubsubIO.PubsubTopic> topicValueProvider,
+      SerializableFunction<InputT, PubsubMessage> formatFunction) {
     this.formatFunction = formatFunction;
+    this.topicValueProvider = topicValueProvider;
   }
 
   @Override
@@ -51,6 +56,16 @@ public class PreparePubsubWrite<InputT>
             "formatFunction may not return null, but %s returned null on element %s",
             formatFunction,
             element);
+
+        if (outputValue.getTopicPath() == null && topicValueProvider.isAccessible()) {
+          outputValue =
+              new PubsubMessage(
+                  outputValue.getPayload(),
+                  outputValue.getAttributeMap(),
+                  outputValue.getMessageId(),
+                  topicValueProvider.get().asPath());
+        }
+
       } else if (element.getClass().equals(PubsubMessage.class)) {
         outputValue = (PubsubMessage) element;
       }

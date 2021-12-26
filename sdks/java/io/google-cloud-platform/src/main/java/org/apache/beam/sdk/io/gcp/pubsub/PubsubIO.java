@@ -57,6 +57,7 @@ import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.WithFailures;
@@ -1197,17 +1198,17 @@ public class PubsubIO {
       }
 
       PCollection<PubsubMessage> pubsubMessages =
-          input.apply(new PreparePubsubWrite<>(getFormatFn()));
+          input.apply(new PreparePubsubWrite<>(getTopicProvider(), getFormatFn()));
 
       switch (input.isBounded()) {
         case BOUNDED:
-          /* pubsubMessages.apply(
+          pubsubMessages.apply(
               ParDo.of(
                   new PubsubBoundedWriter(
                       MoreObjects.firstNonNull(getMaxBatchSize(), MAX_PUBLISH_BATCH_SIZE),
                       MoreObjects.firstNonNull(
                           getMaxBatchBytesSize(), MAX_PUBLISH_BATCH_BYTE_SIZE_DEFAULT))));
-          return PDone.in(input.getPipeline());*/
+          return PDone.in(input.getPipeline());
         case UNBOUNDED:
           return pubsubMessages.apply(
               new PubsubUnboundedSink(
@@ -1236,7 +1237,7 @@ public class PubsubIO {
      *
      * <p>Public so can be suppressed by runners.
      */
-    public class PubsubBoundedWriter extends DoFn<KV<PubsubTopic, PubsubMessage>, Void> {
+    public class PubsubBoundedWriter extends DoFn<PubsubMessage, Void> {
       private transient PubsubClient pubsubClient;
       private transient HashMap<PubsubTopic, PubsubMessageOutput> outputToTopic;
 
@@ -1276,8 +1277,7 @@ public class PubsubIO {
       @ProcessElement
       public void processElement(ProcessContext c) throws IOException, SizeLimitExceededException {
         byte[] payload;
-        KV<PubsubTopic, PubsubMessage> element = c.element();
-        PubsubMessage message = element.getValue();
+        PubsubMessage message = c.element();
         payload = message.getPayload();
         Map<String, String> attributes = message.getAttributeMap();
 
@@ -1289,7 +1289,7 @@ public class PubsubIO {
           throw new SizeLimitExceededException(msg);
         }
 
-        PubsubTopic topic = element.getKey();
+        PubsubTopic topic = PubsubTopic.fromPath(message.getTopicPath());
         PubsubMessageOutput pubsubMessageOutput =
             outputToTopic.computeIfAbsent(
                 topic, elem -> outputToTopic.put(elem, new PubsubMessageOutput()));
