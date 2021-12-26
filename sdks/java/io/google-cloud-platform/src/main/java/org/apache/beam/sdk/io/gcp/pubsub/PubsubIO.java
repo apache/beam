@@ -128,12 +128,6 @@ public class PubsubIO {
   private static final int PUBSUB_NAME_MIN_LENGTH = 3;
   private static final int PUBSUB_NAME_MAX_LENGTH = 255;
 
-  // See https://cloud.google.com/pubsub/quotas#resource_limits.
-  private static final int PUBSUB_MESSAGE_DATA_MAX_LENGTH = 10 << 20;
-  private static final int PUBSUB_MESSAGE_MAX_ATTRIBUTES = 100;
-  private static final int PUBSUB_MESSAGE_ATTRIBUTE_MAX_KEY_LENGTH = 256;
-  private static final int PUBSUB_MESSAGE_ATTRIBUTE_MAX_VALUE_LENGTH = 1024;
-
   private static final String SUBSCRIPTION_RANDOM_TEST_PREFIX = "_random/";
   private static final String SUBSCRIPTION_STARTING_SIGNAL = "_starting_signal/";
   private static final String TOPIC_DEV_NULL_TEST_NAME = "/topics/dev/null";
@@ -166,48 +160,6 @@ public class PubsubIO {
           "Illegal Pubsub object name specified: "
               + name
               + " Please see Javadoc for naming rules.");
-    }
-  }
-
-  public static void validatePubsubMessage(PubsubMessage message)
-      throws SizeLimitExceededException {
-    if (message.getPayload().length > PUBSUB_MESSAGE_DATA_MAX_LENGTH) {
-      throw new SizeLimitExceededException(
-          "Pubsub message data field of length "
-              + message.getPayload().length
-              + " exceeds maximum of "
-              + PUBSUB_MESSAGE_DATA_MAX_LENGTH
-              + ". See https://cloud.google.com/pubsub/quotas#resource_limits");
-    }
-    @Nullable Map<String, String> attributes = message.getAttributeMap();
-    if (attributes != null) {
-      if (attributes.size() > PUBSUB_MESSAGE_MAX_ATTRIBUTES) {
-        throw new SizeLimitExceededException(
-            "Pubsub message contains "
-                + attributes.size()
-                + " attributes which exceeds the maximum of "
-                + PUBSUB_MESSAGE_MAX_ATTRIBUTES
-                + ". See https://cloud.google.com/pubsub/quotas#resource_limits");
-      }
-      for (Map.Entry<String, String> attribute : attributes.entrySet()) {
-        if (attribute.getKey().length() > PUBSUB_MESSAGE_ATTRIBUTE_MAX_KEY_LENGTH) {
-          throw new SizeLimitExceededException(
-              "Pubsub message attribute key "
-                  + attribute.getKey()
-                  + " exceeds the maximum of "
-                  + PUBSUB_MESSAGE_ATTRIBUTE_MAX_KEY_LENGTH
-                  + ". See https://cloud.google.com/pubsub/quotas#resource_limits");
-        }
-        String value = attribute.getValue();
-        if (value.length() > PUBSUB_MESSAGE_ATTRIBUTE_MAX_VALUE_LENGTH) {
-          throw new SizeLimitExceededException(
-              "Pubsub message attribute value starting with "
-                  + value.substring(0, Math.min(256, value.length()))
-                  + " exceeds the maximum of "
-                  + PUBSUB_MESSAGE_ATTRIBUTE_MAX_VALUE_LENGTH
-                  + ". See https://cloud.google.com/pubsub/quotas#resource_limits");
-        }
-      }
     }
   }
 

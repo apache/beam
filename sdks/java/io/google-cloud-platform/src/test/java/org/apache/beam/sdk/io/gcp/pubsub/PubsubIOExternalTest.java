@@ -27,6 +27,7 @@ import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.expansion.service.ExpansionService;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -178,7 +179,10 @@ public class PubsubIOExternalTest {
 
     String idAttributeActual = (String) Whitebox.getInternalState(pubsubWriter, "idAttribute");
 
-    // TODO: Add topic assert
+    ValueProvider<PubsubClient.TopicPath> topicActual =
+            (ValueProvider<PubsubClient.TopicPath>) Whitebox.getInternalState(pubsubWriter, "topic");
+
+    assertThat(topicActual == null ? null : String.valueOf(topicActual), Matchers.is(topic));
     assertThat(idAttributeActual, Matchers.is(idAttribute));
   }
 
