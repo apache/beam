@@ -32,9 +32,9 @@ public class PubsubMessageCoder extends CustomCoder<PubsubMessage> {
   private static final Coder<String> MESSAGE_ID_CODER = NullableCoder.of(StringUtf8Coder.of());
   private static final Coder<String> TOPIC_CODER = NullableCoder.of(StringUtf8Coder.of());
 
-    public static PubsubMessageCoder of() {
-        return new PubsubMessageCoder();
-    }
+  public static PubsubMessageCoder of() {
+    return new PubsubMessageCoder();
+  }
 
   @Override
   public void encode(PubsubMessage value, OutputStream outStream) throws IOException {
