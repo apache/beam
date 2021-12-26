@@ -40,14 +40,14 @@ public class PubsubMessage {
 
     abstract @Nullable String getMessageId();
 
-    abstract @Nullable String getTopic();
+    abstract @Nullable String getTopicPath();
 
     static Impl create(
         byte[] payload,
         @Nullable Map<String, String> attributes,
         @Nullable String messageId,
-        @Nullable String topic) {
-      return new AutoValue_PubsubMessage_Impl(payload, attributes, messageId, topic);
+        @Nullable String topicPath) {
+      return new AutoValue_PubsubMessage_Impl(payload, attributes, messageId, topicPath);
     }
   }
 
@@ -91,8 +91,9 @@ public class PubsubMessage {
     return impl.getMessageId();
   }
 
-  public @Nullable String getTopic() {
-    return impl.getTopic();
+  /** Returns the full topic path of the message */
+  public @Nullable String getTopicPath() {
+    return impl.getTopicPath();
   }
 
   @Override

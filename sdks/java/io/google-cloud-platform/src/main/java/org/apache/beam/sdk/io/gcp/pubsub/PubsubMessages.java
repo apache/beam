@@ -63,17 +63,7 @@ public final class PubsubMessages {
       implements SerializableFunction<PubsubMessage, KV<String, byte[]>> {
     @Override
     public KV<String, byte[]> apply(PubsubMessage input) {
-      return KV.of(input.getTopic(), toProto(input).toByteArray());
-    }
-  }
-
-  // Convert the PubsubMessage to PubsubMessage proto in KV.
-  public static class ParseValuePayloadAsPubsubMessageProto<T>
-      implements SerializableFunction<KV<T, PubsubMessage>, KV<T, byte[]>> {
-    @Override
-    public KV<T, byte[]> apply(KV<T, PubsubMessage> input) {
-      System.out.println(input.getKey() + " this is the topic in the parse value payload");
-      return KV.of(input.getKey(), toProto(input.getValue()).toByteArray());
+      return KV.of(input.getTopicPath(), toProto(input).toByteArray());
     }
   }
 

@@ -62,8 +62,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A PTransform which streams messages to Pubsub.
@@ -195,6 +193,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
   /** Publish messages to Pubsub in batches. */
   private static class WriterFn extends DoFn<KV<String, Iterable<OutgoingMessage>>, Void> {
     private final PubsubClientFactory pubsubFactory;
+    private final ValueProvider<TopicPath> topic;
     private final String timestampAttribute;
     private final String idAttribute;
     private final int publishBatchSize;
@@ -207,15 +206,15 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
     private final Counter elementCounter = SinkMetrics.elementsWritten();
     private final Counter byteCounter = SinkMetrics.bytesWritten();
 
-    private static final Logger LOG = LoggerFactory.getLogger(WriterFn.class);
-
     WriterFn(
         PubsubClientFactory pubsubFactory,
+        ValueProvider<TopicPath> topic,
         String timestampAttribute,
         String idAttribute,
         int publishBatchSize,
         int publishBatchBytes) {
       this.pubsubFactory = pubsubFactory;
+      this.topic = topic;
       this.timestampAttribute = timestampAttribute;
       this.idAttribute = idAttribute;
       this.publishBatchSize = publishBatchSize;
@@ -257,7 +256,8 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
       TopicPath topicPath = extractTopic(elements.getKey());
       for (OutgoingMessage message : elements.getValue()) {
         if (!pubsubMessages.isEmpty()
-            && (bytes + message.message().getData().size() > publishBatchBytes || pubsubMessages.size() >= 1000)) {
+            && (bytes + message.message().getData().size() > publishBatchBytes
+                || pubsubMessages.size() >= publishBatchSize)) {
           // Break large (in bytes) batches into smaller.
           // (We've already broken by batch size using the trigger below, though that may
           // run slightly over the actual PUBLISH_BATCH_SIZE. We'll consider that ok since
@@ -285,6 +285,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
+      builder.add(DisplayData.item("topic", topic));
       builder.add(DisplayData.item("transport", pubsubFactory.getKind()));
       builder.addIfNotNull(DisplayData.item("timestampAttribute", timestampAttribute));
       builder.addIfNotNull(DisplayData.item("idAttribute", idAttribute));
@@ -456,6 +457,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
               ParDo.of(
                   new WriterFn(
                       outer.pubsubFactory,
+                      outer.topic,
                       outer.timestampAttribute,
                       outer.idAttribute,
                       outer.publishBatchSize,

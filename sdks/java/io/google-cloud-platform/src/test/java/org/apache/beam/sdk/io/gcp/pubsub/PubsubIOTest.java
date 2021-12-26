@@ -648,7 +648,7 @@ public class PubsubIOTest {
 
   @Test
   public void testReadMessagesWithCoderAndParseFn() {
-    Coder<PubsubMessage> coder = PubsubMessagePayloadOnlyCoder.of();
+    Coder<PubsubMessage> coder = PubsubMessageCoder.of();
     List<PubsubMessage> inputs =
         ImmutableList.of(
             new PubsubMessage("foo".getBytes(StandardCharsets.UTF_8), new HashMap<>()),

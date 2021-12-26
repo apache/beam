@@ -1299,6 +1299,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
   public @Nullable TopicPath getTopic() {
     return topic == null ? null : topic.get();
   }
+
   /** Get the {@link ValueProvider} for the topic being read from. */
   public @Nullable ValueProvider<TopicPath> getTopicProvider() {
     return topic;

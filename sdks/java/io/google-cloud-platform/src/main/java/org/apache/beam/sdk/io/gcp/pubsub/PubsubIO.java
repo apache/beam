@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.util.Clock;
@@ -473,7 +472,7 @@ public class PubsubIO {
    * PubsubMessage#getAttributeMap() attributes}.
    */
   public static Read<PubsubMessage> readMessages() {
-    return Read.newBuilder().setCoder(PubsubMessagePayloadOnlyCoder.of()).build();
+    return Read.newBuilder().setCoder(PubsubMessageCoder.of()).build();
   }
 
   /**
@@ -1083,8 +1082,6 @@ public class PubsubIO {
     /** The format function for input PubsubMessage objects. */
     abstract SerializableFunction<T, PubsubMessage> getFormatFn();
 
-    abstract @Nullable PubsubDynamicDestinations<T, ?> getDynamicDestinations();
-
     abstract Builder<T> toBuilder();
 
     static <T> Builder<T> newBuilder(SerializableFunction<T, PubsubMessage> formatFn) {
@@ -1113,9 +1110,6 @@ public class PubsubIO {
       abstract Builder<T> setIdAttribute(String idAttribute);
 
       abstract Builder<T> setFormatFn(SerializableFunction<T, PubsubMessage> formatFn);
-
-      abstract Builder<T> setDynamicDestinations(
-          PubsubDynamicDestinations<T, ?> dynamicDestinations);
 
       abstract Write<T> build();
     }
@@ -1196,26 +1190,19 @@ public class PubsubIO {
       return toBuilder().setIdAttribute(idAttribute).build();
     }
 
-    public Write<T> withDynamicDestination(PubsubDynamicDestinations<T, ?> dynamicDestinations) {
-      checkArgument(dynamicDestinations != null, "dynamicDestinations can not be null");
-      return toBuilder().setDynamicDestinations(dynamicDestinations).build();
-    }
-
     @Override
     public PDone expand(PCollection<T> input) {
-      if (getTopicProvider() == null && getDynamicDestinations() == null) {
+      if (getTopicProvider() == null) {
         throw new IllegalStateException(
             "need to set the topic or dynamic destination of a PubsubIO.Write transform");
       }
 
       PCollection<PubsubMessage> pubsubMessages =
-          input.apply(
-              new PreparePubsubWrite<>(
-                  getDynamicDestinations(), getFormatFn(), getTopicProvider()));
+          input.apply(new PreparePubsubWrite<>(getFormatFn()));
 
       switch (input.isBounded()) {
         case BOUNDED:
-          /*pubsubMessages.apply(
+          /* pubsubMessages.apply(
               ParDo.of(
                   new PubsubBoundedWriter(
                       MoreObjects.firstNonNull(getMaxBatchSize(), MAX_PUBLISH_BATCH_SIZE),
