@@ -180,7 +180,7 @@ public class PubsubIOExternalTest {
     String idAttributeActual = (String) Whitebox.getInternalState(pubsubWriter, "idAttribute");
 
     ValueProvider<PubsubClient.TopicPath> topicActual =
-            (ValueProvider<PubsubClient.TopicPath>) Whitebox.getInternalState(pubsubWriter, "topic");
+        (ValueProvider<PubsubClient.TopicPath>) Whitebox.getInternalState(pubsubWriter, "topic");
 
     assertThat(topicActual == null ? null : String.valueOf(topicActual), Matchers.is(topic));
     assertThat(idAttributeActual, Matchers.is(idAttribute));
