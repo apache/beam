@@ -38,9 +38,10 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Direct_
       steps {
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':runners:direct-java:setJavaSDK8AsCompiler')
           tasks(':runners:direct-java:shadowJar')
           tasks(':runners:direct-java:shadowTestJar')
-          switches("-Dorg.gradle.java.home=${JAVA_8_HOME}")
+          //switches("-Dorg.gradle.java.home=${JAVA_8_HOME}")
         }
 
         gradle {
