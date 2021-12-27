@@ -91,7 +91,7 @@ jobs:
 
   python_unit_tests:
     name: 'Python Unit Tests'
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
@@ -99,7 +99,7 @@ jobs:
         params: [
           {"py_ver": "3.6", "tox_env": "py36"},
           {"py_ver": "3.7", "tox_env": "py37"},
-          {"py_ver": "3.8", "tox_env": "py38"}
+          {"py_ver": "3.8", "tox_env": "py38"},
         ]
         exclude:
           # TODO remove exclusion after issue with protobuf is solved
