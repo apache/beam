@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
+import static java.sql.JDBCType.NULL;
 import static java.sql.JDBCType.NUMERIC;
 import static org.apache.beam.sdk.io.common.DatabaseTestHelper.assertRowCount;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -881,6 +882,72 @@ public class JdbcIOTest implements Serializable {
   }
 
   @Test
+  public void testGetPreparedStatementSetNullsCaller() throws Exception {
+
+    Schema schema =
+        Schema.builder()
+            // primitive
+            .addField("bigint_col", Schema.FieldType.INT64.withNullable(true))
+            .addField("bit_col", Schema.FieldType.BOOLEAN.withNullable(true))
+            .addField("double_col", Schema.FieldType.DOUBLE.withNullable(true))
+            .addField("float_col", Schema.FieldType.FLOAT.withNullable(true))
+            .addField("integer_col", Schema.FieldType.INT32.withNullable(true))
+            .addField("int16_col", Schema.FieldType.INT16.withNullable(true))
+            .addField("byte_col", Schema.FieldType.BYTE.withNullable(true))
+            // reference
+            .addField("binary_col", Schema.FieldType.BYTES.withNullable(true))
+            .addField("char_col", Schema.FieldType.STRING.withNullable(true))
+            .addField("decimal_col", Schema.FieldType.DECIMAL.withNullable(true))
+            .addField("datetime_col", Schema.FieldType.DATETIME.withNullable(true))
+            .build();
+    Row row =
+        Row.withSchema(schema)
+            .addValues(null, null, null, null, null, null, null, null, null, null, null)
+            .build();
+
+    PreparedStatement psMocked = mock(PreparedStatement.class);
+
+    // primitive
+    JdbcUtil.getPreparedStatementSetCaller(Schema.FieldType.INT64)
+        .set(row, psMocked, 0, SchemaUtil.FieldWithIndex.of(schema.getField(0), 0));
+    JdbcUtil.getPreparedStatementSetCaller(Schema.FieldType.BOOLEAN)
+        .set(row, psMocked, 1, SchemaUtil.FieldWithIndex.of(schema.getField(2), 2));
+    JdbcUtil.getPreparedStatementSetCaller(Schema.FieldType.DOUBLE)
+        .set(row, psMocked, 2, SchemaUtil.FieldWithIndex.of(schema.getField(5), 5));
+    JdbcUtil.getPreparedStatementSetCaller(Schema.FieldType.FLOAT)
+        .set(row, psMocked, 3, SchemaUtil.FieldWithIndex.of(schema.getField(6), 6));
+    JdbcUtil.getPreparedStatementSetCaller(Schema.FieldType.INT32)
+        .set(row, psMocked, 4, SchemaUtil.FieldWithIndex.of(schema.getField(7), 7));
+    JdbcUtil.getPreparedStatementSetCaller(Schema.FieldType.INT16)
+        .set(row, psMocked, 5, SchemaUtil.FieldWithIndex.of(schema.getField(9), 9));
+    JdbcUtil.getPreparedStatementSetCaller(Schema.FieldType.BYTE)
+        .set(row, psMocked, 6, SchemaUtil.FieldWithIndex.of(schema.getField(10), 10));
+    // reference
+    JdbcUtil.getPreparedStatementSetCaller(Schema.FieldType.BYTES)
+        .set(row, psMocked, 7, SchemaUtil.FieldWithIndex.of(schema.getField(1), 1));
+    JdbcUtil.getPreparedStatementSetCaller(Schema.FieldType.STRING)
+        .set(row, psMocked, 8, SchemaUtil.FieldWithIndex.of(schema.getField(3), 3));
+    JdbcUtil.getPreparedStatementSetCaller(Schema.FieldType.DECIMAL)
+        .set(row, psMocked, 9, SchemaUtil.FieldWithIndex.of(schema.getField(4), 4));
+    JdbcUtil.getPreparedStatementSetCaller(Schema.FieldType.DATETIME)
+        .set(row, psMocked, 10, SchemaUtil.FieldWithIndex.of(schema.getField(8), 8));
+
+    // primitive
+    verify(psMocked, times(1)).setNull(1, NULL.getVendorTypeNumber());
+    verify(psMocked, times(1)).setNull(2, NULL.getVendorTypeNumber());
+    verify(psMocked, times(1)).setNull(3, NULL.getVendorTypeNumber());
+    verify(psMocked, times(1)).setNull(4, NULL.getVendorTypeNumber());
+    verify(psMocked, times(1)).setNull(5, NULL.getVendorTypeNumber());
+    verify(psMocked, times(1)).setNull(6, NULL.getVendorTypeNumber());
+    verify(psMocked, times(1)).setNull(7, NULL.getVendorTypeNumber());
+    // reference
+    verify(psMocked, times(1)).setBytes(8, null);
+    verify(psMocked, times(1)).setString(9, null);
+    verify(psMocked, times(1)).setBigDecimal(10, null);
+    verify(psMocked, times(1)).setTimestamp(11, null);
+  }
+
+  @Test
   public void testGetPreparedStatementSetCallerForLogicalTypes() throws Exception {
     FieldType fixedLengthStringType = LogicalTypes.fixedLengthString(JDBCType.VARCHAR, 4);
     Schema schema =
@@ -889,6 +956,9 @@ public class JdbcIOTest implements Serializable {
             .addField("logical_time_col", LogicalTypes.JDBC_TIME_TYPE)
             .addField("logical_time_with_tz_col", LogicalTypes.JDBC_TIMESTAMP_WITH_TIMEZONE_TYPE)
             .addField("logical_fixed_length_string_col", fixedLengthStringType)
+            .addField(
+                "logical_fixed_length_string_nullable_col",
+                fixedLengthStringType.withNullable(true))
             .build();
 
     long epochMilli = 1558719710000L;
@@ -900,7 +970,7 @@ public class JdbcIOTest implements Serializable {
 
     Row row =
         Row.withSchema(schema)
-            .addValues(dateTime.withTimeAtStartOfDay(), time, dateTime, "Test")
+            .addValues(dateTime.withTimeAtStartOfDay(), time, dateTime, "Test", null)
             .build();
 
     PreparedStatement psMocked = mock(PreparedStatement.class);
@@ -913,6 +983,8 @@ public class JdbcIOTest implements Serializable {
         .set(row, psMocked, 2, SchemaUtil.FieldWithIndex.of(schema.getField(2), 2));
     JdbcUtil.getPreparedStatementSetCaller(fixedLengthStringType)
         .set(row, psMocked, 3, SchemaUtil.FieldWithIndex.of(schema.getField(3), 3));
+    JdbcUtil.getPreparedStatementSetCaller(fixedLengthStringType.withNullable(true))
+        .set(row, psMocked, 4, SchemaUtil.FieldWithIndex.of(schema.getField(4), 4));
 
     verify(psMocked, times(1)).setDate(1, new Date(row.getDateTime(0).getMillis()));
     verify(psMocked, times(1)).setTime(2, new Time(row.getDateTime(1).getMillis()));
@@ -922,6 +994,7 @@ public class JdbcIOTest implements Serializable {
 
     verify(psMocked, times(1)).setTimestamp(3, new Timestamp(cal.getTime().getTime()), cal);
     verify(psMocked, times(1)).setString(4, row.getString(3));
+    verify(psMocked, times(1)).setString(5, row.getString(4));
   }
 
   @Test

@@ -83,6 +83,7 @@ dependencies {
   validatesPortableRunner project(path: flinkRunnerProject, configuration: "testRuntimeMigration")
   validatesPortableRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesPortableRunner project(path: ":runners:core-java", configuration: "testRuntimeMigration")
+  validatesPortableRunner project(path: ":runners:portability:java")
   validatesPortableRunner project(path: ":runners:portability:java", configuration: "testRuntimeMigration")
   runtimeOnly project(":sdks:java:extensions:google-cloud-platform-core")
   runtimeOnly library.java.slf4j_simple
@@ -192,7 +193,7 @@ def portableValidatesRunnerTask(String name, Boolean streaming, Boolean checkpoi
       excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testLateDataAccumulating'
       // TODO(BEAM-12710)
       excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testFirstElementLate'
-      // TODO(BEAM-12498)
+      // TODO(BEAM-13498)
       excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testProcessElementSkew'
     },
   )

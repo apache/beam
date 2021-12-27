@@ -30,9 +30,9 @@ const double kTextFieldHeight = 68.0;
 const String kFeedbackTitleText = 'Feedback';
 const String kCancelButtonTitle = 'Cancel';
 const String kSendFeedbackButtonTitle = 'Send feedback';
-const String kFeedbackContentText =
-    'Tell us what you are missing and you would like to see it\n'
-    'in our service';
+const String kFeedbackContentText = 'Have feedback? We\'d love to hear it,'
+    ' but please don\'t share sensitive information.'
+    '\nHave questions? Try help or support.';
 
 class FeedbackDropdownContent extends StatelessWidget {
   final Function close;

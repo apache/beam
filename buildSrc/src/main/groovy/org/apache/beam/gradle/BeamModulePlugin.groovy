@@ -965,12 +965,6 @@ class BeamModulePlugin implements Plugin<Project> {
         project.artifacts.archives project.packageTests
       }
 
-      // Configures annotation processing for commonly used annotation processors
-      // across all Java projects.
-      project.apply plugin: "net.ltgt.apt"
-      // let idea apt plugin handle the ide integration
-      project.apply plugin: "net.ltgt.apt-idea"
-
       // Note that these plugins specifically use the compileOnly and testCompileOnly
       // configurations because they are never required to be shaded or become a
       // dependency of the output.
@@ -1050,12 +1044,11 @@ class BeamModulePlugin implements Plugin<Project> {
       }
       project.check.dependsOn project.javadoc
 
-      // Apply the eclipse and apt-eclipse plugins.  This adds the "eclipse" task and
+      // Apply the eclipse plugins.  This adds the "eclipse" task and
       // connects the apt-eclipse plugin to update the eclipse project files
       // with the instructions needed to run apt within eclipse to handle the AutoValue
       // and additional annotations
       project.apply plugin: 'eclipse'
-      project.apply plugin: "net.ltgt.apt-eclipse"
 
       // Enables a plugin which can apply code formatting to source.
       project.apply plugin: "com.diffplug.spotless"
@@ -1244,7 +1237,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
           project.dependencies {
             shadowTestRuntimeClasspath it.project(path: project.path, configuration: "shadowTest")
-            shadowTestRuntimeClasspath it.project(path: project.path, configuration: "compileOnly")
+            shadowTestRuntimeClasspath it.project(path: project.path)
           }
 
           project.test { classpath = project.configurations.shadowTestRuntimeClasspath }
@@ -1812,9 +1805,24 @@ class BeamModulePlugin implements Plugin<Project> {
       project.check.dependsOn project.test
 
       def goRootDir = "${project.rootDir}/sdks/go"
-      project.ext.goCmd = "${goRootDir}/run_with_go_version.sh"
+
+      // This sets the whole project Go version.
+      project.ext.goVersion = "go1.16.12"
+
+      // Minor TODO: Figure out if we can pull out the GOCMD env variable after goPrepare script
+      // completion, and avoid this GOBIN substitution.
+      project.ext.goCmd = "${goRootDir}/run_with_go_version.sh --gocmd GOBIN/${project.ext.goVersion}"
+
+      project.tasks.create(name: "goPrepare") {
+        description "Prepare ${project.ext.goVersion} for builds and tests."
+        project.exec {
+          executable 'sh'
+          args '-c', "${goRootDir}/prepare_go_version.sh --version ${project.ext.goVersion}"
+        }
+      }
 
       project.tasks.create(name: "goBuild") {
+        dependsOn ":sdks:go:goPrepare"
         ext.goTargets = './...'
         ext.outputLocation = './build/bin/${GOOS}_${GOARCH}/'
         doLast {

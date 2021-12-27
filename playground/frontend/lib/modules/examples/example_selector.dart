@@ -157,6 +157,7 @@ class _ExampleSelectorState extends State<ExampleSelector>
                             const TypeFilter(),
                             ExampleList(
                               controller: scrollController,
+                              selectedExample: playgroundState.selectedExample!,
                               animationController: animationController,
                               dropdown: examplesDropdown,
                             ),
