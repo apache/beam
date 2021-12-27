@@ -25,7 +25,6 @@ package org.apache.beam.examples;
 //   categories:
 //     - IO
 //     - Options
-//
 
 import java.util.Arrays;
 import org.apache.beam.sdk.Pipeline;

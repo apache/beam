@@ -26,7 +26,6 @@ package org.apache.beam.examples;
 //   categories:
 //     - IO
 //     - Options
-//
 
 import java.util.Arrays;
 import java.util.List;

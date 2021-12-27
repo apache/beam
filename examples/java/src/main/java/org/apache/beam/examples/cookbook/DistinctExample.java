@@ -19,8 +19,9 @@ package org.apache.beam.examples.cookbook;
 
 // beam-playground:
 //   name: DistinctExample
-//   description: An example uses Shakespeare's plays as plain text files and removes duplicate
-//     lines across all the files.
+//   description: An example uses as input text of King Lear,
+//     by William Shakespeare as plain text files and removes
+//     duplicate lines across all the files.
 //   multifile: false
 //   pipeline_options: --output output.txt
 //   categories:
@@ -57,7 +58,7 @@ import org.apache.beam.sdk.transforms.Distinct;
  *
  * See examples/java/README.md for instructions about how to configure different runners.
  *
- * <p>The input defaults to {@code gs://apache-beam-samples/shakespeare/*} and can be overridden
+ * <p>The input defaults to {@code gs://apache-beam-samples/shakespeare/kinglear.txt} and can be overridden
  * with {@code --input}.
  */
 public class DistinctExample {
