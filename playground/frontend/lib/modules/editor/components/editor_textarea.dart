@@ -52,6 +52,7 @@ class EditorTextArea extends StatefulWidget {
 
 class _EditorTextAreaState extends State<EditorTextArea> {
   CodeController? _codeController;
+  FocusNode focusNode = FocusNode();
 
   @override
   void initState() {
@@ -72,6 +73,9 @@ class _EditorTextAreaState extends State<EditorTextArea> {
       },
       webSpaceFix: false,
     );
+
+    _setTextScrolling();
+
     super.didChangeDependencies();
   }
 
@@ -79,6 +83,7 @@ class _EditorTextAreaState extends State<EditorTextArea> {
   void dispose() {
     super.dispose();
     _codeController?.dispose();
+    focusNode.dispose();
   }
 
   @override
@@ -91,6 +96,7 @@ class _EditorTextAreaState extends State<EditorTextArea> {
       readOnly: widget.enabled,
       label: kCodeAreaSemantics,
       child: CodeField(
+        focusNode: focusNode,
         enabled: widget.enabled,
         controller: _codeController!,
         textStyle: getCodeFontStyle(
@@ -103,6 +109,34 @@ class _EditorTextAreaState extends State<EditorTextArea> {
           ),
         ),
       ),
+    );
+  }
+
+  _setTextScrolling() {
+    focusNode.requestFocus();
+    if (_codeController!.text.isNotEmpty) {
+      _codeController!.selection = TextSelection.fromPosition(
+        TextPosition(offset: _findOffset()),
+      );
+    }
+  }
+
+  _findOffset() {
+    return _codeController!.text.indexOf(
+      _skipStrings(7) == '' ? _skipStrings(8) : _skipStrings(7),
+      _skipImportsAndLicenses(),
+    );
+  }
+
+  _skipStrings(int qntOfStrings) {
+    return _codeController!.text
+        .substring(_skipImportsAndLicenses())
+        .split('\n')[qntOfStrings];
+  }
+
+  _skipImportsAndLicenses() {
+    return _codeController!.text.indexOf(
+      _codeController!.text.split('\n')[40],
     );
   }
 
