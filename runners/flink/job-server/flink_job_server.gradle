@@ -83,6 +83,7 @@ dependencies {
   validatesPortableRunner project(path: flinkRunnerProject, configuration: "testRuntimeMigration")
   validatesPortableRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesPortableRunner project(path: ":runners:core-java", configuration: "testRuntimeMigration")
+  validatesPortableRunner project(path: ":runners:portability:java")
   validatesPortableRunner project(path: ":runners:portability:java", configuration: "testRuntimeMigration")
   runtimeOnly project(":sdks:java:extensions:google-cloud-platform-core")
   runtimeOnly library.java.slf4j_simple

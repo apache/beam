@@ -544,11 +544,6 @@ deps:
     artifact: jna
     owners:
 
-  net.ltgt.gradle:gradle-apt-plugin:
-    group: net.ltgt.gradle
-    artifact: gradle-apt-plugin
-    owners:
-
   net.ltgt.gradle:gradle-errorprone-plugin:
     group: net.ltgt.gradle
     artifact: gradle-errorprone-plugin
