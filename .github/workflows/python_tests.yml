@@ -91,7 +91,7 @@ jobs:
 
   python_unit_tests:
     name: 'Python Unit Tests'
-    runs-on: [self-hosted, ${{ matrix.os }}]
+    runs-on: [self-hosted, windows-latest]
     strategy:
       fail-fast: false
       matrix:
