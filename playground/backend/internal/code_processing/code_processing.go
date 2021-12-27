@@ -89,7 +89,7 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 	if !ok {
 		// Validate step is finished, but code isn't valid
 		err := <-errorChannel
-		_ = processErrorWithSavingOutput(pipelineLifeCycleCtx, err, []byte(err.Error()), pipelineId, cache.ValidationOutput, cacheService, "Validate", pb.Status_STATUS_VALIDATION_ERROR)
+		_ = processErrorWithSavingOutput(pipelineLifeCycleCtx, err, err.Error(), pipelineId, cache.ValidationOutput, cacheService, "Validate", pb.Status_STATUS_VALIDATION_ERROR)
 		return
 	}
 
@@ -147,7 +147,7 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 		}
 		if !ok { // Compile step is finished, but code couldn't be compiled (some typos for example)
 			err := <-errorChannel
-			_ = processErrorWithSavingOutput(pipelineLifeCycleCtx, err, compileError.Bytes(), pipelineId, cache.CompileOutput, cacheService, "Compile", pb.Status_STATUS_COMPILE_ERROR)
+			_ = processErrorWithSavingOutput(pipelineLifeCycleCtx, err, string(compileError.Bytes()), pipelineId, cache.CompileOutput, cacheService, "Compile", pb.Status_STATUS_COMPILE_ERROR)
 			return
 		} // Compile step is finished and code is compiled
 		if err := processCompileSuccess(pipelineLifeCycleCtx, compileOutput.Bytes(), pipelineId, cacheService); err != nil {
@@ -429,10 +429,10 @@ func processError(ctx context.Context, errorChannel chan error, pipelineId uuid.
 }
 
 // processErrorWithSavingOutput processes error with saving to cache received error output.
-func processErrorWithSavingOutput(ctx context.Context, err error, errorOutput []byte, pipelineId uuid.UUID, subKey cache.SubKey, cacheService cache.Cache, errorTitle string, newStatus pb.Status) error {
+func processErrorWithSavingOutput(ctx context.Context, err error, errorOutput string, pipelineId uuid.UUID, subKey cache.SubKey, cacheService cache.Cache, errorTitle string, newStatus pb.Status) error {
 	logger.Errorf("%s: %s(): err: %s, output: %s\n", pipelineId, errorTitle, err.Error(), errorOutput)
 
-	if err := utils.SetToCache(ctx, cacheService, pipelineId, subKey, fmt.Sprintf("error: %s, output: %s", err.Error(), string(errorOutput))); err != nil {
+	if err := utils.SetToCache(ctx, cacheService, pipelineId, subKey, fmt.Sprintf("error: %s, output: %s", err.Error(), errorOutput)); err != nil {
 		return err
 	}
 	return utils.SetToCache(ctx, cacheService, pipelineId, cache.Status, newStatus)
