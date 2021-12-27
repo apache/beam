@@ -59,7 +59,7 @@ public class PubSubWritePayloadTranslationTest {
 
   @Test
   public void testTranslateSinkWithTopic() throws Exception {
-     PubsubUnboundedSink pubsubUnboundedSink =
+    PubsubUnboundedSink pubsubUnboundedSink =
         new PubsubUnboundedSink(
             null,
             StaticValueProvider.of(TOPIC),
@@ -72,8 +72,7 @@ public class PubSubWritePayloadTranslationTest {
             null);
     PubsubUnboundedSink.PubsubSink pubsubSink = new PubsubSink(pubsubUnboundedSink);
     PCollection<KV<String, byte[]>> input =
-        pipeline.apply(
-            Create.of(KV.of(TOPIC.getPath(), new byte[0])));
+        pipeline.apply(Create.of(KV.of(TOPIC.getPath(), new byte[0])));
     PDone output = input.apply(pubsubSink);
     AppliedPTransform<?, ?, PubsubSink> appliedPTransform =
         AppliedPTransform.of(
@@ -97,14 +96,13 @@ public class PubSubWritePayloadTranslationTest {
 
   @Test
   public void testTranslateSinkWithTopicOverridden() throws Exception {
-     ValueProvider<TopicPath> runtimeProvider = pipeline.newProvider(TOPIC);
+    ValueProvider<TopicPath> runtimeProvider = pipeline.newProvider(TOPIC);
     PubsubUnboundedSink pubsubUnboundedSinkSink =
         new PubsubUnboundedSink(
             null, runtimeProvider, TIMESTAMP_ATTRIBUTE, ID_ATTRIBUTE, 0, 0, 0, Duration.ZERO, null);
     PubsubSink pubsubSink = new PubsubSink(pubsubUnboundedSinkSink);
     PCollection<KV<String, byte[]>> input =
-        pipeline.apply(
-            Create.of(KV.of(TOPIC.getPath(), new byte[0])));
+        pipeline.apply(Create.of(KV.of(TOPIC.getPath(), new byte[0])));
     PDone output = input.apply(pubsubSink);
     AppliedPTransform<?, ?, PubsubSink> appliedPTransform =
         AppliedPTransform.of(

@@ -1146,7 +1146,8 @@ public class PubsubIO {
     @Override
     public PDone expand(PCollection<T> input) {
       if (getTopicProvider() == null) {
-        throw new IllegalStateException("need to set the topic of a PubsubIO.Write transform");
+        throw new IllegalStateException(
+            "need to set the default topic of a PubsubIO.Write transform");
       }
 
       PCollection<PubsubMessage> pubsubMessages =

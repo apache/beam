@@ -55,15 +55,19 @@ public class PreparePubsubWrite<InputT>
   public class PreparePubsubWriteDoFn extends DoFn<InputT, PubsubMessage> {
     @ProcessElement
     public void processElement(ProcessContext context, @Element InputT element) {
-      PubsubMessage outputValue = null;
-      if (formatFunction != null) {
+      PubsubMessage outputValue;
+      checkArgument(
+          formatFunction != null || element.getClass().equals(PubsubMessage.class),
+          "element should parse to pubsub message");
+      if (formatFunction == null) {
+        outputValue = (PubsubMessage) element;
+      } else {
         outputValue = formatFunction.apply(element);
         checkArgument(
             outputValue != null,
             "formatFunction may not return null, but %s returned null on element %s",
             formatFunction,
             element);
-
         if (outputValue.getTopicPath() == null && topicValueProvider.isAccessible()) {
           outputValue =
               new PubsubMessage(
@@ -72,9 +76,6 @@ public class PreparePubsubWrite<InputT>
                   outputValue.getMessageId(),
                   topicValueProvider.get().asPath());
         }
-
-      } else if (element.getClass().equals(PubsubMessage.class)) {
-        outputValue = (PubsubMessage) element;
       }
 
       try {
@@ -86,7 +87,7 @@ public class PreparePubsubWrite<InputT>
     }
   }
 
-  public static void validatePubsubMessage(PubsubMessage message)
+  private static void validatePubsubMessage(PubsubMessage message)
       throws SizeLimitExceededException {
     if (message.getPayload().length > PUBSUB_MESSAGE_DATA_MAX_LENGTH) {
       throw new SizeLimitExceededException(
