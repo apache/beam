@@ -91,11 +91,11 @@ jobs:
 
   python_unit_tests:
     name: 'Python Unit Tests'
-    runs-on: ${{ matrix.os }}
+    runs-on: self-hosted
     strategy:
       fail-fast: false
       matrix:
-        os: [[self-hosted, ubuntu-latest],[self-hosted, macos-latest], [self-hosted, windows-latest]]
+        os: [ubuntu, macos, windows]
         params: [
           {"py_ver": "3.6", "tox_env": "py36"},
           {"py_ver": "3.7", "tox_env": "py37"},
