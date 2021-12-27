@@ -32,7 +32,7 @@ const kSdkSelectorLabel = 'Select SDK Dropdown';
 const kEmptyExampleName = 'Catalog';
 
 const double kWidth = 150;
-const double kHeight = 172;
+const double kHeight = 137;
 
 class SDKSelector extends StatelessWidget {
   final SDK sdk;
@@ -58,7 +58,9 @@ class SDKSelector extends StatelessWidget {
         createDropdown: (close) => Column(
           children: [
             const SizedBox(height: kMdSpacing),
-            ...SDK.values.map((SDK value) {
+            ...SDK.values
+                .where((element) => element != SDK.scio)
+                .map((SDK value) {
               return SizedBox(
                 width: double.infinity,
                 child: Consumer<ExampleState>(

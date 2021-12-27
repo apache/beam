@@ -29,7 +29,7 @@ class OutputTabs extends StatelessWidget {
         tabs: <Widget>[
           Tab(text: 'Output'),
           Tab(text: 'Log'),
-          Tab(text: 'Graph'),
+          // Tab(text: 'Graph'),
         ],
       ),
     );

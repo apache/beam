@@ -38,7 +38,7 @@ class OutputArea extends StatelessWidget {
             children: <Widget>[
               OutputResult(text: state.result?.output ?? ''),
               OutputResult(text: state.result?.log ?? ''),
-              const Center(child: Text(kGraphText)),
+              // const Center(child: Text(kGraphText)),
             ],
           );
         },
