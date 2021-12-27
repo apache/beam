@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.io.aws.dynamodb;
 
+import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.mapping;
+import static java.util.stream.Collectors.toList;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.amazonaws.regions.Regions;
@@ -24,6 +27,7 @@ import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.model.AmazonDynamoDBException;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import com.amazonaws.services.dynamodbv2.model.BatchWriteItemRequest;
+import com.amazonaws.services.dynamodbv2.model.BatchWriteItemResult;
 import com.amazonaws.services.dynamodbv2.model.ScanRequest;
 import com.amazonaws.services.dynamodbv2.model.ScanResult;
 import com.amazonaws.services.dynamodbv2.model.WriteRequest;
@@ -454,9 +458,21 @@ public final class DynamoDBIO {
 
     static class WriteFn<T> extends DoFn<T, Void> {
       @VisibleForTesting
-      static final String RETRY_ATTEMPT_LOG = "Error writing to DynamoDB. Retry attempt[%d]";
+      static final String RETRY_ERROR_LOG = "Error writing items to DynamoDB [attempts:{}]: {}";
 
-      private transient FluentBackoff retryBackoff; // defaults to no retries
+      private static final String RESUME_ERROR_LOG =
+          "Error writing remaining unprocessed items to DynamoDB: {}";
+
+      private static final String ERROR_NO_RETRY =
+          "Error writing to DynamoDB. No attempt made to retry";
+      private static final String ERROR_RETRIES_EXCEEDED =
+          "Error writing to DynamoDB after %d attempt(s). No more attempts allowed";
+      private static final String ERROR_UNPROCESSED_ITEMS =
+          "Error writing to DynamoDB. Unprocessed items remaining";
+
+      private transient FluentBackoff resumeBackoff; // resume from partial failures (unlimited)
+      private transient FluentBackoff retryBackoff; // retry erroneous calls (default: none)
+
       private static final Logger LOG = LoggerFactory.getLogger(WriteFn.class);
       private static final Counter DYNAMO_DB_WRITE_FAILURES =
           Metrics.counter(WriteFn.class, "DynamoDB_Write_Failures");
@@ -473,13 +489,17 @@ public final class DynamoDBIO {
       @Setup
       public void setup() {
         client = spec.getAwsClientsProvider().createDynamoDB();
-        retryBackoff = FluentBackoff.DEFAULT.withMaxRetries(0); // default to no retrying
-        if (spec.getRetryConfiguration() != null) {
+        resumeBackoff = FluentBackoff.DEFAULT; // resume from partial failures (unlimited)
+        retryBackoff = FluentBackoff.DEFAULT.withMaxRetries(0); // retry on errors (default: none)
+
+        RetryConfiguration retryConfig = spec.getRetryConfiguration();
+        if (retryConfig != null) {
+          resumeBackoff = resumeBackoff.withInitialBackoff(retryConfig.getInitialDuration());
           retryBackoff =
               retryBackoff
-                  .withMaxRetries(spec.getRetryConfiguration().getMaxAttempts() - 1)
-                  .withInitialBackoff(spec.getRetryConfiguration().getInitialDuration())
-                  .withMaxCumulativeBackoff(spec.getRetryConfiguration().getMaxDuration());
+                  .withMaxRetries(retryConfig.getMaxAttempts() - 1)
+                  .withInitialBackoff(retryConfig.getInitialDuration())
+                  .withMaxCumulativeBackoff(retryConfig.getMaxDuration());
         }
       }
 
@@ -528,57 +548,61 @@ public final class DynamoDBIO {
         if (batch.isEmpty()) {
           return;
         }
-
         try {
-          // Since each element is a KV<tableName, writeRequest> in the batch, we need to group them
-          // by tableName
-          Map<String, List<WriteRequest>> mapTableRequest =
+          // Group values KV<tableName, writeRequest> by tableName
+          // Note: The original order of arrival is lost reading the map entries.
+          Map<String, List<WriteRequest>> writesPerTable =
               batch.values().stream()
-                  .collect(
-                      Collectors.groupingBy(
-                          KV::getKey, Collectors.mapping(KV::getValue, Collectors.toList())));
+                  .collect(groupingBy(KV::getKey, mapping(KV::getValue, toList())));
 
-          BatchWriteItemRequest batchRequest = new BatchWriteItemRequest();
-          mapTableRequest
-              .entrySet()
-              .forEach(
-                  entry -> batchRequest.addRequestItemsEntry(entry.getKey(), entry.getValue()));
+          // Backoff used to resume from partial failures
+          BackOff resume = resumeBackoff.backoff();
+          do {
+            BatchWriteItemRequest batchRequest = new BatchWriteItemRequest(writesPerTable);
+            // If unprocessed items remain, we have to resume the operation (with backoff)
+            writesPerTable = writeWithRetries(batchRequest).getUnprocessedItems();
+          } while (!writesPerTable.isEmpty() && BackOffUtils.next(Sleeper.DEFAULT, resume));
 
-          Sleeper sleeper = Sleeper.DEFAULT;
-          BackOff backoff = retryBackoff.backoff();
-          int attempt = 0;
-          while (true) {
-            attempt++;
-            try {
-              client.batchWriteItem(batchRequest);
-              break;
-            } catch (Exception ex) {
-              // Fail right away if there is no retry configuration
-              if (spec.getRetryConfiguration() == null
-                  || !spec.getRetryConfiguration().getRetryPredicate().test(ex)) {
-                DYNAMO_DB_WRITE_FAILURES.inc();
-                LOG.info(
-                    "Unable to write batch items {}.",
-                    batchRequest.getRequestItems().entrySet(),
-                    ex);
-                throw new IOException("Error writing to DynamoDB (no attempt made to retry)", ex);
-              }
-
-              if (!BackOffUtils.next(sleeper, backoff)) {
-                throw new IOException(
-                    String.format(
-                        "Error writing to DynamoDB after %d attempt(s). No more attempts allowed",
-                        attempt),
-                    ex);
-              } else {
-                // Note: this used in test cases to verify behavior
-                LOG.warn(String.format(RETRY_ATTEMPT_LOG, attempt), ex);
-              }
-            }
+          if (!writesPerTable.isEmpty()) {
+            DYNAMO_DB_WRITE_FAILURES.inc();
+            LOG.error(RESUME_ERROR_LOG, writesPerTable);
+            throw new IOException(ERROR_UNPROCESSED_ITEMS);
           }
         } finally {
           batch.clear();
         }
+      }
+
+      /**
+       * Write batch of items to DynamoDB and potentially retry in case of exceptions. Though, in
+       * case of a partial failure, unprocessed items remain but the request succeeds. This has to
+       * be handled by the caller.
+       */
+      private BatchWriteItemResult writeWithRetries(BatchWriteItemRequest request)
+          throws IOException, InterruptedException {
+        BackOff backoff = retryBackoff.backoff();
+        Exception lastThrown;
+
+        int attempt = 0;
+        do {
+          attempt++;
+          try {
+            return client.batchWriteItem(request);
+          } catch (Exception ex) {
+            lastThrown = ex;
+          }
+        } while (canRetry(lastThrown) && BackOffUtils.next(Sleeper.DEFAULT, backoff));
+
+        DYNAMO_DB_WRITE_FAILURES.inc();
+        LOG.warn(RETRY_ERROR_LOG, attempt, request.getRequestItems());
+        throw new IOException(
+            canRetry(lastThrown) ? String.format(ERROR_RETRIES_EXCEEDED, attempt) : ERROR_NO_RETRY,
+            lastThrown);
+      }
+
+      private boolean canRetry(Exception ex) {
+        return spec.getRetryConfiguration() != null
+            && spec.getRetryConfiguration().getRetryPredicate().test(ex);
       }
 
       @Teardown

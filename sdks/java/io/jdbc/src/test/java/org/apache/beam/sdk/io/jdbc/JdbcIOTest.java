@@ -889,6 +889,9 @@ public class JdbcIOTest implements Serializable {
             .addField("logical_time_col", LogicalTypes.JDBC_TIME_TYPE)
             .addField("logical_time_with_tz_col", LogicalTypes.JDBC_TIMESTAMP_WITH_TIMEZONE_TYPE)
             .addField("logical_fixed_length_string_col", fixedLengthStringType)
+            .addField(
+                "logical_fixed_length_string_nullable_col",
+                fixedLengthStringType.withNullable(true))
             .build();
 
     long epochMilli = 1558719710000L;
@@ -900,7 +903,7 @@ public class JdbcIOTest implements Serializable {
 
     Row row =
         Row.withSchema(schema)
-            .addValues(dateTime.withTimeAtStartOfDay(), time, dateTime, "Test")
+            .addValues(dateTime.withTimeAtStartOfDay(), time, dateTime, "Test", null)
             .build();
 
     PreparedStatement psMocked = mock(PreparedStatement.class);
@@ -913,6 +916,8 @@ public class JdbcIOTest implements Serializable {
         .set(row, psMocked, 2, SchemaUtil.FieldWithIndex.of(schema.getField(2), 2));
     JdbcUtil.getPreparedStatementSetCaller(fixedLengthStringType)
         .set(row, psMocked, 3, SchemaUtil.FieldWithIndex.of(schema.getField(3), 3));
+    JdbcUtil.getPreparedStatementSetCaller(fixedLengthStringType.withNullable(true))
+        .set(row, psMocked, 4, SchemaUtil.FieldWithIndex.of(schema.getField(4), 4));
 
     verify(psMocked, times(1)).setDate(1, new Date(row.getDateTime(0).getMillis()));
     verify(psMocked, times(1)).setTime(2, new Time(row.getDateTime(1).getMillis()));
@@ -922,6 +927,7 @@ public class JdbcIOTest implements Serializable {
 
     verify(psMocked, times(1)).setTimestamp(3, new Timestamp(cal.getTime().getTime()), cal);
     verify(psMocked, times(1)).setString(4, row.getString(3));
+    verify(psMocked, times(1)).setString(5, row.getString(4));
   }
 
   @Test

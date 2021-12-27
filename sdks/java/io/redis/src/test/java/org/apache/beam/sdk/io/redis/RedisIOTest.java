@@ -17,6 +17,10 @@
  */
 package org.apache.beam.sdk.io.redis;
 
+import static java.util.stream.Collectors.toList;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists.transform;
+import static org.hamcrest.CoreMatchers.hasItems;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -24,7 +28,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.MapCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.common.NetworkTestHelper;
 import org.apache.beam.sdk.io.redis.RedisIO.Write.Method;
 import org.apache.beam.sdk.testing.PAssert;
@@ -33,6 +44,7 @@ import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -40,6 +52,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import redis.clients.jedis.Jedis;
+import redis.clients.jedis.StreamEntry;
 import redis.embedded.RedisServer;
 
 /** Test on the Redis IO. */
@@ -248,6 +261,72 @@ public class RedisIOTest {
 
     long count = Long.parseLong(client.get(key));
     assertEquals(-1, count);
+  }
+
+  @Test
+  public void testWriteStreams() {
+
+    /* test data is 10 keys (stream IDs), each with two entries, each entry having one k/v pair of data */
+    List<String> redisKeys =
+        IntStream.range(0, 10).boxed().map(idx -> UUID.randomUUID().toString()).collect(toList());
+
+    Map<String, String> fooValues = ImmutableMap.of("sensor-id", "1234", "temperature", "19.8");
+    Map<String, String> barValues = ImmutableMap.of("sensor-id", "9999", "temperature", "18.2");
+
+    List<KV<String, Map<String, String>>> allData =
+        redisKeys.stream()
+            .flatMap(id -> Stream.of(KV.of(id, fooValues), KV.of(id, barValues)))
+            .collect(toList());
+
+    PCollection<KV<String, Map<String, String>>> write =
+        p.apply(
+            Create.of(allData)
+                .withCoder(
+                    KvCoder.of(
+                        StringUtf8Coder.of(),
+                        MapCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))));
+    write.apply(RedisIO.writeStreams().withEndpoint(REDIS_HOST, port));
+    p.run();
+
+    for (String key : redisKeys) {
+      List<StreamEntry> streamEntries = client.xrange(key, null, null, Integer.MAX_VALUE);
+      assertEquals(2, streamEntries.size());
+      assertThat(transform(streamEntries, StreamEntry::getFields), hasItems(fooValues, barValues));
+    }
+  }
+
+  @Test
+  public void testWriteStreamsWithTruncation() {
+    /* test data is 10 keys (stream IDs), each with two entries, each entry having one k/v pair of data */
+    List<String> redisKeys =
+        IntStream.range(0, 10).boxed().map(idx -> UUID.randomUUID().toString()).collect(toList());
+
+    Map<String, String> fooValues = ImmutableMap.of("sensor-id", "1234", "temperature", "19.8");
+    Map<String, String> barValues = ImmutableMap.of("sensor-id", "9999", "temperature", "18.2");
+
+    List<KV<String, Map<String, String>>> allData =
+        redisKeys.stream()
+            .flatMap(id -> Stream.of(KV.of(id, fooValues), KV.of(id, barValues)))
+            .collect(toList());
+
+    PCollection<KV<String, Map<String, String>>> write =
+        p.apply(
+            Create.of(allData)
+                .withCoder(
+                    KvCoder.of(
+                        StringUtf8Coder.of(),
+                        MapCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))));
+    write.apply(
+        RedisIO.writeStreams()
+            .withEndpoint(REDIS_HOST, port)
+            .withMaxLen(1)
+            .withApproximateTrim(false));
+    p.run();
+
+    for (String stream : redisKeys) {
+      long count = client.xlen(stream);
+      assertEquals(1, count);
+    }
   }
 
   private static List<KV<String, String>> buildConstantKeyList(String key, List<String> values) {

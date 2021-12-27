@@ -33,9 +33,9 @@ jobs:
     steps:
       - name: Check out the repo
         uses: actions/checkout@v2
-      - name: Set up JDK 1.8
-        uses: joschi/setup-jdk@v2
+      - uses: actions/setup-java@v2
         with:
+            distribution: 'zulu'
             java-version: '8'
       - uses: actions/setup-go@v2
         with:
@@ -64,12 +64,21 @@ jobs:
       - name: Login to Docker Registry
         run: cat /tmp/gcp_access.json | docker login -u _json_key --password-stdin https://${{ secrets.REGISTRY_NAME }}
         if: startsWith(github.ref, 'ref/tags/')
-      - name: Preapre Build
+      - name: Preapre Build Java
         run: ./gradlew playground:backend:containers:java:dockerPush -Pdocker-repository-root='${{ secrets.REGISTRY_NAME}}/${{ secrets.PROJECT_ID }}/playground-repository' -Pbase-image='apache/beam_java8_sdk:${{ env.BEAM_VERSION }}'
         if: startsWith(github.ref, 'ref/tags/')
-      - name: Deploy Backend Application
+     - name: Preapre Build Go
+        run: ./gradlew playground:backend:containers:go:dockerPush -Pdocker-repository-root='${{ secrets.REGISTRY_NAME}}/${{ secrets.PROJECT_ID }}/playground-repository' -Pbase-image='apache/beam_java8_sdk:${{ env.BEAM_VERSION }}'
+        if: startsWith(github.ref, 'ref/tags/')
+      - name: Deploy Backend Application Java
         env: 
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp_access.json
         run: terraform init && terraform apply -auto-approve -var="project_id=${{ secrets.PROJECT_ID }}" -var="docker_registry_address=${{ secrets.REGISTRY_NAME}}/${{ secrets.PROJECT_ID }}/playground-repository"
         working-directory: playground/terraform/applications/backend
+        if: startsWith(github.ref, 'ref/tags/')
+      - name: Deploy Backend Application Go
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp_access.json
+        run: terraform init && terraform apply -auto-approve -var="project_id=${{ secrets.PROJECT_ID }}" -var="docker_registry_address=${{ secrets.REGISTRY_NAME}}/${{ secrets.PROJECT_ID }}/playground-repository"
+        working-directory: playground/terraform/applications/backend-go
         if: startsWith(github.ref, 'ref/tags/')

@@ -19,10 +19,11 @@ Configuration for CI/CD steps
 
 import os
 from dataclasses import dataclass
+from typing import Literal
 
 from api.v1.api_pb2 import STATUS_VALIDATION_ERROR, STATUS_ERROR, \
   STATUS_PREPARATION_ERROR, STATUS_COMPILE_ERROR, \
-  STATUS_RUN_TIMEOUT, STATUS_RUN_ERROR, SDK_JAVA, SDK_GO, SDK_PYTHON
+  STATUS_RUN_TIMEOUT, STATUS_RUN_ERROR, SDK_JAVA, SDK_GO, SDK_PYTHON, Sdk
 
 
 @dataclass(frozen=True)
@@ -31,10 +32,11 @@ class Config:
   General configuration for CI/CD steps
   """
   SERVER_ADDRESS = os.getenv("SERVER_ADDRESS", "localhost:8080")
-  SUPPORTED_SDK = {"java": SDK_JAVA, "go": SDK_GO, "py": SDK_PYTHON}
+  EXTENSION_TO_SDK = {"java": SDK_JAVA, "go": SDK_GO, "py": SDK_PYTHON}
+  SUPPORTED_SDK = (Sdk.Name(SDK_JAVA), Sdk.Name(SDK_GO), Sdk.Name(SDK_PYTHON))
   BUCKET_NAME = "test_public_bucket_akvelon"
   TEMP_FOLDER = "temp"
-  EXTENSIONS = {"SDK_JAVA": "java", "SDK_GO": "go", "SDK_PYTHON": "py"}
+  SDK_TO_EXTENSION = {SDK_JAVA: "java", SDK_GO: "go", SDK_PYTHON: "py"}
   NO_STORE = "no-store"
   ERROR_STATUSES = [
       STATUS_VALIDATION_ERROR,
@@ -44,9 +46,12 @@ class Config:
       STATUS_RUN_TIMEOUT,
       STATUS_RUN_ERROR
   ]
-  BEAM_PLAYGROUND_TITLE = "Beam-playground:\n"
-  BEAM_PLAYGROUND = "Beam-playground"
+  BEAM_PLAYGROUND_TITLE = "beam-playground:\n"
+  BEAM_PLAYGROUND = "beam-playground"
   PAUSE_DELAY = 10
+  CI_STEP_NAME = "CI"
+  CD_STEP_NAME = "CD"
+  CI_CD_LITERAL = Literal["CI", "CD"]
 
 
 @dataclass(frozen=True)
@@ -61,5 +66,13 @@ class TagFields:
 @dataclass(frozen=True)
 class PrecompiledExample:
   OUTPUT_EXTENSION = "output"
+  LOG_EXTENSION = "log"
   META_NAME = "meta"
   META_EXTENSION = "info"
+
+
+@dataclass(frozen=True)
+class PrecompiledExampleType:
+  examples = "examples"
+  katas = "katas"
+  test_ends = ("test", "it")

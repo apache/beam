@@ -28,10 +28,11 @@ func PutPrecompiledObjectsToCategory(categoryName string, precompiledObjects *cl
 	}
 	for _, object := range *precompiledObjects {
 		category.PrecompiledObjects = append(category.PrecompiledObjects, &pb.PrecompiledObject{
-			CloudPath:   object.CloudPath,
-			Name:        object.Name,
-			Description: object.Description,
-			Type:        object.Type,
+			CloudPath:       object.CloudPath,
+			Name:            object.Name,
+			Description:     object.Description,
+			Type:            object.Type,
+			PipelineOptions: object.PipelineOptions,
 		})
 	}
 	sdkCategory.Categories = append(sdkCategory.Categories, &category)

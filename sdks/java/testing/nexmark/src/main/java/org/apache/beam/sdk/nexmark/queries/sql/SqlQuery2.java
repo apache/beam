@@ -52,7 +52,7 @@ public class SqlQuery2 extends NexmarkQueryTransform<AuctionPrice> {
   private final Class<? extends QueryPlanner> plannerClass;
 
   private SqlQuery2(String name, long skipFactor, Class<? extends QueryPlanner> plannerClass) {
-    super("SqlQuery2");
+    super(name);
     this.plannerClass = plannerClass;
     this.skipFactor = skipFactor;
   }

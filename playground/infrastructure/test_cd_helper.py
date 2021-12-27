@@ -66,17 +66,18 @@ def test__write_to_local_fs(delete_temp_folder):
       "name": "name",
       "description": "description",
       "multifile": False,
-      "categories": ["category-1", "category-2"]
+      "categories": ["category-1", "category-2"],
+      "pipeline_options": "--option option"
   }
   example = Example(
-      "name",
-      "pipeline_id",
-      SDK_JAVA,
-      "filepath",
-      "code_of_example",
-      "output_of_example",
-      STATUS_UNSPECIFIED,
-      Tag(**object_meta))
+      name="name",
+      pipeline_id="pipeline_id",
+      sdk=SDK_JAVA,
+      filepath="filepath",
+      code="code_of_example",
+      output="output_of_example",
+      status=STATUS_UNSPECIFIED,
+      tag=Tag(**object_meta))
   expected_result = {
       "SDK_JAVA/name/name.java": "temp/pipeline_id/SDK_JAVA/name/name.java",
       "SDK_JAVA/name/name.output": "temp/pipeline_id/SDK_JAVA/name/name.output",
@@ -96,14 +97,14 @@ def test__save_to_cloud_storage(mocker):
   write_to_os_mock = mocker.patch(
       "cd_helper.CDHelper._write_to_local_fs", return_value={"": ""})
   example = Example(
-      "name",
-      "pipeline_id",
-      SDK_JAVA,
-      "filepath",
-      "code_of_example",
-      "output_of_example",
-      STATUS_UNSPECIFIED,
-      None)
+      name="name",
+      pipeline_id="pipeline_id",
+      sdk=SDK_JAVA,
+      filepath="filepath",
+      code="code_of_example",
+      output="output_of_example",
+      status=STATUS_UNSPECIFIED,
+      tag=None)
 
   CDHelper()._save_to_cloud_storage([example])
   write_to_os_mock.assert_called_with(example)

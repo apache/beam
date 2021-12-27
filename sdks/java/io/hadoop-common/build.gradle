@@ -34,11 +34,14 @@ def hadoopVersions = [
 hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
 
 dependencies {
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  provided library.java.hadoop_client
-  provided library.java.hadoop_common
-  provided library.java.hadoop_mapreduce_client_core
-  testCompile library.java.junit
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  compileOnly library.java.hadoop_client
+  compileOnly library.java.hadoop_common
+  compileOnly library.java.hadoop_mapreduce_client_core
+  testImplementation library.java.junit
+  testImplementation library.java.hadoop_client
+  testImplementation library.java.hadoop_common
+  testImplementation library.java.hadoop_mapreduce_client_core
   hadoopVersions.each {kv ->
     "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-client:$kv.value"
     "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-common:$kv.value"
