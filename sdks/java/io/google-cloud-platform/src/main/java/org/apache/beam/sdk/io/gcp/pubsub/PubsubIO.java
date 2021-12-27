@@ -30,9 +30,9 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.naming.SizeLimitExceededException;
@@ -41,7 +41,10 @@ import org.apache.avro.reflect.ReflectData;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.coders.*;
+import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoDomain;
 import org.apache.beam.sdk.extensions.protobuf.ProtoDynamicMessageSchema;
@@ -1192,7 +1195,7 @@ public class PubsubIO {
      */
     public class PubsubBoundedWriter extends DoFn<PubsubMessage, Void> {
       private transient PubsubClient pubsubClient;
-      private transient HashMap<PubsubTopic, PubsubMessageOutput> outputToTopic;
+      private transient ConcurrentHashMap<PubsubTopic, PubsubMessageOutput> outputToTopic;
 
       private int maxPublishBatchByteSize;
       private int maxPublishBatchSize;
@@ -1218,7 +1221,7 @@ public class PubsubIO {
 
       @StartBundle
       public void startBundle(StartBundleContext c) throws IOException {
-        this.outputToTopic = new HashMap<>();
+        this.outputToTopic = new ConcurrentHashMap<>();
 
         // NOTE: idAttribute is ignored.
         this.pubsubClient =

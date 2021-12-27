@@ -91,7 +91,7 @@ public class PubsubMessage {
     return impl.getMessageId();
   }
 
-  /** Returns the full topic path of the message */
+  /** Returns the full topic path of the message. */
   public @Nullable String getTopicPath() {
     return impl.getTopicPath();
   }
