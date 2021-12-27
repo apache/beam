@@ -34,11 +34,11 @@ class PlaygroundFeedback extends StatelessWidget {
           AppLocalizations.of(context)!.enjoyingPlayground,
           style: const TextStyle(fontWeight: kBoldWeight),
         ),
-        FeedbackDropdownIconButton(
+        const FeedbackDropdownIconButton(
           iconAsset: kThumbUpIconAsset,
           isEnjoying: true,
         ),
-        FeedbackDropdownIconButton(
+        const FeedbackDropdownIconButton(
           iconAsset: kThumbDownIconAsset,
           isEnjoying: false,
         ),
