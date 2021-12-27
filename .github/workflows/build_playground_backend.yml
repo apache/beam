@@ -67,6 +67,8 @@ jobs:
       - name: Preapre Build Java
         run: ./gradlew playground:backend:containers:java:dockerPush -Pdocker-repository-root='${{ secrets.REGISTRY_NAME}}/${{ secrets.PROJECT_ID }}/playground-repository' -Pbase-image='apache/beam_java8_sdk:${{ env.BEAM_VERSION }}'
         if: startsWith(github.ref, 'ref/tags/')
+      - name: Preapre Build Python
+        run: ./gradlew playground:backend:containers:python:dockerPush -Pdocker-repository-root='${{ secrets.REGISTRY_NAME}}/${{ secrets.PROJECT_ID }}/playground-repository' -Pbase-image='apache/beam_java8_sdk:${{ env.BEAM_VERSION }}'
      - name: Preapre Build Go
         run: ./gradlew playground:backend:containers:go:dockerPush -Pdocker-repository-root='${{ secrets.REGISTRY_NAME}}/${{ secrets.PROJECT_ID }}/playground-repository' -Pbase-image='apache/beam_java8_sdk:${{ env.BEAM_VERSION }}'
         if: startsWith(github.ref, 'ref/tags/')
@@ -76,6 +78,11 @@ jobs:
         run: terraform init && terraform apply -auto-approve -var="project_id=${{ secrets.PROJECT_ID }}" -var="docker_registry_address=${{ secrets.REGISTRY_NAME}}/${{ secrets.PROJECT_ID }}/playground-repository"
         working-directory: playground/terraform/applications/backend
         if: startsWith(github.ref, 'ref/tags/')
+      - name: Deploy Backend Application Python
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp_access.json
+        run: terraform init && terraform apply -auto-approve -var="project_id=${{ secrets.PROJECT_ID }}" -var="docker_registry_address=${{ secrets.REGISTRY_NAME}}/${{ secrets.PROJECT_ID }}/playground-repository"
+        working-directory: playground/terraform/applications/backend-python
       - name: Deploy Backend Application Go
         env:
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp_access.json
