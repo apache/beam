@@ -21,9 +21,7 @@
 
 ## About
 
-Apache Beam is an open-source, unified model for defining parallel processing pipelines for batch
-and streaming data. It provides a portable API layer for building sophisticated data-parallel
-processing pipelines that may be executed across a diversity of execution engines, or runners.
+Beam Playground is an interactive environment to try out Beam transforms and examples. The vision for the Playground is to be a web application where users can try out Beam without having to install/initialize a Beam environment.
 
 ## Getting Started
 
