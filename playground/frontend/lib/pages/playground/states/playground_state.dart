@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -27,6 +28,7 @@ import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 
 const kTitleLength = 15;
+const kExecutionTimeUpdate = 100;
 const kPrecompiledDelay = Duration(seconds: 1);
 const kTitle = 'Catalog';
 const kPipelineOptionsParseError =
@@ -40,6 +42,7 @@ class PlaygroundState with ChangeNotifier {
   RunCodeResult? _result;
   String _pipelineOptions = '';
   DateTime? resetKey;
+  StreamController<int>? _executionTime;
 
   PlaygroundState({
     SDK sdk = SDK.java,
@@ -69,6 +72,8 @@ class PlaygroundState with ChangeNotifier {
   RunCodeResult? get result => _result;
 
   String get pipelineOptions => _pipelineOptions;
+
+  Stream<int>? get executionTime => _executionTime?.stream;
 
   setExample(ExampleModel example) {
     _selectedExample = example;
@@ -121,6 +126,7 @@ class PlaygroundState with ChangeNotifier {
       notifyListeners();
       return;
     }
+    _executionTime = _createExecutionTimeStream();
     if (_selectedExample?.source == source &&
         _selectedExample?.outputs != null &&
         !_arePipelineOptionsChanges) {
@@ -135,9 +141,11 @@ class PlaygroundState with ChangeNotifier {
         _result = event;
         if (event.isFinished && onFinish != null) {
           onFinish();
+          _executionTime?.close();
         }
         notifyListeners();
       });
+      notifyListeners();
     }
   }
 
@@ -156,6 +164,39 @@ class PlaygroundState with ChangeNotifier {
       status: RunCodeStatus.finished,
       output: _selectedExample!.outputs,
     );
+    _executionTime?.close();
     notifyListeners();
+  }
+
+  StreamController<int> _createExecutionTimeStream() {
+    StreamController<int>? streamController;
+    Timer? timer;
+    Duration timerInterval = const Duration(milliseconds: kExecutionTimeUpdate);
+    int ms = 0;
+
+    void stopTimer() {
+      if (timer != null) {
+        timer?.cancel();
+        streamController?.close();
+      }
+    }
+
+    void tick(_) {
+      ms += kExecutionTimeUpdate;
+      streamController?.add(ms);
+    }
+
+    void startTimer() {
+      timer = Timer.periodic(timerInterval, tick);
+    }
+
+    streamController = StreamController<int>(
+      onListen: startTimer,
+      onCancel: stopTimer,
+      onResume: startTimer,
+      onPause: stopTimer,
+    );
+
+    return streamController;
   }
 }
