@@ -629,6 +629,12 @@ task examplesJavaRunnerV2IntegrationTest(type: Test) {
   useJUnit { }
 }
 
+task setJavaSDK8AsCompiler(type: JavaCompile) {
+  javaCompiler = javaToolchains.compilerFor {
+    languageVersion = JavaLanguageVersion.of(8)
+  }
+}
+
 task examplesJavaRunnerV2IntegrationTestJavaSDK17(type: Test) {
   group = "Verification"
   dependsOn buildAndPushDockerContainer

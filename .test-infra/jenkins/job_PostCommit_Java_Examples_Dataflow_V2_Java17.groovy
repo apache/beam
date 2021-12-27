@@ -33,6 +33,10 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Examples_Dataflow_V2_ja
       steps {
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':runners:google-cloud-dataflow-java:setJavaSDK8AsCompiler')
+        }
+        gradle {
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(':runners:google-cloud-dataflow-java:examplesJavaRunnerV2IntegrationTestJavaSDK17')
 
           // Increase parallel worker threads above processor limit since most time is

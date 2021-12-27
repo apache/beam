@@ -26,9 +26,6 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Dataflo
 
       description('Runs the ValidatesRunner suite on the Dataflow runner with Java 17 worker harness.')
 
-      def JAVA_17_HOME = '/usr/lib/jvm/java-17-openjdk-amd64'
-      def JAVA_8_HOME = '/usr/lib/jvm/java-8-openjdk-amd64'
-
       commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 420)
       publishers {
         archiveJunit('**/build/test-results/**/*.xml')
@@ -37,9 +34,9 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Dataflo
       steps {
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':runners:google-cloud-dataflow-java:setJavaSDK8AsCompiler')
           tasks(':runners:google-cloud-dataflow-java:testJar')
           tasks(':runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar')
-          switches("-Dorg.gradle.java.home=${JAVA_8_HOME}")
         }
 
         gradle {
@@ -53,7 +50,6 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Dataflo
           switches('-x testJar')
           switches('-x classes')
           switches('-x testClasses')
-          //switches("-Dorg.gradle.java.home=${JAVA_17_HOME}")
 
           commonJobProperties.setGradleSwitches(delegate, 3 * Runtime.runtime.availableProcessors())
         }
