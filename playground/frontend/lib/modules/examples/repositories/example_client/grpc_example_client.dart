@@ -73,18 +73,24 @@ class GrpcExampleClient implements ExampleClient {
               _getExampleOutputRequestToGrpcRequest(request))
           .then((response) =>
               OutputResponse(replaceIncorrectSymbols(response.output)))
-          .catchError((_) => OutputResponse('')),
+          .catchError((err) {
+        print(err);
+        OutputResponse('');
+      }),
     );
   }
 
   @override
   Future<OutputResponse> getExampleLogs(GetExampleRequestWrapper request) {
     return _runSafely(
-      () => createClient(request.sdk)
+      () => _defaultClient
           .getPrecompiledObjectLogs(_getExampleLogRequestToGrpcRequest(request))
           .then((response) =>
               OutputResponse(replaceIncorrectSymbols(response.output)))
-          .catchError((_) => OutputResponse('')),
+          .catchError((err) {
+        print(err);
+        OutputResponse('');
+      }),
     );
   }
 
