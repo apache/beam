@@ -83,7 +83,7 @@ class AnalyticsService {
     safeSendEvent(
       kFeedbackCategory,
       kClickEnjoyPlaygroundEvent,
-      label: isEnjoying.toString(),
+      label: 'isEnjoying = ' + isEnjoying.toString(),
     );
   }
 
@@ -96,6 +96,14 @@ class AnalyticsService {
       kRunCodeCategory,
       kClickRunEvent,
       label: example?.path ?? '',
+    );
+  }
+
+  void trackClickSendFeedback(String feedback) {
+    safeSendEvent(
+      kFeedbackCategory,
+      kClickSendFeedbackEvent,
+      label: feedback,
     );
   }
 

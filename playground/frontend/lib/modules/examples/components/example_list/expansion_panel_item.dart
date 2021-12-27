@@ -26,12 +26,14 @@ import 'package:provider/provider.dart';
 
 class ExpansionPanelItem extends StatelessWidget {
   final ExampleModel example;
+  final ExampleModel selectedExample;
   final AnimationController animationController;
   final OverlayEntry? dropdown;
 
   const ExpansionPanelItem({
     Key? key,
     required this.example,
+    required this.selectedExample,
     required this.animationController,
     required this.dropdown,
   }) : super(key: key);
@@ -50,7 +52,7 @@ class ExpansionPanelItem extends StatelessWidget {
                 playgroundState.sdk,
               );
               playgroundState.setExample(exampleWithInfo);
-              AnalyticsService.get(context).trackSelectExample(example);
+              AnalyticsService.get(context).trackSelectExample(exampleWithInfo);
             }
           },
           child: Container(
@@ -60,7 +62,12 @@ class ExpansionPanelItem extends StatelessWidget {
             child: Row(
               children: [
                 // Wrapped with Row for better user interaction and positioning
-                Text(example.name),
+                Text(
+                  example.name,
+                  style: example == selectedExample
+                      ? const TextStyle(fontWeight: FontWeight.bold)
+                      : const TextStyle(),
+                ),
               ],
             ),
           ),

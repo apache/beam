@@ -16,13 +16,14 @@
 package xlang
 
 import (
+	"context"
 	"os"
-	"os/exec"
-	"strings"
 	"testing"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/xlangx/expansionx"
 	"github.com/apache/beam/sdks/v2/go/test/integration"
+	"google.golang.org/grpc"
 )
 
 const (
@@ -32,18 +33,6 @@ const (
 	gradleTarget  = ":sdks:java:io:expansion-service:runExpansionService"
 	expansionPort = "8097"
 )
-
-func checkPort(t *testing.T, port string) {
-	ping := exec.Command("nc", "-vz", "localhost", port)
-	output, err := ping.CombinedOutput()
-	if err != nil {
-		t.Errorf("failed to run ping to localhost:%v", port)
-	}
-	outputStr := string(output)
-	if strings.Contains(outputStr, "failed") {
-		t.Errorf("failed to connect to localhost:%v, got err %v", port, outputStr)
-	}
-}
 
 func TestAutomatedExpansionService(t *testing.T) {
 	integration.CheckFilters(t)
@@ -59,7 +48,13 @@ func TestAutomatedExpansionService(t *testing.T) {
 		t.Errorf("failed to start expansion service JAR, got %v", err)
 	}
 
-	checkPort(t, expansionPort)
+	ctx, canFunc := context.WithTimeout(context.Background(), 15*time.Second)
+	t.Cleanup(func() { canFunc() })
+	conn, err := grpc.DialContext(ctx, "localhost:"+expansionPort, grpc.WithInsecure(), grpc.WithBlock())
+	if err != nil {
+		t.Fatalf("could not connect to port %v, got %v", expansionPort, err)
+	}
+	conn.Close()
 
 	err = serviceRunner.StopService()
 	if err != nil {

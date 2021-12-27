@@ -30,6 +30,7 @@ const kTimeoutErrorText =
     'to try examples without timeout limitation.';
 const kUnknownErrorText =
     'Something went wrong. Please try again later or create a jira ticket';
+const kProcessingStartedText = 'The processing has started';
 
 class CodeRepository {
   late final CodeClient _client;
@@ -40,10 +41,18 @@ class CodeRepository {
 
   Stream<RunCodeResult> runCode(RunCodeRequestWrapper request) async* {
     try {
-      yield RunCodeResult(status: RunCodeStatus.preparation);
+      final initResult = RunCodeResult(
+        status: RunCodeStatus.preparation,
+        log: kProcessingStartedText,
+      );
+      yield initResult;
       var runCodeResponse = await _client.runCode(request);
       final pipelineUuid = runCodeResponse.pipelineUuid;
-      yield* _checkPipelineExecution(pipelineUuid, request);
+      yield* _checkPipelineExecution(
+        pipelineUuid,
+        request,
+        prevResult: initResult,
+      );
     } on RunCodeError catch (error) {
       yield RunCodeResult(
         status: RunCodeStatus.unknownError,
@@ -100,7 +109,11 @@ class CodeRepository {
           pipelineUuid,
           request,
         );
-        return RunCodeResult(status: status, output: compileOutput.output);
+        return RunCodeResult(
+          status: status,
+          output: compileOutput.output,
+          log: prevLog,
+        );
       case RunCodeStatus.timeout:
         return RunCodeResult(
           status: status,
@@ -109,12 +122,17 @@ class CodeRepository {
         );
       case RunCodeStatus.runError:
         final output = await _client.getRunErrorOutput(pipelineUuid, request);
-        return RunCodeResult(status: status, output: output.output);
+        return RunCodeResult(
+          status: status,
+          output: output.output,
+          log: prevLog,
+        );
       case RunCodeStatus.unknownError:
         return RunCodeResult(
           status: status,
           errorMessage: kUnknownErrorText,
           output: kUnknownErrorText,
+          log: prevLog,
         );
       case RunCodeStatus.executing:
       case RunCodeStatus.finished:

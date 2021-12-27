@@ -777,20 +777,60 @@ class TestWriteToBigQuery(unittest.TestCase):
     self.assertEqual(
         original_side_input_data.view_fn, deserialized_side_input_data.view_fn)
 
-  def test_triggering_frequency_with_streaming_inserts_usage(self):
-    # triggering_frequency with STREAMING_INSERTS can only be
-    # used with with_auto_sharding=True
-    beam.io.gcp.bigquery.WriteToBigQuery(
-        "dataset.table",
-        method=WriteToBigQuery.Method.STREAMING_INSERTS,
-        triggering_frequency=0.5,
-        with_auto_sharding=True)
-    with self.assertRaises(ValueError):
-      beam.io.gcp.bigquery.WriteToBigQuery(
-          "dataset.table",
-          method=WriteToBigQuery.Method.STREAMING_INSERTS,
-          triggering_frequency=0.5,
-          with_auto_sharding=False)
+  def test_streaming_triggering_frequency_without_auto_sharding(self):
+    def noop(table, **kwargs):
+      return []
+
+    client = mock.Mock()
+    client.insert_rows_json = mock.Mock(side_effect=noop)
+    opt = StandardOptions()
+    opt.streaming = True
+    with self.assertRaises(ValueError,
+                           msg="triggering_frequency with STREAMING_INSERTS" +
+                           "can only be used with with_auto_sharding=True"):
+      with beam.Pipeline(runner='BundleBasedDirectRunner', options=opt) as p:
+        _ = (
+            p
+            | beam.Create([{
+                'columnA': 'value1'
+            }])
+            | WriteToBigQuery(
+                table='project:dataset.table',
+                schema={
+                    'fields': [{
+                        'name': 'columnA', 'type': 'STRING', 'mode': 'NULLABLE'
+                    }]
+                },
+                create_disposition='CREATE_NEVER',
+                triggering_frequency=1,
+                with_auto_sharding=False,
+                test_client=client))
+
+  def test_streaming_triggering_frequency_with_auto_sharding(self):
+    def noop(table, **kwargs):
+      return []
+
+    client = mock.Mock()
+    client.insert_rows_json = mock.Mock(side_effect=noop)
+    opt = StandardOptions()
+    opt.streaming = True
+    with beam.Pipeline(runner='BundleBasedDirectRunner', options=opt) as p:
+      _ = (
+          p
+          | beam.Create([{
+              'columnA': 'value1'
+          }])
+          | WriteToBigQuery(
+              table='project:dataset.table',
+              schema={
+                  'fields': [{
+                      'name': 'columnA', 'type': 'STRING', 'mode': 'NULLABLE'
+                  }]
+              },
+              create_disposition='CREATE_NEVER',
+              triggering_frequency=1,
+              with_auto_sharding=True,
+              test_client=client))
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
