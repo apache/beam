@@ -91,7 +91,7 @@ jobs:
 
   python_unit_tests:
     name: 'Python Unit Tests'
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
