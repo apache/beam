@@ -22,8 +22,9 @@ resource "google_app_engine_flexible_app_version" "frontend_app" {
   project    = "${var.project_id}"
   service    = "${var.service_name}"
   runtime    = "custom"
+  delete_service_on_destroy = true
 
- liveness_check {
+  liveness_check {
     path = ""
   }
 

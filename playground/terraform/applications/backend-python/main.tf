@@ -22,9 +22,9 @@ resource "google_app_engine_flexible_app_version" "backend_app_python" {
   project    = "${var.project_id}"
   service    = "${var.service_name}"
   runtime    = "custom"
-#  instance_class = "F4"
+  delete_service_on_destroy = true
 
- liveness_check {
+  liveness_check {
     path = ""
   }
 
