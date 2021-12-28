@@ -22,9 +22,9 @@ resource "google_app_engine_flexible_app_version" "backend_app_go" {
   project    = "${var.project_id}"
   service    = "${var.service_name}"
   runtime    = "custom"
-  instance_class = "F2"
+  delete_service_on_destroy = true
 
- liveness_check {
+  liveness_check {
     path = ""
   }
 
@@ -42,8 +42,8 @@ resource "google_app_engine_flexible_app_version" "backend_app_go" {
   }
 
   resources {
-    memory_gb = 16
-    cpu = 8
+    memory_gb = 4
+    cpu = 2
   }
 
   env_variables = {
