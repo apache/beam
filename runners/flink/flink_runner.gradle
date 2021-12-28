@@ -237,6 +237,8 @@ def createValidatesRunnerTask(Map m) {
         excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
         excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderedDelivery'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderInBundle'
       }
       filter {
         // https://issues.apache.org/jira/browse/BEAM-12039
@@ -245,6 +247,8 @@ def createValidatesRunnerTask(Map m) {
         excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testFirstElementLate'
         // https://issues.apache.org/jira/browse/BEAM-12038
         excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testLateDataAccumulating'
+        // TODO(BEAM-13573)
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testOnWindowTimestampSkew'
       }
     }
   }
