@@ -123,21 +123,42 @@ class _EditorTextAreaState extends State<EditorTextArea> {
 
   _findOffset() {
     return _codeController!.text.indexOf(
-      _skipStrings(7) == '' ? _skipStrings(8) : _skipStrings(7),
-      _skipImportsAndLicenses(),
+      _skipStrings(16),
+      _getPositionAfterImportsAndLicenses(widget.sdk),
     );
   }
 
-  _skipStrings(int qntOfStrings) {
-    return _codeController!.text
-        .substring(_skipImportsAndLicenses())
-        .split('\n')[qntOfStrings];
+  String _skipStrings(int qntOfStrings) {
+    List<String> strings = _codeController!.text
+        .substring(_getPositionAfterImportsAndLicenses(widget.sdk))
+        .split('\n');
+    String result =
+        strings.length > qntOfStrings ? strings[qntOfStrings] : strings.last;
+    if (result == '') {
+      return _skipStrings(qntOfStrings - 1);
+    } else {
+      return result;
+    }
   }
 
-  _skipImportsAndLicenses() {
-    return _codeController!.text.indexOf(
-      _codeController!.text.split('\n')[40],
-    );
+  int _getPositionAfterImportsAndLicenses(SDK sdk) {
+    switch (sdk) {
+      case SDK.java:
+        return _codeController!.text.lastIndexOf(RegExp(r"import "));
+      case SDK.python:
+        return _codeController!.text
+            .lastIndexOf(RegExp(r"[^\S\r\n](import|as)[^\S\r\n][A-z]*\n\n"));
+      case SDK.go:
+        return _codeController!.text.lastIndexOf(RegExp(r"[^\S\r\n]+\"
+            r'"'
+            r".*"
+            r'"'
+            r"\n\)\n\n"));
+      case SDK.scio:
+        return _codeController!.text.indexOf(
+          _codeController!.text.split('\n')[0],
+        );
+    }
   }
 
   _getLanguageFromSdk() {
