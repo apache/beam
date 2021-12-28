@@ -1246,17 +1246,24 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(lambda s2: s2.idxmax(skipna=False), s2)
 
   def test_pipe(self):
-    # def sum(x):
-    #   x['A'] = x['A'] * 2
+    def sum(x):
+      x['A'] = x['A'] * 2
 
-    df = pd.DataFrame({'A': [1, 2, 3], 'B': [4, 5, 6]}, index=[0, 1, 2])
+    df = pd.DataFrame({'A': [1, 2, 3], 'B': [4, 5, 6]})
 
-    # func_1 = sum
+    func_1 = sum
     func_2 = frames.DeferredDataFrame.sum
 
     # _expr or proxy doesnt exist
-    # self._run_test(lambda df: df.pipe(func_1), df)
+    self._run_test(lambda df: df.pipe(func_1), df)
     self._run_test(lambda df: df.pipe(func_2), df)
+
+  def test_pipe_series(self):
+
+    s = pd.Series([1, 2, 3, 4, 5])
+    fn_sum = frames.DeferredSeries.sum
+
+    self._run_test(lambda s: s.pipe(fn_sum), s)
 
 
 # pandas doesn't support kurtosis on GroupBys:

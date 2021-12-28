@@ -1033,6 +1033,10 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   def index(self):
     return _DeferredIndex(self)
 
+  @frame_base.with_docs_from(pd.DataFrame)
+  def pipe(self, fn, *args):
+    return fn(self, *args)
+
   @index.setter
   def _set_index(self, value):
     # TODO: assigning the index is generally order-sensitive, but we could
@@ -3848,11 +3852,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   def idxmax(self, **kwargs):
     return self._idxmaxmin_helper('idxmax', **kwargs)
 
-  @frame_base.with_docs_from(pd.DataFrame)
-  @frame_base.args_to_kwargs(pd.DataFrame)
-  def pipe(self, func, *args, **kwargs):
-    result = func(self, *args, **kwargs)
-    return result
+
 
 for io_func in dir(io):
   if io_func.startswith('to_'):
