@@ -19,21 +19,16 @@ package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 
 import com.google.api.gax.rpc.ApiException;
 import com.google.auto.value.AutoValue;
-import com.google.cloud.pubsublite.CloudRegion;
 import com.google.cloud.pubsublite.Partition;
 import com.google.cloud.pubsublite.TopicPath;
 import com.google.cloud.pubsublite.internal.TopicStatsClient;
 import com.google.cloud.pubsublite.internal.TopicStatsClientSettings;
 import java.io.Serializable;
-import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Ticker;
 
 @AutoValue
 abstract class TopicBacklogReaderSettings implements Serializable {
   private static final long serialVersionUID = -4001752066450248673L;
-
-  private static final ConcurrentHashMap<CloudRegion, TopicStatsClient> CLIENTS =
-      new ConcurrentHashMap<>();
 
   /** The topic path for this backlog reader. */
   abstract TopicPath topicPath();
@@ -55,16 +50,15 @@ abstract class TopicBacklogReaderSettings implements Serializable {
     abstract TopicBacklogReaderSettings build();
   }
 
-  private TopicStatsClient getClient() {
-    return CLIENTS.computeIfAbsent(
-        topicPath().location().extractRegion(),
-        region ->
-            TopicStatsClient.create(
-                TopicStatsClientSettings.newBuilder().setRegion(region).build()));
+  private TopicStatsClient newClient() {
+    return TopicStatsClient.create(
+        TopicStatsClientSettings.newBuilder()
+            .setRegion(topicPath().location().extractRegion())
+            .build());
   }
 
   TopicBacklogReader instantiate() throws ApiException {
-    TopicBacklogReader impl = new TopicBacklogReaderImpl(getClient(), topicPath(), partition());
+    TopicBacklogReader impl = new TopicBacklogReaderImpl(newClient(), topicPath(), partition());
     return new LimitingTopicBacklogReader(impl, Ticker.systemTicker());
   }
 }
