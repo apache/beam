@@ -245,10 +245,7 @@ jobs:
       shell: bash
     - name: Install sha512sum on MacOS
       if: startsWith(matrix.os_python.os, 'macos')
-      run: 
-        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-        eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-        brew install coreutils
+      run: brew install coreutils
     - name: Add checksums
       working-directory: apache-beam-source/wheelhouse/
       run: |
@@ -289,7 +286,7 @@ jobs:
     needs:
       - build_wheels
       - check_gcp_variables
-    runs-on: [self-hosted]
+    runs-on: self-hosted
     if: needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     strategy:
       matrix:

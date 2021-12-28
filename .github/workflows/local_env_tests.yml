@@ -31,7 +31,7 @@ on:
 jobs:
   run_local_env_install_ubuntu:
     timeout-minutes: 25
-    name: "Ubuntu run local environment shell script"
+    name: "Self-hosted run local environment shell script"
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
