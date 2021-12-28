@@ -27,6 +27,7 @@ package main
 //   categories:
 //     - IO
 //     - Options
+//     - Branching
 //     - Multiple Outputs
 
 import (

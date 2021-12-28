@@ -38,7 +38,8 @@ package main
 //   multifile: false
 //   pipeline_options:
 //   categories:
-//     - Testing
+//     - Flatten
+//     - Branching
 
 import (
 	"context"

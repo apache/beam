@@ -31,3 +31,7 @@ categories:
   - Coders
   - Stateful Processing
   - Beam SQL
+  - Debugging
+  - Filtering
+  - Flatten
+  - Core Transforms

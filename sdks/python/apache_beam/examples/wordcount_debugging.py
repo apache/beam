@@ -49,8 +49,11 @@ and an output prefix on GCS::
 #   multifile: false
 #   pipeline_options: --output output.txt
 #   categories:
-#     - IO
+#     - Flatten
+#     - Debugging
 #     - Options
+#     - Combiners
+#     - Filtering
 
 import argparse
 import logging

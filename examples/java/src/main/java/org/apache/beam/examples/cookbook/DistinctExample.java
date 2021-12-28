@@ -25,9 +25,9 @@ package org.apache.beam.examples.cookbook;
 //   multifile: false
 //   pipeline_options: --output output.txt
 //   categories:
-//     - IO
+//     - Filtering
 //     - Options
-//
+//     - Core Transforms
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;

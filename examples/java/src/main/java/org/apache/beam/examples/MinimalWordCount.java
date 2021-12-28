@@ -23,8 +23,10 @@ package org.apache.beam.examples;
 //   multifile: false
 //   pipeline_options:
 //   categories:
+//     - Combiners
+//     - Filtering
 //     - IO
-//     - Options
+//     - Core Transforms
 
 import java.util.Arrays;
 import org.apache.beam.sdk.Pipeline;

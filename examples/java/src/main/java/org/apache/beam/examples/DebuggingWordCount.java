@@ -24,7 +24,8 @@ package org.apache.beam.examples;
 //   multifile: false
 //   pipeline_options: --output output.txt
 //   categories:
-//     - IO
+//     - Debugging
+//     - Filtering
 //     - Options
 
 import java.util.Arrays;

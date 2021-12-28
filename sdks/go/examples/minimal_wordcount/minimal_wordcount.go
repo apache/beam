@@ -45,6 +45,8 @@ package main
 //   pipeline_options:
 //   categories:
 //     - IO
+//     - Combiners
+//     - Core Transforms
 
 import (
 	"context"

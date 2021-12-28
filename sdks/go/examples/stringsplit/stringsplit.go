@@ -42,7 +42,8 @@ package main
 //   multifile: false
 //   pipeline_options:
 //   categories:
-//     - Testing
+//     - Debugging
+//     - Flatten
 
 import (
 	"context"

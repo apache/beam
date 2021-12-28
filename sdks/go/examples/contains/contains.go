@@ -21,8 +21,9 @@ package main
 //   multifile: false
 //   pipeline_options: --search king
 //   categories:
-//     - IO
+//     - Filtering
 //     - Options
+//     - Debugging
 
 import (
 	"context"

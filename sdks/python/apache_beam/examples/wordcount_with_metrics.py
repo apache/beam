@@ -25,7 +25,7 @@
 #   multifile: false
 #   pipeline_options: --output output.txt
 #   categories:
-#     - IO
+#     - Combiners
 #     - Options
 #     - Metrics
 

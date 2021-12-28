@@ -21,8 +21,9 @@ package main
 //   multifile: false
 //   pipeline_options:
 //   categories:
-//     - Testing
+//     - Debugging
 //     - Combiners
+//     - Filtering
 
 import (
 	"context"

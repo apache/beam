@@ -23,7 +23,7 @@ package org.apache.beam.examples;
 //   multifile: false
 //   pipeline_options: --output output.txt
 //   categories:
-//     - IO
+//     - Combiners
 //     - Options
 
 import org.apache.beam.examples.common.ExampleUtils;
