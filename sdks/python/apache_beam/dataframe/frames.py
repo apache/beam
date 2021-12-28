@@ -4078,6 +4078,10 @@ class DeferredGroupBy(frame_base.DeferredFrame):
             preserves_partition_by=partitionings.Index(self._grouping_indexes)))
 
   @frame_base.with_docs_from(DataFrameGroupBy)
+  def pipe(self, func, *args, **kwargs):
+    return func(self, *args, **kwargs)
+
+  @frame_base.with_docs_from(DataFrameGroupBy)
   def filter(self, func=None, dropna=True):
     if func is None or not callable(func):
       raise TypeError("func must be specified and it must be callable")

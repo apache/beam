@@ -1458,6 +1458,19 @@ class GroupByTest(_AbstractFrameTest):
             lambda x: (x - x.mean()) / x.std()),
         df)
 
+  def test_groupby_pipe(self):
+    df = GROUPBY_DF
+
+    func_1 = frames.DeferredDataFrame.sum
+    # func_2 = frames.DeferredDataFrame.idxmax
+
+    self._run_test(lambda df: df.groupby('group').pipe(func_1), df)
+    self._run_test(
+        lambda df: df.groupby('group')['bool'].pipe(lambda x: x.any()), df)
+    # doesn't find _idxmaxmin_helper
+    # self._run_test(
+    # lambda df: df.groupby('group').pipe(func_1).pipe(func_2), df)
+
   def test_groupby_apply_modified_index(self):
     df = GROUPBY_DF
 
