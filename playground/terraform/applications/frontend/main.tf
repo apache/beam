@@ -20,7 +20,7 @@
 resource "google_app_engine_flexible_app_version" "frontend_app" {
   version_id = "v1"
   project    = "${var.project_id}"
-  service    = "frontend"
+  service    = "${var.service_name}"
   runtime    = "custom"
 
  liveness_check {
