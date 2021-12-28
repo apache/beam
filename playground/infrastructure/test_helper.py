@@ -100,6 +100,7 @@ def test_get_tag_when_tag_is_exists():
   result = get_tag("")
 
   assert result.tag_as_dict.get("name") == "Name"
+  assert result.tag_as_string == "# beam-playground:\n#     name: Name\n\n"
 
 
 @mock.patch("builtins.open", mock_open(read_data="...\n..."))
