@@ -43,6 +43,8 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '8'
+      - name: Install python3 venv
+        run: apt install python3.8-venv
       - name: "Gradle check"
         run: "./gradlew checkSetup"
         id: local_env_install_gradle_check_ubuntu
