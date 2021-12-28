@@ -17,21 +17,41 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:playground/modules/output/components/output_header/output_tab.dart';
+import 'package:playground/pages/playground/states/playground_state.dart';
+import 'package:provider/provider.dart';
 
 class OutputTabs extends StatelessWidget {
-  const OutputTabs({Key? key}) : super(key: key);
+  final TabController tabController;
+
+  const OutputTabs({Key? key, required this.tabController}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return const SizedBox(
-      width: 300,
-      child: TabBar(
-        tabs: <Widget>[
-          Tab(text: 'Output'),
-          Tab(text: 'Log'),
-          Tab(text: 'Graph'),
-        ],
-      ),
-    );
+    return Consumer<PlaygroundState>(builder: (context, state, child) {
+      return SizedBox(
+        width: 300,
+        child: TabBar(
+          controller: tabController,
+          tabs: <Widget>[
+            OutputTab(
+              name: 'Output',
+              isSelected: tabController.index == 0,
+              value: state.result?.output ?? '',
+            ),
+            OutputTab(
+              name: 'Log',
+              isSelected: tabController.index == 1,
+              value: state.result?.log ?? '',
+            ),
+            OutputTab(
+              name: 'Graph',
+              isSelected: tabController.index == 2,
+              value: '',
+            ),
+          ],
+        ),
+      );
+    });
   }
 }
