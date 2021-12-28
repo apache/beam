@@ -19,27 +19,24 @@ import (
 	"errors"
 	"github.com/google/uuid"
 	"os"
-	"path/filepath"
 	"strings"
 )
 
 const (
-	javaSourceFileExtension   = ".java"
+	JavaSourceFileExtension   = ".java"
 	javaCompiledFileExtension = ".class"
 )
 
 // newJavaLifeCycle creates LifeCycle with java SDK environment.
 func newJavaLifeCycle(pipelineId uuid.UUID, pipelinesFolder string) *LifeCycle {
-	javaLifeCycle := newCompilingLifeCycle(pipelineId, pipelinesFolder, javaSourceFileExtension, javaCompiledFileExtension)
+	javaLifeCycle := newCompilingLifeCycle(pipelineId, pipelinesFolder, JavaSourceFileExtension, javaCompiledFileExtension)
 	javaLifeCycle.Paths.ExecutableName = executableName
 	return javaLifeCycle
 }
 
 // executableName returns name that should be executed (HelloWorld for HelloWorld.class for java SDK)
-func executableName(pipelineId uuid.UUID, pipelinesFolder string) (string, error) {
-	baseFileFolder := filepath.Join(pipelinesFolder, pipelineId.String())
-	binFileFolder := filepath.Join(baseFileFolder, compiledFolderName)
-	dirEntries, err := os.ReadDir(binFileFolder)
+func executableName(executableFileFolderPath string) (string, error) {
+	dirEntries, err := os.ReadDir(executableFileFolderPath)
 	if err != nil {
 		return "", err
 	}
