@@ -40,6 +40,8 @@ jobs:
       - uses: actions/setup-go@v2
         with:
             go-version: '${{ env.GO_VERSION }}'
+      - name: Install dependencies
+        run: sudo apt update && sudo apt install libsnmp-dev -y
       - name: Remove default github maven configuration
         # This step is a workaround to avoid a decryption issue
         run: rm ~/.m2/settings.xml
