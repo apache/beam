@@ -91,11 +91,11 @@ jobs:
 
   python_unit_tests:
     name: 'Python Unit Tests'
-    runs-on: [self-hosted, windows]
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [windows]
+        os: [self-hosted, macos-latest, windows-latest]
         params: [
           {"py_ver": "3.6", "tox_env": "py36"},
           {"py_ver": "3.7", "tox_env": "py37"},
@@ -121,9 +121,9 @@ jobs:
         run: pip install --upgrade pip tox virtualenv
       - name: Install tox
         run: pip install tox
-        if: startsWith(matrix.os, 'ubuntu') || startsWith(matrix.os, 'macos')
+        if: startsWith(matrix.os, 'self') || startsWith(matrix.os, 'macos')
       - name: Run tests basic unix
-        if: startsWith(matrix.os, 'ubuntu') || startsWith(matrix.os, 'macos')
+        if: startsWith(matrix.os, 'self') || startsWith(matrix.os, 'macos')
         working-directory: ./sdks/python
         run: tox -c tox.ini -e ${{ matrix.params.tox_env }}
         # Commented by the moment to run memory&cpu resources.
@@ -140,11 +140,11 @@ jobs:
 
   python_wordcount_direct_runner:
     name: 'Python Wordcount Direct Runner'
-    runs-on: self-hosted
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest]
+        os: [self-hosted, macos-latest, windows-latest]
         python: [3.6, 3.7, 3.8]
         exclude:
           # TODO remove exclusion after issue with protobuf is solved
@@ -173,11 +173,11 @@ jobs:
     name: 'Python Wordcount Dataflow'
     needs:
       - build_python_sdk_source
-    runs-on: self-hosted
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest]
+        os: [self-hosted, macos-latest, windows-latest]
         python: [3.6, 3.7, 3.8]
         exclude:
           # TODO remove exclusion after issue with protobuf is solved

@@ -60,11 +60,11 @@ jobs:
 
   java_unit_tests:
     name: 'Java Unit Tests'
-    runs-on: self-hosted
+    runs-on: ${{ matrix.ox }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [self-hosted, macos-latest, windows-latest]
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -119,11 +119,11 @@ jobs:
 
   java_wordcount_direct_runner:
     name: 'Java Wordcount Direct Runner'
-    runs-on: self-hosted
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [self-hosted, macos-latest, windows-latest]
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -157,7 +157,7 @@ jobs:
     name: 'Java Wordcount Dataflow'
     needs:
       - check_gcp_variables
-    runs-on: self-hosted
+    runs-on: ${{ matrix.os }}
     if: |
       needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && (
         (github.event_name == 'push' || github.event_name == 'schedule') ||
@@ -166,7 +166,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [self-hosted, macos-latest, windows-latest]
     steps:
       - name: Checkout code
         uses: actions/checkout@v2

@@ -32,7 +32,7 @@ jobs:
   run_local_env_install_ubuntu:
     timeout-minutes: 25
     name: "Ubuntu run local environment shell script"
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
       - name: "Installing local env dependencies"
