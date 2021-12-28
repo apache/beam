@@ -33,16 +33,18 @@ func newCompilingLifeCycle(pipelineId uuid.UUID, workingDir string, sourceFileEx
 	binFileFolder := filepath.Join(baseFileFolder, compiledFolderName)
 	return &LifeCycle{
 		folderGlobs: []string{baseFileFolder, srcFileFolder, binFileFolder},
-		Folder: Folder{
-			BaseFolder:           baseFileFolder,
-			SourceFileFolder:     srcFileFolder,
-			ExecutableFileFolder: binFileFolder,
+		Dto: LifeCycleDTO{
+			PipelineId: pipelineId,
+			Folder: Folder{
+				BaseFolder:           baseFileFolder,
+				SourceFileFolder:     srcFileFolder,
+				ExecutableFileFolder: binFileFolder,
+			},
+			Extension: Extension{
+				SourceFileExtension:     sourceFileExtension,
+				ExecutableFileExtension: compiledFileExtension,
+			},
 		},
-		Extension: Extension{
-			SourceFileExtension:     sourceFileExtension,
-			ExecutableFileExtension: compiledFileExtension,
-		},
-		pipelineId: pipelineId,
 	}
 }
 
@@ -51,15 +53,17 @@ func newInterpretedLifeCycle(pipelineId uuid.UUID, workingDir string, sourceFile
 	sourceFileFolder := filepath.Join(workingDir, baseFileFolder, pipelineId.String())
 	return &LifeCycle{
 		folderGlobs: []string{sourceFileFolder},
-		Folder: Folder{
-			BaseFolder:           sourceFileFolder,
-			SourceFileFolder:     sourceFileFolder,
-			ExecutableFileFolder: sourceFileFolder,
+		Dto: LifeCycleDTO{
+			PipelineId: pipelineId,
+			Folder: Folder{
+				BaseFolder:           sourceFileFolder,
+				SourceFileFolder:     sourceFileFolder,
+				ExecutableFileFolder: sourceFileFolder,
+			},
+			Extension: Extension{
+				ExecutableFileExtension: sourceFileExtension,
+				SourceFileExtension:     sourceFileExtension,
+			},
 		},
-		Extension: Extension{
-			ExecutableFileExtension: sourceFileExtension,
-			SourceFileExtension:     sourceFileExtension,
-		},
-		pipelineId: pipelineId,
 	}
 }

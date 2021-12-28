@@ -48,16 +48,18 @@ func Test_newGoLifeCycle(t *testing.T) {
 			},
 			want: &LifeCycle{
 				folderGlobs: []string{baseFileFolder, srcFileFolder, binFileFolder},
-				Folder: Folder{
-					BaseFolder:           baseFileFolder,
-					SourceFileFolder:     srcFileFolder,
-					ExecutableFileFolder: binFileFolder,
+				Dto: LifeCycleDTO{
+					Folder: Folder{
+						BaseFolder:           baseFileFolder,
+						SourceFileFolder:     srcFileFolder,
+						ExecutableFileFolder: binFileFolder,
+					},
+					Extension: Extension{
+						SourceFileExtension:     goSourceFileExtension,
+						ExecutableFileExtension: goExecutableFileExtension,
+					},
+					PipelineId: pipelineId,
 				},
-				Extension: Extension{
-					SourceFileExtension:     goSourceFileExtension,
-					ExecutableFileExtension: goExecutableFileExtension,
-				},
-				pipelineId: pipelineId,
 			},
 		},
 	}
@@ -67,14 +69,14 @@ func Test_newGoLifeCycle(t *testing.T) {
 			if !reflect.DeepEqual(got.folderGlobs, tt.want.folderGlobs) {
 				t.Errorf("newGoLifeCycle() folderGlobs = %v, want %v", got.folderGlobs, tt.want.folderGlobs)
 			}
-			if !reflect.DeepEqual(got.Folder, tt.want.Folder) {
-				t.Errorf("newGoLifeCycle() Folder = %v, want %v", got.Folder, tt.want.Folder)
+			if !reflect.DeepEqual(got.Dto.Folder, tt.want.Dto.Folder) {
+				t.Errorf("newGoLifeCycle() Folder = %v, want %v", got.Dto.Folder, tt.want.Dto.Folder)
 			}
-			if !reflect.DeepEqual(got.Extension, tt.want.Extension) {
-				t.Errorf("newGoLifeCycle() Extension = %v, want %v", got.Extension, tt.want.Extension)
+			if !reflect.DeepEqual(got.Dto.Extension, tt.want.Dto.Extension) {
+				t.Errorf("newGoLifeCycle() Extension = %v, want %v", got.Dto.Extension, tt.want.Dto.Extension)
 			}
-			if !reflect.DeepEqual(got.pipelineId, tt.want.pipelineId) {
-				t.Errorf("newGoLifeCycle() pipelineId = %v, want %v", got.pipelineId, tt.want.pipelineId)
+			if !reflect.DeepEqual(got.Dto.PipelineId, tt.want.Dto.PipelineId) {
+				t.Errorf("newGoLifeCycle() pipelineId = %v, want %v", got.Dto.PipelineId, tt.want.Dto.PipelineId)
 			}
 		})
 	}

@@ -122,11 +122,11 @@ func TestSetup(t *testing.T) {
 				return
 			}
 			if got != nil {
-				if !reflect.DeepEqual(got.Folder, tt.want.Folder) {
-					t.Errorf("Setup() got.Folder = %v, want %v", got.Folder, tt.want.Folder)
+				if !reflect.DeepEqual(got.Dto.Folder, tt.want.Dto.Folder) {
+					t.Errorf("Setup() got.Folder = %v, want %v", got.Dto.Folder, tt.want.Dto.Folder)
 				}
-				if !reflect.DeepEqual(got.Extension, tt.want.Extension) {
-					t.Errorf("Setup() got.Extension = %v, want %v", got.Extension, tt.want.Extension)
+				if !reflect.DeepEqual(got.Dto.Extension, tt.want.Dto.Extension) {
+					t.Errorf("Setup() got.Extension = %v, want %v", got.Dto.Extension, tt.want.Dto.Extension)
 				}
 				if !tt.check() {
 					t.Errorf("Setup() doesn't prepare necessary files/folders")

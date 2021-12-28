@@ -46,16 +46,18 @@ func Test_newPythonLifeCycle(t *testing.T) {
 			},
 			want: &LifeCycle{
 				folderGlobs: []string{baseFileFolder},
-				Folder: Folder{
-					BaseFolder:           baseFileFolder,
-					SourceFileFolder:     baseFileFolder,
-					ExecutableFileFolder: baseFileFolder,
+				Dto: LifeCycleDTO{
+					Folder: Folder{
+						BaseFolder:           baseFileFolder,
+						SourceFileFolder:     baseFileFolder,
+						ExecutableFileFolder: baseFileFolder,
+					},
+					Extension: Extension{
+						SourceFileExtension:     pythonExecutableFileExtension,
+						ExecutableFileExtension: pythonExecutableFileExtension,
+					},
+					PipelineId: pipelineId,
 				},
-				Extension: Extension{
-					SourceFileExtension:     pythonExecutableFileExtension,
-					ExecutableFileExtension: pythonExecutableFileExtension,
-				},
-				pipelineId: pipelineId,
 			},
 		},
 	}
@@ -65,14 +67,14 @@ func Test_newPythonLifeCycle(t *testing.T) {
 			if !reflect.DeepEqual(got.folderGlobs, tt.want.folderGlobs) {
 				t.Errorf("newPythonLifeCycle() folderGlobs = %v, want %v", got.folderGlobs, tt.want.folderGlobs)
 			}
-			if !reflect.DeepEqual(got.Folder, tt.want.Folder) {
-				t.Errorf("newPythonLifeCycle() Folder = %v, want %v", got.Folder, tt.want.Folder)
+			if !reflect.DeepEqual(got.Dto.Folder, tt.want.Dto.Folder) {
+				t.Errorf("newPythonLifeCycle() Folder = %v, want %v", got.Dto.Folder, tt.want.Dto.Folder)
 			}
-			if !reflect.DeepEqual(got.Extension, tt.want.Extension) {
-				t.Errorf("newPythonLifeCycle() Extension = %v, want %v", got.Extension, tt.want.Extension)
+			if !reflect.DeepEqual(got.Dto.Extension, tt.want.Dto.Extension) {
+				t.Errorf("newPythonLifeCycle() Extension = %v, want %v", got.Dto.Extension, tt.want.Dto.Extension)
 			}
-			if !reflect.DeepEqual(got.pipelineId, tt.want.pipelineId) {
-				t.Errorf("newPythonLifeCycle() pipelineId = %v, want %v", got.pipelineId, tt.want.pipelineId)
+			if !reflect.DeepEqual(got.Dto.PipelineId, tt.want.Dto.PipelineId) {
+				t.Errorf("newPythonLifeCycle() pipelineId = %v, want %v", got.Dto.PipelineId, tt.want.Dto.PipelineId)
 			}
 		})
 	}

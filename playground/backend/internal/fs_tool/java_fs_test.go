@@ -50,17 +50,19 @@ func Test_newJavaLifeCycle(t *testing.T) {
 			},
 			want: &LifeCycle{
 				folderGlobs: []string{baseFileFolder, srcFileFolder, binFileFolder},
-				Folder: Folder{
-					BaseFolder:           baseFileFolder,
-					SourceFileFolder:     srcFileFolder,
-					ExecutableFileFolder: binFileFolder,
+				Dto: LifeCycleDTO{
+					Folder: Folder{
+						BaseFolder:           baseFileFolder,
+						SourceFileFolder:     srcFileFolder,
+						ExecutableFileFolder: binFileFolder,
+					},
+					Extension: Extension{
+						SourceFileExtension:     JavaSourceFileExtension,
+						ExecutableFileExtension: javaCompiledFileExtension,
+					},
+					ExecutableName: executableName,
+					PipelineId:     pipelineId,
 				},
-				Extension: Extension{
-					SourceFileExtension:     JavaSourceFileExtension,
-					ExecutableFileExtension: javaCompiledFileExtension,
-				},
-				ExecutableName: executableName,
-				pipelineId:     pipelineId,
 			},
 		},
 	}
@@ -70,14 +72,14 @@ func Test_newJavaLifeCycle(t *testing.T) {
 			if !reflect.DeepEqual(got.folderGlobs, tt.want.folderGlobs) {
 				t.Errorf("newJavaLifeCycle() folderGlobs = %v, want %v", got.folderGlobs, tt.want.folderGlobs)
 			}
-			if !reflect.DeepEqual(got.Folder, tt.want.Folder) {
-				t.Errorf("newJavaLifeCycle() Folder = %v, want %v", got.Folder, tt.want.Folder)
+			if !reflect.DeepEqual(got.Dto.Folder, tt.want.Dto.Folder) {
+				t.Errorf("newJavaLifeCycle() Folder = %v, want %v", got.Dto.Folder, tt.want.Dto.Folder)
 			}
-			if !reflect.DeepEqual(got.Extension, tt.want.Extension) {
-				t.Errorf("newJavaLifeCycle() Extension = %v, want %v", got.Extension, tt.want.Extension)
+			if !reflect.DeepEqual(got.Dto.Extension, tt.want.Dto.Extension) {
+				t.Errorf("newJavaLifeCycle() Extension = %v, want %v", got.Dto.Extension, tt.want.Dto.Extension)
 			}
-			if !reflect.DeepEqual(got.pipelineId, tt.want.pipelineId) {
-				t.Errorf("newJavaLifeCycle() pipelineId = %v, want %v", got.pipelineId, tt.want.pipelineId)
+			if !reflect.DeepEqual(got.Dto.PipelineId, tt.want.Dto.PipelineId) {
+				t.Errorf("newJavaLifeCycle() pipelineId = %v, want %v", got.Dto.PipelineId, tt.want.Dto.PipelineId)
 			}
 		})
 	}

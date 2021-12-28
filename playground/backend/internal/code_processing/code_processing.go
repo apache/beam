@@ -69,7 +69,7 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 
 	go cancelCheck(pipelineLifeCycleCtx, pipelineId, cancelChannel, cacheService)
 
-	executorBuilder, err := builder.SetupExecutorBuilder(lc, utils.ReduceWhiteSpacesToSinge(pipelineOptions), sdkEnv)
+	executorBuilder, err := builder.SetupExecutorBuilder(lc.Dto, utils.ReduceWhiteSpacesToSinge(pipelineOptions), sdkEnv)
 	if err != nil {
 		_ = processSetupError(err, pipelineId, cacheService, pipelineLifeCycleCtx)
 		return
@@ -122,7 +122,7 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 	validateIsUnitTest, _ := validationResults.Load(validators.UnitTestValidatorName)
 	isUnitTest := validateIsUnitTest.(bool)
 
-        // This condition is used for cases when the playground doesn't compile source files. For the Python code and the Go Unit Tests
+	// This condition is used for cases when the playground doesn't compile source files. For the Python code and the Go Unit Tests
 	if sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_PYTHON || (sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_GO && isUnitTest) {
 		if err := processCompileSuccess(pipelineLifeCycleCtx, []byte(""), pipelineId, cacheService); err != nil {
 			return
@@ -131,7 +131,7 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 		// Compile
 		if sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_JAVA {
 			executor = executorBuilder.WithCompiler().
-				WithFileName(builder.GetFileNameFromFolder(lc.GetAbsoluteSourceFolderPath())).Build() // Need changed name for unit tests
+				WithFileName(builder.GetFileNameFromFolder(lc.Dto.GetAbsoluteSourceFileFolderPath())).Build() // Need changed name for unit tests
 		}
 		logger.Infof("%s: Compile() ...\n", pipelineId)
 		compileCmd := executor.Compile(pipelineLifeCycleCtx)
@@ -155,7 +155,7 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 
 	// Run
 	if sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_JAVA {
-		executor, err = setJavaExecutableFile(lc, pipelineId, cacheService, pipelineLifeCycleCtx, executorBuilder, appEnv.WorkingDir())
+		executor, err = setJavaExecutableFile(lc.Dto, pipelineId, cacheService, pipelineLifeCycleCtx, executorBuilder, appEnv.WorkingDir())
 		if err != nil {
 			return
 		}
@@ -164,11 +164,11 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 	runCmd := getExecuteCmd(&validationResults, &executor, pipelineLifeCycleCtx)
 	var runError bytes.Buffer
 	runOutput := streaming.RunOutputWriter{Ctx: pipelineLifeCycleCtx, CacheService: cacheService, PipelineId: pipelineId}
-	go readLogFile(pipelineLifeCycleCtx, ctx, cacheService, lc.GetAbsoluteLogFilePath(), pipelineId, stopReadLogsChannel, finishReadLogsChannel)
+	go readLogFile(pipelineLifeCycleCtx, ctx, cacheService, lc.Dto.GetAbsoluteLogFilePath(), pipelineId, stopReadLogsChannel, finishReadLogsChannel)
 
 	if sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_GO {
 		// For go SDK all logs are placed to stdErr.
-		file, err := os.Create(lc.GetAbsoluteLogFilePath())
+		file, err := os.Create(lc.Dto.GetAbsoluteLogFilePath())
 		if err != nil {
 			// If some error with creating a log file do the same as with other SDK.
 			logger.Errorf("%s: error during create log file (go sdk): %s", pipelineId, err.Error())
@@ -194,7 +194,7 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 		// Run step is finished, but code contains some error (divide by 0 for example)
 		if sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_GO {
 			// For Go SDK stdErr was redirected to the log file.
-			errData, err := os.ReadFile(lc.GetAbsoluteLogFilePath())
+			errData, err := os.ReadFile(lc.Dto.GetAbsoluteLogFilePath())
 			if err != nil {
 				logger.Errorf("%s: error during read errors from log file (go sdk): %s", pipelineId, err.Error())
 			}
@@ -219,8 +219,8 @@ func getExecuteCmd(valRes *sync.Map, executor *executors.Executor, ctxWithTimeou
 }
 
 // setJavaExecutableFile sets executable file name to runner (JAVA class name is known after compilation step)
-func setJavaExecutableFile(lc *fs_tool.LifeCycle, id uuid.UUID, service cache.Cache, ctx context.Context, executorBuilder *executors.ExecutorBuilder, dir string) (executors.Executor, error) {
-	className, err := lc.ExecutableName(id, dir)
+func setJavaExecutableFile(lcDto fs_tool.LifeCycleDTO, id uuid.UUID, service cache.Cache, ctx context.Context, executorBuilder *executors.ExecutorBuilder, dir string) (executors.Executor, error) {
+	className, err := lcDto.ExecutableName(id, dir)
 	if err != nil {
 		if err = processSetupError(err, id, service, ctx); err != nil {
 			return executorBuilder.Build(), err
