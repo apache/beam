@@ -31,6 +31,7 @@ import 'package:playground/modules/sdk/models/sdk.dart';
 import 'package:provider/provider.dart';
 
 const kCodeAreaSemantics = 'Code textarea';
+const kNumberOfStringsToSkip = 16;
 
 class EditorTextArea extends StatefulWidget {
   final SDK sdk;
@@ -123,7 +124,7 @@ class _EditorTextAreaState extends State<EditorTextArea> {
 
   _findOffset() {
     return _codeController!.text.indexOf(
-      _skipStrings(16),
+      _skipStrings(kNumberOfStringsToSkip),
       _getPositionAfterImportsAndLicenses(widget.sdk),
     );
   }
@@ -144,16 +145,16 @@ class _EditorTextAreaState extends State<EditorTextArea> {
   int _getPositionAfterImportsAndLicenses(SDK sdk) {
     switch (sdk) {
       case SDK.java:
-        return _codeController!.text.lastIndexOf(RegExp(r"import "));
+        return _codeController!.text.lastIndexOf(RegExp(r'import '));
       case SDK.python:
         return _codeController!.text
-            .lastIndexOf(RegExp(r"[^\S\r\n](import|as)[^\S\r\n][A-z]*\n\n"));
+            .lastIndexOf(RegExp(r'[^\S\r\n](import|as)[^\S\r\n][A-z]*\n\n'));
       case SDK.go:
-        return _codeController!.text.lastIndexOf(RegExp(r"[^\S\r\n]+\"
+        return _codeController!.text.lastIndexOf(RegExp(r'[^\S\r\n]+\'
             r'"'
-            r".*"
+            r'.*'
             r'"'
-            r"\n\)\n\n"));
+            r'\n\)\n\n'));
       case SDK.scio:
         return _codeController!.text.indexOf(
           _codeController!.text.split('\n')[0],
