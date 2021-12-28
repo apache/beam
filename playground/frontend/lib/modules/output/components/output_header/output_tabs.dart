@@ -29,6 +29,7 @@ class OutputTabs extends StatelessWidget {
         tabs: <Widget>[
           Tab(text: 'Output'),
           Tab(text: 'Log'),
+          // Not supported yet
           // Tab(text: 'Graph'),
         ],
       ),

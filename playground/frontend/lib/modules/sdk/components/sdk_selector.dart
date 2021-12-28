@@ -58,6 +58,7 @@ class SDKSelector extends StatelessWidget {
         createDropdown: (close) => Column(
           children: [
             const SizedBox(height: kMdSpacing),
+            // SCIO is not supported yet
             ...SDK.values
                 .where((element) => element != SDK.scio)
                 .map((SDK value) {
