@@ -31,9 +31,7 @@ public class StringAgg {
 
   /** A {@link CombineFn} that aggregates strings with a string as delimiter. */
   public static class StringAggString extends CombineFn<String, String, String> {
-    private String delimiter = ",";
-
-    public StringAggString() {}
+    private final String delimiter;
 
     public StringAggString(String delimiter) {
       this.delimiter = delimiter;
@@ -80,11 +78,9 @@ public class StringAgg {
     }
   }
 
-  /** A {@link CombineFn} that aggregates bytes with a byte as delimiter. */
+  /** A {@link CombineFn} that aggregates bytes with a byte array as delimiter. */
   public static class StringAggByte extends CombineFn<byte[], String, byte[]> {
-    private String delimiter = ",";
-
-    public StringAggByte() {}
+    private final String delimiter;
 
     public StringAggByte(byte[] delimiter) {
       this.delimiter = new String(delimiter, StandardCharsets.UTF_8);

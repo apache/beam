@@ -23,13 +23,16 @@ import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLV
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_LITERAL;
 
 import com.google.zetasql.FunctionSignature;
+import com.google.zetasql.ZetaSQLResolvedNodeKind;
 import com.google.zetasql.ZetaSQLType.TypeKind;
 import com.google.zetasql.resolvedast.ResolvedNode;
+import com.google.zetasql.resolvedast.ResolvedNodes;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedAggregateFunctionCall;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedAggregateScan;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedComputedColumn;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedExpr;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -149,8 +152,8 @@ class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
       // aggregation?
       ResolvedAggregateFunctionCall aggregateFunctionCall =
           ((ResolvedAggregateFunctionCall) resolvedComputedColumn.getExpr());
-      ImmutableList<ResolvedExpr> argumentList =
-          ImmutableList.copyOf(aggregateFunctionCall.getArgumentList());
+      com.google.common.collect.ImmutableList<ResolvedExpr> argumentList =
+          aggregateFunctionCall.getArgumentList();
       if (argumentList != null && argumentList.size() >= 1) {
         ResolvedExpr resolvedExpr = argumentList.get(0);
         for (int i = 0; i < argumentList.size(); i++) {
@@ -241,20 +244,22 @@ class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
     }
 
     List<Integer> argList = new ArrayList<>();
-    for (ResolvedExpr expr :
-        ((ResolvedAggregateFunctionCall) computedColumn.getExpr()).getArgumentList()) {
+    com.google.common.collect.ImmutableList<ResolvedNodes.ResolvedExpr> argumentList =
+        ((ResolvedAggregateFunctionCall) computedColumn.getExpr()).getArgumentList();
+    List<ZetaSQLResolvedNodeKind.ResolvedNodeKind> resolvedNodeKinds =
+        Arrays.asList(RESOLVED_CAST, RESOLVED_COLUMN_REF, RESOLVED_GET_STRUCT_FIELD);
+    for (int i = 0; i < argumentList.size(); i++) {
       // Throw an error if aggregate function's input isn't either a ColumnRef or a cast(ColumnRef).
       // TODO: is there a general way to handle aggregation calls conversion?
-      if (expr.nodeKind() == RESOLVED_CAST
-          || expr.nodeKind() == RESOLVED_COLUMN_REF
-          || expr.nodeKind() == RESOLVED_GET_STRUCT_FIELD) {
+      ZetaSQLResolvedNodeKind.ResolvedNodeKind resolvedNodeKind = argumentList.get(i).nodeKind();
+      if (i == 0 && resolvedNodeKinds.contains(resolvedNodeKind)) {
         argList.add(columnRefOff);
-      } else if (expr.nodeKind() == RESOLVED_LITERAL) {
+      } else if (resolvedNodeKind == RESOLVED_LITERAL) {
         continue;
       } else {
         throw new UnsupportedOperationException(
-            "Aggregate function only accepts Column Reference or CAST(Column Reference) as its"
-                + " input.");
+            "Aggregate function only accepts Column Reference or CAST(Column Reference) as the first argument and "
+                + "Literals as subsequent arguments as its inputs");
       }
     }
 

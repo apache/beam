@@ -114,7 +114,7 @@ class SqlOperatorMappingTable {
           .put("$in", new SqlInOperatorRewriter())
           .build();
 
-  public static @Nullable SqlOperator create(
+  static @Nullable SqlOperator create(
       ResolvedNodes.ResolvedFunctionCallBase aggregateFunctionCall) {
 
     Function<ResolvedNodes.ResolvedFunctionCallBase, SqlOperator> sqlOperatorFactory =

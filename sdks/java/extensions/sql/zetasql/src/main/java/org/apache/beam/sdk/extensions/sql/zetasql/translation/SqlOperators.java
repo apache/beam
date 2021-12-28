@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.extensions.sql.zetasql.BeamZetaSqlCatalog.ZETA
 import com.google.zetasql.Value;
 import com.google.zetasql.resolvedast.ResolvedNodes;
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Internal;
@@ -186,27 +187,21 @@ public class SqlOperators {
     }
     switch (inputType) {
       case "BYTES":
-        if (delimiter != null) {
-          return SqlOperators.createUdafOperator(
-              "string_agg",
-              x -> SqlOperators.createTypeFactory().createSqlType(SqlTypeName.VARBINARY),
-              new UdafImpl<>(new StringAgg.StringAggByte(delimiter.getBytesValue().toByteArray())));
-        }
         return SqlOperators.createUdafOperator(
             "string_agg",
             x -> SqlOperators.createTypeFactory().createSqlType(SqlTypeName.VARBINARY),
-            new UdafImpl<>(new StringAgg.StringAggByte()));
+            new UdafImpl<>(
+                new StringAgg.StringAggByte(
+                    delimiter == null
+                        ? ",".getBytes(StandardCharsets.UTF_8)
+                        : delimiter.getBytesValue().toByteArray())));
       case "STRING":
-        if (delimiter != null) {
-          return SqlOperators.createUdafOperator(
-              "string_agg",
-              x -> SqlOperators.createTypeFactory().createSqlType(SqlTypeName.VARCHAR),
-              new UdafImpl<>(new StringAgg.StringAggString(delimiter.getStringValue())));
-        }
         return SqlOperators.createUdafOperator(
             "string_agg",
             x -> SqlOperators.createTypeFactory().createSqlType(SqlTypeName.VARCHAR),
-            new UdafImpl<>(new StringAgg.StringAggString()));
+            new UdafImpl<>(
+                new StringAgg.StringAggString(
+                    delimiter == null ? "," : delimiter.getStringValue())));
       default:
         throw new UnsupportedOperationException(
             String.format("[%s] is not supported in STRING_AGG", inputType));
