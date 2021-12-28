@@ -60,7 +60,7 @@ jobs:
 
   java_unit_tests:
     name: 'Java Unit Tests'
-    runs-on: ${{ matrix.ox }}
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
