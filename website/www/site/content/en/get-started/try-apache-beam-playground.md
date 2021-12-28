@@ -23,7 +23,7 @@ You can try an Apache Beam examples using
 ## About
 
 Beam Playground is an interactive environment to try out Beam transforms and examples.
-The vision for the Playground is to be a web application where users can try out 
+The vision for the Playground is to be a web application where users can try out
 Beam without having to install/initialize a Beam environment.
 
 ## Beam Playground WordCount Example
