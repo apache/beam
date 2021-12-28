@@ -423,6 +423,7 @@ task validatesRunnerV2Streaming {
       'org.apache.beam.sdk.testing.UsesCommittedMetrics',
       'org.apache.beam.sdk.testing.UsesStrictTimerOrdering' /* BEAM-8543 */,
       'org.apache.beam.sdk.testing.UsesTestStream',
+      'org.apache.beam.sdk.testing.UsesOnWindowExpiration',
     ],
     excludedTests: [
       'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindows',
@@ -435,11 +436,6 @@ task validatesRunnerV2Streaming {
       'org.apache.beam.sdk.io.AvroIOTest.testWindowedAvroIOWriteViaSink',
       'org.apache.beam.sdk.extensions.sql.BeamSqlDslAggregationTest.testTriggeredTumble',
       'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleWithTimestampsStreaming',
-
-      'org.apache.beam.sdk.transforms.ParDoTest$OnWindowExpirationTests.testOnWindowExpirationSimpleBounded',
-      'org.apache.beam.sdk.transforms.ParDoTest$OnWindowExpirationTests.testOnWindowExpirationSimpleBoundedGlobal',
-      'org.apache.beam.sdk.transforms.ParDoTest$OnWindowExpirationTests.testOnWindowExpirationSimpleUnbounded',
-      'org.apache.beam.sdk.transforms.ParDoTest$OnWindowExpirationTests.testOnWindowExpirationSimpleUnboundedGlobal',
 
       // TODO(BEAM-11858) reading a side input twice fails
       'org.apache.beam.sdk.transforms.ParDoTest$MultipleInputsAndOutputTests.testSameSideInputReadTwice',
