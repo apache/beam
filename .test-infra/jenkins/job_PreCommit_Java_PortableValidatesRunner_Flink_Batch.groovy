@@ -32,7 +32,6 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     ],
     )
 builder.build {
-  previousNames('beam_PostCommit_Java_PVR_Flink_Batch')
   // Publish all test results to Jenkins.
   publishers {
     archiveJunit('**/build/test-results/**/*.xml')
