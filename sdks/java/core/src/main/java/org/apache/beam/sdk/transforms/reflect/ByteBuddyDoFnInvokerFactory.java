@@ -1107,13 +1107,10 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
       }
     }
 
-    private final DoFnSignature.ProcessElementMethod signature;
-
     /** Implementation of {@link MethodDelegation} for the {@link ProcessElement} method. */
     private ProcessElementDelegation(
         TypeDescription doFnType, DoFnSignature.ProcessElementMethod signature) {
       super(doFnType, signature);
-      this.signature = signature;
     }
 
     @Override

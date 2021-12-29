@@ -57,17 +57,17 @@ public class SqlQuery0 extends NexmarkQueryTransform<Bid> {
 
   private final Class<? extends QueryPlanner> plannerClass;
 
-  private SqlQuery0(String name, Class<? extends QueryPlanner> plannerClass) {
+  private SqlQuery0(Class<? extends QueryPlanner> plannerClass) {
     super("SqlQuery0");
     this.plannerClass = plannerClass;
   }
 
   public static SqlQuery0 zetaSqlQuery0() {
-    return new SqlQuery0("ZetaSqlQuery0", ZetaSQLQueryPlanner.class);
+    return new SqlQuery0(ZetaSQLQueryPlanner.class);
   }
 
   public static SqlQuery0 calciteSqlQuery0() {
-    return new SqlQuery0("SqlQuery0", CalciteQueryPlanner.class);
+    return new SqlQuery0(CalciteQueryPlanner.class);
   }
 
   @Override

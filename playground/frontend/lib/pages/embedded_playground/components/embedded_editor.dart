@@ -17,37 +17,21 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import 'package:playground/constants/assets.dart';
-import 'package:playground/constants/font_weight.dart';
+import 'package:playground/modules/editor/components/editor_textarea.dart';
+import 'package:playground/pages/playground/states/playground_state.dart';
+import 'package:provider/provider.dart';
 
-const kFeedbackText = 'Enjoying Playground?';
-
-class PlaygroundFeedback extends StatelessWidget {
-  const PlaygroundFeedback({Key? key}) : super(key: key);
+class EmbeddedEditor extends StatelessWidget {
+  const EmbeddedEditor({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Text(
-          kFeedbackText,
-          style: TextStyle(fontWeight: kBoldWeight),
-        ),
-        IconButton(
-          padding: EdgeInsets.zero,
-          // ignore: avoid_print
-          onPressed: () => print('Feedback Up'),
-          icon: SvgPicture.asset(kThumbUpIconAsset),
-        ),
-        IconButton(
-          padding: EdgeInsets.zero,
-          // ignore: avoid_print
-          onPressed: () => print('Feedback down'),
-          icon: SvgPicture.asset(kThumbDownIconAsset),
-        ),
-      ],
+    final state = Provider.of<PlaygroundState>(context);
+    return EditorTextArea(
+      key: ValueKey(state.selectedExample),
+      enabled: true,
+      sdk: state.sdk,
+      example: state.selectedExample,
     );
   }
 }

@@ -35,12 +35,9 @@ google-cloud-profiler
 google-python-cloud-debugger
 guppy3  # Memory profiler
 mmh3  # Optimzes execution of some Beam codepaths. TODO: Make it Beam's dependency.
+nltk  # Commonly used for natural language processing.
+nose==1.3.7  # For Dataflow internal testing. TODO: remove this.
 python-snappy  # Optimzes execution of some Beam codepaths.
 scipy
 scikit-learn
-# We currently make Tensorflow version upgrades in a controlled manner,
-# so exact version is specified.
-tensorflow==2.6.0 ; python_version=="3.6"
-tensorflow==2.7.0 ; python_version>="3.7"
-nltk  # Commonly used for natural language processing.
-nose==1.3.7  # For Dataflow internal testing. TODO: remove this.
+tensorflow

@@ -18,7 +18,6 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  suppressUnusedVariable: true,
         automaticModuleName: 'org.apache.beam.sdk.io.contextualtextio',
 )
 
@@ -26,17 +25,17 @@ description = "Apache Beam :: SDKs :: Java :: Contextual-Text-IO"
 ext.summary = "Context-aware Text IO."
 
 dependencies {
-    compile project(path: ":sdks:java:core", configuration: "shadow")
-    compile library.java.protobuf_java
+    implementation project(path: ":sdks:java:core", configuration: "shadow")
+    implementation library.java.protobuf_java
     permitUnusedDeclared library.java.protobuf_java // BEAM-11761
-    compile library.java.slf4j_api
-    compile library.java.vendored_guava_26_0_jre
-    compile library.java.vendored_grpc_1_36_0
+    implementation library.java.slf4j_api
+    implementation library.java.vendored_guava_26_0_jre
+    implementation library.java.vendored_grpc_1_36_0
 
-    testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-    testCompile library.java.guava_testlib
-    testCompile library.java.junit
-    testCompile library.java.hamcrest_core
+    testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+    testImplementation library.java.guava_testlib
+    testImplementation library.java.junit
+    testImplementation library.java.hamcrest_core
     testRuntimeOnly library.java.slf4j_jdk14
-    testCompile project(path: ":runners:direct-java", configuration: "shadow")
+    testImplementation project(path: ":runners:direct-java", configuration: "shadow")
 }
