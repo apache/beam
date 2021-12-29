@@ -32,6 +32,13 @@ import 'package:provider/provider.dart';
 
 const kCodeAreaSemantics = 'Code textarea';
 const kNumberOfStringsToSkip = 16;
+const kJavaRegExp = r'import\s[A-z.0-9]*\;\n\n[(\/\*\*)|(public)|(class)]';
+const kPythonRegExp = r'[^\S\r\n](import|as)[^\S\r\n][A-z]*\n\n';
+const kGoRegExp = r'[^\S\r\n]+\'
+    r'"'
+    r'.*'
+    r'"'
+    r'\n\)\n\n';
 
 class EditorTextArea extends StatefulWidget {
   final SDK sdk;
@@ -145,16 +152,11 @@ class _EditorTextAreaState extends State<EditorTextArea> {
   int _getPositionAfterImportsAndLicenses(SDK sdk) {
     switch (sdk) {
       case SDK.java:
-        return _codeController!.text.lastIndexOf(RegExp(r'import '));
+        return _codeController!.text.lastIndexOf(RegExp(kJavaRegExp));
       case SDK.python:
-        return _codeController!.text
-            .lastIndexOf(RegExp(r'[^\S\r\n](import|as)[^\S\r\n][A-z]*\n\n'));
+        return _codeController!.text.lastIndexOf(RegExp(kPythonRegExp));
       case SDK.go:
-        return _codeController!.text.lastIndexOf(RegExp(r'[^\S\r\n]+\'
-            r'"'
-            r'.*'
-            r'"'
-            r'\n\)\n\n'));
+        return _codeController!.text.lastIndexOf(RegExp(kGoRegExp));
       case SDK.scio:
         return _codeController!.text.indexOf(
           _codeController!.text.split('\n')[0],
