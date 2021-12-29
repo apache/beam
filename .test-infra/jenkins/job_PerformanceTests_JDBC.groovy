@@ -23,12 +23,14 @@ import InfluxDBCredentialsHelper
 String jobName = "beam_PerformanceTests_JDBC"
 
 job(jobName) {
+
+  String prTriggerPhrase = './gradlew :sdks:java:io:jdbc:integrationTest --tests org.apache.beam.sdk.io.jdbc.JdbcIOIT';
   common.setTopLevelMainJobProperties(delegate)
   common.setAutoJob(delegate, 'H */6 * * *')
   common.enablePhraseTriggeringFromPullRequest(
       delegate,
-      'Java JdbcIO Performance Test',
-      'Run Java JdbcIO Performance Test')
+      "Java JdbcIO Performance Test ${prTriggerPhrase}",
+      prTriggerPhrase)
   InfluxDBCredentialsHelper.useCredentials(delegate)
 
   String namespace = common.getKubernetesNamespace(jobName)

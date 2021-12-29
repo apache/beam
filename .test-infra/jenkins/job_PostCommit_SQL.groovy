@@ -19,10 +19,13 @@
 import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
+String prTriggerPhrase = './gradlew :sqlPostCommit'
+
 // This job runs the Java postcommit tests, including the suite of integration
 // tests.
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_SQL', 'Run SQL PostCommit',
-    'SQL Post Commit Tests', this) {
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_SQL',
+        prTriggerPhrase,
+        "SQL Post Commit Tests (${prTriggerPhrase})", this) {
 
       description('Runs PostCommit tests for Beam SQL.')
 

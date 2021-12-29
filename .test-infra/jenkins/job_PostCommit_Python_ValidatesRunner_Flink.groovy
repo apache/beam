@@ -19,9 +19,12 @@
 import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
+String prTriggerPhrase = './gradlew :sdks:python:test-suites:portable:flinkValidatesRunner'
+
 // This job runs the suite of Python ValidatesRunner tests against the Flink runner.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_VR_Flink',
-    'Run Python Flink ValidatesRunner', 'Run Python Flink ValidatesRunner', this) {
+        prTriggerPhrase,
+        "Python Flink ValidatesRunner (${prTriggerPhrase})", this) {
       description('Runs the Python ValidatesRunner suite on the Flink runner.')
 
       // Set common parameters.

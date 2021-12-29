@@ -19,11 +19,12 @@
 import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
-
+String prTriggerPhrase = "./gradlew :runners:google-cloud-dataflow-java:validatesRunnerV2"
 // This job runs the suite of ValidatesRunner tests against the Dataflow
 // runner V2.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_VR_Dataflow_V2',
-    'Run Java Dataflow V2 ValidatesRunner', 'Google Cloud Dataflow Runner V2 Java ValidatesRunner Tests', this) {
+        prTriggerPhrase,
+        "Google Cloud Dataflow Runner V2 Java ValidatesRunner Tests (${prTriggerPhrase})", this) {
 
       description('Runs Java ValidatesRunner suite on the Dataflow runner V2.')
 

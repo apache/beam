@@ -19,11 +19,13 @@
 import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
+String prTriggerPhrase = "./gradlew :sdks:java:testing:jpms-tests:flinkRunnerIntegrationTest -Dorg.gradle.java.home=${commonJobProperties.JAVA_11_HOME}"
 
 // This job runs the Java postcommit tests, including the suite of integration
 // tests.
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Jpms_Flink_Java11', 'Run Jpms Flink Java 11 PostCommit',
-    'JPMS Java 11 Flink Post Commit Tests', this) {
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Jpms_Flink_Java11',
+        prTriggerPhrase,
+        "JPMS Java 11 Flink Post Commit Tests (${prTriggerPhrase})", this) {
 
       description('Runs JPMS tests on Flink using the Java 11 SDK.')
 

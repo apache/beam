@@ -19,6 +19,8 @@
 import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
+String prTriggerPhrase = './gradlew :sdks:python:test-suites:portable:sparkExamplesPostCommit'
+
 // This job runs the Python examples tests with SparkRunner.
 job('beam_PostCommit_Python_Examples_Spark') {
   description('Runs the Python Examples with Spark Runner.')
@@ -29,8 +31,8 @@ job('beam_PostCommit_Python_Examples_Spark') {
   // Allows triggering this build against pull requests.
   commonJobProperties.enablePhraseTriggeringFromPullRequest(
       delegate,
-      'Python Spark Runner Examples',
-      'Run Python Examples_Spark')
+      "Python Spark Runner Examples ${prTriggerPhrase}",
+      prTriggerPhrase)
 
   publishers {
     archiveJunit('**/pytest*.xml')

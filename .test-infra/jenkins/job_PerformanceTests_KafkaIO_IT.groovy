@@ -23,13 +23,15 @@ import InfluxDBCredentialsHelper
 String jobName = "beam_PerformanceTests_Kafka_IO"
 
 job(jobName) {
+
+  String prTriggerPhrase = './gradlew :sdks:java:io:kafka:integrationTest'
   common.setTopLevelMainJobProperties(delegate)
   // TODO(BEAM-9482): Re-enable once fixed.
   // common.setAutoJob(delegate, 'H */6 * * *')
   common.enablePhraseTriggeringFromPullRequest(
       delegate,
-      'Java KafkaIO Performance Test',
-      'Run Java KafkaIO Performance Test')
+      "Java KafkaIO Performance Test (${prTriggerPhrase})",
+      prTriggerPhrase)
   InfluxDBCredentialsHelper.useCredentials(delegate)
 
   String namespace = common.getKubernetesNamespace(jobName)

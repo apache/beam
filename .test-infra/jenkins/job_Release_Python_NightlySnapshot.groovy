@@ -37,8 +37,8 @@ job('beam_Release_Python_NightlySnapshot') {
   // Allows triggering this build against pull requests.
   commonJobProperties.enablePhraseTriggeringFromPullRequest(
       delegate,
-      'Create Python SDK Nightly Snapshot',
-      'Run Python Publish')
+      'Create Python SDK Nightly Snapshot (./gradlew :sdks:python:buildSnapshot)',
+      './gradlew :sdks:python:buildSnapshot')
 
   steps {
     // Cleanup Python directory.

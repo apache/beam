@@ -19,9 +19,12 @@
 import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
+String prTriggerPhrase = "./gradlew :runners:spark:2:job-server:validatesPortableRunnerStreaming"
+
 // This job runs the suite of Java ValidatesRunner tests against the Spark runner in streaming mode.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_PVR_Spark2_Streaming',
-    'Run Java Spark v2 PortableValidatesRunner Streaming', 'Java Spark v2 PortableValidatesRunner Streaming Tests', this) {
+        prTriggerPhrase,
+        "Java Spark v2 PortableValidatesRunner Streaming Tests ${prTriggerPhrase}", this) {
       description('Runs the Java PortableValidatesRunner suite on the Spark v2 runner in streaming mode.')
 
       // Set common parameters.

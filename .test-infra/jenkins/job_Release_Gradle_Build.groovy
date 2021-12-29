@@ -18,6 +18,8 @@
 
 import CommonJobProperties as commonJobProperties
 
+String prTriggerPhrase = "./gradlew build"
+
 // This job runs complete cycle of Gradle build against the official release
 // version. Release manager should use this job to verify a release branch
 // after cut.
@@ -34,8 +36,8 @@ job('beam_Release_Gradle_Build') {
   // Allows triggering this build against pull requests.
   commonJobProperties.enablePhraseTriggeringFromPullRequest(
       delegate,
-      'Release_Build ("Run Release Gradle Build")',
-      'Run Release Gradle Build')
+      "Release Gradle Build (${prTriggerPhrase})",
+      prTriggerPhrase)
 
   steps {
     gradle {

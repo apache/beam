@@ -22,8 +22,9 @@ import PostcommitJobBuilder
 
 // This job runs the Java postcommit tests, including the suite of integration
 // tests.
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_DataflowV1', 'Run PostCommit_Java_Dataflow',
-    'Dataflow Java Post Commit Tests', this) {
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_DataflowV1',
+        './gradlew :runners:google-cloud-dataflow-java:postCommit',
+        'Dataflow Java Post Commit (./gradlew :runners:google-cloud-dataflow-java:postCommit)', this) {
 
       description('Dataflow Java Post Commit Tests')
 

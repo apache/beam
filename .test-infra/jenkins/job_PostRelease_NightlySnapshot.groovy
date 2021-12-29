@@ -45,7 +45,7 @@ job('beam_PostRelease_NightlySnapshot') {
   commonJobProperties.enablePhraseTriggeringFromPullRequest(
       delegate,
       './gradlew :release:runJavaExamplesValidationTask',
-      'Run Dataflow PostRelease')
+      "Dataflow PostRelease (./gradlew :release:runJavaExamplesValidationTask)")
 
   steps {
     // Run a quickstart from https://beam.apache.org/get-started/quickstart-java

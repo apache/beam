@@ -19,8 +19,11 @@
 import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_Javadoc', 'Run Javadoc PostCommit',
-    'Javadoc generation', this) {
+String prTriggerPhrase = './gradlew :sdks:java:javadoc:aggregateJavadoc'
+
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Javadoc',
+        prTriggerPhrase,
+        "Javadoc generation (${prTriggerPhrase})", this) {
 
       description('PostCommit job that generates aggregated Javadoc')
 

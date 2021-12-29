@@ -22,6 +22,7 @@ import CommonJobProperties as properties
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
     nameBase: 'Java_Examples_Dataflow_Java11',
+    triggerPhrase: './gradlew javaExamplesDataflowPreCommit -PcompileAndRunTestsWithJava11',
     gradleTask: ':clean',
     gradleSwitches: [
       '-PdisableSpotlessCheck=true',

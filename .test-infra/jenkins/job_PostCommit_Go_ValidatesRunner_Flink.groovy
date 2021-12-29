@@ -21,8 +21,9 @@ import PostcommitJobBuilder
 
 // This job runs the suite of Go integration tests against the Flink runner.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Go_VR_Flink',
-    'Run Go Flink ValidatesRunner', 'Go Flink ValidatesRunner Tests', this) {
-      description('Runs Go integration tests on the Flink runner.')
+    './gradlew :sdks:go:test:flinkValidatesRunner',
+    'Go Flink ValidatesRunner (./gradlew :sdks:go:test:flinkValidatesRunner)', this) {
+        description('Runs Go integration tests on the Flink runner.')
 
       // Set common parameters.
       commonJobProperties.setTopLevelMainJobProperties(delegate)

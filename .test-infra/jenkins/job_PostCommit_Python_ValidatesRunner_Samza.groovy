@@ -19,9 +19,12 @@
 import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
+String prTriggerPhrase = './gradlew :sdks:python:test-suites:portable:samzaValidatesRunner'
+
 // This job runs the suite of Python ValidatesRunner tests against the Samza runner.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_VR_Samza',
-    'Run Python Samza ValidatesRunner', 'Python Samza ValidatesRunner Tests', this) {
+        prTriggerPhrase,
+        "Python Samza ValidatesRunner Tests (${prTriggerPhrase})", this) {
       description('Runs the Python ValidatesRunner suite on the Samza runner.')
 
       // Set common parameters.

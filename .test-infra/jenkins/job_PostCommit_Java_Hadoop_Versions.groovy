@@ -20,10 +20,12 @@ import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
 
+String prTriggerPhrase = './gradlew :javaHadoopVersionsTest'
 // This job runs the Java postcommit tests, including the suite of integration
 // tests.
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Hadoop_Versions', 'Run PostCommit_Java_Hadoop_Versions',
-    'Java Hadoop Versions Post Commit Tests', this) {
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Hadoop_Versions',
+        prTriggerPhrase,
+        "Java Hadoop Versions Post Commit Tests (${prTriggerPhrase})", this) {
 
       description('Java Hadoop Versions Post Commit Tests')
 

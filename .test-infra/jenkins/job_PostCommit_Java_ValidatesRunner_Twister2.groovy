@@ -18,10 +18,11 @@
 
 import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
-
+String prTriggerPhrase = './gradlew :runners:twister2:validatesRunner'
 // This job runs the suite of ValidatesRunner tests against the Twister2 runner.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Twister2',
-    'Run Twister2 ValidatesRunner', 'Twister2 Runner ValidatesRunner Tests', this) {
+        prTriggerPhrase,
+        "Twister2 Runner ValidatesRunner Tests (${prTriggerPhrase})", this) {
       description('Runs the ValidatesRunner suite on the Twister2 runner.')
 
       // Set common parameters.

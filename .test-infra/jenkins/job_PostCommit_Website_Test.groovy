@@ -19,8 +19,11 @@
 import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_Website_Test', 'Run Full Website Test',
-    'Full Website Test', this) {
+String prTriggerPhrase = "./gradlew :website:testWebsite -PdisableExternal=false"
+
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Website_Test',
+        prTriggerPhrase,
+        "Full Website Test ${prTriggerPhrase}", this) {
 
       description('Test to validate the Beam website, including external links.')
 

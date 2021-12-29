@@ -22,6 +22,7 @@ import PrecommitJobBuilder
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
     nameBase: 'Portable_Python',
+    triggerPhrase: 'Run Portable_Python PreCommit',
     gradleTask: ':clean',   // Do nothing here. Add test configs below.
     triggerPathPatterns: [
       '^model/.*$',

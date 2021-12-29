@@ -19,11 +19,13 @@
 import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
+String prTriggerPhrase = "./gradlew :sdks:java:testing:jpms-tests:dataflowRunnerIntegrationTest -Dorg.gradle.java.home=${commonJobProperties.JAVA_11_HOME}"
 
 // This job runs the Java postcommit tests, including the suite of integration
 // tests.
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Jpms_Dataflow_Java11', 'Run Jpms Dataflow Java 11 PostCommit',
-    'JPMS Java 11 Dataflow Post Commit Tests', this) {
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Jpms_Dataflow_Java11',
+        prTriggerPhrase,
+        "JPMS Java 11 Dataflow Post Commit Tests (${prTriggerPhrase})", this) {
 
       description('Runs JPMS tests on Dataflow using the Java 11 SDK.')
 
