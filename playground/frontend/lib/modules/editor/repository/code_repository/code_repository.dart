@@ -30,7 +30,7 @@ const kTimeoutErrorText =
     'to try examples without timeout limitation.';
 const kUnknownErrorText =
     'Something went wrong. Please try again later or create a jira ticket';
-const kProcessingStartedText = 'The processing has started';
+const kProcessingStartedText = 'The processing has started\n';
 
 class CodeRepository {
   late final CodeClient _client;
@@ -119,6 +119,7 @@ class CodeRepository {
           status: status,
           errorMessage: kTimeoutErrorText,
           output: kTimeoutErrorText,
+          log: prevLog,
         );
       case RunCodeStatus.runError:
         final output = await _client.getRunErrorOutput(pipelineUuid, request);
@@ -148,7 +149,7 @@ class CodeRepository {
           log: prevLog + log.output,
         );
       default:
-        return RunCodeResult(status: status);
+        return RunCodeResult(status: status, log: prevLog);
     }
   }
 }
