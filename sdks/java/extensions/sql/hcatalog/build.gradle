@@ -22,8 +22,19 @@ applyJavaNature(
   automaticModuleName: 'org.apache.beam.sdk.extensions.sql.meta.provider.hcatalog',
   classesTriggerCheckerBugs: [
     'HCatalogTable': 'TODO: file a bug report',
-  ]
+  ],
 )
+
+// TODO(BEAM-12687): This currently crashes with checkerframework 3.10.0
+// when compiling :sdks:java:extensions:sql:hcatalog:compileJava on Jenkins
+// with:
+// cannot access Statistic
+// class file for org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Statistic not found
+// Consult the following stack trace for details.
+// com.sun.tools.javac.code.Symbol$CompletionFailure: class file for org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Statistic not found
+checkerFramework {
+  skipCheckerFramework = true
+}
 
 def hive_version = "2.1.0"
 def netty_version = "4.1.51.Final"
