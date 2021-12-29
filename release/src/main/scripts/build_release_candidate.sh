@@ -271,7 +271,7 @@ if [[ $confirmation = "y" ]]; then
   echo '-------------------Creating Python Virtualenv-----------------'
   python3 -m venv "${LOCAL_PYTHON_VIRTUALENV}"
   source "${LOCAL_PYTHON_VIRTUALENV}/bin/activate"
-  pip install -U pip
+  pip install --upgrade pip setuptools wheel
   pip install requests python-dateutil
 
   echo '--------------Fetching GitHub Actions Artifacts--------------'
@@ -356,6 +356,7 @@ if [[ $confirmation = "y" ]]; then
   echo "------------------Building Python Doc------------------------"
   python3 -m venv "${LOCAL_PYTHON_VIRTUALENV}"
   source "${LOCAL_PYTHON_VIRTUALENV}/bin/activate"
+  pip install --upgrade pip setuptools wheel
   cd ${LOCAL_PYTHON_DOC}
   pip install -U pip
   pip install tox
