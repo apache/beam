@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -38,6 +39,7 @@ class PlaygroundState with ChangeNotifier {
   ExampleModel? _selectedExample;
   String _source = '';
   RunCodeResult? _result;
+  StreamSubscription<RunCodeResult>? _runSubscription;
   String _pipelineOptions = '';
   DateTime? resetKey;
 
@@ -131,7 +133,7 @@ class PlaygroundState with ChangeNotifier {
         sdk: sdk,
         pipelineOptions: parsedPipelineOptions,
       );
-      _codeRepository?.runCode(request).listen((event) {
+      _runSubscription = _codeRepository?.runCode(request).listen((event) {
         _result = event;
         if (event.isFinished && onFinish != null) {
           onFinish();
@@ -139,6 +141,18 @@ class PlaygroundState with ChangeNotifier {
         notifyListeners();
       });
     }
+  }
+
+  Future<void> cancelRun() async {
+    if (_runSubscription != null) {
+      _runSubscription?.cancel();
+    }
+    final pipelineUuid = result?.pipelineUuid ?? '';
+    if (pipelineUuid.isNotEmpty) {
+      await _codeRepository?.cancelExecution(pipelineUuid);
+    }
+    _result = null;
+    notifyListeners();
   }
 
   bool get _arePipelineOptionsChanges {

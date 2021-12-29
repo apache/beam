@@ -17,18 +17,25 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:playground/config/theme.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/shortcuts/components/shortcut_tooltip.dart';
 import 'package:playground/modules/shortcuts/constants/global_shortcuts.dart';
 
 const kRunText = 'Run';
+const kCancelText = 'Cancel';
 
 class RunButton extends StatelessWidget {
   final bool isRunning;
   final VoidCallback runCode;
+  final VoidCallback cancelRun;
 
-  const RunButton({Key? key, required this.isRunning, required this.runCode})
-      : super(key: key);
+  const RunButton({
+    Key? key,
+    required this.isRunning,
+    required this.runCode,
+    required this.cancelRun,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -40,12 +47,12 @@ class RunButton extends StatelessWidget {
                 width: kIconSizeSm,
                 height: kIconSizeSm,
                 child: CircularProgressIndicator(
-                  color: Theme.of(context).primaryColor,
+                  color: ThemeColors.of(context).primaryBackgroundTextColor,
                 ),
               )
             : const Icon(Icons.play_arrow),
-        label: const Text(kRunText),
-        onPressed: !isRunning ? runCode : null,
+        label: Text(!isRunning ? kRunText : kCancelText),
+        onPressed: !isRunning ? runCode : cancelRun,
       ),
     );
   }
