@@ -3848,6 +3848,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   def idxmax(self, **kwargs):
     return self._idxmaxmin_helper('idxmax', **kwargs)
 
+
 for io_func in dir(io):
   if io_func.startswith('to_'):
     setattr(DeferredDataFrame, io_func, getattr(io, io_func))

@@ -380,9 +380,11 @@ if [[ $confirmation = "y" ]]; then
 
   echo "..........Copying generated javadoc into beam-site.........."
   cp -r ${GENERATE_JAVADOC} javadoc/${RELEASE}
+  cp -r ${GENERATE_JAVADOC} javadoc/current
 
   echo "............Copying generated pydoc into beam-site.........."
   cp -r ${GENERATED_PYDOC} pydoc/${RELEASE}
+  cp -r ${GENERATED_PYDOC} pydoc/current
 
   git add -A
   git commit -m "Update beam-site for release ${RELEASE}." -m "Content generated from commit ${RELEASE_COMMIT}."
