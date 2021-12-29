@@ -17,14 +17,14 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(suppressUnusedVariable: true, exportJavadoc: false, automaticModuleName: 'org.apache.beam.sdk.io.common')
+applyJavaNature( exportJavadoc: false, automaticModuleName: 'org.apache.beam.sdk.io.common')
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Common"
 ext.summary = "Code used by all Beam IOs"
 
 dependencies {
-  testCompile library.java.vendored_guava_26_0_jre
-  testCompile library.java.junit
-  testCompile library.java.postgres
-  testCompile project(path: ":sdks:java:core", configuration: "shadow")
+  testImplementation library.java.vendored_guava_26_0_jre
+  testImplementation library.java.junit
+  testImplementation library.java.postgres
+  testImplementation project(path: ":sdks:java:core", configuration: "shadow")
 }

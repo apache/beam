@@ -651,7 +651,6 @@ public class GroupByKeyTest implements Serializable {
     @Category(NeedsRunner.class)
     public void testWindowFnPostMerging() throws Exception {
 
-      List<KV<String, Integer>> ungroupedPairs = ImmutableList.of(KV.of("a", 3));
       PCollection<KV<String, Integer>> windowedInput =
           p.apply(
                   Create.timestamped(
@@ -768,7 +767,7 @@ public class GroupByKeyTest implements Serializable {
                       @ProcessElement
                       public void process(ProcessContext c) {
                         int size = 0;
-                        for (String value : c.element().getValue()) {
+                        for (String unused : c.element().getValue()) {
                           size++;
                         }
                         c.output(KV.of(c.element().getKey(), size));

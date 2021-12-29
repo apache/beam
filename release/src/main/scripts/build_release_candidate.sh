@@ -317,9 +317,11 @@ if [[ $confirmation = "y" ]]; then
 fi
 
 echo "[Current Step]: Stage docker images"
+echo "Note: this step will also prune your local docker image and container cache."
 echo "Do you want to proceed? [y|N]"
 read confirmation
 if [[ $confirmation = "y" ]]; then
+  docker system prune -a -f
   echo "============Staging SDK docker images on docker hub========="
   cd ~
   wipe_local_clone_dir

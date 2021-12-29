@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Message;
 import java.time.Duration;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
@@ -45,7 +46,8 @@ class StorageApiDynamicDestinationsBeamRow<T, DestinationT>
   }
 
   @Override
-  public MessageConverter<T> getMessageConverter(DestinationT destination) throws Exception {
+  public MessageConverter<T> getMessageConverter(
+      DestinationT destination, DatasetService datasetService) throws Exception {
     return new MessageConverter<T>() {
       Descriptor descriptor =
           destinationDescriptorCache.get(

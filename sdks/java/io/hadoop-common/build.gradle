@@ -19,7 +19,7 @@
 import java.util.stream.Collectors
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(suppressUnusedVariable: true, automaticModuleName: 'org.apache.beam.sdk.io.hadoop.common')
+applyJavaNature( automaticModuleName: 'org.apache.beam.sdk.io.hadoop.common')
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Hadoop Common"
 ext.summary = "Library to add shared Hadoop classes among Beam IOs."
@@ -34,11 +34,14 @@ def hadoopVersions = [
 hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
 
 dependencies {
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  provided library.java.hadoop_client
-  provided library.java.hadoop_common
-  provided library.java.hadoop_mapreduce_client_core
-  testCompile library.java.junit
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  compileOnly library.java.hadoop_client
+  compileOnly library.java.hadoop_common
+  compileOnly library.java.hadoop_mapreduce_client_core
+  testImplementation library.java.junit
+  testImplementation library.java.hadoop_client
+  testImplementation library.java.hadoop_common
+  testImplementation library.java.hadoop_mapreduce_client_core
   hadoopVersions.each {kv ->
     "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-client:$kv.value"
     "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-common:$kv.value"

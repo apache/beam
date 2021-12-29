@@ -50,10 +50,10 @@ def test__get_gcs_object_name():
   expected_result = "SDK_JAVA/base_folder/file.java"
   expected_result_with_extension = "SDK_JAVA/base_folder/file.output"
   assert CDHelper()._get_gcs_object_name(
-    SDK_JAVA, "base_folder", "file") == expected_result
+      SDK_JAVA, "base_folder", "file") == expected_result
   assert CDHelper()._get_gcs_object_name(
-    SDK_JAVA, "base_folder", "file",
-    "output") == expected_result_with_extension
+      SDK_JAVA, "base_folder", "file",
+      "output") == expected_result_with_extension
 
 
 def test__write_to_local_fs(delete_temp_folder):
@@ -63,24 +63,25 @@ def test__write_to_local_fs(delete_temp_folder):
       delete_temp_folder: python fixture to clean up temp folder after method execution
   """
   object_meta = {
-    "name": "name",
-    "description": "description",
-    "multifile": False,
-    "categories": ["category-1", "category-2"]
+      "name": "name",
+      "description": "description",
+      "multifile": False,
+      "categories": ["category-1", "category-2"],
+      "pipeline_options": "--option option"
   }
   example = Example(
-    "name",
-    "pipeline_id",
-    SDK_JAVA,
-    "filepath",
-    "code_of_example",
-    "output_of_example",
-    STATUS_UNSPECIFIED,
-    Tag(**object_meta))
+      name="name",
+      pipeline_id="pipeline_id",
+      sdk=SDK_JAVA,
+      filepath="filepath",
+      code="code_of_example",
+      output="output_of_example",
+      status=STATUS_UNSPECIFIED,
+      tag=Tag(**object_meta))
   expected_result = {
-    "SDK_JAVA/name/name.java": "temp/pipeline_id/SDK_JAVA/name/name.java",
-    "SDK_JAVA/name/name.output": "temp/pipeline_id/SDK_JAVA/name/name.output",
-    "SDK_JAVA/name/meta.info": "temp/pipeline_id/SDK_JAVA/name/meta.info"
+      "SDK_JAVA/name/name.java": "temp/pipeline_id/SDK_JAVA/name/name.java",
+      "SDK_JAVA/name/name.output": "temp/pipeline_id/SDK_JAVA/name/name.output",
+      "SDK_JAVA/name/meta.info": "temp/pipeline_id/SDK_JAVA/name/meta.info"
   }
   assert CDHelper()._write_to_local_fs(example) == expected_result
 
@@ -92,18 +93,18 @@ def test__save_to_cloud_storage(mocker):
       mocker: mocker fixture from pytest-mocker
   """
   upload_blob_mock = mocker.patch(
-    "cd_helper.CDHelper._upload_blob", return_value=upload_blob)
+      "cd_helper.CDHelper._upload_blob", return_value=upload_blob)
   write_to_os_mock = mocker.patch(
-    "cd_helper.CDHelper._write_to_local_fs", return_value={"": ""})
+      "cd_helper.CDHelper._write_to_local_fs", return_value={"": ""})
   example = Example(
-    "name",
-    "pipeline_id",
-    SDK_JAVA,
-    "filepath",
-    "code_of_example",
-    "output_of_example",
-    STATUS_UNSPECIFIED,
-    None)
+      name="name",
+      pipeline_id="pipeline_id",
+      sdk=SDK_JAVA,
+      filepath="filepath",
+      code="code_of_example",
+      output="output_of_example",
+      status=STATUS_UNSPECIFIED,
+      tag=None)
 
   CDHelper()._save_to_cloud_storage([example])
   write_to_os_mock.assert_called_with(example)

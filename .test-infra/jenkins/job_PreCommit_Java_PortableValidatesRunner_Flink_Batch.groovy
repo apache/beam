@@ -16,29 +16,25 @@
  * limitations under the License.
  */
 
-import CommonJobProperties as commonJobProperties
 import CommonTestProperties
-import PostcommitJobBuilder
+import PrecommitJobBuilder
 
 // This job runs the suite of ValidatesRunner tests against the Flink runner.
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_PVR_Flink_Batch',
-    'Run Java Flink PortableValidatesRunner Batch', 'Java Flink PortableValidatesRunner Batch Tests', this) {
-      description('Runs the Java PortableValidatesRunner suite on the Flink runner.')
-
-      // Set common parameters.
-      commonJobProperties.setTopLevelMainJobProperties(delegate)
-
-      // Publish all test results to Jenkins
-      publishers {
-        archiveJunit('**/build/test-results/**/*.xml')
-      }
-
-      // Gradle goals for this job.
-      steps {
-        gradle {
-          rootBuildScriptDir(commonJobProperties.checkoutDir)
-          tasks(":runners:flink:${CommonTestProperties.getFlinkVersion()}:job-server:validatesPortableRunnerBatch")
-          commonJobProperties.setGradleSwitches(delegate)
-        }
-      }
-    }
+PrecommitJobBuilder builder = new PrecommitJobBuilder(
+    scope: this,
+    nameBase: 'Java_PVR_Flink_Batch',
+    gradleTask: ":runners:flink:${CommonTestProperties.getFlinkVersion()}:job-server:validatesPortableRunnerBatch",
+    timeoutMins: 240,
+    triggerPathPatterns: [
+      '^sdks/java/core/src/test/java/org/apache/beam/sdk/transforms/.*$',
+      '^runners/flink/.*$',
+      '^runners/java-fn-execution/.*$',
+    ],
+    )
+builder.build {
+  previousNames('beam_PostCommit_Java_PVR_Flink_Batch')
+  // Publish all test results to Jenkins.
+  publishers {
+    archiveJunit('**/build/test-results/**/*.xml')
+  }
+}
