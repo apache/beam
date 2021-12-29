@@ -25,11 +25,12 @@ job('beam_Dependency_Check') {
   commonJobProperties.setTopLevelMainJobProperties(
       delegate, 'master', 100, true, 'beam', false)
 
+  String prTriggerPhrase = './gradlew runBeamDependencyCheck'
   // Allows triggering this build against pull requests.
   commonJobProperties.enablePhraseTriggeringFromPullRequest(
       delegate,
-      'Beam Dependency Check',
-      'Run Dependency Check',
+      "Beam Dependency Check (${prTriggerPhrase})",
+      prTriggerPhrase,
       false
       )
 

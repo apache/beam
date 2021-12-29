@@ -18,6 +18,7 @@
 
 import CommonJobProperties as commonJobProperties
 
+String prTriggerPhrase = './gradlew :sdks:python:test-suites:direct:examplesPostCommit'
 // This job runs the Python examples tests with DirectRunner.
 job('beam_PostCommit_Python_Examples_Direct') {
   description('Runs the Python Examples with DirectRunner.')
@@ -28,8 +29,8 @@ job('beam_PostCommit_Python_Examples_Direct') {
   // Allows triggering this build against pull requests.
   commonJobProperties.enablePhraseTriggeringFromPullRequest(
       delegate,
-      'Python Direct Runner Examples',
-      'Run Python Examples_Direct')
+      "Python Direct Runner Examples (${prTriggerPhrase})",
+      prTriggerPhrase)
 
   publishers {
     archiveJunit('**/pytest*.xml')

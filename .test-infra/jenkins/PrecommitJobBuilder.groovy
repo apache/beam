@@ -44,6 +44,9 @@ class PrecommitJobBuilder {
   /** Whether to trigger on new PR commits. Useful to set to false when testing new jobs. */
   boolean commitTriggering = true
 
+  /** If defined, will only use this as trigger phrase **/
+  String triggerPhrase
+
   /**
    * Define a set of pre-commit jobs.
    *
@@ -126,7 +129,11 @@ class PrecommitJobBuilder {
 
   /** The magic phrase used to trigger the job when posted as a PR comment. */
   private String buildTriggerPhrase() {
-    return "Run ${nameBase} PreCommit"
+    if(triggerPhrase == null) {
+      String strTriggerPhrase = "./gradlew ${gradleTask}"
+      return strTriggerPhrase
+    }
+    return triggerPhrase
   }
 
   /** A human-readable description which will be used as the base of all suite jobs. */
@@ -135,6 +142,6 @@ class PrecommitJobBuilder {
   }
 
   private String githubUiHint() {
-    "${nameBase} (\"${buildTriggerPhrase()}\")"
+    return "${nameBase} (\"${buildTriggerPhrase()}\")"
   }
 }

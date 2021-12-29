@@ -23,8 +23,8 @@ job('beam_Prober_CommunityMetrics') {
   commonJobProperties.setTopLevelMainJobProperties(delegate)
 
   commonJobProperties.enablePhraseTriggeringFromPullRequest(delegate,
-      'Community Metrics Prober',
-      'Run Community Metrics Prober')
+      'Community Metrics Prober (./gradlew :communityMetricsProber)',
+      './gradlew :communityMetricsProber')
 
   commonJobProperties.setAutoJob(delegate)
 

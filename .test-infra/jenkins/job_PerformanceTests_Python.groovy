@@ -36,7 +36,7 @@ for (pythonVersion in pythonVersions) {
   testConfigurations.add([
     jobName           : "beam_PerformanceTests_WordCountIT_Py${pythonVersion}",
     jobDescription    : "Python SDK Performance Test - Run WordCountIT in Py${pythonVersion} with 1Gb files",
-    jobTriggerPhrase  : "Run Python${pythonVersion} WordCountIT Performance Test",
+    jobTriggerPhrase  : "./gradlew :sdks:python:test-suites:dataflow:py${pythonVersion}:runPerformanceTest",
     test              : "apache_beam/examples/wordcount_it_test.py::WordCountIT::test_wordcount_it",
     gradleTaskName    : ":sdks:python:test-suites:dataflow:py${pythonVersion}:runPerformanceTest",
     pipelineOptions   : dataflowPipelineArgs + [
@@ -72,10 +72,11 @@ private void createPythonPerformanceTestJob(Map testConfig) {
     // Run job in postcommit, don't trigger every push.
     commonJobProperties.setAutoJob(delegate, 'H */6 * * *')
 
+    String githubUiHint = "${testConfig.jobDescription} (${testConfig.jobTriggerPhrase})"
     // Allows triggering this build against pull requests.
     commonJobProperties.enablePhraseTriggeringFromPullRequest(
         delegate,
-        testConfig.jobDescription,
+        githubUiHint,
         testConfig.jobTriggerPhrase,
         )
 

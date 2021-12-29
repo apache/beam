@@ -31,11 +31,13 @@ job('beam_Metrics_Report') {
   def influxHost = InfluxDBCredentialsHelper.InfluxDBHost
   def influxPort = InfluxDBCredentialsHelper.InfluxDBPort
 
+  String prTriggerPhrase = './gradlew :beam-test-jenkins:generateMetricsReport'
+
   // Allows triggering this build against pull requests.
   commonJobProperties.enablePhraseTriggeringFromPullRequest(
       delegate,
-      'Beam Metrics Report (./gradlew :beam-test-jenkins:generateMetricsReport)',
-      './gradlew :beam-test-jenkins:generateMetricsReport',
+      "Beam Metrics Report (${prTriggerPhrase})",
+      prTriggerPhrase,
       false
       )
 

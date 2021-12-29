@@ -21,10 +21,12 @@ import PostcommitJobBuilder
 
 import static PythonTestProperties.VALIDATES_CONTAINER_DATAFLOW_PYTHON_VERSIONS
 
+String prTriggerPhrase = './gradlew :sdks:python:test-suites:dataflow:validatesContainerTests'
 // This job runs the suite of Python ValidatesContainer tests against the
 // Dataflow runner.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_ValCont',
-    'Run Python Dataflow ValidatesContainer', 'Google Cloud Dataflow Runner Python ValidatesContainer Tests', this) {
+        prTriggerPhrase,
+        "Google Cloud Dataflow Runner Python ValidatesContainer Tests (${prTriggerPhrase})", this) {
       description('Runs Python ValidatesContainer suite on the Dataflow runner.')
 
       // Set common parameters.

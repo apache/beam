@@ -40,8 +40,8 @@ job('beam_Release_NightlySnapshot') {
   // Allows triggering this build against pull requests.
   commonJobProperties.enablePhraseTriggeringFromPullRequest(
       delegate,
-      './gradlew publish',
-      'Run Gradle Publish')
+      'Gradle Publish (./gradlew publish)',
+      './gradlew publish')
 
   steps {
     gradle {

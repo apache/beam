@@ -21,12 +21,14 @@ import Kubernetes
 String jobName = "beam_PerformanceTests_InfluxDbIO_IT"
 
 job(jobName) {
+
+  String prTriggerPhrase = './gradlew :sdks:java:io:influxdb:integrationTest --tests org.apache.beam.sdk.io.influxdb.InfluxDbIOIT';
   common.setTopLevelMainJobProperties(delegate)
   common.setAutoJob(delegate,'H */6 * * *')
   common.enablePhraseTriggeringFromPullRequest(
       delegate,
-      'Java InfluxDbIO Performance Test',
-      'Run Java InfluxDbIO Performance Test')
+      "Java InfluxDbIO Performance Test",
+      prTriggerPhrase)
 
   String namespace = common.getKubernetesNamespace(jobName)
   String kubeconfigPath = common.getKubeconfigLocationForNamespace(namespace)

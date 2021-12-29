@@ -23,12 +23,14 @@ import InfluxDBCredentialsHelper
 String jobName = "beam_PerformanceTests_MongoDBIO_IT"
 
 job(jobName) {
+
+  String prTriggerPhrase = './gradlew :sdks:java:io:mongodb:integrationTest --tests org.apache.beam.sdk.io.mongodb.MongoDBIOIT'
   common.setTopLevelMainJobProperties(delegate)
   common.setAutoJob(delegate,'H */6 * * *')
   common.enablePhraseTriggeringFromPullRequest(
       delegate,
-      'Java MongoDBIO Performance Test',
-      'Run Java MongoDBIO Performance Test')
+      "Java MongoDBIO Performance Test (${prTriggerPhrase})",
+      prTriggerPhrase)
   InfluxDBCredentialsHelper.useCredentials(delegate)
 
   String namespace = common.getKubernetesNamespace(jobName)

@@ -23,12 +23,14 @@ import InfluxDBCredentialsHelper
 String jobName = "beam_PerformanceTests_HadoopFormat"
 
 job(jobName) {
+
+  String prTriggerPhrase = './gradlew :sdks:java:io:hadoop-format:integrationTest --tests org.apache.beam.sdk.io.hadoop.format.HadoopFormatIOIT'
   common.setTopLevelMainJobProperties(delegate)
   common.setAutoJob(delegate, 'H */6 * * *')
   common.enablePhraseTriggeringFromPullRequest(
       delegate,
-      'Java HadoopFormatIO Performance Test',
-      'Run Java HadoopFormatIO Performance Test')
+      "Java HadoopFormatIO Performance Test",
+      prTriggerPhrase)
   InfluxDBCredentialsHelper.useCredentials(delegate)
 
   String namespace = common.getKubernetesNamespace(jobName)
@@ -70,4 +72,3 @@ job(jobName) {
     }
   }
 }
-

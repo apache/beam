@@ -19,9 +19,12 @@
 import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
+String prTriggerPhrase = "./gradlew :runners:samza:validatesRunner"
+
 // This job runs the suite of ValidatesRunner tests against the Samza runner.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Samza',
-    'Run Samza ValidatesRunner', 'Apache Samza Runner ValidatesRunner Tests', this) {
+        prTriggerPhrase,
+        "Apache Samza Runner ValidatesRunner Tests (${prTriggerPhrase})", this) {
       description('Runs the ValidatesRunner suite on the Samza runner.')
       previousNames(/beam_PostCommit_Java_ValidatesRunner_Samza_Gradle/)
 

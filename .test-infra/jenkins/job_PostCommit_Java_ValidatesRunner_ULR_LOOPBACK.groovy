@@ -19,11 +19,13 @@
 import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
+String prTriggerPhrase = './gradlew :runners:portability:java:ulrLoopbackValidatesRunner'
 
 // This job runs the suite of ValidatesRunner tests against the Direct
 // runner compiled with Java 8.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_ULR',
-    'Run ULR Loopback ValidatesRunner', 'Universal Local Runner ValidatesRunner Tests for Java, LOOPBACK mode', this) {
+        prTriggerPhrase,
+        "Universal Local Runner ValidatesRunner Tests for Java, LOOPBACK mode (${prTriggerPhrase})", this) {
 
       description('Builds the Universal Local Runner and runs the Java ValidatesRunner test suite in LOOPBACK mode (no Docker).')
 

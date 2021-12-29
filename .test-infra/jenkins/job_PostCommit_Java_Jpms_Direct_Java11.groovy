@@ -19,11 +19,13 @@
 import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
+String prTriggerPhrase = "./gradlew :sdks:java:testing:jpms-tests:directRunnerIntegrationTest -Dorg.gradle.java.home=${commonJobProperties.JAVA_11_HOME}"
 
 // This job runs the Java postcommit tests, including the suite of integration
 // tests.
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Jpms_Direct_Java11', 'Run Jpms Direct Java 11 PostCommit',
-    'JPMS Java 11 direct runner  Post Commit Tests', this) {
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Jpms_Direct_Java11',
+        prTriggerPhrase,
+        "JPMS Java 11 direct runner  Post Commit Tests (${prTriggerPhrase})", this) {
 
       description('Runs JPMS tests on the direct runner using the Java 11 SDK.')
 

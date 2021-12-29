@@ -19,9 +19,12 @@
 import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
+String prTriggerPhrase = './gradlew :sdks:python:test-suites:portable:py37:testPipelineJarSparkRunner'
+
 // Tests creation and execution of portable pipeline Jars on the Spark runner.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_PortableJar_Spark',
-    'Run PortableJar_Spark PostCommit', 'Spark Portable Jar Tests', this) {
+        prTriggerPhrase,
+        "Spark Portable Jar Tests (${prTriggerPhrase})", this) {
       description('Tests creation and execution of portable pipeline Jars on the Spark runner.')
 
       // Set common parameters.

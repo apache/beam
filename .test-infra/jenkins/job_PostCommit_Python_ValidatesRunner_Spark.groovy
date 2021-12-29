@@ -19,9 +19,11 @@
 import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
+String prTriggerPhrase = "./gradlew :pythonSparkPostCommit"
 // This job runs the suite of Python ValidatesRunner tests against the Spark runner.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_VR_Spark',
-    'Run Python Spark ValidatesRunner', 'Python Spark ValidatesRunner Tests', this) {
+        prTriggerPhrase,
+        "Python Spark ValidatesRunner Tests (${prTriggerPhrase})", this) {
       description('Runs the Python ValidatesRunner suite on the Spark runner.')
 
       // Set common parameters.

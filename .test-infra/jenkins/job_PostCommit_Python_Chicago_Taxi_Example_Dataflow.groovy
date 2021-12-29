@@ -44,10 +44,12 @@ def chicagoTaxiJob = { scope ->
   }
 }
 
+String prTriggerPhrase = './gradlew :sdks:python:test-suites:dataflow:chicagoTaxiExample'
+
 PhraseTriggeringPostCommitBuilder.postCommitJob(
     'beam_PostCommit_Python_Chicago_Taxi_Dataflow',
-    'Run Chicago Taxi on Dataflow',
-    'Chicago Taxi Example on Dataflow ("Run Chicago Taxi on Dataflow")',
+    prTriggerPhrase,
+    "Chicago Taxi Example on Dataflow (${prTriggerPhrase})",
     this
     ) {
       chicagoTaxiJob(delegate)

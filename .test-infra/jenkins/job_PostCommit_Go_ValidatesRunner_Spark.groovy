@@ -21,7 +21,8 @@ import PostcommitJobBuilder
 
 // This job runs the suite of Go integration tests against the Spark runner.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Go_VR_Spark',
-    'Run Go Spark ValidatesRunner', 'Go Spark ValidatesRunner Tests', this) {
+        './gradlew :sdks:go:test:sparkValidatesRunner',
+        'Go Spark ValidatesRunner (./gradlew :sdks:go:test:sparkValidatesRunner)', this) {
       description('Runs Go integration tests on the Spark runner.')
 
       // Set common parameters.

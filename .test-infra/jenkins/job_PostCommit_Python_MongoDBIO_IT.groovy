@@ -19,9 +19,12 @@
 import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
+String prTriggerPhrase = './gradlew :sdks:python:test-suites:direct:mongodbioIT'
+
 // This job runs the integration test of python mongodbio class.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_MongoDBIO_IT',
-    'Run Python MongoDBIO_IT', 'Python MongoDBIO Integration Test',this) {
+        prTriggerPhrase,
+        "Python MongoDBIO Integration Test (${prTriggerPhrase})",this) {
       description('Runs the Python MongoDBIO Integration Test.')
 
       // Set common parameters.

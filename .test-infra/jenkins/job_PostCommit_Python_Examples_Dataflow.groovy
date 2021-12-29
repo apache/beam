@@ -18,6 +18,7 @@
 
 import CommonJobProperties as commonJobProperties
 
+String prTriggerPhrase = './gradlew :sdks:python:test-suites:dataflow:examplesPostCommit'
 // This job runs the Python examples tests with DataflowRunner.
 job('beam_PostCommit_Python_Examples_Dataflow') {
   description('Runs the Python Examples with DataflowRunner.')
@@ -28,8 +29,8 @@ job('beam_PostCommit_Python_Examples_Dataflow') {
   // Allows triggering this build against pull requests.
   commonJobProperties.enablePhraseTriggeringFromPullRequest(
       delegate,
-      'Python Dataflow Runner Examples',
-      'Run Python Examples_Dataflow')
+      "Python Dataflow Runner Examples (${prTriggerPhrase})",
+      prTriggerPhrase)
 
   publishers {
     archiveJunit('**/pytest*.xml')

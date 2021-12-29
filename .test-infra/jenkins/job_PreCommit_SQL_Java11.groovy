@@ -23,6 +23,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
     nameBase: 'SQL_Java11',
     gradleTask: ':sqlPreCommit',
+    triggerPhrase: './gradlew :sqlPreCommit -PcompileAndRunTestsWithJava11',
     gradleSwitches: [
       '-PdisableSpotlessCheck=true',
       '-PcompileAndRunTestsWithJava11',

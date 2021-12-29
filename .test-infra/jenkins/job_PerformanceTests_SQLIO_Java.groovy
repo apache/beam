@@ -20,7 +20,7 @@ import CommonJobProperties as common
 def jobConfigs = [
   [
     title        : 'SQL BigQueryIO with push-down Batch Performance Test Java',
-    triggerPhrase: 'Run SQLBigQueryIO Batch Performance Test Java',
+    triggerPhrase: './gradlew :sdks:java:extensions:sql:perf-tests:integrationTest --tests org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BigQueryIOPushDownIT',
     name         : 'beam_SQLBigQueryIO_Batch_Performance_Test_Java',
     itClass      : 'org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BigQueryIOPushDownIT',
     properties: [

@@ -29,8 +29,8 @@ job('beam_Publish_Docker_Snapshots') {
   // Allows triggering this build against pull requests.
   commonJobProperties.enablePhraseTriggeringFromPullRequest(
       delegate,
-      'Beam Publish Docker Snapshots',
-      'Publish Docker Snapshots',
+      'Beam Publish Docker Snapshots (./gradlew :sdks:go:container:dockerPush)',
+      './gradlew :sdks:go:container:dockerPush',
       false
       )
 

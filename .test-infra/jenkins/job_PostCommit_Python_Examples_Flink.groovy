@@ -18,6 +18,8 @@
 
 import CommonJobProperties as commonJobProperties
 
+String prTriggerPhrase = './gradlew :sdks:python:test-suites:portable:flinkExamplesPostCommit'
+
 // This job runs the Python examples tests with FlinkRunner.
 job('beam_PostCommit_Python_Examples_Flink') {
   description('Runs the Python Examples with Flink Runner.')
@@ -28,8 +30,8 @@ job('beam_PostCommit_Python_Examples_Flink') {
   // Allows triggering this build against pull requests.
   commonJobProperties.enablePhraseTriggeringFromPullRequest(
       delegate,
-      'Python Flink Runner Examples',
-      'Run Python Examples_Flink')
+      "Python Flink Runner Examples (${prTriggerPhrase})",
+      prTriggerPhrase)
 
   publishers {
     archiveJunit('**/pytest*.xml')

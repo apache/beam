@@ -24,9 +24,10 @@ import static PythonTestProperties.ALL_SUPPORTED_VERSIONS
 // This job defines the Python postcommit tests.
 ALL_SUPPORTED_VERSIONS.each { pythonVersion ->
   def versionSuffix = pythonVersion.replace('.', '')
+    String prTriggerPhrase = "./gradlew :python${versionSuffix}PostCommit"
   PostcommitJobBuilder.postCommitJob("beam_PostCommit_Python${versionSuffix}",
-      "Run Python ${pythonVersion} PostCommit",
-      "Python${versionSuffix}_PC(\"Run Python ${pythonVersion} PostCommit\")", this) {
+      prTriggerPhrase,
+      "Python${versionSuffix}_PC(${prTriggerPhrase})", this) {
         description('Runs Python postcommit tests using Python ${pythonVersion}.')
 
         // Set common parameters.
