@@ -1195,7 +1195,7 @@ class BigQueryServicesImpl implements BigQueryServices {
       ProtoSchema protoSchema =
           ProtoSchema.newBuilder().setProtoDescriptor(descriptor.toProto()).build();
       StreamWriter streamWriter =
-          StreamWriter.newBuilder(streamName).setWriterSchema(protoSchema).build();
+          StreamWriter.newBuilder(streamName).setWriterSchema(protoSchema).setTraceId("dataflow").build();
       return new StreamAppendClient() {
         private int pins = 0;
         private boolean closed = false;
