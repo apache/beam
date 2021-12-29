@@ -25,13 +25,14 @@ import (
 func Test_newGoLifeCycle(t *testing.T) {
 	pipelineId := uuid.New()
 	workingDir := "workingDir"
-	baseFileFolder := fmt.Sprintf("%s/%s/%s", workingDir, baseFileFolder, pipelineId)
+	baseFileFolder := fmt.Sprintf("%s/%s/%s", workingDir, pipelinesFolder, pipelineId)
 	srcFileFolder := baseFileFolder + "/src"
 	binFileFolder := baseFileFolder + "/bin"
 
 	type args struct {
-		pipelineId uuid.UUID
-		workingDir string
+		pipelineId      uuid.UUID
+		workingDir      string
+		pipelinesFolder string
 	}
 	tests := []struct {
 		name string
@@ -43,8 +44,9 @@ func Test_newGoLifeCycle(t *testing.T) {
 			// As a result, want to receive an expected go life cycle.
 			name: "newGoLifeCycle",
 			args: args{
-				pipelineId: pipelineId,
-				workingDir: workingDir,
+				pipelineId:      pipelineId,
+				workingDir:      workingDir,
+				pipelinesFolder: pipelinesFolder,
 			},
 			want: &LifeCycle{
 				folderGlobs: []string{baseFileFolder, srcFileFolder, binFileFolder},
@@ -63,7 +65,7 @@ func Test_newGoLifeCycle(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := newGoLifeCycle(tt.args.pipelineId, tt.args.workingDir)
+			got := newGoLifeCycle(tt.args.pipelineId, tt.args.workingDir, tt.args.pipelinesFolder)
 			if !reflect.DeepEqual(got.folderGlobs, tt.want.folderGlobs) {
 				t.Errorf("newGoLifeCycle() folderGlobs = %v, want %v", got.folderGlobs, tt.want.folderGlobs)
 			}

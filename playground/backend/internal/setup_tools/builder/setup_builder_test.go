@@ -30,7 +30,7 @@ import (
 func TestSetupExecutor(t *testing.T) {
 	pipelineId := uuid.New()
 	sdk := pb.Sdk_SDK_JAVA
-	lc, err := fs_tool.NewLifeCycle(sdk, pipelineId, "")
+	lc, err := fs_tool.NewLifeCycle(sdk, pipelineId, "", "")
 	if err != nil {
 		t.Error(err)
 	}

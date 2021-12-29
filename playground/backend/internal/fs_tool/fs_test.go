@@ -28,8 +28,9 @@ import (
 )
 
 const (
-	sourceDir      = "sourceDir"
-	destinationDir = "destinationDir"
+	sourceDir       = "sourceDir"
+	destinationDir  = "destinationDir"
+	pipelinesFolder = "executable_files"
 )
 
 func TestMain(m *testing.M) {
@@ -71,7 +72,7 @@ func teardown() {
 
 func TestLifeCycle_CreateExecutableFile(t *testing.T) {
 	pipelineId := uuid.New()
-	baseFileFolder := fmt.Sprintf("%s_%s", baseFileFolder, pipelineId)
+	baseFileFolder := fmt.Sprintf("%s_%s", pipelinesFolder, pipelineId)
 	srcFileFolder := baseFileFolder + "/src"
 	binFileFolder := baseFileFolder + "/bin"
 
@@ -144,7 +145,7 @@ func TestLifeCycle_CreateExecutableFile(t *testing.T) {
 
 func TestLifeCycle_CreateFolders(t *testing.T) {
 	pipelineId := uuid.New()
-	baseFileFolder := fmt.Sprintf("%s_%s", baseFileFolder, pipelineId)
+	baseFileFolder := fmt.Sprintf("%s_%s", pipelinesFolder, pipelineId)
 
 	type fields struct {
 		folderGlobs []string
@@ -186,7 +187,7 @@ func TestLifeCycle_CreateFolders(t *testing.T) {
 
 func TestLifeCycle_DeleteFolders(t *testing.T) {
 	pipelineId := uuid.New()
-	baseFileFolder := fmt.Sprintf("%s_%s", baseFileFolder, pipelineId)
+	baseFileFolder := fmt.Sprintf("%s_%s", pipelinesFolder, pipelineId)
 
 	type fields struct {
 		folderGlobs []string
@@ -226,14 +227,15 @@ func TestLifeCycle_DeleteFolders(t *testing.T) {
 func TestNewLifeCycle(t *testing.T) {
 	pipelineId := uuid.New()
 	workingDir := "workingDir"
-	baseFileFolder := fmt.Sprintf("%s/%s/%s", workingDir, baseFileFolder, pipelineId)
+	baseFileFolder := fmt.Sprintf("%s/%s/%s", workingDir, pipelinesFolder, pipelineId)
 	srcFileFolder := baseFileFolder + "/src"
 	binFileFolder := baseFileFolder + "/bin"
 
 	type args struct {
-		sdk        pb.Sdk
-		pipelineId uuid.UUID
-		workingDir string
+		sdk             pb.Sdk
+		pipelineId      uuid.UUID
+		workingDir      string
+		pipelinesFolder string
 	}
 	tests := []struct {
 		name    string
@@ -244,9 +246,10 @@ func TestNewLifeCycle(t *testing.T) {
 		{
 			name: "Available SDK",
 			args: args{
-				sdk:        pb.Sdk_SDK_JAVA,
-				pipelineId: pipelineId,
-				workingDir: workingDir,
+				sdk:             pb.Sdk_SDK_JAVA,
+				pipelineId:      pipelineId,
+				workingDir:      workingDir,
+				pipelinesFolder: pipelinesFolder,
 			},
 			want: &LifeCycle{
 				folderGlobs: []string{baseFileFolder, srcFileFolder, binFileFolder},
@@ -267,9 +270,10 @@ func TestNewLifeCycle(t *testing.T) {
 		{
 			name: "Unavailable SDK",
 			args: args{
-				sdk:        pb.Sdk_SDK_UNSPECIFIED,
-				pipelineId: pipelineId,
-				workingDir: workingDir,
+				sdk:             pb.Sdk_SDK_UNSPECIFIED,
+				pipelineId:      pipelineId,
+				workingDir:      workingDir,
+				pipelinesFolder: pipelinesFolder,
 			},
 			want:    nil,
 			wantErr: true,
@@ -277,7 +281,7 @@ func TestNewLifeCycle(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := NewLifeCycle(tt.args.sdk, tt.args.pipelineId, tt.args.workingDir)
+			got, err := NewLifeCycle(tt.args.sdk, tt.args.pipelineId, tt.args.workingDir, tt.args.pipelinesFolder)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewLifeCycle() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -300,7 +304,7 @@ func TestNewLifeCycle(t *testing.T) {
 
 func TestLifeCycle_GetAbsoluteExecutableFilePath(t *testing.T) {
 	pipelineId := uuid.New()
-	baseFileFolder := fmt.Sprintf("%s_%s", baseFileFolder, pipelineId)
+	baseFileFolder := fmt.Sprintf("%s_%s", pipelinesFolder, pipelineId)
 	srcFileFolder := baseFileFolder + "/src"
 
 	filePath := filepath.Join(srcFileFolder, fmt.Sprintf("%s%s", pipelineId.String(), JavaSourceFileExtension))
@@ -348,7 +352,7 @@ func TestLifeCycle_GetAbsoluteExecutableFilePath(t *testing.T) {
 
 func TestLifeCycle_GetAbsoluteExecutableFilesFolderPath(t *testing.T) {
 	pipelineId := uuid.New()
-	baseFileFolder := fmt.Sprintf("%s_%s", baseFileFolder, pipelineId)
+	baseFileFolder := fmt.Sprintf("%s_%s", pipelinesFolder, pipelineId)
 
 	absolutePath, _ := filepath.Abs(baseFileFolder)
 	type fields struct {
@@ -392,14 +396,14 @@ func TestLifeCycle_GetAbsoluteExecutableFilesFolderPath(t *testing.T) {
 func TestLifeCycle_ExecutableName(t *testing.T) {
 	pipelineId := uuid.New()
 	workingDir := "workingDir"
-	baseFileFolder := fmt.Sprintf("%s/%s/%s", workingDir, baseFileFolder, pipelineId)
+	baseFileFolder := fmt.Sprintf("%s/%s/%s", workingDir, pipelinesFolder, pipelineId)
 	binFileFolder := baseFileFolder + "/bin"
 
 	type fields struct {
 		folderGlobs    []string
 		Folder         Folder
 		Extension      Extension
-		ExecutableName func(uuid.UUID, string) (string, error)
+		ExecutableName func(uuid.UUID, string, string) (string, error)
 		pipelineId     uuid.UUID
 	}
 	tests := []struct {
@@ -415,7 +419,7 @@ func TestLifeCycle_ExecutableName(t *testing.T) {
 					BaseFolder:           baseFileFolder,
 					ExecutableFileFolder: binFileFolder,
 				},
-				ExecutableName: func(u uuid.UUID, s string) (string, error) {
+				ExecutableName: func(u uuid.UUID, s1, s2 string) (string, error) {
 					return "MOCK_EXECUTABLE_NAME", nil
 				},
 				pipelineId:  pipelineId,
@@ -434,7 +438,7 @@ func TestLifeCycle_ExecutableName(t *testing.T) {
 				ExecutableName: tt.fields.ExecutableName,
 				pipelineId:     tt.fields.pipelineId,
 			}
-			got, err := l.ExecutableName(pipelineId, workingDir)
+			got, err := l.ExecutableName(pipelineId, workingDir, pipelinesFolder)
 			if got != tt.want {
 				t.Errorf("GetExecutableName() got = %v, want %v", got, tt.want)
 			}
@@ -450,7 +454,7 @@ func TestCopyFile(t *testing.T) {
 		folderGlobs    []string
 		Folder         Folder
 		Extension      Extension
-		ExecutableName func(uuid.UUID, string) (string, error)
+		ExecutableName func(uuid.UUID, string, string) (string, error)
 		pipelineId     uuid.UUID
 	}
 	type args struct {

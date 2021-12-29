@@ -29,15 +29,15 @@ const (
 )
 
 // newJavaLifeCycle creates LifeCycle with java SDK environment.
-func newJavaLifeCycle(pipelineId uuid.UUID, workingDir string) *LifeCycle {
-	javaLifeCycle := newCompilingLifeCycle(pipelineId, workingDir, JavaSourceFileExtension, javaCompiledFileExtension)
+func newJavaLifeCycle(pipelineId uuid.UUID, workingDir, pipelinesFolder string) *LifeCycle {
+	javaLifeCycle := newCompilingLifeCycle(pipelineId, workingDir, JavaSourceFileExtension, javaCompiledFileExtension, pipelinesFolder)
 	javaLifeCycle.ExecutableName = executableName
 	return javaLifeCycle
 }
 
 // executableName returns name that should be executed (HelloWorld for HelloWorld.class for java SDK)
-func executableName(pipelineId uuid.UUID, workingDir string) (string, error) {
-	baseFileFolder := filepath.Join(workingDir, baseFileFolder, pipelineId.String())
+func executableName(pipelineId uuid.UUID, workingDir, pipelinesFolder string) (string, error) {
+	baseFileFolder := filepath.Join(workingDir, pipelinesFolder, pipelineId.String())
 	binFileFolder := filepath.Join(baseFileFolder, compiledFolderName)
 	dirEntries, err := os.ReadDir(binFileFolder)
 	if err != nil {

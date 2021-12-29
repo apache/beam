@@ -28,6 +28,8 @@ import (
 	"testing"
 )
 
+const pipelinesFolder = "executable_files"
+
 func Test_replace(t *testing.T) {
 	codeWithPublicClass := "package org.apache.beam.sdk.transforms; \n public class Class {\n    public static void main(String[] args) {\n        System.out.println(\"Hello World!\");\n    }\n}"
 	codeWithoutPublicClass := "package org.apache.beam.sdk.transforms; \n class Class {\n    public static void main(String[] args) {\n        System.out.println(\"Hello World!\");\n    }\n}"
@@ -37,7 +39,7 @@ func Test_replace(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, uuid.New(), filepath.Join(path, "temp"))
+	lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, uuid.New(), filepath.Join(path, "temp"), pipelinesFolder)
 	_ = lc.CreateFolders()
 	defer os.RemoveAll(filepath.Join(path, "temp"))
 	_, _ = lc.CreateSourceCodeFile(codeWithPublicClass)
@@ -118,7 +120,7 @@ func Test_changeJavaTestFileName(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, uuid.New(), filepath.Join(path, "temp"))
+	lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, uuid.New(), filepath.Join(path, "temp"), pipelinesFolder)
 	_ = lc.CreateFolders()
 	defer os.RemoveAll(filepath.Join(path, "temp"))
 	_, _ = lc.CreateSourceCodeFile(codeWithPublicClass)

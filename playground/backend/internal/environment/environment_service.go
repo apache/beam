@@ -43,6 +43,8 @@ const (
 	protocolTypeKey               = "PROTOCOL_TYPE"
 	launchSiteKey                 = "LAUNCH_SITE"
 	projectIdKey                  = "GOOGLE_CLOUD_PROJECT"
+	pipelinesFolderKey            = "PIPELINES_FOLDER_NAME"
+	defaultPipelinesFolder        = "executable_files"
 	defaultLaunchSite             = "local"
 	defaultProtocol               = "HTTP"
 	defaultIp                     = "localhost"
@@ -95,6 +97,7 @@ func GetApplicationEnvsFromOsEnvs() (*ApplicationEnvs, error) {
 	cacheAddress := getEnv(cacheAddressKey, defaultCacheAddress)
 	launchSite := getEnv(launchSiteKey, defaultLaunchSite)
 	projectId := os.Getenv(projectIdKey)
+	pipelinesFolder := getEnv(pipelinesFolderKey, defaultPipelinesFolder)
 
 	if value, present := os.LookupEnv(cacheKeyExpirationTimeKey); present {
 		if converted, err := time.ParseDuration(value); err == nil {
@@ -112,7 +115,7 @@ func GetApplicationEnvsFromOsEnvs() (*ApplicationEnvs, error) {
 	}
 
 	if value, present := os.LookupEnv(workingDirKey); present {
-		return NewApplicationEnvs(value, launchSite, projectId, NewCacheEnvs(cacheType, cacheAddress, cacheExpirationTime), pipelineExecuteTimeout), nil
+		return NewApplicationEnvs(value, launchSite, projectId, pipelinesFolder, NewCacheEnvs(cacheType, cacheAddress, cacheExpirationTime), pipelineExecuteTimeout), nil
 	}
 	return nil, errors.New("APP_WORK_DIR env should be provided with os.env")
 }

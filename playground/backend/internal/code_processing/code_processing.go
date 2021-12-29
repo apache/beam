@@ -122,7 +122,7 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 	validateIsUnitTest, _ := validationResults.Load(validators.UnitTestValidatorName)
 	isUnitTest := validateIsUnitTest.(bool)
 
-        // This condition is used for cases when the playground doesn't compile source files. For the Python code and the Go Unit Tests
+	// This condition is used for cases when the playground doesn't compile source files. For the Python code and the Go Unit Tests
 	if sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_PYTHON || (sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_GO && isUnitTest) {
 		if err := processCompileSuccess(pipelineLifeCycleCtx, []byte(""), pipelineId, cacheService); err != nil {
 			return
@@ -155,7 +155,7 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 
 	// Run
 	if sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_JAVA {
-		executor, err = setJavaExecutableFile(lc, pipelineId, cacheService, pipelineLifeCycleCtx, executorBuilder, appEnv.WorkingDir())
+		executor, err = setJavaExecutableFile(lc, pipelineId, cacheService, pipelineLifeCycleCtx, executorBuilder, appEnv.WorkingDir(), appEnv.PipelinesFolder())
 		if err != nil {
 			return
 		}
@@ -219,8 +219,8 @@ func getExecuteCmd(valRes *sync.Map, executor *executors.Executor, ctxWithTimeou
 }
 
 // setJavaExecutableFile sets executable file name to runner (JAVA class name is known after compilation step)
-func setJavaExecutableFile(lc *fs_tool.LifeCycle, id uuid.UUID, service cache.Cache, ctx context.Context, executorBuilder *executors.ExecutorBuilder, dir string) (executors.Executor, error) {
-	className, err := lc.ExecutableName(id, dir)
+func setJavaExecutableFile(lc *fs_tool.LifeCycle, id uuid.UUID, service cache.Cache, ctx context.Context, executorBuilder *executors.ExecutorBuilder, dir, pipelinesFolder string) (executors.Executor, error) {
+	className, err := lc.ExecutableName(id, dir, pipelinesFolder)
 	if err != nil {
 		if err = processSetupError(err, id, service, ctx); err != nil {
 			return executorBuilder.Build(), err

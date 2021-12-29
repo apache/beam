@@ -31,6 +31,7 @@ const (
 	sourceFolder            = "src"
 	executableFolder        = "bin"
 	javaSourceFileExtension = ".java"
+	pipelinesFolder         = "executable_files"
 )
 
 func TestSetup(t *testing.T) {
@@ -47,16 +48,17 @@ func TestSetup(t *testing.T) {
 	}
 	defer os.RemoveAll(workingDir)
 
-	lc, err := fs_tool.NewLifeCycle(playground.Sdk_SDK_JAVA, successPipelineId, workingDir)
+	lc, err := fs_tool.NewLifeCycle(playground.Sdk_SDK_JAVA, successPipelineId, workingDir, pipelinesFolder)
 	if err != nil {
 		panic(err)
 	}
 	type args struct {
-		sdk            playground.Sdk
-		code           string
-		pipelineId     uuid.UUID
-		workingDir     string
-		preparedModDir string
+		sdk             playground.Sdk
+		code            string
+		pipelineId      uuid.UUID
+		workingDir      string
+		preparedModDir  string
+		pipelinesFolder string
 	}
 	tests := []struct {
 		name    string
@@ -70,13 +72,14 @@ func TestSetup(t *testing.T) {
 			// As a result, want to receive an error.
 			name: "incorrect sdk",
 			args: args{
-				sdk:        playground.Sdk_SDK_UNSPECIFIED,
-				code:       "",
-				pipelineId: errorPipelineId,
-				workingDir: workingDir,
+				sdk:             playground.Sdk_SDK_UNSPECIFIED,
+				code:            "",
+				pipelineId:      errorPipelineId,
+				workingDir:      workingDir,
+				pipelinesFolder: pipelinesFolder,
 			},
 			check: func() bool {
-				if _, err := os.Stat(filepath.Join(baseFileFolder, errorPipelineId.String())); os.IsNotExist(err) {
+				if _, err := os.Stat(filepath.Join(pipelinesFolder, errorPipelineId.String())); os.IsNotExist(err) {
 					return true
 				}
 				return false
@@ -89,23 +92,24 @@ func TestSetup(t *testing.T) {
 			// As a result, want to receive an expected life cycle.
 			name: "correct sdk",
 			args: args{
-				sdk:            playground.Sdk_SDK_JAVA,
-				code:           "",
-				pipelineId:     successPipelineId,
-				workingDir:     workingDir,
-				preparedModDir: "",
+				sdk:             playground.Sdk_SDK_JAVA,
+				code:            "",
+				pipelineId:      successPipelineId,
+				workingDir:      workingDir,
+				preparedModDir:  "",
+				pipelinesFolder: pipelinesFolder,
 			},
 			check: func() bool {
-				if _, err := os.Stat(filepath.Join(workingDir, baseFileFolder, successPipelineId.String())); os.IsNotExist(err) {
+				if _, err := os.Stat(filepath.Join(workingDir, pipelinesFolder, successPipelineId.String())); os.IsNotExist(err) {
 					return false
 				}
-				if _, err := os.Stat(filepath.Join(workingDir, baseFileFolder, successPipelineId.String(), sourceFolder)); os.IsNotExist(err) {
+				if _, err := os.Stat(filepath.Join(workingDir, pipelinesFolder, successPipelineId.String(), sourceFolder)); os.IsNotExist(err) {
 					return false
 				}
-				if _, err := os.Stat(filepath.Join(workingDir, baseFileFolder, successPipelineId.String(), executableFolder)); os.IsNotExist(err) {
+				if _, err := os.Stat(filepath.Join(workingDir, pipelinesFolder, successPipelineId.String(), executableFolder)); os.IsNotExist(err) {
 					return false
 				}
-				if _, err := os.Stat(filepath.Join(workingDir, baseFileFolder, successPipelineId.String(), sourceFolder, successPipelineId.String()+javaSourceFileExtension)); os.IsNotExist(err) {
+				if _, err := os.Stat(filepath.Join(workingDir, pipelinesFolder, successPipelineId.String(), sourceFolder, successPipelineId.String()+javaSourceFileExtension)); os.IsNotExist(err) {
 					return false
 				}
 				return true
@@ -116,7 +120,7 @@ func TestSetup(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := Setup(tt.args.sdk, tt.args.code, tt.args.pipelineId, tt.args.workingDir, tt.args.preparedModDir)
+			got, err := Setup(tt.args.sdk, tt.args.code, tt.args.pipelineId, tt.args.workingDir, tt.args.pipelinesFolder, tt.args.preparedModDir)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Setup() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -132,7 +136,7 @@ func TestSetup(t *testing.T) {
 					t.Errorf("Setup() doesn't prepare necessary files/folders")
 				}
 			}
-			os.RemoveAll("executable_files")
+			os.RemoveAll(tt.args.pipelinesFolder)
 		})
 	}
 }
