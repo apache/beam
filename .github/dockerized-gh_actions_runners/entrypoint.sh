@@ -30,7 +30,8 @@ export RUNNER_TOKEN
     --url https://github.com/$GITHUB_REPO/beam \
     --work _work \
     --unattended \
-    --replace
+    --replace \
+    --labels ubuntu-20.04,ubuntu-latest
 
 remove() {
     ./config.sh remove --unattended --token "${RUNNER_TOKEN}"

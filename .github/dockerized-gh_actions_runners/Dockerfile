@@ -20,9 +20,9 @@ FROM ubuntu:20.04
 
 ARG RUNNER_VERSION=2.285.1
 
-RUN apt-get -yqq update && apt-get install -yqq curl sudo git jq unzip tar gnupg2 apt-transport-https ca-certificates
-RUN apt-get install -yqq liblttng-ust0 libkrb5-3 zlib1g libssl1.1
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -yqq libicu66
+RUN apt-get -yqq update
+#Install APT packages
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -yqq acl aria2 apt-transport-https binutils bison brotli build-essential bzip2 ca-certificates coreutils curl dbus dnsutils dpkg fakeroot file flex fonts-noto-color-emoji ftp gnupg2 haveged imagemagick iproute2 iputils-ping jq lib32z1 libc++-dev libc++abi-dev libcurl4 libgbm-dev libgconf-2-4 libgsl-dev libgtk-3-0 libicu66 libkrb5-3 liblttng-ust0 libmagic-dev libmagickcore-dev libmagickwand-dev libsecret-1-dev libssl1.1 libsqlite3-dev libxss1 locales m4 mediainfo mercurial net-tools netcat openssh-client p7zip-full p7zip-rar parallel pass patchelf pkg-config pollinate python-is-python3 rpm rsync shellcheck sqlite3 ssh sshpass subversion sudo swig telnet texinfo time tk tzdata unzip upx wget xorriso xvfb xz-utils zip zlib1g zsync 
 RUN apt-get clean
 RUN rm -rf /var/lib/apt/lists/*
 RUN useradd -m actions && usermod -aG sudo actions && echo "%sudo ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
@@ -39,4 +39,5 @@ RUN curl -fsSL https://get.docker.com -o get-docker.sh
 RUN sudo sh get-docker.sh
 
 # VOLUME [ "/var/run/docker.sock:/var/run/docker.sock"]
-ENTRYPOINT ["/home/actions/entrypoint.sh"]
+CMD ["/home/actions/entrypoint.sh"]
+ENTRYPOINT ["/bin/bash"]
