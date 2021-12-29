@@ -179,6 +179,21 @@ func (controller *playgroundController) GetRunError(ctx context.Context, info *p
 	return &pb.GetRunErrorResponse{Output: runError}, nil
 }
 
+//GetPreparationOutput is returning output of prepare step for specific pipeline by PipelineUuid
+func (controller *playgroundController) GetPreparationOutput(ctx context.Context, info *pb.GetPreparationOutputRequest) (*pb.GetPreparationOutputResponse, error) {
+	pipelineId, err := uuid.Parse(info.PipelineUuid)
+	errorMessage := "Error during getting compilation output"
+	if err != nil {
+		logger.Errorf("%s: GetPreparationOutput(): pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid, err.Error())
+		return nil, errors.InvalidArgumentError(errorMessage, "pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid)
+	}
+	preparationOutput, err := code_processing.GetProcessingOutput(ctx, controller.cacheService, pipelineId, cache.PreparationOutput, errorMessage)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.GetPreparationOutputResponse{Output: preparationOutput}, nil
+}
+
 //GetCompileOutput is returning output of compilation for specific pipeline by PipelineUuid
 func (controller *playgroundController) GetCompileOutput(ctx context.Context, info *pb.GetCompileOutputRequest) (*pb.GetCompileOutputResponse, error) {
 	pipelineId, err := uuid.Parse(info.PipelineUuid)
