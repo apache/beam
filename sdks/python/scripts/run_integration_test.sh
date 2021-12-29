@@ -228,7 +228,7 @@ if [[ -z $PIPELINE_OPTS ]]; then
     "--output=$GCS_LOCATION/py-it-cloud/output"
     "--sdk_location=$SDK_LOCATION"
     "--requirements_file=postcommit_requirements.txt"
-    "--num_workers=$NUM_WORKERS"
+    "--num_workers=1"
     "--sleep_secs=$SLEEP_SECS"
   )
 
