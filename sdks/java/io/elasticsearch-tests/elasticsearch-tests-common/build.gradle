@@ -43,8 +43,7 @@ dependencies {
   testImplementation project(":sdks:java:io:elasticsearch")
   testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
   testImplementation library.java.slf4j_api
-  testImplementation library.java.hamcrest_core
-  testImplementation library.java.hamcrest_library
+  testImplementation library.java.hamcrest
   testImplementation library.java.junit
   testImplementation "org.elasticsearch.client:elasticsearch-rest-client:$elastic_search_version"
   testImplementation "org.elasticsearch.client:elasticsearch-rest-high-level-client:${elastic_search_version}"

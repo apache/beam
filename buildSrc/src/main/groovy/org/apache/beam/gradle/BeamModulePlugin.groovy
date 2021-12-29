@@ -378,7 +378,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.37.0'
+    project.version = '2.36.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -574,6 +574,7 @@ class BeamModulePlugin implements Plugin<Project> {
         // This version should be in line with the one in com.google.cloud:libraries-bom.
         google_http_client                          : "com.google.http-client:google-http-client", // google_cloud_platform_libraries_bom sets version
         google_http_client_apache_v2                : "com.google.http-client:google-http-client-apache-v2", // google_cloud_platform_libraries_bom sets version
+        google_http_client_gson                     : "com.google.http-client:google-http-client-gson", // google_cloud_platform_libraries_bom sets version
         google_http_client_jackson                  : "com.google.http-client:google-http-client-jackson:1.29.2",
         google_http_client_jackson2                 : "com.google.http-client:google-http-client-jackson2", // google_cloud_platform_libraries_bom sets version
         google_http_client_protobuf                 : "com.google.http-client:google-http-client-protobuf", // google_cloud_platform_libraries_bom sets version
@@ -602,10 +603,9 @@ class BeamModulePlugin implements Plugin<Project> {
         hadoop_mapreduce_client_core                : "org.apache.hadoop:hadoop-mapreduce-client-core:$hadoop_version",
         hadoop_minicluster                          : "org.apache.hadoop:hadoop-minicluster:$hadoop_version",
         hadoop_hdfs                                 : "org.apache.hadoop:hadoop-hdfs:$hadoop_version",
+        hadoop_hdfs_client                          : "org.apache.hadoop:hadoop-hdfs-client:$hadoop_version",
         hadoop_hdfs_tests                           : "org.apache.hadoop:hadoop-hdfs:$hadoop_version:tests",
         hamcrest                                    : "org.hamcrest:hamcrest:$hamcrest_version",
-        hamcrest_core                               : "org.hamcrest:hamcrest-core:$hamcrest_version",
-        hamcrest_library                            : "org.hamcrest:hamcrest-library:$hamcrest_version",
         http_client                                 : "org.apache.httpcomponents:httpclient:$httpclient_version",
         http_core                                   : "org.apache.httpcomponents:httpcore:$httpcore_version",
         influxdb_library                            : "org.influxdb:influxdb-java:$influxdb_version",
@@ -900,6 +900,13 @@ class BeamModulePlugin implements Plugin<Project> {
         } else {
           skipCheckerFramework = true
         }
+        // TODO(BEAM-13430): Re-enable checkerframework. This currently crashes
+        // when compiling :runners:google-cloud-dataflow-java:compileJava with
+        // java/src/main/java/org/apache/beam/runners/dataflow/util/
+        // DefaultCoderCloudObjectTranslatorRegistrar.java; message: class file
+        // for com.google.api.services.bigquery.model.TableRow not found
+        //  ; The Checker Framework crashed.  Please report the crash.
+        skipCheckerFramework = true
 
         // Always exclude checkerframework on tests. It's slow, and it often
         // raises erroneous error because we don't have checker annotations for
@@ -1037,8 +1044,10 @@ class BeamModulePlugin implements Plugin<Project> {
       }
       project.check.dependsOn project.javadoc
 
-      // Apply the eclipse plugins. This adds the "eclipse" task to generate
-      // an eclipse project from this gradle project.
+      // Apply the eclipse plugins.  This adds the "eclipse" task and
+      // connects the apt-eclipse plugin to update the eclipse project files
+      // with the instructions needed to run apt within eclipse to handle the AutoValue
+      // and additional annotations
       project.apply plugin: 'eclipse'
 
       // Enables a plugin which can apply code formatting to source.
@@ -1095,10 +1104,7 @@ class BeamModulePlugin implements Plugin<Project> {
         }
         permitUnusedDeclared "org.checkerframework:checker-qual:$checkerframework_version"
       }
-      // TODO(BEAM-13430): Re-enable strict dependency checking. The dependency
-      // checker seems to state that certain classes aren't being used but
-      // they clearly are failing the compilation without it.
-      configuration.enableStrictDependencies = false
+
       if (configuration.enableStrictDependencies) {
         project.tasks.analyzeClassesDependencies.enabled = true
         project.tasks.analyzeDependencies.enabled = true
@@ -1645,6 +1651,12 @@ class BeamModulePlugin implements Plugin<Project> {
             // versions for only handful libraries when building the project (BEAM-9542).
             def librariesWithVersion = project.library.java.values().findAll { it.split(':').size() > 2 }
             force librariesWithVersion
+
+            // hamcrest-core and hamcrest-library have been superseded by hamcrest.
+            // We force their versions here to ensure that any resolved version provides
+            // the same classes as hamcrest.
+            force "org.hamcrest:hamcrest-core:$hamcrest_version"
+            force "org.hamcrest:hamcrest-library:$hamcrest_version"
           }
         }
       }

@@ -120,8 +120,7 @@ dependencies {
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesRunner project(project.path)
   validatesRunner project(path: project.path, configuration: "testRuntimeMigration")
-  validatesRunner library.java.hamcrest_core
-  validatesRunner library.java.hamcrest_library
+  validatesRunner library.java.hamcrest
   coreSDKJavaIntegrationTest project(project.path)
   coreSDKJavaIntegrationTest project(path: ":sdks:java:core", configuration: "shadowTest")
   examplesJavaIntegrationTest project(project.path)
