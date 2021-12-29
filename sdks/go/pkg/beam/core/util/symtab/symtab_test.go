@@ -15,14 +15,6 @@
 
 package symtab
 
-// beam-playground:
-//   name: SymtabTest
-//   description: Unit-test for the Symtab example.
-//   multifile: false
-//   pipeline_options:
-//   categories:
-//     - Side Input
-
 import (
 	"io/ioutil"
 	"os"

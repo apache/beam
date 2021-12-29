@@ -17,14 +17,6 @@
  */
 package org.apache.beam.sdk.schemas.transforms;
 
-// beam-playground:
-//   name: ConvertTest
-//   description: Unit-test for the Convert example.
-//   multifile: false
-//   pipeline_options:
-//   categories:
-//     - Schemas
-
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;

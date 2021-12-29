@@ -24,6 +24,7 @@ package org.apache.beam.examples.complete.game;
 //   pipeline_options:
 //   categories:
 //     - Testing
+//     - Filtering
 
 import java.io.Serializable;
 import java.util.Arrays;

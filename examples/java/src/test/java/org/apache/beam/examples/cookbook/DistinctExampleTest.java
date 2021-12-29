@@ -23,8 +23,8 @@ package org.apache.beam.examples.cookbook;
 //   multifile: false
 //   pipeline_options:
 //   categories:
-//     - IO
-//     - Options
+//     - Core Transforms
+//     - Filtering
 
 import java.util.Arrays;
 import java.util.List;

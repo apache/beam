@@ -17,14 +17,6 @@
  */
 package org.apache.beam.examples.complete.kafkatopubsub;
 
-// beam-playground:
-//   name: KafkaToPubsubTest
-//   description: Unit-test for the KafkaToPubsub example.
-//   multifile: false
-//   pipeline_options:
-//   categories:
-//     - Streaming
-
 import static org.apache.beam.examples.complete.kafkatopubsub.KafkaPubsubConstants.PASSWORD;
 import static org.apache.beam.examples.complete.kafkatopubsub.KafkaPubsubConstants.USERNAME;
 import static org.apache.beam.examples.complete.kafkatopubsub.kafka.consumer.Utils.getKafkaCredentialsFromVault;

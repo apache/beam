@@ -24,6 +24,7 @@ package org.apache.beam.examples.complete;
 //   pipeline_options:
 //   categories:
 //     - Side Input
+//     - Flatten
 
 import java.net.URI;
 import java.util.Arrays;

@@ -27,6 +27,7 @@
 #   pipeline_options:
 #   categories:
 #     - IO
+#     - Combiners
 
 import collections
 import logging

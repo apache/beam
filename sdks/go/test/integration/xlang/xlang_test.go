@@ -15,15 +15,6 @@
 
 package xlang
 
-// beam-playground:
-//   name: XLangTest
-//   description: Unit-test for the XLang example.
-//   multifile: false
-//   pipeline_options:
-//   categories:
-//     - Combiners
-//	   - Testing
-
 import (
 	"fmt"
 	"reflect"

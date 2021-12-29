@@ -23,7 +23,7 @@ package org.apache.beam.sdk.testing;
 //   multifile: false
 //   pipeline_options:
 //   categories:
-//     - Testing
+//     - Streaming
 
 import static org.apache.beam.sdk.transforms.windowing.Window.into;
 import static org.hamcrest.MatcherAssert.assertThat;

@@ -18,15 +18,6 @@
 """Unit tests for the windowing classes."""
 # pytype: skip-file
 
-# beam-playground:
-#   name: MetricTest
-#   description: Unit-test for the Window example.
-#   multifile: false
-#   pipeline_options:
-#   categories:
-#     - Core Transforms
-#	  - Windowing
-
 import unittest
 
 import apache_beam as beam

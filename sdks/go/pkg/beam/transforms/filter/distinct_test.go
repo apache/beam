@@ -22,6 +22,7 @@ package filter_test
 //   pipeline_options:
 //   categories:
 //     - Filtering
+//     - Core Transforms
 
 import (
 	"testing"

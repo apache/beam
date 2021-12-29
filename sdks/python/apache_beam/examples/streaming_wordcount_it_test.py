@@ -26,6 +26,7 @@
 #   pipeline_options:
 #   categories:
 #     - Streaming
+#     - IO
 
 import logging
 import unittest
