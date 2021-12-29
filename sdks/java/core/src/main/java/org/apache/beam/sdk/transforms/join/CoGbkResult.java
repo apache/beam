@@ -402,6 +402,7 @@ public class CoGbkResult {
     private Observer<T> observer;
 
     // Used to keep track of what has been observed so far.
+    // These are arrays to facilitate sharing values among all copies of the same root Reiterator.
     private final int[] lastObserved;
     private final boolean[] doneHasRun;
     private final PeekingReiterator[] mostAdvanced;
@@ -475,7 +476,7 @@ public class CoGbkResult {
   }
 
   /**
-   * Assigns a monotonically increasing index to each item in teh underling Reiterator.
+   * Assigns a monotonically increasing index to each item in the underling Reiterator.
    *
    * @param <T> The value type of the underlying iterable.
    */
