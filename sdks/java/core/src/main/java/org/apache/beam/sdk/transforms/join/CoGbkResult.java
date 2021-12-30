@@ -25,7 +25,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
-import java.util.function.Supplier;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
@@ -60,6 +59,10 @@ public class CoGbkResult {
 
   private static final int DEFAULT_IN_MEMORY_ELEMENT_COUNT = 10_000;
 
+  /**
+   * Always try to cache at least this many elements per tag, even if it requires caching more than
+   * the total in memory count.
+   */
   private static final int DEFAULT_MIN_ELEMENTS_PER_TAG = 100;
 
   private static final Logger LOG = LoggerFactory.getLogger(CoGbkResult.class);
@@ -107,44 +110,44 @@ public class CoGbkResult {
       valuesByTag.get(unionTag).add(value.getValue());
     }
 
-    if (taggedIter.hasNext()) {
-      // If we get here, there were more elements than we can afford to
-      // keep in memory, so we copy the re-iterable of remaining items
-      // and append filtered views to each of the sorted lists computed earlier.
-      LOG.info(
-          "CoGbkResult has more than {} elements, reiteration (which may be slow) is required.",
-          inMemoryElementCount);
-      final Reiterator<RawUnionValue> tail = (Reiterator<RawUnionValue>) taggedIter;
-
-      // As we iterate over this re-iterable (e.g. while iterating for one tag) we populate values
-      // for other observed tags, if any.
-      ObservingReiterator<RawUnionValue> tip =
-          new ObservingReiterator<>(
-              (Reiterator<RawUnionValue>) taggedIter,
-              new ObservingReiterator.Observer<RawUnionValue>() {
-                @Override
-                public void observeAt(ObservingReiterator<RawUnionValue> reiterator) {
-                  ((TagIterable<?>) valueMap.get(reiterator.peek().getUnionTag()))
-                      .offer(reiterator);
-                }
-
-                @Override
-                public void done() {
-                  // Inform all tags that we have reached the end of the iterable, so anything that
-                  // can be observed has been observed.
-                  for (Iterable<?> iter : valueMap) {
-                    ((TagIterable<?>) iter).finish();
-                  }
-                }
-              });
-
-      valueMap = new ArrayList<>();
-      for (int unionTag = 0; unionTag < schema.size(); unionTag++) {
-        valueMap.add(
-            new TagIterable<Object>(valuesByTag.get(unionTag), unionTag, minElementsPerTag, tip));
-      }
-    } else {
+    if (!taggedIter.hasNext()) {
       valueMap = (List) valuesByTag;
+      return;
+    }
+
+    // If we get here, there were more elements than we can afford to
+    // keep in memory, so we copy the re-iterable of remaining items
+    // and append filtered views to each of the sorted lists computed earlier.
+    LOG.info(
+        "CoGbkResult has more than {} elements, reiteration (which may be slow) is required.",
+        inMemoryElementCount);
+    final Reiterator<RawUnionValue> tail = (Reiterator<RawUnionValue>) taggedIter;
+
+    // As we iterate over this re-iterable (e.g. while iterating for one tag) we populate values
+    // for other observed tags, if any.
+    ObservingReiterator<RawUnionValue> tip =
+        new ObservingReiterator<>(
+            (Reiterator<RawUnionValue>) taggedIter,
+            new ObservingReiterator.Observer<RawUnionValue>() {
+              @Override
+              public void observeAt(ObservingReiterator<RawUnionValue> reiterator) {
+                ((TagIterable<?>) valueMap.get(reiterator.peek().getUnionTag())).offer(reiterator);
+              }
+
+              @Override
+              public void done() {
+                // Inform all tags that we have reached the end of the iterable, so anything that
+                // can be observed has been observed.
+                for (Iterable<?> iter : valueMap) {
+                  ((TagIterable<?>) iter).finish();
+                }
+              }
+            });
+
+    valueMap = new ArrayList<>();
+    for (int unionTag = 0; unionTag < schema.size(); unionTag++) {
+      valueMap.add(
+          new TagIterable<Object>(valuesByTag.get(unionTag), unionTag, minElementsPerTag, tip));
     }
   }
 
@@ -581,7 +584,6 @@ public class CoGbkResult {
   private static class TagIterable<T> implements Iterable<T> {
     int tag;
     int cacheSize;
-    Supplier<Boolean> forceCache;
 
     ObservingReiterator<RawUnionValue> tip;
 
