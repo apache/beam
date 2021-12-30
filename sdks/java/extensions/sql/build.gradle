@@ -91,7 +91,7 @@ dependencies {
   implementation library.java.slf4j_api
   implementation library.java.joda_time
   implementation library.java.vendored_guava_26_0_jre
-  compileOnly project(":sdks:java:io:kafka")
+  implementation project(":sdks:java:io:kafka")
   implementation project(":sdks:java:extensions:google-cloud-platform-core")
   permitUnusedDeclared project(":sdks:java:extensions:google-cloud-platform-core")
   implementation project(":sdks:java:io:google-cloud-platform")
@@ -104,7 +104,7 @@ dependencies {
   implementation library.java.avro
   implementation library.java.protobuf_java
   implementation library.java.protobuf_java_util
-  compileOnly project(":sdks:java:io:parquet")
+  implementation project(":sdks:java:io:parquet")
   compileOnly library.java.jackson_dataformat_xml
   permitUnusedDeclared library.java.jackson_dataformat_xml
   compileOnly library.java.hadoop_client
@@ -129,7 +129,7 @@ dependencies {
   testImplementation project(path: ":sdks:java:io:thrift", configuration: "testRuntimeMigration")
   testImplementation project(":sdks:java:extensions:protobuf")
   testImplementation project(path: ":sdks:java:extensions:protobuf", configuration: "testRuntimeMigration")
-  testCompileOnly project(":sdks:java:extensions:sql:udf-test-provider")
+  testImplementation project(":sdks:java:extensions:sql:udf-test-provider")
   testRuntimeOnly library.java.slf4j_jdk14
   hadoopVersions.each {kv ->
     "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-client:$kv.value"

@@ -43,7 +43,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnWorkerStatusGrpc.BeamFnWorkerS
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
-import org.apache.beam.sdk.fn.test.InProcessManagedChannelFactory;
+import org.apache.beam.sdk.fn.channel.InProcessManagedChannelFactory;
 import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.Server;

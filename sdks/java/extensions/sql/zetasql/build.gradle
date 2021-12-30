@@ -63,7 +63,7 @@ dependencies {
   testImplementation library.java.quickcheck_core
   testImplementation "com.alibaba:fastjson:1.2.69"
   testImplementation "org.codehaus.janino:janino:3.0.11"
-  testCompileOnly project(":sdks:java:extensions:sql:udf-test-provider")
+  testImplementation project(":sdks:java:extensions:sql:udf-test-provider")
   testRuntimeOnly library.java.slf4j_jdk14
 }
 

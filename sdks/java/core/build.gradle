@@ -90,11 +90,18 @@ dependencies {
   shadow library.java.avro
   shadow library.java.snappy_java
   shadow library.java.joda_time
+
+  // Core exposes a set of test utilities for end-user usage. These should be in
+  // a separate package, but cannot be moved at this point.
   compileOnly library.java.junit
   compileOnly library.java.hamcrest
+
+  // These support Compression.LZO, they should be removed and replaced by an
+  // AutoService.
   compileOnly 'io.airlift:aircompressor:0.18'
   compileOnly 'com.facebook.presto.hadoop:hadoop-apache2:3.2.0-1'
   permitUnusedDeclared 'com.facebook.presto.hadoop:hadoop-apache2:3.2.0-1'
+
   shadowTest library.java.jackson_dataformat_yaml
   shadowTest library.java.guava_testlib
   shadowTest library.java.mockito_core

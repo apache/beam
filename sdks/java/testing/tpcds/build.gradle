@@ -56,9 +56,6 @@ configurations {
 dependencies {
     implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
 
-    // TODO(BEAM-13179): Determine how to build without this dependency
-    compileOnly "org.immutables:value:2.8.8"
-    permitUnusedDeclared "org.immutables:value:2.8.8"
     implementation library.java.avro
     implementation library.java.vendored_guava_26_0_jre
     implementation library.java.vendored_calcite_1_28_0

@@ -378,7 +378,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.36.0'
+    project.version = '2.37.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -965,10 +965,7 @@ class BeamModulePlugin implements Plugin<Project> {
         project.artifacts.archives project.packageTests
       }
 
-      // Note that these plugins specifically use the compileOnly and testCompileOnly
-      // configurations because they are never required to be shaded or become a
-      // dependency of the output.
-      def compileOnlyAnnotationDeps = [
+      def annotationDeps = [
         "com.google.auto.service:auto-service-annotations:1.0-rc6",
         "com.google.auto.value:auto-value-annotations:$autovalue_version",
         "com.google.code.findbugs:jsr305:$jsr305_version",
@@ -996,14 +993,21 @@ class BeamModulePlugin implements Plugin<Project> {
         // See exception in: https://www.apache.org/legal/resolved.html#prohibited
         // License: https://github.com/javaee/javax.annotation/blob/1.3.2/LICENSE
         "javax.annotation:javax.annotation-api:1.3.2",
+        // This contains many improved annotations beyond javax.annotations for
+        // enhanced static checking of the codebase. The annotations themselves
+        // are MIT licensed (checkerframework is GPL and cannot be distributed)
+        "org.checkerframework:checker-qual:$checkerframework_version"
       ]
 
       project.dependencies {
-        compileOnlyAnnotationDeps.each { dep ->
-          compileOnly dep
-          testCompileOnly dep
+        annotationDeps.each { dep ->
+          implementation dep
           annotationProcessor dep
           testAnnotationProcessor dep
+          // Disregard unused but declared dependencies used for common
+          // annotation classes used during compilation such as annotation
+          // processing or post validation such as spotbugs.
+          permitUnusedDeclared dep
         }
 
         // Add common annotation processors to all Java projects
@@ -1016,11 +1020,6 @@ class BeamModulePlugin implements Plugin<Project> {
           annotationProcessor dep
           testAnnotationProcessor dep
         }
-
-        // This contains many improved annotations beyond javax.annotations for enhanced static checking
-        // of the codebase. It is runtime so users can also take advantage of them. The annotations themselves
-        // are MIT licensed (checkerframework is GPL and cannot be distributed)
-        implementation "org.checkerframework:checker-qual:$checkerframework_version"
       }
 
       // Defines Targets for sonarqube analysis reporting.
@@ -1080,7 +1079,6 @@ class BeamModulePlugin implements Plugin<Project> {
         project.dependencies {
           spotbugs "com.github.spotbugs:spotbugs:$spotbugs_version"
           spotbugs "com.google.auto.value:auto-value:$autovalue_version"
-          compileOnlyAnnotationDeps.each { dep -> spotbugs dep }
         }
         project.spotbugs {
           excludeFilter = project.rootProject.file('sdks/java/build-tools/src/main/resources/beam/spotbugs-filter.xml')
@@ -1092,17 +1090,6 @@ class BeamModulePlugin implements Plugin<Project> {
             xml.enabled = project.jenkins.isCIBuild
           }
         }
-      }
-
-      // Disregard unused but declared (test) compile only dependencies used
-      // for common annotation classes used during compilation such as annotation
-      // processing or post validation such as spotbugs.
-      project.dependencies {
-        compileOnlyAnnotationDeps.each { dep ->
-          permitUnusedDeclared dep
-          permitTestUnusedDeclared dep
-        }
-        permitUnusedDeclared "org.checkerframework:checker-qual:$checkerframework_version"
       }
 
       if (configuration.enableStrictDependencies) {

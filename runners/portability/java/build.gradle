@@ -38,6 +38,7 @@ dependencies {
   implementation library.java.hamcrest
 
   testImplementation project(path: ":runners:core-construction-java", configuration: "testRuntimeMigration")
+  testImplementation project(":sdks:java:fn-execution:test-utils")
   testImplementation library.java.hamcrest
   testImplementation library.java.junit
   testImplementation library.java.mockito_core

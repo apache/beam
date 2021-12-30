@@ -36,8 +36,6 @@ dependencies {
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation library.java.slf4j_api
     implementation library.java.joda_time
-    compileOnly library.java.jackson_dataformat_csv
-    permitUnusedDeclared library.java.jackson_dataformat_csv
     testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
     testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
 

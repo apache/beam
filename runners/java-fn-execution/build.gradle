@@ -26,7 +26,7 @@ dependencies {
   implementation library.java.vendored_guava_26_0_jre
   implementation project(":runners:core-construction-java")
   implementation project(":runners:core-java")
-  compileOnly project(":sdks:java:harness")
+  implementation project(":sdks:java:harness")
   implementation project(path: ":model:pipeline", configuration: "shadow")
   implementation project(path: ":model:fn-execution", configuration: "shadow")
   implementation project(path: ":sdks:java:core", configuration: "shadow")
@@ -37,6 +37,7 @@ dependencies {
   implementation project(path: ":model:job-management", configuration: "shadow")
   implementation library.java.joda_time
   testImplementation project(":sdks:java:harness")
+  testImplementation project(":sdks:java:fn-execution:test-utils")
   testImplementation project(":runners:core-construction-java")
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation project(path: ":runners:core-java", configuration: "testRuntimeMigration")

@@ -63,7 +63,7 @@ dependencies {
   implementation "org.apache.samza:samza-kv-rocksdb_2.11:$samza_version"
   implementation "org.apache.samza:samza-kv-inmemory_2.11:$samza_version"
   implementation "org.apache.samza:samza-yarn_2.11:$samza_version"
-  compileOnly library.java.error_prone_annotations
+  implementation library.java.error_prone_annotations
   runtimeOnly "org.apache.kafka:kafka-clients:2.0.1"
   implementation library.java.vendored_grpc_1_36_0
   implementation project(path: ":model:fn-execution", configuration: "shadow")
