@@ -115,7 +115,7 @@ public class CoGbkResultTest {
   @Test
   @SuppressWarnings("BoxedPrimitiveEquality")
   public void testCachedResults() {
-    // Ensure we don't fail below due to odd VM settings.
+    // Ensure we don't fail below due to a non-default java.lang.Integer.IntegerCache.high setting.
     int integerCacheLimit = 128;
     assertThat(
         Integer.valueOf(integerCacheLimit), not(sameInstance(Integer.valueOf(integerCacheLimit))));

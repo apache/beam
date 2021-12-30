@@ -694,11 +694,11 @@ public class CoGbkResult {
             return true;
           } else if (finished) {
             // If there are no more elements in head, and tail was not populated, and we are
-            // finshed, this is the end of the iteration.
+            // finished, this is the end of the iteration.
             isDone = true;
             return true;
           } else {
-            // We need more lements in either head or tail.
+            // We need more elements in either head or tail.
             return false;
           }
         }
