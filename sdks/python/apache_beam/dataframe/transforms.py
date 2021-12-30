@@ -375,7 +375,7 @@ class _DataframeExpressionsTransform(transforms.PTransform):
                   expr.requires_partition_by() == stage.partitioning)
         if inputs_by_stage:
           # Take the stage with the largest count.
-          stage = sorted(inputs_by_stage.items(), key=lambda kv: kv[1])[-1][0]
+          stage = max(inputs_by_stage.items(), key=lambda kv: kv[1])[0]
         else:
           stage = None
       else:
