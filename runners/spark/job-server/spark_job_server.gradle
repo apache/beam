@@ -52,7 +52,6 @@ configurations.all {
 dependencies {
   implementation project(sparkRunnerProject)
   permitUnusedDeclared project(sparkRunnerProject)
-  implementation project(sparkRunnerProject)
   validatesPortableRunner project(path: sparkRunnerProject, configuration: "testRuntimeMigration")
   validatesPortableRunner project(sparkRunnerProject)
   validatesPortableRunner project(path: ":sdks:java:core", configuration: "shadowTest")
