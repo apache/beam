@@ -717,6 +717,13 @@ class GoogleCloudOptions(PipelineOptions):
         help='When true, will enable the direct logging of any detected hot '
         'keys into Cloud Logging. Warning: this will log the literal key as an '
         'unobfuscated string.')
+    parser.add_argument(
+        '--enable_artifact_caching',
+        default=False,
+        action='store_true',
+        help=
+        'When true, artifacts will be cached across job submissions in the GCS '
+        'staging bucket')
 
   def _create_default_gcs_bucket(self):
     try:
