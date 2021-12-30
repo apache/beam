@@ -1,5 +1,5 @@
 ---
-title: "Try Apache Beam Playground"
+title: "Try Apache Beam Playground (Beta)"
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,16 +15,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Try Apache Beam Playground
+# Try Apache Beam Playground (Beta)
 
-You can try an Apache Beam examples using
+Beam Playground is an interactive environment to try out Beam transforms and examples
+without having to install Apache Beam in your environment.
+
+You can try an Apache Beam examples at
 [Apache Beam Playground](https://frontend-beta-dot-apache-beam-testing.appspot.com/).
-
-## About
-
-Beam Playground is an interactive environment to try out Beam transforms and examples.
-The vision for the Playground is to be a web application where users can try out
-Beam without having to install/initialize a Beam environment.
 
 ## Beam Playground WordCount Example
 
@@ -32,14 +29,14 @@ Beam without having to install/initialize a Beam environment.
 
 ## How To Add New Examples
 
-To tag any Apache Beam example/test/kata for adding to the Playground examples catalog,
-it is needed to add a beam-playground tag into the file.
-beam-playground tag is a yaml format comment:
+To add an Apache Beam example/test/kata into Beam Playground catalog,
+add the `beam-playground` tag into the file to be added.
+`beam-playground` tag is a yaml format comment:
 
 {{< highlight java >}}
 // beam-playground:
-//   name: Name of example/Kata/Unit Test
-//   description: Description for example/Kata/Unit Test
+//   name: Name of the example/test/kata
+//   description: Description of the example/test/kata
 //   multifile: false
 //   pipeline_options: --option1 value1 --option2 value2
 //   categories:
@@ -49,8 +46,8 @@ beam-playground tag is a yaml format comment:
 {{< /highlight >}}
 {{< highlight py >}}
 # beam-playground:
-#   name: Name of example/Kata/Unit Test
-#   description: Description for example/Kata/Unit Test
+#   name: Name of the example/test/kata
+#   description: Description of the example/test/kata
 #   multifile: false
 #   pipeline_options: --option1 value1 --option2 value2
 #   categories:
@@ -60,8 +57,8 @@ beam-playground tag is a yaml format comment:
 {{< /highlight >}}
 {{< highlight go >}}
 // beam-playground:
-//   name: Name of example/Kata/Unit Test
-//   description: Description for example/Kata/Unit Test
+//   name: Name of the example/test/kata
+//   description: Description of the example/test/kata
 //   multifile: false
 //   pipeline_options: --option1 value1 --option2 value2
 //   categories:
@@ -70,25 +67,29 @@ beam-playground tag is a yaml format comment:
 //     - category N
 {{< /highlight >}}
 
-The beam playground tag consists of the following **required** elements:
+The 'beam-playground' tag consists of the following **required** elements:
 
 - `beam-playground` - tag title.
-- `name` - string field. Name of the Beam example/test/kata.
-- `description` - string field. Description of the beam example/test/kata.
+- `name` - string field. Name of the Beam example/test/kata that will be displayed in the Beam Playground
+examples catalog.
+- `description` - string field. Description of the Beam example/test/kata that will be displayed in Beam Playground.
 - `multifile` - boolean field. Specifies if the given example consists of multiple files or not.
-- `pipeline_options` - string field. Contains information about pipeline options of the beam example/test/kata.
+- `pipeline_options` - string field. Contains information about pipeline options of the Beam example/test/kata.
 - `categories` - list type field.
-Lists categories this example is included into. Available categories are listed in playground/categories.yaml.
-If some Beam example/kata/test contains a category that is not included in playground/categories.yaml
-then the developer can submit PR to add this category into the file.
+Lists categories this example is included into. Available categories are listed in
+[playground/categories.yaml](https://github.com/apache/beam/blob/master/playground/categories.yaml).
+If some Beam example/kata/test needs to add a new category, then please submit PR with the changes to `categories.yaml`.
+After the category has been added, it can be used in the examples.
 
 More details on examples in Apache Beam Playground can be found
 [here](https://docs.google.com/document/d/1LBeGVTYwJHYbtmLt06OjhBR1CJ1Wgz18MEZjvNkuofc/edit?usp=sharing).
 
 ## Next Steps
 
-* Walk through examples in [Apache Beam Playground](https://frontend-beta-dot-apache-beam-testing.appspot.com/).
-* Leave your feedback in [Apache Beam Playground](https://frontend-beta-dot-apache-beam-testing.appspot.com/).
+* Try examples in [Apache Beam Playground](https://frontend-beta-dot-apache-beam-testing.appspot.com/).
+* Submit feedback using "Enjoying Playground?" in
+[Apache Beam Playground](https://frontend-beta-dot-apache-beam-testing.appspot.com/) or via
+[this form](https://docs.google.com/forms/d/e/1FAIpQLSd5_5XeOwwW2yjEVHUXmiBad8Lxk-4OtNcgG45pbyAZzd4EbA/viewform?usp=pp_url).
 * Join the Beam [users@](/community/contact-us) mailing list.
 * If you're interested in contributing to the Apache Beam Playground codebase, see the [Contribution Guide](/contribute).
 
