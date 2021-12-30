@@ -1284,8 +1284,6 @@ public class BigtableIOTest {
   @Test
   public void testWritingEmitsResultsWhenDoneInFixedWindow() throws Exception {
     final String table = "table";
-    final String key = "key";
-    final String value = "value";
 
     service.createTable(table);
 

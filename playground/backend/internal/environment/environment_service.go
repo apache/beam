@@ -19,6 +19,7 @@ import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -37,22 +38,21 @@ const (
 	cacheTypeKey                  = "CACHE_TYPE"
 	cacheAddressKey               = "CACHE_ADDRESS"
 	beamPathKey                   = "BEAM_PATH"
-	beamRunnerKey                 = "BEAM_RUNNER"
-	SLF4jKey                      = "SLF4J"
 	cacheKeyExpirationTimeKey     = "KEY_EXPIRATION_TIME"
 	pipelineExecuteTimeoutKey     = "PIPELINE_EXPIRATION_TIMEOUT"
 	protocolTypeKey               = "PROTOCOL_TYPE"
+	launchSiteKey                 = "LAUNCH_SITE"
+	projectIdKey                  = "GOOGLE_CLOUD_PROJECT"
+	defaultLaunchSite             = "local"
 	defaultProtocol               = "HTTP"
 	defaultIp                     = "localhost"
 	defaultPort                   = 8080
 	defaultSdk                    = pb.Sdk_SDK_JAVA
-	defaultBeamSdkPath            = "/opt/apache/beam/jars/beam-sdks-java-harness.jar"
+	defaultBeamJarsPath           = "/opt/apache/beam/jars/*"
 	defaultCacheType              = "local"
 	defaultCacheAddress           = "localhost:6379"
 	defaultCacheKeyExpirationTime = time.Minute * 15
 	defaultPipelineExecuteTimeout = time.Minute * 10
-	defaultBeamRunner             = "/opt/apache/beam/jars/beam-runners-direct.jar"
-	defaultSLF4j                  = "/opt/apache/beam/jars/slf4j-jdk14.jar"
 	jsonExt                       = ".json"
 	configFolderName              = "configs"
 )
@@ -93,6 +93,8 @@ func GetApplicationEnvsFromOsEnvs() (*ApplicationEnvs, error) {
 	cacheExpirationTime := defaultCacheKeyExpirationTime
 	cacheType := getEnv(cacheTypeKey, defaultCacheType)
 	cacheAddress := getEnv(cacheAddressKey, defaultCacheAddress)
+	launchSite := getEnv(launchSiteKey, defaultLaunchSite)
+	projectId := os.Getenv(projectIdKey)
 
 	if value, present := os.LookupEnv(cacheKeyExpirationTimeKey); present {
 		if converted, err := time.ParseDuration(value); err == nil {
@@ -110,7 +112,7 @@ func GetApplicationEnvsFromOsEnvs() (*ApplicationEnvs, error) {
 	}
 
 	if value, present := os.LookupEnv(workingDirKey); present {
-		return NewApplicationEnvs(value, NewCacheEnvs(cacheType, cacheAddress, cacheExpirationTime), pipelineExecuteTimeout), nil
+		return NewApplicationEnvs(value, launchSite, projectId, NewCacheEnvs(cacheType, cacheAddress, cacheExpirationTime), pipelineExecuteTimeout), nil
 	}
 	return nil, errors.New("APP_WORK_DIR env should be provided with os.env")
 }
@@ -177,13 +179,13 @@ func createExecutorConfig(apacheBeamSdk pb.Sdk, configPath string) (*ExecutorCon
 	}
 	switch apacheBeamSdk {
 	case pb.Sdk_SDK_JAVA:
-		executorConfig.CompileArgs = append(executorConfig.CompileArgs, getEnv(beamPathKey, defaultBeamSdkPath))
-		jars := strings.Join([]string{
-			getEnv(beamPathKey, defaultBeamSdkPath),
-			getEnv(beamRunnerKey, defaultBeamRunner),
-			getEnv(SLF4jKey, defaultSLF4j),
-		}, ":")
-		executorConfig.RunArgs[1] += jars
+		args, err := ConcatBeamJarsToString()
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf("Error during proccessing jars: %s", err.Error()))
+		}
+		executorConfig.CompileArgs = append(executorConfig.CompileArgs, args)
+		executorConfig.RunArgs[1] = fmt.Sprintf("%s%s", executorConfig.RunArgs[1], args)
+		executorConfig.TestArgs[1] = fmt.Sprintf("%s%s", executorConfig.TestArgs[1], args)
 	case pb.Sdk_SDK_GO:
 		// Go sdk doesn't need any additional arguments from the config file
 	case pb.Sdk_SDK_PYTHON:
@@ -192,6 +194,15 @@ func createExecutorConfig(apacheBeamSdk pb.Sdk, configPath string) (*ExecutorCon
 		return nil, errors.New("not yet supported")
 	}
 	return executorConfig, nil
+}
+
+func ConcatBeamJarsToString() (string, error) {
+	jars, err := filepath.Glob(getEnv(beamPathKey, defaultBeamJarsPath))
+	if err != nil {
+		return "", err
+	}
+	args := strings.Join(jars, ":")
+	return args, nil
 }
 
 // getConfigFromJson reads a json file to ExecutorConfig

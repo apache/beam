@@ -51,6 +51,9 @@ Pipeline patterns demonstrate common Beam use cases. Pipeline patterns are based
 **Cross-language patterns** - Patterns for creating cross-language pipelines
 * [Cross-language patterns](/documentation/patterns/cross-language/#cross-language-transforms)
 
+**State & timers patterns** - Patterns for using state & timers
+* [Grouping elements for efficient external service calls](/documentation/patterns/grouping-elements-for-efficient-external-service-calls/#grouping-elements-for-efficient-external-service-calls-using-the-`GroupIntoBatches`-transform)
+
 ## Contributing a pattern
 
 To contribute a new pipeline pattern, create an issue with the [`pipeline-patterns` label](https://issues.apache.org/jira/browse/BEAM-7449?jql=labels%20%3D%20pipeline-patterns) and add details to the issue description. See [Get started contributing](/contribute/) for more information.

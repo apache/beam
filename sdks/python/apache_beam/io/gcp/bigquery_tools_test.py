@@ -430,6 +430,18 @@ class TestBigQueryWrapper(unittest.TestCase):
     upload = client.jobs.Insert.call_args[1]["upload"]
     self.assertEqual(b'some,data', upload.stream.read())
 
+  def test_perform_load_job_with_load_job_id(self):
+    client = mock.Mock()
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+
+    wrapper.perform_load_job(
+        destination=parse_table_reference('project:dataset.table'),
+        job_id='job_id',
+        source_uris=['gs://example.com/*'],
+        load_job_project_id='loadId')
+    call_args = client.jobs.Insert.call_args
+    self.assertEqual('loadId', call_args[0][0].projectId)
+
   def verify_write_call_metric(
       self, project_id, dataset_id, table_id, status, count):
     """Check if an metric was recorded for the BQ IO write API call."""

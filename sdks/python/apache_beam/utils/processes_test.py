@@ -143,6 +143,10 @@ class TestErrorHandlingCheckOutput(unittest.TestCase):
         'apache_beam.utils.processes.subprocess.check_output')
     cls.mock_get = cls.mock_get_patcher.start()
 
+  @classmethod
+  def tearDownClass(cls):
+    cls.mock_get_patcher.stop()
+
   def test_oserror_check_output_message(self):
     self.mock_get.side_effect = OSError()
     cmd = ["lls"]
@@ -179,6 +183,10 @@ class TestErrorHandlingCall(unittest.TestCase):
     cls.mock_get_patcher = mock.patch(\
       'apache_beam.utils.processes.subprocess.call')
     cls.mock_get = cls.mock_get_patcher.start()
+
+  @classmethod
+  def tearDownClass(cls):
+    cls.mock_get_patcher.stop()
 
   def test_oserror_check_output_message(self):
     self.mock_get.side_effect = OSError()

@@ -41,6 +41,26 @@ task postCommitIT {
         "apache_beam/io/gcp/bigquery_read_it_test.py",
         "apache_beam/io/gcp/bigquery_write_it_test.py",
         "apache_beam/io/gcp/datastore/v1new/datastore_write_it_test.py",
+    ]
+    def testOpts = basicTestOpts + ["${batchTests.join(' ')}"]
+    def argMap = ["runner": "TestDirectRunner",
+                  "test_opts": testOpts,
+                  "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
+                  ]
+    def batchCmdArgs = mapToArgString(argMap)
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $batchCmdArgs"
+    }
+  }
+}
+
+task spannerioIT {
+  dependsOn 'installGcpTest'
+
+  // Run Spanner IO IT tests with TestDirectRunner in batch in Python 3.
+  doLast {
+    def batchTests = [
         "apache_beam/io/gcp/experimental/spannerio_read_it_test.py",
         "apache_beam/io/gcp/experimental/spannerio_write_it_test.py",
     ]

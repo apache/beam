@@ -30,16 +30,22 @@ applyJavaNature(
 )
 
 dependencies {
-    compile project(path: ":sdks:java:expansion-service")
+    implementation project(path: ":sdks:java:expansion-service")
     permitUnusedDeclared project(path: ":sdks:java:expansion-service") // BEAM-11761
-    compile project(":sdks:java:io:jdbc")
+    implementation project(":sdks:java:io:jdbc")
     permitUnusedDeclared project(":sdks:java:io:jdbc") // BEAM-11761
-    compile library.java.postgres
+    implementation library.java.postgres
     permitUnusedDeclared library.java.postgres // BEAM-11761
-    compile project(path: ":model:pipeline", configuration: "shadow")
-    compile project(path: ":sdks:java:core", configuration: "shadow")
-    compile library.java.vendored_grpc_1_36_0
-    compile library.java.vendored_guava_26_0_jre
-    testCompile library.java.junit
-    testCompile library.java.mockito_core
+    implementation project(path: ":model:pipeline", configuration: "shadow")
+    implementation project(path: ":sdks:java:core", configuration: "shadow")
+    implementation library.java.vendored_grpc_1_36_0
+    implementation library.java.vendored_guava_26_0_jre
+    testImplementation library.java.junit
+    testImplementation library.java.mockito_core
+}
+
+task runExpansionService (type: JavaExec) {
+    main = "org.apache.beam.sdk.expansion.service.ExpansionService"
+    classpath = sourceSets.test.runtimeClasspath
+    args = [project.findProperty("constructionService.port") ?: "8097"]
 }

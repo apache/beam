@@ -17,8 +17,11 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:playground/configure_nonweb.dart'
+    if (dart.library.html) 'package:playground/configure_web.dart';
 import 'package:playground/playground_app.dart';
 
 void main() {
+  configureApp();
   runApp(const PlaygroundApp());
 }
