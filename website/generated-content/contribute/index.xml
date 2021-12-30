@@ -719,27 +719,9 @@ This only verifies that everything builds with unit tests passing.&lt;/p>
 &lt;p>There are some projects that don&amp;rsquo;t produce the artifacts, e.g. &lt;code>beam-test-tools&lt;/code>, you may be able to ignore failures there.&lt;/p>
 &lt;p>To triage the failures and narrow things down you may want to look at &lt;code>settings.gradle.kts&lt;/code> and run the build only for the projects you&amp;rsquo;re interested at the moment, e.g. &lt;code>./gradlew :runners:java-fn-execution&lt;/code>.&lt;/p>
 &lt;h4 id="alternative-run-release-build-manually-locally">(Alternative) Run release build manually (locally)&lt;/h4>
+&lt;p>You will need to have Python interpreters for all supported Python minor
+versions to run Python tests. See Python installation tips in &lt;a href="https://cwiki.apache.org/confluence/display/BEAM/Python+Tips#PythonTips-InstallingPythoninterpreters">Developer Wiki&lt;/a>.&lt;/p>
 &lt;ul>
-&lt;li>
-&lt;p>&lt;strong>Pre-installation for python build&lt;/strong>&lt;/p>
-&lt;ol>
-&lt;li>
-&lt;p>Install pip&lt;/p>
-&lt;pre>&lt;code>curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
-python get-pip.py
-&lt;/code>&lt;/pre>&lt;/li>
-&lt;li>
-&lt;p>Cython&lt;/p>
-&lt;pre>&lt;code>sudo pip install cython
-sudo apt-get install gcc
-sudo apt-get install python-dev
-sudo apt-get install python3-dev
-sudo apt-get install python3.5-dev
-sudo apt-get install python3.6-dev
-sudo apt-get install python3.7-dev
-&lt;/code>&lt;/pre>&lt;/li>
-&lt;/ol>
-&lt;/li>
 &lt;li>
 &lt;p>&lt;strong>Run gradle release build&lt;/strong>&lt;/p>
 &lt;ol>
@@ -1261,10 +1243,9 @@ python setup.py sdist
 &lt;/code>&lt;/pre>&lt;/li>
 &lt;li>
 &lt;p>&lt;strong>Setup virtual environment&lt;/strong>&lt;/p>
-&lt;pre>&lt;code>pip install --upgrade pip
-pip install --upgrade setuptools
-python -m venv beam_env
-. beam_env/bin/activate
+&lt;pre>&lt;code>python3 -m venv beam_env
+. ./beam_env/bin/activate
+pip install --upgrade pip setuptools wheel
 &lt;/code>&lt;/pre>&lt;/li>
 &lt;li>
 &lt;p>&lt;strong>Install SDK&lt;/strong>&lt;/p>
