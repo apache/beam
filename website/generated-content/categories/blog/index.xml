@@ -1,4 +1,147 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – blog</title><link>/categories/blog/</link><description>Recent content in blog on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Thu, 11 Nov 2021 00:11:00 -0800</lastBuildDate><atom:link href="/categories/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.34.0</title><link>/blog/beam-2.34.0/</link><pubDate>Thu, 11 Nov 2021 00:11:00 -0800</pubDate><guid>/blog/beam-2.34.0/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – blog</title><link>/categories/blog/</link><description>Recent content in blog on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Wed, 29 Dec 2021 10:11:00 -0800</lastBuildDate><atom:link href="/categories/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.35.0</title><link>/blog/beam-2.35.0/</link><pubDate>Wed, 29 Dec 2021 10:11:00 -0800</pubDate><guid>/blog/beam-2.35.0/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.35.0 release of Apache Beam.
+This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2350-2021-12-29">download page&lt;/a> for this release.&lt;/p>
+&lt;p>For more information on changes in 2.35.0, check out the &lt;a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12350406">detailed release
+notes&lt;/a>.&lt;/p>
+&lt;h2 id="highlights">Highlights&lt;/h2>
+&lt;ul>
+&lt;li>MultiMap side inputs are now supported by the Go SDK (&lt;a href="https://issues.apache.org/jira/browse/BEAM-3293">BEAM-3293&lt;/a>).&lt;/li>
+&lt;li>Side inputs are supported within Splittable DoFns for Dataflow Runner V1 and Dataflow Runner V2. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12522">BEAM-12522&lt;/a>).&lt;/li>
+&lt;li>Upgrades Log4j version used in test suites (Apache Beam testing environment only, not for end user consumption) to 2.17.0(&lt;a href="https://issues.apache.org/jira/browse/BEAM-13434">BEAM-13434&lt;/a>).
+Note that Apache Beam versions do not depend on the Log4j 2 dependency (log4j-core) impacted by &lt;a href="https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-44228">CVE-2021-44228&lt;/a>.
+However we urge users to update direct and indirect dependencies (if any) on Log4j 2 to the latest version by updating their build configuration and redeploying impacted pipelines.&lt;/li>
+&lt;/ul>
+&lt;h2 id="ios">I/Os&lt;/h2>
+&lt;ul>
+&lt;li>We changed the data type for ranges in &lt;code>JdbcIO.readWithPartitions&lt;/code> from &lt;code>int&lt;/code> to &lt;code>long&lt;/code> (&lt;a href="https://issues.apache.org/jira/browse/BEAM-13149">BEAM-13149&lt;/a>).
+This is a relatively minor breaking change, which we&amp;rsquo;re implementing to improve the usability of the transform without increasing cruft.
+This transform is relatively new, so we may implement other breaking changes in the future to improve its usability.&lt;/li>
+&lt;li>Side inputs are supported within Splittable DoFns for Dataflow Runner V1 and Dataflow Runner V2. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12522">BEAM-12522&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
+&lt;ul>
+&lt;li>Added custom delimiters to Python TextIO reads (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12730">BEAM-12730&lt;/a>).&lt;/li>
+&lt;li>Added escapechar parameter to Python TextIO reads (&lt;a href="https://issues.apache.org/jira/browse/BEAM-13189">BEAM-13189&lt;/a>).&lt;/li>
+&lt;li>Splittable reading is enabled by default while reading data with ParquetIO (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12070">BEAM-12070&lt;/a>).&lt;/li>
+&lt;li>DoFn Execution Time metrics added to Go (&lt;a href="https://issues.apache.org/jira/browse/BEAM-13001">BEAM-13001&lt;/a>).&lt;/li>
+&lt;li>Cross-bundle side input caching is now available in the Go SDK for runners that support the feature by setting the EnableSideInputCache hook (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11097">BEAM-11097&lt;/a>).&lt;/li>
+&lt;li>Upgraded the GCP Libraries BOM version to 24.0.0 and associated dependencies (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11205">BEAM-11205&lt;/a>). For Google Cloud client library versions set by this BOM,
+see &lt;a href="https://storage.googleapis.com/cloud-opensource-java-dashboard/com.google.cloud/libraries-bom/24.0.0/artifact_details.html">this table&lt;/a>.&lt;/li>
+&lt;li>Removed avro-python3 dependency in AvroIO. Fastavro has already been our Avro library of choice on Python 3. Boolean use_fastavro is left for api compatibility, but will have no effect.(&lt;a href="https://github.com/apache/beam/pull/15900">BEAM-13016&lt;/a>).&lt;/li>
+&lt;li>MultiMap side inputs are now supported by the Go SDK (&lt;a href="https://issues.apache.org/jira/browse/BEAM-3293">BEAM-3293&lt;/a>).&lt;/li>
+&lt;li>Remote packages can now be downloaded from locations supported by apache_beam.io.filesystems. The files will be downloaded on Stager and uploaded to staging location. For more information, see &lt;a href="https://issues.apache.org/jira/browse/BEAM-11275">BEAM-11275&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
+&lt;ul>
+&lt;li>A new URN convention was adopted for cross-language transforms and existing URNs were updated. This may break advanced use-cases, for example, if a custom expansion service is used to connect diffrent Beam Java and Python versions. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12047">BEAM-12047&lt;/a>).&lt;/li>
+&lt;li>The upgrade to Calcite 1.28.0 introduces a breaking change in the SUBSTRING function in SqlTransform, when used with the Calcite dialect (&lt;a href="https://issues.apache.org/jira/browse/BEAM-13099">BEAM-13099&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/CALCITE-4427">CALCITE-4427&lt;/a>).&lt;/li>
+&lt;li>ListShards (with DescribeStreamSummary) is used instead of DescribeStream to list shards in Kinesis streams (AWS SDK v2). Due to this change, as mentioned in &lt;a href="https://docs.aws.amazon.com/kinesis/latest/APIReference/API_ListShards.html">AWS documentation&lt;/a>, for fine-grained IAM policies it is required to update them to allow calls to ListShards and DescribeStreamSummary APIs. For more information, see &lt;a href="https://docs.aws.amazon.com/streams/latest/dev/controlling-access.html">Controlling Access to Amazon Kinesis Data Streams&lt;/a> (&lt;a href="https://issues.apache.org/jira/browse/BEAM-13233">BEAM-13233&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="deprecations">Deprecations&lt;/h2>
+&lt;ul>
+&lt;li>Non-splittable reading is deprecated while reading data with ParquetIO (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12070">BEAM-12070&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="bugfixes">Bugfixes&lt;/h2>
+&lt;ul>
+&lt;li>Properly map main input windows to side input windows by default (Go)
+(&lt;a href="https://issues.apache.org/jira/browse/BEAM-11087">BEAM-11087&lt;/a>).&lt;/li>
+&lt;li>Fixed data loss when writing to DynamoDB without setting deduplication key names (Java)
+(&lt;a href="https://issues.apache.org/jira/browse/BEAM-13009">BEAM-13009&lt;/a>).&lt;/li>
+&lt;li>Go SDK Examples now have types and functions registered. (Go) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-5378">BEAM-5378&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h2 id="known-issues">Known Issues&lt;/h2>
+&lt;ul>
+&lt;li>Users of beam-sdks-java-io-hcatalog (and beam-sdks-java-extensions-sql-hcatalog) must take care to override the transitive log4j dependency when they add a hive dependency (&lt;a href="https://issues.apache.org/jira/browse/BEAM-13499">BEAM-13499&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the 2.35.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>Ahmet Altay
+Alexandr Zhuravlev
+Alexey Romanenko
+AlikRodriguez
+Anand Inguva
+Andrew Pilloud
+Ankur Goenka
+Anthony Sottile
+Artur Khanin
+Aydar Farrakhov
+Aydar Zainutdinov
+Benjamin Gonzalez
+brachipa
+Brian Hulette
+Calvin Leung
+Chamikara Jayalath
+Chris Gray
+Damon Douglas
+Daniel Collins
+Daniel Oliveira
+daria.malkova
+darshan-sj
+David Huntsperger
+Dmitrii Kuzin
+dpcollins-google
+dprieto
+egalpin
+Etienne Chauchot
+Eugene Nikolaiev
+Fernando Morales
+Hector Lagos
+Heejong Lee
+Ilya Kozyrev
+Iñigo San Jose Visiers
+Jack McCluskey
+Jiayang Wu
+jrhy
+Kenneth Knowles
+KevinGG
+kileys
+klmilam
+Kyle Weaver
+Luís Bianchin
+Luke Cwik
+Melissa Pashniak
+Michael Luckey
+Miguel Hernandez
+Milena Bukal
+Minbo Bae
+minherz
+Moritz Mack
+mosche
+Natalie
+Ning Kang
+Pablo Estrada
+Pavel Avilov
+Reuven Lax
+Ritesh Ghorse
+Robert Bradshaw
+Robert Burke
+Rogan Morrow
+Ruslan Altynnikov
+Sam Whittle
+Sergey Kalinin
+Slava Chernyak
+Svetak Sundhar
+Tianyang Hu
+Tim Robertson
+Tomo Suzuki
+tuorhador
+Udi Meiri
+vachan-shetty
+Valentyn Tymofieiev
+Yichi Zhang
+zhoufek&lt;/p></description></item><item><title>Blog: Apache Beam 2.34.0</title><link>/blog/beam-2.34.0/</link><pubDate>Thu, 11 Nov 2021 00:11:00 -0800</pubDate><guid>/blog/beam-2.34.0/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -4111,207 +4254,4 @@ limitations under the License.
 &lt;h3 id="id-love-to-get-involved-as-a-volunteer-or-sponsor">I&amp;rsquo;d love to get involved as a volunteer or sponsor&lt;/h3>
 &lt;p>Furthermore, in order to keep this event free, we are looking for people to help out at and/or sponsor some parts of the conference. If you (or your company) are interested to help out, please reach out to: &lt;a href="mailto:baetensmatthias@gmail.com">baetensmatthias@gmail.com&lt;/a> or &lt;a href="mailto:alex@vanboxel.be">alex@vanboxel.be&lt;/a>. You can find more info in the &lt;a href="https://drive.google.com/file/d/1RnZ52rGaB6BR-EKneBcabdMcg9Pl7z9M">sponsor booklet&lt;/a>&lt;/p>
 &lt;p>Thanks, and we hope to see you at the event!
-The Events &amp;amp; Meetups Group&lt;/p></description></item><item><title>Blog: A review of input streaming connectors</title><link>/blog/review-input-streaming-connectors/</link><pubDate>Mon, 20 Aug 2018 00:00:01 -0800</pubDate><guid>/blog/review-input-streaming-connectors/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>In this post, you&amp;rsquo;ll learn about the current state of support for input streaming connectors in &lt;a href="/">Apache Beam&lt;/a>. For more context, you&amp;rsquo;ll also learn about the corresponding state of support in &lt;a href="https://spark.apache.org/">Apache Spark&lt;/a>.&lt;/p>
-&lt;p>With batch processing, you might load data from any source, including a database system. Even if there are no specific SDKs available for those database systems, you can often resort to using a &lt;a href="https://en.wikipedia.org/wiki/Java_Database_Connectivity">JDBC&lt;/a> driver. With streaming, implementing a proper data pipeline is arguably more challenging as generally fewer source types are available. For that reason, this article particularly focuses on the streaming use case.&lt;/p>
-&lt;h2 id="connectors-for-java">Connectors for Java&lt;/h2>
-&lt;p>Beam has an official &lt;a href="/documentation/sdks/java/">Java SDK&lt;/a> and has several execution engines, called &lt;a href="/documentation/runners/capability-matrix/">runners&lt;/a>. In most cases it is fairly easy to transfer existing Beam pipelines written in Java or Scala to a Spark environment by using the &lt;a href="/documentation/runners/spark/">Spark Runner&lt;/a>.&lt;/p>
-&lt;p>Spark is written in Scala and has a &lt;a href="https://spark.apache.org/docs/latest/api/java/">Java API&lt;/a>. Spark&amp;rsquo;s source code compiles to &lt;a href="https://en.wikipedia.org/wiki/Java_(programming_language)#Java_JVM_and_Bytecode">Java bytecode&lt;/a> and the binaries are run by a &lt;a href="https://en.wikipedia.org/wiki/Java_virtual_machine">Java Virtual Machine&lt;/a>. Scala code is interoperable with Java and therefore has native compatibility with Java libraries (and vice versa).&lt;/p>
-&lt;p>Spark offers two approaches to streaming: &lt;a href="https://spark.apache.org/docs/latest/streaming-programming-guide.html">Discretized Streaming&lt;/a> (or DStreams) and &lt;a href="https://spark.apache.org/docs/latest/structured-streaming-programming-guide.html">Structured Streaming&lt;/a>. DStreams are a basic abstraction that represents a continuous series of &lt;a href="https://spark.apache.org/docs/latest/rdd-programming-guide.html">Resilient Distributed Datasets&lt;/a> (or RDDs). Structured Streaming was introduced more recently (the alpha release came with Spark 2.1.0) and is based on a &lt;a href="https://spark.apache.org/docs/latest/structured-streaming-programming-guide.html#programming-model">model&lt;/a> where live data is continuously appended to a table structure.&lt;/p>
-&lt;p>Spark Structured Streaming supports &lt;a href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/sql/streaming/DataStreamReader.html">file sources&lt;/a> (local filesystems and HDFS-compatible systems like Cloud Storage or S3) and &lt;a href="https://spark.apache.org/docs/latest/structured-streaming-kafka-integration.html">Kafka&lt;/a> as streaming &lt;a href="https://spark.apache.org/docs/latest/structured-streaming-programming-guide.html#input-sources">inputs&lt;/a>. Spark maintains built-in connectors for DStreams aimed at third-party services, such as Kafka or Flume, while other connectors are available through linking external dependencies, as shown in the table below.&lt;/p>
-&lt;p>Below are the main streaming input connectors for available for Beam and Spark DStreams in Java:&lt;/p>
-&lt;table class="table table-bordered">
-&lt;tr>
-&lt;td>
-&lt;/td>
-&lt;td>
-&lt;/td>
-&lt;td>&lt;strong>Apache Beam&lt;/strong>
-&lt;/td>
-&lt;td>&lt;strong>Apache Spark DStreams&lt;/strong>
-&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td rowspan="2" >File Systems
-&lt;/td>
-&lt;td>Local&lt;br>(Using the &lt;code>file://&lt;/code> URI)
-&lt;/td>
-&lt;td>&lt;a href="https://beam.apache.org/releases/javadoc/2.34.0/org/apache/beam/sdk/io/TextIO.html">TextIO&lt;/a>
-&lt;/td>
-&lt;td>&lt;a href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/streaming/StreamingContext.html#textFileStream-java.lang.String-">textFileStream&lt;/a>&lt;br>(Spark treats most Unix systems as HDFS-compatible, but the location should be accessible from all nodes)
-&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>HDFS&lt;br>(Using the &lt;code>hdfs://&lt;/code> URI)
-&lt;/td>
-&lt;td>&lt;a href="https://beam.apache.org/releases/javadoc/2.34.0/org/apache/beam/sdk/io/FileIO.html">FileIO&lt;/a> + &lt;a href="https://beam.apache.org/releases/javadoc/2.34.0/org/apache/beam/sdk/io/hdfs/HadoopFileSystemOptions.html">HadoopFileSystemOptions&lt;/a>
-&lt;/td>
-&lt;td>&lt;a href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/streaming/util/HdfsUtils.html">HdfsUtils&lt;/a>
-&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td rowspan="2" >Object Stores
-&lt;/td>
-&lt;td>Cloud Storage&lt;br>(Using the &lt;code>gs://&lt;/code> URI)
-&lt;/td>
-&lt;td>&lt;a href="https://beam.apache.org/releases/javadoc/2.34.0/org/apache/beam/sdk/io/FileIO.html">FileIO&lt;/a> + &lt;a href="https://beam.apache.org/releases/javadoc/2.34.0/org/apache/beam/sdk/extensions/gcp/options/GcsOptions.html">GcsOptions&lt;/a>
-&lt;/td>
-&lt;td rowspan="2" >&lt;a href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/SparkContext.html#hadoopConfiguration--">hadoopConfiguration&lt;/a>
-and &lt;a href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/streaming/StreamingContext.html#textFileStream-java.lang.String-">textFileStream&lt;/a>
-&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>S3&lt;br>(Using the &lt;code>s3://&lt;/code> URI)
-&lt;/td>
-&lt;td>&lt;a href="https://beam.apache.org/releases/javadoc/2.34.0/org/apache/beam/sdk/io/FileIO.html">FileIO&lt;/a> + &lt;a href="https://beam.apache.org/releases/javadoc/2.34.0/org/apache/beam/sdk/io/aws/options/S3Options.html">S3Options&lt;/a>
-&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td rowspan="3" >Messaging Queues
-&lt;/td>
-&lt;td>Kafka
-&lt;/td>
-&lt;td>&lt;a href="https://beam.apache.org/releases/javadoc/2.34.0/org/apache/beam/sdk/io/kafka/KafkaIO.html">KafkaIO&lt;/a>
-&lt;/td>
-&lt;td>&lt;a href="https://spark.apache.org/docs/latest/streaming-kafka-0-10-integration.html">spark-streaming-kafka&lt;/a>
-&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>Kinesis
-&lt;/td>
-&lt;td>&lt;a href="https://beam.apache.org/releases/javadoc/2.34.0/org/apache/beam/sdk/io/kinesis/KinesisIO.html">KinesisIO&lt;/a>
-&lt;/td>
-&lt;td>&lt;a href="https://spark.apache.org/docs/latest/streaming-kinesis-integration.html">spark-streaming-kinesis&lt;/a>
-&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>Cloud Pub/Sub
-&lt;/td>
-&lt;td>&lt;a href="https://beam.apache.org/releases/javadoc/2.34.0/org/apache/beam/sdk/io/gcp/pubsub/PubsubIO.html">PubsubIO&lt;/a>
-&lt;/td>
-&lt;td>&lt;a href="https://github.com/apache/bahir/tree/master/streaming-pubsub">spark-streaming-pubsub&lt;/a> from &lt;a href="https://bahir.apache.org">Apache Bahir&lt;/a>
-&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>Other
-&lt;/td>
-&lt;td>Custom receivers
-&lt;/td>
-&lt;td>&lt;a href="/documentation/io/developing-io-overview/">Read Transforms&lt;/a>
-&lt;/td>
-&lt;td>&lt;a href="https://spark.apache.org/docs/latest/streaming-custom-receivers.html">receiverStream&lt;/a>
-&lt;/td>
-&lt;/tr>
-&lt;/table>
-&lt;h2 id="connectors-for-python">Connectors for Python&lt;/h2>
-&lt;p>Beam has an official &lt;a href="/documentation/sdks/python/">Python SDK&lt;/a> that currently supports a subset of the streaming features available in the Java SDK. Active development is underway to bridge the gap between the featuresets in the two SDKs. Currently for Python, the &lt;a href="/documentation/runners/direct/">Direct Runner&lt;/a> and &lt;a href="/documentation/runners/dataflow/">Dataflow Runner&lt;/a> are supported, and &lt;a href="/documentation/sdks/python-streaming/">several streaming options&lt;/a> were introduced in beta in &lt;a href="/blog/2018/06/26/beam-2.5.0.html">version 2.5.0&lt;/a>.&lt;/p>
-&lt;p>Spark also has a Python SDK called &lt;a href="https://spark.apache.org/docs/latest/api/python/pyspark.html">PySpark&lt;/a>. As mentioned earlier, Scala code compiles to a bytecode that is executed by the JVM. PySpark uses &lt;a href="https://www.py4j.org/">Py4J&lt;/a>, a library that enables Python programs to interact with the JVM and therefore access Java libraries, interact with Java objects, and register callbacks from Java. This allows PySpark to access native Spark objects like RDDs. Spark Structured Streaming supports &lt;a href="https://spark.apache.org/docs/latest/api/python/pyspark.sql.html#pyspark.sql.streaming.DataStreamReader">file sources&lt;/a> (local filesystems and HDFS-compatible systems like Cloud Storage or S3) and &lt;a href="https://spark.apache.org/docs/latest/structured-streaming-kafka-integration.html">Kafka&lt;/a> as streaming inputs.&lt;/p>
-&lt;p>Below are the main streaming input connectors for available for Beam and Spark DStreams in Python:&lt;/p>
-&lt;table class="table table-bordered">
-&lt;tr>
-&lt;td>
-&lt;/td>
-&lt;td>
-&lt;/td>
-&lt;td>&lt;strong>Apache Beam&lt;/strong>
-&lt;/td>
-&lt;td>&lt;strong>Apache Spark DStreams&lt;/strong>
-&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td rowspan="2" >File Systems
-&lt;/td>
-&lt;td>Local
-&lt;/td>
-&lt;td>&lt;a href="https://beam.apache.org/releases/pydoc/2.34.0/apache_beam.io.textio.html">io.textio&lt;/a>
-&lt;/td>
-&lt;td>&lt;a href="https://spark.apache.org/docs/latest/api/python/pyspark.streaming.html#pyspark.streaming.StreamingContext.textFileStream">textFileStream&lt;/a>
-&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>HDFS
-&lt;/td>
-&lt;td>&lt;a href="https://beam.apache.org/releases/pydoc/2.34.0/apache_beam.io.hadoopfilesystem.html">io.hadoopfilesystem&lt;/a>
-&lt;/td>
-&lt;td>&lt;a href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/SparkContext.html#hadoopConfiguration--">hadoopConfiguration&lt;/a> (Access through &lt;code>sc._jsc&lt;/code> with Py4J)
-and &lt;a href="https://spark.apache.org/docs/latest/api/python/pyspark.streaming.html#pyspark.streaming.StreamingContext.textFileStream">textFileStream&lt;/a>
-&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td rowspan="2" >Object stores
-&lt;/td>
-&lt;td>Google Cloud Storage
-&lt;/td>
-&lt;td>&lt;a href="https://beam.apache.org/releases/pydoc/2.34.0/apache_beam.io.gcp.gcsio.html">io.gcp.gcsio&lt;/a>
-&lt;/td>
-&lt;td rowspan="2" >&lt;a href="https://spark.apache.org/docs/latest/api/python/pyspark.streaming.html#pyspark.streaming.StreamingContext.textFileStream">textFileStream&lt;/a>
-&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>S3
-&lt;/td>
-&lt;td>N/A
-&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td rowspan="3" >Messaging Queues
-&lt;/td>
-&lt;td>Kafka
-&lt;/td>
-&lt;td>N/A
-&lt;/td>
-&lt;td>&lt;a href="https://spark.apache.org/docs/latest/api/python/pyspark.streaming.html#pyspark.streaming.kafka.KafkaUtils">KafkaUtils&lt;/a>
-&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>Kinesis
-&lt;/td>
-&lt;td>N/A
-&lt;/td>
-&lt;td>&lt;a href="https://spark.apache.org/docs/latest/api/python/pyspark.streaming.html#module-pyspark.streaming.kinesis">KinesisUtils&lt;/a>
-&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>Cloud Pub/Sub
-&lt;/td>
-&lt;td>&lt;a href="https://beam.apache.org/releases/pydoc/2.34.0/apache_beam.io.gcp.pubsub.html">io.gcp.pubsub&lt;/a>
-&lt;/td>
-&lt;td>N/A
-&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>Other
-&lt;/td>
-&lt;td>Custom receivers
-&lt;/td>
-&lt;td>&lt;a href="/documentation/sdks/python-custom-io/">BoundedSource and RangeTracker&lt;/a>
-&lt;/td>
-&lt;td>N/A
-&lt;/td>
-&lt;/tr>
-&lt;/table>
-&lt;h2 id="connectors-for-other-languages">Connectors for other languages&lt;/h2>
-&lt;h3 id="scala">Scala&lt;/h3>
-&lt;p>Since Scala code is interoperable with Java and therefore has native compatibility with Java libraries (and vice versa), you can use the same Java connectors described above in your Scala programs. Apache Beam also has a &lt;a href="https://github.com/spotify/scio">Scala API&lt;/a> open-sourced &lt;a href="https://labs.spotify.com/2017/10/16/big-data-processing-at-spotify-the-road-to-scio-part-1/">by Spotify&lt;/a>.&lt;/p>
-&lt;h3 id="go">Go&lt;/h3>
-&lt;p>A &lt;a href="/documentation/sdks/go/">Go SDK&lt;/a> for Apache Beam is under active development. It is currently experimental and is not recommended for production. Spark does not have an official Go SDK.&lt;/p>
-&lt;h3 id="r">R&lt;/h3>
-&lt;p>Apache Beam does not have an official R SDK. Spark Structured Streaming is supported by an &lt;a href="https://spark.apache.org/docs/latest/sparkr.html#structured-streaming">R SDK&lt;/a>, but only for &lt;a href="https://spark.apache.org/docs/latest/structured-streaming-programming-guide.html#input-sources">file sources&lt;/a> as a streaming input.&lt;/p>
-&lt;h2 id="next-steps">Next steps&lt;/h2>
-&lt;p>We hope this article inspired you to try new and interesting ways of connecting streaming sources to your Beam pipelines!&lt;/p>
-&lt;p>Check out the following links for further information:&lt;/p>
-&lt;ul>
-&lt;li>See a full list of all built-in and in-progress &lt;a href="/documentation/io/built-in/">I/O Transforms&lt;/a> for Apache Beam.&lt;/li>
-&lt;li>Learn about some Apache Beam mobile gaming pipeline &lt;a href="/get-started/mobile-gaming-example/">examples&lt;/a>.&lt;/li>
-&lt;/ul></description></item></channel></rss>
+The Events &amp;amp; Meetups Group&lt;/p></description></item></channel></rss>

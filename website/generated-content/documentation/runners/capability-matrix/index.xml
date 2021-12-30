@@ -896,9 +896,9 @@ back to collapsed details
 &lt;/td>
 &lt;/tr>
 &lt;tr>
-&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
-&lt;p>Partially : Only Dataflow Runner V2 supports this.&lt;/p>
+&lt;p>Yes : fully supported&lt;/p>
 &lt;/b>
 &lt;br>
 &lt;/td>

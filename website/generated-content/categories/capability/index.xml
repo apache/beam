@@ -1471,10 +1471,10 @@ Unbounded Splittable DoFn Support Status
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#fe5;border-color:#ca1'>
+&lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
 &lt;center>
 &lt;b>
-~
+&amp;#x2713;
 &lt;/b>
 &lt;b>
 &lt;/b>
