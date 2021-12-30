@@ -60,7 +60,7 @@ public class BigQueryTornadoesIT {
 
   @BeforeClass
   public static void setUp() {
-    PipelineOptionsFactory.register(BigQueryTornadoesITOptions.class);
+    PipelineOptionsFactory.register(TestPipelineOptions.class);
   }
 
   private void runE2EBigQueryTornadoesTest(BigQueryTornadoesITOptions options) throws Exception {
