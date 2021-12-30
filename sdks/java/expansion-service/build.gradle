@@ -41,6 +41,7 @@ dependencies {
   implementation project(path: ":runners:core-construction-java")
   implementation project(path: ":runners:java-fn-execution")
   implementation project(path: ":sdks:java:fn-execution")
+  permitUnusedDeclared project(path: ":sdks:java:fn-execution")
   implementation library.java.jackson_annotations
   implementation library.java.jackson_databind
   implementation library.java.jackson_dataformat_yaml
@@ -49,6 +50,7 @@ dependencies {
   implementation library.java.slf4j_api
   runtimeOnly library.java.slf4j_jdk14
   testImplementation library.java.junit
+  testImplementation library.java.hamcrest
 }
 
 task runExpansionService (type: JavaExec) {

@@ -68,6 +68,7 @@ dependencies {
 
   // TODO(BEAM-13179): Determine how to build without this dependency
   compileOnly "org.immutables:value:2.8.8"
+  permitUnusedDeclared "org.immutables:value:2.8.8"
   javacc "net.java.dev.javacc:javacc:4.0"
   fmppTask "com.googlecode.fmpp-maven-plugin:fmpp-maven-plugin:1.0"
   fmppTask "org.freemarker:freemarker:2.3.31"
@@ -92,16 +93,22 @@ dependencies {
   implementation library.java.vendored_guava_26_0_jre
   compileOnly project(":sdks:java:io:kafka")
   implementation project(":sdks:java:extensions:google-cloud-platform-core")
+  permitUnusedDeclared project(":sdks:java:extensions:google-cloud-platform-core")
   implementation project(":sdks:java:io:google-cloud-platform")
   implementation library.java.proto_google_cloud_bigtable_v2
   implementation library.java.google_api_services_bigquery
+  permitUnusedDeclared library.java.google_api_services_bigquery
   implementation library.java.proto_google_cloud_pubsublite_v1
   implementation library.java.google_cloud_pubsublite
   implementation project(":sdks:java:io:mongodb")
   implementation library.java.avro
+  implementation library.java.protobuf_java
+  implementation library.java.protobuf_java_util
   compileOnly project(":sdks:java:io:parquet")
   compileOnly library.java.jackson_dataformat_xml
+  permitUnusedDeclared library.java.jackson_dataformat_xml
   compileOnly library.java.hadoop_client
+  permitUnusedDeclared library.java.hadoop_client
   compileOnly library.java.kafka_clients
   testImplementation library.java.vendored_calcite_1_28_0
   testImplementation library.java.vendored_guava_26_0_jre

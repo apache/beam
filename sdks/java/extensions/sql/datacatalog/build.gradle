@@ -43,7 +43,8 @@ dependencies {
   // Dependencies for the example
   implementation project(":sdks:java:extensions:google-cloud-platform-core")
   compileOnly project(":sdks:java:io:google-cloud-platform")
-  compileOnly library.java.slf4j_api
+  permitUnusedDeclared project(":sdks:java:io:google-cloud-platform")
+  implementation library.java.slf4j_api
 
   testImplementation project(":sdks:java:extensions:sql")
   testImplementation project(":sdks:java:extensions:sql:zetasql")

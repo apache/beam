@@ -35,18 +35,10 @@ dependencies {
   implementation project(":runners:java-fn-execution")
   implementation project(":runners:java-job-service")
   implementation project(path: ":sdks:java:harness", configuration: "shadow")
-  implementation library.java.vendored_grpc_1_36_0
-  implementation library.java.slf4j_api
-  implementation library.java.joda_time
-  implementation "org.hamcrest:hamcrest:2.1"
-  implementation project(path: ":model:job-management:", configuration: "shadow")
-  implementation project(path: ":model:pipeline", configuration: "shadow")
-  implementation project(":runners:core-construction-java")
-  implementation project(path: ":sdks:java:core", configuration: "shadow")
-  implementation project(":sdks:java:fn-execution")
+  implementation library.java.hamcrest
 
   testImplementation project(path: ":runners:core-construction-java", configuration: "testRuntimeMigration")
-  testImplementation library.java.hamcrest_core
+  testImplementation library.java.hamcrest
   testImplementation library.java.junit
   testImplementation library.java.mockito_core
   testImplementation library.java.slf4j_jdk14

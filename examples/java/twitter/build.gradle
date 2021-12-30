@@ -50,14 +50,11 @@ dependencies {
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation library.java.joda_time
     implementation library.java.slf4j_api
-    implementation library.java.commons_io
-    implementation library.java.commons_csv
     runtimeOnly project(path: ":runners:direct-java", configuration: "shadow")
     implementation ("org.twitter4j:twitter4j-stream:4.0.7")
     implementation ("org.twitter4j:twitter4j-core:4.0.7")
     testImplementation project(path: ":runners:direct-java", configuration: "shadow")
-    testImplementation library.java.hamcrest_core
-    testImplementation library.java.hamcrest_library
+    testImplementation library.java.hamcrest
     testImplementation library.java.junit
     testImplementation library.java.mockito_core
     testImplementation library.java.testcontainers_gcloud

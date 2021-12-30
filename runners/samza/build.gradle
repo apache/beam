@@ -72,7 +72,7 @@ dependencies {
   implementation project(":sdks:java:fn-execution")
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation project(path: ":runners:core-java", configuration: "testRuntimeMigration")
-  testImplementation library.java.hamcrest_core
+  testImplementation library.java.hamcrest
   testImplementation library.java.junit
   testImplementation library.java.mockito_core
   testImplementation library.java.jackson_dataformat_yaml
