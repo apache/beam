@@ -19,7 +19,12 @@
 import java.util.stream.Collectors
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature( automaticModuleName: 'org.apache.beam.sdk.io.hcatalog')
+applyJavaNature(
+  automaticModuleName: 'org.apache.beam.sdk.io.hcatalog',
+  // TODO(BEAM-13430): Re-enable this once the dependency analysis plugin stops failing with:
+  // Cannot accept visitor on URL: file:.../org.apache.curator/apache-curator/2.6.0/1bbbe3a8c191ec5a63ec2eaec7988d8292ea65d2/apache-curator-2.6.0.pom
+  enableStrictDependencies: false,
+)
 
 description = "Apache Beam :: SDKs :: Java :: IO :: HCatalog"
 ext.summary = "IO to read and write for HCatalog source."
@@ -86,8 +91,7 @@ dependencies {
   testImplementation project(":sdks:java:io:common").sourceSets.test.output
   testImplementation library.java.commons_io
   testImplementation library.java.junit
-  testImplementation library.java.hamcrest_core
-  testImplementation library.java.hamcrest_library
+  testImplementation library.java.hamcrest
   testImplementation "org.apache.hive.hcatalog:hive-hcatalog-core:$hive_version:tests"
   testImplementation "org.apache.hive:hive-exec:$hive_version"
   testImplementation "org.apache.hive:hive-common:$hive_version"

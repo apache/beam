@@ -55,8 +55,6 @@ dependencies {
   implementation library.java.jackson_annotations
   implementation library.java.jackson_databind
   permitUnusedDeclared library.java.jackson_databind // BEAM-11761
-  compileOnly library.java.hamcrest_core
-  compileOnly library.java.junit
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation library.java.mockito_core
   testRuntimeOnly library.java.slf4j_jdk14

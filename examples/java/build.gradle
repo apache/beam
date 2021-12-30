@@ -95,8 +95,7 @@ dependencies {
   testImplementation project(":sdks:java:io:google-cloud-platform")
   testImplementation project(":sdks:java:extensions:ml")
   testImplementation library.java.google_cloud_bigquery
-  testImplementation library.java.hamcrest_core
-  testImplementation library.java.hamcrest_library
+  testImplementation library.java.hamcrest
   testImplementation library.java.junit
   testImplementation library.java.mockito_core
   testImplementation library.java.testcontainers_kafka

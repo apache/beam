@@ -74,8 +74,10 @@ dependencies {
   shadow library.java.joda_time
   shadow library.java.slf4j_api
   shadow library.java.jackson_databind
-  compileOnly library.java.hamcrest_core
+  compileOnly library.java.hamcrest
+  permitUnusedDeclared library.java.hamcrest
   compileOnly library.java.junit
+  permitUnusedDeclared library.java.junit
   shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
   shadowTest project(path: ":runners:core-java", configuration: "testRuntimeMigration")
   shadowTest library.java.mockito_core
