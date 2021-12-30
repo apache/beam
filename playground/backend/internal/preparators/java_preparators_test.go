@@ -39,7 +39,7 @@ func Test_replace(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, uuid.New(), filepath.Join(path, "temp"), pipelinesFolder)
+	lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, uuid.New(), filepath.Join(path, "temp", pipelinesFolder))
 	_ = lc.CreateFolders()
 	defer os.RemoveAll(filepath.Join(path, "temp"))
 	_, _ = lc.CreateSourceCodeFile(codeWithPublicClass)
@@ -120,7 +120,7 @@ func Test_changeJavaTestFileName(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, uuid.New(), filepath.Join(path, "temp"), pipelinesFolder)
+	lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, uuid.New(), filepath.Join(path, "temp", pipelinesFolder))
 	_ = lc.CreateFolders()
 	defer os.RemoveAll(filepath.Join(path, "temp"))
 	_, _ = lc.CreateSourceCodeFile(codeWithPublicClass)

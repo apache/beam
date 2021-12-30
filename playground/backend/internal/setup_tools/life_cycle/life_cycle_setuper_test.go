@@ -48,7 +48,7 @@ func TestSetup(t *testing.T) {
 	}
 	defer os.RemoveAll(workingDir)
 
-	lc, err := fs_tool.NewLifeCycle(playground.Sdk_SDK_JAVA, successPipelineId, workingDir, pipelinesFolder)
+	lc, err := fs_tool.NewLifeCycle(playground.Sdk_SDK_JAVA, successPipelineId, filepath.Join(workingDir, pipelinesFolder))
 	if err != nil {
 		panic(err)
 	}

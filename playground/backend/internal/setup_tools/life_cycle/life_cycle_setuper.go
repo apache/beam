@@ -21,7 +21,6 @@ import (
 	"beam.apache.org/playground/backend/internal/logger"
 	"bufio"
 	"errors"
-	"fmt"
 	"github.com/google/uuid"
 	"io"
 	"os"
@@ -41,7 +40,7 @@ const (
 // Also, prepares files and folders needed to code processing according to sdk
 func Setup(sdk pb.Sdk, code string, pipelineId uuid.UUID, workingDir, pipelinesFolder, preparedModDir string) (*fs_tool.LifeCycle, error) {
 	// create file system service
-	lc, err := fs_tool.NewLifeCycle(sdk, pipelineId, workingDir, pipelinesFolder)
+	lc, err := fs_tool.NewLifeCycle(sdk, pipelineId, filepath.Join(workingDir, pipelinesFolder))
 	if err != nil {
 		logger.Errorf("%s: error during create new life cycle: %s\n", pipelineId, err.Error())
 		return nil, errors.New("error during create a new file system")
@@ -140,7 +139,6 @@ func updateJavaLogConfigFile(lc *fs_tool.LifeCycle) error {
 	}
 
 	if err = os.Rename(updatedFile.Name(), logConfigFilePath); err != nil {
-		fmt.Println(err)
 		return err
 	}
 	return nil

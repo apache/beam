@@ -27,7 +27,8 @@ import (
 func Test_newJavaLifeCycle(t *testing.T) {
 	pipelineId := uuid.New()
 	workingDir := "workingDir"
-	baseFileFolder := fmt.Sprintf("%s/%s/%s", workingDir, pipelinesFolder, pipelineId)
+	preparedPipelinesFolder := filepath.Join(workingDir, pipelinesFolder)
+	baseFileFolder := fmt.Sprintf("%s/%s", preparedPipelinesFolder, pipelineId)
 	srcFileFolder := baseFileFolder + "/src"
 	binFileFolder := baseFileFolder + "/bin"
 
@@ -48,7 +49,7 @@ func Test_newJavaLifeCycle(t *testing.T) {
 			args: args{
 				pipelineId:      pipelineId,
 				workingDir:      workingDir,
-				pipelinesFolder: pipelinesFolder,
+				pipelinesFolder: preparedPipelinesFolder,
 			},
 			want: &LifeCycle{
 				folderGlobs: []string{baseFileFolder, srcFileFolder, binFileFolder},
@@ -68,7 +69,7 @@ func Test_newJavaLifeCycle(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := newJavaLifeCycle(tt.args.pipelineId, tt.args.workingDir, tt.args.pipelinesFolder)
+			got := newJavaLifeCycle(tt.args.pipelineId, tt.args.pipelinesFolder)
 			if !reflect.DeepEqual(got.folderGlobs, tt.want.folderGlobs) {
 				t.Errorf("newJavaLifeCycle() folderGlobs = %v, want %v", got.folderGlobs, tt.want.folderGlobs)
 			}
@@ -88,14 +89,13 @@ func Test_newJavaLifeCycle(t *testing.T) {
 func Test_executableName(t *testing.T) {
 	pipelineId := uuid.New()
 	workDir := "workingDir"
-
-	lc := newJavaLifeCycle(pipelineId, workDir, pipelinesFolder)
+	preparedPipelinesFolder := filepath.Join(workDir, pipelinesFolder)
+	lc := newJavaLifeCycle(pipelineId, preparedPipelinesFolder)
 	lc.CreateFolders()
 	defer os.RemoveAll(workDir)
 
 	type args struct {
 		pipelineId      uuid.UUID
-		workingDir      string
 		pipelinesFolder string
 	}
 	tests := []struct {
@@ -119,8 +119,7 @@ func Test_executableName(t *testing.T) {
 			},
 			args: args{
 				pipelineId:      pipelineId,
-				workingDir:      workDir,
-				pipelinesFolder: pipelinesFolder,
+				pipelinesFolder: preparedPipelinesFolder,
 			},
 			want:    "temp",
 			wantErr: false,
@@ -132,7 +131,6 @@ func Test_executableName(t *testing.T) {
 			prepare: func() {},
 			args: args{
 				pipelineId: uuid.New(),
-				workingDir: workDir,
 			},
 			want:    "",
 			wantErr: true,
@@ -141,7 +139,7 @@ func Test_executableName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.prepare()
-			got, err := executableName(tt.args.pipelineId, tt.args.workingDir, tt.args.pipelinesFolder)
+			got, err := executableName(tt.args.pipelineId, tt.args.pipelinesFolder)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("sourceFileName() error = %v, wantErr %v", err, tt.wantErr)
 				return

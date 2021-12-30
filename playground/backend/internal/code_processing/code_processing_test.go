@@ -93,7 +93,7 @@ func teardown() {
 	os.Clearenv()
 }
 
-func fakeExecutableName(uuid.UUID, string, string) (string, error) {
+func fakeExecutableName(uuid.UUID, string) (string, error) {
 	return fileName, nil
 }
 
@@ -242,7 +242,7 @@ func Test_Process(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, tt.args.pipelineId, os.Getenv("APP_WORK_DIR"), pipelinesFolder)
+			lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, tt.args.pipelineId, filepath.Join(os.Getenv("APP_WORK_DIR"), pipelinesFolder))
 			err := lc.CreateFolders()
 			if err != nil {
 				t.Fatalf("error during prepare folders: %s", err.Error())
@@ -534,7 +534,7 @@ func TestGetLastIndex(t *testing.T) {
 
 func Test_setJavaExecutableFile(t *testing.T) {
 	pipelineId := uuid.New()
-	lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, pipelineId, os.Getenv("APP_WORK_DIR"), pipelinesFolder)
+	lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, pipelineId, filepath.Join(os.Getenv("APP_WORK_DIR"), pipelinesFolder))
 	lc.ExecutableName = fakeExecutableName
 	executorBuilder := executors.NewExecutorBuilder().WithRunner().WithCommand("fake cmd").ExecutorBuilder
 	type args struct {
@@ -544,7 +544,6 @@ func Test_setJavaExecutableFile(t *testing.T) {
 		ctx             context.Context
 		executorBuilder *executors.ExecutorBuilder
 		dir             string
-		pipelinesFolder string
 	}
 	tests := []struct {
 		name    string
@@ -560,8 +559,7 @@ func Test_setJavaExecutableFile(t *testing.T) {
 				service:         cacheService,
 				ctx:             context.Background(),
 				executorBuilder: &executorBuilder,
-				dir:             "",
-				pipelinesFolder: pipelinesFolder,
+				dir:             pipelinesFolder,
 			},
 			want: executors.NewExecutorBuilder().
 				WithExecutableFileName(fileName).
@@ -574,7 +572,7 @@ func Test_setJavaExecutableFile(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := setJavaExecutableFile(tt.args.lc, tt.args.id, tt.args.service, tt.args.ctx, tt.args.executorBuilder, tt.args.dir, tt.args.pipelinesFolder)
+			got, err := setJavaExecutableFile(tt.args.lc, tt.args.id, tt.args.service, tt.args.ctx, tt.args.executorBuilder, tt.args.dir)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("setJavaExecutableFile() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -686,7 +684,7 @@ func teardownBenchmarks() {
 }
 
 func prepareFiles(b *testing.B, pipelineId uuid.UUID, code string, sdk pb.Sdk) *fs_tool.LifeCycle {
-	lc, err := fs_tool.NewLifeCycle(sdk, pipelineId, "", pipelinesFolder)
+	lc, err := fs_tool.NewLifeCycle(sdk, pipelineId, pipelinesFolder)
 	if err != nil {
 		b.Fatalf("error during initializse lc: %s", err.Error())
 	}

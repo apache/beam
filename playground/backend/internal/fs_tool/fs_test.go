@@ -227,14 +227,14 @@ func TestLifeCycle_DeleteFolders(t *testing.T) {
 func TestNewLifeCycle(t *testing.T) {
 	pipelineId := uuid.New()
 	workingDir := "workingDir"
-	baseFileFolder := fmt.Sprintf("%s/%s/%s", workingDir, pipelinesFolder, pipelineId)
+	preparedPipelinesFolder := filepath.Join(workingDir, pipelinesFolder)
+	baseFileFolder := fmt.Sprintf("%s/%s", preparedPipelinesFolder, pipelineId)
 	srcFileFolder := baseFileFolder + "/src"
 	binFileFolder := baseFileFolder + "/bin"
 
 	type args struct {
 		sdk             pb.Sdk
 		pipelineId      uuid.UUID
-		workingDir      string
 		pipelinesFolder string
 	}
 	tests := []struct {
@@ -248,8 +248,7 @@ func TestNewLifeCycle(t *testing.T) {
 			args: args{
 				sdk:             pb.Sdk_SDK_JAVA,
 				pipelineId:      pipelineId,
-				workingDir:      workingDir,
-				pipelinesFolder: pipelinesFolder,
+				pipelinesFolder: preparedPipelinesFolder,
 			},
 			want: &LifeCycle{
 				folderGlobs: []string{baseFileFolder, srcFileFolder, binFileFolder},
@@ -272,8 +271,7 @@ func TestNewLifeCycle(t *testing.T) {
 			args: args{
 				sdk:             pb.Sdk_SDK_UNSPECIFIED,
 				pipelineId:      pipelineId,
-				workingDir:      workingDir,
-				pipelinesFolder: pipelinesFolder,
+				pipelinesFolder: preparedPipelinesFolder,
 			},
 			want:    nil,
 			wantErr: true,
@@ -281,7 +279,7 @@ func TestNewLifeCycle(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := NewLifeCycle(tt.args.sdk, tt.args.pipelineId, tt.args.workingDir, tt.args.pipelinesFolder)
+			got, err := NewLifeCycle(tt.args.sdk, tt.args.pipelineId, tt.args.pipelinesFolder)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewLifeCycle() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -403,7 +401,7 @@ func TestLifeCycle_ExecutableName(t *testing.T) {
 		folderGlobs    []string
 		Folder         Folder
 		Extension      Extension
-		ExecutableName func(uuid.UUID, string, string) (string, error)
+		ExecutableName func(uuid.UUID, string) (string, error)
 		pipelineId     uuid.UUID
 	}
 	tests := []struct {
@@ -419,7 +417,7 @@ func TestLifeCycle_ExecutableName(t *testing.T) {
 					BaseFolder:           baseFileFolder,
 					ExecutableFileFolder: binFileFolder,
 				},
-				ExecutableName: func(u uuid.UUID, s1, s2 string) (string, error) {
+				ExecutableName: func(u uuid.UUID, s string) (string, error) {
 					return "MOCK_EXECUTABLE_NAME", nil
 				},
 				pipelineId:  pipelineId,
@@ -438,7 +436,7 @@ func TestLifeCycle_ExecutableName(t *testing.T) {
 				ExecutableName: tt.fields.ExecutableName,
 				pipelineId:     tt.fields.pipelineId,
 			}
-			got, err := l.ExecutableName(pipelineId, workingDir, pipelinesFolder)
+			got, err := l.ExecutableName(pipelineId, workingDir)
 			if got != tt.want {
 				t.Errorf("GetExecutableName() got = %v, want %v", got, tt.want)
 			}
@@ -454,7 +452,7 @@ func TestCopyFile(t *testing.T) {
 		folderGlobs    []string
 		Folder         Folder
 		Extension      Extension
-		ExecutableName func(uuid.UUID, string, string) (string, error)
+		ExecutableName func(uuid.UUID, string) (string, error)
 		pipelineId     uuid.UUID
 	}
 	type args struct {

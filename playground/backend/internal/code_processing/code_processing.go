@@ -34,6 +34,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"reflect"
 	"sync"
 	"time"
@@ -155,7 +156,7 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 
 	// Run
 	if sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_JAVA {
-		executor, err = setJavaExecutableFile(lc, pipelineId, cacheService, pipelineLifeCycleCtx, executorBuilder, appEnv.WorkingDir(), appEnv.PipelinesFolder())
+		executor, err = setJavaExecutableFile(lc, pipelineId, cacheService, pipelineLifeCycleCtx, executorBuilder, filepath.Join(appEnv.WorkingDir(), appEnv.PipelinesFolder()))
 		if err != nil {
 			return
 		}
@@ -219,8 +220,8 @@ func getExecuteCmd(valRes *sync.Map, executor *executors.Executor, ctxWithTimeou
 }
 
 // setJavaExecutableFile sets executable file name to runner (JAVA class name is known after compilation step)
-func setJavaExecutableFile(lc *fs_tool.LifeCycle, id uuid.UUID, service cache.Cache, ctx context.Context, executorBuilder *executors.ExecutorBuilder, dir, pipelinesFolder string) (executors.Executor, error) {
-	className, err := lc.ExecutableName(id, dir, pipelinesFolder)
+func setJavaExecutableFile(lc *fs_tool.LifeCycle, id uuid.UUID, service cache.Cache, ctx context.Context, executorBuilder *executors.ExecutorBuilder, dir string) (executors.Executor, error) {
+	className, err := lc.ExecutableName(id, dir)
 	if err != nil {
 		if err = processSetupError(err, id, service, ctx); err != nil {
 			return executorBuilder.Build(), err

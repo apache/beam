@@ -26,8 +26,8 @@ const (
 )
 
 // newCompilingLifeCycle creates LifeCycle for compiled SDK environment.
-func newCompilingLifeCycle(pipelineId uuid.UUID, workingDir, sourceFileExtension, compiledFileExtension, pipelinesFolder string) *LifeCycle {
-	baseFileFolder := filepath.Join(workingDir, pipelinesFolder, pipelineId.String())
+func newCompilingLifeCycle(pipelineId uuid.UUID, pipelinesFolder, sourceFileExtension, compiledFileExtension string) *LifeCycle {
+	baseFileFolder := filepath.Join(pipelinesFolder, pipelineId.String())
 	srcFileFolder := filepath.Join(baseFileFolder, sourceFolderName)
 	binFileFolder := filepath.Join(baseFileFolder, compiledFolderName)
 	return &LifeCycle{
@@ -46,8 +46,8 @@ func newCompilingLifeCycle(pipelineId uuid.UUID, workingDir, sourceFileExtension
 }
 
 // newInterpretedLifeCycle creates LifeCycle for interpreted SDK environment.
-func newInterpretedLifeCycle(pipelineId uuid.UUID, workingDir, sourceFileExtension, pipelinesFolder string) *LifeCycle {
-	sourceFileFolder := filepath.Join(workingDir, pipelinesFolder, pipelineId.String())
+func newInterpretedLifeCycle(pipelineId uuid.UUID, pipelinesFolder, sourceFileExtension string) *LifeCycle {
+	sourceFileFolder := filepath.Join(pipelinesFolder, pipelineId.String())
 	return &LifeCycle{
 		folderGlobs: []string{sourceFileFolder},
 		Folder: Folder{
