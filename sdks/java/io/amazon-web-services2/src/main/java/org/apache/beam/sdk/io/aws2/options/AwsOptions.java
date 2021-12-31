@@ -23,10 +23,11 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.Validation;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.http.apache.ProxyConfiguration;
+import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
 import software.amazon.awssdk.utils.AttributeMap;
 
 /**
@@ -37,10 +38,22 @@ public interface AwsOptions extends PipelineOptions {
 
   /** AWS region used by the AWS client. */
   @Description("AWS region used by the AWS client")
-  @Validation.Required
+  @Default.InstanceFactory(AwsRegionFactory.class)
   String getAwsRegion();
 
   void setAwsRegion(String value);
+
+  /** Attempt to load default region. */
+  class AwsRegionFactory implements DefaultValueFactory<String> {
+    @Override
+    public String create(PipelineOptions options) {
+      try {
+        return new DefaultAwsRegionProviderChain().getRegion().id();
+      } catch (SdkClientException e) {
+        return null;
+      }
+    }
+  }
 
   /** The AWS service endpoint used by the AWS client. */
   @Description("AWS service endpoint used by the AWS client")
