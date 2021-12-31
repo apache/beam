@@ -51,7 +51,7 @@ public class CoGbkResultTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(CoGbkResultTest.class);
 
-  private static int TEST_CACHE_SIZE = 5;
+  private static final int TEST_CACHE_SIZE = 5;
 
   @Test
   public void testExpectedResults() {
