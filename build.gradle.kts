@@ -412,7 +412,7 @@ if (project.hasProperty("javaLinkageArtifactIds")) {
   project.task<JavaExec>("checkJavaLinkage") {
     dependsOn(project.getTasksByName("publishMavenJavaPublicationToMavenLocal", true /* recursively */))
     classpath = linkageCheckerJava
-    main = "com.google.cloud.tools.opensource.classpath.LinkageCheckerMain"
+    mainClass.value("com.google.cloud.tools.opensource.classpath.LinkageCheckerMain")
     val javaLinkageArtifactIds: String = project.property("javaLinkageArtifactIds") as String? ?: ""
     var arguments = arrayOf("-a", javaLinkageArtifactIds.split(",").joinToString(",") {
       if (it.contains(":")) {

@@ -282,7 +282,7 @@ def createPipelineOptionsTableTask(String target) {
     group = 'Website'
     description = "Generates a table with pipeline options for the Flink Runner documentation page"
     classpath = sourceSets.test.runtimeClasspath
-    main = 'org.apache.beam.runners.flink.website.PipelineOptionsTableGenerator'
+    mainClass = 'org.apache.beam.runners.flink.website.PipelineOptionsTableGenerator'
     args = [target]
     standardOutput = new ByteArrayOutputStream()
     doLast {
