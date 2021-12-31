@@ -17,37 +17,44 @@
 # under the License.
 #
 
-resource "google_app_engine_flexible_app_version" "backend_app" {
-  version_id = "v1"
-  project    = "${var.project_id}"
-  service    = "backend"
-  runtime    = "custom"
-
- liveness_check {
-    path = ""
-  }
-
-  readiness_check {
-    path = ""
-  }
-
-  manual_scaling {
-    instances = 1
-  }
-
-  resources {
-    memory_gb = var.memory_size
-    volumes {
-      name        = "inmemory"
-      size_gb     = var.volume_size
-      volume_type = "tmpfs"
-    }
-  }
-
-  deployment {
-    container {
-      image = "${var.docker_registry_address}/${var.docker_image_name}:${var.docker_image_tag}"
-    }
-  }
+variable "project_id" {
+  description = "Project ID"
 }
 
+variable "docker_registry_address" {
+  description = "Docker registry address"
+}
+
+variable "docker_image_name" {
+  description = "Docker Image Name To Be Deployed"
+  default = "beam_playground-backend"
+}
+
+variable "docker_image_tag" {
+  description = "Docker Image Tag To Be Deployed"
+  default = "latest"
+}
+
+variable "memory_size" {
+  description = "RAM in GB. The requested memory for the application"
+  type = number
+  default = 2
+}
+
+variable "volume_size" {
+  description = "Size of the in memory file system to be used by the application, in GB"
+  type = number
+  default = 1
+}
+
+variable "service_name" {
+  default = "backend"
+}
+
+variable "cache_type" {
+  default = "remote"
+}
+
+variable "cache_address" {
+  default = ""
+}
