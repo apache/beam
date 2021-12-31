@@ -17,32 +17,45 @@
 # under the License.
 #
 
-variable "project_id" {
-  description = "Project ID"
+resource "google_app_engine_flexible_app_version" "backend_app_go" {
+  version_id = "v1"
+  project    = "${var.project_id}"
+  service    = "${var.service_name}"
+  runtime    = "custom"
+  delete_service_on_destroy = true
+
+  liveness_check {
+    path = ""
+  }
+
+  readiness_check {
+    path = ""
+  }
+
+  automatic_scaling {
+    max_total_instances = 5
+    min_total_instances = 1
+    cool_down_period = "120s"
+    cpu_utilization {
+      target_utilization = 0.7
+    }
+  }
+
+  resources {
+    memory_gb = 4
+    cpu = 2
+  }
+
+  env_variables = {
+     CACHE_TYPE="${var.cache_type}"
+     CACHE_ADDRESS="${var.cache_address}:6379"
+     NUM_PARALLEL_JOBS=30
+  }
+
+  deployment {
+    container {
+      image = "${var.docker_registry_address}/${var.docker_image_name}:${var.docker_image_tag}"
+    }
+  }
 }
 
-variable "docker_registry_address" {
-  description = "Docker registry address"
-}
-
-variable "docker_image_name" {
-  description = "Docker Image Name To Be Deployed"
-  default = "beam_playground-backend"
-}
-
-variable "docker_image_tag" {
-  description = "Docker Image Tag To Be Deployed"
-  default = "latest"
-}
-
-variable "memory_size" {
-  description = "RAM in GB. The requested memory for the application"
-  type = number
-  default = 2
-}
-
-variable "volume_size" {
-  description = "Size of the in memory file system to be used by the application, in GB"
-  type = number
-  default = 1
-}
