@@ -45,6 +45,7 @@ dependencies {
   implementation project(samzaRunnerProject)
   permitUnusedDeclared project(samzaRunnerProject)
   runtimeOnly group: "org.slf4j", name: "jcl-over-slf4j", version: dependencies.create(project.library.java.slf4j_api).getVersion()
+  validatesPortableRunner project(path: samzaRunnerProject)
   validatesPortableRunner project(path: samzaRunnerProject, configuration: "testRuntimeMigration")
   validatesPortableRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesPortableRunner project(path: ":runners:core-java", configuration: "testRuntimeMigration")
@@ -169,6 +170,8 @@ createPortableValidatesRunnerTask(
             excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testOutputTimestamp'
             // TODO(BEAM-11479)
             excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testRelativeTimerWithOutputTimestamp'
+            // TODO(BEAM-13498)
+            excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testProcessElementSkew'
         }
 )
 
