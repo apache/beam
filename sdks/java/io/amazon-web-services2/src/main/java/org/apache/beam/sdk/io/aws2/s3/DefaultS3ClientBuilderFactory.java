@@ -23,7 +23,6 @@ import org.apache.beam.sdk.io.aws2.options.S3Options;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -43,17 +42,16 @@ public class DefaultS3ClientBuilderFactory implements S3ClientBuilderFactory {
         S3Client.builder().credentialsProvider(s3Options.getAwsCredentialsProvider());
 
     if (s3Options.getProxyConfiguration() != null) {
-      SdkHttpClient httpClient =
-          ApacheHttpClient.builder().proxyConfiguration(s3Options.getProxyConfiguration()).build();
-      builder = builder.httpClient(httpClient);
+      builder.httpClient(
+          ApacheHttpClient.builder().proxyConfiguration(s3Options.getProxyConfiguration()).build());
     }
 
     if (!Strings.isNullOrEmpty(s3Options.getEndpoint())) {
-      URI endpoint = URI.create(s3Options.getEndpoint());
-      Region region = Region.of(s3Options.getAwsRegion());
-      builder.endpointOverride(endpoint).region(region);
-    } else if (!Strings.isNullOrEmpty(s3Options.getAwsRegion())) {
-      builder = builder.region(Region.of(s3Options.getAwsRegion()));
+      builder.endpointOverride(URI.create(s3Options.getEndpoint()));
+    }
+
+    if (!Strings.isNullOrEmpty(s3Options.getAwsRegion())) {
+      builder.region(Region.of(s3Options.getAwsRegion()));
     } else {
       LOG.info(
           "The AWS S3 Beam extension was included in this build, but the awsRegion flag "
