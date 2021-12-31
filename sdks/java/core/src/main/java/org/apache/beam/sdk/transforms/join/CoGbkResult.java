@@ -127,7 +127,7 @@ public class CoGbkResult {
     // for other observed tags, if any.
     ObservingReiterator<RawUnionValue> tip =
         new ObservingReiterator<>(
-            (Reiterator<RawUnionValue>) taggedIter,
+            tail,
             new ObservingReiterator.Observer<RawUnionValue>() {
               @Override
               public void observeAt(ObservingReiterator<RawUnionValue> reiterator) {
