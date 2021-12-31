@@ -126,7 +126,10 @@ tasks.rat {
     "playground/frontend/pubspec.lock",
 
     // Ignore .gitkeep file
-    "**/.gitkeep"
+    "**/.gitkeep",
+
+    // Ignore Flutter localization .arb files (doesn't support comments)
+    "playground/frontend/lib/l10n/**/*.arb"
   )
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
