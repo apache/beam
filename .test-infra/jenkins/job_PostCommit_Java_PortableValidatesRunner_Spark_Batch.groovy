@@ -38,6 +38,8 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_PVR_Spark_Batch',
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(':runners:spark:2:job-server:validatesPortableRunnerBatch')
           tasks(':runners:spark:3:job-server:validatesPortableRunnerBatch')
+          tasks(':runners:spark:2:job-server:validatesPortableRunnerDocker')
+          tasks(':runners:spark:3:job-server:validatesPortableRunnerDocker')
           commonJobProperties.setGradleSwitches(delegate)
         }
       }

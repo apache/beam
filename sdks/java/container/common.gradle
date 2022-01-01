@@ -51,6 +51,7 @@ task copyDockerfileDependencies(type: Copy) {
     rename 'beam-sdks-java-harness-.*.jar', 'beam-sdks-java-harness.jar'
     rename 'beam-sdks-java-io-kafka.*.jar', 'beam-sdks-java-io-kafka.jar'
     rename 'kafka-clients.*.jar', 'kafka-clients.jar'
+    rename "jamm.*.jar", "jamm.jar"
     into "build/target"
 }
 
