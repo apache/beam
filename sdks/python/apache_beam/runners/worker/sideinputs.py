@@ -207,7 +207,7 @@ def get_iterator_fn_for_sources(
   return _inner
 
 
-class EmulatedIterable(collections.Iterable):
+class EmulatedIterable(collections.abc.Iterable):
   """Emulates an iterable for a side input."""
   def __init__(self, iterator_fn):
     self.iterator_fn = iterator_fn

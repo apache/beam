@@ -1258,7 +1258,7 @@ class _UnwindowedValues(observable.ObservableMixin):
     return list, (list(self), )
 
   def __eq__(self, other):
-    if isinstance(other, collections.Iterable):
+    if isinstance(other, collections.abc.Iterable):
       return all(
           a == b for a, b in zip_longest(self, other, fillvalue=object()))
     else:

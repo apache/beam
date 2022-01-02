@@ -937,7 +937,7 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
     assert not self.global_state.get_state(
         None, _GroupByKeyOnlyEvaluator.COMPLETION_TAG)
     if (isinstance(element, WindowedValue) and
-        isinstance(element.value, collections.Iterable) and
+        isinstance(element.value, collections.abc.Iterable) and
         len(element.value) == 2):
       k, v = element.value
       encoded_k = self.key_coder.encode(k)
@@ -1026,7 +1026,7 @@ class _StreamingGroupByKeyOnlyEvaluator(_TransformEvaluator):
 
   def process_element(self, element):
     if (isinstance(element, WindowedValue) and
-        isinstance(element.value, collections.Iterable) and
+        isinstance(element.value, collections.abc.Iterable) and
         len(element.value) == 2):
       k, v = element.value
       self.gbk_items[self.key_coder.encode(k)].append(v)
