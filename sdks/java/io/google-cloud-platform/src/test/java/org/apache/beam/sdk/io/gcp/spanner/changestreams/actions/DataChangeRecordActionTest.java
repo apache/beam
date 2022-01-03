@@ -58,6 +58,7 @@ public class DataChangeRecordActionTest {
   public void testRestrictionClaimed() {
     final String partitionToken = "partitionToken";
     final Timestamp timestamp = Timestamp.ofTimeMicroseconds(10L);
+    final Instant instant = new Instant(timestamp.toSqlTimestamp().getTime());
     final DataChangeRecord record = mock(DataChangeRecord.class);
     when(record.getCommitTimestamp()).thenReturn(timestamp);
     when(tracker.tryClaim(10L)).thenReturn(true);
@@ -67,8 +68,8 @@ public class DataChangeRecordActionTest {
         action.run(partition, record, tracker, outputReceiver, watermarkEstimator);
 
     assertEquals(Optional.empty(), maybeContinuation);
-    verify(outputReceiver).output(record);
-    verify(watermarkEstimator).setWatermark(new Instant(timestamp.toSqlTimestamp().getTime()));
+    verify(outputReceiver).outputWithTimestamp(record, instant);
+    verify(watermarkEstimator).setWatermark(instant);
   }
 
   @Test
@@ -84,7 +85,7 @@ public class DataChangeRecordActionTest {
         action.run(partition, record, tracker, outputReceiver, watermarkEstimator);
 
     assertEquals(Optional.of(ProcessContinuation.stop()), maybeContinuation);
-    verify(outputReceiver, never()).output(any());
+    verify(outputReceiver, never()).outputWithTimestamp(any(), any());
     verify(watermarkEstimator, never()).setWatermark(any());
   }
 }

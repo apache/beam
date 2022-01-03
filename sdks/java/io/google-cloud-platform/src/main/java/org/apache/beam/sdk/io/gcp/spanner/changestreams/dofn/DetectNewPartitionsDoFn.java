@@ -188,7 +188,8 @@ public class DetectNewPartitionsDoFn extends DoFn<byte[], PartitionMetadata> {
       // Updates the current watermark as the min of the watermarks from all existing partitions
       final com.google.cloud.Timestamp minWatermark = getUnfinishedMinWatermark();
       if (minWatermark != null) {
-        watermarkEstimator.setWatermark(new Instant(minWatermark.toSqlTimestamp()));
+        final Instant minWatermarkInstant = new Instant(minWatermark.toSqlTimestamp());
+        watermarkEstimator.setWatermark(minWatermarkInstant);
 
         try (ResultSet resultSet = partitionMetadataDao.getPartitionsInState(State.CREATED)) {
           long currentIndex = tracker.currentRestriction().getFrom();
@@ -205,7 +206,7 @@ public class DetectNewPartitionsDoFn extends DoFn<byte[], PartitionMetadata> {
             final PartitionMetadata updatedPartition =
                 partition.toBuilder().setScheduledAt(scheduledAt).build();
 
-            receiver.output(updatedPartition);
+            receiver.outputWithTimestamp(updatedPartition, minWatermarkInstant);
 
             metrics.incPartitionRecordCount();
             currentIndex++;

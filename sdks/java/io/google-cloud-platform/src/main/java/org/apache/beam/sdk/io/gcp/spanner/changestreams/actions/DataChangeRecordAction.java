@@ -105,7 +105,7 @@ public class DataChangeRecordAction {
             "[" + token + "] Could not claim queryChangeStream(" + commitTimestamp + "), stopping");
         return Optional.of(ProcessContinuation.stop());
       }
-      outputReceiver.output(record);
+      outputReceiver.outputWithTimestamp(record, commitInstant);
       watermarkEstimator.setWatermark(commitInstant);
 
       LOG.debug("[" + token + "] Data record action completed successfully");
