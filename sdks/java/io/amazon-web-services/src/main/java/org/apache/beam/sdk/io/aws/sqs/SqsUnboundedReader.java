@@ -23,6 +23,7 @@ import static java.util.stream.Collectors.toMap;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.amazonaws.services.sqs.AmazonSQS;
+import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
 import com.amazonaws.services.sqs.model.BatchResultErrorEntry;
 import com.amazonaws.services.sqs.model.ChangeMessageVisibilityBatchRequestEntry;
 import com.amazonaws.services.sqs.model.ChangeMessageVisibilityBatchResult;
@@ -145,6 +146,9 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> {
    * closed, and it will have a non-null value within {@link #SqsUnboundedReader}.
    */
   private AtomicBoolean active = new AtomicBoolean(true);
+
+  /** SQS client of this reader instance. */
+  private AmazonSQS sqsClient = null;
 
   /** The current message, or {@literal null} if none. */
   private Message current;
@@ -339,6 +343,7 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> {
 
     if (sqsCheckpointMark != null) {
       long nowMsSinceEpoch = now();
+      initClient();
       extendBatch(nowMsSinceEpoch, sqsCheckpointMark.notYetReadReceipts, 0);
       numReleased.add(nowMsSinceEpoch, sqsCheckpointMark.notYetReadReceipts.size());
     }
@@ -424,8 +429,7 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> {
     List<String> requestAttributes =
         Collections.singletonList(QueueAttributeName.ApproximateNumberOfMessages.toString());
     Map<String, String> queueAttributes =
-        source
-            .getSqs()
+        sqsClient
             .getQueueAttributes(source.getRead().queueUrl(), requestAttributes)
             .getAttributes();
     long numMessages =
@@ -442,10 +446,10 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> {
 
   @Override
   public boolean start() throws IOException {
+    initClient();
     visibilityTimeoutMs =
         Integer.parseInt(
-                source
-                    .getSqs()
+                sqsClient
                     .getQueueAttributes(
                         new GetQueueAttributesRequest(source.getRead().queueUrl())
                             .withAttributeNames("VisibilityTimeout"))
@@ -453,6 +457,17 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> {
                     .get("VisibilityTimeout"))
             * 1000L;
     return advance();
+  }
+
+  private void initClient() {
+    if (sqsClient == null) {
+      sqsClient =
+          AmazonSQSClientBuilder.standard()
+              .withClientConfiguration(source.getSqsConfiguration().getClientConfiguration())
+              .withCredentials(source.getSqsConfiguration().getAwsCredentialsProvider())
+              .withRegion(source.getSqsConfiguration().getAwsRegion())
+              .build();
+    }
   }
 
   @Override
@@ -527,9 +542,8 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> {
     if (!active.get() && numInFlightCheckpoints.get() == 0) {
       // The reader has been closed and it has no more outstanding checkpoints. The client
       // must be closed so it doesn't leak
-      AmazonSQS client = source.getSqs();
-      if (client != null) {
-        client.shutdown();
+      if (sqsClient != null) {
+        sqsClient.shutdown();
       }
     }
   }
@@ -580,7 +594,7 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> {
               .collect(Collectors.toList());
 
       DeleteMessageBatchResult result =
-          source.getSqs().deleteMessageBatch(source.getRead().queueUrl(), entries);
+          sqsClient.deleteMessageBatch(source.getRead().queueUrl(), entries);
 
       // Retry errors except invalid handles
       Set<BatchResultErrorEntry> retryErrors =
@@ -640,7 +654,7 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> {
     receiveMessageRequest.setAttributeNames(
         Arrays.asList(MessageSystemAttributeName.SentTimestamp.toString()));
     final ReceiveMessageResult receiveMessageResult =
-        source.getSqs().receiveMessage(receiveMessageRequest);
+        sqsClient.receiveMessage(receiveMessageRequest);
 
     final List<Message> messages = receiveMessageResult.getMessages();
 
@@ -805,7 +819,7 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<Message> {
               .collect(Collectors.toList());
 
       ChangeMessageVisibilityBatchResult result =
-          source.getSqs().changeMessageVisibilityBatch(source.getRead().queueUrl(), entries);
+          sqsClient.changeMessageVisibilityBatch(source.getRead().queueUrl(), entries);
 
       // Retry errors except invalid handles
       Set<BatchResultErrorEntry> retryErrors =
