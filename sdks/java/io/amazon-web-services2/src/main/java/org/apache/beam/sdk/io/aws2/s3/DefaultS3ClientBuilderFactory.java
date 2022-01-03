@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.aws2.s3;
 import java.net.URI;
 import org.apache.beam.sdk.io.aws2.options.S3ClientBuilderFactory;
 import org.apache.beam.sdk.io.aws2.options.S3Options;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,8 +39,14 @@ public class DefaultS3ClientBuilderFactory implements S3ClientBuilderFactory {
 
   @Override
   public S3ClientBuilder createBuilder(S3Options s3Options) {
-    S3ClientBuilder builder =
-        S3Client.builder().credentialsProvider(s3Options.getAwsCredentialsProvider());
+    return createBuilder(S3Client.builder(), s3Options);
+  }
+
+  @VisibleForTesting
+  static S3ClientBuilder createBuilder(S3ClientBuilder builder, S3Options s3Options) {
+    if (s3Options.getAwsCredentialsProvider() != null) {
+      builder.credentialsProvider(s3Options.getAwsCredentialsProvider());
+    }
 
     if (s3Options.getProxyConfiguration() != null) {
       builder.httpClient(
