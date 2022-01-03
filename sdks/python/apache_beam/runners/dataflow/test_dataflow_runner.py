@@ -51,6 +51,11 @@ class TestDataflowRunner(DataflowRunner):
     test_options.on_success_matcher = None
 
     self.result = super().run_pipeline(pipeline, options)
+    print('TEST DATAFLOW RUNNER RESULT ------')
+    print(self.result)
+    print('TEST DATAFLOW RUNNER OPTION ------')
+    print(options)
+    print('WORKER LOGS: %s ------' % self.build_console_url(options))
     if self.result.has_job:
       # TODO(markflyhigh)(BEAM-1890): Use print since Nose dosen't show logs
       # in some cases.

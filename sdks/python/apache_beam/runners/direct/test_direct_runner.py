@@ -38,9 +38,9 @@ class TestDirectRunner(DirectRunner):
     # [BEAM-1889] Do not send this to remote workers also, there is no need to
     # send this option to remote executors.
     test_options.on_success_matcher = None
-
     self.result = super().run_pipeline(pipeline, options)
-
+    print('TEST DIRECT RUNNER RESULT ------')
+    print(self.result)
     try:
       if not is_streaming:
         self.result.wait_until_finish()
