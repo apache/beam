@@ -53,7 +53,7 @@ If your pipeline uses packages that are not available publicly (e.g. packages th
 
 1. Identify which packages are installed on your machine and are not public. Run the following command:
 
-        pip freeze
+      pip freeze
 
     This command lists all packages that are installed on your machine, regardless of where they were installed from.
 
@@ -68,6 +68,19 @@ If your pipeline uses packages that are not available publicly (e.g. packages th
 
    See the [sdist documentation](https://docs.python.org/2/distutils/sourcedist.html) for more details on this command.
 
+## Using Custom Containers
+
+You can pass a container image with all the dependencies that are needed for the pipeline instead of `requirements.txt`. [See the page on how to run Pipeline with Custom Containers](https://beam.apache.org/documentation/runtime/environments/#running-pipelines).
+
+1. If you are passing a custom container image and have a  `requirements.txt` file, we recommend you to install the dependencies from the requirements file when building your container image. In this case, you would reduce the pipeline startup time and do not need to pass `--requirements_file` option at runtime.
+         
+       # Add these lines with the path to the requirements.txt to the Dockerfile
+
+       COPY <path to requirements.txt> /tmp/requirements.txt
+       RUN python -m pip download -r /tmp/requirements.txt --exists-action i --no-binary :all:
+
+**Note:** Follow these [instructions](https://beam.apache.org/documentation/runtime/environments/#writing-new-dockerfiles) to build the custom container images on top of Apache Beam Python SDK.
+        
 ## Multiple File Dependencies
 
 Often, your pipeline code spans multiple files. To run your project remotely, you must group these files as a Python package and specify the package when you run your pipeline. When the remote workers start, they will install your package. To group your files as a Python package and make it available remotely, perform the following steps:
@@ -123,3 +136,4 @@ If your pipeline uses non-Python packages (e.g. packages that require installati
         --setup_file /path/to/setup.py
 
 **Note:** Because custom commands execute after the dependencies for your workflow are installed (by `pip`), you should omit the PyPI package dependency from the pipeline's `requirements.txt` file and from the `install_requires` parameter in the `setuptools.setup()` call of your `setup.py` file.
+
