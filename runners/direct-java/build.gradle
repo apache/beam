@@ -150,6 +150,10 @@ task validatesRunner(type: Test) {
   String[] pipelineOptions = ["--runner=DirectRunner", "--runnerDeterminedSharding=false"]
   systemProperty "beamTestPipelineOptions", pipelineOptionsStringCrossPlatformHandling(pipelineOptions)
 
+  javaLauncher = javaToolchains.launcherFor {
+    languageVersion = JavaLanguageVersion.of(11)
+  }
+
   classpath = configurations.validatesRunner
   // NOTE: We only add to the test class dirs to ensure that the direct runner
   // tests (i.e., those from this subproject) get scanned.
@@ -169,7 +173,7 @@ task validatesRunner(type: Test) {
 
 task validatesRunnerOnJavaSDK17(type: Test) {
   group = "Verification"
-  description "Validates Direct runner"
+  description "Validates Direct runner on Java 17"
 
   String[] pipelineOptions = ["--runner=DirectRunner", "--runnerDeterminedSharding=false"]
   systemProperty "beamTestPipelineOptions", pipelineOptionsStringCrossPlatformHandling(pipelineOptions)
