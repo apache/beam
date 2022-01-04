@@ -98,5 +98,5 @@ task preCommit() {
 }
 
 task execute (type:JavaExec) {
-    main = "org.apache.beam.examples.twitterstreamgenerator.TwitterStream"
+    mainClass = "org.apache.beam.examples.twitterstreamgenerator.TwitterStream"
 }

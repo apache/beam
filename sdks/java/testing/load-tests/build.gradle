@@ -27,7 +27,6 @@ description = "Apache Beam :: SDKs :: Java :: Load Tests"
 
 
 def mainClassProperty = "loadTest.mainClass"
-def mainClass = project.findProperty(mainClassProperty)
 
 // When running via Gradle, this property can be used to pass commandline arguments
 // to the load-tests launch
@@ -135,7 +134,7 @@ task run(type: JavaExec) {
       dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
     }
   }
-  main = mainClass
+  mainClass = project.findProperty(mainClassProperty)
   classpath = configurations.gradleRun
   args loadTestArgsList.toArray()
 }
