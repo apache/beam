@@ -4,7 +4,6 @@
         "esModuleInterop": true,
         "allowSyntheticDefaultImports": true,
         "target": "es6",
-        "noImplicitAny": true,
         "moduleResolution": "node",
         "sourceMap": true,
         "outDir": "dist/",
@@ -14,7 +13,11 @@
                 "node_modules/*",
                 "src/types/*"
             ]
-        }
+        },
+        "lib": [
+          "dom",
+          "esnext"
+        ]
     },
     "include": [
         "src/**/*"
