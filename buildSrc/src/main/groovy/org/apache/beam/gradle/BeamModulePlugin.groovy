@@ -1766,10 +1766,12 @@ class BeamModulePlugin implements Plugin<Project> {
         }
 
         if (runner?.equalsIgnoreCase('flink')) {
+          testRuntimeOnly it.project(path: ":runners:flink:${project.ext.latestFlinkVersion}")
           testRuntimeOnly it.project(path: ":runners:flink:${project.ext.latestFlinkVersion}", configuration: "testRuntimeMigration")
         }
 
         if (runner?.equalsIgnoreCase('spark')) {
+          testRuntimeOnly it.project(path: ":runners:spark:2")
           testRuntimeOnly it.project(path: ":runners:spark:2", configuration: "testRuntimeMigration")
           testRuntimeOnly project.library.java.spark_core
           testRuntimeOnly project.library.java.spark_streaming
@@ -1782,12 +1784,14 @@ class BeamModulePlugin implements Plugin<Project> {
 
         /* include dependencies required by filesystems */
         if (filesystem?.equalsIgnoreCase('hdfs')) {
+          testRuntimeOnly it.project(path: ":sdks:java:io:hadoop-file-system")
           testRuntimeOnly it.project(path: ":sdks:java:io:hadoop-file-system", configuration: "testRuntimeMigration")
           testRuntimeOnly project.library.java.hadoop_client
         }
 
         /* include dependencies required by AWS S3 */
         if (filesystem?.equalsIgnoreCase('s3')) {
+          testRuntimeOnly it.project(path: ":sdks:java:io:amazon-web-services")
           testRuntimeOnly it.project(path: ":sdks:java:io:amazon-web-services", configuration: "testRuntimeMigration")
         }
       }
