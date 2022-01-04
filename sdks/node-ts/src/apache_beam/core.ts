@@ -6,7 +6,7 @@ class PValue {
         return transform.expand(this);
     }
 
-    map(callable): PValue {
+    map(callable: any): PValue {
         return this.apply(new ParDo(callable));
     }
 
@@ -28,12 +28,12 @@ class PTransform {
 
 class ParDo extends PTransform {
     private doFn;
-    constructor(callableOrDoFn) {
+    constructor(callableOrDoFn: any) {
         super()
         this.doFn = callableOrDoFn;
     }
 }
 
 class DoFn {
-    
+
 }
