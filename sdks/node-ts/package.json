@@ -6,5 +6,8 @@
   "scripts": {
     "worker": "node dist/apache_beam/worker/worker.js",
     "test": "mocha"
+  },
+  "dependencies": {
+    "@protobuf-ts/plugin": "^2.1.0"
   }
 }
