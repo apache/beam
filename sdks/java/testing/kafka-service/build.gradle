@@ -31,7 +31,7 @@ dependencies {
 }
 
 task runTestKafkaService (type: JavaExec) {
-  main = "org.apache.beam.sdk.testing.kafka.LocalKafka"
+  mainClass = "org.apache.beam.sdk.testing.kafka.LocalKafka"
   classpath = sourceSets.test.runtimeClasspath
   args = [
     project.findProperty("kafka.port") ?: "9092",

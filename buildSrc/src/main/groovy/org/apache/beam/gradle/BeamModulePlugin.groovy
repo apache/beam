@@ -1320,7 +1320,7 @@ class BeamModulePlugin implements Plugin<Project> {
         }
 
         project.task("jmh", type: JavaExec, dependsOn: project.jmhClasses, {
-          main = "org.openjdk.jmh.Main"
+          mainClass = "org.openjdk.jmh.Main"
           classpath = project.sourceSets.jmh.compileClasspath + project.sourceSets.jmh.runtimeClasspath
           // For a list of arguments, see
           // https://github.com/guozheng/jmh-tutorial/blob/master/README.md
@@ -2095,7 +2095,7 @@ class BeamModulePlugin implements Plugin<Project> {
       project.task(taskName, dependsOn: ':release:classes', type: JavaExec) {
         group = "Verification"
         description = "Run the Beam ${config.type} with the ${config.runner} runner"
-        main = "${config.type}-java-${config.runner}".toLowerCase()
+        mainClass = "${config.type}-java-${config.runner}".toLowerCase()
         classpath = project.project(':release').sourceSets.main.runtimeClasspath
         args argsNeeded
       }

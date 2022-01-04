@@ -126,7 +126,7 @@ task run(type: JavaExec) {
         tpcdsArgsList.add('--workerHarnessContainerImage=')
     }
 
-    main = "org.apache.beam.sdk.tpcds.BeamTpcds"
+    mainClass = "org.apache.beam.sdk.tpcds.BeamTpcds"
     classpath = configurations.gradleRun
     args tpcdsArgsList.toArray()
 }
