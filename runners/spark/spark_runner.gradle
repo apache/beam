@@ -185,10 +185,6 @@ dependencies {
   compileOnly library.java.commons_io
   compileOnly library.java.hamcrest
   compileOnly "com.esotericsoftware:kryo-shaded:4.0.2"
-  testImplementation "org.apache.spark:spark-core_$spark_scala_version:$spark_version"
-  testImplementation "org.apache.spark:spark-network-common_$spark_scala_version:$spark_version"
-  testImplementation "org.apache.spark:spark-sql_$spark_scala_version:$spark_version"
-  testImplementation "org.apache.spark:spark-streaming_$spark_scala_version:$spark_version"
   testImplementation library.java.hadoop_common
   testImplementation library.java.commons_io
   testImplementation library.java.hamcrest
