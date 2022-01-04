@@ -620,6 +620,10 @@ class BeamModulePlugin implements Plugin<Project> {
         jackson_datatype_joda                       : "com.fasterxml.jackson.datatype:jackson-datatype-joda:$jackson_version",
         jackson_module_scala_2_11                   : "com.fasterxml.jackson.module:jackson-module-scala_2.11:$jackson_version",
         jackson_module_scala_2_12                   : "com.fasterxml.jackson.module:jackson-module-scala_2.12:$jackson_version",
+        // Swap to use the officially published version of 0.4.x once available
+        // instead of relying on a community published copy. See
+        // https://github.com/jbellis/jamm/issues/44 for additional details.
+        jamm                                        : 'io.github.stephankoelle:jamm:0.4.1',
         jaxb_api                                    : "jakarta.xml.bind:jakarta.xml.bind-api:$jaxb_api_version",
         jaxb_impl                                   : "com.sun.xml.bind:jaxb-impl:$jaxb_api_version",
         joda_time                                   : "joda-time:joda-time:2.10.10",
