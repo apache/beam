@@ -4,6 +4,7 @@
         "esModuleInterop": true,
         "allowSyntheticDefaultImports": true,
         "target": "es2020",
+        "strictNullChecks": true,
         "moduleResolution": "node",
         "sourceMap": true,
         "outDir": "dist/",
@@ -17,8 +18,5 @@
     },
     "include": [
         "src/**/*"
-    ],
-    "exclude": [
-        "src/apache_beam/proto/*"
     ]
 }
