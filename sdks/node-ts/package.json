@@ -4,6 +4,7 @@
     "typescript": "^4.5.4"
   },
   "scripts": {
+    "worker": "node dist/apache_beam/worker/worker.js",
     "test": "mocha"
   }
 }
