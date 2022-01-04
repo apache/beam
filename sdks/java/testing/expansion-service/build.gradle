@@ -40,7 +40,7 @@ task runTestExpansionService (type: JavaExec) {
 }
 
 task buildTestExpansionServiceJar(type: ShadowJar) {
-  appendix = "testExpansionService"
+  archiveAppendix = "testExpansionService"
   // Use zip64 mode to avoid "Archive contains more than 65535 entries".
   zip64 = true
   mergeServiceFiles()
