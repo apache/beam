@@ -41,6 +41,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.stream.DataStreams.DataStreamDecoder;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterable;
+import org.apache.beam.sdk.fn.stream.PrefetchableIterables;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterator;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterators;
 import org.apache.beam.sdk.util.Weighted;
@@ -133,7 +134,7 @@ public class StateFetchingIterators {
    * all the remaining pages.
    */
   @VisibleForTesting
-  static class FirstPageAndRemainder<T> implements PrefetchableIterable<T> {
+  static class FirstPageAndRemainder<T> extends PrefetchableIterables.Default<T> {
     private final BeamFnStateClient beamFnStateClient;
     private final StateRequest stateRequestForFirstChunk;
     private final Coder<T> valueCoder;
@@ -151,7 +152,7 @@ public class StateFetchingIterators {
     }
 
     @Override
-    public PrefetchableIterator<T> iterator() {
+    public PrefetchableIterator<T> createIterator() {
       return new PrefetchableIterator<T>() {
         PrefetchableIterator<T> delegate;
 
@@ -261,7 +262,7 @@ public class StateFetchingIterators {
   }
 
   /** A mutable iterable that supports prefetch and is backed by a cache. */
-  static class CachingStateIterable<T> implements PrefetchableIterable<T> {
+  static class CachingStateIterable<T> extends PrefetchableIterables.Default<T> {
 
     /** Represents a set of elements. */
     abstract static class Blocks<T> implements Weighted {
@@ -446,7 +447,7 @@ public class StateFetchingIterators {
     }
 
     @Override
-    public PrefetchableIterator<T> iterator() {
+    public PrefetchableIterator<T> createIterator() {
       return new CachingStateIterator();
     }
 
