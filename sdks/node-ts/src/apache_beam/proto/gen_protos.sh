@@ -4,22 +4,26 @@
 
 MODEL_PROTOS=../../../../../model
 
-echo $MODEL_PROTOS
-ls $MODEL_PROTOS
+run() {
+  echo
+  echo $*
+  $*
+}
 
-npx protoc --ts_out . \
+run npx protoc --ts_out . \
     --ts_opt generate_dependencies \
     --proto_path $MODEL_PROTOS/pipeline/src/main/proto/  \
     $MODEL_PROTOS/pipeline/src/main/proto/*.proto        \
 
-npx protoc --ts_out . \
+run npx protoc --ts_out . \
     --ts_opt generate_dependencies \
     --proto_path $MODEL_PROTOS/pipeline/src/main/proto/        \
     --proto_path $MODEL_PROTOS/job-management/src/main/proto/  \
     $MODEL_PROTOS/job-management/src/main/proto/*.proto        \
 
-npx protoc --ts_out . \
-    --ts_opt generate_dependencies \
+# Need the server for the loopback worker.
+run npx protoc --ts_out . \
+    --ts_opt server_grpc1,generate_dependencies              \
     --proto_path $MODEL_PROTOS/pipeline/src/main/proto/      \
     --proto_path $MODEL_PROTOS/fn-execution/src/main/proto/  \
     $MODEL_PROTOS/fn-execution/src/main/proto/*.proto        \
