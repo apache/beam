@@ -77,7 +77,6 @@ dependencies {
   // Add dependencies for the PreCommit configurations
   // For each runner a project level dependency on the examples project.
   for (String runner : preCommitRunners) {
-    delegate.add(runner + "PreCommit", project(":examples:kotlin"))
     delegate.add(runner + "PreCommit", project(path: ":examples:kotlin", configuration: "testRuntimeMigration"))
   }
   directRunnerPreCommit project(path: ":runners:direct-java", configuration: "shadow")
