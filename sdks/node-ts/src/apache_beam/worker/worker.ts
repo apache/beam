@@ -171,7 +171,14 @@ class BundleProcessor {
             if (!this_.operators.has(transformId)) {
                 this_.operators.set(
                     transformId,
-                    createOperator(descriptor, transformId, getReceiver, this_.getDataChannel, this_.getBundleId.bind(this_)));
+                    createOperator(
+                        transformId,
+                        {
+                            descriptor: descriptor,
+                            getReceiver: getReceiver,
+                            getDataChannel: this_.getDataChannel.bind(this_),
+                            getBundleId: this_.getBundleId.bind(this_)
+                        }));
                 creationOrderedOperators.push(this_.operators.get(transformId)!);
             }
             return this_.operators.get(transformId)!;
