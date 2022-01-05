@@ -63,7 +63,7 @@ dependencies {
   testImplementation library.java.guava_testlib
   testImplementation library.java.junit
   testImplementation 'org.elasticmq:elasticmq-rest-sqs_2.12:0.15.6'
-  testImplementation library.java.hamcrest_library
+  testImplementation library.java.hamcrest
   testImplementation library.java.powermock
   testImplementation library.java.powermock_mockito
   testImplementation "org.assertj:assertj-core:3.11.1"

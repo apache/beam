@@ -566,8 +566,8 @@ public class StateFetchingIteratorsTest {
       }
       assertFalse(valuesIter2.hasNext());
       assertTrue(valuesIter2.isReady());
-
       // The contents agree.
+      assertArrayEquals(expected, Iterables.toArray(results, Object.class));
       assertArrayEquals(expected, Iterables.toArray(values, Object.class));
     }
   }

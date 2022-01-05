@@ -62,6 +62,6 @@ if (project.hasProperty("args")) {
 
 task runner(type: JavaExec) {
     classpath = sourceSets.main.runtimeClasspath
-    main = "org.apache.beam.validate.runner.Main"
+    mainClass = "org.apache.beam.validate.runner.Main"
     args cmdargs.split()
 }

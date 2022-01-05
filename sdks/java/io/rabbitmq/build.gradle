@@ -30,6 +30,7 @@ dependencies {
   implementation library.java.joda_time
   implementation "com.rabbitmq:amqp-client:5.7.3"
   compileOnly library.java.jackson_dataformat_xml
+  permitUnusedDeclared library.java.jackson_dataformat_xml
   testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
   testImplementation "org.apache.qpid:qpid-broker-core:$qpid_version"
   testImplementation "org.apache.qpid:qpid-broker-plugins-memory-store:$qpid_version"

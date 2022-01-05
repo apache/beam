@@ -95,8 +95,7 @@ dependencies {
   testImplementation project(":sdks:java:io:google-cloud-platform")
   testImplementation project(":sdks:java:extensions:ml")
   testImplementation library.java.google_cloud_bigquery
-  testImplementation library.java.hamcrest_core
-  testImplementation library.java.hamcrest_library
+  testImplementation library.java.hamcrest
   testImplementation library.java.junit
   testImplementation library.java.mockito_core
   testImplementation library.java.testcontainers_kafka
@@ -157,7 +156,7 @@ task preCommit() {
 }
 
 task execute (type:JavaExec) {
-  main = System.getProperty("mainClass")
+  mainClass = System.getProperty("mainClass")
   classpath = sourceSets.main.runtimeClasspath
   systemProperties System.getProperties()
   args System.getProperty("exec.args", "").split()
@@ -166,7 +165,7 @@ task execute (type:JavaExec) {
 // Run this task to validate the Java environment setup for contributors
 task wordCount(type:JavaExec) {
   description "Run the Java word count example"
-  main = "org.apache.beam.examples.WordCount"
+  mainClass = "org.apache.beam.examples.WordCount"
   classpath = sourceSets.main.runtimeClasspath
   systemProperties = System.getProperties()
   args = ["--output=/tmp/ouput.txt"]
