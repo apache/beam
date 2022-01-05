@@ -20,6 +20,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <meta charset="UTF-8">
   <!--
     If you are serving your web app in a path other than the root, change the
     href value below to reflect the base path you are serving from.
@@ -35,7 +36,6 @@
   -->
   <base href="/">
 
-  <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="Apache Beam Playground">
 
@@ -60,6 +60,20 @@
 <!-- This script installs service_worker.js to provide PWA functionality to
      application. For more information, see:
      https://developers.google.com/web/fundamentals/primers/service-workers -->
+
+<script type="text/javascript">
+    // The app is freezing on the Safari when using canvaskit, as a quick workaround - enable
+    // html rendered for it
+    const { userAgent } = navigator
+    const isSafari = userAgent.indexOf('Safari') > -1 && userAgent.indexOf('Chrome') <= -1;
+    const useHtml = isSafari;
+    if(useHtml) {
+      window.flutterWebRenderer = 'html';
+    } else {
+      window.flutterWebRenderer = 'canvaskit';
+    }
+    console.log(`Using ${window.flutterWebRenderer} renderer`);
+  </script>
 <script>
     var serviceWorkerVersion = null;
     var scriptLoaded = false;

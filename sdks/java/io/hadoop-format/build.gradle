@@ -62,7 +62,12 @@ dependencies {
   implementation library.java.joda_time
   compileOnly library.java.hadoop_common
   compileOnly library.java.hadoop_hdfs
+  permitUnusedDeclared library.java.hadoop_hdfs
+  compileOnly library.java.hadoop_hdfs_client
   compileOnly library.java.hadoop_mapreduce_client_core
+  // Ensure that the older version of JAMM that cassandra relies on appears
+  // on the classpath before the one provided by :sdks:java:core shadowTest.
+  testImplementation "com.github.jbellis:jamm:0.3.0"
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
   testImplementation project(":sdks:java:testing:test-utils")
@@ -98,8 +103,7 @@ dependencies {
   testImplementation library.java.hadoop_mapreduce_client_core
   testImplementation library.java.postgres
   testImplementation library.java.junit
-  testImplementation library.java.hamcrest_core
-  testImplementation library.java.hamcrest_library
+  testImplementation library.java.hamcrest
   testImplementation library.java.testcontainers_postgresql
   testImplementation library.java.netty_all
   testRuntimeOnly library.java.slf4j_jdk14

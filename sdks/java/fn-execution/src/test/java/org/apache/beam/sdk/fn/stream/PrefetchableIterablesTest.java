@@ -17,8 +17,12 @@
  */
 package org.apache.beam.sdk.fn.stream;
 
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
 
+import org.apache.beam.sdk.fn.stream.PrefetchableIterables.Default;
+import org.apache.beam.sdk.fn.stream.PrefetchableIteratorsTest.ReadyAfterPrefetchUntilNext;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -54,6 +58,22 @@ public class PrefetchableIterablesTest {
         "A",
         "B",
         "C");
+  }
+
+  @Test
+  public void testDefaultPrefetch() {
+    PrefetchableIterable<String> iterable =
+        new Default<String>() {
+          @Override
+          protected PrefetchableIterator<String> createIterator() {
+            return new ReadyAfterPrefetchUntilNext<>(
+                PrefetchableIterators.fromArray("A", "B", "C"));
+          }
+        };
+
+    assertFalse(iterable.iterator().isReady());
+    iterable.prefetch();
+    assertTrue(iterable.iterator().isReady());
   }
 
   @Test

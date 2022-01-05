@@ -100,8 +100,8 @@ dependencies {
   implementation library.java.guava
   implementation library.java.hamcrest
   implementation library.java.http_client
-  implementation library.java.hamcrest_core
-  permitUnusedDeclared library.java.hamcrest_core // BEAM-11761
+  implementation library.java.hamcrest
+  permitUnusedDeclared library.java.hamcrest // BEAM-11761
   implementation library.java.http_core
   implementation library.java.jackson_core
   implementation library.java.jackson_databind
