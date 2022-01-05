@@ -69,9 +69,11 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 		return nil, errors.InternalError("Error during preparing", "Error during saving status of the code processing")
 	}
 	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.RunOutputIndex, 0); err != nil {
+		code_processing.DeleteFolders(pipelineId, lc)
 		return nil, errors.InternalError("Error during preparing", "Error during saving initial run output")
 	}
 	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.LogsIndex, 0); err != nil {
+		code_processing.DeleteFolders(pipelineId, lc)
 		return nil, errors.InternalError("Error during preparing", "Error during saving value for the logs output")
 	}
 	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.Canceled, false); err != nil {
