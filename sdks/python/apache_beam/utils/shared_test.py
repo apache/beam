@@ -254,16 +254,14 @@ class SharedTest(unittest.TestCase):
     p2 = shared2.acquire(acquire_fn_2, tag='2')
     assert p2.get_name() == 'obj_2'
 
-  def testTagReturnsCache(self):
+  def testTagReturnsCached(self):
     sequence = Sequence()
-
     handle = shared.Shared()
 
     f1 = handle.acquire(sequence.make_acquire_fn(), tag='1')
-
     self.assertEqual('sequence1', f1.get_name())
 
-    # should pass
+    # should return cached
     f1 = handle.acquire(sequence.make_acquire_fn(), tag='1')
     self.assertEqual('sequence1', f1.get_name())
 
