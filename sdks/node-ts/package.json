@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc --build",
     "clean": "tsc --build --clean",
-    "worker": "node dist/apache_beam/worker/worker.js",
+    "worker": "node dist/apache_beam/worker/external_worker_service.js",
     "test": "mocha"
   },
   "dependencies": {

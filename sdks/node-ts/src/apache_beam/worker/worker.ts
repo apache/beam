@@ -1,8 +1,12 @@
+// From sdks/node-ts
+//     npx tsc && npm run worker
+// From sdks/python
+//     python trivial_pipeline.py --environment_type=EXTERNAL --environment_config='localhost:5555' --runner=PortableRunner --job_endpoint=embed
+
 import * as grpc from '@grpc/grpc-js';
 
 import { PTransform, PCollection } from "../proto/beam_runner_api";
 
-import { RemoteGrpcPort } from "../proto/beam_fn_api";
 import { InstructionRequest, InstructionResponse } from "../proto/beam_fn_api";
 import { ProcessBundleDescriptor, ProcessBundleResponse } from "../proto/beam_fn_api";
 import { BeamFnControlClient, IBeamFnControlClient } from "../proto/beam_fn_api.grpc-client";
@@ -11,15 +15,11 @@ import { StartWorkerRequest, StartWorkerResponse, StopWorkerRequest, StopWorkerR
 import { beamFnExternalWorkerPoolDefinition, IBeamFnExternalWorkerPool } from "../proto/beam_fn_api.grpc-server";
 
 import { MultiplexingDataChannel, IDataChannel } from "./data"
+import { IOperator, Receiver, createOperator } from "./operators"
 
 
-console.log("Starting the worker.");
 
-const host = '0.0.0.0:5555';
-
-const workers = new Map<string, Worker>();
-
-class Worker {
+export class Worker {
     id: string;
     endpoints: StartWorkerRequest;
     controlClient: BeamFnControlClient;
@@ -200,236 +200,4 @@ class BundleProcessor {
         this.topologicallyOrderedOperators.forEach((o) => o.finishBundle());
         this.currentBundleId = undefined;
     }
-}
-
-interface IOperator {
-    startBundle: () => void;
-    process: (WindowedValue) => void;
-    finishBundle: () => void;
-}
-
-class Receiver {
-    operators: IOperator[]
-
-    constructor(operators: IOperator[]) {
-        this.operators = operators;
-    }
-
-    receive(wvalue: WindowedValue) {
-        for (const operator of this.operators) {
-            operator.process(wvalue);
-        }
-    }
-}
-
-interface WindowedValue {
-    value: any;
-}
-
-function createOperator(
-    descriptor: ProcessBundleDescriptor,
-    transformId: string,
-    getReceiver: (string) => Receiver,
-    getDataChannel: (string) => MultiplexingDataChannel,
-    getBundleId: () => string,
-): IOperator {
-    const transform = descriptor.transforms[transformId];
-
-    switch (transform.spec?.urn) {
-
-        case "beam:runner:source:v1":
-            const readPort = RemoteGrpcPort.fromBinary(transform.spec.payload);
-            return new DataSourceOperator(
-                getDataChannel(readPort.apiServiceDescriptor!.url),
-                transformId,
-                getBundleId,
-                getReceiver(onlyElement(Object.values(transform.outputs))));
-
-        case "beam:runner:sink:v1":
-            const writePort = RemoteGrpcPort.fromBinary(transform.spec.payload);
-            return new DataSinkOperator(
-                getDataChannel(writePort.apiServiceDescriptor!.url),
-                transformId,
-                getBundleId);
-
-        case "beam:transform:flatten:v1":
-            return new FlattenOperator(getReceiver(onlyElement(Object.values(transform.outputs))));
-
-        default:
-            console.log("Unknown transform type:", transform.spec?.urn)
-            const receivers = Object.values(transform.outputs).map(getReceiver);
-            const sendAll = function(value: WindowedValue) {
-                receivers.map((receiver: Receiver) => receiver.receive(value));
-            };
-            return {
-                startBundle: function() {
-                    console.log("startBundle", transformId);
-                },
-                process: function(wvalue) {
-                    console.log("forwarding", transformId, wvalue.value);
-                    sendAll(wvalue);
-                },
-                finishBundle: function() {
-                    console.log("finishBundle", transformId);
-                },
-            };
-    }
-}
-
-class DataSourceOperator implements IOperator {
-    transformId: string
-    getBundleId: () => string;
-    multiplexingDataChannel: MultiplexingDataChannel;
-    receiver: Receiver;
-    done: boolean;
-
-    constructor(multiplexingDataChannel: MultiplexingDataChannel, transformId: string, getBundleId: () => string, receiver: Receiver) {
-        this.multiplexingDataChannel = multiplexingDataChannel;
-        this.transformId = transformId;
-        this.getBundleId = getBundleId;
-        this.receiver = receiver;
-    }
-
-    startBundle() {
-        this.done = false;
-        const this_ = this;
-        this.multiplexingDataChannel.registerConsumer(
-            this.getBundleId(),
-            this.transformId,
-            {
-                sendData: function(data: Uint8Array) {
-                    console.log("Got", data)
-                    this_.receiver.receive({ value: data });
-                },
-                sendTimers: function(timerFamilyId: string, timers: Uint8Array) {
-                    throw Error("Not expecting timers.");
-                },
-                close: function() { this_.done = true; },
-            });
-    }
-
-    process(wvalue: WindowedValue) {
-        throw Error("Data should not come in via process.");
-    }
-
-    finishBundle() {
-        // TODO: Await this condition.
-//         console.log("Waiting for all data.")
-//         await new Promise((resolve) => {
-//             setTimeout(resolve, 3000);
-//         });
-//         if (!this.done) {
-//             throw Error("Not done!");
-//         }
-//         console.log("Done waiting for all data.")
-        this.multiplexingDataChannel.unregisterConsumer(this.getBundleId(), this.transformId);
-    }
-}
-
-class DataSinkOperator implements IOperator {
-    transformId: string
-    getBundleId: () => string;
-    multiplexingDataChannel: MultiplexingDataChannel;
-    channel: IDataChannel;
-
-    constructor(multiplexingDataChannel: MultiplexingDataChannel, transformId: string, getBundleId: () => string) {
-        this.multiplexingDataChannel = multiplexingDataChannel;
-        this.transformId = transformId;
-        this.getBundleId = getBundleId;
-    }
-
-    startBundle() {
-        this.channel = this.multiplexingDataChannel.getSendChannel(this.transformId, this.getBundleId());
-    }
-
-    process(wvalue: WindowedValue) {
-        this.channel.sendData(wvalue.value);
-    }
-
-    finishBundle() {
-        this.channel.close();
-    }
-}
-
-class FlattenOperator implements IOperator {
-    receiver: Receiver;
-    constructor(receiver: Receiver) {
-        this.receiver = receiver;
-    }
-    startBundle() { };
-    process(wvalue: WindowedValue) {
-        this.receiver.receive(wvalue);
-    }
-    finishBundle() { }
-}
-
-
-function onlyElement<Type>(arg: Type[]): Type {
-    if (arg.length > 1) {
-        Error("Expecting exactly one element.");
-    }
-    return arg[0];
-}
-
-
-
-/////////////////////////////////////////////////////////////////////////////
-
-const workerService: IBeamFnExternalWorkerPool = {
-    startWorker(call: grpc.ServerUnaryCall<StartWorkerRequest, StartWorkerResponse>, callback: grpc.sendUnaryData<StartWorkerResponse>): void {
-
-        call.on('error', args => {
-            console.log("unary() got error:", args)
-        })
-
-        console.log(call.request);
-        workers.set(call.request.workerId, new Worker(call.request.workerId, call.request));
-        callback(
-            null,
-            {
-                error: "",
-            },
-        );
-
-    },
-
-
-    stopWorker(call: grpc.ServerUnaryCall<StopWorkerRequest, StopWorkerResponse>, callback: grpc.sendUnaryData<StopWorkerResponse>): void {
-        console.log(call.request);
-
-        workers.get(call.request.workerId)?.stop()
-        workers.delete(call.request.workerId)
-
-        callback(
-            null,
-            {
-                error: "",
-            },
-        );
-    },
-
-}
-
-
-function getServer(): grpc.Server {
-    const server = new grpc.Server();
-    server.addService(beamFnExternalWorkerPoolDefinition, workerService);
-    return server;
-}
-
-
-if (require.main === module) {
-    const server = getServer();
-    server.bindAsync(
-        host,
-        grpc.ServerCredentials.createInsecure(),
-        (err: Error | null, port: number) => {
-            if (err) {
-                console.error(`Server error: ${err.message}`);
-            } else {
-                console.log(`Server bound on port: ${port}`);
-                server.start();
-            }
-        }
-    );
 }
