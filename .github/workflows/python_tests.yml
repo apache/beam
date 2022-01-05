@@ -108,7 +108,8 @@ jobs:
             params: {"py_ver": "3.8", "tox_env": "py38"}
     steps:
       - name: Clean GitHub workspace
-        run: rm -r $GITHUB_WORKSPACE/*
+        if: startsWith(matrix.os, 'self') || startsWith(matrix.os, 'macos')
+        run: if [ -d "$GITHUB_WORKSPACE" ]; then rm -rf $GITHUB_WORKSPACE/* ; fi
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Install python
@@ -155,6 +156,7 @@ jobs:
             python: 3.8
     steps:
       - name: Clean GitHub workspace
+        if: startsWith(matrix.os, 'self') || startsWith(matrix.os, 'macos')
         run: rm -r $GITHUB_WORKSPACE/*
       - name: Checkout code
         uses: actions/checkout@v2
@@ -190,7 +192,8 @@ jobs:
             python: 3.8
     steps:
       - name: Clean GitHub workspace
-        run: rm -r $GITHUB_WORKSPACE/*
+        if: startsWith(matrix.os, 'self') || startsWith(matrix.os, 'macos')
+        run: rm -rf $GITHUB_WORKSPACE/*
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Install python
