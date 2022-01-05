@@ -45,6 +45,15 @@ import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.PRIMITIVE
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.REPEATED_PROTO;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.REPEATED_ROW;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.REPEATED_SCHEMA;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.REVERSED_ONEOF_PROTO_BOOL;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.REVERSED_ONEOF_PROTO_INT32;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.REVERSED_ONEOF_PROTO_PRIMITIVE;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.REVERSED_ONEOF_PROTO_STRING;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.REVERSED_ONEOF_ROW_BOOL;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.REVERSED_ONEOF_ROW_INT32;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.REVERSED_ONEOF_ROW_PRIMITIVE;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.REVERSED_ONEOF_ROW_STRING;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.REVERSED_ONEOF_SCHEMA;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.WKT_MESSAGE_PROTO;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.WKT_MESSAGE_ROW;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.WKT_MESSAGE_SCHEMA;
@@ -65,6 +74,7 @@ import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.OneOf;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.OuterOneOf;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.Primitive;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.RepeatPrimitive;
+import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.ReversedOneOf;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.WktMessage;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
@@ -254,6 +264,49 @@ public class ProtoDynamicMessageSchemaTest {
     assertEquals(ONEOF_PROTO_BOOL.toString(), fromRow.apply(ONEOF_ROW_BOOL).toString());
     assertEquals(ONEOF_PROTO_STRING.toString(), fromRow.apply(ONEOF_ROW_STRING).toString());
     assertEquals(ONEOF_PROTO_PRIMITIVE.toString(), fromRow.apply(ONEOF_ROW_PRIMITIVE).toString());
+  }
+
+  @Test
+  public void testReversedOneOfSchema() {
+    ProtoDynamicMessageSchema schemaProvider = schemaFromDescriptor(ReversedOneOf.getDescriptor());
+    Schema schema = schemaProvider.getSchema();
+    assertEquals(REVERSED_ONEOF_SCHEMA, schema);
+  }
+
+  @Test
+  public void testReversedOneOfProtoToRow() throws InvalidProtocolBufferException {
+    ProtoDynamicMessageSchema schemaProvider = schemaFromDescriptor(ReversedOneOf.getDescriptor());
+    SerializableFunction<DynamicMessage, Row> toRow = schemaProvider.getToRowFunction();
+    // equality doesn't work between dynamic messages and other,
+    // so we compare string representation
+    assertEquals(
+        REVERSED_ONEOF_ROW_INT32.toString(),
+        toRow.apply(toDynamic(REVERSED_ONEOF_PROTO_INT32)).toString());
+    assertEquals(
+        REVERSED_ONEOF_ROW_BOOL.toString(),
+        toRow.apply(toDynamic(REVERSED_ONEOF_PROTO_BOOL)).toString());
+    assertEquals(
+        REVERSED_ONEOF_ROW_STRING.toString(),
+        toRow.apply(toDynamic(REVERSED_ONEOF_PROTO_STRING)).toString());
+    assertEquals(
+        REVERSED_ONEOF_ROW_PRIMITIVE.toString(),
+        toRow.apply(toDynamic(REVERSED_ONEOF_PROTO_PRIMITIVE)).toString());
+  }
+
+  @Test
+  public void testReversedOneOfRowToProto() {
+    ProtoDynamicMessageSchema schemaProvider = schemaFromDescriptor(ReversedOneOf.getDescriptor());
+    SerializableFunction<Row, DynamicMessage> fromRow = schemaProvider.getFromRowFunction();
+    assertEquals(
+        REVERSED_ONEOF_PROTO_INT32.toString(), fromRow.apply(REVERSED_ONEOF_ROW_INT32).toString());
+    assertEquals(
+        REVERSED_ONEOF_PROTO_BOOL.toString(), fromRow.apply(REVERSED_ONEOF_ROW_BOOL).toString());
+    assertEquals(
+        REVERSED_ONEOF_PROTO_STRING.toString(),
+        fromRow.apply(REVERSED_ONEOF_ROW_STRING).toString());
+    assertEquals(
+        REVERSED_ONEOF_PROTO_PRIMITIVE.toString(),
+        fromRow.apply(REVERSED_ONEOF_ROW_PRIMITIVE).toString());
   }
 
   @Test
