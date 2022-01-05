@@ -1,6 +1,6 @@
-const coders = require("../dist/apache_beam/coders/standard_coders");
+import * as coders from '../src/apache_beam/coders/standard_coders';
 
-const assert = require('assert');
+const assertions = require('assert')
 const yaml = require('js-yaml');
 const fs   = require('fs');
 const util = require('util');
@@ -123,7 +123,7 @@ function describeCoder(coder, urn, nested, spec) {
         let examples = 0;
         const parser = get_json_value_parser(spec);
         for (let expected in spec.examples) {
-            value = parser(spec.examples[expected]);
+            var value = parser(spec.examples[expected]);
             examples += 1;
             const expectedEncoded = new TextEncoder().encode(expected)
             coderCase(coder, value, expectedEncoded, examples);
@@ -135,7 +135,7 @@ function coderCase(coder, obj, expectedEncoded, exampleCount) {
     it(util.format("example %d", exampleCount), function() {
         const encoded = coder.encode(obj);
         const decoded = coder.decode(expectedEncoded);
-        assert.deepEqual(expectedEncoded, encoded);
-        assert.deepEqual(obj, decoded);
+        assertions.deepEqual(expectedEncoded, encoded);
+        assertions.deepEqual(obj, decoded);
     });
 }
