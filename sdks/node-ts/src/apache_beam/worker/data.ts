@@ -66,22 +66,35 @@ export class MultiplexingDataChannel {
 
     getSendChannel(bundleId: string, transformId: string): IDataChannel {
         // TODO: Buffer and consilidate send requests?
+        const this_ = this;
         return {
             sendData: function(data: Uint8Array) {
-                this.dataChannel.write({
-                    instructionId: bundleId,
-                    transformId: transformId,
-                    data: data,
+                this_.dataChannel.write({
+                    data: [
+                        {
+                            instructionId: bundleId,
+                            transformId: transformId,
+                            data: data,
+                            isLast: false,
+                        }
+                    ],
+                    timers: [],
                 })
             },
             sendTimers: function(timerFamilyId: string, timers: Uint8Array) {
                 throw Error("Timers not yet supported.");
             },
             close: function() {
-                this.dataChannel.write({
-                    instructionId: bundleId,
-                    transformId: transformId,
-                    isLast: true,
+                this_.dataChannel.write({
+                    data: [
+                        {
+                            instructionId: bundleId,
+                            transformId: transformId,
+                            data: new Uint8Array(),
+                            isLast: true,
+                        }
+                    ],
+                    timers: []
                 })
             }
         };

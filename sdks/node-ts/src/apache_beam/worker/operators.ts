@@ -27,55 +27,38 @@ export interface WindowedValue {
     value: any;
 }
 
-export function createOperator(
-    descriptor: ProcessBundleDescriptor,
-    transformId: string,
-    getReceiver: (string) => Receiver,
-    getDataChannel: (string) => MultiplexingDataChannel,
-    getBundleId: () => string,
-): IOperator {
-    const transform = descriptor.transforms[transformId];
-
-    switch (transform.spec?.urn) {
-
-        case "beam:runner:source:v1":
-            const readPort = RemoteGrpcPort.fromBinary(transform.spec.payload);
-            return new DataSourceOperator(
-                getDataChannel(readPort.apiServiceDescriptor!.url),
-                transformId,
-                getBundleId,
-                getReceiver(onlyElement(Object.values(transform.outputs))));
-
-        case "beam:runner:sink:v1":
-            const writePort = RemoteGrpcPort.fromBinary(transform.spec.payload);
-            return new DataSinkOperator(
-                getDataChannel(writePort.apiServiceDescriptor!.url),
-                transformId,
-                getBundleId);
-
-        case "beam:transform:flatten:v1":
-            return new FlattenOperator(getReceiver(onlyElement(Object.values(transform.outputs))));
-
-        default:
-            console.log("Unknown transform type:", transform.spec?.urn)
-            const receivers = Object.values(transform.outputs).map(getReceiver);
-            const sendAll = function(value: WindowedValue) {
-                receivers.map((receiver: Receiver) => receiver.receive(value));
-            };
-            return {
-                startBundle: function() {
-                    console.log("startBundle", transformId);
-                },
-                process: function(wvalue) {
-                    console.log("forwarding", transformId, wvalue.value);
-                    sendAll(wvalue);
-                },
-                finishBundle: function() {
-                    console.log("finishBundle", transformId);
-                },
-            };
-    }
+export interface OperatorContext {
+    descriptor: ProcessBundleDescriptor;
+    getReceiver: (string) => Receiver;
+    getDataChannel: (string) => MultiplexingDataChannel;
+    getBundleId: () => string;
 }
+
+export function createOperator(
+    transformId: string,
+    context: OperatorContext,
+): IOperator {
+    const transform = context.descriptor.transforms[transformId];
+    let operatorClass = operatorsByUrn.get(transform.spec!.urn!);
+    console.log("Creating:", transform.spec?.urn, operatorClass);
+    if (operatorClass == undefined) {
+        console.log("Unknown transform type:", transform.spec?.urn);
+        operatorClass = PassThroughOperator;
+    }
+    return new operatorClass(transformId, transform, context);
+}
+
+interface OperatorClass {
+    new(transformId: string, transformProto: PTransform, context: OperatorContext): IOperator;
+}
+
+const operatorsByUrn: Map<string, OperatorClass> = new Map();
+
+export function registerOperator(urn: string, cls: OperatorClass) {
+    operatorsByUrn.set(urn, cls);
+}
+
+////////// Actual operator implementation. //////////
 
 class DataSourceOperator implements IOperator {
     transformId: string
@@ -84,11 +67,12 @@ class DataSourceOperator implements IOperator {
     receiver: Receiver;
     done: boolean;
 
-    constructor(multiplexingDataChannel: MultiplexingDataChannel, transformId: string, getBundleId: () => string, receiver: Receiver) {
-        this.multiplexingDataChannel = multiplexingDataChannel;
+    constructor(transformId: string, transform: PTransform, context: OperatorContext) {
+        const readPort = RemoteGrpcPort.fromBinary(transform.spec!.payload);
+        this.multiplexingDataChannel = context.getDataChannel(readPort.apiServiceDescriptor!.url);
         this.transformId = transformId;
-        this.getBundleId = getBundleId;
-        this.receiver = receiver;
+        this.getBundleId = context.getBundleId;
+        this.receiver = context.getReceiver(onlyElement(Object.values(transform.outputs)));
     }
 
     startBundle() {
@@ -115,17 +99,21 @@ class DataSourceOperator implements IOperator {
 
     finishBundle() {
         // TODO: Await this condition.
-//         console.log("Waiting for all data.")
-//         await new Promise((resolve) => {
-//             setTimeout(resolve, 3000);
-//         });
-//         if (!this.done) {
-//             throw Error("Not done!");
-//         }
-//         console.log("Done waiting for all data.")
+        //         console.log("Waiting for all data.")
+        //         await new Promise((resolve) => {
+        //             setTimeout(resolve, 3000);
+        //         });
+        //         if (!this.done) {
+        //             throw Error("Not done!");
+        //         }
+        //         console.log("Done waiting for all data.")
         this.multiplexingDataChannel.unregisterConsumer(this.getBundleId(), this.transformId);
     }
 }
+
+registerOperator("beam:runner:source:v1", DataSourceOperator);
+
+
 
 class DataSinkOperator implements IOperator {
     transformId: string
@@ -133,10 +121,11 @@ class DataSinkOperator implements IOperator {
     multiplexingDataChannel: MultiplexingDataChannel;
     channel: IDataChannel;
 
-    constructor(multiplexingDataChannel: MultiplexingDataChannel, transformId: string, getBundleId: () => string) {
-        this.multiplexingDataChannel = multiplexingDataChannel;
+    constructor(transformId: string, transform: PTransform, context: OperatorContext) {
+        const writePort = RemoteGrpcPort.fromBinary(transform.spec!.payload);
+        this.multiplexingDataChannel = context.getDataChannel(writePort.apiServiceDescriptor!.url);
         this.transformId = transformId;
-        this.getBundleId = getBundleId;
+        this.getBundleId = context.getBundleId;
     }
 
     startBundle() {
@@ -144,6 +133,7 @@ class DataSinkOperator implements IOperator {
     }
 
     process(wvalue: WindowedValue) {
+        // TODO: Encode and buffer.
         this.channel.sendData(wvalue.value);
     }
 
@@ -152,17 +142,52 @@ class DataSinkOperator implements IOperator {
     }
 }
 
+registerOperator("beam:runner:sink:v1", DataSinkOperator);
+
+
 class FlattenOperator implements IOperator {
     receiver: Receiver;
-    constructor(receiver: Receiver) {
-        this.receiver = receiver;
+
+    constructor(transformId: string, transform: PTransform, context: OperatorContext) {
+        this.receiver = context.getReceiver(onlyElement(Object.values(transform.outputs)));
     }
+
     startBundle() { };
+
     process(wvalue: WindowedValue) {
         this.receiver.receive(wvalue);
     }
+
     finishBundle() { }
 }
+
+registerOperator("beam:transform:flatten:v1", FlattenOperator);
+
+
+class PassThroughOperator implements IOperator {
+    transformId: string;
+    transformUrn: string;
+    receivers: Receiver[];
+
+    constructor(transformId: string, transform: PTransform, context: OperatorContext) {
+        this.transformId = transformId;
+        this.transformUrn = transform.spec!.urn;
+        this.receivers = Object.values(transform.outputs).map(context.getReceiver);
+    }
+
+    startBundle() {
+    }
+
+    process(wvalue) {
+        console.log("forwarding", wvalue.value, "for", this.transformId, this.transformUrn);
+        this.receivers.map((receiver: Receiver) => receiver.receive(wvalue));
+    }
+
+    finishBundle() {
+    }
+}
+
+
 
 
 function onlyElement<Type>(arg: Type[]): Type {
