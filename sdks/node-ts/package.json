@@ -8,10 +8,11 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc --build",
-    "clean": "tsc --build --clean",
-    "worker": "node dist/apache_beam/worker/external_worker_service.js",
-    "test": "mocha"
+    "build": "tsc -p .",
+    "clean": "tsc --clean",
+    "worker": "node dist/src/apache_beam/worker/external_worker_service.js",
+    "pretest": "npm run build",
+    "test": "mocha dist/test"
   },
   "dependencies": {
     "@grpc/grpc-js": "^1.4.6",
