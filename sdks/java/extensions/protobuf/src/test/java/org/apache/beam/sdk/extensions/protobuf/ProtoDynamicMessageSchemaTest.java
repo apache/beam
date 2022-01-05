@@ -23,6 +23,9 @@ import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.MAP_PRIMI
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NESTED_PROTO;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NESTED_ROW;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NESTED_SCHEMA;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NONCONTIGUOUS_ONEOF_PROTO;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NONCONTIGUOUS_ONEOF_ROW;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NONCONTIGUOUS_ONEOF_SCHEMA;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NULL_MAP_PRIMITIVE_PROTO;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NULL_MAP_PRIMITIVE_ROW;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NULL_REPEATED_PROTO;
@@ -70,6 +73,7 @@ import com.google.protobuf.TextFormat.ParseException;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.EnumMessage;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.MapPrimitive;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.Nested;
+import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.NonContiguousOneOf;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.OneOf;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.OuterOneOf;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.Primitive;
@@ -307,6 +311,35 @@ public class ProtoDynamicMessageSchemaTest {
     assertEquals(
         REVERSED_ONEOF_PROTO_PRIMITIVE.toString(),
         fromRow.apply(REVERSED_ONEOF_ROW_PRIMITIVE).toString());
+  }
+
+  @Test
+  public void testNonContiguousOneOfSchema() {
+    ProtoDynamicMessageSchema schemaProvider =
+        schemaFromDescriptor(NonContiguousOneOf.getDescriptor());
+    Schema schema = schemaProvider.getSchema();
+    assertEquals(NONCONTIGUOUS_ONEOF_SCHEMA, schema);
+  }
+
+  @Test
+  public void testNonContiguousOneOfProtoToRow() throws InvalidProtocolBufferException {
+    ProtoDynamicMessageSchema schemaProvider =
+        schemaFromDescriptor(NonContiguousOneOf.getDescriptor());
+    SerializableFunction<DynamicMessage, Row> toRow = schemaProvider.getToRowFunction();
+    // equality doesn't work between dynamic messages and other,
+    // so we compare string representation
+    assertEquals(
+        NONCONTIGUOUS_ONEOF_ROW.toString(),
+        toRow.apply(toDynamic(NONCONTIGUOUS_ONEOF_PROTO)).toString());
+  }
+
+  @Test
+  public void testNonContiguousOneOfRowToProto() {
+    ProtoDynamicMessageSchema schemaProvider =
+        schemaFromDescriptor(NonContiguousOneOf.getDescriptor());
+    SerializableFunction<Row, DynamicMessage> fromRow = schemaProvider.getFromRowFunction();
+    assertEquals(
+        NONCONTIGUOUS_ONEOF_PROTO.toString(), fromRow.apply(NONCONTIGUOUS_ONEOF_ROW).toString());
   }
 
   @Test
