@@ -618,7 +618,7 @@ public class RedisIO {
       private final Write spec;
 
       private transient Jedis jedis;
-      private transient Transaction transaction;
+      private transient @Nullable Transaction transaction;
 
       private int batchCount;
 
@@ -752,9 +752,13 @@ public class RedisIO {
 
       @FinishBundle
       public void finishBundle() {
-        if (transaction != null) {
+        if (batchCount > 0) {
           transaction.exec();
         }
+        if (transaction != null) {
+          transaction.close();
+        }
+        transaction = null;
         batchCount = 0;
       }
 
@@ -858,7 +862,7 @@ public class RedisIO {
       private final WriteStreams spec;
 
       private transient Jedis jedis;
-      private transient Transaction transaction;
+      private transient @Nullable Transaction transaction;
 
       private int batchCount;
 
@@ -895,25 +899,25 @@ public class RedisIO {
       private void writeRecord(KV<String, Map<String, String>> record) {
         String key = record.getKey();
         Map<String, String> value = record.getValue();
-        final XAddParams commonParams = new XAddParams().id(StreamEntryID.NEW_ENTRY);
-        final XAddParams params;
+        final XAddParams params = new XAddParams().id(StreamEntryID.NEW_ENTRY);
         if (spec.maxLen() > 0L) {
+          params.maxLen(spec.maxLen());
           if (spec.approximateTrim()) {
-            params = commonParams.maxLen(spec.maxLen()).approximateTrimming();
-          } else {
-            params = commonParams.maxLen(spec.maxLen());
+            params.approximateTrimming();
           }
-        } else {
-          params = commonParams;
         }
         transaction.xadd(key, params, value);
       }
 
       @FinishBundle
       public void finishBundle() {
-        if (transaction != null) {
+        if (batchCount > 0) {
           transaction.exec();
         }
+        if (transaction != null) {
+          transaction.close();
+        }
+        transaction = null;
         batchCount = 0;
       }
 
