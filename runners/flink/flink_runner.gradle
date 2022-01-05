@@ -281,13 +281,12 @@ tasks.register('validatesRunner') {
 // Generates :runners:flink:1.13:runQuickstartJavaFlinkLocal
 createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'FlinkLocal')
 
-task examplesJavaFlinkIntegrationTest(type: Test) {
+task examplesIntegrationTest(type: Test) {
   group = "Verification"
   // Disable gradle cache
   outputs.upToDateWhen { false }
 //  def runnerType = config.streaming ? "streaming" : "batch"
   def pipelineOptionsArray = ["--runner=TestFlinkRunner",
-//                              "--streaming=${config.streaming}",
                               "--parallelism=2",
                               "--tempLocation=${tempLocation}",
                               "--tempRoot=${tempLocation}",
@@ -297,11 +296,10 @@ task examplesJavaFlinkIntegrationTest(type: Test) {
   def pipelineOptions = JsonOutput.toJson(pipelineOptionsArray)
   systemProperty "beamTestPipelineOptions", pipelineOptions
 
-  // The examples/java preCommit task already covers running WordCountIT/WindowedWordCountIT so
-  // this postCommit integration test excludes them.
   include '**/*IT.class'
-  exclude '**/BigQueryTornadoesIT.class'
-  exclude '**/WindowedWordCountIT.class'
+  // TODO (BEAM-12572) Fix integration Tests to run with FlinkRunner
+  exclude '**/BigQueryTornadoesIT.class' // Fails with AssertionError
+  exclude '**/WindowedWordCountIT.class' // Failed with Grpc connection error
   maxParallelForks 4
   classpath = configurations.examplesJavaIntegrationTest
   testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)

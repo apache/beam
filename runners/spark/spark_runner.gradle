@@ -44,6 +44,7 @@ evaluationDependsOn(":runners:core-java")
 
 configurations {
   validatesRunner
+  examplesJavaIntegrationTest
 }
 
 def hadoopVersions = [
@@ -215,7 +216,14 @@ dependencies {
   hadoopVersions.each {kv ->
     "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-common:$kv.value"
   }
+  examplesJavaIntegrationTest project(project.path)
+  examplesJavaIntegrationTest project(":examples:java")
+  examplesJavaIntegrationTest project(path: ":examples:java", configuration: "testRuntimeMigration")
+  examplesJavaIntegrationTest project(":runners:spark:2")
 }
+
+def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+def tempLocation = project.findProperty('tempLocation') ?: 'gs://temp-storage-for-end-to-end-tests'
 
 configurations.testRuntimeClasspath {
   // Testing the Spark runner causes a StackOverflowError if slf4j-jdk14 is on the classpath
@@ -396,6 +404,32 @@ task hadoopVersionsTest(group: "Verification") {
       .map{num -> "hadoopVersion${num}Test"}
       .collect(Collectors.toList())
   dependsOn taskNames
+}
+
+task examplesSparkIntegrationTest(type: Test) {
+  group = "Verification"
+  // Disable gradle cache
+  outputs.upToDateWhen { false }
+  def pipelineOptions = JsonOutput.toJson([
+          "--runner=TestSparkRunner",
+          "--enableSparkMetricSinks=true",
+          "--tempLocation=${tempLocation}",
+          "--tempRoot=${tempLocation}",
+          "--project=${gcpProject}",
+  ])
+  systemProperty "beamTestPipelineOptions", pipelineOptions
+  systemProperty "beam.spark.test.reuseSparkContext", "true"
+  systemProperty "spark.ui.enabled", "false"
+  systemProperty "spark.ui.showConsoleProgress", "false"
+
+  include '**/*IT.class'
+//  exclude '**/BigQueryTornadoesIT.class' // Fails with AssertionError
+//  exclude '**/WindowedWordCountIT.class' // Failed with Grpc connection error
+  maxParallelForks 4
+  classpath = configurations.examplesJavaIntegrationTest
+  testClassesDirs += files(project(":examples:java").sourceSets.test.output.classesDirs)
+  useJUnit { }
+  jvmArgs '-Xmx3g'
 }
 
 hadoopVersions.each {kv ->
