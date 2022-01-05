@@ -22,6 +22,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -49,13 +50,20 @@ func (f *fs) Close() error {
 	return nil
 }
 
-func (f *fs) List(_ context.Context, _ string) ([]string, error) {
+func (f *fs) List(_ context.Context, glob string) ([]string, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
+	pattern, err := regexp.Compile(glob)
+	if err != nil {
+		return nil, err
+	}
+
 	var ret []string
 	for k := range f.m {
-		ret = append(ret, k)
+		if pattern.MatchString(k) {
+			ret = append(ret, k)
+		}
 	}
 	sort.Strings(ret)
 	return ret, nil
@@ -72,7 +80,7 @@ func (f *fs) OpenRead(_ context.Context, filename string) (io.ReadCloser, error)
 }
 
 func (f *fs) OpenWrite(_ context.Context, filename string) (io.WriteCloser, error) {
-	return &commitWriter{key: filename}, nil
+	return &commitWriter{key: filename, instance: f}, nil
 }
 
 func (f *fs) Size(_ context.Context, filename string) (int64, error) {
@@ -117,15 +125,21 @@ var (
 	_ filesystem.Copier  = ((*fs)(nil))
 )
 
-// Write stores the given key and value in the global store.
-func Write(key string, value []byte) {
-	instance.mu.Lock()
-	defer instance.mu.Unlock()
+// Copier copies the old path to the new path.
+func (f *fs) write(key string, value []byte) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 
 	cp := make([]byte, len(value))
 	copy(cp, value)
 
-	instance.m[normalize(key)] = cp
+	f.m[normalize(key)] = cp
+	return nil
+}
+
+// Write stores the given key and value in the global store.
+func Write(key string, value []byte) {
+	instance.write(key, value)
 }
 
 func normalize(key string) string {
@@ -136,8 +150,9 @@ func normalize(key string) string {
 }
 
 type commitWriter struct {
-	key string
-	buf bytes.Buffer
+	key      string
+	buf      bytes.Buffer
+	instance *fs
 }
 
 func (w *commitWriter) Write(p []byte) (n int, err error) {
@@ -145,6 +160,6 @@ func (w *commitWriter) Write(p []byte) (n int, err error) {
 }
 
 func (w *commitWriter) Close() error {
-	Write(w.key, w.buf.Bytes())
+	w.instance.write(w.key, w.buf.Bytes())
 	return nil
 }
