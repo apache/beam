@@ -799,13 +799,11 @@ class BeamModulePlugin implements Plugin<Project> {
 
       project.apply plugin: "java"
 
-      // TODO(BEAM-13430): We create a testRuntimeMigration configuration here
-      // to extend testImplementation and testRuntimeOnly (similar to what
-      // testRuntime did). This allows for the start of the migration to Gradle
-      // 7. We want to remove this and migrate usages onto testImplementation,
-      // testRuntimeOnly or both when declared as a dependency.
+      // We create a testRuntimeMigration configuration here to extend
+      // testImplementation, testRuntimeOnly, and default (similar to what
+      // testRuntime did).
       project.configurations {
-        testRuntimeMigration
+        testRuntimeMigration.extendsFrom(project.configurations.default)
         testRuntimeMigration.extendsFrom(testImplementation)
         testRuntimeMigration.extendsFrom(testRuntimeOnly)
       }
@@ -1278,12 +1276,6 @@ class BeamModulePlugin implements Plugin<Project> {
           exclude "META-INF/*.DSA"
           exclude "META-INF/*.RSA"
         })
-        // TODO(BEAM-13430): Figure out whether the artifact should be part of
-        // testImplementation, testRuntimeOnly, or a new configuration.
-        // Also, should the normal project jar also be part of this
-        // configuration removing the need to declare a dependency on project(X)
-        // and on project(X/testRuntimeConfiguration) and should it mirror what
-        // we are doing with shadowTest or not?
         project.artifacts.testRuntimeMigration project.testJar
       }
 
@@ -1755,7 +1747,6 @@ class BeamModulePlugin implements Plugin<Project> {
         /* include dependencies required by runners */
         //if (runner?.contains('dataflow')) {
         if (runner?.equalsIgnoreCase('dataflow')) {
-          testRuntimeOnly it.project(path: ":runners:google-cloud-dataflow-java")
           testRuntimeOnly it.project(path: ":runners:google-cloud-dataflow-java", configuration: "testRuntimeMigration")
           testRuntimeOnly it.project(path: ":runners:google-cloud-dataflow-java:worker:legacy-worker", configuration: 'shadow')
         }
@@ -1765,12 +1756,10 @@ class BeamModulePlugin implements Plugin<Project> {
         }
 
         if (runner?.equalsIgnoreCase('flink')) {
-          testRuntimeOnly it.project(path: ":runners:flink:${project.ext.latestFlinkVersion}")
           testRuntimeOnly it.project(path: ":runners:flink:${project.ext.latestFlinkVersion}", configuration: "testRuntimeMigration")
         }
 
         if (runner?.equalsIgnoreCase('spark')) {
-          testRuntimeOnly it.project(path: ":runners:spark:2")
           testRuntimeOnly it.project(path: ":runners:spark:2", configuration: "testRuntimeMigration")
           testRuntimeOnly project.library.java.spark_core
           testRuntimeOnly project.library.java.spark_streaming
@@ -1783,14 +1772,12 @@ class BeamModulePlugin implements Plugin<Project> {
 
         /* include dependencies required by filesystems */
         if (filesystem?.equalsIgnoreCase('hdfs')) {
-          testRuntimeOnly it.project(path: ":sdks:java:io:hadoop-file-system")
           testRuntimeOnly it.project(path: ":sdks:java:io:hadoop-file-system", configuration: "testRuntimeMigration")
           testRuntimeOnly project.library.java.hadoop_client
         }
 
         /* include dependencies required by AWS S3 */
         if (filesystem?.equalsIgnoreCase('s3')) {
-          testRuntimeOnly it.project(path: ":sdks:java:io:amazon-web-services")
           testRuntimeOnly it.project(path: ":sdks:java:io:amazon-web-services", configuration: "testRuntimeMigration")
         }
       }

@@ -45,7 +45,6 @@ dependencies {
 
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesRunner project(path: ":runners:core-java", configuration: "testRuntimeMigration")
-  validatesRunner project(project.path)
   validatesRunner project(path: project.path, configuration: "testRuntimeMigration")
 }
 
