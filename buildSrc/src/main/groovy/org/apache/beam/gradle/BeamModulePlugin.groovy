@@ -904,13 +904,6 @@ class BeamModulePlugin implements Plugin<Project> {
         } else {
           skipCheckerFramework = true
         }
-        // TODO(BEAM-13430): Re-enable checkerframework. This currently crashes
-        // when compiling :runners:google-cloud-dataflow-java:compileJava with
-        // java/src/main/java/org/apache/beam/runners/dataflow/util/
-        // DefaultCoderCloudObjectTranslatorRegistrar.java; message: class file
-        // for com.google.api.services.bigquery.model.TableRow not found
-        //  ; The Checker Framework crashed.  Please report the crash.
-        skipCheckerFramework = true
 
         // Always exclude checkerframework on tests. It's slow, and it often
         // raises erroneous error because we don't have checker annotations for
