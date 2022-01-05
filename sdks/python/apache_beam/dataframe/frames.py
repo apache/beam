@@ -1094,6 +1094,11 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 
   @frame_base.with_docs_from(pd.DataFrame)
   def pipe(self, func, *args, **kwargs):
+    if isinstance(func, tuple):
+      func, data = func
+      kwargs[data] = self
+      return func(*args, **kwargs)
+
     return func(self, *args, **kwargs)
 
 
@@ -4079,6 +4084,11 @@ class DeferredGroupBy(frame_base.DeferredFrame):
 
   @frame_base.with_docs_from(DataFrameGroupBy)
   def pipe(self, func, *args, **kwargs):
+    if isinstance(func, tuple):
+      func, data = func
+      kwargs[data] = self
+      return func(*args, **kwargs)
+
     return func(self, *args, **kwargs)
 
   @frame_base.with_docs_from(DataFrameGroupBy)

@@ -1250,31 +1250,24 @@ class DeferredFrameTest(_AbstractFrameTest):
       df[column] = df[column] * times
       return df
 
+    def df_times_shuffled(column, times, df):
+      return df_times(df, column, times)
+
     def s_times(s, times):
       return s * times
 
+    def s_times_shuffled(times, s):
+      return s_times(s, times)
+
     df = pd.DataFrame({'A': [1, 2, 3], 'B': [4, 5, 6]}, index=[0, 1, 2])
     s = pd.Series([1, 2, 3, 4, 5], index=[0, 1, 2, 3, 4])
-    # s2 = pd.Series([6, 7], index=[5, 6])
 
-    func_1 = df_times
-    func_2 = frames.DeferredDataFrame.sum
-    func_3 = frames.DeferredSeries.sum
-    func_4 = s_times
-    # func_5 = frames.DeferredSeries.append
+    self._run_inplace_test(lambda df: df.pipe(df_times, 'A', 2), df)
+    self._run_inplace_test(
+        lambda df: df.pipe((df_times_shuffled, 'df'), 'A', 2), df)
 
-    self._run_inplace_test(lambda df: df.pipe(func_1, 'A', 2), df)
-    self._run_test(lambda df: df.pipe(func_2), df)
-    # type assert fails when axis=1
-    # self._run_test(lambda df: df.pipe(func_2, axis=1), df)
-    self._run_inplace_test(lambda df: df.pipe(func_1, 'A', 2).pipe(func_2), df)
-    self._run_test(lambda df: df.pipe(func_2).pipe(func_3), df)
-
-    self._run_test(lambda s: s.pipe(func_4, 2), s)
-    self._run_test(lambda s: s.pipe(func_3), s)
-    self._run_test(lambda s: s.pipe(func_4, 2).pipe(func_3), s)
-    # Can't append non-deferred series
-    # self._run_test(lambda s: s.pipe(func_5, s2).pipe(func_4, 2), s)
+    self._run_test(lambda s: s.pipe(s_times, 2), s)
+    self._run_test(lambda s: s.pipe((s_times_shuffled, 's'), 2), s)
 
 
 # pandas doesn't support kurtosis on GroupBys:
@@ -1463,14 +1456,14 @@ class GroupByTest(_AbstractFrameTest):
   def test_groupby_pipe(self):
     df = GROUPBY_DF
 
-    func_1 = frames.DeferredDataFrame.sum
-    func_2 = frames.DeferredDataFrame.any
-
-    self._run_test(lambda df: df.groupby('group').pipe(func_1), df)
     self._run_test(lambda df: df.groupby('group').pipe(lambda x: x.sum()), df)
-    self._run_test(lambda df: df.groupby('group')['bool'].pipe(func_2), df)
     self._run_test(
         lambda df: df.groupby('group')['bool'].pipe(lambda x: x.any()), df)
+    self._run_test(
+        lambda df: df.groupby(['group', 'foo']).pipe(
+            (lambda a, x: x.sum(numeric_only=a), 'x'), False),
+        df,
+        check_proxy=False)
 
   def test_groupby_apply_modified_index(self):
     df = GROUPBY_DF
