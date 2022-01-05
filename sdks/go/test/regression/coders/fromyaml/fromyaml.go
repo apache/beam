@@ -48,6 +48,11 @@ var unimplementedCoders = map[string]bool{
 	"beam:coder:custom_window:v1":        true,
 }
 
+var filteredCases = []struct{ filter, reason string }{
+	{"logical", "BEAM-9615: Support logical types"},
+	{"30ea5a25-dcd8-4cdb-abeb-5332d15ab4b9", "BEAM-13043: Support encoding position."},
+}
+
 // Coder is a representation a serialized beam coder.
 type Coder struct {
 	Urn              string  `yaml:"urn,omitempty"`
@@ -83,11 +88,13 @@ func (s *Spec) testStandardCoder() (err error) {
 		log.Printf("skipping unimplemented coder urn: %v", s.Coder.Urn)
 		return nil
 	}
-	// TODO(BEAM-9615): Support Logical types, and produce a better error message.
-	if strings.Contains(s.Coder.Payload, "logical") {
-		log.Printf("skipping coder with logical type. Unsupported in the Go SDK for now. Payload: %v", s.Coder.Payload)
-		return nil
+	for _, c := range filteredCases {
+		if strings.Contains(s.Coder.Payload, c.filter) {
+			log.Printf("skipping coder case. Unsupported in the Go SDK for now: %v Payload: %v", c.reason, s.Coder.Payload)
+			return nil
+		}
 	}
+
 	// Construct the coder proto equivalents.
 
 	// Only nested tests need to be run, since nestedness is a pre-portability

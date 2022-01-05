@@ -56,7 +56,7 @@ func Test_newJavaLifeCycle(t *testing.T) {
 					ExecutableFileFolder: binFileFolder,
 				},
 				Extension: Extension{
-					SourceFileExtension:     javaSourceFileExtension,
+					SourceFileExtension:     JavaSourceFileExtension,
 					ExecutableFileExtension: javaCompiledFileExtension,
 				},
 				ExecutableName: executableName,

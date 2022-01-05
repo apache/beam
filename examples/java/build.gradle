@@ -52,61 +52,60 @@ configurations.sparkRunnerPreCommit {
 }
 
 dependencies {
-  compile enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
-  compile library.java.vendored_guava_26_0_jre
-  compile library.java.kafka_clients
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(":sdks:java:extensions:google-cloud-platform-core")
-  compile project(":sdks:java:io:google-cloud-platform")
-  compile project(":sdks:java:io:kafka")
-  compile project(":sdks:java:extensions:ml")
-  compile library.java.avro
-  compile library.java.bigdataoss_util
-  compile library.java.google_api_client
-  compile library.java.google_api_services_bigquery
-  compile library.java.google_api_services_pubsub
-  compile library.java.google_auth_library_credentials
-  compile library.java.google_auth_library_oauth2_http
-  compile library.java.google_cloud_datastore_v1_proto_client
-  compile library.java.google_code_gson
-  compile library.java.google_http_client
-  compile library.java.google_oauth_client
-  compile library.java.jackson_databind
-  compile library.java.joda_time
-  compile library.java.protobuf_java
-  compile library.java.proto_google_cloud_bigtable_v2
-  compile library.java.proto_google_cloud_datastore_v1
-  compile library.java.slf4j_api
-  provided library.java.commons_io
-  provided library.java.commons_csv
-  runtime project(path: ":runners:direct-java", configuration: "shadow")
-  compile library.java.vendored_grpc_1_36_0
-  compile library.java.vendored_guava_26_0_jre
-  compile "com.google.api.grpc:proto-google-cloud-language-v1:1.81.4"
-  compile ("io.confluent:kafka-avro-serializer:5.3.2") {
+  implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.kafka_clients
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(":sdks:java:extensions:google-cloud-platform-core")
+  implementation project(":sdks:java:io:google-cloud-platform")
+  implementation project(":sdks:java:io:kafka")
+  implementation project(":sdks:java:extensions:ml")
+  implementation library.java.avro
+  implementation library.java.bigdataoss_util
+  implementation library.java.google_api_client
+  implementation library.java.google_api_services_bigquery
+  implementation library.java.google_api_services_pubsub
+  implementation library.java.google_auth_library_credentials
+  implementation library.java.google_auth_library_oauth2_http
+  implementation library.java.google_cloud_datastore_v1_proto_client
+  implementation library.java.google_code_gson
+  implementation library.java.google_http_client
+  implementation library.java.google_oauth_client
+  implementation library.java.jackson_databind
+  implementation library.java.joda_time
+  implementation library.java.protobuf_java
+  implementation library.java.proto_google_cloud_bigtable_v2
+  implementation library.java.proto_google_cloud_datastore_v1
+  implementation library.java.slf4j_api
+  implementation library.java.commons_io
+  implementation library.java.commons_csv
+  runtimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+  implementation library.java.vendored_grpc_1_36_0
+  implementation library.java.vendored_guava_26_0_jre
+  implementation "com.google.api.grpc:proto-google-cloud-language-v1:1.81.4"
+  implementation ("io.confluent:kafka-avro-serializer:5.3.2") {
     // It depends on "spotbugs-annotations:3.1.9" which clashes with current
     // "spotbugs-annotations:3.1.12" used in Beam. Not required.
     exclude group: "org.apache.zookeeper", module: "zookeeper"
   }
-  compile "org.apache.commons:commons-lang3:3.9"
-  compile "org.apache.httpcomponents:httpclient:4.5.13"
-  compile "org.apache.httpcomponents:httpcore:4.4.13"
-  testCompile project(path: ":runners:direct-java", configuration: "shadow")
-  testCompile project(":sdks:java:io:google-cloud-platform")
-  testCompile project(":sdks:java:extensions:ml")
-  testCompile library.java.google_cloud_bigquery
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile library.java.junit
-  testCompile library.java.mockito_core
-  testCompile library.java.testcontainers_kafka
-  testCompile library.java.testcontainers_gcloud
+  implementation "org.apache.commons:commons-lang3:3.9"
+  implementation "org.apache.httpcomponents:httpclient:4.5.13"
+  implementation "org.apache.httpcomponents:httpcore:4.4.13"
+  testImplementation project(path: ":runners:direct-java", configuration: "shadow")
+  testImplementation project(":sdks:java:io:google-cloud-platform")
+  testImplementation project(":sdks:java:extensions:ml")
+  testImplementation library.java.google_cloud_bigquery
+  testImplementation library.java.hamcrest
+  testImplementation library.java.junit
+  testImplementation library.java.mockito_core
+  testImplementation library.java.testcontainers_kafka
+  testImplementation library.java.testcontainers_gcloud
 
   // Add dependencies for the PreCommit configurations
   // For each runner a project level dependency on the examples project.
   for (String runner : preCommitRunners) {
     delegate.add(runner + "PreCommit", project(":examples:java"))
-    delegate.add(runner + "PreCommit", project(path: ":examples:java", configuration: "testRuntime"))
+    delegate.add(runner + "PreCommit", project(path: ":examples:java", configuration: "testRuntimeMigration"))
   }
   directRunnerPreCommit project(path: ":runners:direct-java", configuration: "shadow")
   flinkRunnerPreCommit project(":runners:flink:${project.ext.latestFlinkVersion}")
@@ -157,7 +156,7 @@ task preCommit() {
 }
 
 task execute (type:JavaExec) {
-  main = System.getProperty("mainClass")
+  mainClass = System.getProperty("mainClass")
   classpath = sourceSets.main.runtimeClasspath
   systemProperties System.getProperties()
   args System.getProperty("exec.args", "").split()
@@ -166,7 +165,7 @@ task execute (type:JavaExec) {
 // Run this task to validate the Java environment setup for contributors
 task wordCount(type:JavaExec) {
   description "Run the Java word count example"
-  main = "org.apache.beam.examples.WordCount"
+  mainClass = "org.apache.beam.examples.WordCount"
   classpath = sourceSets.main.runtimeClasspath
   systemProperties = System.getProperties()
   args = ["--output=/tmp/ouput.txt"]

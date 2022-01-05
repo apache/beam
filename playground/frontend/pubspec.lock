@@ -8,6 +8,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "29.0.0"
+  aligned_dialog:
+    dependency: "direct main"
+    description:
+      name: aligned_dialog
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.0.6"
   analyzer:
     dependency: transitive
     description:
@@ -230,6 +237,11 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "1.0.4"
+  flutter_localizations:
+    dependency: "direct main"
+    description: flutter
+    source: sdk
+    version: "0.0.0"
   flutter_svg:
     dependency: "direct main"
     description:
@@ -324,6 +336,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "4.0.0"
+  intl:
+    dependency: "direct main"
+    description:
+      name: intl
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.17.0"
   io:
     dependency: transitive
     description:
@@ -658,6 +677,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "2.0.2"
+  usage:
+    dependency: "direct dev"
+    description:
+      name: usage
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "4.0.2"
   vector_math:
     dependency: transitive
     description:

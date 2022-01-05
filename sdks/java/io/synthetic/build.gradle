@@ -26,16 +26,17 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Synthetic"
 ext.summary = "Generators of Synthetic IO for Testing."
 
 dependencies {
-  compile library.java.joda_time
-  compile library.java.commons_math3
-  compile library.java.jackson_core
-  compile library.java.jackson_annotations
-  compile library.java.jackson_databind
-  compile library.java.slf4j_api
-  compile library.java.vendored_guava_26_0_jre
-  compile project(path: ":sdks:java:core", configuration: "shadow")
+  implementation library.java.joda_time
+  implementation library.java.commons_math3
+  implementation library.java.jackson_core
+  implementation library.java.jackson_annotations
+  implementation library.java.jackson_databind
+  implementation library.java.slf4j_api
+  implementation library.java.vendored_guava_26_0_jre
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
 
-  testCompile library.java.vendored_guava_26_0_jre
-  testCompile library.java.junit
+  testImplementation library.java.vendored_guava_26_0_jre
+  testImplementation library.java.hamcrest
+  testImplementation library.java.junit
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

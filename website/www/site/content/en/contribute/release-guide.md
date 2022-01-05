@@ -233,17 +233,10 @@ If you are not a PMC, please ask for help in dev@ mailing list.
 
 ## 3. Update base image dependencies for Python container images
 
-1. Check the versions specified in sdks/python/container/base_image_requirements_manual.txt` and update them if necessary.
-1. Regenerate full dependency list by running:
-`./gradlew :sdks:python:container:generatePythonRequirementsAll` and commiting
-the changes. Exectution takes about ~5 min per Python version and is somewhat resource-demanding.
-You can also regenerate the dependencies indiviually per version with targets like `./gradlew :sdks:python:container:py38:generatePythonRequirements`.
+See instructions at: https://s.apache.org/beam-python-requirements-generate
 
-
-Ideally, do this at least a week before the release cut, so that any issues
+Ideally, do the update at least a week before the release cut, so that any issues
 related to the update have time to surface.
-You will need Python intepreters for all versions supported by Beam, see:
-https://s.apache.org/beam-python-dev-wiki for tips how to install them.
 
 ## 4. Investigate performance regressions
 
@@ -376,24 +369,8 @@ There are some projects that don't produce the artifacts, e.g. `beam-test-tools`
 To triage the failures and narrow things down you may want to look at `settings.gradle.kts` and run the build only for the projects you're interested at the moment, e.g. `./gradlew :runners:java-fn-execution`.
 
 #### (Alternative) Run release build manually (locally)
-* **Pre-installation for python build**
-  1. Install pip
-
-      ```
-      curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
-      python get-pip.py
-      ```
-  1. Cython
-
-      ```
-      sudo pip install cython
-      sudo apt-get install gcc
-      sudo apt-get install python-dev
-      sudo apt-get install python3-dev
-      sudo apt-get install python3.5-dev
-      sudo apt-get install python3.6-dev
-      sudo apt-get install python3.7-dev
-      ```
+You will need to have Python interpreters for all supported Python minor
+versions to run Python tests. See Python installation tips in [Developer Wiki](https://cwiki.apache.org/confluence/display/BEAM/Python+Tips#PythonTips-InstallingPythoninterpreters).
 
 * **Run gradle release build**
 
@@ -561,10 +538,6 @@ See the source of the script for more details, or to run commands manually in ca
 
 ### Run build_release_candidate.sh to create a release candidate
 
-Before you start, run this command to make sure you'll be using the latest docker images:
-
-      docker system prune -a
-
 * **Script:** [build_release_candidate.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/build_release_candidate.sh)
 
 * **Usage**
@@ -593,12 +566,12 @@ Before you start, run this command to make sure you'll be using the latest docke
           Please note that dependencies for the SDKs with different Python versions vary.
           Need to verify all Python images by replacing `${ver}` with each supported Python version `X.Y`.
           ```
-          docker run -it --entrypoint=/bin/bash apache/beam_python${ver}_sdk:${RELEASE}_rc{RC_NUM}
+          docker run --rm -it --entrypoint=/bin/bash apache/beam_python${ver}_sdk:${RELEASE}_rc{RC_NUM}
           ls -al /opt/apache/beam/third_party_licenses/ | wc -l
           ```
           - For Java SDK images, there should be around 200 dependencies.
           ```
-          docker run -it --entrypoint=/bin/bash apache/beam_java${ver}_sdk:${RELEASE}_rc{RC_NUM}
+          docker run --rm -it --entrypoint=/bin/bash apache/beam_java${ver}_sdk:${RELEASE}_rc{RC_NUM}
           ls -al /opt/apache/beam/third_party_licenses/ | wc -l
           ```
   1. Publish staging artifacts
@@ -789,8 +762,8 @@ Here’s an email template; please adjust as you see fit.
     * all artifacts to be deployed to the Maven Central Repository [4],
     * source code tag "v1.2.3-RC3" [5],
     * website pull request listing the release [6], the blog post [6], and publishing the API reference manual [7].
-    * Java artifacts were built with Maven MAVEN_VERSION and OpenJDK/Oracle JDK JDK_VERSION.
-    * Python artifacts are deployed along with the source release to the dist.apache.org [2] and pypy[8].
+    * Java artifacts were built with Gradle GRADLE_VERSION and OpenJDK/Oracle JDK JDK_VERSION.
+    * Python artifacts are deployed along with the source release to the dist.apache.org [2] and PyPI[8].
     * Validation sheet with a tab for 1.2.3 release to help with validation [9].
     * Docker images published to Docker Hub [10].
 
@@ -945,10 +918,9 @@ _Note_: -Prepourl and -Pver can be found in the RC vote email sent by Release Ma
   * **Setup virtual environment**
 
     ```
-    pip install --upgrade pip
-    pip install --upgrade setuptools
-    python -m venv beam_env
-     . beam_env/bin/activate
+    python3 -m venv beam_env
+    . ./beam_env/bin/activate
+    pip install --upgrade pip setuptools wheel
     ```
   * **Install SDK**
 

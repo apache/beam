@@ -142,7 +142,7 @@ REQUIRED_PACKAGES = [
     'grpcio>=1.29.0,<2',
     'hdfs>=2.1.0,<3.0.0',
     'httplib2>=0.8,<0.20.0',
-    'numpy>=1.14.3,<1.21.0',
+    'numpy>=1.14.3,<1.22.0',
     'pymongo>=3.8.0,<4.0.0',
     'oauth2client>=2.0.1,<5',
     'protobuf>=3.12.2,<4',
@@ -186,7 +186,8 @@ GCP_REQUIREMENTS = [
     # https://github.com/googleapis/google-cloud-python/issues/10566
     'google-auth>=1.18.0,<3',
     'google-cloud-datastore>=1.8.0,<2',
-    'google-cloud-pubsub>=0.39.0,<2',
+    'google-cloud-pubsub>=2.1.0,<3',
+    'google-cloud-pubsublite>=1.2.0,<2',
     # GCP packages required by tests
     'google-cloud-bigquery>=1.6.0,<3',
     'google-cloud-bigquery-storage>=2.6.3',

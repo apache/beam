@@ -17,11 +17,10 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground/constants/assets.dart';
 import 'package:playground/constants/font_weight.dart';
-
-const kFeedbackText = 'Enjoying Playground?';
+import 'package:playground/pages/playground/components/feedback/feedback_dropdown_icon_button.dart';
 
 class PlaygroundFeedback extends StatelessWidget {
   const PlaygroundFeedback({Key? key}) : super(key: key);
@@ -31,21 +30,17 @@ class PlaygroundFeedback extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Text(
-          kFeedbackText,
-          style: TextStyle(fontWeight: kBoldWeight),
+        Text(
+          AppLocalizations.of(context)!.enjoyingPlayground,
+          style: const TextStyle(fontWeight: kBoldWeight),
         ),
-        IconButton(
-          padding: EdgeInsets.zero,
-          // ignore: avoid_print
-          onPressed: () => print('Feedback Up'),
-          icon: SvgPicture.asset(kThumbUpIconAsset),
+        const FeedbackDropdownIconButton(
+          iconAsset: kThumbUpIconAsset,
+          isEnjoying: true,
         ),
-        IconButton(
-          padding: EdgeInsets.zero,
-          // ignore: avoid_print
-          onPressed: () => print('Feedback down'),
-          icon: SvgPicture.asset(kThumbDownIconAsset),
+        const FeedbackDropdownIconButton(
+          iconAsset: kThumbDownIconAsset,
+          isEnjoying: false,
         ),
       ],
     );

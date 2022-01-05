@@ -17,12 +17,9 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground/config/theme.dart';
 import 'package:playground/constants/sizes.dart';
-
-const kPlaceholderText =
-    'Add Pipeline Options here in the format --key1 value1 --key2 value2';
-const kLabelText = 'Pipeline Options:';
 
 class PipelineOptionsTextField extends StatefulWidget {
   final String pipelineOptions;
@@ -33,7 +30,8 @@ class PipelineOptionsTextField extends StatefulWidget {
       : super(key: key);
 
   @override
-  State<PipelineOptionsTextField> createState() => _PipelineOptionsTextFieldState();
+  State<PipelineOptionsTextField> createState() =>
+      _PipelineOptionsTextFieldState();
 }
 
 class _PipelineOptionsTextFieldState extends State<PipelineOptionsTextField> {
@@ -54,6 +52,8 @@ class _PipelineOptionsTextFieldState extends State<PipelineOptionsTextField> {
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations appLocale = AppLocalizations.of(context)!;
+
     return TextField(
       decoration: InputDecoration(
         // it should be prefix props, but text inside prefix disappears without focus
@@ -61,7 +61,7 @@ class _PipelineOptionsTextFieldState extends State<PipelineOptionsTextField> {
           padding:
               const EdgeInsets.fromLTRB(kLgSpacing, kLgSpacing, 0, kLgSpacing),
           child: Text(
-            kLabelText,
+            appLocale.pipelineOptions,
             style: TextStyle(
               fontSize: kLabelFontSize,
               color: ThemeColors.of(context).textColor,
@@ -69,7 +69,7 @@ class _PipelineOptionsTextFieldState extends State<PipelineOptionsTextField> {
           ),
         ),
         border: InputBorder.none,
-        hintText: kPlaceholderText,
+        hintText: appLocale.pipelineOptionsPlaceholder,
         hintStyle: TextStyle(
           fontSize: kHintFontSize,
           color: ThemeColors.of(context).grey1Color,
