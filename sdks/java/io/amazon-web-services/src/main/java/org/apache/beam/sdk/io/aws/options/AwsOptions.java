@@ -26,6 +26,7 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Options used to configure Amazon Web Services specific options such as credentials and region.
@@ -40,8 +41,9 @@ public interface AwsOptions extends PipelineOptions {
   void setAwsRegion(String value);
 
   /** Attempt to load default region. */
-  class AwsRegionFactory implements DefaultValueFactory<String> {
+  class AwsRegionFactory implements DefaultValueFactory<@Nullable String> {
     @Override
+    @Nullable
     public String create(PipelineOptions options) {
       try {
         return new DefaultAwsRegionProviderChain().getRegion();
