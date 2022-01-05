@@ -45,11 +45,9 @@ dependencies {
   implementation project(samzaRunnerProject)
   permitUnusedDeclared project(samzaRunnerProject)
   runtimeOnly group: "org.slf4j", name: "jcl-over-slf4j", version: dependencies.create(project.library.java.slf4j_api).getVersion()
-  validatesPortableRunner project(path: samzaRunnerProject)
   validatesPortableRunner project(path: samzaRunnerProject, configuration: "testRuntimeMigration")
   validatesPortableRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesPortableRunner project(path: ":runners:core-java", configuration: "testRuntimeMigration")
-  validatesPortableRunner project(path: ":runners:portability:java")
   validatesPortableRunner project(path: ":runners:portability:java", configuration: "testRuntimeMigration")
   runtimeOnly library.java.slf4j_simple
 }

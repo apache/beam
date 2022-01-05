@@ -206,7 +206,6 @@ dependencies {
   validatesRunner project(":sdks:java:io:hadoop-format").sourceSets.test.output
   validatesRunner project(path: ":examples:java", configuration: "testRuntimeMigration")
   validatesRunner project(path: project.path, configuration: "testRuntimeMigration")
-  validatesRunner project(project.path)
   validatesRunner project(path: project.path, configuration: "compileClasspath")
   hadoopVersions.each {kv ->
     "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-common:$kv.value"
