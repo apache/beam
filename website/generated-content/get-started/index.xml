@@ -1268,7 +1268,7 @@ url = uri(&amp;#39;http://repo.maven.apache.org/maven2&amp;#39;)
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
 &lt;pre>&lt;code>task execute (type:JavaExec) {
-main = System.getProperty(&amp;#34;mainClass&amp;#34;)
+mainClass = System.getProperty(&amp;#34;mainClass&amp;#34;)
 classpath = sourceSets.main.runtimeClasspath
 systemProperties System.getProperties()
 args System.getProperty(&amp;#34;exec.args&amp;#34;, &amp;#34;&amp;#34;).split()
