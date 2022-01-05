@@ -206,7 +206,7 @@ public interface SdkHarnessOptions extends PipelineOptions {
         throw new IllegalArgumentException(
             "--maxCacheMemoryUsagePercent must be between 0 and 100.");
       }
-      return (int) (maxMemory / 1024 / 1024 * maxPercent / 100.);
+      return (int) (maxMemory / 1048576. * maxPercent / 100.);
     }
   }
 
