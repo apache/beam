@@ -57,11 +57,7 @@ import com.google.protobuf.Int32Value;
 import com.google.rpc.Code;
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.Set;
+import java.util.*;
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.ServiceCallMetric;
@@ -1399,7 +1395,7 @@ public class DatastoreV1 {
     private transient Datastore datastore;
     private final V1DatastoreFactory datastoreFactory;
     // Current batch of mutations to be written.
-    private final List<Mutation> mutations = new ArrayList<>();
+    private final HashSet<Mutation> mutations = new HashSet<>();
     private int mutationsSize = 0; // Accumulated size of protos in mutations.
     private WriteBatcher writeBatcher;
     private transient AdaptiveThrottler adaptiveThrottler;
@@ -1458,6 +1454,11 @@ public class DatastoreV1 {
     public void processElement(ProcessContext c) throws Exception {
       Mutation write = c.element();
       int size = write.getSerializedSize();
+
+      if (!mutations.add(c.element())) {
+        flushBatch();
+      }
+
       if (mutations.size() > 0
           && mutationsSize + size >= DatastoreV1.DATASTORE_BATCH_UPDATE_BYTES_LIMIT) {
         flushBatch();
