@@ -109,7 +109,7 @@ jobs:
     steps:
       - name: Clean GitHub workspace
         if: startsWith(matrix.os, 'self') || startsWith(matrix.os, 'macos')
-        run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE ; fi
+        run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Install python
@@ -157,7 +157,7 @@ jobs:
     steps:
       - name: Clean GitHub workspace
         if: startsWith(matrix.os, 'self') || startsWith(matrix.os, 'macos')
-        run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE ; fi
+        run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
       - name: Clean GitHub workspace Windows
         if: startsWith(matrix.os, 'windows')
         run: echo TODO commands to clean workspace in self-hosted-windows
