@@ -214,6 +214,13 @@ class TransformTest(unittest.TestCase):
 
       assert_that(result, equal_to([('Falcon', 375.), ('Parrot', 25.)]))
 
+  def test_hist(self):
+    from apache_beam.runners.interactive.interactive_runner import InteractiveRunner
+    with beam.Pipeline(InteractiveRunner()) as p:
+      (p | beam.Create([3, 1, 2, 3, 4])
+         | transforms.DataframeTransform(lambda s: s.hist(bins=3)))
+
+
   def test_batching_beam_row_to_dataframe(self):
     with beam.Pipeline() as p:
       df = convert.to_dataframe(

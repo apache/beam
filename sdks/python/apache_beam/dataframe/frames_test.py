@@ -673,6 +673,16 @@ class DeferredFrameTest(_AbstractFrameTest):
                                 r"value_counts\(sort\=True\)"):
       self._run_test(lambda df: df.num_wings.value_counts(sort=True), df)
 
+  def test_value_counts_bins(self):
+    s = pd.Series([3, 1, 2, 3, 4, np.nan])
+    self._run_test(lambda s: s.value_counts(bins=3), s)
+
+  def test_hist(self):
+    s = pd.Series([3, 1, 2, 3, 4, np.nan])
+    s = frame_base.DeferredFrame.wrap(
+      expressions.PlaceholderExpression(s.iloc[:0]))
+    s.hist(bins=3)
+
   def test_series_getitem(self):
     s = pd.Series([x**2 for x in range(10)])
     self._run_test(lambda s: s[...], s)

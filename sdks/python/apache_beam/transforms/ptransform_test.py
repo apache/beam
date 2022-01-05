@@ -100,6 +100,27 @@ class PTransformTest(unittest.TestCase):
         """inputs=('ci',) side_inputs=('cs',)>""",
         str(inputs_tr))
 
+  def test_composite(self):
+
+    @beam.ptransform_fn
+    def Bar(pcoll):
+      return pcoll | beam.Map(lambda n: 2*n)
+
+    @beam.ptransform_fn
+    def Foo(pcoll):
+      p1 = pcoll | beam.Map(lambda n: 3*n)
+      p2 = pcoll | beam.Map(str)
+      bar = p1 | Bar()
+      return {'pc1': p1, 'pc2': p2, 'bar': bar}
+
+      #pc = init | beam.Map(lambda n: 6*n)
+
+
+    with TestPipeline() as p:
+      init = p | 'Init' >> beam.Create(range(5))
+      res = init | Foo()
+      assert_that(res['bar'], equal_to([0, 6, 12, 18, 24]))
+
   def test_do_with_do_fn(self):
     class AddNDoFn(beam.DoFn):
       def process(self, element, addon):

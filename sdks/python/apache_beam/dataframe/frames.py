@@ -98,6 +98,10 @@ def _fillna_alias(method):
       frame_base.args_to_kwargs(pd.DataFrame)(
           frame_base.populate_defaults(pd.DataFrame)(wrapper)))
 
+class AsScalar(object):
+  def __init__(self, value):
+    self.value = value
+
 
 LIFTABLE_AGGREGATIONS = ['all', 'any', 'max', 'min', 'prod', 'sum']
 LIFTABLE_WITH_SUM_AGGREGATIONS = ['size', 'count']
@@ -258,10 +262,6 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
       # to all partitions of self.
       # This is OK, as its index must be the same size as the columns set of
       # self, so cannot be too large.
-      class AsScalar(object):
-        def __init__(self, value):
-          self.value = value
-
       with expressions.allow_non_parallel_operations():
         value_expr = expressions.ComputedExpression(
             'as_scalar',
@@ -1106,6 +1106,22 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     return (
         f'DeferredSeries(name={self.name!r}, dtype={self.dtype}, '
         f'{self._render_indexes()})')
+
+  @frame_base.with_docs_from(pd.Series)
+  @frame_base.args_to_kwargs(pd.Series)
+  @frame_base.populate_defaults(pd.Series)
+  def hist(self, bins):
+    # TODO: Fail fast if not using interactive beam in a notebook
+    import apache_beam.runners.interactive.interactive_beam as ib
+
+    binned_deferred = self.value_counts(bins=bins, sort=False)
+    binned = ib.collect(binned_deferred)
+
+    binned = binned.sort_index()
+    breaks = binned.index.left.append(binned.sort_index().index[-1:].right)
+
+    import matplotlib.pyplot as plt
+    return plt.hist([binned.index.mid], bins=breaks, weights=binned)
 
   @property  # type: ignore
   @frame_base.with_docs_from(pd.Series)
@@ -2186,17 +2202,35 @@ class DeferredSeries(DeferredDataFrameOrSeries):
           reason="order-sensitive")
 
     if bins is not None:
-      return frame_base.DeferredFrame.wrap(
+      stats = self.agg(['max', 'min'])
+      with expressions.allow_non_parallel_operations():
+        side = expressions.ComputedExpression(
+            'stats_as_scalar',
+            lambda s: AsScalar(s),
+            [stats._expr],
+            requires_partition_by=partitionings.Singleton())
+
+      # force dropna if computing bins
+      def assign_hist_bins(s, stats):
+        stats = stats.value
+        binsize = (stats['max'] - stats['min'])/bins
+        binnums = (s - stats['min'])/binsize
+        left = ((s - stats['min'])/binsize).astype(np.int64)*binsize + stats['min']
+        right = ((s - stats['min'])/binsize).astype(np.int64)*binsize + stats['min'] + binsize
+        return pd.Series(pd.IntervalIndex.from_arrays(left, right), index=s.index)
+      bin_assignments = frame_base.DeferredFrame.wrap(
           expressions.ComputedExpression(
-              'value_counts',
-              lambda s: s.value_counts(
-                  normalize=normalize, bins=bins, dropna=dropna)[self._expr],
-              requires_partition_by=partitionings.Singleton(
-                  reason=(
-                      "value_counts with bin specified requires collecting "
-                      "the entire dataset to identify the range.")),
-              preserves_partition_by=partitionings.Singleton(),
-          ))
+              'assign_hist_bins',
+              assign_hist_bins,
+              [self.dropna()._expr, side],
+              proxy=pd.Series(dtype=pd.IntervalDtype(np.float64)),
+              requires_partition_by=partitionings.Arbitrary(),
+              preserves_partition_by=partitionings.Arbitrary()
+          )
+      )
+
+      return bin_assignments.value_counts()
+
 
     if dropna:
       column = self.dropna()
