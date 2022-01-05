@@ -38,6 +38,5 @@ RUN sudo chmod u+x ./entrypoint.sh
 RUN curl -fsSL https://get.docker.com -o get-docker.sh
 RUN sudo sh get-docker.sh
 
-# VOLUME [ "/var/run/docker.sock:/var/run/docker.sock"]
 CMD ["/home/actions/entrypoint.sh"]
 ENTRYPOINT ["/bin/bash"]

@@ -19,7 +19,7 @@ sudo chmod 666 /var/run/docker.sock
 
 registration_url="https://api.github.com/repos/$GITHUB_REPO/beam/actions/runners/registration-token"
 echo "Requesting registration URL at '${registration_url}'"
-
+GITHUB_TOKEN=$(echo $GITHUB_TOKEN) #scaping GITHUB_TOKEN variable
 payload=$(curl -sX POST -H "Authorization: token $GITHUB_TOKEN" ${registration_url})
 RUNNER_TOKEN=$(echo $payload | jq '.token' --raw-output)
 export RUNNER_TOKEN

@@ -107,6 +107,8 @@ jobs:
           - os: windows-latest
             params: {"py_ver": "3.8", "tox_env": "py38"}
     steps:
+      - name: Clean GitHub Workspace
+        run: rm -rf $GITHUB_WORKSPACE/*
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Install python
