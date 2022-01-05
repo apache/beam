@@ -85,6 +85,38 @@ func (f *fs) Size(_ context.Context, filename string) (int64, error) {
 	return -1, os.ErrNotExist
 }
 
+// Remove the named file from the filesystem.
+func (f *fs) Remove(_ context.Context, filename string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	delete(f.m, filename)
+	return nil
+}
+
+// Rename the old path to the new path.
+func (f *fs) Rename(_ context.Context, oldpath, newpath string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.m[newpath] = f.m[oldpath]
+	delete(f.m, oldpath)
+	return nil
+}
+
+// Copier copies the old path to the new path.
+func (f *fs) Copy(_ context.Context, oldpath, newpath string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.m[newpath] = f.m[oldpath]
+	return nil
+}
+
+// Compile time check for interface implementations.
+var (
+	_ filesystem.Remover = ((*fs)(nil))
+	_ filesystem.Renamer = ((*fs)(nil))
+	_ filesystem.Copier  = ((*fs)(nil))
+)
+
 // Write stores the given key and value in the global store.
 func Write(key string, value []byte) {
 	instance.mu.Lock()
