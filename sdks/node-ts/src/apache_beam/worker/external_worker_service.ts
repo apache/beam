@@ -5,68 +5,78 @@ import { beamFnExternalWorkerPoolDefinition, IBeamFnExternalWorkerPool } from ".
 
 import { Worker } from "./worker";
 
-console.log("Starting the worker.");
+class ExternalWorkerPool {
+    host: string;
+    server: grpc.Server;
+    workers: Map<string, Worker> = new Map();
 
-const host = '0.0.0.0:5555';
+    constructor(host: string) {
+        this.host = host;
+    }
 
-const workers = new Map<string, Worker>();
+    start() {
+        console.log("Starting the workers at ", this.host);
+        const this_ = this;
 
+        this.server = new grpc.Server();
 
-const workerService: IBeamFnExternalWorkerPool = {
-    startWorker(call: grpc.ServerUnaryCall<StartWorkerRequest, StartWorkerResponse>, callback: grpc.sendUnaryData<StartWorkerResponse>): void {
+        const workerService: IBeamFnExternalWorkerPool = {
+            startWorker(call: grpc.ServerUnaryCall<StartWorkerRequest, StartWorkerResponse>, callback: grpc.sendUnaryData<StartWorkerResponse>): void {
 
-        call.on('error', args => {
-            console.log("unary() got error:", args)
-        })
+                call.on('error', args => {
+                    console.log("unary() got error:", args)
+                })
 
-        console.log(call.request);
-        workers.set(call.request.workerId, new Worker(call.request.workerId, call.request));
-        callback(
-            null,
-            {
-                error: "",
+                console.log(call.request);
+                this_.workers.set(call.request.workerId, new Worker(call.request.workerId, call.request));
+                callback(
+                    null,
+                    {
+                        error: "",
+                    },
+                );
             },
+
+            stopWorker(call: grpc.ServerUnaryCall<StopWorkerRequest, StopWorkerResponse>, callback: grpc.sendUnaryData<StopWorkerResponse>): void {
+                console.log(call.request);
+
+                this_.workers.get(call.request.workerId)?.stop()
+                this_.workers.delete(call.request.workerId)
+
+                callback(
+                    null,
+                    {
+                        error: "",
+                    },
+                );
+            },
+        }
+
+        this.server.bindAsync(
+            this.host,
+            grpc.ServerCredentials.createInsecure(),
+            (err: Error | null, port: number) => {
+                if (err) {
+                    console.error(`Server error: ${err.message}`);
+                } else {
+                    console.log(`Server bound on port: ${port}`);
+                    this_.server.start();
+                }
+            }
         );
 
-    },
+        this.server.addService(beamFnExternalWorkerPoolDefinition, workerService);
+    }
 
-
-    stopWorker(call: grpc.ServerUnaryCall<StopWorkerRequest, StopWorkerResponse>, callback: grpc.sendUnaryData<StopWorkerResponse>): void {
-        console.log(call.request);
-
-        workers.get(call.request.workerId)?.stop()
-        workers.delete(call.request.workerId)
-
-        callback(
-            null,
-            {
-                error: "",
-            },
-        );
-    },
-
+    stop() {
+        this.server.forceShutdown();
+    }
 }
 
 
-function getServer(): grpc.Server {
-    const server = new grpc.Server();
-    server.addService(beamFnExternalWorkerPoolDefinition, workerService);
-    return server;
-}
+const default_host = '0.0.0.0:5555';
 
 
 if (require.main === module) {
-    const server = getServer();
-    server.bindAsync(
-        host,
-        grpc.ServerCredentials.createInsecure(),
-        (err: Error | null, port: number) => {
-            if (err) {
-                console.error(`Server error: ${err.message}`);
-            } else {
-                console.log(`Server bound on port: ${port}`);
-                server.start();
-            }
-        }
-    );
+    new ExternalWorkerPool(default_host).start();
 }
