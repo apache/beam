@@ -151,8 +151,7 @@ func (f *fs) Remove(ctx context.Context, filename string) error {
 	return obj.Delete(ctx)
 }
 
-// Copy copies from srcpath to the dstpath, and requires both
-// paths to be GCS paths.
+// Copy copies from srcpath to the dstpath.
 func (f *fs) Copy(ctx context.Context, srcpath, dstpath string) error {
 	bucket, src, err := gcsx.ParseObject(srcpath)
 	if err != nil {
