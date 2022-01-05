@@ -3,23 +3,30 @@ import * as grpc from '@grpc/grpc-js';
 import { StartWorkerRequest, StartWorkerResponse, StopWorkerRequest, StopWorkerResponse } from "../proto/beam_fn_api";
 import { beamFnExternalWorkerPoolDefinition, IBeamFnExternalWorkerPool } from "../proto/beam_fn_api.grpc-server";
 
+import {ExampleServiceClient, IExampleServiceClient} from "./service-example.grpc-client";
+
+
 console.log("Starting the worker.");
 
 const host = '0.0.0.0:5555';
 
+const workers = new Map();
+
+class Worker {
+    id: string;
+    endpoints: StartWorkerRequest;
+
+    constructor(id: string, endpoints: StartWorkerRequest) {
+        this.id = id;
+        this.endpoints = endpoints;
+    }
+
+    stop() {
+    }
+}
+
 
 const workerService: IBeamFnExternalWorkerPool = {
-
-    stopWorker(call: grpc.ServerUnaryCall<StopWorkerRequest, StopWorkerResponse>, callback: grpc.sendUnaryData<StopWorkerResponse>): void {
-        console.log(call.request);
-        callback(
-            null,
-            {
-                error: "",
-            },
-        );
-    },
-
     startWorker(call: grpc.ServerUnaryCall<StartWorkerRequest, StartWorkerResponse>, callback: grpc.sendUnaryData<StartWorkerResponse>): void {
 
         call.on('error', args => {
@@ -27,6 +34,7 @@ const workerService: IBeamFnExternalWorkerPool = {
         })
 
         console.log(call.request);
+        workers.set(call.request.workerId, new Worker(call.request.workerId, call.request));
         callback(
             null,
             {
@@ -34,6 +42,21 @@ const workerService: IBeamFnExternalWorkerPool = {
             },
         );
 
+    },
+
+
+    stopWorker(call: grpc.ServerUnaryCall<StopWorkerRequest, StopWorkerResponse>, callback: grpc.sendUnaryData<StopWorkerResponse>): void {
+        console.log(call.request);
+
+        workers.get(call.request.workerId).stop()
+        workers.delete(call.request.workerId)
+
+        callback(
+            null,
+            {
+                error: "",
+            },
+        );
     },
 
 }
