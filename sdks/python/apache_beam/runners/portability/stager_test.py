@@ -690,7 +690,7 @@ class StagerTest(unittest.TestCase):
       for i in range(len(requirements)):
         f.write(requirements[i])
 
-    tmp_req_filename = self.stager.remove_dependency_from_requirements(
+    tmp_req_filename, _ = self.stager._remove_dependency_from_requirements(
         requirements_file=os.path.join(requirements_cache_dir, 'abc.txt'),
         dependency_to_remove='apache_beam',
         temp_directory_path=requirements_cache_dir)
@@ -698,7 +698,7 @@ class StagerTest(unittest.TestCase):
       lines = tf.readlines()
     self.assertEqual(['avro-python3\n', 'fastavro\n', 'numpy\n'], sorted(lines))
 
-    tmp_req_filename = self.stager.remove_dependency_from_requirements(
+    tmp_req_filename, _ = self.stager._remove_dependency_from_requirements(
         requirements_file=os.path.join(requirements_cache_dir, 'abc.txt'),
         dependency_to_remove='fastavro',
         temp_directory_path=requirements_cache_dir)
