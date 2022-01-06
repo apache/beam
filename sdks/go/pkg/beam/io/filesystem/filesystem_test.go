@@ -13,13 +13,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package runners defines the common "--runner" flag.
-// We have a single definition for it to avoid re-definition
-// errors, between it and test packages or other integration
-// harnesses.
-package runners
+package filesystem
 
-import "flag"
+import (
+	"context"
+	"testing"
+)
 
-// Runner is a flag to specify which Beam runner should be used to execute the pipeline.
-var Runner = flag.String("runner", "", "Pipeline runner.")
+func TestFilesystem(t *testing.T) {
+	scheme := "testscheme"
+	path := scheme + "://foo"
+	Register(scheme, func(context.Context) Interface { return newTestImpl() })
+	ValidateScheme(path)
+	fs, err := New(context.Background(), path)
+	if err != nil {
+		t.Errorf("error on New(%q) = %v, want nil", path, err)
+	}
+	if ti, ok := fs.(*testImpl); !ok {
+		t.Errorf("New(%q) = %T, want %T", path, fs, ti)
+	}
+}
