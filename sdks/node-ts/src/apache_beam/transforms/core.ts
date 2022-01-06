@@ -1,11 +1,30 @@
-import { PTransform, PCollection } from "../base";
+import { PTransform, PCollection, Impulse, Root } from "../base";
 import * as translations from '../internal/translations';
 import * as runnerApi from '../proto/beam_runner_api';
 import { BytesCoder, KVCoder } from "../coders/standard_coders";
 
 import { GroupByKey } from '../base'
 
-export class GroupBy extends PTransform {
+export class Create extends PTransform<Root, PCollection> {
+    elements: any[];
+
+    constructor(elements: any[]) {
+        super("Create");
+        this.elements = elements;
+    }
+
+    expand(root: Root) {
+        const this_ = this;
+        // TODO: Store encoded values and conditionally shuffle.
+        return root
+            .apply(new Impulse())
+            .flatMap(function*(_) {
+                yield* this_.elements
+            });
+    }
+}
+
+export class GroupBy extends PTransform<PCollection, PCollection> {
     keyFn: (element: any) => any;
     constructor(key: string | ((element: any) => any)) {
         super();

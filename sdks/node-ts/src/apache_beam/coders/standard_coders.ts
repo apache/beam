@@ -1,3 +1,5 @@
+import * as runnerApi from '../proto/beam_runner_api';
+
 interface Class<T> {
     new(...args: any[]): T;
 }
@@ -28,6 +30,10 @@ export class Coder {
     decode(bytes: Uint8Array): any {
         throw new Error('Not implemented!');
     }
+
+    toProto(pipelineComponents: runnerApi.Components): runnerApi.Coder {
+        throw new Error('Not implemented!');
+    }
 }
 
 export class BytesCoder extends Coder {
@@ -42,6 +48,16 @@ export class BytesCoder extends Coder {
 
     decode(element: Uint8Array): Uint8Array {
         return element;
+    }
+
+    toProto(pipelineComponents: runnerApi.Components): runnerApi.Coder {
+        return {
+            spec: {
+                urn: BytesCoder.URN,
+                payload: new Uint8Array(),
+            },
+            componentCoderIds: [],
+        }
     }
 }
 CODER_REGISTRY.register(BytesCoder.URN, BytesCoder);
