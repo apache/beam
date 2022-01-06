@@ -129,11 +129,11 @@ function coderCase<T>(coder: Coder<T>, obj, expectedEncoded:Uint8Array, context,
     it(util.format("encodes example %d correctly", exampleCount), function() {
         var writer = new Writer();
         coder.encode(obj, writer, context);
-        assertions.deepEqual(expectedEncoded, writer.finish());
+        assertions.deepEqual(writer.finish(), expectedEncoded);
     });
 
     it(util.format("decodes example %d correctly", exampleCount), function() {
         const decoded = coder.decode(new Reader(expectedEncoded), context);
-        assertions.deepEqual(obj, decoded);
+        assertions.deepEqual(decoded, obj);
     });
 }
