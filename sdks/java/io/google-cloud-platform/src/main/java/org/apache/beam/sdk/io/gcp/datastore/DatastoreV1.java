@@ -1566,6 +1566,7 @@ public class DatastoreV1 {
       }
       LOG.debug("Successfully wrote {} mutations", mutations.size());
       mutations.clear();
+      uniqueMutations.clear();
       mutationsSize = 0;
     }
 
