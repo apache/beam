@@ -1,9 +1,9 @@
 import * as coders from '../src/apache_beam/coders/standard_coders';
 
-const assertions = require('assert')
-const yaml = require('js-yaml');
-const fs   = require('fs');
-const util = require('util');
+import assertions = require('assert')
+import yaml = require('js-yaml');
+import fs   = require('fs');
+import util = require('util');
 
 const STANDARD_CODERS_FILE = '../../model/fn-execution/src/main/resources/org/apache/beam/model/fnexecution/v1/standard_coders.yaml';
 
