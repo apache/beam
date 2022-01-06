@@ -1,0 +1,232 @@
+{
+  "components": {
+    "coders": {
+      "ref_Coder_BytesCoder_1": {
+        "spec": {
+          "urn": "beam:coder:bytes:v1"
+        }
+      },
+      "ref_Coder_FastPrimitivesCoder_4": {
+        "spec": {
+          "payload": "CpQBRmFzdFByaW1pdGl2ZXNDb2RlciRlTnByWUptYXhnQUJQWktKQlluSkdhbnhTYW1KdVhySitTbXBSY1ZRYWtxUHNGdGljVWxBVVdadVprbG1XV3F4TTBoNHl1UXBtbzFUYXFmMDhNZW5KZWJrSkNVbVo4ZUQxVS9KWU9qaERzaE16czVKUlZHWVZKeWtCd0RPVUNxWQ==",
+          "urn": "beam:coder:pickled_python:v1"
+        }
+      },
+      "ref_Coder_GlobalWindowCoder_2": {
+        "spec": {
+          "urn": "beam:coder:global_window:v1"
+        }
+      },
+      "ref_Coder_VarIntCoder_3": {
+        "spec": {
+          "urn": "beam:coder:varint:v1"
+        }
+      }
+    },
+    "environments": {
+      "ref_Environment_default_environment_1": {
+        "urn": "beam:env:embedded_python:v1"
+      }
+    },
+    "pcollections": {
+      "ref_PCollection_PCollection_1": {
+        "coderId": "ref_Coder_BytesCoder_1",
+        "isBounded": "BOUNDED",
+        "uniqueName": "14Create/Impulse.None",
+        "windowingStrategyId": "ref_Windowing_Windowing_1"
+      },
+      "ref_PCollection_PCollection_2": {
+        "coderId": "ref_Coder_BytesCoder_1",
+        "isBounded": "BOUNDED",
+        "uniqueName": "40Create/FlatMap(<lambda at core.py:3228>).None",
+        "windowingStrategyId": "ref_Windowing_Windowing_1"
+      },
+      "ref_PCollection_PCollection_3": {
+        "coderId": "ref_Coder_VarIntCoder_3",
+        "isBounded": "BOUNDED",
+        "uniqueName": "18Create/Map(decode).None",
+        "windowingStrategyId": "ref_Windowing_Windowing_1"
+      },
+      "ref_PCollection_PCollection_4": {
+        "coderId": "ref_Coder_VarIntCoder_3",
+        "isBounded": "BOUNDED",
+        "uniqueName": "26Map(<lambda at foo.py:77>).None",
+        "windowingStrategyId": "ref_Windowing_Windowing_1"
+      },
+      "ref_PCollection_PCollection_5": {
+        "coderId": "ref_Coder_FastPrimitivesCoder_4",
+        "isBounded": "BOUNDED",
+        "uniqueName": "10Map(error).None",
+        "windowingStrategyId": "ref_Windowing_Windowing_1"
+      }
+    },
+    "transforms": {
+      "ref_AppliedPTransform_AppliedPTransform_1": {
+        "environmentId": "ref_Environment_default_environment_1",
+        "subtransforms": [
+          "ref_AppliedPTransform_Create_2",
+          "ref_AppliedPTransform_Map-lambda-at-foo-py-77-_7",
+          "ref_AppliedPTransform_Map-error-_8"
+        ],
+        "uniqueName": "ref_AppliedPTransform_AppliedPTransform_1"
+      },
+      "ref_AppliedPTransform_Create-FlatMap-lambda-at-core-py-3228-_4": {
+        "displayData": [
+          {
+            "payload": "ChJUcmFuc2Zvcm0gRnVuY3Rpb24SL2FwYWNoZV9iZWFtLnRyYW5zZm9ybXMuY29yZS5DYWxsYWJsZVdyYXBwZXJEb0ZuMgJmbjohYXBhY2hlX2JlYW0udHJhbnNmb3Jtcy5jb3JlLlBhckRv",
+            "urn": "beam:display_data:labelled:v1"
+          },
+          {
+            "payload": "ChJUcmFuc2Zvcm0gRnVuY3Rpb24SCDxsYW1iZGE+MgJmbjovYXBhY2hlX2JlYW0udHJhbnNmb3Jtcy5jb3JlLkNhbGxhYmxlV3JhcHBlckRvRm4=",
+            "urn": "beam:display_data:labelled:v1"
+          }
+        ],
+        "environmentId": "ref_Environment_default_environment_1",
+        "inputs": {
+          "None": "ref_PCollection_PCollection_1"
+        },
+        "outputs": {
+          "None": "ref_PCollection_PCollection_2"
+        },
+        "spec": {
+          "payload": "Cq0FCiBiZWFtOmRvZm46cGlja2xlZF9weXRob25faW5mbzp2MRqIBVFscG9PVEZCV1NaVFdUaktESDBBQVAzLzRIMzllQWhBWThBVmpXdWVnci92MzdKanhBNEVNQUdaYmJNaEUwUVRhUVBVYU5wRFFBR1FBQU5BMEFBR3BwcG9taW5xZm9STkducEhxTnFQU2FBQUFBOVEwMEI2ZzAxRXlOVDBDamFKNVFOSHFBR2dEUXhOR1EweE5EUlJTc2ZkN20zd0lFMHhYNGxMTE15NGtCQVRVVVNJckkvZ0l5bVIvdU1Ic0dUWDhlT0ZwQkVZcHdxM09KNDRBMmJKTnZVMU9LZzRYVGVEek9zZUJDQXVuUEZ2Z0tyYkFJaEJVQWwyM29NTmhWYTRMNzV6T0ZEZURqSmEwSkhZWHVqSkFiWmpISnk0alJxcVRtaG16REtZZjBybjNhak0xYURkWkZYNkFqU2hFNTJFckdzMXRpbWpuUzBJREdnYWpZTTlDc3BqRUs3Y0F6RGpWWWtVWjNBcDVXMndqcTVTa2cyRmprbW5hWWFFUVFwUHJyTmh3bUdhT2Y4WU53cGpKb3RpWXFFRlVYQVNFTTVCaU56QWdKUXpwYmE5NHkxYVQ3Mm9yeStKUXlqaW1WOGlzbUVCZWxTdUxKVmswOEtDQmlkUlBSWURwVE1FNFNFWGJneHhXNTRESEhIZlc4a1l1Qk1zaFU2VWJUVmhsRXJoWVJncmZjaEtjbnliTWNsYnRzU1ZDcDY4NUFKZ0Z4NlN5cWxOckNvQVpXWFZocEFyQkFKQklKV1VBMGFOV245VVo4SDE5dWRDbUs1OXdXREJ5ZWhQRzJSRUxvT1pnU25aSmpSV3NXUnVKaFRvd3E2SkpwWGhHQ1VxYnY4WGNrVTRVSkE0eWd4OQ==",
+          "urn": "beam:transform:pardo:v1"
+        },
+        "uniqueName": "Create/FlatMap(<lambda at core.py:3228>)"
+      },
+      "ref_AppliedPTransform_Create-Impulse_3": {
+        "outputs": {
+          "None": "ref_PCollection_PCollection_1"
+        },
+        "spec": {
+          "urn": "beam:transform:impulse:v1"
+        },
+        "uniqueName": "Create/Impulse"
+      },
+      "ref_AppliedPTransform_Create-Map-decode-_6": {
+        "displayData": [
+          {
+            "payload": "ChJUcmFuc2Zvcm0gRnVuY3Rpb24SL2FwYWNoZV9iZWFtLnRyYW5zZm9ybXMuY29yZS5DYWxsYWJsZVdyYXBwZXJEb0ZuMgJmbjohYXBhY2hlX2JlYW0udHJhbnNmb3Jtcy5jb3JlLlBhckRv",
+            "urn": "beam:display_data:labelled:v1"
+          },
+          {
+            "payload": "ChJUcmFuc2Zvcm0gRnVuY3Rpb24SBmRlY29kZTICZm46L2FwYWNoZV9iZWFtLnRyYW5zZm9ybXMuY29yZS5DYWxsYWJsZVdyYXBwZXJEb0Zu",
+            "urn": "beam:display_data:labelled:v1"
+          }
+        ],
+        "environmentId": "ref_Environment_default_environment_1",
+        "inputs": {
+          "None": "ref_PCollection_PCollection_2"
+        },
+        "outputs": {
+          "None": "ref_PCollection_PCollection_3"
+        },
+        "spec": {
+          "payload": "CrkHCiBiZWFtOmRvZm46cGlja2xlZF9weXRob25faW5mbzp2MRqUB1FscG9PVEZCV1NaVFdaRnBjeTRBQVlwLytuMy9XQ2xKWTRCRkQydS9rci8vMytacnhBNEFZQUFBSUFnQVFBSXVqTnRsYnVHcDZSRFNub0NhWk5xZWlHbUpvYUFHbW5xTkhxTkFERTB5QnBvTkVtYUNtcHNSNm9hTkdnWkQxQXlBQUEwQUFBQUlxZmtwdFJvQUFBQUdtZ0FBQUFBQUFQVUNWUFVFbWllVFNhTkJwcHBvRFFHZ2FBTkFBR1EwQUJaVXV5Qmx3WHQrd1Y1czJkb2tabC9IWG41YlZPSm5Xc2ZQY2dtS0JVU29CNXJRRW1vZ21PWGYxRkVYaGVpWWZ0aFZrWXFOVk04aTdlbmhnTkllY2xUMEU4WWcrMGtFQXFuVUozcllyNzBNS096bzZNRU5IY1pCRHJDNFNWckZwKzNGY1BnVXZoQ2NhSUw4S0FBUUJPK2ZobGRZb0VNWFdnRk9tOFhRcmw1cnVDVERUZGVqTC9ScUl1VWcwWUR1NDFDdFphb0JsdXVMM1ZKRUdlMHRyNm9nNU5jeURNTFVrQWdMNFZRVjNJbXVWVVJDRmUxQUdoS1U1cEw4MEpUblVLdlBVQUhXVGRxaDdEdUNPRFp4ckRDREFzNnBBSVVuVTBla2xpUlV0djE2RnNKZ09BaWhPZ2NUTDBIRUptcCtGdEtnSWZyMUIxZWprVnBDdVc3VFFhdTFETDhhUkNrb1ZaaTFVb0NMTEJZREdXM1p1dU1WUmhxdERSQ0l5eVhxemRPMHhGejFNYUVJZ3RZZ0V0aGFuTUN6SkFlMFlISUROZmpQblN5aUp4dldDQm9zdUtjdEFnelV2a3c1OFZ1bXc5elJFOU1La3IxRFBqczJDMFl4Vm5SRko1TXlvMkFvSUl5WnNZeENIcEtLUnpSdktOSnhkNUNpWmhQTVdGWjRXaTFUU0dvTHJoVWFDZUpKQlphNUNiR2FXVUlTREx3Qmt1TXRDK0lza3BuUjVKSlZLdVU0MXZWb0lVY1FjL0RGSXlWVXBpSnowRFVHSjlMNVVMcnljWlVHbFF0T0ZCN3VmQzJFRWsxbUlBckovZllqL1ZnMHZKenFDNmlMa0wwR0lTSXdFWVJNZGdtRXNTRUZSVkZSSWdRbjlKSnFCemhhL2FhYVVnSHhyUVpTYzlDem5jcGl6b25qVXFQZUprYWFqdXRLNS9jMytMdVNLY0tFaEl0TG1YQT0=",
+          "urn": "beam:transform:pardo:v1"
+        },
+        "uniqueName": "Create/Map(decode)"
+      },
+      "ref_AppliedPTransform_Create-MaybeReshuffle_5": {
+        "environmentId": "ref_Environment_default_environment_1",
+        "inputs": {
+          "None": "ref_PCollection_PCollection_2",
+          "__implicit_input_None": "ref_PCollection_PCollection_2"
+        },
+        "outputs": {
+          "None": "ref_PCollection_PCollection_2"
+        },
+        "spec": {
+          "payload": "UWxwb09URkJXU1pUV1J6UjJIRUFBVzkvNEgvLytJaGhZNElBR0d2ZWdyL3YzL1pyNUI0QVFBSU9oYXFsRFJSdEVFOGtnOUl5YVlRUFV3bWpUUVBVMDAwWkJwNlFBQnFhYVVudFRlbEd5bnFtMG5wTkROUUhwTkFBYU5BQUFBQnhrYVpNVFFaTW1FMHlCa05BYUEweWFHQUUwQmhwcEJHZ1VlUWdlcG9BQURRMEFBQURKb01qNWlBOU84TGVLOThIRG1YT0NWU21LV3Exbm81dVI5enFHQmVWY0s2c1RHZlNkendxRjVRbEpDT0lBUDZxSTVoQ3BHb1VEMEdGQURWN0o0U1ZBTTc2cCtWTlNHREZMWDVHaXRlU3k3Z3NReXp4N2lraHVXMXVnZm5mS2UxZGtVQ0p6Ulh4NDF6anJnRHBjRGVQUFh2eG1ZS3ZMaWV6ZGhwVU1WcG1wRW5NL2FVRlgzelVCYzBFTkdpaUFpdWhHZ3NlUThsbGdHQmROMDFHay9aUUVPZDZqVzNjcjFKRUlhc2tPMmdGU1VYcitmREhFMktLeWUrYUlJNUpObXhZd2tOb0pNOEZrVEFHZS9QRlJIRkl4RmQ2d0prdHdGOGVWeGdsaUlVa3ZTK2t3U3kwM0xjT1hoVkNxd29za1ZDaG9naXBweUlUTXJZTVIwSzhwempTaWNqRWNjNmwzSDRMbWdSdHNNYzFaRW5hZ0R3MmNKR3lpVnp5UWhDUWZDT2kxbWpJc3dtWWxkNndFWkYwZDZDaDc2MnVvQzIvVVRUenpxOGFMc2loNm5LVTRIRG5ISVFBUmF3VFJPU25kbk5mTkw4WDZRajBtTW9JZ1dzV25HVjBBdG9Dd0daVDZYQnNhWTFDQndHVUw5aXkwaEFoTDdWVkNaOUtzVGhmZkYxb1RHaksxdTFtbUFSS1NBMDdZMWQrVkJQWlkzRTdDYU9sUUV3RTNaV0FWbEFTRkJGeFpXVmtNSUJVcVNnNWlBUHU2M0VNQXd0cWtWdGVoaHJ4R0FZaWxnTG04Y1lwM2JHRmlBcTduL3hwWFhkV1FsYWRWbVZqSlJoa2hCZXFralNKa2RwWnNnU3crZVdSaEttT0phRFgvaTdraW5DaElEbWpzT0k9",
+          "urn": "beam:transform:pickled_python:v1"
+        },
+        "uniqueName": "Create/MaybeReshuffle"
+      },
+      "ref_AppliedPTransform_Create_2": {
+        "environmentId": "ref_Environment_default_environment_1",
+        "outputs": {
+          "None": "ref_PCollection_PCollection_3"
+        },
+        "spec": {
+          "payload": "UWxwb09URkJXU1pUV1pTZ0VRc0FBREYzNEgwSUFDZ0FZUWdnQVFLL1E5d0NZS1FPQUNBQWNqR2pRYU1JeEdqUTB5WWFnbEVucWoxTkdtbnBOR0NaTnRVR2pSVTVwUVFXZndOa3ppTGZKaDYzazJZNG8xdmJCdCtRdmd4UjBtU09XcVJoSzNVNGpMNW9NbG15UmFvNkorcHc5UVhoWldybGxMR3p3SWhWQ05BREczTGtXb2ZpN2tpbkNoSVNsQUloWUE9PQ==",
+          "urn": "beam:transform:pickled_python:v1"
+        },
+        "subtransforms": [
+          "ref_AppliedPTransform_Create-Impulse_3",
+          "ref_AppliedPTransform_Create-FlatMap-lambda-at-core-py-3228-_4",
+          "ref_AppliedPTransform_Create-MaybeReshuffle_5",
+          "ref_AppliedPTransform_Create-Map-decode-_6"
+        ],
+        "uniqueName": "Create"
+      },
+      "ref_AppliedPTransform_Map-error-_8": {
+        "displayData": [
+          {
+            "payload": "ChJUcmFuc2Zvcm0gRnVuY3Rpb24SL2FwYWNoZV9iZWFtLnRyYW5zZm9ybXMuY29yZS5DYWxsYWJsZVdyYXBwZXJEb0ZuMgJmbjohYXBhY2hlX2JlYW0udHJhbnNmb3Jtcy5jb3JlLlBhckRv",
+            "urn": "beam:display_data:labelled:v1"
+          },
+          {
+            "payload": "ChJUcmFuc2Zvcm0gRnVuY3Rpb24SBWVycm9yMgJmbjovYXBhY2hlX2JlYW0udHJhbnNmb3Jtcy5jb3JlLkNhbGxhYmxlV3JhcHBlckRvRm4=",
+            "urn": "beam:display_data:labelled:v1"
+          }
+        ],
+        "environmentId": "ref_Environment_default_environment_1",
+        "inputs": {
+          "None": "ref_PCollection_PCollection_4"
+        },
+        "outputs": {
+          "None": "ref_PCollection_PCollection_5"
+        },
+        "spec": {
+          "payload": "CskFCiBiZWFtOmRvZm46cGlja2xlZF9weXRob25faW5mbzp2MRqkBVFscG9PVEZCV1NaVFdiK25hcElBQVFyLzRILzlXQWpBWjVBRkxXdWVnci92M3VaanhVNEJNQUdhYmJha05VOUtHVFRRMEdocG8wMEFBQTAwQm9hR1JvQUEwVFRRVXhESWd5REVhYVpBQU5BQWVvUFVBYUNWUFVGSHBUYVR5bWhoTkFOQU1tZ0RReUFBTk1oNmpVeTRlbVBCZHVRd1pNblhKbHFQb2ZFY1kxaFJWWUlHRXFJTCtDZURXRTl3NWh6a0QxSEhYVUR5QkNJR09KbUx0eUVtOG5acDBNQlZRb014TmdpZk1HeUJ3aDBOMFhRQ1dSRWwrUVVJREZreXZhdWFoNkRKTk5KUUlwaGRTSzArY3ZlaG5CdU8rTXZQY1NSMVdXSmFUckQzWUJ0SUszV3l6dDZzcld0SkhhYWxWYUMwdnN4aEMwcjhZVnJOcXZmWlhIcVZoU1k2a3RCYTZ3eTAzdk93VWFqVmVtNWxJSTRFM0ppS3BBSzN4aXZHQTRPR2xIVDR5cXFSQ3BCWVR0SVVRN0JnSW90TEJrbDR5ODZxako1N3FRRGlKcVNpNmtHa29NRHNCbXROTVlqZHdwbnh0M0N0KzB3YmFrNUoyWXphRkJCbnpRMFpMbXJ2MkxVQ2R4V1lwQVFVNnM4UjRsRWxTNmxmVk1Md2pDaDdRMVZaTWF6aGxjcU5GeUJhSm9pc1NpOUpxUE10anpQQ1M3RWJaTFpMTmgyOTh0QktCZGZkbFpQTTJaRkpBZFQyM2tNZ2cyUkR2ZHJrSkpPUkpRMWprSDFSbFAxcXpza0lXNTlLblJHaG81cWRtU0dMRmdZZ3pQL2x4d2RYMTR2RDJXTXowS0dRME54dFE4a2s0Y0dJY3A5MS8vRjNKRk9GQ1F2NmRxa2c=",
+          "urn": "beam:transform:pardo:v1"
+        },
+        "uniqueName": "Map(error)"
+      },
+      "ref_AppliedPTransform_Map-lambda-at-foo-py-77-_7": {
+        "displayData": [
+          {
+            "payload": "ChJUcmFuc2Zvcm0gRnVuY3Rpb24SL2FwYWNoZV9iZWFtLnRyYW5zZm9ybXMuY29yZS5DYWxsYWJsZVdyYXBwZXJEb0ZuMgJmbjohYXBhY2hlX2JlYW0udHJhbnNmb3Jtcy5jb3JlLlBhckRv",
+            "urn": "beam:display_data:labelled:v1"
+          },
+          {
+            "payload": "ChJUcmFuc2Zvcm0gRnVuY3Rpb24SCDxsYW1iZGE+MgJmbjovYXBhY2hlX2JlYW0udHJhbnNmb3Jtcy5jb3JlLkNhbGxhYmxlV3JhcHBlckRvRm4=",
+            "urn": "beam:display_data:labelled:v1"
+          }
+        ],
+        "environmentId": "ref_Environment_default_environment_1",
+        "inputs": {
+          "None": "ref_PCollection_PCollection_3"
+        },
+        "outputs": {
+          "None": "ref_PCollection_PCollection_4"
+        },
+        "spec": {
+          "payload": "CpEGCiBiZWFtOmRvZm46cGlja2xlZF9weXRob25faW5mbzp2MRrsBVFscG9PVEZCV1NaVFdkTHErVmNBQVNaLzVIMy9YQWhBWTRBbERXdWVnci92M3VacnhBNEFBQVJBQWR4ZHVnMkthbzlUSmt3Z0JvQm94TkRRMFlqSTBCaU1JMERWUFFvTnFNZ0E5VFRJQUFaQUFBQUFBaUJxYW5xTWpRQTBhREkwQUFBQUEwQTBDVTBrMDFNaGtubEo3U1RUME5OUXhxYlVhRFE5VFJvOG8ycHBvZW9kTnM1UXRmd1hYMEdhY092OC92L1g0a0R2MU9Vc0lTQ2hlNUNkMmFDRXAwN1NUbTdoVnlMTEh6cHRuYjl6WjI2eWU3NmJObDdlSk9JY3JYMXpVYUNOZFVxdlBtTGpTSWN4MHEzZ1hyRk5xWkszdWVadFNZYW1uTFQySXVDQythTk1XQVhpN3NpdUFZTXNHZDdST0pySlJiUU5uVTZoRHFBb0NBdkVQTXZyTUlBeW5nMGFXanJySkkwaUtMN29NSEJXczBhOFp1c3djUklkTkVTUHlRRlptRW1XUmMwbzJYWlBGMHRqSmxnWW5hRTYzMXhxL1BDQjhCU3BkYTZ0SzZxUnpRV3VZa0tGKzBaWTJJMDBtTnZCd0lFbFpwbFNtU0ZJSVE0dlhPMkliUjBwbkRjc3VITGtxZytMRTVJaXhCQ2hTY2JrSk9SRUdvU2pyV3VpZzBaOStpaXk1dVh1bUpyUFRpYnZQTUtaQmJoajViM1B4YzVqNElsY0RlWlVDQ1dHVUJTTDZYWmp6WHR0UnlGRkZ0NkVabnFVMWc5YlcrTW5nUnR3MEZMUk9TL3hTVGMvTUlzTUdZdmNKZ3lHUitqYTRKVE5xMHErMkN1cWFFeVE2OTZBNll2cFRUb000aUNIUWtrNllOdTd3UDRPcStxTWNKZFB1a1FBWWhqZ1ZLaWc2Wnc5TkJpUUoralhFSUhIRkpJbGxTQWlMd3lyRmppZ3J6RVZlQ0RvSmd2djcrTHVTS2NLRWhwZFh5cmc=",
+          "urn": "beam:transform:pardo:v1"
+        },
+        "uniqueName": "Map(<lambda at foo.py:77>)"
+      }
+    },
+    "windowingStrategies": {
+      "ref_Windowing_Windowing_1": {
+        "accumulationMode": "DISCARDING",
+        "closingBehavior": "EMIT_ALWAYS",
+        "environmentId": "ref_Environment_default_environment_1",
+        "mergeStatus": "NON_MERGING",
+        "onTimeBehavior": "FIRE_ALWAYS",
+        "outputTime": "END_OF_WINDOW",
+        "trigger": {
+          "default": {}
+        },
+        "windowCoderId": "ref_Coder_GlobalWindowCoder_2",
+        "windowFn": {
+          "urn": "beam:window_fn:global_windows:v1"
+        }
+      }
+    }
+  },
+  "rootTransformIds": [
+    "ref_AppliedPTransform_AppliedPTransform_1"
+  ]
+}
