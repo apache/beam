@@ -68,12 +68,12 @@ export class Pipeline extends PValue {
     proto: runnerApi.Pipeline;
 
     // A map of coder ID to Coder object
-    coders: {[key: string]: Coder} = {}
+    coders: { [key: string]: Coder } = {}
 
     constructor() {
         super("root");
         this.proto = runnerApi.Pipeline.create(
-            {'components': runnerApi.Components.create()}
+            { 'components': runnerApi.Components.create() }
         );
         this.pipeline = this;
     }
@@ -130,7 +130,7 @@ export class Impulse extends PTransform {
 
         const pcollName = pcollectionName();
 
-        const coderId = translations.registerPipelineCoder(runnerApi.Coder.create({'spec': runnerApi.FunctionSpec.create({'urn': BytesCoder.URN})}), pipeline.proto.components!);
+        const coderId = translations.registerPipelineCoder(runnerApi.Coder.create({ 'spec': runnerApi.FunctionSpec.create({ 'urn': BytesCoder.URN }) }), pipeline.proto.components!);
         pipeline.coders[coderId] = new BytesCoder();
 
         const outputProto = runnerApi.PCollection.create({
@@ -146,10 +146,10 @@ export class Impulse extends PTransform {
                 'urn': translations.DATA_INPUT_URN,
                 'payload': translations.IMPULSE_BUFFER
             }),
-            'outputs': {'out': pcollName}
+            'outputs': { 'out': pcollName }
         });
         input.proto.components!.transforms[impulseProto.uniqueName] = impulseProto;
-        
+
         return new PCollection(impulseProto.outputs.out, outputProto, input.pipeline);
     }
 }
@@ -169,7 +169,7 @@ export class Impulse extends PTransform {
  * @param callableOrDoFn 
  * @returns 
  */
-    function isDoFn(callableOrDoFn: DoFn | GenericCallable) {
+function isDoFn(callableOrDoFn: DoFn | GenericCallable) {
     const df = (callableOrDoFn as DoFn)
     if (df.type !== undefined && df.type === "dofn") {
         return true;
@@ -204,7 +204,7 @@ export class ParDo extends PTransform {
     }
 
     expand(input: PCollection): PCollection {
-        
+
         if (input.type !== 'pcollection') {
             throw new Error('ParDo received the wrong input.');
         }
@@ -235,15 +235,15 @@ export class ParDo extends PTransform {
             'spec': runnerApi.FunctionSpec.create({
                 'urn': ParDo.urn,
                 'payload': runnerApi.ParDoPayload.toBinary(
-                runnerApi.ParDoPayload.create({
-                    'doFn': runnerApi.FunctionSpec.create({
-                        'urn': translations.SERIALIZED_JS_DOFN_INFO,
-                        'payload': new Uint8Array()
-                    })
-                }))
+                    runnerApi.ParDoPayload.create({
+                        'doFn': runnerApi.FunctionSpec.create({
+                            'urn': translations.SERIALIZED_JS_DOFN_INFO,
+                            'payload': new Uint8Array()
+                        })
+                    }))
             }),
-            'inputs': {inputId: inputPCollName},
-            'outputs': {'out': pcollName}
+            'inputs': { inputId: inputPCollName },
+            'outputs': { 'out': pcollName }
         });
         input.pipeline.proto.components!.transforms[pardoProto.uniqueName] = pardoProto;
 
@@ -270,7 +270,7 @@ export class GroupByKey extends PTransform {
         const valueCoderId = pipelineComponents.coders[inputPCollectionProto.coderId].componentCoderIds[1];
 
         const iterableValueCoderProto = runnerApi.Coder.create({
-            'spec': {'urn': IterableCoder.URN,},
+            'spec': { 'urn': IterableCoder.URN, },
             'componentCoderIds': [valueCoderId]
         });
         const iterableValueCoderId = translations.registerPipelineCoder(iterableValueCoderProto, pipelineComponents)!;
@@ -278,7 +278,7 @@ export class GroupByKey extends PTransform {
         input.pipeline.coders[iterableValueCoderId] = iterableValueCoder;
 
         const outputCoderProto = runnerApi.Coder.create({
-            'spec': runnerApi.FunctionSpec.create({'urn': KVCoder.URN}),
+            'spec': runnerApi.FunctionSpec.create({ 'urn': KVCoder.URN }),
             'componentCoderIds': [keyCoderId, iterableValueCoderId]
         })
         const outputPcollCoderId = translations.registerPipelineCoder(outputCoderProto, pipelineComponents)!;
@@ -296,7 +296,7 @@ export class GroupByKey extends PTransform {
                 'urn': GroupByKey.urn,
                 'payload': null!  // TODO(GBK payload????)
             }),
-            'outputs': {'out': outputPCollectionProto.uniqueName}
+            'outputs': { 'out': outputPCollectionProto.uniqueName }
         });
         pipelineComponents.transforms[ptransformProto.uniqueName] = ptransformProto;
 
