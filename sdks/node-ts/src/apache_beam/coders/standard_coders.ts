@@ -45,3 +45,28 @@ export class BytesCoder extends Coder {
     }
 }
 CODER_REGISTRY.register(BytesCoder.URN, BytesCoder);
+
+export class KVCoder extends Coder {
+    static URN: string = "beam:coder:kvcoder:v1";
+    type: string = 'kvcoder';
+
+    keyCoder: Coder;
+    valueCoder: Coder;
+
+    constructor(keyCoder: Coder, valueCoder: Coder) {
+        super();
+        this.keyCoder = keyCoder;
+        this.valueCoder = valueCoder;
+    }
+}
+
+export class IterableCoder extends Coder {
+    static URN: string = "beam:coder:iterable:v1";
+    type: string = 'iterablecoder';
+
+    elementCoder: Coder;
+    constructor(elementCoder: Coder) {
+        super();
+        this.elementCoder = elementCoder;
+    }
+}
