@@ -160,6 +160,5 @@ func (w *commitWriter) Write(p []byte) (n int, err error) {
 }
 
 func (w *commitWriter) Close() error {
-	w.instance.write(w.key, w.buf.Bytes())
-	return nil
+	return w.instance.write(w.key, w.buf.Bytes())
 }
