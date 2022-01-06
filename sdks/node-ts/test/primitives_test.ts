@@ -1,6 +1,6 @@
 import * as beam from '../src/apache_beam';
 import * as assert from 'assert';
-import { BytesCoder, KVCoder } from '../src/apache_beam/coders/standard_coders';
+import { BytesCoder, IterableCoder, KVCoder } from '../src/apache_beam/coders/standard_coders';
 import {GroupBy} from '../src/apache_beam/transforms/core'
 // TODO(pabloem): Fix installation.
 
@@ -16,19 +16,21 @@ describe("primitives module", function() {
         it("runs a ParDo expansion", function() {
             var p = new beam.Pipeline();
             var res = p.apply(new beam.Impulse())
-            .apply(new beam.ParDo(function(v) {return v*2;}));
+            .apply(new beam.ParDo(function(v) {return v*2;}))
+            .apply(new beam.ParDo(function(v) {return v*4;}));
 
+            const coder = p.coders[res.proto.coderId];
+            assert.deepEqual(coder, new BytesCoder());
             assert.equal(res.type, "pcollection");
         });
-        // it("runs a GroupBy expansion", function() {
-        //     var p = new beam.Pipeline();
-        //     var res = p.apply(new beam.Impulse())
-        //     .apply(new beam.ParDo(function(v) {return {"name": "pablo", "lastName": "wat"};}))
-        //     .apply(new GroupBy("lastName"));
+        it("runs a GroupBy expansion", function() {
+            var p = new beam.Pipeline();
+            var res = p.apply(new beam.Impulse())
+            .apply(new beam.ParDo(function(v) {return {"name": "pablo", "lastName": "wat"};}))
+            .apply(new GroupBy("lastName"));
 
-        //     const coder = p.coders[res.proto.coderId];
-
-        //     assert.deepEqual(coder, new KVCoder(new BytesCoder(), new BytesCoder()));
-        // });
+            const coder = p.coders[res.proto.coderId];
+            assert.deepEqual(coder, new KVCoder(new BytesCoder(), new IterableCoder(new BytesCoder())));
+        });
     });     
 });

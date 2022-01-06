@@ -25,11 +25,17 @@ export class GroupBy extends PTransform {
         const keyCoderId = translations.registerPipelineCoder(
             runnerApi.Coder.create({'spec': runnerApi.FunctionSpec.create({'urn': BytesCoder.URN}),}),
             input.pipeline.proto.components!);
+        input.pipeline.coders[keyCoderId] = new BytesCoder();
 
-        const kvCoderProto = runnerApi.Coder.create({'spec': runnerApi.FunctionSpec.create({'urn': KVCoder.URN})})
+        const kvCoderProto = runnerApi.Coder.create({
+            'spec': runnerApi.FunctionSpec.create({'urn': KVCoder.URN}),
+            'componentCoderIds': [keyCoderId, inputCoderId]
+        })
         const kvCoderId = translations.registerPipelineCoder(kvCoderProto, input.pipeline.proto.components!);
 
         kvPcoll.proto.coderId = kvCoderId;
+        const kvCoder = new KVCoder(input.pipeline.coders[keyCoderId], input.pipeline.coders[input.proto.coderId]);
+        input.pipeline.coders[kvCoderId] = kvCoder;
         
         return kvPcoll.apply(new GroupByKey());
     }
