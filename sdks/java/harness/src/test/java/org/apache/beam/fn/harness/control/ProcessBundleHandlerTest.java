@@ -1089,6 +1089,7 @@ public class ProcessBundleHandlerTest {
     assertThat(timerOutput, contains("output_timer"));
     // Register timer family outbound receiver.
     verify(beamFnDataClient).send(any(), any(), any());
+    verify(beamFnDataClient).clear(eq("998L"));
     verifyNoMoreInteractions(beamFnDataClient);
   }
 
@@ -1304,6 +1305,7 @@ public class ProcessBundleHandlerTest {
     // Ensure that we unregister during successful processing
     verify(beamFnDataClient).registerReceiver(eq("instructionId"), any(), any());
     verify(beamFnDataClient).unregisterReceiver(eq("instructionId"), any());
+    verify(beamFnDataClient).clear(eq("instructionId"));
     verifyNoMoreInteractions(beamFnDataClient);
   }
 

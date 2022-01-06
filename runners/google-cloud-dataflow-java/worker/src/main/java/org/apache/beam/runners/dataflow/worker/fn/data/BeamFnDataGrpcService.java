@@ -30,9 +30,10 @@ import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.dataflow.worker.fn.grpc.BeamFnService;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.fn.data.BeamFnDataBufferingOutboundObserver;
 import org.apache.beam.sdk.fn.data.BeamFnDataGrpcMultiplexer;
 import org.apache.beam.sdk.fn.data.BeamFnDataInboundObserver;
+import org.apache.beam.sdk.fn.data.BeamFnDataOutboundAggregator;
+import org.apache.beam.sdk.fn.data.BeamFnDataOutboundObserver;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.DecodingFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
@@ -67,6 +68,7 @@ public class BeamFnDataGrpcService extends BeamFnDataGrpc.BeamFnDataImplBase
   private final Endpoints.ApiServiceDescriptor apiServiceDescriptor;
   private final ConcurrentMap<String, CompletableFuture<BeamFnDataGrpcMultiplexer>>
       connectedClients;
+  private final ConcurrentMap<String, BeamFnDataOutboundAggregator> outboundAggregators;
 
   private final PipelineOptions options;
   private final Function<StreamObserver<BeamFnApi.Elements>, StreamObserver<BeamFnApi.Elements>>
@@ -82,6 +84,7 @@ public class BeamFnDataGrpcService extends BeamFnDataGrpc.BeamFnDataImplBase
     this.streamObserverFactory = streamObserverFactory;
     this.headerAccessor = headerAccessor;
     this.connectedClients = new ConcurrentHashMap<>();
+    this.outboundAggregators = new ConcurrentHashMap<>();
     this.apiServiceDescriptor = descriptor;
     LOG.info("Launched Beam Fn Data service {}", this.apiServiceDescriptor);
   }
@@ -211,11 +214,14 @@ public class BeamFnDataGrpcService extends BeamFnDataGrpc.BeamFnDataImplBase
       public <T> CloseableFnDataReceiver<T> send(LogicalEndpoint outputLocation, Coder<T> coder) {
         LOG.debug("Creating output consumer for {}", outputLocation);
         try {
-          return BeamFnDataBufferingOutboundObserver.forLocation(
-              options,
+          StreamObserver<Elements> outboundObserver =
+              getClientFuture(clientId).get().getOutboundObserver();
+          return new BeamFnDataOutboundObserver<>(
               outputLocation,
               coder,
-              getClientFuture(clientId).get().getOutboundObserver());
+              outboundAggregators.computeIfAbsent(
+                  clientId,
+                  clientId -> new BeamFnDataOutboundAggregator(options, outboundObserver)));
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
           throw new RuntimeException(e);

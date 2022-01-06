@@ -489,6 +489,7 @@ public class ProcessBundleHandler {
             finishFunction.run();
           }
         }
+        beamFnDataClient.clear(request.getInstructionId());
 
         // Add all checkpointed residuals to the response.
         response.addAllResidualRoots(bundleProcessor.getSplitListener().getResidualRoots());

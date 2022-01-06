@@ -26,13 +26,17 @@ import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.fn.data.BeamFnDataBufferingOutboundObserver;
 import org.apache.beam.sdk.fn.data.BeamFnDataGrpcMultiplexer2;
+import org.apache.beam.sdk.fn.data.BeamFnDataOutboundAggregator;
+import org.apache.beam.sdk.fn.data.BeamFnDataOutboundObserver;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashBasedTable;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Table;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Tables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,9 +46,12 @@ import org.slf4j.LoggerFactory;
  * <p>TODO: Handle closing clients that are currently not a consumer nor are being consumed.
  */
 public class BeamFnDataGrpcClient implements BeamFnDataClient {
+
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataGrpcClient.class);
 
-  private final ConcurrentMap<Endpoints.ApiServiceDescriptor, BeamFnDataGrpcMultiplexer2> cache;
+  private final ConcurrentMap<Endpoints.ApiServiceDescriptor, BeamFnDataGrpcMultiplexer2>
+      multiplexerCache;
+  private final Table<String, ApiServiceDescriptor, BeamFnDataOutboundAggregator> aggregatorCache;
   private final Function<Endpoints.ApiServiceDescriptor, ManagedChannel> channelFactory;
   private final OutboundObserverFactory outboundObserverFactory;
   private final PipelineOptions options;
@@ -56,7 +63,8 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
     this.options = options;
     this.channelFactory = channelFactory;
     this.outboundObserverFactory = outboundObserverFactory;
-    this.cache = new ConcurrentHashMap<>();
+    this.multiplexerCache = new ConcurrentHashMap<>();
+    this.aggregatorCache = Tables.synchronizedTable(HashBasedTable.create());
   }
 
   @Override
@@ -96,16 +104,30 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
       Endpoints.ApiServiceDescriptor apiServiceDescriptor,
       LogicalEndpoint outputLocation,
       Coder<T> coder) {
-    BeamFnDataGrpcMultiplexer2 client = getClientFor(apiServiceDescriptor);
-
+    if (!aggregatorCache.contains(outputLocation.getInstructionId(), apiServiceDescriptor)) {
+      aggregatorCache.put(
+          outputLocation.getInstructionId(),
+          apiServiceDescriptor,
+          new BeamFnDataOutboundAggregator(
+              options, getClientFor(apiServiceDescriptor).getOutboundObserver()));
+    }
     LOG.debug("Creating output consumer for {}", outputLocation);
-    return BeamFnDataBufferingOutboundObserver.forLocation(
-        options, outputLocation, coder, client.getOutboundObserver());
+    return new BeamFnDataOutboundObserver<>(
+        outputLocation,
+        coder,
+        aggregatorCache.get(outputLocation.getInstructionId(), apiServiceDescriptor));
+  }
+
+  @Override
+  public void clear(String instructionId) {
+    synchronized (aggregatorCache) {
+      aggregatorCache.row(instructionId).clear();
+    }
   }
 
   private BeamFnDataGrpcMultiplexer2 getClientFor(
       Endpoints.ApiServiceDescriptor apiServiceDescriptor) {
-    return cache.computeIfAbsent(
+    return multiplexerCache.computeIfAbsent(
         apiServiceDescriptor,
         (Endpoints.ApiServiceDescriptor descriptor) ->
             new BeamFnDataGrpcMultiplexer2(

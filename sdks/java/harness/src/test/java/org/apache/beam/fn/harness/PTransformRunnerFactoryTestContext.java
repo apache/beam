@@ -90,6 +90,11 @@ public abstract class PTransformRunnerFactoryTestContext
                   Coder<T> coder) {
                 throw new UnsupportedOperationException("Unexpected call during test.");
               }
+
+              @Override
+              public void clear(String instructionId) {
+                throw new UnsupportedOperationException("Unexpected call during test.");
+              }
             })
         .beamFnStateClient(
             new BeamFnStateClient() {
@@ -100,7 +105,6 @@ public abstract class PTransformRunnerFactoryTestContext
             })
         .beamFnTimerClient(
             new BeamFnTimerClient() {
-
               @Override
               public <K> CloseableFnDataReceiver<Timer<K>> register(
                   LogicalEndpoint timerEndpoint, Coder<Timer<K>> coder) {

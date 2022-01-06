@@ -77,4 +77,7 @@ public interface BeamFnDataClient {
       Endpoints.ApiServiceDescriptor apiServiceDescriptor,
       LogicalEndpoint outputLocation,
       Coder<T> coder);
+
+  /** Clear any internal state associated with the instructionId. */
+  void clear(String instructionId);
 }
