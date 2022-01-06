@@ -30,53 +30,25 @@ evaluationDependsOn(":sdks:java:io:jdbc")
 
 description = "Apache Beam :: SDKs :: Java :: Container"
 
-// Disable gogradle's dependency resolution so it uses Go modules instead.
-installDependencies.enabled = false
-resolveBuildDependencies.enabled = false
-resolveTestDependencies.enabled = false
-
 configurations {
   dockerDependency
   sdkHarnessLauncher
 }
 
 dependencies {
-  golang {
-    // TODO(herohde): use "./" prefix to prevent gogradle use base github path, for now.
-    // TODO(herohde): get the pkg subdirectory only, if possible. We spend mins pulling cmd/beamctl deps.
-    build name: './github.com/apache/beam/sdks/go', dir: project(':sdks:go').projectDir
-    test name: './github.com/apache/beam/sdks/go', dir: project(':sdks:go').projectDir
-  }
   dockerDependency library.java.slf4j_api
   dockerDependency library.java.slf4j_jdk14
   dockerDependency project(path: ":sdks:java:harness", configuration: "shadow")
   // For executing KafkaIO, e.g. as an external transform
   dockerDependency project(":sdks:java:io:kafka")
-  // This dependency is set to 'provided' scope in :sdks:java:io:kafka
+  // This dependency is set to 'compileOnly' scope in :sdks:java:io:kafka
   dockerDependency library.java.kafka_clients
-  dockerDependency project(":sdks:java:io:jdbc")
+  dockerDependency library.java.jamm
 }
 
-golang {
-  packagePath = 'github.com/apache/beam/sdks/v2/java/container'
-
-  // Set -modcacherw on common tasks so module cache can be deleted by goBuild.
-  goTest {
-    environment 'GOFLAGS', '-modcacherw'
-  }
-  goVet {
-    environment 'GOFLAGS', '-modcacherw'
-  }
-  gofmt {
-    environment 'GOFLAGS', '-modcacherw'
-  }
-  goBuild {
-    environment 'GOFLAGS', '-modcacherw'
-
-    // TODO(herohde): build local platform + linux-amd64, if possible.
-    targetPlatform = ['linux-amd64']
-    outputLocation = './build/target/${GOOS}_${GOARCH}/boot'
-  }
+goBuild {
+  goTargets = '*.go' // only build the immediate directory.
+  outputLocation = './build/target/${GOOS}_${GOARCH}/boot'
 }
 
 // command: ./gradlew generateLicenseReport

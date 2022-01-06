@@ -69,7 +69,6 @@ public class GcpApiSurfaceTest {
             classesInPackage("com.google.cloud"),
             classesInPackage("com.google.common.collect"),
             classesInPackage("com.google.cloud.bigquery.storage.v1"),
-            classesInPackage("com.google.cloud.bigquery.storage.v1beta2"),
             classesInPackage("com.google.cloud.bigtable.config"),
             classesInPackage("com.google.iam.v1"),
             classesInPackage("com.google.spanner.v1"),

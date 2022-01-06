@@ -18,6 +18,15 @@
 
 package org.apache.beam.learning.katas.coretransforms.combine.combinefn;
 
+// beam-playground:
+//   name: CombineFn
+//   description: Task from katas averaging.
+//   multifile: false
+//   pipeline_options:
+//   categories:
+//     - Combiners
+//     - Core Transforms
+
 import java.io.Serializable;
 import java.util.Objects;
 import org.apache.beam.learning.katas.util.Log;

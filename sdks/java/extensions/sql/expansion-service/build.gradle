@@ -32,16 +32,16 @@ ext.summary = """Contains code to run a SQL Expansion Service."""
 
 
 dependencies {
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(path: ":sdks:java:expansion-service")
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(path: ":sdks:java:expansion-service")
   permitUnusedDeclared project(path: ":sdks:java:expansion-service") // BEAM-11761
-  compile project(path: ":sdks:java:extensions:sql")
-  compile project(path: ":sdks:java:extensions:sql:zetasql")
-  compile library.java.vendored_guava_26_0_jre
+  implementation project(path: ":sdks:java:extensions:sql")
+  implementation project(path: ":sdks:java:extensions:sql:zetasql")
+  implementation library.java.vendored_guava_26_0_jre
 }
 
 task runExpansionService (type: JavaExec) {
-  main = "org.apache.beam.sdk.expansion.service.ExpansionService"
+  mainClass = "org.apache.beam.sdk.expansion.service.ExpansionService"
   classpath = sourceSets.main.runtimeClasspath
   args = [project.findProperty("constructionService.port") ?: "8097"]
 }

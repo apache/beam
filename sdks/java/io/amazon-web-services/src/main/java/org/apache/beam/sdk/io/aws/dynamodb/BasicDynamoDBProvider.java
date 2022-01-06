@@ -22,7 +22,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.client.builder.AwsClientBuilder;
+import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder;
@@ -60,16 +60,23 @@ public class BasicDynamoDBProvider implements AwsClientsProvider {
       clientBuilder.withRegion(region);
     } else {
       clientBuilder.withEndpointConfiguration(
-          new AwsClientBuilder.EndpointConfiguration(serviceEndpoint, region.getName()));
+          new EndpointConfiguration(serviceEndpoint, region.getName()));
     }
     return clientBuilder.build();
   }
 
   @Override
   public AmazonDynamoDB createDynamoDB() {
-    return AmazonDynamoDBClientBuilder.standard()
-        .withCredentials(getCredentialsProvider())
-        .withRegion(region)
-        .build();
+    AmazonDynamoDBClientBuilder clientBuilder =
+        AmazonDynamoDBClientBuilder.standard().withCredentials(getCredentialsProvider());
+
+    if (serviceEndpoint == null) {
+      clientBuilder.withRegion(region);
+    } else {
+      clientBuilder.withEndpointConfiguration(
+          new EndpointConfiguration(serviceEndpoint, region.getName()));
+    }
+
+    return clientBuilder.build();
   }
 }

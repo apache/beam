@@ -19,7 +19,12 @@
 import java.util.stream.Collectors
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(suppressUnusedVariable: true, automaticModuleName: 'org.apache.beam.sdk.io.hcatalog')
+applyJavaNature(
+  automaticModuleName: 'org.apache.beam.sdk.io.hcatalog',
+  // TODO(BEAM-13430): Re-enable this once the dependency analysis plugin stops failing with:
+  // Cannot accept visitor on URL: file:.../org.apache.curator/apache-curator/2.6.0/1bbbe3a8c191ec5a63ec2eaec7988d8292ea65d2/apache-curator-2.6.0.pom
+  enableStrictDependencies: false,
+)
 
 description = "Apache Beam :: SDKs :: Java :: IO :: HCatalog"
 ext.summary = "IO to read and write for HCatalog source."
@@ -41,14 +46,17 @@ test {
   ignoreFailures true
 }
 
-configurations.testRuntimeClasspath {
+configurations.all {
   resolutionStrategy {
-    def log4j_version = "2.8.2"
-    // Beam's build system forces a uniform log4j version resolution for all modules, however for
-    // the HCatalog case the current version of log4j produces NoClassDefFoundError so we need to
-    // force an old version on the tests runtime classpath
+    // Pin log4j as workaround for CVE-2021-44228
+    // HIVE-25804 should address this upstream, but only in 4.0
+    // TODO(BEAM-9351): Upgrade Hive and remove this pin
+    def log4j_version = "2.17.1"
     force "org.apache.logging.log4j:log4j-api:${log4j_version}"
     force "org.apache.logging.log4j:log4j-core:${log4j_version}"
+    force "org.apache.logging.log4j:log4j-slf4j-impl:${log4j_version}"
+    force "org.apache.logging.log4j:log4j-1.2-api:${log4j_version}"
+    force "org.apache.logging.log4j:log4j-web:${log4j_version}"
   }
 }
 
@@ -62,33 +70,33 @@ configurations.testRuntimeClasspath {
 evaluationDependsOn(":sdks:java:io:common")
 
 dependencies {
-  compile library.java.vendored_guava_26_0_jre
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(":sdks:java:io:hadoop-common")
-  compile library.java.slf4j_api
-  compile library.java.joda_time
+  implementation library.java.vendored_guava_26_0_jre
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(":sdks:java:io:hadoop-common")
+  implementation library.java.slf4j_api
+  implementation library.java.joda_time
   // Hive bundles without repackaging Jackson which is why we redeclare it here so that it appears
   // on the compile/test/runtime classpath before Hive.
-  provided library.java.jackson_annotations
-  provided library.java.jackson_core
-  provided library.java.jackson_databind
+  compileOnly library.java.jackson_annotations
+  compileOnly library.java.jackson_core
+  compileOnly library.java.jackson_databind
   // Calcite (a dependency of Hive) bundles without repackaging Guava which is why we redeclare it
   // here so that it appears on the compile/test/runtime classpath before Calcite.
-  provided library.java.hadoop_common
-  provided "org.apache.hive:hive-exec:$hive_version"
-  provided(group: "org.apache.hive.hcatalog", name: "hive-hcatalog-core", version: hive_version) {
+  compileOnly library.java.hadoop_common
+  compileOnly "org.apache.hive:hive-exec:$hive_version"
+  compileOnly(group: "org.apache.hive.hcatalog", name: "hive-hcatalog-core", version: hive_version) {
     exclude group: "org.apache.hive", module: "hive-exec"
     exclude group: "com.google.protobuf", module: "protobuf-java"
   }
-  testCompile project(":sdks:java:io:common").sourceSets.test.output
-  testCompile library.java.commons_io
-  testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile "org.apache.hive.hcatalog:hive-hcatalog-core:$hive_version:tests"
-  testCompile "org.apache.hive:hive-exec:$hive_version"
-  testCompile "org.apache.hive:hive-common:$hive_version"
-  testCompile "org.apache.hive:hive-cli:$hive_version"
+  testImplementation project(":sdks:java:io:common").sourceSets.test.output
+  testImplementation library.java.commons_io
+  testImplementation library.java.junit
+  testImplementation library.java.hamcrest
+  testImplementation "org.apache.hive.hcatalog:hive-hcatalog-core:$hive_version:tests"
+  testImplementation "org.apache.hive:hive-exec:$hive_version"
+  testImplementation "org.apache.hive:hive-common:$hive_version"
+  testImplementation "org.apache.hive:hive-cli:$hive_version"
+  testImplementation "org.apache.hive.hcatalog:hive-hcatalog-core:$hive_version"
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
   hadoopVersions.each {kv ->
     "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-common:$kv.value"

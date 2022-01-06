@@ -16,7 +16,7 @@
 # limitations under the License.
 ###############################################################################
 ARG java_version
-FROM openjdk:${java_version}
+FROM openjdk:${java_version}-bullseye
 MAINTAINER "Apache Beam <dev@beam.apache.org>"
 
 ARG pull_licenses
@@ -30,7 +30,8 @@ ADD target/beam-sdks-java-harness.jar /opt/apache/beam/jars/
 ADD target/beam-sdks-java-io-kafka.jar /opt/apache/beam/jars/
 ADD target/kafka-clients.jar /opt/apache/beam/jars/
 
-ADD target/postgresql.jar /opt/apache/beam/jars/
+# Required to use jamm as a javaagent to get accurate object size measuring
+ADD target/jamm.jar /opt/apache/beam/jars/
 
 ADD target/linux_amd64/boot /opt/apache/beam/
 

@@ -16,7 +16,7 @@
 # limitations under the License.
 ###############################################################################
 #Dokerfile to set up the Beam Go SDK
-ARG BASE_IMAGE golang:1.16-buster
+ARG BASE_IMAGE=golang:1.16-bullseye
 FROM $BASE_IMAGE
 
 # Setup Go Environment
@@ -56,6 +56,16 @@ ENV BEAM_SDK="SDK_GO"
 ## Copy build result
 COPY src/configs /opt/playground/backend/configs/
 
-ENTRYPOINT ["/opt/playground/backend/server_go_backend"]
+# Install mitmpoxy
+RUN mkdir /opt/mitmproxy &&\
+    cd /opt/mitmproxy &&\
+    wget https://snapshots.mitmproxy.org/7.0.4/mitmproxy-7.0.4-linux.tar.gz &&\
+    tar -zxvf mitmproxy-7.0.4-linux.tar.gz &&\
+    mkdir /usr/local/share/ca-certificates/extra
+COPY entrypoint.sh /
+COPY allow_list_proxy.py /opt/mitmproxy/
+COPY allow_list.py /opt/mitmproxy/
+ENV HTTP_PROXY="http://127.0.0.1:8081"
+ENV HTTPS_PROXY="http://127.0.0.1:8081"
 
-
+ENTRYPOINT ["/entrypoint.sh"]

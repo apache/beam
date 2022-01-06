@@ -126,7 +126,10 @@ tasks.rat {
     "playground/frontend/pubspec.lock",
 
     // Ignore .gitkeep file
-    "**/.gitkeep"
+    "**/.gitkeep",
+
+    // Ignore Flutter localization .arb files (doesn't support comments)
+    "playground/frontend/lib/l10n/**/*.arb"
   )
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
@@ -181,6 +184,7 @@ task("javaPostCommit") {
   dependsOn(":sdks:java:io:debezium:integrationTest")
   dependsOn(":sdks:java:io:google-cloud-platform:postCommit")
   dependsOn(":sdks:java:io:kinesis:integrationTest")
+  dependsOn(":sdks:java:io:amazon-web-services:integrationTest")
   dependsOn(":sdks:java:io:amazon-web-services2:integrationTest")
   dependsOn(":sdks:java:extensions:ml:postCommit")
   dependsOn(":sdks:java:io:kafka:kafkaVersionsCompatibilityTest")
@@ -248,6 +252,7 @@ task("goIntegrationTests") {
 }
 
 task("playgroundPreCommit") {
+  dependsOn(":playground:lintProto")
   dependsOn(":playground:backend:precommit")
   dependsOn(":playground:frontend:precommit")
 }
@@ -292,6 +297,9 @@ task("python37PostCommit") {
   dependsOn(":sdks:python:test-suites:direct:py37:hdfsIntegrationTest")
   dependsOn(":sdks:python:test-suites:direct:py37:mongodbioIT")
   dependsOn(":sdks:python:test-suites:portable:py37:postCommitPy37")
+  dependsOn(":sdks:python:test-suites:dataflow:py37:spannerioIT")
+  dependsOn(":sdks:python:test-suites:direct:py37:spannerioIT")
+  dependsOn(":sdks:python:test-suites:portable:py37:xlangSpannerIOIT")
 }
 
 task("python38PostCommit") {
@@ -407,7 +415,7 @@ if (project.hasProperty("javaLinkageArtifactIds")) {
   project.task<JavaExec>("checkJavaLinkage") {
     dependsOn(project.getTasksByName("publishMavenJavaPublicationToMavenLocal", true /* recursively */))
     classpath = linkageCheckerJava
-    main = "com.google.cloud.tools.opensource.classpath.LinkageCheckerMain"
+    mainClass.value("com.google.cloud.tools.opensource.classpath.LinkageCheckerMain")
     val javaLinkageArtifactIds: String = project.property("javaLinkageArtifactIds") as String? ?: ""
     var arguments = arrayOf("-a", javaLinkageArtifactIds.split(",").joinToString(",") {
       if (it.contains(":")) {

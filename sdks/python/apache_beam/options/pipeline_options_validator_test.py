@@ -28,6 +28,8 @@ from hamcrest import only_contains
 from hamcrest.core.base_matcher import BaseMatcher
 
 from apache_beam.internal import pickler
+from apache_beam.options.pipeline_options import DebugOptions
+from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.options.pipeline_options_validator import PipelineOptionsValidator
@@ -492,6 +494,37 @@ class SetupTest(unittest.TestCase):
     self.assertIn('experiment', errors[0])
     self.assertIn('worker_region', errors[0])
     self.assertIn('worker_zone', errors[0])
+
+  def test_programmatically_set_experiment_passed_as_string(self):
+    runner = MockRunners.DataflowRunner()
+    options = PipelineOptions(
+        project='example.com:example',
+        temp_location='gs://foo/bar/',
+        experiments='enable_prime',
+        dataflow_service_options='use_runner_v2',
+    )
+    validator = PipelineOptionsValidator(options, runner)
+    errors = validator.validate()
+    self.assertEqual(len(errors), 2)
+    self.assertIn('experiments', errors[0])
+    self.assertIn('dataflow_service_options', errors[1])
+
+  def test_programmatically_set_experiment_passed_as_list(self):
+    runner = MockRunners.DataflowRunner()
+    options = PipelineOptions(
+        project='example.com:example',
+        temp_location='gs://foo/bar/',
+        experiments=['enable_prime'],
+        dataflow_service_options=['use_runner_v2'],
+    )
+    validator = PipelineOptionsValidator(options, runner)
+    errors = validator.validate()
+    self.assertEqual(len(errors), 0)
+    self.assertEqual(
+        options.view_as(DebugOptions).experiments, ['enable_prime'])
+    self.assertEqual(
+        options.view_as(GoogleCloudOptions).dataflow_service_options,
+        ['use_runner_v2'])
 
   def test_worker_region_and_worker_zone_mutually_exclusive(self):
     runner = MockRunners.DataflowRunner()
