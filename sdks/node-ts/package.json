@@ -1,7 +1,5 @@
 {
   "devDependencies": {
-    "bson": "^4.6.0",
-    "fast-deep-equal": "^3.1.3",
     "@types/mocha": "^9.0.0",
     "js-yaml": "^4.1.0",
     "mocha": "^9.1.3",
@@ -21,7 +19,9 @@
     "@grpc/grpc-js": "^1.4.6",
     "@protobuf-ts/plugin": "^2.1.0",
     "protobufjs": "^6.10.2",
-    "typescript-formatter": "^7.2.2"
+    "typescript-formatter": "^7.2.2",
+    "bson": "^4.6.0",
+    "fast-deep-equal": "^3.1.3"
   },
   "main": "./dist/apache_beam/index.js",
   "exports": "./dist/apache_beam/index.js"
