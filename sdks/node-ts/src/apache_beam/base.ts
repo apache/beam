@@ -15,13 +15,29 @@ export function pcollectionName() {
 var _transform_counter = -1;
 export function transformName() {
     _transform_counter += 1;
-    return '(' + _transform_counter + ')';
+    return 'transformId(' + _transform_counter + ')';
+}
+
+interface PipelineResult { }
+
+export interface Runner {
+    run: (pipeline: (Root) => PValueish) => PipelineResult;
+}
+
+export class ProtoPrintingRunner implements Runner {
+    run(pipelineFunc) {
+        const p = new Pipeline();
+        pipelineFunc(new Root(p));
+        console.dir(p.proto, { depth: null });
+        return {}
+    }
 }
 
 /**
  * Represents an 'edge' in a graph. These may be PCollections, PCollection views,
  * and Pipelines themselves.
  */
+// TODO: Remove PValue or replace it with PValueish?
 class PValue {
     // TODO: Have a reference to its graph representation
     type: string = "unknown";
@@ -30,27 +46,6 @@ class PValue {
 
     constructor(name: string) {
         this.name = name;
-    }
-
-    isPipeline(): boolean {
-        return this.type === "pipeline";
-    }
-
-    // TODO(pabloem): What about multiple outputs? (not strictly necessary ATM. Can do with Filters)
-    apply(transform: PTransform, name?: string): PCollection {
-        // TODO(pabloem): We need a transform name that we can infer!
-        if (!name) {
-            name = transform.type ? transform.type + transformName() : transformName();
-        }
-        const outPcoll = transform.expand(this);
-        if (outPcoll.type !== 'pcollection') {
-            throw new Error(util.format('Trahsform %s does not return a PCollection', transform));
-        }
-        return outPcoll as PCollection;
-    }
-
-    map(callable: DoFn | GenericCallable, name?: string): PCollection {
-        return this.apply(new ParDo(callable), name);
     }
 
     // Top-level functions:
@@ -66,8 +61,10 @@ class PValue {
 export class Pipeline extends PValue {
     type: string = "pipeline";
     proto: runnerApi.Pipeline;
+    transformStack: string[] = [];
 
     // A map of coder ID to Coder object
+    // TODO: Is this needed?
     coders: { [key: string]: Coder } = {}
 
     constructor() {
@@ -77,30 +74,175 @@ export class Pipeline extends PValue {
         );
         this.pipeline = this;
     }
+
+    // TODO: Remove once test are fixed.
+    apply<OutputT extends PValueish>(transform: PTransform<Root, OutputT>): OutputT {
+        return new Root(this).apply(transform);
+    }
+
+    apply2<InputT extends PValueish, OutputT extends PValueish>(transform: PTransform<InputT, OutputT>, pvalueish: InputT, name: string) {
+
+        function objectMap(obj, func) {
+            return Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, func(v)]));
+        }
+
+        const this_ = this;
+        const transformId = transformName();
+        if (this.transformStack.length) {
+            this.proto!.components!.transforms![this.transformStack[this.transformStack.length - 1]].subtransforms.push(transformId);
+        } else {
+            this.proto.rootTransformIds.push(transformId);
+        }
+        const transformProto: runnerApi.PTransform = {
+            uniqueName: this.transformStack.map((id) => this_.proto?.components?.transforms![id].uniqueName).concat([name || transform.name]).join('/'),
+            subtransforms: [],
+            inputs: objectMap(flattenPValueish(pvalueish), (pc) => pc.id),
+            outputs: {},
+            environmentId: "",
+            displayData: [],
+            annotations: {},
+        }
+        this.proto!.components!.transforms![transformId] = transformProto;
+        this.transformStack.push(transformId);
+        const result = transform.expandInternal(this, transformProto, pvalueish); // TODO: try-catch
+        this.transformStack.pop();
+        transformProto.outputs = objectMap(flattenPValueish(result), (pc) => pc.id)
+        return result;
+    }
+
+    createPCollectionInternal(coder: Coder | string, isBounded = runnerApi.IsBounded_Enum.BOUNDED) {
+        const pcollId = pcollectionName();
+        let coderId: string;
+        if (typeof coder == "string") {
+            coderId = coder;
+        } else {
+            coderId = translations.registerPipelineCoder((coder as Coder).toProto(this.pipeline.proto.components!), this.pipeline.proto.components!);
+            // TODO: Do we need this?
+            this.coders[coderId] = coder;
+        }
+        this.pipeline.proto!.components!.pcollections[pcollId] = {
+            uniqueName: pcollId, // TODO: name according to producing transform?
+            coderId: coderId,
+            isBounded: isBounded,
+            windowingStrategyId: 'global',
+            displayData: [],
+        }
+        return new PCollection(this, pcollId);
+    }
 }
 
 export class PCollection extends PValue {
     type: string = "pcollection";
+    id: string;
     proto: runnerApi.PCollection;
 
-    constructor(name: string, pcollectionProto: runnerApi.PCollection, pipeline: Pipeline) {
-        super(name)
-        this.proto = pcollectionProto;
+    constructor(pipeline: Pipeline, id: string) {
+        super("unusedName")
+        this.proto = pipeline.proto!.components!.pcollections[id];  // TODO: redundant?
         this.pipeline = pipeline;
+        this.id = id;
+    }
+
+    apply<OutputT extends PValueish>(transform: PTransform<PCollection, OutputT> | ((PCollection) => OutputT)) {
+        if (!(transform instanceof PTransform)) {
+            transform = new PTransformFromCallable(transform, "" + transform);
+        }
+        return this.pipeline.apply2(transform, this, "");
+    }
+
+    map(fn: (any) => any): PCollection {
+        // TODO(robertwb): Should PTransforms have generics?
+        return this.apply(new ParDo(new MapDoFn(fn))) as PCollection;
+    }
+
+    flatMap(fn: (any) => Generator<any, void, void>): PCollection {
+        // TODO(robertwb): Should PTransforms have generics?
+        return this.apply(new ParDo(new FlatMapDoFn(fn))) as PCollection;
     }
 }
 
-export class PTransform {
-    type: string = "ptransform";
+/**
+ * The base object on which one can start building a Beam DAG.
+ * Generally followed by a source-like transform such as a read or impulse.
+ */
+export class Root {
+    pipeline: Pipeline;
+
+    constructor(pipeline: Pipeline) {
+        this.pipeline = pipeline;
+    }
+
+    apply<OutputT extends PValueish>(transform: PTransform<Root, OutputT> | ((Root) => OutputT)) {
+        if (!(transform instanceof PTransform)) {
+            transform = new PTransformFromCallable(transform, "" + transform);
+        }
+        return this.pipeline.apply2(transform, this, "");
+    }
+}
+
+type PValueish = void | Root | PCollection | PValueish[] | { [key: string]: PValueish };
+
+function flattenPValueish(pvalueish: PValueish, prefix: string = ""): { [key: string]: PCollection } {
+    const result: { [key: string]: PCollection } = {}
+    if (pvalueish == null) {
+        // pass
+    } else if (pvalueish instanceof Root) {
+        // pass
+    } else if (pvalueish instanceof PCollection) {
+        if (prefix) {
+            result[prefix] = pvalueish
+        } else {
+            result.main = pvalueish;
+        }
+    } else {
+        if (prefix) {
+            prefix += ".";
+        }
+        if (pvalueish instanceof Array) {
+            for (var i = 0; i < pvalueish.length; i++) {
+                Object.assign(result, flattenPValueish(pvalueish[i], prefix + i));
+            }
+        } else {
+            for (const [key, value] of Object.entries(pvalueish)) {
+                Object.assign(result, flattenPValueish(value, prefix + key));
+            }
+        }
+    }
+    return result;
+}
+
+export class PTransform<InputT extends PValueish, OutputT extends PValueish> {
     name: string;
-    expand(input: PValue): PValue {
+
+    constructor(name: string | null = null) {
+        this.name = name || (typeof this);
+    }
+
+    expand(input: InputT): OutputT {
         throw new Error('Method expand has not been implemented.');
+    }
+
+    expandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, input: InputT): OutputT {
+        return this.expand(input);
+    }
+}
+
+class PTransformFromCallable<InputT extends PValueish, OutputT extends PValueish> extends PTransform<InputT, OutputT> {
+    name: string;
+    expander: (InputT) => OutputT;
+
+    constructor(expander: (InputT) => OutputT, name: string) {
+        super(name);
+        this.expander = expander;
+    }
+
+    expand(input: InputT) {
+        return this.expander(input);
     }
 }
 
 export class DoFn {
-    type: string = "dofn";
-    process(element: any) {
+    *process(element: any): Generator<any, void, never> {
         throw new Error('Method process has not been implemented!');
     }
 
@@ -117,165 +259,108 @@ export interface GenericCallable {
     (input: any): any
 }
 
-
-export class Impulse extends PTransform {
+export class Impulse extends PTransform<Root, PCollection> {
     // static urn: string = runnerApi.StandardPTransforms_Primitives.IMPULSE.urn;
     // TODO: use above line, not below line.
     static urn: string = "beam:transform:impulse:v1";
-    expand(input: Pipeline): PCollection {
-        if (!input.isPipeline()) {
-            throw new Error("User is attempting to apply Impulse transform to a non-pipeline object.");
-        }
-        const pipeline = input as Pipeline;
 
-        const pcollName = pcollectionName();
+    constructor() {
+        super("Impulse");  // TODO: pass null/nothing and get from reflection
+    }
 
-        const coderId = translations.registerPipelineCoder(runnerApi.Coder.create({ 'spec': runnerApi.FunctionSpec.create({ 'urn': BytesCoder.URN }) }), pipeline.proto.components!);
-        pipeline.coders[coderId] = new BytesCoder();
-
-        const outputProto = runnerApi.PCollection.create({
-            'uniqueName': pcollName,
-            'coderId': coderId,
-            'isBounded': runnerApi.IsBounded_Enum.BOUNDED
+    expandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, input: PValueish) {
+        transformProto.spec = runnerApi.FunctionSpec.create({
+            'urn': translations.DATA_INPUT_URN,
+            'payload': translations.IMPULSE_BUFFER
         });
-
-        const impulseProto = runnerApi.PTransform.create({
-            // TODO(pabloem): Get the name for the PTransform
-            'uniqueName': transformName(),
-            'spec': runnerApi.FunctionSpec.create({
-                'urn': translations.DATA_INPUT_URN,
-                'payload': translations.IMPULSE_BUFFER
-            }),
-            'outputs': { 'out': pcollName }
-        });
-        input.proto.components!.transforms[impulseProto.uniqueName] = impulseProto;
-
-        return new PCollection(impulseProto.outputs.out, outputProto, input.pipeline);
+        return pipeline.createPCollectionInternal(new BytesCoder())
     }
 }
 
-/**
- * @returns true if the input is a `DoFn`.
- * 
- * Since type information is lost at runtime, we check the object's attributes
- * to determine whether it's a DoFn or not.
- * 
- * @example
- * Prints "true" for a new `DoFn` but "false" for a function:
- * ```ts
- * console.log(new DoFn());
- * console.log(in => in * 2));
- * ```
- * @param callableOrDoFn 
- * @returns 
- */
-function isDoFn(callableOrDoFn: DoFn | GenericCallable) {
-    const df = (callableOrDoFn as DoFn)
-    if (df.type !== undefined && df.type === "dofn") {
-        return true;
-    } else {
-        return false;
-    }
-}
-
-export class ParDo extends PTransform {
-    static _CallableWrapperDoFn = class extends DoFn {
-        private fn;
-        constructor(fn: GenericCallable) {
-            super();
-            this.fn = fn;
-        }
-        process(element: any) {
-            return this.fn(element);
-        }
-    }
-
-    private doFn;
+export class ParDo extends PTransform<PCollection, PCollection> {
+    private doFn: DoFn;
     // static urn: string = runnerApi.StandardPTransforms_Primitives.PAR_DO.urn;
     // TODO: use above line, not below line.
     static urn: string = "beam:transform:pardo:v1";
-    constructor(callableOrDoFn: DoFn | GenericCallable) {
-        super()
-        if (isDoFn(callableOrDoFn)) {
-            this.doFn = callableOrDoFn;
-        } else {
-            this.doFn = new ParDo._CallableWrapperDoFn(callableOrDoFn as GenericCallable);
-        }
+    constructor(doFn: DoFn) {
+        super("ParDo(" + doFn + ")");
+        this.doFn = doFn;
     }
 
-    expand(input: PCollection): PCollection {
-
-        if (input.type !== 'pcollection') {
+    expandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, input: PCollection) {
+        // Might not be needed due to generics.
+        if (!(input instanceof PCollection)) {
             throw new Error('ParDo received the wrong input.');
         }
 
-        const pcollName = pcollectionName();
+        transformProto.spec = runnerApi.FunctionSpec.create({
+            'urn': ParDo.urn,
+            'payload': runnerApi.ParDoPayload.toBinary(
+                runnerApi.ParDoPayload.create({
+                    'doFn': runnerApi.FunctionSpec.create({
+                        'urn': translations.SERIALIZED_JS_DOFN_INFO,
+                        'payload': fakeSeralize(this.doFn),
+                    })
+                }))
+        });
+
         // TODO(paboem): How do we infer the proper coder for this transform?. For now we use the same as input.
-        const inputCoderProto = input.pipeline.proto.components?.coders[input.proto.coderId]!;
-        const outputCoderId = translations.registerPipelineCoder(
-            inputCoderProto,
-            input.pipeline.proto.components!
-        );
-        input.pipeline.coders[outputCoderId] = new BytesCoder();
-
-        const outputProto = runnerApi.PCollection.create({
-            'uniqueName': pcollName,
-            'coderId': outputCoderId,
-            'isBounded': runnerApi.IsBounded_Enum.BOUNDED
-        });
-
-        const inputPCollName = (input as PCollection).proto.uniqueName;
-
-        // TODO(pabloem): Get the name for the PTransform
-        const pardoName = transformName();
-        const inputId = pardoName + '1';
-
-        const pardoProto = runnerApi.PTransform.create({
-            'uniqueName': pardoName,
-            'spec': runnerApi.FunctionSpec.create({
-                'urn': ParDo.urn,
-                'payload': runnerApi.ParDoPayload.toBinary(
-                    runnerApi.ParDoPayload.create({
-                        'doFn': runnerApi.FunctionSpec.create({
-                            'urn': translations.SERIALIZED_JS_DOFN_INFO,
-                            'payload': new Uint8Array()
-                        })
-                    }))
-            }),
-            'inputs': { inputId: inputPCollName },
-            'outputs': { 'out': pcollName }
-        });
-        input.pipeline.proto.components!.transforms[pardoProto.uniqueName] = pardoProto;
-
-        // TODO(pablom): Do this properly
-        return new PCollection(pardoProto.outputs.out, outputProto, input.pipeline);
+        return pipeline.createPCollectionInternal(input.proto.coderId);
     }
 }
 
+class MapDoFn extends DoFn {
+    private fn: (any) => any;
+    constructor(fn: (any) => any) {
+        super();
+        this.fn = fn;
+    }
+    *process(element: any) {
+        yield this.fn(element);
+    }
+}
+
+class FlatMapDoFn extends DoFn {
+    private fn;
+    constructor(fn: (any) => Generator<any, void, void>) {
+        super();
+        this.fn = fn;
+    }
+    *process(element: any) {
+        yield* this.fn(element);
+    }
+}
+
+
 // TODO(pabloem): Consider not exporting the GBK
-export class GroupByKey extends PTransform {
+export class GroupByKey extends PTransform<PCollection, PCollection> {
     // static urn: string = runnerApi.StandardPTransforms_Primitives.GROUP_BY_KEY.urn;
     // TODO: use above line, not below line.
     static urn: string = "beam:transform:group_by_key:v1";
 
-    expand(input: PCollection): PCollection {
-        const inputPCollectionProto: runnerApi.PCollection = input.type == 'pcollection' ? (input as PCollection).proto : undefined!;
-        if (inputPCollectionProto === undefined) {
-            throw new Error('Input is not a PCollection object.');
+    expandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, input: PCollection) {
+
+        const pipelineComponents: runnerApi.Components = pipeline.proto.components!;
+        const inputPCollectionProto = pipelineComponents.pcollections[input.id];
+
+        // TODO: How to ensure the input is a KV coder?
+        let keyCoderId: string;
+        let valueCoderId: string;
+        if (pipelineComponents.coders[inputPCollectionProto.coderId].componentCoderIds.length == 2) {
+            keyCoderId = pipelineComponents.coders[inputPCollectionProto.coderId].componentCoderIds[0];
+            valueCoderId = pipelineComponents.coders[inputPCollectionProto.coderId].componentCoderIds[1];
         }
-
-        const pipelineComponents: runnerApi.Components = input.pipeline.proto.components!;
-
-        const keyCoderId = pipelineComponents.coders[inputPCollectionProto.coderId].componentCoderIds[0];
-        const valueCoderId = pipelineComponents.coders[inputPCollectionProto.coderId].componentCoderIds[1];
+        else {
+            keyCoderId = valueCoderId = inputPCollectionProto.coderId; // JsonCoder?
+        }
 
         const iterableValueCoderProto = runnerApi.Coder.create({
             'spec': { 'urn': IterableCoder.URN, },
             'componentCoderIds': [valueCoderId]
         });
         const iterableValueCoderId = translations.registerPipelineCoder(iterableValueCoderProto, pipelineComponents)!;
-        const iterableValueCoder = new IterableCoder(input.pipeline.coders[valueCoderId]);
-        input.pipeline.coders[iterableValueCoderId] = iterableValueCoder;
+        const iterableValueCoder = new IterableCoder(pipeline.coders[valueCoderId]);
+        pipeline.coders[iterableValueCoderId] = iterableValueCoder;
 
         const outputCoderProto = runnerApi.Coder.create({
             'spec': runnerApi.FunctionSpec.create({ 'urn': KVCoder.URN }),
@@ -283,27 +368,28 @@ export class GroupByKey extends PTransform {
         })
         const outputPcollCoderId = translations.registerPipelineCoder(outputCoderProto, pipelineComponents)!;
 
-        const outputPCollectionProto = runnerApi.PCollection.create({
-            'uniqueName': pcollectionName(),
-            'isBounded': inputPCollectionProto.isBounded,
-            'coderId': outputPcollCoderId
+        pipeline.coders[outputPcollCoderId] = new KVCoder(
+            pipeline.coders[keyCoderId],
+            pipeline.coders[iterableValueCoderId]);
+
+        transformProto.spec = runnerApi.FunctionSpec.create({
+            'urn': GroupByKey.urn,
+            'payload': null!,
         });
-        pipelineComponents.pcollections[outputPCollectionProto.uniqueName] = outputPCollectionProto;
 
-        const ptransformProto = runnerApi.PTransform.create({
-            'uniqueName': transformName(),
-            'spec': runnerApi.FunctionSpec.create({
-                'urn': GroupByKey.urn,
-                'payload': null!  // TODO(GBK payload????)
-            }),
-            'outputs': { 'out': outputPCollectionProto.uniqueName }
-        });
-        pipelineComponents.transforms[ptransformProto.uniqueName] = ptransformProto;
-
-        input.pipeline.coders[outputPcollCoderId] = new KVCoder(
-            input.pipeline.coders[keyCoderId],
-            input.pipeline.coders[iterableValueCoderId]);
-
-        return new PCollection(outputPCollectionProto.uniqueName, outputPCollectionProto, input.pipeline);
+        return pipeline.createPCollectionInternal(outputPcollCoderId);
     }
+}
+
+
+let fakeSerializeCounter = 0;
+const fakeSerializeMap = new Map<string, any>();
+export function fakeSeralize(obj) {
+    fakeSerializeCounter += 1;
+    const id = "serialized_" + fakeSerializeCounter;
+    fakeSerializeMap.set(id, obj);
+    return new TextEncoder().encode(id);
+}
+export function fakeDeserialize(s) {
+    return fakeSerializeMap.get(new TextDecoder().decode(s));
 }

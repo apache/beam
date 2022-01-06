@@ -16,8 +16,8 @@ describe("primitives module", function() {
         it("runs a ParDo expansion", function() {
             var p = new beam.Pipeline();
             var res = p.apply(new beam.Impulse())
-            .apply(new beam.ParDo(function(v) {return v*2;}))
-            .apply(new beam.ParDo(function(v) {return v*4;}));
+            .map(function(v) {return v*2;})
+            .map(function(v) {return v*4;});
 
             const coder = p.coders[res.proto.coderId];
             assert.deepEqual(coder, new BytesCoder());
@@ -26,11 +26,11 @@ describe("primitives module", function() {
         it("runs a GroupBy expansion", function() {
             var p = new beam.Pipeline();
             var res = p.apply(new beam.Impulse())
-            .apply(new beam.ParDo(function(v) {return {"name": "pablo", "lastName": "wat"};}))
+            .map(function(v) {return {"name": "pablo", "lastName": "wat"};})
             .apply(new GroupBy("lastName"));
 
             const coder = p.coders[res.proto.coderId];
             assert.deepEqual(coder, new KVCoder(new BytesCoder(), new IterableCoder(new BytesCoder())));
         });
-    });     
+    });
 });
