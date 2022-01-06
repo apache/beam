@@ -19,6 +19,7 @@
   "dependencies": {
     "@grpc/grpc-js": "^1.4.6",
     "@protobuf-ts/plugin": "^2.1.0",
+    "protobufjs": "^6.10.2",
     "typescript-formatter": "^7.2.2"
   },
   "main": "./dist/apache_beam/index.js",
