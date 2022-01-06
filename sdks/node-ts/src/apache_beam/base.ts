@@ -226,17 +226,13 @@ class PTransformFromCallable<InputT extends PValue, OutputT extends PValue> exte
 }
 
 export class DoFn {
-    *process(element: any): Generator<any, void, never> {
+    *process(element: any): Generator<any, void, undefined> {
         throw new Error('Method process has not been implemented!');
     }
 
-    startBundle(element: any) {
-        throw new Error('Method process has not been implemented!');
-    }
+    startBundle() { }
 
-    finishBundle(element: any) {
-        throw new Error('Method process has not been implemented!');
-    }
+    finishBundle() { }
 }
 
 export interface GenericCallable {
@@ -254,7 +250,7 @@ export class Impulse extends PTransform<Root, PCollection> {
 
     expandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, input: PValue) {
         transformProto.spec = runnerApi.FunctionSpec.create({
-            'urn': translations.DATA_INPUT_URN,
+            'urn': Impulse.urn,
             'payload': translations.IMPULSE_BUFFER
         });
         return pipeline.createPCollectionInternal(new BytesCoder())
@@ -356,7 +352,7 @@ let fakeSerializeCounter = 0;
 const fakeSerializeMap = new Map<string, any>();
 export function fakeSeralize(obj) {
     fakeSerializeCounter += 1;
-    const id = "serialized_" + fakeSerializeCounter;
+    const id = "s_" + fakeSerializeCounter;
     fakeSerializeMap.set(id, obj);
     return new TextEncoder().encode(id);
 }
