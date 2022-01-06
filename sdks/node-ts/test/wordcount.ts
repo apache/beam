@@ -15,8 +15,8 @@ class CountElements extends beam.PTransform<beam.PCollection, beam.PCollection> 
 }
 
 describe("wordcount", function() {
-    it("wordcount", function() {
-        new beam.ProtoPrintingRunner().run(
+    it("wordcount", async function() {
+        await new beam.ProtoPrintingRunner().run(
             (root) => {
                 const lines = root.apply(new beam.Create([
                     "In the beginning God created the heaven and the earth.",
