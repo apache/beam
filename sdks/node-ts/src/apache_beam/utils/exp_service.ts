@@ -43,14 +43,18 @@ export class JavaExpansionServiceRunner {
         return jarPath
     }
 
+    // TODO: make HTTPS request, save non-error response body as jarName.
     private downloadJar() {
         throw new Error('Method has not been implemented')
     }
 
+    // TODO: start process using `java -jar ${jarPath}`, ensure that it doesn't
+    // exit immediately, retain reference to process for stopping later.
     runJar() {
         throw new Error('Method has not been implemented')
     }
 
+    // TODO: check if process exits and is alive, if so kill it.
     stopJar() {
         throw new Error('Method has not been implemented')
     }
