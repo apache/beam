@@ -34,6 +34,8 @@ jobs:
     name: "Self-hosted run local environment shell script"
     runs-on: self-hosted
     steps:
+      - name: Clean GitHub workspace
+        run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
       - uses: actions/checkout@v2
       - name: "Installing local env dependencies"
         run: "sudo ./local-env-setup.sh"

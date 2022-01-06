@@ -30,6 +30,8 @@ jobs:
     name: "Cancel duplicate workflow runs"
     runs-on: self-hosted
     steps:
+      - name: Clean GitHub workspace
+        run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v2
         with:

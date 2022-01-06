@@ -31,6 +31,8 @@ jobs:
       BEAM_VERSION: 2.33.0
       TERRAFORM_VERSION: 1.0.9
     steps:
+      - name: Clean GitHub workspace
+        run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
       - name: Check out the repo
         uses: actions/checkout@v2
       - name: Set up JDK 1.8

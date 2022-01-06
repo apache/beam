@@ -44,6 +44,8 @@ jobs:
     outputs:
       gcp-variables-set: ${{ steps.check_gcp_variables.outputs.gcp-variables-set }}
     steps:
+      - name: Clean GitHub workspace
+        run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
       - uses: actions/checkout@v2
       - name: "Check are GCP variables set"
         run: "./scripts/ci/ci_check_are_gcp_variables_set.sh"
@@ -63,6 +65,8 @@ jobs:
       is_rc: ${{ steps.is_rc.outputs.is_rc }}
       rc_num: ${{ steps.get_rc_version.outputs.RC_NUM }}
     steps:
+      - name: Clean GitHub workspace
+        run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Install python
@@ -350,6 +354,8 @@ jobs:
     timeout-minutes: 60
     if: github.repository_owner == 'apache' && github.event_name == 'schedule'
     steps:
+      - name: Clean GitHub workspace
+        run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
       - name: Checkout code on master branch
         uses: actions/checkout@v2
         with:
