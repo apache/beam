@@ -68,7 +68,7 @@ export class Pipeline extends PValue {
     proto: runnerApi.Pipeline;
 
     // A map of coder ID to Coder object
-    coders: { [key: string]: Coder } = {}
+    coders: { [key: string]: Coder<any> } = {}
 
     constructor() {
         super("root");
