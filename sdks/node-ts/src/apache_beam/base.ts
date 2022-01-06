@@ -22,15 +22,20 @@ export function transformName() {
 
 interface PipelineResult { }
 
-export interface Runner {
-    run: (pipeline: (Root) => PValue) => PipelineResult;
+export class Runner {
+    async run(pipeline: ((Root) => PValue)): Promise<PipelineResult> {
+        const p = new Pipeline();
+        pipeline(new Root(p));
+        return this.runPipeline(p);
+    }
+    async runPipeline(pipeline: Pipeline): Promise<PipelineResult> {
+        throw new Error("Not implemented.");
+    }
 }
 
-export class ProtoPrintingRunner implements Runner {
-    run(pipelineFunc) {
-        const p = new Pipeline();
-        pipelineFunc(new Root(p));
-        console.dir(p.proto, { depth: null });
+export class ProtoPrintingRunner extends Runner {
+    async runPipeline(pipeline) {
+        console.dir(pipeline.proto, { depth: null });
         return {}
     }
 }
