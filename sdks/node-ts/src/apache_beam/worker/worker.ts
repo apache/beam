@@ -18,7 +18,6 @@ import { MultiplexingDataChannel, IDataChannel } from "./data"
 import { IOperator, Receiver, createOperator } from "./operators"
 
 
-
 export class Worker {
     id: string;
     endpoints: StartWorkerRequest;
@@ -139,7 +138,10 @@ export class BundleProcessor {
     getDataChannel: (string) => MultiplexingDataChannel;
     currentBundleId?: string;
 
-    constructor(descriptor: ProcessBundleDescriptor, getDataChannel: (string) => MultiplexingDataChannel) {
+    constructor(
+        descriptor: ProcessBundleDescriptor,
+        getDataChannel: (string) => MultiplexingDataChannel,
+        root_urns = ["beam:runner:source:v1"]) {
         this.descriptor = descriptor;
         this.getDataChannel = getDataChannel;
 
@@ -149,13 +151,15 @@ export class BundleProcessor {
 
         const consumers = new Map<string, string[]>();
         Object.entries(descriptor.transforms).forEach(([transformId, transform]) => {
-            Object.values(transform.inputs).forEach((pcollectionId: string) => {
-                // TODO: is there a javascript defaultdict?
-                if (!consumers.has(pcollectionId)) {
-                    consumers.set(pcollectionId, []);
-                }
-                consumers.get(pcollectionId)!.push(transformId);
-            })
+            if (isPrimitive(transform)) {
+                Object.values(transform.inputs).forEach((pcollectionId: string) => {
+                    // TODO: is there a javascript defaultdict?
+                    if (!consumers.has(pcollectionId)) {
+                        consumers.set(pcollectionId, []);
+                    }
+                    consumers.get(pcollectionId)!.push(transformId);
+                })
+            }
         });
 
         function getReceiver(pcollectionId: string): Receiver {
@@ -184,7 +188,11 @@ export class BundleProcessor {
             return this_.operators.get(transformId)!;
         }
 
-        Object.keys(descriptor.transforms).forEach(getOperator);
+        Object.entries(descriptor.transforms).forEach(([transformId, transform]) => {
+            if (root_urns.includes(transform?.spec?.urn!)) {
+                getOperator(transformId);
+            }
+        });
         this.topologicallyOrderedOperators = creationOrderedOperators.reverse();
     }
 
@@ -208,5 +216,18 @@ export class BundleProcessor {
 
         this.topologicallyOrderedOperators.forEach((o) => o.finishBundle());
         this.currentBundleId = undefined;
+    }
+}
+
+
+export const primitiveSinks = ["beam:runner:sink:v1"];
+
+function isPrimitive(transform: PTransform): boolean {
+    const inputs = Object.values(transform.inputs)
+    if (primitiveSinks.includes(transform?.spec?.urn!)) {
+        return true;
+    } else {
+        return transform.subtransforms.length == 0
+            && Object.values(transform.outputs).some((pcoll) => !inputs.includes(pcoll));
     }
 }

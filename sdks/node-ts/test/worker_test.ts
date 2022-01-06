@@ -68,6 +68,7 @@ class Recording implements operators.IOperator {
 }
 
 operators.registerOperator(RECORDING_URN, Recording);
+worker.primitiveSinks.push(RECORDING_URN);
 
 
 class Partition implements operators.IOperator {
@@ -130,7 +131,7 @@ describe("worker module", function() {
             environments: {},
         };
         Recording.reset();
-        const processor = new worker.BundleProcessor(descriptor, null!);
+        const processor = new worker.BundleProcessor(descriptor, null!, [CREATE_URN]);
         await processor.process("bundle_id", 0);
         assert.deepEqual(
             Recording.log,
@@ -164,7 +165,7 @@ describe("worker module", function() {
             environments: {},
         };
         Recording.reset();
-        const processor = new worker.BundleProcessor(descriptor, null!);
+        const processor = new worker.BundleProcessor(descriptor, null!, [CREATE_URN]);
         await processor.process("bundle_id", 0);
         assert.deepEqual(
             Recording.log,
