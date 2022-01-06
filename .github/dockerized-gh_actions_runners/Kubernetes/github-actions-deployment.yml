@@ -25,7 +25,7 @@ spec:
   selector:
     matchLabels:
       name: github-actions
-  replicas: 2
+  replicas: 5
   template:
     metadata:
       labels:
@@ -33,7 +33,7 @@ spec:
     spec:
       containers:
         - name: github-actions-runner
-          image: $IMAGE_URL:dev # replace variable manually
+          image: $IMAGE_URL:latest # replace variable manually
           securityContext:
             privileged: true
           envFrom:
@@ -44,12 +44,12 @@ spec:
               mountPath:  /var/run/docker.sock
           resources:
             requests:
-              memory: "1024Mi"
+              memory: "1028Mi"
               cpu: "2"
-          lifecycle:
-            preStop:
-              exec:
-                command: [./config.sh remove --token $GITHUB_TOKEN] # replace variable manually
+#          lifecycle:
+#            preStop:
+#              exec:
+#                command: []
       volumes:
         - name: docker-sock
           hostPath:
