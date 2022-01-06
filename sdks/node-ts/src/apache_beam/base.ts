@@ -347,40 +347,25 @@ export class GroupByKey extends PTransform<PCollection, PCollection> {
         const inputPCollectionProto = pipelineComponents.pcollections[input.id];
 
         // TODO: How to ensure the input is a KV coder?
-        let keyCoderId: string;
-        let valueCoderId: string;
-        if (pipelineComponents.coders[inputPCollectionProto.coderId].componentCoderIds.length == 2) {
-            keyCoderId = pipelineComponents.coders[inputPCollectionProto.coderId].componentCoderIds[0];
-            valueCoderId = pipelineComponents.coders[inputPCollectionProto.coderId].componentCoderIds[1];
+        let keyCoder: Coder<any>;
+        let valueCoder: Coder<any>;
+        const inputCoderProto = pipelineComponents.coders[inputPCollectionProto.coderId];
+        if (inputCoderProto.componentCoderIds.length == 2) {
+            keyCoder = pipeline.coders[inputCoderProto.componentCoderIds[0]];
+            valueCoder = pipeline.coders[inputCoderProto.componentCoderIds[1]];
         }
         else {
-            keyCoderId = valueCoderId = inputPCollectionProto.coderId; // JsonCoder?
+            keyCoder = valueCoder = new GeneralObjectCoder();
         }
-
-        const iterableValueCoderProto = runnerApi.Coder.create({
-            'spec': { 'urn': IterableCoder.URN, },
-            'componentCoderIds': [valueCoderId]
-        });
-        const iterableValueCoderId = translations.registerPipelineCoder(iterableValueCoderProto, pipelineComponents)!;
-        const iterableValueCoder = new IterableCoder(pipeline.coders[valueCoderId]);
-        pipeline.coders[iterableValueCoderId] = iterableValueCoder;
-
-        const outputCoderProto = runnerApi.Coder.create({
-            'spec': runnerApi.FunctionSpec.create({ 'urn': KVCoder.URN }),
-            'componentCoderIds': [keyCoderId, iterableValueCoderId]
-        })
-        const outputPcollCoderId = translations.registerPipelineCoder(outputCoderProto, pipelineComponents)!;
-
-        pipeline.coders[outputPcollCoderId] = new KVCoder(
-            pipeline.coders[keyCoderId],
-            pipeline.coders[iterableValueCoderId]);
+        const iterableValueCoder = new IterableCoder(valueCoder);
+        const outputCoder = new KVCoder(keyCoder, iterableValueCoder);
 
         transformProto.spec = runnerApi.FunctionSpec.create({
             'urn': GroupByKey.urn,
             'payload': null!,
         });
 
-        return pipeline.createPCollectionInternal(outputPcollCoderId);
+        return pipeline.createPCollectionInternal(outputCoder);
     }
 }
 
