@@ -23,7 +23,7 @@ export function transformName() {
 interface PipelineResult { }
 
 export interface Runner {
-    run: (pipeline: (Root) => PValueish) => PipelineResult;
+    run: (pipeline: (Root) => PValue) => PipelineResult;
 }
 
 export class ProtoPrintingRunner implements Runner {
@@ -55,11 +55,11 @@ export class Pipeline {
     }
 
     // TODO: Remove once test are fixed.
-    apply<OutputT extends PValueish>(transform: PTransform<Root, OutputT>): OutputT {
+    apply<OutputT extends PValue>(transform: PTransform<Root, OutputT>): OutputT {
         return new Root(this).apply(transform);
     }
 
-    apply2<InputT extends PValueish, OutputT extends PValueish>(transform: PTransform<InputT, OutputT>, pvalueish: InputT, name: string) {
+    apply2<InputT extends PValue, OutputT extends PValue>(transform: PTransform<InputT, OutputT>, PValue: InputT, name: string) {
 
         function objectMap(obj, func) {
             return Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, func(v)]));
@@ -75,7 +75,7 @@ export class Pipeline {
         const transformProto: runnerApi.PTransform = {
             uniqueName: this.transformStack.map((id) => this_.proto?.components?.transforms![id].uniqueName).concat([name || transform.name]).join('/'),
             subtransforms: [],
-            inputs: objectMap(flattenPValueish(pvalueish), (pc) => pc.id),
+            inputs: objectMap(flattenPValue(PValue), (pc) => pc.id),
             outputs: {},
             environmentId: "",
             displayData: [],
@@ -83,9 +83,9 @@ export class Pipeline {
         }
         this.proto!.components!.transforms![transformId] = transformProto;
         this.transformStack.push(transformId);
-        const result = transform.expandInternal(this, transformProto, pvalueish); // TODO: try-catch
+        const result = transform.expandInternal(this, transformProto, PValue); // TODO: try-catch
         this.transformStack.pop();
-        transformProto.outputs = objectMap(flattenPValueish(result), (pc) => pc.id)
+        transformProto.outputs = objectMap(flattenPValue(result), (pc) => pc.id)
         return result;
     }
 
@@ -122,7 +122,7 @@ export class PCollection {
         this.id = id;
     }
 
-    apply<OutputT extends PValueish>(transform: PTransform<PCollection, OutputT> | ((PCollection) => OutputT)) {
+    apply<OutputT extends PValue>(transform: PTransform<PCollection, OutputT> | ((PCollection) => OutputT)) {
         if (!(transform instanceof PTransform)) {
             transform = new PTransformFromCallable(transform, "" + transform);
         }
@@ -151,7 +151,7 @@ export class Root {
         this.pipeline = pipeline;
     }
 
-    apply<OutputT extends PValueish>(transform: PTransform<Root, OutputT> | ((Root) => OutputT)) {
+    apply<OutputT extends PValue>(transform: PTransform<Root, OutputT> | ((Root) => OutputT)) {
         if (!(transform instanceof PTransform)) {
             transform = new PTransformFromCallable(transform, "" + transform);
         }
@@ -159,38 +159,38 @@ export class Root {
     }
 }
 
-type PValueish = void | Root | PCollection | PValueish[] | { [key: string]: PValueish };
+type PValue = void | Root | PCollection | PValue[] | { [key: string]: PValue };
 
-function flattenPValueish(pvalueish: PValueish, prefix: string = ""): { [key: string]: PCollection } {
+function flattenPValue(PValue: PValue, prefix: string = ""): { [key: string]: PCollection } {
     const result: { [key: string]: PCollection } = {}
-    if (pvalueish == null) {
+    if (PValue == null) {
         // pass
-    } else if (pvalueish instanceof Root) {
+    } else if (PValue instanceof Root) {
         // pass
-    } else if (pvalueish instanceof PCollection) {
+    } else if (PValue instanceof PCollection) {
         if (prefix) {
-            result[prefix] = pvalueish
+            result[prefix] = PValue
         } else {
-            result.main = pvalueish;
+            result.main = PValue;
         }
     } else {
         if (prefix) {
             prefix += ".";
         }
-        if (pvalueish instanceof Array) {
-            for (var i = 0; i < pvalueish.length; i++) {
-                Object.assign(result, flattenPValueish(pvalueish[i], prefix + i));
+        if (PValue instanceof Array) {
+            for (var i = 0; i < PValue.length; i++) {
+                Object.assign(result, flattenPValue(PValue[i], prefix + i));
             }
         } else {
-            for (const [key, value] of Object.entries(pvalueish)) {
-                Object.assign(result, flattenPValueish(value, prefix + key));
+            for (const [key, value] of Object.entries(PValue)) {
+                Object.assign(result, flattenPValue(value, prefix + key));
             }
         }
     }
     return result;
 }
 
-export class PTransform<InputT extends PValueish, OutputT extends PValueish> {
+export class PTransform<InputT extends PValue, OutputT extends PValue> {
     name: string;
 
     constructor(name: string | null = null) {
@@ -206,7 +206,7 @@ export class PTransform<InputT extends PValueish, OutputT extends PValueish> {
     }
 }
 
-class PTransformFromCallable<InputT extends PValueish, OutputT extends PValueish> extends PTransform<InputT, OutputT> {
+class PTransformFromCallable<InputT extends PValue, OutputT extends PValue> extends PTransform<InputT, OutputT> {
     name: string;
     expander: (InputT) => OutputT;
 
@@ -247,7 +247,7 @@ export class Impulse extends PTransform<Root, PCollection> {
         super("Impulse");  // TODO: pass null/nothing and get from reflection
     }
 
-    expandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, input: PValueish) {
+    expandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, input: PValue) {
         transformProto.spec = runnerApi.FunctionSpec.create({
             'urn': translations.DATA_INPUT_URN,
             'payload': translations.IMPULSE_BUFFER
