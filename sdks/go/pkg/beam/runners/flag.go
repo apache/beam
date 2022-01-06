@@ -21,4 +21,5 @@ package runners
 
 import "flag"
 
+// Runner is a flag to specify which Beam runner should be used to execute the pipeline.
 var Runner = flag.String("runner", "", "Pipeline runner.")
