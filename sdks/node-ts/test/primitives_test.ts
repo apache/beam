@@ -2,7 +2,7 @@ import * as beam from '../src/apache_beam';
 import * as assert from 'assert';
 import { BytesCoder, IterableCoder, KVCoder } from '../src/apache_beam/coders/standard_coders';
 import {GroupBy} from '../src/apache_beam/transforms/core'
-// TODO(pabloem): Fix installation.
+import { GeneralObjectCoder } from '../src/apache_beam/coders/js_coders';
 
 describe("primitives module", function() {
     describe("runs a basic impulse expansion", function() {
@@ -20,7 +20,7 @@ describe("primitives module", function() {
             .map(function(v) {return v*4;});
 
             const coder = p.coders[res.proto.coderId];
-            assert.deepEqual(coder, new BytesCoder());
+            assert.deepEqual(coder, new GeneralObjectCoder());
             assert.equal(res.type, "pcollection");
         });
         it("runs a GroupBy expansion", function() {
@@ -30,7 +30,7 @@ describe("primitives module", function() {
             .apply(new GroupBy("lastName"));
 
             const coder = p.coders[res.proto.coderId];
-            assert.deepEqual(coder, new KVCoder(new BytesCoder(), new IterableCoder(new BytesCoder())));
+            assert.deepEqual(coder, new KVCoder(new GeneralObjectCoder(), new IterableCoder(new GeneralObjectCoder())));
         });
     });
 });
