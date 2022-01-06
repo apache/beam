@@ -955,7 +955,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     return pipelineBuilder.build();
   }
 
-  private List<DataflowPackage> stageArtifacts(RunnerApi.Pipeline pipeline) {
+  protected List<DataflowPackage> stageArtifacts(RunnerApi.Pipeline pipeline) {
     ImmutableList.Builder<StagedFile> filesToStageBuilder = ImmutableList.builder();
     for (Map.Entry<String, RunnerApi.Environment> entry :
         pipeline.getComponents().getEnvironmentsMap().entrySet()) {
