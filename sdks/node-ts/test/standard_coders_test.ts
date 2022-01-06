@@ -11,6 +11,8 @@ const STANDARD_CODERS_FILE = '../../model/fn-execution/src/main/resources/org/ap
 // TODO(pabloem): Empty this list.
 const UNSUPPORTED_CODERS = [
     "beam:coder:interval_window:v1",
+    "beam:coder:string_utf8:v1",
+    "beam:coder:double:v1",
     "beam:coder:iterable:v1",
     "beam:coder:timer:v1",
     "beam:coder:global_window:v1",
