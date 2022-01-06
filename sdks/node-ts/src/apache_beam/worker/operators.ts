@@ -1,6 +1,10 @@
 import { PTransform, PCollection } from "../proto/beam_runner_api";
+import * as runnerApi from "../proto/beam_runner_api";
 import { ProcessBundleDescriptor, RemoteGrpcPort } from "../proto/beam_fn_api";
 import { MultiplexingDataChannel, IDataChannel } from "./data"
+
+import * as base from "../base"
+import * as translations from '../internal/translations'
 
 
 export interface IOperator {
@@ -164,6 +168,38 @@ class FlattenOperator implements IOperator {
 }
 
 registerOperator("beam:transform:flatten:v1", FlattenOperator);
+
+
+class ParDoOperator implements IOperator {
+    receiver: Receiver;
+    spec: runnerApi.ParDoPayload;
+    doFn: base.DoFn;
+
+    constructor(transformId: string, transform: PTransform, context: OperatorContext) {
+        this.receiver = context.getReceiver(onlyElement(Object.values(transform.outputs)));
+        this.spec = runnerApi.ParDoPayload.fromBinary(transform.spec!.payload);
+        if (this.spec.doFn?.urn != translations.SERIALIZED_JS_DOFN_INFO) {
+            throw new Error("Unknown DoFn type: " + this.spec);
+        }
+        this.doFn = base.fakeDeserialize(this.spec.doFn.payload!);
+    }
+
+    startBundle() {
+        this.doFn.startBundle();
+    };
+
+    process(wvalue: WindowedValue) {
+        for (const element of this.doFn.process(wvalue.value)) {
+            this.receiver.receive({ value: element });
+        }
+    }
+
+    finishBundle() {
+        this.doFn.finishBundle();
+    }
+}
+
+registerOperator(base.ParDo.urn, ParDoOperator);
 
 
 class PassThroughOperator implements IOperator {

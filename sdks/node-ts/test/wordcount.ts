@@ -1,5 +1,6 @@
 import * as beam from '../src/apache_beam';
 import * as runnerApi from '../src/apache_beam/proto/beam_runner_api';
+import { DirectRunner } from '../src/apache_beam/runners/direct_runner'
 
 
 class CountElements extends beam.PTransform<beam.PCollection, beam.PCollection> {
@@ -9,14 +10,14 @@ class CountElements extends beam.PTransform<beam.PCollection, beam.PCollection> 
             .apply(new beam.GroupByKey("GBK"))  // TODO: GroupBy
             .map((kvs) => ({
                 key: kvs.key,
-                count: kvs.values.reduce((a, b) => a + b)  // TODO: Combine
+                count: kvs.value.reduce((a, b) => a + b)  // TODO: Combine
             }));
     }
 }
 
 describe("wordcount", function() {
     it("wordcount", async function() {
-        await new beam.ProtoPrintingRunner().run(
+        await new DirectRunner().run(
             (root) => {
                 const lines = root.apply(new beam.Create([
                     "In the beginning God created the heaven and the earth.",
