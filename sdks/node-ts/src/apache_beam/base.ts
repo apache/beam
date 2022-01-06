@@ -1,5 +1,6 @@
 import * as runnerApi from './proto/beam_runner_api';
-import { BytesCoder, Coder, IterableCoder, KVCoder } from './coders/standard_coders';
+import { Coder } from './coders/coders'
+import { BytesCoder, IterableCoder, KVCoder } from './coders/standard_coders';
 import * as util from 'util';
 import * as translations from './internal/translations'
 
