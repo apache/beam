@@ -18,7 +18,9 @@
 //
 // Registered file systems at minimum implement the Interface abstraction, and
 // can then optionally implement Remover, Renamer, and Copier to support
-// rename operations.
+// rename operations. Filesystems are only expected to handle their own IO, and
+// not cross file system IO. Should cross file system IO be required, additional
+// utility methods should be added to this package to support them.
 package filesystem
 
 import (
