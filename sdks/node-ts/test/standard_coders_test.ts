@@ -119,7 +119,7 @@ function describeCoder<T>(coder: Coder<T>, urn, context, spec) {
         for (let expected in spec.examples) {
             var value = parser(spec.examples[expected]);
             examples += 1;
-            const expectedEncoded = new TextEncoder().encode(expected)
+            const expectedEncoded = Buffer.from(expected, 'binary')
             coderCase(coder, value, expectedEncoded, context, examples);
         }
     });
