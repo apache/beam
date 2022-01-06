@@ -1,7 +1,9 @@
 import * as runnerApi from './proto/beam_runner_api';
-import { BytesCoder, Coder, IterableCoder, KVCoder } from './coders/standard_coders';
+import { Coder } from './coders/coders'
+import { BytesCoder, IterableCoder, KVCoder } from './coders/standard_coders';
 import * as util from 'util';
 import * as translations from './internal/translations'
+import { GeneralObjectCoder } from './coders/js_coders';
 
 
 // TODO(pabloem): Use something better, hah.
@@ -65,7 +67,7 @@ export class Pipeline extends PValue {
 
     // A map of coder ID to Coder object
     // TODO: Is this needed?
-    coders: { [key: string]: Coder } = {}
+    coders: { [key: string]: Coder<any> } = {}
 
     constructor() {
         super("root");
@@ -110,13 +112,13 @@ export class Pipeline extends PValue {
         return result;
     }
 
-    createPCollectionInternal(coder: Coder | string, isBounded = runnerApi.IsBounded_Enum.BOUNDED) {
+    createPCollectionInternal(coder: Coder<any> | string, isBounded = runnerApi.IsBounded_Enum.BOUNDED) {
         const pcollId = pcollectionName();
         let coderId: string;
         if (typeof coder == "string") {
             coderId = coder;
         } else {
-            coderId = translations.registerPipelineCoder((coder as Coder).toProto(this.pipeline.proto.components!), this.pipeline.proto.components!);
+            coderId = translations.registerPipelineCoder((coder as Coder<any>).toProto!(this.pipeline.proto.components!), this.pipeline.proto.components!);
             // TODO: Do we need this?
             this.coders[coderId] = coder;
         }
@@ -304,8 +306,9 @@ export class ParDo extends PTransform<PCollection, PCollection> {
                 }))
         });
 
-        // TODO(paboem): How do we infer the proper coder for this transform?. For now we use the same as input.
-        return pipeline.createPCollectionInternal(input.proto.coderId);
+        // For the ParDo output coder, we use a GeneralObjectCoder, which is a Javascript-specific
+        // coder to encode the various types that exist in JS.
+        return pipeline.createPCollectionInternal(new GeneralObjectCoder());
     }
 }
 
