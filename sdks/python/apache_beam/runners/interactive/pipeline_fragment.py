@@ -196,10 +196,10 @@ class PipelineFragment(object):
           # necessary. If composites are not handled, then there will be
           # orphaned PCollections.
           if producer.parent is not None:
-            necessary_transforms.update(producer.parts)
+            necessary_transforms.update(producer.parent.parts)
 
             # This will recursively add all the PCollections in this composite.
-            for part in producer.parts:
+            for part in producer.parent.parts:
               updated_all_inputs.update(part.outputs.values())
 
           # Record all necessary input and side input PCollections.
