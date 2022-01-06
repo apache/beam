@@ -13,13 +13,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package runners defines the common "--runner" flag.
-// We have a single definition for it to avoid re-definition
-// errors, between it and test packages or other integration
-// harnesses.
-package runners
+package gcs
 
-import "flag"
+import (
+	"context"
+	"testing"
 
-// Runner is a flag to specify which Beam runner should be used to execute the pipeline.
-var Runner = flag.String("runner", "", "Pipeline runner.")
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
+)
+
+func TestGCS_FilesystemNew(t *testing.T) {
+	ctx := context.Background()
+	path := "gs://tmp/"
+	c, err := filesystem.New(ctx, path)
+	if err != nil {
+		t.Errorf("filesystem.New(ctx, %q) = %v, want nil", path, err)
+	}
+	if _, ok := c.(*fs); !ok {
+		t.Errorf("filesystem.New(ctx, %q) type = %T, want *gcs.fs", path, c)
+	}
+	if err := c.Close(); err != nil {
+		t.Errorf("c.Close() = %v, want nil", err)
+	}
+}
