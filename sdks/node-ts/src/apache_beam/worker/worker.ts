@@ -129,7 +129,7 @@ export class Worker {
     }
 }
 
-class BundleProcessor {
+export class BundleProcessor {
     descriptor: ProcessBundleDescriptor;
 
     topologicallyOrderedOperators: IOperator[] = [];
@@ -176,7 +176,7 @@ class BundleProcessor {
                         {
                             descriptor: descriptor,
                             getReceiver: getReceiver,
-                            getDataChannel: this_.getDataChannel.bind(this_),
+                            getDataChannel: this_.getDataChannel,
                             getBundleId: this_.getBundleId.bind(this_)
                         }));
                 creationOrderedOperators.push(this_.operators.get(transformId)!);
@@ -193,16 +193,18 @@ class BundleProcessor {
     }
 
     // Put this on a worker thread...
-    async process(instructionId: string) {
+    async process(instructionId: string, delay_ms = 2000) {
         console.log("Processing ", this.descriptor.id, "for", instructionId);
         this.currentBundleId = instructionId;
         this.topologicallyOrderedOperators.slice().reverse().forEach((o) => o.startBundle());
 
-        console.log("Waiting...")
-        await new Promise((resolve) => {
-            setTimeout(resolve, 2000);
-        });
-        console.log("Done waiting.")
+        if (delay_ms > 0) {
+            console.log("Waiting...")
+            await new Promise((resolve) => {
+                setTimeout(resolve, delay_ms);
+            });
+            console.log("Done waiting.")
+        }
 
         this.topologicallyOrderedOperators.forEach((o) => o.finishBundle());
         this.currentBundleId = undefined;
