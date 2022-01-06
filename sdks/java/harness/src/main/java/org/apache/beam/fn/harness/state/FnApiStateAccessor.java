@@ -30,6 +30,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.Cache;
 import org.apache.beam.fn.harness.Caches;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest.CacheToken;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.runners.core.SideInputReader;
@@ -76,6 +77,9 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
   private final BeamFnStateClient beamFnStateClient;
   private final String ptransformId;
   private final Supplier<String> processBundleInstructionId;
+  private final Supplier<List<BeamFnApi.ProcessBundleRequest.CacheToken>> cacheTokens;
+  private final Supplier<Cache<?, ?>> bundleCache;
+  private final Cache<?, ?> processWideCache;
   private final Collection<ThrowingRunnable> stateFinalizers;
 
   private final Supplier<BoundedWindow> currentWindowSupplier;
@@ -102,6 +106,9 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
     this.beamFnStateClient = beamFnStateClient;
     this.ptransformId = ptransformId;
     this.processBundleInstructionId = processBundleInstructionId;
+    this.cacheTokens = cacheTokens;
+    this.bundleCache = bundleCache;
+    this.processWideCache = processWideCache;
     this.stateFinalizers = new ArrayList<>();
     this.currentWindowSupplier = currentWindowSupplier;
     this.encodedCurrentKeySupplier =
@@ -715,9 +722,62 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
 
   private Cache<?, ?> getCacheFor(StateKey stateKey) {
     switch (stateKey.getTypeCase()) {
+      case BAG_USER_STATE:
+        for (CacheToken token : cacheTokens.get()) {
+          if (!token.hasUserState()) {
+            continue;
+          }
+          return Caches.subCache(processWideCache, token, stateKey);
+        }
+        break;
+      case MULTIMAP_KEYS_USER_STATE:
+        for (CacheToken token : cacheTokens.get()) {
+          if (!token.hasUserState()) {
+            continue;
+          }
+          return Caches.subCache(processWideCache, token, stateKey);
+        }
+        break;
+      case ITERABLE_SIDE_INPUT:
+        for (CacheToken token : cacheTokens.get()) {
+          if (!token.hasSideInput()) {
+            continue;
+          }
+          if (stateKey
+                  .getIterableSideInput()
+                  .getTransformId()
+                  .equals(token.getSideInput().getTransformId())
+              && stateKey
+                  .getIterableSideInput()
+                  .getSideInputId()
+                  .equals(token.getSideInput().getSideInputId())) {
+            return Caches.subCache(processWideCache, token, stateKey);
+          }
+        }
+        break;
+      case MULTIMAP_KEYS_SIDE_INPUT:
+        for (CacheToken token : cacheTokens.get()) {
+          if (!token.hasSideInput()) {
+            continue;
+          }
+          if (stateKey
+                  .getMultimapKeysSideInput()
+                  .getTransformId()
+                  .equals(token.getSideInput().getTransformId())
+              && stateKey
+                  .getMultimapKeysSideInput()
+                  .getSideInputId()
+                  .equals(token.getSideInput().getSideInputId())) {
+            return Caches.subCache(processWideCache, token, stateKey);
+          }
+        }
+        break;
       default:
-        return Caches.noop();
+        throw new IllegalStateException(
+            String.format("Unknown state key type requested %s.", stateKey));
     }
+    // The default is to use the bundle cache.
+    return Caches.subCache(bundleCache.get(), stateKey);
   }
 
   private <T> BagUserState<T> createBagUserState(StateKey stateKey, Coder<T> valueCoder) {
@@ -747,7 +807,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
       StateKey stateKey, Coder<KeyT> keyCoder, Coder<ValueT> valueCoder) {
     MultimapUserState<KeyT, ValueT> rval =
         new MultimapUserState(
-            Caches.noop(),
+            getCacheFor(stateKey),
             beamFnStateClient,
             processBundleInstructionId.get(),
             stateKey,
