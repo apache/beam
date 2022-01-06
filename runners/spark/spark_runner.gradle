@@ -277,6 +277,9 @@ task validatesRunnerBatch(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
     excludeCategories 'org.apache.beam.sdk.testing.UsesPythonExpansionService'
     excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
+    // Ordering
+    excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderedDelivery'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderInBundle'
   }
   jvmArgs '-Xmx3g'
 }
