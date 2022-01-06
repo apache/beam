@@ -1,38 +1,8 @@
 import { Writer, Reader } from 'protobufjs';
-
-interface Class<T> {
-    new(...args: any[]): T;
-}
-
-class CoderRegistry {
-    internal_registry = {};
-    get(urn: string): Coder<any> {
-        const constructor: Class<Coder<any>> = this.internal_registry[urn];
-        if (constructor === undefined) {
-            return null!;
-        }
-        return new constructor();
-    }
-
-    register(urn: string, coderClass: Class<Coder<any>>) {
-        this.internal_registry[urn] = coderClass;
-    }
-}
-export const CODER_REGISTRY = new CoderRegistry();
-
-export enum Context {
-    selfDelimiting,
-    needsDelimiters
-}
-
-export interface Coder<T> {
-    encode(element: T, writer: Writer, context: Context);
-
-    decode(reader: Reader, context: Context): T;
-}
+import { Coder, Context, CODER_REGISTRY } from "./coders";
 
 class FakeCoder<T> implements Coder<T> {
-    encode(element: T, writer: Writer) {
+    encode(value: T, writer: Writer, context: Context) {
         throw new Error('Not implemented!');
     }
 
@@ -41,10 +11,43 @@ class FakeCoder<T> implements Coder<T> {
     }
 }
 
-export class BytesCoder extends FakeCoder<ArrayBuffer> {
+export class BytesCoder implements Coder<Uint8Array> {
     static URN: string = "beam:coder:bytes:v1";
-    constructor() {
-        super();
+
+    encode(value: Uint8Array, writer: Writer, context: Context) {
+        var writeBytes =
+            function writeBytes_for(val, buf, pos) {
+                for (var i = 0; i < val.length; ++i)
+                    buf[pos + i] = val[i];
+            };
+
+        var len = value.length;
+        var hackedWriter = <any> writer;
+        switch (context) {
+            case Context.wholeStream:
+                hackedWriter._push(writeBytes, len, value);
+                break;
+            case Context.needsDelimiters:
+                writer.int32(len)
+                hackedWriter._push(writeBytes, len, value);
+                break;
+            default:
+                throw new Error("Unknown type of encoding context");
+        }
+    }
+
+    decode(reader: Reader, context: Context): Uint8Array {
+        switch (context) {
+            case Context.wholeStream:
+                return reader.buf;
+                break;
+            case Context.needsDelimiters:
+                var length = reader.int32();
+                var value = reader.buf.slice(reader.pos, reader.pos + length)
+                return value;
+            default:
+                throw new Error("Unknown type of decoding context");
+        }
     }
 }
 CODER_REGISTRY.register(BytesCoder.URN, BytesCoder);
