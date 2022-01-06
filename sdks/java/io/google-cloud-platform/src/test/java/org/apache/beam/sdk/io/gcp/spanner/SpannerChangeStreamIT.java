@@ -134,7 +134,7 @@ public class SpannerChangeStreamIT {
         .updateDatabaseDdl(
             instanceId,
             databaseId,
-            Arrays.asList("DROP TABLE " + tableName, "DROP CHANGE STREAM " + changeStreamName),
+            Arrays.asList("DROP CHANGE STREAM " + changeStreamName, "DROP TABLE " + tableName),
             "op" + RandomUtils.randomAlphaNumeric(8))
         .get(5, TimeUnit.MINUTES);
     spanner.close();
@@ -142,15 +142,20 @@ public class SpannerChangeStreamIT {
 
   @Test
   public void testReadSpannerChangeStream() throws InterruptedException {
+    final Timestamp commitTimestamp = insertRecords();
+
     final SpannerConfig spannerConfig =
         SpannerConfig.create()
             .withHost(StaticValueProvider.of(SPANNER_HOST))
             .withProjectId(projectId)
             .withInstanceId(instanceId)
             .withDatabaseId(databaseId);
-    final Timestamp now = Timestamp.now();
-    final Timestamp after30Seconds =
-        Timestamp.ofTimeSecondsAndNanos(now.getSeconds() + 30, now.getNanos());
+    final Timestamp startAt =
+        Timestamp.ofTimeSecondsAndNanos(
+            commitTimestamp.getSeconds() - 1, commitTimestamp.getNanos());
+    final Timestamp endAt =
+        Timestamp.ofTimeSecondsAndNanos(
+            commitTimestamp.getSeconds() + 1, commitTimestamp.getNanos());
 
     pipeline.getOptions().as(SpannerTestPipelineOptions.class).setStreaming(true);
     pipeline.getOptions().as(SpannerTestPipelineOptions.class).setBlockOnRun(false);
@@ -162,8 +167,8 @@ public class SpannerChangeStreamIT {
                     .withSpannerConfig(spannerConfig)
                     .withChangeStreamName(changeStreamName)
                     .withMetadataDatabase(databaseId)
-                    .withInclusiveStartAt(now)
-                    .withInclusiveEndAt(after30Seconds))
+                    .withInclusiveStartAt(startAt)
+                    .withInclusiveEndAt(endAt))
             .apply(
                 MapElements.into(TypeDescriptors.strings())
                     .via(
@@ -185,7 +190,6 @@ public class SpannerChangeStreamIT {
 
     final PipelineResult pipelineResult = pipeline.run();
     Thread.sleep(5_000);
-    insertRecords();
     pipelineResult.waitUntilFinish();
   }
 
