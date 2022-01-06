@@ -24,7 +24,6 @@ import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
-import javax.annotation.Nullable;
 import org.apache.beam.fn.harness.Cache.Shrinkable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.SdkHarnessOptions;
@@ -307,45 +306,38 @@ public final class Caches {
    * <p>The set of keys that are tracked are only those provided to {@link #peek} and {@link
    * #computeIfAbsent}.
    */
-  public static class ClearableCache<K, V> implements Cache<K, V> {
+  public static class ClearableCache<K, V> extends SubCache<K, V> {
     private final Set<K> weakHashSet;
-    private final Cache<K, V> cache;
 
     public ClearableCache(Cache<K, V> cache) {
+      super(((SubCache<K, V>) cache).cache, ((SubCache<CompositeKey, V>) cache).keyPrefix);
       // We specifically use a weak hash map so that once the key is no longer referenced we don't
       // have to keep track of it anymore and the weak hash map will garbage collect it for us.
       this.weakHashSet = Collections.newSetFromMap(new WeakHashMap<>());
-      this.cache = cache;
-    }
-
-    @Nullable
-    @Override
-    public V peek(K key) {
-      return cache.peek(key);
     }
 
     @Override
     public V computeIfAbsent(K key, Function<K, V> loadingFunction) {
       weakHashSet.add(key);
-      return cache.computeIfAbsent(key, loadingFunction);
+      return super.computeIfAbsent(key, loadingFunction);
     }
 
     @Override
     public void put(K key, V value) {
       weakHashSet.add(key);
-      cache.put(key, value);
+      super.put(key, value);
     }
 
     @Override
     public void remove(K key) {
       weakHashSet.remove(key);
-      cache.remove(key);
+      super.remove(key);
     }
 
     /** Removes all tracked keys from the cache. */
     public void clear() {
       for (K key : weakHashSet) {
-        cache.remove(key);
+        super.remove(key);
       }
       weakHashSet.clear();
     }

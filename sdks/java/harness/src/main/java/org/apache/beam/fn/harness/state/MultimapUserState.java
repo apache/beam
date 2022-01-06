@@ -63,7 +63,7 @@ public class MultimapUserState<K, V> {
   private final Coder<V> valueCoder;
   private final StateRequest keysStateRequest;
   private final StateRequest userStateRequest;
-  private CachingStateIterable<K> persistedKeys;
+  private final CachingStateIterable<K> persistedKeys;
 
   private boolean isClosed;
   private boolean isCleared;
