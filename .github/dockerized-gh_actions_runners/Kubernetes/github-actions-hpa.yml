@@ -24,6 +24,6 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: github-actions-runners-deployment
-  minReplicas: 1
-  maxReplicas: 10
+  minReplicas: 5
+  maxReplicas: 16
   targetCPUUtilizationPercentage: 50

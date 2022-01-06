@@ -18,6 +18,7 @@ name: Build And Deploy Playground Frontend Application
 on:
   push:
     tags: 'v*'
+    branches: ['beam-12812-githubactions']
   pull_request:
     paths: ['playground/frontend/**']
   workflow_dispatch:
