@@ -4,6 +4,7 @@ import * as runnerApi from '../proto/beam_runner_api';
 import { BytesCoder, KVCoder } from "../coders/standard_coders";
 
 import { GroupByKey } from '../base'
+import { GeneralObjectCoder } from "../coders/js_coders";
 
 export class GroupBy extends PTransform {
     keyFn: (element: any) => any;
@@ -21,11 +22,18 @@ export class GroupBy extends PTransform {
 
         const inputCoderId = (input as PCollection).proto.coderId;
 
-        // TODO(pabloem): Find the appropriate coder for the key
+        const keyCoder = new GeneralObjectCoder();
+        const keyCoderProto = runnerApi.Coder.create({
+            'spec': runnerApi.FunctionSpec.create({
+                'urn': GeneralObjectCoder.URN,
+                'payload': new Uint8Array()  // TODO(pabloem): Serialize the GeneralObjectCoder properly.
+            }),
+            componentCoderIds: []
+        })
         const keyCoderId = translations.registerPipelineCoder(
-            runnerApi.Coder.create({ 'spec': runnerApi.FunctionSpec.create({ 'urn': BytesCoder.URN }), }),
+            keyCoderProto,
             input.pipeline.proto.components!);
-        input.pipeline.coders[keyCoderId] = new BytesCoder();
+        input.pipeline.coders[keyCoderId] = keyCoder;
 
         const kvCoderProto = runnerApi.Coder.create({
             'spec': runnerApi.FunctionSpec.create({ 'urn': KVCoder.URN }),

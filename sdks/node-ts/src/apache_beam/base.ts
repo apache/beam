@@ -3,6 +3,7 @@ import { Coder } from './coders/coders'
 import { BytesCoder, IterableCoder, KVCoder } from './coders/standard_coders';
 import * as util from 'util';
 import * as translations from './internal/translations'
+import { GeneralObjectCoder } from './coders/js_coders';
 
 
 // TODO(pabloem): Use something better, hah.
@@ -211,13 +212,23 @@ export class ParDo extends PTransform {
         }
 
         const pcollName = pcollectionName();
-        // TODO(paboem): How do we infer the proper coder for this transform?. For now we use the same as input.
         const inputCoderProto = input.pipeline.proto.components?.coders[input.proto.coderId]!;
+
+        // For the ParDo output coder, we use a GeneralObjectCoder, which is a Javascript-specific
+        // coder to encode the various types that exist in JS.
+        const outputCoder = new GeneralObjectCoder();
+        const outputCoderProto = runnerApi.Coder.create({
+            'spec': runnerApi.FunctionSpec.create({
+                'urn': GeneralObjectCoder.URN,
+                'payload': new Uint8Array()  // TODO(pabloem): Serialize the GeneralObjectCoder properly.
+            }),
+            componentCoderIds: []
+        })
         const outputCoderId = translations.registerPipelineCoder(
-            inputCoderProto,
+            outputCoderProto,
             input.pipeline.proto.components!
         );
-        input.pipeline.coders[outputCoderId] = new BytesCoder();
+        input.pipeline.coders[outputCoderId] = outputCoder;
 
         const outputProto = runnerApi.PCollection.create({
             'uniqueName': pcollName,
