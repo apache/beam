@@ -36,32 +36,11 @@ export class ProtoPrintingRunner implements Runner {
 }
 
 /**
- * Represents an 'edge' in a graph. These may be PCollections, PCollection views,
- * and Pipelines themselves.
- */
-// TODO: Remove PValue or replace it with PValueish?
-class PValue {
-    // TODO: Have a reference to its graph representation
-    type: string = "unknown";
-    name: string;
-    pipeline: Pipeline;
-
-    constructor(name: string) {
-        this.name = name;
-    }
-
-    // Top-level functions:
-    // - flatMap
-    // - filter?
-}
-
-/**
  * A Pipeline is the base object to start building a Beam DAG. It is the
  * first object that a user creates, and then they may start applying
  * transformations to it to build a DAG.
  */
-export class Pipeline extends PValue {
-    type: string = "pipeline";
+export class Pipeline {
     proto: runnerApi.Pipeline;
     transformStack: string[] = [];
 
@@ -70,11 +49,9 @@ export class Pipeline extends PValue {
     coders: { [key: string]: Coder<any> } = {}
 
     constructor() {
-        super("root");
         this.proto = runnerApi.Pipeline.create(
             { 'components': runnerApi.Components.create() }
         );
-        this.pipeline = this;
     }
 
     // TODO: Remove once test are fixed.
@@ -118,11 +95,11 @@ export class Pipeline extends PValue {
         if (typeof coder == "string") {
             coderId = coder;
         } else {
-            coderId = translations.registerPipelineCoder((coder as Coder<any>).toProto!(this.pipeline.proto.components!), this.pipeline.proto.components!);
+            coderId = translations.registerPipelineCoder((coder as Coder<any>).toProto!(this.proto.components!), this.proto.components!);
             // TODO: Do we need this?
             this.coders[coderId] = coder;
         }
-        this.pipeline.proto!.components!.pcollections[pcollId] = {
+        this.proto!.components!.pcollections[pcollId] = {
             uniqueName: pcollId, // TODO: name according to producing transform?
             coderId: coderId,
             isBounded: isBounded,
@@ -133,13 +110,13 @@ export class Pipeline extends PValue {
     }
 }
 
-export class PCollection extends PValue {
+export class PCollection {
     type: string = "pcollection";
     id: string;
     proto: runnerApi.PCollection;
+    pipeline: Pipeline;
 
     constructor(pipeline: Pipeline, id: string) {
-        super("unusedName")
         this.proto = pipeline.proto!.components!.pcollections[id];  // TODO: redundant?
         this.pipeline = pipeline;
         this.id = id;
