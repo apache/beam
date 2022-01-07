@@ -45,8 +45,7 @@ dependencies {
   testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation library.java.junit
-  testImplementation library.java.hamcrest_core
-  testImplementation library.java.hamcrest_library
+  testImplementation library.java.hamcrest
   testImplementation library.java.hadoop_minicluster
   testImplementation library.java.hadoop_hdfs
   testImplementation library.java.hadoop_common

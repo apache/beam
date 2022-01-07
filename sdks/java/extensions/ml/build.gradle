@@ -48,7 +48,6 @@ dependencies {
     implementation library.java.gax
     implementation library.java.protobuf_java
     implementation library.java.slf4j_api
-    compileOnly library.java.junit
     testImplementation project(path: ':sdks:java:core', configuration: 'shadowTest')
     implementation 'com.google.cloud:google-cloud-vision:1.99.3'
     testImplementation library.java.mockito_core
@@ -58,7 +57,6 @@ dependencies {
     testImplementation 'com.google.cloud:google-cloud-recommendations-ai:0.3.7'
     testImplementation 'com.google.cloud:google-cloud-video-intelligence:1.2.0'
     testImplementation 'com.google.cloud:google-cloud-dlp:1.1.4'
-    testImplementation project(":sdks:java:extensions:google-cloud-platform-core")
     testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntimeMigration")
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
     testRuntimeOnly project(":runners:google-cloud-dataflow-java")

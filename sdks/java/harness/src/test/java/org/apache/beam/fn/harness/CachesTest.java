@@ -127,6 +127,7 @@ public class CachesTest {
   public void testClearableCache() {
     ClearableCache<String, String> cache = new ClearableCache<>(Caches.eternal());
     testCache(cache);
+    testCache(Caches.subCache(cache, "clearableChild"));
   }
 
   @Test

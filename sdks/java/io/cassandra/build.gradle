@@ -39,8 +39,7 @@ dependencies {
   implementation library.java.cassandra_driver_mapping
   testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
   testImplementation library.java.junit
-  testImplementation library.java.hamcrest_core
-  testImplementation library.java.hamcrest_library
+  testImplementation library.java.hamcrest
   testImplementation library.java.mockito_core
 
   // for embedded cassandra
