@@ -30,12 +30,12 @@ export interface PipelineResult {
 export class Runner {
     /**
      * Runs the transform.
-     * 
+     *
      * Resolves to an instance of PipelineResult when the pipeline completes.
      * Use runAsync() to execute the pipeline in the background.
-     * 
-     * @param pipeline 
-     * @returns A PipelineResult 
+     *
+     * @param pipeline
+     * @returns A PipelineResult
      */
     async run(pipeline: ((root: Root) => PValue<any>)): Promise<PipelineResult> {
         const p = new Pipeline();
@@ -56,7 +56,7 @@ export class Runner {
         return this.runPipeline(p);
     }
 
-    async runPipeline(pipeline: Pipeline): Promise<PipelineResult> {
+    protected async runPipeline(pipeline: Pipeline): Promise<PipelineResult> {
         throw new Error("Not implemented.");
     }
 }
@@ -64,7 +64,7 @@ export class Runner {
 export class ProtoPrintingRunner extends Runner {
     async runPipeline(pipeline): Promise<PipelineResult> {
         console.dir(pipeline.proto, { depth: null });
-        return { 
+        return {
             waitUntilFinish: (duration?) => Promise.reject('not implemented'),
         };
     }
