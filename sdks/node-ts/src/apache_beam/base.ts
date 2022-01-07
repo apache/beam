@@ -240,6 +240,24 @@ function flattenPValue(PValue: PValue, prefix: string = ""): { [key: string]: PC
     return result;
 }
 
+class PValueWrapper<T extends PValue> {
+    constructor(private pvalue: T) { }
+    apply<O extends PValue>(transform: PTransform<T, O>, root: Root | null = null) {
+        let pipeline: Pipeline;
+        if (root == null) {
+            const flat = flattenPValue(this.pvalue);
+            pipeline = Object.values(flat)[0].pipeline;
+        } else {
+            pipeline = root.pipeline;
+        }
+        return pipeline.apply2(transform, this.pvalue, "");
+    }
+}
+
+export function P<T extends PValue>(pvalue: T) {
+    return new PValueWrapper(pvalue);
+}
+
 export class PTransform<InputT extends PValue, OutputT extends PValue> {
     name: string;
 
@@ -391,12 +409,6 @@ export class GroupByKey extends PTransform<PCollection, PCollection> {
 
         return pipeline.createPCollectionInternal(outputCoder);
     }
-}
-
-
-// TODO: P(...).apply()
-export function flattenFunction(pcolls: PCollection[]): PCollection {
-    return pcolls[0].pipeline.apply2(new Flatten(), pcolls, "Flatten");
 }
 
 

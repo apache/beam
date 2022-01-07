@@ -5,21 +5,6 @@ import { Writer, Reader } from 'protobufjs';
 import { Coder, Context, CODER_REGISTRY } from "./coders";
 import { PipelineContext, WindowedValue } from '../base';
 
-
-class FakeCoder<T> implements Coder<T> {
-    encode(value: T, writer: Writer, context: Context) {
-        throw new Error('Not implemented!');
-    }
-
-    decode(reader: Reader, context: Context): T {
-        throw new Error('Not implemented!');
-    }
-
-    toProto(pipelineContext: PipelineContext): runnerApi.Coder {
-        throw new Error('Not implemented!');
-    }
-}
-
 export class BytesCoder implements Coder<Uint8Array> {
     static URN: string = "beam:coder:bytes:v1";
     static INSTANCE: BytesCoder = new BytesCoder();
@@ -52,7 +37,7 @@ export class BytesCoder implements Coder<Uint8Array> {
     decode(reader: Reader, context: Context): Uint8Array {
         switch (context) {
             case Context.wholeStream:
-                return reader.buf;
+                return reader.buf.slice(reader.pos);
                 break;
             case Context.needsDelimiters:
                 var length = reader.int32();
@@ -122,7 +107,10 @@ export class KVCoder<K, V> implements Coder<KV<K, V>> {
 CODER_REGISTRY.register(KVCoder.URN, KVCoder);
 
 function swapEndian32(x: number): number {
-    return ((x & 0xFF000000) >> 24) | ((x & 0xFF0000) >> 8) | ((x & 0xFF00) << 8) && ((x & 0xFF) << 24);
+    return ((x & 0xFF000000) >> 24)
+        | ((x & 0x00FF0000) >> 8)
+        | ((x & 0x0000FF00) << 8)
+        | ((x & 0x000000FF) << 24);
 }
 
 export class IterableCoder<T> implements Coder<Iterable<T>> {
@@ -239,17 +227,19 @@ export class WindowedValueCoder<T, W> implements Coder<WindowedValue> {
 }
 CODER_REGISTRY.register(WindowedValueCoder.URN, WindowedValueCoder);
 
+export class GlobalWindow {
+
+}
+
 export class GlobalWindowCoder implements Coder<any> {
     static URN: string = "beam:coder:global_window:v1";
     static INSTANCE: GlobalWindowCoder = new GlobalWindowCoder();
 
     encode(value: any, writer: Writer, context: Context) {
-        writer.bool(false);
     }
 
     decode(reader: Reader, context: Context) {
-        reader.skip(1);
-        return null;
+        return new GlobalWindow()
     }
 
     toProto(pipelineContext: PipelineContext): runnerApi.Coder {

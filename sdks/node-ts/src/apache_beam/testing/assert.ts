@@ -44,7 +44,8 @@ export class Assert extends beam.PTransform<beam.PCollection, void> {
         const singleton = pcoll.root().apply(new beam.Impulse()).map((_) => ({ tag: 'expected' }))
         // CoGBK.
         const tagged = pcoll.map((e) => ({ tag: 'actual', value: e }))
-        beam.flattenFunction([singleton, tagged])
+        beam.P([singleton, tagged])
+            .apply(new beam.Flatten())
             .map((e) => ({ key: 0, value: e }))
             .apply(new beam.GroupByKey())
             .map((kv) => {
