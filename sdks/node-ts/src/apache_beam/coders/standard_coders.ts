@@ -154,7 +154,17 @@ export class IterableCoder<T> implements Coder<Iterable<T>> {
             }
             return result;
         } else {
-            throw new Error('Length-unknown iterables are not yet implemented')
+            var result = new Array();
+            while (true) {
+                // TODO: these actually go up to int64
+                var count = reader.int32();
+                if (count === 0) {
+                    return result;
+                }
+                for (var i = 0; i < count; i++) {
+                    result.push(this.elementCoder.decode(reader, Context.needsDelimiters))
+                }
+            }
         }
     }
 }
