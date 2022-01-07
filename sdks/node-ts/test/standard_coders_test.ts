@@ -10,13 +10,17 @@ const STANDARD_CODERS_FILE = '../../model/fn-execution/src/main/resources/org/ap
 
 const UNSUPPORTED_EXAMPLES = {
     "beam:coder:varint:v1-7": "",
+    "beam:coder:kv:v1-1": "",
+    "beam:coder:kv:v1-2": "",
+    "beam:coder:iterable:v1-1": "",
+    "beam:coder:iterable:v1-2": "",
+    "beam:coder:iterable:v1-3": "",
 }
 
 // TODO(pabloem): Empty this list.
 const UNSUPPORTED_CODERS = [
     "beam:coder:interval_window:v1",
     "beam:coder:double:v1",
-    "beam:coder:iterable:v1",
     "beam:coder:timer:v1",
     "beam:coder:global_window:v1",
     "beam:coder:windowed_value:v1",
@@ -24,68 +28,17 @@ const UNSUPPORTED_CODERS = [
     "beam:coder:row:v1",
     "beam:coder:sharded_key:v1",
     "beam:coder:custom_window:v1",
-    "beam:coder:kv:v1"
 ];
 
 const _urn_to_json_value_parser = {
     'beam:coder:bytes:v1': x => new TextEncoder().encode(x),
     'beam:coder:bool:v1': x => x,
-    'beam:coder:string_utf8:v1': x => x,
+    'beam:coder:string_utf8:v1': x => x as string,
     'beam:coder:varint:v1': x => x,
-    'beam:coder:double:v1': x => Number(x),
-    'beam:coder:kv:v1': (x, components) => (components[0](x['key']), components[1](x['value'])),
-    // 'beam:coder:interval_window:v1': lambda x: IntervalWindow(
-    //     start=Timestamp(micros=(x['end'] - x['span']) * 1000),
-    //     end=Timestamp(micros=x['end'] * 1000)),
-    // 'beam:coder:iterable:v1': lambda x,
-    // parser: list(map(parser, x)),
-    // 'beam:coder:global_window:v1': lambda x: window.GlobalWindow(),
-    // 'beam:coder:windowed_value:v1': lambda x,
-    // value_parser,
-    // window_parser: windowed_value.create(
-    //     value_parser(x['value']),
-    //     x['timestamp'] * 1000,
-    //     tuple(window_parser(w) for w in x['windows'])),
-    // 'beam:coder:param_windowed_value:v1': lambda x,
-    // value_parser,
-    // window_parser: windowed_value.create(
-    //     value_parser(x['value']),
-    //     x['timestamp'] * 1000,
-    //     tuple(window_parser(w) for w in x['windows']),
-    //     PaneInfo(
-    //         x['pane']['is_first'],
-    //         x['pane']['is_last'],
-    //         PaneInfoTiming.from_string(x['pane']['timing']),
-    //         x['pane']['index'],
-    //         x['pane']['on_time_index'])),
-    // 'beam:coder:timer:v1': lambda x,
-    // value_parser,
-    // window_parser: userstate.Timer(
-    //     user_key=value_parser(x['userKey']),
-    //     dynamic_timer_tag=x['dynamicTimerTag'],
-    //     clear_bit=x['clearBit'],
-    //     windows=tuple(window_parser(w) for w in x['windows']),
-    //     fire_timestamp=None,
-    //     hold_timestamp=None,
-    //     paneinfo=None) if x['clearBit'] else userstate.Timer(
-    //         user_key=value_parser(x['userKey']),
-    //         dynamic_timer_tag=x['dynamicTimerTag'],
-    //         clear_bit=x['clearBit'],
-    //         fire_timestamp=Timestamp(micros=x['fireTimestamp'] * 1000),
-    //         hold_timestamp=Timestamp(micros=x['holdTimestamp'] * 1000),
-    //         windows=tuple(window_parser(w) for w in x['windows']),
-    //         paneinfo=PaneInfo(
-    //             x['pane']['is_first'],
-    //             x['pane']['is_last'],
-    //             PaneInfoTiming.from_string(x['pane']['timing']),
-    //             x['pane']['index'],
-    //             x['pane']['on_time_index'])),
+    'beam:coder:double:v1': x => new Number(x),
+    'beam:coder:kv:v1': (x, components) => ({'key': components[0](x['key']), 'value': components[1](x['value'])}),
+    'beam:coder:iterable:v1': (x, parser) => (x.map(elm => parser(elm))),
     // 'beam:coder:double:v1': parse_float,
-    // 'beam:coder:sharded_key:v1': lambda x,
-    // value_parser: ShardedKey(
-    //     key=value_parser(x['key']), shard_id=x['shardId'].encode('utf-8')),
-    // 'beam:coder:custom_window:v1': lambda x,
-    // window_parser: window_parser(x['window'])
 }
 
 interface CoderRepr {
@@ -110,9 +63,13 @@ function get_json_value_parser(coderRepr: CoderRepr) {
         throw new Error(util.format("Do not know how to parse example values for %s", coderRepr))
     }
 
-    if (coderRepr.components !== undefined) {
-        const componentParsers = coderRepr.components.map(c => get_json_value_parser(c));
-        return x => value_parser_factory(x, componentParsers)
+    if (coderRepr.components) {
+        const componentParsers = coderRepr.components.map(c => _urn_to_json_value_parser[c.urn]);
+        if (componentParsers.length == 1) {
+            return x => value_parser_factory(x, componentParsers[0])
+        } else {
+            return x => value_parser_factory(x, componentParsers)
+        }
     } else {
         return x => value_parser_factory(x)
     }
@@ -129,7 +86,18 @@ describe("standard Beam coders on Javascript", function() {
         const spec = doc;
 
         const coderConstructor = CODER_REGISTRY.get(urn);
-        const coder = new coderConstructor();
+        var coder;
+        if (spec.coder.components) {
+            var components;
+            try {
+                components = spec.coder.components.map(c => new (CODER_REGISTRY.get(c.urn))())
+            } catch (Error) {
+                return;
+            }
+            coder = new coderConstructor(...components);
+        } else {
+            coder = new coderConstructor();
+        }
         describeCoder(coder, urn, context, spec);
     });
 });
