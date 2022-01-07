@@ -39,7 +39,7 @@ public class FlattenP extends AbstractProcessor {
   private final Map<Integer, Coder> inputOrdinalCoders;
   private final Coder outputCoder;
 
-  @SuppressWarnings("FieldCanBeLocal") // do not remove, useful for debugging
+  @SuppressWarnings({"FieldCanBeLocal", "unused"}) // do not remove, useful for debugging
   private final String ownerId;
 
   private FlattenP(Map<Integer, Coder> inputOrdinalCoders, Coder outputCoder, String ownerId) {

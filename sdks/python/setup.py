@@ -137,11 +137,12 @@ REQUIRED_PACKAGES = [
     # server, therefore list of allowed versions is very narrow.
     # See: https://github.com/uqfoundation/dill/issues/341.
     'dill>=0.3.1.1,<0.3.2',
+    'cloudpickle>=2.0.0,<3',
     'fastavro>=0.21.4,<2',
     'grpcio>=1.29.0,<2',
     'hdfs>=2.1.0,<3.0.0',
     'httplib2>=0.8,<0.20.0',
-    'numpy>=1.14.3,<1.21.0',
+    'numpy>=1.14.3,<1.22.0',
     'pymongo>=3.8.0,<4.0.0',
     'oauth2client>=2.0.1,<5',
     'protobuf>=3.12.2,<4',
@@ -185,7 +186,8 @@ GCP_REQUIREMENTS = [
     # https://github.com/googleapis/google-cloud-python/issues/10566
     'google-auth>=1.18.0,<3',
     'google-cloud-datastore>=1.8.0,<2',
-    'google-cloud-pubsub>=0.39.0,<2',
+    'google-cloud-pubsub>=2.1.0,<3',
+    'google-cloud-pubsublite>=1.2.0,<2',
     # GCP packages required by tests
     'google-cloud-bigquery>=1.6.0,<3',
     'google-cloud-bigquery-storage>=2.6.3',
@@ -194,7 +196,7 @@ GCP_REQUIREMENTS = [
     'google-cloud-spanner>=1.13.0,<2',
     'grpcio-gcp>=0.2.2,<1',
     # GCP Packages required by ML functionality
-    'google-cloud-dlp>=0.12.0,<4',
+    'google-cloud-dlp>=3.0.0,<4',
     'google-cloud-language>=1.3.0,<2',
     'google-cloud-videointelligence>=1.8.0,<2',
     'google-cloud-vision>=0.38.0,<2',
@@ -219,7 +221,7 @@ INTERACTIVE_BEAM_TEST = [
     # headless chrome based integration tests
     'selenium>=3.141.0,<4',
     'needle>=0.5.0,<1',
-    'chromedriver-binary>=93,<94',
+    'chromedriver-binary>=96,<97',
     # use a fixed major version of PIL for different python versions
     'pillow>=7.1.1,<8',
 ]
@@ -257,7 +259,6 @@ if sys.version_info.major == 3 and sys.version_info.minor >= 9:
       'This version of Apache Beam has not been sufficiently tested on '
       'Python %s.%s. You may encounter bugs or missing features.' %
       (sys.version_info.major, sys.version_info.minor))
-
 
 if __name__ == '__main__':
   setuptools.setup(
@@ -303,10 +304,10 @@ if __name__ == '__main__':
       # BEAM-8840: Do NOT use tests_require or setup_requires.
       extras_require={
           'docs': [
-            'Sphinx>=1.5.2,<2.0',
-            # Pinning docutils as a workaround for Sphinx issue:
-            # https://github.com/sphinx-doc/sphinx/issues/9727
-            'docutils==0.17.1'
+              'Sphinx>=1.5.2,<2.0',
+              # Pinning docutils as a workaround for Sphinx issue:
+              # https://github.com/sphinx-doc/sphinx/issues/9727
+              'docutils==0.17.1'
           ],
           'test': REQUIRED_TEST_PACKAGES,
           'gcp': GCP_REQUIREMENTS,

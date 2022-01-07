@@ -17,20 +17,23 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground/config/theme.dart';
 import 'package:playground/constants/font_weight.dart';
+import 'package:playground/constants/links.dart';
 import 'package:playground/constants/sizes.dart';
-import 'package:playground/pages/playground/components/playground_feedback.dart';
-
-const kPrivacyPolicyText = 'Privacy Policy';
-const kReportIssueText = 'Report issue in Jira';
-const kCopyright = '© The Apache Software Foundation';
+import 'package:playground/modules/analytics/analytics_service.dart';
+import 'package:playground/pages/playground/components/feedback/playground_feedback.dart';
+import 'package:playground/pages/playground/components/playground_privacy_policy.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class PlaygroundPageFooter extends StatelessWidget {
   const PlaygroundPageFooter({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations appLocale = AppLocalizations.of(context)!;
+
     return Container(
       color: ThemeColors.of(context).secondaryBackground,
       width: double.infinity,
@@ -48,19 +51,26 @@ class PlaygroundPageFooter extends StatelessWidget {
               style: TextButton.styleFrom(
                 textStyle: const TextStyle(fontWeight: kNormalWeight),
               ),
-              // ignore: avoid_print
-              onPressed: () => print(kPrivacyPolicyText),
-              child: const Text(kReportIssueText),
+              onPressed: () {
+                launch(kReportIssueLink);
+                AnalyticsService.get(context).trackClickReportIssue();
+              },
+              child: Text(appLocale.reportIssue),
             ),
             TextButton(
               style: TextButton.styleFrom(
                 textStyle: const TextStyle(fontWeight: kNormalWeight),
               ),
-              // ignore: avoid_print
-              onPressed: () => print(kPrivacyPolicyText),
-              child: const Text(kPrivacyPolicyText),
+              onPressed: () {
+                showDialog<void>(
+                  context: context,
+                  builder: (BuildContext context) =>
+                      const PlaygroundPrivacyPolicy(),
+                );
+              },
+              child: Text(appLocale.privacyPolicy),
             ),
-            const Text(kCopyright),
+            Text(appLocale.copyright),
           ],
         ),
       ),

@@ -46,45 +46,47 @@ def kafkaVersions = [
 kafkaVersions.each{k,v -> configurations.create("kafkaVersion$k")}
 
 dependencies {
-  compile library.java.vendored_guava_26_0_jre
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(":runners:core-construction-java")
-  compile project(":sdks:java:expansion-service")
+  implementation library.java.vendored_guava_26_0_jre
+  compileOnly library.java.jackson_dataformat_csv
+  permitUnusedDeclared library.java.jackson_dataformat_csv
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(":runners:core-construction-java")
+  implementation project(":sdks:java:expansion-service")
   permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
-  compile library.java.avro
-  // Get back to "provided" since 2.14
-  provided library.java.kafka_clients
-  compile library.java.slf4j_api
-  compile library.java.joda_time
-  compile library.java.jackson_annotations
-  compile library.java.jackson_databind
-  compile "org.springframework:spring-expression:4.3.18.RELEASE"
-  compile ("io.confluent:kafka-avro-serializer:5.3.2") {
+  implementation library.java.avro
+  // Get back to "compileOnly" since 2.14
+  compileOnly library.java.kafka_clients
+  testImplementation library.java.kafka_clients
+  implementation library.java.slf4j_api
+  implementation library.java.joda_time
+  implementation library.java.jackson_annotations
+  implementation library.java.jackson_databind
+  implementation "org.springframework:spring-expression:4.3.18.RELEASE"
+  implementation ("io.confluent:kafka-avro-serializer:5.3.2") {
     // zookeeper depends on "spotbugs-annotations:3.1.9" which clashes with current
     // "spotbugs-annotations:3.1.12" used in Beam. Not required.
     exclude group: "org.apache.zookeeper", module: "zookeeper"
-    // "kafka-clients" has to be provided since user can use its own version.
+    // "kafka-clients" has to be compileOnly since user can use its own version.
     exclude group: "org.apache.kafka", module: "kafka-clients"
   }
-  compile ("io.confluent:kafka-schema-registry-client:5.3.2") {
+  implementation ("io.confluent:kafka-schema-registry-client:5.3.2") {
     // It depends on "spotbugs-annotations:3.1.9" which clashes with current
     // "spotbugs-annotations:3.1.12" used in Beam. Not required.
     exclude group: "org.apache.zookeeper", module: "zookeeper"
-    // "kafka-clients" has to be provided since user can use its own version.
+    // "kafka-clients" has to be compileOnly since user can use its own version.
     exclude group: "org.apache.kafka", module: "kafka-clients"
   }
-  provided library.java.jackson_dataformat_csv
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile project(":sdks:java:io:synthetic")
-  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
-  testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
+  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation project(":sdks:java:io:synthetic")
+  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
   // For testing Cross-language transforms
-  testCompile project(":runners:core-construction-java")
-  testCompile library.java.avro
-  testCompile library.java.junit
-  testCompile library.java.powermock
-  testCompile library.java.powermock_mockito
-  testCompile library.java.testcontainers_kafka
+  testImplementation project(":runners:core-construction-java")
+  testImplementation library.java.avro
+  testImplementation library.java.junit
+  testImplementation library.java.powermock
+  testImplementation library.java.powermock_mockito
+  testImplementation library.java.testcontainers_kafka
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
   kafkaVersions.each {"kafkaVersion$it.key" "org.apache.kafka:kafka-clients:$it.value"}

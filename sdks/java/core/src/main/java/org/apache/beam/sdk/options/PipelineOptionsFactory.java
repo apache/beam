@@ -857,8 +857,7 @@ public class PipelineOptionsFactory {
    *
    * <p>TODO: Swap back to using Introspector once the proxy class issue with AppEngine is resolved.
    */
-  private static List<PropertyDescriptor> getPropertyDescriptors(
-      Set<Method> methods, Class<? extends PipelineOptions> beanClass)
+  private static List<PropertyDescriptor> getPropertyDescriptors(Set<Method> methods)
       throws IntrospectionException {
     SortedMap<String, Method> propertyNamesToGetters = new TreeMap<>();
     for (Map.Entry<String, Method> entry :
@@ -1012,7 +1011,7 @@ public class PipelineOptionsFactory {
             .filter(input1 -> !Modifier.isStatic(input1.getModifiers()))
             .collect(ImmutableSortedSet.toImmutableSortedSet(MethodComparator.INSTANCE));
 
-    List<PropertyDescriptor> descriptors = getPropertyDescriptors(allInterfaceMethods, iface);
+    List<PropertyDescriptor> descriptors = getPropertyDescriptors(allInterfaceMethods);
 
     // Verify that all method annotations are valid.
     validateMethodAnnotations(allInterfaceMethods, descriptors);

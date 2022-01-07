@@ -17,8 +17,10 @@ package environment
 
 import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"beam.apache.org/playground/backend/internal/logger"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -33,27 +35,29 @@ const (
 	serverPortKey                 = "SERVER_PORT"
 	beamSdkKey                    = "BEAM_SDK"
 	workingDirKey                 = "APP_WORK_DIR"
+	preparedModDirKey             = "PREPARED_MOD_DIR"
+	numOfParallelJobsKey          = "NUM_PARALLEL_JOBS"
 	cacheTypeKey                  = "CACHE_TYPE"
 	cacheAddressKey               = "CACHE_ADDRESS"
 	beamPathKey                   = "BEAM_PATH"
-	beamRunnerKey                 = "BEAM_RUNNER"
-	SLF4jKey                      = "SLF4J"
 	cacheKeyExpirationTimeKey     = "KEY_EXPIRATION_TIME"
 	pipelineExecuteTimeoutKey     = "PIPELINE_EXPIRATION_TIMEOUT"
 	protocolTypeKey               = "PROTOCOL_TYPE"
+	launchSiteKey                 = "LAUNCH_SITE"
+	projectIdKey                  = "GOOGLE_CLOUD_PROJECT"
+	defaultLaunchSite             = "local"
 	defaultProtocol               = "HTTP"
 	defaultIp                     = "localhost"
 	defaultPort                   = 8080
 	defaultSdk                    = pb.Sdk_SDK_JAVA
-	defaultBeamSdkPath            = "/opt/apache/beam/jars/beam-sdks-java-harness.jar"
+	defaultBeamJarsPath           = "/opt/apache/beam/jars/*"
 	defaultCacheType              = "local"
 	defaultCacheAddress           = "localhost:6379"
 	defaultCacheKeyExpirationTime = time.Minute * 15
 	defaultPipelineExecuteTimeout = time.Minute * 10
-	defaultBeamRunner             = "/opt/apache/beam/jars/beam-runners-direct.jar"
-	defaultSLF4j                  = "/opt/apache/beam/jars/slf4j-jdk14.jar"
 	jsonExt                       = ".json"
 	configFolderName              = "configs"
+	defaultNumOfParallelJobs      = 20
 )
 
 // Environment operates with environment structures: NetworkEnvs, BeamEnvs, ApplicationEnvs
@@ -92,6 +96,8 @@ func GetApplicationEnvsFromOsEnvs() (*ApplicationEnvs, error) {
 	cacheExpirationTime := defaultCacheKeyExpirationTime
 	cacheType := getEnv(cacheTypeKey, defaultCacheType)
 	cacheAddress := getEnv(cacheAddressKey, defaultCacheAddress)
+	launchSite := getEnv(launchSiteKey, defaultLaunchSite)
+	projectId := os.Getenv(projectIdKey)
 
 	if value, present := os.LookupEnv(cacheKeyExpirationTimeKey); present {
 		if converted, err := time.ParseDuration(value); err == nil {
@@ -109,7 +115,7 @@ func GetApplicationEnvsFromOsEnvs() (*ApplicationEnvs, error) {
 	}
 
 	if value, present := os.LookupEnv(workingDirKey); present {
-		return NewApplicationEnvs(value, NewCacheEnvs(cacheType, cacheAddress, cacheExpirationTime), pipelineExecuteTimeout), nil
+		return NewApplicationEnvs(value, launchSite, projectId, NewCacheEnvs(cacheType, cacheAddress, cacheExpirationTime), pipelineExecuteTimeout), nil
 	}
 	return nil, errors.New("APP_WORK_DIR env should be provided with os.env")
 }
@@ -139,6 +145,22 @@ func GetNetworkEnvsFromOsEnvs() (*NetworkEnvs, error) {
 // Configures ExecutorConfig with config file.
 func ConfigureBeamEnvs(workDir string) (*BeamEnvs, error) {
 	sdk := pb.Sdk_SDK_UNSPECIFIED
+	preparedModDir, modDirExist := os.LookupEnv(preparedModDirKey)
+
+	numOfParallelJobs := defaultNumOfParallelJobs
+	if value, present := os.LookupEnv(numOfParallelJobsKey); present {
+		convertedValue, err := strconv.Atoi(value)
+		if err != nil {
+			logger.Errorf("Incorrect value for %s. Should be integer. Will be used default value: %d", numOfParallelJobsKey, defaultNumOfParallelJobs)
+		} else {
+			if convertedValue <= 0 {
+				logger.Errorf("Incorrect value for %s. Should be a positive integer value but it is %d. Will be used default value: %d", numOfParallelJobsKey, convertedValue, defaultNumOfParallelJobs)
+			} else {
+				numOfParallelJobs = convertedValue
+			}
+		}
+	}
+
 	if value, present := os.LookupEnv(beamSdkKey); present {
 
 		switch value {
@@ -146,6 +168,9 @@ func ConfigureBeamEnvs(workDir string) (*BeamEnvs, error) {
 			sdk = pb.Sdk_SDK_JAVA
 		case pb.Sdk_SDK_GO.String():
 			sdk = pb.Sdk_SDK_GO
+			if !modDirExist {
+				return nil, errors.New("env PREPARED_MOD_DIR must be specified in the environment variables for GO sdk")
+			}
 		case pb.Sdk_SDK_PYTHON.String():
 			sdk = pb.Sdk_SDK_PYTHON
 		case pb.Sdk_SDK_SCIO.String():
@@ -160,7 +185,7 @@ func ConfigureBeamEnvs(workDir string) (*BeamEnvs, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewBeamEnvs(sdk, executorConfig), nil
+	return NewBeamEnvs(sdk, executorConfig, preparedModDir, numOfParallelJobs), nil
 }
 
 // createExecutorConfig creates ExecutorConfig that corresponds to specific Apache Beam SDK.
@@ -172,21 +197,30 @@ func createExecutorConfig(apacheBeamSdk pb.Sdk, configPath string) (*ExecutorCon
 	}
 	switch apacheBeamSdk {
 	case pb.Sdk_SDK_JAVA:
-		executorConfig.CompileArgs = append(executorConfig.CompileArgs, getEnv(beamPathKey, defaultBeamSdkPath))
-		jars := strings.Join([]string{
-			getEnv(beamPathKey, defaultBeamSdkPath),
-			getEnv(beamRunnerKey, defaultBeamRunner),
-			getEnv(SLF4jKey, defaultSLF4j),
-		}, ":")
-		executorConfig.RunArgs[1] += jars
+		args, err := ConcatBeamJarsToString()
+		if err != nil {
+			return nil, fmt.Errorf("error during proccessing jars: %s", err.Error())
+		}
+		executorConfig.CompileArgs = append(executorConfig.CompileArgs, args)
+		executorConfig.RunArgs[1] = fmt.Sprintf("%s%s", executorConfig.RunArgs[1], args)
+		executorConfig.TestArgs[1] = fmt.Sprintf("%s%s", executorConfig.TestArgs[1], args)
 	case pb.Sdk_SDK_GO:
-		return nil, errors.New("not yet supported")
+		// Go sdk doesn't need any additional arguments from the config file
 	case pb.Sdk_SDK_PYTHON:
-		return nil, errors.New("not yet supported")
+		// Python sdk doesn't need any additional arguments from the config file
 	case pb.Sdk_SDK_SCIO:
 		return nil, errors.New("not yet supported")
 	}
 	return executorConfig, nil
+}
+
+func ConcatBeamJarsToString() (string, error) {
+	jars, err := filepath.Glob(getEnv(beamPathKey, defaultBeamJarsPath))
+	if err != nil {
+		return "", err
+	}
+	args := strings.Join(jars, ":")
+	return args, nil
 }
 
 // getConfigFromJson reads a json file to ExecutorConfig

@@ -22,8 +22,6 @@ import static org.junit.Assert.assertEquals;
 import com.google.api.services.dataflow.model.SourceOperationRequest;
 import com.google.api.services.dataflow.model.SourceOperationResponse;
 import com.google.api.services.dataflow.model.SourceSplitRequest;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -35,14 +33,12 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class NoOpSourceOperationExecutorTest {
 
-  private PipelineOptions options;
   private NoOpSourceOperationExecutor executor;
 
   @Rule public final ExpectedException thrown = ExpectedException.none();
 
   @Before
   public void setUp() {
-    options = PipelineOptionsFactory.fromArgs(new String[] {"--experiments=beam_fn_api"}).create();
     SourceSplitRequest splitRequest = new SourceSplitRequest();
     SourceOperationRequest operationRequest = new SourceOperationRequest().setSplit(splitRequest);
     executor = new NoOpSourceOperationExecutor(operationRequest);

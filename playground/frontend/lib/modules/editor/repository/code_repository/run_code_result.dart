@@ -18,19 +18,40 @@
 
 enum RunCodeStatus {
   unspecified,
+  preparation,
+  compiling,
   executing,
   compileError,
   timeout,
-  error,
+  runError,
+  unknownError,
   finished
 }
+
+const kFinishedStatuses = [
+  RunCodeStatus.unknownError,
+  RunCodeStatus.timeout,
+  RunCodeStatus.compileError,
+  RunCodeStatus.runError,
+  RunCodeStatus.finished,
+];
 
 class RunCodeResult {
   final RunCodeStatus status;
   final String? output;
+  final String? log;
   final String? errorMessage;
 
-  RunCodeResult({required this.status, this.output, this.errorMessage});
+  RunCodeResult({
+    required this.status,
+    this.output,
+    this.log,
+    this.errorMessage,
+  });
+
+  bool get isFinished {
+    return kFinishedStatuses.contains(status);
+  }
 
   @override
   bool operator ==(Object other) =>
@@ -39,13 +60,15 @@ class RunCodeResult {
           runtimeType == other.runtimeType &&
           status == other.status &&
           output == other.output &&
+          log == other.log &&
           errorMessage == other.errorMessage;
 
   @override
-  int get hashCode => status.hashCode ^ output.hashCode ^ errorMessage.hashCode;
+  int get hashCode =>
+      status.hashCode ^ output.hashCode ^ log.hashCode ^ errorMessage.hashCode;
 
   @override
   String toString() {
-    return 'RunCodeResult{status: $status, output: $output, errorMessage: $errorMessage}';
+    return 'RunCodeResult{status: $status, output: $output, log: $log, errorMessage: $errorMessage}';
   }
 }

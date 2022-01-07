@@ -17,9 +17,14 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:playground/config/locale.dart';
 import 'package:playground/config/theme.dart';
+import 'package:playground/l10n/l10n.dart';
 import 'package:playground/pages/playground/components/playground_page_providers.dart';
 import 'package:playground/pages/playground/playground_page.dart';
+import 'package:playground/pages/routes.dart';
 import 'package:provider/provider.dart';
 
 class PlaygroundApp extends StatelessWidget {
@@ -31,16 +36,29 @@ class PlaygroundApp extends StatelessWidget {
       create: (context) => ThemeProvider(),
       builder: (context, _) {
         final themeProvider = Provider.of<ThemeProvider>(context);
-        return PlaygroundPageProviders(
-          child: MaterialApp(
-            title: 'Apache Beam Playground',
-            themeMode: themeProvider.themeMode,
-            theme: kLightTheme,
-            darkTheme: kDarkTheme,
-            home: const PlaygroundPage(),
-            debugShowCheckedModeBanner: false,
-          ),
-        );
+        return ChangeNotifierProvider<LocaleProvider>(
+            create: (context) => LocaleProvider(),
+            builder: (context, state) {
+              final localeProvider = Provider.of<LocaleProvider>(context);
+              return PlaygroundPageProviders(
+                child: MaterialApp(
+                  title: 'Apache Beam Playground',
+                  themeMode: themeProvider.themeMode,
+                  theme: kLightTheme,
+                  darkTheme: kDarkTheme,
+                  onGenerateRoute: Routes.generateRoute,
+                  home: const PlaygroundPage(),
+                  debugShowCheckedModeBanner: false,
+                  locale: localeProvider.locale,
+                  supportedLocales: L10n.locales,
+                  localizationsDelegates: const [
+                    AppLocalizations.delegate,
+                    GlobalMaterialLocalizations.delegate,
+                    GlobalWidgetsLocalizations.delegate,
+                  ],
+                ),
+              );
+            });
       },
     );
   }

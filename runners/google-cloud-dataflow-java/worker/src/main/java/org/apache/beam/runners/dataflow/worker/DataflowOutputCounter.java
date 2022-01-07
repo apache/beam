@@ -59,7 +59,7 @@ public class DataflowOutputCounter implements ElementCounter {
         new OutputObjectAndByteCounter(elementByteSizeObservable, counterFactory, nameContext);
     objectAndByteCounter.countObject(outputName + OBJECT_COUNTER_NAME);
     objectAndByteCounter.countMeanByte(outputName + MEAN_BYTE_COUNTER_NAME);
-    createElementCounter(counterFactory, nameContext, outputName + ELEMENT_COUNTER_NAME);
+    createElementCounter(counterFactory, outputName + ELEMENT_COUNTER_NAME);
   }
 
   @Override
@@ -96,7 +96,7 @@ public class DataflowOutputCounter implements ElementCounter {
     return prefix + MEAN_BYTE_COUNTER_NAME;
   }
 
-  private void createElementCounter(CounterFactory factory, NameContext nameContext, String name) {
+  private void createElementCounter(CounterFactory factory, String name) {
     // TODO: use the name context to name the counter
     elementCount = factory.longSum(CounterName.named(name));
   }
