@@ -434,8 +434,30 @@ export class Flatten extends PTransform<PCollection[], PCollection> {
     }
 }
 
-export interface WindowedValue {
-    value: any;
+enum Timing {
+    EARLY = "early",
+    ON_TIME = "on_time",
+    LATE = "late",
+    UNKNOWN = "unknown"
+}
+
+export interface PaneInfo {
+    timing: Timing,
+    index: number, // TODO: should be a long
+    nonSpeculativeIndex: number, // TODO should be a long
+    isFirst: boolean,
+    isLast: boolean
+}
+
+export interface BoundedWindow {
+    maxTimestamp: Date
+}
+
+export interface WindowedValue<T> {
+    value: T;
+    windows: Array<BoundedWindow>;
+    pane: PaneInfo;
+    timestamp: Date;
 }
 
 

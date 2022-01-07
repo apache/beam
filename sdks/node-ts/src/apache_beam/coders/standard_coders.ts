@@ -3,7 +3,7 @@ import * as translations from '../internal/translations'
 
 import { Writer, Reader } from 'protobufjs';
 import { Coder, Context, CODER_REGISTRY } from "./coders";
-import { PipelineContext, WindowedValue } from '../base';
+import {BoundedWindow, PaneInfo, PipelineContext, WindowedValue} from '../base';
 
 export class BytesCoder implements Coder<Uint8Array> {
     static URN: string = "beam:coder:bytes:v1";
@@ -201,7 +201,7 @@ export class LengthPrefixedCoder<T> implements Coder<T> {
 }
 CODER_REGISTRY.register(LengthPrefixedCoder.URN, LengthPrefixedCoder);
 
-export class WindowedValueCoder<T, W> implements Coder<WindowedValue> {
+export class WindowedValueCoder<T, W> implements Coder<WindowedValue<T>> {
     static URN: string = "beam:coder:windowed_value:v1";
     windowIterableCoder: IterableCoder<any>  // really W
 
@@ -221,18 +221,23 @@ export class WindowedValueCoder<T, W> implements Coder<WindowedValue> {
         }
     }
 
-    encode(element: WindowedValue, writer: Writer, context: Context) {
+    encode(element: WindowedValue<T>, writer: Writer, context: Context) {
         writer.fixed64(0);  // Timestamp.
         this.windowIterableCoder.encode([null], writer, Context.needsDelimiters); // Windows.
         writer.bool(false); // Pane.
         this.elementCoder.encode(element.value, writer, context);
     }
 
-    decode(reader: Reader, context: Context): WindowedValue {
+    decode(reader: Reader, context: Context): WindowedValue<T> {
         reader.fixed64();  // Timestamp.
         this.windowIterableCoder.decode(reader, Context.needsDelimiters);
         reader.skip(1);     // Pane.
-        return { value: this.elementCoder.decode(reader, context) };
+        return {
+            value: this.elementCoder.decode(reader, context),
+            windows: <Array<BoundedWindow>> <unknown> undefined,
+            pane: <PaneInfo> <unknown> undefined,
+            timestamp: <Date> <unknown> undefined
+        };
     }
 }
 CODER_REGISTRY.register(WindowedValueCoder.URN, WindowedValueCoder);
