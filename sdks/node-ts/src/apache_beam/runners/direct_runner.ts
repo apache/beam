@@ -1,14 +1,14 @@
 import { PTransform, PCollection } from "../proto/beam_runner_api";
 import { ProcessBundleDescriptor } from "../proto/beam_fn_api";
 
-import {Runner, Pipeline, Root, Impulse, GroupByKey, PaneInfo, BoundedWindow} from '../base'
+import {Runner, Pipeline, Root, Impulse, GroupByKey, PaneInfo, BoundedWindow, PipelineResult} from '../base'
 import * as worker from '../worker/worker';
 import * as operators from '../worker/operators';
 import { WindowedValue } from '../base';
 
 
 export class DirectRunner extends Runner {
-    async runPipeline(p) {
+    async runPipeline(p): Promise<PipelineResult> {
         const descriptor: ProcessBundleDescriptor = {
             id: "",
             transforms: p.proto.components!.transforms,
@@ -21,7 +21,7 @@ export class DirectRunner extends Runner {
         const processor = new worker.BundleProcessor(descriptor, null!, [Impulse.urn]);
         await processor.process("bundle_id", 0);
 
-        return {}
+        return {waitUntilFinish: (duration?: number) => Promise.reject('not implemented')};
     }
 }
 
