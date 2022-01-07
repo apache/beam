@@ -4,6 +4,7 @@ import { Coder, CODER_REGISTRY } from './coders/coders'
 import { BytesCoder, IterableCoder, KVCoder } from './coders/standard_coders';
 import * as util from 'util';
 import * as translations from './internal/translations'
+import * as environments from './internal/environments'
 import { GeneralObjectCoder } from './coders/js_coders';
 
 
@@ -82,11 +83,12 @@ export class Pipeline {
     context: PipelineContext;
     private proto: runnerApi.Pipeline;
     transformStack: string[] = [];
+    private defaultEnvironment: string;
 
     constructor() {
-        this.proto = runnerApi.Pipeline.create(
-            { 'components': runnerApi.Components.create() }
-        );
+        this.defaultEnvironment = 'jsEnvironment'
+        this.proto = runnerApi.Pipeline.create({ 'components': runnerApi.Components.create({}) });
+        this.proto.components!.environments[this.defaultEnvironment] = environments.defaultJsEnvironment();
         this.context = new PipelineContext(this.proto.components!);
     }
 
