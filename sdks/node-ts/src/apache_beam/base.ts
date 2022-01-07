@@ -27,11 +27,34 @@ export interface PipelineResult {
 }
 
 export class Runner {
-    async run(pipeline: ((Root) => PValue)): Promise<PipelineResult> {
+    /**
+     * Runs the transform.
+     * 
+     * Resolves to an instance of PipelineResult when the pipeline completes.
+     * Use runAsync() to execute the pipeline in the background.
+     * 
+     * @param pipeline 
+     * @returns A PipelineResult 
+     */
+    async run(pipeline: ((root: Root) => PValue)): Promise<PipelineResult> {
+        const p = new Pipeline();
+        pipeline(new Root(p));
+        const pipelineResult = await this.runPipeline(p);
+        await pipelineResult.waitUntilFinish();
+        return pipelineResult;
+    }
+
+    /**
+     * runAsync() is the asynchronous version of run(), does not wait until
+     * pipeline finishes. Use the returned PipelineResult to query job
+     * status.
+     */
+    async runAsync(pipeline: ((root: Root) => PValue)): Promise<PipelineResult> {
         const p = new Pipeline();
         pipeline(new Root(p));
         return this.runPipeline(p);
     }
+
     async runPipeline(pipeline: Pipeline): Promise<PipelineResult> {
         throw new Error("Not implemented.");
     }
@@ -41,7 +64,7 @@ export class ProtoPrintingRunner extends Runner {
     async runPipeline(pipeline): Promise<PipelineResult> {
         console.dir(pipeline.proto, { depth: null });
         return { 
-            async waitUntilFinish(duration?: number): Promise<JobState_Enum> { return JobState_Enum.UNSPECIFIED; },
+            waitUntilFinish: (duration?) => Promise.reject('not implemented'),
         };
     }
 }
