@@ -9,9 +9,6 @@ import { WindowedValue } from '../worker/operators';
 
 export class DirectRunner extends Runner {
     async runPipeline(p) {
-
-        console.dir(p.proto, { depth: null });
-
         const descriptor: ProcessBundleDescriptor = {
             id: "",
             transforms: p.proto.components!.transforms,
