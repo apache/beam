@@ -1,7 +1,7 @@
 import { ChannelCredentials } from "@grpc/grpc-js";
 import { ExpansionRequest, ExpansionResponse } from '../../proto/beam_expansion_api';
 import { ExpansionServiceClient, IExpansionServiceClient } from '../../proto/beam_expansion_api.grpc-client';
-import  {expansionReq} from './expansion_request';
+import { expansionReq } from './expansion_request';
 
 const client = new ExpansionServiceClient(
     // TODO(pabloem): Do we need to implement this?
@@ -16,7 +16,7 @@ async function main() {
 
 function callExpand(client: IExpansionServiceClient) {
     console.log("Calling Expand function with ", expansionReq);
-    
+
     let req = expansionReq;
 
     const call = client.expand(req, (err, value) => {

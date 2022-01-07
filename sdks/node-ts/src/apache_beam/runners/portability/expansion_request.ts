@@ -83,63 +83,63 @@ import { ExpansionRequest } from '../../proto/beam_expansion_api';
 import { PTransform, Components, IsBounded_Enum, MergeStatus_Enum, Trigger_Default, Trigger, AccumulationMode, AccumulationMode_Enum, OutputTime_Enum, ClosingBehavior_Enum, OnTimeBehavior_Enum } from "../../proto/beam_runner_api";
 
 let components: Components = {
-  transforms: {
-    "impulse_input": {
-      uniqueName: "impulse_input",
-      spec: { urn: "beam:transform:impulse:v1", payload: new Uint8Array() },
-      outputs: { "out": "ref_PCollection_PCollection_1" },
-      subtransforms: [],
-      inputs: {},
-      displayData: [],
-      environmentId: "",
-      annotations: {}
-    }
-  },
-  pcollections: {
-    "ref_PCollection_PCollection_1": {
-      uniqueName: "18Create/Map(decode).None",
-      coderId: "ref_Coder_StrUtf8Coder_1",
-      isBounded: IsBounded_Enum.BOUNDED,
-      windowingStrategyId: "ref_Windowing_Windowing_1",
-      displayData: [],
-    }
-  },
-  windowingStrategies: {
-    "ref_Windowing_Windowing_1": {
-      windowFn: { urn: "beam:window_fn:global_windows:v1", payload: new Uint8Array() },
-      mergeStatus: MergeStatus_Enum.NON_MERGING,
-      windowCoderId: "ref_Coder_GlobalWindowCoder_2",
-      trigger: { trigger: { oneofKind: "default", default: Trigger_Default } },
-      accumulationMode: AccumulationMode_Enum.DISCARDING,
-      outputTime: OutputTime_Enum.END_OF_WINDOW,
-      closingBehavior: ClosingBehavior_Enum.EMIT_ALWAYS,
-      onTimeBehavior: OnTimeBehavior_Enum.FIRE_ALWAYS,
-      environmentId: "ref_Environment_default_environment_1",
-      allowedLateness: 0n,
-      assignsToOneWindow: false,
-
-    }
-  },
-  coders: {
-    "ref_Coder_GlobalWindowCoder_2": {
-      spec: { urn: "beam:coder:global_window:v1", payload: new Uint8Array() },
-      componentCoderIds: [],
+    transforms: {
+        "impulse_input": {
+            uniqueName: "impulse_input",
+            spec: { urn: "beam:transform:impulse:v1", payload: new Uint8Array() },
+            outputs: { "out": "ref_PCollection_PCollection_1" },
+            subtransforms: [],
+            inputs: {},
+            displayData: [],
+            environmentId: "",
+            annotations: {}
+        }
     },
-    "ref_Coder_StrUtf8Coder_1": {
-      spec: { urn: "beam:coder:string_utf8:v1", payload: new Uint8Array() },
-      componentCoderIds: [],
+    pcollections: {
+        "ref_PCollection_PCollection_1": {
+            uniqueName: "18Create/Map(decode).None",
+            coderId: "ref_Coder_StrUtf8Coder_1",
+            isBounded: IsBounded_Enum.BOUNDED,
+            windowingStrategyId: "ref_Windowing_Windowing_1",
+            displayData: [],
+        }
+    },
+    windowingStrategies: {
+        "ref_Windowing_Windowing_1": {
+            windowFn: { urn: "beam:window_fn:global_windows:v1", payload: new Uint8Array() },
+            mergeStatus: MergeStatus_Enum.NON_MERGING,
+            windowCoderId: "ref_Coder_GlobalWindowCoder_2",
+            trigger: { trigger: { oneofKind: "default", default: Trigger_Default } },
+            accumulationMode: AccumulationMode_Enum.DISCARDING,
+            outputTime: OutputTime_Enum.END_OF_WINDOW,
+            closingBehavior: ClosingBehavior_Enum.EMIT_ALWAYS,
+            onTimeBehavior: OnTimeBehavior_Enum.FIRE_ALWAYS,
+            environmentId: "ref_Environment_default_environment_1",
+            allowedLateness: 0n,
+            assignsToOneWindow: false,
+
+        }
+    },
+    coders: {
+        "ref_Coder_GlobalWindowCoder_2": {
+            spec: { urn: "beam:coder:global_window:v1", payload: new Uint8Array() },
+            componentCoderIds: [],
+        },
+        "ref_Coder_StrUtf8Coder_1": {
+            spec: { urn: "beam:coder:string_utf8:v1", payload: new Uint8Array() },
+            componentCoderIds: [],
+        }
+    },
+    environments: {
+        "ref_Environment_default_environment_1": {
+            urn: "beam:env:default:v1",
+            payload: new Uint8Array(),
+            displayData: [],
+            capabilities: [],
+            dependencies: [],
+            resourceHints: {}
+        }
     }
-  },
-  environments: {
-    "ref_Environment_default_environment_1": {
-      urn: "beam:env:default:v1",
-      payload: new Uint8Array(),
-      displayData: [],
-      capabilities: [],
-      dependencies: [],
-      resourceHints: {}
-    }
-  }
 };
 
 
@@ -150,29 +150,29 @@ let tPayload = [10, 92, 50, 55, 53, 92, 48, 48, 49, 10, 92, 48, 50, 49, 10, 92, 
 
 
 let transform: PTransform = {
-  spec: {
-    // urn: "beam:transforms:python:fully_qualified_named",
-    // payload: new TextEncoder().encode(tPayload)
-    // payload: new Uint8Array(tPayload),
-    urn: "beam:transforms:xlang:test:prefix",
-    payload: new Uint8Array(),
-  },
-  inputs: { "input": "ref_PCollection_PCollection_1" },
-  outputs: {},
-  subtransforms: [],
-  displayData: [],
-  environmentId: "",
-  annotations: {},
-  uniqueName: "ExternalTransform(beam:transforms:python:fully_qualified_named)"
+    spec: {
+        // urn: "beam:transforms:python:fully_qualified_named",
+        // payload: new TextEncoder().encode(tPayload)
+        // payload: new Uint8Array(tPayload),
+        urn: "beam:transforms:xlang:test:prefix",
+        payload: new Uint8Array(),
+    },
+    inputs: { "input": "ref_PCollection_PCollection_1" },
+    outputs: {},
+    subtransforms: [],
+    displayData: [],
+    environmentId: "",
+    annotations: {},
+    uniqueName: "ExternalTransform(beam:transforms:python:fully_qualified_named)"
 }
 
 let namespace = "beam-ts";
 
 
 const expansionReq: ExpansionRequest = {
-  components: components,
-  transform: transform,
-  namespace: namespace
+    components: components,
+    transform: transform,
+    namespace: namespace
 };
 
 export { expansionReq };

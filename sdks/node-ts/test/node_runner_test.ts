@@ -9,7 +9,7 @@ const JOB_SERVICE_HOST = process.env['JOB_SERVICE_HOST'];
 const JSON_PROTO_PATH = __dirname + '/../../test/testdata/pipeline.json';
 
 describe('node runner', () => {
-    it('runs', async function () {
+    it('runs', async function() {
         if (!JOB_SERVICE_HOST) {
             this.skip();
         }

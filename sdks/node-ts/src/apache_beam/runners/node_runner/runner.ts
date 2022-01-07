@@ -1,8 +1,8 @@
-import {RemoteJobServiceClient} from "./client";
-import {Pipeline} from "../../base";
-import {PipelineOptions} from "../../options/pipeline_options";
+import { RemoteJobServiceClient } from "./client";
+import { Pipeline } from "../../base";
+import { PipelineOptions } from "../../options/pipeline_options";
 import * as runnerApiProto from '../../proto/beam_runner_api';
-import {JobState_Enum} from "../../proto/beam_job_api";
+import { JobState_Enum } from "../../proto/beam_job_api";
 
 const TERMINAL_STATES = [
     JobState_Enum.DONE,
@@ -34,7 +34,7 @@ export class PipelineResult {
      * @param duration timeout in milliseconds.
      */
     async waitUntilFinish(duration?: number) {
-        let {state} = await this.getState();
+        let { state } = await this.getState();
         const start = Date.now();
         while (!PipelineResult.isTerminal(state)) {
             const now = Date.now();
@@ -67,8 +67,8 @@ export class NodeRunner {
         pipeline: runnerApiProto.Pipeline,
         jobName: string,
         options?: PipelineOptions) {
-        const {preparationId} = await this.client.prepare(pipeline, jobName, options);
-        const {jobId} = await this.client.run(preparationId);
+        const { preparationId } = await this.client.prepare(pipeline, jobName, options);
+        const { jobId } = await this.client.run(preparationId);
         return new PipelineResult(this, jobId);
     }
 
