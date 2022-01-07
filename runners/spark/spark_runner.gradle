@@ -72,7 +72,7 @@ def copyResourcesOverrides = tasks.register('copyResourcesOverrides', Copy) {
   it.into "${sourceOverridesBase}/main/resources"
   it.duplicatesStrategy DuplicatesStrategy.INCLUDE
 }
-compileJava.dependsOn copyResourcesOverrides
+processResources.dependsOn copyResourcesOverrides
 
 def copyTestSourceOverrides = tasks.register('copyTestSourceOverrides', Copy) {
   it.from test_source_overrides
@@ -86,7 +86,7 @@ def copyTestResourcesOverrides = tasks.register('copyTestResourcesOverrides', Co
   it.into "${sourceOverridesBase}/test/resources"
   it.duplicatesStrategy DuplicatesStrategy.INCLUDE
 }
-compileJava.dependsOn copyTestResourcesOverrides
+processTestResources.dependsOn copyTestResourcesOverrides
 
 /*
  * We have to explicitly set all directories here to make sure each
@@ -146,57 +146,66 @@ test {
 }
 
 dependencies {
-  compile project(path: ":model:pipeline", configuration: "shadow")
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(":runners:core-construction-java")
-  compile project(":runners:core-java")
-  compile project(":runners:java-fn-execution")
-  compile project(":runners:java-job-service")
-  compile project(":sdks:java:extensions:google-cloud-platform-core")
-  compile library.java.jackson_annotations
-  compile library.java.slf4j_api
-  compile library.java.joda_time
-  compile library.java.args4j
-  compile project(path: ":model:fn-execution", configuration: "shadow")
-  compile project(path: ":model:job-management", configuration: "shadow")
-  compile project(":sdks:java:fn-execution")
-  compile library.java.vendored_grpc_1_36_0
-  compile library.java.vendored_guava_26_0_jre
-  provided "org.apache.spark:spark-core_$spark_scala_version:$spark_version"
-  provided "org.apache.spark:spark-network-common_$spark_scala_version:$spark_version"
-  provided "org.apache.spark:spark-sql_$spark_scala_version:$spark_version"
-  provided "org.apache.spark:spark-streaming_$spark_scala_version:$spark_version"
+  implementation project(path: ":model:pipeline", configuration: "shadow")
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(":runners:core-construction-java")
+  implementation project(":runners:core-java")
+  implementation project(":runners:java-fn-execution")
+  implementation project(":runners:java-job-service")
+  implementation project(":sdks:java:extensions:google-cloud-platform-core")
+  implementation library.java.jackson_annotations
+  implementation library.java.slf4j_api
+  implementation library.java.joda_time
+  implementation library.java.args4j
+  implementation project(path: ":model:fn-execution", configuration: "shadow")
+  implementation project(path: ":model:job-management", configuration: "shadow")
+  implementation project(":sdks:java:fn-execution")
+  implementation library.java.vendored_grpc_1_36_0
+  implementation library.java.vendored_guava_26_0_jre
+  implementation "com.codahale.metrics:metrics-core:3.0.1"
+  implementation "org.apache.spark:spark-core_$spark_scala_version:$spark_version"
+  implementation "org.apache.spark:spark-network-common_$spark_scala_version:$spark_version"
+  permitUnusedDeclared "org.apache.spark:spark-network-common_$spark_scala_version:$spark_version"
+  implementation "org.apache.spark:spark-sql_$spark_scala_version:$spark_version"
+  implementation "org.apache.spark:spark-streaming_$spark_scala_version:$spark_version"
+  implementation "org.apache.spark:spark-catalyst_$spark_scala_version:$spark_version"
   if(project.property("spark_scala_version").equals("2.11")){
+    compileOnly "org.scala-lang:scala-library:2.11.12"
     runtimeOnly library.java.jackson_module_scala_2_11
   } else {
+    compileOnly "org.scala-lang:scala-library:2.12.15"
     runtimeOnly library.java.jackson_module_scala_2_12
+  }
+  if (project.property("spark_version").equals("3.1.2")) {
+    compileOnly "org.apache.parquet:parquet-common:1.10.1"
   }
   // Force paranamer 2.8 to avoid issues when using Scala 2.12
   runtimeOnly "com.thoughtworks.paranamer:paranamer:2.8"
-  provided library.java.hadoop_common
-  provided library.java.commons_io
-  provided library.java.hamcrest_core
-  provided library.java.hamcrest_library
-  provided "com.esotericsoftware.kryo:kryo:2.21"
-  testCompile project(":sdks:java:io:kafka")
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  compileOnly library.java.hadoop_common
+  compileOnly library.java.commons_io
+  compileOnly library.java.hamcrest
+  compileOnly "com.esotericsoftware:kryo-shaded:4.0.2"
+  testImplementation library.java.hadoop_common
+  testImplementation library.java.commons_io
+  testImplementation library.java.hamcrest
+  testImplementation "com.esotericsoftware.kryo:kryo:2.21"
+  testImplementation project(":sdks:java:io:kafka")
+  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   // SparkStateInternalsTest extends abstract StateInternalsTest
-  testCompile project(path: ":runners:core-java", configuration: "testRuntime")
-  testCompile project(":sdks:java:harness")
-  testCompile library.java.avro
-  testCompile "org.apache.kafka:kafka_$spark_scala_version:2.4.1"
-  testCompile library.java.kafka_clients
-  testCompile library.java.junit
-  testCompile library.java.mockito_core
-  testCompile "org.apache.zookeeper:zookeeper:3.4.11"
+  testImplementation project(path: ":runners:core-java", configuration: "testRuntimeMigration")
+  testImplementation project(":sdks:java:harness")
+  testImplementation library.java.avro
+  testImplementation "org.apache.kafka:kafka_$spark_scala_version:2.4.1"
+  testImplementation library.java.kafka_clients
+  testImplementation library.java.junit
+  testImplementation library.java.mockito_core
+  testImplementation "org.apache.zookeeper:zookeeper:3.4.11"
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
-  validatesRunner project(path: ":runners:core-java", configuration: "testRuntime")
+  validatesRunner project(path: ":runners:core-java", configuration: "testRuntimeMigration")
   validatesRunner project(":sdks:java:io:hadoop-format")
   validatesRunner project(":sdks:java:io:hadoop-format").sourceSets.test.output
-  validatesRunner project(path: ":examples:java", configuration: "testRuntime")
-  validatesRunner project(path: project.path, configuration: "testRuntime")
-  validatesRunner project(project.path)
-  validatesRunner project(path: project.path, configuration: "provided")
+  validatesRunner project(path: ":examples:java", configuration: "testRuntimeMigration")
+  validatesRunner project(path: project.path, configuration: "testRuntimeMigration")
   hadoopVersions.each {kv ->
     "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-common:$kv.value"
   }
@@ -250,6 +259,8 @@ task validatesRunnerBatch(type: Test) {
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
     includeCategories 'org.apache.beam.runners.spark.UsesCheckpointRecovery'
+    // Should be run only in a properly configured SDK harness environment
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
     excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
@@ -266,6 +277,9 @@ task validatesRunnerBatch(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
     excludeCategories 'org.apache.beam.sdk.testing.UsesPythonExpansionService'
     excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
+    // Ordering
+    excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderedDelivery'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderInBundle'
   }
   jvmArgs '-Xmx3g'
 }
@@ -324,6 +338,8 @@ task validatesStructuredStreamingRunnerBatch(type: Test) {
   jvmArgs '-Xmx7g'
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+    // Should be run only in a properly configured SDK harness environment
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
     // Unbounded
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'

@@ -27,10 +27,18 @@ class OutputResult extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ScrollController _scrollController = ScrollController();
+
     return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(kXlSpacing),
-        child: SelectableText(text, style: getCodeFontStyle()),
+      controller: _scrollController,
+      child: Scrollbar(
+        isAlwaysShown: true,
+        showTrackOnHover: true,
+        controller: _scrollController,
+        child: Padding(
+          padding: const EdgeInsets.all(kXlSpacing),
+          child: SelectableText(text, style: getCodeFontStyle()),
+        ),
       ),
     );
   }

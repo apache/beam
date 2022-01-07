@@ -36,6 +36,9 @@ func runServer() error {
 	if err != nil {
 		return err
 	}
+
+	logger.SetupLogger(ctx, envService.ApplicationEnvs.LaunchSite(), envService.ApplicationEnvs.GoogleProjectId())
+
 	grpcServer := grpc.NewServer()
 
 	cacheService, err := setupCache(ctx, envService.ApplicationEnvs)
@@ -54,7 +57,7 @@ func runServer() error {
 		go listenTcp(ctx, errChan, envService.NetworkEnvs, grpcServer)
 	case "HTTP":
 		handler := Wrap(grpcServer, getGrpcWebOptions())
-		go listenHttp(ctx, errChan, envService.NetworkEnvs, handler)
+		go listenHttp(ctx, errChan, envService, handler)
 	}
 
 	for {

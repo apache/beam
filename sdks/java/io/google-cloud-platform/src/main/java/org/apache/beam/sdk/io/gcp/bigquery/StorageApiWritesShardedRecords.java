@@ -21,9 +21,9 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.api.core.ApiFuture;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.cloud.bigquery.storage.v1beta2.AppendRowsResponse;
-import com.google.cloud.bigquery.storage.v1beta2.ProtoRows;
-import com.google.cloud.bigquery.storage.v1beta2.WriteStream.Type;
+import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
+import com.google.cloud.bigquery.storage.v1.ProtoRows;
+import com.google.cloud.bigquery.storage.v1.WriteStream.Type;
 import com.google.protobuf.Descriptors.Descriptor;
 import io.grpc.Status;
 import io.grpc.Status.Code;
@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -101,7 +102,7 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
 
   private static final Cache<String, StreamAppendClient> APPEND_CLIENTS =
       CacheBuilder.newBuilder()
-          .expireAfterAccess(java.time.Duration.ofMinutes(5))
+          .expireAfterAccess(5, TimeUnit.MINUTES)
           .removalListener(
               (RemovalNotification<String, StreamAppendClient> removal) -> {
                 @Nullable final StreamAppendClient streamAppendClient = removal.getValue();

@@ -29,13 +29,19 @@ evaluationDependsOn(":runners:google-cloud-dataflow-java:worker:legacy-worker")
 def zetasketch_version = "0.1.0"
 
 dependencies {
-    compile library.java.auto_value_annotations
-    compile library.java.slf4j_api
-    compile library.java.vendored_guava_26_0_jre
-    compile project(path: ":sdks:java:core", configuration: "shadow")
-    compile "com.google.zetasketch:zetasketch:$zetasketch_version"
-    testCompile library.java.junit
-    testCompile project(":sdks:java:io:google-cloud-platform")
+    implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+
+    implementation library.java.auto_value_annotations
+    implementation library.java.slf4j_api
+    implementation library.java.vendored_guava_26_0_jre
+    implementation project(path: ":sdks:java:core", configuration: "shadow")
+    implementation "com.google.zetasketch:zetasketch:$zetasketch_version"
+    testImplementation library.java.junit
+    testImplementation library.java.hamcrest
+    testImplementation project(":sdks:java:io:google-cloud-platform")
+    testImplementation project(":sdks:java:extensions:google-cloud-platform-core")
+    testImplementation library.java.google_api_services_bigquery
+    testImplementation library.java.proto_google_cloud_bigquery_storage_v1
     testRuntimeOnly library.java.slf4j_simple
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
     testRuntimeOnly project(":runners:google-cloud-dataflow-java")

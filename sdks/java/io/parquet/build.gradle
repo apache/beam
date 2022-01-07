@@ -38,18 +38,21 @@ hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
 def parquet_version = "1.12.0"
 
 dependencies {
-  compile library.java.vendored_guava_26_0_jre
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(":sdks:java:io:hadoop-common")
-  compile library.java.slf4j_api
-  compile "org.apache.parquet:parquet-avro:$parquet_version"
-  compile "org.apache.parquet:parquet-column:$parquet_version"
-  compile "org.apache.parquet:parquet-common:$parquet_version"
-  compile "org.apache.parquet:parquet-hadoop:$parquet_version"
-  compile library.java.avro
-  provided library.java.hadoop_client
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile library.java.junit
+  implementation library.java.vendored_guava_26_0_jre
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(":sdks:java:io:hadoop-common")
+  implementation library.java.slf4j_api
+  implementation "org.apache.parquet:parquet-avro:$parquet_version"
+  implementation "org.apache.parquet:parquet-column:$parquet_version"
+  implementation "org.apache.parquet:parquet-common:$parquet_version"
+  implementation "org.apache.parquet:parquet-hadoop:$parquet_version"
+  implementation library.java.avro
+  compileOnly library.java.hadoop_client
+  permitUnusedDeclared library.java.hadoop_client
+  compileOnly library.java.hadoop_common
+  testImplementation library.java.hadoop_client
+  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation library.java.junit
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
   hadoopVersions.each {kv ->

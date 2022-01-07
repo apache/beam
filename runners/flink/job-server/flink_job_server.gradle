@@ -77,17 +77,17 @@ configurations.all {
 }
 
 dependencies {
-  compile project(flinkRunnerProject)
+  implementation project(flinkRunnerProject)
   permitUnusedDeclared project(flinkRunnerProject) // BEAM-11761
-  runtime group: "org.slf4j", name: "jcl-over-slf4j", version: dependencies.create(project.library.java.slf4j_api).getVersion()
-  validatesPortableRunner project(path: flinkRunnerProject, configuration: "testRuntime")
+  runtimeOnly group: "org.slf4j", name: "jcl-over-slf4j", version: dependencies.create(project.library.java.slf4j_api).getVersion()
+  validatesPortableRunner project(path: flinkRunnerProject, configuration: "testRuntimeMigration")
   validatesPortableRunner project(path: ":sdks:java:core", configuration: "shadowTest")
-  validatesPortableRunner project(path: ":runners:core-java", configuration: "testRuntime")
-  validatesPortableRunner project(path: ":runners:portability:java", configuration: "testRuntime")
-  runtime project(":sdks:java:extensions:google-cloud-platform-core")
-  runtime library.java.slf4j_simple
+  validatesPortableRunner project(path: ":runners:core-java", configuration: "testRuntimeMigration")
+  validatesPortableRunner project(path: ":runners:portability:java", configuration: "testRuntimeMigration")
+  runtimeOnly project(":sdks:java:extensions:google-cloud-platform-core")
+  runtimeOnly library.java.slf4j_simple
   //  TODO: Enable HDFS file system.
-  runtime project(":sdks:java:io:amazon-web-services2")
+  runtimeOnly project(":sdks:java:io:amazon-web-services2")
   // External transform expansion
   // Kafka
   runtimeOnly project(":sdks:java:io:kafka")
@@ -124,7 +124,7 @@ runShadow {
     jvmArgs += ["-Dorg.slf4j.simpleLogger.defaultLogLevel=${project.property('logLevel')}"]
 }
 
-def portableValidatesRunnerTask(String name, Boolean streaming, Boolean checkpointing) {
+def portableValidatesRunnerTask(String name, boolean streaming, boolean checkpointing, boolean docker) {
   def pipelineOptions = [
       // Limit resource consumption via parallelism
       "--parallelism=2",
@@ -143,15 +143,24 @@ def portableValidatesRunnerTask(String name, Boolean streaming, Boolean checkpoi
     testClasspathConfiguration: configurations.validatesPortableRunner,
     numParallelTests: 1,
     pipelineOpts: pipelineOptions,
-    environment: BeamModulePlugin.PortableValidatesRunnerConfiguration.Environment.EMBEDDED,
+    environment: docker ? BeamModulePlugin.PortableValidatesRunnerConfiguration.Environment.DOCKER : BeamModulePlugin.PortableValidatesRunnerConfiguration.Environment.EMBEDDED,
     testCategories: {
-      if (streaming && checkpointing) {
-        includeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
-        excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
-        // TestStreamSource does not support checkpointing
-        excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
-      } else {
+        if (docker) {
+          includeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
+          return
+        }
+
+        if (streaming && checkpointing) {
+          includeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
+          excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
+          // TestStreamSource does not support checkpointing
+          excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+          return
+        }
+
         includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+        // Should be run only in a properly configured SDK harness environment
+        excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
         excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
         // Larger keys are possible, but they require more memory.
         excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above10MB'
@@ -174,14 +183,14 @@ def portableValidatesRunnerTask(String name, Boolean streaming, Boolean checkpoi
           excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'
           excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithMultipleStages'
           excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithOutputTimestamp'
-        } else {
-          excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
-          excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
-          excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
-          excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderedDelivery'
-          excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderInStage'
+          return
         }
-      }
+
+        excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderedDelivery'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderInBundle'
     },
     testFilter: {
       // TODO(BEAM-10016)
@@ -192,15 +201,19 @@ def portableValidatesRunnerTask(String name, Boolean streaming, Boolean checkpoi
       excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testLateDataAccumulating'
       // TODO(BEAM-12710)
       excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testFirstElementLate'
+      // TODO(BEAM-13498)
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testProcessElementSkew'
     },
   )
 }
 
-project.ext.validatesPortableRunnerBatch = portableValidatesRunnerTask("Batch", false, false)
-project.ext.validatesPortableRunnerStreaming = portableValidatesRunnerTask("Streaming", true, false)
-project.ext.validatesPortableRunnerStreamingCheckpoint = portableValidatesRunnerTask("StreamingCheckpointing", true, true)
+project.ext.validatesPortableRunnerDocker = portableValidatesRunnerTask("Docker", false, false, true)
+project.ext.validatesPortableRunnerBatch = portableValidatesRunnerTask("Batch", false, false, false)
+project.ext.validatesPortableRunnerStreaming = portableValidatesRunnerTask("Streaming", true, false, false)
+project.ext.validatesPortableRunnerStreamingCheckpoint = portableValidatesRunnerTask("StreamingCheckpointing", true, true, false)
 
 task validatesPortableRunner() {
+  dependsOn validatesPortableRunnerDocker
   dependsOn validatesPortableRunnerBatch
   dependsOn validatesPortableRunnerStreaming
   dependsOn validatesPortableRunnerStreamingCheckpoint
@@ -255,7 +268,7 @@ createCrossLanguageValidatesRunnerTask(
 task miniCluster(type: Jar, dependsOn: shadowJar) {
   archiveBaseName = "${project.archivesBaseName}-mini-cluster"
   dependencies {
-    runtime project(path: flinkRunnerProject, configuration: "miniCluster")
+    runtimeOnly project(path: flinkRunnerProject, configuration: "miniCluster")
   }
   from zipTree(shadowJar.archivePath).matching {
     // If these classes aren't excluded from the mini cluster jar, they will be loaded instead of

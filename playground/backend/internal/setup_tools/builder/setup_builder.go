@@ -80,6 +80,7 @@ func SetupExecutorBuilder(lc *fs_tool.LifeCycle, pipelineOptions string, sdkEnv 
 			args = append(args, arg)
 		}
 		builder = builder.WithRunner().WithArgs(args).ExecutorBuilder
+		builder = builder.WithTestRunner().WithWorkingDir(lc.GetAbsoluteBaseFolderPath()).ExecutorBuilder //change directory for unit test
 	case pb.Sdk_SDK_GO: //go run command is executable file itself
 		builder = builder.
 			WithExecutableFileName("").
@@ -93,4 +94,10 @@ func SetupExecutorBuilder(lc *fs_tool.LifeCycle, pipelineOptions string, sdkEnv 
 		return nil, fmt.Errorf("incorrect sdk: %s", sdkEnv.ApacheBeamSdk)
 	}
 	return &builder, nil
+}
+
+// GetFileNameFromFolder return a name of the first file in a specified folder
+func GetFileNameFromFolder(folderAbsolutePath string) string {
+	files, _ := filepath.Glob(fmt.Sprintf("%s/*%s", folderAbsolutePath, fs_tool.JavaSourceFileExtension))
+	return files[0]
 }

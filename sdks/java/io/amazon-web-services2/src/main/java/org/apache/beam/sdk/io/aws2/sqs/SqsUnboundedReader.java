@@ -42,6 +42,8 @@ import java.util.stream.IntStream;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.Max;
+import org.apache.beam.sdk.transforms.Min;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.BucketingFunction;
@@ -123,33 +125,9 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
    */
   private static final int MIN_WATERMARK_SPREAD = 2;
 
-  // TODO: Would prefer to use MinLongFn but it is a BinaryCombineFn<Long> rather
-  // than a BinaryCombineLongFn. [BEAM-285]
-  private static final Combine.BinaryCombineLongFn MIN =
-      new Combine.BinaryCombineLongFn() {
-        @Override
-        public long apply(long left, long right) {
-          return Math.min(left, right);
-        }
+  private static final Combine.BinaryCombineLongFn MIN = Min.ofLongs();
 
-        @Override
-        public long identity() {
-          return Long.MAX_VALUE;
-        }
-      };
-
-  private static final Combine.BinaryCombineLongFn MAX =
-      new Combine.BinaryCombineLongFn() {
-        @Override
-        public long apply(long left, long right) {
-          return Math.max(left, right);
-        }
-
-        @Override
-        public long identity() {
-          return Long.MIN_VALUE;
-        }
-      };
+  private static final Combine.BinaryCombineLongFn MAX = Max.ofLongs();
 
   private static final Combine.BinaryCombineLongFn SUM = Sum.ofLongs();
 
@@ -161,6 +139,9 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
    * closed, and it will have a non-null value within {@link #SqsUnboundedReader}.
    */
   private AtomicBoolean active = new AtomicBoolean(true);
+
+  /** SQS client of this reader instance. */
+  private SqsClient sqsClient = null;
 
   /** The current message, or {@literal null} if none. */
   private SqsMessage current;
@@ -347,6 +328,7 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
 
     if (sqsCheckpointMark != null) {
       long nowMsSinceEpoch = now();
+      initClient();
       extendBatch(nowMsSinceEpoch, sqsCheckpointMark.notYetReadReceipts, 0);
       numReleased.add(nowMsSinceEpoch, sqsCheckpointMark.notYetReadReceipts.size());
     }
@@ -428,10 +410,10 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
 
   @Override
   public boolean start() throws IOException {
+    initClient();
     visibilityTimeoutMs =
         Integer.parseInt(
-                source
-                    .getSqs()
+                sqsClient
                     .getQueueAttributes(
                         GetQueueAttributesRequest.builder()
                             .queueUrl(source.getRead().queueUrl())
@@ -441,6 +423,12 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
                     .get(VISIBILITY_TIMEOUT))
             * 1000L;
     return advance();
+  }
+
+  private void initClient() {
+    if (sqsClient == null) {
+      sqsClient = source.getRead().sqsClientProvider().getSqsClient();
+    }
   }
 
   @Override
@@ -515,9 +503,8 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
     if (!active.get() && numInFlightCheckpoints.get() == 0) {
       // The reader has been closed and it has no more outstanding checkpoints. The client
       // must be closed so it doesn't leak
-      SqsClient client = source.getSqs();
-      if (client != null) {
-        client.close();
+      if (sqsClient != null) {
+        sqsClient.close();
       }
     }
   }
@@ -571,13 +558,11 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
               .collect(Collectors.toList());
 
       DeleteMessageBatchResponse result =
-          source
-              .getSqs()
-              .deleteMessageBatch(
-                  DeleteMessageBatchRequest.builder()
-                      .queueUrl(source.getRead().queueUrl())
-                      .entries(entries)
-                      .build());
+          sqsClient.deleteMessageBatch(
+              DeleteMessageBatchRequest.builder()
+                  .queueUrl(source.getRead().queueUrl())
+                  .entries(entries)
+                  .build());
 
       // Reflect failed message IDs to map
       pendingReceipts
@@ -630,7 +615,7 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
             .build();
 
     final ReceiveMessageResponse receiveMessageResponse =
-        source.getSqs().receiveMessage(receiveMessageRequest);
+        sqsClient.receiveMessage(receiveMessageRequest);
 
     final List<Message> messages = receiveMessageResponse.messages();
 
@@ -801,13 +786,11 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
               .collect(Collectors.toList());
 
       ChangeMessageVisibilityBatchResponse response =
-          source
-              .getSqs()
-              .changeMessageVisibilityBatch(
-                  ChangeMessageVisibilityBatchRequest.builder()
-                      .queueUrl(source.getRead().queueUrl())
-                      .entries(entries)
-                      .build());
+          sqsClient.changeMessageVisibilityBatch(
+              ChangeMessageVisibilityBatchRequest.builder()
+                  .queueUrl(source.getRead().queueUrl())
+                  .entries(entries)
+                  .build());
 
       pendingReceipts
           .keySet()

@@ -68,6 +68,18 @@ class FileBasedCacheManagerTest(object):
     self.mock_write_cache(cache_version_one, prefix, cache_label)
     self.assertTrue(self.cache_manager.exists(prefix, cache_label))
 
+  def test_empty_label_not_exist(self):
+    prefix = 'full'
+    cache_label = 'some-cache-label'
+    cache_version_one = ['cache', 'version', 'one']
+
+    self.assertFalse(self.cache_manager.exists(prefix, cache_label))
+    self.mock_write_cache(cache_version_one, prefix, cache_label)
+    self.assertTrue(self.cache_manager.exists(prefix, cache_label))
+
+    # '' shouldn't be treated as a wildcard to match everything.
+    self.assertFalse(self.cache_manager.exists(prefix, ''))
+
   def test_size(self):
     """Test getting the size of some cache label."""
 

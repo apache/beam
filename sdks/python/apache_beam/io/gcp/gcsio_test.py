@@ -794,6 +794,53 @@ class TestGCSIO(unittest.TestCase):
 
     self.assertEqual(metric_value, 2)
 
+  @mock.patch.object(FakeGcsBuckets, 'Get')
+  def test_downloader_fail_to_get_project_number(self, mock_get):
+    # Raising an error when listing GCS Bucket so that project number fails to
+    # be retrieved.
+    mock_get.side_effect = HttpError({'status': 403}, None, None)
+    # Clear the process wide metric container.
+    MetricsEnvironment.process_wide_container().reset()
+
+    file_name = 'gs://gcsio-metrics-test/dummy_mode_file'
+    file_size = 5 * 1024 * 1024 + 100
+    random_file = self._insert_random_file(self.client, file_name, file_size)
+    self.gcs.open(file_name, 'r')
+
+    resource = resource_identifiers.GoogleCloudStorageBucket(random_file.bucket)
+    labels = {
+        monitoring_infos.SERVICE_LABEL: 'Storage',
+        monitoring_infos.METHOD_LABEL: 'Objects.get',
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.GCS_BUCKET_LABEL: random_file.bucket,
+        monitoring_infos.GCS_PROJECT_ID_LABEL: str(DEFAULT_PROJECT_NUMBER),
+        monitoring_infos.STATUS_LABEL: 'ok'
+    }
+
+    metric_name = MetricName(
+        None, None, urn=monitoring_infos.API_REQUEST_COUNT_URN, labels=labels)
+    metric_value = MetricsEnvironment.process_wide_container().get_counter(
+        metric_name).get_cumulative()
+
+    self.assertEqual(metric_value, 0)
+
+    labels_without_project_id = {
+        monitoring_infos.SERVICE_LABEL: 'Storage',
+        monitoring_infos.METHOD_LABEL: 'Objects.get',
+        monitoring_infos.RESOURCE_LABEL: resource,
+        monitoring_infos.GCS_BUCKET_LABEL: random_file.bucket,
+        monitoring_infos.STATUS_LABEL: 'ok'
+    }
+    metric_name = MetricName(
+        None,
+        None,
+        urn=monitoring_infos.API_REQUEST_COUNT_URN,
+        labels=labels_without_project_id)
+    metric_value = MetricsEnvironment.process_wide_container().get_counter(
+        metric_name).get_cumulative()
+
+    self.assertEqual(metric_value, 2)
+
   def test_uploader_monitoring_info(self):
     # Clear the process wide metric container.
     MetricsEnvironment.process_wide_container().reset()

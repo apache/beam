@@ -36,7 +36,7 @@ var (
 		[]string{"-cp", "bin:" + defaultBeamJarsPath},
 		[]string{"-cp", "bin:" + defaultBeamJarsPath, "JUnit"},
 	)
-	env = environment.NewEnvironment(environment.NetworkEnvs{}, *environment.NewBeamEnvs(pb.Sdk_SDK_JAVA, executorConfig, ""), environment.ApplicationEnvs{})
+	env = environment.NewEnvironment(environment.NetworkEnvs{}, *environment.NewBeamEnvs(pb.Sdk_SDK_JAVA, executorConfig, "", 0), environment.ApplicationEnvs{})
 )
 
 // BaseExecutorBuilder fills up an executor with base parameters
