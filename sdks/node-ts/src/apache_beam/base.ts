@@ -2,10 +2,10 @@ import * as runnerApi from './proto/beam_runner_api';
 import * as fnApi from './proto/beam_fn_api';
 import { Coder, CODER_REGISTRY } from './coders/coders'
 import { BytesCoder, IterableCoder, KVCoder } from './coders/standard_coders';
-import * as util from 'util';
 import * as translations from './internal/translations'
 import * as environments from './internal/environments'
 import { GeneralObjectCoder } from './coders/js_coders';
+import { JobState, JobState_Enum } from './proto/beam_job_api';
 
 
 // TODO(pabloem): Use something better, hah.
@@ -22,7 +22,9 @@ export function transformName() {
     return 'transformId(' + _transform_counter + ')';
 }
 
-export interface PipelineResult { }
+export interface PipelineResult {
+    waitUntilFinish(duration?: number): Promise<JobState_Enum>;
+}
 
 export class Runner {
     async run(pipeline: ((Root) => PValue)): Promise<PipelineResult> {
@@ -36,9 +38,11 @@ export class Runner {
 }
 
 export class ProtoPrintingRunner extends Runner {
-    async runPipeline(pipeline) {
+    async runPipeline(pipeline): Promise<PipelineResult> {
         console.dir(pipeline.proto, { depth: null });
-        return {}
+        return { 
+            async waitUntilFinish(duration?: number): Promise<JobState_Enum> { return JobState_Enum.UNSPECIFIED; },
+        };
     }
 }
 
