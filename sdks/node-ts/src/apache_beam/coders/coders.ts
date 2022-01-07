@@ -1,5 +1,6 @@
 import { Writer, Reader } from 'protobufjs';
 import * as runnerApi from '../proto/beam_runner_api';
+import { PipelineContext } from '../base';
 
 interface Class<T> {
     new(...args: any[]): T;
@@ -31,6 +32,5 @@ export interface Coder<T> {
 
     decode(reader: Reader, context: Context): T;
 
-    // TODO: Make required.
-    toProto?(pipelineComponents: runnerApi.Components): runnerApi.Coder;
+    toProto?(pipelineContext: PipelineContext): runnerApi.Coder;
 }

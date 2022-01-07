@@ -3,6 +3,7 @@ import { Writer, Reader } from 'protobufjs';
 import {Coder, CODER_REGISTRY, Context} from './coders'
 import {BoolCoder, DoubleCoder, StrUtf8Coder, VarIntCoder} from './standard_coders'
 import * as runnerApi from '../proto/beam_runner_api';
+import { PipelineContext } from '../base';
 
 
 export class BsonObjectCoder<T> implements Coder<T> {
@@ -15,7 +16,7 @@ export class BsonObjectCoder<T> implements Coder<T> {
         const encoded = reader.bytes();
         return BSON.deserialize(encoded) as T;
     }
-    toProto(pipelineComponents: runnerApi.Components): runnerApi.Coder {
+    toProto(pipelineContext: PipelineContext): runnerApi.Coder {
         return {
             spec: {
                 urn: BsonObjectCoder.URN,
@@ -62,7 +63,7 @@ export class GeneralObjectCoder<T> implements Coder<T> {
         const type = this.markerToTypes[typeMarker];
         return this.componentCoders[type].decode(reader, context);
     }
-    toProto(pipelineComponents: runnerApi.Components): runnerApi.Coder {
+    toProto(pipelineContext: PipelineContext): runnerApi.Coder {
         return {
             spec: {
                 urn: GeneralObjectCoder.URN,
