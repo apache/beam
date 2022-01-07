@@ -54,6 +54,8 @@ import { HighlightSpanKind, NumericLiteral } from 'typescript';
 
 // Row({x: 10, y:10});
 
+const argsort = x => x.map((v,i)=>[v,i]).sort().map(y=>y[1]);
+
 export class RowCoder implements Coder<any> {
     public static URN: string = "beam:coder:row:v1";
 
@@ -63,7 +65,7 @@ export class RowCoder implements Coder<any> {
     private fieldNullable: (boolean | undefined)[];
     private encodingPositionsAreTrivial: boolean;
     private encodingPositions: number[];
-    private encodingPositionsSorted: number[];
+    private encodingPositionsArgsSorted: number[];
 
     private hasNullableFields: boolean;
     private components: Coder<any>[];
@@ -91,7 +93,7 @@ export class RowCoder implements Coder<any> {
             // Checking if positions are in {0, ..., length-1}
             this.encodingPositionsAreTrivial = encPosx == this.encodingPositions;
             this.encodingPositions = encPosx;
-            this.encodingPositionsSorted = encPosx.sort(); // Acsending order
+            this.encodingPositionsArgsSorted = argsort(encPosx);
         }
 
         this.hasNullableFields = this.schema.fields.some((f: Field) => f.type?.nullable);
@@ -142,7 +144,7 @@ export class RowCoder implements Coder<any> {
         }
 
         // An encoding for each non-null field, concatenated together.
-        let positions = this.encodingPositionsAreTrivial? this.encodingPositions : this.encodingPositionsSorted;
+        let positions = this.encodingPositionsAreTrivial? this.encodingPositions : this.encodingPositionsArgsSorted;
         positions.forEach(
             i => {
             let attr = attrs[i];
