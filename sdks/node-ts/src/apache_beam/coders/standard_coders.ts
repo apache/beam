@@ -2,7 +2,6 @@ import * as runnerApi from '../proto/beam_runner_api';
 import * as translations from '../internal/translations'
 
 import { Writer, Reader } from 'protobufjs';
-import struct = require('python-struct');
 import { Coder, Context, CODER_REGISTRY } from "./coders";
 
 
