@@ -224,17 +224,19 @@ export class WindowedValueCoder<T, W> implements Coder<WindowedValue> {
 }
 CODER_REGISTRY.register(WindowedValueCoder.URN, WindowedValueCoder);
 
+export class GlobalWindow {
+
+}
+
 export class GlobalWindowCoder implements Coder<any> {
     static URN: string = "beam:coder:global_window:v1";
     static INSTANCE: GlobalWindowCoder = new GlobalWindowCoder();
 
     encode(value: any, writer: Writer, context: Context) {
-        writer.bool(false);
     }
 
     decode(reader: Reader, context: Context) {
-        reader.skip(1);
-        return null;
+        return new GlobalWindow()
     }
 
     toProto(pipelineContext: PipelineContext): runnerApi.Coder {
