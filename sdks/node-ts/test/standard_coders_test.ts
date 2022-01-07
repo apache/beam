@@ -1,4 +1,5 @@
 import { Coder, CODER_REGISTRY, Context } from "../src/apache_beam/coders/coders";
+import { KV, GlobalWindow } from "../src/apache_beam/coders/standard_coders";
 import { Writer, Reader } from 'protobufjs';
 
 import assertions = require('assert');
@@ -9,8 +10,6 @@ import util = require('util');
 const STANDARD_CODERS_FILE = '../../model/fn-execution/src/main/resources/org/apache/beam/model/fnexecution/v1/standard_coders.yaml';
 
 const UNSUPPORTED_EXAMPLES = {
-    "beam:coder:varint:v1-7": "",
-    "beam:coder:iterable:v1-1": "",
     "beam:coder:iterable:v1-2": "",
     "beam:coder:iterable:v1-3": "",
 }
@@ -20,23 +19,23 @@ const UNSUPPORTED_CODERS = [
     "beam:coder:interval_window:v1",
     "beam:coder:double:v1",
     "beam:coder:timer:v1",
-    "beam:coder:global_window:v1",
     "beam:coder:windowed_value:v1",
     "beam:coder:param_windowed_value:v1",
     "beam:coder:row:v1",
     "beam:coder:sharded_key:v1",
     "beam:coder:custom_window:v1",
-    "beam:coder:kv:v1",
+    "beam:coder:iterable:v1",
 ];
 
 const _urn_to_json_value_parser = {
-    'beam:coder:bytes:v1': x => new TextEncoder().encode(x),
-    'beam:coder:bool:v1': x => x,
-    'beam:coder:string_utf8:v1': x => x as string,
-    'beam:coder:varint:v1': x => x,
-    'beam:coder:double:v1': x => new Number(x),
-    'beam:coder:kv:v1': (x, components) => ({ 'key': components[0](x['key']), 'value': components[1](x['value']) }),
-    'beam:coder:iterable:v1': (x, parser) => (x.map(elm => parser(elm))),
+    'beam:coder:bytes:v1': _ => x => new TextEncoder().encode(x),
+    'beam:coder:bool:v1': _ => x => x,
+    'beam:coder:string_utf8:v1': _ => x => x as string,
+    'beam:coder:varint:v1': _ => x => x,
+    'beam:coder:double:v1': _ => x => new Number(x),
+    'beam:coder:kv:v1': components => x => ({ 'key': components[0](x['key']), 'value': components[1](x['value']) }),
+    'beam:coder:iterable:v1': components => x => (x.map(elm => components[0](elm))),
+    'beam:coder:global_window:v1': components => x => new GlobalWindow()
     // 'beam:coder:double:v1': parse_float,
 }
 
@@ -62,16 +61,9 @@ function get_json_value_parser(coderRepr: CoderRepr) {
         throw new Error(util.format("Do not know how to parse example values for %s", coderRepr))
     }
 
-    if (coderRepr.components) {
-        const componentParsers = coderRepr.components.map(c => _urn_to_json_value_parser[c.urn]);
-        if (componentParsers.length == 1) {
-            return x => value_parser_factory(x, componentParsers[0])
-        } else {
-            return x => value_parser_factory(x, componentParsers)
-        }
-    } else {
-        return x => value_parser_factory(x)
-    }
+    const components = coderRepr.components || []
+    const componentParsers = components.map(componentRepr => get_json_value_parser(componentRepr))
+    return value_parser_factory(componentParsers)
 }
 
 describe("standard Beam coders on Javascript", function() {
