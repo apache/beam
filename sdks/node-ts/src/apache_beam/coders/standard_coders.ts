@@ -80,7 +80,7 @@ export type KV<K, V> = {
     value: V
 }
 
-export class KVCoder<K, V> extends FakeCoder<KV<K, V>> {
+export class KVCoder<K, V> implements Coder<KV<K, V>> {
     static URN: string = "beam:coder:kv:v1";
     type: string = 'kvcoder';
 
@@ -111,9 +111,11 @@ export class KVCoder<K, V> extends FakeCoder<KV<K, V>> {
     }
 
     decode(reader: Reader, context: Context): KV<K, V> {
+        var key = this.keyCoder.decode(reader, Context.needsDelimiters)
+        var value = this.valueCoder.decode(reader, context)
         return {
-            'key': this.keyCoder.decode(reader, Context.needsDelimiters),
-            'value': this.valueCoder.decode(reader, context)
+            'key': key,
+            'value': value
         }
     }
 }
