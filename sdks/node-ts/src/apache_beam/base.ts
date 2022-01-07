@@ -7,6 +7,7 @@ import * as environments from './internal/environments'
 import { GeneralObjectCoder } from './coders/js_coders';
 import { JobState, JobState_Enum } from './proto/beam_job_api';
 
+import * as datefns from 'date-fns'
 
 // TODO(pabloem): Use something better, hah.
 var _pcollection_counter = -1;
@@ -454,7 +455,7 @@ export interface PaneInfo {
 }
 
 export interface BoundedWindow {
-    maxTimestamp: Date
+    maxTimestamp(): Date
 }
 
 export interface WindowedValue<T> {
@@ -462,6 +463,11 @@ export interface WindowedValue<T> {
     windows: Array<BoundedWindow>;
     pane: PaneInfo;
     timestamp: Date;
+}
+
+export class IntervalWindow implements BoundedWindow {
+    constructor(public start: Date, public end: Date) { }
+    maxTimestamp() { return datefns.sub(this.end, {seconds:0.001}) }
 }
 
 
