@@ -12876,7 +12876,7 @@ BigQueryIO
 &lt;td>
 BigTableIO
 &lt;/td>
-&lt;td>Read from and write to &lt;a href="https://cloud.google.com/bigtable/">Google Cloud Bigtable&lt;/a>.&lt;/td>
+&lt;td>Read from (only for Java SDK) and write to &lt;a href="https://cloud.google.com/bigtable/">Google Cloud Bigtable&lt;/a>.&lt;/td>
 &lt;td style="word-break: break-all;">
 &lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigtable/BigtableIO.html">org.apache.beam.sdk.io.gcp.bigtable.BigtableIO&lt;/a>&lt;/div>
 &lt;/td>
@@ -12885,7 +12885,7 @@ BigTableIO
 &lt;td>
 BigTableIO
 &lt;/td>
-&lt;td>Read from and write to &lt;a href="https://cloud.google.com/bigtable/">Google Cloud Bigtable&lt;/a>.&lt;/td>
+&lt;td>Read from (only for Java SDK) and write to &lt;a href="https://cloud.google.com/bigtable/">Google Cloud Bigtable&lt;/a>.&lt;/td>
 &lt;td style="word-break: break-all;">
 &lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.bigtableio.html">apache_beam.io.gcp.bigtableio module&lt;/a>&lt;/div>
 &lt;/td>
