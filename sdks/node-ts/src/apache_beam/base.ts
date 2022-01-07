@@ -295,6 +295,13 @@ class PTransformFromCallable<InputT extends PValue, OutputT extends PValue> exte
     }
 }
 
+interface CombineFn<I, A, O> {
+    createAccumulator: () => A;
+    addInput: (A, I) => A;
+    mergeAccumulators: (accumulators: A[]) => A;
+    extractOutput: (A) => O;
+}
+
 export class DoFn<InputT, OutputT> {
     *process(element: InputT): Generator<OutputT> {
         throw new Error('Method process has not been implemented!');
