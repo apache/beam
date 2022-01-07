@@ -259,11 +259,9 @@ class ServiceCallMetric(object):
         13: 'internal',
         14: 'unavailable'
     }
-    if (grpc_status_code is not None and
-        grpc_status_code in grpc_to_canonical_gcp_status):
-      return grpc_to_canonical_gcp_status[grpc_status_code]
     if grpc_status_code is None:
       # Bigtable indicates this can be retried but itself has exhausted retry
       # timeout or there is no retry policy set for bigtable.
       return grpc_to_canonical_gcp_status[4]
-    return str(grpc_status_code)
+    return grpc_to_canonical_gcp_status.get(
+        grpc_status_code, str(grpc_status_code))

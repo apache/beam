@@ -118,9 +118,7 @@ class _BigTableWriteFn(beam.DoFn):
 
   def write_mutate_metrics(self, response):
     for status in response:
-      code = None
-      if status:
-        code = status.code
+      code = status.code if status else None
       grpc_status_string = (
           ServiceCallMetric.bigtable_error_code_to_grpc_status_string(code))
       self.service_call_metric.call(grpc_status_string)
