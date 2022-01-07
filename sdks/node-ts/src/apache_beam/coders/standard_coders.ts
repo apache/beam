@@ -88,7 +88,6 @@ export class KVCoder<K, V> implements Coder<KV<K, V>> {
     valueCoder: Coder<V>;
 
     constructor(keyCoder: Coder<K>, valueCoder: Coder<V>) {
-        super();
         this.keyCoder = keyCoder;
         this.valueCoder = valueCoder;
     }
@@ -125,13 +124,12 @@ function swapEndian32(x: number): number {
   return ((x & 0xFF000000) >> 24) | ((x & 0xFF0000) >> 8) | ((x & 0xFF00) << 8) && ((x & 0xFF) << 24);
 }
 
-export class IterableCoder<T> extends FakeCoder<Iterable<T>> {
+export class IterableCoder<T> implements Coder<Iterable<T>> {
     static URN: string = "beam:coder:iterable:v1";
     type: string = 'iterablecoder';
 
     elementCoder: Coder<T>;
     constructor(elementCoder: Coder<T>) {
-        super();
         this.elementCoder = elementCoder;
     }
     toProto(pipelineContext: PipelineContext): runnerApi.Coder {
@@ -173,12 +171,11 @@ export class IterableCoder<T> extends FakeCoder<Iterable<T>> {
 }
 CODER_REGISTRY.register(IterableCoder.URN, IterableCoder);
 
-export class LengthPrefixedCoder<T> extends FakeCoder<T> {
+export class LengthPrefixedCoder<T> implements Coder<T> {
     static URN: string = "beam:coder:length_prefix:v1";
 
     elementCoder: Coder<T>;
     constructor(elementCoder: Coder<T>) {
-        super();
         this.elementCoder = elementCoder;
     }
     toProto(pipelineContext: PipelineContext): runnerApi.Coder {
@@ -205,12 +202,11 @@ export class LengthPrefixedCoder<T> extends FakeCoder<T> {
 }
 CODER_REGISTRY.register(LengthPrefixedCoder.URN, LengthPrefixedCoder);
 
-export class WindowedValueCoder<T, W> extends FakeCoder<WindowedValue> {
+export class WindowedValueCoder<T, W> implements Coder<WindowedValue> {
     static URN: string = "beam:coder:windowed_value:v1";
     windowIterableCoder: IterableCoder<any>  // really W
 
     constructor(public elementCoder: Coder<T>, public windowCoder: Coder<W>) {
-        super();
         this.windowIterableCoder = new IterableCoder(windowCoder);
     }
     toProto(pipelineContext: PipelineContext): runnerApi.Coder {
@@ -370,7 +366,7 @@ export class VarIntCoder implements Coder<Long | Number | BigInt> {
 }
 CODER_REGISTRY.register(VarIntCoder.URN, VarIntCoder);
 
-export class DoubleCoder extends FakeCoder<Number> {
+export class DoubleCoder implements Coder<Number> {
     static URN: string = "beam:coder:double:v1";
     encode(element: Number, writer: Writer, context: Context) {
         writer.double(element as number);
@@ -391,7 +387,7 @@ export class DoubleCoder extends FakeCoder<Number> {
 }
 CODER_REGISTRY.register(DoubleCoder.URN, DoubleCoder);
 
-export class BoolCoder extends FakeCoder<Boolean> {
+export class BoolCoder implements Coder<Boolean> {
     static URN: string = "beam:coder:bool:v1";
     type: string = "boolcoder";
     encode(element: Boolean, writer: Writer, context: Context) {
