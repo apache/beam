@@ -1,4 +1,5 @@
 import { Coder, CODER_REGISTRY, Context } from "../src/apache_beam/coders/coders";
+import { KV, GlobalWindow } from "../src/apache_beam/coders/standard_coders";
 import { Writer, Reader } from 'protobufjs';
 
 import assertions = require('assert');
@@ -18,7 +19,6 @@ const UNSUPPORTED_CODERS = [
     "beam:coder:interval_window:v1",
     "beam:coder:double:v1",
     "beam:coder:timer:v1",
-    "beam:coder:global_window:v1",
     "beam:coder:windowed_value:v1",
     "beam:coder:param_windowed_value:v1",
     "beam:coder:row:v1",
@@ -35,6 +35,7 @@ const _urn_to_json_value_parser = {
     'beam:coder:double:v1': _ => x => new Number(x),
     'beam:coder:kv:v1': components => x => ({ 'key': components[0](x['key']), 'value': components[1](x['value']) }),
     'beam:coder:iterable:v1': components => x => (x.map(elm => components[0](elm))),
+    'beam:coder:global_window:v1': components => x => new GlobalWindow()
     // 'beam:coder:double:v1': parse_float,
 }
 
