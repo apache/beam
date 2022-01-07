@@ -130,6 +130,7 @@ dependencies {
   implementation library.java.arrow_vector
 
   implementation "org.threeten:threetenbp:1.4.4"
+  implementation "io.opencensus:opencensus-api:0.30.0"
 
   testImplementation library.java.arrow_memory_netty
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
