@@ -1,5 +1,5 @@
 import { RemoteJobServiceClient } from "./client";
-import { Pipeline } from "../../base";
+import { Pipeline, PipelineResult, Runner } from "../../base";
 import { PipelineOptions } from "../../options/pipeline_options";
 import * as runnerApiProto from '../../proto/beam_runner_api';
 import { JobState_Enum } from "../../proto/beam_job_api";
@@ -12,7 +12,7 @@ const TERMINAL_STATES = [
     JobState_Enum.DRAINED,
 ]
 
-export class PipelineResult {
+class NodeRunnerPipelineResult implements PipelineResult {
     jobId: string;
     runner: NodeRunner;
 
@@ -36,7 +36,7 @@ export class PipelineResult {
     async waitUntilFinish(duration?: number) {
         let { state } = await this.getState();
         const start = Date.now();
-        while (!PipelineResult.isTerminal(state)) {
+        while (!NodeRunnerPipelineResult.isTerminal(state)) {
             const now = Date.now();
             if (duration !== undefined && now - start > duration) {
                 return state;
@@ -48,10 +48,11 @@ export class PipelineResult {
     }
 }
 
-export class NodeRunner {
+export class NodeRunner extends Runner {
     client: RemoteJobServiceClient;
 
     constructor(client: RemoteJobServiceClient) {
+        super();
         this.client = client;
     }
 
@@ -59,7 +60,7 @@ export class NodeRunner {
         return this.client.getState(jobId);
     }
 
-    async runPipeline(pipeline: Pipeline) {
+    async runPipeline(pipeline: Pipeline): Promise<PipelineResult> {
         throw new Error('runPipeline not implemented.')
     }
 
@@ -69,7 +70,7 @@ export class NodeRunner {
         options?: PipelineOptions) {
         const { preparationId } = await this.client.prepare(pipeline, jobName, options);
         const { jobId } = await this.client.run(preparationId);
-        return new PipelineResult(this, jobId);
+        return new NodeRunnerPipelineResult(this, jobId);
     }
 
     async runPipelineWithJsonValueProto(json: string, jobName: string, options?: PipelineOptions) {

@@ -22,7 +22,7 @@ export function transformName() {
     return 'transformId(' + _transform_counter + ')';
 }
 
-interface PipelineResult { }
+export interface PipelineResult { }
 
 export class Runner {
     async run(pipeline: ((Root) => PValue)): Promise<PipelineResult> {
