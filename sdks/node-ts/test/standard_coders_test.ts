@@ -123,13 +123,17 @@ function describeCoder<T>(coder: Coder<T>, urn, context, spec: CoderSpec) {
 }
 
 function coderCase<T>(coder: Coder<T>, obj, expectedEncoded: Uint8Array, context, exampleCount) {
-    it(util.format("encodes example %d correctly", exampleCount), function() {
+    it(util.format("encodes %s to %s",
+        util.inspect(obj, {colors:true, depth:Infinity}),
+        Buffer.from(expectedEncoded).toString('hex')), function() {
         var writer = new Writer();
         coder.encode(obj, writer, context);
         assertions.deepEqual(writer.finish(), expectedEncoded);
     });
 
-    it(util.format("decodes example %d correctly", exampleCount), function() {
+    it(util.format("decodes %s to %s correctly",
+        Buffer.from(expectedEncoded).toString('hex'),
+        util.inspect(obj, {colors:true, depth:Infinity})), function() {
         const decoded = coder.decode(new Reader(expectedEncoded), context);
         assertions.deepEqual(decoded, obj);
     });
