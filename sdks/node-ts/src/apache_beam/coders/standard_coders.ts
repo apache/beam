@@ -297,64 +297,14 @@ export class VarIntCoder implements Coder<Long | Number | BigInt> {
     type: string = "varintcoder";
     encode(element: Number | Long | BigInt, writer: Writer, context: Context) {
         var numEl = element as number
-        var encoded = [];
-        if (numEl < 0) {
-            // TODO(pabloem): Unable to encode negative integers due to JS encoding them
-            //    internally as floats. We need to change this somewhat.
-            numEl += (1 << 64)
-            if (numEl <= 0) {
-                throw new Error('Value too large (negative (' + numEl + ')).')
-            }
-        }
-        while (true) {
-            var bits = numEl & 0x7F
-            numEl >>= 7
-            if (numEl) {
-                bits |= 0x80
-            }
-            encoded.push(bits as never);
-            if (!numEl) {
-                break
-            }
-        }
-
-        const encodedArr = new Uint8Array(encoded);
-        BytesCoder.INSTANCE.encode(encodedArr, writer, context);
+        writer.int32(numEl)
+        return
     }
 
     decode(reader: Reader, context: Context): Long | Number | BigInt {
-        var shift = 0
-        var result = 0
-        const encoded: Uint8Array = BytesCoder.INSTANCE.decode(reader, context);
-        var i = 0;
-        while (true) {
-            const byte = encoded[i];
-            i++;
-            if (byte < 0) {
-                throw new Error('VarLong not terminated.')
-            }
-            const bits = byte & 0x7F
-            if (shift >= 64 || (shift >= 63 && bits > 1)) {
-                throw new Error('VarLong too long.')
-            }
-            const shuftedBits = bits << shift;
-            result = result | shuftedBits
-            shift += 7
-            if (!(byte & 0x80)) {
-                break
-            }
-            if (shift >= 32) {
-                // TODO(pabloem) support numbers larger than 1 << 32
-                // We are unable to decode further into javascript
-                break;
-            }
-            // TODO(pabloem): Remove this because it's giving us trouble!
-            // if (result >= 1 << 63) {
-            //     result -= 1 << 64
-            // }
-        }
-        return result
+        return reader.int32();
     }
+
     toProto(pipelineContext: PipelineContext): runnerApi.Coder {
         return {
             spec: {
