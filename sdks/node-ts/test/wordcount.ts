@@ -7,11 +7,10 @@ import * as testing from '../src/apache_beam/testing/assert';
 class CountElements extends beam.PTransform<beam.PCollection, beam.PCollection> {
     expand(input: beam.PCollection) {
         return input
-            .map((e) => ({ key: e, value: 1 }))
-            .apply(new beam.GroupByKey("GBK"))  // TODO: GroupBy
+            .apply(new beam.GroupBy((e) => e))  // TODO: GroupBy
             .map((kvs) => ({
                 element: kvs.key,
-                count: kvs.value.reduce((a, b) => a + b)  // TODO: Combine
+                count: kvs.value.length  // TODO: Combine
             }));
     }
 }

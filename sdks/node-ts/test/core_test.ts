@@ -10,9 +10,8 @@ describe("core module", function() {
             var res = p.apply(new beam.Impulse());
 
             assert.equal(res.type, "pcollection");
-            console.log("p.coders", p.coders);
             console.log("res.proto.coderId", res.proto.coderId);
-            assert.deepEqual(p.coders[res.proto.coderId], new BytesCoder());
+            assert.deepEqual(p.getCoder(res.proto.coderId), new BytesCoder());
         });
         it("runs a ParDo expansion", function() {
             var p = new beam.Pipeline();

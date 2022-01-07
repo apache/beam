@@ -51,7 +51,7 @@ export class Pipeline {
 
     // A map of coder ID to Coder object
     // TODO: Is this needed?
-    coders: { [key: string]: Coder<any> } = {}
+    private coders: { [key: string]: Coder<any> } = {}
 
     constructor() {
         this.proto = runnerApi.Pipeline.create(
@@ -112,6 +112,15 @@ export class Pipeline {
             displayData: [],
         }
         return new PCollection(this, pcollId);
+    }
+
+    getCoder<T>(coderId: string): Coder<T> {
+      // TODO: If not present, reconstruct from proto.
+      return this.coders[coderId];
+    }
+
+    getCoderId(coder: Coder<any>): string {
+      return translations.registerPipelineCoder((coder as Coder<any>).toProto!(this.proto.components!), this.proto.components!);
     }
 }
 
@@ -333,8 +342,8 @@ export class GroupByKey extends PTransform<PCollection, PCollection> {
         let valueCoder: Coder<any>;
         const inputCoderProto = pipelineComponents.coders[inputPCollectionProto.coderId];
         if (inputCoderProto.componentCoderIds.length == 2) {
-            keyCoder = pipeline.coders[inputCoderProto.componentCoderIds[0]];
-            valueCoder = pipeline.coders[inputCoderProto.componentCoderIds[1]];
+            keyCoder = pipeline.getCoder(inputCoderProto.componentCoderIds[0]);
+            valueCoder = pipeline.getCoder(inputCoderProto.componentCoderIds[1]);
         }
         else {
             keyCoder = valueCoder = new GeneralObjectCoder();
