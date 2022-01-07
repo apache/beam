@@ -39,7 +39,7 @@ job('beam_PostCommit_Java_Examples_Flink') {
     steps {
         gradle {
             rootBuildScriptDir(commonJobProperties.checkoutDir)
-            tasks(':runners:flink:examplesIntegrationTest')
+            tasks(":runners:flink:${CommonTestProperties.getFlinkVersion()}:examplesIntegrationTest")
             commonJobProperties.setGradleSwitches(delegate)
         }
     }

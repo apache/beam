@@ -57,6 +57,7 @@ description = "Apache Beam :: Runners :: Direct Java"
 evaluationDependsOn(":runners:core-construction-java")
 evaluationDependsOn(":runners:core-java")
 evaluationDependsOn(":sdks:java:core")
+evaluationDependsOn(":examples:java")
 
 configurations {
   needsRunner

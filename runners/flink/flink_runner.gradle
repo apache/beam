@@ -41,6 +41,7 @@ description = "Apache Beam :: Runners :: Flink $flink_version"
  */
 evaluationDependsOn(":sdks:java:core")
 evaluationDependsOn(":runners:core-java")
+evaluationDependsOn(":examples:java")
 
 /*
  * Copy & merge source overrides into build directory.
@@ -285,7 +286,6 @@ task examplesIntegrationTest(type: Test) {
   group = "Verification"
   // Disable gradle cache
   outputs.upToDateWhen { false }
-//  def runnerType = config.streaming ? "streaming" : "batch"
   def pipelineOptionsArray = ["--runner=TestFlinkRunner",
                               "--parallelism=2",
                               "--tempLocation=${tempLocation}",
