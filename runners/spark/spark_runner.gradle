@@ -41,6 +41,7 @@ description = "Apache Beam :: Runners :: Spark $spark_version"
 evaluationDependsOn(":sdks:java:core")
 evaluationDependsOn(":sdks:java:io:hadoop-format")
 evaluationDependsOn(":runners:core-java")
+evaluationDependsOn(":examples:java")
 
 configurations {
   validatesRunner
@@ -216,10 +217,6 @@ dependencies {
   hadoopVersions.each {kv ->
     "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-common:$kv.value"
   }
-  examplesJavaIntegrationTest project(project.path)
-  examplesJavaIntegrationTest project(":examples:java")
-  examplesJavaIntegrationTest project(path: ":examples:java", configuration: "testRuntimeMigration")
-  examplesJavaIntegrationTest project(":runners:spark:2")
 }
 
 def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
@@ -406,7 +403,7 @@ task hadoopVersionsTest(group: "Verification") {
   dependsOn taskNames
 }
 
-task examplesSparkIntegrationTest(type: Test) {
+task examplesIntegrationTest(type: Test) {
   group = "Verification"
   // Disable gradle cache
   outputs.upToDateWhen { false }
@@ -426,8 +423,8 @@ task examplesSparkIntegrationTest(type: Test) {
 //  exclude '**/BigQueryTornadoesIT.class' // Fails with AssertionError
 //  exclude '**/WindowedWordCountIT.class' // Failed with Grpc connection error
   maxParallelForks 4
-  classpath = configurations.examplesJavaIntegrationTest
-  testClassesDirs += files(project(":examples:java").sourceSets.test.output.classesDirs)
+  classpath = configurations.validatesRunner
+  testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
   useJUnit { }
   jvmArgs '-Xmx3g'
 }

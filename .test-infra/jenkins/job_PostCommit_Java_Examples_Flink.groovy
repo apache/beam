@@ -20,27 +20,27 @@ import CommonJobProperties as commonJobProperties
 
 // This job runs the Java examples tests with FlinkRunner.
 job('beam_PostCommit_Java_Examples_Flink') {
-    description('Run Java Examples on Flink Runner')
+  description('Run Java Examples on Flink Runner')
 
-    // Set common parameters.
-    commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
+  // Set common parameters.
+  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
 
-    // Allows triggering this build against pull requests.
-    commonJobProperties.enablePhraseTriggeringFromPullRequest(
-            delegate,
-            'Java Flink Runner Examples',
-            'Run Java Examples_Flink')
+  // Allows triggering this build against pull requests.
+  commonJobProperties.enablePhraseTriggeringFromPullRequest(
+      delegate,
+      'Java Flink Runner Examples',
+      'Run Java Examples_Flink')
 
-    publishers {
-        archiveJunit('**/build/test-results/**/*.xml')
+  publishers {
+    archiveJunit('**/build/test-results/**/*.xml')
+  }
+
+  // Execute shell command to run examples.
+  steps {
+    gradle {
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
+      tasks(":runners:flink:${CommonTestProperties.getFlinkVersion()}:examplesIntegrationTest")
+      commonJobProperties.setGradleSwitches(delegate)
     }
-
-    // Execute shell command to run examples.
-    steps {
-        gradle {
-            rootBuildScriptDir(commonJobProperties.checkoutDir)
-            tasks(":runners:flink:${CommonTestProperties.getFlinkVersion()}:examplesIntegrationTest")
-            commonJobProperties.setGradleSwitches(delegate)
-        }
-    }
+  }
 }

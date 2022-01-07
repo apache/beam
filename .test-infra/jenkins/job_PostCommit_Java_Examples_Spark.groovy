@@ -20,28 +20,28 @@ import CommonJobProperties as commonJobProperties
 
 // This job runs the Java examples tests with SparkRunner.
 job('beam_PostCommit_Java_Examples_Spark') {
-    description('Run Java Examples on Spark Runner')
+  description('Run Java Examples on Spark Runner')
 
-    // Set common parameters.
-    commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
+  // Set common parameters.
+  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 120)
 
-    // Allows triggering this build against pull requests.
-    commonJobProperties.enablePhraseTriggeringFromPullRequest(
-            delegate,
-            'Java Spark Runner Examples',
-            'Run Java Examples_Spark')
+  // Allows triggering this build against pull requests.
+  commonJobProperties.enablePhraseTriggeringFromPullRequest(
+      delegate,
+      'Java Spark Runner Examples',
+      'Run Java Examples_Spark')
 
-    publishers {
-        archiveJunit('**/build/test-results/**/*.xml')
+  publishers {
+    archiveJunit('**/build/test-results/**/*.xml')
+  }
+
+  // Execute shell command to run examples.
+  steps {
+    gradle {
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
+      tasks(':runners:spark:2:examplesIntegrationTest')
+      tasks(':runners:spark:3:examplesIntegrationTest')
+      commonJobProperties.setGradleSwitches(delegate)
     }
-
-    // Execute shell command to run examples.
-    steps {
-        gradle {
-            rootBuildScriptDir(commonJobProperties.checkoutDir)
-            tasks(':runners:spark:2:examplesIntegrationTest')
-            tasks(':runners:spark:3:examplesIntegrationTest')
-            commonJobProperties.setGradleSwitches(delegate)
-        }
-    }
+  }
 }
