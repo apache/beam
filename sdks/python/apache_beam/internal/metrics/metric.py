@@ -226,7 +226,7 @@ class ServiceCallMetric(object):
 
   @staticmethod
   def bigtable_error_code_to_grpc_status_string(grpc_status_code):
-    # type: (int) -> str
+    # type: (Optional[int]) -> str
 
     """
     Converts the bigtable error code to a canonical GCP status code string.
@@ -262,4 +262,8 @@ class ServiceCallMetric(object):
     if (grpc_status_code is not None and
         grpc_status_code in grpc_to_canonical_gcp_status):
       return grpc_to_canonical_gcp_status[grpc_status_code]
+    if grpc_status_code is None:
+      # Bigtable indicates this can be retried but itself has exhausted retry
+      # timeout or there is no retry policy set for bigtable.
+      return grpc_to_canonical_gcp_status[4]
     return str(grpc_status_code)
