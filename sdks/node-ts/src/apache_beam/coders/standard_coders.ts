@@ -14,6 +14,10 @@ class FakeCoder<T> implements Coder<T> {
     decode(reader: Reader, context: Context): T {
         throw new Error('Not implemented!');
     }
+
+    toProto(pipelineContext: PipelineContext): runnerApi.Coder {
+        throw new Error('Not implemented!');
+    }
 }
 
 export class BytesCoder implements Coder<Uint8Array> {
@@ -177,6 +181,15 @@ export class StrUtf8Coder implements Coder<String> {
     decode(reader: Reader, context: Context): String {
         return this.decoder.decode(BytesCoder.INSTANCE.decode(reader, context));
     }
+    toProto(pipelineContext: PipelineContext): runnerApi.Coder {
+        return {
+            spec: {
+                urn: StrUtf8Coder.URN,
+                payload: new Uint8Array(),
+            },
+            componentCoderIds: [],
+        }
+    }
 }
 CODER_REGISTRY.register(StrUtf8Coder.URN, StrUtf8Coder);
 
@@ -245,6 +258,15 @@ export class VarIntCoder implements Coder<Long | Number | BigInt> {
         }
         return result
     }
+    toProto(pipelineContext: PipelineContext): runnerApi.Coder {
+        return {
+            spec: {
+                urn: VarIntCoder.URN,
+                payload: new Uint8Array(),
+            },
+            componentCoderIds: [],
+        }
+    }
 }
 CODER_REGISTRY.register(VarIntCoder.URN, VarIntCoder);
 
@@ -256,6 +278,15 @@ export class DoubleCoder extends FakeCoder<Number> {
 
     decode(reader: Reader, context: Context): Number {
         return reader.double();
+    }
+    toProto(pipelineContext: PipelineContext): runnerApi.Coder {
+        return {
+            spec: {
+                urn: DoubleCoder.URN,
+                payload: new Uint8Array(),
+            },
+            componentCoderIds: [],
+        }
     }
 }
 CODER_REGISTRY.register(DoubleCoder.URN, DoubleCoder);
@@ -269,6 +300,15 @@ export class BoolCoder extends FakeCoder<Boolean> {
 
     decode(reader: Reader, context: Context): Boolean {
         return reader.bool();
+    }
+    toProto(pipelineContext: PipelineContext): runnerApi.Coder {
+        return {
+            spec: {
+                urn: BoolCoder.URN,
+                payload: new Uint8Array(),
+            },
+            componentCoderIds: [],
+        }
     }
 }
 CODER_REGISTRY.register(BoolCoder.URN, BoolCoder);
