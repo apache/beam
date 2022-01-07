@@ -32,5 +32,5 @@ export interface Coder<T> {
 
     decode(reader: Reader, context: Context): T;
 
-    toProto?(pipelineContext: PipelineContext): runnerApi.Coder;
+    toProto(pipelineContext: PipelineContext): runnerApi.Coder;
 }
