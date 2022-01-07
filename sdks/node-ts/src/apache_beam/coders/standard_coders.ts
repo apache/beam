@@ -57,6 +57,7 @@ export class BytesCoder implements Coder<Uint8Array> {
             case Context.needsDelimiters:
                 var length = reader.int32();
                 var value = reader.buf.slice(reader.pos, reader.pos + length)
+                reader.pos += length
                 return value;
             default:
                 throw new Error("Unknown type of decoding context");
