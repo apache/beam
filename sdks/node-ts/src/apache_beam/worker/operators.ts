@@ -1,10 +1,14 @@
+import * as protobufjs from 'protobufjs';
+
 import { PTransform, PCollection } from "../proto/beam_runner_api";
 import * as runnerApi from "../proto/beam_runner_api";
 import { ProcessBundleDescriptor, RemoteGrpcPort } from "../proto/beam_fn_api";
 import { MultiplexingDataChannel, IDataChannel } from "./data"
 
 import * as base from "../base"
+import { WindowedValue } from "../base"
 import * as translations from '../internal/translations'
+import { Coder, Context as CoderContext } from "../coders/coders"
 
 
 export interface IOperator {
@@ -14,10 +18,7 @@ export interface IOperator {
 }
 
 export class Receiver {
-    operators: IOperator[]
-
-    constructor(operators: IOperator[]) {
-        this.operators = operators;
+    constructor(private operators: IOperator[]) {
     }
 
     receive(wvalue: WindowedValue) {
@@ -27,15 +28,15 @@ export class Receiver {
     }
 }
 
-export interface WindowedValue {
-    value: any;
-}
-
-export interface OperatorContext {
-    descriptor: ProcessBundleDescriptor;
-    getReceiver: (string) => Receiver;
-    getDataChannel: (string) => MultiplexingDataChannel;
-    getBundleId: () => string;
+export class OperatorContext {
+    pipelineContext: base.PipelineContext;
+    constructor(
+        public descriptor: ProcessBundleDescriptor,
+        public getReceiver: (string) => Receiver,
+        public getDataChannel: (string) => MultiplexingDataChannel,
+        public getBundleId: () => string) {
+        this.pipelineContext = new base.PipelineContext(descriptor);
+    }
 }
 
 export function createOperator(
@@ -70,6 +71,7 @@ class DataSourceOperator implements IOperator {
     getBundleId: () => string;
     multiplexingDataChannel: MultiplexingDataChannel;
     receiver: Receiver;
+    coder: Coder<any>;
     done: boolean;
 
     constructor(transformId: string, transform: PTransform, context: OperatorContext) {
@@ -78,6 +80,7 @@ class DataSourceOperator implements IOperator {
         this.transformId = transformId;
         this.getBundleId = context.getBundleId;
         this.receiver = context.getReceiver(onlyElement(Object.values(transform.outputs)));
+        this.coder = context.pipelineContext.getCoder(readPort.coderId);
     }
 
     startBundle() {
@@ -88,8 +91,11 @@ class DataSourceOperator implements IOperator {
             this.transformId,
             {
                 sendData: function(data: Uint8Array) {
-                    console.log("Got", data)
-                    this_.receiver.receive({ value: data });
+                    console.log("Got", data);
+                    const reader = new protobufjs.Reader(data);
+                    while (reader.pos < reader.len) {
+                        this_.receiver.receive(this_.coder.decode(reader, CoderContext.needsDelimiters));
+                    }
                 },
                 sendTimers: function(timerFamilyId: string, timers: Uint8Array) {
                     throw Error("Not expecting timers.");
@@ -125,25 +131,37 @@ class DataSinkOperator implements IOperator {
     getBundleId: () => string;
     multiplexingDataChannel: MultiplexingDataChannel;
     channel: IDataChannel;
+    coder: Coder<any>;
+    buffer: protobufjs.Writer;
 
     constructor(transformId: string, transform: PTransform, context: OperatorContext) {
         const writePort = RemoteGrpcPort.fromBinary(transform.spec!.payload);
         this.multiplexingDataChannel = context.getDataChannel(writePort.apiServiceDescriptor!.url);
         this.transformId = transformId;
         this.getBundleId = context.getBundleId;
+        this.coder = context.pipelineContext.getCoder(writePort.coderId);
     }
 
     startBundle() {
         this.channel = this.multiplexingDataChannel.getSendChannel(this.transformId, this.getBundleId());
+        this.buffer = new protobufjs.Writer();
     }
 
     process(wvalue: WindowedValue) {
-        // TODO: Encode and buffer.
-        this.channel.sendData(wvalue.value);
+        this.coder.encode(wvalue, this.buffer, CoderContext.needsDelimiters);
+        if (this.buffer.len > 1e6) {
+            this.flush();
+        }
     }
 
     finishBundle() {
+        this.flush()
         this.channel.close();
+    }
+
+    flush() {
+        this.channel.sendData(this.buffer.finish());
+        this.buffer = new protobufjs.Writer();
     }
 }
 
@@ -178,9 +196,16 @@ class ParDoOperator implements IOperator {
         this.receiver = context.getReceiver(onlyElement(Object.values(transform.outputs)));
         this.spec = runnerApi.ParDoPayload.fromBinary(transform.spec!.payload);
         if (this.spec.doFn?.urn != translations.SERIALIZED_JS_DOFN_INFO) {
-            throw new Error("Unknown DoFn type: " + this.spec);
+            // throw new Error("Unknown DoFn type: " + this.spec);
+            this.doFn = new class extends base.DoFn {
+                *process(element: any) {
+                    console.log("Unknown DoFn processing", element)
+                    yield element;
+                }
+            }();
+        } else {
+            this.doFn = base.fakeDeserialize(this.spec.doFn.payload!);
         }
-        this.doFn = base.fakeDeserialize(this.spec.doFn.payload!);
     }
 
     startBundle() {

@@ -4,7 +4,7 @@ import { ProcessBundleDescriptor } from "../proto/beam_fn_api";
 import { Runner, Pipeline, Root, Impulse, GroupByKey } from '../base'
 import * as worker from '../worker/worker';
 import * as operators from '../worker/operators';
-import { WindowedValue } from '../worker/operators';
+import { WindowedValue } from '../base';
 
 
 export class DirectRunner extends Runner {

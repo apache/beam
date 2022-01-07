@@ -15,12 +15,10 @@ import { StartWorkerRequest, StartWorkerResponse, StopWorkerRequest, StopWorkerR
 import { beamFnExternalWorkerPoolDefinition, IBeamFnExternalWorkerPool } from "../proto/beam_fn_api.grpc-server";
 
 import { MultiplexingDataChannel, IDataChannel } from "./data"
-import { IOperator, Receiver, createOperator } from "./operators"
+import { IOperator, Receiver, createOperator, OperatorContext } from "./operators"
 
 
 export class Worker {
-    id: string;
-    endpoints: StartWorkerRequest;
     controlClient: BeamFnControlClient;
     controlChannel: grpc.ClientDuplexStream<InstructionResponse, InstructionRequest>;
 
@@ -28,10 +26,7 @@ export class Worker {
     bundleProcessors: Map<string, BundleProcessor[]> = new Map();
     dataChannels: Map<string, MultiplexingDataChannel> = new Map();
 
-    constructor(id: string, endpoints: StartWorkerRequest) {
-        this.id = id;
-        this.endpoints = endpoints;
-
+    constructor(private id: string, private endpoints: StartWorkerRequest) {
         if (endpoints?.controlEndpoint?.url == undefined) {
             throw "Missing control endpoint.";
         }
@@ -177,12 +172,12 @@ export class BundleProcessor {
                     transformId,
                     createOperator(
                         transformId,
-                        {
-                            descriptor: descriptor,
-                            getReceiver: getReceiver,
-                            getDataChannel: this_.getDataChannel,
-                            getBundleId: this_.getBundleId.bind(this_)
-                        }));
+                        new OperatorContext(
+                            descriptor,
+                            getReceiver,
+                            this_.getDataChannel,
+                            this_.getBundleId.bind(this_)
+                        )));
                 creationOrderedOperators.push(this_.operators.get(transformId)!);
             }
             return this_.operators.get(transformId)!;
