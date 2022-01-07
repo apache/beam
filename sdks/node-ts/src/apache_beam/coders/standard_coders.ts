@@ -3,7 +3,8 @@ import * as translations from '../internal/translations'
 
 import { Writer, Reader } from 'protobufjs';
 import { Coder, Context, CODER_REGISTRY } from "./coders";
-import {KV, BoundedWindow, PaneInfo, PipelineContext, WindowedValue} from '../base';
+import {KV, BoundedWindow, IntervalWindow, PaneInfo, PipelineContext, WindowedValue} from '../base';
+import Long from "long";
 
 export class BytesCoder implements Coder<Uint8Array> {
     static URN: string = "beam:coder:bytes:v1";
@@ -241,11 +242,11 @@ export class GlobalWindow {
 
 }
 
-export class GlobalWindowCoder implements Coder<any> {
+export class GlobalWindowCoder implements Coder<GlobalWindow> {
     static URN: string = "beam:coder:global_window:v1";
     static INSTANCE: GlobalWindowCoder = new GlobalWindowCoder();
 
-    encode(value: any, writer: Writer, context: Context) {
+    encode(value: GlobalWindow, writer: Writer, context: Context) {
     }
 
     decode(reader: Reader, context: Context) {
@@ -263,6 +264,49 @@ export class GlobalWindowCoder implements Coder<any> {
     }
 }
 CODER_REGISTRY.register(GlobalWindowCoder.URN, GlobalWindowCoder);
+
+export class InstantCoder implements Coder<Date> {
+    static INSTANCE: InstantCoder = new InstantCoder();
+
+    decode(reader: Reader, context: Context): Date {
+        const shiftedMillis = Long.fromBytesBE(Array.from(reader.buf.slice(reader.pos, reader.pos+8)));
+        return new Date(shiftedMillis.add(Long.MIN_VALUE).toNumber())
+    }
+
+    encode(element: Date, writer: Writer, context: Context) {
+        const shiftedMillis = Long.fromNumber(element.getMilliseconds()).sub(Long.MIN_VALUE)
+        const bytes = Uint8Array.from(shiftedMillis.toBytesBE());
+        BytesCoder.INSTANCE.encode(bytes, writer, Context.wholeStream)
+    }
+
+    toProto(pipelineContext: PipelineContext): runnerApi.Coder {
+        return <runnerApi.Coder> <unknown> undefined;
+    }
+}
+
+// export class IntervalWindowCoder implements Coder<IntervalWindow> {
+//     static URN: string = "beam:coder:interval_window:v1";
+//     static INSTANCE: IntervalWindowCoder = new IntervalWindowCoder();
+//
+//     encode(value: any, writer: Writer, context: Context) {
+//     }
+//
+//     decode(reader: Reader, context: Context) {
+//         var end = InstantCoder.INSTANCE.decode(reader, context)
+//         return new IntervalWindow()
+//     }
+//
+//     toProto(pipelineContext: PipelineContext): runnerApi.Coder {
+//         return {
+//             spec: {
+//                 urn: GlobalWindowCoder.URN,
+//                 payload: new Uint8Array(),
+//             },
+//             componentCoderIds: [],
+//         }
+//     }
+// }
+// CODER_REGISTRY.register(IntervalWindowCoder.URN, IntervalWindowCoder);
 
 export class StrUtf8Coder implements Coder<String> {
     static URN: string = "beam:coder:string_utf8:v1";
