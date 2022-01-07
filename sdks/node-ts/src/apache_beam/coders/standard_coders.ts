@@ -5,21 +5,6 @@ import { Writer, Reader } from 'protobufjs';
 import { Coder, Context, CODER_REGISTRY } from "./coders";
 import { PipelineContext, WindowedValue } from '../base';
 
-
-class FakeCoder<T> implements Coder<T> {
-    encode(value: T, writer: Writer, context: Context) {
-        throw new Error('Not implemented!');
-    }
-
-    decode(reader: Reader, context: Context): T {
-        throw new Error('Not implemented!');
-    }
-
-    toProto(pipelineContext: PipelineContext): runnerApi.Coder {
-        throw new Error('Not implemented!');
-    }
-}
-
 export class BytesCoder implements Coder<Uint8Array> {
     static URN: string = "beam:coder:bytes:v1";
     static INSTANCE: BytesCoder = new BytesCoder();
