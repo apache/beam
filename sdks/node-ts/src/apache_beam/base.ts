@@ -62,10 +62,6 @@ export class PipelineContext {
             } else {
                 this.coders[coderId] = new coderConstructor(...components);
             }
-            console.log('==========')
-            console.log(coderId, coderConstructor, components);
-            console.log(coderProto);
-            console.log(this.coders[coderId]);
         }
         return this.coders[coderId];
     }

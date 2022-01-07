@@ -158,12 +158,10 @@ export class IterableCoder<T> extends FakeCoder<Iterable<T>> {
 
     decode(reader: Reader, context: Context): Iterable<T> {
         const len = swapEndian32(reader.fixed32());
-        console.log("IterableCoder", len, reader.pos)
         if (len >= 0) {
             const result = new Array(len)
             for (let i = 0; i < len; i ++) {
                 result[i] = this.elementCoder.decode(reader, Context.needsDelimiters)
-                console.log("IterableCoder element", i, reader.pos)
             }
             return result;
         } else {
@@ -234,13 +232,9 @@ export class WindowedValueCoder<T, W> extends FakeCoder<WindowedValue> {
     }
 
     decode(reader: Reader, context: Context): WindowedValue {
-        console.log("pos A", reader.pos, this);
         reader.fixed64();  // Timestamp.
-        console.log("pos B", reader.pos);
         this.windowIterableCoder.decode(reader, Context.needsDelimiters);
-        console.log("pos C", reader.pos);
         reader.skip(1);     // Pane.
-        console.log("pos D", reader.pos, this.elementCoder);
         return { value: this.elementCoder.decode(reader, context) };
     }
 }
