@@ -162,7 +162,7 @@ export class Pipeline {
     }
 }
 
-export class PCollection {
+export class PCollection<T> {
     type: string = "pcollection";
     id: string;
     proto: runnerApi.PCollection;
@@ -174,21 +174,21 @@ export class PCollection {
         this.id = id;
     }
 
-    apply<OutputT extends PValue>(transform: PTransform<PCollection, OutputT> | ((PCollection) => OutputT)) {
+    apply<OutputT extends PValue>(transform: PTransform<PCollection<T>, OutputT> | ((PCollection) => OutputT)) {
         if (!(transform instanceof PTransform)) {
             transform = new PTransformFromCallable(transform, "" + transform);
         }
         return this.pipeline.apply2(transform, this, "");
     }
 
-    map(fn: (any) => any): PCollection {
+    map(fn: (T) => any): PCollection<any> {
         // TODO(robertwb): Should PTransforms have generics?
-        return this.apply(new ParDo(new MapDoFn(fn))) as PCollection;
+        return this.apply(new ParDo(new MapDoFn(fn))) as PCollection<any>;
     }
 
-    flatMap(fn: (any) => Generator<any, void, void>): PCollection {
+    flatMap(fn: (T) => Generator<any, void, void>): PCollection<any> {
         // TODO(robertwb): Should PTransforms have generics?
-        return this.apply(new ParDo(new FlatMapDoFn(fn))) as PCollection;
+        return this.apply(new ParDo(new FlatMapDoFn(fn))) as PCollection<any>;
     }
 
     root(): Root {
@@ -215,10 +215,10 @@ export class Root {
     }
 }
 
-type PValue = void | Root | PCollection | PValue[] | { [key: string]: PValue };
+type PValue = void | Root | PCollection<any> | PValue[] | { [key: string]: PValue };
 
-function flattenPValue(PValue: PValue, prefix: string = ""): { [key: string]: PCollection } {
-    const result: { [key: string]: PCollection } = {}
+function flattenPValue(PValue: PValue, prefix: string = ""): { [key: string]: PCollection<any> } {
+    const result: { [key: string]: PCollection<any> } = {}
     if (PValue == null) {
         // pass
     } else if (PValue instanceof Root) {
@@ -308,7 +308,7 @@ export interface GenericCallable {
     (input: any): any
 }
 
-export class Impulse extends PTransform<Root, PCollection> {
+export class Impulse extends PTransform<Root, PCollection<string>> {
     // static urn: string = runnerApi.StandardPTransforms_Primitives.IMPULSE.urn;
     // TODO: use above line, not below line.
     static urn: string = "beam:transform:impulse:v1";
@@ -326,7 +326,7 @@ export class Impulse extends PTransform<Root, PCollection> {
     }
 }
 
-export class ParDo extends PTransform<PCollection, PCollection> {
+export class ParDo<InputT, OutputT> extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
     private doFn: DoFn;
     // static urn: string = runnerApi.StandardPTransforms_Primitives.PAR_DO.urn;
     // TODO: use above line, not below line.
@@ -336,7 +336,7 @@ export class ParDo extends PTransform<PCollection, PCollection> {
         this.doFn = doFn;
     }
 
-    expandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, input: PCollection) {
+    expandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, input: PCollection<InputT>) {
         // Might not be needed due to generics.
         if (!(input instanceof PCollection)) {
             throw new Error('ParDo received the wrong input.');
@@ -381,14 +381,18 @@ class FlatMapDoFn extends DoFn {
     }
 }
 
+export type KV<K, V> = {
+    key: K,
+    value: V
+}
 
 // TODO(pabloem): Consider not exporting the GBK
-export class GroupByKey extends PTransform<PCollection, PCollection> {
+export class GroupByKey<K, V> extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>> {
     // static urn: string = runnerApi.StandardPTransforms_Primitives.GROUP_BY_KEY.urn;
     // TODO: use above line, not below line.
     static urn: string = "beam:transform:group_by_key:v1";
 
-    expandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, input: PCollection) {
+    expandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, input: PCollection<KV<K, V>>) {
 
         // TODO: Use context.
         const pipelineComponents: runnerApi.Components = pipeline.getProto().components!;
@@ -418,12 +422,12 @@ export class GroupByKey extends PTransform<PCollection, PCollection> {
 }
 
 
-export class Flatten extends PTransform<PCollection[], PCollection> {
+export class Flatten extends PTransform<PCollection<any>[], PCollection<any>> {
     // static urn: string = runnerApi.StandardPTransforms_Primitives.GROUP_BY_KEY.urn;
     // TODO: use above line, not below line.
     static urn: string = "beam:transform:flatten:v1";
 
-    expandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, inputs: PCollection[]) {
+    expandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, inputs: PCollection<any>[]) {
         transformProto.spec = runnerApi.FunctionSpec.create({
             'urn': Flatten.urn,
             'payload': null!,

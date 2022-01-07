@@ -4,8 +4,8 @@ import { DirectRunner } from '../src/apache_beam/runners/direct_runner'
 import * as testing from '../src/apache_beam/testing/assert';
 
 
-class CountElements extends beam.PTransform<beam.PCollection, beam.PCollection> {
-    expand(input: beam.PCollection) {
+class CountElements extends beam.PTransform<beam.PCollection<any>, beam.PCollection<beam.KV<any, number>>> {
+    expand(input: beam.PCollection<any>) {
         return input
             .apply(new beam.GroupBy((e) => e))  // TODO: GroupBy
             .map((kvs) => ({
@@ -15,8 +15,8 @@ class CountElements extends beam.PTransform<beam.PCollection, beam.PCollection> 
     }
 }
 
-class WordCount extends beam.PTransform<beam.PCollection, beam.PCollection> {
-    expand(lines: beam.PCollection) {
+class WordCount extends beam.PTransform<beam.PCollection<string>, beam.PCollection<beam.KV<string, number>>> {
+    expand(lines: beam.PCollection<string>) {
         return lines
             .map((s) => s.toLowerCase())
             .flatMap(function*(line) {

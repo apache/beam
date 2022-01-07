@@ -1,6 +1,7 @@
 import { Coder, CODER_REGISTRY, Context } from "../src/apache_beam/coders/coders";
-import { KV, GlobalWindow } from "../src/apache_beam/coders/standard_coders";
+import { GlobalWindow } from "../src/apache_beam/coders/standard_coders";
 import { Writer, Reader } from 'protobufjs';
+import {KV} from "../src/apache_beam/base"
 
 import assertions = require('assert');
 import yaml = require('js-yaml');
@@ -29,7 +30,6 @@ const _urn_to_json_value_parser = {
     'beam:coder:kv:v1': components => x => ({ 'key': components[0](x['key']), 'value': components[1](x['value']) }),
     'beam:coder:iterable:v1': components => x => (x.map(elm => components[0](elm))),
     'beam:coder:global_window:v1': components => x => new GlobalWindow()
-    // 'beam:coder:double:v1': parse_float,
 }
 
 interface CoderRepr {
