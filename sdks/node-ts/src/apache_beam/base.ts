@@ -1,4 +1,5 @@
 import * as runnerApi from './proto/beam_runner_api';
+import * as fnApi from './proto/beam_fn_api';
 import { Coder } from './coders/coders'
 import { BytesCoder, IterableCoder, KVCoder } from './coders/standard_coders';
 import * as util from 'util';
@@ -40,23 +41,44 @@ export class ProtoPrintingRunner extends Runner {
     }
 }
 
+type Components = runnerApi.Components | fnApi.ProcessBundleDescriptor;
+
+export class PipelineContext {
+  components: Components;
+
+  private coders: { [key: string]: Coder<any> } = {}
+
+  constructor(components: Components) {
+    this.components = components;
+  }
+
+  getCoder<T>(coderId: string): Coder<T> {
+    // TODO: If not present, reconstruct from proto.
+    return this.coders[coderId];
+  }
+
+  getCoderId(coder: Coder<any>): string {
+    const coderId = translations.registerPipelineCoder((coder as Coder<any>).toProto!(this), this.components!);
+    this.coders[coderId] = coder;
+    return coderId;
+  }
+}
+
 /**
  * A Pipeline is the base object to start building a Beam DAG. It is the
  * first object that a user creates, and then they may start applying
  * transformations to it to build a DAG.
  */
 export class Pipeline {
-    proto: runnerApi.Pipeline;
+    context: PipelineContext;
+    private proto: runnerApi.Pipeline;
     transformStack: string[] = [];
-
-    // A map of coder ID to Coder object
-    // TODO: Is this needed?
-    private coders: { [key: string]: Coder<any> } = {}
 
     constructor() {
         this.proto = runnerApi.Pipeline.create(
             { 'components': runnerApi.Components.create() }
         );
+        this.context = new PipelineContext(this.proto.components!);
     }
 
     // TODO: Remove once test are fixed.
@@ -100,9 +122,7 @@ export class Pipeline {
         if (typeof coder == "string") {
             coderId = coder;
         } else {
-            coderId = translations.registerPipelineCoder((coder as Coder<any>).toProto!(this.proto.components!), this.proto.components!);
-            // TODO: Do we need this?
-            this.coders[coderId] = coder;
+            coderId = this.context.getCoderId(coder);
         }
         this.proto!.components!.pcollections[pcollId] = {
             uniqueName: pcollId, // TODO: name according to producing transform?
@@ -115,12 +135,15 @@ export class Pipeline {
     }
 
     getCoder<T>(coderId: string): Coder<T> {
-      // TODO: If not present, reconstruct from proto.
-      return this.coders[coderId];
+      return this.context.getCoder(coderId);
     }
 
     getCoderId(coder: Coder<any>): string {
-      return translations.registerPipelineCoder((coder as Coder<any>).toProto!(this.proto.components!), this.proto.components!);
+      return this.context.getCoderId(coder);
+    }
+
+    getProto(): runnerApi.Pipeline {
+      return this.proto;
     }
 }
 
@@ -131,7 +154,7 @@ export class PCollection {
     pipeline: Pipeline;
 
     constructor(pipeline: Pipeline, id: string) {
-        this.proto = pipeline.proto!.components!.pcollections[id];  // TODO: redundant?
+        this.proto = pipeline.getProto().components!.pcollections[id];  // TODO: redundant?
         this.pipeline = pipeline;
         this.id = id;
     }
@@ -334,7 +357,8 @@ export class GroupByKey extends PTransform<PCollection, PCollection> {
 
     expandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, input: PCollection) {
 
-        const pipelineComponents: runnerApi.Components = pipeline.proto.components!;
+        // TODO: Use context.
+        const pipelineComponents: runnerApi.Components = pipeline.getProto().components!;
         const inputPCollectionProto = pipelineComponents.pcollections[input.id];
 
         // TODO: How to ensure the input is a KV coder?

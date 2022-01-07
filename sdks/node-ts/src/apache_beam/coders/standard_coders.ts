@@ -3,6 +3,7 @@ import * as translations from '../internal/translations'
 
 import { Writer, Reader } from 'protobufjs';
 import { Coder, Context, CODER_REGISTRY } from "./coders";
+import { PipelineContext } from '../base';
 
 
 class FakeCoder<T> implements Coder<T> {
@@ -58,7 +59,7 @@ export class BytesCoder implements Coder<Uint8Array> {
         }
     }
 
-    toProto(pipelineComponents: runnerApi.Components): runnerApi.Coder {
+    toProto(pipelineContext: PipelineContext): runnerApi.Coder {
         return {
             spec: {
                 urn: BytesCoder.URN,
@@ -87,15 +88,15 @@ export class KVCoder<K, V> extends FakeCoder<KV<K, V>> {
         this.keyCoder = keyCoder;
         this.valueCoder = valueCoder;
     }
-    toProto(pipelineComponents: runnerApi.Components): runnerApi.Coder {
+    toProto(pipelineContext: PipelineContext): runnerApi.Coder {
         return {
             spec: {
                 urn: KVCoder.URN,
                 payload: new Uint8Array(),
             },
             componentCoderIds: [
-                translations.registerPipelineCoder(this.keyCoder.toProto!(pipelineComponents), pipelineComponents),
-                translations.registerPipelineCoder(this.valueCoder.toProto!(pipelineComponents), pipelineComponents),
+                pipelineContext.getCoderId(this.keyCoder),
+                pipelineContext.getCoderId(this.valueCoder),
             ],
         }
     }
@@ -123,14 +124,14 @@ export class IterableCoder<T> extends FakeCoder<Iterable<T>> {
         super();
         this.elementCoder = elementCoder;
     }
-    toProto(pipelineComponents: runnerApi.Components): runnerApi.Coder {
+    toProto(pipelineContext: PipelineContext): runnerApi.Coder {
         return {
             spec: {
                 urn: IterableCoder.URN,
                 payload: new Uint8Array(),
             },
             componentCoderIds: [
-                translations.registerPipelineCoder(this.elementCoder.toProto!(pipelineComponents), pipelineComponents)
+                pipelineContext.getCoderId(this.elementCoder),
             ],
         }
     }
