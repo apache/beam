@@ -41,7 +41,7 @@ export class Runner {
 export class ProtoPrintingRunner extends Runner {
     async runPipeline(pipeline): Promise<PipelineResult> {
         console.dir(pipeline.proto, { depth: null });
-        return { 
+        return {
             async waitUntilFinish(duration?: number): Promise<JobState_Enum> { return JobState_Enum.UNSPECIFIED; },
         };
     }
@@ -216,7 +216,7 @@ export class Root {
     }
 }
 
-type PValue = void | Root | PCollection<any> | PValue[] | { [key: string]: PValue };
+export type PValue = void | Root | PCollection<any> | PValue[] | { [key: string]: PValue };
 
 function flattenPValue(PValue: PValue, prefix: string = ""): { [key: string]: PCollection<any> } {
     const result: { [key: string]: PCollection<any> } = {}
