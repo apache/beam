@@ -143,6 +143,10 @@ export class PCollection {
         // TODO(robertwb): Should PTransforms have generics?
         return this.apply(new ParDo(new FlatMapDoFn(fn))) as PCollection;
     }
+
+    root(): Root {
+        return new Root(this.pipeline);
+    }
 }
 
 /**
@@ -344,6 +348,29 @@ export class GroupByKey extends PTransform<PCollection, PCollection> {
         });
 
         return pipeline.createPCollectionInternal(outputCoder);
+    }
+}
+
+
+// TODO: P(...).apply()
+export function flattenFunction(pcolls: PCollection[]): PCollection {
+    return pcolls[0].pipeline.apply2(new Flatten(), pcolls, "Flatten");
+}
+
+
+export class Flatten extends PTransform<PCollection[], PCollection> {
+    // static urn: string = runnerApi.StandardPTransforms_Primitives.GROUP_BY_KEY.urn;
+    // TODO: use above line, not below line.
+    static urn: string = "beam:transform:flatten:v1";
+
+    expandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, inputs: PCollection[]) {
+        transformProto.spec = runnerApi.FunctionSpec.create({
+            'urn': Flatten.urn,
+            'payload': null!,
+        });
+
+        // TODO: Input coder if they're all the same? UnionCoder?
+        return pipeline.createPCollectionInternal(new GeneralObjectCoder());
     }
 }
 

@@ -46,7 +46,6 @@ export function createOperator(
     // Ensure receivers are eagerly created.
     Object.values(transform.outputs).map(context.getReceiver)
     let operatorClass = operatorsByUrn.get(transform.spec!.urn!);
-    console.log("Creating:", transform.spec?.urn, operatorClass);
     if (operatorClass == undefined) {
         console.log("Unknown transform type:", transform.spec?.urn);
         operatorClass = PassThroughOperator;

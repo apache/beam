@@ -1,6 +1,7 @@
 import * as beam from '../src/apache_beam';
 import * as runnerApi from '../src/apache_beam/proto/beam_runner_api';
 import { DirectRunner } from '../src/apache_beam/runners/direct_runner'
+import * as testing from '../src/apache_beam/testing/assert';
 
 
 class CountElements extends beam.PTransform<beam.PCollection, beam.PCollection> {
@@ -9,10 +10,21 @@ class CountElements extends beam.PTransform<beam.PCollection, beam.PCollection> 
             .map((e) => ({ key: e, value: 1 }))
             .apply(new beam.GroupByKey("GBK"))  // TODO: GroupBy
             .map((kvs) => ({
-                key: kvs.key,
+                element: kvs.key,
                 count: kvs.value.reduce((a, b) => a + b)  // TODO: Combine
             }));
     }
+}
+
+class WordCount extends beam.PTransform<beam.PCollection, beam.PCollection> {
+    expand(lines: beam.PCollection) {
+        return lines
+                    .map((s) => s.toLowerCase())
+                    .flatMap(function*(line) {
+                        yield* line.split(/[^a-z]+/);
+                    })
+                    .apply(new CountElements("Count"))
+      }
 }
 
 describe("wordcount", function() {
@@ -26,13 +38,28 @@ describe("wordcount", function() {
                     "And God said, Let there be light: and there was light.",
                 ]));
 
-                lines
-                    .map((s) => s.toLowerCase())
-                    .flatMap(function*(line) {
-                        yield* line.split(/[^a-z]/);
-                    })
-                    .apply(new CountElements("Count"))
-                    .map(console.log);
+                lines.apply(new WordCount()).map(console.log)
             })
     });
+
+    it("wordcount assert", async function() {
+        await new DirectRunner().run(
+            (root) => {
+                const lines = root.apply(new beam.Create([
+                    "And God said, Let there be light: and there was light",
+                ]));
+
+                lines.apply(new WordCount()).apply(new testing.AssertDeepEqual([
+                    {element: 'and', count: 2},
+                    {element: 'god', count: 1},
+                    {element: 'said', count: 1},
+                    {element: 'let', count: 1},
+                    {element: 'there', count: 2},
+                    {element: 'be', count: 1},
+                    {element: 'light', count: 2},
+                    {element: 'was', count: 1},
+                ]))
+            })
+    });
+
 });
