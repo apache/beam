@@ -101,22 +101,13 @@ export class KVCoder<K, V> extends FakeCoder<KV<K, V>> {
     }
 
     encode(element: KV<K, V>, writer: Writer, context: Context) {
-        console.log('encoding key ' + element.key as string + ' and value ' + element.value as string)
-        this.keyCoder.encode(element.key, writer, context);
+        this.keyCoder.encode(element.key, writer, Context.needsDelimiters);
         this.valueCoder.encode(element.value, writer, context);
     }
 
     decode(reader: Reader, context: Context): KV<K, V> {
-        // const encodedKey = BytesCoder.INSTANCE.decode(reader, context);
-        // const encodedValue = BytesCoder.INSTANCE.decode(reader, context);
-        console.log((this.keyCoder as any));
-        console.log((this.valueCoder as any));
-        // return {
-        //     'key': this.keyCoder.decode(new Reader(encodedKey), Context.wholeStream),
-        //     'value': this.valueCoder.decode(new Reader(encodedValue), context)
-        // };
         return {
-            'key': this.keyCoder.decode(reader, context),
+            'key': this.keyCoder.decode(reader, Context.needsDelimiters),
             'value': this.valueCoder.decode(reader, context)
         }
     }
@@ -141,6 +132,31 @@ export class IterableCoder<T> extends FakeCoder<Iterable<T>> {
             componentCoderIds: [
                 translations.registerPipelineCoder(this.elementCoder.toProto!(pipelineComponents), pipelineComponents)
             ],
+        }
+    }
+
+    encode(element: Iterable<T>, writer: Writer, context: Context) {
+        if((element as Array<T>).length !== undefined) {
+            const eArray = (element as Array<T>)
+            writer.int32(eArray.length)
+            for(let i= 0; i < eArray.length; ++i) {
+                this.elementCoder.encode(eArray[i], writer, Context.needsDelimiters)
+            }
+        } else {
+            throw new Error('Length-unknown iterables are not yet implemented')
+        }
+    }
+
+    decode(reader: Reader, context: Context): Iterable<T> {
+        const len = reader.int32()
+        if (len >= 0) {
+            const result = new Array(len)
+            for (let i = 0; i < len; i ++) {
+                result[i] = this.elementCoder.decode(reader, Context.needsDelimiters)
+            }
+            return result;
+        } else {
+            throw new Error('Length-unknown iterables are not yet implemented')
         }
     }
 }
