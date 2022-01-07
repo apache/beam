@@ -1,10 +1,13 @@
 import { PTransform, PCollection } from "../proto/beam_runner_api";
 import { ProcessBundleDescriptor } from "../proto/beam_fn_api";
+import { JobState_Enum } from "../proto/beam_job_api";
 
 import {Runner, Pipeline, Root, Impulse, GroupByKey, PaneInfo, BoundedWindow, PipelineResult} from '../base'
 import * as worker from '../worker/worker';
 import * as operators from '../worker/operators';
 import { WindowedValue } from '../base';
+
+
 
 
 export class DirectRunner extends Runner {
@@ -21,7 +24,7 @@ export class DirectRunner extends Runner {
         const processor = new worker.BundleProcessor(descriptor, null!, [Impulse.urn]);
         await processor.process("bundle_id", 0);
 
-        return {waitUntilFinish: (duration?: number) => Promise.reject('not implemented')};
+        return {waitUntilFinish: (duration?: number) => Promise.resolve(JobState_Enum.DONE)};
     }
 }
 
