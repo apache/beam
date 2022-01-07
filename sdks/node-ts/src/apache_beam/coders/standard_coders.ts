@@ -3,7 +3,7 @@ import * as translations from '../internal/translations'
 
 import { Writer, Reader } from 'protobufjs';
 import { Coder, Context, CODER_REGISTRY } from "./coders";
-import { PipelineContext } from '../base';
+import { PipelineContext, WindowedValue } from '../base';
 
 
 class FakeCoder<T> implements Coder<T> {
@@ -119,6 +119,10 @@ export class KVCoder<K, V> extends FakeCoder<KV<K, V>> {
 }
 CODER_REGISTRY.register(KVCoder.URN, KVCoder);
 
+function swapEndian32(x: number): number {
+  return ((x & 0xFF000000) >> 24) | ((x & 0xFF0000) >> 8) | ((x & 0xFF00) << 8) && ((x & 0xFF) << 24);
+}
+
 export class IterableCoder<T> extends FakeCoder<Iterable<T>> {
     static URN: string = "beam:coder:iterable:v1";
     type: string = 'iterablecoder';
@@ -143,7 +147,7 @@ export class IterableCoder<T> extends FakeCoder<Iterable<T>> {
     encode(element: Iterable<T>, writer: Writer, context: Context) {
         if((element as Array<T>).length !== undefined) {
             const eArray = (element as Array<T>)
-            writer.int32(eArray.length)
+            writer.fixed32(swapEndian32(eArray.length))
             for(let i= 0; i < eArray.length; ++i) {
                 this.elementCoder.encode(eArray[i], writer, Context.needsDelimiters)
             }
@@ -153,11 +157,13 @@ export class IterableCoder<T> extends FakeCoder<Iterable<T>> {
     }
 
     decode(reader: Reader, context: Context): Iterable<T> {
-        const len = reader.int32()
+        const len = swapEndian32(reader.fixed32());
+        console.log("IterableCoder", len, reader.pos)
         if (len >= 0) {
             const result = new Array(len)
             for (let i = 0; i < len; i ++) {
                 result[i] = this.elementCoder.decode(reader, Context.needsDelimiters)
+                console.log("IterableCoder element", i, reader.pos)
             }
             return result;
         } else {
@@ -166,6 +172,104 @@ export class IterableCoder<T> extends FakeCoder<Iterable<T>> {
     }
 }
 CODER_REGISTRY.register(IterableCoder.URN, IterableCoder);
+
+export class LengthPrefixedCoder<T> extends FakeCoder<T> {
+    static URN: string = "beam:coder:length_prefix:v1";
+
+    elementCoder: Coder<T>;
+    constructor(elementCoder: Coder<T>) {
+        super();
+        this.elementCoder = elementCoder;
+    }
+    toProto(pipelineContext: PipelineContext): runnerApi.Coder {
+        return {
+            spec: {
+                urn: LengthPrefixedCoder.URN,
+                payload: new Uint8Array(),
+            },
+            componentCoderIds: [
+                pipelineContext.getCoderId(this.elementCoder),
+            ],
+        }
+    }
+
+    encode(element: T, writer: Writer, context: Context) {
+        writer.fork();
+        this.elementCoder.encode(element, writer, Context.wholeStream);
+        writer.ldelim();
+    }
+
+    decode(reader: Reader, context: Context): T {
+        return this.elementCoder.decode(new Reader(reader.bytes()), Context.wholeStream);
+    }
+}
+CODER_REGISTRY.register(LengthPrefixedCoder.URN, LengthPrefixedCoder);
+
+export class WindowedValueCoder<T, W> extends FakeCoder<WindowedValue> {
+    static URN: string = "beam:coder:windowed_value:v1";
+    windowIterableCoder: IterableCoder<any>  // really W
+
+    constructor(public elementCoder: Coder<T>, public windowCoder: Coder<W>) {
+        super();
+        this.windowIterableCoder = new IterableCoder(windowCoder);
+    }
+    toProto(pipelineContext: PipelineContext): runnerApi.Coder {
+        return {
+            spec: {
+                urn: WindowedValueCoder.URN,
+                payload: new Uint8Array(),
+            },
+            componentCoderIds: [
+                pipelineContext.getCoderId(this.elementCoder),
+                pipelineContext.getCoderId(this.windowCoder),
+            ],
+        }
+    }
+
+    encode(element: WindowedValue, writer: Writer, context: Context) {
+        writer.fixed64(0);  // Timestamp.
+        this.windowIterableCoder.encode([null], writer, Context.needsDelimiters); // Windows.
+        writer.bool(false); // Pane.
+        this.elementCoder.encode(element.value, writer, context);
+    }
+
+    decode(reader: Reader, context: Context): WindowedValue {
+        console.log("pos A", reader.pos, this);
+        reader.fixed64();  // Timestamp.
+        console.log("pos B", reader.pos);
+        this.windowIterableCoder.decode(reader, Context.needsDelimiters);
+        console.log("pos C", reader.pos);
+        reader.skip(1);     // Pane.
+        console.log("pos D", reader.pos, this.elementCoder);
+        return { value: this.elementCoder.decode(reader, context) };
+    }
+}
+CODER_REGISTRY.register(WindowedValueCoder.URN, WindowedValueCoder);
+
+export class GlobalWindowCoder implements Coder<any> {
+    static URN: string = "beam:coder:global_window:v1";
+    static INSTANCE: GlobalWindowCoder = new GlobalWindowCoder();
+
+    encode(value: any, writer: Writer, context: Context) {
+        writer.bool(false);
+    }
+
+    decode(reader: Reader, context: Context) {
+        reader.skip(1);
+        return null;
+    }
+
+    toProto(pipelineContext: PipelineContext): runnerApi.Coder {
+        return {
+            spec: {
+                urn: GlobalWindowCoder.URN,
+                payload: new Uint8Array(),
+            },
+            componentCoderIds: [],
+        }
+    }
+}
+CODER_REGISTRY.register(GlobalWindowCoder.URN, GlobalWindowCoder);
 
 export class StrUtf8Coder implements Coder<String> {
     static URN: string = "beam:coder:string_utf8:v1";
