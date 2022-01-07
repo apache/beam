@@ -291,8 +291,7 @@ export class StrUtf8Coder implements Coder<String> {
 CODER_REGISTRY.register(StrUtf8Coder.URN, StrUtf8Coder);
 
 
-// TODO(pabloem): Is this the most efficient implementation?
-export class VarIntCoder implements Coder<Long | Number | BigInt> {
+export class VarIntCoder implements Coder<number> {
     static URN: string = "beam:coder:varint:v1";
     type: string = "varintcoder";
     encode(element: Number | Long | BigInt, writer: Writer, context: Context) {
@@ -301,7 +300,7 @@ export class VarIntCoder implements Coder<Long | Number | BigInt> {
         return
     }
 
-    decode(reader: Reader, context: Context): Long | Number | BigInt {
+    decode(reader: Reader, context: Context): number {
         return reader.int32();
     }
 
@@ -317,14 +316,19 @@ export class VarIntCoder implements Coder<Long | Number | BigInt> {
 }
 CODER_REGISTRY.register(VarIntCoder.URN, VarIntCoder);
 
-export class DoubleCoder implements Coder<Number> {
+export class DoubleCoder implements Coder<number> {
     static URN: string = "beam:coder:double:v1";
-    encode(element: Number, writer: Writer, context: Context) {
-        writer.double(element as number);
+    encode(element: number, writer: Writer, context: Context) {
+        const farr = new Float64Array([element]);
+        const barr = new Uint8Array(farr.buffer).reverse();
+        BytesCoder.INSTANCE.encode(barr, writer, Context.wholeStream)
     }
 
-    decode(reader: Reader, context: Context): Number {
-        return reader.double();
+    decode(reader: Reader, context: Context): number {
+        const barr = new Uint8Array(reader.buf, reader.pos, 8)
+        const dView = new DataView(barr.buffer);
+        reader.float()
+        return dView.getFloat64(0, false)
     }
     toProto(pipelineContext: PipelineContext): runnerApi.Coder {
         return {
