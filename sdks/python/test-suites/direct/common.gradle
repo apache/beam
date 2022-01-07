@@ -66,7 +66,7 @@ task examples {
     def argMap = ["runner": "TestDirectRunner",
                   "test_opts": testOpts,
                   "suite": "postCommitExamples-direct-py${pythonVersionSuffix}",
-                  "collect": "examples_postcommit"
+                  "collect": "examples_postcommit and not no_sickbay_examples"
     ]
     def batchCmdArgs = mapToArgString(argMap)
     exec {

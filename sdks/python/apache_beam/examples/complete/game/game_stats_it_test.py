@@ -95,17 +95,19 @@ class GameStatsIT(unittest.TestCase):
     logging.debug(
         'Injecting %d game events to topic %s', message_count, topic.name)
 
-    for i in range(message_count):
-      future = self.pub_client.publish(
+    for _ in range(message_count):
+      self.pub_client.publish(
           topic.name, (self.INPUT_EVENT % self._test_timestamp).encode('utf-8'))
-      logging.debug(
-          'Published message %s - %d of %d', future.result(), i, message_count)
 
   def _cleanup_pubsub(self):
     test_utils.cleanup_subscriptions(self.sub_client, [self.input_sub])
     test_utils.cleanup_topics(self.pub_client, [self.input_topic])
 
   @pytest.mark.it_postcommit
+  @pytest.mark.examples_postcommit
+  # TODO(BEAM-13613) This example only works in Dataflow,
+  #  remove mark to enable for other runners when fixed
+  @pytest.mark.no_sickbay_examples
   def test_game_stats_it(self):
     state_verifier = PipelineStateMatcher(PipelineState.RUNNING)
 
@@ -139,50 +141,6 @@ class GameStatsIT(unittest.TestCase):
 
     # Generate input data and inject to PubSub.
     self._inject_pubsub_game_events(self.input_topic, self.DEFAULT_INPUT_COUNT)
-
-    # Get pipeline options from command argument: --test-pipeline-options,
-    # and start pipeline job by calling pipeline main function.
-    game_stats.run(
-        self.test_pipeline.get_full_options_as_args(**extra_opts),
-        save_main_session=False)
-
-  # Test using fewer events to be successful in local runners
-  @pytest.mark.examples_postcommit
-  def test_basics(self):
-    state_verifier = PipelineStateMatcher(PipelineState.RUNNING)
-    STOP_AFTER_SECS = 60 * 3
-    INPUT_COUNT = 50
-    success_condition = 'mean_duration=300 LIMIT 1'
-    sessions_query = (
-        'SELECT mean_duration FROM `%s.%s.%s` '
-        'WHERE %s' % (
-            self.project,
-            self.dataset_ref.dataset_id,
-            self.OUTPUT_TABLE_SESSIONS,
-            success_condition))
-    bq_sessions_verifier = BigqueryMatcher(
-        self.project,
-        sessions_query,
-        self.DEFAULT_EXPECTED_CHECKSUM,
-        STOP_AFTER_SECS)
-
-    extra_opts = {
-        'subscription': self.input_sub.name,
-        'dataset': self.dataset_ref.dataset_id,
-        'topic': self.input_topic.name,
-        'fixed_window_duration': 1,
-        'user_activity_window_duration': 1,
-        'wait_until_finish_duration': self.WAIT_UNTIL_FINISH_DURATION,
-        'on_success_matcher': all_of(state_verifier, bq_sessions_verifier)
-    }
-
-    # Register cleanup before pipeline execution.
-    # Note that actual execution happens in reverse order.
-    self.addCleanup(self._cleanup_pubsub)
-    self.addCleanup(utils.delete_bq_dataset, self.project, self.dataset_ref)
-
-    # Generate input data and inject to PubSub.
-    self._inject_pubsub_game_events(self.input_topic, INPUT_COUNT)
 
     # Get pipeline options from command argument: --test-pipeline-options,
     # and start pipeline job by calling pipeline main function.

@@ -206,7 +206,7 @@ project.task("flinkExamples") {
             "test_opts": testOpts,
             "suite": "postCommitExamples-flink-py${pythonVersionSuffix}",
             "pipeline_opts": pipelineOpts.join(" "),
-            "collect": "examples_postcommit"
+            "collect": "examples_postcommit and not no_sickbay_examples"
     ])
     exec {
       executable 'sh'
@@ -237,7 +237,7 @@ project.task("sparkExamples") {
             "test_opts": testOpts,
             "suite": "postCommitExamples-spark-py${pythonVersionSuffix}",
             "pipeline_opts": pipelineOpts.join(" "),
-            "collect": "examples_postcommit"
+            "collect": "examples_postcommit and not no_sickbay_examples"
     ])
     exec {
       executable 'sh'
