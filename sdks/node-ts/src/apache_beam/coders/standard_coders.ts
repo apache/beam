@@ -52,7 +52,7 @@ export class BytesCoder implements Coder<Uint8Array> {
     decode(reader: Reader, context: Context): Uint8Array {
         switch (context) {
             case Context.wholeStream:
-                return reader.buf;
+                return reader.buf.slice(reader.pos);
                 break;
             case Context.needsDelimiters:
                 var length = reader.int32();

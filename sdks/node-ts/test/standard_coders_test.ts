@@ -26,7 +26,7 @@ const UNSUPPORTED_CODERS = [
     "beam:coder:row:v1",
     "beam:coder:sharded_key:v1",
     "beam:coder:custom_window:v1",
-    "beam:coder:kv:v1",
+    //"beam:coder:kv:v1",
 ];
 
 const _urn_to_json_value_parser = {
