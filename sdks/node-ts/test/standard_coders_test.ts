@@ -9,11 +9,6 @@ import util = require('util');
 
 const STANDARD_CODERS_FILE = '../../model/fn-execution/src/main/resources/org/apache/beam/model/fnexecution/v1/standard_coders.yaml';
 
-const UNSUPPORTED_EXAMPLES = {
-    "beam:coder:iterable:v1-2": "",
-    "beam:coder:iterable:v1-3": "",
-}
-
 // TODO(pabloem): Empty this list.
 const UNSUPPORTED_CODERS = [
     "beam:coder:interval_window:v1",
@@ -24,7 +19,7 @@ const UNSUPPORTED_CODERS = [
     "beam:coder:row:v1",
     "beam:coder:sharded_key:v1",
     "beam:coder:custom_window:v1",
-    "beam:coder:iterable:v1",
+    //"beam:coder:iterable:v1",
 ];
 
 const _urn_to_json_value_parser = {
@@ -43,6 +38,7 @@ interface CoderRepr {
     urn: string,
     payload?: Uint8Array,
     components?: Array<CoderRepr>
+    non_deterministic?: boolean,
 }
 
 type CoderSpec = {
@@ -107,29 +103,27 @@ describe("standard Beam coders on Javascript", function() {
 });
 
 function describeCoder<T>(coder: Coder<T>, urn, context, spec: CoderSpec) {
-    describe(util.format("coder %s", util.inspect(coder, { colors: true, breakLength: Infinity })), function() {
-        let examples = 0;
+    describe(util.format("coder %s (%s)", util.inspect(coder, { colors: true, breakLength: Infinity }),
+    spec.coder.non_deterministic ? "nondeterministic" : "deterministic"), function() {
         const parser = get_json_value_parser(spec.coder);
         for (let expected in spec.examples) {
-            examples += 1;
-            if ((urn + '-' + examples) in UNSUPPORTED_EXAMPLES) {
-                continue;
-            }
             var value = parser(spec.examples[expected]);
             const expectedEncoded = Buffer.from(expected, 'binary')
-            coderCase(coder, value, expectedEncoded, context, examples);
+            coderCase(coder, value, expectedEncoded, context, spec.coder.non_deterministic || false);
         }
     });
 }
 
-function coderCase<T>(coder: Coder<T>, obj, expectedEncoded: Uint8Array, context, exampleCount) {
-    it(util.format("encodes %s to %s",
-        util.inspect(obj, {colors:true, depth:Infinity}),
-        Buffer.from(expectedEncoded).toString('hex')), function() {
-        var writer = new Writer();
-        coder.encode(obj, writer, context);
-        assertions.deepEqual(writer.finish(), expectedEncoded);
-    });
+function coderCase<T>(coder: Coder<T>, obj, expectedEncoded: Uint8Array, context, non_deterministic) {
+    if (!non_deterministic) {
+        it(util.format("encodes %s to %s",
+            util.inspect(obj, {colors: true, depth: Infinity}),
+            Buffer.from(expectedEncoded).toString('hex')), function () {
+            var writer = new Writer();
+            coder.encode(obj, writer, context);
+            assertions.deepEqual(writer.finish(), expectedEncoded);
+        });
+    }
 
     it(util.format("decodes %s to %s correctly",
         Buffer.from(expectedEncoded).toString('hex'),
