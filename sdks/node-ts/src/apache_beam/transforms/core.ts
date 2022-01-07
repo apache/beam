@@ -1,4 +1,4 @@
-import { PTransform, PCollection, Impulse, Root } from "../base";
+import { PTransform, PCollection, Impulse, Root, KV } from "../base";
 import * as translations from '../internal/translations';
 import * as runnerApi from '../proto/beam_runner_api';
 import { BytesCoder, KVCoder } from "../coders/standard_coders";
@@ -6,7 +6,7 @@ import { BytesCoder, KVCoder } from "../coders/standard_coders";
 import { GroupByKey } from '../base'
 import { GeneralObjectCoder } from "../coders/js_coders";
 
-export class Create extends PTransform<Root, PCollection> {
+export class Create extends PTransform<Root, PCollection<any>> {
     elements: any[];
 
     constructor(elements: any[]) {
@@ -25,7 +25,7 @@ export class Create extends PTransform<Root, PCollection> {
     }
 }
 
-export class GroupBy extends PTransform<PCollection, PCollection> {
+export class GroupBy extends PTransform<PCollection<any>, PCollection<KV<any, Iterable<any>>>> {
     keyFn: (element: any) => any;
     constructor(key: string | ((element: any) => any)) {
         super();
@@ -36,7 +36,7 @@ export class GroupBy extends PTransform<PCollection, PCollection> {
         }
     }
 
-    expand(input: PCollection): PCollection {
+    expand(input: PCollection<any>): PCollection<KV<any, Iterable<any>>> {
         const keyFn = this.keyFn;
         return input
             .map(function(x) { return { 'key': keyFn(x), 'value': x }; })

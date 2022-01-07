@@ -3,7 +3,7 @@ import * as beam from '../../apache_beam';
 import * as assert from 'assert';
 
 // TODO: naming
-export class AssertDeepEqual extends beam.PTransform<beam.PCollection, void> {
+export class AssertDeepEqual extends beam.PTransform<beam.PCollection<any>, void> {
     expected: any[];
 
     constructor(expected: any[]) {
@@ -11,7 +11,7 @@ export class AssertDeepEqual extends beam.PTransform<beam.PCollection, void> {
         this.expected = expected;
     }
 
-    expand(pcoll: beam.PCollection) {
+    expand(pcoll: beam.PCollection<any>) {
         const expected = this.expected;
         pcoll.apply(new Assert(
             "Assert",
@@ -29,7 +29,7 @@ export class AssertDeepEqual extends beam.PTransform<beam.PCollection, void> {
 }
 
 
-export class Assert extends beam.PTransform<beam.PCollection, void> {
+export class Assert extends beam.PTransform<beam.PCollection<any>, void> {
     check: (actual: any[]) => void;
 
     constructor(name: string, check: (actual: any[]) => void) {
@@ -37,7 +37,7 @@ export class Assert extends beam.PTransform<beam.PCollection, void> {
         this.check = check;
     }
 
-    expand(pcoll: beam.PCollection) {
+    expand(pcoll: beam.PCollection<any>) {
         const check = this.check;
         // We provide some value here to ensure there is at least one element
         // so the DoFn gets invoked.
