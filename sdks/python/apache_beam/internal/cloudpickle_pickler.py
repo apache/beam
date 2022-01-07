@@ -105,11 +105,7 @@ def _create_absl_flags():
 
 
 def _pickle_rlock(obj):
-  return _create_rlock, tuple([])
-
-
-def _create_rlock():
-  return RLOCK_TYPE()
+  return RLOCK_TYPE, tuple([])
 
 
 def dump_session(file_path):
