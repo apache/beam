@@ -18,12 +18,12 @@ class CountElements extends beam.PTransform<beam.PCollection, beam.PCollection> 
 class WordCount extends beam.PTransform<beam.PCollection, beam.PCollection> {
     expand(lines: beam.PCollection) {
         return lines
-                    .map((s) => s.toLowerCase())
-                    .flatMap(function*(line) {
-                        yield* line.split(/[^a-z]+/);
-                    })
-                    .apply(new CountElements("Count"))
-      }
+            .map((s) => s.toLowerCase())
+            .flatMap(function*(line) {
+                yield* line.split(/[^a-z]+/);
+            })
+            .apply(new CountElements("Count"))
+    }
 }
 
 describe("wordcount", function() {
@@ -49,14 +49,14 @@ describe("wordcount", function() {
                 ]));
 
                 lines.apply(new WordCount()).apply(new testing.AssertDeepEqual([
-                    {element: 'and', count: 2},
-                    {element: 'god', count: 1},
-                    {element: 'said', count: 1},
-                    {element: 'let', count: 1},
-                    {element: 'there', count: 2},
-                    {element: 'be', count: 1},
-                    {element: 'light', count: 2},
-                    {element: 'was', count: 1},
+                    { element: 'and', count: 2 },
+                    { element: 'god', count: 1 },
+                    { element: 'said', count: 1 },
+                    { element: 'let', count: 1 },
+                    { element: 'there', count: 2 },
+                    { element: 'be', count: 1 },
+                    { element: 'light', count: 2 },
+                    { element: 'was', count: 1 },
                 ]))
             })
     });

@@ -1,7 +1,7 @@
 import * as BSON from 'bson';
 import { Writer, Reader } from 'protobufjs';
-import {Coder, CODER_REGISTRY, Context} from './coders'
-import {BoolCoder, DoubleCoder, StrUtf8Coder, VarIntCoder} from './standard_coders'
+import { Coder, CODER_REGISTRY, Context } from './coders'
+import { BoolCoder, DoubleCoder, StrUtf8Coder, VarIntCoder } from './standard_coders'
 import * as runnerApi from '../proto/beam_runner_api';
 import { PipelineContext } from '../base';
 

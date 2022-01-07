@@ -16,7 +16,7 @@ describe("core module", function() {
         it("runs a ParDo expansion", function() {
             var p = new beam.Pipeline();
             var res = p.apply(new beam.Impulse())
-            .map(function(v) {return v*2;});
+                .map(function(v) { return v * 2; });
         });
         it("runs a GroupBy expansion", function() {
 

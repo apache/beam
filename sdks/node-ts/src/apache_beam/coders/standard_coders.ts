@@ -28,7 +28,7 @@ export class BytesCoder implements Coder<Uint8Array> {
     encode(value: Uint8Array, writer: Writer, context: Context) {
         var writeBytes =
             function writeBytes_for(val, buf, pos) {
-                for (var i = 0; i < val.length; ++i){
+                for (var i = 0; i < val.length; ++i) {
                     buf[pos + i] = val[i];
                 }
 
@@ -122,7 +122,7 @@ export class KVCoder<K, V> implements Coder<KV<K, V>> {
 CODER_REGISTRY.register(KVCoder.URN, KVCoder);
 
 function swapEndian32(x: number): number {
-  return ((x & 0xFF000000) >> 24) | ((x & 0xFF0000) >> 8) | ((x & 0xFF00) << 8) && ((x & 0xFF) << 24);
+    return ((x & 0xFF000000) >> 24) | ((x & 0xFF0000) >> 8) | ((x & 0xFF00) << 8) && ((x & 0xFF) << 24);
 }
 
 export class IterableCoder<T> implements Coder<Iterable<T>> {
@@ -146,10 +146,10 @@ export class IterableCoder<T> implements Coder<Iterable<T>> {
     }
 
     encode(element: Iterable<T>, writer: Writer, context: Context) {
-        if((element as Array<T>).length !== undefined) {
+        if ((element as Array<T>).length !== undefined) {
             const eArray = (element as Array<T>)
             writer.fixed32(swapEndian32(eArray.length))
-            for(let i= 0; i < eArray.length; ++i) {
+            for (let i = 0; i < eArray.length; ++i) {
                 this.elementCoder.encode(eArray[i], writer, Context.needsDelimiters)
             }
         } else {
@@ -161,7 +161,7 @@ export class IterableCoder<T> implements Coder<Iterable<T>> {
         const len = swapEndian32(reader.fixed32());
         if (len >= 0) {
             const result = new Array(len)
-            for (let i = 0; i < len; i ++) {
+            for (let i = 0; i < len; i++) {
                 result[i] = this.elementCoder.decode(reader, Context.needsDelimiters)
             }
             return result;

@@ -27,15 +27,15 @@ export class JavaExpansionServiceRunner {
 
     getBeamJar(jarName: string): string {
         // Ensure that the cache directory exists
-        fs.mkdirSync(this.jarCache, {recursive: true})
+        fs.mkdirSync(this.jarCache, { recursive: true })
 
         var jarPath: string = path.join(this.jarCache, this.jarName)
         // Return if the JAR is already in memory
-        if(fs.existsSync(jarPath)) {
+        if (fs.existsSync(jarPath)) {
             return jarPath
         }
 
-        if(jarName.includes('.dev')){
+        if (jarName.includes('.dev')) {
             throw new Error('Cannot pull dev versions of JARs, please run gradlew ' + this.gradleTarget + ' to start your expansion service.')
         }
 

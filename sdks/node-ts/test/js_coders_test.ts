@@ -1,8 +1,8 @@
 import * as beam from '../src/apache_beam';
 import * as assert from 'assert';
-import {Context} from '../src/apache_beam/coders/coders'
+import { Context } from '../src/apache_beam/coders/coders'
 import { BytesCoder, IterableCoder, KVCoder, StrUtf8Coder, VarIntCoder } from '../src/apache_beam/coders/standard_coders';
-import {GroupBy} from '../src/apache_beam/transforms/core'
+import { GroupBy } from '../src/apache_beam/transforms/core'
 import { BsonObjectCoder, GeneralObjectCoder } from '../src/apache_beam/coders/js_coders';
 import { BufferReader, BufferWriter } from 'protobufjs';
 
@@ -14,7 +14,7 @@ describe("JavaScript native coders", function() {
                 'str': 'astring',
                 'int': 1,
                 'float': 1.2345,
-                'obj': {'any': 'any'},
+                'obj': { 'any': 'any' },
                 'null': null,
                 'bool': true,
                 // 'undef': undefined,  // TODO(pabloem): Figure out how to support undefined encoding/decoding.
@@ -39,7 +39,7 @@ describe("JavaScript native coders", function() {
                 'str': 'astring',
                 'int': 1,
                 'float': 1.2345,
-                'obj': {'any': 'any'},
+                'obj': { 'any': 'any' },
                 'null': null,
                 'bool': true,
                 // 'undef': undefined,  // TODO(pabloem): Figure out how to support undefined encoding/decoding.
