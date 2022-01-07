@@ -11,7 +11,7 @@ describe("primitives module", function() {
             var res = p.apply(new beam.Impulse());
 
             assert.equal(res.type, "pcollection");
-            assert.deepEqual(p.coders[res.proto.coderId], new BytesCoder());
+            assert.deepEqual(p.getCoder(res.proto.coderId), new BytesCoder());
         });
         it("runs a ParDo expansion", function() {
             var p = new beam.Pipeline();
@@ -19,7 +19,7 @@ describe("primitives module", function() {
             .map(function(v) {return v*2;})
             .map(function(v) {return v*4;});
 
-            const coder = p.coders[res.proto.coderId];
+            const coder = p.getCoder(res.proto.coderId);
             assert.deepEqual(coder, new GeneralObjectCoder());
             assert.equal(res.type, "pcollection");
         });
@@ -29,7 +29,7 @@ describe("primitives module", function() {
             .map(function(v) {return {"name": "pablo", "lastName": "wat"};})
             .apply(new GroupBy("lastName"));
 
-            const coder = p.coders[res.proto.coderId];
+            const coder = p.getCoder(res.proto.coderId);
             assert.deepEqual(coder, new KVCoder(new GeneralObjectCoder(), new IterableCoder(new GeneralObjectCoder())));
         });
     });

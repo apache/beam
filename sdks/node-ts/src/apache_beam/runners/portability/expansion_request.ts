@@ -154,7 +154,7 @@ let transform: PTransform = {
     // urn: "beam:transforms:python:fully_qualified_named",
     // payload: new TextEncoder().encode(tPayload)
     // payload: new Uint8Array(tPayload),
-    urn: "beam:transforms:xlang:test:gbk",
+    urn: "beam:transforms:xlang:test:prefix",
     payload: new Uint8Array(),
   },
   inputs: { "input": "ref_PCollection_PCollection_1" },

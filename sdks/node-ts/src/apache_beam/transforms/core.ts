@@ -37,33 +37,9 @@ export class GroupBy extends PTransform<PCollection, PCollection> {
     }
 
     expand(input: PCollection): PCollection {
-        let kvPcoll = input.map(function(x) { return { 'key': this.keyFn(x), 'value': x }; });
-
-        const inputCoderId = (input as PCollection).proto.coderId;
-
-        const keyCoder = new GeneralObjectCoder();
-        const keyCoderProto = runnerApi.Coder.create({
-            'spec': runnerApi.FunctionSpec.create({
-                'urn': GeneralObjectCoder.URN,
-                'payload': new Uint8Array()  // TODO(pabloem): Serialize the GeneralObjectCoder properly.
-            }),
-            componentCoderIds: []
-        })
-        const keyCoderId = translations.registerPipelineCoder(
-            keyCoderProto,
-            input.pipeline.proto.components!);
-        input.pipeline.coders[keyCoderId] = keyCoder;
-
-        const kvCoderProto = runnerApi.Coder.create({
-            'spec': runnerApi.FunctionSpec.create({ 'urn': KVCoder.URN }),
-            'componentCoderIds': [keyCoderId, inputCoderId]
-        })
-        const kvCoderId = translations.registerPipelineCoder(kvCoderProto, input.pipeline.proto.components!);
-
-        kvPcoll.proto.coderId = kvCoderId;
-        const kvCoder = new KVCoder(input.pipeline.coders[keyCoderId], input.pipeline.coders[input.proto.coderId]);
-        input.pipeline.coders[kvCoderId] = kvCoder;
-
-        return kvPcoll.apply(new GroupByKey());
+        const keyFn = this.keyFn;
+        return input
+            .map(function(x) { return { 'key': keyFn(x), 'value': x }; })
+            .apply(new GroupByKey());
     }
 }
