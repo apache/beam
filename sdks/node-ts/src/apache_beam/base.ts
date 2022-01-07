@@ -294,8 +294,8 @@ class PTransformFromCallable<InputT extends PValue, OutputT extends PValue> exte
     }
 }
 
-export class DoFn {
-    *process(element: any): Generator<any, void, undefined> {
+export class DoFn<InputT, OutputT> {
+    *process(element: InputT): Generator<OutputT> {
         throw new Error('Method process has not been implemented!');
     }
 
@@ -308,7 +308,7 @@ export interface GenericCallable {
     (input: any): any
 }
 
-export class Impulse extends PTransform<Root, PCollection<string>> {
+export class Impulse extends PTransform<Root, PCollection<Uint8Array>> {
     // static urn: string = runnerApi.StandardPTransforms_Primitives.IMPULSE.urn;
     // TODO: use above line, not below line.
     static urn: string = "beam:transform:impulse:v1";
@@ -327,11 +327,11 @@ export class Impulse extends PTransform<Root, PCollection<string>> {
 }
 
 export class ParDo<InputT, OutputT> extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
-    private doFn: DoFn;
+    private doFn: DoFn<InputT, OutputT>;
     // static urn: string = runnerApi.StandardPTransforms_Primitives.PAR_DO.urn;
     // TODO: use above line, not below line.
     static urn: string = "beam:transform:pardo:v1";
-    constructor(doFn: DoFn) {
+    constructor(doFn: DoFn<InputT, OutputT>) {
         super("ParDo(" + doFn + ")");
         this.doFn = doFn;
     }
@@ -359,24 +359,24 @@ export class ParDo<InputT, OutputT> extends PTransform<PCollection<InputT>, PCol
     }
 }
 
-class MapDoFn extends DoFn {
-    private fn: (any) => any;
-    constructor(fn: (any) => any) {
+class MapDoFn<InputT, OutputT> extends DoFn<InputT, OutputT> {
+    private fn: (InputT) => OutputT;
+    constructor(fn: (InputT) => OutputT) {
         super();
         this.fn = fn;
     }
-    *process(element: any) {
+    *process(element: InputT) {
         yield this.fn(element);
     }
 }
 
-class FlatMapDoFn extends DoFn {
+class FlatMapDoFn<InputT, OutputT> extends DoFn<InputT, OutputT> {
     private fn;
-    constructor(fn: (any) => Generator<any, void, void>) {
+    constructor(fn: (InputT) => Generator<OutputT>) {
         super();
         this.fn = fn;
     }
-    *process(element: any) {
+    *process(element: InputT) {
         yield* this.fn(element);
     }
 }

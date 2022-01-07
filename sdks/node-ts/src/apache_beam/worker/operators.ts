@@ -190,14 +190,14 @@ registerOperator("beam:transform:flatten:v1", FlattenOperator);
 class ParDoOperator implements IOperator {
     receiver: Receiver;
     spec: runnerApi.ParDoPayload;
-    doFn: base.DoFn;
+    doFn: base.DoFn<any, any>;
 
     constructor(transformId: string, transform: PTransform, context: OperatorContext) {
         this.receiver = context.getReceiver(onlyElement(Object.values(transform.outputs)));
         this.spec = runnerApi.ParDoPayload.fromBinary(transform.spec!.payload);
         if (this.spec.doFn?.urn != translations.SERIALIZED_JS_DOFN_INFO) {
             // throw new Error("Unknown DoFn type: " + this.spec);
-            this.doFn = new class extends base.DoFn {
+            this.doFn = new class extends base.DoFn<any, any> {
                 *process(element: any) {
                     console.log("Unknown DoFn processing", element)
                     yield element;
