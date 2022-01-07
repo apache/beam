@@ -9,7 +9,6 @@ import util = require('util');
 const STANDARD_CODERS_FILE = '../../model/fn-execution/src/main/resources/org/apache/beam/model/fnexecution/v1/standard_coders.yaml';
 
 const UNSUPPORTED_EXAMPLES = {
-    "beam:coder:varint:v1-7": "",
     "beam:coder:iterable:v1-1": "",
     "beam:coder:iterable:v1-2": "",
     "beam:coder:iterable:v1-3": "",
