@@ -1,15 +1,11 @@
-// import * as runnerApi from '../proto/beam_runner_api';
+import * as runnerApi from '../proto/beam_runner_api';
 import * as translations from '../internal/translations'
 
 import { Writer, Reader } from 'protobufjs';
 import { Coder, Context, CODER_REGISTRY } from "./coders";
 
-
-// import {  } from './standard_coders';
-
 import { Schema, Field } from '../proto/schema';
-import { BytesCoder, VarIntCoder } from './standard_coders';
-import { HighlightSpanKind, NumericLiteral } from 'typescript';
+import { PipelineContext } from '..';
 
 
 
@@ -54,7 +50,7 @@ import { HighlightSpanKind, NumericLiteral } from 'typescript';
 
 // Row({x: 10, y:10});
 
-const argsort = x => x.map((v,i)=>[v,i]).sort().map(y=>y[1]);
+const argsort = x => x.map((v, i) => [v, i]).sort().map(y => y[1]);
 
 export class RowCoder implements Coder<any> {
     public static URN: string = "beam:coder:row:v1";
@@ -109,7 +105,7 @@ export class RowCoder implements Coder<any> {
         // beam:coder:varint:v1. This makes it possible to detect certain
         // allowed schema changes (appending or removing columns) in
         // long-running streaming pipelines.
-        writer.int64(this.nFields);
+        writer.int32(this.nFields);
 
 
         // A byte array representing a packed bitset indicating null fields (a
@@ -122,7 +118,7 @@ export class RowCoder implements Coder<any> {
         let attrs = this.fieldNames.map(name => element[name]);
         if (this.hasNullableFields) {
             if (attrs.some(attr => attr == undefined)) {
-                writer.int64(Math.floor((this.nFields + 7) / 8));
+                writer.int32(Math.floor((this.nFields + 7) / 8));
                 // Pack the bits, little - endian, in consecutive bytes.
                 let running = 0;
                 attrs.forEach(
@@ -144,36 +140,81 @@ export class RowCoder implements Coder<any> {
         }
 
         // An encoding for each non-null field, concatenated together.
-        let positions = this.encodingPositionsAreTrivial? this.encodingPositions : this.encodingPositionsArgsSorted;
+        let positions = this.encodingPositionsAreTrivial ? this.encodingPositions : this.encodingPositionsArgsSorted;
         positions.forEach(
-            i => {
-            let attr = attrs[i];
-            if (attr == undefined) {
-                if(!this.fieldNullable[i]) {
-                    throw new Error(`Attempted to encode null for non-nullable field \"${this.schema.fields[i].name}\".`);
+            (i) => {
+                let attr = attrs[i];
+                if (attr == undefined) {
+                    if (!this.fieldNullable[i]) {
+                        throw new Error(`Attempted to encode null for non-nullable field \"${this.schema.fields[i].name}\".`);
+                    }
+                    continue;
                 }
-                continue;
-            }
-            this.components[i].encode(attr, writer, Context.needsDelimiters);
-        })
+                this.components[i].encode(attr, writer, Context.needsDelimiters);
+            })
     }
 
     decode(reader: Reader, context: Context): any {
+        let nFields = reader.int32();
 
+        // Addressing Null values
+        let nulls: any[],
+            hasNulls = false,
+            nullMaskBytes = reader.int32(),
+            nullMask = reader.buf.slice(reader.pos, reader.pos + nullMaskBytes);
+
+        reader.pos += nullMaskBytes;
+
+        if (nullMask.length > 0) {
+            hasNulls = true;
+
+            let running = 0;
+            nulls = Array(nFields).fill(0).map(
+                (_, i) => {
+                    if (i % 8 == 0) {
+                        let chunk = Math.floor(i / 8);
+                        running = chunk >= nullMask.length ? 0 : nullMask[chunk];
+                    }
+                    return (running >> (i % 8)) & 0x01;
+                })
+        }
+
+        // Note that if this coder's schema has *fewer* attributes than the encoded
+        // value, we just need to ignore the additional values, which will occur
+        // here because we only decode as many values as we have coders for.
+        let positions = this.encodingPositionsAreTrivial ? this.encodingPositions : this.encodingPositionsArgsSorted,
+            sortedComponents = positions.slice(0, Math.min(this.nFields, nFields)).map(
+                (i) => {
+                    if (hasNulls && nulls[i]) {
+                        return undefined;
+                    } else {
+                        return this.components[i].decode(reader, Context.needsDelimiters);
+                    }
+                })
+
+        // If this coder's schema has more attributes than the encoded value, then
+        // the schema must have changed. Populate the unencoded fields with nulls.
+        while (sortedComponents.length < this.nFields) {
+            sortedComponents.push(undefined);
+        }
+
+        /* Need to implement */
+        // return self.constructor(
+        //     *(sorted_components if self.encoding_positions_are_trivial else
+        //         [sorted_components[i] for i in self.encoding_positions]))
     }
 
-    toProto(pipelineComponents: runnerApi.Components): runnerApi.Coder {
 
+    toProto(pipelineContext: PipelineContext): runnerApi.Coder {
+        return {
+            spec: {
+                urn: RowCoder.URN,
+                payload: new Uint8Array(),
+            },
+            componentCoderIds: [],
+        };
     }
 }
-
-
-
-
-
-function
-
-
 
 
 
@@ -211,7 +252,7 @@ schema = schema_pb2.Schema(
                         key_type=schema_pb2.FieldType(
                             atomic_type=schema_pb2.STRING),
                         value_type=schema_pb2.FieldType(
-                            atomic_type=schema_pb2.INT64),
+                            atomic_type=schema_pb2.int32),
                     ))),
             schema_pb2.Field(
                 name="favorite_time",
@@ -226,11 +267,11 @@ schema = schema_pb2.Schema(
                                         schema_pb2.Field(
                                             name="seconds",
                                             type=schema_pb2.FieldType(
-                                                atomic_type=schema_pb2.INT64)),
+                                                atomic_type=schema_pb2.int32)),
                                         schema_pb2.Field(
                                             name="micros",
                                             type=schema_pb2.FieldType(
-                                                atomic_type=schema_pb2.INT64)),
+                                                atomic_type=schema_pb2.int32)),
                                     ])))))),
         ])
 */
