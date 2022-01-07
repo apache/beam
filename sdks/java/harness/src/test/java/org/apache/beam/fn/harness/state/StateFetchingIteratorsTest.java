@@ -21,7 +21,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -34,14 +33,12 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 import org.apache.beam.fn.harness.Cache;
 import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.fn.harness.state.StateFetchingIterators.CachingStateIterable;
 import org.apache.beam.fn.harness.state.StateFetchingIterators.CachingStateIterable.Block;
 import org.apache.beam.fn.harness.state.StateFetchingIterators.CachingStateIterable.Blocks;
 import org.apache.beam.fn.harness.state.StateFetchingIterators.CachingStateIterable.BlocksPrefix;
-import org.apache.beam.fn.harness.state.StateFetchingIterators.FirstPageAndRemainder;
 import org.apache.beam.fn.harness.state.StateFetchingIterators.LazyBlockingStateFetchingIterator;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateGetRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateGetResponse;
@@ -49,15 +46,9 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.fn.stream.PrefetchableIterable;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterator;
-import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Ints;
 import org.junit.Test;
 import org.junit.experimental.runners.Enclosed;
@@ -492,83 +483,6 @@ public class StateFetchingIteratorsTest {
       assertTrue(byteStrings.isReady());
 
       assertEquals(Arrays.asList(expected), results);
-    }
-  }
-
-  @RunWith(JUnit4.class)
-  public static class FirstPageAndRemainderTest {
-
-    @Test
-    public void testEmptyValues() throws Exception {
-      testFetchValues(VarIntCoder.of());
-    }
-
-    @Test
-    public void testOneValue() throws Exception {
-      testFetchValues(VarIntCoder.of(), 4);
-    }
-
-    @Test
-    public void testManyValues() throws Exception {
-      testFetchValues(VarIntCoder.of(), 1, 22, 333, 4444, 55555, 666666);
-    }
-
-    private <T> void testFetchValues(Coder<T> coder, T... expected) {
-      List<ByteString> byteStrings =
-          Arrays.stream(expected)
-              .map(
-                  value -> {
-                    try {
-                      return CoderUtils.encodeToByteArray(coder, value);
-                    } catch (CoderException exn) {
-                      throw new RuntimeException(exn);
-                    }
-                  })
-              .map(ByteString::copyFrom)
-              .collect(Collectors.toList());
-
-      AtomicInteger callCount = new AtomicInteger();
-      BeamFnStateClient fakeStateClient =
-          fakeStateClient(callCount, Iterables.toArray(byteStrings, ByteString.class));
-      PrefetchableIterable<T> values =
-          new FirstPageAndRemainder<>(fakeStateClient, StateRequest.getDefaultInstance(), coder);
-
-      // Ensure it's fully lazy.
-      assertEquals(0, callCount.get());
-      PrefetchableIterator<T> valuesIter = values.iterator();
-      assertFalse(valuesIter.isReady());
-      assertEquals(0, callCount.get());
-
-      // Ensure that the first page result is cached across multiple iterators and subsequent
-      // iterators are ready and prefetch does nothing
-      valuesIter.prefetch();
-      assertTrue(valuesIter.isReady());
-      assertEquals(1, callCount.get());
-
-      PrefetchableIterator<T> valuesIter2 = values.iterator();
-      assertTrue(valuesIter2.isReady());
-      valuesIter2.prefetch();
-      assertEquals(1, callCount.get());
-
-      // Prefetch every second element in the iterator capturing the results
-      List<T> results = new ArrayList<>();
-      for (int i = 0; i < expected.length; ++i) {
-        if (i % 2 == 1) {
-          // Ensure that prefetch performs the call
-          valuesIter2.prefetch();
-          assertTrue(valuesIter2.isReady());
-          // Note that this is i+2 because we expect to prefetch the page after the current one
-          // We also have to bound it to the max number of pages
-          assertEquals(Math.min(i + 2, expected.length), callCount.get());
-        }
-        assertTrue(valuesIter2.hasNext());
-        results.add(valuesIter2.next());
-      }
-      assertFalse(valuesIter2.hasNext());
-      assertTrue(valuesIter2.isReady());
-      // The contents agree.
-      assertArrayEquals(expected, Iterables.toArray(results, Object.class));
-      assertArrayEquals(expected, Iterables.toArray(values, Object.class));
     }
   }
 }
