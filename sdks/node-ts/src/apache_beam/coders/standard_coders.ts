@@ -3,7 +3,7 @@ import * as translations from '../internal/translations'
 
 import { Writer, Reader } from 'protobufjs';
 import { Coder, Context, CODER_REGISTRY } from "./coders";
-import {BoundedWindow, PaneInfo, PipelineContext, WindowedValue} from '../base';
+import {KV, BoundedWindow, PaneInfo, PipelineContext, WindowedValue} from '../base';
 
 export class BytesCoder implements Coder<Uint8Array> {
     static URN: string = "beam:coder:bytes:v1";
@@ -60,11 +60,6 @@ export class BytesCoder implements Coder<Uint8Array> {
     }
 }
 CODER_REGISTRY.register(BytesCoder.URN, BytesCoder);
-
-export type KV<K, V> = {
-    key: K,
-    value: V
-}
 
 export class KVCoder<K, V> implements Coder<KV<K, V>> {
     static URN: string = "beam:coder:kv:v1";
