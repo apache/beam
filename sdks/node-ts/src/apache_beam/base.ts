@@ -1,6 +1,6 @@
 import * as runnerApi from './proto/beam_runner_api';
 import * as fnApi from './proto/beam_fn_api';
-import { Coder } from './coders/coders'
+import { Coder, CODER_REGISTRY } from './coders/coders'
 import { BytesCoder, IterableCoder, KVCoder } from './coders/standard_coders';
 import * as util from 'util';
 import * as translations from './internal/translations'
@@ -44,24 +44,37 @@ export class ProtoPrintingRunner extends Runner {
 type Components = runnerApi.Components | fnApi.ProcessBundleDescriptor;
 
 export class PipelineContext {
-  components: Components;
+    components: Components;
 
-  private coders: { [key: string]: Coder<any> } = {}
+    private coders: { [key: string]: Coder<any> } = {}
 
-  constructor(components: Components) {
-    this.components = components;
-  }
+    constructor(components: Components) {
+        this.components = components;
+    }
 
-  getCoder<T>(coderId: string): Coder<T> {
-    // TODO: If not present, reconstruct from proto.
-    return this.coders[coderId];
-  }
+    getCoder<T>(coderId: string): Coder<T> {
+        if (this.coders[coderId] == undefined) {
+            const coderProto = this.components.coders[coderId];
+            const coderConstructor = CODER_REGISTRY.get(coderProto.spec!.urn);
+            const components = (coderProto.componentCoderIds || []).map(c => new (CODER_REGISTRY.get(this.components.coders[c].spec!.urn))())
+            if (coderProto.spec!.payload && coderProto.spec!.payload.length) {
+                this.coders[coderId] = new coderConstructor(coderProto.spec!.payload, ...components);
+            } else {
+                this.coders[coderId] = new coderConstructor(...components);
+            }
+            console.log('==========')
+            console.log(coderId, coderConstructor, components);
+            console.log(coderProto);
+            console.log(this.coders[coderId]);
+        }
+        return this.coders[coderId];
+    }
 
-  getCoderId(coder: Coder<any>): string {
-    const coderId = translations.registerPipelineCoder((coder as Coder<any>).toProto!(this), this.components!);
-    this.coders[coderId] = coder;
-    return coderId;
-  }
+    getCoderId(coder: Coder<any>): string {
+        const coderId = translations.registerPipelineCoder((coder as Coder<any>).toProto!(this), this.components!);
+        this.coders[coderId] = coder;
+        return coderId;
+    }
 }
 
 /**
@@ -135,15 +148,15 @@ export class Pipeline {
     }
 
     getCoder<T>(coderId: string): Coder<T> {
-      return this.context.getCoder(coderId);
+        return this.context.getCoder(coderId);
     }
 
     getCoderId(coder: Coder<any>): string {
-      return this.context.getCoderId(coder);
+        return this.context.getCoderId(coder);
     }
 
     getProto(): runnerApi.Pipeline {
-      return this.proto;
+        return this.proto;
     }
 }
 
@@ -405,6 +418,10 @@ export class Flatten extends PTransform<PCollection[], PCollection> {
         // TODO: Input coder if they're all the same? UnionCoder?
         return pipeline.createPCollectionInternal(new GeneralObjectCoder());
     }
+}
+
+export interface WindowedValue {
+    value: any;
 }
 
 
