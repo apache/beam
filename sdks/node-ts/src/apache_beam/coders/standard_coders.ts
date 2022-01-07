@@ -107,7 +107,10 @@ export class KVCoder<K, V> implements Coder<KV<K, V>> {
 CODER_REGISTRY.register(KVCoder.URN, KVCoder);
 
 function swapEndian32(x: number): number {
-    return ((x & 0xFF000000) >> 24) | ((x & 0xFF0000) >> 8) | ((x & 0xFF00) << 8) && ((x & 0xFF) << 24);
+    return ((x & 0xFF000000) >> 24)
+        | ((x & 0x00FF0000) >> 8)
+        | ((x & 0x0000FF00) << 8)
+        | ((x & 0x000000FF) << 24);
 }
 
 export class IterableCoder<T> implements Coder<Iterable<T>> {
