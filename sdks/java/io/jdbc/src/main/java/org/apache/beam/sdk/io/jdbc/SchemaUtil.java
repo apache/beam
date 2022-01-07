@@ -191,6 +191,10 @@ class SchemaUtil {
       BiFunction<String, Integer, Schema.LogicalType<InputT, BaseT>> constructor) {
     return (index, md) -> {
       int size = md.getPrecision(index);
+      // not all drivers return precision correctly
+      if (size <= 0) {
+        size = md.getColumnDisplaySize(index);
+      }
       Schema.FieldType fieldType =
           Schema.FieldType.logicalType(constructor.apply(identifier, size));
       return beamFieldOfType(fieldType).create(index, md);

@@ -81,7 +81,8 @@ public class SchemaUtilTest {
             JdbcFieldInfo.of("timestamptz_col", Types.TIMESTAMP_WITH_TIMEZONE),
             JdbcFieldInfo.of("tinyint_col", Types.TINYINT),
             JdbcFieldInfo.of("varbinary_col", Types.VARBINARY, 255),
-            JdbcFieldInfo.of("varchar_col", Types.VARCHAR, 255));
+            JdbcFieldInfo.of("varchar_col", Types.VARCHAR, 255),
+            JdbcFieldInfo.of("varbinary_display_size_col", Types.VARBINARY, 0, 0, 255));
 
     when(mockResultSetMetaData.getColumnCount()).thenReturn(fieldInfo.size());
     for (int i = 0; i < fieldInfo.size(); i++) {
@@ -91,6 +92,7 @@ public class SchemaUtilTest {
       when(mockResultSetMetaData.getColumnTypeName(eq(i + 1))).thenReturn(f.columnTypeName);
       when(mockResultSetMetaData.getPrecision(eq(i + 1))).thenReturn(f.precision);
       when(mockResultSetMetaData.getScale(eq(i + 1))).thenReturn(f.scale);
+      when(mockResultSetMetaData.getColumnDisplaySize(eq(i + 1))).thenReturn(f.columnDisplaySize);
       when(mockResultSetMetaData.isNullable(eq(i + 1)))
           .thenReturn(
               f.nullable ? ResultSetMetaData.columnNullable : ResultSetMetaData.columnNoNulls);
@@ -126,6 +128,9 @@ public class SchemaUtilTest {
             .addField("tinyint_col", Schema.FieldType.BYTE)
             .addField("varbinary_col", LogicalTypes.variableLengthBytes(JDBCType.VARBINARY, 255))
             .addField("varchar_col", LogicalTypes.variableLengthString(JDBCType.VARCHAR, 255))
+            .addField(
+                "varbinary_display_size_col",
+                LogicalTypes.variableLengthString(JDBCType.VARBINARY, 255))
             .build();
 
     Schema haveBeamSchema = SchemaUtil.toBeamSchema(mockResultSetMetaData);
@@ -351,6 +356,7 @@ public class SchemaUtilTest {
     private final boolean nullable;
     private final int precision;
     private final int scale;
+    private final int columnDisplaySize;
 
     private JdbcFieldInfo(
         String columnLabel,
@@ -358,35 +364,43 @@ public class SchemaUtilTest {
         String columnTypeName,
         boolean nullable,
         int precision,
-        int scale) {
+        int scale,
+        int columnDisplaySize) {
       this.columnLabel = columnLabel;
       this.columnType = columnType;
       this.columnTypeName = columnTypeName;
       this.nullable = nullable;
       this.precision = precision;
       this.scale = scale;
+      this.columnDisplaySize = columnDisplaySize;
     }
 
     private static JdbcFieldInfo of(
         String columnLabel, int columnType, String columnTypeName, boolean nullable) {
-      return new JdbcFieldInfo(columnLabel, columnType, columnTypeName, nullable, 0, 0);
+      return new JdbcFieldInfo(columnLabel, columnType, columnTypeName, nullable, 0, 0, 0);
     }
 
     @SuppressWarnings("unused")
     private static JdbcFieldInfo of(String columnLabel, int columnType, boolean nullable) {
-      return new JdbcFieldInfo(columnLabel, columnType, null, nullable, 0, 0);
+      return new JdbcFieldInfo(columnLabel, columnType, null, nullable, 0, 0, 0);
     }
 
     private static JdbcFieldInfo of(String columnLabel, int columnType) {
-      return new JdbcFieldInfo(columnLabel, columnType, null, false, 0, 0);
+      return new JdbcFieldInfo(columnLabel, columnType, null, false, 0, 0, 0);
     }
 
     private static JdbcFieldInfo of(String columnLabel, int columnType, int precision) {
-      return new JdbcFieldInfo(columnLabel, columnType, null, false, precision, 0);
+      return new JdbcFieldInfo(columnLabel, columnType, null, false, precision, 0, 0);
     }
 
     private static JdbcFieldInfo of(String columnLabel, int columnType, int precision, int scale) {
-      return new JdbcFieldInfo(columnLabel, columnType, null, false, precision, scale);
+      return new JdbcFieldInfo(columnLabel, columnType, null, false, precision, scale, 0);
+    }
+
+    private static JdbcFieldInfo of(
+        String columnLabel, int columnType, int precision, int scale, int columnDisplaySize) {
+      return new JdbcFieldInfo(
+          columnLabel, columnType, null, false, precision, scale, columnDisplaySize);
     }
   }
 
