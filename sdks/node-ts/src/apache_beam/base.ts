@@ -37,7 +37,7 @@ export class Runner {
      * @param pipeline 
      * @returns A PipelineResult 
      */
-    async run(pipeline: ((root: Root) => PValue)): Promise<PipelineResult> {
+    async run(pipeline: ((root: Root) => PValue<any>)): Promise<PipelineResult> {
         const p = new Pipeline();
         pipeline(new Root(p));
         const pipelineResult = await this.runPipeline(p);
@@ -50,7 +50,7 @@ export class Runner {
      * pipeline finishes. Use the returned PipelineResult to query job
      * status.
      */
-    async runAsync(pipeline: ((root: Root) => PValue)): Promise<PipelineResult> {
+    async runAsync(pipeline: ((root: Root) => PValue<any>)): Promise<PipelineResult> {
         const p = new Pipeline();
         pipeline(new Root(p));
         return this.runPipeline(p);
@@ -121,11 +121,11 @@ export class Pipeline {
     }
 
     // TODO: Remove once test are fixed.
-    apply<OutputT extends PValue>(transform: PTransform<Root, OutputT>): OutputT {
+    apply<OutputT extends PValue<any>>(transform: PTransform<Root, OutputT>): OutputT {
         return new Root(this).apply(transform);
     }
 
-    apply2<InputT extends PValue, OutputT extends PValue>(transform: PTransform<InputT, OutputT>, PValue: InputT, name: string) {
+    apply2<InputT extends PValue<any>, OutputT extends PValue<any>>(transform: PTransform<InputT, OutputT>, PValue: InputT, name: string) {
 
         function objectMap(obj, func) {
             return Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, func(v)]));
@@ -198,21 +198,20 @@ export class PCollection<T> {
         this.id = id;
     }
 
-    apply<OutputT extends PValue>(transform: PTransform<PCollection<T>, OutputT> | ((PCollection) => OutputT)) {
+    apply<OutputT extends PValue<any>>(transform: PTransform<PCollection<T>, OutputT> | ((PCollection) => OutputT)) {
         if (!(transform instanceof PTransform)) {
             transform = new PTransformFromCallable(transform, "" + transform);
         }
         return this.pipeline.apply2(transform, this, "");
     }
 
-    map(fn: (T) => any): PCollection<any> {
+    map<OutputT>(fn: (T) => OutputT): PCollection<OutputT> {
         // TODO(robertwb): Should PTransforms have generics?
         return this.apply(new ParDo(new MapDoFn(fn))) as PCollection<any>;
     }
 
-    flatMap(fn: (T) => Generator<any, void, void>): PCollection<any> {
-        // TODO(robertwb): Should PTransforms have generics?
-        return this.apply(new ParDo(new FlatMapDoFn(fn))) as PCollection<any>;
+    flatMap<OutputT>(fn: (T) => Generator<OutputT>): PCollection<OutputT> {
+        return this.apply(new ParDo(new FlatMapDoFn(fn))) as PCollection<OutputT>;
     }
 
     root(): Root {
@@ -231,7 +230,7 @@ export class Root {
         this.pipeline = pipeline;
     }
 
-    apply<OutputT extends PValue>(transform: PTransform<Root, OutputT> | ((Root) => OutputT)) {
+    apply<OutputT extends PValue<any>>(transform: PTransform<Root, OutputT> | ((Root) => OutputT)) {
         if (!(transform instanceof PTransform)) {
             transform = new PTransformFromCallable(transform, "" + transform);
         }
@@ -239,9 +238,9 @@ export class Root {
     }
 }
 
-export type PValue = void | Root | PCollection<any> | PValue[] | { [key: string]: PValue };
+export type PValue<T> =    void | Root | PCollection<T> | PValue<T>[] | { [key: string]: PValue<T> };
 
-function flattenPValue(PValue: PValue, prefix: string = ""): { [key: string]: PCollection<any> } {
+function flattenPValue<T>(PValue: PValue<T>, prefix: string = ""): { [key: string]: PCollection<T> } {
     const result: { [key: string]: PCollection<any> } = {}
     if (PValue == null) {
         // pass
@@ -270,9 +269,9 @@ function flattenPValue(PValue: PValue, prefix: string = ""): { [key: string]: PC
     return result;
 }
 
-class PValueWrapper<T extends PValue> {
+class PValueWrapper<T extends PValue<any>> {
     constructor(private pvalue: T) { }
-    apply<O extends PValue>(transform: PTransform<T, O>, root: Root | null = null) {
+    apply<O extends PValue<any>>(transform: PTransform<T, O>, root: Root | null = null) {
         let pipeline: Pipeline;
         if (root == null) {
             const flat = flattenPValue(this.pvalue);
@@ -284,11 +283,11 @@ class PValueWrapper<T extends PValue> {
     }
 }
 
-export function P<T extends PValue>(pvalue: T) {
+export function P<T extends PValue<any>>(pvalue: T) {
     return new PValueWrapper(pvalue);
 }
 
-export class PTransform<InputT extends PValue, OutputT extends PValue> {
+export class PTransform<InputT extends PValue<any>, OutputT extends PValue<any>> {
     name: string;
 
     constructor(name: string | null = null) {
@@ -304,7 +303,7 @@ export class PTransform<InputT extends PValue, OutputT extends PValue> {
     }
 }
 
-class PTransformFromCallable<InputT extends PValue, OutputT extends PValue> extends PTransform<InputT, OutputT> {
+class PTransformFromCallable<InputT extends PValue<any>, OutputT extends PValue<any>> extends PTransform<InputT, OutputT> {
     name: string;
     expander: (InputT) => OutputT;
 
@@ -348,7 +347,7 @@ export class Impulse extends PTransform<Root, PCollection<Uint8Array>> {
         super("Impulse");  // TODO: pass null/nothing and get from reflection
     }
 
-    expandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, input: PValue) {
+    expandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, input: Root): PCollection<Uint8Array> {
         transformProto.spec = runnerApi.FunctionSpec.create({
             'urn': Impulse.urn,
             'payload': translations.IMPULSE_BUFFER
