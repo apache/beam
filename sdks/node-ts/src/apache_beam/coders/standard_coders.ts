@@ -5,6 +5,7 @@ import { Writer, Reader } from 'protobufjs';
 import { Coder, Context, CODER_REGISTRY } from "./coders";
 import { KV, BoundedWindow, IntervalWindow, PaneInfo, PipelineContext, WindowedValue, Instant } from '../base';
 import Long from "long";
+import * as util from "util";
 
 export class BytesCoder implements Coder<Uint8Array> {
     static URN: string = "beam:coder:bytes:v1";
