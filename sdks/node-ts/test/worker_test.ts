@@ -3,7 +3,7 @@ import { ProcessBundleDescriptor } from "../src/apache_beam/proto/beam_fn_api";
 
 import * as worker from '../src/apache_beam/worker/worker';
 import * as operators from '../src/apache_beam/worker/operators';
-import {BoundedWindow, Instant, PaneInfo, WindowedValue} from '../src/apache_beam/base';
+import { BoundedWindow, Instant, PaneInfo, WindowedValue } from '../src/apache_beam/base';
 
 const assert = require('assert');
 
@@ -31,9 +31,9 @@ class Create implements operators.IOperator {
         this_.data.forEach(function(datum) {
             this_.receivers.map((receiver) => receiver.receive({
                 value: datum,
-                windows: <Array<BoundedWindow>> <unknown> undefined,
-                timestamp: <Instant> <unknown> undefined,
-                pane: <PaneInfo> <unknown> undefined,
+                windows: <Array<BoundedWindow>><unknown>undefined,
+                timestamp: <Instant><unknown>undefined,
+                pane: <PaneInfo><unknown>undefined,
             }));
         })
     }
