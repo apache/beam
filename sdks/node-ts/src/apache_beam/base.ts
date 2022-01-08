@@ -239,7 +239,7 @@ export class Root {
     }
 }
 
-export type PValue<T> =    void | Root | PCollection<T> | PValue<T>[] | { [key: string]: PValue<T> };
+export type PValue<T> = void | Root | PCollection<T> | PValue<T>[] | { [key: string]: PValue<T> };
 
 function flattenPValue<T>(PValue: PValue<T>, prefix: string = ""): { [key: string]: PCollection<T> } {
     const result: { [key: string]: PCollection<any> } = {}

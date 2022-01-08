@@ -6,7 +6,7 @@ import { ProcessBundleDescriptor, RemoteGrpcPort } from "../proto/beam_fn_api";
 import { MultiplexingDataChannel, IDataChannel } from "./data"
 
 import * as base from "../base"
-import {BoundedWindow, Instant, PaneInfo, WindowedValue} from "../base"
+import { BoundedWindow, Instant, PaneInfo, WindowedValue } from "../base"
 import * as translations from '../internal/translations'
 import { Coder, Context as CoderContext } from "../coders/coders"
 
@@ -216,9 +216,9 @@ class ParDoOperator implements IOperator {
         for (const element of this.doFn.process(wvalue.value)) {
             this.receiver.receive({
                 value: element,
-                windows: <Array<BoundedWindow>> <unknown> undefined,
-                pane: <PaneInfo> <unknown> undefined,
-                timestamp: <Instant> <unknown> undefined
+                windows: <Array<BoundedWindow>><unknown>undefined,
+                pane: <PaneInfo><unknown>undefined,
+                timestamp: <Instant><unknown>undefined
             });
         }
     }
