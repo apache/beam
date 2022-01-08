@@ -71,7 +71,7 @@ from apache_beam.utils import proto_utils
 # a job submission and is used by the service to establish what features
 # are expected by the workers.
 _LEGACY_ENVIRONMENT_MAJOR_VERSION = '8'
-_FNAPI_ENVIRONMENT_MAJOR_VERSION = '8'
+_FNAPI_ENVIRONMENT_MAJOR_VERSION = '9'
 
 _LOGGER = logging.getLogger(__name__)
 

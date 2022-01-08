@@ -53,7 +53,7 @@ evaluationDependsOn(":sdks:java:container:java11")
 processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'dataflow.legacy_environment_major_version' : '8',
-    'dataflow.fnapi_environment_major_version' : '8',
+    'dataflow.fnapi_environment_major_version' : '9',
     'dataflow.legacy_container_version' : 'beam-master-20211213',
     'dataflow.fnapi_container_version' : 'beam-master-20210913',
     'dataflow.container_base_repository' : 'gcr.io/cloud-dataflow/v1beta3',
