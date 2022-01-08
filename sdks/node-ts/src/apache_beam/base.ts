@@ -484,20 +484,22 @@ export interface PaneInfo {
     isLast: boolean
 }
 
+export type Instant = Long;
+
 export interface BoundedWindow {
-    maxTimestamp(): Date
+    maxTimestamp(): Instant
 }
 
 export interface WindowedValue<T> {
     value: T;
     windows: Array<BoundedWindow>;
     pane: PaneInfo;
-    timestamp: Date;
+    timestamp: Instant;
 }
 
 export class IntervalWindow implements BoundedWindow {
-    constructor(public start: Date, public end: Date) { }
-    maxTimestamp() { return datefns.sub(this.end, {seconds:0.001}) }
+    constructor(public start: Instant, public end: Instant) { }
+    maxTimestamp() { return this.end.sub(1) }
 }
 
 

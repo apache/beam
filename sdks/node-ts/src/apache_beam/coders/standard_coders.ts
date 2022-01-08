@@ -3,7 +3,7 @@ import * as translations from '../internal/translations'
 
 import { Writer, Reader } from 'protobufjs';
 import { Coder, Context, CODER_REGISTRY } from "./coders";
-import {KV, BoundedWindow, IntervalWindow, PaneInfo, PipelineContext, WindowedValue} from '../base';
+import {KV, BoundedWindow, IntervalWindow, PaneInfo, PipelineContext, WindowedValue, Instant} from '../base';
 import Long from "long";
 
 export class BytesCoder implements Coder<Uint8Array> {
@@ -232,7 +232,7 @@ export class WindowedValueCoder<T, W> implements Coder<WindowedValue<T>> {
             value: this.elementCoder.decode(reader, context),
             windows: <Array<BoundedWindow>> <unknown> undefined,
             pane: <PaneInfo> <unknown> undefined,
-            timestamp: <Date> <unknown> undefined
+            timestamp: <Instant> <unknown> undefined
         };
     }
 }
@@ -265,16 +265,16 @@ export class GlobalWindowCoder implements Coder<GlobalWindow> {
 }
 CODER_REGISTRY.register(GlobalWindowCoder.URN, GlobalWindowCoder);
 
-export class InstantCoder implements Coder<Date> {
+export class InstantCoder implements Coder<Instant> {
     static INSTANCE: InstantCoder = new InstantCoder();
 
-    decode(reader: Reader, context: Context): Date {
+    decode(reader: Reader, context: Context): Instant {
         const shiftedMillis = Long.fromBytesBE(Array.from(reader.buf.slice(reader.pos, reader.pos+8)));
-        return new Date(shiftedMillis.add(Long.MIN_VALUE).toNumber())
+        return shiftedMillis.add(Long.MIN_VALUE)
     }
 
-    encode(element: Date, writer: Writer, context: Context) {
-        const shiftedMillis = Long.fromNumber(element.getMilliseconds()).sub(Long.MIN_VALUE)
+    encode(element: Instant, writer: Writer, context: Context) {
+        const shiftedMillis = element.sub(Long.MIN_VALUE)
         const bytes = Uint8Array.from(shiftedMillis.toBytesBE());
         BytesCoder.INSTANCE.encode(bytes, writer, Context.wholeStream)
     }
