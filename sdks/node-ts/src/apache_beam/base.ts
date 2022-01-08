@@ -298,13 +298,13 @@ export class PCollection<T> {
         return this.pipeline.asyncApplyTransform(transform, this, "");
     }
 
-    map<OutputT>(fn: (T) => OutputT): PCollection<OutputT> {
+    map<InputT, OutputT>(fn: (element: InputT) => OutputT): PCollection<OutputT> {
         // TODO(robertwb): Should PTransforms have generics?
-        return this.apply(new ParDo(new MapDoFn(fn))) as PCollection<any>;
+        return this.apply(new ParDo<InputT, OutputT>(new MapDoFn<InputT, OutputT>(fn))) as PCollection<OutputT>;
     }
 
-    flatMap<OutputT>(fn: (T) => Generator<OutputT>): PCollection<OutputT> {
-        return this.apply(new ParDo(new FlatMapDoFn(fn))) as PCollection<OutputT>;
+    flatMap<InputT, OutputT>(fn: (element: InputT) => Generator<OutputT>): PCollection<OutputT> {
+        return this.apply(new ParDo<InputT, OutputT>(new FlatMapDoFn<InputT, OutputT>(fn))) as PCollection<OutputT>;
     }
 
     root(): Root {
@@ -462,7 +462,7 @@ interface CombineFn<I, A, O> {
 }
 
 export class DoFn<InputT, OutputT> {
-    *process(element: InputT): Generator<OutputT> {
+    *process(element: InputT): Generator<OutputT> | OutputT {
         throw new Error('Method process has not been implemented!');
     }
 
@@ -522,8 +522,8 @@ export class ParDo<InputT, OutputT> extends PTransform<PCollection<InputT>, PCol
 }
 
 class MapDoFn<InputT, OutputT> extends DoFn<InputT, OutputT> {
-    private fn: (InputT) => OutputT;
-    constructor(fn: (InputT) => OutputT) {
+    private fn: (element: InputT) => OutputT;
+    constructor(fn: (element: InputT) => OutputT) {
         super();
         this.fn = fn;
     }
@@ -533,8 +533,8 @@ class MapDoFn<InputT, OutputT> extends DoFn<InputT, OutputT> {
 }
 
 class FlatMapDoFn<InputT, OutputT> extends DoFn<InputT, OutputT> {
-    private fn;
-    constructor(fn: (InputT) => Generator<OutputT>) {
+    private fn: (element: InputT) => Generator<OutputT>;
+    constructor(fn: (element: InputT) => Generator<OutputT>) {
         super();
         this.fn = fn;
     }

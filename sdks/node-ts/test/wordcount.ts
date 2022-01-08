@@ -20,8 +20,8 @@ class CountElements extends beam.PTransform<beam.PCollection<any>, beam.PCollect
 
 function wordCount(lines: beam.PCollection<string>): beam.PCollection<beam.KV<string, number>> {
     return lines
-        .map((s) => s.toLowerCase())
-        .flatMap(function*(line) {
+        .map<string, string>((s: string) => s.toLowerCase())
+        .flatMap<string, string>(function*(line: string) {
             yield* line.split(/[^a-z]+/);
         })
         .apply(new CountElements("Count"));
