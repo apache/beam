@@ -160,12 +160,7 @@ export class Pipeline {
         return new Root(this).apply(transform);
     }
 
-    apply2<InputT extends PValue<any>, OutputT extends PValue<any>>(transform: PTransform<InputT, OutputT>, pvalue: InputT, name: string) {
-
-        function objectMap(obj, func) {
-            return Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, func(v)]));
-        }
-
+    preApplyTransform<InputT extends PValue<any>, OutputT extends PValue<any>>(transform: AsyncPTransform<InputT, OutputT>, input: InputT, name: string) {
         const this_ = this;
         const transformId = transformName();
         if (this.transformStack.length) {
@@ -176,32 +171,47 @@ export class Pipeline {
         const transformProto: runnerApi.PTransform = {
             uniqueName: transformId + this.transformStack.map((id) => this_.proto?.components?.transforms![id].uniqueName).concat([name || transform.name]).join('/'),
             subtransforms: [],
-            inputs: objectMap(flattenPValue(pvalue), (pc) => pc.id),
+            inputs: objectMap(flattenPValue(input), (pc) => pc.id),
             outputs: {},
             environmentId: "",
             displayData: [],
             annotations: {},
         }
         this.proto.components!.transforms![transformId] = transformProto;
-        this.transformStack.push(transformId);
-        const result = transform.expandInternal(this, transformProto, pvalue); // TODO: try-catch
-        this.transformStack.pop();
-        transformProto.outputs = objectMap(flattenPValue(result), (pc) => pc.id);
+        return {id: transformId, proto: transformProto};
+    }
 
+    applyTransform<InputT extends PValue<any>, OutputT extends PValue<any>>(transform: PTransform<InputT, OutputT>, input: InputT, name: string) {
+        const {id: transformId, proto: transformProto} = this.preApplyTransform(transform, input, name);
+        let result: OutputT;
+        try {
+            this.transformStack.push(transformId);
+            result = transform.expandInternal(this, transformProto, input);
+        } finally {
+            this.transformStack.pop();
+        }
+        return this.postApplyTransform(transform, transformProto, result);
+    }
+
+    async asyncApplyTransform<InputT extends PValue<any>, OutputT extends PValue<any>>(transform: AsyncPTransform<InputT, OutputT>, input: InputT, name: string) {
+        const {id: transformId, proto: transformProto} = this.preApplyTransform(transform, input, name);
+        let result: OutputT;
+        try {
+            this.transformStack.push(transformId);
+            result = await transform.asyncExpandInternal(this, transformProto, input);
+        } finally {
+            this.transformStack.pop();
+        }
+        return this.postApplyTransform(transform, transformProto, result);
+    }
+
+    postApplyTransform<InputT extends PValue<any>, OutputT extends PValue<any>>(
+        transform: AsyncPTransform<InputT, OutputT>, transformProto: runnerApi.PTransform, result: OutputT) {
         // Propagate any unset PCollection properties.
+        const this_ = this;
         const inputProtos = Object.values(transformProto.inputs).map((id) => this_.proto.components!.pcollections[id]);
         const inputBoundedness = new Set(inputProtos.map((proto) => proto.isBounded));
         const inputWindowings = new Set(inputProtos.map((proto) => proto.windowingStrategyId));
-
-        function onlyValueOr<T>(valueSet: Set<T>, defaultValue: T) {
-            if (valueSet.size == 0) {
-                return defaultValue;
-            } else if (valueSet.size == 1) {
-                return valueSet.values().next().value;
-            } else {
-                throw new Error('Unable to deduce single value from ' + valueSet);
-            }
-        }
 
         for (const pcId of Object.values(transformProto.outputs)) {
             const pcProto = this.proto!.components!.pcollections[pcId];
@@ -212,6 +222,8 @@ export class Pipeline {
                 pcProto.windowingStrategyId = onlyValueOr(inputWindowings, this.globalWindowing);
             }
         }
+
+        transformProto.outputs = objectMap(flattenPValue(result), (pc) => pc.id);
 
         return result;
     }
@@ -274,7 +286,14 @@ export class PCollection<T> {
         if (!(transform instanceof PTransform)) {
             transform = new PTransformFromCallable(transform, "" + transform);
         }
-        return this.pipeline.apply2(transform, this, "");
+        return this.pipeline.applyTransform(transform, this, "");
+    }
+
+    asyncApply<OutputT extends PValue<any>>(transform: AsyncPTransform<PCollection<T>, OutputT> | ((PCollection) => Promise<OutputT>)) {
+        if (!(transform instanceof AsyncPTransform)) {
+            transform = new AsyncPTransformFromCallable(transform, "" + transform);
+        }
+        return this.pipeline.asyncApplyTransform(transform, this, "");
     }
 
     map<OutputT>(fn: (T) => OutputT): PCollection<OutputT> {
@@ -306,7 +325,14 @@ export class Root {
         if (!(transform instanceof PTransform)) {
             transform = new PTransformFromCallable(transform, "" + transform);
         }
-        return this.pipeline.apply2(transform, this, "");
+        return this.pipeline.applyTransform(transform, this, "");
+    }
+
+    async asyncApply<OutputT extends PValue<any>>(transform: AsyncPTransform<Root, OutputT> | ((Root) => Promise<OutputT>)) {
+        if (!(transform instanceof AsyncPTransform)) {
+            transform = new AsyncPTransformFromCallable(transform, "" + transform);
+        }
+        return await this.pipeline.asyncApplyTransform(transform, this, "");
     }
 }
 
@@ -343,15 +369,22 @@ function flattenPValue<T>(PValue: PValue<T>, prefix: string = ""): { [key: strin
 
 class PValueWrapper<T extends PValue<any>> {
     constructor(private pvalue: T) { }
+
     apply<O extends PValue<any>>(transform: PTransform<T, O>, root: Root | null = null) {
-        let pipeline: Pipeline;
+        return this.pipeline(root).applyTransform(transform, this.pvalue, "");
+    }
+
+    async asyncApply<O extends PValue<any>>(transform: AsyncPTransform<T, O>, root: Root | null = null) {
+        return await this.pipeline(root).asyncApplyTransform(transform, this.pvalue, "");
+    }
+
+    private pipeline(root: Root | null = null) {
         if (root == null) {
             const flat = flattenPValue(this.pvalue);
-            pipeline = Object.values(flat)[0].pipeline;
+            return Object.values(flat)[0].pipeline;
         } else {
-            pipeline = root.pipeline;
+            return root.pipeline;
         }
-        return pipeline.apply2(transform, this.pvalue, "");
     }
 }
 
@@ -359,24 +392,41 @@ export function P<T extends PValue<any>>(pvalue: T) {
     return new PValueWrapper(pvalue);
 }
 
-export class PTransform<InputT extends PValue<any>, OutputT extends PValue<any>> {
+export class AsyncPTransform<InputT extends PValue<any>, OutputT extends PValue<any>> {
     name: string;
 
     constructor(name: string | null = null) {
         this.name = name || (typeof this);
     }
 
+    async asyncExpand(input: InputT): Promise<OutputT> {
+        throw new Error('Method expand has not been implemented.');
+    }
+
+    async asyncExpandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, input: InputT): Promise<OutputT> {
+        return this.asyncExpand(input);
+    }
+}
+
+export class PTransform<InputT extends PValue<any>, OutputT extends PValue<any>> extends AsyncPTransform<InputT, OutputT> {
     expand(input: InputT): OutputT {
         throw new Error('Method expand has not been implemented.');
     }
 
+    async asyncExpand(input: InputT): Promise<OutputT> {
+        return this.expand(input);
+    }
+
     expandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, input: InputT): OutputT {
         return this.expand(input);
+   }
+
+    async asyncExpandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, input: InputT): Promise<OutputT> {
+        return this.expandInternal(pipeline, transformProto, input);
     }
 }
 
 class PTransformFromCallable<InputT extends PValue<any>, OutputT extends PValue<any>> extends PTransform<InputT, OutputT> {
-    name: string;
     expander: (InputT) => OutputT;
 
     constructor(expander: (InputT) => OutputT, name: string) {
@@ -385,6 +435,19 @@ class PTransformFromCallable<InputT extends PValue<any>, OutputT extends PValue<
     }
 
     expand(input: InputT) {
+        return this.expander(input);
+    }
+}
+
+class AsyncPTransformFromCallable<InputT extends PValue<any>, OutputT extends PValue<any>> extends AsyncPTransform<InputT, OutputT> {
+    expander: (InputT) => Promise<OutputT>;
+
+    constructor(expander: (InputT) => Promise<OutputT>, name: string) {
+        super(name);
+        this.expander = expander;
+    }
+
+    async asyncExpand(input: InputT) {
         return this.expander(input);
     }
 }
@@ -581,6 +644,25 @@ export class IntervalWindow implements BoundedWindow {
     constructor(public start: Instant, public end: Instant) { }
     maxTimestamp() { return this.end.sub(1) }
 }
+
+
+
+
+
+function objectMap(obj, func) {
+    return Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, func(v)]));
+}
+
+function onlyValueOr<T>(valueSet: Set<T>, defaultValue: T) {
+    if (valueSet.size == 0) {
+        return defaultValue;
+    } else if (valueSet.size == 1) {
+        return valueSet.values().next().value;
+    } else {
+        throw new Error('Unable to deduce single value from ' + valueSet);
+    }
+}
+
 
 
 let fakeSerializeCounter = 0;
