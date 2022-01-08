@@ -60,8 +60,8 @@ export class NodeRunner extends Runner {
         return this.client.getState(jobId);
     }
 
-    async runPipeline(pipeline: Pipeline): Promise<PipelineResult> {
-        throw new Error('runPipeline not implemented.')
+    async runPipeline(pipeline: Pipeline, options?: PipelineOptions): Promise<PipelineResult> {
+        return this.runPipelineWithProto(pipeline.getProto(), '', options);
     }
 
     async runPipelineWithProto(
