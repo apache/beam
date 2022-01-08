@@ -1,10 +1,10 @@
 import * as beam from '../src/apache_beam';
-import * as runnerApi from '../src/apache_beam/proto/beam_runner_api';
 import { DirectRunner } from '../src/apache_beam/runners/direct_runner'
 import * as testing from '../src/apache_beam/testing/assert';
+import { KV } from "../src/apache_beam/values";
 
 
-class CountElements extends beam.PTransform<beam.PCollection<any>, beam.PCollection<beam.KV<any, number>>> {
+class CountElements extends beam.PTransform<beam.PCollection<any>, beam.PCollection<KV<any, number>>> {
     expand(input: beam.PCollection<any>) {
         return input
             .apply(new beam.GroupBy((e) => e))  // TODO: GroupBy
@@ -15,7 +15,7 @@ class CountElements extends beam.PTransform<beam.PCollection<any>, beam.PCollect
     }
 }
 
-class WordCount extends beam.PTransform<beam.PCollection<string>, beam.PCollection<beam.KV<string, number>>> {
+class WordCount extends beam.PTransform<beam.PCollection<string>, beam.PCollection<KV<string, number>>> {
     expand(lines: beam.PCollection<string>) {
         return lines
             .map((s) => s.toLowerCase())

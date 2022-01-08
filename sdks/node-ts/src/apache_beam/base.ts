@@ -6,9 +6,8 @@ import * as translations from './internal/translations'
 import * as environments from './internal/environments'
 import { GeneralObjectCoder } from './coders/js_coders';
 import { JobState_Enum } from './proto/beam_job_api';
-
-import * as datefns from 'date-fns'
 import { PipelineOptions } from './options/pipeline_options';
+import { KV } from "./values";
 
 // TODO(pabloem): Use something better, hah.
 var _pcollection_counter = -1;
@@ -412,11 +411,6 @@ class FlatMapDoFn<InputT, OutputT> extends DoFn<InputT, OutputT> {
     }
 }
 
-export type KV<K, V> = {
-    key: K,
-    value: V
-}
-
 // TODO(pabloem): Consider not exporting the GBK
 export class GroupByKey<K, V> extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>> {
     // static urn: string = runnerApi.StandardPTransforms_Primitives.GROUP_BY_KEY.urn;
@@ -467,39 +461,6 @@ export class Flatten<T> extends PTransform<PCollection<T>[], PCollection<T>> {
         // TODO: Input coder if they're all the same? UnionCoder?
         return pipeline.createPCollectionInternal(new GeneralObjectCoder());
     }
-}
-
-enum Timing {
-    EARLY = "early",
-    ON_TIME = "on_time",
-    LATE = "late",
-    UNKNOWN = "unknown"
-}
-
-export interface PaneInfo {
-    timing: Timing,
-    index: number, // TODO: should be a long
-    nonSpeculativeIndex: number, // TODO should be a long
-    isFirst: boolean,
-    isLast: boolean
-}
-
-export type Instant = Long;
-
-export interface BoundedWindow {
-    maxTimestamp(): Instant
-}
-
-export interface WindowedValue<T> {
-    value: T;
-    windows: Array<BoundedWindow>;
-    pane: PaneInfo;
-    timestamp: Instant;
-}
-
-export class IntervalWindow implements BoundedWindow {
-    constructor(public start: Instant, public end: Instant) { }
-    maxTimestamp() { return this.end.sub(1) }
 }
 
 
