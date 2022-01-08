@@ -86,10 +86,11 @@ export class PipelineContext {
     }
 
     getCoder<T>(coderId: string): Coder<T> {
+        const this_ = this;
         if (this.coders[coderId] == undefined) {
             const coderProto = this.components.coders[coderId];
             const coderConstructor = CODER_REGISTRY.get(coderProto.spec!.urn);
-            const components = (coderProto.componentCoderIds || []).map(c => new (CODER_REGISTRY.get(this.components.coders[c].spec!.urn))())
+            const components = (coderProto.componentCoderIds || []).map(this_.getCoder.bind(this_))
             if (coderProto.spec!.payload && coderProto.spec!.payload.length) {
                 this.coders[coderId] = new coderConstructor(coderProto.spec!.payload, ...components);
             } else {
@@ -140,6 +141,8 @@ export class Pipeline {
         this.proto.components!.environments[this.defaultEnvironment] = environments.defaultJsEnvironment();
         this.context = new PipelineContext(this.proto.components!);
         this.proto.components!.windowingStrategies[this.globalWindowing] = {
+            windowFn: { urn: 'beam:window_fn:global_windows:v1', payload: undefined! },
+            trigger: { trigger: { oneofKind: 'default', default: runnerApi.Trigger_Default } },
             windowCoderId: this.context.getCoderId(new GlobalWindowCoder()),
             accumulationMode: runnerApi.AccumulationMode_Enum.DISCARDING,
             outputTime: runnerApi.OutputTime_Enum.END_OF_WINDOW,
@@ -307,7 +310,7 @@ export class Root {
     }
 }
 
-export type PValue<T> =    void | Root | PCollection<T> | PValue<T>[] | { [key: string]: PValue<T> };
+export type PValue<T> = void | Root | PCollection<T> | PValue<T>[] | { [key: string]: PValue<T> };
 
 function flattenPValue<T>(PValue: PValue<T>, prefix: string = ""): { [key: string]: PCollection<T> } {
     const result: { [key: string]: PCollection<any> } = {}
@@ -436,11 +439,6 @@ export class ParDo<InputT, OutputT> extends PTransform<PCollection<InputT>, PCol
     }
 
     expandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, input: PCollection<InputT>) {
-        // Might not be needed due to generics.
-        if (!(input instanceof PCollection)) {
-            throw new Error('ParDo received the wrong input.');
-        }
-
         transformProto.spec = runnerApi.FunctionSpec.create({
             'urn': ParDo.urn,
             'payload': runnerApi.ParDoPayload.toBinary(
@@ -495,28 +493,42 @@ export class GroupByKey<K, V> extends PTransform<PCollection<KV<K, V>>, PCollect
 
         // TODO: Use context.
         const pipelineComponents: runnerApi.Components = pipeline.getProto().components!;
-        const inputPCollectionProto = pipelineComponents.pcollections[input.id];
+        const inputCoderProto = pipelineComponents.coders[pipelineComponents.pcollections[input.id].coderId];
 
-        // TODO: How to ensure the input is a KV coder?
-        let keyCoder: Coder<any>;
-        let valueCoder: Coder<any>;
-        const inputCoderProto = pipelineComponents.coders[inputPCollectionProto.coderId];
-        if (inputCoderProto.componentCoderIds.length == 2) {
-            keyCoder = pipeline.getCoder(inputCoderProto.componentCoderIds[0]);
-            valueCoder = pipeline.getCoder(inputCoderProto.componentCoderIds[1]);
+        if (inputCoderProto.spec!.urn != KVCoder.URN) {
+            return input.apply(new WithKvCoderInternal()).apply(new GroupByKey());
         }
-        else {
-            keyCoder = valueCoder = new GeneralObjectCoder();
-        }
-        const iterableValueCoder = new IterableCoder(valueCoder);
-        const outputCoder = new KVCoder(keyCoder, iterableValueCoder);
 
         transformProto.spec = runnerApi.FunctionSpec.create({
             'urn': GroupByKey.urn,
-            'payload': null!,
+            'payload': undefined!,
         });
 
+        const keyCoder = pipeline.getCoder(inputCoderProto.componentCoderIds[0]);
+        const valueCoder = pipeline.getCoder(inputCoderProto.componentCoderIds[1]);
+        const iterableValueCoder = new IterableCoder(valueCoder);
+        const outputCoder = new KVCoder(keyCoder, iterableValueCoder);
         return pipeline.createPCollectionInternal(outputCoder);
+    }
+}
+
+class WithKvCoderInternal<K, V> extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>> {
+    expandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, input: PCollection<KV<K, V>>) {
+        // IDENTITY rather than Flatten for better fusion.
+        transformProto.spec = {
+            'urn': ParDo.urn,
+            'payload': runnerApi.ParDoPayload.toBinary(
+                runnerApi.ParDoPayload.create({
+                    'doFn': runnerApi.FunctionSpec.create({
+                        'urn': translations.IDENTITY_DOFN_URN,
+                        'payload': undefined!,
+                    })
+                }))
+        };
+
+        // TODO: Consider deriving the key and value coder from the input coder.
+        return pipeline.createPCollectionInternal(
+            new KVCoder(new GeneralObjectCoder(), new GeneralObjectCoder()));
     }
 }
 

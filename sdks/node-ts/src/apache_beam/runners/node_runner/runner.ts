@@ -18,10 +18,12 @@ const TERMINAL_STATES = [
 class NodeRunnerPipelineResult implements PipelineResult {
     jobId: string;
     runner: NodeRunner;
+    workers?: ExternalWorkerPool;
 
-    constructor(runner: NodeRunner, jobId: string) {
+    constructor(runner: NodeRunner, jobId: string, workers: ExternalWorkerPool | undefined = undefined) {
         this.runner = runner;
         this.jobId = jobId;
+        this.workers = workers;
     }
 
     static isTerminal(state: JobState_Enum) {
@@ -29,7 +31,12 @@ class NodeRunnerPipelineResult implements PipelineResult {
     }
 
     async getState() {
-        return await this.runner.getJobState(this.jobId);
+        const state = await this.runner.getJobState(this.jobId);
+        if (this.workers != undefined && NodeRunnerPipelineResult.isTerminal(state.state)) {
+              this.workers.stop()
+              this.workers = undefined;
+        }
+        return state;
     }
 
     /**
@@ -72,8 +79,11 @@ export class NodeRunner extends Runner {
         jobName: string,
         options?: PipelineOptions) {
 
+        // Replace the default environment according to the pipeline options.
         const externalWorkerServiceAddress = 'localhost:5555'
-        new ExternalWorkerPool(externalWorkerServiceAddress).start()
+        const workers = new ExternalWorkerPool(externalWorkerServiceAddress)
+        workers.start()
+
         pipeline = runnerApiProto.Pipeline.clone(pipeline);
         for (const [envId, env] of Object.entries(pipeline.components!.environments)) {
             if (env.urn == environments.PYTHON_DEFAULT_ENVIRONMENT_URN) {
@@ -83,8 +93,7 @@ export class NodeRunner extends Runner {
 
         const { preparationId } = await this.client.prepare(pipeline, jobName, options);
         const { jobId } = await this.client.run(preparationId);
-
-        return new NodeRunnerPipelineResult(this, jobId);
+        return new NodeRunnerPipelineResult(this, jobId, workers);
     }
 
     async runPipelineWithJsonValueProto(json: string, jobName: string, options?: PipelineOptions) {

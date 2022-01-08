@@ -18,20 +18,19 @@ class CountElements extends beam.PTransform<beam.PCollection<any>, beam.PCollect
     }
 }
 
-class WordCount extends beam.PTransform<beam.PCollection<string>, beam.PCollection<beam.KV<string, number>>> {
-    expand(lines: beam.PCollection<string>) {
+function wordCount(lines: beam.PCollection<string>): beam.PCollection<beam.KV<string, number>> {
         return lines
             .map((s) => s.toLowerCase())
             .flatMap(function*(line) {
                 yield* line.split(/[^a-z]+/);
             })
-//            .apply(new CountElements("Count"))
-    }
+            .apply(new CountElements("Count"));
 }
 
 describe("wordcount", function() {
     it("wordcount", async function() {
-        await new NodeRunner(new RemoteJobServiceClient('localhost:3333')).run(
+//         await new NodeRunner(new RemoteJobServiceClient('localhost:3333')).run(
+        await new DirectRunner().run(
             (root) => {
                 const lines = root.apply(new beam.Create([
                     "In the beginning God created the heaven and the earth.",
@@ -40,30 +39,28 @@ describe("wordcount", function() {
                     "And God said, Let there be light: and there was light.",
                 ]));
 
-//                lines.map(console.log);
-
-                lines.apply(new WordCount()).map(console.log)
+                lines.apply(wordCount).map(console.log)
             })
     });
 
-//     it("wordcount assert", async function() {
-//         await new DirectRunner().run(
-//             (root) => {
-//                 const lines = root.apply(new beam.Create([
-//                     "And God said, Let there be light: and there was light",
-//                 ]));
-//
-//                 lines.apply(new WordCount()).apply(new testing.AssertDeepEqual([
-//                     { element: 'and', count: 2 },
-//                     { element: 'god', count: 1 },
-//                     { element: 'said', count: 1 },
-//                     { element: 'let', count: 1 },
-//                     { element: 'there', count: 2 },
-//                     { element: 'be', count: 1 },
-//                     { element: 'light', count: 2 },
-//                     { element: 'was', count: 1 },
-//                 ]))
-//             })
-//     });
+    it("wordcount assert", async function() {
+        await new DirectRunner().run(
+            (root) => {
+                const lines = root.apply(new beam.Create([
+                    "And God said, Let there be light: and there was light",
+                ]));
+
+                lines.apply(wordCount).apply(new testing.AssertDeepEqual([
+                    { element: 'and', count: 2 },
+                    { element: 'god', count: 1 },
+                    { element: 'said', count: 1 },
+                    { element: 'let', count: 1 },
+                    { element: 'there', count: 2 },
+                    { element: 'be', count: 1 },
+                    { element: 'light', count: 2 },
+                    { element: 'was', count: 1 },
+                ]))
+            })
+    });
 
 });
