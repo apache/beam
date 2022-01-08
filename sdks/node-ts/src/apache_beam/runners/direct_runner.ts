@@ -2,7 +2,7 @@ import { PTransform, PCollection } from "../proto/beam_runner_api";
 import { ProcessBundleDescriptor } from "../proto/beam_fn_api";
 import { JobState_Enum } from "../proto/beam_job_api";
 
-import {Runner, Pipeline, Root, Impulse, GroupByKey, PaneInfo, BoundedWindow, PipelineResult} from '../base'
+import {Runner, Pipeline, Root, Impulse, GroupByKey, PaneInfo, BoundedWindow, PipelineResult, Instant} from '../base'
 import * as worker from '../worker/worker';
 import * as operators from '../worker/operators';
 import { WindowedValue } from '../base';
@@ -44,7 +44,7 @@ class DirectImpulseOperator implements operators.IOperator {
             value: '',
             windows: <Array<BoundedWindow>> <unknown> undefined,
             pane: <PaneInfo> <unknown> undefined,
-            timestamp: <Date> <unknown> undefined
+            timestamp: <Instant> <unknown> undefined
         });
     }
 
@@ -80,7 +80,7 @@ class DirectGbkOperator implements operators.IOperator {
             this_.receiver.receive({
                 value: { key: key, value: values },
                 windows: <Array<BoundedWindow>> <unknown> undefined,
-                timestamp: <Date> <unknown> undefined,
+                timestamp: <Instant> <unknown> undefined,
                 pane: <PaneInfo> <unknown> undefined
             });
         });
