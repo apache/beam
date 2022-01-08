@@ -5,7 +5,7 @@ import { JobState_Enum } from "../proto/beam_job_api";
 import { Runner, Pipeline, Root, Impulse, GroupByKey, PaneInfo, BoundedWindow, PipelineResult, Instant } from '../base'
 import * as worker from '../worker/worker';
 import * as operators from '../worker/operators';
-import { WindowedValue } from '../base';
+import { BoundedWindow, Instant, PaneInfo, WindowedValue } from "../values";
 
 
 

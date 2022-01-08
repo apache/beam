@@ -1,13 +1,13 @@
 import * as beam from '../src/apache_beam';
-import * as runnerApi from '../src/apache_beam/proto/beam_runner_api';
 import { DirectRunner } from '../src/apache_beam/runners/direct_runner'
 import * as testing from '../src/apache_beam/testing/assert';
+import { KV } from "../src/apache_beam/values";
 
 import { NodeRunner } from '../src/apache_beam/runners/node_runner/runner'
 import { RemoteJobServiceClient } from "../src/apache_beam/runners/node_runner/client";
 
 
-class CountElements extends beam.PTransform<beam.PCollection<any>, beam.PCollection<beam.KV<any, number>>> {
+class CountElements extends beam.PTransform<beam.PCollection<any>, beam.PCollection<KV<any, number>>> {
     expand(input: beam.PCollection<any>) {
         return input
             .apply(new beam.GroupBy((e) => e))  // TODO: GroupBy
@@ -18,7 +18,12 @@ class CountElements extends beam.PTransform<beam.PCollection<any>, beam.PCollect
     }
 }
 
+<<<<<<< HEAD
 function wordCount(lines: beam.PCollection<string>): beam.PCollection<beam.KV<string, number>> {
+=======
+class WordCount extends beam.PTransform<beam.PCollection<string>, beam.PCollection<KV<string, number>>> {
+    expand(lines: beam.PCollection<string>) {
+>>>>>>> 238113b278d42e19aa5c665c96c4a8a0dc35afb0
         return lines
             .map((s) => s.toLowerCase())
             .flatMap(function*(line) {
