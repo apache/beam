@@ -3,7 +3,7 @@ import * as translations from '../internal/translations'
 
 import { Writer, Reader } from 'protobufjs';
 import { Coder, Context, CODER_REGISTRY } from "./coders";
-import {KV, BoundedWindow, IntervalWindow, PaneInfo, PipelineContext, WindowedValue, Instant} from '../base';
+import { KV, BoundedWindow, IntervalWindow, PaneInfo, PipelineContext, WindowedValue, Instant } from '../base';
 import Long from "long";
 
 export class BytesCoder implements Coder<Uint8Array> {
@@ -230,9 +230,9 @@ export class WindowedValueCoder<T, W> implements Coder<WindowedValue<T>> {
         reader.skip(1);     // Pane.
         return {
             value: this.elementCoder.decode(reader, context),
-            windows: <Array<BoundedWindow>> <unknown> undefined,
-            pane: <PaneInfo> <unknown> undefined,
-            timestamp: <Instant> <unknown> undefined
+            windows: <Array<BoundedWindow>><unknown>undefined,
+            pane: <PaneInfo><unknown>undefined,
+            timestamp: <Instant><unknown>undefined
         };
     }
 }
@@ -269,7 +269,7 @@ export class InstantCoder implements Coder<Instant> {
     static INSTANCE: InstantCoder = new InstantCoder();
 
     decode(reader: Reader, context: Context): Instant {
-        const shiftedMillis = Long.fromBytesBE(Array.from(reader.buf.slice(reader.pos, reader.pos+8)));
+        const shiftedMillis = Long.fromBytesBE(Array.from(reader.buf.slice(reader.pos, reader.pos + 8)));
         return shiftedMillis.add(Long.MIN_VALUE)
     }
 
@@ -280,7 +280,7 @@ export class InstantCoder implements Coder<Instant> {
     }
 
     toProto(pipelineContext: PipelineContext): runnerApi.Coder {
-        return <runnerApi.Coder> <unknown> undefined;
+        return <runnerApi.Coder><unknown>undefined;
     }
 }
 

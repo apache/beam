@@ -56,7 +56,6 @@ export class Worker {
     async process(request) {
         const descriptorId = request.request.processBundle.processBundleDescriptorId;
         if (!this.processBundleDescriptors.has(descriptorId)) {
-            console.log("Looking up", descriptorId)
             const call = this.controlClient.getProcessBundleDescriptor({
                 processBundleDescriptorId: descriptorId,
             }, (err, value: ProcessBundleDescriptor) => {
@@ -77,20 +76,29 @@ export class Worker {
         }
 
         const processor = this.aquireBundleProcessor(descriptorId);
-        await processor.process(request.instructionId);
-        this.respond({
-            instructionId: request.instructionId,
-            error: "",
-            response: {
-                oneofKind: "processBundle",
-                processBundle: {
-                    residualRoots: [],
-                    monitoringInfos: [],
-                    requiresFinalization: false,
-                    monitoringData: {},
-                },
-            }
-        })
+        try {
+            await processor.process(request.instructionId);
+            await this.respond({
+                instructionId: request.instructionId,
+                error: "",
+                response: {
+                    oneofKind: "processBundle",
+                    processBundle: {
+                        residualRoots: [],
+                        monitoringInfos: [],
+                        requiresFinalization: false,
+                        monitoringData: {},
+                    },
+                }
+            })
+        } catch (error) {
+            console.error("PROCESS ERROR", error)
+            await this.respond({
+                instructionId: request.instructionId,
+                error: "" + error,
+                response: undefined!,
+            })
+        }
         this.returnBundleProcessor(processor);
     }
 
@@ -139,9 +147,6 @@ export class BundleProcessor {
         root_urns = ["beam:runner:source:v1"]) {
         this.descriptor = descriptor;
         this.getDataChannel = getDataChannel;
-
-        console.dir(this.descriptor, { depth: null });
-
 
         // TODO: Consider defering this possibly expensive deserialization lazily to the worker thread.
         const this_ = this;

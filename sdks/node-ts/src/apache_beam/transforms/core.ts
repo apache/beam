@@ -6,10 +6,10 @@ import { BytesCoder, KVCoder } from "../coders/standard_coders";
 import { GroupByKey } from '../base'
 import { GeneralObjectCoder } from "../coders/js_coders";
 
-export class Create extends PTransform<Root, PCollection<any>> {
-    elements: any[];
+export class Create<T> extends PTransform<Root, PCollection<T>> {
+    elements: T[];
 
-    constructor(elements: any[]) {
+    constructor(elements: T[]) {
         super("Create");
         this.elements = elements;
     }
