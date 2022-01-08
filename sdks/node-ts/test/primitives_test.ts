@@ -4,8 +4,13 @@ import { BytesCoder, IterableCoder, KVCoder } from '../src/apache_beam/coders/st
 import { GroupBy } from '../src/apache_beam/transforms/core'
 import { GeneralObjectCoder } from '../src/apache_beam/coders/js_coders';
 
+import { DirectRunner } from '../src/apache_beam/runners/direct_runner'
+import * as testing from '../src/apache_beam/testing/assert';
+
+
 describe("primitives module", function() {
     describe("runs a basic impulse expansion", function() {
+        // TODO: test output with direct runner.
         it("runs a basic Impulse expansion", function() {
             var p = new beam.Pipeline();
             var res = p.apply(new beam.Impulse());
@@ -32,6 +37,16 @@ describe("primitives module", function() {
 
             const coder = p.getCoder(res.proto.coderId);
             assert.deepEqual(coder, new KVCoder(new GeneralObjectCoder(), new IterableCoder(new GeneralObjectCoder())));
+        });
+        it("runs a Splitter", async function() {
+        await new DirectRunner().run(
+            (root) => {
+                const pcolls = root
+                    .apply(new beam.Create(['apple', 'apricot', 'banana']))
+                    .apply(new beam.Split(e => e[0], 'a', 'b'));
+                pcolls.a.apply(new testing.AssertDeepEqual(['apple', 'apricot']));
+                pcolls.b.apply(new testing.AssertDeepEqual(['banana']));
+            })
         });
     });
 });
