@@ -19,17 +19,17 @@ class CountElements extends beam.PTransform<beam.PCollection<any>, beam.PCollect
 }
 
 function wordCount(lines: beam.PCollection<string>): beam.PCollection<beam.KV<string, number>> {
-        return lines
-            .map((s) => s.toLowerCase())
-            .flatMap(function*(line) {
-                yield* line.split(/[^a-z]+/);
-            })
-            .apply(new CountElements("Count"));
+    return lines
+        .map((s) => s.toLowerCase())
+        .flatMap(function*(line) {
+            yield* line.split(/[^a-z]+/);
+        })
+        .apply(new CountElements("Count"));
 }
 
 describe("wordcount", function() {
     it("wordcount", async function() {
-//         await new NodeRunner(new RemoteJobServiceClient('localhost:3333')).run(
+        //         await new NodeRunner(new RemoteJobServiceClient('localhost:3333')).run(
         await new DirectRunner().run(
             (root) => {
                 const lines = root.apply(new beam.Create([

@@ -33,8 +33,8 @@ class NodeRunnerPipelineResult implements PipelineResult {
     async getState() {
         const state = await this.runner.getJobState(this.jobId);
         if (this.workers != undefined && NodeRunnerPipelineResult.isTerminal(state.state)) {
-              this.workers.stop()
-              this.workers = undefined;
+            this.workers.stop()
+            this.workers = undefined;
         }
         return state;
     }
