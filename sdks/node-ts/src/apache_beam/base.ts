@@ -5,9 +5,10 @@ import { BytesCoder, IterableCoder, KVCoder } from './coders/standard_coders';
 import * as translations from './internal/translations'
 import * as environments from './internal/environments'
 import { GeneralObjectCoder } from './coders/js_coders';
-import { JobState, JobState_Enum } from './proto/beam_job_api';
+import { JobState_Enum } from './proto/beam_job_api';
 
 import * as datefns from 'date-fns'
+import { PipelineOptions } from './options/pipeline_options';
 
 // TODO(pabloem): Use something better, hah.
 var _pcollection_counter = -1;
@@ -37,10 +38,10 @@ export class Runner {
      * @param pipeline
      * @returns A PipelineResult
      */
-    async run(pipeline: ((root: Root) => PValue<any>)): Promise<PipelineResult> {
+    async run(pipeline: ((root: Root) => PValue<any>), options?: PipelineOptions): Promise<PipelineResult> {
         const p = new Pipeline();
         pipeline(new Root(p));
-        const pipelineResult = await this.runPipeline(p);
+        const pipelineResult = await this.runPipeline(p, options);
         await pipelineResult.waitUntilFinish();
         return pipelineResult;
     }
@@ -50,13 +51,13 @@ export class Runner {
      * pipeline finishes. Use the returned PipelineResult to query job
      * status.
      */
-    async runAsync(pipeline: ((root: Root) => PValue<any>)): Promise<PipelineResult> {
+    async runAsync(pipeline: ((root: Root) => PValue<any>), options?: PipelineOptions): Promise<PipelineResult> {
         const p = new Pipeline();
         pipeline(new Root(p));
         return this.runPipeline(p);
     }
 
-    protected async runPipeline(pipeline: Pipeline): Promise<PipelineResult> {
+    protected async runPipeline(pipeline: Pipeline, options?: PipelineOptions): Promise<PipelineResult> {
         throw new Error("Not implemented.");
     }
 }
