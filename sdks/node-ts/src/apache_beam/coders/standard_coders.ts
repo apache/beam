@@ -3,9 +3,9 @@ import * as translations from '../internal/translations'
 
 import { Writer, Reader } from 'protobufjs';
 import { Coder, Context, CODER_REGISTRY } from "./coders";
-import { KV, BoundedWindow, IntervalWindow, PaneInfo, PipelineContext, WindowedValue, Instant } from '../base';
+import { PipelineContext } from '../base';
 import Long from "long";
-import * as util from "util";
+import { BoundedWindow, Instant, IntervalWindow, KV, PaneInfo, WindowedValue } from "../values";
 
 export class BytesCoder implements Coder<Uint8Array> {
     static URN: string = "beam:coder:bytes:v1";

@@ -1,10 +1,11 @@
-import { PTransform, PCollection, Impulse, Root, KV } from "../base";
+import { PTransform, PCollection, Impulse, Root } from "../base";
 import * as translations from '../internal/translations';
 import * as runnerApi from '../proto/beam_runner_api';
 import { BytesCoder, KVCoder } from "../coders/standard_coders";
 
 import { GroupByKey } from '../base'
 import { GeneralObjectCoder } from "../coders/js_coders";
+import { KV } from "../values";
 
 export class Create extends PTransform<Root, PCollection<any>> {
     elements: any[];

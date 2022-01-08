@@ -1,13 +1,13 @@
 import { Coder, CODER_REGISTRY, Context } from "../src/apache_beam/coders/coders";
 import { GlobalWindow } from "../src/apache_beam/coders/standard_coders";
 import { Writer, Reader } from 'protobufjs';
-import { IntervalWindow, KV } from "../src/apache_beam/base"
 import Long from "long";
 
 import assertions = require('assert');
 import yaml = require('js-yaml');
 import fs = require('fs');
 import util = require('util');
+import { IntervalWindow, KV } from "../src/apache_beam/values";
 
 const STANDARD_CODERS_FILE = '../../model/fn-execution/src/main/resources/org/apache/beam/model/fnexecution/v1/standard_coders.yaml';
 
