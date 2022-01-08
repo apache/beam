@@ -160,7 +160,7 @@ dependencies {
   implementation project(path: ":model:fn-execution", configuration: "shadow")
   implementation project(path: ":model:job-management", configuration: "shadow")
   implementation project(":sdks:java:fn-execution")
-  implementation library.java.vendored_grpc_1_36_0
+  implementation library.java.vendored_grpc_1_43_2
   implementation library.java.vendored_guava_26_0_jre
   implementation "com.codahale.metrics:metrics-core:3.0.1"
   implementation "org.apache.spark:spark-core_$spark_scala_version:$spark_version"
