@@ -4,51 +4,9 @@ import * as translations from '../internal/translations'
 import { Writer, Reader } from 'protobufjs';
 import { Coder, Context, CODER_REGISTRY } from "./coders";
 
-import { Schema, Field } from '../proto/schema';
+import { Schema, Field, FieldType, AtomicType } from '../proto/schema';
 import { PipelineContext } from '..';
-
-
-
-// class Row {
-
-
-//     constructor(row: any) {
-//         Object.entries(row).forEach(([key, value]) => {
-//             let kind  = this.getTypeOf(value);
-
-//             switch (kind){
-//                 case "object": 
-//                     if(Array.isArray(value)){
-//                         kind = "array";
-//                     }
-//                     break;
-//                 case "string":
-//                     break;
-//                 case "number":
-//                     if(Number.isInteger(value)){
-
-//                     } else {
-
-//                     }
-//                     break;
-//                 case "boolean":
-//             }
-// 'string': new StrUtf8Coder(),
-// 'number': new DoubleCoder(),  // TODO(pabloem): What about integers? Do we represent always as doubles?
-// 'object': new BsonObjectCoder(),
-// 'boolean': new BoolCoder()
-
-//             console.log(`${key} ${kind}`);
-//         });    
-//     }
-
-//     getTypeOf(value: any): string {
-//         return typeof value
-//     }
-// }
-
-
-// Row({x: 10, y:10});
+import { BoolCoder, BytesCoder, IterableCoder, StrUtf8Coder, VarIntCoder } from './standard_coders';
 
 const argsort = x => x.map((v, i) => [v, i]).sort().map(y => y[1]);
 
@@ -59,20 +17,95 @@ export class RowCoder implements Coder<any> {
     private nFields: number;
     private fieldNames: string[];
     private fieldNullable: (boolean | undefined)[];
-    private encodingPositionsAreTrivial: boolean;
+    private encodingPositionsAreTrivial: boolean = true;
     private encodingPositions: number[];
     private encodingPositionsArgsSorted: number[];
 
     private hasNullableFields: boolean;
     private components: Coder<any>[];
 
-    getNonNullCoderFromType(f: Field): any { }
+    addFieldOfType(obj:any, f: Field, value:any): any {
+        if(f.type !== undefined)
+        {
+            let typeInfo = f.type?.typeInfo;
+            switch (typeInfo.oneofKind) {
+                case "atomicType":
+                    obj[f.name] = value;
+                    break;
+                case "arrayType":
+                    obj[f.name] = Array.from(value);
+                    break;
+                // case "iterableType":
+                // case "mapType":
+                case "rowType":
+                    if (typeInfo.rowType.schema !== undefined) {
+                        obj[f.name] = value;
+                    } else {
+                        throw new Error("Schema missing on RowType");
+                    }
+                    break;
+                // case "logicalType":
+                default:
+                    throw new Error(`Encountered a type that is not currently supported by RowCoder: ${f.type}`);
+            }
+            return obj;
+        }
+    }
+
+    getNonNullCoderFromType(t: FieldType): any {
+        let typeInfo = t.typeInfo;
+
+        switch (typeInfo.oneofKind) {
+            case "atomicType":
+                let atomicType: AtomicType = typeInfo.atomicType;
+                switch (atomicType) {
+                    case AtomicType.INT16:
+                    case AtomicType.INT32:
+                    case AtomicType.INT64:
+                        return new VarIntCoder();
+                    // case AtomicType.BYTE:
+                    case AtomicType.BYTES:
+                        return new BytesCoder();
+                    // case AtomicType.FLOAT:
+                    // case AtomicType.DOUBLE:
+                    case AtomicType.STRING:
+                        return new StrUtf8Coder();
+                    case AtomicType.BOOLEAN:
+                        return new BoolCoder();
+                    default:
+                        throw new Error(`Encountered an Atomic type that is not currently supported by RowCoder: ${atomicType}`);
+                }
+                break;
+            case "arrayType":
+                if (typeInfo.arrayType.elementType !== undefined) {
+                    return new IterableCoder(
+                        this.getNonNullCoderFromType(
+                            typeInfo.arrayType.elementType
+                        )
+                    )
+                } else {
+                    throw new Error("ElementType missing on ArrayType");
+                }
+            // case "iterableType":
+            // case "mapType":
+            case "rowType":
+                if (typeInfo.rowType.schema !== undefined) {
+                    return RowCoder.OfSchema(typeInfo.rowType.schema);
+                } else {
+                    throw new Error("Schema missing on RowType");
+                }
+                break;
+            // case "logicalType":
+            default:
+                throw new Error(`Encountered a type that is not currently supported by RowCoder: ${t}`);
+        }
+    }
 
     static OfSchema(schema: Schema): RowCoder {
         return new RowCoder(schema);
     }
 
-    private constructor(schema: Schema) {
+    constructor(schema: Schema) {
         this.schema = schema;
         this.nFields = this.schema.fields.length;
         this.fieldNames = this.schema.fields.map((f: Field) => f.name);
@@ -87,7 +120,7 @@ export class RowCoder implements Coder<any> {
                 throw new Error(`Schema with id ${this.schema.id} has encoding_positions_set=True, but not all fields have encoding_position set`);
             }
             // Checking if positions are in {0, ..., length-1}
-            this.encodingPositionsAreTrivial = encPosx == this.encodingPositions;
+            this.encodingPositionsAreTrivial = encPosx === this.encodingPositions;
             this.encodingPositions = encPosx;
             this.encodingPositionsArgsSorted = argsort(encPosx);
         }
@@ -95,7 +128,11 @@ export class RowCoder implements Coder<any> {
         this.hasNullableFields = this.schema.fields.some((f: Field) => f.type?.nullable);
         this.components = this.encodingPositions
             .map(i => this.schema.fields[i])
-            .map((f: Field) => this.getNonNullCoderFromType(f));
+            .map((f: Field) => {
+                if(f.type !== undefined) {
+                    return this.getNonNullCoderFromType(f.type);
+                }
+            });
     }
 
     encode(element: any, writer: Writer, context: Context) {
@@ -116,31 +153,32 @@ export class RowCoder implements Coder<any> {
         //     [NULL, 0, 0, 0, NULL, 0, 0, NULL, 0, NULL] would be
         //     [0b10010001, 0b00000010]
         let attrs = this.fieldNames.map(name => element[name]);
+
+        let bytesCoder = new BytesCoder();
+
+        let nullFields: number[] = [];
+
+        
         if (this.hasNullableFields) {
             if (attrs.some(attr => attr == undefined)) {
-                writer.int32(Math.floor((this.nFields + 7) / 8));
-                // Pack the bits, little - endian, in consecutive bytes.
                 let running = 0;
                 attrs.forEach(
                     (attr, i) => {
                         if (i && i % 8 == 0) {
-                            writer.bytes(running.toString());
+                            nullFields.push(running);
                             running = 0;
-                            running |= (attr == undefined ? 1 : 0) << (i % 8);
                         }
+                        running |= (attr == undefined ? 1 : 0) << (i % 8);
                     })
-                writer.bytes(running.toString());
-            } else {
-                // bytesIntCoder.encode(new Uint8Array(), writer, context)
-                writer.bytes("0");
-            }
-        } else {
-            // bytesIntCoder.encode(new Uint8Array(), writer, context);
-            writer.bytes("0");
-        }
+                nullFields.push(running);
+            } 
+        } 
+
+        writer.bytes(new Uint8Array(nullFields));
 
         // An encoding for each non-null field, concatenated together.
         let positions = this.encodingPositionsAreTrivial ? this.encodingPositions : this.encodingPositionsArgsSorted;
+
         positions.forEach(
             (i) => {
                 let attr = attrs[i];
@@ -148,9 +186,9 @@ export class RowCoder implements Coder<any> {
                     if (!this.fieldNullable[i]) {
                         throw new Error(`Attempted to encode null for non-nullable field \"${this.schema.fields[i].name}\".`);
                     }
-                    continue;
+                } else {
+                    this.components[i].encode(attr, writer, Context.needsDelimiters);
                 }
-                this.components[i].encode(attr, writer, Context.needsDelimiters);
             })
     }
 
@@ -198,10 +236,14 @@ export class RowCoder implements Coder<any> {
             sortedComponents.push(undefined);
         }
 
-        /* Need to implement */
-        // return self.constructor(
-        //     *(sorted_components if self.encoding_positions_are_trivial else
-        //         [sorted_components[i] for i in self.encoding_positions]))
+        let obj:any = {};
+        positions.forEach(
+            (i) => {
+                obj = this.addFieldOfType(obj, this.schema.fields[i], sortedComponents[i])
+            }
+        );
+      
+        return obj;
     }
 
 
@@ -215,63 +257,4 @@ export class RowCoder implements Coder<any> {
         };
     }
 }
-
-
-
-/*
-schema = schema_pb2.Schema(
-        id="person",
-        fields=[
-            schema_pb2.Field(
-                name="name",
-                type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING)),
-            schema_pb2.Field(
-                name="age",
-                type=schema_pb2.FieldType(atomic_type=schema_pb2.INT32)),
-            schema_pb2.Field(
-                name="address",
-                type=schema_pb2.FieldType(
-                    atomic_type=schema_pb2.STRING, nullable=True)),
-            schema_pb2.Field(
-                name="aliases",
-                type=schema_pb2.FieldType(
-                    array_type=schema_pb2.ArrayType(
-                        element_type=schema_pb2.FieldType(
-                            atomic_type=schema_pb2.STRING)))),
-            schema_pb2.Field(
-                name="knows_javascript",
-                type=schema_pb2.FieldType(atomic_type=schema_pb2.BOOLEAN)),
-            schema_pb2.Field(
-                name="payload",
-                type=schema_pb2.FieldType(
-                    atomic_type=schema_pb2.BYTES, nullable=True)),
-            schema_pb2.Field(
-                name="custom_metadata",
-                type=schema_pb2.FieldType(
-                    map_type=schema_pb2.MapType(
-                        key_type=schema_pb2.FieldType(
-                            atomic_type=schema_pb2.STRING),
-                        value_type=schema_pb2.FieldType(
-                            atomic_type=schema_pb2.int32),
-                    ))),
-            schema_pb2.Field(
-                name="favorite_time",
-                type=schema_pb2.FieldType(
-                    logical_type=schema_pb2.LogicalType(
-                        urn="beam:logical_type:micros_instant:v1",
-                        representation=schema_pb2.FieldType(
-                            row_type=schema_pb2.RowType(
-                                schema=schema_pb2.Schema(
-                                    id="micros_instant",
-                                    fields=[
-                                        schema_pb2.Field(
-                                            name="seconds",
-                                            type=schema_pb2.FieldType(
-                                                atomic_type=schema_pb2.int32)),
-                                        schema_pb2.Field(
-                                            name="micros",
-                                            type=schema_pb2.FieldType(
-                                                atomic_type=schema_pb2.int32)),
-                                    ])))))),
-        ])
-*/
+CODER_REGISTRY.register(RowCoder.URN, RowCoder);
