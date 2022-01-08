@@ -7,12 +7,8 @@ import * as translations from './internal/translations'
 import * as environments from './internal/environments'
 import { GeneralObjectCoder } from './coders/js_coders';
 import { JobState_Enum } from './proto/beam_job_api';
-<<<<<<< HEAD
 import equal from 'fast-deep-equal'
 
-import * as datefns from 'date-fns'
-=======
->>>>>>> 238113b278d42e19aa5c665c96c4a8a0dc35afb0
 import { PipelineOptions } from './options/pipeline_options';
 import { KV } from "./values";
 
