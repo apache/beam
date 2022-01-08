@@ -6,9 +6,9 @@ import { ProcessBundleDescriptor, RemoteGrpcPort } from "../proto/beam_fn_api";
 import { MultiplexingDataChannel, IDataChannel } from "./data"
 
 import * as base from "../base"
-import { BoundedWindow, Instant, PaneInfo, WindowedValue } from "../base"
 import * as translations from '../internal/translations'
 import { Coder, Context as CoderContext } from "../coders/coders"
+import { BoundedWindow, Instant, PaneInfo, WindowedValue } from "../values";
 
 
 export interface IOperator {
