@@ -28,7 +28,6 @@ type CoderSpec = {
 // TODO(pabloem): Empty this list.
 const UNSUPPORTED_CODERS = [
     "beam:coder:timer:v1",
-    "beam:coder:windowed_value:v1",
     "beam:coder:param_windowed_value:v1",
     "beam:coder:row:v1",
     "beam:coder:sharded_key:v1",

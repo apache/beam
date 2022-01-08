@@ -12,6 +12,10 @@ function writeBytes(val, buf, pos) {
     }
 }
 
+function writeByte(val, buf, pos) {
+    buf[pos] = val & 0xff;
+}
+
 export class BytesCoder implements Coder<Uint8Array> {
     static URN: string = "beam:coder:bytes:v1";
     static INSTANCE: BytesCoder = new BytesCoder();
@@ -371,11 +375,11 @@ export class PaneInfoCoder implements Coder<PaneInfo> {
         // low 4 bits are used regardless of encoding
         const low4 = ((value.isFirst ? 0b000000001 : 0)
             | (value.isLast ? 0b00000010 : 0)
-            | (PaneInfoCoder.encodeTiming(value.timing)));
+            | (PaneInfoCoder.encodeTiming(value.timing) << 2));
 
         const encodingNibble: PaneInfoEncoding = PaneInfoCoder.chooseEncoding(value)
         var hackedWriter = <any>writer;
-        hackedWriter._push(writeBytes, 1, low4 | (encodingNibble << 4));
+        hackedWriter._push(writeByte, 1, low4 | (encodingNibble << 4));
 
         switch (encodingNibble) {
             case PaneInfoEncoding.NO_INDEX:
