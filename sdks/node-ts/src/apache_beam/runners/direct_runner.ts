@@ -1,14 +1,17 @@
 import { PTransform, PCollection } from "../proto/beam_runner_api";
 import { ProcessBundleDescriptor } from "../proto/beam_fn_api";
+import { JobState_Enum } from "../proto/beam_job_api";
 
-import { Runner, Pipeline, Root, Impulse, GroupByKey } from '../base'
+import { Runner, Pipeline, Root, Impulse, GroupByKey, PaneInfo, BoundedWindow, PipelineResult, Instant } from '../base'
 import * as worker from '../worker/worker';
 import * as operators from '../worker/operators';
 import { WindowedValue } from '../base';
 
 
+
+
 export class DirectRunner extends Runner {
-    async runPipeline(p) {
+    async runPipeline(p): Promise<PipelineResult> {
         const descriptor: ProcessBundleDescriptor = {
             id: "",
             transforms: p.proto.components!.transforms,
@@ -21,7 +24,7 @@ export class DirectRunner extends Runner {
         const processor = new worker.BundleProcessor(descriptor, null!, [Impulse.urn]);
         await processor.process("bundle_id", 0);
 
-        return {}
+        return { waitUntilFinish: (duration?: number) => Promise.resolve(JobState_Enum.DONE) };
     }
 }
 
@@ -34,10 +37,15 @@ class DirectImpulseOperator implements operators.IOperator {
         this.receiver = context.getReceiver(onlyElement(Object.values(transform.outputs)));
     }
 
-    process(wvalue: WindowedValue) { }
+    process(wvalue: WindowedValue<any>) { }
 
     startBundle() {
-        this.receiver.receive({ value: '' });
+        this.receiver.receive({
+            value: '',
+            windows: <Array<BoundedWindow>><unknown>undefined,
+            pane: <PaneInfo><unknown>undefined,
+            timestamp: <Instant><unknown>undefined
+        });
     }
 
     finishBundle() { }
@@ -55,7 +63,7 @@ class DirectGbkOperator implements operators.IOperator {
         this.receiver = context.getReceiver(onlyElement(Object.values(transform.outputs)));
     }
 
-    process(wvalue: WindowedValue) {
+    process(wvalue: WindowedValue<any>) {
         if (!this.groups.has(wvalue.value.key)) {
             this.groups.set(wvalue.value.key, []);
         }
@@ -69,7 +77,12 @@ class DirectGbkOperator implements operators.IOperator {
     finishBundle() {
         const this_ = this;
         this.groups.forEach((values, key, _) => {
-            this_.receiver.receive({ value: { key: key, value: values } });
+            this_.receiver.receive({
+                value: { key: key, value: values },
+                windows: <Array<BoundedWindow>><unknown>undefined,
+                timestamp: <Instant><unknown>undefined,
+                pane: <PaneInfo><unknown>undefined
+            });
         });
         this.groups = null!;
     }

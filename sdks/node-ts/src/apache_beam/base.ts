@@ -2,11 +2,13 @@ import * as runnerApi from './proto/beam_runner_api';
 import * as fnApi from './proto/beam_fn_api';
 import { Coder, CODER_REGISTRY } from './coders/coders'
 import { BytesCoder, IterableCoder, KVCoder } from './coders/standard_coders';
-import * as util from 'util';
 import * as translations from './internal/translations'
 import * as environments from './internal/environments'
 import { GeneralObjectCoder } from './coders/js_coders';
+import { JobState_Enum } from './proto/beam_job_api';
 
+import * as datefns from 'date-fns'
+import { PipelineOptions } from './options/pipeline_options';
 
 // TODO(pabloem): Use something better, hah.
 var _pcollection_counter = -1;
@@ -22,23 +24,50 @@ export function transformName() {
     return 'transformId(' + _transform_counter + ')';
 }
 
-interface PipelineResult { }
+export interface PipelineResult {
+    waitUntilFinish(duration?: number): Promise<JobState_Enum>;
+}
 
 export class Runner {
-    async run(pipeline: ((Root) => PValue)): Promise<PipelineResult> {
+    /**
+     * Runs the transform.
+     *
+     * Resolves to an instance of PipelineResult when the pipeline completes.
+     * Use runAsync() to execute the pipeline in the background.
+     *
+     * @param pipeline
+     * @returns A PipelineResult
+     */
+    async run(pipeline: ((root: Root) => PValue<any>), options?: PipelineOptions): Promise<PipelineResult> {
+        const p = new Pipeline();
+        pipeline(new Root(p));
+        const pipelineResult = await this.runPipeline(p, options);
+        await pipelineResult.waitUntilFinish();
+        return pipelineResult;
+    }
+
+    /**
+     * runAsync() is the asynchronous version of run(), does not wait until
+     * pipeline finishes. Use the returned PipelineResult to query job
+     * status.
+     */
+    async runAsync(pipeline: ((root: Root) => PValue<any>), options?: PipelineOptions): Promise<PipelineResult> {
         const p = new Pipeline();
         pipeline(new Root(p));
         return this.runPipeline(p);
     }
-    async runPipeline(pipeline: Pipeline): Promise<PipelineResult> {
+
+    protected async runPipeline(pipeline: Pipeline, options?: PipelineOptions): Promise<PipelineResult> {
         throw new Error("Not implemented.");
     }
 }
 
 export class ProtoPrintingRunner extends Runner {
-    async runPipeline(pipeline) {
+    async runPipeline(pipeline): Promise<PipelineResult> {
         console.dir(pipeline.proto, { depth: null });
-        return {}
+        return {
+            waitUntilFinish: (duration?) => Promise.reject('not implemented'),
+        };
     }
 }
 
@@ -93,11 +122,11 @@ export class Pipeline {
     }
 
     // TODO: Remove once test are fixed.
-    apply<OutputT extends PValue>(transform: PTransform<Root, OutputT>): OutputT {
+    apply<OutputT extends PValue<any>>(transform: PTransform<Root, OutputT>): OutputT {
         return new Root(this).apply(transform);
     }
 
-    apply2<InputT extends PValue, OutputT extends PValue>(transform: PTransform<InputT, OutputT>, PValue: InputT, name: string) {
+    apply2<InputT extends PValue<any>, OutputT extends PValue<any>>(transform: PTransform<InputT, OutputT>, PValue: InputT, name: string) {
 
         function objectMap(obj, func) {
             return Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, func(v)]));
@@ -158,7 +187,7 @@ export class Pipeline {
     }
 }
 
-export class PCollection {
+export class PCollection<T> {
     type: string = "pcollection";
     id: string;
     proto: runnerApi.PCollection;
@@ -170,21 +199,20 @@ export class PCollection {
         this.id = id;
     }
 
-    apply<OutputT extends PValue>(transform: PTransform<PCollection, OutputT> | ((PCollection) => OutputT)) {
+    apply<OutputT extends PValue<any>>(transform: PTransform<PCollection<T>, OutputT> | ((PCollection) => OutputT)) {
         if (!(transform instanceof PTransform)) {
             transform = new PTransformFromCallable(transform, "" + transform);
         }
         return this.pipeline.apply2(transform, this, "");
     }
 
-    map(fn: (any) => any): PCollection {
+    map<OutputT>(fn: (T) => OutputT): PCollection<OutputT> {
         // TODO(robertwb): Should PTransforms have generics?
-        return this.apply(new ParDo(new MapDoFn(fn))) as PCollection;
+        return this.apply(new ParDo(new MapDoFn(fn))) as PCollection<any>;
     }
 
-    flatMap(fn: (any) => Generator<any, void, void>): PCollection {
-        // TODO(robertwb): Should PTransforms have generics?
-        return this.apply(new ParDo(new FlatMapDoFn(fn))) as PCollection;
+    flatMap<OutputT>(fn: (T) => Generator<OutputT>): PCollection<OutputT> {
+        return this.apply(new ParDo(new FlatMapDoFn(fn))) as PCollection<OutputT>;
     }
 
     root(): Root {
@@ -203,7 +231,7 @@ export class Root {
         this.pipeline = pipeline;
     }
 
-    apply<OutputT extends PValue>(transform: PTransform<Root, OutputT> | ((Root) => OutputT)) {
+    apply<OutputT extends PValue<any>>(transform: PTransform<Root, OutputT> | ((Root) => OutputT)) {
         if (!(transform instanceof PTransform)) {
             transform = new PTransformFromCallable(transform, "" + transform);
         }
@@ -211,10 +239,10 @@ export class Root {
     }
 }
 
-type PValue = void | Root | PCollection | PValue[] | { [key: string]: PValue };
+export type PValue<T> = void | Root | PCollection<T> | PValue<T>[] | { [key: string]: PValue<T> };
 
-function flattenPValue(PValue: PValue, prefix: string = ""): { [key: string]: PCollection } {
-    const result: { [key: string]: PCollection } = {}
+function flattenPValue<T>(PValue: PValue<T>, prefix: string = ""): { [key: string]: PCollection<T> } {
+    const result: { [key: string]: PCollection<any> } = {}
     if (PValue == null) {
         // pass
     } else if (PValue instanceof Root) {
@@ -242,9 +270,9 @@ function flattenPValue(PValue: PValue, prefix: string = ""): { [key: string]: PC
     return result;
 }
 
-class PValueWrapper<T extends PValue> {
+class PValueWrapper<T extends PValue<any>> {
     constructor(private pvalue: T) { }
-    apply<O extends PValue>(transform: PTransform<T, O>, root: Root | null = null) {
+    apply<O extends PValue<any>>(transform: PTransform<T, O>, root: Root | null = null) {
         let pipeline: Pipeline;
         if (root == null) {
             const flat = flattenPValue(this.pvalue);
@@ -256,11 +284,11 @@ class PValueWrapper<T extends PValue> {
     }
 }
 
-export function P<T extends PValue>(pvalue: T) {
+export function P<T extends PValue<any>>(pvalue: T) {
     return new PValueWrapper(pvalue);
 }
 
-export class PTransform<InputT extends PValue, OutputT extends PValue> {
+export class PTransform<InputT extends PValue<any>, OutputT extends PValue<any>> {
     name: string;
 
     constructor(name: string | null = null) {
@@ -276,7 +304,7 @@ export class PTransform<InputT extends PValue, OutputT extends PValue> {
     }
 }
 
-class PTransformFromCallable<InputT extends PValue, OutputT extends PValue> extends PTransform<InputT, OutputT> {
+class PTransformFromCallable<InputT extends PValue<any>, OutputT extends PValue<any>> extends PTransform<InputT, OutputT> {
     name: string;
     expander: (InputT) => OutputT;
 
@@ -290,8 +318,15 @@ class PTransformFromCallable<InputT extends PValue, OutputT extends PValue> exte
     }
 }
 
-export class DoFn {
-    *process(element: any): Generator<any, void, undefined> {
+interface CombineFn<I, A, O> {
+    createAccumulator: () => A;
+    addInput: (A, I) => A;
+    mergeAccumulators: (accumulators: A[]) => A;
+    extractOutput: (A) => O;
+}
+
+export class DoFn<InputT, OutputT> {
+    *process(element: InputT): Generator<OutputT> {
         throw new Error('Method process has not been implemented!');
     }
 
@@ -304,7 +339,7 @@ export interface GenericCallable {
     (input: any): any
 }
 
-export class Impulse extends PTransform<Root, PCollection> {
+export class Impulse extends PTransform<Root, PCollection<Uint8Array>> {
     // static urn: string = runnerApi.StandardPTransforms_Primitives.IMPULSE.urn;
     // TODO: use above line, not below line.
     static urn: string = "beam:transform:impulse:v1";
@@ -313,7 +348,7 @@ export class Impulse extends PTransform<Root, PCollection> {
         super("Impulse");  // TODO: pass null/nothing and get from reflection
     }
 
-    expandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, input: PValue) {
+    expandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, input: Root): PCollection<Uint8Array> {
         transformProto.spec = runnerApi.FunctionSpec.create({
             'urn': Impulse.urn,
             'payload': translations.IMPULSE_BUFFER
@@ -322,17 +357,17 @@ export class Impulse extends PTransform<Root, PCollection> {
     }
 }
 
-export class ParDo extends PTransform<PCollection, PCollection> {
-    private doFn: DoFn;
+export class ParDo<InputT, OutputT> extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
+    private doFn: DoFn<InputT, OutputT>;
     // static urn: string = runnerApi.StandardPTransforms_Primitives.PAR_DO.urn;
     // TODO: use above line, not below line.
     static urn: string = "beam:transform:pardo:v1";
-    constructor(doFn: DoFn) {
+    constructor(doFn: DoFn<InputT, OutputT>) {
         super("ParDo(" + doFn + ")");
         this.doFn = doFn;
     }
 
-    expandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, input: PCollection) {
+    expandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, input: PCollection<InputT>) {
         // Might not be needed due to generics.
         if (!(input instanceof PCollection)) {
             throw new Error('ParDo received the wrong input.');
@@ -355,36 +390,40 @@ export class ParDo extends PTransform<PCollection, PCollection> {
     }
 }
 
-class MapDoFn extends DoFn {
-    private fn: (any) => any;
-    constructor(fn: (any) => any) {
+class MapDoFn<InputT, OutputT> extends DoFn<InputT, OutputT> {
+    private fn: (InputT) => OutputT;
+    constructor(fn: (InputT) => OutputT) {
         super();
         this.fn = fn;
     }
-    *process(element: any) {
+    *process(element: InputT) {
         yield this.fn(element);
     }
 }
 
-class FlatMapDoFn extends DoFn {
+class FlatMapDoFn<InputT, OutputT> extends DoFn<InputT, OutputT> {
     private fn;
-    constructor(fn: (any) => Generator<any, void, void>) {
+    constructor(fn: (InputT) => Generator<OutputT>) {
         super();
         this.fn = fn;
     }
-    *process(element: any) {
+    *process(element: InputT) {
         yield* this.fn(element);
     }
 }
 
+export type KV<K, V> = {
+    key: K,
+    value: V
+}
 
 // TODO(pabloem): Consider not exporting the GBK
-export class GroupByKey extends PTransform<PCollection, PCollection> {
+export class GroupByKey<K, V> extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>> {
     // static urn: string = runnerApi.StandardPTransforms_Primitives.GROUP_BY_KEY.urn;
     // TODO: use above line, not below line.
     static urn: string = "beam:transform:group_by_key:v1";
 
-    expandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, input: PCollection) {
+    expandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, input: PCollection<KV<K, V>>) {
 
         // TODO: Use context.
         const pipelineComponents: runnerApi.Components = pipeline.getProto().components!;
@@ -414,12 +453,12 @@ export class GroupByKey extends PTransform<PCollection, PCollection> {
 }
 
 
-export class Flatten extends PTransform<PCollection[], PCollection> {
+export class Flatten<T> extends PTransform<PCollection<T>[], PCollection<T>> {
     // static urn: string = runnerApi.StandardPTransforms_Primitives.GROUP_BY_KEY.urn;
     // TODO: use above line, not below line.
     static urn: string = "beam:transform:flatten:v1";
 
-    expandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, inputs: PCollection[]) {
+    expandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, inputs: PCollection<any>[]) {
         transformProto.spec = runnerApi.FunctionSpec.create({
             'urn': Flatten.urn,
             'payload': null!,
@@ -430,8 +469,37 @@ export class Flatten extends PTransform<PCollection[], PCollection> {
     }
 }
 
-export interface WindowedValue {
-    value: any;
+enum Timing {
+    EARLY = "early",
+    ON_TIME = "on_time",
+    LATE = "late",
+    UNKNOWN = "unknown"
+}
+
+export interface PaneInfo {
+    timing: Timing,
+    index: number, // TODO: should be a long
+    nonSpeculativeIndex: number, // TODO should be a long
+    isFirst: boolean,
+    isLast: boolean
+}
+
+export type Instant = Long;
+
+export interface BoundedWindow {
+    maxTimestamp(): Instant
+}
+
+export interface WindowedValue<T> {
+    value: T;
+    windows: Array<BoundedWindow>;
+    pane: PaneInfo;
+    timestamp: Instant;
+}
+
+export class IntervalWindow implements BoundedWindow {
+    constructor(public start: Instant, public end: Instant) { }
+    maxTimestamp() { return this.end.sub(1) }
 }
 
 

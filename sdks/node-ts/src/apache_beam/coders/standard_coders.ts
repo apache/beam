@@ -3,7 +3,8 @@ import * as translations from '../internal/translations'
 
 import { Writer, Reader } from 'protobufjs';
 import { Coder, Context, CODER_REGISTRY } from "./coders";
-import { PipelineContext, WindowedValue } from '../base';
+import {KV, BoundedWindow, IntervalWindow, PaneInfo, PipelineContext, WindowedValue, Instant} from '../base';
+import Long from "long";
 
 export class BytesCoder implements Coder<Uint8Array> {
     static URN: string = "beam:coder:bytes:v1";
@@ -60,11 +61,6 @@ export class BytesCoder implements Coder<Uint8Array> {
     }
 }
 CODER_REGISTRY.register(BytesCoder.URN, BytesCoder);
-
-export type KV<K, V> = {
-    key: K,
-    value: V
-}
 
 export class KVCoder<K, V> implements Coder<KV<K, V>> {
     static URN: string = "beam:coder:kv:v1";
@@ -154,7 +150,17 @@ export class IterableCoder<T> implements Coder<Iterable<T>> {
             }
             return result;
         } else {
-            throw new Error('Length-unknown iterables are not yet implemented')
+            var result = new Array();
+            while (true) {
+                // TODO: these actually go up to int64
+                var count = reader.int32();
+                if (count === 0) {
+                    return result;
+                }
+                for (var i = 0; i < count; i++) {
+                    result.push(this.elementCoder.decode(reader, Context.needsDelimiters))
+                }
+            }
         }
     }
 }
@@ -191,7 +197,7 @@ export class LengthPrefixedCoder<T> implements Coder<T> {
 }
 CODER_REGISTRY.register(LengthPrefixedCoder.URN, LengthPrefixedCoder);
 
-export class WindowedValueCoder<T, W> implements Coder<WindowedValue> {
+export class WindowedValueCoder<T, W> implements Coder<WindowedValue<T>> {
     static URN: string = "beam:coder:windowed_value:v1";
     windowIterableCoder: IterableCoder<any>  // really W
 
@@ -211,18 +217,23 @@ export class WindowedValueCoder<T, W> implements Coder<WindowedValue> {
         }
     }
 
-    encode(element: WindowedValue, writer: Writer, context: Context) {
+    encode(element: WindowedValue<T>, writer: Writer, context: Context) {
         writer.fixed64(0);  // Timestamp.
         this.windowIterableCoder.encode([null], writer, Context.needsDelimiters); // Windows.
         writer.bool(false); // Pane.
         this.elementCoder.encode(element.value, writer, context);
     }
 
-    decode(reader: Reader, context: Context): WindowedValue {
+    decode(reader: Reader, context: Context): WindowedValue<T> {
         reader.fixed64();  // Timestamp.
         this.windowIterableCoder.decode(reader, Context.needsDelimiters);
         reader.skip(1);     // Pane.
-        return { value: this.elementCoder.decode(reader, context) };
+        return {
+            value: this.elementCoder.decode(reader, context),
+            windows: <Array<BoundedWindow>> <unknown> undefined,
+            pane: <PaneInfo> <unknown> undefined,
+            timestamp: <Instant> <unknown> undefined
+        };
     }
 }
 CODER_REGISTRY.register(WindowedValueCoder.URN, WindowedValueCoder);
@@ -231,11 +242,11 @@ export class GlobalWindow {
 
 }
 
-export class GlobalWindowCoder implements Coder<any> {
+export class GlobalWindowCoder implements Coder<GlobalWindow> {
     static URN: string = "beam:coder:global_window:v1";
     static INSTANCE: GlobalWindowCoder = new GlobalWindowCoder();
 
-    encode(value: any, writer: Writer, context: Context) {
+    encode(value: GlobalWindow, writer: Writer, context: Context) {
     }
 
     decode(reader: Reader, context: Context) {
@@ -253,6 +264,49 @@ export class GlobalWindowCoder implements Coder<any> {
     }
 }
 CODER_REGISTRY.register(GlobalWindowCoder.URN, GlobalWindowCoder);
+
+export class InstantCoder implements Coder<Instant> {
+    static INSTANCE: InstantCoder = new InstantCoder();
+
+    decode(reader: Reader, context: Context): Instant {
+        const shiftedMillis = Long.fromBytesBE(Array.from(reader.buf.slice(reader.pos, reader.pos+8)));
+        return shiftedMillis.add(Long.MIN_VALUE)
+    }
+
+    encode(element: Instant, writer: Writer, context: Context) {
+        const shiftedMillis = element.sub(Long.MIN_VALUE)
+        const bytes = Uint8Array.from(shiftedMillis.toBytesBE());
+        BytesCoder.INSTANCE.encode(bytes, writer, Context.wholeStream)
+    }
+
+    toProto(pipelineContext: PipelineContext): runnerApi.Coder {
+        return <runnerApi.Coder> <unknown> undefined;
+    }
+}
+
+// export class IntervalWindowCoder implements Coder<IntervalWindow> {
+//     static URN: string = "beam:coder:interval_window:v1";
+//     static INSTANCE: IntervalWindowCoder = new IntervalWindowCoder();
+//
+//     encode(value: any, writer: Writer, context: Context) {
+//     }
+//
+//     decode(reader: Reader, context: Context) {
+//         var end = InstantCoder.INSTANCE.decode(reader, context)
+//         return new IntervalWindow()
+//     }
+//
+//     toProto(pipelineContext: PipelineContext): runnerApi.Coder {
+//         return {
+//             spec: {
+//                 urn: GlobalWindowCoder.URN,
+//                 payload: new Uint8Array(),
+//             },
+//             componentCoderIds: [],
+//         }
+//     }
+// }
+// CODER_REGISTRY.register(IntervalWindowCoder.URN, IntervalWindowCoder);
 
 export class StrUtf8Coder implements Coder<String> {
     static URN: string = "beam:coder:string_utf8:v1";
@@ -281,8 +335,7 @@ export class StrUtf8Coder implements Coder<String> {
 CODER_REGISTRY.register(StrUtf8Coder.URN, StrUtf8Coder);
 
 
-// TODO(pabloem): Is this the most efficient implementation?
-export class VarIntCoder implements Coder<Long | Number | BigInt> {
+export class VarIntCoder implements Coder<number> {
     static URN: string = "beam:coder:varint:v1";
     type: string = "varintcoder";
     encode(element: Number | Long | BigInt, writer: Writer, context: Context) {
@@ -291,7 +344,7 @@ export class VarIntCoder implements Coder<Long | Number | BigInt> {
         return
     }
 
-    decode(reader: Reader, context: Context): Long | Number | BigInt {
+    decode(reader: Reader, context: Context): number {
         return reader.int32();
     }
 
@@ -307,14 +360,19 @@ export class VarIntCoder implements Coder<Long | Number | BigInt> {
 }
 CODER_REGISTRY.register(VarIntCoder.URN, VarIntCoder);
 
-export class DoubleCoder implements Coder<Number> {
+export class DoubleCoder implements Coder<number> {
     static URN: string = "beam:coder:double:v1";
-    encode(element: Number, writer: Writer, context: Context) {
-        writer.double(element as number);
+    encode(element: number, writer: Writer, context: Context) {
+        const farr = new Float64Array([element]);
+        const barr = new Uint8Array(farr.buffer).reverse();
+        BytesCoder.INSTANCE.encode(barr, writer, Context.wholeStream)
     }
 
-    decode(reader: Reader, context: Context): Number {
-        return reader.double();
+    decode(reader: Reader, context: Context): number {
+        const barr = new Uint8Array(reader.buf, reader.pos, 8)
+        const dView = new DataView(barr.buffer);
+        reader.float()
+        return dView.getFloat64(0, false)
     }
     toProto(pipelineContext: PipelineContext): runnerApi.Coder {
         return {

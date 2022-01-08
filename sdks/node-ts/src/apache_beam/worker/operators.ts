@@ -6,14 +6,14 @@ import { ProcessBundleDescriptor, RemoteGrpcPort } from "../proto/beam_fn_api";
 import { MultiplexingDataChannel, IDataChannel } from "./data"
 
 import * as base from "../base"
-import { WindowedValue } from "../base"
+import { BoundedWindow, Instant, PaneInfo, WindowedValue } from "../base"
 import * as translations from '../internal/translations'
 import { Coder, Context as CoderContext } from "../coders/coders"
 
 
 export interface IOperator {
     startBundle: () => void;
-    process: (WindowedValue) => void;
+    process: (wv: WindowedValue<any>) => void;
     finishBundle: () => void;
 }
 
@@ -21,7 +21,7 @@ export class Receiver {
     constructor(private operators: IOperator[]) {
     }
 
-    receive(wvalue: WindowedValue) {
+    receive(wvalue: WindowedValue<any>) {
         for (const operator of this.operators) {
             operator.process(wvalue);
         }
@@ -104,7 +104,7 @@ class DataSourceOperator implements IOperator {
             });
     }
 
-    process(wvalue: WindowedValue) {
+    process(wvalue: WindowedValue<any>) {
         throw Error("Data should not come in via process.");
     }
 
@@ -147,7 +147,7 @@ class DataSinkOperator implements IOperator {
         this.buffer = new protobufjs.Writer();
     }
 
-    process(wvalue: WindowedValue) {
+    process(wvalue: WindowedValue<any>) {
         this.coder.encode(wvalue, this.buffer, CoderContext.needsDelimiters);
         if (this.buffer.len > 1e6) {
             this.flush();
@@ -177,7 +177,7 @@ class FlattenOperator implements IOperator {
 
     startBundle() { };
 
-    process(wvalue: WindowedValue) {
+    process(wvalue: WindowedValue<any>) {
         this.receiver.receive(wvalue);
     }
 
@@ -190,14 +190,14 @@ registerOperator("beam:transform:flatten:v1", FlattenOperator);
 class ParDoOperator implements IOperator {
     receiver: Receiver;
     spec: runnerApi.ParDoPayload;
-    doFn: base.DoFn;
+    doFn: base.DoFn<any, any>;
 
     constructor(transformId: string, transform: PTransform, context: OperatorContext) {
         this.receiver = context.getReceiver(onlyElement(Object.values(transform.outputs)));
         this.spec = runnerApi.ParDoPayload.fromBinary(transform.spec!.payload);
         if (this.spec.doFn?.urn != translations.SERIALIZED_JS_DOFN_INFO) {
             // throw new Error("Unknown DoFn type: " + this.spec);
-            this.doFn = new class extends base.DoFn {
+            this.doFn = new class extends base.DoFn<any, any> {
                 *process(element: any) {
                     console.log("Unknown DoFn processing", element)
                     yield element;
@@ -212,9 +212,14 @@ class ParDoOperator implements IOperator {
         this.doFn.startBundle();
     };
 
-    process(wvalue: WindowedValue) {
+    process(wvalue: WindowedValue<any>) {
         for (const element of this.doFn.process(wvalue.value)) {
-            this.receiver.receive({ value: element });
+            this.receiver.receive({
+                value: element,
+                windows: <Array<BoundedWindow>><unknown>undefined,
+                pane: <PaneInfo><unknown>undefined,
+                timestamp: <Instant><unknown>undefined
+            });
         }
     }
 
