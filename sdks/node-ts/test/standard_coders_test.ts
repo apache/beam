@@ -36,8 +36,10 @@ const _urn_to_json_value_parser = {
     'beam:coder:kv:v1': components => x => ({ 'key': components[0](x['key']), 'value': components[1](x['value']) }),
     'beam:coder:iterable:v1': components => x => (x.map(elm => components[0](elm))),
     'beam:coder:global_window:v1': _ => x => new GlobalWindow(),
-    'beam:coder:interval_window:v1': _ => (x: { end: number, span: number }) =>
-        new IntervalWindow(Long.fromNumber(x.end).sub(x.span), Long.fromNumber(x.end))
+    'beam:coder:interval_window:v1': _ => (x: { end: number, span: number }) => ({
+        start: Long.fromNumber(x.end).sub(x.span),
+        end: Long.fromNumber(x.end)
+    })
 }
 
 interface CoderRepr {
