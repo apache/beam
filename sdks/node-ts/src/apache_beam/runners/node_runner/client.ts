@@ -51,8 +51,13 @@ export class RemoteJobServiceClient {
         if (pipelineOptions) {
             message.pipelineOptions = pipelineOptions;
         }
+        console.log('calling', message)
+//        message.pipeline!.components!.transforms = {};
+//        message.pipeline = runnerApiProto.Pipeline.create({});
         const call = client.prepare(message);
-        return await call.response;
+        const res = await call.response;
+        console.log('got', message)
+        return res;
     }
 
     private async callRun(client: IJobServiceClient, preparationId: string) {
