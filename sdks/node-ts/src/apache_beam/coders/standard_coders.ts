@@ -299,7 +299,7 @@ export class IntervalWindowCoder implements Coder<IntervalWindow> {
 
     decode(reader: Reader, context: Context) {
         var end = InstantCoder.INSTANCE.decode(reader, context)
-        var duration = <Long> reader.int64()
+        var duration = <Long>reader.int64()
         return new IntervalWindow(end.sub(duration), end)
     }
 
