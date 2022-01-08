@@ -3,7 +3,9 @@
     "@types/mocha": "^9.0.0",
     "js-yaml": "^4.1.0",
     "mocha": "^9.1.3",
-    "typescript": "^4.5.4"
+    "typescript": "^4.5.4",
+    "gts": "^3.1.0",
+    "@types/node": "^14.11.2"
   },
   "files": [
     "dist"
@@ -13,7 +15,12 @@
     "clean": "tsc --clean",
     "worker": "node dist/src/apache_beam/worker/external_worker_service.js",
     "pretest": "npm run build",
-    "test": "mocha dist/test"
+    "test": "mocha dist/test",
+    "lint": "gts lint",
+    "compile": "tsc",
+    "fix": "gts fix",
+    "prepare": "npm run compile",
+    "posttest": "npm run lint"
   },
   "dependencies": {
     "@grpc/grpc-js": "^1.4.6",
