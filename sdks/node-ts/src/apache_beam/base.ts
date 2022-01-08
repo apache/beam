@@ -1,11 +1,13 @@
 import * as runnerApi from './proto/beam_runner_api';
 import * as fnApi from './proto/beam_fn_api';
 import { Coder, CODER_REGISTRY } from './coders/coders'
+import { GlobalWindowCoder } from './coders/standard_coders'
 import { BytesCoder, IterableCoder, KVCoder } from './coders/standard_coders';
 import * as translations from './internal/translations'
 import * as environments from './internal/environments'
 import { GeneralObjectCoder } from './coders/js_coders';
 import { JobState_Enum } from './proto/beam_job_api';
+import equal from 'fast-deep-equal'
 
 import * as datefns from 'date-fns'
 import { PipelineOptions } from './options/pipeline_options';
@@ -75,6 +77,7 @@ type Components = runnerApi.Components | fnApi.ProcessBundleDescriptor;
 
 export class PipelineContext {
     components: Components;
+    counter: number = 0;
 
     private coders: { [key: string]: Coder<any> } = {}
 
@@ -101,6 +104,21 @@ export class PipelineContext {
         this.coders[coderId] = coder;
         return coderId;
     }
+
+    getWindowingStrategy(id: string): runnerApi.WindowingStrategy {
+        return this.components.windowingStrategies[id];
+    }
+
+    getWindowingStrategyId(windowing: runnerApi.WindowingStrategy): string {
+        for (const [id, proto] of Object.entries(this.components.windowingStrategies)) {
+            if (equal(proto, windowing)) {
+                return id;
+            }
+        }
+        const newId = "_windowing_" + (this.counter++);
+        this.components.windowingStrategies[newId] = windowing;
+        return newId;
+    }
 }
 
 /**
@@ -113,12 +131,25 @@ export class Pipeline {
     private proto: runnerApi.Pipeline;
     transformStack: string[] = [];
     private defaultEnvironment: string;
+    private globalWindowing: string;
 
     constructor() {
-        this.defaultEnvironment = 'jsEnvironment'
+        this.defaultEnvironment = 'jsEnvironment';
+        this.globalWindowing = 'globalWindowing';
         this.proto = runnerApi.Pipeline.create({ 'components': runnerApi.Components.create({}) });
         this.proto.components!.environments[this.defaultEnvironment] = environments.defaultJsEnvironment();
         this.context = new PipelineContext(this.proto.components!);
+        this.proto.components!.windowingStrategies[this.globalWindowing] = {
+            windowCoderId: this.context.getCoderId(new GlobalWindowCoder()),
+            accumulationMode: runnerApi.AccumulationMode_Enum.DISCARDING,
+            outputTime: runnerApi.OutputTime_Enum.END_OF_WINDOW,
+            mergeStatus: runnerApi.MergeStatus_Enum.NEEDS_MERGE,
+            closingBehavior: runnerApi.ClosingBehavior_Enum.EMIT_ALWAYS,
+            onTimeBehavior: runnerApi.OnTimeBehavior_Enum.FIRE_ALWAYS,
+            allowedLateness: BigInt(0),
+            assignsToOneWindow: true,
+            environmentId: this.defaultEnvironment,
+        };
     }
 
     // TODO: Remove once test are fixed.
@@ -126,7 +157,7 @@ export class Pipeline {
         return new Root(this).apply(transform);
     }
 
-    apply2<InputT extends PValue<any>, OutputT extends PValue<any>>(transform: PTransform<InputT, OutputT>, PValue: InputT, name: string) {
+    apply2<InputT extends PValue<any>, OutputT extends PValue<any>>(transform: PTransform<InputT, OutputT>, pvalue: InputT, name: string) {
 
         function objectMap(obj, func) {
             return Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, func(v)]));
@@ -140,35 +171,72 @@ export class Pipeline {
             this.proto.rootTransformIds.push(transformId);
         }
         const transformProto: runnerApi.PTransform = {
-            uniqueName: this.transformStack.map((id) => this_.proto?.components?.transforms![id].uniqueName).concat([name || transform.name]).join('/'),
+            uniqueName: transformId + this.transformStack.map((id) => this_.proto?.components?.transforms![id].uniqueName).concat([name || transform.name]).join('/'),
             subtransforms: [],
-            inputs: objectMap(flattenPValue(PValue), (pc) => pc.id),
+            inputs: objectMap(flattenPValue(pvalue), (pc) => pc.id),
             outputs: {},
             environmentId: "",
             displayData: [],
             annotations: {},
         }
-        this.proto!.components!.transforms![transformId] = transformProto;
+        this.proto.components!.transforms![transformId] = transformProto;
         this.transformStack.push(transformId);
-        const result = transform.expandInternal(this, transformProto, PValue); // TODO: try-catch
+        const result = transform.expandInternal(this, transformProto, pvalue); // TODO: try-catch
         this.transformStack.pop();
-        transformProto.outputs = objectMap(flattenPValue(result), (pc) => pc.id)
+        transformProto.outputs = objectMap(flattenPValue(result), (pc) => pc.id);
+
+        // Propagate any unset PCollection properties.
+        const inputProtos = Object.values(transformProto.inputs).map((id) => this_.proto.components!.pcollections[id]);
+        const inputBoundedness = new Set(inputProtos.map((proto) => proto.isBounded));
+        const inputWindowings = new Set(inputProtos.map((proto) => proto.windowingStrategyId));
+
+        function onlyValueOr<T>(valueSet: Set<T>, defaultValue: T) {
+            if (valueSet.size == 0) {
+                return defaultValue;
+            } else if (valueSet.size == 1) {
+                return valueSet.values().next().value;
+            } else {
+                throw new Error('Unable to deduce single value from ' + valueSet);
+            }
+        }
+
+        for (const pcId of Object.values(transformProto.outputs)) {
+            const pcProto = this.proto!.components!.pcollections[pcId];
+            if (!pcProto.isBounded) {
+                pcProto.isBounded = onlyValueOr(inputBoundedness, runnerApi.IsBounded_Enum.BOUNDED);
+            }
+            if (!pcProto.windowingStrategyId) {
+                pcProto.windowingStrategyId = onlyValueOr(inputWindowings, this.globalWindowing);
+            }
+        }
+
         return result;
     }
 
-    createPCollectionInternal(coder: Coder<any> | string, isBounded = runnerApi.IsBounded_Enum.BOUNDED) {
+    createPCollectionInternal(
+        coder: Coder<any> | string,
+        windowingStrategy: runnerApi.WindowingStrategy | undefined = undefined,
+        isBounded: runnerApi.IsBounded_Enum | undefined = undefined) {
         const pcollId = pcollectionName();
         let coderId: string;
+        let windowingStrategyId: string;
         if (typeof coder == "string") {
             coderId = coder;
         } else {
             coderId = this.context.getCoderId(coder);
         }
+        if (windowingStrategy == undefined) {
+            windowingStrategyId = undefined!;
+        } else if (typeof windowingStrategy == "string") {
+            windowingStrategyId = windowingStrategy;
+        } else {
+            windowingStrategyId = this.context.getWindowingStrategyId(windowingStrategy!);
+        }
         this.proto!.components!.pcollections[pcollId] = {
             uniqueName: pcollId, // TODO: name according to producing transform?
             coderId: coderId,
-            isBounded: isBounded,
-            windowingStrategyId: 'global',
+            isBounded: isBounded!,
+            windowingStrategyId: windowingStrategyId,
             displayData: [],
         }
         return new PCollection(this, pcollId);

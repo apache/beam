@@ -140,6 +140,9 @@ export class BundleProcessor {
         this.descriptor = descriptor;
         this.getDataChannel = getDataChannel;
 
+        console.dir(this.descriptor, { depth: null });
+
+
         // TODO: Consider defering this possibly expensive deserialization lazily to the worker thread.
         const this_ = this;
         const creationOrderedOperators: IOperator[] = [];
@@ -196,7 +199,7 @@ export class BundleProcessor {
     }
 
     // Put this on a worker thread...
-    async process(instructionId: string, delay_ms = 2000) {
+    async process(instructionId: string, delay_ms = 600) {
         console.log("Processing ", this.descriptor.id, "for", instructionId);
         this.currentBundleId = instructionId;
         this.topologicallyOrderedOperators.slice().reverse().forEach((o) => o.startBundle());

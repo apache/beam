@@ -4,6 +4,9 @@ import { PipelineOptions } from "../../options/pipeline_options";
 import * as runnerApiProto from '../../proto/beam_runner_api';
 import { JobState_Enum } from "../../proto/beam_job_api";
 
+import { ExternalWorkerPool } from "../../worker/external_worker_service"
+import * as environments from '../../internal/environments';
+
 const TERMINAL_STATES = [
     JobState_Enum.DONE,
     JobState_Enum.FAILED,
@@ -68,8 +71,19 @@ export class NodeRunner extends Runner {
         pipeline: runnerApiProto.Pipeline,
         jobName: string,
         options?: PipelineOptions) {
+
+        const externalWorkerServiceAddress = 'localhost:5555'
+        new ExternalWorkerPool(externalWorkerServiceAddress).start()
+        pipeline = runnerApiProto.Pipeline.clone(pipeline);
+        for (const [envId, env] of Object.entries(pipeline.components!.environments)) {
+            if (env.urn == environments.PYTHON_DEFAULT_ENVIRONMENT_URN) {
+                pipeline.components!.environments[envId] = environments.asExternalEnvironment(env, externalWorkerServiceAddress);
+            }
+        }
+
         const { preparationId } = await this.client.prepare(pipeline, jobName, options);
         const { jobId } = await this.client.run(preparationId);
+
         return new NodeRunnerPipelineResult(this, jobId);
     }
 
