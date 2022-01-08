@@ -3,7 +3,7 @@ import { ProcessBundleDescriptor } from "../src/apache_beam/proto/beam_fn_api";
 
 import * as worker from '../src/apache_beam/worker/worker';
 import * as operators from '../src/apache_beam/worker/operators';
-import { WindowedValue } from '../src/apache_beam/base';
+import { BoundedWindow, Instant, PaneInfo, WindowedValue } from '../src/apache_beam/base';
 
 const assert = require('assert');
 
@@ -24,12 +24,17 @@ class Create implements operators.IOperator {
         this.receivers = Object.values(transform.outputs).map(context.getReceiver);
     }
 
-    process(wvalue: WindowedValue) { }
+    process(wvalue: WindowedValue<any>) { }
 
     startBundle() {
         const this_ = this;
         this_.data.forEach(function(datum) {
-            this_.receivers.map((receiver) => receiver.receive({ value: datum }));
+            this_.receivers.map((receiver) => receiver.receive({
+                value: datum,
+                windows: <Array<BoundedWindow>><unknown>undefined,
+                timestamp: <Instant><unknown>undefined,
+                pane: <PaneInfo><unknown>undefined,
+            }));
         })
     }
 
@@ -57,7 +62,7 @@ class Recording implements operators.IOperator {
         Recording.log.push(this.transformId + ".startBundle()");
     }
 
-    process(wvalue: WindowedValue) {
+    process(wvalue: WindowedValue<any>) {
         Recording.log.push(this.transformId + ".process(" + wvalue.value + ")")
         this.receivers.map((receiver) => receiver.receive(wvalue));
     }
@@ -80,7 +85,7 @@ class Partition implements operators.IOperator {
         this.all = context.getReceiver(transform.outputs.all);
     }
 
-    process(wvalue: WindowedValue) {
+    process(wvalue: WindowedValue<any>) {
         this.all.receive(wvalue);
         if (wvalue.value.length > 3) {
             this.big.receive(wvalue);

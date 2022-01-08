@@ -1,6 +1,7 @@
 import { Coder, CODER_REGISTRY, Context } from "../src/apache_beam/coders/coders";
-import { KV, GlobalWindow } from "../src/apache_beam/coders/standard_coders";
+import { GlobalWindow } from "../src/apache_beam/coders/standard_coders";
 import { Writer, Reader } from 'protobufjs';
+import {KV} from "../src/apache_beam/base"
 
 import assertions = require('assert');
 import yaml = require('js-yaml');
@@ -9,22 +10,15 @@ import util = require('util');
 
 const STANDARD_CODERS_FILE = '../../model/fn-execution/src/main/resources/org/apache/beam/model/fnexecution/v1/standard_coders.yaml';
 
-const UNSUPPORTED_EXAMPLES = {
-    "beam:coder:iterable:v1-2": "",
-    "beam:coder:iterable:v1-3": "",
-}
-
 // TODO(pabloem): Empty this list.
 const UNSUPPORTED_CODERS = [
     "beam:coder:interval_window:v1",
-    "beam:coder:double:v1",
     "beam:coder:timer:v1",
     "beam:coder:windowed_value:v1",
     "beam:coder:param_windowed_value:v1",
     "beam:coder:row:v1",
     "beam:coder:sharded_key:v1",
     "beam:coder:custom_window:v1",
-    "beam:coder:iterable:v1",
 ];
 
 const _urn_to_json_value_parser = {
@@ -32,17 +26,17 @@ const _urn_to_json_value_parser = {
     'beam:coder:bool:v1': _ => x => x,
     'beam:coder:string_utf8:v1': _ => x => x as string,
     'beam:coder:varint:v1': _ => x => x,
-    'beam:coder:double:v1': _ => x => new Number(x),
+    'beam:coder:double:v1': _ => x => x === 'NaN' ? NaN : x,
     'beam:coder:kv:v1': components => x => ({ 'key': components[0](x['key']), 'value': components[1](x['value']) }),
     'beam:coder:iterable:v1': components => x => (x.map(elm => components[0](elm))),
     'beam:coder:global_window:v1': components => x => new GlobalWindow()
-    // 'beam:coder:double:v1': parse_float,
 }
 
 interface CoderRepr {
     urn: string,
     payload?: Uint8Array,
     components?: Array<CoderRepr>
+    non_deterministic?: boolean,
 }
 
 type CoderSpec = {
@@ -107,29 +101,31 @@ describe("standard Beam coders on Javascript", function() {
 });
 
 function describeCoder<T>(coder: Coder<T>, urn, context, spec: CoderSpec) {
-    describe(util.format("coder %s", util.inspect(coder, { colors: true, breakLength: Infinity })), function() {
-        let examples = 0;
+    describe(util.format("coder %s (%s)", util.inspect(coder, { colors: true, breakLength: Infinity }),
+    spec.coder.non_deterministic ? "nondeterministic" : "deterministic"), function() {
         const parser = get_json_value_parser(spec.coder);
         for (let expected in spec.examples) {
-            examples += 1;
-            if ((urn + '-' + examples) in UNSUPPORTED_EXAMPLES) {
-                continue;
-            }
             var value = parser(spec.examples[expected]);
             const expectedEncoded = Buffer.from(expected, 'binary')
-            coderCase(coder, value, expectedEncoded, context, examples);
+            coderCase(coder, value, expectedEncoded, context, spec.coder.non_deterministic || false);
         }
     });
 }
 
-function coderCase<T>(coder: Coder<T>, obj, expectedEncoded: Uint8Array, context, exampleCount) {
-    it(util.format("encodes example %d correctly", exampleCount), function() {
-        var writer = new Writer();
-        coder.encode(obj, writer, context);
-        assertions.deepEqual(writer.finish(), expectedEncoded);
-    });
+function coderCase<T>(coder: Coder<T>, obj, expectedEncoded: Uint8Array, context, non_deterministic) {
+    if (!non_deterministic) {
+        it(util.format("encodes %s to %s",
+            util.inspect(obj, {colors: true, depth: Infinity}),
+            Buffer.from(expectedEncoded).toString('hex')), function () {
+            var writer = new Writer();
+            coder.encode(obj, writer, context);
+            assertions.deepEqual(writer.finish(), expectedEncoded);
+        });
+    }
 
-    it(util.format("decodes example %d correctly", exampleCount), function() {
+    it(util.format("decodes %s to %s correctly",
+        Buffer.from(expectedEncoded).toString('hex'),
+        util.inspect(obj, {colors:true, depth:Infinity})), function() {
         const decoded = coder.decode(new Reader(expectedEncoded), context);
         assertions.deepEqual(decoded, obj);
     });

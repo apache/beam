@@ -28,11 +28,44 @@ export class BsonObjectCoder<T> implements Coder<T> {
 }
 CODER_REGISTRY.register(BsonObjectCoder.URN, BsonObjectCoder)
 
+class NumberOrFloatCoder implements Coder<number> {
+    static URN = "beam:coder:numbersforjs:v1"
+    intCoder: Coder<number> = new VarIntCoder()
+    doubleCoder: Coder<number> = new DoubleCoder()
+
+    encode(element: number, writer: Writer, context: Context) {
+        if (element % 1) {
+            writer.string('f')
+            this.doubleCoder.encode(element, writer, context)
+        } else {
+            writer.string('i')
+            this.intCoder.encode(element, writer, context)
+        }
+    }
+    decode(reader: Reader, context: Context): number {
+        const typeMarker = reader.string()
+        if (typeMarker === 'f') {
+            return this.doubleCoder.decode(reader, context)
+        } else {
+            return this.intCoder.decode(reader, context)
+        }
+    }
+    toProto(pipelineContext: PipelineContext): runnerApi.Coder {
+        return {
+            spec: {
+                urn: NumberOrFloatCoder.URN,
+                payload: new Uint8Array(),
+            },
+            componentCoderIds: [],
+        }
+    }
+}
+
 export class GeneralObjectCoder<T> implements Coder<T> {
     static URN = "beam:coder:genericobjectjs:v1"
     componentCoders = {
         'string': new StrUtf8Coder(),
-        'number': new DoubleCoder(),  // TODO(pabloem): What about integers? Do we represent always as doubles?
+        'number': new NumberOrFloatCoder(),
         'object': new BsonObjectCoder(),
         'boolean': new BoolCoder()
     };
