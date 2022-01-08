@@ -615,7 +615,33 @@ export class WithCoderInternal<T> extends PTransform<PCollection<T>, PCollection
     }
 }
 
+// TODO: Consider as top-level method.
+// TODO: Naming.
+// TODO: Allow default?  Technically splitter can be implemented/wrapped to produce such.
+// TODO: Can we enforce splitter's output with the typing system to lie in targets?
+export class Split<T> extends PTransform<PCollection<T>, {[key: string]: PCollection<T>}> {
+    private tags: string[];
+    constructor(private splitter: (T) => string, ...tags: string[]) {
+        super("Split(" + tags + ")");
+        this.tags = tags
+    }
+    expandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, input: PCollection<T>) {
+        transformProto.spec = runnerApi.FunctionSpec.create({
+            'urn': ParDo.urn,
+            'payload': runnerApi.ParDoPayload.toBinary(
+                runnerApi.ParDoPayload.create({
+                    'doFn': runnerApi.FunctionSpec.create({
+                        'urn': translations.SPLITTING_JS_DOFN_URN,
+                        'payload': fakeSeralize({splitter: this.splitter}),
+                    })
+                }))
+        });
 
+        const this_ = this;
+        const inputCoder = pipeline.getProto().components!.pcollections[input.id]!.coderId;
+        return Object.fromEntries(this_.tags.map(tag => [tag, pipeline.createPCollectionInternal(inputCoder)]));
+    }
+}
 
 export class Flatten<T> extends PTransform<PCollection<T>[], PCollection<T>> {
     // static urn: string = runnerApi.StandardPTransforms_Primitives.GROUP_BY_KEY.urn;
@@ -632,8 +658,6 @@ export class Flatten<T> extends PTransform<PCollection<T>[], PCollection<T>> {
         return pipeline.createPCollectionInternal(new GeneralObjectCoder());
     }
 }
-
-
 
 
 
