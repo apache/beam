@@ -141,8 +141,8 @@ export class Pipeline {
         this.proto.components!.environments[this.defaultEnvironment] = environments.defaultJsEnvironment();
         this.context = new PipelineContext(this.proto.components!);
         this.proto.components!.windowingStrategies[this.globalWindowing] = {
-            windowFn: { urn: 'beam:window_fn:global_windows:v1', payload: undefined! },
-            trigger: { trigger: { oneofKind: 'default', default: runnerApi.Trigger_Default } },
+            windowFn: { urn: 'beam:window_fn:global_windows:v1', payload: new Uint8Array() },
+            trigger: { trigger: { oneofKind: 'default', default: { } } },
             windowCoderId: this.context.getCoderId(new GlobalWindowCoder()),
             accumulationMode: runnerApi.AccumulationMode_Enum.DISCARDING,
             outputTime: runnerApi.OutputTime_Enum.END_OF_WINDOW,
@@ -207,6 +207,9 @@ export class Pipeline {
 
     postApplyTransform<InputT extends PValue<any>, OutputT extends PValue<any>>(
         transform: AsyncPTransform<InputT, OutputT>, transformProto: runnerApi.PTransform, result: OutputT) {
+
+        transformProto.outputs = objectMap(flattenPValue(result), (pc) => pc.id);
+
         // Propagate any unset PCollection properties.
         const this_ = this;
         const inputProtos = Object.values(transformProto.inputs).map((id) => this_.proto.components!.pcollections[id]);
@@ -218,12 +221,11 @@ export class Pipeline {
             if (!pcProto.isBounded) {
                 pcProto.isBounded = onlyValueOr(inputBoundedness, runnerApi.IsBounded_Enum.BOUNDED);
             }
+            // TODO: Handle the case of equivalent strategies.
             if (!pcProto.windowingStrategyId) {
                 pcProto.windowingStrategyId = onlyValueOr(inputWindowings, this.globalWindowing);
             }
         }
-
-        transformProto.outputs = objectMap(flattenPValue(result), (pc) => pc.id);
 
         return result;
     }
@@ -575,7 +577,7 @@ export class GroupByKey<K, V> extends PTransform<PCollection<KV<K, V>>, PCollect
     }
 }
 
-class WithKvCoderInternal<K, V> extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>> {
+export class WithKvCoderInternal<K, V> extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>> {
     expandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, input: PCollection<KV<K, V>>) {
         // IDENTITY rather than Flatten for better fusion.
         transformProto.spec = {
@@ -594,6 +596,30 @@ class WithKvCoderInternal<K, V> extends PTransform<PCollection<KV<K, V>>, PColle
             new KVCoder(new GeneralObjectCoder(), new GeneralObjectCoder()));
     }
 }
+
+// TODO: Eliminate one or the other.
+export class WithCoderInternal<T> extends PTransform<PCollection<T>, PCollection<T>> {
+    constructor(private coder: Coder<T>) {
+        super("WithCoderInternal(" + coder + ")");
+    }
+    expandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, input: PCollection<T>) {
+        // IDENTITY rather than Flatten for better fusion.
+        transformProto.spec = {
+            'urn': ParDo.urn,
+            'payload': runnerApi.ParDoPayload.toBinary(
+                runnerApi.ParDoPayload.create({
+                    'doFn': runnerApi.FunctionSpec.create({
+                        'urn': translations.IDENTITY_DOFN_URN,
+                        'payload': undefined!,
+                    })
+                }))
+        };
+
+        // TODO: Consider deriving the key and value coder from the input coder.
+        return pipeline.createPCollectionInternal(this.coder);
+    }
+}
+
 
 
 export class Flatten<T> extends PTransform<PCollection<T>[], PCollection<T>> {
