@@ -1,1 +1,1 @@
-console.log("Setting up a barebones structure");
+console.log('Setting up a barebones structure');

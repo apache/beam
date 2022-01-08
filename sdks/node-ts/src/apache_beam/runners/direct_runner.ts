@@ -1,99 +1,117 @@
-import { PTransform, PCollection } from "../proto/beam_runner_api";
-import { ProcessBundleDescriptor } from "../proto/beam_fn_api";
-import { JobState_Enum } from "../proto/beam_job_api";
+import {PTransform, PCollection} from '../proto/beam_runner_api';
+import {ProcessBundleDescriptor} from '../proto/beam_fn_api';
+import {JobState_Enum} from '../proto/beam_job_api';
 
-import { Runner, Pipeline, Root, Impulse, GroupByKey, PipelineResult } from '../base'
+import {
+  Runner,
+  Pipeline,
+  Root,
+  Impulse,
+  GroupByKey,
+  PipelineResult,
+} from '../base';
 import * as worker from '../worker/worker';
 import * as operators from '../worker/operators';
-import { BoundedWindow, Instant, PaneInfo, WindowedValue } from "../values";
-
-
-
+import {BoundedWindow, Instant, PaneInfo, WindowedValue} from '../values';
 
 export class DirectRunner extends Runner {
-    async runPipeline(p): Promise<PipelineResult> {
-        const descriptor: ProcessBundleDescriptor = {
-            id: "",
-            transforms: p.proto.components!.transforms,
-            pcollections: p.proto.components!.pcollections,
-            windowingStrategies: p.proto.components!.windowingStrategies,
-            coders: p.proto.components!.coders,
-            environments: p.proto.components!.environments,
-        };
+  async runPipeline(p): Promise<PipelineResult> {
+    const descriptor: ProcessBundleDescriptor = {
+      id: '',
+      transforms: p.proto.components!.transforms,
+      pcollections: p.proto.components!.pcollections,
+      windowingStrategies: p.proto.components!.windowingStrategies,
+      coders: p.proto.components!.coders,
+      environments: p.proto.components!.environments,
+    };
 
-        const processor = new worker.BundleProcessor(descriptor, null!, [Impulse.urn]);
-        await processor.process("bundle_id", 0);
+    const processor = new worker.BundleProcessor(descriptor, null!, [
+      Impulse.urn,
+    ]);
+    await processor.process('bundle_id', 0);
 
-        return { waitUntilFinish: (duration?: number) => Promise.resolve(JobState_Enum.DONE) };
-    }
+    return {
+      waitUntilFinish: (duration?: number) =>
+        Promise.resolve(JobState_Enum.DONE),
+    };
+  }
 }
-
 
 // Only to be used in direct runner, as this will fire an element per worker, not per pipeline.
 class DirectImpulseOperator implements operators.IOperator {
-    receiver: operators.Receiver;
+  receiver: operators.Receiver;
 
-    constructor(transformId: string, transform: PTransform, context: operators.OperatorContext) {
-        this.receiver = context.getReceiver(onlyElement(Object.values(transform.outputs)));
-    }
+  constructor(
+    transformId: string,
+    transform: PTransform,
+    context: operators.OperatorContext
+  ) {
+    this.receiver = context.getReceiver(
+      onlyElement(Object.values(transform.outputs))
+    );
+  }
 
-    process(wvalue: WindowedValue<any>) { }
+  process(wvalue: WindowedValue<any>) {}
 
-    startBundle() {
-        this.receiver.receive({
-            value: '',
-            windows: <Array<BoundedWindow>><unknown>undefined,
-            pane: <PaneInfo><unknown>undefined,
-            timestamp: <Instant><unknown>undefined
-        });
-    }
+  startBundle() {
+    this.receiver.receive({
+      value: '',
+      windows: <Array<BoundedWindow>>(<unknown>undefined),
+      pane: <PaneInfo>(<unknown>undefined),
+      timestamp: <Instant>(<unknown>undefined),
+    });
+  }
 
-    finishBundle() { }
+  finishBundle() {}
 }
 
 operators.registerOperator(Impulse.urn, DirectImpulseOperator);
 
-
 // Only to be used in direct runner, as this will only group within a single bundle.
 class DirectGbkOperator implements operators.IOperator {
-    receiver: operators.Receiver;
-    groups: Map<any, any[]>;
+  receiver: operators.Receiver;
+  groups: Map<any, any[]>;
 
-    constructor(transformId: string, transform: PTransform, context: operators.OperatorContext) {
-        this.receiver = context.getReceiver(onlyElement(Object.values(transform.outputs)));
-    }
+  constructor(
+    transformId: string,
+    transform: PTransform,
+    context: operators.OperatorContext
+  ) {
+    this.receiver = context.getReceiver(
+      onlyElement(Object.values(transform.outputs))
+    );
+  }
 
-    process(wvalue: WindowedValue<any>) {
-        if (!this.groups.has(wvalue.value.key)) {
-            this.groups.set(wvalue.value.key, []);
-        }
-        this.groups.get(wvalue.value.key)!.push(wvalue.value.value);
+  process(wvalue: WindowedValue<any>) {
+    if (!this.groups.has(wvalue.value.key)) {
+      this.groups.set(wvalue.value.key, []);
     }
+    this.groups.get(wvalue.value.key)!.push(wvalue.value.value);
+  }
 
-    startBundle() {
-        this.groups = new Map();
-    }
+  startBundle() {
+    this.groups = new Map();
+  }
 
-    finishBundle() {
-        const this_ = this;
-        this.groups.forEach((values, key, _) => {
-            this_.receiver.receive({
-                value: { key: key, value: values },
-                windows: <Array<BoundedWindow>><unknown>undefined,
-                timestamp: <Instant><unknown>undefined,
-                pane: <PaneInfo><unknown>undefined
-            });
-        });
-        this.groups = null!;
-    }
+  finishBundle() {
+    const this_ = this;
+    this.groups.forEach((values, key, _) => {
+      this_.receiver.receive({
+        value: {key: key, value: values},
+        windows: <Array<BoundedWindow>>(<unknown>undefined),
+        timestamp: <Instant>(<unknown>undefined),
+        pane: <PaneInfo>(<unknown>undefined),
+      });
+    });
+    this.groups = null!;
+  }
 }
 
 operators.registerOperator(GroupByKey.urn, DirectGbkOperator);
 
-
 function onlyElement<T>(arg: T[]): T {
-    if (arg.length > 1) {
-        Error("Expecting exactly one element.");
-    }
-    return arg[0];
+  if (arg.length > 1) {
+    Error('Expecting exactly one element.');
+  }
+  return arg[0];
 }

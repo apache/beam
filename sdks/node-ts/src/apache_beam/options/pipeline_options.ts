@@ -1,3 +1,3 @@
-import { Struct } from "../proto/google/protobuf/struct";
+import {Struct} from '../proto/google/protobuf/struct';
 
 export type PipelineOptions = Struct;
