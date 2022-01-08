@@ -6,7 +6,7 @@ export type KV<K, V> = {
 export interface PaneInfo {
     timing: Timing,
     index: number, // TODO: should be a long
-    nonSpeculativeIndex: number, // TODO should be a long
+    onTimeIndex: number, // TODO should be a long
     isFirst: boolean,
     isLast: boolean
 }
@@ -33,9 +33,9 @@ export class IntervalWindow implements BoundedWindow {
     }
 }
 
-enum Timing {
-    EARLY = "early",
-    ON_TIME = "on_time",
-    LATE = "late",
-    UNKNOWN = "unknown"
+export enum Timing {
+    EARLY = "EARLY",
+    ON_TIME = "ON_TIME",
+    LATE = "LATE",
+    UNKNOWN = "UNKNOWN"
 }

@@ -7,9 +7,23 @@ import assertions = require('assert');
 import yaml = require('js-yaml');
 import fs = require('fs');
 import util = require('util');
-import { IntervalWindow, KV } from "../src/apache_beam/values";
+import { Timing } from "../src/apache_beam/values";
 
 const STANDARD_CODERS_FILE = '../../model/fn-execution/src/main/resources/org/apache/beam/model/fnexecution/v1/standard_coders.yaml';
+
+interface CoderRepr {
+    urn: string,
+    payload?: Uint8Array,
+    components?: Array<CoderRepr>
+    non_deterministic?: boolean,
+}
+
+type CoderSpec = {
+    coder: CoderRepr,
+    nested?: boolean,
+    examples: object
+}
+
 
 // TODO(pabloem): Empty this list.
 const UNSUPPORTED_CODERS = [
@@ -39,20 +53,19 @@ const _urn_to_json_value_parser = {
     'beam:coder:interval_window:v1': _ => (x: { end: number, span: number }) => ({
         start: Long.fromNumber(x.end).sub(x.span),
         end: Long.fromNumber(x.end)
+    }),
+    'beam:coder:windowed_value:v1': components => x => ({
+        value: components[0](x.value),
+        windows: x.windows.map(components[1]),
+        pane: {
+            isLast: x.pane.is_last,
+            isFirst: x.pane.is_first,
+            index: x.pane.index,
+            onTimeIndex: x.pane.on_time_index,
+            timing: Timing[x.pane.timing],
+        },
+        timestamp: Long.fromNumber(x.timestamp),
     })
-}
-
-interface CoderRepr {
-    urn: string,
-    payload?: Uint8Array,
-    components?: Array<CoderRepr>
-    non_deterministic?: boolean,
-}
-
-type CoderSpec = {
-    coder: CoderRepr,
-    nested?: boolean,
-    examples: object
 }
 
 function get_json_value_parser(coderRepr: CoderRepr) {
