@@ -18,12 +18,7 @@ class CountElements extends beam.PTransform<beam.PCollection<any>, beam.PCollect
     }
 }
 
-<<<<<<< HEAD
 function wordCount(lines: beam.PCollection<string>): beam.PCollection<beam.KV<string, number>> {
-=======
-class WordCount extends beam.PTransform<beam.PCollection<string>, beam.PCollection<KV<string, number>>> {
-    expand(lines: beam.PCollection<string>) {
->>>>>>> 238113b278d42e19aa5c665c96c4a8a0dc35afb0
         return lines
             .map((s) => s.toLowerCase())
             .flatMap(function*(line) {

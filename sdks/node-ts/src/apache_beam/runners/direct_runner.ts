@@ -2,7 +2,7 @@ import { PTransform, PCollection } from "../proto/beam_runner_api";
 import { ProcessBundleDescriptor } from "../proto/beam_fn_api";
 import { JobState_Enum } from "../proto/beam_job_api";
 
-import { Runner, Pipeline, Root, Impulse, GroupByKey, PaneInfo, BoundedWindow, PipelineResult, Instant } from '../base'
+import { Runner, Pipeline, Root, Impulse, GroupByKey, PipelineResult } from '../base'
 import * as worker from '../worker/worker';
 import * as operators from '../worker/operators';
 import { BoundedWindow, Instant, PaneInfo, WindowedValue } from "../values";
