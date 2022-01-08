@@ -47,7 +47,7 @@ class RawExternalTransform<InputT extends base.PValue<any>, OutputT extends base
             request.components!.transforms[fakeImpulseNamespace + pcId] = runnerApi.PTransform.create({
                 uniqueName: fakeImpulseNamespace + '_create_' + pcId,
                 spec: { urn: base.Impulse.urn, payload: new Uint8Array() },
-                outputs: {'main': pcId},
+                outputs: { 'main': pcId },
             });
         }
 
@@ -138,8 +138,8 @@ class RawExternalTransform<InputT extends base.PValue<any>, OutputT extends base
 async function main() {
     const kvCoder = new coders.KVCoder(new coders.VarIntCoder(), new coders.VarIntCoder());
     const root = new base.Root(new base.Pipeline());
-    const input = root.apply(new core.Create([{key: 1, value: 3}])).apply(new base.WithCoderInternal(kvCoder));
-//     const input2 = root.apply(new core.Create([{key: 1, value: 4}])).apply(new base.WithCoderInternal(kvCoder));
+    const input = root.apply(new core.Create([{ key: 1, value: 3 }])).apply(new base.WithCoderInternal(kvCoder));
+    //     const input2 = root.apply(new core.Create([{key: 1, value: 4}])).apply(new base.WithCoderInternal(kvCoder));
     await input.asyncApply(new RawExternalTransform<base.PValue<any>, base.PValue<any>>(base.GroupByKey.urn, undefined!, 'localhost:4444'));
     console.log('-------------------------------------------');
     console.dir(input.pipeline.getProto(), { depth: null });

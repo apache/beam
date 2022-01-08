@@ -142,7 +142,7 @@ export class Pipeline {
         this.context = new PipelineContext(this.proto.components!);
         this.proto.components!.windowingStrategies[this.globalWindowing] = {
             windowFn: { urn: 'beam:window_fn:global_windows:v1', payload: new Uint8Array() },
-            trigger: { trigger: { oneofKind: 'default', default: { } } },
+            trigger: { trigger: { oneofKind: 'default', default: {} } },
             windowCoderId: this.context.getCoderId(new GlobalWindowCoder()),
             accumulationMode: runnerApi.AccumulationMode_Enum.DISCARDING,
             outputTime: runnerApi.OutputTime_Enum.END_OF_WINDOW,
@@ -178,11 +178,11 @@ export class Pipeline {
             annotations: {},
         }
         this.proto.components!.transforms![transformId] = transformProto;
-        return {id: transformId, proto: transformProto};
+        return { id: transformId, proto: transformProto };
     }
 
     applyTransform<InputT extends PValue<any>, OutputT extends PValue<any>>(transform: PTransform<InputT, OutputT>, input: InputT, name: string) {
-        const {id: transformId, proto: transformProto} = this.preApplyTransform(transform, input, name);
+        const { id: transformId, proto: transformProto } = this.preApplyTransform(transform, input, name);
         let result: OutputT;
         try {
             this.transformStack.push(transformId);
@@ -194,7 +194,7 @@ export class Pipeline {
     }
 
     async asyncApplyTransform<InputT extends PValue<any>, OutputT extends PValue<any>>(transform: AsyncPTransform<InputT, OutputT>, input: InputT, name: string) {
-        const {id: transformId, proto: transformProto} = this.preApplyTransform(transform, input, name);
+        const { id: transformId, proto: transformProto } = this.preApplyTransform(transform, input, name);
         let result: OutputT;
         try {
             this.transformStack.push(transformId);
@@ -421,7 +421,7 @@ export class PTransform<InputT extends PValue<any>, OutputT extends PValue<any>>
 
     expandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, input: InputT): OutputT {
         return this.expand(input);
-   }
+    }
 
     async asyncExpandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, input: InputT): Promise<OutputT> {
         return this.expandInternal(pipeline, transformProto, input);
