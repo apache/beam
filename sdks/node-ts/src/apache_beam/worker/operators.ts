@@ -61,8 +61,6 @@ interface OperatorClass {
     new(transformId: string, transformProto: PTransform, context: OperatorContext): IOperator;
 }
 
-//const operatorsByUrn: Map<string, OperatorClass | ((transformId: string, transformProto: PTransform, context: OperatorContext) => IOperator)> = new Map();
-//const operatorsByUrn: Map<string, OperatorClass> = new Map();
 const operatorsByUrn: Map<string, OperatorConstructor> = new Map();
 
 export function registerOperator(urn: string, cls: OperatorClass) {
@@ -207,14 +205,7 @@ registerOperator("beam:transform:flatten:v1", FlattenOperator);
 
 
 class GenericParDoOperator implements IOperator {
-    //     receiver: Receiver;
-    //     spec: runnerApi.ParDoPayload;
-    //     doFn: base.DoFn<any, any>;
-
     constructor(private receiver: Receiver, private spec: runnerApi.ParDoPayload, private doFn: base.DoFn<any, any>) { }
-
-    //     constructor(transformId: string, transform: PTransform, context: OperatorContext) {
-    //     }
 
     startBundle() {
         this.doFn.startBundle();
@@ -280,6 +271,49 @@ class SplittingDoFnOperator implements IOperator {
     finishBundle() { }
 }
 
+class AssignWindowsParDoOperator implements IOperator {
+    constructor(private receiver: Receiver, private windowFn: base.WindowFn<any>) { }
+
+    startBundle() { };
+
+    process(wvalue: WindowedValue<any>) {
+        const newWindowsOnce = this.windowFn.assignWindows(wvalue.timestamp);
+        if (newWindowsOnce.length > 0) {
+            const newWindows: BoundedWindow[] = [];
+            for (var i = 0; i < wvalue.windows.length; i++) {
+                newWindows.push(...newWindowsOnce);
+            }
+            this.receiver.receive({
+                value: wvalue.value,
+                windows: newWindows,
+                // TODO: Verify it falls in window and doesn't cause late data.
+                timestamp: wvalue.timestamp,
+                pane: wvalue.pane,
+            });
+        }
+    }
+
+    finishBundle() { }
+}
+
+class AssignTimestampsParDoOperator implements IOperator {
+    constructor(private receiver: Receiver, private func: (any, Instant) => typeof Instant) { }
+
+    startBundle() { };
+
+    process(wvalue: WindowedValue<any>) {
+        this.receiver.receive({
+            value: wvalue.value,
+            windows: wvalue.windows,
+            // TODO: Verify it falls in window and doesn't cause late data.
+            timestamp: this.func(wvalue.value, wvalue.timestamp),
+            pane: wvalue.pane,
+        });
+    }
+
+    finishBundle() { }
+}
+
 registerOperatorConstructor(base.ParDo.urn, (transformId: string, transform: PTransform, context: OperatorContext) => {
     const receiver = context.getReceiver(onlyElement(Object.values(transform.outputs)));
     const spec = runnerApi.ParDoPayload.fromBinary(transform.spec!.payload);
@@ -292,6 +326,14 @@ registerOperatorConstructor(base.ParDo.urn, (transformId: string, transform: PTr
     } else if (spec.doFn?.urn == translations.IDENTITY_DOFN_URN) {
         return new IdentityParDoOperator(
             context.getReceiver(onlyElement(Object.values(transform.outputs))));
+    } else if (spec.doFn?.urn == translations.JS_WINDOW_INTO_DOFN_URN) {
+        return new AssignWindowsParDoOperator(
+            context.getReceiver(onlyElement(Object.values(transform.outputs))),
+            base.fakeDeserialize(spec.doFn.payload!).windowFn);
+    } else if (spec.doFn?.urn == translations.JS_ASSIGN_TIMESTAMPS_DOFN_URN) {
+        return new AssignTimestampsParDoOperator(
+            context.getReceiver(onlyElement(Object.values(transform.outputs))),
+            base.fakeDeserialize(spec.doFn.payload!).func);
     } else if (spec.doFn?.urn == translations.SPLITTING_JS_DOFN_URN) {
         return new SplittingDoFnOperator(
             base.fakeDeserialize(spec.doFn.payload!).splitter,

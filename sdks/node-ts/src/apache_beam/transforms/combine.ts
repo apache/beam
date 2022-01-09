@@ -6,6 +6,8 @@ import { BoundedWindow, Instant, KV, PaneInfo } from '../values'
 import { GlobalWindow, PaneInfoCoder } from '../coders/standard_coders';
 import { GroupBy, keyBy } from './core'
 
+
+// TODO: Where do we draw the line for top-level factories? (And for PCollection methods?)
 export function countGlobally() {
     return new CombineGlobally(new CountFn());
 }
@@ -34,7 +36,7 @@ class CombinePerKey<K, InputT, AccT, OutputT> extends PTransform<PCollection<KV<
     expand(input: PCollection<KV<any, InputT>>) {
         // TODO: Check other windowing properties as well.
         const windowingStrategy = input.pipeline!.getProto().components!.windowingStrategies[input.pipeline.getProto().components!.pcollections[input.id].windowingStrategyId];
-        if (windowingStrategy?.windowFn?.urn == 'Xbeam:window_fn:global_windows:v1') {
+        if (windowingStrategy?.windowFn?.urn == 'beam:window_fn:global_windows:v1') {
             return input.apply(new ParDo(new PreShuffleCombineDoFn(this.combineFn)))
                 .apply(new GroupByKey())
                 .apply(new ParDo(new PostShuffleCombineDoFn(this.combineFn)));
