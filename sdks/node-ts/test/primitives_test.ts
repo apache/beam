@@ -21,8 +21,8 @@ describe("primitives module", function() {
         it("runs a ParDo expansion", function() {
             var p = new beam.Pipeline();
             var res = p.apply(new beam.Impulse())
-                .map<number,number>(function(v: number) { return v * 2; })
-                .map<number,number>(function(v: number) { return v * 4; });
+                .map(function(v: any) { return v * 2; })
+                .map(function(v: number) { return v * 4; });
 
             const coder = p.getCoder(res.proto.coderId);
             assert.deepEqual(coder, new GeneralObjectCoder());

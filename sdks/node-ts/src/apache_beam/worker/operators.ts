@@ -221,7 +221,11 @@ class GenericParDoOperator implements IOperator {
     };
 
     process(wvalue: WindowedValue<any>) {
-        for (const element of this.doFn.process(wvalue.value)) {
+        const doFnOutput = this.doFn.process(wvalue.value);
+        if (!doFnOutput) {
+            return;
+        }
+        for (const element of doFnOutput) {
             this.receiver.receive({
                 value: element,
                 windows: <Array<BoundedWindow>><unknown>undefined,
@@ -232,7 +236,16 @@ class GenericParDoOperator implements IOperator {
     }
 
     finishBundle() {
-        this.doFn.finishBundle();
+        const finishBundleOutput = this.doFn.finishBundle()
+        if (!finishBundleOutput) {
+            return;
+        }
+        // The finishBundle method must return `void` or a Generator<WindowedValue<OutputT>>. It may not
+        // return Generator<OutputT> without windowing information because a single bundle may contain
+        // elements from different windows, so each element must specify its window.
+        for (const element of finishBundleOutput) {
+            this.receiver.receive(element);
+        }
     }
 }
 

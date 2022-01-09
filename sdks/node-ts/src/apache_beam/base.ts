@@ -11,6 +11,7 @@ import equal from 'fast-deep-equal'
 
 import { PipelineOptions } from './options/pipeline_options';
 import { KV } from "./values";
+import { WindowedValue } from '.';
 
 // TODO(pabloem): Use something better, hah.
 var _pcollection_counter = -1;
@@ -230,7 +231,7 @@ export class Pipeline {
         return result;
     }
 
-    createPCollectionInternal(
+    createPCollectionInternal<OutputT>(
         coder: Coder<any> | string,
         windowingStrategy: runnerApi.WindowingStrategy | undefined = undefined,
         isBounded: runnerApi.IsBounded_Enum | undefined = undefined) {
@@ -256,7 +257,7 @@ export class Pipeline {
             windowingStrategyId: windowingStrategyId,
             displayData: [],
         }
-        return new PCollection(this, pcollId);
+        return new PCollection<OutputT>(this, pcollId);
     }
 
     getCoder<T>(coderId: string): Coder<T> {
@@ -298,13 +299,12 @@ export class PCollection<T> {
         return this.pipeline.asyncApplyTransform(transform, this, "");
     }
 
-    map<InputT, OutputT>(fn: (element: InputT) => OutputT): PCollection<OutputT> {
-        // TODO(robertwb): Should PTransforms have generics?
-        return this.apply(new ParDo<InputT, OutputT>(new MapDoFn<InputT, OutputT>(fn))) as PCollection<OutputT>;
+    map<OutputT>(fn: (element: T) => OutputT): PCollection<OutputT> {
+        return this.apply(new ParDo<T, OutputT>(new MapDoFn<T, OutputT>(fn))) as PCollection<OutputT>;
     }
 
-    flatMap<InputT, OutputT>(fn: (element: InputT) => Generator<OutputT>): PCollection<OutputT> {
-        return this.apply(new ParDo<InputT, OutputT>(new FlatMapDoFn<InputT, OutputT>(fn))) as PCollection<OutputT>;
+    flatMap<OutputT>(fn: (element: T) => Generator<OutputT>): PCollection<OutputT> {
+        return this.apply(new ParDo<T, OutputT>(new FlatMapDoFn<T, OutputT>(fn))) as PCollection<OutputT>;
     }
 
     root(): Root {
@@ -454,7 +454,7 @@ class AsyncPTransformFromCallable<InputT extends PValue<any>, OutputT extends PV
     }
 }
 
-interface CombineFn<I, A, O> {
+export interface CombineFn<I, A, O> {
     createAccumulator: () => A;
     addInput: (A, I) => A;
     mergeAccumulators: (accumulators: A[]) => A;
@@ -462,13 +462,13 @@ interface CombineFn<I, A, O> {
 }
 
 export class DoFn<InputT, OutputT> {
-    *process(element: InputT): Generator<OutputT> | OutputT {
+    *process(element: InputT): Generator<OutputT> | void {
         throw new Error('Method process has not been implemented!');
     }
 
     startBundle() { }
 
-    finishBundle() { }
+    *finishBundle(): Generator<WindowedValue<OutputT>> | void { }
 }
 
 export interface GenericCallable {
@@ -517,7 +517,7 @@ export class ParDo<InputT, OutputT> extends PTransform<PCollection<InputT>, PCol
 
         // For the ParDo output coder, we use a GeneralObjectCoder, which is a Javascript-specific
         // coder to encode the various types that exist in JS.
-        return pipeline.createPCollectionInternal(new GeneralObjectCoder());
+        return pipeline.createPCollectionInternal<OutputT>(new GeneralObjectCoder());
     }
 }
 
@@ -587,7 +587,7 @@ export class WithKvCoderInternal<K, V> extends PTransform<PCollection<KV<K, V>>,
         };
 
         // TODO: Consider deriving the key and value coder from the input coder.
-        return pipeline.createPCollectionInternal(
+        return pipeline.createPCollectionInternal<KV<K, V>>(
             new KVCoder(new GeneralObjectCoder(), new GeneralObjectCoder()));
     }
 }
@@ -611,7 +611,7 @@ export class WithCoderInternal<T> extends PTransform<PCollection<T>, PCollection
         };
 
         // TODO: Consider deriving the key and value coder from the input coder.
-        return pipeline.createPCollectionInternal(this.coder);
+        return pipeline.createPCollectionInternal<T>(this.coder);
     }
 }
 
@@ -639,7 +639,7 @@ export class Split<T> extends PTransform<PCollection<T>, {[key: string]: PCollec
 
         const this_ = this;
         const inputCoder = pipeline.getProto().components!.pcollections[input.id]!.coderId;
-        return Object.fromEntries(this_.tags.map(tag => [tag, pipeline.createPCollectionInternal(inputCoder)]));
+        return Object.fromEntries(this_.tags.map(tag => [tag, pipeline.createPCollectionInternal<T>(inputCoder)]));
     }
 }
 
@@ -655,7 +655,7 @@ export class Flatten<T> extends PTransform<PCollection<T>[], PCollection<T>> {
         });
 
         // TODO: Input coder if they're all the same? UnionCoder?
-        return pipeline.createPCollectionInternal(new GeneralObjectCoder());
+        return pipeline.createPCollectionInternal<T>(new GeneralObjectCoder());
     }
 }
 
