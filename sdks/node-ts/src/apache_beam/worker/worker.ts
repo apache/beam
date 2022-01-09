@@ -64,7 +64,13 @@ export class Worker {
                         instructionId: request.instructionId,
                         error: "" + err,
                         response: {
-                            oneofKind: undefined
+                            oneofKind: 'processBundle',
+                            processBundle: {
+                                residualRoots: [],
+                                monitoringInfos: [],
+                                requiresFinalization: false,
+                                monitoringData: {},
+                            },
                         }
                     })
                 } else {

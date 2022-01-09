@@ -241,8 +241,10 @@ export class FullWindowedValueCoder<T, W extends BoundedWindow> implements Coder
 }
 CODER_REGISTRY.register(FullWindowedValueCoder.URN, FullWindowedValueCoder);
 
-export class GlobalWindow {
-
+export class GlobalWindow implements BoundedWindow {
+  maxTimestamp(): Instant {
+      return Long.fromValue("9223371950454775");  // TODO: Pull constant out of proto, or at least as a constant elsewhere.
+  }
 }
 
 export class GlobalWindowCoder implements Coder<GlobalWindow> {
@@ -279,6 +281,7 @@ enum PaneInfoEncoding {
 }
 export class PaneInfoCoder implements Coder<PaneInfo> {
     static INSTANCE = new PaneInfoCoder()
+    static ONE_AND_ONLY_FIRING = PaneInfoCoder.INSTANCE.decode(new Reader(new Uint8Array([0x09])), null!);
 
     private static decodeTiming(timingNumber): Timing {
         switch (timingNumber) {

@@ -228,9 +228,9 @@ class GenericParDoOperator implements IOperator {
         for (const element of doFnOutput) {
             this.receiver.receive({
                 value: element,
-                windows: <Array<BoundedWindow>><unknown>undefined,
-                pane: <PaneInfo><unknown>undefined,
-                timestamp: <Instant><unknown>undefined
+                windows: wvalue.windows,
+                pane: wvalue.pane,
+                timestamp: wvalue.timestamp,
             });
         }
     }
