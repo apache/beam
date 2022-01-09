@@ -242,9 +242,9 @@ export class FullWindowedValueCoder<T, W extends BoundedWindow> implements Coder
 CODER_REGISTRY.register(FullWindowedValueCoder.URN, FullWindowedValueCoder);
 
 export class GlobalWindow implements BoundedWindow {
-  maxTimestamp(): Instant {
-      return Long.fromValue("9223371950454775");  // TODO: Pull constant out of proto, or at least as a constant elsewhere.
-  }
+    maxTimestamp(): Instant {
+        return Long.fromValue("9223371950454775");  // TODO: Pull constant out of proto, or at least as a constant elsewhere.
+    }
 }
 
 export class GlobalWindowCoder implements Coder<GlobalWindow> {

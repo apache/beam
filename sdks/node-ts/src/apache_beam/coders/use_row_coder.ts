@@ -117,9 +117,9 @@ let schema: Schema = {
                                     type: {
                                         nullable: true,
                                         typeInfo: {
-                                          oneofKind: "atomicType",
-                                          atomicType: AtomicType.STRING
-                                      }
+                                            oneofKind: "atomicType",
+                                            atomicType: AtomicType.STRING
+                                        }
                                     },
                                     id: 0,
                                     encodingPosition: 0,
@@ -137,46 +137,46 @@ let schema: Schema = {
             options: [],
         },
         {
-          name: "kwargs",
-          description: "",
-          type: {
-              nullable: true,
-              typeInfo: {
-                  oneofKind: "rowType",
-                  rowType: {
-                      schema: {
-                          id: "test_inner",
-                          fields: [
-                              {
-                                  name: "suffix",
-                                  description: "",
-                                  type: {
-                                      nullable: true,
-                                      typeInfo: {
-                                        oneofKind: "atomicType",
-                                        atomicType: AtomicType.STRING
-                                    }
-                                  },
-                                  id: 0,
-                                  encodingPosition: 0,
-                                  options: [],
-                              }
-                          ],
-                          options: [],
-                          encodingPositionsSet: false
-                      }
-                  }
-              }
-          },
-          id: 0,
-          encodingPosition: 0,
-          options: [],
-      }
+            name: "kwargs",
+            description: "",
+            type: {
+                nullable: true,
+                typeInfo: {
+                    oneofKind: "rowType",
+                    rowType: {
+                        schema: {
+                            id: "test_inner",
+                            fields: [
+                                {
+                                    name: "suffix",
+                                    description: "",
+                                    type: {
+                                        nullable: true,
+                                        typeInfo: {
+                                            oneofKind: "atomicType",
+                                            atomicType: AtomicType.STRING
+                                        }
+                                    },
+                                    id: 0,
+                                    encodingPosition: 0,
+                                    options: [],
+                                }
+                            ],
+                            options: [],
+                            encodingPositionsSet: false
+                        }
+                    }
+                }
+            },
+            id: 0,
+            encodingPosition: 0,
+            options: [],
+        }
     ],
     options: [],
     encodingPositionsSet: false
-  };
-  
+};
+
 let obj = {
     x: "first",
     y: {
@@ -193,7 +193,7 @@ let obj = {
 
 let writer = new Writer(),
     // row = RowCoder.OfSchema(schema);
-        row = RowCoder.OfJSON(obj);
+    row = RowCoder.OfJSON(obj);
 
 
 row.encode(obj, writer, Context.needsDelimiters);

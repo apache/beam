@@ -1,10 +1,10 @@
 import Long from "long";
 
 import { GroupByKey, ParDo, CombineFn, PTransform, PCollection, DoFn } from "../base";
-import {BoundedWindow, Instant, KV, PaneInfo} from '../values'
+import { BoundedWindow, Instant, KV, PaneInfo } from '../values'
 
 import { GlobalWindow, PaneInfoCoder } from '../coders/standard_coders';
-import {GroupBy, keyBy} from './core'
+import { GroupBy, keyBy } from './core'
 
 export function countGlobally() {
     return new CombineGlobally(new CountFn());
@@ -18,13 +18,13 @@ export function combineGlobally<InputT, AccT, OutputT>(combineFn: CombineFn<Inpu
     return new CombineGlobally(combineFn);
 }
 
-export function combinePerKey<InputT, AccT, OutputT>(combineFn: CombineFn<InputT, AccT, OutputT>): CombinePerKey<InputT, AccT, OutputT> {
+export function combinePerKey<K, InputT, AccT, OutputT>(combineFn: CombineFn<InputT, AccT, OutputT>): CombinePerKey<K, InputT, AccT, OutputT> {
     return new CombinePerKey(combineFn);
 }
 
 
 // TODO(pabloem): Consider implementing Combines as primitives rather than with PArDos.
-class CombinePerKey<InputT, AccT, OutputT> extends PTransform<PCollection<KV<any, InputT>>, PCollection<KV<any, OutputT>>> {
+class CombinePerKey<K, InputT, AccT, OutputT> extends PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> {
     combineFn: CombineFn<InputT, AccT, OutputT>
     constructor(combineFn: CombineFn<InputT, AccT, OutputT>) {
         super();
@@ -32,9 +32,24 @@ class CombinePerKey<InputT, AccT, OutputT> extends PTransform<PCollection<KV<any
     }
 
     expand(input: PCollection<KV<any, InputT>>) {
-        return input.apply(new ParDo(new PreShuffleCombineDoFn(this.combineFn)))
-            .apply(new GroupByKey())
-            .apply(new ParDo(new PostShuffleCombineDoFn(this.combineFn)))
+        // TODO: Check other windowing properties as well.
+        const windowingStrategy = input.pipeline!.getProto().components!.windowingStrategies[input.pipeline.getProto().components!.pcollections[input.id].windowingStrategyId];
+        if (windowingStrategy?.windowFn?.urn == 'Xbeam:window_fn:global_windows:v1') {
+            return input.apply(new ParDo(new PreShuffleCombineDoFn(this.combineFn)))
+                .apply(new GroupByKey())
+                .apply(new ParDo(new PostShuffleCombineDoFn(this.combineFn)));
+        } else {
+            const combineFn = this.combineFn;
+            return input
+                .apply(new GroupByKey())
+                .map((kv) => ({
+                    key: kv.key,
+                    value: combineFn.extractOutput(
+                        kv.value.reduce(
+                            combineFn.addInput.bind(combineFn),
+                            combineFn.createAccumulator()))
+                }));
+        }
     }
 }
 
@@ -47,7 +62,7 @@ class CombineGlobally<InputT, AccT, OutputT> extends PTransform<PCollection<Inpu
 
     expand(input: PCollection<InputT>) {
         return input
-        .map(elm => ({key: "", value: elm}))
+            .map(elm => ({ key: "", value: elm }))
             .apply(new ParDo(new PreShuffleCombineDoFn(this.combineFn)))
             .apply(new GroupByKey())
             .apply(new ParDo(new PostShuffleCombineDoFn(this.combineFn)))
@@ -80,7 +95,9 @@ class PreShuffleCombineDoFn<InputT, AccumT> extends DoFn<KV<any, InputT>, KV<any
         this.combineFn = combineFn;
     }
 
-    process(elm: KV<any, InputT>) {
+    *process(elm: KV<any, InputT>) {
+        // TODO: Note that for non-primitives, maps have equality-on-reference, so likely little combining would happen here.
+        // This should be resolved once we have combiner lifting.
         if (!this.accums[elm.key]) {
             this.accums[elm.key] = this.combineFn.createAccumulator();
         }
@@ -90,7 +107,7 @@ class PreShuffleCombineDoFn<InputT, AccumT> extends DoFn<KV<any, InputT>, KV<any
     *finishBundle() {
         for (let k in this.accums) {
             yield {
-                value: {'key': k, 'value': this.accums[k]},
+                value: { 'key': k, 'value': this.accums[k] },
                 // TODO: Fix this!
                 windows: [new GlobalWindow()],
                 pane: PaneInfoCoder.ONE_AND_ONLY_FIRING,

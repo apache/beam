@@ -106,7 +106,7 @@ operators.registerOperator(GroupByKey.urn, DirectGbkOperator);
 
 
 
-export function encodeToBase64<T>(element: T, coder: Coder<T>) : string {
+export function encodeToBase64<T>(element: T, coder: Coder<T>): string {
     const writer = new protobufjs.Writer();
     coder.encode(element, writer, CoderContext.wholeStream);
     return Buffer.from(writer.finish()).toString('base64');

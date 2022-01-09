@@ -50,16 +50,16 @@ describe("wordcount", function() {
                 ]));
 
                 lines.apply(wordCount)
-                .apply(new testing.AssertDeepEqual([
-                    { key: 'and', value: 2 },
-                    { key: 'god', value: 1 },
-                    { key: 'said', value: 1 },
-                    { key: 'let', value: 1 },
-                    { key: 'there', value: 2 },
-                    { key: 'be', value: 1 },
-                    { key: 'light', value: 2 },
-                    { key: 'was', value: 1 },
-                ]))
+                    .apply(new testing.AssertDeepEqual([
+                        { key: 'and', value: 2 },
+                        { key: 'god', value: 1 },
+                        { key: 'said', value: 1 },
+                        { key: 'let', value: 1 },
+                        { key: 'there', value: 2 },
+                        { key: 'be', value: 1 },
+                        { key: 'light', value: 2 },
+                        { key: 'was', value: 1 },
+                    ]))
             })
     });
 
