@@ -5,12 +5,12 @@ import { KV } from "../src/apache_beam/values";
 
 import { NodeRunner } from '../src/apache_beam/runners/node_runner/runner'
 import { RemoteJobServiceClient } from "../src/apache_beam/runners/node_runner/client";
-import { countGlobally, countPerKey } from '../src/apache_beam/transforms/combine';
-import { keyBy } from '../src/apache_beam';
+import { combineGlobally, countGlobally, countPerKey } from '../src/apache_beam/transforms/combine';
+import { CombineFn, keyBy } from '../src/apache_beam';
 
 
 describe("Apache Beam combiners", function() {
-    it("runs wordcount with a countPerKey transform", async function() {
+    it("runs wordcount with a countPerKey transform and asserts the result", async function() {
         //         await new NodeRunner(new RemoteJobServiceClient('localhost:3333')).run(
         await new DirectRunner().run(
             (root) => {
@@ -59,7 +59,7 @@ describe("Apache Beam combiners", function() {
             })
     });
 
-    it("runs wordcount with a countPerKey transform and asserts the result", async function() {
+    it("runs wordcount with a countGlobally transform and asserts the result", async function() {
         await new DirectRunner().run(
             (root) => {
                 const lines = root.apply(new beam.Create([
@@ -75,5 +75,46 @@ describe("Apache Beam combiners", function() {
                 .apply(new testing.AssertDeepEqual([11]))
             })
     });
+    
+    it("runs an example where a custom combine function is passed", async function() {
+        type MeandAndStdDev = {mean: number, stdDev: number};
+        type MeanAndStdDevAcc = {count:number, sum:number, sumOfSquares:number}
+        class MedianAndUnstableStdDev implements CombineFn<number, any, MeandAndStdDev> {
+            // NOTE: This Standard Deviation algorithm is **unstable**, so it is not recommended
+            //    for an actual production-level pipeline.
+            createAccumulator() {return {'count': 0, 'sum': 0, 'sumOfSquares': 0}}
+            addInput(acc: MeanAndStdDevAcc, inp: number) {
+                return {
+                    count: acc.count + 1,
+                    sum: acc.sum + inp,
+                    sumOfSquares: acc.sumOfSquares + inp*inp
+                }
+            }
+            mergeAccumulators(accumulators: MeanAndStdDevAcc[]) {
+                return accumulators.reduce((previous, current) => ({count: previous.count + current.count, sum: previous.sum + current.sum, sumOfSquares: previous.sumOfSquares + current.sumOfSquares}))
+            }
+            extractOutput(acc: MeanAndStdDevAcc) {
+                const mean = acc.sum / acc.count
+                return {mean: mean, stdDev: (acc.sumOfSquares / acc.count) - (mean*mean)}
+            }
+        }
+        await new DirectRunner().run(
+            (root) => {
+                const lines = root.apply(new beam.Create([
+                    "In the beginning God created the heaven and the earth.",
+                    "And the earth was without form, and void; and darkness was upon the face of the deep.",
+                    "And the Spirit of God moved upon the face of the waters.",
+                    "And God said, Let there be light: and there was light.",
+                ]));
 
+                lines
+                .map((s: string) => s.toLowerCase())
+                .flatMap(function*(line: string) {
+                    yield* line.split(/[^a-z]+/);
+                })
+                .map(word => word.length)
+                .apply(combineGlobally(new MedianAndUnstableStdDev()))
+                .apply(new testing.AssertDeepEqual([{mean: 3.611111111111111, stdDev: 3.2746913580246897}]))
+            })
+    })
 });

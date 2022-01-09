@@ -10,11 +10,19 @@ export function countPerKey() {
     return new CombinePerKey(new CountFn())
 }
 
+export function combineGlobally<InputT, AccT, OutputT>(combineFn: CombineFn<InputT, AccT, OutputT>): CombineGlobally<InputT, AccT, OutputT> {
+    return new CombineGlobally(combineFn);
+}
+
+export function combinePerKey<InputT, AccT, OutputT>(combineFn: CombineFn<InputT, AccT, OutputT>): CombinePerKey<InputT, AccT, OutputT> {
+    return new CombinePerKey(combineFn);
+}
+
 
 // TODO(pabloem): Consider implementing Combines as primitives rather than with PArDos.
-class CombinePerKey<InputT, OutputT> extends PTransform<PCollection<KV<any, InputT>>, PCollection<KV<any, OutputT>>> {
-    combineFn: CombineFn<InputT, any, OutputT>
-    constructor(combineFn: CombineFn<InputT, any, OutputT>) {
+class CombinePerKey<InputT, AccT, OutputT> extends PTransform<PCollection<KV<any, InputT>>, PCollection<KV<any, OutputT>>> {
+    combineFn: CombineFn<InputT, AccT, OutputT>
+    constructor(combineFn: CombineFn<InputT, AccT, OutputT>) {
         super();
         this.combineFn = combineFn;
     }
@@ -26,9 +34,9 @@ class CombinePerKey<InputT, OutputT> extends PTransform<PCollection<KV<any, Inpu
     }
 }
 
-class CombineGlobally<InputT, OutputT> extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
-    combineFn: CombineFn<InputT, any, OutputT>
-    constructor(combineFn: CombineFn<InputT, any, OutputT>) {
+class CombineGlobally<InputT, AccT, OutputT> extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
+    combineFn: CombineFn<InputT, AccT, OutputT>
+    constructor(combineFn: CombineFn<InputT, AccT, OutputT>) {
         super();
         this.combineFn = combineFn;
     }
@@ -51,7 +59,7 @@ class CountFn implements CombineFn<any, number, number> {
         return acc + 1
     }
     mergeAccumulators(accumulators: number[]) {
-        return accumulators.reduce((prev, current) => prev + current)[0]
+        return accumulators.reduce((prev, current) => prev + current)
     }
     extractOutput(acc: number) {
         return acc
@@ -87,7 +95,7 @@ class PreShuffleCombineDoFn<InputT, AccumT> extends DoFn<KV<any, InputT>, KV<any
     }
 }
 
-class PostShuffleCombineDoFn<AccumT, OutputT> extends DoFn<KV<any, AccumT>, KV<any, OutputT>> {
+class PostShuffleCombineDoFn<AccumT, OutputT> extends DoFn<KV<any, Iterable<AccumT>>, KV<any, OutputT>> {
     accums: Map<any, [AccumT]> = new Map()
     combineFn: CombineFn<any, AccumT, OutputT>
 
@@ -96,11 +104,11 @@ class PostShuffleCombineDoFn<AccumT, OutputT> extends DoFn<KV<any, AccumT>, KV<a
         this.combineFn = combineFn;
     }
 
-    process(elm: KV<any, AccumT>) {
+    process(elm: KV<any, Iterable<AccumT>>) {
         if (!this.accums[elm.key]) {
             this.accums[elm.key] = []
         }
-        this.accums[elm.key].push(elm.value)
+        this.accums[elm.key].push(elm.value[0])
     }
 
     *finishBundle() {
