@@ -149,9 +149,11 @@ class RawExternalTransform<InputT extends base.PValue<any>, OutputT extends base
 }
 
 
-function encodeSchemaPayload(payload: {[key: string]: any}, schema: Schema | undefined = undefined): Uint8Array {
+function encodeSchemaPayload(payload: any, schema: Schema | undefined = undefined): Uint8Array {
     const encoded = new Writer();
-    // TODO: Infer schema.
+    if (!schema) {
+        schema = RowCoder.InferSchemaOfJSON(payload);
+    }
     new RowCoder(schema!).encode(payload, encoded, null!);
     return ExternalConfigurationPayload.toBinary({
         schema: schema,
@@ -165,7 +167,13 @@ async function main() {
     const root = new base.Root(new base.Pipeline());
     const input = root.apply(new core.Create([{ key: 1, value: 3 }])).apply(new base.WithCoderInternal(kvCoder));
     //     const input2 = root.apply(new core.Create([{key: 1, value: 4}])).apply(new base.WithCoderInternal(kvCoder));
-    await input.asyncApply(new RawExternalTransform<base.PValue<any>, base.PValue<any>>(base.GroupByKey.urn, undefined!, 'localhost:4444'));
+    // await input.asyncApply(new RawExternalTransform<base.PValue<any>, base.PValue<any>>(base.GroupByKey.urn, undefined!, 'localhost:4444'));
+    await input.asyncApply(new RawExternalTransform<base.PValue<any>, base.PValue<any>>(
+        'beam:transforms:python:fully_qualified_named',
+        {
+            constructor: 'apache_beam.transforms.GroupByKey',
+        },
+        'localhost:4444'));
     console.log('-------------------------------------------');
     console.dir(input.pipeline.getProto(), { depth: null });
 }
