@@ -25,22 +25,31 @@ export class MultiplexingDataChannel {
             console.log('data', elements);
             for (const data of elements.data) {
                 const consumer = this.getConsumer(data.instructionId, data.transformId);
-                consumer.sendData(data.data);
-                if (data.is_last) {
-                    consumer.close();
+                try {
+                    consumer.sendData(data.data);
+                    if (data.is_last) {
+                        consumer.close();
+                    }
+                } catch (error) {
+                    consumer.onError(error);
                 }
             }
             for (const timers of elements.timers) {
                 const consumer = this.getConsumer(timers.instructionId, timers.transformId);
-                consumer.sendTimers(timers.timerFamilyId, timers.timers);
-                if (timers.is_last) {
-                    consumer.close();
+                try {
+                    consumer.sendTimers(timers.timerFamilyId, timers.timers);
+                    if (timers.is_last) {
+                        consumer.close();
+                    }
+                } catch (error) {
+                    consumer.onError(error);
                 }
             }
         });
     }
 
     registerConsumer(bundleId: string, transformId: string, consumer: IDataChannel) {
+        consumer = new TruncateOnErrorDataChannel(consumer);
         if (!this.consumers.has(bundleId)) {
             this.consumers.set(bundleId, new Map());
         }
@@ -96,16 +105,21 @@ export class MultiplexingDataChannel {
                     ],
                     timers: []
                 })
-            }
+            },
+            onError: function(error: Error) {
+                throw error;
+            },
         };
     }
 }
 
 
 export interface IDataChannel {
+    // TODO: onData?
     sendData: (data: Uint8Array) => void;
     sendTimers: (timerFamilyId: string, timers: Uint8Array) => void;
     close: () => void;
+    onError: (Error) => void;
 }
 
 
@@ -113,6 +127,7 @@ class BufferingDataChannel implements IDataChannel {
     data: Uint8Array[] = [];
     timers: [string, Uint8Array][] = [];
     closed: boolean = false;
+    error?: Error;
 
     sendData(data: Uint8Array) {
         this.data.push(data)
@@ -126,11 +141,44 @@ class BufferingDataChannel implements IDataChannel {
         this.closed = true;
     }
 
+    onError(error: Error) {
+        this.closed = true;
+        this.error = error;
+    }
+
     flush(channel: IDataChannel) {
-        this.data.forEach(channel.sendData);
+        this.data.forEach(channel.sendData.bind(channel));
         this.timers.forEach(([timerFamilyId, timers]) => channel.sendTimers(timerFamilyId, timers));
+        if (this.error) {
+            channel.onError(this.error);
+        }
         if (this.closed) {
             channel.close();
         }
+    }
+}
+
+
+class TruncateOnErrorDataChannel implements IDataChannel {
+    private seenError: boolean = false;
+
+    constructor(private underlying: IDataChannel) { }
+
+    sendData(data: Uint8Array) {
+        this.underlying.sendData(data)
+    }
+
+    sendTimers(timerFamilyId: string, timers: Uint8Array) {
+        this.underlying.sendTimers(timerFamilyId, timers)
+    }
+
+    close() {
+        this.underlying.close()
+    }
+
+    onError(error: Error) {
+        console.error("DATA ERROR", error)
+        this.seenError = true;
+        this.underlying.onError(error);
     }
 }

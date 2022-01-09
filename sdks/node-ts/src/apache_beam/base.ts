@@ -1,14 +1,16 @@
 import * as runnerApi from './proto/beam_runner_api';
 import * as fnApi from './proto/beam_fn_api';
 import { Coder, CODER_REGISTRY } from './coders/coders'
+import { GlobalWindowCoder } from './coders/standard_coders'
 import { BytesCoder, IterableCoder, KVCoder } from './coders/standard_coders';
 import * as translations from './internal/translations'
 import * as environments from './internal/environments'
 import { GeneralObjectCoder } from './coders/js_coders';
 import { JobState_Enum } from './proto/beam_job_api';
+import equal from 'fast-deep-equal'
 
-import * as datefns from 'date-fns'
 import { PipelineOptions } from './options/pipeline_options';
+import { KV } from "./values";
 
 // TODO(pabloem): Use something better, hah.
 var _pcollection_counter = -1;
@@ -75,6 +77,7 @@ type Components = runnerApi.Components | fnApi.ProcessBundleDescriptor;
 
 export class PipelineContext {
     components: Components;
+    counter: number = 0;
 
     private coders: { [key: string]: Coder<any> } = {}
 
@@ -83,10 +86,11 @@ export class PipelineContext {
     }
 
     getCoder<T>(coderId: string): Coder<T> {
+        const this_ = this;
         if (this.coders[coderId] == undefined) {
             const coderProto = this.components.coders[coderId];
             const coderConstructor = CODER_REGISTRY.get(coderProto.spec!.urn);
-            const components = (coderProto.componentCoderIds || []).map(c => new (CODER_REGISTRY.get(this.components.coders[c].spec!.urn))())
+            const components = (coderProto.componentCoderIds || []).map(this_.getCoder.bind(this_))
             if (coderProto.spec!.payload && coderProto.spec!.payload.length) {
                 this.coders[coderId] = new coderConstructor(coderProto.spec!.payload, ...components);
             } else {
@@ -101,6 +105,21 @@ export class PipelineContext {
         this.coders[coderId] = coder;
         return coderId;
     }
+
+    getWindowingStrategy(id: string): runnerApi.WindowingStrategy {
+        return this.components.windowingStrategies[id];
+    }
+
+    getWindowingStrategyId(windowing: runnerApi.WindowingStrategy): string {
+        for (const [id, proto] of Object.entries(this.components.windowingStrategies)) {
+            if (equal(proto, windowing)) {
+                return id;
+            }
+        }
+        const newId = "_windowing_" + (this.counter++);
+        this.components.windowingStrategies[newId] = windowing;
+        return newId;
+    }
 }
 
 /**
@@ -113,12 +132,27 @@ export class Pipeline {
     private proto: runnerApi.Pipeline;
     transformStack: string[] = [];
     private defaultEnvironment: string;
+    private globalWindowing: string;
 
     constructor() {
-        this.defaultEnvironment = 'jsEnvironment'
+        this.defaultEnvironment = 'jsEnvironment';
+        this.globalWindowing = 'globalWindowing';
         this.proto = runnerApi.Pipeline.create({ 'components': runnerApi.Components.create({}) });
         this.proto.components!.environments[this.defaultEnvironment] = environments.defaultJsEnvironment();
         this.context = new PipelineContext(this.proto.components!);
+        this.proto.components!.windowingStrategies[this.globalWindowing] = {
+            windowFn: { urn: 'beam:window_fn:global_windows:v1', payload: new Uint8Array() },
+            trigger: { trigger: { oneofKind: 'default', default: {} } },
+            windowCoderId: this.context.getCoderId(new GlobalWindowCoder()),
+            accumulationMode: runnerApi.AccumulationMode_Enum.DISCARDING,
+            outputTime: runnerApi.OutputTime_Enum.END_OF_WINDOW,
+            mergeStatus: runnerApi.MergeStatus_Enum.NEEDS_MERGE,
+            closingBehavior: runnerApi.ClosingBehavior_Enum.EMIT_ALWAYS,
+            onTimeBehavior: runnerApi.OnTimeBehavior_Enum.FIRE_ALWAYS,
+            allowedLateness: BigInt(0),
+            assignsToOneWindow: true,
+            environmentId: this.defaultEnvironment,
+        };
     }
 
     // TODO: Remove once test are fixed.
@@ -126,12 +160,7 @@ export class Pipeline {
         return new Root(this).apply(transform);
     }
 
-    apply2<InputT extends PValue<any>, OutputT extends PValue<any>>(transform: PTransform<InputT, OutputT>, PValue: InputT, name: string) {
-
-        function objectMap(obj, func) {
-            return Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, func(v)]));
-        }
-
+    preApplyTransform<InputT extends PValue<any>, OutputT extends PValue<any>>(transform: AsyncPTransform<InputT, OutputT>, input: InputT, name: string) {
         const this_ = this;
         const transformId = transformName();
         if (this.transformStack.length) {
@@ -140,35 +169,91 @@ export class Pipeline {
             this.proto.rootTransformIds.push(transformId);
         }
         const transformProto: runnerApi.PTransform = {
-            uniqueName: this.transformStack.map((id) => this_.proto?.components?.transforms![id].uniqueName).concat([name || transform.name]).join('/'),
+            uniqueName: transformId + this.transformStack.map((id) => this_.proto?.components?.transforms![id].uniqueName).concat([name || transform.name]).join('/'),
             subtransforms: [],
-            inputs: objectMap(flattenPValue(PValue), (pc) => pc.id),
+            inputs: objectMap(flattenPValue(input), (pc) => pc.id),
             outputs: {},
             environmentId: "",
             displayData: [],
             annotations: {},
         }
-        this.proto!.components!.transforms![transformId] = transformProto;
-        this.transformStack.push(transformId);
-        const result = transform.expandInternal(this, transformProto, PValue); // TODO: try-catch
-        this.transformStack.pop();
-        transformProto.outputs = objectMap(flattenPValue(result), (pc) => pc.id)
+        this.proto.components!.transforms![transformId] = transformProto;
+        return { id: transformId, proto: transformProto };
+    }
+
+    applyTransform<InputT extends PValue<any>, OutputT extends PValue<any>>(transform: PTransform<InputT, OutputT>, input: InputT, name: string) {
+        const { id: transformId, proto: transformProto } = this.preApplyTransform(transform, input, name);
+        let result: OutputT;
+        try {
+            this.transformStack.push(transformId);
+            result = transform.expandInternal(this, transformProto, input);
+        } finally {
+            this.transformStack.pop();
+        }
+        return this.postApplyTransform(transform, transformProto, result);
+    }
+
+    async asyncApplyTransform<InputT extends PValue<any>, OutputT extends PValue<any>>(transform: AsyncPTransform<InputT, OutputT>, input: InputT, name: string) {
+        const { id: transformId, proto: transformProto } = this.preApplyTransform(transform, input, name);
+        let result: OutputT;
+        try {
+            this.transformStack.push(transformId);
+            result = await transform.asyncExpandInternal(this, transformProto, input);
+        } finally {
+            this.transformStack.pop();
+        }
+        return this.postApplyTransform(transform, transformProto, result);
+    }
+
+    postApplyTransform<InputT extends PValue<any>, OutputT extends PValue<any>>(
+        transform: AsyncPTransform<InputT, OutputT>, transformProto: runnerApi.PTransform, result: OutputT) {
+
+        transformProto.outputs = objectMap(flattenPValue(result), (pc) => pc.id);
+
+        // Propagate any unset PCollection properties.
+        const this_ = this;
+        const inputProtos = Object.values(transformProto.inputs).map((id) => this_.proto.components!.pcollections[id]);
+        const inputBoundedness = new Set(inputProtos.map((proto) => proto.isBounded));
+        const inputWindowings = new Set(inputProtos.map((proto) => proto.windowingStrategyId));
+
+        for (const pcId of Object.values(transformProto.outputs)) {
+            const pcProto = this.proto!.components!.pcollections[pcId];
+            if (!pcProto.isBounded) {
+                pcProto.isBounded = onlyValueOr(inputBoundedness, runnerApi.IsBounded_Enum.BOUNDED);
+            }
+            // TODO: Handle the case of equivalent strategies.
+            if (!pcProto.windowingStrategyId) {
+                pcProto.windowingStrategyId = onlyValueOr(inputWindowings, this.globalWindowing);
+            }
+        }
+
         return result;
     }
 
-    createPCollectionInternal(coder: Coder<any> | string, isBounded = runnerApi.IsBounded_Enum.BOUNDED) {
+    createPCollectionInternal(
+        coder: Coder<any> | string,
+        windowingStrategy: runnerApi.WindowingStrategy | undefined = undefined,
+        isBounded: runnerApi.IsBounded_Enum | undefined = undefined) {
         const pcollId = pcollectionName();
         let coderId: string;
+        let windowingStrategyId: string;
         if (typeof coder == "string") {
             coderId = coder;
         } else {
             coderId = this.context.getCoderId(coder);
         }
+        if (windowingStrategy == undefined) {
+            windowingStrategyId = undefined!;
+        } else if (typeof windowingStrategy == "string") {
+            windowingStrategyId = windowingStrategy;
+        } else {
+            windowingStrategyId = this.context.getWindowingStrategyId(windowingStrategy!);
+        }
         this.proto!.components!.pcollections[pcollId] = {
             uniqueName: pcollId, // TODO: name according to producing transform?
             coderId: coderId,
-            isBounded: isBounded,
-            windowingStrategyId: 'global',
+            isBounded: isBounded!,
+            windowingStrategyId: windowingStrategyId,
             displayData: [],
         }
         return new PCollection(this, pcollId);
@@ -203,16 +288,23 @@ export class PCollection<T> {
         if (!(transform instanceof PTransform)) {
             transform = new PTransformFromCallable(transform, "" + transform);
         }
-        return this.pipeline.apply2(transform, this, "");
+        return this.pipeline.applyTransform(transform, this, "");
     }
 
-    map<OutputT>(fn: (T) => OutputT): PCollection<OutputT> {
+    asyncApply<OutputT extends PValue<any>>(transform: AsyncPTransform<PCollection<T>, OutputT> | ((PCollection) => Promise<OutputT>)) {
+        if (!(transform instanceof AsyncPTransform)) {
+            transform = new AsyncPTransformFromCallable(transform, "" + transform);
+        }
+        return this.pipeline.asyncApplyTransform(transform, this, "");
+    }
+
+    map<InputT, OutputT>(fn: (element: InputT) => OutputT): PCollection<OutputT> {
         // TODO(robertwb): Should PTransforms have generics?
-        return this.apply(new ParDo(new MapDoFn(fn))) as PCollection<any>;
+        return this.apply(new ParDo<InputT, OutputT>(new MapDoFn<InputT, OutputT>(fn))) as PCollection<OutputT>;
     }
 
-    flatMap<OutputT>(fn: (T) => Generator<OutputT>): PCollection<OutputT> {
-        return this.apply(new ParDo(new FlatMapDoFn(fn))) as PCollection<OutputT>;
+    flatMap<InputT, OutputT>(fn: (element: InputT) => Generator<OutputT>): PCollection<OutputT> {
+        return this.apply(new ParDo<InputT, OutputT>(new FlatMapDoFn<InputT, OutputT>(fn))) as PCollection<OutputT>;
     }
 
     root(): Root {
@@ -235,7 +327,14 @@ export class Root {
         if (!(transform instanceof PTransform)) {
             transform = new PTransformFromCallable(transform, "" + transform);
         }
-        return this.pipeline.apply2(transform, this, "");
+        return this.pipeline.applyTransform(transform, this, "");
+    }
+
+    async asyncApply<OutputT extends PValue<any>>(transform: AsyncPTransform<Root, OutputT> | ((Root) => Promise<OutputT>)) {
+        if (!(transform instanceof AsyncPTransform)) {
+            transform = new AsyncPTransformFromCallable(transform, "" + transform);
+        }
+        return await this.pipeline.asyncApplyTransform(transform, this, "");
     }
 }
 
@@ -272,15 +371,22 @@ function flattenPValue<T>(PValue: PValue<T>, prefix: string = ""): { [key: strin
 
 class PValueWrapper<T extends PValue<any>> {
     constructor(private pvalue: T) { }
+
     apply<O extends PValue<any>>(transform: PTransform<T, O>, root: Root | null = null) {
-        let pipeline: Pipeline;
+        return this.pipeline(root).applyTransform(transform, this.pvalue, "");
+    }
+
+    async asyncApply<O extends PValue<any>>(transform: AsyncPTransform<T, O>, root: Root | null = null) {
+        return await this.pipeline(root).asyncApplyTransform(transform, this.pvalue, "");
+    }
+
+    private pipeline(root: Root | null = null) {
         if (root == null) {
             const flat = flattenPValue(this.pvalue);
-            pipeline = Object.values(flat)[0].pipeline;
+            return Object.values(flat)[0].pipeline;
         } else {
-            pipeline = root.pipeline;
+            return root.pipeline;
         }
-        return pipeline.apply2(transform, this.pvalue, "");
     }
 }
 
@@ -288,24 +394,41 @@ export function P<T extends PValue<any>>(pvalue: T) {
     return new PValueWrapper(pvalue);
 }
 
-export class PTransform<InputT extends PValue<any>, OutputT extends PValue<any>> {
+export class AsyncPTransform<InputT extends PValue<any>, OutputT extends PValue<any>> {
     name: string;
 
     constructor(name: string | null = null) {
         this.name = name || (typeof this);
     }
 
+    async asyncExpand(input: InputT): Promise<OutputT> {
+        throw new Error('Method expand has not been implemented.');
+    }
+
+    async asyncExpandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, input: InputT): Promise<OutputT> {
+        return this.asyncExpand(input);
+    }
+}
+
+export class PTransform<InputT extends PValue<any>, OutputT extends PValue<any>> extends AsyncPTransform<InputT, OutputT> {
     expand(input: InputT): OutputT {
         throw new Error('Method expand has not been implemented.');
+    }
+
+    async asyncExpand(input: InputT): Promise<OutputT> {
+        return this.expand(input);
     }
 
     expandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, input: InputT): OutputT {
         return this.expand(input);
     }
+
+    async asyncExpandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, input: InputT): Promise<OutputT> {
+        return this.expandInternal(pipeline, transformProto, input);
+    }
 }
 
 class PTransformFromCallable<InputT extends PValue<any>, OutputT extends PValue<any>> extends PTransform<InputT, OutputT> {
-    name: string;
     expander: (InputT) => OutputT;
 
     constructor(expander: (InputT) => OutputT, name: string) {
@@ -318,6 +441,19 @@ class PTransformFromCallable<InputT extends PValue<any>, OutputT extends PValue<
     }
 }
 
+class AsyncPTransformFromCallable<InputT extends PValue<any>, OutputT extends PValue<any>> extends AsyncPTransform<InputT, OutputT> {
+    expander: (InputT) => Promise<OutputT>;
+
+    constructor(expander: (InputT) => Promise<OutputT>, name: string) {
+        super(name);
+        this.expander = expander;
+    }
+
+    async asyncExpand(input: InputT) {
+        return this.expander(input);
+    }
+}
+
 interface CombineFn<I, A, O> {
     createAccumulator: () => A;
     addInput: (A, I) => A;
@@ -326,7 +462,7 @@ interface CombineFn<I, A, O> {
 }
 
 export class DoFn<InputT, OutputT> {
-    *process(element: InputT): Generator<OutputT> {
+    *process(element: InputT): Generator<OutputT> | OutputT {
         throw new Error('Method process has not been implemented!');
     }
 
@@ -368,11 +504,6 @@ export class ParDo<InputT, OutputT> extends PTransform<PCollection<InputT>, PCol
     }
 
     expandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, input: PCollection<InputT>) {
-        // Might not be needed due to generics.
-        if (!(input instanceof PCollection)) {
-            throw new Error('ParDo received the wrong input.');
-        }
-
         transformProto.spec = runnerApi.FunctionSpec.create({
             'urn': ParDo.urn,
             'payload': runnerApi.ParDoPayload.toBinary(
@@ -391,8 +522,8 @@ export class ParDo<InputT, OutputT> extends PTransform<PCollection<InputT>, PCol
 }
 
 class MapDoFn<InputT, OutputT> extends DoFn<InputT, OutputT> {
-    private fn: (InputT) => OutputT;
-    constructor(fn: (InputT) => OutputT) {
+    private fn: (element: InputT) => OutputT;
+    constructor(fn: (element: InputT) => OutputT) {
         super();
         this.fn = fn;
     }
@@ -402,19 +533,14 @@ class MapDoFn<InputT, OutputT> extends DoFn<InputT, OutputT> {
 }
 
 class FlatMapDoFn<InputT, OutputT> extends DoFn<InputT, OutputT> {
-    private fn;
-    constructor(fn: (InputT) => Generator<OutputT>) {
+    private fn: (element: InputT) => Generator<OutputT>;
+    constructor(fn: (element: InputT) => Generator<OutputT>) {
         super();
         this.fn = fn;
     }
     *process(element: InputT) {
         yield* this.fn(element);
     }
-}
-
-export type KV<K, V> = {
-    key: K,
-    value: V
 }
 
 // TODO(pabloem): Consider not exporting the GBK
@@ -427,31 +553,95 @@ export class GroupByKey<K, V> extends PTransform<PCollection<KV<K, V>>, PCollect
 
         // TODO: Use context.
         const pipelineComponents: runnerApi.Components = pipeline.getProto().components!;
-        const inputPCollectionProto = pipelineComponents.pcollections[input.id];
+        const inputCoderProto = pipelineComponents.coders[pipelineComponents.pcollections[input.id].coderId];
 
-        // TODO: How to ensure the input is a KV coder?
-        let keyCoder: Coder<any>;
-        let valueCoder: Coder<any>;
-        const inputCoderProto = pipelineComponents.coders[inputPCollectionProto.coderId];
-        if (inputCoderProto.componentCoderIds.length == 2) {
-            keyCoder = pipeline.getCoder(inputCoderProto.componentCoderIds[0]);
-            valueCoder = pipeline.getCoder(inputCoderProto.componentCoderIds[1]);
+        if (inputCoderProto.spec!.urn != KVCoder.URN) {
+            return input.apply(new WithKvCoderInternal()).apply(new GroupByKey());
         }
-        else {
-            keyCoder = valueCoder = new GeneralObjectCoder();
-        }
-        const iterableValueCoder = new IterableCoder(valueCoder);
-        const outputCoder = new KVCoder(keyCoder, iterableValueCoder);
 
         transformProto.spec = runnerApi.FunctionSpec.create({
             'urn': GroupByKey.urn,
-            'payload': null!,
+            'payload': undefined!,
         });
 
+        const keyCoder = pipeline.getCoder(inputCoderProto.componentCoderIds[0]);
+        const valueCoder = pipeline.getCoder(inputCoderProto.componentCoderIds[1]);
+        const iterableValueCoder = new IterableCoder(valueCoder);
+        const outputCoder = new KVCoder(keyCoder, iterableValueCoder);
         return pipeline.createPCollectionInternal(outputCoder);
     }
 }
 
+export class WithKvCoderInternal<K, V> extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>> {
+    expandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, input: PCollection<KV<K, V>>) {
+        // IDENTITY rather than Flatten for better fusion.
+        transformProto.spec = {
+            'urn': ParDo.urn,
+            'payload': runnerApi.ParDoPayload.toBinary(
+                runnerApi.ParDoPayload.create({
+                    'doFn': runnerApi.FunctionSpec.create({
+                        'urn': translations.IDENTITY_DOFN_URN,
+                        'payload': undefined!,
+                    })
+                }))
+        };
+
+        // TODO: Consider deriving the key and value coder from the input coder.
+        return pipeline.createPCollectionInternal(
+            new KVCoder(new GeneralObjectCoder(), new GeneralObjectCoder()));
+    }
+}
+
+// TODO: Eliminate one or the other.
+export class WithCoderInternal<T> extends PTransform<PCollection<T>, PCollection<T>> {
+    constructor(private coder: Coder<T>) {
+        super("WithCoderInternal(" + coder + ")");
+    }
+    expandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, input: PCollection<T>) {
+        // IDENTITY rather than Flatten for better fusion.
+        transformProto.spec = {
+            'urn': ParDo.urn,
+            'payload': runnerApi.ParDoPayload.toBinary(
+                runnerApi.ParDoPayload.create({
+                    'doFn': runnerApi.FunctionSpec.create({
+                        'urn': translations.IDENTITY_DOFN_URN,
+                        'payload': undefined!,
+                    })
+                }))
+        };
+
+        // TODO: Consider deriving the key and value coder from the input coder.
+        return pipeline.createPCollectionInternal(this.coder);
+    }
+}
+
+// TODO: Consider as top-level method.
+// TODO: Naming.
+// TODO: Allow default?  Technically splitter can be implemented/wrapped to produce such.
+// TODO: Can we enforce splitter's output with the typing system to lie in targets?
+export class Split<T> extends PTransform<PCollection<T>, {[key: string]: PCollection<T>}> {
+    private tags: string[];
+    constructor(private splitter: (T) => string, ...tags: string[]) {
+        super("Split(" + tags + ")");
+        this.tags = tags
+    }
+    expandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, input: PCollection<T>) {
+        transformProto.spec = runnerApi.FunctionSpec.create({
+            'urn': ParDo.urn,
+            'payload': runnerApi.ParDoPayload.toBinary(
+                runnerApi.ParDoPayload.create({
+                    'doFn': runnerApi.FunctionSpec.create({
+                        'urn': translations.SPLITTING_JS_DOFN_URN,
+                        'payload': fakeSeralize({splitter: this.splitter}),
+                    })
+                }))
+        });
+
+        const this_ = this;
+        const inputCoder = pipeline.getProto().components!.pcollections[input.id]!.coderId;
+        return Object.fromEntries(this_.tags.map(tag => [tag, pipeline.createPCollectionInternal(inputCoder)]));
+    }
+}
 
 export class Flatten<T> extends PTransform<PCollection<T>[], PCollection<T>> {
     // static urn: string = runnerApi.StandardPTransforms_Primitives.GROUP_BY_KEY.urn;
@@ -469,38 +659,22 @@ export class Flatten<T> extends PTransform<PCollection<T>[], PCollection<T>> {
     }
 }
 
-enum Timing {
-    EARLY = "early",
-    ON_TIME = "on_time",
-    LATE = "late",
-    UNKNOWN = "unknown"
+
+
+function objectMap(obj, func) {
+    return Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, func(v)]));
 }
 
-export interface PaneInfo {
-    timing: Timing,
-    index: number, // TODO: should be a long
-    nonSpeculativeIndex: number, // TODO should be a long
-    isFirst: boolean,
-    isLast: boolean
+function onlyValueOr<T>(valueSet: Set<T>, defaultValue: T) {
+    if (valueSet.size == 0) {
+        return defaultValue;
+    } else if (valueSet.size == 1) {
+        return valueSet.values().next().value;
+    } else {
+        throw new Error('Unable to deduce single value from ' + valueSet);
+    }
 }
 
-export type Instant = Long;
-
-export interface BoundedWindow {
-    maxTimestamp(): Instant
-}
-
-export interface WindowedValue<T> {
-    value: T;
-    windows: Array<BoundedWindow>;
-    pane: PaneInfo;
-    timestamp: Instant;
-}
-
-export class IntervalWindow implements BoundedWindow {
-    constructor(public start: Instant, public end: Instant) { }
-    maxTimestamp() { return this.end.sub(1) }
-}
 
 
 let fakeSerializeCounter = 0;

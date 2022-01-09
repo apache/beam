@@ -5,7 +5,7 @@ import { beamFnExternalWorkerPoolDefinition, IBeamFnExternalWorkerPool } from ".
 
 import { Worker } from "./worker";
 
-class ExternalWorkerPool {
+export class ExternalWorkerPool {
     host: string;
     server: grpc.Server;
     workers: Map<string, Worker> = new Map();
