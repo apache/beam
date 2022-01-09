@@ -105,4 +105,4 @@ class FullyQualifiedNamedTransform(ptransform.PTransform):
     row = coders.RowCoder(payload.schema).decode(payload.payload)
     maybe_as_dict = lambda x: x._asdict if x else {}
     return FullyQualifiedNamedTransform(
-        row.constructor, tuple(getattr(row, 'args', ())), maybe_as_dict(getattr(row, 'kwargs')))
+        row.constructor, tuple(getattr(row, 'args', ())), maybe_as_dict(getattr(row, 'kwargs', None)))
