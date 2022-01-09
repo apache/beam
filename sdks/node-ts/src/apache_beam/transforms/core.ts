@@ -27,14 +27,14 @@ export class Create<T> extends PTransform<Root, PCollection<T>> {
     }
 }
 
-export class GroupBy extends PTransform<PCollection<any>, PCollection<KV<any, Iterable<any>>>> {
-    keyFn: (element: any) => any;
-    constructor(key: string | ((element: any) => any)) {
+export class GroupBy<T, K> extends PTransform<PCollection<T>, PCollection<KV<K, Iterable<any>>>> {
+    keyFn: (element: T) => K;
+    constructor(key: string | ((element: T) => K)) {
         super();
-        if ((key as (element: any) => any).call !== undefined) {
-            this.keyFn = key as (element: any) => any;
+        if (typeof key == 'string') {
+            this.keyFn = function(x) { return x[key]; };
         } else {
-            this.keyFn = function(x) { return x[key as string]; };
+            this.keyFn = key as (element: T) => K;
         }
     }
 
