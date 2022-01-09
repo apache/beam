@@ -9,7 +9,7 @@ import { Runner, Pipeline, Root, Impulse, GroupByKey, PipelineResult } from '../
 import * as worker from '../worker/worker';
 import * as operators from '../worker/operators';
 import { BoundedWindow, Instant, PaneInfo, WindowedValue } from "../values";
-import { GlobalWindow, PaneInfoCoder, InstantCoder } from '../coders/standard_coders';
+import { GlobalWindow, PaneInfoCoder } from '../coders/standard_coders';
 import { Coder, Context as CoderContext } from '../coders/coders';
 
 

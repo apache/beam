@@ -1,5 +1,9 @@
+import Long from "long";
+
 import { GroupByKey, ParDo, CombineFn, PTransform, PCollection, DoFn } from "../base";
 import {BoundedWindow, Instant, KV, PaneInfo} from '../values'
+
+import { GlobalWindow, PaneInfoCoder } from '../coders/standard_coders';
 import {GroupBy, keyBy} from './core'
 
 export function countGlobally() {
@@ -64,7 +68,7 @@ class CountFn implements CombineFn<any, number, number> {
     extractOutput(acc: number) {
         return acc
     }
-    
+
 }
 
 class PreShuffleCombineDoFn<InputT, AccumT> extends DoFn<KV<any, InputT>, KV<any, AccumT>> {
@@ -87,9 +91,10 @@ class PreShuffleCombineDoFn<InputT, AccumT> extends DoFn<KV<any, InputT>, KV<any
         for (let k in this.accums) {
             yield {
                 value: {'key': k, 'value': this.accums[k]},
-                windows: <Array<BoundedWindow>><unknown>undefined,
-                pane: <PaneInfo><unknown>undefined,
-                timestamp: <Instant><unknown>undefined
+                // TODO: Fix this!
+                windows: [new GlobalWindow()],
+                pane: PaneInfoCoder.ONE_AND_ONLY_FIRING,
+                timestamp: Long.fromValue("-9223372036854775"),
             }
         }
     }
@@ -115,9 +120,10 @@ class PostShuffleCombineDoFn<AccumT, OutputT> extends DoFn<KV<any, Iterable<Accu
         for (let k in this.accums) {
         yield {
             value: {'key': k, 'value': this.combineFn.extractOutput(this.combineFn.mergeAccumulators(this.accums[k]))},
-            windows: <Array<BoundedWindow>><unknown>undefined,
-            pane: <PaneInfo><unknown>undefined,
-            timestamp: <Instant><unknown>undefined
+            // TODO: Fix this!
+            windows: [new GlobalWindow()],
+            pane: PaneInfoCoder.ONE_AND_ONLY_FIRING,
+            timestamp: Long.fromValue("-9223372036854775"),
         }
     }
     }

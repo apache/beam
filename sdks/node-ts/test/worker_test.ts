@@ -1,3 +1,7 @@
+import Long from "long";
+
+import { GlobalWindow, PaneInfoCoder } from '../src/apache_beam/coders/standard_coders';
+
 import { PTransform, PCollection } from "../src/apache_beam/proto/beam_runner_api";
 import { ProcessBundleDescriptor } from "../src/apache_beam/proto/beam_fn_api";
 
@@ -31,9 +35,9 @@ class Create implements operators.IOperator {
         this_.data.forEach(function(datum) {
             this_.receivers.map((receiver) => receiver.receive({
                 value: datum,
-                windows: <Array<BoundedWindow>><unknown>undefined,
-                timestamp: <Instant><unknown>undefined,
-                pane: <PaneInfo><unknown>undefined,
+                windows: [new GlobalWindow()],
+                pane: PaneInfoCoder.ONE_AND_ONLY_FIRING,
+                timestamp: Long.fromValue("-9223372036854775"),
             }));
         })
     }
