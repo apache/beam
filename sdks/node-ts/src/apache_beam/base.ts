@@ -457,7 +457,7 @@ class AsyncPTransformFromCallable<InputT extends PValue<any>, OutputT extends PV
 export interface CombineFn<I, A, O> {
     createAccumulator: () => A;
     addInput: (A, I) => A;
-    mergeAccumulators: (accumulators: A[]) => A;
+    mergeAccumulators: (accumulators: Iterable<A>) => A;
     extractOutput: (A) => O;
 }
 
