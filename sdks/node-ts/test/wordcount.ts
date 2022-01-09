@@ -1,10 +1,13 @@
 import * as beam from '../src/apache_beam';
-import * as runnerApi from '../src/apache_beam/proto/beam_runner_api';
 import { DirectRunner } from '../src/apache_beam/runners/direct_runner'
 import * as testing from '../src/apache_beam/testing/assert';
+import { KV } from "../src/apache_beam/values";
+
+import { NodeRunner } from '../src/apache_beam/runners/node_runner/runner'
+import { RemoteJobServiceClient } from "../src/apache_beam/runners/node_runner/client";
 
 
-class CountElements extends beam.PTransform<beam.PCollection<any>, beam.PCollection<beam.KV<any, number>>> {
+class CountElements extends beam.PTransform<beam.PCollection<any>, beam.PCollection<KV<any, number>>> {
     expand(input: beam.PCollection<any>) {
         return input
             .apply(new beam.GroupBy((e) => e))  // TODO: GroupBy
@@ -15,19 +18,18 @@ class CountElements extends beam.PTransform<beam.PCollection<any>, beam.PCollect
     }
 }
 
-class WordCount extends beam.PTransform<beam.PCollection<string>, beam.PCollection<beam.KV<string, number>>> {
-    expand(lines: beam.PCollection<string>) {
-        return lines
-            .map((s) => s.toLowerCase())
-            .flatMap(function*(line) {
-                yield* line.split(/[^a-z]+/);
-            })
-            .apply(new CountElements("Count"))
-    }
+function wordCount(lines: beam.PCollection<string>): beam.PCollection<beam.KV<string, number>> {
+    return lines
+        .map<string, string>((s: string) => s.toLowerCase())
+        .flatMap<string, string>(function*(line: string) {
+            yield* line.split(/[^a-z]+/);
+        })
+        .apply(new CountElements("Count"));
 }
 
 describe("wordcount", function() {
     it("wordcount", async function() {
+        //         await new NodeRunner(new RemoteJobServiceClient('localhost:3333')).run(
         await new DirectRunner().run(
             (root) => {
                 const lines = root.apply(new beam.Create([
@@ -37,7 +39,7 @@ describe("wordcount", function() {
                     "And God said, Let there be light: and there was light.",
                 ]));
 
-                lines.apply(new WordCount()).map(console.log)
+                lines.apply(wordCount).map(console.log)
             })
     });
 
@@ -48,7 +50,7 @@ describe("wordcount", function() {
                     "And God said, Let there be light: and there was light",
                 ]));
 
-                lines.apply(new WordCount()).apply(new testing.AssertDeepEqual([
+                lines.apply(wordCount).apply(new testing.AssertDeepEqual([
                     { element: 'and', count: 2 },
                     { element: 'god', count: 1 },
                     { element: 'said', count: 1 },

@@ -8,6 +8,7 @@ export const DATA_OUTPUT_URN = 'beam:runner:sink:v1';
 export const IDENTITY_DOFN_URN = 'beam:dofn:identity:0.1';
 
 export const SERIALIZED_JS_DOFN_INFO = "beam:dofn:serialized_js_dofn_info:v1";
+export const SPLITTING_JS_DOFN_URN = "beam:dofn:splitting_dofn";
 
 let _coder_counter = 0;
 const _CODER_ID_PREFIX = 'coder_';
