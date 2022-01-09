@@ -119,6 +119,7 @@ class MeanCombineFn(core.CombineFn):
 
 class Count(object):
   """Combiners for counting elements."""
+
   @with_input_types(T)
   @with_output_types(int)
   class Globally(CombinerWithoutDefaults):
