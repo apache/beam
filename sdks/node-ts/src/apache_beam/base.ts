@@ -564,6 +564,7 @@ export class GroupByKey<K, V> extends PTransform<PCollection<KV<K, V>>, PCollect
             'payload': undefined!,
         });
 
+        // TODO: warn about BsonObjectCoder and (non)deterministic key ordering?
         const keyCoder = pipeline.getCoder(inputCoderProto.componentCoderIds[0]);
         const valueCoder = pipeline.getCoder(inputCoderProto.componentCoderIds[1]);
         const iterableValueCoder = new IterableCoder(valueCoder);
