@@ -2,6 +2,7 @@ import * as runnerApi from './proto/beam_runner_api';
 import * as fnApi from './proto/beam_fn_api';
 import { Coder, CODER_REGISTRY } from './coders/coders'
 import { GlobalWindowCoder } from './coders/standard_coders'
+import { GlobalWindows } from './transforms/windowing'
 import { BytesCoder, IterableCoder, KVCoder } from './coders/standard_coders';
 import * as translations from './internal/translations'
 import * as environments from './internal/environments'
@@ -10,7 +11,7 @@ import { JobState_Enum } from './proto/beam_job_api';
 import equal from 'fast-deep-equal'
 
 import { PipelineOptions } from './options/pipeline_options';
-import { KV } from "./values";
+import { KV, BoundedWindow } from "./values";
 import { WindowedValue } from '.';
 
 // TODO(pabloem): Use something better, hah.
@@ -132,7 +133,7 @@ export class Pipeline {
     context: PipelineContext;
     private proto: runnerApi.Pipeline;
     transformStack: string[] = [];
-    private defaultEnvironment: string;
+    defaultEnvironment: string;
     private globalWindowing: string;
 
     constructor() {
@@ -141,19 +142,7 @@ export class Pipeline {
         this.proto = runnerApi.Pipeline.create({ 'components': runnerApi.Components.create({}) });
         this.proto.components!.environments[this.defaultEnvironment] = environments.defaultJsEnvironment();
         this.context = new PipelineContext(this.proto.components!);
-        this.proto.components!.windowingStrategies[this.globalWindowing] = {
-            windowFn: { urn: 'beam:window_fn:global_windows:v1', payload: new Uint8Array() },
-            trigger: { trigger: { oneofKind: 'default', default: {} } },
-            windowCoderId: this.context.getCoderId(new GlobalWindowCoder()),
-            accumulationMode: runnerApi.AccumulationMode_Enum.DISCARDING,
-            outputTime: runnerApi.OutputTime_Enum.END_OF_WINDOW,
-            mergeStatus: runnerApi.MergeStatus_Enum.NEEDS_MERGE,
-            closingBehavior: runnerApi.ClosingBehavior_Enum.EMIT_ALWAYS,
-            onTimeBehavior: runnerApi.OnTimeBehavior_Enum.FIRE_ALWAYS,
-            allowedLateness: BigInt(0),
-            assignsToOneWindow: true,
-            environmentId: this.defaultEnvironment,
-        };
+        this.proto.components!.windowingStrategies[this.globalWindowing] = WindowInto.createWindowingStrategy(this, new GlobalWindows());
     }
 
     // TODO: Remove once test are fixed.
@@ -224,7 +213,12 @@ export class Pipeline {
             }
             // TODO: Handle the case of equivalent strategies.
             if (!pcProto.windowingStrategyId) {
-                pcProto.windowingStrategyId = onlyValueOr(inputWindowings, this.globalWindowing);
+                pcProto.windowingStrategyId = onlyValueOr(
+                    inputWindowings,
+                    this.globalWindowing,
+                    (a, b) => {
+                        return equal(this_.proto.components!.windowingStrategies[a], this_.proto.components!.windowingStrategies[b]);
+                    });
             }
         }
 
@@ -233,7 +227,7 @@ export class Pipeline {
 
     createPCollectionInternal<OutputT>(
         coder: Coder<any> | string,
-        windowingStrategy: runnerApi.WindowingStrategy | undefined = undefined,
+        windowingStrategy: runnerApi.WindowingStrategy | string | undefined = undefined,
         isBounded: runnerApi.IsBounded_Enum | undefined = undefined) {
         const pcollId = pcollectionName();
         let coderId: string;
@@ -454,6 +448,87 @@ class AsyncPTransformFromCallable<InputT extends PValue<any>, OutputT extends PV
     }
 }
 
+export interface WindowFn<W extends BoundedWindow> {
+    assignWindows: (Instant) => W[];
+    windowCoder: () => Coder<W>;
+    toProto: () => runnerApi.FunctionSpec;
+    isMerging: () => boolean;
+    assignsToOneWindow: () => boolean;
+}
+
+export class WindowInto<T, W extends BoundedWindow> extends PTransform<PCollection<T>, PCollection<T>> {
+    static createWindowingStrategy(pipeline: Pipeline, windowFn: WindowFn<any>, windowingStrategyBase: runnerApi.WindowingStrategy | undefined = undefined): runnerApi.WindowingStrategy {
+        let result: runnerApi.WindowingStrategy;
+        if (windowingStrategyBase == undefined) {
+            result = {
+                windowFn: undefined!,
+                windowCoderId: undefined!,
+                mergeStatus: undefined!,
+                assignsToOneWindow: undefined!,
+                trigger: { trigger: { oneofKind: 'default', default: {} } },
+                accumulationMode: runnerApi.AccumulationMode_Enum.DISCARDING,
+                outputTime: runnerApi.OutputTime_Enum.END_OF_WINDOW,
+                closingBehavior: runnerApi.ClosingBehavior_Enum.EMIT_ALWAYS,
+                onTimeBehavior: runnerApi.OnTimeBehavior_Enum.FIRE_ALWAYS,
+                allowedLateness: BigInt(0),
+                environmentId: pipeline.defaultEnvironment,
+            };
+        } else {
+            result = runnerApi.WindowingStrategy.clone(windowingStrategyBase);
+        }
+        result.windowFn = windowFn.toProto();
+        result.windowCoderId = pipeline.context.getCoderId(windowFn.windowCoder());
+        result.mergeStatus = windowFn.isMerging() ? runnerApi.MergeStatus_Enum.NEEDS_MERGE : runnerApi.MergeStatus_Enum.NON_MERGING;
+        result.assignsToOneWindow = windowFn.assignsToOneWindow();
+        return result;
+    }
+
+    constructor(private windowFn: WindowFn<W>, private windowingStrategyBase: runnerApi.WindowingStrategy | undefined = undefined) {
+        super("WindowInto(" + windowFn + ", " + windowingStrategyBase + ")");
+    }
+
+    expandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, input: PCollection<T>) {
+        transformProto.spec = runnerApi.FunctionSpec.create({
+            'urn': ParDo.urn,
+            'payload': runnerApi.ParDoPayload.toBinary(
+                runnerApi.ParDoPayload.create({
+                    'doFn': runnerApi.FunctionSpec.create({
+                        'urn': translations.JS_WINDOW_INTO_DOFN_URN,
+                        'payload': fakeSeralize({ windowFn: this.windowFn }),
+                    })
+                }))
+        });
+
+        const inputCoder = pipeline.getProto().components!.pcollections[input.id]!.coderId;
+        return pipeline.createPCollectionInternal<T>(
+            inputCoder,
+            WindowInto.createWindowingStrategy(pipeline, this.windowFn, this.windowingStrategyBase));
+    }
+}
+
+export class AssignTimestamps<T> extends PTransform<PCollection<T>, PCollection<T>> {
+    constructor(private func: (T, Instant) => typeof Instant) {
+        super();
+    }
+
+    expandInternal(pipeline: Pipeline, transformProto: runnerApi.PTransform, input: PCollection<T>) {
+        transformProto.spec = runnerApi.FunctionSpec.create({
+            'urn': ParDo.urn,
+            'payload': runnerApi.ParDoPayload.toBinary(
+                runnerApi.ParDoPayload.create({
+                    'doFn': runnerApi.FunctionSpec.create({
+                        'urn': translations.JS_ASSIGN_TIMESTAMPS_DOFN_URN,
+                        'payload': fakeSeralize({ func: this.func }),
+                    })
+                }))
+        });
+
+        const inputCoder = pipeline.getProto().components!.pcollections[input.id]!.coderId;
+        return pipeline.createPCollectionInternal<T>(inputCoder);
+    }
+}
+
+
 export interface CombineFn<I, A, O> {
     createAccumulator: () => A;
     addInput: (A, I) => A;
@@ -666,13 +741,19 @@ function objectMap(obj, func) {
     return Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, func(v)]));
 }
 
-function onlyValueOr<T>(valueSet: Set<T>, defaultValue: T) {
+function onlyValueOr<T>(valueSet: Set<T>, defaultValue: T, comparator: (a: T, b: T) => boolean = (a, b) => false) {
     if (valueSet.size == 0) {
         return defaultValue;
     } else if (valueSet.size == 1) {
         return valueSet.values().next().value;
     } else {
-        throw new Error('Unable to deduce single value from ' + valueSet);
+        const candidate = valueSet.values().next().value;
+        for (const other of valueSet) {
+            if (!comparator(candidate, other)) {
+                throw new Error('Unable to deduce single value from ' + valueSet);
+            }
+        }
+        return candidate
     }
 }
 

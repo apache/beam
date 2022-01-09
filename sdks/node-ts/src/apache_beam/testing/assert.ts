@@ -1,4 +1,5 @@
 import * as beam from '../../apache_beam';
+import { GlobalWindows } from '../../apache_beam/transforms/windowing';
 
 import * as assert from 'assert';
 
@@ -43,7 +44,7 @@ export class Assert extends beam.PTransform<beam.PCollection<any>, void> {
         // so the DoFn gets invoked.
         const singleton = pcoll.root().apply(new beam.Impulse()).map((_) => ({ tag: 'expected' }))
         // CoGBK.
-        const tagged = pcoll.map((e) => ({ tag: 'actual', value: e }))
+        const tagged = pcoll.map((e) => ({ tag: 'actual', value: e })).apply(new beam.WindowInto(new GlobalWindows()))
         beam.P([singleton, tagged])
             .apply(new beam.Flatten())
             .map((e) => ({ key: 0, value: e }))

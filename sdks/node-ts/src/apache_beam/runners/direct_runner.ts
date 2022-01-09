@@ -1,6 +1,7 @@
 import * as protobufjs from 'protobufjs';
 import Long from "long";
 
+import * as runnerApi from '../proto/beam_runner_api';
 import { PTransform, PCollection } from "../proto/beam_runner_api";
 import { ProcessBundleDescriptor } from "../proto/beam_fn_api";
 import { JobState_Enum } from "../proto/beam_job_api";
@@ -68,7 +69,12 @@ class DirectGbkOperator implements operators.IOperator {
         this.receiver = context.getReceiver(onlyElement(Object.values(transform.outputs)));
         const inputPc = context.descriptor.pcollections[onlyElement(Object.values(transform.inputs))];
         this.keyCoder = context.pipelineContext.getCoder(context.descriptor.coders[inputPc.coderId].componentCoderIds[0]);
-        this.windowCoder = context.pipelineContext.getCoder(context.descriptor.windowingStrategies[inputPc.windowingStrategyId].windowCoderId);
+        const windowingStrategy = context.descriptor.windowingStrategies[inputPc.windowingStrategyId];
+        // TODO: Check or implement triggers, etc.
+        if (windowingStrategy.mergeStatus != runnerApi.MergeStatus_Enum.NON_MERGING) {
+            throw new Error("Non-merging WindowFn: " + windowingStrategy);
+        }
+        this.windowCoder = context.pipelineContext.getCoder(windowingStrategy.windowCoderId);
     }
 
     process(wvalue: WindowedValue<any>) {
