@@ -23,7 +23,7 @@ export class AssertDeepEqual extends beam.PTransform<beam.PCollection<any>, void
                 }
                 expected.sort();
                 actualArray.sort();
-                assert.deepEqual(expected, actualArray);
+                assert.deepEqual(actualArray, expected);
             }));
     }
 }
