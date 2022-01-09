@@ -2,11 +2,16 @@ import { ChannelCredentials } from "@grpc/grpc-js";
 
 import { ExpansionRequest, ExpansionResponse } from '../proto/beam_expansion_api';
 import { ExpansionServiceClient, IExpansionServiceClient } from '../proto/beam_expansion_api.grpc-client';
+import { ExternalConfigurationPayload } from '../proto/external_transforms';
+import { AtomicType, Schema } from "../proto/schema";
+import { Writer } from 'protobufjs';
 
 import * as base from "../base";
 import * as core from "../transforms/core";
 import * as runnerApi from '../proto/beam_runner_api';
+// import { Context as CoderContext } from '../coders/coders'
 import * as coders from '../coders/standard_coders'
+import { RowCoder } from '../coders/row_coder'
 
 //import { BytesCoder, KVCoder } from "../coders/standard_coders";
 
@@ -16,8 +21,17 @@ class RawExternalTransform<InputT extends base.PValue<any>, OutputT extends base
         return 'namespace_' + (RawExternalTransform.namespaceCounter++) + '_';
     }
 
-    constructor(private urn: string, private payload: Uint8Array, private address: string, private inferPValueType: boolean = true) {
+    private payload?: Uint8Array
+
+    constructor(private urn: string, payload: Uint8Array | {[key: string]: any}, private address: string, private inferPValueType: boolean = true) {
         super("External(" + urn + ")");
+        if (payload == undefined) {
+            this.payload = undefined;
+        } else if (payload instanceof Uint8Array) {
+            this.payload = payload as Uint8Array;
+        } else {
+            this.payload = encodeSchemaPayload(payload);
+        }
     }
 
     async asyncExpandInternal(pipeline: base.Pipeline, transformProto: runnerApi.PTransform, input: InputT): Promise<OutputT> {
@@ -132,6 +146,17 @@ class RawExternalTransform<InputT extends base.PValue<any>, OutputT extends base
         }
         return Object.fromEntries(Object.entries(response.transform!.outputs).map(([k, v]) => [k, new base.PCollection(pipeline, v)])) as OutputT;
     }
+}
+
+
+function encodeSchemaPayload(payload: {[key: string]: any}, schema: Schema | undefined = undefined): Uint8Array {
+    const encoded = new Writer();
+    // TODO: Infer schema.
+    new RowCoder(schema!).encode(payload, encoded, null!);
+    return ExternalConfigurationPayload.toBinary({
+        schema: schema,
+        payload: encoded.finish(),
+    });
 }
 
 
