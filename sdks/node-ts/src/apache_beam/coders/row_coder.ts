@@ -7,8 +7,11 @@ import { Coder, Context, CODER_REGISTRY } from "./coders";
 import { Schema, Field, FieldType, AtomicType } from '../proto/schema';
 import { PipelineContext } from '..';
 import { BoolCoder, BytesCoder, IterableCoder, StrUtf8Coder, VarIntCoder } from './standard_coders';
+import { Value } from '../proto/google/protobuf/struct';
 
 const argsort = x => x.map((v, i) => [v, i]).sort().map(y => y[1]);
+
+// const util = require('util');
 
 export class RowCoder implements Coder<any> {
     public static URN: string = "beam:coder:row:v1";
@@ -24,9 +27,8 @@ export class RowCoder implements Coder<any> {
     private hasNullableFields: boolean;
     private components: Coder<any>[];
 
-    addFieldOfType(obj:any, f: Field, value:any): any {
-        if(f.type !== undefined)
-        {
+    addFieldOfType(obj: any, f: Field, value: any): any {
+        if (f.type !== undefined) {
             let typeInfo = f.type?.typeInfo;
             switch (typeInfo.oneofKind) {
                 case "atomicType":
@@ -51,6 +53,98 @@ export class RowCoder implements Coder<any> {
             return obj;
         }
     }
+
+
+    private static InferTypeFromJSON(obj: any): FieldType {
+        let fieldType: FieldType = {
+            nullable: true,
+            typeInfo: {
+                oneofKind: undefined,
+            }
+        };
+
+        switch (typeof obj) {
+            case 'string':
+                fieldType.typeInfo =  {
+                    oneofKind: "atomicType",
+                    atomicType: AtomicType.STRING
+                }
+                break;
+            case 'boolean':
+                fieldType.typeInfo =  {
+                    oneofKind: "atomicType",
+                    atomicType: AtomicType.BOOLEAN
+                }
+                break;
+            case 'number':
+                if(Number.isInteger(obj)) {
+                    fieldType.typeInfo =  {
+                        oneofKind: "atomicType",
+                        atomicType: AtomicType.INT64
+                    }   
+                } else {
+                    // field.type!.typeInfo = {
+                    //     oneofKind: "atomicType",
+                    //     atomicType: AtomicType.FLOAT
+                    // }   
+                }
+                break;
+            case 'object':
+                if(Array.isArray(obj)) {
+                    fieldType.typeInfo = {
+                        oneofKind: "arrayType",
+                        arrayType: {
+                            // TODO: Infer element type in a better way
+                            elementType: RowCoder.InferTypeFromJSON(obj[0])
+                        }
+                    }
+                } else if (obj instanceof Uint8Array) {
+                    fieldType.typeInfo =  {
+                        oneofKind: "atomicType",
+                        atomicType: AtomicType.BYTES
+                    }
+                } else {
+                    fieldType.typeInfo = {
+                        oneofKind: "rowType",
+                        rowType: {schema: RowCoder.InferSchemaOfJSON(obj)}
+                    }
+                }
+                break;
+            default: 
+            fieldType.typeInfo = {
+                oneofKind: undefined
+            }
+
+        }
+        return fieldType;
+    }
+
+    private static InferSchemaOfJSON(obj: any): Schema {
+        let fields: Field[] = Object.entries(obj).map(
+            (entry) => {
+                return {
+                    name: entry[0],
+                    description: "",
+                    type: RowCoder.InferTypeFromJSON(entry[1]),
+                    id: 0,
+                    encodingPosition: 0,
+                    options: [],
+                };
+            });
+        console.log(JSON.stringify({
+            id: (Math.random() + 1).toString(36).substring(7),
+            fields: fields,
+            options:[],
+            encodingPositionsSet: false
+        }, null, 4));
+        return {
+            id: (Math.random() + 1).toString(36).substring(7),
+            fields: fields,
+            options:[],
+            encodingPositionsSet: false
+        };
+    }
+
 
     getNonNullCoderFromType(t: FieldType): any {
         let typeInfo = t.typeInfo;
@@ -105,6 +199,11 @@ export class RowCoder implements Coder<any> {
         return new RowCoder(schema);
     }
 
+    static OfJSON(obj: any): RowCoder {
+        return new RowCoder(RowCoder.InferSchemaOfJSON(obj));
+    }
+ 
+
     constructor(schema: Schema) {
         this.schema = schema;
         this.nFields = this.schema.fields.length;
@@ -129,7 +228,7 @@ export class RowCoder implements Coder<any> {
         this.components = this.encodingPositions
             .map(i => this.schema.fields[i])
             .map((f: Field) => {
-                if(f.type !== undefined) {
+                if (f.type !== undefined) {
                     return this.getNonNullCoderFromType(f.type);
                 }
             });
@@ -158,7 +257,7 @@ export class RowCoder implements Coder<any> {
 
         let nullFields: number[] = [];
 
-        
+
         if (this.hasNullableFields) {
             if (attrs.some(attr => attr == undefined)) {
                 let running = 0;
@@ -171,8 +270,8 @@ export class RowCoder implements Coder<any> {
                         running |= (attr == undefined ? 1 : 0) << (i % 8);
                     })
                 nullFields.push(running);
-            } 
-        } 
+            }
+        }
 
         writer.bytes(new Uint8Array(nullFields));
 
@@ -236,13 +335,13 @@ export class RowCoder implements Coder<any> {
             sortedComponents.push(undefined);
         }
 
-        let obj:any = {};
+        let obj: any = {};
         positions.forEach(
             (i) => {
                 obj = this.addFieldOfType(obj, this.schema.fields[i], sortedComponents[i])
             }
         );
-      
+
         return obj;
     }
 
