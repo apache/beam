@@ -65,20 +65,20 @@ export class RowCoder implements Coder<any> {
 
         switch (typeof obj) {
             case 'string':
-                fieldType.typeInfo =  {
+                fieldType.typeInfo = {
                     oneofKind: "atomicType",
                     atomicType: AtomicType.STRING
                 }
                 break;
             case 'boolean':
-                fieldType.typeInfo =  {
+                fieldType.typeInfo = {
                     oneofKind: "atomicType",
                     atomicType: AtomicType.BOOLEAN
                 }
                 break;
             case 'number':
-                if(Number.isInteger(obj)) {
-                    fieldType.typeInfo =  {
+                if (Number.isInteger(obj)) {
+                    fieldType.typeInfo = {
                         oneofKind: "atomicType",
                         atomicType: AtomicType.INT64
                     }
@@ -90,7 +90,7 @@ export class RowCoder implements Coder<any> {
                 }
                 break;
             case 'object':
-                if(Array.isArray(obj)) {
+                if (Array.isArray(obj)) {
                     fieldType.typeInfo = {
                         oneofKind: "arrayType",
                         arrayType: {
@@ -99,21 +99,21 @@ export class RowCoder implements Coder<any> {
                         }
                     }
                 } else if (obj instanceof Uint8Array) {
-                    fieldType.typeInfo =  {
+                    fieldType.typeInfo = {
                         oneofKind: "atomicType",
                         atomicType: AtomicType.BYTES
                     }
                 } else {
                     fieldType.typeInfo = {
                         oneofKind: "rowType",
-                        rowType: {schema: RowCoder.InferSchemaOfJSON(obj)}
+                        rowType: { schema: RowCoder.InferSchemaOfJSON(obj) }
                     }
                 }
                 break;
             default:
-            fieldType.typeInfo = {
-                oneofKind: undefined
-            }
+                fieldType.typeInfo = {
+                    oneofKind: undefined
+                }
 
         }
         return fieldType;
@@ -134,13 +134,13 @@ export class RowCoder implements Coder<any> {
         console.log(JSON.stringify({
             id: (Math.random() + 1).toString(36).substring(7),
             fields: fields,
-            options:[],
+            options: [],
             encodingPositionsSet: false
         }, null, 4));
         return {
             id: (Math.random() + 1).toString(36).substring(7),
             fields: fields,
-            options:[],
+            options: [],
             encodingPositionsSet: false
         };
     }

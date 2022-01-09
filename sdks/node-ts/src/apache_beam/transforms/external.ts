@@ -23,7 +23,7 @@ class RawExternalTransform<InputT extends base.PValue<any>, OutputT extends base
 
     private payload?: Uint8Array
 
-    constructor(private urn: string, payload: Uint8Array | {[key: string]: any}, private address: string, private inferPValueType: boolean = true) {
+    constructor(private urn: string, payload: Uint8Array | { [key: string]: any }, private address: string, private inferPValueType: boolean = true) {
         super("External(" + urn + ")");
         if (payload == undefined) {
             this.payload = undefined;

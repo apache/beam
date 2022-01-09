@@ -620,7 +620,7 @@ export class WithCoderInternal<T> extends PTransform<PCollection<T>, PCollection
 // TODO: Naming.
 // TODO: Allow default?  Technically splitter can be implemented/wrapped to produce such.
 // TODO: Can we enforce splitter's output with the typing system to lie in targets?
-export class Split<T> extends PTransform<PCollection<T>, {[key: string]: PCollection<T>}> {
+export class Split<T> extends PTransform<PCollection<T>, { [key: string]: PCollection<T> }> {
     private tags: string[];
     constructor(private splitter: (T) => string, ...tags: string[]) {
         super("Split(" + tags + ")");
@@ -633,7 +633,7 @@ export class Split<T> extends PTransform<PCollection<T>, {[key: string]: PCollec
                 runnerApi.ParDoPayload.create({
                     'doFn': runnerApi.FunctionSpec.create({
                         'urn': translations.SPLITTING_JS_DOFN_URN,
-                        'payload': fakeSeralize({splitter: this.splitter}),
+                        'payload': fakeSeralize({ splitter: this.splitter }),
                     })
                 }))
         });

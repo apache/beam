@@ -207,14 +207,14 @@ registerOperator("beam:transform:flatten:v1", FlattenOperator);
 
 
 class GenericParDoOperator implements IOperator {
-//     receiver: Receiver;
-//     spec: runnerApi.ParDoPayload;
-//     doFn: base.DoFn<any, any>;
+    //     receiver: Receiver;
+    //     spec: runnerApi.ParDoPayload;
+    //     doFn: base.DoFn<any, any>;
 
     constructor(private receiver: Receiver, private spec: runnerApi.ParDoPayload, private doFn: base.DoFn<any, any>) { }
 
-//     constructor(transformId: string, transform: PTransform, context: OperatorContext) {
-//     }
+    //     constructor(transformId: string, transform: PTransform, context: OperatorContext) {
+    //     }
 
     startBundle() {
         this.doFn.startBundle();
@@ -262,7 +262,7 @@ class IdentityParDoOperator implements IOperator {
 }
 
 class SplittingDoFnOperator implements IOperator {
-    constructor(private splitter: (any) => string, private receivers: {[key: string]: Receiver}) { }
+    constructor(private splitter: (any) => string, private receivers: { [key: string]: Receiver }) { }
 
     startBundle() { };
 
@@ -293,11 +293,11 @@ registerOperatorConstructor(base.ParDo.urn, (transformId: string, transform: PTr
         return new IdentityParDoOperator(
             context.getReceiver(onlyElement(Object.values(transform.outputs))));
     } else if (spec.doFn?.urn == translations.SPLITTING_JS_DOFN_URN) {
-          return new SplittingDoFnOperator(
-              base.fakeDeserialize(spec.doFn.payload!).splitter,
-              Object.fromEntries(
-                  Object.entries(transform.outputs).map(
-                      ([tag, pcId]) => ([tag, context.getReceiver(pcId)]))));
+        return new SplittingDoFnOperator(
+            base.fakeDeserialize(spec.doFn.payload!).splitter,
+            Object.fromEntries(
+                Object.entries(transform.outputs).map(
+                    ([tag, pcId]) => ([tag, context.getReceiver(pcId)]))));
     } else {
         throw new Error("Unknown DoFn type: " + spec);
     }

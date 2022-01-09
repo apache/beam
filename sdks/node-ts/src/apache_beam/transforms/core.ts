@@ -53,7 +53,7 @@ class KeyBy<InputT, KeyT> extends PTransform<PCollection<InputT>, PCollection<KV
         this.keyFn = keyFn;
     }
     expand(input: PCollection<InputT>) {
-        return input.map(elm => ({'key': this.keyFn(elm), 'value': elm}))
+        return input.map(elm => ({ 'key': this.keyFn(elm), 'value': elm }))
     }
 }
 

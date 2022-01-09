@@ -39,14 +39,14 @@ describe("primitives module", function() {
             assert.deepEqual(coder, new KVCoder(new GeneralObjectCoder(), new IterableCoder(new GeneralObjectCoder())));
         });
         it("runs a Splitter", async function() {
-        await new DirectRunner().run(
-            (root) => {
-                const pcolls = root
-                    .apply(new beam.Create(['apple', 'apricot', 'banana']))
-                    .apply(new beam.Split(e => e[0], 'a', 'b'));
-                pcolls.a.apply(new testing.AssertDeepEqual(['apple', 'apricot']));
-                pcolls.b.apply(new testing.AssertDeepEqual(['banana']));
-            })
+            await new DirectRunner().run(
+                (root) => {
+                    const pcolls = root
+                        .apply(new beam.Create(['apple', 'apricot', 'banana']))
+                        .apply(new beam.Split(e => e[0], 'a', 'b'));
+                    pcolls.a.apply(new testing.AssertDeepEqual(['apple', 'apricot']));
+                    pcolls.b.apply(new testing.AssertDeepEqual(['banana']));
+                })
         });
     });
 });
