@@ -100,8 +100,7 @@ class PreShuffleCombineDoFn<InputT, AccumT> extends DoFn<KV<any, InputT>, KV<any
     }
 }
 
-class PostShuffleCombineDoFn<AccumT, OutputT> extends DoFn<KV<any, Iterable<AccumT>>, KV<any, OutputT>> {
-    accums: Map<any, [AccumT]> = new Map()
+class PostShuffleCombineDoFn<K, AccumT, OutputT> extends DoFn<KV<K, Iterable<AccumT>>, KV<K, OutputT>> {
     combineFn: CombineFn<any, AccumT, OutputT>
 
     constructor(combineFn: CombineFn<any, AccumT, OutputT>) {
@@ -109,22 +108,10 @@ class PostShuffleCombineDoFn<AccumT, OutputT> extends DoFn<KV<any, Iterable<Accu
         this.combineFn = combineFn;
     }
 
-    process(elm: KV<any, Iterable<AccumT>>) {
-        if (!this.accums[elm.key]) {
-            this.accums[elm.key] = []
-        }
-        this.accums[elm.key].push(elm.value[0])
-    }
-
-    *finishBundle() {
-        for (let k in this.accums) {
+    *process(elm: KV<K, Iterable<AccumT>>) {
         yield {
-            value: {'key': k, 'value': this.combineFn.extractOutput(this.combineFn.mergeAccumulators(this.accums[k]))},
-            // TODO: Fix this!
-            windows: [new GlobalWindow()],
-            pane: PaneInfoCoder.ONE_AND_ONLY_FIRING,
-            timestamp: Long.fromValue("-9223372036854775"),
-        }
-    }
+            key: elm.key,
+            value: this.combineFn.extractOutput(this.combineFn.mergeAccumulators(elm.value)),
+        };
     }
 }
