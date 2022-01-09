@@ -5,23 +5,22 @@ import { KV } from "../src/apache_beam/values";
 
 import { NodeRunner } from '../src/apache_beam/runners/node_runner/runner'
 import { RemoteJobServiceClient } from "../src/apache_beam/runners/node_runner/client";
+import { countPerKey } from '../src/apache_beam/transforms/combine';
+import { keyBy } from '../src/apache_beam';
 
 
 class CountElements extends beam.PTransform<beam.PCollection<any>, beam.PCollection<KV<any, number>>> {
     expand(input: beam.PCollection<any>) {
         return input
-            .apply(new beam.GroupBy((e) => e))  // TODO: GroupBy
-            .map((kvs) => ({
-                element: kvs.key,
-                count: kvs.value.length  // TODO: Combine
-            }));
+            .apply(keyBy((e) => e))
+            .apply(countPerKey());
     }
 }
 
 function wordCount(lines: beam.PCollection<string>): beam.PCollection<beam.KV<string, number>> {
     return lines
-        .map<string, string>((s: string) => s.toLowerCase())
-        .flatMap<string, string>(function*(line: string) {
+        .map((s: string) => s.toLowerCase())
+        .flatMap(function*(line: string) {
             yield* line.split(/[^a-z]+/);
         })
         .apply(new CountElements("Count"));
@@ -50,15 +49,16 @@ describe("wordcount", function() {
                     "And God said, Let there be light: and there was light",
                 ]));
 
-                lines.apply(wordCount).apply(new testing.AssertDeepEqual([
-                    { element: 'and', count: 2 },
-                    { element: 'god', count: 1 },
-                    { element: 'said', count: 1 },
-                    { element: 'let', count: 1 },
-                    { element: 'there', count: 2 },
-                    { element: 'be', count: 1 },
-                    { element: 'light', count: 2 },
-                    { element: 'was', count: 1 },
+                lines.apply(wordCount)
+                .apply(new testing.AssertDeepEqual([
+                    { key: 'and', value: 2 },
+                    { key: 'god', value: 1 },
+                    { key: 'said', value: 1 },
+                    { key: 'let', value: 1 },
+                    { key: 'there', value: 2 },
+                    { key: 'be', value: 1 },
+                    { key: 'light', value: 2 },
+                    { key: 'was', value: 1 },
                 ]))
             })
     });
