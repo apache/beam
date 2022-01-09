@@ -81,12 +81,12 @@ export class RowCoder implements Coder<any> {
                     fieldType.typeInfo =  {
                         oneofKind: "atomicType",
                         atomicType: AtomicType.INT64
-                    }   
+                    }
                 } else {
                     // field.type!.typeInfo = {
                     //     oneofKind: "atomicType",
                     //     atomicType: AtomicType.FLOAT
-                    // }   
+                    // }
                 }
                 break;
             case 'object':
@@ -110,7 +110,7 @@ export class RowCoder implements Coder<any> {
                     }
                 }
                 break;
-            default: 
+            default:
             fieldType.typeInfo = {
                 oneofKind: undefined
             }
@@ -119,7 +119,7 @@ export class RowCoder implements Coder<any> {
         return fieldType;
     }
 
-    private static InferSchemaOfJSON(obj: any): Schema {
+    static InferSchemaOfJSON(obj: any): Schema {
         let fields: Field[] = Object.entries(obj).map(
             (entry) => {
                 return {
@@ -202,7 +202,7 @@ export class RowCoder implements Coder<any> {
     static OfJSON(obj: any): RowCoder {
         return new RowCoder(RowCoder.InferSchemaOfJSON(obj));
     }
- 
+
 
     constructor(schema: Schema) {
         this.schema = schema;
