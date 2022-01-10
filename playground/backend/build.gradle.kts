@@ -51,6 +51,34 @@ task("test") {
   }
 }
 
+task("benchmarkPrecompiledObjects") {
+  group = "verification"
+  description = "Run benchmarks for precompiled objects"
+  doLast {
+    exec {
+      executable("go")
+      args("test", "-bench", ".", "-benchmem", "./internal/cloud_bucket/...")
+    }
+  }
+}
+
+task("benchmarkCodeProcessing") {
+  group = "verification"
+  description = "Run benchmarks for code processing"
+  doLast {
+    exec {
+      executable("go")
+      args("test", "-run=^$", "-bench", ".", "-benchmem", "./internal/code_processing/...")
+    }
+  }
+}
+
+task("benchmark") {
+  dependsOn(":playground:backend:benchmarkPrecompiledObjects")
+  dependsOn(":playground:backend:benchmarkCodeProcessing")
+}
+
+
 task("installLinter") {
   doLast {
     exec {
@@ -69,9 +97,11 @@ task("runLint") {
     }
   }
 }
+
 task("precommit") {
   dependsOn(":playground:backend:runLint")
   dependsOn(":playground:backend:tidy")
   dependsOn(":playground:backend:test")
+  dependsOn(":playground:backend:benchmark")
 }
 

@@ -47,3 +47,15 @@ Dart code should follow next [code style](https://dart-lang.github.io/linter/lin
 `$ flutter analyze`
 
 The full list of command can be found [here](https://flutter.dev/docs/reference/flutter-cli)
+
+##Localization
+
+To add a new localization, follow next steps:
+
+1. Create app_YOUR_LOCALE_CODE.arb file with your key-translation pairs, except description tags, in lib/l10n directory (use app_en.arb as example).
+
+2. Add Locale('YOUR_LOCALE_CODE') object to static const locales variable in lib/l10n/l10n.dart file.
+
+3. Run the following command to generate a build and localization files:
+
+$ flutter build web

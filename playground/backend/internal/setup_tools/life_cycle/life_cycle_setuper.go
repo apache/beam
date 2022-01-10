@@ -20,6 +20,7 @@ import (
 	"beam.apache.org/playground/backend/internal/fs_tool"
 	"beam.apache.org/playground/backend/internal/logger"
 	"bufio"
+	"errors"
 	"github.com/google/uuid"
 	"io"
 	"os"
@@ -33,6 +34,7 @@ const (
 	javaLogFilePlaceholder = "{logFilePath}"
 	goModFileName          = "go.mod"
 	goSumFileName          = "go.sum"
+	baseFileFolder         = "executable_files"
 )
 
 // Setup returns fs_tool.LifeCycle.
@@ -42,27 +44,27 @@ func Setup(sdk pb.Sdk, code string, pipelineId uuid.UUID, workingDir string, pre
 	lc, err := fs_tool.NewLifeCycle(sdk, pipelineId, workingDir)
 	if err != nil {
 		logger.Errorf("%s: error during create new life cycle: %s\n", pipelineId, err.Error())
-		return nil, err
+		return nil, errors.New("error during create a new file system")
 	}
 
 	// create folders
 	err = lc.CreateFolders()
 	if err != nil {
 		logger.Errorf("%s: error during create folders: %s\n", pipelineId, err.Error())
-		return nil, err
+		return nil, errors.New("error during prepare necessary folders")
 	}
 
 	// copy necessary files
 	switch sdk {
 	case pb.Sdk_SDK_GO:
-		if err = prepareGoFiles(lc, preparedModDir, workingDir, pipelineId); err != nil {
+		if err = prepareGoFiles(lc, preparedModDir, pipelineId); err != nil {
 			lc.DeleteFolders()
-			return nil, err
+			return nil, errors.New("error during create necessary files for the Go sdk")
 		}
 	case pb.Sdk_SDK_JAVA:
 		if err = prepareJavaFiles(lc, workingDir, pipelineId); err != nil {
 			lc.DeleteFolders()
-			return nil, err
+			return nil, errors.New("error during create necessary files for the Java sdk")
 		}
 	}
 
@@ -71,19 +73,19 @@ func Setup(sdk pb.Sdk, code string, pipelineId uuid.UUID, workingDir string, pre
 	if err != nil {
 		logger.Errorf("%s: RunCode(): CreateSourceCodeFile(): %s\n", pipelineId, err.Error())
 		lc.DeleteFolders()
-		return nil, err
+		return nil, errors.New("error during create file with code")
 	}
 	return lc, nil
 }
 
 // prepareGoFiles prepares file for Go environment.
-// Copy go.mod and go.sum file from /path/to/preparedModDir to /path/to/workingDir.
-func prepareGoFiles(lc *fs_tool.LifeCycle, preparedModDir, workingDir string, pipelineId uuid.UUID) error {
-	if err := lc.CopyFile(goModFileName, preparedModDir, workingDir); err != nil {
+// Copy go.mod and go.sum file from /path/to/preparedModDir to /path/to/workingDir/executable_files/{pipelineId}
+func prepareGoFiles(lc *fs_tool.LifeCycle, preparedModDir string, pipelineId uuid.UUID) error {
+	if err := lc.CopyFile(goModFileName, preparedModDir, lc.Folder.BaseFolder); err != nil {
 		logger.Errorf("%s: error during copying %s file: %s\n", pipelineId, goModFileName, err.Error())
 		return err
 	}
-	if err := lc.CopyFile(goSumFileName, preparedModDir, workingDir); err != nil {
+	if err := lc.CopyFile(goSumFileName, preparedModDir, lc.Folder.BaseFolder); err != nil {
 		logger.Errorf("%s: error during copying %s file: %s\n", pipelineId, goSumFileName, err.Error())
 		return err
 	}
@@ -91,7 +93,7 @@ func prepareGoFiles(lc *fs_tool.LifeCycle, preparedModDir, workingDir string, pi
 }
 
 // prepareJavaFiles prepares file for Java environment.
-// Copy log config file from /path/to/preparedModDir to /path/to/workingDir/executable_files/{pipelineId}
+// Copy log config file from /path/to/workingDir to /path/to/workingDir/executable_files/{pipelineId}
 //	and update this file according to pipeline.
 func prepareJavaFiles(lc *fs_tool.LifeCycle, workingDir string, pipelineId uuid.UUID) error {
 	err := lc.CopyFile(javaLogConfigFileName, workingDir, lc.Folder.BaseFolder)

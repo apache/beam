@@ -27,9 +27,13 @@ import com.google.errorprone.annotations.concurrent.GuardedBy;
 import java.util.HashMap;
 import org.apache.beam.sdk.io.gcp.pubsublite.PublisherOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** A map of working publishers by PublisherOptions. */
 class PublisherCache implements AutoCloseable {
+  private final Logger logger = LoggerFactory.getLogger(PublisherCache.class);
+
   @GuardedBy("this")
   private final HashMap<PublisherOptions, Publisher<MessageMetadata>> livePublishers =
       new HashMap<>();
@@ -49,6 +53,7 @@ class PublisherCache implements AutoCloseable {
         new Listener() {
           @Override
           public void failed(State s, Throwable t) {
+            logger.warn("Publisher failed.", t);
             evict(options);
           }
         },

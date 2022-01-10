@@ -22,15 +22,17 @@ import logging
 import os
 from collections import namedtuple
 from dataclasses import dataclass, fields
-from typing import List
+from typing import List, Optional, Dict, Union
 
 import yaml
 from yaml import YAMLError
 
 from api.v1.api_pb2 import SDK_UNSPECIFIED, STATUS_UNSPECIFIED, Sdk, \
   STATUS_VALIDATING, STATUS_PREPARING, \
-  STATUS_COMPILING, STATUS_EXECUTING
-from config import Config, TagFields
+  STATUS_COMPILING, STATUS_EXECUTING, PRECOMPILED_OBJECT_TYPE_UNIT_TEST, \
+  PRECOMPILED_OBJECT_TYPE_KATA, PRECOMPILED_OBJECT_TYPE_UNSPECIFIED, \
+  PRECOMPILED_OBJECT_TYPE_EXAMPLE, PrecompiledObjectType
+from config import Config, TagFields, PrecompiledExampleType
 from grpc_client import GRPCClient
 
 Tag = namedtuple(
@@ -50,17 +52,28 @@ class Example:
   Class which contains all information about beam example
   """
   name: str
-  pipeline_id: str
   sdk: SDK_UNSPECIFIED
   filepath: str
   code: str
-  output: str
   status: STATUS_UNSPECIFIED
   tag: Tag
+  logs: str = ""
+  type: PrecompiledObjectType = PRECOMPILED_OBJECT_TYPE_UNSPECIFIED
+  pipeline_id: str = ""
+  output: str = ""
 
 
-def find_examples(work_dir: str,
-                  supported_categories: List[str]) -> List[Example]:
+@dataclass
+class ExampleTag:
+  """
+  Class which contains all information about beam playground tag
+  """
+  tag_as_dict: Dict[str, str]
+  tag_as_string: str
+
+
+def find_examples(work_dir: str, supported_categories: List[str],
+                  sdk: Sdk) -> List[Example]:
   """
   Find and return beam examples.
 
@@ -78,6 +91,7 @@ def find_examples(work_dir: str,
   Args:
       work_dir: directory where to search examples.
       supported_categories: list of supported categories.
+      sdk: sdk that using to find examples for the specific sdk.
 
   Returns:
       List of Examples.
@@ -88,7 +102,11 @@ def find_examples(work_dir: str,
     for filename in files:
       filepath = os.path.join(root, filename)
       error_during_check_file = _check_file(
-          examples, filename, filepath, supported_categories)
+          examples=examples,
+          filename=filename,
+          filepath=filepath,
+          supported_categories=supported_categories,
+          sdk=sdk)
       has_error = has_error or error_during_check_file
   if has_error:
     raise ValueError(
@@ -113,7 +131,7 @@ async def get_statuses(examples: List[Example]):
   await asyncio.gather(*tasks)
 
 
-def get_tag(filepath):
+def get_tag(filepath) -> Optional[ExampleTag]:
   """
   Parse file by filepath and find beam tag
 
@@ -126,32 +144,35 @@ def get_tag(filepath):
   """
   add_to_yaml = False
   yaml_string = ""
+  tag_string = ""
 
   with open(filepath, encoding="utf-8") as parsed_file:
     lines = parsed_file.readlines()
 
   for line in lines:
-    line = line.replace("//", "").replace("#", "")
+    formatted_line = line.replace("//", "").replace("#", "")
     if add_to_yaml is False:
-      if line.lstrip() == Config.BEAM_PLAYGROUND_TITLE:
+      if formatted_line.lstrip() == Config.BEAM_PLAYGROUND_TITLE:
         add_to_yaml = True
-        yaml_string += line.lstrip()
+        yaml_string += formatted_line.lstrip()
+        tag_string += line
     else:
-      yaml_with_new_string = yaml_string + line
+      yaml_with_new_string = yaml_string + formatted_line
       try:
         yaml.load(yaml_with_new_string, Loader=yaml.SafeLoader)
-        yaml_string += line
+        yaml_string += formatted_line
+        tag_string += line
       except YAMLError:
         break
 
   if add_to_yaml:
     tag_object = yaml.load(yaml_string, Loader=yaml.SafeLoader)
-    return tag_object[Config.BEAM_PLAYGROUND]
+    return ExampleTag(tag_object[Config.BEAM_PLAYGROUND], tag_string)
 
   return None
 
 
-def _check_file(examples, filename, filepath, supported_categories):
+def _check_file(examples, filename, filepath, supported_categories, sdk: Sdk):
   """
   Check file by filepath for matching to beam example. If file is beam example,
   then add it to list of examples
@@ -161,6 +182,7 @@ def _check_file(examples, filename, filepath, supported_categories):
       filename: name of the file.
       filepath: path to the file.
       supported_categories: list of supported categories.
+      sdk: sdk that using to find examples for the specific sdk.
 
   Returns:
       True if file has beam playground tag with incorrect format.
@@ -172,10 +194,10 @@ def _check_file(examples, filename, filepath, supported_categories):
 
   has_error = False
   extension = filepath.split(os.extsep)[-1]
-  if extension in Config.SUPPORTED_SDK:
+  if extension == Config.SDK_TO_EXTENSION[sdk]:
     tag = get_tag(filepath)
-    if tag:
-      if _validate(tag, supported_categories) is False:
+    if tag is not None:
+      if _validate(tag.tag_as_dict, supported_categories) is False:
         logging.error(
             "%s contains beam playground tag with incorrect format", filepath)
         has_error = True
@@ -199,7 +221,8 @@ def get_supported_categories(categories_path: str) -> List[str]:
     return yaml_object[TagFields.categories]
 
 
-def _get_example(filepath: str, filename: str, tag: dict) -> Example:
+def _get_example(
+    filepath: str, filename: str, tag: ExampleTag) -> Example:
   """
   Return an Example by filepath and filename.
 
@@ -212,12 +235,20 @@ def _get_example(filepath: str, filename: str, tag: dict) -> Example:
       Parsed Example object.
   """
   name = _get_name(filename)
-  sdk = _get_sdk(filename)
+  sdk = Config.EXTENSION_TO_SDK[filename.split(os.extsep)[-1]]
+  object_type = _get_object_type(filename, filepath)
   with open(filepath, encoding="utf-8") as parsed_file:
     content = parsed_file.read()
+  content = content.replace(tag.tag_as_string, "")
 
   return Example(
-      name, "", sdk, filepath, content, "", STATUS_UNSPECIFIED, Tag(**tag))
+      name=name,
+      sdk=sdk,
+      filepath=filepath,
+      code=content,
+      status=STATUS_UNSPECIFIED,
+      tag=Tag(**tag.tag_as_dict),
+      type=object_type)
 
 
 def _validate(tag: dict, supported_categories: List[str]) -> bool:
@@ -247,7 +278,7 @@ def _validate(tag: dict, supported_categories: List[str]) -> bool:
           tag.__str__())
       valid = False
 
-    name = tag.get(TagFields.NAME)
+    name = tag.get(TagFields.name)
     if name == "":
       logging.error(
           "tag's field name is incorrect: %s \nname can not be empty.",
@@ -302,25 +333,6 @@ def _get_name(filename: str) -> str:
   return filename.split(os.extsep)[0]
 
 
-def _get_sdk(filename: str) -> Sdk:
-  """
-  Return SDK of example by his filename.
-
-  Get extension of the example's file and returns associated SDK.
-
-  Args:
-      filename: filename of the beam example.
-
-  Returns:
-      Sdk according to file extension.
-  """
-  extension = filename.split(os.extsep)[-1]
-  if extension in Config.SUPPORTED_SDK:
-    return Config.SUPPORTED_SDK[extension]
-  else:
-    raise ValueError(extension + " is not supported")
-
-
 async def _update_example_status(example: Example, client: GRPCClient):
   """
   Receive status for examples and update example.status and pipeline_id
@@ -335,7 +347,8 @@ async def _update_example_status(example: Example, client: GRPCClient):
       example: beam example for processing and updating status and pipeline_id.
       client: client to send requests to the server.
   """
-  pipeline_id = await client.run_code(example.code, example.sdk)
+  pipeline_id = await client.run_code(
+      example.code, example.sdk, example.tag[TagFields.pipeline_options])
   example.pipeline_id = pipeline_id
   status = await client.check_status(pipeline_id)
   while status in [STATUS_VALIDATING,
@@ -345,3 +358,25 @@ async def _update_example_status(example: Example, client: GRPCClient):
     await asyncio.sleep(Config.PAUSE_DELAY)
     status = await client.check_status(pipeline_id)
   example.status = status
+
+
+def _get_object_type(filename, filepath):
+  """
+  Get type of an object based on it filename/filepath
+
+  Args:
+      filename: object's filename
+      filepath: object's filepath
+
+  Returns: type of the object (example, kata, unit-test)
+  """
+  filename_no_ext = (os.path.splitext(filename)[0]).lower()
+  if filename_no_ext.endswith(PrecompiledExampleType.test_ends):
+    object_type = PRECOMPILED_OBJECT_TYPE_UNIT_TEST
+  elif PrecompiledExampleType.katas in filepath.split(os.sep):
+    object_type = PRECOMPILED_OBJECT_TYPE_KATA
+  elif PrecompiledExampleType.examples in filepath.split(os.sep):
+    object_type = PRECOMPILED_OBJECT_TYPE_EXAMPLE
+  else:
+    object_type = PRECOMPILED_OBJECT_TYPE_UNSPECIFIED
+  return object_type

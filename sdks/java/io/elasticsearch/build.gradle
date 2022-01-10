@@ -23,18 +23,18 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Elasticsearch"
 ext.summary = "IO to read and write on Elasticsearch"
 
 dependencies {
-  compile library.java.vendored_guava_26_0_jre
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile library.java.http_client
-  compile library.java.http_core
-  compile library.java.jackson_annotations
+  implementation library.java.vendored_guava_26_0_jre
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation library.java.http_client
+  implementation library.java.http_core
+  implementation library.java.jackson_annotations
   permitUnusedDeclared library.java.jackson_annotations // BEAM-11761
-  compile library.java.jackson_core
-  compile library.java.jackson_databind
-  compile library.java.joda_time
-  compile library.java.slf4j_api
-  compile "org.apache.httpcomponents:httpasyncclient:4.1.4"
-  compile "org.apache.httpcomponents:httpcore-nio:4.4.12"
-  compile "org.elasticsearch.client:elasticsearch-rest-client:7.9.2"
-  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
+  implementation library.java.jackson_core
+  implementation library.java.jackson_databind
+  implementation library.java.joda_time
+  implementation library.java.slf4j_api
+  implementation "org.apache.httpcomponents:httpasyncclient:4.1.4"
+  implementation "org.apache.httpcomponents:httpcore-nio:4.4.12"
+  implementation "org.elasticsearch.client:elasticsearch-rest-client:7.9.2"
+  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
 }

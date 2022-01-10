@@ -34,6 +34,7 @@ import (
 const (
 	BucketName       = "playground-precompiled-objects"
 	OutputExtension  = "output"
+	LogsExtension    = "log"
 	MetaInfoName     = "meta.info"
 	Timeout          = time.Second * 10
 	javaExtension    = "java"
@@ -93,27 +94,37 @@ func New() *CloudStorage {
 }
 
 // GetPrecompiledObject returns the source code of the example
-func (cd *CloudStorage) GetPrecompiledObject(ctx context.Context, precompiledObjectPath string) (*string, error) {
+func (cd *CloudStorage) GetPrecompiledObject(ctx context.Context, precompiledObjectPath string) (string, error) {
 	extension, err := getFileExtensionBySdk(precompiledObjectPath)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	data, err := cd.getFileFromBucket(ctx, precompiledObjectPath, extension)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	result := string(data)
-	return &result, nil
+	return result, nil
 }
 
 // GetPrecompiledObjectOutput returns the run output of the example
-func (cd *CloudStorage) GetPrecompiledObjectOutput(ctx context.Context, precompiledObjectPath string) (*string, error) {
+func (cd *CloudStorage) GetPrecompiledObjectOutput(ctx context.Context, precompiledObjectPath string) (string, error) {
 	data, err := cd.getFileFromBucket(ctx, precompiledObjectPath, OutputExtension)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	result := string(data)
-	return &result, nil
+	return result, nil
+}
+
+// GetPrecompiledObjectLogs returns the logs of the example
+func (cd *CloudStorage) GetPrecompiledObjectLogs(ctx context.Context, precompiledObjectPath string) (string, error) {
+	data, err := cd.getFileFromBucket(ctx, precompiledObjectPath, LogsExtension)
+	if err != nil {
+		return "", err
+	}
+	result := string(data)
+	return result, nil
 }
 
 // GetPrecompiledObjects returns stored at the cloud storage bucket precompiled objects for the target category

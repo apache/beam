@@ -15,6 +15,12 @@
 
 // Package filesystem contains an extensible file system abstraction. It allows
 // various kinds of storage systems to be used uniformly, notably through textio.
+//
+// Registered file systems at minimum implement the Interface abstraction, and
+// can then optionally implement Remover, Renamer, and Copier to support
+// rename operations. Filesystems are only expected to handle their own IO, and
+// not cross file system IO. Should cross file system IO be required, additional
+// utility methods should be added to this package to support them.
 package filesystem
 
 import (
@@ -53,16 +59,35 @@ func New(ctx context.Context, path string) (Interface, error) {
 type Interface interface {
 	io.Closer
 
-	// List expands a patten to a list of filenames.
+	// List expands a pattern to a list of filenames.
 	List(ctx context.Context, glob string) ([]string, error)
 
 	// OpenRead opens a file for reading.
 	OpenRead(ctx context.Context, filename string) (io.ReadCloser, error)
-	// OpenRead opens a file for writing. If the file already exist, it will be
-	// overwritten.
+	// OpenWrite opens a file for writing. If the file already exist, it will be
+	// overwritten. The returned io.WriteCloser should be closed to commit the write.
 	OpenWrite(ctx context.Context, filename string) (io.WriteCloser, error)
 	// Size returns the size of a file in bytes.
 	Size(ctx context.Context, filename string) (int64, error)
+}
+
+// The following interfaces are optional for the filesystems, but
+// to support
+
+// Remover is an interface for removing files from the filesystem.
+// To be considered for promotion to Interface.
+type Remover interface {
+	Remove(ctx context.Context, filename string) error
+}
+
+// Copier is an interface for copying files in the filesystem.
+type Copier interface {
+	Copy(ctx context.Context, oldpath, newpath string) error
+}
+
+// Renamer is an interface for renaming or moving files in the filesystem.
+type Renamer interface {
+	Rename(ctx context.Context, oldpath, newpath string) error
 }
 
 func getScheme(path string) string {
