@@ -89,7 +89,8 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 	}
 	if !ok {
 		// Validate step is finished, but code isn't valid
-		_ = processError(pipelineLifeCycleCtx, errorChannel, pipelineId, cacheService, "Validate", pb.Status_STATUS_VALIDATION_ERROR)
+		err := <-errorChannel
+		_ = processErrorWithSavingOutput(pipelineLifeCycleCtx, err, []byte(err.Error()), pipelineId, cache.ValidationOutput, cacheService, "Validate", pb.Status_STATUS_VALIDATION_ERROR)
 		return
 	}
 	// Validate step is finished and code is valid
@@ -417,15 +418,6 @@ func finishByTimeout(ctx context.Context, pipelineId uuid.UUID, cacheService cac
 
 	// set to cache pipelineId: cache.SubKey_Status: Status_STATUS_RUN_TIMEOUT
 	return utils.SetToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_RUN_TIMEOUT)
-}
-
-// processError processes error received during processing validation or preparation steps.
-// This method sets corresponding status to the cache.
-func processError(ctx context.Context, errorChannel chan error, pipelineId uuid.UUID, cacheService cache.Cache, errorTitle string, newStatus pb.Status) error {
-	err := <-errorChannel
-	logger.Errorf("%s: %s(): %s\n", pipelineId, errorTitle, err.Error())
-
-	return utils.SetToCache(ctx, cacheService, pipelineId, cache.Status, newStatus)
 }
 
 // processErrorWithSavingOutput processes error with saving to cache received error output.
