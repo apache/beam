@@ -29,11 +29,6 @@ import 'package:playground/modules/sdk/models/sdk.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:provider/provider.dart';
 
-const kNotificationTitle = 'Run Code';
-const kCancelNotificationTitle = 'Cancel Execution';
-const kUnknownExamplePrefix = 'Unknown Example';
-const kCancelErrorText = 'Failed to cancel code execution';
-
 class CodeTextAreaWrapper extends StatelessWidget {
   const CodeTextAreaWrapper({Key? key}) : super(key: key);
 
@@ -74,8 +69,8 @@ class CodeTextAreaWrapper extends StatelessWidget {
                       state.cancelRun().catchError(
                             (_) => NotificationManager.showError(
                               context,
-                              kNotificationTitle,
-                              kCancelErrorText,
+                              AppLocalizations.of(context)!.runCode,
+                              AppLocalizations.of(context)!.cancelExecution,
                             ),
                           );
                     },
@@ -85,7 +80,7 @@ class CodeTextAreaWrapper extends StatelessWidget {
                         onFinish: () {
                           AnalyticsService.get(context).trackRunTimeEvent(
                             state.selectedExample?.path ??
-                                '$kUnknownExamplePrefix, sdk ${state.sdk.displayName}',
+                                '${AppLocalizations.of(context)!.unknownExample}, sdk ${state.sdk.displayName}',
                             stopwatch.elapsedMilliseconds,
                           );
                         },

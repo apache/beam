@@ -52,7 +52,9 @@ class RunButton extends StatelessWidget {
                 ),
               )
             : const Icon(Icons.play_arrow),
-        label: Text(!isRunning ? kRunText : kCancelText),
+        label: Text(!isRunning
+            ? AppLocalizations.of(context)!.run
+            : AppLocalizations.of(context)!.cancel),
         onPressed: !isRunning ? runCode : cancelRun,
       ),
     );
