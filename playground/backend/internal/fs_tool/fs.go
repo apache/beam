@@ -56,15 +56,14 @@ type LifeCycle struct {
 }
 
 // NewLifeCycle returns a corresponding LifeCycle depending on the given SDK.
-// workingDir should be existed and be prepared to create/delete/modify folders into him.
-func NewLifeCycle(sdk pb.Sdk, pipelineId uuid.UUID, workingDir string) (*LifeCycle, error) {
+func NewLifeCycle(sdk pb.Sdk, pipelineId uuid.UUID, pipelinesFolder string) (*LifeCycle, error) {
 	switch sdk {
 	case pb.Sdk_SDK_JAVA:
-		return newJavaLifeCycle(pipelineId, workingDir), nil
+		return newJavaLifeCycle(pipelineId, pipelinesFolder), nil
 	case pb.Sdk_SDK_GO:
-		return newGoLifeCycle(pipelineId, workingDir), nil
+		return newGoLifeCycle(pipelineId, pipelinesFolder), nil
 	case pb.Sdk_SDK_PYTHON:
-		return newPythonLifeCycle(pipelineId, workingDir), nil
+		return newPythonLifeCycle(pipelineId, pipelinesFolder), nil
 	default:
 		return nil, fmt.Errorf("%s isn't supported now", sdk)
 	}
@@ -107,7 +106,7 @@ func (l *LifeCycle) CreateSourceCodeFile(code string) (string, error) {
 	return fileName, nil
 }
 
-// GetAbsoluteSourceFilePath returns absolute filepath to executable file (/path/to/workingDir/executable_files/{pipelineId}/src/{pipelineId}.{sourceFileExtension}).
+// GetAbsoluteSourceFilePath returns absolute filepath to executable file (/path/to/workingDir/pipelinesFolder/{pipelineId}/src/{pipelineId}.{sourceFileExtension}).
 func (l *LifeCycle) GetAbsoluteSourceFilePath() string {
 	fileName := l.pipelineId.String() + l.Extension.SourceFileExtension
 	filePath := filepath.Join(l.Folder.SourceFileFolder, fileName)
@@ -146,7 +145,7 @@ func (l *LifeCycle) CopyFile(fileName, sourceDir, destinationDir string) error {
 	return nil
 }
 
-// GetAbsoluteExecutableFilePath returns absolute filepath to compiled file (/path/to/workingDir/executable_files/{pipelineId}/bin/{pipelineId}.{executableExtension}).
+// GetAbsoluteExecutableFilePath returns absolute filepath to compiled file (/path/to/workingDir/pipelinesFolder/{pipelineId}/bin/{pipelineId}.{executableExtension}).
 func (l *LifeCycle) GetAbsoluteExecutableFilePath() string {
 	fileName := l.pipelineId.String() + l.Extension.ExecutableFileExtension
 	filePath := filepath.Join(l.Folder.ExecutableFileFolder, fileName)
@@ -154,20 +153,20 @@ func (l *LifeCycle) GetAbsoluteExecutableFilePath() string {
 	return absoluteFilePath
 }
 
-// GetAbsoluteBaseFolderPath returns absolute path to executable folder (/path/to/workingDir/executable_files/{pipelineId}).
+// GetAbsoluteBaseFolderPath returns absolute path to executable folder (/path/to/workingDir/pipelinesFolder/{pipelineId}).
 func (l *LifeCycle) GetAbsoluteBaseFolderPath() string {
 	absoluteFilePath, _ := filepath.Abs(l.Folder.BaseFolder)
 	return absoluteFilePath
 }
 
-// GetAbsoluteLogFilePath returns absolute path to the logs file (/path/to/workingDir/executable_files/{pipelineId}/logs.log)
+// GetAbsoluteLogFilePath returns absolute path to the logs file (/path/to/workingDir/pipelinesFolder/{pipelineId}/logs.log)
 func (l *LifeCycle) GetAbsoluteLogFilePath() string {
 	filePath := filepath.Join(l.Folder.BaseFolder, logFileName)
 	absoluteFilePath, _ := filepath.Abs(filePath)
 	return absoluteFilePath
 }
 
-// GetAbsoluteSourceFolderPath returns absolute path to executable folder (/path/to/workingDir/executable_files/{pipelineId}/src).
+// GetAbsoluteSourceFolderPath returns absolute path to executable folder (/path/to/workingDir/pipelinesFolder/{pipelineId}/src).
 func (l *LifeCycle) GetAbsoluteSourceFolderPath() string {
 	absoluteFilePath, _ := filepath.Abs(l.Folder.SourceFileFolder)
 	return absoluteFilePath
