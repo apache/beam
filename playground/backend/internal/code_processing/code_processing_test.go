@@ -40,12 +40,12 @@ import (
 )
 
 const (
-	javaConfig     = "{\n  \"compile_cmd\": \"javac\",\n  \"run_cmd\": \"java\",\n  \"test_cmd\": \"java\",\n  \"compile_args\": [\n    \"-d\",\n    \"bin\",\n    \"-classpath\"\n  ],\n  \"run_args\": [\n    \"-cp\",\n    \"bin:\"\n  ],\n  \"test_args\": [\n    \"-cp\",\n    \"bin:\",\n    \"JUnit\"\n  ]\n}"
-	pythonConfig   = "{\n  \"compile_cmd\": \"\",\n  \"run_cmd\": \"python3\",\n  \"compile_args\": [],\n  \"run_args\": []\n}"
-	goConfig       = "{\n  \"compile_cmd\": \"go\",\n  \"run_cmd\": \"\",\n  \"compile_args\": [\n    \"build\",\n    \"-o\",\n    \"bin\"\n  ],\n  \"run_args\": [\n  ]\n}"
-	fileName       = "fakeFileName"
-	baseFileFolder = "executable_files"
-	configFolder   = "configs"
+	javaConfig      = "{\n  \"compile_cmd\": \"javac\",\n  \"run_cmd\": \"java\",\n  \"test_cmd\": \"java\",\n  \"compile_args\": [\n    \"-d\",\n    \"bin\",\n    \"-classpath\"\n  ],\n  \"run_args\": [\n    \"-cp\",\n    \"bin:\"\n  ],\n  \"test_args\": [\n    \"-cp\",\n    \"bin:\",\n    \"JUnit\"\n  ]\n}"
+	pythonConfig    = "{\n  \"compile_cmd\": \"\",\n  \"run_cmd\": \"python3\",\n  \"compile_args\": [],\n  \"run_args\": []\n}"
+	goConfig        = "{\n  \"compile_cmd\": \"go\",\n  \"run_cmd\": \"\",\n  \"compile_args\": [\n    \"build\",\n    \"-o\",\n    \"bin\"\n  ],\n  \"run_args\": [\n  ]\n}"
+	fileName        = "fakeFileName"
+	pipelinesFolder = "executable_files"
+	configFolder    = "configs"
 )
 
 var opt goleak.Option
@@ -86,7 +86,7 @@ func teardown() {
 	if err != nil {
 		panic(fmt.Errorf("error during test teardown: %s", err.Error()))
 	}
-	err = os.RemoveAll(baseFileFolder)
+	err = os.RemoveAll(pipelinesFolder)
 	if err != nil {
 		panic(fmt.Errorf("error during test teardown: %s", err.Error()))
 	}
@@ -242,7 +242,7 @@ func Test_Process(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, tt.args.pipelineId, os.Getenv("APP_WORK_DIR"))
+			lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, tt.args.pipelineId, filepath.Join(os.Getenv("APP_WORK_DIR"), pipelinesFolder))
 			err := lc.CreateFolders()
 			if err != nil {
 				t.Fatalf("error during prepare folders: %s", err.Error())
@@ -534,7 +534,7 @@ func TestGetLastIndex(t *testing.T) {
 
 func Test_setJavaExecutableFile(t *testing.T) {
 	pipelineId := uuid.New()
-	lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, pipelineId, os.Getenv("APP_WORK_DIR"))
+	lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, pipelineId, filepath.Join(os.Getenv("APP_WORK_DIR"), pipelinesFolder))
 	lc.ExecutableName = fakeExecutableName
 	executorBuilder := executors.NewExecutorBuilder().WithRunner().WithCommand("fake cmd").ExecutorBuilder
 	type args struct {
@@ -559,7 +559,7 @@ func Test_setJavaExecutableFile(t *testing.T) {
 				service:         cacheService,
 				ctx:             context.Background(),
 				executorBuilder: &executorBuilder,
-				dir:             "",
+				dir:             pipelinesFolder,
 			},
 			want: executors.NewExecutorBuilder().
 				WithExecutableFileName(fileName).
@@ -677,14 +677,14 @@ func teardownBenchmarks() {
 	if err != nil {
 		panic(fmt.Errorf("error during test teardown: %s", err.Error()))
 	}
-	err = os.RemoveAll(baseFileFolder)
+	err = os.RemoveAll(pipelinesFolder)
 	if err != nil {
 		panic(fmt.Errorf("error during test teardown: %s", err.Error()))
 	}
 }
 
 func prepareFiles(b *testing.B, pipelineId uuid.UUID, code string, sdk pb.Sdk) *fs_tool.LifeCycle {
-	lc, err := fs_tool.NewLifeCycle(sdk, pipelineId, "")
+	lc, err := fs_tool.NewLifeCycle(sdk, pipelineId, pipelinesFolder)
 	if err != nil {
 		b.Fatalf("error during initializse lc: %s", err.Error())
 	}

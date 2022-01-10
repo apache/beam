@@ -96,16 +96,20 @@ type ApplicationEnvs struct {
 
 	// projectId is the Google Сloud project id
 	projectId string
+
+	// pipelinesFolder is name of folder in which the pipelines resources are stored
+	pipelinesFolder string
 }
 
 // NewApplicationEnvs constructor for ApplicationEnvs
-func NewApplicationEnvs(workingDir, launchSite, projectId string, cacheEnvs *CacheEnvs, pipelineExecuteTimeout time.Duration) *ApplicationEnvs {
+func NewApplicationEnvs(workingDir, launchSite, projectId, pipelinesFolder string, cacheEnvs *CacheEnvs, pipelineExecuteTimeout time.Duration) *ApplicationEnvs {
 	return &ApplicationEnvs{
 		workingDir:             workingDir,
 		cacheEnvs:              cacheEnvs,
 		pipelineExecuteTimeout: pipelineExecuteTimeout,
 		launchSite:             launchSite,
 		projectId:              projectId,
+		pipelinesFolder:        pipelinesFolder,
 	}
 }
 
@@ -132,4 +136,9 @@ func (ae *ApplicationEnvs) LaunchSite() string {
 // GoogleProjectId returns Google Сloud project id
 func (ae *ApplicationEnvs) GoogleProjectId() string {
 	return ae.projectId
+}
+
+// PipelinesFolder returns name of folder in which the pipelines resources are stored
+func (ae *ApplicationEnvs) PipelinesFolder() string {
+	return ae.pipelinesFolder
 }
