@@ -25,14 +25,15 @@ plugins {
 
 // Define the set of repositories required to fetch and enable plugins.
 repositories {
+  maven {
+    url uri("${projectDir}/jarlibs")
+  }
   jcenter()
   maven { url = uri("https://plugins.gradle.org/m2/") }
   maven {
     url = uri("https://repo.spring.io/plugins-release/")
     content { includeGroup("io.spring.gradle") }
   }
-
-  flatDir { dirs("jarlibs") }
 }
 
 // Dependencies on other plugins used when this plugin is invoked
