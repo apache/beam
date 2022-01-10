@@ -707,7 +707,9 @@ class GoogleCloudOptions(PipelineOptions):
         help=(
             'Options to configure the Dataflow service. These '
             'options decouple service side feature availbility '
-            'from the Apache Beam release cycle.'))
+            'from the Apache Beam release cycle.'
+            'Note: If set programmatically, must be set as a '
+            'list of strings'))
     parser.add_argument(
         '--enable_hot_key_logging',
         default=False,
@@ -715,6 +717,13 @@ class GoogleCloudOptions(PipelineOptions):
         help='When true, will enable the direct logging of any detected hot '
         'keys into Cloud Logging. Warning: this will log the literal key as an '
         'unobfuscated string.')
+    parser.add_argument(
+        '--enable_artifact_caching',
+        default=False,
+        action='store_true',
+        help=
+        'When true, artifacts will be cached across job submissions in the GCS '
+        'staging bucket')
 
   def _create_default_gcs_bucket(self):
     try:
@@ -751,6 +760,12 @@ class GoogleCloudOptions(PipelineOptions):
         errors.append(
             '--dataflow_job_file and --template_location '
             'are mutually exclusive.')
+
+    # Validate that dataflow_service_options is a list
+    if self.dataflow_service_options:
+      errors.extend(
+          validator.validate_repeatable_argument_passed_as_list(
+              self, 'dataflow_service_options'))
 
     return errors
 
@@ -983,6 +998,14 @@ class DebugOptions(PipelineOptions):
       if experiment.startswith(key + '='):
         return experiment.split('=', 1)[1]
     return default
+
+  def validate(self, validator):
+    errors = []
+    if self.experiments:
+      errors.extend(
+          validator.validate_repeatable_argument_passed_as_list(
+              self, 'experiments'))
+    return errors
 
 
 class ProfilingOptions(PipelineOptions):

@@ -17,6 +17,7 @@ package environment
 
 import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"beam.apache.org/playground/backend/internal/logger"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -35,6 +36,7 @@ const (
 	beamSdkKey                    = "BEAM_SDK"
 	workingDirKey                 = "APP_WORK_DIR"
 	preparedModDirKey             = "PREPARED_MOD_DIR"
+	numOfParallelJobsKey          = "NUM_PARALLEL_JOBS"
 	cacheTypeKey                  = "CACHE_TYPE"
 	cacheAddressKey               = "CACHE_ADDRESS"
 	beamPathKey                   = "BEAM_PATH"
@@ -57,6 +59,7 @@ const (
 	defaultPipelineExecuteTimeout = time.Minute * 10
 	jsonExt                       = ".json"
 	configFolderName              = "configs"
+	defaultNumOfParallelJobs      = 20
 )
 
 // Environment operates with environment structures: NetworkEnvs, BeamEnvs, ApplicationEnvs
@@ -146,6 +149,21 @@ func GetNetworkEnvsFromOsEnvs() (*NetworkEnvs, error) {
 func ConfigureBeamEnvs(workDir string) (*BeamEnvs, error) {
 	sdk := pb.Sdk_SDK_UNSPECIFIED
 	preparedModDir, modDirExist := os.LookupEnv(preparedModDirKey)
+
+	numOfParallelJobs := defaultNumOfParallelJobs
+	if value, present := os.LookupEnv(numOfParallelJobsKey); present {
+		convertedValue, err := strconv.Atoi(value)
+		if err != nil {
+			logger.Errorf("Incorrect value for %s. Should be integer. Will be used default value: %d", numOfParallelJobsKey, defaultNumOfParallelJobs)
+		} else {
+			if convertedValue <= 0 {
+				logger.Errorf("Incorrect value for %s. Should be a positive integer value but it is %d. Will be used default value: %d", numOfParallelJobsKey, convertedValue, defaultNumOfParallelJobs)
+			} else {
+				numOfParallelJobs = convertedValue
+			}
+		}
+	}
+
 	if value, present := os.LookupEnv(beamSdkKey); present {
 
 		switch value {
@@ -170,7 +188,7 @@ func ConfigureBeamEnvs(workDir string) (*BeamEnvs, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewBeamEnvs(sdk, executorConfig, preparedModDir), nil
+	return NewBeamEnvs(sdk, executorConfig, preparedModDir, numOfParallelJobs), nil
 }
 
 // createExecutorConfig creates ExecutorConfig that corresponds to specific Apache Beam SDK.
@@ -184,7 +202,7 @@ func createExecutorConfig(apacheBeamSdk pb.Sdk, configPath string) (*ExecutorCon
 	case pb.Sdk_SDK_JAVA:
 		args, err := ConcatBeamJarsToString()
 		if err != nil {
-			return nil, errors.New(fmt.Sprintf("Error during proccessing jars: %s", err.Error()))
+			return nil, fmt.Errorf("error during proccessing jars: %s", err.Error())
 		}
 		executorConfig.CompileArgs = append(executorConfig.CompileArgs, args)
 		executorConfig.RunArgs[1] = fmt.Sprintf("%s%s", executorConfig.RunArgs[1], args)

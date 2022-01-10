@@ -17,33 +17,23 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 
-import com.google.auto.value.AutoOneOf;
-import com.google.cloud.pubsublite.MessageMetadata;
-import com.google.cloud.pubsublite.internal.CheckedApiException;
-import com.google.cloud.pubsublite.internal.Publisher;
+import com.google.protobuf.Message;
+import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.values.PCollection;
 
-/** A helper representing either a Publisher or an error. */
-@AutoOneOf(PublisherOrError.Kind.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
-abstract class PublisherOrError {
-  enum Kind {
-    PUBLISHER,
-    ERROR
-  }
-
-  abstract Kind getKind();
-
-  abstract Publisher<MessageMetadata> publisher();
-
-  abstract CheckedApiException error();
-
-  static PublisherOrError ofPublisher(Publisher<MessageMetadata> p) {
-    return AutoOneOf_PublisherOrError.publisher(p);
-  }
-
-  static PublisherOrError ofError(CheckedApiException e) {
-    return AutoOneOf_PublisherOrError.error(e);
+public class ProtoToBytes<T extends Message>
+    extends PTransform<PCollection<T>, PCollection<byte[]>> {
+  @Override
+  public PCollection<byte[]> expand(PCollection<T> input) {
+    return input.apply(
+        MapElements.via(
+            new SimpleFunction<T, byte[]>() {
+              @Override
+              public byte[] apply(T message) {
+                return message.toByteArray();
+              }
+            }));
   }
 }

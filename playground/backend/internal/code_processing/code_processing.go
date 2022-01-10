@@ -92,7 +92,6 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 		_ = processError(pipelineLifeCycleCtx, errorChannel, pipelineId, cacheService, "Validate", pb.Status_STATUS_VALIDATION_ERROR)
 		return
 	}
-
 	// Validate step is finished and code is valid
 	if err := processSuccess(pipelineLifeCycleCtx, pipelineId, cacheService, "Validate", pb.Status_STATUS_PREPARING); err != nil {
 		return
@@ -111,7 +110,8 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 	}
 	if !ok {
 		// Prepare step is finished, but code couldn't be prepared (some error during prepare step)
-		_ = processError(pipelineLifeCycleCtx, errorChannel, pipelineId, cacheService, "Prepare", pb.Status_STATUS_PREPARATION_ERROR)
+		err := <-errorChannel
+		_ = processErrorWithSavingOutput(pipelineLifeCycleCtx, err, []byte(err.Error()), pipelineId, cache.PreparationOutput, cacheService, "Prepare", pb.Status_STATUS_PREPARATION_ERROR)
 		return
 	}
 	// Prepare step is finished and code is prepared
@@ -146,7 +146,8 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 			return
 		}
 		if !ok { // Compile step is finished, but code couldn't be compiled (some typos for example)
-			_ = processCompileError(pipelineLifeCycleCtx, errorChannel, compileError.Bytes(), pipelineId, cacheService)
+			err := <-errorChannel
+			_ = processErrorWithSavingOutput(pipelineLifeCycleCtx, err, compileError.Bytes(), pipelineId, cache.CompileOutput, cacheService, "Compile", pb.Status_STATUS_COMPILE_ERROR)
 			return
 		} // Compile step is finished and code is compiled
 		if err := processCompileSuccess(pipelineLifeCycleCtx, compileOutput.Bytes(), pipelineId, cacheService); err != nil {
@@ -427,16 +428,15 @@ func processError(ctx context.Context, errorChannel chan error, pipelineId uuid.
 	return utils.SetToCache(ctx, cacheService, pipelineId, cache.Status, newStatus)
 }
 
-// processCompileError processes error received during processing compile step.
-// This method sets error output and corresponding status to the cache.
-func processCompileError(ctx context.Context, errorChannel chan error, errorOutput []byte, pipelineId uuid.UUID, cacheService cache.Cache) error {
-	err := <-errorChannel
-	logger.Errorf("%s: Compile(): err: %s, output: %s\n", pipelineId, err.Error(), errorOutput)
+// processErrorWithSavingOutput processes error with saving to cache received error output.
+func processErrorWithSavingOutput(ctx context.Context, err error, errorOutput []byte, pipelineId uuid.UUID, subKey cache.SubKey, cacheService cache.Cache, errorTitle string, newStatus pb.Status) error {
+	logger.Errorf("%s: %s(): err: %s, output: %s\n", pipelineId, errorTitle, err.Error(), errorOutput)
 
-	if err := utils.SetToCache(ctx, cacheService, pipelineId, cache.CompileOutput, fmt.Sprintf("error: %s, output: %s", err.Error(), string(errorOutput))); err != nil {
+	if err := utils.SetToCache(ctx, cacheService, pipelineId, subKey, fmt.Sprintf("error: %s, output: %s", err.Error(), errorOutput)); err != nil {
 		return err
 	}
-	return utils.SetToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_COMPILE_ERROR)
+
+	return utils.SetToCache(ctx, cacheService, pipelineId, cache.Status, newStatus)
 }
 
 // processRunError processes error received during processing run step.

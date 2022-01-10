@@ -1,3 +1,4 @@
+
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,37 +18,20 @@
 # under the License.
 #
 
-resource "google_app_engine_flexible_app_version" "backend_app" {
-  version_id = "v1"
-  project    = "${var.project_id}"
-  service    = "backend"
-  runtime    = "custom"
-
- liveness_check {
-    path = ""
-  }
-
-  readiness_check {
-    path = ""
-  }
-
-  manual_scaling {
-    instances = 1
-  }
-
-  resources {
-    memory_gb = var.memory_size
-    volumes {
-      name        = "inmemory"
-      size_gb     = var.volume_size
-      volume_type = "tmpfs"
-    }
-  }
-
-  deployment {
-    container {
-      image = "${var.docker_registry_address}/${var.docker_image_name}:${var.docker_image_tag}"
-    }
-  }
+variable "project_id" {
+  description = "The GCP Project ID where Playground Applications will be created"
 }
 
+variable "machine_type" {
+  description = "Node pool machine types"
+  default = "e2-standard-4"
+}
+
+variable "node_count" {
+  description = "Node pool size"
+  default = 1
+}
+
+variable "service_account" {
+  description = "Service account email"
+}
