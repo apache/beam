@@ -25,7 +25,7 @@ class Repositories {
   static void register(Project project) {
 
     project.repositories {
-      maven { url = uri("${project.rootDir}/buildSrc/jarlibs") }
+      maven { url "${project.rootDir}/buildSrc/jarlibs" }
 
       maven { url project.offlineRepositoryRoot }
 
