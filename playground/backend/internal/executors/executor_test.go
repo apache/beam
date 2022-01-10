@@ -36,7 +36,7 @@ var (
 		[]string{"-cp", "bin:" + defaultBeamJarsPath},
 		[]string{"-cp", "bin:" + defaultBeamJarsPath, "JUnit"},
 	)
-	env = environment.NewEnvironment(environment.NetworkEnvs{}, *environment.NewBeamEnvs(pb.Sdk_SDK_JAVA, executorConfig, ""), environment.ApplicationEnvs{})
+	env = environment.NewEnvironment(environment.NetworkEnvs{}, *environment.NewBeamEnvs(pb.Sdk_SDK_JAVA, executorConfig, "", 0), environment.ApplicationEnvs{})
 )
 
 // BaseExecutorBuilder fills up an executor with base parameters
@@ -52,6 +52,10 @@ func BaseExecutorBuilder(envs environment.BeamEnvs, workingDir string, filePath 
 	builder := NewExecutorBuilder().
 		WithExecutableFileName("HelloWorld").
 		WithWorkingDir(workingDir).
+		WithValidator().
+		WithSdkValidators(validatorsFuncs).
+		WithPreparator().
+		WithSdkPreparators(preparatorsFuncs).
 		WithCompiler().
 		WithCommand(envs.ExecutorConfig.CompileCmd).
 		WithArgs(envs.ExecutorConfig.CompileArgs).
@@ -62,10 +66,7 @@ func BaseExecutorBuilder(envs environment.BeamEnvs, workingDir string, filePath 
 		WithTestRunner().
 		WithCommand(envs.ExecutorConfig.TestCmd).
 		WithArgs(envs.ExecutorConfig.TestArgs).
-		WithValidator().
-		WithSdkValidators(validatorsFuncs).
-		WithPreparator().
-		WithSdkPreparators(preparatorsFuncs).
+		WithWorkingDir(workingDir).
 		ExecutorBuilder
 	return &builder
 }

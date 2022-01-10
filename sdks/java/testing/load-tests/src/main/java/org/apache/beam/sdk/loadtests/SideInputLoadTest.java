@@ -176,6 +176,7 @@ public class SideInputLoadTest extends LoadTest<SideInputLoadTest.Options> {
       for (KV<byte[], byte[]> sideInputElement : si) {
         // for every _input_ element iterate over all _sideInput_ elements
         // count consumed bytes, examine memory usage, etc (Metrics API).
+        @SuppressWarnings("unused")
         byte[] key = sideInputElement.getKey();
       }
     }
@@ -198,6 +199,7 @@ public class SideInputLoadTest extends LoadTest<SideInputLoadTest.Options> {
       Map<byte[], byte[]> si = c.sideInput(sideInput);
       List<byte[]> keys = c.sideInput(randomKeyList);
       for (byte[] key : keys) {
+        @SuppressWarnings("unused")
         byte[] value = si.get(key);
       }
     }
@@ -247,6 +249,7 @@ public class SideInputLoadTest extends LoadTest<SideInputLoadTest.Options> {
         }
         // for every _input_ element iterate over all _sideInput_ elements
         // count consumed bytes, examine memory usage, etc (Metrics API).
+        @SuppressWarnings("unused")
         byte[] key = sideInputElement.getKey();
       }
     }

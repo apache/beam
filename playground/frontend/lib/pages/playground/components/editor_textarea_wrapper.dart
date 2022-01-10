@@ -17,8 +17,11 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground/constants/sizes.dart';
+import 'package:playground/modules/analytics/analytics_service.dart';
 import 'package:playground/modules/editor/components/editor_textarea.dart';
+import 'package:playground/modules/editor/components/pipeline_options_text_field.dart';
 import 'package:playground/modules/editor/components/run_button.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/notifications/components/notification.dart';
@@ -26,7 +29,7 @@ import 'package:playground/modules/sdk/models/sdk.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:provider/provider.dart';
 
-const kNotificationTitle = 'Run Code';
+const kUnknownExamplePrefix = 'Unknown Example';
 
 class CodeTextAreaWrapper extends StatelessWidget {
   const CodeTextAreaWrapper({Key? key}) : super(key: key);
@@ -39,30 +42,53 @@ class CodeTextAreaWrapper extends StatelessWidget {
           _handleError(context, state);
         });
       }
-      return Stack(
+      return Column(
+        key: ValueKey(EditorKeyObject(
+          state.sdk,
+          state.selectedExample,
+          state.resetKey,
+        )),
         children: [
-          Positioned.fill(
-            child: EditorTextArea(
-              enabled: true,
-              key: ValueKey(EditorKeyObject(
-                state.sdk,
-                state.selectedExample,
-                state.resetKey,
-              )),
-              example: state.selectedExample,
-              sdk: state.sdk,
-              onSourceChange: state.setSource,
+          Expanded(
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: EditorTextArea(
+                    enabled: true,
+                    example: state.selectedExample,
+                    sdk: state.sdk,
+                    onSourceChange: state.setSource,
+                  ),
+                ),
+                Positioned(
+                  right: kXlSpacing,
+                  top: kXlSpacing,
+                  width: kRunButtonWidth,
+                  height: kRunButtonHeight,
+                  child: RunButton(
+                    isRunning: state.isCodeRunning,
+                    runCode: () {
+                      final stopwatch = Stopwatch()..start();
+                      state.runCode(
+                        onFinish: () {
+                          AnalyticsService.get(context).trackRunTimeEvent(
+                            state.selectedExample?.path ??
+                                '$kUnknownExamplePrefix, sdk ${state.sdk.displayName}',
+                            stopwatch.elapsedMilliseconds,
+                          );
+                        },
+                      );
+                      AnalyticsService.get(context)
+                          .trackClickRunEvent(state.selectedExample);
+                    },
+                  ),
+                ),
+              ],
             ),
           ),
-          Positioned(
-            right: kXlSpacing,
-            top: kXlSpacing,
-            width: kRunButtonWidth,
-            height: kRunButtonHeight,
-            child: RunButton(
-              isRunning: state.isCodeRunning,
-              runCode: state.runCode,
-            ),
+          PipelineOptionsTextField(
+            pipelineOptions: state.pipelineOptions,
+            onChange: state.setPipelineOptions,
           ),
         ],
       );
@@ -72,7 +98,7 @@ class CodeTextAreaWrapper extends StatelessWidget {
   _handleError(BuildContext context, PlaygroundState state) {
     NotificationManager.showError(
       context,
-      kNotificationTitle,
+      AppLocalizations.of(context)!.runCode,
       state.result?.errorMessage ?? '',
     );
     state.resetError();

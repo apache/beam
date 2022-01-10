@@ -25,14 +25,14 @@ description = "Apache Beam :: SDKs :: Java :: IO :: InfluxDB"
 ext.summary = "IO to read and write on InfluxDB"
 
 dependencies {
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile library.java.influxdb_library
-  compile "com.squareup.okhttp3:okhttp:4.6.0"
-  compile library.java.vendored_guava_26_0_jre
-  testCompile library.java.junit
-  testCompile library.java.powermock
-  testCompile library.java.powermock_mockito
-  testCompile library.java.mockito_core
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation library.java.influxdb_library
+  implementation "com.squareup.okhttp3:okhttp:4.6.0"
+  implementation library.java.vendored_guava_26_0_jre
+  testImplementation library.java.junit
+  testImplementation library.java.powermock
+  testImplementation library.java.powermock_mockito
+  testImplementation library.java.mockito_core
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
-  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
+  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
 }

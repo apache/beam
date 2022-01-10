@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.List;
@@ -50,6 +52,14 @@ public abstract class KafkaSourceDescriptor implements Serializable {
   @Nullable
   abstract Instant getStartReadTime();
 
+  @SchemaFieldName("stop_read_offset")
+  @Nullable
+  abstract Long getStopReadOffset();
+
+  @SchemaFieldName("stop_read_time")
+  @Nullable
+  abstract Instant getStopReadTime();
+
   @SchemaFieldName("bootstrap_servers")
   @Nullable
   abstract List<String> getBootStrapServers();
@@ -68,13 +78,28 @@ public abstract class KafkaSourceDescriptor implements Serializable {
       TopicPartition topicPartition,
       Long startReadOffset,
       Instant startReadTime,
+      Long stopReadOffset,
+      Instant stopReadTime,
       List<String> bootstrapServers) {
+    checkArguments(startReadOffset, startReadTime, stopReadOffset, stopReadTime);
     return new AutoValue_KafkaSourceDescriptor(
         topicPartition.topic(),
         topicPartition.partition(),
         startReadOffset,
         startReadTime,
+        stopReadOffset,
+        stopReadTime,
         bootstrapServers);
+  }
+
+  private static void checkArguments(
+      Long startReadOffset, Instant startReadTime, Long stopReadOffset, Instant stopReadTime) {
+    checkArgument(
+        startReadOffset == null || startReadTime == null,
+        "startReadOffset and startReadTime are optional but mutually exclusive. Please set only one of them.");
+    checkArgument(
+        stopReadOffset == null || stopReadTime == null,
+        "stopReadOffset and stopReadTime are optional but mutually exclusive. Please set only one of them.");
   }
 
   @SchemaCreate
@@ -85,8 +110,17 @@ public abstract class KafkaSourceDescriptor implements Serializable {
       Integer partition,
       Long start_read_offset,
       Instant start_read_time,
+      Long stop_read_offset,
+      Instant stop_read_time,
       List<String> bootstrap_servers) {
+    checkArguments(start_read_offset, start_read_time, stop_read_offset, stop_read_time);
     return new AutoValue_KafkaSourceDescriptor(
-        topic, partition, start_read_offset, start_read_time, bootstrap_servers);
+        topic,
+        partition,
+        start_read_offset,
+        start_read_time,
+        stop_read_offset,
+        stop_read_time,
+        bootstrap_servers);
   }
 }

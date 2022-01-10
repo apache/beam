@@ -44,6 +44,18 @@ task copyDockerfileDependencies(type: Copy) {
       into 'build/'
    }
    copy {
+      from 'entrypoint.sh'
+      into 'build/'
+   }
+   copy {
+      from '../../../infrastructure/proxy/allow_list.py'
+      into 'build/'
+   }
+   copy {
+      from '../../../infrastructure/proxy/allow_list_proxy.py'
+      into 'build/'
+   }
+   copy {
       from '../../../playground'
       into 'build/playground'
    }
@@ -66,7 +78,7 @@ docker {
                            "apache/beam_python3.7_sdk" ])
   buildArgs(['GO_BASE_IMAGE': project.rootProject.hasProperty(["go-base-image"]) ?
                              project.rootProject["go-base-image"] :
-                             "golang:1.17-buster" ])
+                             "golang:1.17-bullseye" ])
 }
 
 // Ensure that we build the required resources and copy and file dependencies from related projects

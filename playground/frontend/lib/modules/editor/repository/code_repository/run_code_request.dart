@@ -21,6 +21,11 @@ import 'package:playground/modules/sdk/models/sdk.dart';
 class RunCodeRequestWrapper {
   final String code;
   final SDK sdk;
+  final Map<String, String> pipelineOptions;
 
-  RunCodeRequestWrapper({required this.code, required this.sdk});
+  RunCodeRequestWrapper({
+    required this.code,
+    required this.sdk,
+    required this.pipelineOptions,
+  });
 }

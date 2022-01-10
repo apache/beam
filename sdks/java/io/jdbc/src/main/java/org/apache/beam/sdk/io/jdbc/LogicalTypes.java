@@ -273,9 +273,9 @@ class LogicalTypes {
               || base.round(new MathContext(precision)).compareTo(base) == 0,
           "Expected BigDecimal base to be null or have precision <= %s (was %s), scale <= %s (was %s)",
           precision,
-          base.precision(),
+          (base == null) ? null : base.precision(),
           scale,
-          base.scale());
+          (base == null) ? null : base.scale());
       return base;
     }
   }

@@ -16,7 +16,7 @@
 # limitations under the License.
 ###############################################################################
 ARG BASE_IMAGE=apache/beam_java8_sdk:latest
-FROM golang:1.17-buster AS build
+FROM golang:1.17-bullseye AS build
 
 # Setup Go Environment
 ENV GOPATH /go
@@ -75,5 +75,16 @@ RUN cd /go/src/katas &&\
     ./gradlew jar &&\
     mv util/build/libs/util.jar /opt/apache/beam/jars/util.jar
 
-RUN printenv
-ENTRYPOINT ["/opt/playground/backend/server_java_backend"]
+# Install mitmpoxy
+RUN mkdir /opt/mitmproxy &&\
+    cd /opt/mitmproxy &&\
+    wget https://snapshots.mitmproxy.org/7.0.4/mitmproxy-7.0.4-linux.tar.gz &&\
+    tar -zxvf mitmproxy-7.0.4-linux.tar.gz &&\
+    mkdir /usr/local/share/ca-certificates/extra
+COPY entrypoint.sh /
+COPY allow_list_proxy.py /opt/mitmproxy/
+COPY allow_list.py /opt/mitmproxy/
+ENV HTTP_PROXY="http://127.0.0.1:8081"
+ENV HTTPS_PROXY="http://127.0.0.1:8081"
+
+ENTRYPOINT ["/entrypoint.sh"]

@@ -89,7 +89,6 @@ func getPreparedArgs(args ...interface{}) []interface{} {
 }
 
 func TestGetGoPreparators(t *testing.T) {
-	expectedPreparator := Preparator{Prepare: formatCode, Args: nil}
 	type args struct {
 		filePath string
 	}
@@ -102,7 +101,7 @@ func TestGetGoPreparators(t *testing.T) {
 			// getting the expected preparator
 			name: "get expected preparator",
 			args: args{filePath: ""},
-			want: &[]Preparator{expectedPreparator},
+			want: &[]Preparator{{Prepare: formatCode, Args: nil}, {Prepare: changeGoTestFileName, Args: nil}},
 		},
 	}
 	for _, tt := range tests {

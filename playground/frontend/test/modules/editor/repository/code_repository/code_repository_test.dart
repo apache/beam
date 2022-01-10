@@ -33,6 +33,7 @@ import 'code_repository_test.mocks.dart';
 final kRequestMock = RunCodeRequestWrapper(
   code: 'code',
   sdk: SDK.java,
+  pipelineOptions: {},
 );
 
 const kPipelineUuid = '1234';
@@ -84,11 +85,14 @@ void main() {
       await expectLater(
         stream,
         emitsInOrder([
-          RunCodeResult(status: RunCodeStatus.preparation),
+          RunCodeResult(
+            status: RunCodeStatus.preparation,
+            log: kProcessingStartedText,
+          ),
           RunCodeResult(
             status: RunCodeStatus.finished,
             output: kRunOutput,
-            log: kLogOutput,
+            log: kProcessingStartedText + kLogOutput,
           ),
         ]),
       );
@@ -123,9 +127,15 @@ void main() {
       await expectLater(
         stream,
         emitsInOrder([
-          RunCodeResult(status: RunCodeStatus.preparation),
           RunCodeResult(
-              status: RunCodeStatus.compileError, output: kCompileOutput),
+            status: RunCodeStatus.preparation,
+            log: kProcessingStartedText,
+          ),
+          RunCodeResult(
+            status: RunCodeStatus.compileError,
+            output: kCompileOutput,
+            log: kProcessingStartedText,
+          ),
         ]),
       );
     });
@@ -161,9 +171,15 @@ void main() {
       await expectLater(
         stream,
         emitsInOrder([
-          RunCodeResult(status: RunCodeStatus.preparation),
           RunCodeResult(
-              status: RunCodeStatus.runError, output: kRunErrorOutput),
+            status: RunCodeStatus.preparation,
+            log: kProcessingStartedText,
+          ),
+          RunCodeResult(
+            status: RunCodeStatus.runError,
+            output: kRunErrorOutput,
+            log: kProcessingStartedText,
+          ),
         ]),
       );
     });
@@ -202,21 +218,24 @@ void main() {
     await expectLater(
       stream,
       emitsInOrder([
-        RunCodeResult(status: RunCodeStatus.preparation),
+        RunCodeResult(
+          status: RunCodeStatus.preparation,
+          log: kProcessingStartedText,
+        ),
         RunCodeResult(
           status: RunCodeStatus.executing,
           output: kRunOutput,
-          log: kLogOutput,
+          log: kProcessingStartedText + kLogOutput,
         ),
         RunCodeResult(
           status: RunCodeStatus.executing,
           output: kRunOutput * 2,
-          log: kLogOutput * 2,
+          log: kProcessingStartedText + kLogOutput * 2,
         ),
         RunCodeResult(
           status: RunCodeStatus.finished,
           output: kRunOutput * 3,
-          log: kLogOutput * 3,
+          log: kProcessingStartedText + kLogOutput * 3,
         ),
       ]),
     );

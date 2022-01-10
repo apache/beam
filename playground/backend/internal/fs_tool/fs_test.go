@@ -110,11 +110,11 @@ func TestLifeCycle_CreateExecutableFile(t *testing.T) {
 			createFolders: []string{srcFileFolder},
 			fields: fields{
 				folder:     Folder{SourceFileFolder: srcFileFolder},
-				extension:  Extension{SourceFileExtension: javaSourceFileExtension},
+				extension:  Extension{SourceFileExtension: JavaSourceFileExtension},
 				pipelineId: pipelineId,
 			},
 			args:    args{code: "TEST_CODE"},
-			want:    pipelineId.String() + javaSourceFileExtension,
+			want:    pipelineId.String() + JavaSourceFileExtension,
 			wantErr: false,
 		},
 	}
@@ -256,7 +256,7 @@ func TestNewLifeCycle(t *testing.T) {
 					ExecutableFileFolder: binFileFolder,
 				},
 				Extension: Extension{
-					SourceFileExtension:     javaSourceFileExtension,
+					SourceFileExtension:     JavaSourceFileExtension,
 					ExecutableFileExtension: javaCompiledFileExtension,
 				},
 				ExecutableName: executableName,
@@ -303,7 +303,7 @@ func TestLifeCycle_GetAbsoluteExecutableFilePath(t *testing.T) {
 	baseFileFolder := fmt.Sprintf("%s_%s", baseFileFolder, pipelineId)
 	srcFileFolder := baseFileFolder + "/src"
 
-	filePath := fmt.Sprintf("%s/%s", srcFileFolder, pipelineId.String()+javaSourceFileExtension)
+	filePath := filepath.Join(srcFileFolder, fmt.Sprintf("%s%s", pipelineId.String(), JavaSourceFileExtension))
 	absolutePath, _ := filepath.Abs(filePath)
 	type fields struct {
 		folderGlobs []string
@@ -324,7 +324,7 @@ func TestLifeCycle_GetAbsoluteExecutableFilePath(t *testing.T) {
 					BaseFolder:       baseFileFolder,
 					SourceFileFolder: srcFileFolder,
 				},
-				Extension:  Extension{SourceFileExtension: javaSourceFileExtension},
+				Extension:  Extension{SourceFileExtension: JavaSourceFileExtension},
 				pipelineId: pipelineId,
 			},
 			want: absolutePath,
@@ -367,7 +367,7 @@ func TestLifeCycle_GetAbsoluteExecutableFilesFolderPath(t *testing.T) {
 			name: "GetAbsoluteExecutableFolderPath",
 			fields: fields{
 				Folder:     Folder{BaseFolder: baseFileFolder},
-				Extension:  Extension{SourceFileExtension: javaSourceFileExtension},
+				Extension:  Extension{SourceFileExtension: JavaSourceFileExtension},
 				pipelineId: pipelineId,
 			},
 			want: absolutePath,
