@@ -42,7 +42,10 @@ func TestAutomatedExpansionService(t *testing.T) {
 	}
 	t.Cleanup(func() { os.Remove(jarPath) })
 
-	serviceRunner := expansionx.NewExpansionServiceRunner(jarPath, "")
+	serviceRunner, err := expansionx.NewExpansionServiceRunner(jarPath, "")
+	if err != nil {
+		t.Fatalf("failed to make new expansion service runner, got %v", err)
+	}
 	err = serviceRunner.StartService()
 	if err != nil {
 		t.Errorf("failed to start expansion service JAR, got %v", err)
