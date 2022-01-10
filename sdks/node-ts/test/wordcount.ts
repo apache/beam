@@ -5,17 +5,9 @@ import { KV } from "../src/apache_beam/values";
 
 import { NodeRunner } from '../src/apache_beam/runners/node_runner/runner'
 import { RemoteJobServiceClient } from "../src/apache_beam/runners/node_runner/client";
-import { countPerKey } from '../src/apache_beam/transforms/combine';
+import { countPerKey, CombineBy,  CountFn } from '../src/apache_beam/transforms/combine';
 import { keyBy } from '../src/apache_beam';
 
-
-class CountElements extends beam.PTransform<beam.PCollection<any>, beam.PCollection<KV<any, number>>> {
-    expand(input: beam.PCollection<any>) {
-        return input
-            .apply(keyBy((e) => e))
-            .apply(countPerKey());
-    }
-}
 
 function wordCount(lines: beam.PCollection<string>): beam.PCollection<beam.KV<string, number>> {
     return lines
@@ -24,6 +16,15 @@ function wordCount(lines: beam.PCollection<string>): beam.PCollection<beam.KV<st
             yield* line.split(/[^a-z]+/);
         })
         .apply(new CountElements("Count"));
+}
+
+
+class CountElements extends beam.PTransform<beam.PCollection<any>, beam.PCollection<KV<any, number>>> {
+    expand(input: beam.PCollection<any>) {
+        return input
+            .apply(beam.keyBy((e) => e))
+            .apply(countPerKey());
+    }
 }
 
 describe("wordcount", function() {
