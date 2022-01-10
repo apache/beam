@@ -40,10 +40,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
@@ -69,10 +71,10 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.CalciteConnection;
+import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalciteConnection;
 import org.hamcrest.Matcher;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -451,7 +453,7 @@ public class PubsubTableProviderIT implements Serializable {
     // Because Pubsub only allow new subscription receives message after the subscription is
     // created, eventsTopic.publish(messages) can only be called after statement.executeQuery.
     // However, because statement.executeQuery is a blocking call, it has to be put into a
-    // seperate thread to execute.
+    // separate thread to execute.
     ExecutorService pool = Executors.newFixedThreadPool(1);
     Future<List<String>> queryResult =
         pool.submit(
@@ -466,9 +468,26 @@ public class PubsubTableProviderIT implements Serializable {
                   return result.build();
                 });
 
-    eventsTopic.assertSubscriptionEventuallyCreated(
-        pipeline.getOptions().as(GcpOptions.class).getProject(), Duration.standardMinutes(5));
+    try {
+      eventsTopic.assertSubscriptionEventuallyCreated(
+          pipeline.getOptions().as(GcpOptions.class).getProject(), Duration.standardMinutes(5));
+    } catch (AssertionError assertionError) {
+      // If we're here we timed out waiting for a subscription to get created.
+      // Check if the forked thread had an exception.
+      try {
+        queryResult.get(0, TimeUnit.SECONDS);
+      } catch (TimeoutException e) {
+        // Nothing went wrong on the forked thread, but a subscription still wasn't created.
+      } catch (ExecutionException e) {
+        // get() throws an ExecutionException if there was an exception in the thread. Bubble it
+        // up to the user.
+        throw new AssertionError("Exception occurred in statement.executeQuery thread", e);
+      }
 
+      // Nothing went wrong in executeQuery thread, but still no subscription was created!
+      // Just re-throw the timeout assertion.
+      throw assertionError;
+    }
     eventsTopic.publish(messages);
 
     assertThat(queryResult.get(2, TimeUnit.MINUTES).size(), equalTo(3));
@@ -621,16 +640,13 @@ public class PubsubTableProviderIT implements Serializable {
     String queryString =
         "INSERT INTO message "
             + "VALUES "
-            + "(TIMESTAMP '1970-01-01 00:00:00.001', 'person1', 80, TRUE), "
             + "(TIMESTAMP '1970-01-01 00:00:00.002', 'person2', 70, FALSE)";
     query(sqlEnv, pipeline, queryString);
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(5));
 
     eventsTopic
-        .assertThatTopicEventuallyReceives(
-            matcherTsNameHeightKnowsJS(ts(1), "person1", 80, true),
-            matcherTsNameHeightKnowsJS(ts(2), "person2", 70, false))
+        .assertThatTopicEventuallyReceives(matcherTsNameHeightKnowsJS(ts(2), "person2", 70, false))
         .waitForUpTo(Duration.standardSeconds(40));
   }
 

@@ -106,7 +106,7 @@ class ParseGameEventFn(beam.DoFn):
   """
   def __init__(self):
     # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
-    # super(ParseGameEventFn, self).__init__()
+    # super().__init__()
     beam.DoFn.__init__(self)
     self.num_parse_errors = Metrics.counter(self.__class__, 'num_parse_errors')
 
@@ -132,7 +132,7 @@ class ExtractAndSumScore(beam.PTransform):
   """
   def __init__(self, field):
     # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
-    # super(ExtractAndSumScore, self).__init__()
+    # super().__init__()
     beam.PTransform.__init__(self)
     self.field = field
 
@@ -172,7 +172,7 @@ class WriteToBigQuery(beam.PTransform):
       project: Name of the Cloud project containing BigQuery table.
     """
     # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
-    # super(WriteToBigQuery, self).__init__()
+    # super().__init__()
     beam.PTransform.__init__(self)
     self.table_name = table_name
     self.dataset = dataset
@@ -197,7 +197,7 @@ class WriteToBigQuery(beam.PTransform):
 class HourlyTeamScore(beam.PTransform):
   def __init__(self, start_min, stop_min, window_duration):
     # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
-    # super(HourlyTeamScore, self).__init__()
+    # super().__init__()
     beam.PTransform.__init__(self)
     self.start_timestamp = str2timestamp(start_min)
     self.stop_timestamp = str2timestamp(stop_min)

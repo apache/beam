@@ -64,15 +64,17 @@ public class S3WritableByteChannelTest {
 
   @Test
   public void write() throws IOException {
-    writeFromOptions(s3Options());
-    writeFromOptions(s3OptionsWithSSEAlgorithm());
-    writeFromOptions(s3OptionsWithSSECustomerKey());
-    writeFromOptions(s3OptionsWithSSEKMSKeyId());
+    writeFromOptions(s3Options(), false);
+    writeFromOptions(s3Options(), true);
+    writeFromOptions(s3OptionsWithSSEAlgorithm(), false);
+    writeFromOptions(s3OptionsWithSSECustomerKey(), false);
+    writeFromOptions(s3OptionsWithSSEKMSKeyId(), false);
     assertThrows(
-        IllegalArgumentException.class, () -> writeFromOptions(s3OptionsWithMultipleSSEOptions()));
+        IllegalArgumentException.class,
+        () -> writeFromOptions(s3OptionsWithMultipleSSEOptions(), false));
   }
 
-  private void writeFromOptions(S3Options options) throws IOException {
+  private void writeFromOptions(S3Options options, boolean writeReadOnlyBuffer) throws IOException {
     S3Client mockS3Client = mock(S3Client.class, withSettings().defaultAnswer(RETURNS_SMART_NULLS));
     S3ResourceId path = S3ResourceId.fromUri("s3://bucket/dir/file");
 
@@ -126,7 +128,8 @@ public class S3WritableByteChannelTest {
     }
     uploadContent.flip();
 
-    int uploadedSize = channel.write(uploadContent);
+    int uploadedSize =
+        channel.write(writeReadOnlyBuffer ? uploadContent.asReadOnlyBuffer() : uploadContent);
     assertEquals(contentSize, uploadedSize);
 
     CompleteMultipartUploadResponse completeMultipartUploadResponse =

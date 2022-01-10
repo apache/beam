@@ -117,6 +117,7 @@ public abstract class MatchResult {
 
     public static Builder builder() {
       return new AutoValue_MatchResult_Metadata.Builder()
+          .setIsReadSeekEfficient(false)
           .setLastModifiedMillis(UNKNOWN_LAST_MODIFIED_MILLIS);
     }
 

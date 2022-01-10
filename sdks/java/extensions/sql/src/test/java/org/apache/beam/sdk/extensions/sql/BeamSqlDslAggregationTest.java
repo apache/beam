@@ -157,6 +157,113 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     input.apply(SqlTransform.query(sql));
   }
 
+  /** Multiple aggregation functions with unbounded PCollection. */
+  @Test
+  public void testAggregationNonGroupedFunctionsWithUnbounded() throws Exception {
+    runAggregationFunctionsWithoutGroup(unboundedInput1);
+  }
+
+  /** Multiple aggregation functions with bounded PCollection. */
+  @Test
+  public void testAggregationNonGroupedFunctionsWithBounded() throws Exception {
+    runAggregationFunctionsWithoutGroup(boundedInput1);
+  }
+
+  private void runAggregationFunctionsWithoutGroup(PCollection<Row> input) throws Exception {
+    String sql =
+        "select count(*) as getFieldCount, "
+            + "sum(f_long) as sum1, avg(f_long) as avg1, "
+            + "max(f_long) as max1, min(f_long) as min1, "
+            + "sum(f_short) as sum2, avg(f_short) as avg2, "
+            + "max(f_short) as max2, min(f_short) as min2, "
+            + "sum(f_byte) as sum3, avg(f_byte) as avg3, "
+            + "max(f_byte) as max3, min(f_byte) as min3, "
+            + "sum(f_float) as sum4, avg(f_float) as avg4, "
+            + "max(f_float) as max4, min(f_float) as min4, "
+            + "sum(f_double) as sum5, avg(f_double) as avg5, "
+            + "max(f_double) as max5, min(f_double) as min5, "
+            + "max(f_timestamp) as max6, min(f_timestamp) as min6, "
+            + "max(f_string) as max7, min(f_string) as min7, "
+            + "var_pop(f_double) as varpop1, var_samp(f_double) as varsamp1, "
+            + "var_pop(f_int) as varpop2, var_samp(f_int) as varsamp2 "
+            + "FROM TABLE_A";
+
+    PCollection<Row> result =
+        PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
+            .apply("testAggregationFunctions", SqlTransform.query(sql));
+
+    Schema resultType =
+        Schema.builder()
+            .addInt64Field("size")
+            .addInt64Field("sum1")
+            .addInt64Field("avg1")
+            .addInt64Field("max1")
+            .addInt64Field("min1")
+            .addInt16Field("sum2")
+            .addInt16Field("avg2")
+            .addInt16Field("max2")
+            .addInt16Field("min2")
+            .addByteField("sum3")
+            .addByteField("avg3")
+            .addByteField("max3")
+            .addByteField("min3")
+            .addFloatField("sum4")
+            .addFloatField("avg4")
+            .addFloatField("max4")
+            .addFloatField("min4")
+            .addDoubleField("sum5")
+            .addDoubleField("avg5")
+            .addDoubleField("max5")
+            .addDoubleField("min5")
+            .addDateTimeField("max6")
+            .addDateTimeField("min6")
+            .addStringField("max7")
+            .addStringField("min7")
+            .addDoubleField("varpop1")
+            .addDoubleField("varsamp1")
+            .addInt32Field("varpop2")
+            .addInt32Field("varsamp2")
+            .build();
+
+    Row row =
+        Row.withSchema(resultType)
+            .addValues(
+                4L,
+                10000L,
+                2500L,
+                4000L,
+                1000L,
+                (short) 10,
+                (short) 2,
+                (short) 4,
+                (short) 1,
+                (byte) 10,
+                (byte) 2,
+                (byte) 4,
+                (byte) 1,
+                10.0F,
+                2.5F,
+                4.0F,
+                1.0F,
+                10.0,
+                2.5,
+                4.0,
+                1.0,
+                parseTimestampWithoutTimeZone("2017-01-01 02:04:03"),
+                parseTimestampWithoutTimeZone("2017-01-01 01:01:03"),
+                "第四行",
+                "string_row1",
+                1.25,
+                1.666666667,
+                1,
+                1)
+            .build();
+
+    PAssert.that(result).containsInAnyOrder(row);
+
+    pipeline.run().waitUntilFinish();
+  }
+
   /** GROUP-BY with multiple aggregation functions with bounded PCollection. */
   @Test
   public void testAggregationFunctionsWithBounded() throws Exception {
@@ -786,15 +893,14 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     exceptions.expectCause(
         hasMessage(
             containsString(
-                "Cannot apply 'TUMBLE' to arguments of type 'TUMBLE(<BIGINT>, <INTERVAL HOUR>)'")));
+                "Cannot apply '$TUMBLE' to arguments of type '$TUMBLE(<BIGINT>, <INTERVAL HOUR>)'")));
     pipeline.enableAbandonedNodeEnforcement(false);
 
     String sql =
         "SELECT f_int2, COUNT(*) AS `getFieldCount` FROM TABLE_A "
             + "GROUP BY f_int2, TUMBLE(f_long, INTERVAL '1' HOUR)";
-    PCollection<Row> result =
-        PCollectionTuple.of(new TupleTag<>("TABLE_A"), boundedInput1)
-            .apply("testWindowOnNonTimestampField", SqlTransform.query(sql));
+    PCollectionTuple.of(new TupleTag<>("TABLE_A"), boundedInput1)
+        .apply("testWindowOnNonTimestampField", SqlTransform.query(sql));
 
     pipeline.run().waitUntilFinish();
   }
@@ -807,8 +913,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
 
     String sql = "SELECT f_int2, COUNT(DISTINCT *) AS `size` " + "FROM PCOLLECTION GROUP BY f_int2";
 
-    PCollection<Row> result =
-        boundedInput1.apply("testUnsupportedDistinct", SqlTransform.query(sql));
+    boundedInput1.apply("testUnsupportedDistinct", SqlTransform.query(sql));
 
     pipeline.run().waitUntilFinish();
   }

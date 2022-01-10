@@ -913,6 +913,24 @@ public class ProxyInvocationHandlerTest {
     void setValue(Object value);
   }
 
+  public interface PrimitiveIntOptions extends PipelineOptions {
+    int getInt();
+
+    void setInt(int value);
+  }
+
+  @Test
+  public void testPrimitiveIntegerFromJsonOptions() throws Exception {
+    String optionsJson =
+        "{\"options\":{\"appName\":\"ProxyInvocationHandlerTest\",\"optionsId\":1,\"int\":\"100\"},\"display_data\":[{\"namespace\":\"org.apache.beam.sdk.options.ProxyInvocationHandlerTest$DisplayDataOptions\",\"key\":\"int\",\"type\":\"INTEGER\",\"value\":100},{\"namespace\":\"org.apache.beam.sdk.options.ApplicationNameOptions\",\"key\":\"appName\",\"type\":\"STRING\",\"value\":\"ProxyInvocationHandlerTest\"}]}";
+
+    PrimitiveIntOptions options =
+        MAPPER.readValue(optionsJson, PipelineOptions.class).as(PrimitiveIntOptions.class);
+
+    int value = options.getInt();
+    assertEquals(100, value);
+  }
+
   @Test
   public void testDisplayDataInheritanceNamespace() {
     ExtendsBaseOptions options = PipelineOptionsFactory.as(ExtendsBaseOptions.class);

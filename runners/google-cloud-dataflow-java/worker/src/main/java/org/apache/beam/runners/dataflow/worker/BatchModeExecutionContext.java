@@ -75,6 +75,8 @@ public class BatchModeExecutionContext
       "org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer$LoggingHttpBackOffHandler";
   protected static final String BIGQUERY_STREAMING_INSERT_THROTTLE_TIME_NAMESPACE =
       "org.apache.beam.sdk.io.gcp.bigquery.BigQueryServicesImpl$DatasetServiceImpl";
+  protected static final String BIGQUERY_READ_THROTTLE_TIME_NAMESPACE =
+      "org.apache.beam.sdk.io.gcp.bigquery.BigQueryServicesImpl$StorageClientImpl";
   protected static final String THROTTLE_TIME_COUNTER_NAME = "throttling-msecs";
 
   private BatchModeExecutionContext(
@@ -553,6 +555,13 @@ public class BatchModeExecutionContext
                   BIGQUERY_STREAMING_INSERT_THROTTLE_TIME_NAMESPACE, THROTTLE_TIME_COUNTER_NAME));
       if (bigqueryStreamingInsertThrottleTime != null) {
         totalThrottleMsecs += bigqueryStreamingInsertThrottleTime.getCumulative();
+      }
+
+      CounterCell bigqueryReadThrottleTime =
+          container.tryGetCounter(
+              MetricName.named(BIGQUERY_READ_THROTTLE_TIME_NAMESPACE, THROTTLE_TIME_COUNTER_NAME));
+      if (bigqueryReadThrottleTime != null) {
+        totalThrottleMsecs += bigqueryReadThrottleTime.getCumulative();
       }
 
       CounterCell throttlingMsecs =

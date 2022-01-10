@@ -458,7 +458,7 @@ class EvaluationContext(object):
 class DirectUnmergedState(InMemoryUnmergedState):
   """UnmergedState implementation for the DirectRunner."""
   def __init__(self):
-    super(DirectUnmergedState, self).__init__(defensive_copy=False)
+    super().__init__(defensive_copy=False)
 
 
 class DirectStepContext(object):

@@ -30,8 +30,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
-import com.google.common.base.Charsets;
-import com.google.common.collect.Iterables;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.AbstractMap;
@@ -72,8 +70,10 @@ import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Range;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.RangeSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
@@ -437,6 +437,69 @@ public class WindmillStateInternalsTest {
     waitAndSet(future, 2, 50);
     assertEquals(2, (int) mapState.putIfAbsent(tag2, 42).read());
     assertEquals(2, (int) mapState.get(tag2).read());
+  }
+
+  @Test
+  public void testMapPutIfAbsentNoReadSucceeds() throws Exception {
+    StateTag<MapState<String, Integer>> addr =
+        StateTags.map("map", StringUtf8Coder.of(), VarIntCoder.of());
+    MapState<String, Integer> mapState = underTest.state(NAMESPACE, addr);
+
+    final String tag1 = "tag1";
+    SettableFuture<Integer> future = SettableFuture.create();
+    when(mockReader.valueFuture(
+            protoKeyFromUserKey(tag1, StringUtf8Coder.of()), STATE_FAMILY, VarIntCoder.of()))
+        .thenReturn(future);
+    waitAndSet(future, null, 50);
+    ReadableState<Integer> readableState = mapState.putIfAbsent(tag1, 42);
+    assertEquals(42, (int) mapState.get(tag1).read());
+    assertNull(readableState.read());
+  }
+
+  @Test
+  public void testMapPutIfAbsentNoReadFails() throws Exception {
+    StateTag<MapState<String, Integer>> addr =
+        StateTags.map("map", StringUtf8Coder.of(), VarIntCoder.of());
+    MapState<String, Integer> mapState = underTest.state(NAMESPACE, addr);
+
+    final String tag1 = "tag1";
+    mapState.put(tag1, 1);
+    ReadableState<Integer> readableState = mapState.putIfAbsent(tag1, 42);
+    assertEquals(1, (int) mapState.get(tag1).read());
+    assertEquals(1, (int) readableState.read());
+
+    final String tag2 = "tag2";
+    SettableFuture<Integer> future = SettableFuture.create();
+    when(mockReader.valueFuture(
+            protoKeyFromUserKey(tag2, StringUtf8Coder.of()), STATE_FAMILY, VarIntCoder.of()))
+        .thenReturn(future);
+    waitAndSet(future, 2, 50);
+    readableState = mapState.putIfAbsent(tag2, 42);
+    assertEquals(2, (int) mapState.get(tag2).read());
+    assertEquals(2, (int) readableState.read());
+  }
+
+  @Test
+  public void testMapMultiplePutIfAbsentNoRead() throws Exception {
+    StateTag<MapState<String, Integer>> addr =
+        StateTags.map("map", StringUtf8Coder.of(), VarIntCoder.of());
+    MapState<String, Integer> mapState = underTest.state(NAMESPACE, addr);
+
+    final String tag1 = "tag1";
+    SettableFuture<Integer> future = SettableFuture.create();
+    when(mockReader.valueFuture(
+            protoKeyFromUserKey(tag1, StringUtf8Coder.of()), STATE_FAMILY, VarIntCoder.of()))
+        .thenReturn(future);
+    waitAndSet(future, null, 50);
+    ReadableState<Integer> readableState = mapState.putIfAbsent(tag1, 42);
+    assertEquals(42, (int) mapState.get(tag1).read());
+    ReadableState<Integer> readableState2 = mapState.putIfAbsent(tag1, 43);
+    mapState.put(tag1, 1);
+    ReadableState<Integer> readableState3 = mapState.putIfAbsent(tag1, 44);
+    assertEquals(1, (int) mapState.get(tag1).read());
+    assertNull(readableState.read());
+    assertEquals(42, (int) readableState2.read());
+    assertEquals(1, (int) readableState3.read());
   }
 
   @Test

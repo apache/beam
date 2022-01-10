@@ -95,12 +95,25 @@ class Flink {
 
   private void addTeardownFlinkStep() {
     job.publishers {
-      postBuildScripts {
-        steps {
-          shell("cd ${FLINK_DIR}; ./${FLINK_SCRIPT} delete")
+      postBuildScript {
+        buildSteps {
+          postBuildStep {
+            stopOnFailure(false)
+            results([
+              'SUCCESS',
+              'UNSTABLE',
+              'FAILURE',
+              'NOT_BUILT',
+              'ABORTED'
+            ])
+            buildSteps {
+              shell {
+                command("cd ${FLINK_DIR}; ./${FLINK_SCRIPT} delete")
+              }
+            }
+          }
         }
-        onlyIfBuildSucceeds(false)
-        onlyIfBuildFails(false)
+        markBuildUnstable(false)
       }
     }
   }

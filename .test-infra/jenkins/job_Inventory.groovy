@@ -70,11 +70,12 @@ nums.each {
       shell('kubectl version || echo "kubectl not found"')
       ALL_SUPPORTED_VERSIONS.each { version ->
         def versionSuffix = version.replace('.', '')
-        shell("virtualenv -p python${version} test${versionSuffix} && . ./test${versionSuffix}/bin/activate && python --version && deactivate || echo \"python ${version} not found\"")
+        shell("python${version} -m venv test${versionSuffix} && . ./test${versionSuffix}/bin/activate && python --version && deactivate || echo \"python ${version} not found\"")
       }
       shell('echo "Maven home $MAVEN_HOME"')
       shell('env')
       shell('docker system prune --all --filter until=24h --force')
+      shell('docker volume prune --force')
       shell('echo "Current size of /tmp dir is \$(sudo du -sh /tmp)"')
       shell('echo "Deleting files accessed later than \${tmp_unaccessed_for} hours ago"')
       shell('sudo find /tmp -type f -amin +\$((60*\${tmp_unaccessed_for})) -print -delete')

@@ -1095,7 +1095,7 @@ message WindowingStrategy {
   int64 allowed_lateness = 8;
 
   // (Required) Indicate whether empty on-time panes should be omitted.
-  OnTimeBehavior.Enum OnTimeBehavior = 9;
+  OnTimeBehavior.Enum on_time_behavior = 9;
 
   // (Required) Whether or not the window fn assigns inputs to exactly one window
   //
@@ -1559,12 +1559,23 @@ message StandardProtocols {
     // cores.
     MULTI_CORE_BUNDLE_PROCESSING = 3 [(beam_urn) = "beam:protocol:multi_core_bundle_processing:v1"];
 
+    // Indicates this SDK can cheaply spawn sibling workers (e.g. within the
+    // same container) to work around the fact that it cannot take advantage
+    // of multiple cores (i.e. MULTI_CORE_BUNDLE_PROCESSING is not set).
+    SIBLING_WORKERS = 5 [(beam_urn) = "beam:protocol:sibling_workers:v1"];
+
     // Indicates that this SDK handles the InstructionRequest of type
     // HarnessMonitoringInfosRequest.
     // A request to provide full MonitoringInfo data associated with
     // the entire SDK harness process, not specific to a bundle.
     HARNESS_MONITORING_INFOS = 4
         [(beam_urn) = "beam:protocol:harness_monitoring_infos:v1"];
+
+    // Indicates that this SDK can process elements embedded in the
+    // ProcessBundleRequest. See more about the protocol at
+    // https://s.apache.org/beam-fn-api-control-data-embedding
+    CONTROL_REQUEST_ELEMENTS_EMBEDDING = 6
+        [(beam_urn) = "beam:protocol:control_request_elements_embedding:v1"];
   }
 }
 
@@ -1574,6 +1585,12 @@ message StandardRunnerProtocols {
   enum Enum {
     // Indicates suport the MonitoringInfo short id protocol.
     MONITORING_INFO_SHORT_IDS = 0 [(beam_urn) = "beam:protocol:monitoring_info_short_ids:v1"];
+
+    // Indicates that this runner can process elements embedded in the
+    // ProcessBundleResponse. See more about the protocol at
+    // https://s.apache.org/beam-fn-api-control-data-embedding
+    CONTROL_RESPONSE_ELEMENTS_EMBEDDING = 6
+    [(beam_urn) = "beam:protocol:control_response_elements_embedding:v1"];
   }
 }
 
@@ -1718,7 +1735,14 @@ message LabelledPayload {
     string string_value = 2;
     bool bool_value = 3;
     double double_value = 4;
+    int64 int_value = 5;
   }
+
+  // (Required) The key identifies the actual content of the metadata.
+  string key = 6;
+
+  // (Required) The namespace describes the context that specified the key.
+  string namespace = 7;
 }
 
 // Static display data associated with a pipeline component. Display data is

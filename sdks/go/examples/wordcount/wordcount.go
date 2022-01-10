@@ -55,11 +55,21 @@
 // with --input.
 package main
 
+// beam-playground:
+//   name: WordCount
+//   description: An example that counts words in Shakespeare's works.
+//   multifile: false
+//   pipeline_options: --output output.txt
+//   categories:
+//     - Combiners
+//     - Options
+
 import (
 	"context"
 	"flag"
 	"fmt"
 	"log"
+	"reflect"
 	"regexp"
 	"strings"
 
@@ -106,23 +116,34 @@ var (
 // done automatically by the starcgen code generator, or it can be done manually
 // by calling beam.RegisterFunction in an init() call.
 func init() {
-	beam.RegisterFunction(extractFn)
 	beam.RegisterFunction(formatFn)
+	beam.RegisterType(reflect.TypeOf((*extractFn)(nil)))
 }
 
 var (
-	wordRE  = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
-	empty   = beam.NewCounter("extract", "emptyLines")
-	lineLen = beam.NewDistribution("extract", "lineLenDistro")
+	wordRE          = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
+	empty           = beam.NewCounter("extract", "emptyLines")
+	smallWordLength = flag.Int("small_word_length", 9, "length of small words (default: 9)")
+	smallWords      = beam.NewCounter("extract", "smallWords")
+	lineLen         = beam.NewDistribution("extract", "lineLenDistro")
 )
 
-// extractFn is a DoFn that emits the words in a given line.
-func extractFn(ctx context.Context, line string, emit func(string)) {
+// extractFn is a DoFn that emits the words in a given line and keeps a count for small words.
+type extractFn struct {
+	SmallWordLength int `json:"smallWordLength"`
+}
+
+func (f *extractFn) ProcessElement(ctx context.Context, line string, emit func(string)) {
 	lineLen.Update(ctx, int64(len(line)))
 	if len(strings.TrimSpace(line)) == 0 {
 		empty.Inc(ctx, 1)
 	}
 	for _, word := range wordRE.FindAllString(line, -1) {
+		// increment the counter for small words if length of words is
+		// less than small_word_length
+		if len(word) < f.SmallWordLength {
+			smallWords.Inc(ctx, 1)
+		}
 		emit(word)
 	}
 }
@@ -150,7 +171,7 @@ func CountWords(s beam.Scope, lines beam.PCollection) beam.PCollection {
 	s = s.Scope("CountWords")
 
 	// Convert lines of text into individual words.
-	col := beam.ParDo(s, extractFn, lines)
+	col := beam.ParDo(s, &extractFn{SmallWordLength: *smallWordLength}, lines)
 
 	// Count the number of times each word occurs.
 	return stats.Count(s, col)

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.meta.provider;
 
 import java.util.Collections;
 import java.util.Map;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -27,6 +28,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 @SuppressWarnings({
   "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
 })
+@Experimental
 public interface UdfUdafProvider {
   /** For UDFs implement {@link BeamSqlUdf}. */
   default Map<String, Class<? extends BeamSqlUdf>> getBeamSqlUdfs() {

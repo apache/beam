@@ -20,6 +20,10 @@ package org.apache.beam.sdk.io.gcp.pubsublite;
 import com.google.cloud.pubsublite.proto.PubSubMessage;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.io.gcp.pubsublite.internal.AddUuidsTransform;
+import org.apache.beam.sdk.io.gcp.pubsublite.internal.PubsubLiteSink;
+import org.apache.beam.sdk.io.gcp.pubsublite.internal.SubscribeTransform;
+import org.apache.beam.sdk.io.gcp.pubsublite.internal.UuidDeduplicationTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PBegin;
@@ -107,7 +111,7 @@ public final class PubsubLiteIO {
    * }</pre>
    */
   public static PTransform<PCollection<PubSubMessage>, PDone> write(PublisherOptions options) {
-    return new PTransform<PCollection<PubSubMessage>, PDone>("PubsubLiteIO") {
+    return new PTransform<PCollection<PubSubMessage>, PDone>() {
       @Override
       public PDone expand(PCollection<PubSubMessage> input) {
         PubsubLiteSink sink = new PubsubLiteSink(options);

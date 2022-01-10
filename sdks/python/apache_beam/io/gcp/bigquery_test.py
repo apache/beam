@@ -464,6 +464,7 @@ class TestReadFromBigQuery(unittest.TestCase):
     c = beam.io.gcp.bigquery._CustomBigQuerySource(
         query='select * from test_table',
         gcs_location=gcs_location,
+        method=beam.io.ReadFromBigQuery.Method.EXPORT,
         validate=True,
         pipeline_options=beam.options.pipeline_options.PipelineOptions(),
         job_name='job_name',
@@ -776,6 +777,61 @@ class TestWriteToBigQuery(unittest.TestCase):
     self.assertEqual(
         original_side_input_data.view_fn, deserialized_side_input_data.view_fn)
 
+  def test_streaming_triggering_frequency_without_auto_sharding(self):
+    def noop(table, **kwargs):
+      return []
+
+    client = mock.Mock()
+    client.insert_rows_json = mock.Mock(side_effect=noop)
+    opt = StandardOptions()
+    opt.streaming = True
+    with self.assertRaises(ValueError,
+                           msg="triggering_frequency with STREAMING_INSERTS" +
+                           "can only be used with with_auto_sharding=True"):
+      with beam.Pipeline(runner='BundleBasedDirectRunner', options=opt) as p:
+        _ = (
+            p
+            | beam.Create([{
+                'columnA': 'value1'
+            }])
+            | WriteToBigQuery(
+                table='project:dataset.table',
+                schema={
+                    'fields': [{
+                        'name': 'columnA', 'type': 'STRING', 'mode': 'NULLABLE'
+                    }]
+                },
+                create_disposition='CREATE_NEVER',
+                triggering_frequency=1,
+                with_auto_sharding=False,
+                test_client=client))
+
+  def test_streaming_triggering_frequency_with_auto_sharding(self):
+    def noop(table, **kwargs):
+      return []
+
+    client = mock.Mock()
+    client.insert_rows_json = mock.Mock(side_effect=noop)
+    opt = StandardOptions()
+    opt.streaming = True
+    with beam.Pipeline(runner='BundleBasedDirectRunner', options=opt) as p:
+      _ = (
+          p
+          | beam.Create([{
+              'columnA': 'value1'
+          }])
+          | WriteToBigQuery(
+              table='project:dataset.table',
+              schema={
+                  'fields': [{
+                      'name': 'columnA', 'type': 'STRING', 'mode': 'NULLABLE'
+                  }]
+              },
+              create_disposition='CREATE_NEVER',
+              triggering_frequency=1,
+              with_auto_sharding=True,
+              test_client=client))
+
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class BigQueryStreamingInsertTransformTests(unittest.TestCase):
@@ -956,6 +1012,7 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
               schema_side_inputs=[],
               schema='anyschema',
               batch_size=None,
+              triggering_frequency=None,
               create_disposition='CREATE_NEVER',
               write_disposition=None,
               kms_key=None,
@@ -1014,6 +1071,7 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
               # Set a batch size such that the input elements will be inserted
               # in 2 batches.
               batch_size=2,
+              triggering_frequency=None,
               create_disposition='CREATE_NEVER',
               write_disposition=None,
               kms_key=None,
@@ -1258,12 +1316,13 @@ class PubSubBigQueryIT(unittest.TestCase):
     from google.cloud import pubsub
     self.pub_client = pubsub.PublisherClient()
     self.input_topic = self.pub_client.create_topic(
-        self.pub_client.topic_path(self.project, self.INPUT_TOPIC + self.uuid))
+        name=self.pub_client.topic_path(
+            self.project, self.INPUT_TOPIC + self.uuid))
     self.sub_client = pubsub.SubscriberClient()
     self.input_sub = self.sub_client.create_subscription(
-        self.sub_client.subscription_path(
+        name=self.sub_client.subscription_path(
             self.project, self.INPUT_SUB + self.uuid),
-        self.input_topic.name)
+        topic=self.input_topic.name)
 
     # Set up BQ
     self.dataset_ref = utils.create_bq_dataset(

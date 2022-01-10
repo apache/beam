@@ -323,7 +323,8 @@ public class AvroCoderTest {
 
   @Test
   public void testSpecificRecordEncoding() throws Exception {
-    AvroCoder<TestAvro> coder = AvroCoder.of(TestAvro.class, AVRO_SPECIFIC_RECORD.getSchema());
+    AvroCoder<TestAvro> coder =
+        AvroCoder.of(TestAvro.class, AVRO_SPECIFIC_RECORD.getSchema(), false);
 
     assertTrue(SpecificRecord.class.isAssignableFrom(coder.getType()));
     CoderProperties.coderDecodeEncodeEqual(coder, AVRO_SPECIFIC_RECORD);
@@ -343,6 +344,20 @@ public class AvroCoderTest {
   }
 
   @Test
+  public void testDisableReflectionEncoding() {
+    try {
+      AvroCoder.of(Pojo.class, false);
+      fail("When userReclectApi is disable, schema should not be generated through reflection");
+    } catch (AvroRuntimeException e) {
+      String message =
+          "avro.shaded.com.google.common.util.concurrent.UncheckedExecutionException: "
+              + "org.apache.avro.AvroRuntimeException: "
+              + "Not a Specific class: class org.apache.beam.sdk.coders.AvroCoderTest$Pojo";
+      assertEquals(message, e.getMessage());
+    }
+  }
+
+  @Test
   public void testGenericRecordEncoding() throws Exception {
     String schemaString =
         "{\"namespace\": \"example.avro\",\n"
@@ -354,7 +369,7 @@ public class AvroCoderTest {
             + "     {\"name\": \"favorite_color\", \"type\": [\"string\", \"null\"]}\n"
             + " ]\n"
             + "}";
-    Schema schema = (new Schema.Parser()).parse(schemaString);
+    Schema schema = new Schema.Parser().parse(schemaString);
 
     GenericRecord before = new GenericData.Record(schema);
     before.put("name", "Bob");
@@ -415,8 +430,8 @@ public class AvroCoderTest {
   }
 
   @Test
-  public void testAvroReflectCoderIsSerializable() throws Exception {
-    AvroCoder<Pojo> coder = AvroCoder.of(Pojo.class, true);
+  public void testAvroSpecificCoderIsSerializable() throws Exception {
+    AvroCoder<TestAvro> coder = AvroCoder.of(TestAvro.class, false);
 
     // Check that the coder is serializable using the regular JSON approach.
     SerializableUtils.ensureSerializable(coder);

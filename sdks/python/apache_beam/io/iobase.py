@@ -874,7 +874,7 @@ class Read(ptransform.PTransform):
     Args:
       source: Data source to read from.
     """
-    super(Read, self).__init__()
+    super().__init__()
     self.source = source
 
   @staticmethod
@@ -1048,7 +1048,7 @@ class Write(ptransform.PTransform):
     Args:
       sink: Data sink to write to.
     """
-    super(Write, self).__init__()
+    super().__init__()
     self.sink = sink
 
   def display_data(self):
@@ -1083,7 +1083,7 @@ class Write(ptransform.PTransform):
           timestamp_attribute=self.sink.timestamp_attribute)
       return (common_urns.composites.PUBSUB_WRITE.urn, payload)
     else:
-      return super(Write, self).to_runner_api_parameter(context)
+      return super().to_runner_api_parameter(context)
 
   @staticmethod
   @ptransform.PTransform.register_urn(
@@ -1117,7 +1117,7 @@ class WriteImpl(ptransform.PTransform):
   """Implements the writing of custom sinks."""
   def __init__(self, sink):
     # type: (Sink) -> None
-    super(WriteImpl, self).__init__()
+    super().__init__()
     self.sink = sink
 
   def expand(self, pcoll):
@@ -1647,7 +1647,7 @@ class SDFBoundedSourceReader(PTransform):
   """
   def __init__(self, data_to_display=None):
     self._data_to_display = data_to_display or {}
-    super(SDFBoundedSourceReader, self).__init__()
+    super().__init__()
 
   def _create_sdf_bounded_source_dofn(self):
     class SDFBoundedSourceDoFn(core.DoFn):

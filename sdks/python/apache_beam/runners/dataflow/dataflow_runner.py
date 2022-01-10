@@ -138,7 +138,7 @@ class DataflowRunner(PipelineRunner):
 
   def apply(self, transform, input, options):
     self._maybe_add_unified_worker_missing_options(options)
-    return super(DataflowRunner, self).apply(transform, input, options)
+    return super().apply(transform, input, options)
 
   def _get_unique_step_name(self):
     self._unique_step_id += 1
@@ -553,13 +553,6 @@ class DataflowRunner(PipelineRunner):
       else:
         debug_options.add_experiment('use_staged_dataflow_worker_jar')
 
-    # Make Dataflow workers use FastAvro on Python 3 unless use_avro experiment
-    # is set. Note that use_avro is only interpreted by the Dataflow runner
-    # at job submission and is not interpreted by Dataflow service or workers,
-    # which by default use avro library unless use_fastavro experiment is set.
-    if not debug_options.lookup_experiment('use_avro'):
-      debug_options.add_experiment('use_fastavro')
-
     self.job = apiclient.Job(options, self.proto_pipeline)
 
     # Dataflow Runner v1 requires output type of the Flatten to be the same as
@@ -578,7 +571,8 @@ class DataflowRunner(PipelineRunner):
       return result
 
     # Get a Dataflow API client and set its options
-    self.dataflow_client = apiclient.DataflowApplicationClient(options)
+    self.dataflow_client = apiclient.DataflowApplicationClient(
+        options, self.job.root_staging_location)
 
     # Create the job description and send a request to the service. The result
     # can be None if there is no need to send a request to the service (e.g.
@@ -594,9 +588,19 @@ class DataflowRunner(PipelineRunner):
     return result
 
   def _maybe_add_unified_worker_missing_options(self, options):
+    debug_options = options.view_as(DebugOptions)
+    # Streaming is always portable, default to runner v2.
+    if (options.view_as(StandardOptions).streaming and
+        not debug_options.lookup_experiment('disable_streaming_engine') and
+        not options.view_as(GoogleCloudOptions).dataflow_kms_key):
+      if not debug_options.lookup_experiment('disable_runner_v2'):
+        debug_options.add_experiment('beam_fn_api')
+        debug_options.add_experiment('use_runner_v2')
+        if not debug_options.lookup_experiment(
+            'disable_portable_job_submission'):
+          debug_options.add_experiment('use_portable_job_submission')
     # set default beam_fn_api experiment if use unified
     # worker experiment flag exists, no-op otherwise.
-    debug_options = options.view_as(DebugOptions)
     from apache_beam.runners.dataflow.internal import apiclient
     if apiclient._use_unified_worker(options):
       if not debug_options.lookup_experiment('beam_fn_api'):
@@ -1667,5 +1671,5 @@ class DataflowPipelineResult(PipelineResult):
 class DataflowRuntimeException(Exception):
   """Indicates an error has occurred in running this pipeline."""
   def __init__(self, msg, result):
-    super(DataflowRuntimeException, self).__init__(msg)
+    super().__init__(msg)
     self.result = result

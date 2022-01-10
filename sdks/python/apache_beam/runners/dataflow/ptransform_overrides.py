@@ -198,7 +198,7 @@ class NativeReadPTransformOverride(PTransformOverride):
 
 class WriteToBigQueryPTransformOverride(PTransformOverride):
   def __init__(self, pipeline, options):
-    super(WriteToBigQueryPTransformOverride, self).__init__()
+    super().__init__()
     self.options = options
     self.outputs = []
 
@@ -214,7 +214,7 @@ class WriteToBigQueryPTransformOverride(PTransformOverride):
     gives a user-friendsly error.
     """
     # Imported here to avoid circular dependencies.
-    # pylint: disable=wrong-import-order, wrong-import-position
+    # pylint: disable=wrong-import-order, wrong-import-position, unused-import
     from apache_beam.pipeline import PipelineVisitor
     from apache_beam.io import WriteToBigQuery
 

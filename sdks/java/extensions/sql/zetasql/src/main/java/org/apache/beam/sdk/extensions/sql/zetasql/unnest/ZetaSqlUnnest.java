@@ -18,20 +18,22 @@
 package org.apache.beam.sdk.extensions.sql.zetasql.unnest;
 
 import java.util.List;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.Convention;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCluster;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitSet;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelInput;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelWriter;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.SingleRel;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlUnnestOperator;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlUtil;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.MapSqlType;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.beam.sdk.util.Preconditions;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.Convention;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptCluster;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelTraitSet;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelInput;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelWriter;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.SingleRel;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlUnnestOperator;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlUtil;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.type.ArraySqlType;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.type.MapSqlType;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.type.SqlTypeName;
 
 /**
  * This class is a copy of Uncollect.java in Calcite:
@@ -123,11 +125,25 @@ public class ZetaSqlUnnest extends SingleRel {
 
     for (RelDataTypeField field : fields) {
       if (field.getType() instanceof MapSqlType) {
-        builder.add(SqlUnnestOperator.MAP_KEY_COLUMN_NAME, field.getType().getKeyType());
-        builder.add(SqlUnnestOperator.MAP_VALUE_COLUMN_NAME, field.getType().getValueType());
+        builder.add(
+            SqlUnnestOperator.MAP_KEY_COLUMN_NAME,
+            Preconditions.checkArgumentNotNull(
+                field.getType().getKeyType(),
+                "Encountered MAP type with null key type in field %s",
+                field));
+        builder.add(
+            SqlUnnestOperator.MAP_VALUE_COLUMN_NAME,
+            Preconditions.checkArgumentNotNull(
+                field.getType().getValueType(),
+                "Encountered MAP type with null value type in field %s",
+                field));
       } else {
-        RelDataType ret = field.getType().getComponentType();
-        assert null != ret;
+        assert field.getType() instanceof ArraySqlType;
+        RelDataType ret =
+            Preconditions.checkArgumentNotNull(
+                field.getType().getComponentType(),
+                "Encountered ARRAY type with null component type in field %s",
+                field);
         // Only difference than Uncollect.java: treats record type and scalar type equally
         builder.add(SqlUtil.deriveAliasFromOrdinal(field.getIndex()), ret);
       }

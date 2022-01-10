@@ -22,7 +22,10 @@ import java.util.concurrent.CancellationException;
 /**
  * A client representing some stream of inbound data. An inbound data client can be completed or
  * cancelled, in which case it will ignore any future inputs. It can also be awaited on.
+ *
+ * @deprecated Migrate to {@link BeamFnDataInboundObserver2}.
  */
+@Deprecated
 public interface InboundDataClient {
   /**
    * Block until the client has completed reading from the inbound stream.

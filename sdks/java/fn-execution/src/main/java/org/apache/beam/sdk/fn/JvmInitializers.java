@@ -20,6 +20,8 @@ package org.apache.beam.sdk.fn;
 import org.apache.beam.sdk.harness.JvmInitializer;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Helpers for executing {@link JvmInitializer} implementations. */
 public class JvmInitializers {
@@ -30,6 +32,8 @@ public class JvmInitializers {
    */
   public static void runOnStartup() {
     for (JvmInitializer initializer : ReflectHelpers.loadServicesOrdered(JvmInitializer.class)) {
+      // We write to standard out since logging has yet to be initialized.
+      System.out.format("Running JvmInitializer#onStartup for %s%n", initializer);
       initializer.onStartup();
     }
   }
@@ -42,7 +46,11 @@ public class JvmInitializers {
    * @param options The pipeline options passed to the worker.
    */
   public static void runBeforeProcessing(PipelineOptions options) {
+    // We load the logger in the the method to minimize the amount of class loading that happens
+    // during class initialization.
+    Logger logger = LoggerFactory.getLogger(JvmInitializers.class);
     for (JvmInitializer initializer : ReflectHelpers.loadServicesOrdered(JvmInitializer.class)) {
+      logger.info("Running JvmInitializer#beforeProcessing for {}", initializer);
       initializer.beforeProcessing(options);
     }
   }

@@ -8,6 +8,12 @@
         "hide": true,
         "iconColor": "rgba(0, 211, 255, 1)",
         "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
         "type": "dashboard"
       }
     ]
@@ -15,11 +21,10 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": 3,
   "links": [],
   "panels": [
     {
-      "content": "The graph shows: average greenness of critical post-commit tests jobs per week. This graph show health of our project.\n\nTable shows list of relevant jobs failures during selected time interval (You can change time interval on top-right corner of the dashboard). Please, triage failed jobs and update or create corresponding jira tickets. You can utilized provided links to help with this.",
+      "datasource": null,
       "gridPos": {
         "h": 3,
         "w": 10,
@@ -28,15 +33,97 @@
       },
       "id": 8,
       "links": [],
-      "mode": "markdown",
-      "options": {},
+      "options": {
+        "content": "The graph shows: average greenness of critical post-commit tests jobs per week. This graph show health of our project.\n\nTable shows list of relevant jobs failures during selected time interval (You can change time interval on top-right corner of the dashboard). Please, triage failed jobs and update or create corresponding jira tickets. You can utilized provided links to help with this.",
+        "mode": "markdown"
+      },
+      "pluginVersion": "8.1.2",
       "title": "Dashboard guidelines",
       "type": "text"
     },
     {
-      "columns": [],
       "datasource": "BeamPSQL",
-      "fontSize": "100%",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Time"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Time"
+              },
+              {
+                "id": "unit",
+                "value": "time: YYYY-MM-DD HH:mm:ss"
+              },
+              {
+                "id": "custom.align",
+                "value": null
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "build_url"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Build Url"
+              },
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "targetBlank": true,
+                    "title": "Link to Jenkins job.",
+                    "url": "${__cell:raw}"
+                  }
+                ]
+              },
+              {
+                "id": "custom.align",
+                "value": null
+              }
+            ]
+          }
+        ]
+      },
       "gridPos": {
         "h": 6,
         "w": 14,
@@ -46,43 +133,10 @@
       "hideTimeOverride": false,
       "id": 4,
       "links": [],
-      "options": {},
-      "pageSize": null,
-      "scroll": true,
-      "showHeader": true,
-      "sort": {
-        "col": 0,
-        "desc": true
+      "options": {
+        "showHeader": true
       },
-      "styles": [
-        {
-          "alias": "Time",
-          "dateFormat": "YYYY-MM-DD HH:mm:ss",
-          "link": false,
-          "pattern": "Time",
-          "type": "date"
-        },
-        {
-          "alias": "Build Url",
-          "colorMode": null,
-          "colors": [
-            "rgba(245, 54, 54, 0.9)",
-            "rgba(237, 129, 40, 0.89)",
-            "rgba(50, 172, 45, 0.97)"
-          ],
-          "dateFormat": "YYYY-MM-DD HH:mm:ss",
-          "decimals": 2,
-          "link": true,
-          "linkTargetBlank": true,
-          "linkTooltip": "Link to Jenkins job.",
-          "linkUrl": "${__cell:raw}",
-          "mappingType": 1,
-          "pattern": "build_url",
-          "thresholds": [],
-          "type": "number",
-          "unit": "short"
-        }
-      ],
+      "pluginVersion": "8.1.2",
       "targets": [
         {
           "alias": "",
@@ -114,11 +168,18 @@
       ],
       "timeShift": null,
       "title": "Failed builds",
-      "transform": "table",
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {
+            "reducers": []
+          }
+        }
+      ],
       "type": "table"
     },
     {
-      "content": "[List existing jira tickets](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20status%20in%20(Open%2C%20%22In%20Progress%22%2C%20Reopened)%20AND%20resolution%20%3D%20Unresolved%20AND%20component%20%3D%20test-failures%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC)\n\n[Create new Jira ticket](https://issues.apache.org/jira/secure/CreateIssueDetails!init.jspa?pid=12319527&issuetype=1&summary=%5BjobName%5D%5BTestName%5D%5BIsFlake%5D%20Failure%20summary&priority=3&components=12334203&description=%3CFailure%20summary%3E%0AFailing%20job%20url:%0AJob%20history%20url:%0ARelevant%20log:)",
+      "datasource": null,
       "gridPos": {
         "h": 3,
         "w": 10,
@@ -127,19 +188,70 @@
       },
       "id": 6,
       "links": [],
-      "mode": "markdown",
-      "options": {},
+      "options": {
+        "content": "[List existing jira tickets](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20status%20in%20(Open%2C%20%22In%20Progress%22%2C%20Reopened)%20AND%20resolution%20%3D%20Unresolved%20AND%20component%20%3D%20test-failures%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC)\n\n[Create new Jira ticket](https://issues.apache.org/jira/secure/CreateIssueDetails!init.jspa?pid=12319527&issuetype=1&summary=%5BjobName%5D%5BTestName%5D%5BIsFlake%5D%20Failure%20summary&priority=3&components=12334203&description=%3CFailure%20summary%3E%0AFailing%20job%20url:%0AJob%20history%20url:%0ARelevant%20log:)",
+        "mode": "markdown"
+      },
+      "pluginVersion": "8.1.2",
       "title": "Useful links",
       "type": "text"
     },
     {
-      "aliasColors": {},
-      "bars": false,
-      "dashLength": 10,
-      "dashes": false,
       "datasource": "BeamPSQL",
       "description": "Each data point shows aggregation for corresponding week.\nLatest (rightmost) data point aggregates all data available for current week, so it may change based on new data and should not be considered a final value.",
-      "fill": 0,
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "mappings": [],
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#3f6833",
+                "value": null
+              },
+              {
+                "color": "transparent",
+                "value": 0.7
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
       "gridPos": {
         "h": 7,
         "w": 10,
@@ -147,29 +259,18 @@
         "y": 6
       },
       "id": 2,
-      "legend": {
-        "avg": false,
-        "current": false,
-        "max": false,
-        "min": false,
-        "rightSide": true,
-        "show": true,
-        "total": false,
-        "values": false
-      },
-      "lines": true,
-      "linewidth": 1,
       "links": [],
-      "nullPointMode": "null",
-      "options": {},
-      "percentage": false,
-      "pointradius": 2,
-      "points": false,
-      "renderer": "flot",
-      "seriesOverrides": [],
-      "spaceLength": 10,
-      "stack": false,
-      "steppedLine": false,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "right"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "pluginVersion": "8.1.2",
       "targets": [
         {
           "alias": "",
@@ -177,7 +278,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  DATE_TRUNC('week', build_timestamp) as time,\n  avg(\n  case \n    when build_result = 'SUCCESS' then 1\n    else 0\n  end) as value,\n  substring(job_name from 'beam_PostCommit_#\"%#\"' for '#') as job_name\nFROM\n  /*\n    We perform a union here to create a fake \"Python_All\" job_name in\n    order to graph a new line for all the python results combined.\n  */\n  ( SELECT build_timestamp, build_result, job_name\n    FROM jenkins_builds\n  UNION\n    SELECT build_timestamp, build_result, 'beam_PostCommit_Python_All' as job_name\n    FROM jenkins_builds\n    WHERE \n      ((job_name SIMILAR TO 'beam_PostCommit_Python[0-9]+'))\n      AND NOT (job_name like '%_PR')\n  ) AS critical_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND ((job_name = 'beam_PostCommit_Java') \n       OR (job_name = 'beam_PostCommit_Go') \n       OR (job_name SIMILAR TO 'beam_PostCommit_Python[0-9]+')\n       OR (job_name = 'beam_PostCommit_Python_Verify')\n       OR (job_name = 'beam_PostCommit_Python_All')\n       OR (job_name = 'beam_PostCommit_Website_Publish'))\n  AND NOT (job_name like '%_PR')\nGROUP BY\n  time, job_name\norder BY\n  job_name, time",
+          "rawSql": "SELECT\n  DATE_TRUNC('week', build_timestamp) as time,\n  avg(\n  case \n    when build_result = 'SUCCESS' then 1\n    else 0\n  end) as value,\n  substring(job_name from 'beam_PostCommit_#\"%#\"' for '#') as job_name\nFROM\n  /*\n    We perform a union here to create a fake \"Python_All\" job_name in\n    order to graph a new line for all the python results combined.\n  */\n  ( SELECT build_timestamp, build_result, job_name\n    FROM jenkins_builds\n  UNION\n    SELECT build_timestamp, build_result, 'beam_PostCommit_Python_All' as job_name\n    FROM jenkins_builds\n    WHERE \n      ((job_name SIMILAR TO 'beam_PostCommit_Python[0-9]+'))\n      AND NOT (job_name like '%_PR')\n  ) AS critical_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND ((job_name = 'beam_PostCommit_Java') \n       OR (job_name = 'beam_PostCommit_Go') \n       OR (job_name SIMILAR TO 'beam_PostCommit_Python[0-9]+')\n       OR (job_name = 'beam_PostCommit_Python_Verify')\n       OR (job_name = 'beam_PostCommit_Python_All')\n       OR (job_name = 'beam_PostCommit_Website_Publish'))\n  AND NOT (job_name like '%_PR')\nGROUP BY\n  time, job_name\norder BY\n  time, job_name",
           "refId": "A",
           "select": [
             [
@@ -199,66 +300,67 @@
           ]
         }
       ],
-      "thresholds": [
-        {
-          "colorMode": "custom",
-          "fill": false,
-          "line": true,
-          "lineColor": "#3f6833",
-          "op": "lt",
-          "value": 0.7,
-          "yaxis": "left"
-        }
-      ],
       "timeFrom": null,
-      "timeRegions": [],
       "timeShift": null,
       "title": "Greenness per Week (in %)",
-      "tooltip": {
-        "shared": true,
-        "sort": 1,
-        "value_type": "individual"
-      },
-      "type": "graph",
-      "xaxis": {
-        "buckets": null,
-        "mode": "time",
-        "name": null,
-        "show": true,
-        "values": []
-      },
-      "yaxes": [
-        {
-          "decimals": null,
-          "format": "percentunit",
-          "label": "",
-          "logBase": 1,
-          "max": "1",
-          "min": "0",
-          "show": true
-        },
-        {
-          "format": "short",
-          "label": null,
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": false
-        }
-      ],
-      "yaxis": {
-        "align": false,
-        "alignLevel": null
-      }
+      "type": "timeseries"
     },
     {
-      "aliasColors": {},
-      "bars": false,
-      "dashLength": 10,
-      "dashes": false,
       "datasource": "BeamPSQL",
       "description": "Each data point shows aggregation for corresponding month.\nLatest (rightmost) data point aggregates all data available for current month, so it may change based on new data and should not be considered a final value.",
-      "fill": 0,
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "mappings": [],
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#3f6833",
+                "value": null
+              },
+              {
+                "color": "transparent",
+                "value": 0.7
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
       "gridPos": {
         "h": 7,
         "w": 14,
@@ -266,30 +368,18 @@
         "y": 6
       },
       "id": 10,
-      "legend": {
-        "alignAsTable": true,
-        "avg": false,
-        "current": false,
-        "max": false,
-        "min": false,
-        "rightSide": true,
-        "show": true,
-        "total": false,
-        "values": false
-      },
-      "lines": true,
-      "linewidth": 1,
       "links": [],
-      "nullPointMode": "null",
-      "options": {},
-      "percentage": false,
-      "pointradius": 2,
-      "points": false,
-      "renderer": "flot",
-      "seriesOverrides": [],
-      "spaceLength": 10,
-      "stack": false,
-      "steppedLine": false,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "table",
+          "placement": "right"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "pluginVersion": "8.1.2",
       "targets": [
         {
           "alias": "",
@@ -297,7 +387,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  DATE_TRUNC('month', build_timestamp) as time,\n  avg(\n  case \n    when build_result = 'SUCCESS' then 1\n    else 0\n  end) as value,\n  substring(job_name from 'beam_PostCommit_#\"%#\"' for '#') as job_name\nFROM\n  /*\n  We perform a union here to create a fake \"Python_All\" job_name in\n  order to graph a new line for all the python results combined.\n  */\n  ( SELECT build_timestamp, build_result, job_name\n    FROM jenkins_builds\n  UNION\n    SELECT build_timestamp, build_result, 'beam_PostCommit_Python_All' as job_name\n    FROM jenkins_builds\n    WHERE \n      ((job_name SIMILAR TO 'beam_PostCommit_Python[0-9]+'))\n      AND NOT (job_name like '%_PR')\n  ) AS critical_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND ((job_name = 'beam_PostCommit_Java') \n       OR (job_name = 'beam_PostCommit_Go') \n       OR (job_name SIMILAR TO 'beam_PostCommit_Python[0-9]+')\n       OR (job_name = 'beam_PostCommit_Python_Verify')\n       OR (job_name = 'beam_PostCommit_Python_All')\n       OR (job_name = 'beam_PostCommit_Website_Publish'))\n  AND NOT (job_name like '%_PR')\nGROUP BY\n  time, job_name\norder BY\n  job_name, time",
+          "rawSql": "SELECT\n  DATE_TRUNC('month', build_timestamp) as time,\n  avg(\n  case \n    when build_result = 'SUCCESS' then 1\n    else 0\n  end) as value,\n  substring(job_name from 'beam_PostCommit_#\"%#\"' for '#') as job_name\nFROM\n  /*\n  We perform a union here to create a fake \"Python_All\" job_name in\n  order to graph a new line for all the python results combined.\n  */\n  ( SELECT build_timestamp, build_result, job_name\n    FROM jenkins_builds\n  UNION\n    SELECT build_timestamp, build_result, 'beam_PostCommit_Python_All' as job_name\n    FROM jenkins_builds\n    WHERE \n      ((job_name SIMILAR TO 'beam_PostCommit_Python[0-9]+'))\n      AND NOT (job_name like '%_PR')\n  ) AS critical_builds\nWHERE\n  (build_timestamp BETWEEN $__timeFrom() AND $__timeTo())\n  AND ((job_name = 'beam_PostCommit_Java') \n       OR (job_name = 'beam_PostCommit_Go') \n       OR (job_name SIMILAR TO 'beam_PostCommit_Python[0-9]+')\n       OR (job_name = 'beam_PostCommit_Python_Verify')\n       OR (job_name = 'beam_PostCommit_Python_All')\n       OR (job_name = 'beam_PostCommit_Website_Publish'))\n  AND NOT (job_name like '%_PR')\nGROUP BY\n  time, job_name\norder BY\n  time, job_name",
           "refId": "A",
           "select": [
             [
@@ -319,61 +409,14 @@
           ]
         }
       ],
-      "thresholds": [
-        {
-          "colorMode": "custom",
-          "fill": false,
-          "line": true,
-          "lineColor": "#3f6833",
-          "op": "lt",
-          "value": 0.7,
-          "yaxis": "left"
-        }
-      ],
       "timeFrom": null,
-      "timeRegions": [],
       "timeShift": null,
       "title": "Greenness per Month (in %)",
-      "tooltip": {
-        "shared": true,
-        "sort": 1,
-        "value_type": "individual"
-      },
-      "type": "graph",
-      "xaxis": {
-        "buckets": null,
-        "mode": "time",
-        "name": null,
-        "show": true,
-        "values": []
-      },
-      "yaxes": [
-        {
-          "decimals": null,
-          "format": "percentunit",
-          "label": "",
-          "logBase": 1,
-          "max": "1",
-          "min": "0",
-          "show": true
-        },
-        {
-          "format": "short",
-          "label": null,
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": false
-        }
-      ],
-      "yaxis": {
-        "align": false,
-        "alignLevel": null
-      }
+      "type": "timeseries"
     }
   ],
   "refresh": false,
-  "schemaVersion": 18,
+  "schemaVersion": 30,
   "style": "dark",
   "tags": [],
   "templating": {
@@ -411,5 +454,5 @@
   "timezone": "utc",
   "title": "Stability critical jobs status",
   "uid": "McTAiu0ik",
-  "version": 1
+  "version": 2
 }

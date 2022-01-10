@@ -24,7 +24,8 @@ String jobName = "beam_PerformanceTests_Kafka_IO"
 
 job(jobName) {
   common.setTopLevelMainJobProperties(delegate)
-  common.setAutoJob(delegate, 'H */6 * * *')
+  // TODO(BEAM-9482): Re-enable once fixed.
+  // common.setAutoJob(delegate, 'H */6 * * *')
   common.enablePhraseTriggeringFromPullRequest(
       delegate,
       'Java KafkaIO Performance Test',

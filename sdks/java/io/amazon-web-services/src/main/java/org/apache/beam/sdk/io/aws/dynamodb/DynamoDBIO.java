@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.io.aws.dynamodb;
 
+import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.mapping;
+import static java.util.stream.Collectors.toList;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.amazonaws.regions.Regions;
@@ -24,6 +27,7 @@ import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.model.AmazonDynamoDBException;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import com.amazonaws.services.dynamodbv2.model.BatchWriteItemRequest;
+import com.amazonaws.services.dynamodbv2.model.BatchWriteItemResult;
 import com.amazonaws.services.dynamodbv2.model.ScanRequest;
 import com.amazonaws.services.dynamodbv2.model.ScanResult;
 import com.amazonaws.services.dynamodbv2.model.WriteRequest;
@@ -98,10 +102,12 @@ import org.slf4j.LoggerFactory;
  *       writeRequest>
  * </ul>
  *
- * If primary keys could repeat in your stream (i.e. an upsert stream), you could encounter a
- * ValidationError, as AWS does not allow writing duplicate keys within a single batch operation.
- * For such use cases, you can explicitly set the key names corresponding to the primary key to be
- * deduplicated using the withDeduplicateKeys method
+ * <b>Note:</b> AWS does not allow writing duplicate keys within a single batch operation. If
+ * primary keys possibly repeat in your stream (i.e. an upsert stream), you may encounter a
+ * `ValidationError`. To address this you have to provide the key names corresponding to your
+ * primary key using {@link Write#withDeduplicateKeys(List)}. Based on these keys only the last
+ * observed element is kept. Nevertheless, if no deduplication keys are provided, identical elements
+ * are still deduplicated.
  *
  * <h3>Reading from DynamoDB</h3>
  *
@@ -294,6 +300,8 @@ public final class DynamoDBIO {
    */
   @AutoValue
   public abstract static class RetryConfiguration implements Serializable {
+    private static final Duration DEFAULT_INITIAL_DURATION = Duration.standardSeconds(5);
+
     @VisibleForTesting
     static final RetryPredicate DEFAULT_RETRY_PREDICATE = new DefaultRetryPredicate();
 
@@ -301,18 +309,30 @@ public final class DynamoDBIO {
 
     abstract Duration getMaxDuration();
 
+    abstract Duration getInitialDuration();
+
     abstract DynamoDBIO.RetryConfiguration.RetryPredicate getRetryPredicate();
 
     abstract DynamoDBIO.RetryConfiguration.Builder builder();
 
     public static DynamoDBIO.RetryConfiguration create(int maxAttempts, Duration maxDuration) {
+      return create(maxAttempts, maxDuration, DEFAULT_INITIAL_DURATION);
+    }
+
+    static DynamoDBIO.RetryConfiguration create(
+        int maxAttempts, Duration maxDuration, Duration initialDuration) {
       checkArgument(maxAttempts > 0, "maxAttempts should be greater than 0");
       checkArgument(
           maxDuration != null && maxDuration.isLongerThan(Duration.ZERO),
           "maxDuration should be greater than 0");
+      checkArgument(
+          initialDuration != null && initialDuration.isLongerThan(Duration.ZERO),
+          "initialDuration should be greater than 0");
+
       return new AutoValue_DynamoDBIO_RetryConfiguration.Builder()
           .setMaxAttempts(maxAttempts)
           .setMaxDuration(maxDuration)
+          .setInitialDuration(initialDuration)
           .setRetryPredicate(DEFAULT_RETRY_PREDICATE)
           .build();
     }
@@ -322,6 +342,8 @@ public final class DynamoDBIO {
       abstract DynamoDBIO.RetryConfiguration.Builder setMaxAttempts(int maxAttempts);
 
       abstract DynamoDBIO.RetryConfiguration.Builder setMaxDuration(Duration maxDuration);
+
+      abstract DynamoDBIO.RetryConfiguration.Builder setInitialDuration(Duration initialDuration);
 
       abstract DynamoDBIO.RetryConfiguration.Builder setRetryPredicate(
           RetryPredicate retryPredicate);
@@ -436,10 +458,21 @@ public final class DynamoDBIO {
 
     static class WriteFn<T> extends DoFn<T, Void> {
       @VisibleForTesting
-      static final String RETRY_ATTEMPT_LOG = "Error writing to DynamoDB. Retry attempt[%d]";
+      static final String RETRY_ERROR_LOG = "Error writing items to DynamoDB [attempts:{}]: {}";
 
-      private static final Duration RETRY_INITIAL_BACKOFF = Duration.standardSeconds(5);
-      private transient FluentBackoff retryBackoff; // defaults to no retries
+      private static final String RESUME_ERROR_LOG =
+          "Error writing remaining unprocessed items to DynamoDB: {}";
+
+      private static final String ERROR_NO_RETRY =
+          "Error writing to DynamoDB. No attempt made to retry";
+      private static final String ERROR_RETRIES_EXCEEDED =
+          "Error writing to DynamoDB after %d attempt(s). No more attempts allowed";
+      private static final String ERROR_UNPROCESSED_ITEMS =
+          "Error writing to DynamoDB. Unprocessed items remaining";
+
+      private transient FluentBackoff resumeBackoff; // resume from partial failures (unlimited)
+      private transient FluentBackoff retryBackoff; // retry erroneous calls (default: none)
+
       private static final Logger LOG = LoggerFactory.getLogger(WriteFn.class);
       private static final Counter DYNAMO_DB_WRITE_FAILURES =
           Metrics.counter(WriteFn.class, "DynamoDB_Write_Failures");
@@ -456,15 +489,17 @@ public final class DynamoDBIO {
       @Setup
       public void setup() {
         client = spec.getAwsClientsProvider().createDynamoDB();
-        retryBackoff =
-            FluentBackoff.DEFAULT
-                .withMaxRetries(0) // default to no retrying
-                .withInitialBackoff(RETRY_INITIAL_BACKOFF);
-        if (spec.getRetryConfiguration() != null) {
+        resumeBackoff = FluentBackoff.DEFAULT; // resume from partial failures (unlimited)
+        retryBackoff = FluentBackoff.DEFAULT.withMaxRetries(0); // retry on errors (default: none)
+
+        RetryConfiguration retryConfig = spec.getRetryConfiguration();
+        if (retryConfig != null) {
+          resumeBackoff = resumeBackoff.withInitialBackoff(retryConfig.getInitialDuration());
           retryBackoff =
               retryBackoff
-                  .withMaxRetries(spec.getRetryConfiguration().getMaxAttempts() - 1)
-                  .withMaxCumulativeBackoff(spec.getRetryConfiguration().getMaxDuration());
+                  .withMaxRetries(retryConfig.getMaxAttempts() - 1)
+                  .withInitialBackoff(retryConfig.getInitialDuration())
+                  .withMaxCumulativeBackoff(retryConfig.getMaxDuration());
         }
       }
 
@@ -486,17 +521,22 @@ public final class DynamoDBIO {
       }
 
       private Map<String, AttributeValue> extractDeduplicateKeyValues(WriteRequest request) {
+        List<String> deduplicationKeys = spec.getDeduplicateKeys();
+        Map<String, AttributeValue> attributes = Collections.emptyMap();
+
         if (request.getPutRequest() != null) {
-          return request.getPutRequest().getItem().entrySet().stream()
-              .filter(entry -> spec.getDeduplicateKeys().contains(entry.getKey()))
-              .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+          attributes = request.getPutRequest().getItem();
         } else if (request.getDeleteRequest() != null) {
-          return request.getDeleteRequest().getKey().entrySet().stream()
-              .filter(entry -> spec.getDeduplicateKeys().contains(entry.getKey()))
-              .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-        } else {
-          return Collections.emptyMap();
+          attributes = request.getDeleteRequest().getKey();
         }
+
+        if (attributes.isEmpty() || deduplicationKeys.isEmpty()) {
+          return attributes;
+        }
+
+        return attributes.entrySet().stream()
+            .filter(entry -> deduplicationKeys.contains(entry.getKey()))
+            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
       }
 
       @FinishBundle
@@ -508,57 +548,61 @@ public final class DynamoDBIO {
         if (batch.isEmpty()) {
           return;
         }
-
         try {
-          // Since each element is a KV<tableName, writeRequest> in the batch, we need to group them
-          // by tableName
-          Map<String, List<WriteRequest>> mapTableRequest =
+          // Group values KV<tableName, writeRequest> by tableName
+          // Note: The original order of arrival is lost reading the map entries.
+          Map<String, List<WriteRequest>> writesPerTable =
               batch.values().stream()
-                  .collect(
-                      Collectors.groupingBy(
-                          KV::getKey, Collectors.mapping(KV::getValue, Collectors.toList())));
+                  .collect(groupingBy(KV::getKey, mapping(KV::getValue, toList())));
 
-          BatchWriteItemRequest batchRequest = new BatchWriteItemRequest();
-          mapTableRequest
-              .entrySet()
-              .forEach(
-                  entry -> batchRequest.addRequestItemsEntry(entry.getKey(), entry.getValue()));
+          // Backoff used to resume from partial failures
+          BackOff resume = resumeBackoff.backoff();
+          do {
+            BatchWriteItemRequest batchRequest = new BatchWriteItemRequest(writesPerTable);
+            // If unprocessed items remain, we have to resume the operation (with backoff)
+            writesPerTable = writeWithRetries(batchRequest).getUnprocessedItems();
+          } while (!writesPerTable.isEmpty() && BackOffUtils.next(Sleeper.DEFAULT, resume));
 
-          Sleeper sleeper = Sleeper.DEFAULT;
-          BackOff backoff = retryBackoff.backoff();
-          int attempt = 0;
-          while (true) {
-            attempt++;
-            try {
-              client.batchWriteItem(batchRequest);
-              break;
-            } catch (Exception ex) {
-              // Fail right away if there is no retry configuration
-              if (spec.getRetryConfiguration() == null
-                  || !spec.getRetryConfiguration().getRetryPredicate().test(ex)) {
-                DYNAMO_DB_WRITE_FAILURES.inc();
-                LOG.info(
-                    "Unable to write batch items {}.",
-                    batchRequest.getRequestItems().entrySet(),
-                    ex);
-                throw new IOException("Error writing to DynamoDB (no attempt made to retry)", ex);
-              }
-
-              if (!BackOffUtils.next(sleeper, backoff)) {
-                throw new IOException(
-                    String.format(
-                        "Error writing to DynamoDB after %d attempt(s). No more attempts allowed",
-                        attempt),
-                    ex);
-              } else {
-                // Note: this used in test cases to verify behavior
-                LOG.warn(String.format(RETRY_ATTEMPT_LOG, attempt), ex);
-              }
-            }
+          if (!writesPerTable.isEmpty()) {
+            DYNAMO_DB_WRITE_FAILURES.inc();
+            LOG.error(RESUME_ERROR_LOG, writesPerTable);
+            throw new IOException(ERROR_UNPROCESSED_ITEMS);
           }
         } finally {
           batch.clear();
         }
+      }
+
+      /**
+       * Write batch of items to DynamoDB and potentially retry in case of exceptions. Though, in
+       * case of a partial failure, unprocessed items remain but the request succeeds. This has to
+       * be handled by the caller.
+       */
+      private BatchWriteItemResult writeWithRetries(BatchWriteItemRequest request)
+          throws IOException, InterruptedException {
+        BackOff backoff = retryBackoff.backoff();
+        Exception lastThrown;
+
+        int attempt = 0;
+        do {
+          attempt++;
+          try {
+            return client.batchWriteItem(request);
+          } catch (Exception ex) {
+            lastThrown = ex;
+          }
+        } while (canRetry(lastThrown) && BackOffUtils.next(Sleeper.DEFAULT, backoff));
+
+        DYNAMO_DB_WRITE_FAILURES.inc();
+        LOG.warn(RETRY_ERROR_LOG, attempt, request.getRequestItems());
+        throw new IOException(
+            canRetry(lastThrown) ? String.format(ERROR_RETRIES_EXCEEDED, attempt) : ERROR_NO_RETRY,
+            lastThrown);
+      }
+
+      private boolean canRetry(Exception ex) {
+        return spec.getRetryConfiguration() != null
+            && spec.getRetryConfiguration().getRetryPredicate().test(ex);
       }
 
       @Teardown

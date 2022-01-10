@@ -34,11 +34,16 @@ var (
 	input  = flag.String("input", "publicdata:samples.shakespeare", "Shakespeare plays BQ table.")
 	output = flag.String("output", "", "Output BQ table.")
 
-	minLength = flag.Int("min_length", 9, "Minimum word length")
+	minLength   = flag.Int("min_length", 9, "Minimum word length")
+	small_words = beam.NewCounter("extract", "small_words")
 )
 
 func init() {
+	beam.RegisterFunction(concatFn)
+	beam.RegisterFunction(formatFn)
 	beam.RegisterType(reflect.TypeOf((*extractFn)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*WordRow)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*PlaysRow)(nil)).Elem())
 }
 
 type WordRow struct {
@@ -67,11 +72,12 @@ type extractFn struct {
 	MinLength int `json:"min_length"`
 }
 
-func (f *extractFn) ProcessElement(row WordRow, emit func(string, string)) {
+func (f *extractFn) ProcessElement(ctx context.Context, row WordRow, emit func(string, string)) {
 	if len(row.Word) >= f.MinLength {
 		emit(row.Word, row.Corpus)
+	} else {
+		small_words.Inc(ctx, 1)
 	}
-	// TODO(herohde) 7/14/2017: increment counter for "small words"
 }
 
 // TODO(herohde) 7/14/2017: the choice of a string (instead of []string) for the

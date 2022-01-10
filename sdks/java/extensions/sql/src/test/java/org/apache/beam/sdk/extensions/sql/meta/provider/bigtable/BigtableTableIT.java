@@ -42,12 +42,12 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.testcontainers.shaded.com.google.common.collect.ImmutableList;
 
 @RunWith(JUnit4.class)
 public class BigtableTableIT {
@@ -100,7 +100,7 @@ public class BigtableTableIT {
     String query =
         String.format(
             "INSERT INTO `%s`(key, boolColumn, longColumn, stringColumn, doubleColumn) "
-                + "VALUES ('key1', FALSE, 1, 'string1', 1.0)",
+                + "VALUES ('key1', FALSE, CAST(1 as bigint), 'string1', 1.0)",
             TABLE_ID);
 
     BeamSqlRelUtils.toPCollection(p, sqlEnv.parseQuery(query));

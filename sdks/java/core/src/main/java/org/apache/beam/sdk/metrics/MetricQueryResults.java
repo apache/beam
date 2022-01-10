@@ -49,7 +49,6 @@ public abstract class MetricQueryResults {
         } else {
           sb.append(", ");
         }
-        MetricName name = metricResult.getName();
         sb.append(metricResult.getKey()).append(": ").append(metricResult.getAttempted());
         if (metricResult.hasCommitted()) {
           T committed = metricResult.getCommitted();
@@ -61,7 +60,7 @@ public abstract class MetricQueryResults {
   }
 
   @Override
-  public String toString() {
+  public final String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("MetricQueryResults(");
     printMetrics("Counters", getCounters(), sb);

@@ -64,9 +64,11 @@ from typing import Optional
 from typing import Sequence
 from typing import Tuple
 from typing import TypeVar
+from typing import Union
 from uuid import uuid4
 
 import numpy as np
+from google.protobuf import text_format
 
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import row_type
@@ -134,7 +136,9 @@ _BEAM_SCHEMA_ID = "_beam_schema_id"
 
 
 def named_fields_to_schema(names_and_types):
-  # type: (Sequence[Tuple[str, type]]) -> schema_pb2.Schema
+  # type: (Union[Dict[str, type], Sequence[Tuple[str, type]]]) -> schema_pb2.Schema
+  if isinstance(names_and_types, dict):
+    names_and_types = names_and_types.items()
   return schema_pb2.Schema(
       fields=[
           schema_pb2.Field(name=name, type=typing_to_runner_api(type))
@@ -150,14 +154,17 @@ def named_fields_from_schema(
 
 
 def typing_to_runner_api(type_):
-  if match_is_named_tuple(type_):
+  if isinstance(type_, schema_pb2.Schema):
+    return schema_pb2.FieldType(row_type=schema_pb2.RowType(schema=type_))
+
+  elif match_is_named_tuple(type_):
     schema = None
     if hasattr(type_, _BEAM_SCHEMA_ID):
       schema = SCHEMA_REGISTRY.get_schema_by_id(getattr(type_, _BEAM_SCHEMA_ID))
     if schema is None:
       fields = [
           schema_pb2.Field(
-              name=name, type=typing_to_runner_api(type_._field_types[name]))
+              name=name, type=typing_to_runner_api(type_.__annotations__[name]))
           for name in type_._fields
       ]
       type_id = str(uuid4())
@@ -166,6 +173,17 @@ def typing_to_runner_api(type_):
       SCHEMA_REGISTRY.add(type_, schema)
 
     return schema_pb2.FieldType(row_type=schema_pb2.RowType(schema=schema))
+
+  elif isinstance(type_, row_type.RowTypeConstraint):
+    return schema_pb2.FieldType(
+        row_type=schema_pb2.RowType(
+            schema=schema_pb2.Schema(
+                fields=[
+                    schema_pb2.Field(
+                        name=name, type=typing_to_runner_api(field_type))
+                    for (name, field_type) in type_._fields
+                ],
+                id=str(uuid4()))))
 
   # All concrete types (other than NamedTuple sub-classes) should map to
   # a supported primitive type.
@@ -200,7 +218,7 @@ def typing_to_runner_api(type_):
   except ValueError:
     # Unknown type, just treat it like Any
     return schema_pb2.FieldType(
-        logical_type=schema_pb2.LogicalType(urn=PYTHON_ANY_URN))
+        logical_type=schema_pb2.LogicalType(urn=PYTHON_ANY_URN), nullable=True)
   else:
     # TODO(bhulette): Add support for logical types that require arguments
     return schema_pb2.FieldType(
@@ -217,7 +235,11 @@ def typing_from_runner_api(fieldtype_proto):
     base_type = schema_pb2.FieldType()
     base_type.CopyFrom(fieldtype_proto)
     base_type.nullable = False
-    return Optional[typing_from_runner_api(base_type)]
+    base = typing_from_runner_api(base_type)
+    if base == Any:
+      return base
+    else:
+      return Optional[base]
 
   type_info = fieldtype_proto.WhichOneof("type_info")
   if type_info == "atomic_type":
@@ -239,10 +261,19 @@ def typing_from_runner_api(fieldtype_proto):
       from apache_beam import coders
 
       type_name = 'BeamSchema_{}'.format(schema.id.replace('-', '_'))
-      user_type = NamedTuple(
-          type_name,
-          [(field.name, typing_from_runner_api(field.type))
-           for field in schema.fields])
+
+      subfields = []
+      for field in schema.fields:
+        try:
+          field_py_type = typing_from_runner_api(field.type)
+        except ValueError as e:
+          raise ValueError(
+              "Failed to decode schema due to an issue with Field proto:\n\n" +
+              text_format.MessageToString(field)) from e
+
+        subfields.append((field.name, field_py_type))
+
+      user_type = NamedTuple(type_name, subfields)
 
       setattr(user_type, _BEAM_SCHEMA_ID, schema.id)
 
@@ -265,6 +296,9 @@ def typing_from_runner_api(fieldtype_proto):
     else:
       return LogicalType.from_runner_api(
           fieldtype_proto.logical_type).language_type()
+
+  else:
+    raise ValueError(f"Unrecognized type_info: {type_info!r}")
 
 
 def _hydrate_namedtuple_instance(encoded_schema, values):

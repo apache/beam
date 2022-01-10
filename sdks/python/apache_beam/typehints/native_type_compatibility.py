@@ -107,7 +107,7 @@ def _match_is_exactly_iterable(user_type):
 def match_is_named_tuple(user_type):
   return (
       _safe_issubclass(user_type, typing.Tuple) and
-      hasattr(user_type, '_field_types'))
+      hasattr(user_type, '__annotations__'))
 
 
 def _match_is_optional(user_type):

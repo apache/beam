@@ -17,9 +17,11 @@ package beam
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window/trigger"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
@@ -27,17 +29,51 @@ type WindowIntoOption interface {
 	windowIntoOption()
 }
 
-type WindowTrigger struct {
-	Name window.Trigger
+type windowTrigger struct {
+	trigger trigger.Trigger
 }
 
-func (t WindowTrigger) windowIntoOption() {}
+func (t windowTrigger) windowIntoOption() {}
 
-type AccumulationMode struct {
-	Mode window.AccumulationMode
+// Trigger applies the given trigger to the window.
+//
+// Trigger support in the Go SDK is currently experimental
+// and may have breaking changes made to it.
+// Use at your own discretion.
+func Trigger(tr trigger.Trigger) WindowIntoOption {
+	return windowTrigger{trigger: tr}
 }
 
-func (m AccumulationMode) windowIntoOption() {}
+type accumulationMode struct {
+	mode window.AccumulationMode
+}
+
+func (m accumulationMode) windowIntoOption() {}
+
+// PanesAccumulate applies an Accumulating AccumulationMode to the window.
+// After a pane fires, already processed elements will accumulate and
+// elements will be repeated in subseqent firings for the window.
+func PanesAccumulate() WindowIntoOption {
+	return accumulationMode{mode: window.Accumulating}
+}
+
+// PanesDiscard applies a Discarding AccumulationMode to the window.
+// After a pane fires, already processed elements will be discarded
+// and not included in later firings for the window.
+func PanesDiscard() WindowIntoOption {
+	return accumulationMode{mode: window.Discarding}
+}
+
+type allowedLateness struct {
+	delay time.Duration
+}
+
+func (m allowedLateness) windowIntoOption() {}
+
+// AllowedLateness configures for how long data may arrive after the end of a window.
+func AllowedLateness(delay time.Duration) WindowIntoOption {
+	return allowedLateness{delay: delay}
+}
 
 // WindowInto applies the windowing strategy to each element.
 func WindowInto(s Scope, ws *window.Fn, col PCollection, opts ...WindowIntoOption) PCollection {
@@ -52,13 +88,18 @@ func TryWindowInto(s Scope, wfn *window.Fn, col PCollection, opts ...WindowIntoO
 	if !col.IsValid() {
 		return PCollection{}, errors.New("invalid input pcollection")
 	}
-	ws := window.WindowingStrategy{Fn: wfn, Trigger: window.Trigger{}}
+	ws := window.WindowingStrategy{Fn: wfn, Trigger: trigger.DefaultTrigger{}}
 	for _, opt := range opts {
 		switch opt := opt.(type) {
-		case WindowTrigger:
-			ws.Trigger = opt.Name
-		case AccumulationMode:
-			ws.AccumulationMode = opt.Mode
+		case windowTrigger:
+			// TODO(BEAM-3304): call validation on trigger construction here
+			// so local errors can be returned to the user in their pipeline
+			// context instead of at pipeline translation time.
+			ws.Trigger = opt.trigger
+		case accumulationMode:
+			ws.AccumulationMode = opt.mode
+		case allowedLateness:
+			ws.AllowedLateness = int(opt.delay / time.Millisecond)
 		default:
 			panic(fmt.Sprintf("Unknown WindowInto option type: %T: %v", opt, opt))
 		}

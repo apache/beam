@@ -21,6 +21,8 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.joda.JodaModule;
+import com.google.errorprone.annotations.FormatMethod;
+import com.google.errorprone.annotations.FormatString;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -89,7 +91,8 @@ import org.slf4j.LoggerFactory;
 
 /** Odd's 'n Ends used throughout queries and driver. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "unused" // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
 })
 public class NexmarkUtils {
   private static final Logger LOG = LoggerFactory.getLogger(NexmarkUtils.class);
@@ -320,7 +323,8 @@ public class NexmarkUtils {
   private static final boolean LOG_TO_CONSOLE = false;
 
   /** Log info message. */
-  public static void info(String format, Object... args) {
+  @FormatMethod
+  public static void info(@FormatString String format, Object... args) {
     if (LOG_INFO) {
       LOG.info(String.format(format, args));
       if (LOG_TO_CONSOLE) {
@@ -330,7 +334,8 @@ public class NexmarkUtils {
   }
 
   /** Log message to console. For client side only. */
-  public static void console(String format, Object... args) {
+  @FormatMethod
+  public static void console(@FormatString String format, Object... args) {
     System.out.printf("%s %s%n", Instant.now(), String.format(format, args));
   }
 

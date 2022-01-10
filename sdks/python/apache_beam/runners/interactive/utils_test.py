@@ -15,8 +15,10 @@
 # limitations under the License.
 #
 
+import importlib
 import json
 import logging
+import tempfile
 import unittest
 from typing import NamedTuple
 from unittest.mock import PropertyMock
@@ -30,9 +32,12 @@ import apache_beam as beam
 from apache_beam import coders
 from apache_beam.dataframe.convert import to_dataframe
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
+from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import utils
+from apache_beam.runners.interactive.caching.cacheable import Cacheable
 from apache_beam.runners.interactive.testing.mock_ipython import mock_get_ipython
+from apache_beam.runners.interactive.testing.test_cache_manager import InMemoryCache
 from apache_beam.testing.test_stream import WindowedValueHolder
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import WindowedValue
@@ -270,6 +275,56 @@ class MessagingUtilTest(unittest.TestCase):
     # As of Python 3.6, for the CPython implementation of Python,
     # dictionaries remember the order of items inserted.
     self.assertEqual(json.loads(dummy()), MessagingUtilTest.SAMPLE_DATA)
+
+
+class GeneralUtilTest(unittest.TestCase):
+  def test_pcoll_by_name(self):
+    p = beam.Pipeline()
+    pcoll = p | beam.Create([1])
+    ib.watch({'p': p, 'pcoll': pcoll})
+
+    name_to_pcoll = utils.pcoll_by_name()
+    self.assertIn('pcoll', name_to_pcoll)
+
+  def test_cacheables(self):
+    p2 = beam.Pipeline()
+    pcoll2 = p2 | beam.Create([2])
+    ib.watch({'p2': p2, 'pcoll2': pcoll2})
+
+    cacheables = utils.cacheables()
+    cacheable_key = Cacheable.from_pcoll('pcoll2', pcoll2).to_key()
+    self.assertIn(cacheable_key, cacheables)
+
+  def test_has_unbounded_source(self):
+    p = beam.Pipeline()
+    ie.current_env().set_cache_manager(InMemoryCache(), p)
+    _ = p | 'ReadUnboundedSource' >> beam.io.ReadFromPubSub(
+        subscription='projects/fake-project/subscriptions/fake_sub')
+    self.assertTrue(utils.has_unbounded_sources(p))
+
+  def test_not_has_unbounded_source(self):
+    p = beam.Pipeline()
+    ie.current_env().set_cache_manager(InMemoryCache(), p)
+    with tempfile.NamedTemporaryFile(delete=False) as f:
+      f.write(b'test')
+    _ = p | 'ReadBoundedSource' >> beam.io.ReadFromText(f.name)
+    self.assertFalse(utils.has_unbounded_sources(p))
+
+  def test_find_pcoll_name(self):
+    p = beam.Pipeline()
+    pcoll = p | beam.Create([1, 2, 3])
+    ib.watch({
+        'p_test_find_pcoll_name': p,
+        'pcoll_test_find_pcoll_name': pcoll,
+    })
+    self.assertEqual('pcoll_test_find_pcoll_name', utils.find_pcoll_name(pcoll))
+
+  def test_create_var_in_main(self):
+    name = 'test_create_var_in_main'
+    value = Record(0, 0, 0)
+    _ = utils.create_var_in_main(name, value)
+    main_session = importlib.import_module('__main__')
+    self.assertIs(getattr(main_session, name, None), value)
 
 
 if __name__ == '__main__':

@@ -16,9 +16,11 @@
  * limitations under the License.
  */
 
-plugins { id 'org.apache.beam.module' }
+apply plugin: 'org.apache.beam.module'
 applyJavaNature(
-  automaticModuleName: 'org.apache.beam.sdk.expansion.service')
+  automaticModuleName: 'org.apache.beam.sdk.expansion.service',
+)
+
 
 description = "Apache Beam :: SDKs :: Java :: Expansion Service"
 ext.summary = """Contains code that can be used to run an expansion service."""
@@ -33,20 +35,26 @@ test {
 }
 
 dependencies {
-  compile project(path: ":model:pipeline", configuration: "shadow")
-  compile project(path: ":model:job-management", configuration: "shadow")
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(path: ":runners:core-construction-java")
-  compile project(path: ":runners:java-fn-execution")
-  compile library.java.vendored_grpc_1_36_0
-  compile library.java.vendored_guava_26_0_jre
-  compile library.java.slf4j_api
+  implementation project(path: ":model:pipeline", configuration: "shadow")
+  implementation project(path: ":model:job-management", configuration: "shadow")
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(path: ":runners:core-construction-java")
+  implementation project(path: ":runners:java-fn-execution")
+  implementation project(path: ":sdks:java:fn-execution")
+  permitUnusedDeclared project(path: ":sdks:java:fn-execution")
+  implementation library.java.jackson_annotations
+  implementation library.java.jackson_databind
+  implementation library.java.jackson_dataformat_yaml
+  implementation library.java.vendored_grpc_1_36_0
+  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.slf4j_api
   runtimeOnly library.java.slf4j_jdk14
-  testCompile library.java.junit
+  testImplementation library.java.junit
+  testImplementation library.java.hamcrest
 }
 
 task runExpansionService (type: JavaExec) {
-  main = "org.apache.beam.sdk.expansion.service.ExpansionService"
+  mainClass = "org.apache.beam.sdk.expansion.service.ExpansionService"
   classpath = sourceSets.main.runtimeClasspath
   args = [project.findProperty("constructionService.port") ?: "8097"]
 }

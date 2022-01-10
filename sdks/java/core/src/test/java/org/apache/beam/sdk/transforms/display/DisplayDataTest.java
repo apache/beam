@@ -54,7 +54,6 @@ import java.util.regex.Pattern;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.DisplayData.Item;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
@@ -327,7 +326,7 @@ public class DisplayDataTest implements Serializable {
         DisplayData.from(
             new HasDisplayData() {
               @Override
-              public void populateDisplayData(Builder builder) {
+              public void populateDisplayData(DisplayData.Builder builder) {
                 builder
                     .addIfNotDefault(DisplayData.item("defaultString", "foo"), "foo")
                     .addIfNotDefault(DisplayData.item("notDefaultString", "foo"), "notFoo")
@@ -365,7 +364,7 @@ public class DisplayDataTest implements Serializable {
         DisplayData.from(
             new HasDisplayData() {
               @Override
-              public void populateDisplayData(Builder builder) {
+              public void populateDisplayData(DisplayData.Builder builder) {
                 builder
                     .addIfNotDefault(DisplayData.item("integer", 123), 123)
                     .addIfNotDefault(
@@ -392,7 +391,7 @@ public class DisplayDataTest implements Serializable {
         DisplayData.from(
             new HasDisplayData() {
               @Override
-              public void populateDisplayData(Builder builder) {
+              public void populateDisplayData(DisplayData.Builder builder) {
                 builder
                     .addIfNotNull(DisplayData.item("nullString", (String) null))
                     .addIfNotNull(DisplayData.item("nullVPString", (ValueProvider<String>) null))
@@ -422,7 +421,7 @@ public class DisplayDataTest implements Serializable {
     HasDisplayData component =
         new HasDisplayData() {
           @Override
-          public void populateDisplayData(Builder builder) {
+          public void populateDisplayData(DisplayData.Builder builder) {
             builder.addIfNotNull(
                 DisplayData.item("nullItem", (Class<?>) null)
                     .withLinkUrl("http://abc")
@@ -537,14 +536,14 @@ public class DisplayDataTest implements Serializable {
     final HasDisplayData subComponent1 =
         new HasDisplayData() {
           @Override
-          public void populateDisplayData(Builder builder) {
+          public void populateDisplayData(DisplayData.Builder builder) {
             builder.add(DisplayData.item("foo", "bar"));
           }
         };
     final HasDisplayData subComponent2 =
         new HasDisplayData() {
           @Override
-          public void populateDisplayData(Builder builder) {
+          public void populateDisplayData(DisplayData.Builder builder) {
             builder.add(DisplayData.item("foo2", "bar2"));
           }
         };
@@ -552,7 +551,7 @@ public class DisplayDataTest implements Serializable {
     HasDisplayData component =
         new HasDisplayData() {
           @Override
-          public void populateDisplayData(Builder builder) {
+          public void populateDisplayData(DisplayData.Builder builder) {
             builder.include("p1", subComponent1).include("p2", subComponent2);
           }
         };
@@ -567,7 +566,7 @@ public class DisplayDataTest implements Serializable {
     HasDisplayData component =
         new HasDisplayData() {
           @Override
-          public void populateDisplayData(Builder builder) {
+          public void populateDisplayData(DisplayData.Builder builder) {
             builder.include("p", new NoopDisplayData()).include("p", new NoopDisplayData());
           }
         };
@@ -583,7 +582,7 @@ public class DisplayDataTest implements Serializable {
     DisplayData.from(
         new HasDisplayData() {
           @Override
-          public void populateDisplayData(Builder builder) {
+          public void populateDisplayData(DisplayData.Builder builder) {
             builder.add(DisplayData.item("foo", "bar").withNamespace(null));
           }
         });
@@ -617,14 +616,14 @@ public class DisplayDataTest implements Serializable {
     HasDisplayData component1 =
         new HasDisplayData() {
           @Override
-          public void populateDisplayData(Builder builder) {
+          public void populateDisplayData(DisplayData.Builder builder) {
             builder.add(DisplayData.item("foo", "bar"));
           }
         };
     HasDisplayData component2 =
         new HasDisplayData() {
           @Override
-          public void populateDisplayData(Builder builder) {
+          public void populateDisplayData(DisplayData.Builder builder) {
             builder.add(DisplayData.item("foo", "bar"));
           }
         };
@@ -725,7 +724,7 @@ public class DisplayDataTest implements Serializable {
     HasDisplayData component =
         new HasDisplayData() {
           @Override
-          public void populateDisplayData(Builder builder) {
+          public void populateDisplayData(DisplayData.Builder builder) {
             builder.include("p", componentA);
           }
         };
@@ -754,7 +753,7 @@ public class DisplayDataTest implements Serializable {
     }
 
     @Override
-    public void populateDisplayData(Builder builder) {
+    public void populateDisplayData(DisplayData.Builder builder) {
       builder
           .add(DisplayData.item("subComponent", subComponent.getClass()))
           .include("p", subComponent);
@@ -808,7 +807,7 @@ public class DisplayDataTest implements Serializable {
     final HasDisplayData subcomponent =
         new HasDisplayData() {
           @Override
-          public void populateDisplayData(Builder builder) {
+          public void populateDisplayData(DisplayData.Builder builder) {
             builder.add(DisplayData.item("subCompKey", "foo"));
           }
         };
@@ -816,7 +815,7 @@ public class DisplayDataTest implements Serializable {
     final HasDisplayData wrapped =
         new HasDisplayData() {
           @Override
-          public void populateDisplayData(Builder builder) {
+          public void populateDisplayData(DisplayData.Builder builder) {
             builder.add(DisplayData.item("wrappedKey", "bar")).include("p", subcomponent);
           }
         };
@@ -824,7 +823,7 @@ public class DisplayDataTest implements Serializable {
     HasDisplayData wrapper =
         new HasDisplayData() {
           @Override
-          public void populateDisplayData(Builder builder) {
+          public void populateDisplayData(DisplayData.Builder builder) {
             builder.delegate(wrapped);
           }
         };
@@ -885,7 +884,7 @@ public class DisplayDataTest implements Serializable {
         DisplayData.from(
             new HasDisplayData() {
               @Override
-              public void populateDisplayData(Builder builder) {
+              public void populateDisplayData(DisplayData.Builder builder) {
                 builder
                     .add(DisplayData.item("integer", DisplayData.Type.INTEGER, 1234L))
                     .add(DisplayData.item("string", DisplayData.Type.STRING, "foobar"));
@@ -956,7 +955,7 @@ public class DisplayDataTest implements Serializable {
     HasDisplayData component =
         new HasDisplayData() {
           @Override
-          public void populateDisplayData(Builder builder) {
+          public void populateDisplayData(DisplayData.Builder builder) {
             builder.add(DisplayData.item("integer", DisplayData.Type.INTEGER, "foobar"));
           }
         };
@@ -1045,7 +1044,7 @@ public class DisplayDataTest implements Serializable {
     DisplayData.from(
         new HasDisplayData() {
           @Override
-          public void populateDisplayData(Builder builder) {
+          public void populateDisplayData(DisplayData.Builder builder) {
             builder.include("p", null);
           }
         });
@@ -1057,7 +1056,7 @@ public class DisplayDataTest implements Serializable {
     DisplayData.from(
         new HasDisplayData() {
           @Override
-          public void populateDisplayData(Builder builder) {
+          public void populateDisplayData(DisplayData.Builder builder) {
             builder.include(null, new NoopDisplayData());
           }
         });
@@ -1069,7 +1068,7 @@ public class DisplayDataTest implements Serializable {
     DisplayData.from(
         new HasDisplayData() {
           @Override
-          public void populateDisplayData(Builder builder) {
+          public void populateDisplayData(DisplayData.Builder builder) {
             builder.include("", new NoopDisplayData());
           }
         });
@@ -1081,7 +1080,7 @@ public class DisplayDataTest implements Serializable {
     DisplayData.from(
         new HasDisplayData() {
           @Override
-          public void populateDisplayData(Builder builder) {
+          public void populateDisplayData(DisplayData.Builder builder) {
             builder.add(DisplayData.item(null, "foo"));
           }
         });
@@ -1092,7 +1091,7 @@ public class DisplayDataTest implements Serializable {
     DisplayData.from(
         new HasDisplayData() {
           @Override
-          public void populateDisplayData(Builder builder) {
+          public void populateDisplayData(DisplayData.Builder builder) {
             try {
               builder.add(DisplayData.item("key", (String) null));
               throw new RuntimeException("Should throw on null string value");
@@ -1129,7 +1128,7 @@ public class DisplayDataTest implements Serializable {
     DisplayData.from(
         new HasDisplayData() {
           @Override
-          public void populateDisplayData(Builder builder) {
+          public void populateDisplayData(DisplayData.Builder builder) {
             builder.add(DisplayData.item("key", "value").withLabel(null).withLinkUrl(null));
           }
         });
@@ -1148,7 +1147,7 @@ public class DisplayDataTest implements Serializable {
     HasDisplayData component =
         new HasDisplayData() {
           @Override
-          public void populateDisplayData(Builder builder) {
+          public void populateDisplayData(DisplayData.Builder builder) {
             builder
                 .add(DisplayData.item("string", stringValue))
                 .add(DisplayData.item("long", intValue))
@@ -1190,7 +1189,7 @@ public class DisplayDataTest implements Serializable {
     HasDisplayData component =
         new HasDisplayData() {
           @Override
-          public void populateDisplayData(Builder builder) {
+          public void populateDisplayData(DisplayData.Builder builder) {
             builder.add(DisplayData.item("foo", "bar"));
           }
         };
@@ -1218,11 +1217,7 @@ public class DisplayDataTest implements Serializable {
   }
 
   private static class HoldsItemSpecReference implements Serializable {
-    private final DisplayData.ItemSpec<?> spec;
-
-    public HoldsItemSpecReference(DisplayData.ItemSpec<?> spec) {
-      this.spec = spec;
-    }
+    public HoldsItemSpecReference(DisplayData.ItemSpec<?> spec) {}
   }
 
   @Test
@@ -1250,7 +1245,7 @@ public class DisplayDataTest implements Serializable {
     final HasDisplayData safeComponent =
         new HasDisplayData() {
           @Override
-          public void populateDisplayData(Builder builder) {
+          public void populateDisplayData(DisplayData.Builder builder) {
             builder.add(DisplayData.item("a", "a"));
           }
         };
@@ -1258,7 +1253,7 @@ public class DisplayDataTest implements Serializable {
     final HasDisplayData failingComponent =
         new HasDisplayData() {
           @Override
-          public void populateDisplayData(Builder builder) {
+          public void populateDisplayData(DisplayData.Builder builder) {
             throw new RuntimeException("oh noes!");
           }
         };
@@ -1267,7 +1262,7 @@ public class DisplayDataTest implements Serializable {
         DisplayData.from(
             new HasDisplayData() {
               @Override
-              public void populateDisplayData(Builder builder) {
+              public void populateDisplayData(DisplayData.Builder builder) {
                 builder.add(DisplayData.item("b", "b")).add(DisplayData.item("c", "c"));
 
                 try {
@@ -1293,7 +1288,7 @@ public class DisplayDataTest implements Serializable {
     HasDisplayData component =
         new HasDisplayData() {
           @Override
-          public void populateDisplayData(Builder builder) {
+          public void populateDisplayData(DisplayData.Builder builder) {
             throw cause;
           }
         };
@@ -1310,12 +1305,12 @@ public class DisplayDataTest implements Serializable {
     HasDisplayData component =
         new HasDisplayData() {
           @Override
-          public void populateDisplayData(Builder builder) {
+          public void populateDisplayData(DisplayData.Builder builder) {
             builder.include(
                 "p",
                 new HasDisplayData() {
                   @Override
-                  public void populateDisplayData(Builder builder) {
+                  public void populateDisplayData(DisplayData.Builder builder) {
                     throw cause;
                   }
                 });
@@ -1329,7 +1324,7 @@ public class DisplayDataTest implements Serializable {
   @AutoValue
   abstract static class Foo implements HasDisplayData {
     @Override
-    public void populateDisplayData(Builder builder) {
+    public void populateDisplayData(DisplayData.Builder builder) {
       builder.add(DisplayData.item("someKey", "someValue"));
     }
   }
@@ -1386,7 +1381,7 @@ public class DisplayDataTest implements Serializable {
 
   private static class NoopDisplayData implements HasDisplayData {
     @Override
-    public void populateDisplayData(Builder builder) {}
+    public void populateDisplayData(DisplayData.Builder builder) {}
   }
 
   private static Matcher<DisplayData.Item> hasUrl(Matcher<String> urlMatcher) {

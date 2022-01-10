@@ -25,7 +25,8 @@ from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frame_base
 from apache_beam.dataframe import frames
 
-PD_VERSION = tuple(map(int, pd.__version__.split('.')))
+# Get major, minor version
+PD_VERSION = tuple(map(int, pd.__version__.split('.')[0:2]))
 
 GROUPBY_DF = pd.DataFrame({
     'group': ['a' if i % 5 == 0 or i % 3 == 0 else 'b' for i in range(100)],
@@ -186,7 +187,7 @@ class _AbstractFrameTest(unittest.TestCase):
         else:
           cmp = lambda x: np.isclose(expected, x)
       else:
-        cmp = expected.__eq__
+        cmp = lambda x: x == expected
       self.assertTrue(
           cmp(actual), 'Expected:\n\n%r\n\nActual:\n\n%r' % (expected, actual))
 
@@ -235,6 +236,17 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(
         lambda df, df2: df.subtract(2).multiply(df2).divide(df), df, df2)
 
+  @unittest.skipIf(PD_VERSION < (1, 3), "dropna=False is new in pandas 1.3")
+  def test_value_counts_dropna_false(self):
+    df = pd.DataFrame({
+        'first_name': ['John', 'Anne', 'John', 'Beth'],
+        'middle_name': ['Smith', pd.NA, pd.NA, 'Louise']
+    })
+    # TODO(BEAM-12495): Remove the assertRaises this when the underlying bug in
+    # https://github.com/pandas-dev/pandas/issues/36470 is fixed.
+    with self.assertRaises(NotImplementedError):
+      self._run_test(lambda df: df.value_counts(dropna=False), df)
+
   def test_get_column(self):
     df = pd.DataFrame({
         'Animal': ['Falcon', 'Falcon', 'Parrot', 'Parrot'],
@@ -263,6 +275,21 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(
         lambda df: df.num_legs.xs(('bird', 'walks'), level=[0, 'locomotion']),
         df)
+
+  def test_dataframe_xs(self):
+    # Test cases reported in BEAM-13421
+    df = pd.DataFrame(
+        np.array([
+            ['state', 'day1', 12],
+            ['state', 'day1', 1],
+            ['state', 'day2', 14],
+            ['county', 'day1', 9],
+        ]),
+        columns=['provider', 'time', 'value'])
+
+    self._run_test(lambda df: df.xs('state'), df.set_index(['provider']))
+    self._run_test(
+        lambda df: df.xs('state'), df.set_index(['provider', 'time']))
 
   def test_set_column(self):
     def new_column(df):
@@ -369,10 +396,15 @@ class DeferredFrameTest(_AbstractFrameTest):
         nonparallel=True)
 
   def test_combine_Series(self):
-    with expressions.allow_non_parallel_operations():
-      s1 = pd.Series({'falcon': 330.0, 'eagle': 160.0})
-      s2 = pd.Series({'falcon': 345.0, 'eagle': 200.0, 'duck': 30.0})
-      self._run_test(lambda s1, s2: s1.combine(s2, max), s1, s2)
+    s1 = pd.Series({'falcon': 330.0, 'eagle': 160.0})
+    s2 = pd.Series({'falcon': 345.0, 'eagle': 200.0, 'duck': 30.0})
+    self._run_test(
+        lambda s1,
+        s2: s1.combine(s2, max),
+        s1,
+        s2,
+        nonparallel=True,
+        check_proxy=False)
 
   def test_combine_first_dataframe(self):
     df1 = pd.DataFrame({'A': [None, 0], 'B': [None, 4]})
@@ -415,6 +447,23 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_error_test(lambda df: df.set_index('bad'), df)
     self._run_error_test(
         lambda df: df.set_index(['index2', 'bad', 'really_bad']), df)
+
+  def test_set_axis(self):
+    df = pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]}, index=['X', 'Y', 'Z'])
+
+    self._run_test(lambda df: df.set_axis(['I', 'II'], axis='columns'), df)
+    self._run_test(lambda df: df.set_axis([0, 1], axis=1), df)
+    self._run_inplace_test(
+        lambda df: df.set_axis(['i', 'ii'], axis='columns'), df)
+    with self.assertRaises(NotImplementedError):
+      self._run_test(lambda df: df.set_axis(['a', 'b', 'c'], axis='index'), df)
+      self._run_test(lambda df: df.set_axis([0, 1, 2], axis=0), df)
+
+  def test_series_set_axis(self):
+    s = pd.Series(list(range(3)), index=['X', 'Y', 'Z'])
+    with self.assertRaises(NotImplementedError):
+      self._run_test(lambda s: s.set_axis(['a', 'b', 'c']), s)
+      self._run_test(lambda s: s.set_axis([1, 2, 3]), s)
 
   def test_series_drop_ignore_errors(self):
     midx = pd.MultiIndex(
@@ -587,8 +636,27 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(lambda df: df.value_counts(), df)
     self._run_test(lambda df: df.value_counts(normalize=True), df)
 
+    if PD_VERSION >= (1, 3):
+      # dropna=False is new in pandas 1.3
+      # TODO(BEAM-12495): Remove the assertRaises this when the underlying bug
+      # in https://github.com/pandas-dev/pandas/issues/36470 is fixed.
+      with self.assertRaises(NotImplementedError):
+        self._run_test(lambda df: df.value_counts(dropna=False), df)
+
+    # Test the defaults.
     self._run_test(lambda df: df.num_wings.value_counts(), df)
     self._run_test(lambda df: df.num_wings.value_counts(normalize=True), df)
+    self._run_test(lambda df: df.num_wings.value_counts(dropna=False), df)
+
+    # Test the combination interactions.
+    for normalize in (True, False):
+      for dropna in (True, False):
+        self._run_test(
+            lambda df,
+            dropna=dropna,
+            normalize=normalize: df.num_wings.value_counts(
+                dropna=dropna, normalize=normalize),
+            df)
 
   def test_value_counts_does_not_support_sort(self):
     df = pd.DataFrame({
@@ -615,6 +683,19 @@ class DeferredFrameTest(_AbstractFrameTest):
     s.index = s.index.map(float)
     self._run_test(lambda s: s[1.5:6], s)
 
+  def test_series_truncate(self):
+    s = pd.Series(['a', 'b', 'c', 'd', 'e', 'f'])
+    self._run_test(lambda s: s.truncate(before=1, after=3), s)
+
+  def test_dataframe_truncate(self):
+    df = pd.DataFrame({
+        'C': list('abcde'), 'B': list('fghij'), 'A': list('klmno')
+    },
+                      index=[1, 2, 3, 4, 5])
+    self._run_test(lambda df: df.truncate(before=1, after=3), df)
+    self._run_test(lambda df: df.truncate(before='A', after='B', axis=1), df)
+    self._run_test(lambda df: df['A'].truncate(before=2, after=4), df)
+
   @parameterized.expand([
       (pd.Series(range(10)), ),  # unique
       (pd.Series(list(range(100)) + [0]), ),  # non-unique int
@@ -624,6 +705,15 @@ class DeferredFrameTest(_AbstractFrameTest):
   ])
   def test_series_is_unique(self, series):
     self._run_test(lambda s: s.is_unique, series)
+
+  @parameterized.expand([
+      (pd.Series(range(10)), ),  # False
+      (pd.Series([1, 2, np.nan, 3, np.nan]), ),  # True
+      (pd.Series(['a', 'b', 'c', 'd', 'e']), ),  # False
+      (pd.Series(['a', 'b', None, 'c', None]), ),  # True
+  ])
+  def test_series_hasnans(self, series):
+    self._run_test(lambda s: s.hasnans, series)
 
   def test_dataframe_getitem(self):
     df = pd.DataFrame({'A': [x**2 for x in range(6)], 'B': list('abcdef')})
@@ -684,6 +774,9 @@ class DeferredFrameTest(_AbstractFrameTest):
       self._run_test(lambda s: s.corr(s + 1), s)
       self._run_test(lambda s: s.corr(s * s), s)
       self._run_test(lambda s: s.cov(s * s), s)
+      self._run_test(lambda s: s.skew(), s)
+      self._run_test(lambda s: s.kurtosis(), s)
+      self._run_test(lambda s: s.kurt(), s)
 
   def test_dataframe_cov_corr(self):
     df = pd.DataFrame(np.random.randn(20, 3), columns=['a', 'b', 'c'])
@@ -1037,6 +1130,160 @@ class DeferredFrameTest(_AbstractFrameTest):
             'Europe/Warsaw', ambiguous='NaT', nonexistent=pd.Timedelta('1H')),
         s)
 
+  def test_compare_series(self):
+    s1 = pd.Series(["a", "b", "c", "d", "e"])
+    s2 = pd.Series(["a", "a", "c", "b", "e"])
+
+    self._run_test(lambda s1, s2: s1.compare(s2), s1, s2)
+    self._run_test(lambda s1, s2: s1.compare(s2, align_axis=0), s1, s2)
+    self._run_test(lambda s1, s2: s1.compare(s2, keep_shape=True), s1, s2)
+    self._run_test(
+        lambda s1, s2: s1.compare(s2, keep_shape=True, keep_equal=True), s1, s2)
+
+  def test_compare_dataframe(self):
+    df1 = pd.DataFrame(
+        {
+            "col1": ["a", "a", "b", "b", "a"],
+            "col2": [1.0, 2.0, 3.0, np.nan, 5.0],
+            "col3": [1.0, 2.0, 3.0, 4.0, 5.0]
+        },
+        columns=["col1", "col2", "col3"],
+    )
+    df2 = df1.copy()
+    df2.loc[0, 'col1'] = 'c'
+    df2.loc[2, 'col3'] = 4.0
+
+    # Skipped because keep_shape=False won't be implemented
+    with self.assertRaisesRegex(
+        frame_base.WontImplementError,
+        r"compare\(align_axis\=1, keep_shape\=False\) is not allowed"):
+      self._run_test(lambda df1, df2: df1.compare(df2), df1, df2)
+
+    self._run_test(
+        lambda df1,
+        df2: df1.compare(df2, align_axis=0),
+        df1,
+        df2,
+        check_proxy=False)
+    self._run_test(lambda df1, df2: df1.compare(df2, keep_shape=True), df1, df2)
+    self._run_test(
+        lambda df1,
+        df2: df1.compare(df2, align_axis=0, keep_shape=True),
+        df1,
+        df2)
+    self._run_test(
+        lambda df1,
+        df2: df1.compare(df2, keep_shape=True, keep_equal=True),
+        df1,
+        df2)
+    self._run_test(
+        lambda df1,
+        df2: df1.compare(df2, align_axis=0, keep_shape=True, keep_equal=True),
+        df1,
+        df2)
+
+  def test_idxmin(self):
+    df = pd.DataFrame({
+        'consumption': [10.51, 103.11, 55.48],
+        'co2_emissions': [37.2, 19.66, 1712]
+    },
+                      index=['Pork', 'Wheat Products', 'Beef'])
+
+    df2 = df.copy()
+    df2.loc['Pork', 'co2_emissions'] = None
+    df2.loc['Wheat Products', 'consumption'] = None
+    df2.loc['Beef', 'co2_emissions'] = None
+
+    df3 = pd.DataFrame({
+        'consumption': [1.1, 2.2, 3.3], 'co2_emissions': [3.3, 2.2, 1.1]
+    },
+                       index=[0, 1, 2])
+
+    s = pd.Series(data=[4, 3, None, 1], index=['A', 'B', 'C', 'D'])
+    s2 = pd.Series(data=[1, 2, 3], index=[1, 2, 3])
+
+    self._run_test(lambda df: df.idxmin(), df)
+    self._run_test(lambda df: df.idxmin(skipna=False), df)
+    self._run_test(lambda df: df.idxmin(axis=1), df)
+    self._run_test(lambda df: df.idxmin(axis=1, skipna=False), df)
+    self._run_test(lambda df2: df2.idxmin(), df2)
+    self._run_test(lambda df2: df2.idxmin(axis=1), df2)
+    self._run_test(lambda df2: df2.idxmin(skipna=False), df2, check_proxy=False)
+    self._run_test(
+        lambda df2: df2.idxmin(axis=1, skipna=False), df2, check_proxy=False)
+    self._run_test(lambda df3: df3.idxmin(), df3)
+    self._run_test(lambda df3: df3.idxmin(axis=1), df3)
+    self._run_test(lambda df3: df3.idxmin(skipna=False), df3)
+    self._run_test(lambda df3: df3.idxmin(axis=1, skipna=False), df3)
+
+    self._run_test(lambda s: s.idxmin(), s)
+    self._run_test(lambda s: s.idxmin(skipna=False), s, check_proxy=False)
+    self._run_test(lambda s2: s2.idxmin(), s2)
+    self._run_test(lambda s2: s2.idxmin(skipna=False), s2)
+
+  def test_idxmax(self):
+    df = pd.DataFrame({
+        'consumption': [10.51, 103.11, 55.48],
+        'co2_emissions': [37.2, 19.66, 1712]
+    },
+                      index=['Pork', 'Wheat Products', 'Beef'])
+
+    df2 = df.copy()
+    df2.loc['Pork', 'co2_emissions'] = None
+    df2.loc['Wheat Products', 'consumption'] = None
+    df2.loc['Beef', 'co2_emissions'] = None
+
+    df3 = pd.DataFrame({
+        'consumption': [1.1, 2.2, 3.3], 'co2_emissions': [3.3, 2.2, 1.1]
+    },
+                       index=[0, 1, 2])
+
+    s = pd.Series(data=[1, None, 4, 1], index=['A', 'B', 'C', 'D'])
+    s2 = pd.Series(data=[1, 2, 3], index=[1, 2, 3])
+
+    self._run_test(lambda df: df.idxmax(), df)
+    self._run_test(lambda df: df.idxmax(skipna=False), df)
+    self._run_test(lambda df: df.idxmax(axis=1), df)
+    self._run_test(lambda df: df.idxmax(axis=1, skipna=False), df)
+    self._run_test(lambda df2: df2.idxmax(), df2)
+    self._run_test(lambda df2: df2.idxmax(axis=1), df2)
+    self._run_test(
+        lambda df2: df2.idxmax(axis=1, skipna=False), df2, check_proxy=False)
+    self._run_test(lambda df2: df2.idxmax(skipna=False), df2, check_proxy=False)
+    self._run_test(lambda df3: df3.idxmax(), df3)
+    self._run_test(lambda df3: df3.idxmax(axis=1), df3)
+    self._run_test(lambda df3: df3.idxmax(skipna=False), df3)
+    self._run_test(lambda df3: df3.idxmax(axis=1, skipna=False), df3)
+
+    self._run_test(lambda s: s.idxmax(), s)
+    self._run_test(lambda s: s.idxmax(skipna=False), s, check_proxy=False)
+    self._run_test(lambda s2: s2.idxmax(), s2)
+    self._run_test(lambda s2: s2.idxmax(skipna=False), s2)
+
+  def test_pipe(self):
+    def df_times(df, column, times):
+      df[column] = df[column] * times
+      return df
+
+    def df_times_shuffled(column, times, df):
+      return df_times(df, column, times)
+
+    def s_times(s, times):
+      return s * times
+
+    def s_times_shuffled(times, s):
+      return s_times(s, times)
+
+    df = pd.DataFrame({'A': [1, 2, 3], 'B': [4, 5, 6]}, index=[0, 1, 2])
+    s = pd.Series([1, 2, 3, 4, 5], index=[0, 1, 2, 3, 4])
+
+    self._run_inplace_test(lambda df: df.pipe(df_times, 'A', 2), df)
+    self._run_inplace_test(
+        lambda df: df.pipe((df_times_shuffled, 'df'), 'A', 2), df)
+
+    self._run_test(lambda s: s.pipe(s_times, 2), s)
+    self._run_test(lambda s: s.pipe((s_times_shuffled, 's'), 2), s)
+
 
 # pandas doesn't support kurtosis on GroupBys:
 # https://github.com/pandas-dev/pandas/issues/40139
@@ -1221,6 +1468,18 @@ class GroupByTest(_AbstractFrameTest):
             lambda x: (x - x.mean()) / x.std()),
         df)
 
+  def test_groupby_pipe(self):
+    df = GROUPBY_DF
+
+    self._run_test(lambda df: df.groupby('group').pipe(lambda x: x.sum()), df)
+    self._run_test(
+        lambda df: df.groupby('group')['bool'].pipe(lambda x: x.any()), df)
+    self._run_test(
+        lambda df: df.groupby(['group', 'foo']).pipe(
+            (lambda a, x: x.sum(numeric_only=a), 'x'), False),
+        df,
+        check_proxy=False)
+
   def test_groupby_apply_modified_index(self):
     df = GROUPBY_DF
 
@@ -1355,15 +1614,7 @@ class AggregationTest(_AbstractFrameTest):
     s = pd.Series(list(range(16)))
 
     nonparallel = agg_method in (
-        'quantile',
-        'mean',
-        'describe',
-        'median',
-        'sem',
-        'mad',
-        'skew',
-        'kurtosis',
-        'kurt')
+        'quantile', 'mean', 'describe', 'median', 'sem', 'mad')
 
     # TODO(BEAM-12379): max and min produce the wrong proxy
     check_proxy = agg_method not in ('max', 'min')
@@ -1382,15 +1633,7 @@ class AggregationTest(_AbstractFrameTest):
     s = pd.Series(list(range(16)))
 
     nonparallel = agg_method in (
-        'quantile',
-        'mean',
-        'describe',
-        'median',
-        'sem',
-        'mad',
-        'skew',
-        'kurtosis',
-        'kurt')
+        'quantile', 'mean', 'describe', 'median', 'sem', 'mad')
 
     # TODO(BEAM-12379): max and min produce the wrong proxy
     check_proxy = agg_method not in ('max', 'min')
@@ -1406,15 +1649,7 @@ class AggregationTest(_AbstractFrameTest):
     df = pd.DataFrame({'A': [1, 2, 3, 4], 'B': [2, 3, 5, 7]})
 
     nonparallel = agg_method in (
-        'quantile',
-        'mean',
-        'describe',
-        'median',
-        'sem',
-        'mad',
-        'skew',
-        'kurtosis',
-        'kurt')
+        'quantile', 'mean', 'describe', 'median', 'sem', 'mad')
 
     # TODO(BEAM-12379): max and min produce the wrong proxy
     check_proxy = agg_method not in ('max', 'min')
@@ -1431,15 +1666,7 @@ class AggregationTest(_AbstractFrameTest):
     df = pd.DataFrame({'A': [1, 2, 3, 4], 'B': [2, 3, 5, 7]})
 
     nonparallel = agg_method in (
-        'quantile',
-        'mean',
-        'describe',
-        'median',
-        'sem',
-        'mad',
-        'skew',
-        'kurtosis',
-        'kurt')
+        'quantile', 'mean', 'describe', 'median', 'sem', 'mad')
 
     # TODO(BEAM-12379): max and min produce the wrong proxy
     check_proxy = agg_method not in ('max', 'min')

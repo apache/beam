@@ -58,10 +58,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
   "rawtypes"
 })
 public class Schema implements Serializable {
-  // This is the metadata field used to store the logical type identifier.
-  private static final String LOGICAL_TYPE_IDENTIFIER = "SchemaLogicalTypeId";
-
-  private static final String LOGICAL_TYPE_ARGUMENT = "SchemaLogicalTypeArg";
 
   // Helper class that adds proper equality checks to byte arrays.
   static class ByteArrayWrapper implements Serializable {
@@ -821,7 +817,7 @@ public class Schema implements Serializable {
     }
 
     @Override
-    public boolean equals(@Nullable Object o) {
+    public final boolean equals(@Nullable Object o) {
       if (!(o instanceof FieldType)) {
         return false;
       }
@@ -950,7 +946,7 @@ public class Schema implements Serializable {
     }
 
     @Override
-    public int hashCode() {
+    public final int hashCode() {
       return Arrays.deepHashCode(
           new Object[] {
             getTypeName(),
@@ -964,7 +960,7 @@ public class Schema implements Serializable {
     }
 
     @Override
-    public String toString() {
+    public final String toString() {
       StringBuilder builder = new StringBuilder();
       switch (getTypeName()) {
         case ROW:
@@ -1085,7 +1081,7 @@ public class Schema implements Serializable {
     }
 
     @Override
-    public boolean equals(@Nullable Object o) {
+    public final boolean equals(@Nullable Object o) {
       if (!(o instanceof Field)) {
         return false;
       }
@@ -1107,7 +1103,7 @@ public class Schema implements Serializable {
     }
 
     @Override
-    public int hashCode() {
+    public final int hashCode() {
       return Objects.hash(getName(), getDescription(), getType());
     }
   }

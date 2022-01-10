@@ -34,6 +34,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -69,7 +70,6 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList.Builder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Test;
@@ -139,7 +139,7 @@ public class CloudObjectsTest {
   public static class DefaultCoders {
     @Parameters(name = "{index}: {0}")
     public static Iterable<Coder<?>> data() {
-      Builder<Coder<?>> dataBuilder =
+      ImmutableList.Builder<Coder<?>> dataBuilder =
           ImmutableList.<Coder<?>>builder()
               .add(new ArbitraryCoder())
               .add(new ObjectCoder())
@@ -156,7 +156,8 @@ public class CloudObjectsTest {
               .add(ByteArrayCoder.of())
               .add(VarLongCoder.of())
               .add(SerializableCoder.of(Record.class))
-              .add(AvroCoder.of(Record.class))
+              .add(AvroCoder.of(Record.class, true))
+              .add(AvroCoder.of(GenericRecord.class, avroSchema, false))
               .add(CollectionCoder.of(VarLongCoder.of()))
               .add(ListCoder.of(VarLongCoder.of()))
               .add(SetCoder.of(VarLongCoder.of()))
@@ -248,6 +249,15 @@ public class CloudObjectsTest {
   }
 
   private static class Record implements Serializable {}
+
+  private static org.apache.avro.Schema avroSchema =
+      new org.apache.avro.Schema.Parser()
+          .parse(
+              "{\"namespace\": \"example.avro\",\n"
+                  + " \"type\": \"record\",\n"
+                  + " \"name\": \"TestAvro\",\n"
+                  + " \"fields\": []\n"
+                  + "}");
 
   private static class ObjectCoder extends CustomCoder<Object> {
     @Override

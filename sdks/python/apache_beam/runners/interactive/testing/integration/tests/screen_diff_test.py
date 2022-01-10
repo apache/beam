@@ -29,7 +29,7 @@ from apache_beam.runners.interactive.testing.integration.screen_diff import Base
 class DataFramesTest(BaseTestCase):
   def __init__(self, *args, **kwargs):
     kwargs['golden_size'] = (1024, 10000)
-    super(DataFramesTest, self).__init__(*args, **kwargs)
+    super().__init__(*args, **kwargs)
 
   def explicit_wait(self):
     try:
@@ -39,6 +39,7 @@ class DataFramesTest(BaseTestCase):
 
       WebDriverWait(self.driver, 5).until(
           expected_conditions.presence_of_element_located((By.ID, 'test-done')))
+    # pylint: disable=bare-except
     except:
       pass  # The test will be ignored.
 
@@ -50,7 +51,7 @@ class DataFramesTest(BaseTestCase):
 class InitSquareCubeTest(BaseTestCase):
   def __init__(self, *args, **kwargs):
     kwargs['golden_size'] = (1024, 10000)
-    super(InitSquareCubeTest, self).__init__(*args, **kwargs)
+    super().__init__(*args, **kwargs)
 
   def test_init_square_cube_notebook(self):
     self.assert_notebook('init_square_cube')

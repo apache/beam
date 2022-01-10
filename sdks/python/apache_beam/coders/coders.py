@@ -53,6 +53,7 @@ from typing import TypeVar
 from typing import overload
 
 import google.protobuf.wrappers_pb2
+import proto
 
 from apache_beam.coders import coder_impl
 from apache_beam.coders.avro_record import AvroRecord
@@ -79,7 +80,7 @@ except ImportError:
 try:
   # Import dill from the pickler module to make sure our monkey-patching of dill
   # occurs.
-  from apache_beam.internal.pickler import dill
+  from apache_beam.internal.dill_pickler import dill
 except ImportError:
   # We fall back to using the stock dill library in tests that don't use the
   # full Python SDK.
@@ -99,6 +100,7 @@ __all__ = [
     'NullableCoder',
     'PickleCoder',
     'ProtoCoder',
+    'ProtoPlusCoder',
     'ShardedKeyCoder',
     'SingletonCoder',
     'StrUtf8Coder',
@@ -531,6 +533,13 @@ class MapCoder(FastCoder):
     return coder_impl.MapCoderImpl(
         self._key_coder.get_impl(), self._value_coder.get_impl())
 
+  @classmethod
+  def from_type_hint(cls, typehint, registry):
+    # type: (typehints.DictConstraint, CoderRegistry) -> MapCoder
+    return cls(
+        registry.get_coder(typehint.key_type),
+        registry.get_coder(typehint.value_type))
+
   def to_type_hint(self):
     return typehints.Dict[self._key_coder.to_type_hint(),
                           self._value_coder.to_type_hint()]
@@ -723,7 +732,7 @@ class _PickleCoderBase(FastCoder):
     return False
 
   def as_cloud_object(self, coders_context=None, is_pair_like=True):
-    value = super(_PickleCoderBase, self).as_cloud_object(coders_context)
+    value = super().as_cloud_object(coders_context)
     # We currently use this coder in places where we cannot infer the coder to
     # use for the value type in a more granular way.  In places where the
     # service expects a pair, it checks for the "is_pair_like" key, in which
@@ -760,7 +769,7 @@ class _PickleCoderBase(FastCoder):
 class _MemoizingPickleCoder(_PickleCoderBase):
   """Coder using Python's pickle functionality with memoization."""
   def __init__(self, cache_size=16):
-    super(_MemoizingPickleCoder, self).__init__()
+    super().__init__()
     self.cache_size = cache_size
 
   def _create_impl(self):
@@ -860,7 +869,7 @@ class FastPrimitivesCoder(FastCoder):
     return Any
 
   def as_cloud_object(self, coders_context=None, is_pair_like=True):
-    value = super(FastCoder, self).as_cloud_object(coders_context)
+    value = super().as_cloud_object(coders_context)
     # We currently use this coder in places where we cannot infer the coder to
     # use for the value type in a more granular way.  In places where the
     # service expects a pair, it checks for the "is_pair_like" key, in which
@@ -952,7 +961,7 @@ class ProtoCoder(FastCoder):
 
   """
   def __init__(self, proto_message_type):
-    # type: (google.protobuf.message.Message) -> None
+    # type: (Type[google.protobuf.message.Message]) -> None
     self.proto_message_type = proto_message_type
 
   def _create_impl(self):
@@ -1005,6 +1014,42 @@ class DeterministicProtoCoder(ProtoCoder):
 
   def as_deterministic_coder(self, step_label, error_message=None):
     return self
+
+
+class ProtoPlusCoder(FastCoder):
+  """A Coder for Google Protocol Buffers wrapped using the proto-plus library.
+
+  ProtoPlusCoder is registered in the global CoderRegistry as the default coder
+  for any proto.Message object.
+  """
+  def __init__(self, proto_plus_message_type):
+    # type: (Type[proto.Message]) -> None
+    self.proto_plus_message_type = proto_plus_message_type
+
+  def _create_impl(self):
+    return coder_impl.ProtoPlusCoderImpl(self.proto_plus_message_type)
+
+  def is_deterministic(self):
+    return True
+
+  def __eq__(self, other):
+    return (
+        type(self) == type(other) and
+        self.proto_plus_message_type == other.proto_plus_message_type)
+
+  def __hash__(self):
+    return hash(self.proto_plus_message_type)
+
+  @classmethod
+  def from_type_hint(cls, typehint, unused_registry):
+    if issubclass(typehint, proto.Message):
+      return cls(typehint)
+    else:
+      raise ValueError(
+          'Expected a subclass of proto.Message, but got a %s' % typehint)
+
+  def to_type_hint(self):
+    return self.proto_plus_message_type
 
 
 AVRO_GENERIC_CODER_URN = "beam:coder:avro:generic:v1"
@@ -1081,7 +1126,7 @@ class TupleCoder(FastCoder):
           ],
       }
 
-    return super(TupleCoder, self).as_cloud_object(coders_context)
+    return super().as_cloud_object(coders_context)
 
   def _get_component_coders(self):
     # type: () -> Tuple[Coder, ...]
@@ -1238,12 +1283,15 @@ class ListCoder(ListLikeCoder):
   def to_type_hint(self):
     return typehints.List[self._elem_coder.to_type_hint()]
 
+  def _create_impl(self):
+    return coder_impl.ListCoderImpl(self._elem_coder.get_impl())
+
 
 class GlobalWindowCoder(SingletonCoder):
   """Coder for global windows."""
   def __init__(self):
     from apache_beam.transforms import window
-    super(GlobalWindowCoder, self).__init__(window.GlobalWindow())
+    super().__init__(window.GlobalWindow())
 
   def as_cloud_object(self, coders_context=None):
     return {
@@ -1350,7 +1398,7 @@ Coder.register_structured_urn(
 class ParamWindowedValueCoder(WindowedValueCoder):
   """A coder used for parameterized windowed values."""
   def __init__(self, payload, components):
-    super(ParamWindowedValueCoder, self).__init__(components[0], components[1])
+    super().__init__(components[0], components[1])
     self.payload = payload
 
   def _create_impl(self):

@@ -24,13 +24,19 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import org.apache.beam.fn.harness.Cache;
+import org.apache.beam.fn.harness.Caches;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest.CacheToken;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.BagState;
@@ -55,6 +61,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -70,6 +77,9 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
   private final BeamFnStateClient beamFnStateClient;
   private final String ptransformId;
   private final Supplier<String> processBundleInstructionId;
+  private final Supplier<List<BeamFnApi.ProcessBundleRequest.CacheToken>> cacheTokens;
+  private final Supplier<Cache<?, ?>> bundleCache;
+  private final Cache<?, ?> processWideCache;
   private final Collection<ThrowingRunnable> stateFinalizers;
 
   private final Supplier<BoundedWindow> currentWindowSupplier;
@@ -81,6 +91,9 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
       PipelineOptions pipelineOptions,
       String ptransformId,
       Supplier<String> processBundleInstructionId,
+      Supplier<List<CacheToken>> cacheTokens,
+      Supplier<Cache<?, ?>> bundleCache,
+      Cache<?, ?> processWideCache,
       Map<TupleTag<?>, SideInputSpec> sideInputSpecMap,
       BeamFnStateClient beamFnStateClient,
       Coder<K> keyCoder,
@@ -93,6 +106,9 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
     this.beamFnStateClient = beamFnStateClient;
     this.ptransformId = ptransformId;
     this.processBundleInstructionId = processBundleInstructionId;
+    this.cacheTokens = cacheTokens;
+    this.bundleCache = bundleCache;
+    this.processWideCache = processWideCache;
     this.stateFinalizers = new ArrayList<>();
     this.currentWindowSupplier = currentWindowSupplier;
     this.encodedCurrentKeySupplier =
@@ -161,7 +177,6 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
     }
     ByteString encodedWindow = encodedWindowOut.toByteString();
     StateKey.Builder cacheKeyBuilder = StateKey.newBuilder();
-    Object sideInputAccessor;
 
     switch (sideInputSpec.getAccessPattern()) {
       case Materializations.ITERABLE_MATERIALIZATION_URN:
@@ -170,14 +185,6 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
             .setTransformId(ptransformId)
             .setSideInputId(tag.getId())
             .setWindow(encodedWindow);
-        sideInputAccessor =
-            new IterableSideInput<>(
-                beamFnStateClient,
-                processBundleInstructionId.get(),
-                ptransformId,
-                tag.getId(),
-                encodedWindow,
-                sideInputSpec.getCoder());
         break;
 
       case Materializations.MULTIMAP_MATERIALIZATION_URN:
@@ -186,21 +193,11 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
             "Expected %s but received %s.",
             KvCoder.class,
             sideInputSpec.getCoder().getClass());
-        KvCoder<?, ?> kvCoder = (KvCoder) sideInputSpec.getCoder();
         cacheKeyBuilder
-            .getMultimapSideInputBuilder()
+            .getMultimapKeysSideInputBuilder()
             .setTransformId(ptransformId)
             .setSideInputId(tag.getId())
             .setWindow(encodedWindow);
-        sideInputAccessor =
-            new MultimapSideInput<>(
-                beamFnStateClient,
-                processBundleInstructionId.get(),
-                ptransformId,
-                tag.getId(),
-                encodedWindow,
-                kvCoder.getKeyCoder(),
-                kvCoder.getValueCoder());
         break;
 
       default:
@@ -214,10 +211,44 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                 sideInputSpec.getAccessPattern(),
                 tag));
     }
-
     return (T)
         stateKeyObjectCache.computeIfAbsent(
-            cacheKeyBuilder.build(), key -> sideInputSpec.getViewFn().apply(sideInputAccessor));
+            cacheKeyBuilder.build(),
+            key -> {
+              switch (sideInputSpec.getAccessPattern()) {
+                case Materializations.ITERABLE_MATERIALIZATION_URN:
+                  return sideInputSpec
+                      .getViewFn()
+                      .apply(
+                          new IterableSideInput<>(
+                              getCacheFor(key),
+                              beamFnStateClient,
+                              processBundleInstructionId.get(),
+                              key,
+                              sideInputSpec.getCoder()));
+                case Materializations.MULTIMAP_MATERIALIZATION_URN:
+                  return sideInputSpec
+                      .getViewFn()
+                      .apply(
+                          new MultimapSideInput<>(
+                              getCacheFor(key),
+                              beamFnStateClient,
+                              processBundleInstructionId.get(),
+                              key,
+                              ((KvCoder) sideInputSpec.getCoder()).getKeyCoder(),
+                              ((KvCoder) sideInputSpec.getCoder()).getValueCoder()));
+                default:
+                  throw new IllegalStateException(
+                      String.format(
+                          "This SDK is only capable of dealing with %s materializations "
+                              + "but was asked to handle %s for PCollectionView with tag %s.",
+                          ImmutableList.of(
+                              Materializations.ITERABLE_MATERIALIZATION_URN,
+                              Materializations.MULTIMAP_MATERIALIZATION_URN),
+                          sideInputSpec.getAccessPattern(),
+                          tag));
+              }
+            });
   }
 
   @Override
@@ -239,7 +270,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
               @Override
               public Object apply(StateKey key) {
                 return new ValueState<T>() {
-                  private final BagUserState<T> impl = createBagUserState(id, coder);
+                  private final BagUserState<T> impl = createBagUserState(key, coder);
 
                   @Override
                   public void clear() {
@@ -264,7 +295,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
 
                   @Override
                   public ValueState<T> readLater() {
-                    // TODO(BEAM-12802): Support prefetching.
+                    impl.get().prefetch();
                     return this;
                   }
                 };
@@ -281,7 +312,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
               @Override
               public Object apply(StateKey key) {
                 return new BagState<T>() {
-                  private final BagUserState<T> impl = createBagUserState(id, elemCoder);
+                  private final BagUserState<T> impl = createBagUserState(key, elemCoder);
 
                   @Override
                   public void add(T value) {
@@ -310,7 +341,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
 
                   @Override
                   public BagState<T> readLater() {
-                    // TODO(BEAM-12802): Support prefetching.
+                    impl.get().prefetch();
                     return this;
                   }
 
@@ -325,7 +356,86 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
 
   @Override
   public <T> SetState<T> bindSet(String id, StateSpec<SetState<T>> spec, Coder<T> elemCoder) {
-    throw new UnsupportedOperationException("TODO: Add support for a map state to the Fn API.");
+    return (SetState<T>)
+        stateKeyObjectCache.computeIfAbsent(
+            createMultimapKeysUserStateKey(id),
+            new Function<StateKey, Object>() {
+              @Override
+              public Object apply(StateKey key) {
+                return new SetState<T>() {
+                  private final MultimapUserState<T, Void> impl =
+                      createMultimapUserState(key, elemCoder, VoidCoder.of());
+
+                  @Override
+                  public void clear() {
+                    impl.clear();
+                  }
+
+                  @Override
+                  public ReadableState<Boolean> contains(T t) {
+                    return new ReadableState<Boolean>() {
+                      @Override
+                      public Boolean read() {
+                        return !Iterables.isEmpty(impl.get(t));
+                      }
+
+                      @Override
+                      public ReadableState<Boolean> readLater() {
+                        impl.get(t).prefetch();
+                        return this;
+                      }
+                    };
+                  }
+
+                  @Override
+                  public ReadableState<Boolean> addIfAbsent(T t) {
+                    boolean isEmpty = Iterables.isEmpty(impl.get(t));
+                    if (isEmpty) {
+                      impl.put(t, null);
+                    }
+                    return ReadableStates.immediate(isEmpty);
+                  }
+
+                  @Override
+                  public void remove(T t) {
+                    impl.remove(t);
+                  }
+
+                  @Override
+                  public void add(T value) {
+                    impl.remove(value);
+                    impl.put(value, null);
+                  }
+
+                  @Override
+                  public ReadableState<Boolean> isEmpty() {
+                    return new ReadableState<Boolean>() {
+                      @Override
+                      public Boolean read() {
+                        return Iterables.isEmpty(impl.keys());
+                      }
+
+                      @Override
+                      public ReadableState<Boolean> readLater() {
+                        impl.keys().prefetch();
+                        return this;
+                      }
+                    };
+                  }
+
+                  @Override
+                  public Iterable<T> read() {
+                    return impl.keys();
+                  }
+
+                  @Override
+                  public SetState<T> readLater() {
+                    impl.keys().prefetch();
+                    return this;
+                  }
+                };
+              }
+            });
   }
 
   @Override
@@ -334,7 +444,135 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
       StateSpec<MapState<KeyT, ValueT>> spec,
       Coder<KeyT> mapKeyCoder,
       Coder<ValueT> mapValueCoder) {
-    throw new UnsupportedOperationException("TODO: Add support for a map state to the Fn API.");
+    return (MapState<KeyT, ValueT>)
+        stateKeyObjectCache.computeIfAbsent(
+            createMultimapKeysUserStateKey(id),
+            new Function<StateKey, Object>() {
+              @Override
+              public Object apply(StateKey key) {
+                return new MapState<KeyT, ValueT>() {
+                  private final MultimapUserState<KeyT, ValueT> impl =
+                      createMultimapUserState(key, mapKeyCoder, mapValueCoder);
+
+                  @Override
+                  public void clear() {
+                    impl.clear();
+                  }
+
+                  @Override
+                  public void put(KeyT key, ValueT value) {
+                    impl.remove(key);
+                    impl.put(key, value);
+                  }
+
+                  @Override
+                  public ReadableState<ValueT> computeIfAbsent(
+                      KeyT key, Function<? super KeyT, ? extends ValueT> mappingFunction) {
+                    Iterable<ValueT> values = impl.get(key);
+                    if (Iterables.isEmpty(values)) {
+                      impl.put(key, mappingFunction.apply(key));
+                    }
+                    return ReadableStates.immediate(Iterables.getOnlyElement(values, null));
+                  }
+
+                  @Override
+                  public void remove(KeyT key) {
+                    impl.remove(key);
+                  }
+
+                  @Override
+                  public ReadableState<ValueT> get(KeyT key) {
+                    return getOrDefault(key, null);
+                  }
+
+                  @Override
+                  public ReadableState<ValueT> getOrDefault(
+                      KeyT key, @Nullable ValueT defaultValue) {
+                    return new ReadableState<ValueT>() {
+                      @Override
+                      public @Nullable ValueT read() {
+                        Iterable<ValueT> values = impl.get(key);
+                        return Iterables.getOnlyElement(values, defaultValue);
+                      }
+
+                      @Override
+                      public ReadableState<ValueT> readLater() {
+                        impl.get(key).prefetch();
+                        return this;
+                      }
+                    };
+                  }
+
+                  @Override
+                  public ReadableState<Iterable<KeyT>> keys() {
+                    return new ReadableState<Iterable<KeyT>>() {
+                      @Override
+                      public Iterable<KeyT> read() {
+                        return impl.keys();
+                      }
+
+                      @Override
+                      public ReadableState<Iterable<KeyT>> readLater() {
+                        impl.keys().prefetch();
+                        return this;
+                      }
+                    };
+                  }
+
+                  @Override
+                  public ReadableState<Iterable<ValueT>> values() {
+                    return new ReadableState<Iterable<ValueT>>() {
+                      @Override
+                      public Iterable<ValueT> read() {
+                        return Iterables.transform(entries().read(), e -> e.getValue());
+                      }
+
+                      @Override
+                      public ReadableState<Iterable<ValueT>> readLater() {
+                        entries().readLater();
+                        return this;
+                      }
+                    };
+                  }
+
+                  @Override
+                  public ReadableState<Iterable<Map.Entry<KeyT, ValueT>>> entries() {
+                    return new ReadableState<Iterable<Map.Entry<KeyT, ValueT>>>() {
+                      @Override
+                      public Iterable<Map.Entry<KeyT, ValueT>> read() {
+                        Iterable<KeyT> keys = keys().read();
+                        return Iterables.transform(
+                            keys, key -> Maps.immutableEntry(key, get(key).read()));
+                      }
+
+                      @Override
+                      public ReadableState<Iterable<Map.Entry<KeyT, ValueT>>> readLater() {
+                        // Start prefetching the keys. We would need to block to start prefetching
+                        // the values.
+                        keys().readLater();
+                        return this;
+                      }
+                    };
+                  }
+
+                  @Override
+                  public ReadableState<Boolean> isEmpty() {
+                    return new ReadableState<Boolean>() {
+                      @Override
+                      public Boolean read() {
+                        return Iterables.isEmpty(keys().read());
+                      }
+
+                      @Override
+                      public ReadableState<Boolean> readLater() {
+                        keys().readLater();
+                        return this;
+                      }
+                    };
+                  }
+                };
+              }
+            });
   }
 
   @Override
@@ -359,7 +597,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                 // TODO: Support squashing accumulators depending on whether we know of all
                 // remote accumulators and local accumulators or just local accumulators.
                 return new CombiningState<ElementT, AccumT, ResultT>() {
-                  private final BagUserState<AccumT> impl = createBagUserState(id, accumCoder);
+                  private final BagUserState<AccumT> impl = createBagUserState(key, accumCoder);
 
                   @Override
                   public AccumT getAccum() {
@@ -391,6 +629,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
 
                   @Override
                   public CombiningState<ElementT, AccumT, ResultT> readLater() {
+                    impl.get().prefetch();
                     return this;
                   }
 
@@ -412,7 +651,18 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
 
                   @Override
                   public ReadableState<Boolean> isEmpty() {
-                    return ReadableStates.immediate(!impl.get().iterator().hasNext());
+                    return new ReadableState<Boolean>() {
+                      @Override
+                      public @Nullable Boolean read() {
+                        return !impl.get().iterator().hasNext();
+                      }
+
+                      @Override
+                      public ReadableState<Boolean> readLater() {
+                        impl.get().prefetch();
+                        return this;
+                      }
+                    };
                   }
 
                   @Override
@@ -470,15 +720,73 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
     throw new UnsupportedOperationException("WatermarkHoldState is unsupported by the Fn API.");
   }
 
-  private <T> BagUserState<T> createBagUserState(String stateId, Coder<T> valueCoder) {
+  private Cache<?, ?> getCacheFor(StateKey stateKey) {
+    switch (stateKey.getTypeCase()) {
+      case BAG_USER_STATE:
+        for (CacheToken token : cacheTokens.get()) {
+          if (!token.hasUserState()) {
+            continue;
+          }
+          return Caches.subCache(processWideCache, token, stateKey);
+        }
+        break;
+      case MULTIMAP_KEYS_USER_STATE:
+        for (CacheToken token : cacheTokens.get()) {
+          if (!token.hasUserState()) {
+            continue;
+          }
+          return Caches.subCache(processWideCache, token, stateKey);
+        }
+        break;
+      case ITERABLE_SIDE_INPUT:
+        for (CacheToken token : cacheTokens.get()) {
+          if (!token.hasSideInput()) {
+            continue;
+          }
+          if (stateKey
+                  .getIterableSideInput()
+                  .getTransformId()
+                  .equals(token.getSideInput().getTransformId())
+              && stateKey
+                  .getIterableSideInput()
+                  .getSideInputId()
+                  .equals(token.getSideInput().getSideInputId())) {
+            return Caches.subCache(processWideCache, token, stateKey);
+          }
+        }
+        break;
+      case MULTIMAP_KEYS_SIDE_INPUT:
+        for (CacheToken token : cacheTokens.get()) {
+          if (!token.hasSideInput()) {
+            continue;
+          }
+          if (stateKey
+                  .getMultimapKeysSideInput()
+                  .getTransformId()
+                  .equals(token.getSideInput().getTransformId())
+              && stateKey
+                  .getMultimapKeysSideInput()
+                  .getSideInputId()
+                  .equals(token.getSideInput().getSideInputId())) {
+            return Caches.subCache(processWideCache, token, stateKey);
+          }
+        }
+        break;
+      default:
+        throw new IllegalStateException(
+            String.format("Unknown state key type requested %s.", stateKey));
+    }
+    // The default is to use the bundle cache.
+    return Caches.subCache(bundleCache.get(), stateKey);
+  }
+
+  private <T> BagUserState<T> createBagUserState(StateKey stateKey, Coder<T> valueCoder) {
     BagUserState<T> rval =
         new BagUserState<>(
+            getCacheFor(stateKey),
             beamFnStateClient,
             processBundleInstructionId.get(),
-            ptransformId,
-            stateId,
-            encodedCurrentWindowSupplier.get(),
-            encodedCurrentKeySupplier.get(),
+            stateKey,
             valueCoder);
     stateFinalizers.add(rval::asyncClose);
     return rval;
@@ -490,6 +798,30 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
         .getBagUserStateBuilder()
         .setWindow(encodedCurrentWindowSupplier.get())
         .setKey(encodedCurrentKeySupplier.get())
+        .setTransformId(ptransformId)
+        .setUserStateId(stateId);
+    return builder.build();
+  }
+
+  private <KeyT, ValueT> MultimapUserState<KeyT, ValueT> createMultimapUserState(
+      StateKey stateKey, Coder<KeyT> keyCoder, Coder<ValueT> valueCoder) {
+    MultimapUserState<KeyT, ValueT> rval =
+        new MultimapUserState(
+            getCacheFor(stateKey),
+            beamFnStateClient,
+            processBundleInstructionId.get(),
+            stateKey,
+            keyCoder,
+            valueCoder);
+    stateFinalizers.add(rval::asyncClose);
+    return rval;
+  }
+
+  private StateKey createMultimapKeysUserStateKey(String stateId) {
+    StateKey.Builder builder = StateKey.newBuilder();
+    builder
+        .getMultimapKeysUserStateBuilder()
+        .setWindow(encodedCurrentWindowSupplier.get())
         .setTransformId(ptransformId)
         .setUserStateId(stateId);
     return builder.build();

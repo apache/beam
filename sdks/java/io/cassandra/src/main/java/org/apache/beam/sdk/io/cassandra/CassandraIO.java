@@ -21,13 +21,9 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.datastax.driver.core.Cluster;
-import com.datastax.driver.core.ColumnMetadata;
 import com.datastax.driver.core.ConsistencyLevel;
 import com.datastax.driver.core.PlainTextAuthProvider;
 import com.datastax.driver.core.QueryOptions;
-import com.datastax.driver.core.ResultSet;
-import com.datastax.driver.core.ResultSetFuture;
-import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
 import com.datastax.driver.core.SocketOptions;
 import com.datastax.driver.core.policies.DCAwareRoundRobinPolicy;
@@ -36,32 +32,32 @@ import com.google.auto.value.AutoValue;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
-import org.checkerframework.checker.nullness.qual.Nullable;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -88,6 +84,11 @@ import org.slf4j.LoggerFactory;
  *     // above options are the minimum set, returns PCollection<Person>
  *
  * }</pre>
+ *
+ * <p>Alternatively, one may use {@code CassandraIO.<Person>readAll()
+ * .withCoder(SerializableCoder.of(Person.class))} to query a subset of the Cassandra database by
+ * creating a PCollection of {@code CassandraIO.Read<Person>} each with their own query or
+ * RingRange.
  *
  * <h3>Writing to Apache Cassandra</h3>
  *
@@ -135,6 +136,11 @@ public class CassandraIO {
   /** Provide a {@link Read} {@link PTransform} to read data from a Cassandra database. */
   public static <T> Read<T> read() {
     return new AutoValue_CassandraIO_Read.Builder<T>().build();
+  }
+
+  /** Provide a {@link ReadAll} {@link PTransform} to read data from a Cassandra database. */
+  public static <T> ReadAll<T> readAll() {
+    return new AutoValue_CassandraIO_ReadAll.Builder<T>().build();
   }
 
   /** Provide a {@link Write} {@link PTransform} to write data to a Cassandra database. */
@@ -185,6 +191,9 @@ public class CassandraIO {
     abstract @Nullable ValueProvider<Integer> readTimeout();
 
     abstract @Nullable SerializableFunction<Session, Mapper> mapperFactoryFn();
+
+    @Nullable
+    abstract ValueProvider<Set<RingRange>> ringRanges();
 
     abstract Builder<T> builder();
 
@@ -371,6 +380,14 @@ public class CassandraIO {
       return builder().setMapperFactoryFn(mapperFactory).build();
     }
 
+    public Read<T> withRingRanges(Set<RingRange> ringRange) {
+      return withRingRanges(ValueProvider.StaticValueProvider.of(ringRange));
+    }
+
+    public Read<T> withRingRanges(ValueProvider<Set<RingRange>> ringRange) {
+      return builder().setRingRanges(ringRange).build();
+    }
+
     @Override
     public PCollection<T> expand(PBegin input) {
       checkArgument((hosts() != null && port() != null), "WithHosts() and withPort() are required");
@@ -379,7 +396,68 @@ public class CassandraIO {
       checkArgument(entity() != null, "withEntity() is required");
       checkArgument(coder() != null, "withCoder() is required");
 
-      return input.apply(org.apache.beam.sdk.io.Read.from(new CassandraSource<>(this, null)));
+      PCollection<Read<T>> splits =
+          input
+              .apply(Create.of(this))
+              .apply("Create Splits", ParDo.of(new SplitFn<T>()))
+              .setCoder(SerializableCoder.of(new TypeDescriptor<Read<T>>() {}));
+
+      return splits.apply("ReadAll", CassandraIO.<T>readAll().withCoder(coder()));
+    }
+
+    private static class SplitFn<T> extends DoFn<Read<T>, Read<T>> {
+      @ProcessElement
+      public void process(
+          @Element CassandraIO.Read<T> read, OutputReceiver<Read<T>> outputReceiver) {
+        Set<RingRange> ringRanges = getRingRanges(read);
+        for (RingRange rr : ringRanges) {
+          outputReceiver.output(read.withRingRanges(ImmutableSet.of(rr)));
+        }
+      }
+
+      private static <T> Set<RingRange> getRingRanges(Read<T> read) {
+        try (Cluster cluster =
+            getCluster(
+                read.hosts(),
+                read.port(),
+                read.username(),
+                read.password(),
+                read.localDc(),
+                read.consistencyLevel(),
+                read.connectTimeout(),
+                read.readTimeout())) {
+          if (isMurmur3Partitioner(cluster)) {
+            LOG.info("Murmur3Partitioner detected, splitting");
+            Integer splitCount;
+            if (read.minNumberOfSplits() != null && read.minNumberOfSplits().get() != null) {
+              splitCount = read.minNumberOfSplits().get();
+            } else {
+              splitCount = cluster.getMetadata().getAllHosts().size();
+            }
+            List<BigInteger> tokens =
+                cluster.getMetadata().getTokenRanges().stream()
+                    .map(tokenRange -> new BigInteger(tokenRange.getEnd().getValue().toString()))
+                    .collect(Collectors.toList());
+            SplitGenerator splitGenerator =
+                new SplitGenerator(cluster.getMetadata().getPartitioner());
+
+            return splitGenerator.generateSplits(splitCount, tokens).stream()
+                .flatMap(List::stream)
+                .collect(Collectors.toSet());
+
+          } else {
+            LOG.warn(
+                "Only Murmur3Partitioner is supported for splitting, using an unique source for "
+                    + "the read");
+            String partitioner = cluster.getMetadata().getPartitioner();
+            RingRange totalRingRange =
+                RingRange.of(
+                    SplitGenerator.getRangeMin(partitioner),
+                    SplitGenerator.getRangeMax(partitioner));
+            return Collections.singleton(totalRingRange);
+          }
+        }
+      }
     }
 
     @AutoValue.Builder
@@ -418,6 +496,8 @@ public class CassandraIO {
 
       abstract Optional<SerializableFunction<Session, Mapper>> mapperFactoryFn();
 
+      abstract Builder<T> setRingRanges(ValueProvider<Set<RingRange>> ringRange);
+
       abstract Read<T> autoBuild();
 
       public Read<T> build() {
@@ -425,390 +505,6 @@ public class CassandraIO {
           setMapperFactoryFn(new DefaultObjectMapperFactory(entity().get()));
         }
         return autoBuild();
-      }
-    }
-  }
-
-  @VisibleForTesting
-  static class CassandraSource<T> extends BoundedSource<T> {
-    final Read<T> spec;
-    final List<String> splitQueries;
-    // split source ached size - can't be calculated when already split
-    Long estimatedSize;
-    private static final String MURMUR3PARTITIONER = "org.apache.cassandra.dht.Murmur3Partitioner";
-
-    CassandraSource(Read<T> spec, List<String> splitQueries) {
-      this(spec, splitQueries, null);
-    }
-
-    private CassandraSource(Read<T> spec, List<String> splitQueries, Long estimatedSize) {
-      this.estimatedSize = estimatedSize;
-      this.spec = spec;
-      this.splitQueries = splitQueries;
-    }
-
-    @Override
-    public Coder<T> getOutputCoder() {
-      return spec.coder();
-    }
-
-    @Override
-    public BoundedReader<T> createReader(PipelineOptions pipelineOptions) {
-      return new CassandraReader(this);
-    }
-
-    @Override
-    public List<BoundedSource<T>> split(
-        long desiredBundleSizeBytes, PipelineOptions pipelineOptions) {
-      try (Cluster cluster =
-          getCluster(
-              spec.hosts(),
-              spec.port(),
-              spec.username(),
-              spec.password(),
-              spec.localDc(),
-              spec.consistencyLevel(),
-              spec.connectTimeout(),
-              spec.readTimeout())) {
-        if (isMurmur3Partitioner(cluster)) {
-          LOG.info("Murmur3Partitioner detected, splitting");
-          return splitWithTokenRanges(
-              spec, desiredBundleSizeBytes, getEstimatedSizeBytes(pipelineOptions), cluster);
-        } else {
-          LOG.warn(
-              "Only Murmur3Partitioner is supported for splitting, using a unique source for "
-                  + "the read");
-          return Collections.singletonList(
-              new CassandraIO.CassandraSource<>(spec, Collections.singletonList(buildQuery(spec))));
-        }
-      }
-    }
-
-    private static String buildQuery(Read spec) {
-      return (spec.query() == null)
-          ? String.format("SELECT * FROM %s.%s", spec.keyspace().get(), spec.table().get())
-          : spec.query().get().toString();
-    }
-
-    /**
-     * Compute the number of splits based on the estimated size and the desired bundle size, and
-     * create several sources.
-     */
-    private List<BoundedSource<T>> splitWithTokenRanges(
-        CassandraIO.Read<T> spec,
-        long desiredBundleSizeBytes,
-        long estimatedSizeBytes,
-        Cluster cluster) {
-      long numSplits =
-          getNumSplits(desiredBundleSizeBytes, estimatedSizeBytes, spec.minNumberOfSplits());
-      LOG.info("Number of desired splits is {}", numSplits);
-
-      SplitGenerator splitGenerator = new SplitGenerator(cluster.getMetadata().getPartitioner());
-      List<BigInteger> tokens =
-          cluster.getMetadata().getTokenRanges().stream()
-              .map(tokenRange -> new BigInteger(tokenRange.getEnd().getValue().toString()))
-              .collect(Collectors.toList());
-      List<List<RingRange>> splits = splitGenerator.generateSplits(numSplits, tokens);
-      LOG.info("{} splits were actually generated", splits.size());
-
-      final String partitionKey =
-          cluster.getMetadata().getKeyspace(spec.keyspace().get()).getTable(spec.table().get())
-              .getPartitionKey().stream()
-              .map(ColumnMetadata::getName)
-              .collect(Collectors.joining(","));
-
-      List<TokenRange> tokenRanges =
-          getTokenRanges(cluster, spec.keyspace().get(), spec.table().get());
-      final long estimatedSize = getEstimatedSizeBytesFromTokenRanges(tokenRanges) / splits.size();
-
-      List<BoundedSource<T>> sources = new ArrayList<>();
-      for (List<RingRange> split : splits) {
-        List<String> queries = new ArrayList<>();
-        for (RingRange range : split) {
-          if (range.isWrapping()) {
-            // A wrapping range is one that overlaps from the end of the partitioner range and its
-            // start (ie : when the start token of the split is greater than the end token)
-            // We need to generate two queries here : one that goes from the start token to the end
-            // of
-            // the partitioner range, and the other from the start of the partitioner range to the
-            // end token of the split.
-            queries.add(generateRangeQuery(spec, partitionKey, range.getStart(), null));
-            // Generation of the second query of the wrapping range
-            queries.add(generateRangeQuery(spec, partitionKey, null, range.getEnd()));
-          } else {
-            queries.add(generateRangeQuery(spec, partitionKey, range.getStart(), range.getEnd()));
-          }
-        }
-        sources.add(new CassandraIO.CassandraSource<>(spec, queries, estimatedSize));
-      }
-      return sources;
-    }
-
-    private static String generateRangeQuery(
-        Read spec, String partitionKey, BigInteger rangeStart, BigInteger rangeEnd) {
-      final String rangeFilter =
-          Joiner.on(" AND ")
-              .skipNulls()
-              .join(
-                  rangeStart == null
-                      ? null
-                      : String.format("(token(%s) >= %d)", partitionKey, rangeStart),
-                  rangeEnd == null
-                      ? null
-                      : String.format("(token(%s) < %d)", partitionKey, rangeEnd));
-      final String query =
-          (spec.query() == null)
-              ? buildQuery(spec) + " WHERE " + rangeFilter
-              : buildQuery(spec) + " AND " + rangeFilter;
-      LOG.debug("CassandraIO generated query : {}", query);
-      return query;
-    }
-
-    private static long getNumSplits(
-        long desiredBundleSizeBytes,
-        long estimatedSizeBytes,
-        @Nullable ValueProvider<Integer> minNumberOfSplits) {
-      long numSplits =
-          desiredBundleSizeBytes > 0 ? (estimatedSizeBytes / desiredBundleSizeBytes) : 1;
-      if (numSplits <= 0) {
-        LOG.warn("Number of splits is less than 0 ({}), fallback to 1", numSplits);
-        numSplits = 1;
-      }
-      return minNumberOfSplits != null ? Math.max(numSplits, minNumberOfSplits.get()) : numSplits;
-    }
-
-    /**
-     * Returns cached estimate for split or if missing calculate size for whole table. Highly
-     * innacurate if query is specified.
-     *
-     * @param pipelineOptions
-     * @return
-     */
-    @Override
-    public long getEstimatedSizeBytes(PipelineOptions pipelineOptions) {
-      if (estimatedSize != null) {
-        return estimatedSize;
-      } else {
-        try (Cluster cluster =
-            getCluster(
-                spec.hosts(),
-                spec.port(),
-                spec.username(),
-                spec.password(),
-                spec.localDc(),
-                spec.consistencyLevel(),
-                spec.connectTimeout(),
-                spec.readTimeout())) {
-          if (isMurmur3Partitioner(cluster)) {
-            try {
-              List<TokenRange> tokenRanges =
-                  getTokenRanges(cluster, spec.keyspace().get(), spec.table().get());
-              this.estimatedSize = getEstimatedSizeBytesFromTokenRanges(tokenRanges);
-              return this.estimatedSize;
-            } catch (Exception e) {
-              LOG.warn("Can't estimate the size", e);
-              return 0L;
-            }
-          } else {
-            LOG.warn("Only Murmur3 partitioner is supported, can't estimate the size");
-            return 0L;
-          }
-        }
-      }
-    }
-
-    @VisibleForTesting
-    static long getEstimatedSizeBytesFromTokenRanges(List<TokenRange> tokenRanges) {
-      long size = 0L;
-      for (TokenRange tokenRange : tokenRanges) {
-        size = size + tokenRange.meanPartitionSize * tokenRange.partitionCount;
-      }
-      return Math.round(size / getRingFraction(tokenRanges));
-    }
-
-    @Override
-    public void populateDisplayData(DisplayData.Builder builder) {
-      super.populateDisplayData(builder);
-      if (spec.hosts() != null) {
-        builder.add(DisplayData.item("hosts", spec.hosts().toString()));
-      }
-      if (spec.port() != null) {
-        builder.add(DisplayData.item("port", spec.port()));
-      }
-      builder.addIfNotNull(DisplayData.item("keyspace", spec.keyspace()));
-      builder.addIfNotNull(DisplayData.item("table", spec.table()));
-      builder.addIfNotNull(DisplayData.item("username", spec.username()));
-      builder.addIfNotNull(DisplayData.item("localDc", spec.localDc()));
-      builder.addIfNotNull(DisplayData.item("consistencyLevel", spec.consistencyLevel()));
-    }
-    // ------------- CASSANDRA SOURCE UTIL METHODS ---------------//
-
-    /**
-     * Gets the list of token ranges that a table occupies on a give Cassandra node.
-     *
-     * <p>NB: This method is compatible with Cassandra 2.1.5 and greater.
-     */
-    private static List<TokenRange> getTokenRanges(Cluster cluster, String keyspace, String table) {
-      try (Session session = cluster.newSession()) {
-        ResultSet resultSet =
-            session.execute(
-                "SELECT range_start, range_end, partitions_count, mean_partition_size FROM "
-                    + "system.size_estimates WHERE keyspace_name = ? AND table_name = ?",
-                keyspace,
-                table);
-
-        ArrayList<TokenRange> tokenRanges = new ArrayList<>();
-        for (Row row : resultSet) {
-          TokenRange tokenRange =
-              new TokenRange(
-                  row.getLong("partitions_count"),
-                  row.getLong("mean_partition_size"),
-                  new BigInteger(row.getString("range_start")),
-                  new BigInteger(row.getString("range_end")));
-          tokenRanges.add(tokenRange);
-        }
-        // The table may not contain the estimates yet
-        // or have partitions_count and mean_partition_size fields = 0
-        // if the data was just inserted and the amount of data in the table was small.
-        // This is very common situation during tests,
-        // when we insert a few rows and immediately query them.
-        // However, for tiny data sets the lack of size estimates is not a problem at all,
-        // because we don't want to split tiny data anyways.
-        // Therefore, we're not issuing a warning if the result set was empty
-        // or mean_partition_size and partitions_count = 0.
-        return tokenRanges;
-      }
-    }
-
-    /** Compute the percentage of token addressed compared with the whole tokens in the cluster. */
-    @VisibleForTesting
-    static double getRingFraction(List<TokenRange> tokenRanges) {
-      double ringFraction = 0;
-      for (TokenRange tokenRange : tokenRanges) {
-        ringFraction =
-            ringFraction
-                + (distance(tokenRange.rangeStart, tokenRange.rangeEnd).doubleValue()
-                    / SplitGenerator.getRangeSize(MURMUR3PARTITIONER).doubleValue());
-      }
-      return ringFraction;
-    }
-
-    /**
-     * Check if the current partitioner is the Murmur3 (default in Cassandra version newer than 2).
-     */
-    @VisibleForTesting
-    static boolean isMurmur3Partitioner(Cluster cluster) {
-      return MURMUR3PARTITIONER.equals(cluster.getMetadata().getPartitioner());
-    }
-
-    /** Measure distance between two tokens. */
-    @VisibleForTesting
-    static BigInteger distance(BigInteger left, BigInteger right) {
-      return (right.compareTo(left) > 0)
-          ? right.subtract(left)
-          : right.subtract(left).add(SplitGenerator.getRangeSize(MURMUR3PARTITIONER));
-    }
-
-    /**
-     * Represent a token range in Cassandra instance, wrapping the partition count, size and token
-     * range.
-     */
-    @VisibleForTesting
-    static class TokenRange {
-      private final long partitionCount;
-      private final long meanPartitionSize;
-      private final BigInteger rangeStart;
-      private final BigInteger rangeEnd;
-
-      TokenRange(
-          long partitionCount, long meanPartitionSize, BigInteger rangeStart, BigInteger rangeEnd) {
-        this.partitionCount = partitionCount;
-        this.meanPartitionSize = meanPartitionSize;
-        this.rangeStart = rangeStart;
-        this.rangeEnd = rangeEnd;
-      }
-    }
-
-    private class CassandraReader extends BoundedSource.BoundedReader<T> {
-      private final CassandraIO.CassandraSource<T> source;
-      private Cluster cluster;
-      private Session session;
-      private Iterator<T> iterator;
-      private T current;
-
-      CassandraReader(CassandraSource<T> source) {
-        this.source = source;
-      }
-
-      @Override
-      public boolean start() {
-        LOG.debug("Starting Cassandra reader");
-        cluster =
-            getCluster(
-                source.spec.hosts(),
-                source.spec.port(),
-                source.spec.username(),
-                source.spec.password(),
-                source.spec.localDc(),
-                source.spec.consistencyLevel(),
-                source.spec.connectTimeout(),
-                source.spec.readTimeout());
-        session = cluster.connect(source.spec.keyspace().get());
-        LOG.debug("Queries: " + source.splitQueries);
-        List<ResultSetFuture> futures = new ArrayList<>();
-        for (String query : source.splitQueries) {
-          futures.add(session.executeAsync(query));
-        }
-
-        final Mapper<T> mapper = getMapper(session, source.spec.entity());
-
-        for (ResultSetFuture result : futures) {
-          if (iterator == null) {
-            iterator = mapper.map(result.getUninterruptibly());
-          } else {
-            iterator = Iterators.concat(iterator, mapper.map(result.getUninterruptibly()));
-          }
-        }
-
-        return advance();
-      }
-
-      @Override
-      public boolean advance() {
-        if (iterator.hasNext()) {
-          current = iterator.next();
-          return true;
-        }
-        current = null;
-        return false;
-      }
-
-      @Override
-      public void close() {
-        LOG.debug("Closing Cassandra reader");
-        if (session != null) {
-          session.close();
-        }
-        if (cluster != null) {
-          cluster.close();
-        }
-      }
-
-      @Override
-      public T getCurrent() throws NoSuchElementException {
-        if (current == null) {
-          throw new NoSuchElementException();
-        }
-        return current;
-      }
-
-      @Override
-      public CassandraIO.CassandraSource<T> getCurrentSource() {
-        return source;
-      }
-
-      private Mapper<T> getMapper(Session session, Class<T> enitity) {
-        return source.spec.mapperFactoryFn().apply(session);
       }
     }
   }
@@ -1179,7 +875,7 @@ public class CassandraIO {
   }
 
   /** Get a Cassandra cluster using hosts and port. */
-  private static Cluster getCluster(
+  static Cluster getCluster(
       ValueProvider<List<String>> hosts,
       ValueProvider<Integer> port,
       ValueProvider<String> username,
@@ -1301,4 +997,53 @@ public class CassandraIO {
       }
     }
   }
+
+  /**
+   * A {@link PTransform} to read data from Apache Cassandra. See {@link CassandraIO} for more
+   * information on usage and configuration.
+   */
+  @AutoValue
+  public abstract static class ReadAll<T> extends PTransform<PCollection<Read<T>>, PCollection<T>> {
+    @AutoValue.Builder
+    abstract static class Builder<T> {
+
+      abstract Builder<T> setCoder(Coder<T> coder);
+
+      abstract ReadAll<T> autoBuild();
+
+      public ReadAll<T> build() {
+        return autoBuild();
+      }
+    }
+
+    @Nullable
+    abstract Coder<T> coder();
+
+    abstract Builder<T> builder();
+
+    /** Specify the {@link Coder} used to serialize the entity in the {@link PCollection}. */
+    public ReadAll<T> withCoder(Coder<T> coder) {
+      checkArgument(coder != null, "coder can not be null");
+      return builder().setCoder(coder).build();
+    }
+
+    @Override
+    public PCollection<T> expand(PCollection<Read<T>> input) {
+      checkArgument(coder() != null, "withCoder() is required");
+      return input
+          .apply("Reshuffle", Reshuffle.viaRandomKey())
+          .apply("Read", ParDo.of(new ReadFn<>()))
+          .setCoder(this.coder());
+    }
+  }
+
+  /**
+   * Check if the current partitioner is the Murmur3 (default in Cassandra version newer than 2).
+   */
+  @VisibleForTesting
+  private static boolean isMurmur3Partitioner(Cluster cluster) {
+    return MURMUR3PARTITIONER.equals(cluster.getMetadata().getPartitioner());
+  }
+
+  private static final String MURMUR3PARTITIONER = "org.apache.cassandra.dht.Murmur3Partitioner";
 }

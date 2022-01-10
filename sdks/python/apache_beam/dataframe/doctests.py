@@ -68,7 +68,7 @@ class FakePandasObject(object):
 
   def __call__(self, *args, **kwargs):
     result = self._pandas_obj(*args, **kwargs)
-    if type(result) in DeferredBase._pandas_type_map.keys():
+    if type(result) in DeferredBase._pandas_type_map:
       placeholder = expressions.PlaceholderExpression(result.iloc[0:0])
       self._test_env._inputs[placeholder] = result
       return DeferredBase.wrap(placeholder)
@@ -322,8 +322,7 @@ class _DeferrredDataframeOutputChecker(doctest.OutputChecker):
 
     self.reset()
     want, got = self.fix(want, got)
-    return super(_DeferrredDataframeOutputChecker,
-                 self).check_output(want, got, optionflags)
+    return super().check_output(want, got, optionflags)
 
   def output_difference(self, example, got, optionflags):
     want, got = self.fix(example.want, got)
@@ -335,8 +334,7 @@ class _DeferrredDataframeOutputChecker(doctest.OutputChecker):
           example.lineno,
           example.indent,
           example.options)
-    return super(_DeferrredDataframeOutputChecker,
-                 self).output_difference(example, got, optionflags)
+    return super().output_difference(example, got, optionflags)
 
 
 class BeamDataframeDoctestRunner(doctest.DocTestRunner):
@@ -374,7 +372,7 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
         for test,
         examples in (skip or {}).items()
     }
-    super(BeamDataframeDoctestRunner, self).__init__(
+    super().__init__(
         checker=_DeferrredDataframeOutputChecker(self._test_env, use_beam),
         **kwargs)
     self.success = 0
@@ -412,7 +410,7 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
           # Don't fail doctests that raise this error.
           example.exc_msg = '|'.join(allowed_exceptions)
     with self._test_env.context():
-      result = super(BeamDataframeDoctestRunner, self).run(test, **kwargs)
+      result = super().run(test, **kwargs)
       # Can't add attributes to builtin result.
       result = AugmentedTestResults(result.failed, result.attempted)
       result.summary = self.summary()
@@ -444,14 +442,13 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
             # use the wrong previous value.
             del test.globs[var]
 
-    return super(BeamDataframeDoctestRunner,
-                 self).report_success(out, test, example, got)
+    return super().report_success(out, test, example, got)
 
   def fake_pandas_module(self):
     return self._test_env.fake_pandas_module()
 
   def summarize(self):
-    super(BeamDataframeDoctestRunner, self).summarize()
+    super().summarize()
     self.summary().summarize()
 
   def summary(self):

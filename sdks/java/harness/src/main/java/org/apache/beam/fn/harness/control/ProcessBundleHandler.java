@@ -24,7 +24,6 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -34,11 +33,16 @@ import java.util.WeakHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Phaser;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.BeamFnDataReadRunner;
+import org.apache.beam.fn.harness.Cache;
+import org.apache.beam.fn.harness.Caches;
+import org.apache.beam.fn.harness.Caches.ClearableCache;
 import org.apache.beam.fn.harness.PTransformRunnerFactory;
+import org.apache.beam.fn.harness.PTransformRunnerFactory.Context;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.ProgressRequestCallback;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
 import org.apache.beam.fn.harness.control.FinalizeBundleHandler.CallbackRegistration;
@@ -47,17 +51,16 @@ import org.apache.beam.fn.harness.data.BeamFnTimerClient;
 import org.apache.beam.fn.harness.data.BeamFnTimerGrpcClient;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
-import org.apache.beam.fn.harness.data.QueueingBeamFnDataClient;
-import org.apache.beam.fn.harness.logging.BeamFnLoggingMDC;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
-import org.apache.beam.fn.harness.state.CachingBeamFnStateClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest.CacheToken;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest.Builder;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
+import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.MetricsApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -72,16 +75,18 @@ import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.ShortIdMap;
+import org.apache.beam.sdk.fn.data.BeamFnDataInboundObserver2;
+import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
+import org.apache.beam.sdk.fn.data.DataEndpoint;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
+import org.apache.beam.sdk.fn.data.TimerEndpoint;
 import org.apache.beam.sdk.function.ThrowingRunnable;
-import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Message;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
@@ -125,8 +130,6 @@ public class ProcessBundleHandler {
   private static final String DATA_OUTPUT_URN = "beam:runner:sink:v1";
   public static final String JAVA_SOURCE_URN = "beam:source:java:0.1";
 
-  private static final int DATA_QUEUE_SIZE = 1000;
-
   private static final Logger LOG = LoggerFactory.getLogger(ProcessBundleHandler.class);
   @VisibleForTesting static final Map<String, PTransformRunnerFactory> REGISTERED_RUNNER_FACTORIES;
 
@@ -144,44 +147,27 @@ public class ProcessBundleHandler {
     REGISTERED_RUNNER_FACTORIES = builder.build();
   }
 
-  // Creates a new map of state data for newly encountered state keys
-  private CacheLoader<
-          BeamFnApi.StateKey,
-          Map<CachingBeamFnStateClient.StateCacheKey, BeamFnApi.StateGetResponse>>
-      stateKeyMapCacheLoader =
-          new CacheLoader<
-              BeamFnApi.StateKey,
-              Map<CachingBeamFnStateClient.StateCacheKey, BeamFnApi.StateGetResponse>>() {
-            @Override
-            public Map<CachingBeamFnStateClient.StateCacheKey, BeamFnApi.StateGetResponse> load(
-                BeamFnApi.StateKey key) {
-              return new HashMap<>();
-            }
-          };
-
   private final PipelineOptions options;
-  private final Function<String, Message> fnApiRegistry;
+  private final Function<String, BeamFnApi.ProcessBundleDescriptor> fnApiRegistry;
   private final BeamFnDataClient beamFnDataClient;
   private final BeamFnStateGrpcClientCache beamFnStateGrpcClientCache;
-  private final LoadingCache<
-          BeamFnApi.StateKey,
-          Map<CachingBeamFnStateClient.StateCacheKey, BeamFnApi.StateGetResponse>>
-      stateCache;
   private final FinalizeBundleHandler finalizeBundleHandler;
   private final ShortIdMap shortIds;
   private final boolean runnerAcceptsShortIds;
   private final Map<String, PTransformRunnerFactory> urnToPTransformRunnerFactoryMap;
   private final PTransformRunnerFactory defaultPTransformRunnerFactory;
+  private final Cache<Object, Object> processWideCache;
   @VisibleForTesting final BundleProcessorCache bundleProcessorCache;
 
   public ProcessBundleHandler(
       PipelineOptions options,
       Set<String> runnerCapabilities,
-      Function<String, Message> fnApiRegistry,
+      Function<String, BeamFnApi.ProcessBundleDescriptor> fnApiRegistry,
       BeamFnDataClient beamFnDataClient,
       BeamFnStateGrpcClientCache beamFnStateGrpcClientCache,
       FinalizeBundleHandler finalizeBundleHandler,
-      ShortIdMap shortIds) {
+      ShortIdMap shortIds,
+      Cache<Object, Object> processWideCache) {
     this(
         options,
         runnerCapabilities,
@@ -191,6 +177,7 @@ public class ProcessBundleHandler {
         finalizeBundleHandler,
         shortIds,
         REGISTERED_RUNNER_FACTORIES,
+        processWideCache,
         new BundleProcessorCache());
   }
 
@@ -198,18 +185,18 @@ public class ProcessBundleHandler {
   ProcessBundleHandler(
       PipelineOptions options,
       Set<String> runnerCapabilities,
-      Function<String, Message> fnApiRegistry,
+      Function<String, BeamFnApi.ProcessBundleDescriptor> fnApiRegistry,
       BeamFnDataClient beamFnDataClient,
       BeamFnStateGrpcClientCache beamFnStateGrpcClientCache,
       FinalizeBundleHandler finalizeBundleHandler,
       ShortIdMap shortIds,
       Map<String, PTransformRunnerFactory> urnToPTransformRunnerFactoryMap,
+      Cache<Object, Object> processWideCache,
       BundleProcessorCache bundleProcessorCache) {
     this.options = options;
     this.fnApiRegistry = fnApiRegistry;
     this.beamFnDataClient = beamFnDataClient;
     this.beamFnStateGrpcClientCache = beamFnStateGrpcClientCache;
-    this.stateCache = CacheBuilder.newBuilder().build(stateKeyMapCacheLoader);
     this.finalizeBundleHandler = finalizeBundleHandler;
     this.shortIds = shortIds;
     this.runnerAcceptsShortIds =
@@ -218,6 +205,7 @@ public class ProcessBundleHandler {
     this.urnToPTransformRunnerFactoryMap = urnToPTransformRunnerFactoryMap;
     this.defaultPTransformRunnerFactory =
         new UnknownPTransformRunnerFactory(urnToPTransformRunnerFactoryMap.keySet());
+    this.processWideCache = processWideCache;
     this.bundleProcessorCache = bundleProcessorCache;
   }
 
@@ -228,6 +216,8 @@ public class ProcessBundleHandler {
       String pTransformId,
       PTransform pTransform,
       Supplier<String> processBundleInstructionId,
+      Supplier<List<BeamFnApi.ProcessBundleRequest.CacheToken>> cacheTokens,
+      Supplier<Cache<?, ?>> bundleCache,
       ProcessBundleDescriptor processBundleDescriptor,
       SetMultimap<String, String> pCollectionIdsToConsumingPTransforms,
       PCollectionConsumerRegistry pCollectionConsumerRegistry,
@@ -236,6 +226,8 @@ public class ProcessBundleHandler {
       PTransformFunctionRegistry finishFunctionRegistry,
       Consumer<ThrowingRunnable> addResetFunction,
       Consumer<ThrowingRunnable> addTearDownFunction,
+      BiConsumer<Endpoints.ApiServiceDescriptor, DataEndpoint<?>> addDataEndpoint,
+      Consumer<TimerEndpoint<?>> addTimerEndpoint,
       Consumer<ProgressRequestCallback> addProgressRequestCallback,
       BundleSplitListener splitListener,
       BundleFinalizer bundleFinalizer,
@@ -255,6 +247,8 @@ public class ProcessBundleHandler {
             consumingPTransformId,
             processBundleDescriptor.getTransformsMap().get(consumingPTransformId),
             processBundleInstructionId,
+            cacheTokens,
+            bundleCache,
             processBundleDescriptor,
             pCollectionIdsToConsumingPTransforms,
             pCollectionConsumerRegistry,
@@ -263,6 +257,8 @@ public class ProcessBundleHandler {
             finishFunctionRegistry,
             addResetFunction,
             addTearDownFunction,
+            addDataEndpoint,
+            addTimerEndpoint,
             addProgressRequestCallback,
             splitListener,
             bundleFinalizer,
@@ -288,24 +284,140 @@ public class ProcessBundleHandler {
           urnToPTransformRunnerFactoryMap
               .getOrDefault(pTransform.getSpec().getUrn(), defaultPTransformRunnerFactory)
               .createRunnerForPTransform(
-                  options,
-                  queueingClient,
-                  beamFnStateClient,
-                  beamFnTimerClient,
-                  pTransformId,
-                  pTransform,
-                  processBundleInstructionId,
-                  processBundleDescriptor.getPcollectionsMap(),
-                  processBundleDescriptor.getCodersMap(),
-                  processBundleDescriptor.getWindowingStrategiesMap(),
-                  pCollectionConsumerRegistry,
-                  startFunctionRegistry,
-                  finishFunctionRegistry,
-                  addResetFunction,
-                  addTearDownFunction,
-                  addProgressRequestCallback,
-                  splitListener,
-                  bundleFinalizer);
+                  new Context() {
+                    @Override
+                    public PipelineOptions getPipelineOptions() {
+                      return options;
+                    }
+
+                    @Override
+                    public BeamFnDataClient getBeamFnDataClient() {
+                      return queueingClient;
+                    }
+
+                    @Override
+                    public BeamFnStateClient getBeamFnStateClient() {
+                      return beamFnStateClient;
+                    }
+
+                    @Override
+                    public BeamFnTimerClient getBeamFnTimerClient() {
+                      return beamFnTimerClient;
+                    }
+
+                    @Override
+                    public String getPTransformId() {
+                      return pTransformId;
+                    }
+
+                    @Override
+                    public PTransform getPTransform() {
+                      return pTransform;
+                    }
+
+                    @Override
+                    public Supplier<String> getProcessBundleInstructionIdSupplier() {
+                      return processBundleInstructionId;
+                    }
+
+                    @Override
+                    public Supplier<List<CacheToken>> getCacheTokensSupplier() {
+                      return cacheTokens;
+                    }
+
+                    @Override
+                    public Supplier<Cache<?, ?>> getBundleCacheSupplier() {
+                      return bundleCache;
+                    }
+
+                    @Override
+                    public Cache<?, ?> getProcessWideCache() {
+                      return processWideCache;
+                    }
+
+                    @Override
+                    public Map<String, PCollection> getPCollections() {
+                      return processBundleDescriptor.getPcollectionsMap();
+                    }
+
+                    @Override
+                    public Map<String, Coder> getCoders() {
+                      return processBundleDescriptor.getCodersMap();
+                    }
+
+                    @Override
+                    public Map<String, WindowingStrategy> getWindowingStrategies() {
+                      return processBundleDescriptor.getWindowingStrategiesMap();
+                    }
+
+                    @Override
+                    public <T> void addPCollectionConsumer(
+                        String pCollectionId,
+                        FnDataReceiver<WindowedValue<T>> consumer,
+                        org.apache.beam.sdk.coders.Coder<T> valueCoder) {
+                      pCollectionConsumerRegistry.register(
+                          pCollectionId, pTransformId, consumer, valueCoder);
+                    }
+
+                    @Override
+                    public FnDataReceiver<?> getPCollectionConsumer(String pCollectionId) {
+                      return pCollectionConsumerRegistry.getMultiplexingConsumer(pCollectionId);
+                    }
+
+                    @Override
+                    public void addStartBundleFunction(ThrowingRunnable startFunction) {
+                      startFunctionRegistry.register(pTransformId, startFunction);
+                    }
+
+                    @Override
+                    public void addFinishBundleFunction(ThrowingRunnable finishFunction) {
+                      finishFunctionRegistry.register(pTransformId, finishFunction);
+                    }
+
+                    @Override
+                    public <T> void addIncomingDataEndpoint(
+                        ApiServiceDescriptor apiServiceDescriptor,
+                        org.apache.beam.sdk.coders.Coder<T> coder,
+                        FnDataReceiver<T> receiver) {
+                      addDataEndpoint.accept(
+                          apiServiceDescriptor, DataEndpoint.create(pTransformId, coder, receiver));
+                    }
+
+                    @Override
+                    public <T> void addIncomingTimerEndpoint(
+                        String timerFamilyId,
+                        org.apache.beam.sdk.coders.Coder<Timer<T>> coder,
+                        FnDataReceiver<Timer<T>> receiver) {
+                      addTimerEndpoint.accept(
+                          TimerEndpoint.create(pTransformId, timerFamilyId, coder, receiver));
+                    }
+
+                    @Override
+                    public void addResetFunction(ThrowingRunnable resetFunction) {
+                      addResetFunction.accept(resetFunction);
+                    }
+
+                    @Override
+                    public void addTearDownFunction(ThrowingRunnable tearDownFunction) {
+                      addTearDownFunction.accept(tearDownFunction);
+                    }
+
+                    @Override
+                    public void addProgressRequestCallback(
+                        ProgressRequestCallback progressRequestCallback) {
+                      addProgressRequestCallback.accept(progressRequestCallback);
+                    }
+
+                    @Override
+                    public BundleSplitListener getSplitListener() {
+                      return splitListener;
+                    }
+
+                    @Override
+                    public BundleFinalizer getBundleFinalizer() {
+                      return bundleFinalizer;
+                    }
+                  });
       if (runner instanceof BeamFnDataReadRunner) {
         channelRoots.add((BeamFnDataReadRunner) runner);
       }
@@ -323,8 +435,7 @@ public class ProcessBundleHandler {
 
     BundleProcessor bundleProcessor =
         bundleProcessorCache.get(
-            request.getProcessBundle().getProcessBundleDescriptorId(),
-            request.getInstructionId(),
+            request,
             () -> {
               try {
                 return createBundleProcessor(
@@ -335,12 +446,10 @@ public class ProcessBundleHandler {
               }
             });
     try {
-      BeamFnLoggingMDC.setInstructionId(request.getInstructionId());
       PTransformFunctionRegistry startFunctionRegistry = bundleProcessor.getStartFunctionRegistry();
       PTransformFunctionRegistry finishFunctionRegistry =
           bundleProcessor.getFinishFunctionRegistry();
       ExecutionStateTracker stateTracker = bundleProcessor.getStateTracker();
-      QueueingBeamFnDataClient queueingClient = bundleProcessor.getQueueingClient();
 
       try (HandleStateCallsForBundle beamFnStateClient = bundleProcessor.getBeamFnStateClient()) {
         try (Closeable closeTracker = stateTracker.activate()) {
@@ -350,7 +459,28 @@ public class ProcessBundleHandler {
             startFunction.run();
           }
 
-          queueingClient.drainAndBlock();
+          if (request.getProcessBundle().hasElements()) {
+            boolean inputFinished =
+                bundleProcessor
+                    .getInboundObserver()
+                    .multiplexElements(request.getProcessBundle().getElements());
+            if (!inputFinished) {
+              throw new RuntimeException(
+                  "Elements embedded in ProcessBundleRequest do not contain stream terminators for "
+                      + "all data and timer inputs. Unterminated endpoints: "
+                      + bundleProcessor.getInboundObserver().getUnfinishedEndpoints());
+            }
+          } else if (!bundleProcessor.getInboundEndpointApiServiceDescriptors().isEmpty()) {
+            BeamFnDataInboundObserver2 observer = bundleProcessor.getInboundObserver();
+            beamFnDataClient.registerReceiver(
+                request.getInstructionId(),
+                bundleProcessor.getInboundEndpointApiServiceDescriptors(),
+                observer);
+            observer.awaitCompletion();
+            beamFnDataClient.unregisterReceiver(
+                request.getInstructionId(),
+                bundleProcessor.getInboundEndpointApiServiceDescriptors());
+          }
 
           // Need to reverse this since we want to call finish in topological order.
           for (ThrowingRunnable finishFunction :
@@ -390,8 +520,6 @@ public class ProcessBundleHandler {
       // Make sure we clean-up from the active set of bundle processors.
       bundleProcessorCache.discard(bundleProcessor);
       throw e;
-    } finally {
-      BeamFnLoggingMDC.setInstructionId(null);
     }
   }
 
@@ -480,14 +608,7 @@ public class ProcessBundleHandler {
 
   private BundleProcessor createBundleProcessor(
       String bundleId, BeamFnApi.ProcessBundleRequest processBundleRequest) throws IOException {
-    // Note: We must create one instance of the QueueingBeamFnDataClient as it is designed to
-    // handle the life of a bundle. It will insert elements onto a queue and drain them off so all
-    // process() calls will execute on this thread when queueingClient.drainAndBlock() is called.
-    QueueingBeamFnDataClient queueingClient =
-        new QueueingBeamFnDataClient(this.beamFnDataClient, DATA_QUEUE_SIZE);
-
-    BeamFnApi.ProcessBundleDescriptor bundleDescriptor =
-        (BeamFnApi.ProcessBundleDescriptor) fnApiRegistry.apply(bundleId);
+    BeamFnApi.ProcessBundleDescriptor bundleDescriptor = fnApiRegistry.apply(bundleId);
 
     SetMultimap<String, String> pCollectionIdsToConsumingPTransforms = HashMultimap.create();
     MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
@@ -522,20 +643,7 @@ public class ProcessBundleHandler {
       BeamFnStateClient underlyingClient =
           beamFnStateGrpcClientCache.forApiServiceDescriptor(
               bundleDescriptor.getStateApiServiceDescriptor());
-
-      // If pipeline is batch, use a CachingBeamFnStateClient to store state responses.
-      // Once streaming is supported use CachingBeamFnStateClient for both.
-      // TODO(BEAM-10212): Remove experiment once cross bundle caching is used by default
-      if (ExperimentalOptions.hasExperiment(options, "cross_bundle_caching")) {
-        beamFnStateClient =
-            new BlockTillStateCallsFinish(
-                options.as(StreamingOptions.class).isStreaming()
-                    ? underlyingClient
-                    : new CachingBeamFnStateClient(
-                        underlyingClient, stateCache, processBundleRequest.getCacheTokensList()));
-      } else {
-        beamFnStateClient = new BlockTillStateCallsFinish(underlyingClient);
-      }
+      beamFnStateClient = new BlockTillStateCallsFinish(underlyingClient);
     } else {
       beamFnStateClient = new FailAllStateCallsForBundle(processBundleRequest);
     }
@@ -545,7 +653,7 @@ public class ProcessBundleHandler {
     BeamFnTimerClient beamFnTimerClient =
         bundleDescriptor.hasTimerApiServiceDescriptor()
             ? new BeamFnTimerGrpcClient(
-                queueingClient, bundleDescriptor.getTimerApiServiceDescriptor())
+                beamFnDataClient, bundleDescriptor.getTimerApiServiceDescriptor())
             : new FailAllTimerRegistrations(processBundleRequest);
 
     BundleSplitListener.InMemory splitListener = BundleSplitListener.InMemory.create();
@@ -562,6 +670,8 @@ public class ProcessBundleHandler {
 
     BundleProcessor bundleProcessor =
         BundleProcessor.create(
+            processWideCache,
+            bundleDescriptor,
             startFunctionRegistry,
             finishFunctionRegistry,
             resetFunctions,
@@ -572,7 +682,6 @@ public class ProcessBundleHandler {
             metricsContainerRegistry,
             stateTracker,
             beamFnStateClient,
-            queueingClient,
             bundleFinalizationCallbackRegistrations);
 
     // Create a BeamFnStateClient
@@ -593,10 +702,12 @@ public class ProcessBundleHandler {
       createRunnerAndConsumersForPTransformRecursively(
           beamFnStateClient,
           beamFnTimerClient,
-          queueingClient,
+          beamFnDataClient,
           entry.getKey(),
           entry.getValue(),
           bundleProcessor::getInstructionId,
+          bundleProcessor::getCacheTokens,
+          bundleProcessor::getBundleCache,
           bundleDescriptor,
           pCollectionIdsToConsumingPTransforms,
           pCollectionConsumerRegistry,
@@ -605,11 +716,27 @@ public class ProcessBundleHandler {
           finishFunctionRegistry,
           resetFunctions::add,
           tearDownFunctions::add,
+          (apiServiceDescriptor, dataEndpoint) -> {
+            if (!bundleProcessor
+                .getInboundEndpointApiServiceDescriptors()
+                .contains(apiServiceDescriptor)) {
+              bundleProcessor.getInboundEndpointApiServiceDescriptors().add(apiServiceDescriptor);
+            }
+            bundleProcessor.getInboundDataEndpoints().add(dataEndpoint);
+          },
+          (timerEndpoint) -> {
+            if (!bundleDescriptor.hasTimerApiServiceDescriptor()) {
+              throw FailAllTimerRegistrations.fail(processBundleRequest);
+            }
+            bundleProcessor.getTimerEndpoints().add(timerEndpoint);
+          },
           progressRequestCallbacks::add,
           splitListener,
           bundleFinalizer,
           bundleProcessor.getChannelRoots());
     }
+    bundleProcessor.finish();
+
     return bundleProcessor;
   }
 
@@ -671,18 +798,18 @@ public class ProcessBundleHandler {
      * to this cache if and only if the bundle processor successfully processed a bundle.
      */
     BundleProcessor get(
-        String bundleDescriptorId,
-        String instructionId,
+        InstructionRequest processBundleRequest,
         Supplier<BundleProcessor> bundleProcessorSupplier) {
       ConcurrentLinkedQueue<BundleProcessor> bundleProcessors =
-          cachedBundleProcessors.getUnchecked(bundleDescriptorId);
+          cachedBundleProcessors.getUnchecked(
+              processBundleRequest.getProcessBundle().getProcessBundleDescriptorId());
       BundleProcessor bundleProcessor = bundleProcessors.poll();
       if (bundleProcessor == null) {
         bundleProcessor = bundleProcessorSupplier.get();
       }
 
-      bundleProcessor.setInstructionId(instructionId);
-      activeBundleProcessors.put(instructionId, bundleProcessor);
+      bundleProcessor.setupForProcessBundleRequest(processBundleRequest);
+      activeBundleProcessors.put(processBundleRequest.getInstructionId(), bundleProcessor);
       return bundleProcessor;
     }
 
@@ -713,6 +840,7 @@ public class ProcessBundleHandler {
 
     /** Discard an active {@link BundleProcessor} instead of being re-used. */
     void discard(BundleProcessor bundleProcessor) {
+      bundleProcessor.discard();
       activeBundleProcessors.remove(bundleProcessor.getInstructionId());
     }
 
@@ -728,6 +856,8 @@ public class ProcessBundleHandler {
   @SuppressWarnings({"rawtypes"})
   public abstract static class BundleProcessor {
     public static BundleProcessor create(
+        Cache<Object, Object> processWideCache,
+        ProcessBundleDescriptor processBundleDescriptor,
         PTransformFunctionRegistry startFunctionRegistry,
         PTransformFunctionRegistry finishFunctionRegistry,
         List<ThrowingRunnable> resetFunctions,
@@ -738,9 +868,10 @@ public class ProcessBundleHandler {
         MetricsContainerStepMap metricsContainerRegistry,
         ExecutionStateTracker stateTracker,
         HandleStateCallsForBundle beamFnStateClient,
-        QueueingBeamFnDataClient queueingClient,
         Collection<CallbackRegistration> bundleFinalizationCallbackRegistrations) {
       return new AutoValue_ProcessBundleHandler_BundleProcessor(
+          processWideCache,
+          processBundleDescriptor,
           startFunctionRegistry,
           finishFunctionRegistry,
           resetFunctions,
@@ -751,12 +882,20 @@ public class ProcessBundleHandler {
           metricsContainerRegistry,
           stateTracker,
           beamFnStateClient,
-          queueingClient,
+          /*inboundEndpointApiServiceDescriptors=*/ new ArrayList<>(),
+          /*inboundDataEndpoints=*/ new ArrayList<>(),
+          /*timerEndpoints=*/ new ArrayList<>(),
           bundleFinalizationCallbackRegistrations,
           new ArrayList<>());
     }
 
     private String instructionId;
+    private List<CacheToken> cacheTokens;
+    private ClearableCache<Object, Object> bundleCache;
+
+    abstract Cache<?, ?> getProcessWideCache();
+
+    abstract ProcessBundleDescriptor getProcessBundleDescriptor();
 
     abstract PTransformFunctionRegistry getStartFunctionRegistry();
 
@@ -778,7 +917,11 @@ public class ProcessBundleHandler {
 
     abstract HandleStateCallsForBundle getBeamFnStateClient();
 
-    abstract QueueingBeamFnDataClient getQueueingClient();
+    abstract List<Endpoints.ApiServiceDescriptor> getInboundEndpointApiServiceDescriptors();
+
+    abstract List<DataEndpoint<?>> getInboundDataEndpoints();
+
+    abstract List<TimerEndpoint<?>> getTimerEndpoints();
 
     abstract Collection<CallbackRegistration> getBundleFinalizationCallbackRegistrations();
 
@@ -788,22 +931,65 @@ public class ProcessBundleHandler {
       return this.instructionId;
     }
 
-    synchronized void setInstructionId(String instructionId) {
-      this.instructionId = instructionId;
+    synchronized List<CacheToken> getCacheTokens() {
+      return this.cacheTokens;
+    }
+
+    synchronized Cache<Object, Object> getBundleCache() {
+      if (this.bundleCache == null) {
+        this.bundleCache =
+            new Caches.ClearableCache<>(
+                Caches.subCache(getProcessWideCache(), "Bundle", this.instructionId));
+      }
+      return this.bundleCache;
+    }
+
+    private BeamFnDataInboundObserver2 inboundObserver2;
+
+    BeamFnDataInboundObserver2 getInboundObserver() {
+      return inboundObserver2;
+    }
+
+    /** Finishes construction of the {@link BundleProcessor}. */
+    void finish() {
+      inboundObserver2 =
+          BeamFnDataInboundObserver2.forConsumers(getInboundDataEndpoints(), getTimerEndpoints());
+    }
+
+    synchronized void setupForProcessBundleRequest(InstructionRequest request) {
+      this.instructionId = request.getInstructionId();
+      this.cacheTokens = request.getProcessBundle().getCacheTokensList();
     }
 
     void reset() throws Exception {
-      setInstructionId(null);
+      synchronized (this) {
+        this.instructionId = null;
+        this.cacheTokens = null;
+        if (this.bundleCache != null) {
+          this.bundleCache.clear();
+          this.bundleCache = null;
+        }
+      }
       getStartFunctionRegistry().reset();
       getFinishFunctionRegistry().reset();
       getSplitListener().clear();
       getpCollectionConsumerRegistry().reset();
       getMetricsContainerRegistry().reset();
       getStateTracker().reset();
-      getQueueingClient().reset();
       getBundleFinalizationCallbackRegistrations().clear();
       for (ThrowingRunnable resetFunction : getResetFunctions()) {
         resetFunction.run();
+      }
+      getInboundObserver().reset();
+    }
+
+    void discard() {
+      synchronized (this) {
+        this.instructionId = null;
+        this.cacheTokens = null;
+        if (this.bundleCache != null) {
+          this.bundleCache.clear();
+        }
       }
     }
 
@@ -852,13 +1038,13 @@ public class ProcessBundleHandler {
     @Override
     @SuppressWarnings("FutureReturnValueIgnored") // async arriveAndDeregister task doesn't need
     // monitoring.
-    public void handle(
-        StateRequest.Builder requestBuilder, CompletableFuture<StateResponse> response) {
+    public CompletableFuture<StateResponse> handle(StateRequest.Builder requestBuilder) {
       // Register each request with the phaser and arrive and deregister each time a request
       // completes.
+      CompletableFuture<StateResponse> response = beamFnStateClient.handle(requestBuilder);
       phaser.register();
       response.whenComplete((stateResponse, throwable) -> phaser.arriveAndDeregister());
-      beamFnStateClient.handle(requestBuilder, response);
+      return response;
     }
   }
 
@@ -879,7 +1065,7 @@ public class ProcessBundleHandler {
     }
 
     @Override
-    public void handle(Builder requestBuilder, CompletableFuture<StateResponse> response) {
+    public CompletableFuture<StateResponse> handle(BeamFnApi.StateRequest.Builder requestBuilder) {
       throw new IllegalStateException(
           String.format(
               "State API calls are unsupported because the "
@@ -900,10 +1086,12 @@ public class ProcessBundleHandler {
     }
 
     @Override
-    public <T> TimerHandler<T> register(
-        LogicalEndpoint timerEndpoint,
-        org.apache.beam.sdk.coders.Coder<Timer<T>> coder,
-        FnDataReceiver<Timer<T>> receiver) {
+    public <T> CloseableFnDataReceiver<Timer<T>> register(
+        LogicalEndpoint timerEndpoint, org.apache.beam.sdk.coders.Coder<Timer<T>> coder) {
+      throw fail(request);
+    }
+
+    private static IllegalStateException fail(ProcessBundleRequest request) {
       throw new IllegalStateException(
           String.format(
               "Timers are unsupported because the "
@@ -922,29 +1110,11 @@ public class ProcessBundleHandler {
     }
 
     @Override
-    public Object createRunnerForPTransform(
-        PipelineOptions pipelineOptions,
-        BeamFnDataClient beamFnDataClient,
-        BeamFnStateClient beamFnStateClient,
-        BeamFnTimerClient beamFnTimerClient,
-        String pTransformId,
-        PTransform pTransform,
-        Supplier<String> processBundleInstructionId,
-        Map<String, PCollection> pCollections,
-        Map<String, Coder> coders,
-        Map<String, WindowingStrategy> windowingStrategies,
-        PCollectionConsumerRegistry pCollectionConsumerRegistry,
-        PTransformFunctionRegistry startFunctionRegistry,
-        PTransformFunctionRegistry finishFunctionRegistry,
-        Consumer<ThrowingRunnable> addResetFunction,
-        Consumer<ThrowingRunnable> tearDownFunctions,
-        Consumer<ProgressRequestCallback> addProgressRequestCallback,
-        BundleSplitListener splitListener,
-        BundleFinalizer bundleFinalizer) {
+    public Object createRunnerForPTransform(Context context) {
       String message =
           String.format(
               "No factory registered for %s, known factories %s",
-              pTransform.getSpec().getUrn(), knownUrns);
+              context.getPTransform().getSpec().getUrn(), knownUrns);
       LOG.error(message);
       throw new IllegalStateException(message);
     }

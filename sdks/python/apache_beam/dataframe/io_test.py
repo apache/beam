@@ -38,6 +38,11 @@ from apache_beam.dataframe import convert
 from apache_beam.dataframe import io
 from apache_beam.io import restriction_trackers
 from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
+
+
+class SimpleRow(typing.NamedTuple):
+  value: int
 
 
 class MyRow(typing.NamedTuple):
@@ -71,6 +76,19 @@ class IOTest(unittest.TestCase):
           yield line.rstrip('\n')
       if delete:
         os.remove(path)
+
+  def test_read_fwf(self):
+    input = self.temp_dir(
+        {'all.fwf': '''
+A     B
+11a   0
+37a   1
+389a  2
+    '''.strip()})
+    with beam.Pipeline() as p:
+      df = p | io.read_fwf(input + 'all.fwf')
+      rows = convert.to_pcollection(df) | beam.Map(tuple)
+      assert_that(rows, equal_to([('11a', 0), ('37a', 1), ('389a', 2)]))
 
   def test_read_write_csv(self):
     input = self.temp_dir({'1.csv': 'a,b\n1,2\n', '2.csv': 'a,b\n3,4\n'})
@@ -225,8 +243,21 @@ class IOTest(unittest.TestCase):
     self.assertGreater(
         min(len(s) for s in splits), len(numbers) * 0.9**20 * 0.1)
 
+  def _run_truncating_file_handle_iter_test(self, s, delim=' ', chunk_size=10):
+    tracker = restriction_trackers.OffsetRestrictionTracker(
+        restriction_trackers.OffsetRange(0, len(s)))
+    handle = io._TruncatingFileHandle(
+        StringIO(s), tracker, splitter=io._DelimSplitter(delim, chunk_size))
+    self.assertEqual(s, ''.join(list(handle)))
+
+  def test_truncating_filehandle_iter(self):
+    self._run_truncating_file_handle_iter_test('a b c')
+    self._run_truncating_file_handle_iter_test('aaaaaaaaaaaaaaaaaaaa b ccc')
+    self._run_truncating_file_handle_iter_test('aaa b cccccccccccccccccccc')
+    self._run_truncating_file_handle_iter_test('aaa b ccccccccccccccccc ')
+
   @parameterized.expand([
-      ('defaults', dict()),
+      ('defaults', {}),
       ('header', dict(header=1)),
       ('multi_header', dict(header=[0, 1])),
       ('multi_header', dict(header=[0, 1, 4])),
@@ -255,7 +286,7 @@ class IOTest(unittest.TestCase):
               BytesIO(contents.encode('ascii')),
               restriction_trackers.OffsetRestrictionTracker(
                   restriction_trackers.OffsetRange(start, stop)),
-              splitter=io._CsvSplitter((), kwargs, read_chunk_size=7)),
+              splitter=io._TextFileSplitter((), kwargs, read_chunk_size=7)),
           index_col=0,
           **kwargs)
 
@@ -342,6 +373,31 @@ X     , c1, c2
 
     # Check that we've read (and removed) every output file
     self.assertEqual(len(glob.glob(f'{output}out.csv*')), 0)
+
+  def test_double_write(self):
+    output = self.temp_dir()
+    with beam.Pipeline() as p:
+      pc1 = p | 'create pc1' >> beam.Create(
+          [SimpleRow(value=i) for i in [1, 2]])
+      pc2 = p | 'create pc2' >> beam.Create(
+          [SimpleRow(value=i) for i in [3, 4]])
+
+      deferred_df1 = convert.to_dataframe(pc1)
+      deferred_df2 = convert.to_dataframe(pc2)
+
+      deferred_df1.to_csv(
+          f'{output}out1.csv',
+          transform_label="Writing to csv PC1",
+          index=False)
+      deferred_df2.to_csv(
+          f'{output}out2.csv',
+          transform_label="Writing to csv PC2",
+          index=False)
+
+    self.assertCountEqual(['value', '1', '2'],
+                          set(self.read_all_lines(output + 'out1.csv*')))
+    self.assertCountEqual(['value', '3', '4'],
+                          set(self.read_all_lines(output + 'out2.csv*')))
 
 
 if __name__ == '__main__':

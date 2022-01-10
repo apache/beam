@@ -60,8 +60,8 @@ def generate_urn_files(log, out_dir):
   This is executed at build time rather than dynamically on import to ensure
   that it is compatible with static type checkers like mypy.
   """
-  import google.protobuf.message as message
   import google.protobuf.pyext._message as pyext_message
+  from google.protobuf import message
 
   class Context(object):
     INDENT = '  '
@@ -307,6 +307,7 @@ def generate_proto_files(force=False, log=None):
       p.join()
       if p.exitcode:
         raise ValueError("Proto generation failed (see log for details).")
+
     else:
       log.info('Regenerating Python proto definitions (%s).' % regenerate)
       builtin_protos = pkg_resources.resource_filename('grpc_tools', '_proto')
@@ -335,11 +336,19 @@ def generate_proto_files(force=False, log=None):
       for path in MODEL_RESOURCES:
         shutil.copy2(os.path.join(py_sdk_root, path), out_dir)
 
-      ret_code = subprocess.call(
-          ["futurize", "--both-stages", "--write", "--no-diff", out_dir])
-      if ret_code:
-        raise RuntimeError(
-            'Error applying futurize to generated protobuf python files.')
+      # see: https://github.com/protocolbuffers/protobuf/issues/1491
+      # force relative import paths for proto files
+      for filename in os.listdir(out_dir):
+        if filename.endswith(('_pb2.py', '_pb2_grpc.py', '_pb2.pyi')):
+          filename = os.path.join(out_dir, filename)
+          lines = []
+          with open(filename) as f:
+            for line in f:
+              lines.append(
+                re.sub('^(import [a-zA-Z_]+_pb2)', r'from . \1', line),
+              )
+          with open(filename, 'w') as f:
+            f.writelines(lines)
 
       generate_urn_files(log, out_dir)
 

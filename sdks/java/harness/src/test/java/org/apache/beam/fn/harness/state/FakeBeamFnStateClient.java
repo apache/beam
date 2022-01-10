@@ -20,8 +20,10 @@ package org.apache.beam.fn.harness.state;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -34,30 +36,70 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey.TypeCase;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest.RequestCase;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
 /** A fake implementation of a {@link BeamFnStateClient} to aid with testing. */
 public class FakeBeamFnStateClient implements BeamFnStateClient {
+  private static final int DEFAULT_CHUNK_SIZE = 6;
   private final Map<StateKey, List<ByteString>> data;
   private int currentId;
 
-  public FakeBeamFnStateClient(Map<StateKey, ByteString> initialData) {
-    this(initialData, 6);
+  public <V> FakeBeamFnStateClient(Coder<V> valueCoder, Map<StateKey, List<V>> initialData) {
+    this(valueCoder, initialData, DEFAULT_CHUNK_SIZE);
   }
 
-  public FakeBeamFnStateClient(Map<StateKey, ByteString> initialData, int chunkSize) {
-    this.data =
-        new ConcurrentHashMap<>(
+  public <V> FakeBeamFnStateClient(
+      Coder<V> valueCoder, Map<StateKey, List<V>> initialData, int chunkSize) {
+    this(Maps.transformValues(initialData, (value) -> KV.of(valueCoder, value)), chunkSize);
+  }
+
+  public FakeBeamFnStateClient(Map<StateKey, KV<Coder<?>, List<?>>> initialData) {
+    this(initialData, DEFAULT_CHUNK_SIZE);
+  }
+
+  public FakeBeamFnStateClient(Map<StateKey, KV<Coder<?>, List<?>>> initialData, int chunkSize) {
+    Map<StateKey, List<ByteString>> encodedData =
+        new HashMap<>(
             Maps.transformValues(
                 initialData,
-                (ByteString all) -> {
+                (KV<Coder<?>, List<?>> coderAndValues) -> {
                   List<ByteString> chunks = new ArrayList<>();
-                  for (int i = 0; i < Math.max(1, all.size()); i += chunkSize) {
-                    chunks.add(all.substring(i, Math.min(all.size(), i + chunkSize)));
+                  ByteString.Output output = ByteString.newOutput();
+                  for (Object value : coderAndValues.getValue()) {
+                    try {
+                      ((Coder<Object>) coderAndValues.getKey()).encode(value, output);
+                    } catch (IOException e) {
+                      throw new RuntimeException(e);
+                    }
+                    if (output.size() >= chunkSize) {
+                      ByteString chunk = output.toByteString();
+                      int i = 0;
+                      for (; i + chunkSize <= chunk.size(); i += chunkSize) {
+                        // We specifically use a copy of the bytes instead of a proper substring
+                        // so that debugging is easier since we don't have to worry about the
+                        // substring being a view over the original string.
+                        chunks.add(
+                            ByteString.copyFrom(chunk.substring(i, i + chunkSize).toByteArray()));
+                      }
+                      if (i < chunk.size()) {
+                        chunks.add(
+                            ByteString.copyFrom(chunk.substring(i, chunk.size()).toByteArray()));
+                      }
+                      output.reset();
+                    }
+                  }
+                  // Add the last chunk
+                  if (output.size() > 0) {
+                    chunks.add(output.toByteString());
                   }
                   return chunks;
                 }));
+    this.data =
+        new ConcurrentHashMap<>(
+            Maps.filterValues(encodedData, byteStrings -> !byteStrings.isEmpty()));
   }
 
   public Map<StateKey, ByteString> getData() {
@@ -73,8 +115,7 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
   }
 
   @Override
-  public void handle(
-      StateRequest.Builder requestBuilder, CompletableFuture<StateResponse> responseFuture) {
+  public CompletableFuture<StateResponse> handle(StateRequest.Builder requestBuilder) {
     // The id should never be filled out
     assertEquals("", requestBuilder.getId());
     requestBuilder.setId(generateId());
@@ -92,7 +133,6 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
 
     switch (request.getRequestCase()) {
       case GET:
-        // Chunk gets into 6 byte return blocks
         List<ByteString> byteStrings =
             data.getOrDefault(request.getStateKey(), Collections.singletonList(ByteString.EMPTY));
         int block = 0;
@@ -119,17 +159,8 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
 
       case APPEND:
         List<ByteString> previousValue =
-            data.getOrDefault(request.getStateKey(), Collections.singletonList(ByteString.EMPTY));
-        List<ByteString> newValue = new ArrayList<>();
-        newValue.addAll(previousValue);
-        ByteString newData = request.getAppend().getData();
-        if (newData.size() % 2 == 0) {
-          newValue.remove(newValue.size() - 1);
-          newValue.add(previousValue.get(previousValue.size() - 1).concat(newData));
-        } else {
-          newValue.add(newData);
-        }
-        data.put(request.getStateKey(), newValue);
+            data.computeIfAbsent(request.getStateKey(), (unused) -> new ArrayList<>());
+        previousValue.add(request.getAppend().getData());
         response = StateResponse.newBuilder().setAppend(StateAppendResponse.getDefaultInstance());
         break;
 
@@ -138,7 +169,7 @@ public class FakeBeamFnStateClient implements BeamFnStateClient {
             String.format("Unknown request type %s", request.getRequestCase()));
     }
 
-    responseFuture.complete(response.setId(requestBuilder.getId()).build());
+    return CompletableFuture.completedFuture(response.setId(requestBuilder.getId()).build());
   }
 
   private String generateId() {

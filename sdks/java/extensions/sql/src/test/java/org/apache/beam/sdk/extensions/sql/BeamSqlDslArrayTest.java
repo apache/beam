@@ -296,7 +296,7 @@ public class BeamSqlDslArrayTest {
     Schema elementSchema =
         Schema.builder().addStringField("f_rowString").addInt32Field("f_rowInt").build();
 
-    Schema resultSchema = elementSchema;
+    Schema resultSchema = Schema.builder().addRowField("row", elementSchema).build();
 
     Schema inputType =
         Schema.builder()
@@ -330,8 +330,12 @@ public class BeamSqlDslArrayTest {
 
     PAssert.that(result)
         .containsInAnyOrder(
-            Row.withSchema(elementSchema).addValues("BB", 22).build(),
-            Row.withSchema(elementSchema).addValues("DD", 44).build());
+            Row.withSchema(resultSchema)
+                .addValues(Row.withSchema(elementSchema).addValues("BB", 22).build())
+                .build(),
+            Row.withSchema(resultSchema)
+                .addValues(Row.withSchema(elementSchema).addValues("DD", 44).build())
+                .build());
 
     pipeline.run();
   }
