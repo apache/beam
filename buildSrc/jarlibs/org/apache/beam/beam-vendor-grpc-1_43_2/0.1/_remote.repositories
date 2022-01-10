@@ -1,0 +1,4 @@
+#NOTE: This is a Maven Resolver internal implementation file, its format can be changed without prior notice.
+#Fri Jan 07 16:21:11 PST 2022
+beam-vendor-grpc-1_43_2-0.1.pom>=
+beam-vendor-grpc-1_43_2-0.1.jar>=
