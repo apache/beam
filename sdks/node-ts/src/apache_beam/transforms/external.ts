@@ -15,7 +15,7 @@ import { RowCoder } from '../coders/row_coder'
 
 //import { BytesCoder, KVCoder } from "../coders/standard_coders";
 
-class RawExternalTransform<InputT extends base.PValue<any>, OutputT extends base.PValue<any>> extends base.AsyncPTransform<InputT, OutputT> {
+export class RawExternalTransform<InputT extends base.PValue<any>, OutputT extends base.PValue<any>> extends base.AsyncPTransform<InputT, OutputT> {
     static namespaceCounter = 0;
     static freshNamespace() {
         return 'namespace_' + (RawExternalTransform.namespaceCounter++) + '_';
@@ -181,54 +181,54 @@ import { NodeRunner } from '../runners/node_runner/runner'
 import { RemoteJobServiceClient } from "../runners/node_runner/client";
 
 
-async function main() {
-//     const kvCoder = new coders.KVCoder(new coders.VarIntCoder(), new coders.VarIntCoder());
-//     const root = new base.Root(new base.Pipeline());
-//     const input = root.apply(new core.Create([{ key: 1, value: 3 }])).apply(new base.WithCoderInternal(kvCoder));
-//     //     const input2 = root.apply(new core.Create([{key: 1, value: 4}])).apply(new base.WithCoderInternal(kvCoder));
-//     // await input.asyncApply(new RawExternalTransform<base.PValue<any>, base.PValue<any>>(base.GroupByKey.urn, undefined!, 'localhost:4444'));
-//     await input.asyncApply(new RawExternalTransform<base.PValue<any>, base.PValue<any>>(
-//         'beam:transforms:python:fully_qualified_named',
-//         {
-//             constructor: 'apache_beam.transforms.GroupByKey',
-//         },
-//         'localhost:4444'));
-//     console.log('-------------------------------------------');
-//     console.dir(input.pipeline.getProto(), { depth: null });
+// async function main() {
+// //     const kvCoder = new coders.KVCoder(new coders.VarIntCoder(), new coders.VarIntCoder());
+// //     const root = new base.Root(new base.Pipeline());
+// //     const input = root.apply(new core.Create([{ key: 1, value: 3 }])).apply(new base.WithCoderInternal(kvCoder));
+// //     //     const input2 = root.apply(new core.Create([{key: 1, value: 4}])).apply(new base.WithCoderInternal(kvCoder));
+// //     // await input.asyncApply(new RawExternalTransform<base.PValue<any>, base.PValue<any>>(base.GroupByKey.urn, undefined!, 'localhost:4444'));
+// //     await input.asyncApply(new RawExternalTransform<base.PValue<any>, base.PValue<any>>(
+// //         'beam:transforms:python:fully_qualified_named',
+// //         {
+// //             constructor: 'apache_beam.transforms.GroupByKey',
+// //         },
+// //         'localhost:4444'));
+// //     console.log('-------------------------------------------');
+// //     console.dir(input.pipeline.getProto(), { depth: null });
+// //
 //
-
-    const kvCoder = new coders.KVCoder(new coders.StrUtf8Coder(), new coders.StrUtf8Coder());
-    await new NodeRunner(new RemoteJobServiceClient('localhost:3333')).run(
-//         await new DirectRunner().run(
-            async (root) => {
-//                 const lines = root.apply(new beam.Create([
-//                     "In the beginning God created the heaven and the earth.",
-//                     "And the earth was without form, and void; and darkness was upon the face of the deep.",
-//                     "And the Spirit of God moved upon the face of the waters.",
-//                     "And God said, Let there be light: and there was light.",
-//                 ]));
-
-//                     const result = root.apply(new beam.Create([1, 2, 3]))
-
-                 const result = await root.asyncApply(new RawExternalTransform<base.PValue<any>, base.PCollection<any>>(
-                    'beam:transforms:python:fully_qualified_named',
-                    {
-                        constructor: 'apache_beam.MyTest',
-//                         args: {'a0': [1, 2, 3]}
-//                         constructor: 'apache_beam.io.ReadFromText',
-//                         args: {'a0': '/Users/robertwb/Work/beam/incubator-beam/sdks/node-ts/tsconfig.json'}
-                    },
-                    'localhost:4444'));
-
-
-                //lines.apply(wordCount)
-                result.map(console.log)
-
-                console.dir(root.pipeline.getProto(), { depth: null });
-                runnerApi.Pipeline.toBinary(root.pipeline.getProto());
-
-            })
-
-}
-
-main().catch(e => console.error(e)).finally(() => process.exit());
+//     const kvCoder = new coders.KVCoder(new coders.StrUtf8Coder(), new coders.StrUtf8Coder());
+//     await new NodeRunner(new RemoteJobServiceClient('localhost:3333')).run(
+// //         await new DirectRunner().run(
+//             async (root) => {
+// //                 const lines = root.apply(new beam.Create([
+// //                     "In the beginning God created the heaven and the earth.",
+// //                     "And the earth was without form, and void; and darkness was upon the face of the deep.",
+// //                     "And the Spirit of God moved upon the face of the waters.",
+// //                     "And God said, Let there be light: and there was light.",
+// //                 ]));
+//
+// //                     const result = root.apply(new beam.Create([1, 2, 3]))
+//
+//                  const result = await root.asyncApply(new RawExternalTransform<base.PValue<any>, base.PCollection<any>>(
+//                     'beam:transforms:python:fully_qualified_named',
+//                     {
+//                         constructor: 'apache_beam.MyTest',
+// //                         args: {'a0': [1, 2, 3]}
+// //                         constructor: 'apache_beam.io.ReadFromText',
+// //                         args: {'a0': '/Users/robertwb/Work/beam/incubator-beam/sdks/node-ts/tsconfig.json'}
+//                     },
+//                     'localhost:4444'));
+//
+//
+//                 //lines.apply(wordCount)
+//                 result.map(console.log)
+//
+//                 console.dir(root.pipeline.getProto(), { depth: null });
+//                 runnerApi.Pipeline.toBinary(root.pipeline.getProto());
+//
+//             })
+//
+// }
+//
+// main().catch(e => console.error(e)).finally(() => process.exit());
