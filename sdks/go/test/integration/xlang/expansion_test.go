@@ -27,11 +27,10 @@ import (
 )
 
 const (
-	// TODO(BEAN-13505): Select the most recent Beam release instead of a hard-coded
+	// TODO(BEAM-13505): Select the most recent Beam release instead of a hard-coded
 	// string.
-	beamVersion   = "2.34.0"
-	gradleTarget  = ":sdks:java:io:expansion-service:runExpansionService"
-	expansionPort = "8097"
+	beamVersion  = "2.34.0"
+	gradleTarget = ":sdks:java:io:expansion-service:runExpansionService"
 )
 
 func TestAutomatedExpansionService(t *testing.T) {
@@ -42,7 +41,10 @@ func TestAutomatedExpansionService(t *testing.T) {
 	}
 	t.Cleanup(func() { os.Remove(jarPath) })
 
-	serviceRunner := expansionx.NewExpansionServiceRunner(jarPath, expansionPort)
+	serviceRunner, err := expansionx.NewExpansionServiceRunner(jarPath, "")
+	if err != nil {
+		t.Fatalf("failed to make new expansion service runner, got %v", err)
+	}
 	err = serviceRunner.StartService()
 	if err != nil {
 		t.Errorf("failed to start expansion service JAR, got %v", err)
@@ -50,9 +52,9 @@ func TestAutomatedExpansionService(t *testing.T) {
 
 	ctx, canFunc := context.WithTimeout(context.Background(), 15*time.Second)
 	t.Cleanup(func() { canFunc() })
-	conn, err := grpc.DialContext(ctx, "localhost:"+expansionPort, grpc.WithInsecure(), grpc.WithBlock())
+	conn, err := grpc.DialContext(ctx, serviceRunner.Endpoint(), grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
-		t.Fatalf("could not connect to port %v, got %v", expansionPort, err)
+		t.Fatalf("could not connect to endpoint %v, got %v", serviceRunner.Endpoint(), err)
 	}
 	conn.Close()
 
