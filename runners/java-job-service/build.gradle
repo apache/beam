@@ -40,6 +40,7 @@ dependencies {
   implementation library.java.slf4j_api
   implementation library.java.args4j
   testImplementation library.java.junit
+  testImplementation library.java.hamcrest
   testImplementation library.java.mockito_core
   testRuntimeOnly library.java.slf4j_simple
 }

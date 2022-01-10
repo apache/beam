@@ -46,3 +46,15 @@ variable "volume_size" {
   type = number
   default = 1
 }
+
+variable "service_name" {
+  default = "backend"
+}
+
+variable "cache_type" {
+  default = "remote"
+}
+
+variable "cache_address" {
+  default = ""
+}

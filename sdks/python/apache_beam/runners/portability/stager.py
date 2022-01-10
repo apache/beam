@@ -100,8 +100,8 @@ class Stager(object):
   """
   _DEFAULT_CHUNK_SIZE = 2 << 20
 
-  def stage_artifact(self, local_path_to_artifact, artifact_name):
-    # type: (str, str) -> None
+  def stage_artifact(self, local_path_to_artifact, artifact_name, sha256):
+    # type: (str, str, str) -> None
 
     """ Stages the artifact to Stager._staging_location and adds artifact_name
         to the manifest of artifacts that have been staged."""
@@ -143,6 +143,7 @@ class Stager(object):
         file_payload = beam_runner_api_pb2.ArtifactFilePayload()
         file_payload.ParseFromString(artifact.type_payload)
         src = file_payload.path
+        sha256 = file_payload.sha256
         if artifact.role_urn == common_urns.artifact_roles.STAGING_TO.urn:
           role_payload = beam_runner_api_pb2.ArtifactStagingToRolePayload()
           role_payload.ParseFromString(artifact.role_payload)
@@ -152,7 +153,7 @@ class Stager(object):
           dst = hashlib.sha256(artifact.SerializeToString()).hexdigest()
         else:
           raise RuntimeError("unknown role type: %s" % artifact.role_urn)
-        yield (src, dst)
+        yield (src, dst, sha256)
       else:
         raise RuntimeError("unknown artifact type: %s" % artifact.type_urn)
 
@@ -355,7 +356,7 @@ class Stager(object):
     return resources
 
   def stage_job_resources(self,
-                          resources,  # type: List[Tuple[str, str]]
+                          resources,  # type: List[Tuple[str, str, str]]
                           staging_location=None  # type: Optional[str]
                          ):
     """For internal use only; no backwards-compatibility guarantees.
@@ -380,9 +381,9 @@ class Stager(object):
       raise RuntimeError('The staging_location must be specified.')
 
     staged_resources = []
-    for file_path, staged_path in resources:
+    for file_path, staged_path, sha256 in resources:
       self.stage_artifact(
-          file_path, FileSystems.join(staging_location, staged_path))
+          file_path, FileSystems.join(staging_location, staged_path), sha256)
       staged_resources.append(staged_path)
 
     return staged_resources

@@ -57,9 +57,7 @@ import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -74,7 +72,6 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.junit.Rule;
@@ -597,23 +594,5 @@ public class PTransformMatchersTest implements Serializable {
         write,
         ResourceHints.create(),
         p);
-  }
-
-  private static class FakeFilenamePolicy extends FilenamePolicy {
-    @Override
-    public ResourceId windowedFilename(
-        int shardNumber,
-        int numShards,
-        BoundedWindow window,
-        PaneInfo paneInfo,
-        FileBasedSink.OutputFileHints outputFileHints) {
-      throw new UnsupportedOperationException("should not be called");
-    }
-
-    @Override
-    public @Nullable ResourceId unwindowedFilename(
-        int shardNumber, int numShards, FileBasedSink.OutputFileHints outputFileHints) {
-      throw new UnsupportedOperationException("should not be called");
-    }
   }
 }

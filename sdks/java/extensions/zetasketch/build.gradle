@@ -37,6 +37,7 @@ dependencies {
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation "com.google.zetasketch:zetasketch:$zetasketch_version"
     testImplementation library.java.junit
+    testImplementation library.java.hamcrest
     testImplementation project(":sdks:java:io:google-cloud-platform")
     testImplementation project(":sdks:java:extensions:google-cloud-platform-core")
     testImplementation library.java.google_api_services_bigquery

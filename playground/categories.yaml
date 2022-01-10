@@ -30,3 +30,9 @@ categories:
   - Options
   - Coders
   - Stateful Processing
+  - Beam SQL
+  - Filtering
+  - Branching
+  - Flatten
+  - Core Transforms
+  - Windowing

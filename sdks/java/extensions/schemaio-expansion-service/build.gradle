@@ -45,7 +45,7 @@ dependencies {
 }
 
 task runExpansionService (type: JavaExec) {
-    main = "org.apache.beam.sdk.expansion.service.ExpansionService"
+    mainClass = "org.apache.beam.sdk.expansion.service.ExpansionService"
     classpath = sourceSets.test.runtimeClasspath
     args = [project.findProperty("constructionService.port") ?: "8097"]
 }
