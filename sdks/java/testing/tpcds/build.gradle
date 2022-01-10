@@ -58,6 +58,7 @@ dependencies {
 
     // TODO(BEAM-13179): Determine how to build without this dependency
     compileOnly "org.immutables:value:2.8.8"
+    permitUnusedDeclared "org.immutables:value:2.8.8"
     implementation library.java.avro
     implementation library.java.vendored_guava_26_0_jre
     implementation library.java.vendored_calcite_1_28_0
@@ -69,7 +70,9 @@ dependencies {
     implementation project(":sdks:java:extensions:sql:zetasql")
     implementation project(":sdks:java:io:parquet")
     implementation project(":sdks:java:extensions:google-cloud-platform-core")
+    permitUnusedDeclared project(":sdks:java:extensions:google-cloud-platform-core")
     implementation project(":sdks:java:io:google-cloud-platform")
+    permitUnusedDeclared project(":sdks:java:io:google-cloud-platform")
     implementation project(":runners:google-cloud-dataflow-java")
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     testRuntimeOnly library.java.slf4j_jdk14
@@ -123,7 +126,7 @@ task run(type: JavaExec) {
         tpcdsArgsList.add('--workerHarnessContainerImage=')
     }
 
-    main = "org.apache.beam.sdk.tpcds.BeamTpcds"
+    mainClass = "org.apache.beam.sdk.tpcds.BeamTpcds"
     classpath = configurations.gradleRun
     args tpcdsArgsList.toArray()
 }

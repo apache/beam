@@ -28,6 +28,17 @@ applyJavaNature(
     /^org\.apache\.beam\.sdk\.extensions\.sql\.impl\.parser\.impl.*/,
   ],
   automaticModuleName: 'org.apache.beam.sdk.extensions.sql',
+  classesTriggerCheckerBugs: [
+    // TODO(BEAM-12687): This currently crashes with checkerframework 3.10.0
+    // when compiling :sdks:java:extensions:sql:compileJava with:
+    // message: class file for com.google.datastore.v1.Entity not found
+    // ; The Checker Framework crashed.  Please report the crash.
+    // Compilation unit: /usr/local/google/home/lcwik/git/beam/sdks/java/extensions/sql/src/main/java/org/apache/beam/sdk/extensions/sql/meta/provider/datastore/DataStoreV1TableProvider.java
+    // Last visited tree at line 49 column 1:
+    // @AutoService(TableProvider.class)
+    // Exception: com.sun.tools.javac.code.Symbol$CompletionFailure: class file for com.google.datastore.v1.Entity not found; com.sun.tools.javac.code.Symbol$CompletionFailure: class file for com.google.datastore.v1.Entity not found
+    'DataStoreV1TableProvider': 'TODO(BEAM-12687): Report the crash if still occurring on newest version',
+  ],
   // javacc generated code produces lint warnings
   disableLintWarnings: ['dep-ann', 'rawtypes'],
 )
@@ -57,6 +68,7 @@ dependencies {
 
   // TODO(BEAM-13179): Determine how to build without this dependency
   compileOnly "org.immutables:value:2.8.8"
+  permitUnusedDeclared "org.immutables:value:2.8.8"
   javacc "net.java.dev.javacc:javacc:4.0"
   fmppTask "com.googlecode.fmpp-maven-plugin:fmpp-maven-plugin:1.0"
   fmppTask "org.freemarker:freemarker:2.3.31"
@@ -81,16 +93,22 @@ dependencies {
   implementation library.java.vendored_guava_26_0_jre
   compileOnly project(":sdks:java:io:kafka")
   implementation project(":sdks:java:extensions:google-cloud-platform-core")
+  permitUnusedDeclared project(":sdks:java:extensions:google-cloud-platform-core")
   implementation project(":sdks:java:io:google-cloud-platform")
   implementation library.java.proto_google_cloud_bigtable_v2
   implementation library.java.google_api_services_bigquery
+  permitUnusedDeclared library.java.google_api_services_bigquery
   implementation library.java.proto_google_cloud_pubsublite_v1
   implementation library.java.google_cloud_pubsublite
   implementation project(":sdks:java:io:mongodb")
   implementation library.java.avro
+  implementation library.java.protobuf_java
+  implementation library.java.protobuf_java_util
   compileOnly project(":sdks:java:io:parquet")
   compileOnly library.java.jackson_dataformat_xml
+  permitUnusedDeclared library.java.jackson_dataformat_xml
   compileOnly library.java.hadoop_client
+  permitUnusedDeclared library.java.hadoop_client
   compileOnly library.java.kafka_clients
   testImplementation library.java.vendored_calcite_1_28_0
   testImplementation library.java.vendored_guava_26_0_jre
@@ -107,9 +125,7 @@ dependencies {
   testImplementation project(":sdks:java:io:kafka")
   testImplementation project(":sdks:java:io:parquet")
   testImplementation project(path: ":sdks:java:io:mongodb", configuration: "testRuntimeMigration")
-  testImplementation project(path: ":sdks:java:io:thrift")
   testImplementation project(path: ":sdks:java:io:thrift", configuration: "testRuntimeMigration")
-  testImplementation project(":sdks:java:extensions:protobuf")
   testImplementation project(path: ":sdks:java:extensions:protobuf", configuration: "testRuntimeMigration")
   testCompileOnly project(":sdks:java:extensions:sql:udf-test-provider")
   testRuntimeOnly library.java.slf4j_jdk14
@@ -187,7 +203,7 @@ idea {
 // Run basic SQL example
 task runBasicExample(type: JavaExec) {
   description = "Run basic SQL example"
-  main = "org.apache.beam.sdk.extensions.sql.example.BeamSqlExample"
+  mainClass = "org.apache.beam.sdk.extensions.sql.example.BeamSqlExample"
   classpath = sourceSets.main.runtimeClasspath
   args = ["--runner=DirectRunner"]
 }
@@ -195,7 +211,7 @@ task runBasicExample(type: JavaExec) {
 // Run SQL example on POJO inputs
 task runPojoExample(type: JavaExec) {
   description = "Run SQL example for PCollections of POJOs"
-  main = "org.apache.beam.sdk.extensions.sql.example.BeamSqlPojoExample"
+  mainClass = "org.apache.beam.sdk.extensions.sql.example.BeamSqlPojoExample"
   classpath = sourceSets.main.runtimeClasspath
   args = ["--runner=DirectRunner"]
 }

@@ -62,8 +62,7 @@ subprojects {
     implementation "com.google.guava:guava:$guavaVersion"
 
     testImplementation "junit:junit:$junitVersion"
-    testImplementation "org.hamcrest:hamcrest-core:$hamcrestVersion"
-    testImplementation "org.hamcrest:hamcrest-library:$hamcrestVersion"
+    testImplementation "org.hamcrest:hamcrest:$hamcrestVersion"
     testImplementation "org.assertj:assertj-core:$assertjVersion"
   }
 
