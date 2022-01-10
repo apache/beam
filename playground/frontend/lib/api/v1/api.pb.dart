@@ -233,7 +233,6 @@ class CheckStatusResponse extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(1)
   Status get status => $_getN(0);
-
   @$pb.TagNumber(1)
   set status(Status v) {
     setField(1, v);
@@ -241,7 +240,6 @@ class CheckStatusResponse extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(1)
   $core.bool hasStatus() => $_has(0);
-
   @$pb.TagNumber(1)
   void clearStatus() => clearField(1);
 }
@@ -322,7 +320,6 @@ class GetValidationOutputRequest extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(1)
   $core.bool hasPipelineUuid() => $_has(0);
-
   @$pb.TagNumber(1)
   void clearPipelineUuid() => clearField(1);
 }
@@ -404,7 +401,168 @@ class GetValidationOutputResponse extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(1)
   $core.bool hasOutput() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearOutput() => clearField(1);
+}
 
+class GetPreparationOutputRequest extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      const $core.bool.fromEnvironment('protobuf.omit_message_names')
+          ? ''
+          : 'GetPreparationOutputRequest',
+      package: const $pb.PackageName(
+          const $core.bool.fromEnvironment('protobuf.omit_message_names')
+              ? ''
+              : 'api.v1'),
+      createEmptyInstance: create)
+    ..aOS(
+        1,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'pipelineUuid')
+    ..hasRequiredFields = false;
+
+  GetPreparationOutputRequest._() : super();
+
+  factory GetPreparationOutputRequest({
+    $core.String? pipelineUuid,
+  }) {
+    final _result = create();
+    if (pipelineUuid != null) {
+      _result.pipelineUuid = pipelineUuid;
+    }
+    return _result;
+  }
+
+  factory GetPreparationOutputRequest.fromBuffer($core.List<$core.int> i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(i, r);
+
+  factory GetPreparationOutputRequest.fromJson($core.String i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(i, r);
+
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+      'Will be removed in next major version')
+  GetPreparationOutputRequest clone() =>
+      GetPreparationOutputRequest()..mergeFromMessage(this);
+
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+      'Will be removed in next major version')
+  GetPreparationOutputRequest copyWith(
+          void Function(GetPreparationOutputRequest) updates) =>
+      super.copyWith(
+              (message) => updates(message as GetPreparationOutputRequest))
+          as GetPreparationOutputRequest; // ignore: deprecated_member_use
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static GetPreparationOutputRequest create() =>
+      GetPreparationOutputRequest._();
+
+  GetPreparationOutputRequest createEmptyInstance() => create();
+
+  static $pb.PbList<GetPreparationOutputRequest> createRepeated() =>
+      $pb.PbList<GetPreparationOutputRequest>();
+
+  @$core.pragma('dart2js:noInline')
+  static GetPreparationOutputRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<GetPreparationOutputRequest>(create);
+  static GetPreparationOutputRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get pipelineUuid => $_getSZ(0);
+
+  @$pb.TagNumber(1)
+  set pipelineUuid($core.String v) {
+    $_setString(0, v);
+  }
+
+  @$pb.TagNumber(1)
+  $core.bool hasPipelineUuid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearPipelineUuid() => clearField(1);
+}
+
+class GetPreparationOutputResponse extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      const $core.bool.fromEnvironment('protobuf.omit_message_names')
+          ? ''
+          : 'GetPreparationOutputResponse',
+      package: const $pb.PackageName(
+          const $core.bool.fromEnvironment('protobuf.omit_message_names')
+              ? ''
+              : 'api.v1'),
+      createEmptyInstance: create)
+    ..aOS(
+        1,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'output')
+    ..hasRequiredFields = false;
+
+  GetPreparationOutputResponse._() : super();
+
+  factory GetPreparationOutputResponse({
+    $core.String? output,
+  }) {
+    final _result = create();
+    if (output != null) {
+      _result.output = output;
+    }
+    return _result;
+  }
+
+  factory GetPreparationOutputResponse.fromBuffer($core.List<$core.int> i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(i, r);
+
+  factory GetPreparationOutputResponse.fromJson($core.String i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(i, r);
+
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+      'Will be removed in next major version')
+  GetPreparationOutputResponse clone() =>
+      GetPreparationOutputResponse()..mergeFromMessage(this);
+
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+      'Will be removed in next major version')
+  GetPreparationOutputResponse copyWith(
+          void Function(GetPreparationOutputResponse) updates) =>
+      super.copyWith(
+              (message) => updates(message as GetPreparationOutputResponse))
+          as GetPreparationOutputResponse; // ignore: deprecated_member_use
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static GetPreparationOutputResponse create() =>
+      GetPreparationOutputResponse._();
+
+  GetPreparationOutputResponse createEmptyInstance() => create();
+
+  static $pb.PbList<GetPreparationOutputResponse> createRepeated() =>
+      $pb.PbList<GetPreparationOutputResponse>();
+
+  @$core.pragma('dart2js:noInline')
+  static GetPreparationOutputResponse getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<GetPreparationOutputResponse>(create);
+  static GetPreparationOutputResponse? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get output => $_getSZ(0);
+
+  @$pb.TagNumber(1)
+  set output($core.String v) {
+    $_setString(0, v);
+  }
+
+  @$pb.TagNumber(1)
+  $core.bool hasOutput() => $_has(0);
   @$pb.TagNumber(1)
   void clearOutput() => clearField(1);
 }
@@ -1067,7 +1225,6 @@ class Categories extends $pb.GeneratedMessage {
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static Categories create() => Categories._();
-
   Categories createEmptyInstance() => create();
 
   static $pb.PbList<Categories> createRepeated() => $pb.PbList<Categories>();
@@ -1087,7 +1244,6 @@ class Categories extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(1)
   $core.bool hasSdk() => $_has(0);
-
   @$pb.TagNumber(1)
   void clearSdk() => clearField(1);
 
@@ -1185,7 +1341,6 @@ class GetPrecompiledObjectsRequest extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(1)
   $core.bool hasSdk() => $_has(0);
-
   @$pb.TagNumber(1)
   void clearSdk() => clearField(1);
 
@@ -1199,7 +1354,6 @@ class GetPrecompiledObjectsRequest extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(2)
   $core.bool hasCategory() => $_has(1);
-
   @$pb.TagNumber(2)
   void clearCategory() => clearField(2);
 }
@@ -1282,7 +1436,6 @@ class GetPrecompiledObjectCodeRequest extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(1)
   $core.bool hasCloudPath() => $_has(0);
-
   @$pb.TagNumber(1)
   void clearCloudPath() => clearField(1);
 }
@@ -1365,7 +1518,6 @@ class GetPrecompiledObjectOutputRequest extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(1)
   $core.bool hasCloudPath() => $_has(0);
-
   @$pb.TagNumber(1)
   void clearCloudPath() => clearField(1);
 }
@@ -1448,7 +1600,6 @@ class GetPrecompiledObjectLogsRequest extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(1)
   $core.bool hasCloudPath() => $_has(0);
-
   @$pb.TagNumber(1)
   void clearCloudPath() => clearField(1);
 }
@@ -1564,13 +1715,14 @@ class GetPrecompiledObjectCodeResponse extends $pb.GeneratedMessage {
       create()..mergeFromJson(i, r);
 
   @$core.Deprecated('Using this can add significant overhead to your binary. '
-  'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
-  'Will be removed in next major version')
-  GetPrecompiledObjectCodeResponse clone() => GetPrecompiledObjectCodeResponse()..mergeFromMessage(this);
-  @$core.Deprecated(
-  'Using this can add significant overhead to your binary. '
-  'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
-  'Will be removed in next major version')
+      'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+      'Will be removed in next major version')
+  GetPrecompiledObjectCodeResponse clone() =>
+      GetPrecompiledObjectCodeResponse()..mergeFromMessage(this);
+
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+      'Will be removed in next major version')
   GetPrecompiledObjectCodeResponse copyWith(
           void Function(GetPrecompiledObjectCodeResponse) updates) =>
       super.copyWith(
@@ -1603,7 +1755,6 @@ class GetPrecompiledObjectCodeResponse extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(1)
   $core.bool hasCode() => $_has(0);
-
   @$pb.TagNumber(1)
   void clearCode() => clearField(1);
 }
@@ -1686,7 +1837,6 @@ class GetPrecompiledObjectOutputResponse extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(1)
   $core.bool hasOutput() => $_has(0);
-
   @$pb.TagNumber(1)
   void clearOutput() => clearField(1);
 }
@@ -1769,7 +1919,6 @@ class GetPrecompiledObjectLogsResponse extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(1)
   $core.bool hasOutput() => $_has(0);
-
   @$pb.TagNumber(1)
   void clearOutput() => clearField(1);
 }

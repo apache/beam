@@ -63,6 +63,12 @@ class PlaygroundServiceClient extends $grpc.Client {
       ($0.GetValidationOutputRequest value) => value.writeToBuffer(),
       ($core.List<$core.int> value) =>
           $0.GetValidationOutputResponse.fromBuffer(value));
+  static final _$getPreparationOutput = $grpc.ClientMethod<
+          $0.GetPreparationOutputRequest, $0.GetPreparationOutputResponse>(
+      '/api.v1.PlaygroundService/GetPreparationOutput',
+      ($0.GetPreparationOutputRequest value) => value.writeToBuffer(),
+      ($core.List<$core.int> value) =>
+          $0.GetPreparationOutputResponse.fromBuffer(value));
   static final _$getCompileOutput = $grpc.ClientMethod<
           $0.GetCompileOutputRequest, $0.GetCompileOutputResponse>(
       '/api.v1.PlaygroundService/GetCompileOutput',
@@ -139,6 +145,12 @@ class PlaygroundServiceClient extends $grpc.Client {
       $0.GetValidationOutputRequest request,
       {$grpc.CallOptions? options}) {
     return $createUnaryCall(_$getValidationOutput, request, options: options);
+  }
+
+  $grpc.ResponseFuture<$0.GetPreparationOutputResponse> getPreparationOutput(
+      $0.GetPreparationOutputRequest request,
+      {$grpc.CallOptions? options}) {
+    return $createUnaryCall(_$getPreparationOutput, request, options: options);
   }
 
   $grpc.ResponseFuture<$0.GetCompileOutputResponse> getCompileOutput(
@@ -234,6 +246,15 @@ abstract class PlaygroundServiceBase extends $grpc.Service {
         ($core.List<$core.int> value) =>
             $0.GetValidationOutputRequest.fromBuffer(value),
         ($0.GetValidationOutputResponse value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.GetPreparationOutputRequest,
+            $0.GetPreparationOutputResponse>(
+        'GetPreparationOutput',
+        getPreparationOutput_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) =>
+            $0.GetPreparationOutputRequest.fromBuffer(value),
+        ($0.GetPreparationOutputResponse value) => value.writeToBuffer()));
     $addMethod($grpc.ServiceMethod<$0.GetCompileOutputRequest,
             $0.GetCompileOutputResponse>(
         'GetCompileOutput',
@@ -321,6 +342,12 @@ abstract class PlaygroundServiceBase extends $grpc.Service {
     return getValidationOutput(call, await request);
   }
 
+  $async.Future<$0.GetPreparationOutputResponse> getPreparationOutput_Pre(
+      $grpc.ServiceCall call,
+      $async.Future<$0.GetPreparationOutputRequest> request) async {
+    return getPreparationOutput(call, await request);
+  }
+
   $async.Future<$0.GetCompileOutputResponse> getCompileOutput_Pre(
       $grpc.ServiceCall call,
       $async.Future<$0.GetCompileOutputRequest> request) async {
@@ -374,6 +401,9 @@ abstract class PlaygroundServiceBase extends $grpc.Service {
   $async.Future<$0.GetValidationOutputResponse> getValidationOutput(
       $grpc.ServiceCall call, $0.GetValidationOutputRequest request);
 
+  $async.Future<$0.GetPreparationOutputResponse> getPreparationOutput(
+      $grpc.ServiceCall call, $0.GetPreparationOutputRequest request);
+
   $async.Future<$0.GetCompileOutputResponse> getCompileOutput(
       $grpc.ServiceCall call, $0.GetCompileOutputRequest request);
 
@@ -389,7 +419,6 @@ abstract class PlaygroundServiceBase extends $grpc.Service {
   $async.Future<$0.GetPrecompiledObjectOutputResponse>
       getPrecompiledObjectOutput(
           $grpc.ServiceCall call, $0.GetPrecompiledObjectOutputRequest request);
-
   $async.Future<$0.GetPrecompiledObjectLogsResponse> getPrecompiledObjectLogs(
       $grpc.ServiceCall call, $0.GetPrecompiledObjectLogsRequest request);
 }

@@ -92,7 +92,6 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 		_ = processErrorWithSavingOutput(pipelineLifeCycleCtx, err, []byte(err.Error()), pipelineId, cache.ValidationOutput, cacheService, "Validate", pb.Status_STATUS_VALIDATION_ERROR)
 		return
 	}
-
 	// Validate step is finished and code is valid
 	if err := processSuccess(pipelineLifeCycleCtx, pipelineId, cacheService, "Validate", pb.Status_STATUS_PREPARING); err != nil {
 		return
@@ -111,7 +110,8 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 	}
 	if !ok {
 		// Prepare step is finished, but code couldn't be prepared (some error during prepare step)
-		_ = processError(pipelineLifeCycleCtx, errorChannel, pipelineId, cacheService, "Prepare", pb.Status_STATUS_PREPARATION_ERROR)
+		err := <-errorChannel
+		_ = processErrorWithSavingOutput(pipelineLifeCycleCtx, err, []byte(err.Error()), pipelineId, cache.PreparationOutput, cacheService, "Prepare", pb.Status_STATUS_PREPARATION_ERROR)
 		return
 	}
 	// Prepare step is finished and code is prepared
@@ -419,15 +419,6 @@ func finishByTimeout(ctx context.Context, pipelineId uuid.UUID, cacheService cac
 	return utils.SetToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_RUN_TIMEOUT)
 }
 
-// processError processes error received during processing validation or preparation steps.
-// This method sets corresponding status to the cache.
-func processError(ctx context.Context, errorChannel chan error, pipelineId uuid.UUID, cacheService cache.Cache, errorTitle string, newStatus pb.Status) error {
-	err := <-errorChannel
-	logger.Errorf("%s: %s(): %s\n", pipelineId, errorTitle, err.Error())
-
-	return utils.SetToCache(ctx, cacheService, pipelineId, cache.Status, newStatus)
-}
-
 // processErrorWithSavingOutput processes error with saving to cache received error output.
 func processErrorWithSavingOutput(ctx context.Context, err error, errorOutput []byte, pipelineId uuid.UUID, subKey cache.SubKey, cacheService cache.Cache, errorTitle string, newStatus pb.Status) error {
 	logger.Errorf("%s: %s(): err: %s, output: %s\n", pipelineId, errorTitle, err.Error(), errorOutput)
@@ -435,6 +426,7 @@ func processErrorWithSavingOutput(ctx context.Context, err error, errorOutput []
 	if err := utils.SetToCache(ctx, cacheService, pipelineId, subKey, fmt.Sprintf("error: %s, output: %s", err.Error(), errorOutput)); err != nil {
 		return err
 	}
+
 	return utils.SetToCache(ctx, cacheService, pipelineId, cache.Status, newStatus)
 }
 

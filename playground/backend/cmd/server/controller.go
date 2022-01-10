@@ -69,9 +69,11 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 		return nil, errors.InternalError("Error during preparing", "Error during saving status of the code processing")
 	}
 	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.RunOutputIndex, 0); err != nil {
+		code_processing.DeleteFolders(pipelineId, lc)
 		return nil, errors.InternalError("Error during preparing", "Error during saving initial run output")
 	}
 	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.LogsIndex, 0); err != nil {
+		code_processing.DeleteFolders(pipelineId, lc)
 		return nil, errors.InternalError("Error during preparing", "Error during saving value for the logs output")
 	}
 	if err = utils.SetToCache(ctx, controller.cacheService, pipelineId, cache.Canceled, false); err != nil {
@@ -192,6 +194,21 @@ func (controller *playgroundController) GetValidationOutput(ctx context.Context,
 		return nil, err
 	}
 	return &pb.GetValidationOutputResponse{Output: validationOutput}, nil
+}
+
+//GetPreparationOutput is returning output of prepare step for specific pipeline by PipelineUuid
+func (controller *playgroundController) GetPreparationOutput(ctx context.Context, info *pb.GetPreparationOutputRequest) (*pb.GetPreparationOutputResponse, error) {
+	pipelineId, err := uuid.Parse(info.PipelineUuid)
+	errorMessage := "Error during getting compilation output"
+	if err != nil {
+		logger.Errorf("%s: GetPreparationOutput(): pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid, err.Error())
+		return nil, errors.InvalidArgumentError(errorMessage, "pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid)
+	}
+	preparationOutput, err := code_processing.GetProcessingOutput(ctx, controller.cacheService, pipelineId, cache.PreparationOutput, errorMessage)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.GetPreparationOutputResponse{Output: preparationOutput}, nil
 }
 
 //GetCompileOutput is returning output of compilation for specific pipeline by PipelineUuid

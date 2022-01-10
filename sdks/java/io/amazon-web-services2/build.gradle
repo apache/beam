@@ -56,14 +56,13 @@ dependencies {
   implementation library.java.commons_codec
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
-  testImplementation project(":sdks:java:io:kinesis")
   testImplementation project(path: ":sdks:java:io:kinesis", configuration: "testRuntimeMigration")
   testImplementation "io.findify:s3mock_2.12:0.2.6"
   testImplementation library.java.mockito_core
   testImplementation library.java.guava_testlib
   testImplementation library.java.junit
   testImplementation 'org.elasticmq:elasticmq-rest-sqs_2.12:0.15.6'
-  testImplementation library.java.hamcrest_library
+  testImplementation library.java.hamcrest
   testImplementation library.java.powermock
   testImplementation library.java.powermock_mockito
   testImplementation "org.assertj:assertj-core:3.11.1"

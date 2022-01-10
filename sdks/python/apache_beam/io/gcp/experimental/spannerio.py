@@ -200,13 +200,23 @@ try:
   from google.cloud.spanner import KeySet
   from google.cloud.spanner_v1 import batch
   from google.cloud.spanner_v1.database import BatchSnapshot
-  from google.cloud.spanner_v1.proto.mutation_pb2 import Mutation
   from google.api_core.exceptions import ClientError, GoogleAPICallError
   from apitools.base.py.exceptions import HttpError
 except ImportError:
   Client = None
   KeySet = None
   BatchSnapshot = None
+
+try:
+  from google.cloud.spanner_v1 import Mutation
+except ImportError:
+  try:
+    # Remove this and the try clause when we upgrade to google-cloud-spanner
+    # 3.x.x.
+    from google.cloud.spanner_v1.proto.mutation_pb2 import Mutation
+  except ImportError:
+    # Ignoring for environments where the Spanner library is not available.
+    pass
 
 __all__ = [
     'create_transaction',
