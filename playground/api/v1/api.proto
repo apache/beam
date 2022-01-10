@@ -75,6 +75,16 @@ message CheckStatusResponse {
   Status status = 1;
 }
 
+// GetValidationOutputRequest contains information of the pipeline uuid.
+message GetValidationOutputRequest {
+  string pipeline_uuid = 1;
+}
+
+// GetValidationOutputResponse represents the result of the code validation.
+message GetValidationOutputResponse {
+  string output = 1;
+}
+
 // GetPreparationOutputRequest contains information of the pipeline uuid.
 message GetPreparationOutputRequest {
   string pipeline_uuid = 1;
@@ -210,6 +220,9 @@ service PlaygroundService {
 
   // Get the error of pipeline execution.
   rpc GetRunError(GetRunErrorRequest) returns (GetRunErrorResponse);
+
+  // Get the result of pipeline validation.
+  rpc GetValidationOutput(GetValidationOutputRequest) returns (GetValidationOutputResponse);
 
   // Get the result of pipeline preparation.
   rpc GetPreparationOutput(GetPreparationOutputRequest) returns (GetPreparationOutputResponse);
