@@ -42,9 +42,9 @@ export class Runner {
      * @param pipeline
      * @returns A PipelineResult
      */
-    async run(pipeline: ((root: Root) => PValue<any>), options?: PipelineOptions): Promise<PipelineResult> {
+    async run(pipeline: ((root: Root) => PValue<any> | Promise<PValue<any>>), options?: PipelineOptions): Promise<PipelineResult> {
         const p = new Pipeline();
-        pipeline(new Root(p));
+        await pipeline(new Root(p));
         const pipelineResult = await this.runPipeline(p, options);
         await pipelineResult.waitUntilFinish();
         return pipelineResult;
@@ -163,7 +163,7 @@ export class Pipeline {
             subtransforms: [],
             inputs: objectMap(flattenPValue(input), (pc) => pc.id),
             outputs: {},
-            environmentId: "",
+            environmentId: this.defaultEnvironment,
             displayData: [],
             annotations: {},
         }
