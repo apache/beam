@@ -65,6 +65,8 @@
 
 ## Breaking Changes
 
+* Updated the jedis from 3.x to 4.x to Java RedisIO. If you are using RedisIO and using jedis directly, please refer to [this page](https://github.com/redis/jedis/blob/v4.0.0/docs/3to4.md) to update it. ([BEAM-12092](https://issues.apache.org/jira/browse/BEAM-12092)).
+
 ## Deprecations
 
 ## Bugfixes
