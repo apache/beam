@@ -34,7 +34,6 @@ const (
 )
 
 func TestAutomatedExpansionService(t *testing.T) {
-	t.Skip("disabled in google3")
 	integration.CheckFilters(t)
 	jarPath, err := expansionx.GetBeamJar(gradleTarget, beamVersion)
 	if err != nil {
@@ -53,9 +52,9 @@ func TestAutomatedExpansionService(t *testing.T) {
 
 	ctx, canFunc := context.WithTimeout(context.Background(), 15*time.Second)
 	t.Cleanup(func() { canFunc() })
-	conn, err := grpc.DialContext(ctx, serviceRunner.GetPort(), grpc.WithInsecure(), grpc.WithBlock())
+	conn, err := grpc.DialContext(ctx, serviceRunner.Endpoint(), grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
-		t.Fatalf("could not connect to port %v, got %v", serviceRunner.GetPort(), err)
+		t.Fatalf("could not connect to endpoint %v, got %v", serviceRunner.Endpoint(), err)
 	}
 	conn.Close()
 
