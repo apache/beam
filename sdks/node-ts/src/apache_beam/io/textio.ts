@@ -14,6 +14,7 @@ export class ReadFromText extends beam.AsyncPTransform<beam.Root, beam.PCollecti
                         constructor: 'apache_beam.js_test.ReadFromText',
                         kwargs: {path: this.path},
                     },
+                    // python apache_beam/runners/portability/expansion_service_main.py --fully_qualified_name_glob='*' --port 4444 --environment_type='beam:env:embedded_python:v1'
                     'localhost:4444'));
 
   }
