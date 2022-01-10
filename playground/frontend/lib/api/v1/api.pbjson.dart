@@ -20,7 +20,6 @@
 import 'dart:convert' as $convert;
 import 'dart:core' as $core;
 import 'dart:typed_data' as $typed_data;
-
 @$core.Deprecated('Use sdkDescriptor instead')
 const Sdk$json = const {
   '1': 'Sdk',
@@ -101,7 +100,8 @@ const CheckStatusRequest$json = const {
 };
 
 /// Descriptor for `CheckStatusRequest`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List checkStatusRequestDescriptor = $convert.base64Decode('ChJDaGVja1N0YXR1c1JlcXVlc3QSIwoNcGlwZWxpbmVfdXVpZBgBIAEoCVIMcGlwZWxpbmVVdWlk');
+final $typed_data.Uint8List checkStatusRequestDescriptor = $convert.base64Decode(
+    'ChJDaGVja1N0YXR1c1JlcXVlc3QSIwoNcGlwZWxpbmVfdXVpZBgBIAEoCVIMcGlwZWxpbmVVdWlk');
 @$core.Deprecated('Use checkStatusResponseDescriptor instead')
 const CheckStatusResponse$json = const {
   '1': 'CheckStatusResponse',
@@ -144,6 +144,30 @@ const GetValidationOutputResponse$json = const {
 final $typed_data.Uint8List getValidationOutputResponseDescriptor =
     $convert.base64Decode(
         'ChtHZXRWYWxpZGF0aW9uT3V0cHV0UmVzcG9uc2USFgoGb3V0cHV0GAEgASgJUgZvdXRwdXQ=');
+@$core.Deprecated('Use getPreparationOutputRequestDescriptor instead')
+const GetPreparationOutputRequest$json = const {
+  '1': 'GetPreparationOutputRequest',
+  '2': const [
+    const {'1': 'pipeline_uuid', '3': 1, '4': 1, '5': 9, '10': 'pipelineUuid'},
+  ],
+};
+
+/// Descriptor for `GetPreparationOutputRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List getPreparationOutputRequestDescriptor =
+    $convert.base64Decode(
+        'ChtHZXRQcmVwYXJhdGlvbk91dHB1dFJlcXVlc3QSIwoNcGlwZWxpbmVfdXVpZBgBIAEoCVIMcGlwZWxpbmVVdWlk');
+@$core.Deprecated('Use getPreparationOutputResponseDescriptor instead')
+const GetPreparationOutputResponse$json = const {
+  '1': 'GetPreparationOutputResponse',
+  '2': const [
+    const {'1': 'output', '3': 1, '4': 1, '5': 9, '10': 'output'},
+  ],
+};
+
+/// Descriptor for `GetPreparationOutputResponse`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List getPreparationOutputResponseDescriptor =
+    $convert.base64Decode(
+        'ChxHZXRQcmVwYXJhdGlvbk91dHB1dFJlc3BvbnNlEhYKBm91dHB1dBgBIAEoCVIGb3V0cHV0');
 @$core.Deprecated('Use getCompileOutputRequestDescriptor instead')
 const GetCompileOutputRequest$json = const {
   '1': 'GetCompileOutputRequest',
@@ -188,7 +212,9 @@ const GetRunOutputResponse$json = const {
 };
 
 /// Descriptor for `GetRunOutputResponse`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List getRunOutputResponseDescriptor = $convert.base64Decode('ChRHZXRSdW5PdXRwdXRSZXNwb25zZRIWCgZvdXRwdXQYASABKAlSBm91dHB1dA==');
+final $typed_data.Uint8List getRunOutputResponseDescriptor =
+    $convert.base64Decode(
+        'ChRHZXRSdW5PdXRwdXRSZXNwb25zZRIWCgZvdXRwdXQYASABKAlSBm91dHB1dA==');
 @$core.Deprecated('Use getRunErrorRequestDescriptor instead')
 const GetRunErrorRequest$json = const {
   '1': 'GetRunErrorRequest',
@@ -362,7 +388,9 @@ const GetPrecompiledObjectCodeResponse$json = const {
 };
 
 /// Descriptor for `GetPrecompiledObjectCodeResponse`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List getPrecompiledObjectCodeResponseDescriptor = $convert.base64Decode('CiBHZXRQcmVjb21waWxlZE9iamVjdENvZGVSZXNwb25zZRISCgRjb2RlGAEgASgJUgRjb2Rl');
+final $typed_data.Uint8List getPrecompiledObjectCodeResponseDescriptor =
+    $convert.base64Decode(
+        'CiBHZXRQcmVjb21waWxlZE9iamVjdENvZGVSZXNwb25zZRISCgRjb2RlGAEgASgJUgRjb2Rl');
 @$core.Deprecated('Use getPrecompiledObjectOutputResponseDescriptor instead')
 const GetPrecompiledObjectOutputResponse$json = const {
   '1': 'GetPrecompiledObjectOutputResponse',
