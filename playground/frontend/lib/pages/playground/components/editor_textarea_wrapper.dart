@@ -129,5 +129,5 @@ class EditorKeyObject {
           resetKey == other.resetKey;
 
   @override
-  int get hashCode => sdk.hashCode ^ example.hashCode ^ resetKey.hashCode;
+  int get hashCode => hashValues(sdk, example, resetKey);
 }

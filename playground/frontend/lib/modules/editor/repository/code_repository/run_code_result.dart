@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+import 'package:flutter/material.dart';
+
 enum RunCodeStatus {
   unspecified,
   preparation,
@@ -68,11 +70,7 @@ class RunCodeResult {
 
   @override
   int get hashCode =>
-      pipelineUuid.hashCode ^
-      status.hashCode ^
-      output.hashCode ^
-      log.hashCode ^
-      errorMessage.hashCode;
+      hashValues(pipelineUuid, status, output, log, errorMessage);
 
   @override
   String toString() {
