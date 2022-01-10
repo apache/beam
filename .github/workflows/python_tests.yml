@@ -123,12 +123,8 @@ jobs:
       - name: Get build dependencies
         working-directory: ./sdks/python
         run: pip install -r build-requirements.txt
-      - name: Install tox (Windows)
-        if: startsWith(matrix.os, 'windows')
-        run: pip install --upgrade pip tox virtualenv
       - name: Install tox
         run: pip install tox
-        if: startsWith(matrix.os, 'self') || startsWith(matrix.os, 'macos')
       - name: Run tests basic unix
         if: startsWith(matrix.os, 'self') || startsWith(matrix.os, 'macos')
         working-directory: ./sdks/python
