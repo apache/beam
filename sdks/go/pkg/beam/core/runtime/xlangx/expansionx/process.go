@@ -59,8 +59,8 @@ func (e *ExpansionServiceRunner) String() string {
 	return fmt.Sprintf("JAR: %v, Port: %v, Process: %v", e.jarPath, e.servicePort, e.serviceCommand.Process)
 }
 
-// GetPort returns the formatted port the ExpansionServiceRunner is set to start the expansion
-// service on.
+// Endpoint returns the formatted endpoint the ExpansionServiceRunner is set to start the expansion
+// service on. 
 func (e *ExpansionServiceRunner) Endpoint() string {
 	return "localhost:" + e.servicePort
 }
