@@ -74,8 +74,10 @@ dependencies {
   shadow library.java.joda_time
   shadow library.java.slf4j_api
   shadow library.java.jackson_databind
-  compileOnly library.java.hamcrest_core
+  compileOnly library.java.hamcrest
+  permitUnusedDeclared library.java.hamcrest
   compileOnly library.java.junit
+  permitUnusedDeclared library.java.junit
   shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
   shadowTest project(path: ":runners:core-java", configuration: "testRuntimeMigration")
   shadowTest library.java.mockito_core
@@ -125,6 +127,8 @@ task needsRunnerTests(type: Test) {
   testClassesDirs += files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
   useJUnit {
     includeCategories "org.apache.beam.sdk.testing.NeedsRunner"
+    // Should be run only in a properly configured SDK harness environment
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
     excludeCategories "org.apache.beam.sdk.testing.LargeKeys\$Above100MB"
     // MetricsPusher isn't implemented in direct runner
     excludeCategories "org.apache.beam.sdk.testing.UsesMetricsPusher"
@@ -158,6 +162,8 @@ task validatesRunner(type: Test) {
   testClassesDirs += files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
   useJUnit {
     includeCategories "org.apache.beam.sdk.testing.ValidatesRunner"
+    // Should be run only in a properly configured SDK harness environment
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
     excludeCategories "org.apache.beam.sdk.testing.LargeKeys\$Above100MB"
     excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
     excludeCategories "org.apache.beam.sdk.testing.UsesCrossLanguageTransforms"

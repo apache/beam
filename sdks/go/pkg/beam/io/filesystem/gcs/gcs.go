@@ -139,3 +139,39 @@ func (f *fs) Size(ctx context.Context, filename string) (int64, error) {
 
 	return attrs.Size, nil
 }
+
+// Remove the named file from the filesystem.
+func (f *fs) Remove(ctx context.Context, filename string) error {
+	bucket, object, err := gcsx.ParseObject(filename)
+	if err != nil {
+		return err
+	}
+
+	obj := f.client.Bucket(bucket).Object(object)
+	return obj.Delete(ctx)
+}
+
+// Copy copies from srcpath to the dstpath.
+func (f *fs) Copy(ctx context.Context, srcpath, dstpath string) error {
+	bucket, src, err := gcsx.ParseObject(srcpath)
+	if err != nil {
+		return err
+	}
+	srcobj := f.client.Bucket(bucket).Object(src)
+
+	bucket, dst, err := gcsx.ParseObject(dstpath)
+	if err != nil {
+		return err
+	}
+	dstobj := f.client.Bucket(bucket).Object(dst)
+
+	cp := dstobj.CopierFrom(srcobj)
+	_, err = cp.Run(ctx)
+	return err
+}
+
+// Compile time check for interface implementations.
+var (
+	_ filesystem.Remover = ((*fs)(nil))
+	_ filesystem.Copier  = ((*fs)(nil))
+)

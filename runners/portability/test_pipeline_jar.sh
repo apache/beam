@@ -74,6 +74,7 @@ docker images --format "{{.Repository}}:{{.Tag}}" | grep $PYTHON_CONTAINER_IMAGE
 # Set up Python environment
 python$PYTHON_VERSION -m venv $ENV_DIR
 . $ENV_DIR/bin/activate
+pip install --retries 10 --upgrade pip setuptools wheel
 pip install --retries 10 -e $PYTHON_ROOT_DIR
 
 PIPELINE_PY="

@@ -44,10 +44,9 @@ REPORT_DESCRIPTION="
 # Virtualenv for the rest of the script to run setup
 $PYTHON -m venv dependency/check
 
-. dependency/check/bin/activate
-pip install --upgrade google-cloud-bigquery
-pip install --upgrade google-cloud-bigtable
-pip install --upgrade google-cloud-core
+. ./dependency/check/bin/activate
+pip install --upgrade pip setuptools wheel
+pip install --upgrade google-cloud-bigquery google-cloud-bigtable google-cloud-core
 rm -f build/dependencyUpdates/beam-dependency-check-report.txt
 
 # Insall packages and run the unit tests of the report generator and the jira manager

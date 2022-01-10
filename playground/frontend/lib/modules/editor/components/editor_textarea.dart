@@ -18,6 +18,7 @@
 
 import 'package:code_text_field/code_text_field.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:highlight/languages/go.dart';
 import 'package:highlight/languages/java.dart';
 import 'package:highlight/languages/python.dart';
@@ -30,7 +31,6 @@ import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 import 'package:provider/provider.dart';
 
-const kCodeAreaSemantics = 'Code textarea';
 const kNumberOfStringsToSkip = 16;
 const kJavaRegExp = r'import\s[A-z.0-9]*\;\n\n[(\/\*\*)|(public)|(class)]';
 const kPythonRegExp = r'[^\S\r\n](import|as)[^\S\r\n][A-z]*\n\n';
@@ -102,7 +102,7 @@ class _EditorTextAreaState extends State<EditorTextArea> {
       multiline: true,
       enabled: widget.enabled,
       readOnly: widget.enabled,
-      label: kCodeAreaSemantics,
+      label: AppLocalizations.of(context)!.codeTextArea,
       child: CodeField(
         focusNode: focusNode,
         enabled: widget.enabled,
