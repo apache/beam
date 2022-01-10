@@ -43,7 +43,7 @@ func TestNewExpansionServiceRunner(t *testing.T) {
 		t.Errorf("JAR path mismatch: wanted %v, got %v", testPath, serviceRunner.jarPath)
 	}
 	if serviceRunner.servicePort != testPort {
-		t.Errorf("service port mismatch: wanted %v, got %v", testPort, serviceRunner.servicePort)
+		t.Errorf("service port mismatch: wanted %v, got %v", testPort, testPort)
 	}
 	commandString := strings.Join(serviceRunner.serviceCommand.Args, " ")
 	if !strings.Contains(commandString, "java") {
@@ -64,8 +64,9 @@ func TestGetPort(t *testing.T) {
 		t.Fatalf("NewExpansionServiceRunner failed, got %v", err)
 	}
 	observedPort := serviceRunner.GetPort()
-	if observedPort != testPort {
-		t.Errorf("GetPort() returned mismatched value: wanted %v, got %v", observedPort, testPort)
+	expPort := "localhost:" + testPort
+	if observedPort != expPort {
+		t.Errorf("GetPort() returned mismatched value: wanted %v, got %v", observedPort, expPort)
 	}
 }
 

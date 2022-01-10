@@ -61,7 +61,7 @@ func (e *ExpansionServiceRunner) String() string {
 // GetPort returns the formatted port the ExpansionServiceRunner is set to start the expansion
 // service on.
 func (e *ExpansionServiceRunner) GetPort() string {
-	return e.servicePort
+	return "localhost:" + e.servicePort
 }
 
 // StartService starts the expansion service for a given ExpansionServiceRunner. If this is
