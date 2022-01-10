@@ -37,6 +37,13 @@ func GetFuncName(i interface{}) string {
 	return splitName[len(splitName)-1]
 }
 
+// GetLivenessFunction returns the function for the liveness check of the server.
+func GetLivenessFunction() func(writer http.ResponseWriter, request *http.Request) {
+	return func(writer http.ResponseWriter, request *http.Request) {
+		writer.WriteHeader(http.StatusOK)
+	}
+}
+
 // GetReadinessFunction returns the function that checks the readiness of the server to process a new code processing request
 func GetReadinessFunction(envs *environment.Environment) func(writer http.ResponseWriter, request *http.Request) {
 	return func(writer http.ResponseWriter, request *http.Request) {
