@@ -18,7 +18,7 @@
 apiVersion: autoscaling/v1
 kind: HorizontalPodAutoscaler
 metadata:
-  name: hpa-github-actions
+  name: hpa-github-actions-linux
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
