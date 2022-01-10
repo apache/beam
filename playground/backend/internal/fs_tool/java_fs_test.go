@@ -16,7 +16,6 @@
 package fs_tool
 
 import (
-	"fmt"
 	"github.com/google/uuid"
 	"os"
 	"path/filepath"
@@ -27,14 +26,12 @@ import (
 func Test_newJavaLifeCycle(t *testing.T) {
 	pipelineId := uuid.New()
 	workingDir := "workingDir"
-	preparedPipelinesFolder := filepath.Join(workingDir, pipelinesFolder)
-	baseFileFolder := fmt.Sprintf("%s/%s", preparedPipelinesFolder, pipelineId)
+	baseFileFolder := filepath.Join(workingDir, pipelinesFolder, pipelineId.String())
 	srcFileFolder := baseFileFolder + "/src"
 	binFileFolder := baseFileFolder + "/bin"
 
 	type args struct {
 		pipelineId      uuid.UUID
-		workingDir      string
 		pipelinesFolder string
 	}
 	tests := []struct {
@@ -48,8 +45,7 @@ func Test_newJavaLifeCycle(t *testing.T) {
 			name: "newJavaLifeCycle",
 			args: args{
 				pipelineId:      pipelineId,
-				workingDir:      workingDir,
-				pipelinesFolder: preparedPipelinesFolder,
+				pipelinesFolder: filepath.Join(workingDir, pipelinesFolder),
 			},
 			want: &LifeCycle{
 				folderGlobs: []string{baseFileFolder, srcFileFolder, binFileFolder},

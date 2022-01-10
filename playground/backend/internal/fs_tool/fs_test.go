@@ -68,11 +68,15 @@ func teardown() {
 	if err != nil {
 		logger.Fatal(err)
 	}
+	err = os.RemoveAll(pipelinesFolder)
+	if err != nil {
+		logger.Fatal(err)
+	}
 }
 
 func TestLifeCycle_CreateExecutableFile(t *testing.T) {
 	pipelineId := uuid.New()
-	baseFileFolder := fmt.Sprintf("%s_%s", pipelinesFolder, pipelineId)
+	baseFileFolder := fmt.Sprintf("%s/%s", pipelinesFolder, pipelineId)
 	srcFileFolder := baseFileFolder + "/src"
 	binFileFolder := baseFileFolder + "/bin"
 
@@ -145,7 +149,7 @@ func TestLifeCycle_CreateExecutableFile(t *testing.T) {
 
 func TestLifeCycle_CreateFolders(t *testing.T) {
 	pipelineId := uuid.New()
-	baseFileFolder := fmt.Sprintf("%s_%s", pipelinesFolder, pipelineId)
+	baseFileFolder := fmt.Sprintf("%s/%s", pipelinesFolder, pipelineId)
 
 	type fields struct {
 		folderGlobs []string
@@ -187,7 +191,7 @@ func TestLifeCycle_CreateFolders(t *testing.T) {
 
 func TestLifeCycle_DeleteFolders(t *testing.T) {
 	pipelineId := uuid.New()
-	baseFileFolder := fmt.Sprintf("%s_%s", pipelinesFolder, pipelineId)
+	baseFileFolder := fmt.Sprintf("%s/%s", pipelinesFolder, pipelineId)
 
 	type fields struct {
 		folderGlobs []string
@@ -302,7 +306,7 @@ func TestNewLifeCycle(t *testing.T) {
 
 func TestLifeCycle_GetAbsoluteExecutableFilePath(t *testing.T) {
 	pipelineId := uuid.New()
-	baseFileFolder := fmt.Sprintf("%s_%s", pipelinesFolder, pipelineId)
+	baseFileFolder := fmt.Sprintf("%s/%s", pipelinesFolder, pipelineId)
 	srcFileFolder := baseFileFolder + "/src"
 
 	filePath := filepath.Join(srcFileFolder, fmt.Sprintf("%s%s", pipelineId.String(), JavaSourceFileExtension))
@@ -350,7 +354,7 @@ func TestLifeCycle_GetAbsoluteExecutableFilePath(t *testing.T) {
 
 func TestLifeCycle_GetAbsoluteExecutableFilesFolderPath(t *testing.T) {
 	pipelineId := uuid.New()
-	baseFileFolder := fmt.Sprintf("%s_%s", pipelinesFolder, pipelineId)
+	baseFileFolder := fmt.Sprintf("%s/%s", pipelinesFolder, pipelineId)
 
 	absolutePath, _ := filepath.Abs(baseFileFolder)
 	type fields struct {
@@ -393,8 +397,7 @@ func TestLifeCycle_GetAbsoluteExecutableFilesFolderPath(t *testing.T) {
 
 func TestLifeCycle_ExecutableName(t *testing.T) {
 	pipelineId := uuid.New()
-	workingDir := "workingDir"
-	baseFileFolder := fmt.Sprintf("%s/%s/%s", workingDir, pipelinesFolder, pipelineId)
+	baseFileFolder := fmt.Sprintf("%s/%s", pipelinesFolder, pipelineId)
 	binFileFolder := baseFileFolder + "/bin"
 
 	type fields struct {
@@ -436,7 +439,7 @@ func TestLifeCycle_ExecutableName(t *testing.T) {
 				ExecutableName: tt.fields.ExecutableName,
 				pipelineId:     tt.fields.pipelineId,
 			}
-			got, err := l.ExecutableName(pipelineId, workingDir)
+			got, err := l.ExecutableName(pipelineId, pipelinesFolder)
 			if got != tt.want {
 				t.Errorf("GetExecutableName() got = %v, want %v", got, tt.want)
 			}

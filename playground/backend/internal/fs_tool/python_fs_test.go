@@ -16,7 +16,6 @@
 package fs_tool
 
 import (
-	"fmt"
 	"github.com/google/uuid"
 	"path/filepath"
 	"reflect"
@@ -26,8 +25,7 @@ import (
 func Test_newPythonLifeCycle(t *testing.T) {
 	pipelineId := uuid.New()
 	workingDir := "workingDir"
-	preparedPipelinesFolder := filepath.Join(workingDir, pipelinesFolder)
-	baseFileFolder := fmt.Sprintf("%s/%s", preparedPipelinesFolder, pipelineId)
+	baseFileFolder := filepath.Join(workingDir, pipelinesFolder, pipelineId.String())
 
 	type args struct {
 		pipelineId      uuid.UUID
@@ -44,7 +42,7 @@ func Test_newPythonLifeCycle(t *testing.T) {
 			name: "newPythonLifeCycle",
 			args: args{
 				pipelineId:      pipelineId,
-				pipelinesFolder: preparedPipelinesFolder,
+				pipelinesFolder: filepath.Join(workingDir, pipelinesFolder),
 			},
 			want: &LifeCycle{
 				folderGlobs: []string{baseFileFolder},
