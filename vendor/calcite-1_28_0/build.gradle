@@ -21,16 +21,20 @@ plugins { id 'org.apache.beam.vendor-java' }
 description = "Apache Beam :: Vendored Dependencies :: Calcite 1.28.0"
 
 group = "org.apache.beam"
-version = "0.1"
+version = "0.2"
 
 def calcite_version = "1.28.0"
 def avatica_version = "1.19.0"
+
+// TODO(BEAM-13616): Calcite does not automatically use an up-to-date protobuf dependency.
+def protobuf_version = "3.19.2"
 def prefix = "org.apache.beam.vendor.calcite.v1_28_0"
 
 List<String> packagesToRelocate = [
         "com.esri",
         "com.fasterxml",
         "com.google.common",
+        "com.google.gson",
         "com.google.protobuf",
         "com.google.thirdparty",
         "com.google.uzaygezen",
@@ -52,6 +56,8 @@ vendorJava(
                 "org.apache.calcite:calcite-core:$calcite_version",
                 "org.apache.calcite:calcite-linq4j:$calcite_version",
                 "org.apache.calcite.avatica:avatica-core:$avatica_version",
+                "com.google.protobuf:protobuf-java:$protobuf_version",
+                "com.google.protobuf:protobuf-java-util:$protobuf_version",
         ],
         runtimeDependencies: [
                 library.java.slf4j_api,
