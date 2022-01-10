@@ -21,6 +21,7 @@ import 'package:playground/config/theme.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/shortcuts/components/shortcut_tooltip.dart';
 import 'package:playground/modules/shortcuts/constants/global_shortcuts.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 const kRunText = 'Run';
 const kCancelText = 'Cancel';

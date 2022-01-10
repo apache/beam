@@ -47,6 +47,8 @@ kafkaVersions.each{k,v -> configurations.create("kafkaVersion$k")}
 
 dependencies {
   implementation library.java.vendored_guava_26_0_jre
+  compileOnly library.java.jackson_dataformat_csv
+  permitUnusedDeclared library.java.jackson_dataformat_csv
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(":runners:core-construction-java")
   implementation project(":sdks:java:expansion-service")
@@ -74,11 +76,9 @@ dependencies {
     // "kafka-clients" has to be compileOnly since user can use its own version.
     exclude group: "org.apache.kafka", module: "kafka-clients"
   }
-  compileOnly library.java.jackson_dataformat_csv
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation project(":sdks:java:io:synthetic")
   testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
-  testImplementation project(":sdks:java:testing:test-utils")
   testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
   // For testing Cross-language transforms
   testImplementation project(":runners:core-construction-java")

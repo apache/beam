@@ -129,7 +129,7 @@ echo "================Download python artifacts======================"
 PYTHON_ARTIFACTS_DIR="${LOCAL_CLONE_DIR_ROOT}/python"
 python3 -m venv deploy_pypi_env
 source ./deploy_pypi_env/bin/activate
-pip install -U pip
+pip install --upgrade pip setuptools wheel
 pip install requests python-dateutil
 python3 "${SCRIPT_DIR}/download_github_actions_artifacts.py" \
   --github-user "${USER_GITHUB_ID}" \

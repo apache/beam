@@ -55,8 +55,7 @@ ENV_PATH="$PWD/build/python${PY_VERSION/./}_requirements_gen"
 rm -rf $ENV_PATH 2>/dev/null || true
 python${PY_VERSION} -m venv $ENV_PATH
 source $ENV_PATH/bin/activate
-pip install --upgrade pip
-pip install wheel
+pip install --upgrade pip setuptools wheel
 
 # Install gcp extra deps since these deps are commonly used with Apache Beam.
 # Install dataframe deps to add have Dataframe support in released images.
