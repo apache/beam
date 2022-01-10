@@ -84,105 +84,105 @@ import { RowCoder } from "./row_coder";
 // };
 
 let schema: Schema = {
-    id: "test",
-    fields: [
-        {
-            name: "constructor",
-            description: "",
-            type: {
-                nullable: true,
-                typeInfo: {
-                    oneofKind: "atomicType",
-                    atomicType: AtomicType.STRING
-                }
-            },
-            id: 0,
-            encodingPosition: 0,
-            options: [],
+  id: "test",
+  fields: [
+    {
+      name: "constructor",
+      description: "",
+      type: {
+        nullable: true,
+        typeInfo: {
+          oneofKind: "atomicType",
+          atomicType: AtomicType.STRING,
         },
-        {
-            name: "args",
-            description: "",
-            type: {
-                nullable: true,
-                typeInfo: {
-                    oneofKind: "rowType",
-                    rowType: {
-                        schema: {
-                            id: "test_inner",
-                            fields: [
-                                {
-                                    name: "arg0",
-                                    description: "",
-                                    type: {
-                                        nullable: true,
-                                        typeInfo: {
-                                            oneofKind: "atomicType",
-                                            atomicType: AtomicType.STRING
-                                        }
-                                    },
-                                    id: 0,
-                                    encodingPosition: 0,
-                                    options: [],
-                                }
-                            ],
-                            options: [],
-                            encodingPositionsSet: false
-                        }
-                    }
-                }
+      },
+      id: 0,
+      encodingPosition: 0,
+      options: [],
+    },
+    {
+      name: "args",
+      description: "",
+      type: {
+        nullable: true,
+        typeInfo: {
+          oneofKind: "rowType",
+          rowType: {
+            schema: {
+              id: "test_inner",
+              fields: [
+                {
+                  name: "arg0",
+                  description: "",
+                  type: {
+                    nullable: true,
+                    typeInfo: {
+                      oneofKind: "atomicType",
+                      atomicType: AtomicType.STRING,
+                    },
+                  },
+                  id: 0,
+                  encodingPosition: 0,
+                  options: [],
+                },
+              ],
+              options: [],
+              encodingPositionsSet: false,
             },
-            id: 0,
-            encodingPosition: 0,
-            options: [],
+          },
         },
-        {
-            name: "kwargs",
-            description: "",
-            type: {
-                nullable: true,
-                typeInfo: {
-                    oneofKind: "rowType",
-                    rowType: {
-                        schema: {
-                            id: "test_inner",
-                            fields: [
-                                {
-                                    name: "suffix",
-                                    description: "",
-                                    type: {
-                                        nullable: true,
-                                        typeInfo: {
-                                            oneofKind: "atomicType",
-                                            atomicType: AtomicType.STRING
-                                        }
-                                    },
-                                    id: 0,
-                                    encodingPosition: 0,
-                                    options: [],
-                                }
-                            ],
-                            options: [],
-                            encodingPositionsSet: false
-                        }
-                    }
-                }
+      },
+      id: 0,
+      encodingPosition: 0,
+      options: [],
+    },
+    {
+      name: "kwargs",
+      description: "",
+      type: {
+        nullable: true,
+        typeInfo: {
+          oneofKind: "rowType",
+          rowType: {
+            schema: {
+              id: "test_inner",
+              fields: [
+                {
+                  name: "suffix",
+                  description: "",
+                  type: {
+                    nullable: true,
+                    typeInfo: {
+                      oneofKind: "atomicType",
+                      atomicType: AtomicType.STRING,
+                    },
+                  },
+                  id: 0,
+                  encodingPosition: 0,
+                  options: [],
+                },
+              ],
+              options: [],
+              encodingPositionsSet: false,
             },
-            id: 0,
-            encodingPosition: 0,
-            options: [],
-        }
-    ],
-    options: [],
-    encodingPositionsSet: false
+          },
+        },
+      },
+      id: 0,
+      encodingPosition: 0,
+      options: [],
+    },
+  ],
+  options: [],
+  encodingPositionsSet: false,
 };
 
 let obj = {
-    x: "first",
-    y: {
-        // a: [1,2,3,4,5],
-        b: "third"
-    }
+  x: "first",
+  y: {
+    // a: [1,2,3,4,5],
+    b: "third",
+  },
 };
 
 // let obj = {
@@ -192,9 +192,8 @@ let obj = {
 // }
 
 let writer = new Writer(),
-    // row = RowCoder.OfSchema(schema);
-    row = RowCoder.OfJSON(obj);
-
+  // row = RowCoder.OfSchema(schema);
+  row = RowCoder.OfJSON(obj);
 
 row.encode(obj, writer, Context.needsDelimiters);
 
