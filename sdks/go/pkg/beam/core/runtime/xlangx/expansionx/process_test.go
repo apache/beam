@@ -25,7 +25,7 @@ import (
 func TestFindOpenPort(t *testing.T) {
 	port, err := findOpenPort()
 	if err != nil {
-		t.Fatalf("failed to find open port, got %v", port)
+		t.Fatalf("failed to find open port, got %v", err)
 	}
 	if port < 1 || port > 65535 {
 		t.Errorf("port out of TCP range [1, 66535], got %d", port)
@@ -39,11 +39,11 @@ func TestNewExpansionServiceRunner(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewExpansionServiceRunner failed, got %v", err)
 	}
-	if serviceRunner.jarPath != testPath {
-		t.Errorf("JAR path mismatch: wanted %v, got %v", testPath, serviceRunner.jarPath)
+	if got, want := serviceRunner.jarPath, testPath; got != want {
+		t.Errorf("got JAR path %v, want %v", got, want)
 	}
-	if serviceRunner.servicePort != testPort {
-		t.Errorf("service port mismatch: wanted %v, got %v", testPort, testPort)
+	if got, want := serviceRunner.servicePort, testPort; got != want {
+		t.Errorf("got service port %v, want %v", got, want)
 	}
 	commandString := strings.Join(serviceRunner.serviceCommand.Args, " ")
 	if !strings.Contains(commandString, "java") {
@@ -57,16 +57,15 @@ func TestNewExpansionServiceRunner(t *testing.T) {
 	}
 }
 
-func TestGetPort(t *testing.T) {
+func TestEndpoint(t *testing.T) {
 	testPort := "8097"
 	serviceRunner, err := NewExpansionServiceRunner("", testPort)
 	if err != nil {
 		t.Fatalf("NewExpansionServiceRunner failed, got %v", err)
 	}
-	observedPort := serviceRunner.GetPort()
 	expPort := "localhost:" + testPort
-	if observedPort != expPort {
-		t.Errorf("GetPort() returned mismatched value: wanted %v, got %v", observedPort, expPort)
+	if got, want := serviceRunner.Endpoint(), expPort; got != want {
+		t.Errorf("got port %v, want %v", got, want)
 	}
 }
 

@@ -41,7 +41,8 @@ func findOpenPort() (int, error) {
 }
 
 // NewExpansionServiceRunner builds an ExpansionServiceRunner struct for a given gradle target and
-// Beam version and returns a pointer to it.
+// Beam version and returns a pointer to it. Passing an empty string as servicePort will request an
+// open port to be assigned to the service.
 func NewExpansionServiceRunner(jarPath, servicePort string) (*ExpansionServiceRunner, error) {
 	if servicePort == "" {
 		port, err := findOpenPort()
@@ -60,7 +61,7 @@ func (e *ExpansionServiceRunner) String() string {
 
 // GetPort returns the formatted port the ExpansionServiceRunner is set to start the expansion
 // service on.
-func (e *ExpansionServiceRunner) GetPort() string {
+func (e *ExpansionServiceRunner) Endpoint() string {
 	return "localhost:" + e.servicePort
 }
 
