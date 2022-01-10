@@ -245,7 +245,7 @@ public final class ThriftSchema extends GetterBasedSchemaProvider {
       return FieldValueTypeInformation.forSetter(factoryMethods.get(0), "");
     } else {
       try {
-        return FieldValueTypeInformation.forField(type.getDeclaredField(fieldName));
+        return FieldValueTypeInformation.forField(type.getDeclaredField(fieldName), 0);
       } catch (NoSuchFieldException e) {
         throw new IllegalArgumentException(e);
       }
