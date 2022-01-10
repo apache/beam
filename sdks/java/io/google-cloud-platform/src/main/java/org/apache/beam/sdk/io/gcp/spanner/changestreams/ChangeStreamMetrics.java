@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams;
 import java.io.Serializable;
 import java.util.HashSet;
 import java.util.Set;
-import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.ReadChangeStream;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
@@ -46,35 +45,35 @@ public class ChangeStreamMetrics implements Serializable {
    * Counter for the total number of partitions identified during the execution of the Connector.
    */
   public static final Counter PARTITION_RECORD_COUNT =
-      Metrics.counter(ReadChangeStream.class, "partition_record_count");
+      Metrics.counter(ChangeStreamMetrics.class, "partition_record_count");
 
   /**
    * Counter for the total number of partition splits / moves identified during the execution of the
    * Connector.
    */
   public static final Counter PARTITION_RECORD_SPLIT_COUNT =
-      Metrics.counter(ReadChangeStream.class, "partition_record_split_count");
+      Metrics.counter(ChangeStreamMetrics.class, "partition_record_split_count");
 
   /**
    * Counter for the total number of partition merges identified during the execution of the
    * Connector.
    */
   public static final Counter PARTITION_RECORD_MERGE_COUNT =
-      Metrics.counter(ReadChangeStream.class, "partition_record_merge_count");
+      Metrics.counter(ChangeStreamMetrics.class, "partition_record_merge_count");
 
   /**
    * Time in milliseconds that a partition took to transition from {@link State#CREATED} to {@link
    * State#SCHEDULED}.
    */
   public static final Distribution PARTITION_CREATED_TO_SCHEDULED_MS =
-      Metrics.distribution(ReadChangeStream.class, "partition_created_to_scheduled_ms");
+      Metrics.distribution(ChangeStreamMetrics.class, "partition_created_to_scheduled_ms");
 
   /**
    * Time in milliseconds that a partition took to transition from {@link State#SCHEDULED} to {@link
    * State#RUNNING}.
    */
   public static final Distribution PARTITION_SCHEDULED_TO_RUNNING_MS =
-      Metrics.distribution(ReadChangeStream.class, "partition_scheduled_to_running_ms");
+      Metrics.distribution(ChangeStreamMetrics.class, "partition_scheduled_to_running_ms");
 
   // -------------------
   // Data record metrics
@@ -83,7 +82,7 @@ public class ChangeStreamMetrics implements Serializable {
    * Counter for the total number of data records identified during the execution of the Connector.
    */
   public static final Counter DATA_RECORD_COUNT =
-      Metrics.counter(ReadChangeStream.class, "data_record_count");
+      Metrics.counter(ChangeStreamMetrics.class, "data_record_count");
 
   // -------------------
   // Hearbeat record metrics
@@ -93,7 +92,7 @@ public class ChangeStreamMetrics implements Serializable {
    * Connector.
    */
   public static final Counter HEARTBEAT_RECORD_COUNT =
-      Metrics.counter(ReadChangeStream.class, "heartbeat_record_count");
+      Metrics.counter(ChangeStreamMetrics.class, "heartbeat_record_count");
 
   /**
    * If a metric is not within this set it will not be measured. Metrics enabled by default are
