@@ -41,8 +41,10 @@ dependencies {
   implementation library.java.jackson_databind
   implementation library.java.slf4j_api
   compileOnly library.java.hadoop_client
+  permitUnusedDeclared library.java.hadoop_client
   compileOnly library.java.hadoop_common
   compileOnly library.java.hadoop_mapreduce_client_core
+  permitUnusedDeclared library.java.hadoop_mapreduce_client_core
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation library.java.mockito_core
   testImplementation library.java.junit

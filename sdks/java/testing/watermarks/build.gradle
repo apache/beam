@@ -109,7 +109,7 @@ task run(type: JavaExec) {
             " --workerHarnessContainerImage="
   }
 
-  main = mainClass
+  mainClass = mainClass
   classpath = configurations.gradleRun
   args loadTestArgs.split()
 }

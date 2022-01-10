@@ -161,7 +161,8 @@ function install_sdk() {
   gsutil version -l
   rm -rf ./temp_virtualenv_${2}
   $2 -m venv temp_virtualenv_${2}
-  . temp_virtualenv_${2}/bin/activate
+  . ./temp_virtualenv_${2}/bin/activate
+  pip install --upgrade pip setuptools wheel
   gcloud_version=$(gcloud --version | head -1 | awk '{print $4}')
   if [[ "$gcloud_version" < "189" ]]; then
     update_gcloud

@@ -33,8 +33,7 @@ jobs:
     timeout-minutes: 25
     name: "Ubuntu run local environment shell script"
     runs-on: ubuntu-latest
-    steps:steps:
-  - uses: actions/checkout@v2
+    steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
         with:

@@ -49,7 +49,7 @@ func TestSetupExecutor(t *testing.T) {
 
 	srcFilePath := lc.Dto.GetAbsoluteSourceFilePath()
 
-	sdkEnv := environment.NewBeamEnvs(sdk, executorConfig, "")
+	sdkEnv := environment.NewBeamEnvs(sdk, executorConfig, "", 0)
 	val, err := utils.GetValidators(sdk, srcFilePath)
 	if err != nil {
 		panic(err)
@@ -95,7 +95,7 @@ func TestSetupExecutor(t *testing.T) {
 			// Test case with calling Setup with incorrect SDK.
 			// As a result, want to receive an error.
 			name:    "incorrect sdk",
-			args:    args{lc.Dto, pipelineOptions, environment.NewBeamEnvs(pb.Sdk_SDK_UNSPECIFIED, executorConfig, "")},
+			args:    args{lc.Dto, pipelineOptions, environment.NewBeamEnvs(pb.Sdk_SDK_UNSPECIFIED, executorConfig, "", 0)},
 			want:    nil,
 			wantErr: true,
 		},

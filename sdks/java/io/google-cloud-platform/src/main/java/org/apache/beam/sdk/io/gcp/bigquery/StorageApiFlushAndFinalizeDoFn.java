@@ -19,8 +19,8 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode.Code;
-import com.google.cloud.bigquery.storage.v1beta2.FinalizeWriteStreamResponse;
-import com.google.cloud.bigquery.storage.v1beta2.FlushRowsResponse;
+import com.google.cloud.bigquery.storage.v1.FinalizeWriteStreamResponse;
+import com.google.cloud.bigquery.storage.v1.FlushRowsResponse;
 import java.io.IOException;
 import java.io.Serializable;
 import java.time.Instant;

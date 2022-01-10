@@ -42,6 +42,7 @@ dependencies {
   dockerDependency project(":sdks:java:io:kafka")
   // This dependency is set to 'compileOnly' scope in :sdks:java:io:kafka
   dockerDependency library.java.kafka_clients
+  dockerDependency library.java.jamm
 }
 
 goBuild {
