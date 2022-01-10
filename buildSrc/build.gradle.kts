@@ -25,7 +25,6 @@ plugins {
 
 // Define the set of repositories required to fetch and enable plugins.
 repositories {
-  maven { url = uri("${projectDir}/jarlibs") }
   jcenter()
   maven { url = uri("https://plugins.gradle.org/m2/") }
   maven {

@@ -25,6 +25,8 @@ class Repositories {
   static void register(Project project) {
 
     project.repositories {
+      maven { url = uri("${projectDir}/jarlibs") }
+        
       maven { url project.offlineRepositoryRoot }
 
       // To run gradle in offline mode, one must first invoke
