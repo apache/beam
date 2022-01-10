@@ -63,8 +63,8 @@ func TestEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewExpansionServiceRunner failed, got %v", err)
 	}
-	expPort := "localhost:" + testPort
-	if got, want := serviceRunner.Endpoint(), expPort; got != want {
+	want := "localhost:" + testPort
+	if got := serviceRunner.Endpoint(); got != want {
 		t.Errorf("got port %v, want %v", got, want)
 	}
 }
