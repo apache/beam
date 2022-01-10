@@ -119,7 +119,7 @@ class RawExternalTransform<InputT extends base.PValue<any>, OutputT extends base
         const renamedInputs = Object.fromEntries(Object.keys(response.transform!.inputs).map(k => [response.transform!.inputs[k], transformProto.inputs[k]]))
         response.transform!.inputs = Object.fromEntries(Object.entries(response.transform!.inputs).map(([k, v]) => [k, renamedInputs[v]]));
         for (const t of Object.values(response.components!.transforms)) {
-            t.inputs = Object.fromEntries(Object.entries(t.inputs).map(([k, v]) => [k, renamedInputs[v]]));
+            t.inputs = Object.fromEntries(Object.entries(t.inputs).map(([k, v]) => [k, renamedInputs[v] != undefined ? renamedInputs[v] : v]));
         }
 
         // Copy the proto.
@@ -135,6 +135,19 @@ class RawExternalTransform<InputT extends base.PValue<any>, OutputT extends base
         copyNamespaceComponents(response.components!.environments, pipelineComponents!.environments);
         copyNamespaceComponents(response.components!.windowingStrategies, pipelineComponents!.windowingStrategies);
 
+
+        // Ensure we understand the resulting coders.
+        // TODO: We could still patch things together if we don't understand the coders,
+        // but the errors are harder to follow.  Consider only rejecting coders that
+        // actually cross the boundary.
+        for (const pcId of Object.values(response.transform!.outputs)) {
+            const pcProto = pipelineComponents!.pcollections[pcId];
+            console.log(pcId, pcProto.coderId)
+            console.log('  -> ', pipeline.context.getCoder(pcProto.coderId))
+            pipeline.context.getCoder(pcProto.coderId);
+        }
+
+        // Construct and return the resulting object.
         // TODO: Can I get the concrete OutputT?
         if (this.inferPValueType) {
             const outputKeys = [...Object.keys(response.transform!.outputs)];
@@ -162,20 +175,60 @@ function encodeSchemaPayload(payload: any, schema: Schema | undefined = undefine
 }
 
 
+
+import * as beam from "../../apache_beam";
+import { NodeRunner } from '../runners/node_runner/runner'
+import { RemoteJobServiceClient } from "../runners/node_runner/client";
+
+
 async function main() {
-    const kvCoder = new coders.KVCoder(new coders.VarIntCoder(), new coders.VarIntCoder());
-    const root = new base.Root(new base.Pipeline());
-    const input = root.apply(new core.Create([{ key: 1, value: 3 }])).apply(new base.WithCoderInternal(kvCoder));
-    //     const input2 = root.apply(new core.Create([{key: 1, value: 4}])).apply(new base.WithCoderInternal(kvCoder));
-    // await input.asyncApply(new RawExternalTransform<base.PValue<any>, base.PValue<any>>(base.GroupByKey.urn, undefined!, 'localhost:4444'));
-    await input.asyncApply(new RawExternalTransform<base.PValue<any>, base.PValue<any>>(
-        'beam:transforms:python:fully_qualified_named',
-        {
-            constructor: 'apache_beam.transforms.GroupByKey',
-        },
-        'localhost:4444'));
-    console.log('-------------------------------------------');
-    console.dir(input.pipeline.getProto(), { depth: null });
+//     const kvCoder = new coders.KVCoder(new coders.VarIntCoder(), new coders.VarIntCoder());
+//     const root = new base.Root(new base.Pipeline());
+//     const input = root.apply(new core.Create([{ key: 1, value: 3 }])).apply(new base.WithCoderInternal(kvCoder));
+//     //     const input2 = root.apply(new core.Create([{key: 1, value: 4}])).apply(new base.WithCoderInternal(kvCoder));
+//     // await input.asyncApply(new RawExternalTransform<base.PValue<any>, base.PValue<any>>(base.GroupByKey.urn, undefined!, 'localhost:4444'));
+//     await input.asyncApply(new RawExternalTransform<base.PValue<any>, base.PValue<any>>(
+//         'beam:transforms:python:fully_qualified_named',
+//         {
+//             constructor: 'apache_beam.transforms.GroupByKey',
+//         },
+//         'localhost:4444'));
+//     console.log('-------------------------------------------');
+//     console.dir(input.pipeline.getProto(), { depth: null });
+//
+
+    const kvCoder = new coders.KVCoder(new coders.StrUtf8Coder(), new coders.StrUtf8Coder());
+    await new NodeRunner(new RemoteJobServiceClient('localhost:3333')).run(
+//         await new DirectRunner().run(
+            async (root) => {
+//                 const lines = root.apply(new beam.Create([
+//                     "In the beginning God created the heaven and the earth.",
+//                     "And the earth was without form, and void; and darkness was upon the face of the deep.",
+//                     "And the Spirit of God moved upon the face of the waters.",
+//                     "And God said, Let there be light: and there was light.",
+//                 ]));
+
+//                     const result = root.apply(new beam.Create([1, 2, 3]))
+
+                 const result = await root.asyncApply(new RawExternalTransform<base.PValue<any>, base.PCollection<any>>(
+                    'beam:transforms:python:fully_qualified_named',
+                    {
+                        constructor: 'apache_beam.MyTest',
+//                         args: {'a0': [1, 2, 3]}
+//                         constructor: 'apache_beam.io.ReadFromText',
+//                         args: {'a0': '/Users/robertwb/Work/beam/incubator-beam/sdks/node-ts/tsconfig.json'}
+                    },
+                    'localhost:4444'));
+
+
+                //lines.apply(wordCount)
+                result.map(console.log)
+
+                console.dir(root.pipeline.getProto(), { depth: null });
+                runnerApi.Pipeline.toBinary(root.pipeline.getProto());
+
+            })
+
 }
 
 main().catch(e => console.error(e)).finally(() => process.exit());
