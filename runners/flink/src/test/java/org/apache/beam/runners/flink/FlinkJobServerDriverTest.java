@@ -155,7 +155,8 @@ public class FlinkJobServerDriverTest {
           success = true;
         } else if (output.contains("ExpansionService started on localhost:")) {
           throw new RuntimeException("ExpansionService started but should not.");
-        } {
+        }
+        {
           Thread.sleep(100);
         }
       }
