@@ -28,7 +28,6 @@ evaluationDependsOn(":runners:google-cloud-dataflow-java:worker:legacy-worker")
 configurations { dataflowStreamingRunnerPreCommit }
 
 dependencies {
-  testRuntimeOnly project(":examples:java")
   testRuntimeOnly project(path: ":examples:java", configuration: "testRuntimeMigration")
   testRuntimeOnly project(":runners:google-cloud-dataflow-java")
 }

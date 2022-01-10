@@ -94,7 +94,7 @@ public class SqsUnboundedReaderTest {
     setupOneMessage();
     UnboundedSource.UnboundedReader<SqsMessage> reader =
         source.createReader(pipeline.getOptions(), null);
-    SqsClient sqsClient = source.getSqs();
+    SqsClient sqsClient = embeddedSqsRestServer.getClient();
     assertTrue(reader.start());
     assertEquals(DATA, reader.getCurrent().getBody());
     String receiptHandle = reader.getCurrent().getReceiptHandle();

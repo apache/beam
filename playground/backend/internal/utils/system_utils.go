@@ -16,10 +16,18 @@
 package utils
 
 import (
+	"beam.apache.org/playground/backend/internal/environment"
+	"beam.apache.org/playground/backend/internal/logger"
 	"net/http"
+	"os"
+	"path/filepath"
 	"reflect"
 	"runtime"
 	"strings"
+)
+
+const (
+	executableFiles = "executable_files"
 )
 
 // GetFuncName returns the name of the received func
@@ -34,4 +42,40 @@ func GetLivenessFunction() func(writer http.ResponseWriter, request *http.Reques
 	return func(writer http.ResponseWriter, request *http.Request) {
 		writer.WriteHeader(http.StatusOK)
 	}
+}
+
+// GetReadinessFunction returns the function that checks the readiness of the server to process a new code processing request
+func GetReadinessFunction(envs *environment.Environment) func(writer http.ResponseWriter, request *http.Request) {
+	return func(writer http.ResponseWriter, request *http.Request) {
+		if checkNumOfTheParallelJobs(envs.ApplicationEnvs.WorkingDir(), envs.BeamSdkEnvs.NumOfParallelJobs()) {
+			writer.WriteHeader(http.StatusOK)
+		} else {
+			writer.WriteHeader(http.StatusLocked)
+		}
+	}
+}
+
+// checkNumOfTheParallelJobs checks the number of currently working code executions.
+//  It counts by the number of the /path/to/workingDir/executable_files/{pipelineId} folders.
+// If it is equals or more than numOfParallelJobs, then returns false.
+// If it is less than numOfParallelJobs, then returns true.
+func checkNumOfTheParallelJobs(workingDir string, numOfParallelJobs int) bool {
+	// TODO [BEAM-13308] add getting of dir executable_files from environments.
+	baseFileFolder := filepath.Join(workingDir, executableFiles)
+	_, err := os.Stat(baseFileFolder)
+	if os.IsNotExist(err) {
+		return true
+	}
+
+	dirEntries, err := os.ReadDir(baseFileFolder)
+	if err != nil {
+		logger.Errorf("Readiness: Error during read %s: %s", baseFileFolder, err.Error())
+		return false
+	}
+
+	if len(dirEntries) >= numOfParallelJobs {
+		logger.Errorf("Readiness: Count of code processing is equal or more than possible: %d / %d", len(dirEntries), numOfParallelJobs)
+		return false
+	}
+	return true
 }

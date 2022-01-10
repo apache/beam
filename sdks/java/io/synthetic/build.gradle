@@ -36,6 +36,7 @@ dependencies {
   implementation project(path: ":sdks:java:core", configuration: "shadow")
 
   testImplementation library.java.vendored_guava_26_0_jre
+  testImplementation library.java.hamcrest
   testImplementation library.java.junit
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

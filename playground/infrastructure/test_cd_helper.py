@@ -81,6 +81,7 @@ def test__write_to_local_fs(delete_temp_folder):
   expected_result = {
       "SDK_JAVA/name/name.java": "temp/pipeline_id/SDK_JAVA/name/name.java",
       "SDK_JAVA/name/name.output": "temp/pipeline_id/SDK_JAVA/name/name.output",
+      "SDK_JAVA/name/name.log": "temp/pipeline_id/SDK_JAVA/name/name.log",
       "SDK_JAVA/name/meta.info": "temp/pipeline_id/SDK_JAVA/name/meta.info"
   }
   assert CDHelper()._write_to_local_fs(example) == expected_result

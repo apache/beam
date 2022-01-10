@@ -35,7 +35,7 @@ dependencies {
     testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
     testImplementation library.java.guava_testlib
     testImplementation library.java.junit
-    testImplementation library.java.hamcrest_core
+    testImplementation library.java.hamcrest
     testRuntimeOnly library.java.slf4j_jdk14
     testImplementation project(path: ":runners:direct-java", configuration: "shadow")
 }

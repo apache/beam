@@ -17,6 +17,7 @@
  */
 
 import 'package:grpc/grpc_web.dart';
+import 'package:playground/config.g.dart';
 import 'package:playground/api/iis_workaround_channel.dart';
 import 'package:playground/api/v1/api.pbgrpc.dart' as grpc;
 import 'package:playground/modules/editor/repository/code_repository/code_client/output_response.dart';
@@ -31,15 +32,13 @@ import 'package:playground/modules/sdk/models/sdk.dart';
 import 'package:playground/utils/replace_incorrect_symbols.dart';
 
 class GrpcExampleClient implements ExampleClient {
-  grpc.PlaygroundServiceClient createClient(SDK? sdk) {
-    String apiClientURL = SDK.java.getRoute;
-    // if (sdk != null) {
-    //   apiClientURL = sdk.getRoute;
-    // }
-    IisWorkaroundChannel channel = IisWorkaroundChannel.xhr(
-      Uri.parse(apiClientURL),
+  late final grpc.PlaygroundServiceClient _defaultClient;
+
+  GrpcExampleClient() {
+    final channel = IisWorkaroundChannel.xhr(
+      Uri.parse(kApiClientURL),
     );
-    return grpc.PlaygroundServiceClient(channel);
+    _defaultClient = grpc.PlaygroundServiceClient(channel);
   }
 
   @override
@@ -47,7 +46,7 @@ class GrpcExampleClient implements ExampleClient {
     GetListOfExamplesRequestWrapper request,
   ) {
     return _runSafely(
-      () => createClient(request.sdk)
+      () => _defaultClient
           .getPrecompiledObjects(
               _getListOfExamplesRequestToGrpcRequest(request))
           .then((response) => GetListOfExampleResponse(
@@ -58,7 +57,7 @@ class GrpcExampleClient implements ExampleClient {
   @override
   Future<GetExampleResponse> getExample(GetExampleRequestWrapper request) {
     return _runSafely(
-      () => createClient(request.sdk)
+      () => _defaultClient
           .getPrecompiledObjectCode(
               _getExampleCodeRequestToGrpcRequest(request))
           .then((response) =>
@@ -69,11 +68,29 @@ class GrpcExampleClient implements ExampleClient {
   @override
   Future<OutputResponse> getExampleOutput(GetExampleRequestWrapper request) {
     return _runSafely(
-      () => createClient(request.sdk)
+      () => _defaultClient
           .getPrecompiledObjectOutput(
               _getExampleOutputRequestToGrpcRequest(request))
           .then((response) =>
-              OutputResponse(replaceIncorrectSymbols(response.output))),
+              OutputResponse(replaceIncorrectSymbols(response.output)))
+          .catchError((err) {
+        print(err);
+        OutputResponse('');
+      }),
+    );
+  }
+
+  @override
+  Future<OutputResponse> getExampleLogs(GetExampleRequestWrapper request) {
+    return _runSafely(
+      () => _defaultClient
+          .getPrecompiledObjectLogs(_getExampleLogRequestToGrpcRequest(request))
+          .then((response) =>
+              OutputResponse(replaceIncorrectSymbols(response.output)))
+          .catchError((err) {
+        print(err);
+        OutputResponse('');
+      }),
     );
   }
 
@@ -105,6 +122,12 @@ class GrpcExampleClient implements ExampleClient {
     GetExampleRequestWrapper request,
   ) {
     return grpc.GetPrecompiledObjectOutputRequest()..cloudPath = request.path;
+  }
+
+  grpc.GetPrecompiledObjectLogsRequest _getExampleLogRequestToGrpcRequest(
+    GetExampleRequestWrapper request,
+  ) {
+    return grpc.GetPrecompiledObjectLogsRequest()..cloudPath = request.path;
   }
 
   grpc.Sdk _getGrpcSdk(SDK sdk) {

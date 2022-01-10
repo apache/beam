@@ -20,8 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/shortcuts/components/shortcut_tooltip.dart';
 import 'package:playground/modules/shortcuts/constants/global_shortcuts.dart';
-
-const kRunText = 'Run';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class RunButton extends StatelessWidget {
   final bool isRunning;
@@ -44,7 +43,7 @@ class RunButton extends StatelessWidget {
                 ),
               )
             : const Icon(Icons.play_arrow),
-        label: const Text(kRunText),
+        label: Text(AppLocalizations.of(context)!.run),
         onPressed: !isRunning ? runCode : null,
       ),
     );

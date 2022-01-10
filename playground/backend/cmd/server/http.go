@@ -23,17 +23,21 @@ import (
 )
 
 // listenHttp binds the http.Handler on the TCP network address
-func listenHttp(ctx context.Context, errChan chan error, envs environment.NetworkEnvs, handler http.Handler) {
-	logger.Infof("listening HTTP at %s\n", envs.Address())
-	address := envs.Address()
+func listenHttp(ctx context.Context, errChan chan error, envs *environment.Environment, handler http.Handler) {
+	address := envs.NetworkEnvs.Address()
 	logger.Infof("listening HTTP at %s\n", address)
 
 	mux := http.NewServeMux()
 	mux.Handle("/", handler)
 	mux.HandleFunc("/liveness", utils.GetLivenessFunction())
+	mux.HandleFunc("/readiness", utils.GetReadinessFunction(envs))
 
 	if err := http.ListenAndServe(address, mux); err != nil {
 		errChan <- err
+		return
+	}
+	for {
+		<-ctx.Done()
 		return
 	}
 }

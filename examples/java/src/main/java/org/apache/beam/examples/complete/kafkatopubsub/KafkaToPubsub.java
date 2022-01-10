@@ -68,7 +68,7 @@ import org.slf4j.LoggerFactory;
  * to execute the pipeline:
  * {@code
  * task execute (type:JavaExec) {
- *     main = System.getProperty("mainClass")
+ *     mainClass = System.getProperty("mainClass")
  *     classpath = sourceSets.main.runtimeClasspath
  *     systemProperties System.getProperties()
  *     args System.getProperty("exec.args", "").split()
