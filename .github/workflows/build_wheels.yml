@@ -217,7 +217,7 @@ jobs:
         ]
         arch: [auto]
         include:
-          - os_python: {"os": "ubuntu-latest", "python": "cp36-* cp37-* cp38-*"}
+          - os_python: {"os": "self-hosted", "python": "cp36-* cp37-* cp38-*"}
             arch: aarch64
     steps:
     - name: Download python source distribution from artifacts
