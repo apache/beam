@@ -71,7 +71,6 @@ import org.apache.beam.runners.core.construction.graph.FusedPipeline;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.runners.core.construction.graph.ProtoOverrides;
-import org.apache.beam.runners.core.construction.graph.SideInputReference;
 import org.apache.beam.runners.core.construction.graph.SplittableParDoExpander;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
@@ -431,7 +430,10 @@ public class RemoteExecutionTest implements Serializable {
                       }
                     }))
             .setCoder(StringUtf8Coder.of());
-    PCollectionView<Iterable<String>> view = input.apply("createSideInput", View.asIterable());
+    PCollectionView<Iterable<String>> iterableView =
+        input.apply("createIterableSideInput", View.asIterable());
+    PCollectionView<Map<String, Iterable<String>>> multimapView =
+        input.apply(WithKeys.of("key")).apply("createMultimapSideInput", View.asMultimap());
 
     input
         .apply(
@@ -440,12 +442,18 @@ public class RemoteExecutionTest implements Serializable {
                     new DoFn<String, KV<String, String>>() {
                       @ProcessElement
                       public void processElement(ProcessContext context) {
-                        for (String value : context.sideInput(view)) {
+                        for (String value : context.sideInput(iterableView)) {
                           context.output(KV.of(context.element(), value));
+                        }
+                        for (Map.Entry<String, Iterable<String>> entry :
+                            context.sideInput(multimapView).entrySet()) {
+                          for (String value : entry.getValue()) {
+                            context.output(KV.of(context.element(), entry.getKey() + ":" + value));
+                          }
                         }
                       }
                     })
-                .withSideInputs(view))
+                .withSideInputs(iterableView, multimapView))
         .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
         // Force the output to be materialized
         .apply("gbk", GroupByKey.create());
@@ -513,7 +521,32 @@ public class RemoteExecutionTest implements Serializable {
                       String sideInputId,
                       KvCoder<K, V> elementCoder,
                       Coder<W> windowCoder) {
-                throw new UnsupportedOperationException();
+                return new MultimapSideInputHandler<K, V, W>() {
+                  @Override
+                  public Iterable<K> get(W window) {
+                    return (Iterable) Arrays.asList("key1", "key2");
+                  }
+
+                  @Override
+                  public Iterable<V> get(K key, W window) {
+                    if ("key1".equals(key)) {
+                      return (Iterable) Arrays.asList("H", "I", "J");
+                    } else if ("key2".equals(key)) {
+                      return (Iterable) Arrays.asList("M", "N", "O");
+                    }
+                    return Collections.emptyList();
+                  }
+
+                  @Override
+                  public Coder<K> keyCoder() {
+                    return elementCoder.getKeyCoder();
+                  }
+
+                  @Override
+                  public Coder<V> valueCoder() {
+                    return elementCoder.getValueCoder();
+                  }
+                };
               }
             });
     BundleProgressHandler progressHandler = BundleProgressHandler.ignored();
@@ -532,9 +565,21 @@ public class RemoteExecutionTest implements Serializable {
               valueInGlobalWindow(KV.of("X", "A")),
               valueInGlobalWindow(KV.of("X", "B")),
               valueInGlobalWindow(KV.of("X", "C")),
+              valueInGlobalWindow(KV.of("X", "key1:H")),
+              valueInGlobalWindow(KV.of("X", "key1:I")),
+              valueInGlobalWindow(KV.of("X", "key1:J")),
+              valueInGlobalWindow(KV.of("X", "key2:M")),
+              valueInGlobalWindow(KV.of("X", "key2:N")),
+              valueInGlobalWindow(KV.of("X", "key2:O")),
               valueInGlobalWindow(KV.of("Y", "A")),
               valueInGlobalWindow(KV.of("Y", "B")),
-              valueInGlobalWindow(KV.of("Y", "C"))));
+              valueInGlobalWindow(KV.of("Y", "C")),
+              valueInGlobalWindow(KV.of("Y", "key1:H")),
+              valueInGlobalWindow(KV.of("Y", "key1:I")),
+              valueInGlobalWindow(KV.of("Y", "key1:J")),
+              valueInGlobalWindow(KV.of("Y", "key2:M")),
+              valueInGlobalWindow(KV.of("Y", "key2:N")),
+              valueInGlobalWindow(KV.of("Y", "key2:O"))));
     }
   }
 
@@ -542,8 +587,6 @@ public class RemoteExecutionTest implements Serializable {
   public void testExecutionWithSideInputCaching() throws Exception {
     Pipeline p = Pipeline.create();
     addExperiment(p.getOptions().as(ExperimentalOptions.class), "beam_fn_api");
-    // TODO(BEAM-10212): Remove experiment once cross bundle caching is used by default
-    addExperiment(p.getOptions().as(ExperimentalOptions.class), "cross_bundle_caching");
     // TODO(BEAM-10097): Remove experiment once all portable runners support this view type
     addExperiment(p.getOptions().as(ExperimentalOptions.class), "use_runner_v2");
 
@@ -563,7 +606,10 @@ public class RemoteExecutionTest implements Serializable {
                       }
                     }))
             .setCoder(StringUtf8Coder.of());
-    PCollectionView<Iterable<String>> view = input.apply("createSideInput", View.asIterable());
+    PCollectionView<Iterable<String>> iterableView =
+        input.apply("createIterableSideInput", View.asIterable());
+    PCollectionView<Map<String, Iterable<String>>> multimapView =
+        input.apply(WithKeys.of("key")).apply("createMultimapSideInput", View.asMultimap());
 
     input
         .apply(
@@ -572,12 +618,18 @@ public class RemoteExecutionTest implements Serializable {
                     new DoFn<String, KV<String, String>>() {
                       @ProcessElement
                       public void processElement(ProcessContext context) {
-                        for (String value : context.sideInput(view)) {
+                        for (String value : context.sideInput(iterableView)) {
                           context.output(KV.of(context.element(), value));
+                        }
+                        for (Map.Entry<String, Iterable<String>> entry :
+                            context.sideInput(multimapView).entrySet()) {
+                          for (String value : entry.getValue()) {
+                            context.output(KV.of(context.element(), entry.getKey() + ":" + value));
+                          }
                         }
                       }
                     })
-                .withSideInputs(view))
+                .withSideInputs(iterableView, multimapView))
         .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
         // Force the output to be materialized
         .apply("gbk", GroupByKey.create());
@@ -646,20 +698,52 @@ public class RemoteExecutionTest implements Serializable {
                           String sideInputId,
                           KvCoder<K, V> elementCoder,
                           Coder<W> windowCoder) {
-                    throw new UnsupportedOperationException();
+                    return new MultimapSideInputHandler<K, V, W>() {
+                      @Override
+                      public Iterable<K> get(W window) {
+                        return (Iterable) Arrays.asList("key1", "key2");
+                      }
+
+                      @Override
+                      public Iterable<V> get(K key, W window) {
+                        if ("key1".equals(key)) {
+                          return (Iterable) Arrays.asList("H", "I", "J");
+                        } else if ("key2".equals(key)) {
+                          return (Iterable) Arrays.asList("M", "N", "O");
+                        }
+                        return Collections.emptyList();
+                      }
+
+                      @Override
+                      public Coder<K> keyCoder() {
+                        return elementCoder.getKeyCoder();
+                      }
+
+                      @Override
+                      public Coder<V> valueCoder() {
+                        return elementCoder.getValueCoder();
+                      }
+                    };
                   }
                 }));
-    SideInputReference sideInputReference = stage.getSideInputs().iterator().next();
-    String transformId = sideInputReference.transform().getId();
-    String sideInputId = sideInputReference.localName();
+    String transformId = Iterables.get(stage.getSideInputs(), 0).transform().getId();
     stateRequestHandler.addCacheToken(
         BeamFnApi.ProcessBundleRequest.CacheToken.newBuilder()
             .setSideInput(
                 BeamFnApi.ProcessBundleRequest.CacheToken.SideInput.newBuilder()
-                    .setSideInputId(sideInputId)
+                    .setSideInputId(iterableView.getTagInternal().getId())
                     .setTransformId(transformId)
                     .build())
-            .setToken(ByteString.copyFromUtf8("SideInputToken"))
+            .setToken(ByteString.copyFromUtf8("IterableSideInputToken"))
+            .build());
+    stateRequestHandler.addCacheToken(
+        BeamFnApi.ProcessBundleRequest.CacheToken.newBuilder()
+            .setSideInput(
+                BeamFnApi.ProcessBundleRequest.CacheToken.SideInput.newBuilder()
+                    .setSideInputId(multimapView.getTagInternal().getId())
+                    .setTransformId(transformId)
+                    .build())
+            .setToken(ByteString.copyFromUtf8("MulitmapSideInputToken"))
             .build());
     BundleProgressHandler progressHandler = BundleProgressHandler.ignored();
 
@@ -672,7 +756,7 @@ public class RemoteExecutionTest implements Serializable {
     try (RemoteBundle bundle =
         processor.newBundle(outputReceivers, stateRequestHandler, progressHandler)) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
-          .accept(valueInGlobalWindow("X"));
+          .accept(valueInGlobalWindow("Y"));
     }
     for (Collection<WindowedValue<?>> windowedValues : outputValues.values()) {
       assertThat(
@@ -681,20 +765,61 @@ public class RemoteExecutionTest implements Serializable {
               valueInGlobalWindow(KV.of("X", "A")),
               valueInGlobalWindow(KV.of("X", "B")),
               valueInGlobalWindow(KV.of("X", "C")),
-              valueInGlobalWindow(KV.of("X", "A")),
-              valueInGlobalWindow(KV.of("X", "B")),
-              valueInGlobalWindow(KV.of("X", "C"))));
+              valueInGlobalWindow(KV.of("X", "key1:H")),
+              valueInGlobalWindow(KV.of("X", "key1:I")),
+              valueInGlobalWindow(KV.of("X", "key1:J")),
+              valueInGlobalWindow(KV.of("X", "key2:M")),
+              valueInGlobalWindow(KV.of("X", "key2:N")),
+              valueInGlobalWindow(KV.of("X", "key2:O")),
+              valueInGlobalWindow(KV.of("Y", "A")),
+              valueInGlobalWindow(KV.of("Y", "B")),
+              valueInGlobalWindow(KV.of("Y", "C")),
+              valueInGlobalWindow(KV.of("Y", "key1:H")),
+              valueInGlobalWindow(KV.of("Y", "key1:I")),
+              valueInGlobalWindow(KV.of("Y", "key1:J")),
+              valueInGlobalWindow(KV.of("Y", "key2:M")),
+              valueInGlobalWindow(KV.of("Y", "key2:N")),
+              valueInGlobalWindow(KV.of("Y", "key2:O"))));
     }
 
-    // Only expect one read to the sideInput
-    assertEquals(1, stateRequestHandler.receivedRequests.size());
-    BeamFnApi.StateRequest receivedRequest = stateRequestHandler.receivedRequests.get(0);
+    // Expect the following requests for the first bundle:
+    //   * one to read iterable side input
+    //   * one to read keys from multimap side input
+    //   * one to read key1 iterable from multimap side input
+    //   * one to read key2 iterable from multimap side input
+    assertEquals(4, stateRequestHandler.receivedRequests.size());
     assertEquals(
-        receivedRequest.getStateKey().getIterableSideInput(),
+        stateRequestHandler.receivedRequests.get(0).getStateKey().getIterableSideInput(),
         BeamFnApi.StateKey.IterableSideInput.newBuilder()
-            .setSideInputId(sideInputId)
+            .setSideInputId(iterableView.getTagInternal().getId())
             .setTransformId(transformId)
             .build());
+    assertEquals(
+        stateRequestHandler.receivedRequests.get(1).getStateKey().getMultimapKeysSideInput(),
+        BeamFnApi.StateKey.MultimapKeysSideInput.newBuilder()
+            .setSideInputId(multimapView.getTagInternal().getId())
+            .setTransformId(transformId)
+            .build());
+    assertEquals(
+        stateRequestHandler.receivedRequests.get(2).getStateKey().getMultimapSideInput(),
+        BeamFnApi.StateKey.MultimapSideInput.newBuilder()
+            .setSideInputId(multimapView.getTagInternal().getId())
+            .setTransformId(transformId)
+            .setKey(encode("key1"))
+            .build());
+    assertEquals(
+        stateRequestHandler.receivedRequests.get(3).getStateKey().getMultimapSideInput(),
+        BeamFnApi.StateKey.MultimapSideInput.newBuilder()
+            .setSideInputId(multimapView.getTagInternal().getId())
+            .setTransformId(transformId)
+            .setKey(encode("key2"))
+            .build());
+  }
+
+  private static ByteString encode(String value) throws Exception {
+    ByteString.Output output = ByteString.newOutput();
+    StringUtf8Coder.of().encode(value, output);
+    return output.toByteString();
   }
 
   /**
@@ -801,11 +926,9 @@ public class RemoteExecutionTest implements Serializable {
             stateDelegator);
 
     Map<String, Coder> remoteOutputCoders = descriptor.getRemoteOutputCoders();
-    Map<String, Collection<WindowedValue<?>>> outputValues = new HashMap<>();
     Map<String, RemoteOutputReceiver<?>> outputReceivers = new HashMap<>();
     for (Entry<String, Coder> remoteOutputCoder : remoteOutputCoders.entrySet()) {
       List<WindowedValue<?>> outputContents = Collections.synchronizedList(new ArrayList<>());
-      outputValues.put(remoteOutputCoder.getKey(), outputContents);
       outputReceivers.put(
           remoteOutputCoder.getKey(),
           RemoteOutputReceiver.of(
@@ -1208,9 +1331,6 @@ public class RemoteExecutionTest implements Serializable {
   @Test
   public void testExecutionWithUserStateCaching() throws Exception {
     Pipeline p = Pipeline.create();
-    // TODO(BEAM-10212): Remove experiment once cross bundle caching is used by default
-    addExperiment(p.getOptions().as(ExperimentalOptions.class), "cross_bundle_caching");
-
     launchSdkHarness(p.getOptions());
 
     final String stateId = "foo";

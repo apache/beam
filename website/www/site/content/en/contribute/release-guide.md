@@ -369,24 +369,8 @@ There are some projects that don't produce the artifacts, e.g. `beam-test-tools`
 To triage the failures and narrow things down you may want to look at `settings.gradle.kts` and run the build only for the projects you're interested at the moment, e.g. `./gradlew :runners:java-fn-execution`.
 
 #### (Alternative) Run release build manually (locally)
-* **Pre-installation for python build**
-  1. Install pip
-
-      ```
-      curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
-      python get-pip.py
-      ```
-  1. Cython
-
-      ```
-      sudo pip install cython
-      sudo apt-get install gcc
-      sudo apt-get install python-dev
-      sudo apt-get install python3-dev
-      sudo apt-get install python3.5-dev
-      sudo apt-get install python3.6-dev
-      sudo apt-get install python3.7-dev
-      ```
+You will need to have Python interpreters for all supported Python minor
+versions to run Python tests. See Python installation tips in [Developer Wiki](https://cwiki.apache.org/confluence/display/BEAM/Python+Tips#PythonTips-InstallingPythoninterpreters).
 
 * **Run gradle release build**
 
@@ -934,10 +918,9 @@ _Note_: -Prepourl and -Pver can be found in the RC vote email sent by Release Ma
   * **Setup virtual environment**
 
     ```
-    pip install --upgrade pip
-    pip install --upgrade setuptools
-    python -m venv beam_env
-     . beam_env/bin/activate
+    python3 -m venv beam_env
+    . ./beam_env/bin/activate
+    pip install --upgrade pip setuptools wheel
     ```
   * **Install SDK**
 

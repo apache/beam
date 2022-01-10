@@ -1316,12 +1316,13 @@ class PubSubBigQueryIT(unittest.TestCase):
     from google.cloud import pubsub
     self.pub_client = pubsub.PublisherClient()
     self.input_topic = self.pub_client.create_topic(
-        self.pub_client.topic_path(self.project, self.INPUT_TOPIC + self.uuid))
+        name=self.pub_client.topic_path(
+            self.project, self.INPUT_TOPIC + self.uuid))
     self.sub_client = pubsub.SubscriberClient()
     self.input_sub = self.sub_client.create_subscription(
-        self.sub_client.subscription_path(
+        name=self.sub_client.subscription_path(
             self.project, self.INPUT_SUB + self.uuid),
-        self.input_topic.name)
+        topic=self.input_topic.name)
 
     # Set up BQ
     self.dataset_ref = utils.create_bq_dataset(

@@ -23,6 +23,15 @@ applyJavaNature(
   automaticModuleName: 'org.apache.beam.runners.dataflow',
   classesTriggerCheckerBugs: [
     'PrimitiveParDoSingleFactory': 'https://github.com/typetools/checker-framework/issues/3791',
+    // TODO(BEAM-12687): This currently crashes with checkerframework 3.10.0
+    // when compiling :runners:google-cloud-dataflow-java:compileJava with:
+    // message: class file for com.google.api.services.bigquery.model.TableRow not found
+    // ; The Checker Framework crashed.  Please report the crash.
+    // Compilation unit: /usr/local/google/home/lcwik/git/beam/runners/google-cloud-dataflow-java/src/main/java/org/apache/beam/runners/dataflow/util/DefaultCoderCloudObjectTranslatorRegistrar.java
+    // Last visited tree at line 57 column 1:
+    // @AutoService(CoderCloudObjectTranslatorRegistrar.class)
+    // Exception: com.sun.tools.javac.code.Symbol$CompletionFailure: class file for com.google.api.services.bigquery.model.TableRow not found; com.sun.tools.javac.code.Symbol$CompletionFailure: class file for com.google.api.services.bigquery.model.TableRow not found
+    'DefaultCoderCloudObjectTranslatorRegistrar': 'TODO(BEAM-12687): Report the crash if still occurring on newest version',
   ],
 )
 
@@ -109,10 +118,8 @@ dependencies {
   testImplementation library.java.jackson_dataformat_yaml
   testImplementation library.java.mockito_core
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
-  validatesRunner project(project.path)
   validatesRunner project(path: project.path, configuration: "testRuntimeMigration")
-  validatesRunner library.java.hamcrest_core
-  validatesRunner library.java.hamcrest_library
+  validatesRunner library.java.hamcrest
   coreSDKJavaIntegrationTest project(project.path)
   coreSDKJavaIntegrationTest project(path: ":sdks:java:core", configuration: "shadowTest")
   examplesJavaIntegrationTest project(project.path)
@@ -156,6 +163,8 @@ def runnerV2PipelineOptions = [
 ]
 
 def commonLegacyExcludeCategories = [
+  // Should be run only in a properly configured SDK harness environment
+  'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment',
   'org.apache.beam.sdk.testing.LargeKeys$Above10MB',
   'org.apache.beam.sdk.testing.UsesAttemptedMetrics',
   'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms',
@@ -423,6 +432,7 @@ task validatesRunnerV2Streaming {
       'org.apache.beam.sdk.testing.UsesCommittedMetrics',
       'org.apache.beam.sdk.testing.UsesStrictTimerOrdering' /* BEAM-8543 */,
       'org.apache.beam.sdk.testing.UsesTestStream',
+      'org.apache.beam.sdk.testing.UsesOnWindowExpiration',
     ],
     excludedTests: [
       'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindows',
@@ -435,11 +445,6 @@ task validatesRunnerV2Streaming {
       'org.apache.beam.sdk.io.AvroIOTest.testWindowedAvroIOWriteViaSink',
       'org.apache.beam.sdk.extensions.sql.BeamSqlDslAggregationTest.testTriggeredTumble',
       'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleWithTimestampsStreaming',
-
-      'org.apache.beam.sdk.transforms.ParDoTest$OnWindowExpirationTests.testOnWindowExpirationSimpleBounded',
-      'org.apache.beam.sdk.transforms.ParDoTest$OnWindowExpirationTests.testOnWindowExpirationSimpleBoundedGlobal',
-      'org.apache.beam.sdk.transforms.ParDoTest$OnWindowExpirationTests.testOnWindowExpirationSimpleUnbounded',
-      'org.apache.beam.sdk.transforms.ParDoTest$OnWindowExpirationTests.testOnWindowExpirationSimpleUnboundedGlobal',
 
       // TODO(BEAM-11858) reading a side input twice fails
       'org.apache.beam.sdk.transforms.ParDoTest$MultipleInputsAndOutputTests.testSameSideInputReadTwice',
@@ -705,7 +710,7 @@ createJavaExamplesArchetypeValidationTask(type: 'MobileGaming',
 
 // Standalone task for testing GCS upload, use with -PfilesToStage and -PdataflowTempRoot.
 task GCSUpload(type: JavaExec) {
-  main = 'org.apache.beam.runners.dataflow.util.GCSUploadMain'
+  mainClass = 'org.apache.beam.runners.dataflow.util.GCSUploadMain'
   classpath = sourceSets.test.runtimeClasspath
   args "--stagingLocation=${dataflowUploadTemp}/staging",
        "--filesToStage=${testFilesToStage}"
