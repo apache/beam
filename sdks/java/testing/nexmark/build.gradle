@@ -75,7 +75,7 @@ dependencies {
   implementation project(":sdks:java:testing:test-utils")
   implementation library.java.google_api_client
   implementation library.java.junit
-  implementation "org.hamcrest:hamcrest:2.1"
+  implementation library.java.hamcrest
   implementation library.java.google_api_services_bigquery
   implementation library.java.jackson_core
   implementation library.java.jackson_annotations
@@ -177,7 +177,7 @@ task run(type: JavaExec) {
       dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
     }
   }
-  main = "org.apache.beam.sdk.nexmark.Main"
+  mainClass = "org.apache.beam.sdk.nexmark.Main"
   classpath = configurations.gradleRun
   args nexmarkArgsList.toArray()
 }

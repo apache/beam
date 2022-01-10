@@ -22,7 +22,9 @@ Dataflow client utility functions."""
 # pytype: skip-file
 
 import codecs
+from functools import partial
 import getpass
+import hashlib
 import io
 import json
 import logging
@@ -456,6 +458,8 @@ class Job(object):
           self.google_cloud_options.staging_location
       ) = self.google_cloud_options.temp_location
 
+    self.root_staging_location = self.google_cloud_options.staging_location
+
     # Make the staging and temp locations job name and time specific. This is
     # needed to avoid clashes between job submissions using the same staging
     # area or team members using same job names. This method is not entirely
@@ -519,11 +523,16 @@ class Job(object):
 
 
 class DataflowApplicationClient(object):
+  _HASH_CHUNK_SIZE = 1024 * 8
+  _GCS_CACHE_PREFIX = "artifact_cache"
   """A Dataflow API client used by application code to create and query jobs."""
-  def __init__(self, options):
+  def __init__(self, options, root_staging_location=None):
     """Initializes a Dataflow API client object."""
     self.standard_options = options.view_as(StandardOptions)
     self.google_cloud_options = options.view_as(GoogleCloudOptions)
+    self._enable_caching = self.google_cloud_options.enable_artifact_caching
+    self._root_staging_location = (
+        root_staging_location or self.google_cloud_options.staging_location)
 
     if _use_fnapi(options):
       self.environment_version = _FNAPI_ENVIRONMENT_MAJOR_VERSION
@@ -556,9 +565,47 @@ class DataflowApplicationClient(object):
     return (
         dict(s.split(',', 1) for s in sdk_overrides) if sdk_overrides else {})
 
+  @staticmethod
+  def _compute_sha256(file):
+    hasher = hashlib.sha256()
+    with open(file, 'rb') as f:
+      for chunk in iter(partial(f.read,
+                                DataflowApplicationClient._HASH_CHUNK_SIZE),
+                        b""):
+        hasher.update(chunk)
+    return hasher.hexdigest()
+
+  def _cached_location(self, sha256):
+    sha_prefix = sha256[0:2]
+    return FileSystems.join(
+        self._root_staging_location,
+        DataflowApplicationClient._GCS_CACHE_PREFIX,
+        sha_prefix,
+        sha256)
+
+  def _gcs_file_copy(self, from_path, to_path, sha256):
+    if self._enable_caching and sha256:
+      self._cached_gcs_file_copy(from_path, to_path, sha256)
+    else:
+      self._uncached_gcs_file_copy(from_path, to_path)
+
+  def _cached_gcs_file_copy(self, from_path, to_path, sha256):
+    cached_path = self._cached_location(sha256)
+    if FileSystems.exists(cached_path):
+      _LOGGER.info(
+          'Skipping upload of %s because it already exists at %s',
+          to_path,
+          cached_path)
+    else:
+      self._uncached_gcs_file_copy(from_path, cached_path)
+
+    FileSystems.copy(
+        source_file_names=[cached_path], destination_file_names=[to_path])
+    _LOGGER.info('Copied cached artifact from %s to %s', from_path, to_path)
+
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
-  def _gcs_file_copy(self, from_path, to_path):
+  def _uncached_gcs_file_copy(self, from_path, to_path):
     to_folder, to_name = os.path.split(to_path)
     total_size = os.path.getsize(from_path)
     with open(from_path, 'rb') as f:
@@ -586,6 +633,9 @@ class DataflowApplicationClient(object):
         role_payload = (
             beam_runner_api_pb2.ArtifactStagingToRolePayload.FromString(
                 dep.role_payload))
+        if self._enable_caching and not type_payload.sha256:
+          type_payload.sha256 = self._compute_sha256(type_payload.path)
+
         if type_payload.sha256 and type_payload.sha256 in staged_hashes:
           _LOGGER.info(
               'Found duplicated artifact sha256: %s (%s)',
@@ -604,7 +654,8 @@ class DataflowApplicationClient(object):
               staged_name=staged_name).SerializeToString()
         else:
           staged_name = role_payload.staged_name
-          resources.append((type_payload.path, staged_name))
+          resources.append(
+              (type_payload.path, staged_name, type_payload.sha256))
           staged_paths[type_payload.path] = staged_name
           staged_hashes[type_payload.sha256] = staged_name
 
@@ -1043,9 +1094,9 @@ class _LegacyDataflowStager(Stager):
     super().__init__()
     self._dataflow_application_client = dataflow_application_client
 
-  def stage_artifact(self, local_path_to_artifact, artifact_name):
+  def stage_artifact(self, local_path_to_artifact, artifact_name, sha256):
     self._dataflow_application_client._gcs_file_copy(
-        local_path_to_artifact, artifact_name)
+        local_path_to_artifact, artifact_name, sha256)
 
   def commit_manifest(self):
     pass

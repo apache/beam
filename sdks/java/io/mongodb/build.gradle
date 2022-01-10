@@ -32,7 +32,6 @@ dependencies {
   implementation library.java.vendored_guava_26_0_jre
   testImplementation library.java.junit
   testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
-  testImplementation project(":sdks:java:testing:test-utils")
   testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
   testImplementation "de.flapdoodle.embed:de.flapdoodle.embed.mongo:2.2.0"
   testImplementation "de.flapdoodle.embed:de.flapdoodle.embed.process:2.1.2"

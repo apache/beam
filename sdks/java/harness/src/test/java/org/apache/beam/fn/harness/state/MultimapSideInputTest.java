@@ -22,8 +22,11 @@ import static org.junit.Assert.assertArrayEquals;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import org.apache.beam.fn.harness.Cache;
+import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
@@ -33,7 +36,13 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link MultimapSideInput}. */
+/**
+ * Tests for {@link MultimapSideInput}.
+ *
+ * <p>It is important to use a key type where its coder is not {@link Coder#consistentWithEquals()}
+ * to ensure that comparisons are performed using structural values instead of object equality
+ * during testing.
+ */
 @RunWith(JUnit4.class)
 public class MultimapSideInputTest {
   private static final byte[] A = "A".getBytes(StandardCharsets.UTF_8);
@@ -51,11 +60,10 @@ public class MultimapSideInputTest {
 
     MultimapSideInput<byte[], String> multimapSideInput =
         new MultimapSideInput<>(
+            Caches.noop(),
             fakeBeamFnStateClient,
             "instructionId",
-            "ptransformId",
-            "sideInputId",
-            ByteString.copyFromUtf8("encodedWindow"),
+            stateKey(),
             ByteArrayCoder.of(),
             StringUtf8Coder.of());
     assertArrayEquals(
@@ -66,6 +74,61 @@ public class MultimapSideInputTest {
         new String[] {}, Iterables.toArray(multimapSideInput.get(UNKNOWN), String.class));
     assertArrayEquals(
         new byte[][] {A, B}, Iterables.toArray(multimapSideInput.get(), byte[].class));
+  }
+
+  @Test
+  public void testGetCached() throws Exception {
+    FakeBeamFnStateClient fakeBeamFnStateClient =
+        new FakeBeamFnStateClient(
+            ImmutableMap.of(
+                stateKey(), KV.of(ByteArrayCoder.of(), asList(A, B)),
+                key(A), KV.of(StringUtf8Coder.of(), asList("A1", "A2", "A3")),
+                key(B), KV.of(StringUtf8Coder.of(), asList("B1", "B2"))));
+
+    Cache<?, ?> cache = Caches.eternal();
+    {
+      // The first side input will populate the cache.
+      MultimapSideInput<byte[], String> multimapSideInput =
+          new MultimapSideInput<>(
+              cache,
+              fakeBeamFnStateClient,
+              "instructionId",
+              stateKey(),
+              ByteArrayCoder.of(),
+              StringUtf8Coder.of());
+      assertArrayEquals(
+          new String[] {"A1", "A2", "A3"},
+          Iterables.toArray(multimapSideInput.get(A), String.class));
+      assertArrayEquals(
+          new String[] {"B1", "B2"}, Iterables.toArray(multimapSideInput.get(B), String.class));
+      assertArrayEquals(
+          new String[] {}, Iterables.toArray(multimapSideInput.get(UNKNOWN), String.class));
+      assertArrayEquals(
+          new byte[][] {A, B}, Iterables.toArray(multimapSideInput.get(), byte[].class));
+    }
+
+    {
+      // The next side input will load all of its contents from the cache.
+      MultimapSideInput<byte[], String> multimapSideInput =
+          new MultimapSideInput<>(
+              cache,
+              requestBuilder -> {
+                throw new IllegalStateException("Unexpected call for test.");
+              },
+              "instructionId",
+              stateKey(),
+              ByteArrayCoder.of(),
+              StringUtf8Coder.of());
+      assertArrayEquals(
+          new String[] {"A1", "A2", "A3"},
+          Iterables.toArray(multimapSideInput.get(A), String.class));
+      assertArrayEquals(
+          new String[] {"B1", "B2"}, Iterables.toArray(multimapSideInput.get(B), String.class));
+      assertArrayEquals(
+          new String[] {}, Iterables.toArray(multimapSideInput.get(UNKNOWN), String.class));
+      assertArrayEquals(
+          new byte[][] {A, B}, Iterables.toArray(multimapSideInput.get(), byte[].class));
+    }
   }
 
   private StateKey stateKey() throws IOException {

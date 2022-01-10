@@ -51,5 +51,16 @@ COPY --from=build /go/src/playground/backend/configs /opt/playground/backend/con
 COPY katas/log_elements.py /go/src/katas/
 ENV PYTHONPATH="$PYTHONPATH:/go/src/katas"
 
-RUN printenv
-ENTRYPOINT ["/opt/playground/backend/server_python_backend"]
+# Install mitmpoxy
+RUN mkdir /opt/mitmproxy &&\
+    cd /opt/mitmproxy &&\
+    wget https://snapshots.mitmproxy.org/7.0.4/mitmproxy-7.0.4-linux.tar.gz &&\
+    tar -zxvf mitmproxy-7.0.4-linux.tar.gz &&\
+    mkdir /usr/local/share/ca-certificates/extra
+COPY entrypoint.sh /
+COPY allow_list_proxy.py /opt/mitmproxy/
+COPY allow_list.py /opt/mitmproxy/
+ENV HTTP_PROXY="http://127.0.0.1:8081"
+ENV HTTPS_PROXY="http://127.0.0.1:8081"
+
+ENTRYPOINT ["/entrypoint.sh"]

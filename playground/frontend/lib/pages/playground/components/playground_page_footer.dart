@@ -17,6 +17,7 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground/config/theme.dart';
 import 'package:playground/constants/font_weight.dart';
 import 'package:playground/constants/links.dart';
@@ -26,15 +27,13 @@ import 'package:playground/pages/playground/components/feedback/playground_feedb
 import 'package:playground/pages/playground/components/playground_privacy_policy.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-const kPrivacyPolicyNameText = 'Privacy Policy';
-const kReportIssueText = 'Report issue in Jira';
-const kCopyright = '© The Apache Software Foundation';
-
 class PlaygroundPageFooter extends StatelessWidget {
   const PlaygroundPageFooter({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations appLocale = AppLocalizations.of(context)!;
+
     return Container(
       color: ThemeColors.of(context).secondaryBackground,
       width: double.infinity,
@@ -56,7 +55,7 @@ class PlaygroundPageFooter extends StatelessWidget {
                 launch(kReportIssueLink);
                 AnalyticsService.get(context).trackClickReportIssue();
               },
-              child: const Text(kReportIssueText),
+              child: Text(appLocale.reportIssue),
             ),
             TextButton(
               style: TextButton.styleFrom(
@@ -69,9 +68,9 @@ class PlaygroundPageFooter extends StatelessWidget {
                       const PlaygroundPrivacyPolicy(),
                 );
               },
-              child: const Text(kPrivacyPolicyNameText),
+              child: Text(appLocale.privacyPolicy),
             ),
-            const Text(kCopyright),
+            Text(appLocale.copyright),
           ],
         ),
       ),

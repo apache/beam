@@ -85,6 +85,16 @@ message GetValidationOutputResponse {
   string output = 1;
 }
 
+// GetPreparationOutputRequest contains information of the pipeline uuid.
+message GetPreparationOutputRequest {
+  string pipeline_uuid = 1;
+}
+
+// GetPreparationOutputResponse represents the result of the code preparation.
+message GetPreparationOutputResponse {
+  string output = 1;
+}
+
 // GetCompileOutputRequest contains information of the pipeline uuid.
 message GetCompileOutputRequest {
   string pipeline_uuid = 1;
@@ -213,6 +223,9 @@ service PlaygroundService {
 
   // Get the result of pipeline validation.
   rpc GetValidationOutput(GetValidationOutputRequest) returns (GetValidationOutputResponse);
+
+  // Get the result of pipeline preparation.
+  rpc GetPreparationOutput(GetPreparationOutputRequest) returns (GetPreparationOutputResponse);
 
   // Get the result of pipeline compilation.
   rpc GetCompileOutput(GetCompileOutputRequest) returns (GetCompileOutputResponse);
