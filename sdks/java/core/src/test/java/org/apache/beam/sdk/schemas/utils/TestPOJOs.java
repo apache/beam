@@ -30,6 +30,7 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCaseFormat;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
@@ -225,23 +226,44 @@ public class TestPOJOs {
   /** A POJO for testing annotations. */
   @DefaultSchema(JavaFieldSchema.class)
   public static class AnnotatedSimplePojo {
+    @SchemaFieldNumber("0")
     public final String str;
 
     @SchemaFieldName("aByte")
+    @SchemaFieldNumber("2")
     public final byte theByte;
 
     @SchemaFieldName("aShort")
+    @SchemaFieldNumber("1")
     public final short theShort;
 
+    @SchemaFieldNumber("3")
     public final int anInt;
+
+    @SchemaFieldNumber("4")
     public final long aLong;
+
+    @SchemaFieldNumber("5")
     public final boolean aBoolean;
+
+    @SchemaFieldNumber("6")
     public final DateTime dateTime;
+
+    @SchemaFieldNumber("7")
     public final Instant instant;
+
+    @SchemaFieldNumber("8")
     public final byte[] bytes;
+
+    @SchemaFieldNumber("9")
     public final ByteBuffer byteBuffer;
+
+    @SchemaFieldNumber("10")
     public final BigDecimal bigDecimal;
+
+    @SchemaFieldNumber("11")
     public final StringBuilder stringBuilder;
+
     @SchemaIgnore public final Integer pleaseIgnore;
 
     // Marked with SchemaCreate, so this will be called to construct instances.
@@ -349,6 +371,23 @@ public class TestPOJOs {
           + '}';
     }
   }
+
+  /** The schema for {@link SimplePOJO}. * */
+  public static final Schema ANNOTATED_SIMPLE_POJO_SCHEMA =
+      Schema.builder()
+          .addStringField("str")
+          .addInt16Field("aShort")
+          .addByteField("aByte")
+          .addInt32Field("anInt")
+          .addInt64Field("aLong")
+          .addBooleanField("aBoolean")
+          .addDateTimeField("dateTime")
+          .addDateTimeField("instant")
+          .addByteArrayField("bytes")
+          .addByteArrayField("byteBuffer")
+          .addDecimalField("bigDecimal")
+          .addStringField("stringBuilder")
+          .build();
 
   /** A simple POJO containing basic types. * */
   @DefaultSchema(JavaFieldSchema.class)

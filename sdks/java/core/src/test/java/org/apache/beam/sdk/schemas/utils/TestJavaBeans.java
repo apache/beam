@@ -30,6 +30,7 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCaseFormat;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -548,52 +549,64 @@ public class TestJavaBeans {
       return "";
     }
 
+    @SchemaFieldNumber("0")
     public String getStr() {
       return str;
     }
 
     @SchemaFieldName("aByte")
+    @SchemaFieldNumber("2")
     public byte getTheByteByte() {
       return aByte;
     }
 
     @SchemaFieldName("aShort")
+    @SchemaFieldNumber("1")
     public short getNotAShort() {
       return aShort;
     }
 
+    @SchemaFieldNumber("3")
     public int getAnInt() {
       return anInt;
     }
 
+    @SchemaFieldNumber("4")
     public long getaLong() {
       return aLong;
     }
 
+    @SchemaFieldNumber("5")
     public boolean isaBoolean() {
       return aBoolean;
     }
 
+    @SchemaFieldNumber("6")
     public DateTime getDateTime() {
       return dateTime;
     }
 
+    @SchemaFieldNumber("7")
     public byte[] getBytes() {
       return bytes;
     }
 
+    @SchemaFieldNumber("8")
     public ByteBuffer getByteBuffer() {
       return byteBuffer;
     }
 
+    @SchemaFieldNumber("9")
     public Instant getInstant() {
       return instant;
     }
 
+    @SchemaFieldNumber("10")
     public BigDecimal getBigDecimal() {
       return bigDecimal;
     }
 
+    @SchemaFieldNumber("11")
     public StringBuilder getStringBuilder() {
       return stringBuilder;
     }
@@ -640,6 +653,23 @@ public class TestJavaBeans {
       return result;
     }
   }
+
+  /** The schema for {@link SimpleBean}. * */
+  public static final Schema ANNOTATED_SIMPLE_BEAN_SCHEMA =
+      Schema.builder()
+          .addStringField("str")
+          .addInt16Field("aShort")
+          .addByteField("aByte")
+          .addInt32Field("anInt")
+          .addInt64Field("aLong")
+          .addBooleanField("aBoolean")
+          .addDateTimeField("dateTime")
+          .addDateTimeField("instant")
+          .addByteArrayField("bytes")
+          .addByteArrayField("byteBuffer")
+          .addDecimalField("bigDecimal")
+          .addStringField("stringBuilder")
+          .build();
 
   /** A Bean containing a nested class. * */
   @DefaultSchema(JavaBeanSchema.class)
