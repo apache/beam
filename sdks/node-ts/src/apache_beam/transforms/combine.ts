@@ -25,6 +25,49 @@ export function combinePerKey<K, InputT, AccT, OutputT>(combineFn: CombineFn<Inp
 }
 
 
+export class CombineBy<T, K, I, O> extends PTransform<PCollection<T>, PCollection<any>> {
+    keyFn: (element: T) => K;
+    keyName: string;
+    valueFn: (element: T) => I;
+    valueName: string;
+    combineFn: CombineFn<I, any, O>;
+
+    constructor(
+        key: string | ((element: T) => K),
+        value: string | ((element: T) => I),
+        combineFn: CombineFn<I, any, O>) {
+        super('CombineBy');
+
+        // TODO: extract this pattern.
+        if (typeof key == 'string') {
+            this.keyFn = function(x) { return x[key]; };
+            this.keyName = key;
+        } else {
+            this.keyFn = key as (element: T) => K;
+            this.keyName = 'key';
+        }
+
+        if (typeof value == 'string') {
+            this.valueFn = function(x) { return x[value]; };
+            this.valueName = value;
+        } else {
+            this.valueFn = value as (element: T) => I;
+            this.valueName = 'value';
+        }
+
+        this.combineFn = combineFn;
+    }
+
+    expand(input: PCollection<any>): PCollection<KV<any, Iterable<any>>> {
+        const this_ = this;
+        return input
+            .map(x =>({ 'key': this_.keyFn(x), 'value': this_.valueFn(x) }))
+            .apply(new CombinePerKey(this.combineFn))
+            .map(kv => ({ [this_.keyName]: kv.key, [this_.valueName]: kv.value }));
+    }
+}
+
+
 // TODO(pabloem): Consider implementing Combines as primitives rather than with PArDos.
 class CombinePerKey<K, InputT, AccT, OutputT> extends PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> {
     combineFn: CombineFn<InputT, AccT, OutputT>
@@ -72,7 +115,7 @@ class CombineGlobally<InputT, AccT, OutputT> extends PTransform<PCollection<Inpu
     }
 }
 
-class CountFn implements CombineFn<any, number, number> {
+export class CountFn implements CombineFn<any, number, number> {
     createAccumulator() {
         return 0
     }
@@ -85,7 +128,21 @@ class CountFn implements CombineFn<any, number, number> {
     extractOutput(acc: number) {
         return acc
     }
+}
 
+export class SumFn implements CombineFn<number, number, number> {
+    createAccumulator() {
+        return 0
+    }
+    addInput(acc: number, i: number) {
+        return acc + i
+    }
+    mergeAccumulators(accumulators: number[]) {
+        return accumulators.reduce((prev, current) => prev + current)
+    }
+    extractOutput(acc: number) {
+        return acc
+    }
 }
 
 class PreShuffleCombineDoFn<InputT, AccumT> extends DoFn<KV<any, InputT>, KV<any, AccumT>> {
