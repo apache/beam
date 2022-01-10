@@ -2,12 +2,11 @@
 
 import * as beam from '../../apache_beam';
 import { DirectRunner } from '../runners/direct_runner'
-import { KV } from "../values";
 
-import { CombineBy,  CountFn } from '..//transforms/combine';
+import { CombineBy,  CountFn } from '../transforms/combine';
 
 
-class CountElements extends beam.PTransform<beam.PCollection<any>, beam.PCollection<KV<any, number>>> {
+class CountElements extends beam.PTransform<beam.PCollection<any>, beam.PCollection<any>> {
     expand(input: beam.PCollection<any>) {
         return input
             .map(e => ({element: e, count: 1}))
@@ -15,7 +14,7 @@ class CountElements extends beam.PTransform<beam.PCollection<any>, beam.PCollect
     }
 }
 
-function wordCount(lines: beam.PCollection<string>): beam.PCollection<beam.KV<string, number>> {
+function wordCount(lines: beam.PCollection<string>): beam.PCollection<any> {
     return lines
         .map((s: string) => s.toLowerCase())
         .flatMap(function*(line: string) {
