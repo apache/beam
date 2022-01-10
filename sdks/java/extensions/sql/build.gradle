@@ -125,9 +125,7 @@ dependencies {
   testImplementation project(":sdks:java:io:kafka")
   testImplementation project(":sdks:java:io:parquet")
   testImplementation project(path: ":sdks:java:io:mongodb", configuration: "testRuntimeMigration")
-  testImplementation project(path: ":sdks:java:io:thrift")
   testImplementation project(path: ":sdks:java:io:thrift", configuration: "testRuntimeMigration")
-  testImplementation project(":sdks:java:extensions:protobuf")
   testImplementation project(path: ":sdks:java:extensions:protobuf", configuration: "testRuntimeMigration")
   testCompileOnly project(":sdks:java:extensions:sql:udf-test-provider")
   testRuntimeOnly library.java.slf4j_jdk14
@@ -205,7 +203,7 @@ idea {
 // Run basic SQL example
 task runBasicExample(type: JavaExec) {
   description = "Run basic SQL example"
-  main = "org.apache.beam.sdk.extensions.sql.example.BeamSqlExample"
+  mainClass = "org.apache.beam.sdk.extensions.sql.example.BeamSqlExample"
   classpath = sourceSets.main.runtimeClasspath
   args = ["--runner=DirectRunner"]
 }
@@ -213,7 +211,7 @@ task runBasicExample(type: JavaExec) {
 // Run SQL example on POJO inputs
 task runPojoExample(type: JavaExec) {
   description = "Run SQL example for PCollections of POJOs"
-  main = "org.apache.beam.sdk.extensions.sql.example.BeamSqlPojoExample"
+  mainClass = "org.apache.beam.sdk.extensions.sql.example.BeamSqlPojoExample"
   classpath = sourceSets.main.runtimeClasspath
   args = ["--runner=DirectRunner"]
 }

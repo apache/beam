@@ -118,16 +118,13 @@ dependencies {
   testImplementation library.java.jackson_dataformat_yaml
   testImplementation library.java.mockito_core
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
-  validatesRunner project(project.path)
   validatesRunner project(path: project.path, configuration: "testRuntimeMigration")
   validatesRunner library.java.hamcrest
   coreSDKJavaIntegrationTest project(project.path)
   coreSDKJavaIntegrationTest project(path: ":sdks:java:core", configuration: "shadowTest")
   examplesJavaIntegrationTest project(project.path)
-  examplesJavaIntegrationTest project(":examples:java")
   examplesJavaIntegrationTest project(path: ":examples:java", configuration: "testRuntimeMigration")
   googleCloudPlatformIntegrationTest project(project.path)
-  googleCloudPlatformIntegrationTest project(":sdks:java:io:google-cloud-platform")
   googleCloudPlatformIntegrationTest project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntimeMigration")
 }
 
@@ -166,6 +163,8 @@ def runnerV2PipelineOptions = [
 ]
 
 def commonLegacyExcludeCategories = [
+  // Should be run only in a properly configured SDK harness environment
+  'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment',
   'org.apache.beam.sdk.testing.LargeKeys$Above10MB',
   'org.apache.beam.sdk.testing.UsesAttemptedMetrics',
   'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms',
@@ -711,7 +710,7 @@ createJavaExamplesArchetypeValidationTask(type: 'MobileGaming',
 
 // Standalone task for testing GCS upload, use with -PfilesToStage and -PdataflowTempRoot.
 task GCSUpload(type: JavaExec) {
-  main = 'org.apache.beam.runners.dataflow.util.GCSUploadMain'
+  mainClass = 'org.apache.beam.runners.dataflow.util.GCSUploadMain'
   classpath = sourceSets.test.runtimeClasspath
   args "--stagingLocation=${dataflowUploadTemp}/staging",
        "--filesToStage=${testFilesToStage}"

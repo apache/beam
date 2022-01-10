@@ -165,12 +165,12 @@ dependencies {
   implementation library.java.vendored_grpc_1_36_0
   implementation library.java.vendored_guava_26_0_jre
   implementation "com.codahale.metrics:metrics-core:3.0.1"
-  compileOnly "org.apache.spark:spark-core_$spark_scala_version:$spark_version"
-  compileOnly "org.apache.spark:spark-network-common_$spark_scala_version:$spark_version"
+  implementation "org.apache.spark:spark-core_$spark_scala_version:$spark_version"
+  implementation "org.apache.spark:spark-network-common_$spark_scala_version:$spark_version"
   permitUnusedDeclared "org.apache.spark:spark-network-common_$spark_scala_version:$spark_version"
-  compileOnly "org.apache.spark:spark-sql_$spark_scala_version:$spark_version"
-  compileOnly "org.apache.spark:spark-streaming_$spark_scala_version:$spark_version"
-  compileOnly "org.apache.spark:spark-catalyst_$spark_scala_version:$spark_version"
+  implementation "org.apache.spark:spark-sql_$spark_scala_version:$spark_version"
+  implementation "org.apache.spark:spark-streaming_$spark_scala_version:$spark_version"
+  implementation "org.apache.spark:spark-catalyst_$spark_scala_version:$spark_version"
   if(project.property("spark_scala_version").equals("2.11")){
     compileOnly "org.scala-lang:scala-library:2.11.12"
     runtimeOnly library.java.jackson_module_scala_2_11
@@ -187,10 +187,6 @@ dependencies {
   compileOnly library.java.commons_io
   compileOnly library.java.hamcrest
   compileOnly "com.esotericsoftware:kryo-shaded:4.0.2"
-  testImplementation "org.apache.spark:spark-core_$spark_scala_version:$spark_version"
-  testImplementation "org.apache.spark:spark-network-common_$spark_scala_version:$spark_version"
-  testImplementation "org.apache.spark:spark-sql_$spark_scala_version:$spark_version"
-  testImplementation "org.apache.spark:spark-streaming_$spark_scala_version:$spark_version"
   testImplementation library.java.hadoop_common
   testImplementation library.java.commons_io
   testImplementation library.java.hamcrest
@@ -212,8 +208,6 @@ dependencies {
   validatesRunner project(":sdks:java:io:hadoop-format").sourceSets.test.output
   validatesRunner project(path: ":examples:java", configuration: "testRuntimeMigration")
   validatesRunner project(path: project.path, configuration: "testRuntimeMigration")
-  validatesRunner project(project.path)
-  validatesRunner project(path: project.path, configuration: "compileClasspath")
   hadoopVersions.each {kv ->
     "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-common:$kv.value"
   }
@@ -270,6 +264,8 @@ task validatesRunnerBatch(type: Test) {
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
     includeCategories 'org.apache.beam.runners.spark.UsesCheckpointRecovery'
+    // Should be run only in a properly configured SDK harness environment
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
     excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
@@ -286,6 +282,9 @@ task validatesRunnerBatch(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
     excludeCategories 'org.apache.beam.sdk.testing.UsesPythonExpansionService'
     excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
+    // Ordering
+    excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderedDelivery'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderInBundle'
   }
   jvmArgs '-Xmx3g'
 }
@@ -344,6 +343,8 @@ task validatesStructuredStreamingRunnerBatch(type: Test) {
   jvmArgs '-Xmx7g'
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+    // Should be run only in a properly configured SDK harness environment
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
     // Unbounded
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'

@@ -103,6 +103,7 @@ dependencies {
   shadowTest library.java.quickcheck_core
   shadowTest library.java.avro_tests
   shadowTest library.java.zstd_jni
+  shadowTest library.java.jamm
   testRuntimeOnly library.java.slf4j_jdk14
   testImplementation 'io.airlift:aircompressor:0.18'
   testImplementation 'com.facebook.presto.hadoop:hadoop-apache2:3.2.0-1'

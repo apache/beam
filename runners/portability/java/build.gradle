@@ -45,7 +45,6 @@ dependencies {
 
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesRunner project(path: ":runners:core-java", configuration: "testRuntimeMigration")
-  validatesRunner project(project.path)
   validatesRunner project(path: project.path, configuration: "testRuntimeMigration")
 }
 
@@ -137,6 +136,8 @@ def createUlrValidatesRunnerTask = { name, environmentType, dockerImageTask = ""
     testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
     useJUnit {
       includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+      // Should be run only in a properly configured SDK harness environment
+      excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
       excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
       excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
       excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'

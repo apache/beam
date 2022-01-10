@@ -38,7 +38,6 @@ dependencies {
   implementation library.java.vendored_guava_26_0_jre
   implementation library.java.vendored_calcite_1_28_0
   permitUnusedDeclared library.java.vendored_calcite_1_28_0
-  testImplementation project(":sdks:java:io:google-cloud-platform")
   testImplementation project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntimeMigration")
   testImplementation library.java.junit
   // Depending on outputs so integrationTest can run with only test dependencies.
