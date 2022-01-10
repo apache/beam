@@ -19,8 +19,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl_browser.dart';
 import 'package:playground/configure_nonweb.dart'
-    if (dart.library.html) 'package:playground/configure_web.dart';
+if (dart.library.html) 'package:playground/configure_web.dart';
 import 'package:playground/playground_app.dart';
 
 void main() {
@@ -33,6 +34,7 @@ void main() {
     yield LicenseEntryWithLineBreaks(['google_fonts'], license);
   });
 
+  findSystemLocale();
   configureApp();
   runApp(const PlaygroundApp());
 }

@@ -27,6 +27,7 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.rules.ExternalResource;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.localstack.LocalStackContainer;
@@ -88,6 +89,18 @@ public class ITEnvironment<OptionsT extends ITEnvironment.ITOptions> extends Ext
 
   public ITEnvironment(
       Service service, Class<OptionsT> optionsClass, Consumer<OptionsT> optionsMutator) {
+    this(service, optionsClass, optionsMutator, new String[0]);
+  }
+
+  public ITEnvironment(Service service, Class<OptionsT> optionsClass, String... env) {
+    this(service, optionsClass, o -> {}, env);
+  }
+
+  public ITEnvironment(
+      Service service,
+      Class<OptionsT> optionsClass,
+      Consumer<OptionsT> optionsMutator,
+      String... env) {
     this.service = service;
     localstack =
         new LocalStackContainer(DockerImageName.parse(LOCALSTACK).withTag(LOCALSTACK_VERSION))
@@ -98,6 +111,7 @@ public class ITEnvironment<OptionsT extends ITEnvironment.ITOptions> extends Ext
     options = testingPipelineOptions().as(optionsClass);
     optionsMutator.accept(options);
 
+    localstack.setEnv(ImmutableList.copyOf(env));
     if (options.getLocalstackLogLevel() != null) {
       localstack
           .withEnv("LS_LOG", options.getLocalstackLogLevel())

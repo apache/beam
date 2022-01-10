@@ -153,8 +153,8 @@ public class RemoteGrpcPortWriteOperation<T> extends ReceivingOperation {
   public Consumer<Integer> processedElementsConsumer() {
     usingElementsProcessed = true;
     return elementsProcessed -> {
+      lock.lock();
       try {
-        lock.lock();
         this.elementsProcessed.set(elementsProcessed);
         condition.signal();
       } finally {
@@ -168,8 +168,8 @@ public class RemoteGrpcPortWriteOperation<T> extends ReceivingOperation {
 
   private void maybeWait() throws Exception {
     if (shouldWait()) {
+      lock.lock();
       try {
-        lock.lock();
         while (shouldWait()) {
           LOG.debug(
               "Throttling elements at {} until more than {} elements been processed.",
@@ -185,8 +185,8 @@ public class RemoteGrpcPortWriteOperation<T> extends ReceivingOperation {
 
   public void abortWait() {
     usingElementsProcessed = false;
+    lock.lock();
     try {
-      lock.lock();
       condition.signal();
     } finally {
       lock.unlock();

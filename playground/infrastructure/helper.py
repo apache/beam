@@ -63,6 +63,15 @@ class Example:
   output: str = ""
 
 
+@dataclass
+class ExampleTag:
+  """
+  Class which contains all information about beam playground tag
+  """
+  tag_as_dict: Dict[str, str]
+  tag_as_string: str
+
+
 def find_examples(work_dir: str, supported_categories: List[str],
                   sdk: Sdk) -> List[Example]:
   """
@@ -122,7 +131,7 @@ async def get_statuses(examples: List[Example]):
   await asyncio.gather(*tasks)
 
 
-def get_tag(filepath) -> Optional[Dict[str, str]]:
+def get_tag(filepath) -> Optional[ExampleTag]:
   """
   Parse file by filepath and find beam tag
 
@@ -135,27 +144,30 @@ def get_tag(filepath) -> Optional[Dict[str, str]]:
   """
   add_to_yaml = False
   yaml_string = ""
+  tag_string = ""
 
   with open(filepath, encoding="utf-8") as parsed_file:
     lines = parsed_file.readlines()
 
   for line in lines:
-    line = line.replace("//", "").replace("#", "")
+    formatted_line = line.replace("//", "").replace("#", "")
     if add_to_yaml is False:
-      if line.lstrip() == Config.BEAM_PLAYGROUND_TITLE:
+      if formatted_line.lstrip() == Config.BEAM_PLAYGROUND_TITLE:
         add_to_yaml = True
-        yaml_string += line.lstrip()
+        yaml_string += formatted_line.lstrip()
+        tag_string += line
     else:
-      yaml_with_new_string = yaml_string + line
+      yaml_with_new_string = yaml_string + formatted_line
       try:
         yaml.load(yaml_with_new_string, Loader=yaml.SafeLoader)
-        yaml_string += line
+        yaml_string += formatted_line
+        tag_string += line
       except YAMLError:
         break
 
   if add_to_yaml:
     tag_object = yaml.load(yaml_string, Loader=yaml.SafeLoader)
-    return tag_object[Config.BEAM_PLAYGROUND]
+    return ExampleTag(tag_object[Config.BEAM_PLAYGROUND], tag_string)
 
   return None
 
@@ -185,7 +197,7 @@ def _check_file(examples, filename, filepath, supported_categories, sdk: Sdk):
   if extension == Config.SDK_TO_EXTENSION[sdk]:
     tag = get_tag(filepath)
     if tag is not None:
-      if _validate(tag, supported_categories) is False:
+      if _validate(tag.tag_as_dict, supported_categories) is False:
         logging.error(
             "%s contains beam playground tag with incorrect format", filepath)
         has_error = True
@@ -210,8 +222,7 @@ def get_supported_categories(categories_path: str) -> List[str]:
 
 
 def _get_example(
-    filepath: str, filename: str, tag: Dict[str, Union[str,
-                                                       List[str]]]) -> Example:
+    filepath: str, filename: str, tag: ExampleTag) -> Example:
   """
   Return an Example by filepath and filename.
 
@@ -228,6 +239,7 @@ def _get_example(
   object_type = _get_object_type(filename, filepath)
   with open(filepath, encoding="utf-8") as parsed_file:
     content = parsed_file.read()
+  content = content.replace(tag.tag_as_string, "")
 
   return Example(
       name=name,
@@ -235,7 +247,7 @@ def _get_example(
       filepath=filepath,
       code=content,
       status=STATUS_UNSPECIFIED,
-      tag=Tag(**tag),
+      tag=Tag(**tag.tag_as_dict),
       type=object_type)
 
 
@@ -336,7 +348,7 @@ async def _update_example_status(example: Example, client: GRPCClient):
       client: client to send requests to the server.
   """
   pipeline_id = await client.run_code(
-      example.code, example.sdk, example.tag.pipeline_options)
+      example.code, example.sdk, example.tag[TagFields.pipeline_options])
   example.pipeline_id = pipeline_id
   status = await client.check_status(pipeline_id)
   while status in [STATUS_VALIDATING,

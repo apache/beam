@@ -56,21 +56,29 @@ runShadow {
   args = []
 }
 
-def tempDir = File.createTempDir()
-def pipelineOptions = [
-        "--configOverride={\"job.non-logged.store.base.dir\":\"" + tempDir + "\"}"
-]
-createPortableValidatesRunnerTask(
-        name: "validatesPortableRunner",
-        jobServerDriver: "org.apache.beam.runners.samza.SamzaJobServerDriver",
-        jobServerConfig: "--job-host=localhost,--job-port=0,--artifact-port=0,--expansion-port=0",
-        testClasspathConfiguration: configurations.validatesPortableRunner,
-        numParallelTests: 1,
-        pipelineOpts: pipelineOptions,
-        environment: BeamModulePlugin.PortableValidatesRunnerConfiguration.Environment.EMBEDDED,
-        testCategories: {
+def portableValidatesRunnerTask(String name, boolean docker) {
+  def tempDir = File.createTempDir()
+  def pipelineOptions = [
+      "--configOverride={\"job.non-logged.store.base.dir\":\"" + tempDir + "\"}"
+  ]
+  createPortableValidatesRunnerTask(
+      name: "validatesPortableRunner${name}",
+      jobServerDriver: "org.apache.beam.runners.samza.SamzaJobServerDriver",
+      jobServerConfig: "--job-host=localhost,--job-port=0,--artifact-port=0,--expansion-port=0",
+      testClasspathConfiguration: configurations.validatesPortableRunner,
+      numParallelTests: 1,
+      pipelineOpts: pipelineOptions,
+      environment: docker ? BeamModulePlugin.PortableValidatesRunnerConfiguration.Environment.DOCKER : BeamModulePlugin.PortableValidatesRunnerConfiguration.Environment.EMBEDDED,
+      testCategories: {
+            if (docker) {
+              includeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
+              return
+           }
+
             includeCategories 'org.apache.beam.sdk.testing.NeedsRunner'
             includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+            // Should be run only in a properly configured SDK harness environment
+            excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
             // TODO: BEAM-12350
             excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
             // TODO: BEAM-12681
@@ -168,8 +176,19 @@ createPortableValidatesRunnerTask(
             excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testOutputTimestamp'
             // TODO(BEAM-11479)
             excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testRelativeTimerWithOutputTimestamp'
+            // TODO(BEAM-13498)
+            excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testProcessElementSkew'
         }
-)
+  )
+}
+
+project.ext.validatesPortableRunnerDocker = portableValidatesRunnerTask("Docker", true)
+project.ext.validatesPortableRunnerEmbedded = portableValidatesRunnerTask("Embedded", false)
+
+task validatesPortableRunner() {
+    dependsOn validatesPortableRunnerDocker
+    dependsOn validatesPortableRunnerEmbedded
+}
 
 def jobPort = BeamModulePlugin.getRandomPort()
 def artifactPort = BeamModulePlugin.getRandomPort()
