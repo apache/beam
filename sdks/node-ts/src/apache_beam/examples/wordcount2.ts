@@ -27,6 +27,7 @@ function wordCount(lines: beam.PCollection<string>): beam.PCollection<any> {
 }
 
 async function main() {
+    // python apache_beam/runners/portability/local_job_service_main.py --port 3333
     await new NodeRunner(new RemoteJobServiceClient('localhost:3333')).run(
         async (root) => {
             const lines = await root.asyncApply(
