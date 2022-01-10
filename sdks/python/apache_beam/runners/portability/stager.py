@@ -225,7 +225,7 @@ class Stager(object):
           # downloads the binary distributions
           (
               populate_requirements_cache if populate_requirements_cache else
-              Stager._populate_requirements_cache_with_bdists)(
+              Stager._populate_requirements_cache_with_whl)(
                   setup_options.requirements_file, requirements_cache_path)
         else:
           (
@@ -244,7 +244,7 @@ class Stager(object):
           # downloads the binary distributions
           (
               populate_requirements_cache if populate_requirements_cache else
-              Stager._populate_requirements_cache_with_bdists)(
+              Stager._populate_requirements_cache_with_whl)(
                   setup_options.requirements_file, requirements_cache_path)
         else:
           (
@@ -366,7 +366,6 @@ class Stager(object):
       resources.append(
           Stager._create_file_stage_to_artifact(
               dataflow_worker_jar, jar_staged_filename))
-
     return resources
 
   def stage_job_resources(self,
@@ -714,12 +713,12 @@ class Stager(object):
   @staticmethod
   @retry.with_exponential_backoff(
       num_retries=4, retry_filter=retry_on_non_zero_exit)
-  def _populate_requirements_cache_with_bdists(
+  def _populate_requirements_cache_with_whl(
       requirements_file,
       cache_dir,
       language_implementation_tag='cp',
   ):
-    """Downloads bdists if available. If not, sources would be downloaded.
+    """Downloads whl if available. If not, source would be downloaded.
     """
     language_version_tag = '%d%d' % (
         sys.version_info[0], sys.version_info[1])  # Python version

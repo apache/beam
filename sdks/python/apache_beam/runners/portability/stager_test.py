@@ -36,6 +36,7 @@ from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.runners.internal import names
 from apache_beam.runners.portability import stager
 
@@ -707,6 +708,39 @@ class StagerTest(unittest.TestCase):
       lines = tf.readlines()
     self.assertEqual(['apache_beam\n', 'avro-python3\n', 'numpy\n'],
                      sorted(lines))
+
+  def test_download_whl_with_default_container_image(self):
+    staging_dir = self.make_temp_dir()
+    requirements_cache_dir = self.make_temp_dir()
+    source_dir = self.make_temp_dir()
+
+    options = PipelineOptions()
+    self.update_options(options)
+
+    options.view_as(SetupOptions).requirements_cache = requirements_cache_dir
+    options.view_as(SetupOptions).requirements_file = os.path.join(
+        source_dir, stager.REQUIREMENTS_FILE)
+    self.create_temp_file(
+        os.path.join(source_dir, stager.REQUIREMENTS_FILE), 'nothing')
+    # for default container image, the sdk_container_image option would be none
+    options.view_as(
+        WorkerOptions).sdk_container_image = None  # default value is None
+
+    def _create_file(temp_dir, fetch_binary=True, **unused_args):
+      if fetch_binary:
+        self.create_temp_file(os.path.join(temp_dir, 'nothing.whl'), 'Fake whl')
+      else:
+        self.create_temp_file(
+            os.path.join(temp_dir, 'nothing.tar.gz'), 'Fake tarball')
+
+    with mock.patch('apache_beam.runners.portability.stager_test'
+                    '.stager.Stager._download_pypi_package',
+                    staticmethod(_create_file)):
+      resources = self.stager.create_and_stage_job_resources(
+          options, staging_location=staging_dir)[1]
+      # in the resources, only a whl should be present
+      for f in resources:
+        self.assertTrue('.tar.gz' not in f)
 
 
 class TestStager(stager.Stager):
