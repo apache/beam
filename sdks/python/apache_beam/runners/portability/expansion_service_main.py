@@ -33,6 +33,8 @@ from apache_beam.utils import thread_pool_executor
 
 _LOGGER = logging.getLogger(__name__)
 
+from apache_beam import js_test
+
 
 def main(argv):
   parser = argparse.ArgumentParser()
