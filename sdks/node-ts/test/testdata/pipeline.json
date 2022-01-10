@@ -226,7 +226,5 @@
       }
     }
   },
-  "rootTransformIds": [
-    "ref_AppliedPTransform_AppliedPTransform_1"
-  ]
+  "rootTransformIds": ["ref_AppliedPTransform_AppliedPTransform_1"]
 }
