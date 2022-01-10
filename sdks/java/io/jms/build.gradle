@@ -35,6 +35,7 @@ dependencies {
   testImplementation library.java.activemq_jaas
   testImplementation library.java.activemq_kahadb_store
   testImplementation library.java.activemq_client
+  testImplementation library.java.hamcrest
   testImplementation library.java.junit
   testImplementation library.java.mockito_core
   testRuntimeOnly library.java.slf4j_jdk14

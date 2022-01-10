@@ -420,6 +420,21 @@ class AvroBase(object):
             | beam.Map(json.dumps)
         assert_that(readback, equal_to([json.dumps(r) for r in self.RECORDS]))
 
+  def test_writer_open_and_close(self):
+    # Create and then close a temp file so we can manually open it later
+    dst = tempfile.NamedTemporaryFile(delete=False)
+    dst.close()
+
+    schema = parse_schema(json.loads(self.SCHEMA_STRING))
+    sink = _create_avro_sink(
+        'some_avro_sink', schema, 'null', '.end', 0, None, 'application/x-avro')
+
+    w = sink.open(dst.name)
+
+    sink.close(w)
+
+    os.unlink(dst.name)
+
 
 class TestFastAvro(AvroBase, unittest.TestCase):
   def __init__(self, methodName='runTest'):

@@ -17,20 +17,23 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class OutputTabs extends StatelessWidget {
   const OutputTabs({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return const SizedBox(
+    AppLocalizations appLocale = AppLocalizations.of(context)!;
+
+    return SizedBox(
       width: 300,
       child: TabBar(
         tabs: <Widget>[
-          Tab(text: 'Output'),
-          Tab(text: 'Log'),
+          Tab(text: appLocale.output),
+          Tab(text: appLocale.log),
           // Not supported yet
-          // Tab(text: 'Graph'),
+          // Tab(text: appLocale.graph),
         ],
       ),
     );

@@ -17,12 +17,10 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground/modules/output/components/output_result.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:provider/provider.dart';
-
-const kLogText = 'Log';
-const kGraphText = 'Graph';
 
 class OutputArea extends StatelessWidget {
   const OutputArea({Key? key}) : super(key: key);
@@ -39,7 +37,7 @@ class OutputArea extends StatelessWidget {
               OutputResult(text: state.result?.output ?? ''),
               OutputResult(text: state.result?.log ?? ''),
               // Not supported yet
-              // const Center(child: Text(kGraphText)),
+              // Center(child: Text(AppLocalizations.of(context)!.graph)),
             ],
           );
         },

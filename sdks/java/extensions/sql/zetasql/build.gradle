@@ -32,6 +32,7 @@ def zetasql_version = "2020.10.1"
 dependencies {
   // TODO(BEAM-13179): Determine how to build without this dependency
   compileOnly "org.immutables:value:2.8.8"
+  permitUnusedDeclared "org.immutables:value:2.8.8"
   implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
   permitUnusedDeclared enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
   implementation project(path: ":sdks:java:core", configuration: "shadow")
@@ -57,6 +58,7 @@ dependencies {
   testImplementation library.java.vendored_calcite_1_28_0
   testImplementation library.java.vendored_guava_26_0_jre
   testImplementation library.java.junit
+  testImplementation library.java.hamcrest
   testImplementation library.java.mockito_core
   testImplementation library.java.quickcheck_core
   testImplementation "com.alibaba:fastjson:1.2.69"

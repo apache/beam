@@ -28,7 +28,7 @@ include: package:flutter_lints/flutter.yaml
 
 # exclude generated files
 analyzer:
-  exclude: [ lib/api/**, test/**.mocks.dart, lib/**.g.dart, build/** ]
+  exclude: [lib/api/**, test/**.mocks.dart, lib/**.g.dart, lib/l10n/**.arb, build/**]
 
 linter:
   # The lint rules applied to this project can be customized in the
