@@ -29,7 +29,7 @@ package org.apache.beam.gradle
  *    and determine if they are needed (e.g. conscrypt).
  * 3. Validate built artifacts by running linkage tool
  *    (https://github.com/apache/beam/tree/master/vendor#how-to-validate-the-vendored-dependencies)
- *    and unit and integration tests in a PR (e.g. for https://github.com/apache/beam/pull/16460,
+ *    and unit and integration tests in a PR (e.g. https://github.com/apache/beam/pull/16460,
  *    https://github.com/apache/beam/pull/16459)
  */
 class GrpcVendoring_1_43_2 {
