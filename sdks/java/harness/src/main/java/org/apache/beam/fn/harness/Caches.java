@@ -165,6 +165,7 @@ public final class Caches {
             cache == null ? "null" : cache.getClass()));
   }
 
+  @VisibleForTesting
   static Cache<Object, Object> forCache(
       org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache<CompositeKey, Object>
           cache) {

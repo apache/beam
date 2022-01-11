@@ -15,14 +15,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.fn.stream;
+package org.apache.beam.sdk.nexmark.queries;
 
-/** An {@link Iterable} that returns {@link PrefetchableIterator}s. */
-public interface PrefetchableIterable<T> extends Iterable<T> {
+import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
+import org.apache.beam.sdk.nexmark.model.Event;
+import org.apache.beam.sdk.transforms.Reshuffle;
+import org.apache.beam.sdk.values.PCollection;
 
-  /** Ensures that the next iterator returned has been prefetched. */
-  void prefetch();
+/**
+ * Query "14" RESHUFFLE (not in original suite).
+ *
+ * <p>This benchmark is created to stress the reshuffle transform.
+ */
+public class Query14 extends NexmarkQueryTransform<Event> {
+  private final NexmarkConfiguration configuration;
+
+  public Query14(NexmarkConfiguration configuration) {
+    super("Query14");
+    this.configuration = configuration;
+  }
 
   @Override
-  PrefetchableIterator<T> iterator();
+  public PCollection<Event> expand(PCollection<Event> events) {
+    return events.apply(
+        Reshuffle.<Event>viaRandomKey().withNumBuckets(configuration.numKeyBuckets));
+  }
 }

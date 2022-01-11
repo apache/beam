@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.Cache;
+import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest.CacheToken;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.runners.core.SideInputReader;
@@ -169,7 +170,6 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
     }
     ByteString encodedWindow = encodedWindowOut.toByteString();
     StateKey.Builder cacheKeyBuilder = StateKey.newBuilder();
-    Object sideInputAccessor;
 
     switch (sideInputSpec.getAccessPattern()) {
       case Materializations.ITERABLE_MATERIALIZATION_URN:
@@ -178,14 +178,6 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
             .setTransformId(ptransformId)
             .setSideInputId(tag.getId())
             .setWindow(encodedWindow);
-        sideInputAccessor =
-            new IterableSideInput<>(
-                beamFnStateClient,
-                processBundleInstructionId.get(),
-                ptransformId,
-                tag.getId(),
-                encodedWindow,
-                sideInputSpec.getCoder());
         break;
 
       case Materializations.MULTIMAP_MATERIALIZATION_URN:
@@ -194,21 +186,11 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
             "Expected %s but received %s.",
             KvCoder.class,
             sideInputSpec.getCoder().getClass());
-        KvCoder<?, ?> kvCoder = (KvCoder) sideInputSpec.getCoder();
         cacheKeyBuilder
-            .getMultimapSideInputBuilder()
+            .getMultimapKeysSideInputBuilder()
             .setTransformId(ptransformId)
             .setSideInputId(tag.getId())
             .setWindow(encodedWindow);
-        sideInputAccessor =
-            new MultimapSideInput<>(
-                beamFnStateClient,
-                processBundleInstructionId.get(),
-                ptransformId,
-                tag.getId(),
-                encodedWindow,
-                kvCoder.getKeyCoder(),
-                kvCoder.getValueCoder());
         break;
 
       default:
@@ -222,10 +204,44 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                 sideInputSpec.getAccessPattern(),
                 tag));
     }
-
     return (T)
         stateKeyObjectCache.computeIfAbsent(
-            cacheKeyBuilder.build(), key -> sideInputSpec.getViewFn().apply(sideInputAccessor));
+            cacheKeyBuilder.build(),
+            key -> {
+              switch (sideInputSpec.getAccessPattern()) {
+                case Materializations.ITERABLE_MATERIALIZATION_URN:
+                  return sideInputSpec
+                      .getViewFn()
+                      .apply(
+                          new IterableSideInput<>(
+                              getCacheFor(key),
+                              beamFnStateClient,
+                              processBundleInstructionId.get(),
+                              key,
+                              sideInputSpec.getCoder()));
+                case Materializations.MULTIMAP_MATERIALIZATION_URN:
+                  return sideInputSpec
+                      .getViewFn()
+                      .apply(
+                          new MultimapSideInput<>(
+                              getCacheFor(key),
+                              beamFnStateClient,
+                              processBundleInstructionId.get(),
+                              key,
+                              ((KvCoder) sideInputSpec.getCoder()).getKeyCoder(),
+                              ((KvCoder) sideInputSpec.getCoder()).getValueCoder()));
+                default:
+                  throw new IllegalStateException(
+                      String.format(
+                          "This SDK is only capable of dealing with %s materializations "
+                              + "but was asked to handle %s for PCollectionView with tag %s.",
+                          ImmutableList.of(
+                              Materializations.ITERABLE_MATERIALIZATION_URN,
+                              Materializations.MULTIMAP_MATERIALIZATION_URN),
+                          sideInputSpec.getAccessPattern(),
+                          tag));
+              }
+            });
   }
 
   @Override
@@ -247,7 +263,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
               @Override
               public Object apply(StateKey key) {
                 return new ValueState<T>() {
-                  private final BagUserState<T> impl = createBagUserState(id, coder);
+                  private final BagUserState<T> impl = createBagUserState(key, coder);
 
                   @Override
                   public void clear() {
@@ -272,7 +288,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
 
                   @Override
                   public ValueState<T> readLater() {
-                    impl.get().iterator().prefetch();
+                    impl.get().prefetch();
                     return this;
                   }
                 };
@@ -289,7 +305,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
               @Override
               public Object apply(StateKey key) {
                 return new BagState<T>() {
-                  private final BagUserState<T> impl = createBagUserState(id, elemCoder);
+                  private final BagUserState<T> impl = createBagUserState(key, elemCoder);
 
                   @Override
                   public void add(T value) {
@@ -318,7 +334,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
 
                   @Override
                   public BagState<T> readLater() {
-                    impl.get().iterator().prefetch();
+                    impl.get().prefetch();
                     return this;
                   }
 
@@ -335,13 +351,13 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
   public <T> SetState<T> bindSet(String id, StateSpec<SetState<T>> spec, Coder<T> elemCoder) {
     return (SetState<T>)
         stateKeyObjectCache.computeIfAbsent(
-            createMultimapUserStateKey(id),
+            createMultimapKeysUserStateKey(id),
             new Function<StateKey, Object>() {
               @Override
               public Object apply(StateKey key) {
                 return new SetState<T>() {
                   private final MultimapUserState<T, Void> impl =
-                      createMultimapUserState(id, elemCoder, VoidCoder.of());
+                      createMultimapUserState(key, elemCoder, VoidCoder.of());
 
                   @Override
                   public void clear() {
@@ -358,7 +374,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
 
                       @Override
                       public ReadableState<Boolean> readLater() {
-                        impl.get(t).iterator().prefetch();
+                        impl.get(t).prefetch();
                         return this;
                       }
                     };
@@ -394,7 +410,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
 
                       @Override
                       public ReadableState<Boolean> readLater() {
-                        impl.keys().iterator().prefetch();
+                        impl.keys().prefetch();
                         return this;
                       }
                     };
@@ -407,7 +423,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
 
                   @Override
                   public SetState<T> readLater() {
-                    impl.keys().iterator().prefetch();
+                    impl.keys().prefetch();
                     return this;
                   }
                 };
@@ -423,13 +439,13 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
       Coder<ValueT> mapValueCoder) {
     return (MapState<KeyT, ValueT>)
         stateKeyObjectCache.computeIfAbsent(
-            createMultimapUserStateKey(id),
+            createMultimapKeysUserStateKey(id),
             new Function<StateKey, Object>() {
               @Override
               public Object apply(StateKey key) {
                 return new MapState<KeyT, ValueT>() {
                   private final MultimapUserState<KeyT, ValueT> impl =
-                      createMultimapUserState(id, mapKeyCoder, mapValueCoder);
+                      createMultimapUserState(key, mapKeyCoder, mapValueCoder);
 
                   @Override
                   public void clear() {
@@ -474,7 +490,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
 
                       @Override
                       public ReadableState<ValueT> readLater() {
-                        impl.get(key).iterator().prefetch();
+                        impl.get(key).prefetch();
                         return this;
                       }
                     };
@@ -490,7 +506,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
 
                       @Override
                       public ReadableState<Iterable<KeyT>> readLater() {
-                        impl.keys().iterator().prefetch();
+                        impl.keys().prefetch();
                         return this;
                       }
                     };
@@ -574,7 +590,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                 // TODO: Support squashing accumulators depending on whether we know of all
                 // remote accumulators and local accumulators or just local accumulators.
                 return new CombiningState<ElementT, AccumT, ResultT>() {
-                  private final BagUserState<AccumT> impl = createBagUserState(id, accumCoder);
+                  private final BagUserState<AccumT> impl = createBagUserState(key, accumCoder);
 
                   @Override
                   public AccumT getAccum() {
@@ -606,7 +622,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
 
                   @Override
                   public CombiningState<ElementT, AccumT, ResultT> readLater() {
-                    impl.get().iterator().prefetch();
+                    impl.get().prefetch();
                     return this;
                   }
 
@@ -636,7 +652,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
 
                       @Override
                       public ReadableState<Boolean> readLater() {
-                        impl.get().iterator().prefetch();
+                        impl.get().prefetch();
                         return this;
                       }
                     };
@@ -697,31 +713,20 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
     throw new UnsupportedOperationException("WatermarkHoldState is unsupported by the Fn API.");
   }
 
-  private <KeyT, ValueT> MultimapUserState<KeyT, ValueT> createMultimapUserState(
-      String stateId, Coder<KeyT> keyCoder, Coder<ValueT> valueCoder) {
-    MultimapUserState<KeyT, ValueT> rval =
-        new MultimapUserState(
-            beamFnStateClient,
-            processBundleInstructionId.get(),
-            ptransformId,
-            stateId,
-            encodedCurrentWindowSupplier.get(),
-            encodedCurrentKeySupplier.get(),
-            keyCoder,
-            valueCoder);
-    stateFinalizers.add(rval::asyncClose);
-    return rval;
+  private Cache<?, ?> getCacheFor(StateKey stateKey) {
+    switch (stateKey.getTypeCase()) {
+      default:
+        return Caches.noop();
+    }
   }
 
-  private <T> BagUserState<T> createBagUserState(String stateId, Coder<T> valueCoder) {
+  private <T> BagUserState<T> createBagUserState(StateKey stateKey, Coder<T> valueCoder) {
     BagUserState<T> rval =
         new BagUserState<>(
+            getCacheFor(stateKey),
             beamFnStateClient,
             processBundleInstructionId.get(),
-            ptransformId,
-            stateId,
-            encodedCurrentWindowSupplier.get(),
-            encodedCurrentKeySupplier.get(),
+            stateKey,
             valueCoder);
     stateFinalizers.add(rval::asyncClose);
     return rval;
@@ -738,7 +743,21 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
     return builder.build();
   }
 
-  private StateKey createMultimapUserStateKey(String stateId) {
+  private <KeyT, ValueT> MultimapUserState<KeyT, ValueT> createMultimapUserState(
+      StateKey stateKey, Coder<KeyT> keyCoder, Coder<ValueT> valueCoder) {
+    MultimapUserState<KeyT, ValueT> rval =
+        new MultimapUserState(
+            Caches.noop(),
+            beamFnStateClient,
+            processBundleInstructionId.get(),
+            stateKey,
+            keyCoder,
+            valueCoder);
+    stateFinalizers.add(rval::asyncClose);
+    return rval;
+  }
+
+  private StateKey createMultimapKeysUserStateKey(String stateId) {
     StateKey.Builder builder = StateKey.newBuilder();
     builder
         .getMultimapKeysUserStateBuilder()
