@@ -26,8 +26,10 @@ import shutil
 from pathlib import Path
 from typing import List
 
+import tqdm
 from google.cloud import storage
 
+import logger
 from api.v1.api_pb2 import Sdk
 from config import Config, PrecompiledExample
 from grpc_client import GRPCClient
@@ -44,8 +46,13 @@ class CDHelper:
     """
     Store beam examples and their output in the Google Cloud.
     """
+    logger.info("Start of executing Playground examples ...")
     asyncio.run(self._get_outputs(examples))
+    logger.info("Start of executing Playground examples ...")
+
+    logger.info("Start of sending Playground examples to the bucket ...")
     self._save_to_cloud_storage(examples)
+    logger.info("Finish of sending Playground examples to the bucket")
     self._clear_temp_folder()
 
   async def _get_outputs(self, examples: List[Example]):
@@ -82,11 +89,14 @@ class CDHelper:
     """
     self._storage_client = storage.Client()
     self._bucket = self._storage_client.bucket(Config.BUCKET_NAME)
+    pbar = tqdm(total=len(examples))
     for example in examples:
       file_names = self._write_to_local_fs(example)
       for cloud_file_name, local_file_name in file_names.items():
         self._upload_blob(
             source_file=local_file_name, destination_blob_name=cloud_file_name)
+      pbar.update(1)
+    pbar.close()
 
   def _write_to_local_fs(self, example: Example):
     """

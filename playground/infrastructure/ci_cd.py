@@ -18,6 +18,7 @@ Module implements CI/CD steps for Beam Playground examples
 """
 import argparse
 import asyncio
+import logging
 import os
 from typing import List
 
@@ -77,11 +78,19 @@ def _check_envs():
 
 def _run_ci_cd(step: config.Config.CI_CD_LITERAL, sdk: Sdk):
   supported_categories = get_supported_categories(categories_file)
+  logging.info("Start of searching Playground examples ...")
   examples = find_examples(root_dir, supported_categories, sdk)
+  logging.info("Finish of searching Playground examples")
+  logging.info("Count of found Playground examples: %s", len(examples))
+
   if step == config.Config.CI_STEP_NAME:
+    logging.info("Start of verification Playground examples ...")
     _ci_step(examples=examples)
+    logging.info("Finish of verification Playground examples")
   if step == config.Config.CD_STEP_NAME:
+    logging.info("Start of storing Playground examples ...")
     _cd_step(examples=examples)
+    logging.info("Finish of storing Playground examples")
 
 
 if __name__ == "__main__":

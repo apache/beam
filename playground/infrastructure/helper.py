@@ -22,8 +22,9 @@ import logging
 import os
 from collections import namedtuple
 from dataclasses import dataclass, fields
-from typing import List, Optional, Dict, Union
+from typing import List, Optional, Dict
 
+from tqdm.asyncio import tqdm
 import yaml
 from yaml import YAMLError
 
@@ -128,7 +129,7 @@ async def get_statuses(examples: List[Example]):
   client = GRPCClient()
   for example in examples:
     tasks.append(_update_example_status(example, client))
-  await asyncio.gather(*tasks)
+  await tqdm.gather(*tasks)
 
 
 def get_tag(filepath) -> Optional[ExampleTag]:
@@ -278,14 +279,14 @@ def _validate(tag: dict, supported_categories: List[str]) -> bool:
           field.default,
           tag.__str__())
       valid = False
-
-    value = tag.get(field.default)
-    if value == "" or value is None:
-      logging.error(
-          "tag's value is incorrect: %s\nvalue for %s field can not be empty.",
-          tag.__str__(),
-          field.default.__str__())
-      valid = False
+    if valid is True:
+      value = tag.get(field.default)
+      if (value == "" or value is None) and field.default != TagFields.pipeline_options:
+        logging.error(
+            "tag's value is incorrect: %s\nvalue for %s field can not be empty.",
+            tag.__str__(),
+            field.default.__str__())
+        valid = False
 
   if valid is False:
     return valid
@@ -353,7 +354,7 @@ async def _update_example_status(example: Example, client: GRPCClient):
       client: client to send requests to the server.
   """
   pipeline_id = await client.run_code(
-      example.code, example.sdk, example.tag[TagFields.pipeline_options])
+      example.code, example.sdk, example.tag.pipeline_options)
   example.pipeline_id = pipeline_id
   status = await client.check_status(pipeline_id)
   while status in [STATUS_VALIDATING,
