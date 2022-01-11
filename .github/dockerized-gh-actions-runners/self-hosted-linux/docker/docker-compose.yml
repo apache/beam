@@ -16,12 +16,13 @@
 # limitations under the License.
 ################################################################################
 
-apiVersion: v1
-kind: Secret
-metadata:
-  name: github-actions-secrets
-type: Opaque
-data:
-  GITHUB_TOKEN:
-  GITHUB_REPO:
-  IMAGE_URL:
+version: "3.0"
+services:
+  runner:
+    build: .
+    entrypoint: ["/home/actions/entrypoint.sh"]
+    image: $IMAGE_URL:${TAG:-latest}
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    env_file:
+      - ./var.env

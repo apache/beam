@@ -46,10 +46,6 @@ spec:
             requests:
               memory: "1028Mi"
               cpu: "2"
-#          lifecycle:
-#            preStop:
-#              exec:
-#                command: []
       volumes:
         - name: docker-sock
           hostPath:

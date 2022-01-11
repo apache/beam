@@ -38,5 +38,9 @@ remove() {
 }
 trap 'remove; exit 130' INT
 trap 'remove; exit 143' TERM
+trap 'remove; exit 143' QUIT
+trap 'remove; exit 143' ABRT
+trap 'remove; exit 0' EXIT
+
 ./run.sh "$*" &
 wait $!
