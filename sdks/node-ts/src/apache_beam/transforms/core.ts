@@ -15,9 +15,19 @@ import { GeneralObjectCoder } from "../coders/js_coders";
 import { BoundedWindow, Instant, KV, PaneInfo } from "../values";
 import { ParDo } from "..";
 
+/**
+ * A Ptransform that represents a 'static' source with a list of elements passed at construction time. It
+ * returns a PCollection that contains the elements in the input list.
+ *
+ * @extends PTransform
+ */
 export class Create<T> extends PTransform<Root, PCollection<T>> {
   elements: T[];
 
+  /**
+   * Construct a new Create PTransform.
+   * @param elements - the list of elements in the PCollection
+   */
   constructor(elements: T[]) {
     super("Create");
     this.elements = elements;
@@ -32,11 +42,23 @@ export class Create<T> extends PTransform<Root, PCollection<T>> {
   }
 }
 
+/**
+ * A PTransform that takes a PCollection of elements, and returns a PCollection of
+ * elements grouped by a key.
+ *
+ * @extends PTransform
+ */
 export class GroupBy<T, K> extends PTransform<
   PCollection<T>,
-  PCollection<KV<K, Iterable<any>>>
+  PCollection<KV<K, Iterable<T>>>
 > {
   keyFn: (element: T) => K;
+
+  /**
+   * Create a GroupBy transform.
+   *
+   * @param key: The name of the key in the JSON object, or a function that returns the key for a given element.
+   */
   constructor(key: string | ((element: T) => K)) {
     super();
     if (typeof key == "string") {
@@ -48,7 +70,7 @@ export class GroupBy<T, K> extends PTransform<
     }
   }
 
-  expand(input: PCollection<any>): PCollection<KV<any, Iterable<any>>> {
+  expand(input: PCollection<T>): PCollection<KV<K, Iterable<T>>> {
     const keyFn = this.keyFn;
     return input
       .map(function (x) {
