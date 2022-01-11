@@ -31,8 +31,8 @@ func Test_newJavaLifeCycle(t *testing.T) {
 	binFileFolder := filepath.Join(baseFileFolder, "bin")
 
 	type args struct {
-		pipelineId uuid.UUID
-		workingDir string
+		pipelineId      uuid.UUID
+		pipelinesFolder string
 	}
 	tests := []struct {
 		name string
@@ -44,8 +44,8 @@ func Test_newJavaLifeCycle(t *testing.T) {
 			// As a result, want to receive an expected java life cycle.
 			name: "newJavaLifeCycle",
 			args: args{
-				pipelineId: pipelineId,
-				workingDir: workingDir,
+				pipelineId:      pipelineId,
+				pipelinesFolder: filepath.Join(workingDir, pipelinesFolder),
 			},
 			want: &LifeCycle{
 				folderGlobs: []string{baseFileFolder, srcFileFolder, binFileFolder},

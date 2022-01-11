@@ -26,9 +26,10 @@ import (
 )
 
 const (
-	sourceDir      = "sourceDir"
-	destinationDir = "destinationDir"
-	testFileMode   = 0755
+	sourceDir       = "sourceDir"
+	destinationDir  = "destinationDir"
+	testFileMode    = 0755
+	pipelinesFolder = "executable_files"
 )
 
 func prepareFiles() error {
@@ -259,15 +260,15 @@ func TestLifeCycle_DeleteFolders(t *testing.T) {
 
 func TestNewLifeCycle(t *testing.T) {
 	pipelineId := uuid.New()
-	workingDir, _ := filepath.Abs("workingDir")
-	baseFileFolder := filepath.Join(workingDir, executableFiles, pipelineId.String())
+	pipelinesFolder, _ := filepath.Abs(pipelinesFolder)
+	baseFileFolder := filepath.Join(pipelinesFolder, pipelineId.String())
 	srcFileFolder := filepath.Join(baseFileFolder, "src")
 	execFileFolder := filepath.Join(baseFileFolder, "bin")
 
 	type args struct {
-		sdk        pb.Sdk
-		pipelineId uuid.UUID
-		workingDir string
+		sdk             pb.Sdk
+		pipelineId      uuid.UUID
+		pipelinesFolder string
 	}
 	tests := []struct {
 		name    string
@@ -278,9 +279,9 @@ func TestNewLifeCycle(t *testing.T) {
 		{
 			name: "Java LifeCycle",
 			args: args{
-				sdk:        pb.Sdk_SDK_JAVA,
-				pipelineId: pipelineId,
-				workingDir: workingDir,
+				sdk:             pb.Sdk_SDK_JAVA,
+				pipelineId:      pipelineId,
+				pipelinesFolder: pipelinesFolder,
 			},
 			want: &LifeCycle{
 				folderGlobs: []string{baseFileFolder, srcFileFolder, execFileFolder},
@@ -299,9 +300,9 @@ func TestNewLifeCycle(t *testing.T) {
 		{
 			name: "Go LifeCycle",
 			args: args{
-				sdk:        pb.Sdk_SDK_GO,
-				pipelineId: pipelineId,
-				workingDir: workingDir,
+				sdk:             pb.Sdk_SDK_GO,
+				pipelineId:      pipelineId,
+				pipelinesFolder: pipelinesFolder,
 			},
 			want: &LifeCycle{
 				folderGlobs: []string{baseFileFolder, srcFileFolder, execFileFolder},
@@ -320,9 +321,9 @@ func TestNewLifeCycle(t *testing.T) {
 		{
 			name: "Python LifeCycle",
 			args: args{
-				sdk:        pb.Sdk_SDK_PYTHON,
-				pipelineId: pipelineId,
-				workingDir: workingDir,
+				sdk:             pb.Sdk_SDK_PYTHON,
+				pipelineId:      pipelineId,
+				pipelinesFolder: pipelinesFolder,
 			},
 			want: &LifeCycle{
 				folderGlobs: []string{baseFileFolder},
@@ -341,9 +342,9 @@ func TestNewLifeCycle(t *testing.T) {
 		{
 			name: "Unavailable SDK",
 			args: args{
-				sdk:        pb.Sdk_SDK_UNSPECIFIED,
-				pipelineId: pipelineId,
-				workingDir: workingDir,
+				sdk:             pb.Sdk_SDK_UNSPECIFIED,
+				pipelineId:      pipelineId,
+				pipelinesFolder: pipelinesFolder,
 			},
 			want:    nil,
 			wantErr: true,
@@ -351,7 +352,7 @@ func TestNewLifeCycle(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := NewLifeCycle(tt.args.sdk, tt.args.pipelineId, tt.args.workingDir)
+			got, err := NewLifeCycle(tt.args.sdk, tt.args.pipelineId, tt.args.pipelinesFolder)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewLifeCycle() error = %v, wantErr %v", err, tt.wantErr)
 				return

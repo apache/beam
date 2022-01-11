@@ -28,8 +28,6 @@ import (
 	"testing"
 )
 
-const pipelinesFolder = "executable_files"
-
 func Test_replace(t *testing.T) {
 	codeWithPublicClass := "package org.apache.beam.sdk.transforms; \n public class Class {\n    public static void main(String[] args) {\n        System.out.println(\"Hello World!\");\n    }\n}"
 	codeWithoutPublicClass := "package org.apache.beam.sdk.transforms; \n class Class {\n    public static void main(String[] args) {\n        System.out.println(\"Hello World!\");\n    }\n}"
