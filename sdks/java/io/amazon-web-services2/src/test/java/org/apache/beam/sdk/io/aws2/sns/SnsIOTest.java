@@ -17,12 +17,17 @@
  */
 package org.apache.beam.sdk.io.aws2.sns;
 
+import static org.apache.beam.sdk.io.aws2.sns.PublishResponseCoders.defaultPublishResponse;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.joda.time.Duration.millis;
 import static org.joda.time.Duration.standardSeconds;
 
 import java.io.IOException;
 import java.io.Serializable;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.DelegateCoder;
+import org.apache.beam.sdk.coders.DelegateCoder.CodingFunction;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -98,6 +103,41 @@ public class SnsIOTest implements Serializable {
       snsWriterFnLogs.verifyWarn(String.format(SnsIO.Write.SnsWriterFn.RETRY_ATTEMPT_LOG, 2));
       snsWriterFnLogs.verifyWarn(String.format(SnsIO.Write.SnsWriterFn.RETRY_ATTEMPT_LOG, 3));
       throw e.getCause();
+    }
+  }
+
+  @Test
+  public void testCustomCoder() throws Exception {
+    ImmutableList<String> input = ImmutableList.of("message1");
+
+    // Mockito mocks cause NotSerializableException even with withSettings().serializable()
+    final CountingFn<PublishResponse> countingFn = new CountingFn<>();
+    final Coder<PublishResponse> coder =
+        DelegateCoder.of(defaultPublishResponse(), countingFn, x -> x);
+
+    final PCollection<PublishResponse> results =
+        p.apply(Create.of(input))
+            .apply(
+                SnsIO.<String>write()
+                    .withPublishRequestFn(SnsIOTest::createSampleMessage)
+                    .withTopicArn(topicArn)
+                    .withSnsClientProvider(SnsClientMockSuccess::new)
+                    .withCoder(coder));
+
+    final PCollection<Long> publishedResultsSize = results.apply(Count.globally());
+    PAssert.that(publishedResultsSize).containsInAnyOrder(ImmutableList.of(1L));
+    p.run().waitUntilFinish();
+
+    assertThat(countingFn.count).isGreaterThan(0);
+  }
+
+  private static class CountingFn<T> implements CodingFunction<T, T> {
+    int count;
+
+    @Override
+    public T apply(T input) throws Exception {
+      count++;
+      return input;
     }
   }
 }
