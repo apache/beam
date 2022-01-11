@@ -22,10 +22,15 @@ package org.apache.beam.gradle
  * Utilities for working with our vendored version of gRPC.
  * 
  * To update:
- * 1. Determine the set of io.grpc libraries we want to include.
+ * 1. Determine the set of io.grpc libraries we want to include, most likely a superset of
+ *    of the previous vendored gRPC version.
  * 2. Use mvn dependency:tree and https://search.maven.org/search?q=g:io.grpc
  *    to determine dependency tree. You may need to search for optional dependencies
  *    and determine if they are needed (e.g. conscrypt).
+ * 3. Validate built artifacts by running linkage tool
+ *    (https://github.com/apache/beam/tree/master/vendor#how-to-validate-the-vendored-dependencies)
+ *    and unit and integration tests in a PR (e.g. for https://github.com/apache/beam/pull/16460,
+ *    https://github.com/apache/beam/pull/16459)
  */
 class GrpcVendoring_1_43_2 {
   static def grpc_version = "1.43.2"
@@ -42,7 +47,7 @@ class GrpcVendoring_1_43_2 {
 
   // tcnative version from https://github.com/grpc/grpc-java/blob/master/SECURITY.md#netty
   static def netty_version = "4.1.63.Final"
-  static def netty_ssl_version = "2.0.38.Final"
+  static def netty_tcnative_version = "2.0.38.Final"
 
   /** Returns the list of implementation time dependencies. */
   static List<String> dependencies() {
@@ -61,8 +66,7 @@ class GrpcVendoring_1_43_2 {
       // Use a classifier to ensure we get the jar containing native libraries. In the future
       // hopefully netty releases a single jar containing native libraries for all architectures.
       "io.netty:netty-transport-native-epoll:$netty_version:linux-x86_64",
-      // tcnative version from https://github.com/grpc/grpc-java/blob/master/SECURITY.md#netty
-      "io.netty:netty-tcnative-boringssl-static:$netty_ssl_version",
+      "io.netty:netty-tcnative-boringssl-static:$netty_tcnative_version",
       "com.google.auth:google-auth-library-credentials:$google_auth_version",
       "com.google.api.grpc:proto-google-common-protos:$proto_google_common_protos_version",
       "io.opencensus:opencensus-api:$opencensus_version",
