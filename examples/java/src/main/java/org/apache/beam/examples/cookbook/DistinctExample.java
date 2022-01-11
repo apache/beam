@@ -58,8 +58,8 @@ import org.apache.beam.sdk.transforms.Distinct;
  *
  * See examples/java/README.md for instructions about how to configure different runners.
  *
- * <p>The input defaults to {@code gs://apache-beam-samples/shakespeare/kinglear.txt} and can be overridden
- * with {@code --input}.
+ * <p>The input defaults to {@code gs://apache-beam-samples/shakespeare/kinglear.txt} and can be
+ * overridden with {@code --input}.
  */
 public class DistinctExample {
 
