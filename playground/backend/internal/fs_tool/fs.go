@@ -33,13 +33,13 @@ const (
 // LifeCyclePaths contains all files/folders paths
 type LifeCyclePaths struct {
 	SourceFileName                   string // {pipelineId}.{sourceFileExtension}
-	AbsoluteSourceFileFolderPath     string // /path/to/workingDir/executable_files/{pipelineId}/src
-	AbsoluteSourceFilePath           string // /path/to/workingDir/executable_files/{pipelineId}/src/{pipelineId}.{sourceFileExtension}
+	AbsoluteSourceFileFolderPath     string // /path/to/workingDir/pipelinesFolder/{pipelineId}/src
+	AbsoluteSourceFilePath           string // /path/to/workingDir/pipelinesFolder/{pipelineId}/src/{pipelineId}.{sourceFileExtension}
 	ExecutableFileName               string // {pipelineId}.{executableFileExtension}
-	AbsoluteExecutableFileFolderPath string // /path/to/workingDir/executable_files/{pipelineId}/bin
-	AbsoluteExecutableFilePath       string // /path/to/workingDir/executable_files/{pipelineId}/bin/{pipelineId}.{executableFileExtension}
-	AbsoluteBaseFolderPath           string // /path/to/workingDir/executable_files/{pipelineId}
-	AbsoluteLogFilePath              string // /path/to/workingDir/executable_files/{pipelineId}/logs.log
+	AbsoluteExecutableFileFolderPath string // /path/to/workingDir/pipelinesFolder/{pipelineId}/bin
+	AbsoluteExecutableFilePath       string // /path/to/workingDir/pipelinesFolder/{pipelineId}/bin/{pipelineId}.{executableFileExtension}
+	AbsoluteBaseFolderPath           string // /path/to/workingDir/pipelinesFolder/{pipelineId}
+	AbsoluteLogFilePath              string // /path/to/workingDir/pipelinesFolder/{pipelineId}/logs.log
 	ExecutableName                   func(uuid.UUID, string) (string, error)
 }
 
