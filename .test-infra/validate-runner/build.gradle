@@ -22,7 +22,7 @@ group 'org.apache.beam'
 description = "Apache Beam :: Validate :: Runner"
 
 repositories {
-    maven { url "${project.rootDir}.tempLib" }
+    maven { url "${project.rootDir}/tempLib" }
     mavenCentral()
     maven {
         url "https://repo.jenkins-ci.org/releases/"
