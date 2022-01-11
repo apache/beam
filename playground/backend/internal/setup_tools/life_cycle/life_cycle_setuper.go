@@ -34,7 +34,7 @@ const (
 	javaLogFilePlaceholder = "{logFilePath}"
 	goModFileName          = "go.mod"
 	goSumFileName          = "go.sum"
-	baseFileFolder         = "executable_files"
+	executableFiles        = "executable_files"
 )
 
 // Setup returns fs_tool.LifeCycle.
@@ -81,11 +81,11 @@ func Setup(sdk pb.Sdk, code string, pipelineId uuid.UUID, workingDir string, pre
 // prepareGoFiles prepares file for Go environment.
 // Copy go.mod and go.sum file from /path/to/preparedModDir to /path/to/workingDir/executable_files/{pipelineId}
 func prepareGoFiles(lc *fs_tool.LifeCycle, preparedModDir string, pipelineId uuid.UUID) error {
-	if err := lc.CopyFile(goModFileName, preparedModDir, lc.Dto.GetAbsoluteBaseFolderPath()); err != nil {
+	if err := lc.CopyFile(goModFileName, preparedModDir, lc.Paths.AbsoluteBaseFolderPath); err != nil {
 		logger.Errorf("%s: error during copying %s file: %s\n", pipelineId, goModFileName, err.Error())
 		return err
 	}
-	if err := lc.CopyFile(goSumFileName, preparedModDir, lc.Dto.GetAbsoluteBaseFolderPath()); err != nil {
+	if err := lc.CopyFile(goSumFileName, preparedModDir, lc.Paths.AbsoluteBaseFolderPath); err != nil {
 		logger.Errorf("%s: error during copying %s file: %s\n", pipelineId, goSumFileName, err.Error())
 		return err
 	}
@@ -96,12 +96,12 @@ func prepareGoFiles(lc *fs_tool.LifeCycle, preparedModDir string, pipelineId uui
 // Copy log config file from /path/to/workingDir to /path/to/workingDir/executable_files/{pipelineId}
 //	and update this file according to pipeline.
 func prepareJavaFiles(lc *fs_tool.LifeCycle, workingDir string, pipelineId uuid.UUID) error {
-	err := lc.CopyFile(javaLogConfigFileName, workingDir, lc.Dto.GetAbsoluteBaseFolderPath())
+	err := lc.CopyFile(javaLogConfigFileName, workingDir, lc.Paths.AbsoluteBaseFolderPath)
 	if err != nil {
 		logger.Errorf("%s: error during copying logging.properties file: %s\n", pipelineId, err.Error())
 		return err
 	}
-	err = updateJavaLogConfigFile(lc.Dto)
+	err = updateJavaLogConfigFile(lc.Paths)
 	if err != nil {
 		logger.Errorf("%s: error during updating logging.properties file: %s\n", pipelineId, err.Error())
 		return err
@@ -110,9 +110,9 @@ func prepareJavaFiles(lc *fs_tool.LifeCycle, workingDir string, pipelineId uuid.
 }
 
 // updateJavaLogConfigFile updates java log config file according to pipeline
-func updateJavaLogConfigFile(lcDto fs_tool.LifeCycleDTO) error {
-	logConfigFilePath := filepath.Join(lcDto.GetAbsoluteBaseFolderPath(), javaLogConfigFileName)
-	logConfigUpdatedFilePath := filepath.Join(lcDto.GetAbsoluteBaseFolderPath(), javaTmpLogConfigFile)
+func updateJavaLogConfigFile(paths fs_tool.LifeCyclePaths) error {
+	logConfigFilePath := filepath.Join(paths.AbsoluteBaseFolderPath, javaLogConfigFileName)
+	logConfigUpdatedFilePath := filepath.Join(paths.AbsoluteBaseFolderPath, javaTmpLogConfigFile)
 	if _, err := os.Stat(logConfigFilePath); os.IsNotExist(err) {
 		return err
 	}
@@ -130,7 +130,7 @@ func updateJavaLogConfigFile(lcDto fs_tool.LifeCycleDTO) error {
 
 	for scanner.Scan() {
 		line := scanner.Text()
-		line = strings.ReplaceAll(line, javaLogFilePlaceholder, lcDto.GetAbsoluteLogFilePath())
+		line = strings.ReplaceAll(line, javaLogFilePlaceholder, paths.AbsoluteLogFilePath)
 		if _, err = io.WriteString(updatedFile, line+"\n"); err != nil {
 			return err
 		}

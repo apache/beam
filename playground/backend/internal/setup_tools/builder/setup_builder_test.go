@@ -47,7 +47,7 @@ func TestSetupExecutor(t *testing.T) {
 		panic(err)
 	}
 
-	srcFilePath := lc.Dto.GetAbsoluteSourceFilePath()
+	srcFilePath := lc.Paths.AbsoluteSourceFilePath
 
 	sdkEnv := environment.NewBeamEnvs(sdk, executorConfig, "", 0)
 	val, err := utils.GetValidators(sdk, srcFilePath)
@@ -60,8 +60,8 @@ func TestSetupExecutor(t *testing.T) {
 	}
 
 	wantExecutor := executors.NewExecutorBuilder().
-		WithExecutableFileName(lc.Dto.GetAbsoluteExecutableFilePath()).
-		WithWorkingDir(lc.Dto.GetAbsoluteBaseFolderPath()).
+		WithExecutableFileName(lc.Paths.AbsoluteExecutableFilePath).
+		WithWorkingDir(lc.Paths.AbsoluteBaseFolderPath).
 		WithValidator().
 		WithSdkValidators(val).
 		WithPreparator().
@@ -77,11 +77,11 @@ func TestSetupExecutor(t *testing.T) {
 		WithTestRunner().
 		WithCommand(executorConfig.TestCmd).
 		WithArgs(executorConfig.TestArgs).
-		WithWorkingDir(lc.Dto.GetAbsoluteBaseFolderPath()).
+		WithWorkingDir(lc.Paths.AbsoluteBaseFolderPath).
 		ExecutorBuilder
 
 	type args struct {
-		dto             fs_tool.LifeCycleDTO
+		dto             fs_tool.LifeCyclePaths
 		pipelineOptions string
 		sdkEnv          *environment.BeamEnvs
 	}
@@ -95,7 +95,7 @@ func TestSetupExecutor(t *testing.T) {
 			// Test case with calling Setup with incorrect SDK.
 			// As a result, want to receive an error.
 			name:    "incorrect sdk",
-			args:    args{lc.Dto, pipelineOptions, environment.NewBeamEnvs(pb.Sdk_SDK_UNSPECIFIED, executorConfig, "", 0)},
+			args:    args{lc.Paths, pipelineOptions, environment.NewBeamEnvs(pb.Sdk_SDK_UNSPECIFIED, executorConfig, "", 0)},
 			want:    nil,
 			wantErr: true,
 		},
@@ -103,7 +103,7 @@ func TestSetupExecutor(t *testing.T) {
 			// Test case with calling Setup with correct SDK.
 			// As a result, want to receive an expected builder.
 			name:    "correct sdk",
-			args:    args{lc.Dto, pipelineOptions, sdkEnv},
+			args:    args{lc.Paths, pipelineOptions, sdkEnv},
 			want:    &wantExecutor,
 			wantErr: false,
 		},

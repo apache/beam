@@ -16,7 +16,6 @@
 package fs_tool
 
 import (
-	"fmt"
 	"github.com/google/uuid"
 	"os"
 	"path/filepath"
@@ -26,10 +25,10 @@ import (
 
 func Test_newJavaLifeCycle(t *testing.T) {
 	pipelineId := uuid.New()
-	workingDir := "workingDir"
-	baseFileFolder := fmt.Sprintf("%s/%s/%s", workingDir, baseFileFolder, pipelineId)
-	srcFileFolder := baseFileFolder + "/src"
-	binFileFolder := baseFileFolder + "/bin"
+	workingDir, _ := filepath.Abs("workingDir")
+	baseFileFolder := filepath.Join(workingDir, executableFiles, pipelineId.String())
+	srcFileFolder := filepath.Join(baseFileFolder, "src")
+	binFileFolder := filepath.Join(baseFileFolder, "bin")
 
 	type args struct {
 		pipelineId uuid.UUID
@@ -50,18 +49,16 @@ func Test_newJavaLifeCycle(t *testing.T) {
 			},
 			want: &LifeCycle{
 				folderGlobs: []string{baseFileFolder, srcFileFolder, binFileFolder},
-				Dto: LifeCycleDTO{
-					Folder: Folder{
-						BaseFolder:           baseFileFolder,
-						SourceFileFolder:     srcFileFolder,
-						ExecutableFileFolder: binFileFolder,
-					},
-					Extension: Extension{
-						SourceFileExtension:     JavaSourceFileExtension,
-						ExecutableFileExtension: javaCompiledFileExtension,
-					},
-					ExecutableName: executableName,
-					PipelineId:     pipelineId,
+				Paths: LifeCyclePaths{
+					SourceFileName:                   pipelineId.String() + javaSourceFileExtension,
+					AbsoluteSourceFileFolderPath:     srcFileFolder,
+					AbsoluteSourceFilePath:           filepath.Join(srcFileFolder, pipelineId.String()+javaSourceFileExtension),
+					ExecutableFileName:               pipelineId.String() + javaCompiledFileExtension,
+					AbsoluteExecutableFileFolderPath: binFileFolder,
+					AbsoluteExecutableFilePath:       filepath.Join(binFileFolder, pipelineId.String()+javaCompiledFileExtension),
+					AbsoluteBaseFolderPath:           baseFileFolder,
+					AbsoluteLogFilePath:              filepath.Join(baseFileFolder, logFileName),
+					ExecutableName:                   executableName,
 				},
 			},
 		},
@@ -72,14 +69,8 @@ func Test_newJavaLifeCycle(t *testing.T) {
 			if !reflect.DeepEqual(got.folderGlobs, tt.want.folderGlobs) {
 				t.Errorf("newJavaLifeCycle() folderGlobs = %v, want %v", got.folderGlobs, tt.want.folderGlobs)
 			}
-			if !reflect.DeepEqual(got.Dto.Folder, tt.want.Dto.Folder) {
-				t.Errorf("newJavaLifeCycle() Folder = %v, want %v", got.Dto.Folder, tt.want.Dto.Folder)
-			}
-			if !reflect.DeepEqual(got.Dto.Extension, tt.want.Dto.Extension) {
-				t.Errorf("newJavaLifeCycle() Extension = %v, want %v", got.Dto.Extension, tt.want.Dto.Extension)
-			}
-			if !reflect.DeepEqual(got.Dto.PipelineId, tt.want.Dto.PipelineId) {
-				t.Errorf("newJavaLifeCycle() pipelineId = %v, want %v", got.Dto.PipelineId, tt.want.Dto.PipelineId)
+			if !checkPathsEqual(got.Paths, tt.want.Paths) {
+				t.Errorf("newJavaLifeCycle() Paths = %v, want %v", got.Paths, tt.want.Paths)
 			}
 		})
 	}
@@ -109,7 +100,7 @@ func Test_executableName(t *testing.T) {
 			// As a result, want to receive a name that should be executed
 			name: "get executable name",
 			prepare: func() {
-				compiled := filepath.Join(workDir, baseFileFolder, pipelineId.String(), compiledFolderName)
+				compiled := filepath.Join(workDir, executableFiles, pipelineId.String(), compiledFolderName)
 				filePath := filepath.Join(compiled, "temp.class")
 				err := os.WriteFile(filePath, []byte("TEMP_DATA"), 0600)
 				if err != nil {

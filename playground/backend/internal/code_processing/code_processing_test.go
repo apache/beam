@@ -269,7 +269,7 @@ func Test_Process(t *testing.T) {
 
 			compileOutput, _ := cacheService.GetValue(tt.args.ctx, tt.args.pipelineId, cache.CompileOutput)
 			if tt.expectedCompileOutput != nil && strings.Contains(tt.expectedCompileOutput.(string), "%s") {
-				tt.expectedCompileOutput = fmt.Sprintf(tt.expectedCompileOutput.(string), lc.Dto.GetAbsoluteSourceFilePath())
+				tt.expectedCompileOutput = fmt.Sprintf(tt.expectedCompileOutput.(string), lc.Paths.AbsoluteSourceFilePath)
 			}
 			if !reflect.DeepEqual(compileOutput, tt.expectedCompileOutput) {
 				t.Errorf("processCode() set compileOutput: %s, but expectes: %s", compileOutput, tt.expectedCompileOutput)
@@ -535,7 +535,7 @@ func TestGetLastIndex(t *testing.T) {
 func Test_setJavaExecutableFile(t *testing.T) {
 	pipelineId := uuid.New()
 	lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, pipelineId, os.Getenv("APP_WORK_DIR"))
-	lc.Dto.ExecutableName = fakeExecutableName
+	lc.Paths.ExecutableName = fakeExecutableName
 	executorBuilder := executors.NewExecutorBuilder().WithRunner().WithCommand("fake cmd").ExecutorBuilder
 	type args struct {
 		lc              *fs_tool.LifeCycle
@@ -572,7 +572,7 @@ func Test_setJavaExecutableFile(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := setJavaExecutableFile(tt.args.lc.Dto, tt.args.id, tt.args.service, tt.args.ctx, tt.args.executorBuilder, tt.args.dir)
+			got, err := setJavaExecutableFile(tt.args.lc.Paths, tt.args.id, tt.args.service, tt.args.ctx, tt.args.executorBuilder, tt.args.dir)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("setJavaExecutableFile() error = %v, wantErr %v", err, tt.wantErr)
 			}

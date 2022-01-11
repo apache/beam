@@ -30,80 +30,23 @@ const (
 	logFileName = "logs.log"
 )
 
-// Folder contains names of folders with executable and compiled files.
-// For each SDK these values should be set depending on folders that need for the SDK.
-type Folder struct {
-	BaseFolder           string
-	SourceFileFolder     string
-	ExecutableFileFolder string
-}
-
-// Extension contains executable and compiled files' extensions.
-// For each SDK these values should be set depending on SDK's extensions.
-type Extension struct {
-	SourceFileExtension     string
-	ExecutableFileExtension string
-}
-
-// LifeCycleDTO contains methods to receive files/folders paths
-type LifeCycleDTO struct {
-	PipelineId     uuid.UUID
-	Folder         Folder
-	Extension      Extension
-	ExecutableName func(uuid.UUID, string) (string, error)
-}
-
-// GetSourceFileName returns name of the source file like {pipelineId}.{sourceFileExtension}.
-func (l *LifeCycleDTO) GetSourceFileName() string {
-	return l.PipelineId.String() + l.Extension.SourceFileExtension
-}
-
-// GetAbsoluteSourceFileFolderPath returns absolute filepath to source folder (/path/to/workingDir/executable_files/{pipelineId}/src).
-func (l *LifeCycleDTO) GetAbsoluteSourceFileFolderPath() string {
-	absolutePath, _ := filepath.Abs(l.Folder.SourceFileFolder)
-	return absolutePath
-}
-
-// GetAbsoluteSourceFilePath returns absolute filepath to source file (/path/to/workingDir/executable_files/{pipelineId}/src/{pipelineId}.{sourceFileExtension}).
-func (l *LifeCycleDTO) GetAbsoluteSourceFilePath() string {
-	absolutePath, _ := filepath.Abs(filepath.Join(l.GetAbsoluteSourceFileFolderPath(), l.GetSourceFileName()))
-	return absolutePath
-}
-
-// GetExecutableFileName returns name of the executable file like {pipelineId}.{executableFileExtension}.
-func (l *LifeCycleDTO) GetExecutableFileName() string {
-	return l.PipelineId.String() + l.Extension.ExecutableFileExtension
-}
-
-// GetAbsoluteExecutableFileFolderPath returns absolute filepath to executable folder (/path/to/workingDir/executable_files/{pipelineId}/bin).
-func (l *LifeCycleDTO) GetAbsoluteExecutableFileFolderPath() string {
-	absolutePath, _ := filepath.Abs(l.Folder.ExecutableFileFolder)
-	return absolutePath
-}
-
-// GetAbsoluteExecutableFilePath returns absolute filepath to executable file (/path/to/workingDir/executable_files/{pipelineId}/bin/{pipelineId}.{executableFileExtension}).
-func (l *LifeCycleDTO) GetAbsoluteExecutableFilePath() string {
-	absolutePath, _ := filepath.Abs(filepath.Join(l.GetAbsoluteExecutableFileFolderPath(), l.GetExecutableFileName()))
-	return absolutePath
-}
-
-// GetAbsoluteBaseFolderPath returns absolute path to executable folder (/path/to/workingDir/executable_files/{pipelineId}).
-func (l *LifeCycleDTO) GetAbsoluteBaseFolderPath() string {
-	absolutePath, _ := filepath.Abs(l.Folder.BaseFolder)
-	return absolutePath
-}
-
-// GetAbsoluteLogFilePath returns absolute path to the logs file (/path/to/workingDir/executable_files/{pipelineId}/logs.log)
-func (l *LifeCycleDTO) GetAbsoluteLogFilePath() string {
-	filePath := filepath.Join(l.GetAbsoluteBaseFolderPath(), logFileName)
-	absoluteFilePath, _ := filepath.Abs(filePath)
-	return absoluteFilePath
+// LifeCyclePaths contains all files/folders paths
+type LifeCyclePaths struct {
+	SourceFileName                   string // {pipelineId}.{sourceFileExtension}
+	AbsoluteSourceFileFolderPath     string // /path/to/workingDir/executable_files/{pipelineId}/src
+	AbsoluteSourceFilePath           string // /path/to/workingDir/executable_files/{pipelineId}/src/{pipelineId}.{sourceFileExtension}
+	ExecutableFileName               string // {pipelineId}.{executableFileExtension}
+	AbsoluteExecutableFileFolderPath string // /path/to/workingDir/executable_files/{pipelineId}/bin
+	AbsoluteExecutableFilePath       string // /path/to/workingDir/executable_files/{pipelineId}/bin/{pipelineId}.{executableFileExtension}
+	AbsoluteBaseFolderPath           string // /path/to/workingDir/executable_files/{pipelineId}
+	AbsoluteLogFilePath              string // /path/to/workingDir/executable_files/{pipelineId}/logs.log
+	ExecutableName                   func(uuid.UUID, string) (string, error)
 }
 
 // LifeCycle is used for preparing folders and files to process code for one code processing request.
 type LifeCycle struct {
-	folderGlobs []string //folders that should be created to process code
-	Dto         LifeCycleDTO
+	folderGlobs []string // folders that should be created to process code
+	Paths       LifeCyclePaths
 }
 
 // NewLifeCycle returns a corresponding LifeCycle depending on the given SDK.
@@ -145,11 +88,11 @@ func (l *LifeCycle) DeleteFolders() error {
 
 // CreateSourceCodeFile creates an executable file (i.e. file.{sourceFileExtension}).
 func (l *LifeCycle) CreateSourceCodeFile(code string) error {
-	if _, err := os.Stat(l.Dto.GetAbsoluteSourceFileFolderPath()); os.IsNotExist(err) {
+	if _, err := os.Stat(l.Paths.AbsoluteSourceFileFolderPath); os.IsNotExist(err) {
 		return err
 	}
 
-	filePath := l.Dto.GetAbsoluteSourceFilePath()
+	filePath := l.Paths.AbsoluteSourceFilePath
 	err := os.WriteFile(filePath, []byte(code), fileMode)
 	if err != nil {
 		return err

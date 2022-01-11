@@ -21,49 +21,61 @@ import (
 )
 
 const (
-	baseFileFolder     = "executable_files"
+	executableFiles    = "executable_files"
 	sourceFolderName   = "src"
 	compiledFolderName = "bin"
 )
 
 // newCompilingLifeCycle creates LifeCycle for compiled SDK environment.
 func newCompilingLifeCycle(pipelineId uuid.UUID, workingDir string, sourceFileExtension string, compiledFileExtension string) *LifeCycle {
-	baseFileFolder := filepath.Join(workingDir, baseFileFolder, pipelineId.String())
+	baseFileFolder := filepath.Join(workingDir, executableFiles, pipelineId.String())
 	srcFileFolder := filepath.Join(baseFileFolder, sourceFolderName)
 	binFileFolder := filepath.Join(baseFileFolder, compiledFolderName)
+
+	srcFileName := pipelineId.String() + sourceFileExtension
+	absSrcFileFolderPath, _ := filepath.Abs(srcFileFolder)
+	absSrcFilePath, _ := filepath.Abs(filepath.Join(absSrcFileFolderPath, srcFileName))
+	execFileName := pipelineId.String() + compiledFileExtension
+	absExecFileFolderPath, _ := filepath.Abs(binFileFolder)
+	absExecFilePath, _ := filepath.Abs(filepath.Join(absExecFileFolderPath, execFileName))
+	absBaseFolderPath, _ := filepath.Abs(baseFileFolder)
+	absLogFilePath, _ := filepath.Abs(filepath.Join(absBaseFolderPath, logFileName))
+
 	return &LifeCycle{
 		folderGlobs: []string{baseFileFolder, srcFileFolder, binFileFolder},
-		Dto: LifeCycleDTO{
-			PipelineId: pipelineId,
-			Folder: Folder{
-				BaseFolder:           baseFileFolder,
-				SourceFileFolder:     srcFileFolder,
-				ExecutableFileFolder: binFileFolder,
-			},
-			Extension: Extension{
-				SourceFileExtension:     sourceFileExtension,
-				ExecutableFileExtension: compiledFileExtension,
-			},
+		Paths: LifeCyclePaths{
+			SourceFileName:                   srcFileName,
+			AbsoluteSourceFileFolderPath:     absSrcFileFolderPath,
+			AbsoluteSourceFilePath:           absSrcFilePath,
+			ExecutableFileName:               execFileName,
+			AbsoluteExecutableFileFolderPath: absExecFileFolderPath,
+			AbsoluteExecutableFilePath:       absExecFilePath,
+			AbsoluteBaseFolderPath:           absBaseFolderPath,
+			AbsoluteLogFilePath:              absLogFilePath,
 		},
 	}
 }
 
 // newInterpretedLifeCycle creates LifeCycle for interpreted SDK environment.
 func newInterpretedLifeCycle(pipelineId uuid.UUID, workingDir string, sourceFileExtension string) *LifeCycle {
-	sourceFileFolder := filepath.Join(workingDir, baseFileFolder, pipelineId.String())
+	sourceFileFolder := filepath.Join(workingDir, executableFiles, pipelineId.String())
+
+	fileName := pipelineId.String() + sourceFileExtension
+	absFileFolderPath, _ := filepath.Abs(sourceFileFolder)
+	absFilePath, _ := filepath.Abs(filepath.Join(absFileFolderPath, fileName))
+	absLogFilePath, _ := filepath.Abs(filepath.Join(absFileFolderPath, logFileName))
+
 	return &LifeCycle{
 		folderGlobs: []string{sourceFileFolder},
-		Dto: LifeCycleDTO{
-			PipelineId: pipelineId,
-			Folder: Folder{
-				BaseFolder:           sourceFileFolder,
-				SourceFileFolder:     sourceFileFolder,
-				ExecutableFileFolder: sourceFileFolder,
-			},
-			Extension: Extension{
-				ExecutableFileExtension: sourceFileExtension,
-				SourceFileExtension:     sourceFileExtension,
-			},
+		Paths: LifeCyclePaths{
+			SourceFileName:                   fileName,
+			AbsoluteSourceFileFolderPath:     absFileFolderPath,
+			AbsoluteSourceFilePath:           absFilePath,
+			ExecutableFileName:               fileName,
+			AbsoluteExecutableFileFolderPath: absFileFolderPath,
+			AbsoluteExecutableFilePath:       absFilePath,
+			AbsoluteBaseFolderPath:           absFileFolderPath,
+			AbsoluteLogFilePath:              absLogFilePath,
 		},
 	}
 }

@@ -18,24 +18,29 @@ package life_cycle
 import (
 	playground "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/fs_tool"
+	"fmt"
 	"github.com/google/uuid"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"reflect"
 	"testing"
 )
 
 const (
-	workingDir              = "workingDir"
-	sourceFolder            = "src"
-	executableFolder        = "bin"
-	javaSourceFileExtension = ".java"
+	workingDir                = "workingDir"
+	sourceFolder              = "src"
+	executableFolder          = "bin"
+	javaSourceFileExtension   = ".java"
+	javaCompiledFileExtension = ".class"
+	logFileName               = "logs.log"
 )
 
 func TestSetup(t *testing.T) {
 	errorPipelineId := uuid.New()
 	successPipelineId := uuid.New()
+	baseFileFolder, _ := filepath.Abs(filepath.Join(workingDir, executableFiles, successPipelineId.String()))
+	srcFileFolder := filepath.Join(baseFileFolder, sourceFolder)
+	execFileFolder := filepath.Join(baseFileFolder, executableFolder)
 
 	err := os.MkdirAll(workingDir, fs.ModePerm)
 	if err != nil {
@@ -46,11 +51,6 @@ func TestSetup(t *testing.T) {
 		panic(err)
 	}
 	defer os.RemoveAll(workingDir)
-
-	lc, err := fs_tool.NewLifeCycle(playground.Sdk_SDK_JAVA, successPipelineId, workingDir)
-	if err != nil {
-		panic(err)
-	}
 	type args struct {
 		sdk            playground.Sdk
 		code           string
@@ -76,7 +76,7 @@ func TestSetup(t *testing.T) {
 				workingDir: workingDir,
 			},
 			check: func() bool {
-				if _, err := os.Stat(filepath.Join(baseFileFolder, errorPipelineId.String())); os.IsNotExist(err) {
+				if _, err := os.Stat(filepath.Join(executableFiles, errorPipelineId.String())); os.IsNotExist(err) {
 					return true
 				}
 				return false
@@ -96,21 +96,32 @@ func TestSetup(t *testing.T) {
 				preparedModDir: "",
 			},
 			check: func() bool {
-				if _, err := os.Stat(filepath.Join(workingDir, baseFileFolder, successPipelineId.String())); os.IsNotExist(err) {
+				if _, err := os.Stat(filepath.Join(workingDir, executableFiles, successPipelineId.String())); os.IsNotExist(err) {
 					return false
 				}
-				if _, err := os.Stat(filepath.Join(workingDir, baseFileFolder, successPipelineId.String(), sourceFolder)); os.IsNotExist(err) {
+				if _, err := os.Stat(filepath.Join(workingDir, executableFiles, successPipelineId.String(), sourceFolder)); os.IsNotExist(err) {
 					return false
 				}
-				if _, err := os.Stat(filepath.Join(workingDir, baseFileFolder, successPipelineId.String(), executableFolder)); os.IsNotExist(err) {
+				if _, err := os.Stat(filepath.Join(workingDir, executableFiles, successPipelineId.String(), executableFolder)); os.IsNotExist(err) {
 					return false
 				}
-				if _, err := os.Stat(filepath.Join(workingDir, baseFileFolder, successPipelineId.String(), sourceFolder, successPipelineId.String()+javaSourceFileExtension)); os.IsNotExist(err) {
+				if _, err := os.Stat(filepath.Join(workingDir, executableFiles, successPipelineId.String(), sourceFolder, successPipelineId.String()+javaSourceFileExtension)); os.IsNotExist(err) {
 					return false
 				}
 				return true
 			},
-			want:    lc,
+			want: &fs_tool.LifeCycle{
+				Paths: fs_tool.LifeCyclePaths{
+					SourceFileName:                   fmt.Sprintf("%s%s", successPipelineId.String(), javaSourceFileExtension),
+					AbsoluteSourceFileFolderPath:     srcFileFolder,
+					AbsoluteSourceFilePath:           filepath.Join(srcFileFolder, fmt.Sprintf("%s%s", successPipelineId.String(), javaSourceFileExtension)),
+					ExecutableFileName:               fmt.Sprintf("%s%s", successPipelineId.String(), javaCompiledFileExtension),
+					AbsoluteExecutableFileFolderPath: execFileFolder,
+					AbsoluteExecutableFilePath:       filepath.Join(execFileFolder, fmt.Sprintf("%s%s", successPipelineId.String(), javaCompiledFileExtension)),
+					AbsoluteBaseFolderPath:           baseFileFolder,
+					AbsoluteLogFilePath:              filepath.Join(baseFileFolder, logFileName),
+				},
+			},
 			wantErr: false,
 		},
 	}
@@ -122,17 +133,22 @@ func TestSetup(t *testing.T) {
 				return
 			}
 			if got != nil {
-				if !reflect.DeepEqual(got.Dto.Folder, tt.want.Dto.Folder) {
-					t.Errorf("Setup() got.Folder = %v, want %v", got.Dto.Folder, tt.want.Dto.Folder)
-				}
-				if !reflect.DeepEqual(got.Dto.Extension, tt.want.Dto.Extension) {
-					t.Errorf("Setup() got.Extension = %v, want %v", got.Dto.Extension, tt.want.Dto.Extension)
-				}
-				if !tt.check() {
-					t.Errorf("Setup() doesn't prepare necessary files/folders")
+				if !checkPathsEqual(got.Paths, tt.want.Paths) {
+					t.Errorf("Setup() got.Paths = %v, want %v", got.Paths, tt.want.Paths)
 				}
 			}
-			os.RemoveAll("executable_files")
+			os.RemoveAll(executableFiles)
 		})
 	}
+}
+
+func checkPathsEqual(paths1, paths2 fs_tool.LifeCyclePaths) bool {
+	return paths1.SourceFileName == paths2.SourceFileName &&
+		paths1.AbsoluteSourceFileFolderPath == paths2.AbsoluteSourceFileFolderPath &&
+		paths1.AbsoluteSourceFilePath == paths2.AbsoluteSourceFilePath &&
+		paths1.ExecutableFileName == paths2.ExecutableFileName &&
+		paths1.AbsoluteExecutableFileFolderPath == paths2.AbsoluteExecutableFileFolderPath &&
+		paths1.AbsoluteExecutableFilePath == paths2.AbsoluteExecutableFilePath &&
+		paths1.AbsoluteBaseFolderPath == paths2.AbsoluteBaseFolderPath &&
+		paths1.AbsoluteLogFilePath == paths2.AbsoluteLogFilePath
 }

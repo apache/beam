@@ -58,14 +58,14 @@ func Test_replace(t *testing.T) {
 		},
 		{
 			name:     "original file exists",
-			args:     args{[]interface{}{lc.Dto.GetAbsoluteSourceFilePath(), classWithPublicModifierPattern, classWithoutPublicModifierPattern}},
+			args:     args{[]interface{}{lc.Paths.AbsoluteSourceFilePath, classWithPublicModifierPattern, classWithoutPublicModifierPattern}},
 			wantCode: codeWithoutPublicClass,
 			wantErr:  false,
 		},
 		{
 			// Test that file where package is used changes to import all dependencies from this package
 			name:     "original file with package",
-			args:     args{[]interface{}{lc.Dto.GetAbsoluteSourceFilePath(), packagePattern, importStringPattern}},
+			args:     args{[]interface{}{lc.Paths.AbsoluteSourceFilePath, packagePattern, importStringPattern}},
 			wantCode: codeWithImportedPackage,
 			wantErr:  false,
 		},
@@ -137,7 +137,7 @@ func Test_changeJavaTestFileName(t *testing.T) {
 		{
 			// Test that file changes its name to the name of its public class
 			name:     "file with java unit test code to be renamed",
-			args:     args{[]interface{}{lc.Dto.GetAbsoluteSourceFilePath(), &validationResults}},
+			args:     args{[]interface{}{lc.Paths.AbsoluteSourceFilePath, &validationResults}},
 			wantErr:  false,
 			wantName: "Class.java",
 		},
@@ -147,7 +147,7 @@ func Test_changeJavaTestFileName(t *testing.T) {
 			if err := changeJavaTestFileName(tt.args.args...); (err != nil) != tt.wantErr {
 				t.Errorf("changeJavaTestFileName() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			files, err := filepath.Glob(fmt.Sprintf("%s/*java", lc.Dto.GetAbsoluteSourceFileFolderPath()))
+			files, err := filepath.Glob(fmt.Sprintf("%s/*java", lc.Paths.AbsoluteSourceFileFolderPath))
 			if err != nil {
 				t.Errorf("changeJavaTestFileName() error = %v, wantErr %v", err, tt.wantErr)
 			}
