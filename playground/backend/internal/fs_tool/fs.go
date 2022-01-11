@@ -50,15 +50,14 @@ type LifeCycle struct {
 }
 
 // NewLifeCycle returns a corresponding LifeCycle depending on the given SDK.
-// workingDir should be existed and be prepared to create/delete/modify folders into him.
-func NewLifeCycle(sdk pb.Sdk, pipelineId uuid.UUID, workingDir string) (*LifeCycle, error) {
+func NewLifeCycle(sdk pb.Sdk, pipelineId uuid.UUID, pipelinesFolder string) (*LifeCycle, error) {
 	switch sdk {
 	case pb.Sdk_SDK_JAVA:
-		return newJavaLifeCycle(pipelineId, workingDir), nil
+		return newJavaLifeCycle(pipelineId, pipelinesFolder), nil
 	case pb.Sdk_SDK_GO:
-		return newGoLifeCycle(pipelineId, workingDir), nil
+		return newGoLifeCycle(pipelineId, pipelinesFolder), nil
 	case pb.Sdk_SDK_PYTHON:
-		return newPythonLifeCycle(pipelineId, workingDir), nil
+		return newPythonLifeCycle(pipelineId, pipelinesFolder), nil
 	default:
 		return nil, fmt.Errorf("%s isn't supported now", sdk)
 	}

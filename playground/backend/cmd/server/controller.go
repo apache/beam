@@ -58,7 +58,7 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 	cacheExpirationTime := controller.env.ApplicationEnvs.CacheEnvs().KeyExpirationTime()
 	pipelineId := uuid.New()
 
-	lc, err := life_cycle.Setup(info.Sdk, info.Code, pipelineId, controller.env.ApplicationEnvs.WorkingDir(), controller.env.BeamSdkEnvs.PreparedModDir())
+	lc, err := life_cycle.Setup(info.Sdk, info.Code, pipelineId, controller.env.ApplicationEnvs.WorkingDir(), controller.env.ApplicationEnvs.PipelinesFolder(), controller.env.BeamSdkEnvs.PreparedModDir())
 	if err != nil {
 		logger.Errorf("RunCode(): error during setup file system: %s\n", err.Error())
 		return nil, errors.InternalError("Error during preparing", "Error during setup file system for the code processing: %s", err.Error())
@@ -179,6 +179,21 @@ func (controller *playgroundController) GetRunError(ctx context.Context, info *p
 		return nil, err
 	}
 	return &pb.GetRunErrorResponse{Output: runError}, nil
+}
+
+//GetValidationOutput is returning output of validation for specific pipeline by PipelineUuid
+func (controller *playgroundController) GetValidationOutput(ctx context.Context, info *pb.GetValidationOutputRequest) (*pb.GetValidationOutputResponse, error) {
+	pipelineId, err := uuid.Parse(info.PipelineUuid)
+	errorMessage := "Error during getting compilation output"
+	if err != nil {
+		logger.Errorf("%s: GetValidationOutput(): pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid, err.Error())
+		return nil, errors.InvalidArgumentError(errorMessage, "pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid)
+	}
+	validationOutput, err := code_processing.GetProcessingOutput(ctx, controller.cacheService, pipelineId, cache.ValidationOutput, errorMessage)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.GetValidationOutputResponse{Output: validationOutput}, nil
 }
 
 //GetPreparationOutput is returning output of prepare step for specific pipeline by PipelineUuid

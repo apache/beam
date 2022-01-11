@@ -233,7 +233,6 @@ class CheckStatusResponse extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(1)
   Status get status => $_getN(0);
-
   @$pb.TagNumber(1)
   set status(Status v) {
     setField(1, v);
@@ -241,9 +240,169 @@ class CheckStatusResponse extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(1)
   $core.bool hasStatus() => $_has(0);
-
   @$pb.TagNumber(1)
   void clearStatus() => clearField(1);
+}
+
+class GetValidationOutputRequest extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      const $core.bool.fromEnvironment('protobuf.omit_message_names')
+          ? ''
+          : 'GetValidationOutputRequest',
+      package: const $pb.PackageName(
+          const $core.bool.fromEnvironment('protobuf.omit_message_names')
+              ? ''
+              : 'api.v1'),
+      createEmptyInstance: create)
+    ..aOS(
+        1,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'pipelineUuid')
+    ..hasRequiredFields = false;
+
+  GetValidationOutputRequest._() : super();
+
+  factory GetValidationOutputRequest({
+    $core.String? pipelineUuid,
+  }) {
+    final _result = create();
+    if (pipelineUuid != null) {
+      _result.pipelineUuid = pipelineUuid;
+    }
+    return _result;
+  }
+
+  factory GetValidationOutputRequest.fromBuffer($core.List<$core.int> i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(i, r);
+
+  factory GetValidationOutputRequest.fromJson($core.String i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(i, r);
+
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+      'Will be removed in next major version')
+  GetValidationOutputRequest clone() =>
+      GetValidationOutputRequest()..mergeFromMessage(this);
+
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+      'Will be removed in next major version')
+  GetValidationOutputRequest copyWith(
+          void Function(GetValidationOutputRequest) updates) =>
+      super.copyWith(
+              (message) => updates(message as GetValidationOutputRequest))
+          as GetValidationOutputRequest; // ignore: deprecated_member_use
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static GetValidationOutputRequest create() => GetValidationOutputRequest._();
+
+  GetValidationOutputRequest createEmptyInstance() => create();
+
+  static $pb.PbList<GetValidationOutputRequest> createRepeated() =>
+      $pb.PbList<GetValidationOutputRequest>();
+
+  @$core.pragma('dart2js:noInline')
+  static GetValidationOutputRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<GetValidationOutputRequest>(create);
+  static GetValidationOutputRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get pipelineUuid => $_getSZ(0);
+
+  @$pb.TagNumber(1)
+  set pipelineUuid($core.String v) {
+    $_setString(0, v);
+  }
+
+  @$pb.TagNumber(1)
+  $core.bool hasPipelineUuid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearPipelineUuid() => clearField(1);
+}
+
+class GetValidationOutputResponse extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      const $core.bool.fromEnvironment('protobuf.omit_message_names')
+          ? ''
+          : 'GetValidationOutputResponse',
+      package: const $pb.PackageName(
+          const $core.bool.fromEnvironment('protobuf.omit_message_names')
+              ? ''
+              : 'api.v1'),
+      createEmptyInstance: create)
+    ..aOS(
+        1,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'output')
+    ..hasRequiredFields = false;
+
+  GetValidationOutputResponse._() : super();
+
+  factory GetValidationOutputResponse({
+    $core.String? output,
+  }) {
+    final _result = create();
+    if (output != null) {
+      _result.output = output;
+    }
+    return _result;
+  }
+
+  factory GetValidationOutputResponse.fromBuffer($core.List<$core.int> i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(i, r);
+
+  factory GetValidationOutputResponse.fromJson($core.String i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(i, r);
+
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+      'Will be removed in next major version')
+  GetValidationOutputResponse clone() =>
+      GetValidationOutputResponse()..mergeFromMessage(this);
+
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+      'Will be removed in next major version')
+  GetValidationOutputResponse copyWith(
+          void Function(GetValidationOutputResponse) updates) =>
+      super.copyWith(
+              (message) => updates(message as GetValidationOutputResponse))
+          as GetValidationOutputResponse; // ignore: deprecated_member_use
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static GetValidationOutputResponse create() =>
+      GetValidationOutputResponse._();
+
+  GetValidationOutputResponse createEmptyInstance() => create();
+
+  static $pb.PbList<GetValidationOutputResponse> createRepeated() =>
+      $pb.PbList<GetValidationOutputResponse>();
+
+  @$core.pragma('dart2js:noInline')
+  static GetValidationOutputResponse getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<GetValidationOutputResponse>(create);
+  static GetValidationOutputResponse? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get output => $_getSZ(0);
+
+  @$pb.TagNumber(1)
+  set output($core.String v) {
+    $_setString(0, v);
+  }
+
+  @$pb.TagNumber(1)
+  $core.bool hasOutput() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearOutput() => clearField(1);
 }
 
 class GetPreparationOutputRequest extends $pb.GeneratedMessage {
@@ -323,7 +482,6 @@ class GetPreparationOutputRequest extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(1)
   $core.bool hasPipelineUuid() => $_has(0);
-
   @$pb.TagNumber(1)
   void clearPipelineUuid() => clearField(1);
 }
@@ -405,7 +563,6 @@ class GetPreparationOutputResponse extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(1)
   $core.bool hasOutput() => $_has(0);
-
   @$pb.TagNumber(1)
   void clearOutput() => clearField(1);
 }
@@ -1068,7 +1225,6 @@ class Categories extends $pb.GeneratedMessage {
   $pb.BuilderInfo get info_ => _i;
   @$core.pragma('dart2js:noInline')
   static Categories create() => Categories._();
-
   Categories createEmptyInstance() => create();
 
   static $pb.PbList<Categories> createRepeated() => $pb.PbList<Categories>();
@@ -1088,7 +1244,6 @@ class Categories extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(1)
   $core.bool hasSdk() => $_has(0);
-
   @$pb.TagNumber(1)
   void clearSdk() => clearField(1);
 
@@ -1186,7 +1341,6 @@ class GetPrecompiledObjectsRequest extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(1)
   $core.bool hasSdk() => $_has(0);
-
   @$pb.TagNumber(1)
   void clearSdk() => clearField(1);
 
@@ -1200,7 +1354,6 @@ class GetPrecompiledObjectsRequest extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(2)
   $core.bool hasCategory() => $_has(1);
-
   @$pb.TagNumber(2)
   void clearCategory() => clearField(2);
 }
@@ -1283,7 +1436,6 @@ class GetPrecompiledObjectCodeRequest extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(1)
   $core.bool hasCloudPath() => $_has(0);
-
   @$pb.TagNumber(1)
   void clearCloudPath() => clearField(1);
 }
@@ -1366,7 +1518,6 @@ class GetPrecompiledObjectOutputRequest extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(1)
   $core.bool hasCloudPath() => $_has(0);
-
   @$pb.TagNumber(1)
   void clearCloudPath() => clearField(1);
 }
@@ -1449,7 +1600,6 @@ class GetPrecompiledObjectLogsRequest extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(1)
   $core.bool hasCloudPath() => $_has(0);
-
   @$pb.TagNumber(1)
   void clearCloudPath() => clearField(1);
 }
@@ -1565,13 +1715,14 @@ class GetPrecompiledObjectCodeResponse extends $pb.GeneratedMessage {
       create()..mergeFromJson(i, r);
 
   @$core.Deprecated('Using this can add significant overhead to your binary. '
-  'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
-  'Will be removed in next major version')
-  GetPrecompiledObjectCodeResponse clone() => GetPrecompiledObjectCodeResponse()..mergeFromMessage(this);
-  @$core.Deprecated(
-  'Using this can add significant overhead to your binary. '
-  'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
-  'Will be removed in next major version')
+      'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+      'Will be removed in next major version')
+  GetPrecompiledObjectCodeResponse clone() =>
+      GetPrecompiledObjectCodeResponse()..mergeFromMessage(this);
+
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+      'Will be removed in next major version')
   GetPrecompiledObjectCodeResponse copyWith(
           void Function(GetPrecompiledObjectCodeResponse) updates) =>
       super.copyWith(
@@ -1604,7 +1755,6 @@ class GetPrecompiledObjectCodeResponse extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(1)
   $core.bool hasCode() => $_has(0);
-
   @$pb.TagNumber(1)
   void clearCode() => clearField(1);
 }
@@ -1687,7 +1837,6 @@ class GetPrecompiledObjectOutputResponse extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(1)
   $core.bool hasOutput() => $_has(0);
-
   @$pb.TagNumber(1)
   void clearOutput() => clearField(1);
 }
@@ -1770,7 +1919,6 @@ class GetPrecompiledObjectLogsResponse extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(1)
   $core.bool hasOutput() => $_has(0);
-
   @$pb.TagNumber(1)
   void clearOutput() => clearField(1);
 }

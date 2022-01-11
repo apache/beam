@@ -26,7 +26,7 @@ import (
 func Test_newJavaLifeCycle(t *testing.T) {
 	pipelineId := uuid.New()
 	workingDir, _ := filepath.Abs("workingDir")
-	baseFileFolder := filepath.Join(workingDir, executableFiles, pipelineId.String())
+	baseFileFolder := filepath.Join(workingDir, pipelinesFolder, pipelineId.String())
 	srcFileFolder := filepath.Join(baseFileFolder, "src")
 	binFileFolder := filepath.Join(baseFileFolder, "bin")
 
@@ -65,7 +65,7 @@ func Test_newJavaLifeCycle(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := newJavaLifeCycle(tt.args.pipelineId, tt.args.workingDir)
+			got := newJavaLifeCycle(tt.args.pipelineId, tt.args.pipelinesFolder)
 			if !reflect.DeepEqual(got.folderGlobs, tt.want.folderGlobs) {
 				t.Errorf("newJavaLifeCycle() folderGlobs = %v, want %v", got.folderGlobs, tt.want.folderGlobs)
 			}
@@ -79,14 +79,14 @@ func Test_newJavaLifeCycle(t *testing.T) {
 func Test_executableName(t *testing.T) {
 	pipelineId := uuid.New()
 	workDir := "workingDir"
-
-	lc := newJavaLifeCycle(pipelineId, workDir)
+	preparedPipelinesFolder := filepath.Join(workDir, pipelinesFolder)
+	lc := newJavaLifeCycle(pipelineId, preparedPipelinesFolder)
 	lc.CreateFolders()
 	defer os.RemoveAll(workDir)
 
 	type args struct {
-		pipelineId uuid.UUID
-		workingDir string
+		pipelineId      uuid.UUID
+		pipelinesFolder string
 	}
 	tests := []struct {
 		name    string
@@ -100,7 +100,7 @@ func Test_executableName(t *testing.T) {
 			// As a result, want to receive a name that should be executed
 			name: "get executable name",
 			prepare: func() {
-				compiled := filepath.Join(workDir, executableFiles, pipelineId.String(), compiledFolderName)
+				compiled := filepath.Join(workDir, pipelinesFolder, pipelineId.String(), compiledFolderName)
 				filePath := filepath.Join(compiled, "temp.class")
 				err := os.WriteFile(filePath, []byte("TEMP_DATA"), 0600)
 				if err != nil {
@@ -108,8 +108,8 @@ func Test_executableName(t *testing.T) {
 				}
 			},
 			args: args{
-				pipelineId: pipelineId,
-				workingDir: workDir,
+				pipelineId:      pipelineId,
+				pipelinesFolder: preparedPipelinesFolder,
 			},
 			want:    "temp",
 			wantErr: false,
@@ -121,7 +121,6 @@ func Test_executableName(t *testing.T) {
 			prepare: func() {},
 			args: args{
 				pipelineId: uuid.New(),
-				workingDir: workDir,
 			},
 			want:    "",
 			wantErr: true,
@@ -130,7 +129,7 @@ func Test_executableName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.prepare()
-			got, err := executableName(tt.args.pipelineId, tt.args.workingDir)
+			got, err := executableName(tt.args.pipelineId, tt.args.pipelinesFolder)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("sourceFileName() error = %v, wantErr %v", err, tt.wantErr)
 				return

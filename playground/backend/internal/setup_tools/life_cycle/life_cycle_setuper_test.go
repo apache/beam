@@ -32,13 +32,14 @@ const (
 	executableFolder          = "bin"
 	javaSourceFileExtension   = ".java"
 	javaCompiledFileExtension = ".class"
+	pipelinesFolder           = "executable_files"
 	logFileName               = "logs.log"
 )
 
 func TestSetup(t *testing.T) {
 	errorPipelineId := uuid.New()
 	successPipelineId := uuid.New()
-	baseFileFolder, _ := filepath.Abs(filepath.Join(workingDir, executableFiles, successPipelineId.String()))
+	baseFileFolder, _ := filepath.Abs(filepath.Join(workingDir, pipelinesFolder, successPipelineId.String()))
 	srcFileFolder := filepath.Join(baseFileFolder, sourceFolder)
 	execFileFolder := filepath.Join(baseFileFolder, executableFolder)
 
@@ -52,11 +53,12 @@ func TestSetup(t *testing.T) {
 	}
 	defer os.RemoveAll(workingDir)
 	type args struct {
-		sdk            playground.Sdk
-		code           string
-		pipelineId     uuid.UUID
-		workingDir     string
-		preparedModDir string
+		sdk             playground.Sdk
+		code            string
+		pipelineId      uuid.UUID
+		workingDir      string
+		preparedModDir  string
+		pipelinesFolder string
 	}
 	tests := []struct {
 		name    string
@@ -70,13 +72,14 @@ func TestSetup(t *testing.T) {
 			// As a result, want to receive an error.
 			name: "incorrect sdk",
 			args: args{
-				sdk:        playground.Sdk_SDK_UNSPECIFIED,
-				code:       "",
-				pipelineId: errorPipelineId,
-				workingDir: workingDir,
+				sdk:             playground.Sdk_SDK_UNSPECIFIED,
+				code:            "",
+				pipelineId:      errorPipelineId,
+				workingDir:      workingDir,
+				pipelinesFolder: pipelinesFolder,
 			},
 			check: func() bool {
-				if _, err := os.Stat(filepath.Join(executableFiles, errorPipelineId.String())); os.IsNotExist(err) {
+				if _, err := os.Stat(filepath.Join(pipelinesFolder, errorPipelineId.String())); os.IsNotExist(err) {
 					return true
 				}
 				return false
@@ -89,23 +92,24 @@ func TestSetup(t *testing.T) {
 			// As a result, want to receive an expected life cycle.
 			name: "correct sdk",
 			args: args{
-				sdk:            playground.Sdk_SDK_JAVA,
-				code:           "",
-				pipelineId:     successPipelineId,
-				workingDir:     workingDir,
-				preparedModDir: "",
+				sdk:             playground.Sdk_SDK_JAVA,
+				code:            "",
+				pipelineId:      successPipelineId,
+				workingDir:      workingDir,
+				preparedModDir:  "",
+				pipelinesFolder: pipelinesFolder,
 			},
 			check: func() bool {
-				if _, err := os.Stat(filepath.Join(workingDir, executableFiles, successPipelineId.String())); os.IsNotExist(err) {
+				if _, err := os.Stat(filepath.Join(workingDir, pipelinesFolder, successPipelineId.String())); os.IsNotExist(err) {
 					return false
 				}
-				if _, err := os.Stat(filepath.Join(workingDir, executableFiles, successPipelineId.String(), sourceFolder)); os.IsNotExist(err) {
+				if _, err := os.Stat(filepath.Join(workingDir, pipelinesFolder, successPipelineId.String(), sourceFolder)); os.IsNotExist(err) {
 					return false
 				}
-				if _, err := os.Stat(filepath.Join(workingDir, executableFiles, successPipelineId.String(), executableFolder)); os.IsNotExist(err) {
+				if _, err := os.Stat(filepath.Join(workingDir, pipelinesFolder, successPipelineId.String(), executableFolder)); os.IsNotExist(err) {
 					return false
 				}
-				if _, err := os.Stat(filepath.Join(workingDir, executableFiles, successPipelineId.String(), sourceFolder, successPipelineId.String()+javaSourceFileExtension)); os.IsNotExist(err) {
+				if _, err := os.Stat(filepath.Join(workingDir, pipelinesFolder, successPipelineId.String(), sourceFolder, successPipelineId.String()+javaSourceFileExtension)); os.IsNotExist(err) {
 					return false
 				}
 				return true
@@ -127,7 +131,7 @@ func TestSetup(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := Setup(tt.args.sdk, tt.args.code, tt.args.pipelineId, tt.args.workingDir, tt.args.preparedModDir)
+			got, err := Setup(tt.args.sdk, tt.args.code, tt.args.pipelineId, tt.args.workingDir, tt.args.pipelinesFolder, tt.args.preparedModDir)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Setup() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -137,7 +141,7 @@ func TestSetup(t *testing.T) {
 					t.Errorf("Setup() got.Paths = %v, want %v", got.Paths, tt.want.Paths)
 				}
 			}
-			os.RemoveAll(executableFiles)
+			os.RemoveAll(pipelinesFolder)
 		})
 	}
 }

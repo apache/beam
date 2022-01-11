@@ -21,14 +21,13 @@ import (
 )
 
 const (
-	executableFiles    = "executable_files"
 	sourceFolderName   = "src"
 	compiledFolderName = "bin"
 )
 
 // newCompilingLifeCycle creates LifeCycle for compiled SDK environment.
-func newCompilingLifeCycle(pipelineId uuid.UUID, workingDir string, sourceFileExtension string, compiledFileExtension string) *LifeCycle {
-	baseFileFolder := filepath.Join(workingDir, executableFiles, pipelineId.String())
+func newCompilingLifeCycle(pipelineId uuid.UUID, pipelinesFolder, sourceFileExtension, compiledFileExtension string) *LifeCycle {
+	baseFileFolder := filepath.Join(pipelinesFolder, pipelineId.String())
 	srcFileFolder := filepath.Join(baseFileFolder, sourceFolderName)
 	binFileFolder := filepath.Join(baseFileFolder, compiledFolderName)
 
@@ -57,8 +56,8 @@ func newCompilingLifeCycle(pipelineId uuid.UUID, workingDir string, sourceFileEx
 }
 
 // newInterpretedLifeCycle creates LifeCycle for interpreted SDK environment.
-func newInterpretedLifeCycle(pipelineId uuid.UUID, workingDir string, sourceFileExtension string) *LifeCycle {
-	sourceFileFolder := filepath.Join(workingDir, executableFiles, pipelineId.String())
+func newInterpretedLifeCycle(pipelineId uuid.UUID, pipelinesFolder, sourceFileExtension string) *LifeCycle {
+	sourceFileFolder := filepath.Join(pipelinesFolder, pipelineId.String())
 
 	fileName := pipelineId.String() + sourceFileExtension
 	absFileFolderPath, _ := filepath.Abs(sourceFileFolder)

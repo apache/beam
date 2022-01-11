@@ -16,7 +16,7 @@
 package fs_tool
 
 import (
-	playground "beam.apache.org/playground/backend/internal/api/v1"
+	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"fmt"
 	"github.com/google/uuid"
 	"os"
@@ -265,7 +265,7 @@ func TestNewLifeCycle(t *testing.T) {
 	execFileFolder := filepath.Join(baseFileFolder, "bin")
 
 	type args struct {
-		sdk        playground.Sdk
+		sdk        pb.Sdk
 		pipelineId uuid.UUID
 		workingDir string
 	}
@@ -278,7 +278,7 @@ func TestNewLifeCycle(t *testing.T) {
 		{
 			name: "Java LifeCycle",
 			args: args{
-				sdk:        playground.Sdk_SDK_JAVA,
+				sdk:        pb.Sdk_SDK_JAVA,
 				pipelineId: pipelineId,
 				workingDir: workingDir,
 			},
@@ -299,7 +299,7 @@ func TestNewLifeCycle(t *testing.T) {
 		{
 			name: "Go LifeCycle",
 			args: args{
-				sdk:        playground.Sdk_SDK_GO,
+				sdk:        pb.Sdk_SDK_GO,
 				pipelineId: pipelineId,
 				workingDir: workingDir,
 			},
@@ -320,7 +320,7 @@ func TestNewLifeCycle(t *testing.T) {
 		{
 			name: "Python LifeCycle",
 			args: args{
-				sdk:        playground.Sdk_SDK_PYTHON,
+				sdk:        pb.Sdk_SDK_PYTHON,
 				pipelineId: pipelineId,
 				workingDir: workingDir,
 			},
@@ -341,7 +341,7 @@ func TestNewLifeCycle(t *testing.T) {
 		{
 			name: "Unavailable SDK",
 			args: args{
-				sdk:        playground.Sdk_SDK_UNSPECIFIED,
+				sdk:        pb.Sdk_SDK_UNSPECIFIED,
 				pipelineId: pipelineId,
 				workingDir: workingDir,
 			},
