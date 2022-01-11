@@ -32,9 +32,11 @@ import (
 type token string
 
 type cacheKey struct {
-	tok token
-	win string
-	key string
+	transformID string
+	sideInputID string
+	tok         token
+	win         string
+	key         string
 }
 
 // SideInputCache stores a cache of reusable inputs for the purposes of
@@ -162,8 +164,8 @@ func (c *SideInputCache) makeAndValidateToken(transformID, sideInputID string) (
 	return tok, c.isValid(tok)
 }
 
-func (c *SideInputCache) makeCacheKey(tok token, w, key []byte) cacheKey {
-	return cacheKey{tok: tok, win: string(w), key: string(key)}
+func (c *SideInputCache) makeCacheKey(transformID, sideInputID string, tok token, w, key []byte) cacheKey {
+	return cacheKey{transformID: transformID, sideInputID: sideInputID, tok: tok, win: string(w), key: string(key)}
 }
 
 // QueryCache takes a transform ID and side input ID and checking if a corresponding side
@@ -180,7 +182,7 @@ func (c *SideInputCache) QueryCache(ctx context.Context, transformID, sideInputI
 	if !ok {
 		return nil
 	}
-	ck := c.makeCacheKey(tok, win, key)
+	ck := c.makeCacheKey(transformID, sideInputID, tok, win, key)
 	// Check to see if cached
 	input, ok := c.cache[ck]
 	if !ok {
@@ -224,7 +226,7 @@ func (c *SideInputCache) SetCache(ctx context.Context, transformID, sideInputID 
 		c.metrics.ReStreamErrors++
 		return input
 	}
-	ck := c.makeCacheKey(tok, win, key)
+	ck := c.makeCacheKey(transformID, sideInputID, tok, win, key)
 	c.cache[ck] = mat
 	return mat
 }
