@@ -152,7 +152,7 @@ REQUIRED_PACKAGES = [
     'python-dateutil>=2.8.0,<3',
     'pytz>=2018.3',
     'requests>=2.24.0,<3.0.0',
-    'typing-extensions>=3.7.0,<4',
+    'typing-extensions>=3.7.0',
 ]
 
 # [BEAM-8181] pyarrow cannot be installed on 32-bit Windows platforms.
