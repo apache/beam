@@ -31,12 +31,16 @@ import (
 
 type token string
 
-type cacheKey struct {
+type cacheToken struct {
 	transformID string
 	sideInputID string
 	tok         token
-	win         string
-	key         string
+}
+
+type cacheKey struct {
+	tok cacheToken
+	win string
+	key string
 }
 
 // SideInputCache stores a cache of reusable inputs for the purposes of
@@ -56,7 +60,7 @@ type SideInputCache struct {
 	mu          sync.Mutex
 	cache       map[cacheKey]exec.ReStream
 	idsToTokens map[string]token
-	validTokens map[token]int8 // Maps tokens to active bundle counts
+	validTokens map[cacheToken]int8 // Maps tokens to active bundle counts
 	metrics     CacheMetrics
 }
 
@@ -80,7 +84,7 @@ func (c *SideInputCache) Init(cap int) error {
 	}
 	c.cache = make(map[cacheKey]exec.ReStream, cap)
 	c.idsToTokens = make(map[string]token)
-	c.validTokens = make(map[token]int8)
+	c.validTokens = make(map[cacheToken]int8)
 	c.capacity = cap
 	c.metrics = CacheMetrics{}
 	c.enabled = true
@@ -115,11 +119,12 @@ func (c *SideInputCache) SetValidTokens(cacheTokens ...*fnpb.ProcessBundleReques
 func (c *SideInputCache) setValidToken(transformID, sideInputID string, tok token) {
 	idKey := transformID + sideInputID
 	c.idsToTokens[idKey] = tok
-	count, ok := c.validTokens[tok]
+	fullToken := cacheToken{transformID: transformID, sideInputID: sideInputID, tok: tok}
+	count, ok := c.validTokens[fullToken]
 	if !ok {
-		c.validTokens[tok] = 1
+		c.validTokens[fullToken] = 1
 	} else {
-		c.validTokens[tok] = count + 1
+		c.validTokens[fullToken] = count + 1
 	}
 }
 
@@ -137,20 +142,24 @@ func (c *SideInputCache) CompleteBundle(cacheTokens ...*fnpb.ProcessBundleReques
 		if tok.GetUserState() != nil {
 			continue
 		}
+		s := tok.GetSideInput()
+		transformID := s.GetTransformId()
+		sideInputID := s.GetSideInputId()
 		t := token(tok.GetToken())
-		c.decrementTokenCount(t)
+		c.decrementTokenCount(transformID, sideInputID, t)
 	}
 }
 
 // decrementTokenCount decrements the validTokens entry for
 // a given token by 1. Should only be called when completing
 // a bundle.
-func (c *SideInputCache) decrementTokenCount(tok token) {
-	count := c.validTokens[tok]
+func (c *SideInputCache) decrementTokenCount(transformID, sideInputID string, tok token) {
+	fullToken := cacheToken{transformID: transformID, sideInputID: sideInputID, tok: tok}
+	count := c.validTokens[fullToken]
 	if count == 1 {
-		delete(c.validTokens, tok)
+		delete(c.validTokens, fullToken)
 	} else {
-		c.validTokens[tok] = count - 1
+		c.validTokens[fullToken] = count - 1
 	}
 }
 
@@ -161,11 +170,13 @@ func (c *SideInputCache) makeAndValidateToken(transformID, sideInputID string) (
 	if !ok {
 		return "", false
 	}
-	return tok, c.isValid(tok)
+	fullToken := cacheToken{transformID: transformID, sideInputID: sideInputID, tok: tok}
+	return tok, c.isValid(fullToken)
 }
 
 func (c *SideInputCache) makeCacheKey(transformID, sideInputID string, tok token, w, key []byte) cacheKey {
-	return cacheKey{transformID: transformID, sideInputID: sideInputID, tok: tok, win: string(w), key: string(key)}
+	fullToken := cacheToken{transformID: transformID, sideInputID: sideInputID, tok: tok}
+	return cacheKey{tok: fullToken, win: string(w), key: string(key)}
 }
 
 // QueryCache takes a transform ID and side input ID and checking if a corresponding side
@@ -231,7 +242,7 @@ func (c *SideInputCache) SetCache(ctx context.Context, transformID, sideInputID 
 	return mat
 }
 
-func (c *SideInputCache) isValid(tok token) bool {
+func (c *SideInputCache) isValid(tok cacheToken) bool {
 	count, ok := c.validTokens[tok]
 	// If the token is not known or not in use, return false
 	return ok && count > 0

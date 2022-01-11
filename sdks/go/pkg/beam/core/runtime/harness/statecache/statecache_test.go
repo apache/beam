@@ -133,6 +133,10 @@ func makeRequest(transformID, sideInputID string, t token) *fnpb.ProcessBundleRe
 	}
 }
 
+func makeCacheToken(transformID, sideInputID string, tok token) cacheToken {
+	return cacheToken{transformID: transformID, sideInputID: sideInputID, tok: tok}
+}
+
 func TestSetValidTokens(t *testing.T) {
 	inputs := []struct {
 		transformID string
@@ -174,8 +178,9 @@ func TestSetValidTokens(t *testing.T) {
 	}
 
 	for i, input := range inputs {
+		fullTok := makeCacheToken(input.transformID, input.sideInputID, input.tok)
 		// Check that the token is in the valid list
-		if !s.isValid(input.tok) {
+		if !s.isValid(fullTok) {
 			t.Errorf("error in input %v, token %v is not valid", i, input.tok)
 		}
 		// Check that the mapping of IDs to tokens is correct
@@ -221,7 +226,8 @@ func TestSetValidTokens_ClearingBetween(t *testing.T) {
 		s.SetValidTokens(tok)
 
 		// Check that the token is in the valid list
-		if !s.isValid(input.tk) {
+		fullTok := makeCacheToken(input.transformID, input.sideInputID, input.tk)
+		if !s.isValid(fullTok) {
 			t.Errorf("error in input %v, token %v is not valid", i, input.tk)
 		}
 		// Check that the mapping of IDs to tokens is correct
