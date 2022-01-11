@@ -140,7 +140,7 @@ REQUIRED_PACKAGES = [
     'fastavro>=0.21.4,<2',
     'grpcio>=1.29.0,<2',
     'hdfs>=2.1.0,<3.0.0',
-    'httplib2>=0.8,<0.20.0',
+    'httplib2>0.20.0',
     'numpy>=1.14.3,<1.21.0',
     'pymongo>=3.8.0,<4.0.0',
     'oauth2client>=2.0.1,<5',
