@@ -29,9 +29,9 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StateSpec;
-import org.apache.beam.model.pipeline.v1.RunnerApi.TimerFamilySpec;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.runners.core.construction.ParDoTranslation.ParDoLike;
+import org.apache.beam.runners.core.construction.ParDoTranslation.ParDoLikeTimerFamilySpecs;
 import org.apache.beam.runners.core.construction.ReadTranslation.BoundedReadPayloadTranslator;
 import org.apache.beam.runners.core.construction.ReadTranslation.UnboundedReadPayloadTranslator;
 import org.apache.beam.sdk.Pipeline;
@@ -435,17 +435,16 @@ public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorSt
                 }
 
                 @Override
-                public Map<String, TimerFamilySpec> translateTimerFamilySpecs(
+                public ParDoLikeTimerFamilySpecs translateTimerFamilySpecs(
                     SdkComponents newComponents) {
                   // SDFs don't have timers.
-                  return ImmutableMap.of();
+                  return ParDoLikeTimerFamilySpecs.create(ImmutableMap.of(), null);
                 }
 
                 @Override
                 public boolean isStateful() {
-                  return !signature.stateDeclarations().isEmpty()
-                      || !signature.timerDeclarations().isEmpty()
-                      || !signature.timerFamilyDeclarations().isEmpty();
+                  // SDFs don't have state or timers.
+                  return false;
                 }
 
                 @Override
