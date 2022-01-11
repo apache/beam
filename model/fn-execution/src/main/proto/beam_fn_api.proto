@@ -268,8 +268,11 @@ message ProcessBundleRequest {
   // instantiated and executed by the SDK harness.
   string process_bundle_descriptor_id = 1;
 
-  // A cache token which can be used by an SDK to check for the validity
-  // of cached elements which have a cache token associated.
+  // Contains the cache token and also defines the scope of what the token applies to.
+  //
+  // See https://s.apache.org/beam-fn-state-api-and-bundle-processing#heading=h.7ghoih5aig5m
+  // for additional details on how to use the cache token with the State API
+  // to cache data across bundle boundaries.
   message CacheToken {
 
     // A flag to indicate a cache token is valid for all user state.
@@ -289,12 +292,17 @@ message ProcessBundleRequest {
       SideInput side_input = 2;
     }
 
-    // The cache token identifier which should be globally unique.
+    // An opaque token used with the StateKey to create a globally unique
+    // identifier.
     bytes token = 10;
   }
 
   // (Optional) A list of cache tokens that can be used by an SDK to reuse
   // cached data returned by the State API across multiple bundles.
+  //
+  // See https://s.apache.org/beam-fn-state-api-and-bundle-processing#heading=h.7ghoih5aig5m
+  // for additional details on how to use the cache token with the State API
+  // to cache data across bundle boundaries.
   repeated CacheToken cache_tokens = 2;
 
   // (Optional) Elements to be processed with the bundle. Either all or
