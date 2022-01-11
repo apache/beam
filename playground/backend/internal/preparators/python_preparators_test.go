@@ -40,7 +40,9 @@ func TestGetPythonPreparators(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := GetPythonPreparators(tt.args.filePath); len(*got) != tt.want {
+			builder := NewPreparersBuilder(tt.args.filePath)
+			GetPythonPreparators(builder)
+			if got := builder.Build().GetPreparers(); len(*got) != tt.want {
 				t.Errorf("GetPythonPreparators() returns %v Preparators, want %v", len(*got), tt.want)
 			}
 		})

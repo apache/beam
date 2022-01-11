@@ -20,3 +20,31 @@ type Preparator struct {
 	Prepare func(args ...interface{}) error
 	Args    []interface{}
 }
+
+type Preparers struct {
+	preparersFunctions *[]Preparator
+}
+
+func (p *Preparers) GetPreparers() *[]Preparator {
+	return p.preparersFunctions
+}
+
+//PreparersBuilder struct
+type PreparersBuilder struct {
+	preparers *Preparers
+	filePath  string
+}
+
+//NewPreparersBuilder constructor for PreparersBuilder
+func NewPreparersBuilder(filePath string) *PreparersBuilder {
+	return &PreparersBuilder{preparers: &Preparers{preparersFunctions: &[]Preparator{}}, filePath: filePath}
+}
+
+//Build builds preparers from PreparersBuilder
+func (b *PreparersBuilder) Build() *Preparers {
+	return b.preparers
+}
+
+func (p *PreparersBuilder) AddPreparer(newPreparer Preparator) {
+	*p.preparers.preparersFunctions = append(*p.preparers.preparersFunctions, newPreparer)
+}

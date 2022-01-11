@@ -106,7 +106,9 @@ func TestGetGoPreparators(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := GetGoPreparators(tt.args.filePath); !reflect.DeepEqual(fmt.Sprint(got), fmt.Sprint(tt.want)) {
+			builder := NewPreparersBuilder(tt.args.filePath)
+			GetGoPreparators(builder, true)
+			if got := builder.Build().GetPreparers(); !reflect.DeepEqual(fmt.Sprint(got), fmt.Sprint(tt.want)) {
 				t.Errorf("GetGoPreparators() = %v, want %v", got, tt.want)
 			}
 		})

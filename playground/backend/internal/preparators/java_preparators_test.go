@@ -90,7 +90,9 @@ func Test_replace(t *testing.T) {
 
 func TestGetJavaPreparators(t *testing.T) {
 	type args struct {
-		filePath string
+		filePath   string
+		isUnitTest bool
+		isKata     bool
 	}
 	tests := []struct {
 		name string
@@ -98,14 +100,26 @@ func TestGetJavaPreparators(t *testing.T) {
 		want int
 	}{
 		{
-			name: "all success",
-			args: args{"MOCK_FILEPATH"},
-			want: 4,
+			name: "Test number of preparers for code",
+			args: args{"MOCK_FILEPATH", false, false},
+			want: 2,
+		},
+		{
+			name: "Test number of preparers for unit test",
+			args: args{"MOCK_FILEPATH", false, false},
+			want: 2,
+		},
+		{
+			name: "Test number of preparers for kata",
+			args: args{"MOCK_FILEPATH", false, false},
+			want: 2,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := GetJavaPreparators(tt.args.filePath); len(*got) != tt.want {
+			builder := NewPreparersBuilder(tt.args.filePath)
+			GetJavaPreparators(builder, tt.args.isUnitTest, tt.args.isKata)
+			if got := builder.Build().GetPreparers(); len(*got) != tt.want {
 				t.Errorf("GetJavaPreparation() returns %v Preparators, want %v", len(*got), tt.want)
 			}
 		})

@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 const (
@@ -46,9 +47,9 @@ func Validator(paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs) (*ex
 }
 
 // Preparer return executor with set args for preparator
-func Preparer(paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs) (*executors.ExecutorBuilder, error) {
+func Preparer(paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs, valResults *sync.Map) (*executors.ExecutorBuilder, error) {
 	sdk := sdkEnv.ApacheBeamSdk
-	prep, err := utils.GetPreparators(sdk, paths.AbsoluteSourceFilePath)
+	prep, err := utils.GetPreparators(sdk, paths.AbsoluteSourceFilePath, valResults)
 	if err != nil {
 		return nil, err
 	}

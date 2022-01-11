@@ -16,14 +16,12 @@
 package preparators
 
 import (
-	"beam.apache.org/playground/backend/internal/validators"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"sync"
 )
 
 const (
@@ -33,13 +31,44 @@ const (
 	sep     = "."
 )
 
+//GoPreparersBuilder facet of PreparersBuilder
+type GoPreparersBuilder struct {
+	PreparersBuilder
+}
+
+//GoPreparers chains to type *PreparersBuilder and returns a *GoPreparersBuilder
+func (b *PreparersBuilder) GoPreparers() *GoPreparersBuilder {
+	return &GoPreparersBuilder{*b}
+}
+
+//WithCodeFormatter adds code formatter preparer
+func (a *GoPreparersBuilder) WithCodeFormatter() *GoPreparersBuilder {
+	formatCodePreparator := Preparator{
+		Prepare: formatCode,
+		Args:    []interface{}{a.filePath},
+	}
+	a.AddPreparer(formatCodePreparator)
+	return a
+}
+
+//WithFileNameChanger adds preparer to change file name
+func (a *GoPreparersBuilder) WithFileNameChanger() *GoPreparersBuilder {
+	changeTestFileName := Preparator{
+		Prepare: changeGoTestFileName,
+		Args:    []interface{}{a.filePath},
+	}
+	a.AddPreparer(changeTestFileName)
+	return a
+}
+
 // GetGoPreparators returns reparation methods that should be applied to Go code
-func GetGoPreparators(filePath string) *[]Preparator {
-	preparatorArgs := make([]interface{}, 1)
-	preparatorArgs[0] = filePath
-	formatCodePreparator := Preparator{Prepare: formatCode, Args: preparatorArgs}
-	changeNamePreparator := Preparator{Prepare: changeGoTestFileName, Args: preparatorArgs}
-	return &[]Preparator{formatCodePreparator, changeNamePreparator}
+func GetGoPreparators(builder *PreparersBuilder, isUnitTest bool) {
+	builder.
+		GoPreparers().
+		WithCodeFormatter()
+	if isUnitTest {
+		builder.GoPreparers().WithFileNameChanger()
+	}
 }
 
 // formatCode formats go code
@@ -56,14 +85,10 @@ func formatCode(args ...interface{}) error {
 
 func changeGoTestFileName(args ...interface{}) error {
 	filePath := args[0].(string)
-	validationResults := args[1].(*sync.Map)
-	isUnitTest, ok := validationResults.Load(validators.UnitTestValidatorName)
-	if ok && isUnitTest.(bool) {
-		testFileName := fmt.Sprintf("%s_test.%s", strings.Split(filePath, sep)[0], goName)
-		err := os.Rename(filePath, testFileName)
-		if err != nil {
-			return err
-		}
+	testFileName := fmt.Sprintf("%s_test.%s", strings.Split(filePath, sep)[0], goName)
+	err := os.Rename(filePath, testFileName)
+	if err != nil {
+		return err
 	}
 	return nil
 }

@@ -18,24 +18,34 @@ package utils
 import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/preparators"
+	"beam.apache.org/playground/backend/internal/validators"
 	"fmt"
 	"regexp"
+	"sync"
 )
 
 // GetPreparators returns slice of preparators.Preparator according to sdk
-func GetPreparators(sdk pb.Sdk, filepath string) (*[]preparators.Preparator, error) {
-	var prep *[]preparators.Preparator
+func GetPreparators(sdk pb.Sdk, filepath string, valResults *sync.Map) (*[]preparators.Preparator, error) {
+	isUnitTest, ok := valResults.Load(validators.UnitTestValidatorName)
+	if !ok {
+		return nil, fmt.Errorf("GetPreparators:: No information about unit test validation result")
+	}
+	builder := preparators.NewPreparersBuilder(filepath)
 	switch sdk {
 	case pb.Sdk_SDK_JAVA:
-		prep = preparators.GetJavaPreparators(filepath)
+		isKata, ok := valResults.Load(validators.KatasValidatorName)
+		if !ok {
+			return nil, fmt.Errorf("GetPreparators:: No information about katas validation result")
+		}
+		preparators.GetJavaPreparators(builder, isUnitTest.(bool), isKata.(bool))
 	case pb.Sdk_SDK_GO:
-		prep = preparators.GetGoPreparators(filepath)
+		preparators.GetGoPreparators(builder, isUnitTest.(bool))
 	case pb.Sdk_SDK_PYTHON:
-		prep = preparators.GetPythonPreparators(filepath)
+		preparators.GetPythonPreparators(builder)
 	default:
 		return nil, fmt.Errorf("incorrect sdk: %s", sdk)
 	}
-	return prep, nil
+	return builder.Build().GetPreparers(), nil
 }
 
 // ReplaceSpacesWithEquals prepares pipelineOptions by replacing spaces between option and them value to equals.

@@ -195,7 +195,7 @@ func compileStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.L
 
 func prepareStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeCyclePaths, pipelineId uuid.UUID, sdkEnv *environment.BeamEnvs, pipelineLifeCycleCtx context.Context, validationResults *sync.Map, cancelChannel chan bool) *executors.Executor {
 	errorChannel, successChannel := createStatusChannels()
-	executorBuilder, err := builder.Preparer(paths, sdkEnv)
+	executorBuilder, err := builder.Preparer(paths, sdkEnv, validationResults)
 	if err != nil {
 		_ = processSetupError(err, pipelineId, cacheService, pipelineLifeCycleCtx)
 		return nil

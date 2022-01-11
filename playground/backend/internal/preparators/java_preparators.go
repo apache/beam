@@ -17,7 +17,6 @@ package preparators
 
 import (
 	"beam.apache.org/playground/backend/internal/logger"
-	"beam.apache.org/playground/backend/internal/validators"
 	"bufio"
 	"fmt"
 	"io"
@@ -26,7 +25,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"sync"
 )
 
 const (
@@ -40,47 +38,85 @@ const (
 	publicClassNamePattern            = "public class (.*?) [{|implements(.*)]"
 )
 
-// GetJavaPreparators returns preparation methods that should be applied to Java code
-func GetJavaPreparators(filePath string) *[]Preparator {
+//JavaPreparersBuilder facet of PreparersBuilder
+type JavaPreparersBuilder struct {
+	PreparersBuilder
+}
+
+//JavaPreparers chains to type *PreparersBuilder and returns a *JavaPreparersBuilder
+func (b *PreparersBuilder) JavaPreparers() *JavaPreparersBuilder {
+	return &JavaPreparersBuilder{*b}
+}
+
+//WithPublicClassRemover adds preparer to remove public class
+func (a *JavaPreparersBuilder) WithPublicClassRemover() *JavaPreparersBuilder {
 	removePublicClassPreparator := Preparator{
 		Prepare: removePublicClassModifier,
-		Args:    []interface{}{filePath, classWithPublicModifierPattern, classWithoutPublicModifierPattern},
+		Args:    []interface{}{a.filePath, classWithPublicModifierPattern, classWithoutPublicModifierPattern},
 	}
+	a.AddPreparer(removePublicClassPreparator)
+	return a
+}
+
+//WithPackageChanger adds preparer to change package
+func (a *JavaPreparersBuilder) WithPackageChanger() *JavaPreparersBuilder {
 	changePackagePreparator := Preparator{
 		Prepare: changePackage,
-		Args:    []interface{}{filePath, packagePattern, importStringPattern},
+		Args:    []interface{}{a.filePath, packagePattern, importStringPattern},
 	}
+	a.AddPreparer(changePackagePreparator)
+	return a
+}
+
+//WithPackageRemover adds preparer to remove package
+func (a *JavaPreparersBuilder) WithPackageRemover() *JavaPreparersBuilder {
 	removePackagePreparator := Preparator{
 		Prepare: removePackage,
-		Args:    []interface{}{filePath, packagePattern, newLinePattern},
+		Args:    []interface{}{a.filePath, packagePattern, newLinePattern},
 	}
+	a.AddPreparer(removePackagePreparator)
+	return a
+}
+
+//WithFileNameChanger adds preparer to remove package
+func (a *JavaPreparersBuilder) WithFileNameChanger() *JavaPreparersBuilder {
 	unitTestFileNameChanger := Preparator{
 		Prepare: changeJavaTestFileName,
-		Args:    []interface{}{filePath},
+		Args:    []interface{}{a.filePath},
 	}
-	return &[]Preparator{removePublicClassPreparator, changePackagePreparator, removePackagePreparator, unitTestFileNameChanger}
+	a.AddPreparer(unitTestFileNameChanger)
+	return a
+}
+
+// GetJavaPreparators returns preparation methods that should be applied to Java code
+func GetJavaPreparators(builder *PreparersBuilder, isUnitTest bool, isKata bool) {
+	if !isUnitTest && !isKata {
+		builder.JavaPreparers().
+			WithPublicClassRemover().
+			WithPackageChanger()
+	}
+	if isUnitTest {
+		builder.JavaPreparers().
+			WithPackageChanger().
+			WithFileNameChanger()
+	}
+	if isKata {
+		builder.JavaPreparers().
+			WithPublicClassRemover().
+			WithPackageRemover()
+	}
 }
 
 //changePackage changes the 'package' to 'import' and the last directory in the package value to '*'
 func changePackage(args ...interface{}) error {
-	validationResults := args[3].(*sync.Map)
-	isKata, ok := validationResults.Load(validators.KatasValidatorName)
-	if ok && isKata.(bool) {
-		return nil
-	}
 	err := replace(args...)
 	return err
 }
 
 //removePackage remove the package line in the katas.
 func removePackage(args ...interface{}) error {
-	validationResults := args[3].(*sync.Map)
-	isKata, ok := validationResults.Load(validators.KatasValidatorName)
-	if ok && isKata.(bool) {
-		err := replace(args...)
-		return err
-	}
-	return nil
+	err := replace(args...)
+	return err
 }
 
 // replace processes file by filePath and replaces all patterns to newPattern
@@ -119,11 +155,6 @@ func replace(args ...interface{}) error {
 }
 
 func removePublicClassModifier(args ...interface{}) error {
-	validationResults := args[3].(*sync.Map)
-	isUnitTest, ok := validationResults.Load(validators.UnitTestValidatorName)
-	if ok && isUnitTest.(bool) {
-		return nil
-	}
 	err := replace(args...)
 	return err
 }
@@ -185,17 +216,13 @@ func addNewLine(newLine bool, file *os.File) error {
 
 func changeJavaTestFileName(args ...interface{}) error {
 	filePath := args[0].(string)
-	validationResults := args[1].(*sync.Map)
-	isUnitTest, ok := validationResults.Load(validators.UnitTestValidatorName)
-	if ok && isUnitTest.(bool) {
-		className, err := getPublicClassName(filePath)
-		if err != nil {
-			return err
-		}
-		err = renameJavaFile(filePath, className)
-		if err != nil {
-			return err
-		}
+	className, err := getPublicClassName(filePath)
+	if err != nil {
+		return err
+	}
+	err = renameJavaFile(filePath, className)
+	if err != nil {
+		return err
 	}
 	return nil
 }

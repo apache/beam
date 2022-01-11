@@ -27,12 +27,30 @@ const (
 )
 
 // GetPythonPreparators returns preparation methods that should be applied to Python code
-func GetPythonPreparators(filePath string) *[]Preparator {
+func GetPythonPreparators(builder *PreparersBuilder) {
+	builder.
+		PythonPreparers().
+		WithLogHandler()
+}
+
+//PythonPreparersBuilder facet of PreparersBuilder
+type PythonPreparersBuilder struct {
+	PreparersBuilder
+}
+
+//PythonPreparers chains to type *PreparersBuilder and returns a *GoPreparersBuilder
+func (b *PreparersBuilder) PythonPreparers() *PythonPreparersBuilder {
+	return &PythonPreparersBuilder{*b}
+}
+
+//WithLogHandler adds code for logging
+func (a *PythonPreparersBuilder) WithLogHandler() *PythonPreparersBuilder {
 	addLogHandler := Preparator{
 		Prepare: addCodeToFile,
-		Args:    []interface{}{filePath, addLogHandlerCode},
+		Args:    []interface{}{a.filePath, addLogHandlerCode},
 	}
-	return &[]Preparator{addLogHandler}
+	a.AddPreparer(addLogHandler)
+	return a
 }
 
 // addCodeToFile processes file by filePath and adds additional code
