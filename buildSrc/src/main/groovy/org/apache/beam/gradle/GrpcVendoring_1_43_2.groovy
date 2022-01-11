@@ -20,22 +20,29 @@ package org.apache.beam.gradle
 
 /**
  * Utilities for working with our vendored version of gRPC.
+ * 
+ * To update:
+ * 1. Determine the set of io.grpc libraries we want to include.
+ * 2. Use mvn dependency:tree and https://search.maven.org/search?q=g:io.grpc
+ *    to determine dependency tree. You may need to search for optional dependencies
+ *    and determine if they are needed (e.g. conscrypt).
  */
 class GrpcVendoring_1_43_2 {
+  static def grpc_version = "1.43.2"
 
+  // See https://github.com/grpc/grpc-java/blob/v1.43.2/build.gradle
+  // or https://search.maven.org/search?q=g:io.grpc%201.43.2
   static def guava_version = "30.1.1-jre"
   static def protobuf_version = "3.19.2"
-  static def grpc_version = "1.43.2"
   static def gson_version = "2.8.9"
+  static def google_auth_version = "0.22.2"
+  static def opencensus_version = "0.28.0"
+  static def conscrypt_version = "2.5.1"
+  static def proto_google_common_protos_version = "2.0.1"
+
   // tcnative version from https://github.com/grpc/grpc-java/blob/master/SECURITY.md#netty
   static def netty_version = "4.1.63.Final"
   static def netty_ssl_version = "2.0.38.Final"
-  // google-auth-library version from https://search.maven.org/artifact/io.grpc/grpc-auth/1.43.2/jar
-  static def google_auth_version = "0.22.2"
-  // proto-google-common-protos version from https://search.maven.org/artifact/io.grpc/grpc-protobuf/1.43.2/jar
-  static def proto_google_common_protos_version = "2.0.1"
-  static def opencensus_version = "0.28.0"
-  static def conscrypt_version = "2.5.1"
 
   /** Returns the list of implementation time dependencies. */
   static List<String> dependencies() {
