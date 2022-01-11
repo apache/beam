@@ -100,7 +100,7 @@ public class HeartbeatRecordAction {
         LOG.debug("[" + token + "] Could not claim queryChangeStream(" + timestamp + "), stopping");
         return Optional.of(ProcessContinuation.stop());
       }
-      metrics.incHearbeatRecordCount();
+      metrics.incHeartbeatRecordCount();
       watermarkEstimator.setWatermark(timestampInstant);
 
       LOG.debug("[" + token + "] Heartbeat record action completed successfully");

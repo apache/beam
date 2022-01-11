@@ -168,7 +168,7 @@ public class ChangeStreamMetrics implements Serializable {
    * Increments the {@link ChangeStreamMetrics#HEARTBEAT_RECORD_COUNT} by 1 if the metric is
    * enabled.
    */
-  public void incHearbeatRecordCount() {
+  public void incHeartbeatRecordCount() {
     inc(HEARTBEAT_RECORD_COUNT);
   }
 
