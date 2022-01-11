@@ -524,6 +524,12 @@ message ParDoPayload {
   // be placed in the pipeline requirements.
   bool requires_stable_input = 11;
 
+  // If populated, the name of the timer family spec which should be notified
+  // on each window expiry.
+  // If this is set, the corresponding standard requirement should also
+  // be placed in the pipeline requirements.
+  string on_window_expiration_timer_family_spec = 12;
+
   reserved 6;
 }
 
@@ -1600,7 +1606,7 @@ message StandardRunnerProtocols {
 // to be added in a forwards-compatible way).
 message StandardRequirements {
   enum Enum {
-    // This requirement indicates the state_spec and time_spec fields of ParDo
+    // This requirement indicates the state_specs and timer_family_specs fields of ParDo
     // transform payloads must be inspected.
     REQUIRES_STATEFUL_PROCESSING = 0 [(beam_urn) = "beam:requirement:pardo:stateful:v1"];
 
@@ -1619,6 +1625,10 @@ message StandardRequirements {
     // This requirement indicates the restriction_coder_id field of ParDo
     // transform payloads must be inspected.
     REQUIRES_SPLITTABLE_DOFN = 4 [(beam_urn) = "beam:requirement:pardo:splittable_dofn:v1"];
+
+    // This requirement indicates that the on_window_expiration_timer_family_spec field
+    // of ParDo transform payloads must be inspected.
+    REQUIRES_ON_WINDOW_EXPIRATION = 5 [(beam_urn) = "beam:requirement:pardo:on_window_expiration:v1"];
   }
 }
 
