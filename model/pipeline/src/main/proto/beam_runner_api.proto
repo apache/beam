@@ -452,7 +452,7 @@ message StandardSideInputTypes {
     // Represents a view over a PCollection<KV<K, V>>.
     //
     // StateGetRequests performed on this side input must use
-    // StateKey.IterableSideInput or StateKey.MultimapSideInput.
+    // StateKey.MultimapKeysSideInput or StateKey.MultimapSideInput.
     MULTIMAP = 1 [(beam_urn) = "beam:side_input:multimap:v1"];
   }
 }
@@ -1354,9 +1354,8 @@ message SideInput {
   // This access pattern defines the SDK harness <-> Runner Harness RPC
   // interface for accessing a side input.
   //
-  // The only access pattern intended for Beam, because of its superior
-  // performance possibilities, is "beam:sideinput:multimap" (or some such
-  // URN)
+  // See StandardSideInputTypes for an enumeration of all side input types
+  // defined.
   FunctionSpec access_pattern = 1;
 
   // (Required) The FunctionSpec of the UDF that adapts a particular
