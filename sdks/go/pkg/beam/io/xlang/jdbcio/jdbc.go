@@ -25,6 +25,8 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
 func init() {
@@ -129,7 +131,7 @@ func Read(s beam.Scope, addr, tableName, driverClassName, jdbcUrl, username, pas
 		Config:   toRow(rpl),
 	}
 	pl := beam.CrossLanguagePayload(jcs)
-	beam.CrossLanguage(s, readURN, pl, addr, nil, nil)
+	beam.CrossLanguage(s, readURN, pl, addr, nil, beam.UnnamedOutput(typex.New(reflectx.Int64)))
 }
 
 func ReadQuery(query string) readOption {

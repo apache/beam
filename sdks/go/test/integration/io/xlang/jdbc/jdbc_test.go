@@ -15,10 +15,8 @@
 package jdbc
 
 import (
-	"context"
 	"fmt"
 	"testing"
-	"time"
 
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/dataflow"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/flink"
@@ -26,11 +24,8 @@ import (
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/spark"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 	"github.com/apache/beam/sdks/v2/go/test/integration"
-	"github.com/docker/go-connections/nat"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 func checkFlags(t *testing.T) {
@@ -43,50 +38,57 @@ func checkFlags(t *testing.T) {
 func TestJDBCIO_BasicReadWrite(t *testing.T) {
 	integration.CheckFilters(t)
 	checkFlags(t)
-	dbname := "postjdbc"
-	username := "newuser"
-	password := "password"
-	ctx := context.Background()
+	// dbname := "postjdbc"
+	// username := "newuser"
+	// password := "password"
 
-	var env = map[string]string{
-		"POSTGRES_PASSWORD": password,
-		"POSTGRES_USER":     username,
-		"POSTGRES_DB":       dbname,
-	}
-
-	var port = "5432/tcp"
-	dbURL := func(port nat.Port) string {
-		return fmt.Sprintf("postgres://%s:%s@localhost:%s/%s?sslmode=disable", username, password, port.Port(), dbname)
-	}
-
-	req := testcontainers.GenericContainerRequest{
-		ContainerRequest: testcontainers.ContainerRequest{
-			Image:        "postgres",
-			ExposedPorts: []string{port},
-			Env:          env,
-			WaitingFor:   wait.ForSQL(nat.Port(port), "postgres", dbURL).Timeout(time.Second * 5),
-		},
-		Started: true,
-	}
-	container, err := testcontainers.GenericContainer(ctx, req)
-	if err != nil {
-		t.Errorf("failed to start container: %s", err)
-	}
-
-	mappedPort, err := container.MappedPort(ctx, nat.Port(port))
-	if err != nil {
-		t.Errorf("failed to get container external port: %s", err)
-	}
-	p := mappedPort.Int()
-	host, err := container.ContainerIP(ctx)
-	if err != nil {
-		t.Error("error in container ip")
-	}
+	// var env = map[string]string{
+	// 	"POSTGRES_PASSWORD": password,
+	// 	"POSTGRES_USER":     username,
+	// 	"POSTGRES_DB":       dbname,
 	// }
-	tableName := "posts"
-	host = "localhost"
-	jdbcUrl := fmt.Sprintf("jdbc:postgresql://%s:%d/%s", host, p, tableName)
-	write := WritePipeline(*integration.IoExpansionAddr, tableName, "", jdbcUrl, username, password)
+
+	// var port = "5432/tcp"
+	// dbURL := func(port nat.Port) string {
+	// 	return fmt.Sprintf("postgres://%s:%s@localhost:%s/%s?sslmode=disable", username, password, port.Port(), dbname)
+	// }
+
+	// req := testcontainers.GenericContainerRequest{
+	// 	ContainerRequest: testcontainers.ContainerRequest{
+	// 		Image:        "postgres",
+	// 		ExposedPorts: []string{port},
+	// 		Env:          env,
+	// 		WaitingFor:   wait.ForSQL(nat.Port(port), "postgres", dbURL).Timeout(time.Second * 5),
+	// 	},
+	// 	Started: true,
+	// }
+	// ctx := context.Background()
+	// container, err := testcontainers.GenericContainer(ctx, req)
+	// if err != nil {
+	// 	t.Errorf("failed to start container: %s", err)
+	// }
+
+	// mappedPort, err := container.MappedPort(ctx, nat.Port(port))
+	// if err != nil {
+	// 	t.Errorf("failed to get container external port: %s", err)
+	// }
+	// p := mappedPort.Int()
+	// host, err := container.ContainerIP(ctx)
+	// if err != nil {
+	// 	t.Error("error in container ip")
+	// }
+	// t.Error(host, p)
+	tableName := "roles"
+	host := "localhost"
+	p := 5432
+	dbname := "posts"
+	username := "newuser"
+	password := "newuser123"
+	jdbcUrl := fmt.Sprintf("jdbc:postgresql://%s:%d/%s", host, p, dbname)
+
+	// read := ReadPipeline(*integration.IoExpansionAddr, tableName, "org.postgresql.Driver", jdbcUrl, username, password)
+	// ptest.RunAndValidate(t, read)
+	write := WritePipeline(*integration.IoExpansionAddr, tableName, "org.postgresql.Driver", jdbcUrl, username, password)
 	ptest.RunAndValidate(t, write)
 }
 

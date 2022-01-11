@@ -18,7 +18,6 @@
 package jdbc
 
 import (
-	"fmt"
 	"reflect"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
@@ -29,24 +28,37 @@ func init() {
 	beam.RegisterType(reflect.TypeOf((*JdbcWriteTestRow)(nil)).Elem())
 }
 
+// posts=> CREATE TABLE roles(
+// 	role_id serial PRIMARY KEY,
+// 	role_name VARCHAR (255) UNIQUE
+//  );
+
 type JdbcWriteTestRow struct {
-	F_id string `beam:"f_id"`
+	Role_id   int64  `beam:"role_id"`
+	Role_name string `beam:"role_name"`
 }
 
-// writeList encodes a list of ints and sends encoded ints to Kafka.
 func writeRows(s beam.Scope, expansionAddr, tableName, driverClassName, jdbcUrl, username, password string) {
 	s = s.Scope("jdbc_test.WriteToJdbc")
-	statement := fmt.Sprintf("CREATE TABLE %s(f_id int(10));", tableName)
-	rows := []JdbcWriteTestRow{{"row1"}, {"row2"}}
+	rows := []JdbcWriteTestRow{{1, "row1"}, {2, "row2"}}
+
 	input := beam.CreateList(s, rows)
-	jdbcio.Write(s, expansionAddr, tableName, driverClassName, jdbcUrl, username, password, input, jdbcio.WriteStatement(statement))
+	jdbcio.Write(s, expansionAddr, tableName, driverClassName, jdbcUrl, username, password, input) //, statement)
 }
 
-// WritePipeline creates a pipeline that writes a given slice of ints to Kafka.
 func WritePipeline(expansionAddr, tableName, driverClassName, jdbcUrl, username, password string) *beam.Pipeline {
 	beam.Init()
 	p, s := beam.NewPipelineWithRoot()
 
 	writeRows(s, expansionAddr, tableName, driverClassName, jdbcUrl, username, password)
+	return p
+}
+
+func ReadPipeline(expansionAddr, tableName, driverClassName, jdbcUrl, username, password string) *beam.Pipeline {
+	beam.Init()
+	p, s := beam.NewPipelineWithRoot()
+	s = s.Scope("jdbc_test.WriteToJdbc")
+	jdbcio.Read(s, expansionAddr, tableName, driverClassName, jdbcUrl, username, password)
+
 	return p
 }

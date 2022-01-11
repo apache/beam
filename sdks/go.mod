@@ -27,6 +27,8 @@ require (
 	cloud.google.com/go/datastore v1.5.0
 	cloud.google.com/go/pubsub v1.11.0-beta.schemas
 	cloud.google.com/go/storage v1.15.0
+	github.com/docker/go-connections v0.4.0
+	github.com/go-sql-driver/mysql v1.6.0
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2 // TODO(danoliveira): Fully replace this with google.golang.org/protobuf
 	github.com/golang/snappy v0.0.4 // indirect
@@ -34,13 +36,15 @@ require (
 	github.com/google/martian/v3 v3.2.1 // indirect
 	github.com/google/uuid v1.3.0
 	github.com/kr/text v0.2.0 // indirect
+	github.com/lib/pq v1.10.4
 	github.com/linkedin/goavro v2.1.0+incompatible
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/nightlyone/lockfile v1.0.0
 	github.com/spf13/cobra v1.2.1
-	golang.org/x/net v0.0.0-20210423184538-5f58ad60dda6
+	github.com/testcontainers/testcontainers-go v0.12.0
+	golang.org/x/net v0.0.0-20211108170745-6635138e15ea
 	golang.org/x/oauth2 v0.0.0-20210628180205-a41e5a781914
-	golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c // indirect
+	golang.org/x/sys v0.0.0-20211109184856-51b60fd695b3
 	golang.org/x/text v0.3.6
 	google.golang.org/api v0.45.0
 	google.golang.org/genproto v0.0.0-20210728212813-7823e685a01f
