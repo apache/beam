@@ -49,10 +49,12 @@ var (
 )
 
 const (
+	disableJammAgentOption              = "disable_jamm_agent"
 	enableGoogleCloudProfilerOption     = "enable_google_cloud_profiler"
 	enableGoogleCloudHeapSamplingOption = "enable_google_cloud_heap_sampling"
 	googleCloudProfilerAgentBaseArgs    = "-agentpath:/opt/google_cloud_profiler/profiler_java_agent.so=-logtostderr,-cprof_service=%s,-cprof_service_version=%s"
 	googleCloudProfilerAgentHeapArgs    = googleCloudProfilerAgentBaseArgs + ",-cprof_enable_heap_sampling,-cprof_heap_sampling_interval=2097152"
+	jammAgentArgs                       = "-javaagent:/opt/apache/beam/jars/jamm.jar"
 )
 
 func main() {
@@ -183,6 +185,13 @@ func main() {
 		} else {
 			log.Println("enable_google_cloud_profiler is set to true, but no metadata is received from provision server, profiling will not be enabled.")
 		}
+	}
+
+	disableJammAgent := strings.Contains(options, disableJammAgentOption)
+	if disableJammAgent {
+	  log.Printf("Disabling Jamm agent. Measuring object size will be inaccurate.")
+	} else {
+	  args = append(args, jammAgentArgs)
 	}
 
 	args = append(args, "org.apache.beam.fn.harness.FnHarness")

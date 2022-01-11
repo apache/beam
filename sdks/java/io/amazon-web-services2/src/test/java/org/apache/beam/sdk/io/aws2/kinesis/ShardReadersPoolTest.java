@@ -69,7 +69,9 @@ public class ShardReadersPoolTest {
     when(c.getShardId()).thenReturn("shard2");
     when(d.getShardId()).thenReturn("shard2");
     when(firstCheckpoint.getShardId()).thenReturn("shard1");
+    when(firstCheckpoint.getStreamName()).thenReturn("testStream");
     when(secondCheckpoint.getShardId()).thenReturn("shard2");
+    when(firstIterator.getStreamName()).thenReturn("testStream");
     when(firstIterator.getShardId()).thenReturn("shard1");
     when(firstIterator.getCheckpoint()).thenReturn(firstCheckpoint);
     when(secondIterator.getShardId()).thenReturn("shard2");
@@ -273,8 +275,10 @@ public class ShardReadersPoolTest {
     when(firstIterator.findSuccessiveShardRecordIterators()).thenReturn(emptyList);
 
     shardReadersPool.start();
-    verify(shardReadersPool).startReadingShards(ImmutableList.of(firstIterator, secondIterator));
-    verify(shardReadersPool, timeout(TIMEOUT_IN_MILLIS)).startReadingShards(emptyList);
+    verify(shardReadersPool)
+        .startReadingShards(ImmutableList.of(firstIterator, secondIterator), "testStream");
+    verify(shardReadersPool, timeout(TIMEOUT_IN_MILLIS))
+        .startReadingShards(emptyList, "testStream");
 
     KinesisReaderCheckpoint checkpointMark = shardReadersPool.getCheckpointMark();
     assertThat(checkpointMark.iterator())

@@ -345,11 +345,13 @@ class UpdateDestinationSchema(beam.DoFn):
       write_disposition=None,
       test_client=None,
       additional_bq_parameters=None,
-      step_name=None):
+      step_name=None,
+      load_job_project_id=None):
     self._test_client = test_client
     self._write_disposition = write_disposition
     self._additional_bq_parameters = additional_bq_parameters or {}
     self._step_name = step_name
+    self._load_job_project_id = load_job_project_id
 
   def setup(self):
     self._bq_wrapper = bigquery_tools.BigQueryWrapper(client=self._test_client)
@@ -439,7 +441,8 @@ class UpdateDestinationSchema(beam.DoFn):
         job_labels=self._bq_io_metadata.add_additional_bq_job_labels(),
         # JSON format is hardcoded because zero rows load(unlike AVRO) and
         # a nested schema(unlike CSV, which a default one) is permitted.
-        source_format="NEWLINE_DELIMITED_JSON")
+        source_format="NEWLINE_DELIMITED_JSON",
+        load_job_project_id=self._load_job_project_id)
     yield (destination, schema_update_job_reference)
 
 
@@ -462,13 +465,15 @@ class TriggerCopyJobs(beam.DoFn):
       create_disposition=None,
       write_disposition=None,
       test_client=None,
-      step_name=None):
+      step_name=None,
+      load_job_project_id=None):
     self.create_disposition = create_disposition
     self.write_disposition = write_disposition
     self.test_client = test_client
     self._observed_tables = set()
     self.bq_io_metadata = None
     self._step_name = step_name
+    self.load_job_project_id = load_job_project_id
 
   def display_data(self):
     return {
@@ -527,8 +532,12 @@ class TriggerCopyJobs(beam.DoFn):
 
     if not self.bq_io_metadata:
       self.bq_io_metadata = create_bigquery_io_metadata(self._step_name)
+
+    project_id = (
+        copy_to_reference.projectId
+        if self.load_job_project_id is None else self.load_job_project_id)
     job_reference = self.bq_wrapper._insert_copy_job(
-        copy_to_reference.projectId,
+        project_id,
         copy_job_name,
         copy_from_reference,
         copy_to_reference,
@@ -559,7 +568,8 @@ class TriggerLoadJobs(beam.DoFn):
       temporary_tables=False,
       additional_bq_parameters=None,
       source_format=None,
-      step_name=None):
+      step_name=None,
+      load_job_project_id=None):
     self.schema = schema
     self.test_client = test_client
     self.temporary_tables = temporary_tables
@@ -567,6 +577,7 @@ class TriggerLoadJobs(beam.DoFn):
     self.source_format = source_format
     self.bq_io_metadata = None
     self._step_name = step_name
+    self.load_job_project_id = load_job_project_id
     if self.temporary_tables:
       # If we are loading into temporary tables, we rely on the default create
       # and write dispositions, which mean that a new table will be created.
@@ -663,7 +674,8 @@ class TriggerLoadJobs(beam.DoFn):
         create_disposition=create_disposition,
         additional_load_parameters=additional_parameters,
         source_format=self.source_format,
-        job_labels=self.bq_io_metadata.add_additional_bq_job_labels())
+        job_labels=self.bq_io_metadata.add_additional_bq_job_labels(),
+        load_job_project_id=self.load_job_project_id)
     yield (destination, job_reference)
 
 
@@ -789,7 +801,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
       schema_side_inputs=None,
       test_client=None,
       validate=True,
-      is_streaming_pipeline=False):
+      is_streaming_pipeline=False,
+      load_job_project_id=None):
     self.destination = destination
     self.create_disposition = create_disposition
     self.write_disposition = write_disposition
@@ -823,6 +836,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
     self.schema_side_inputs = schema_side_inputs or ()
 
     self.is_streaming_pipeline = is_streaming_pipeline
+    self.load_job_project_id = load_job_project_id
     self._validate = validate
     if self._validate:
       self.verify()
@@ -1005,7 +1019,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
                 temporary_tables=True,
                 additional_bq_parameters=self.additional_bq_parameters,
                 source_format=self._temp_file_format,
-                step_name=step_name),
+                step_name=step_name,
+                load_job_project_id=self.load_job_project_id),
             load_job_name_pcv,
             *self.schema_side_inputs).with_outputs(
                 TriggerLoadJobs.TEMP_TABLES, main='main'))
@@ -1028,7 +1043,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
                 test_client=self.test_client,
                 additional_bq_parameters=self.additional_bq_parameters,
                 step_name=step_name,
-            ),
+                load_job_project_id=self.load_job_project_id),
             schema_mod_job_name_pcv))
 
     finished_schema_mod_jobs_pc = (
@@ -1045,7 +1060,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
                 create_disposition=self.create_disposition,
                 write_disposition=self.write_disposition,
                 test_client=self.test_client,
-                step_name=step_name),
+                step_name=step_name,
+                load_job_project_id=self.load_job_project_id),
             copy_job_name_pcv,
             pvalue.AsIter(finished_schema_mod_jobs_pc)))
 
@@ -1083,7 +1099,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
                 temporary_tables=False,
                 additional_bq_parameters=self.additional_bq_parameters,
                 source_format=self._temp_file_format,
-                step_name=step_name),
+                step_name=step_name,
+                load_job_project_id=self.load_job_project_id),
             load_job_name_pcv,
             *self.schema_side_inputs))
 

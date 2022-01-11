@@ -38,15 +38,15 @@ To use Beam DataFrames, you need to install Beam python version 2.26.0 or higher
 pip install apache_beam[dataframe]
 ```
 
-Note that the _same_ `pandas` version should be installed on workers when executing DataFrame API pipelines on distributed runners.  Reference [`base_image_requirements.txt`](https://github.com/apache/beam/blob/master/sdks/python/container/base_image_requirements.txt) for the Beam release you are using to see what version of `pandas` will be used by default on workers.
+Note that the _same_ `pandas` version should be installed on workers when executing DataFrame API pipelines on distributed runners.  Reference [`base_image_requirements.txt`](https://github.com/apache/beam/blob/master/sdks/python/container/py38/base_image_requirements.txt) for the Python version and Beam release you are using to see what version of `pandas` will be used by default on workers.
 
 ## Using DataFrames
 You can use DataFrames as shown in the following example, which reads New York City taxi data from a CSV file, performs a grouped aggregation, and writes the output back to CSV:
 
-{{< highlight py >}}
+```
 from apache_beam.dataframe.io import read_csv
 {{< code_sample "sdks/python/apache_beam/examples/dataframe/taxiride.py" DataFrame_taxiride_aggregation >}}
-{{< /highlight >}}
+```
 
 pandas is able to infer column names from the first row of the CSV data, which is where `passenger_count` and `DOLocationID` come from.
 
@@ -60,12 +60,12 @@ To use the DataFrames API in a larger pipeline, you can convert a PCollection to
 
 Here’s an example that creates a schema-aware PCollection, converts it to a DataFrame using [`to_dataframe`][pydoc_to_dataframe], processes the DataFrame, and then converts the DataFrame back to a PCollection using [`to_pcollection`][pydoc_to_pcollection]:
 
-{{< highlight py >}}
+```
 from apache_beam.dataframe.convert import to_dataframe
 from apache_beam.dataframe.convert import to_pcollection
 ...
 {{< code_sample "sdks/python/apache_beam/examples/dataframe/wordcount.py" DataFrame_wordcount >}}
-{{< /highlight >}}
+```
 
 You can find the full wordcount example on
 [GitHub](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/dataframe/wordcount.py),
@@ -73,7 +73,7 @@ along with other [example DataFrame pipelines](https://github.com/apache/beam/bl
 
 It’s also possible to use the DataFrame API by passing a function to [`DataframeTransform`][pydoc_DataframeTransform]:
 
-{{< highlight py >}}
+```
 from apache_beam.dataframe.transforms import DataframeTransform
 
 with beam.Pipeline() as p:
@@ -83,13 +83,13 @@ with beam.Pipeline() as p:
   | DataframeTransform(lambda df: df.groupby('DOLocationID').sum())
   | beam.Map(lambda row: f"{row.DOLocationID},{row.passenger_count}")
   ...
-{{< /highlight >}}
+```
 
 [`DataframeTransform`][pydoc_DataframeTransform] is similar to [`SqlTransform`][pydoc_SqlTransform] from the [Beam SQL](https://beam.apache.org/documentation/dsls/sql/overview/) DSL. Where [`SqlTransform`][pydoc_SqlTransform] translates a SQL query to a PTransform, [`DataframeTransform`][pydoc_DataframeTransform] is a PTransform that applies a function that takes and returns DataFrames. A [`DataframeTransform`][pydoc_DataframeTransform] can be particularly useful if you have a stand-alone function that can be called both on Beam and on ordinary pandas DataFrames.
 
 [`DataframeTransform`][pydoc_DataframeTransform] can accept and return multiple PCollections by name and by keyword, as shown in the following examples:
 
-{{< highlight py >}}
+```
 output = (pc1, pc2) | DataframeTransform(lambda df1, df2: ...)
 
 output = {'a': pc, ...} | DataframeTransform(lambda a, ...: ...)
@@ -97,7 +97,7 @@ output = {'a': pc, ...} | DataframeTransform(lambda a, ...: ...)
 pc1, pc2 = {'a': pc} | DataframeTransform(lambda a: expr1, expr2)
 
 {...} = {a: pc} | DataframeTransform(lambda a: {...})
-{{< /highlight >}}
+```
 
 [pydoc_read_csv]: https://beam.apache.org/releases/pydoc/current/apache_beam.dataframe.io.html#apache_beam.dataframe.io.read_csv
 [pydoc_to_csv]: https://beam.apache.org/releases/pydoc/current/apache_beam.dataframe.frames.html#apache_beam.dataframe.frames.DeferredDataFrame.to_csv

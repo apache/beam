@@ -87,18 +87,17 @@ public class KafkaSourceConsumerFnTest implements Serializable {
 
     Pipeline pipeline = Pipeline.create();
 
-    PCollection<Integer> counts =
-        pipeline
-            .apply(
-                Create.of(Lists.newArrayList(config))
-                    .withCoder(MapCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of())))
-            .apply(
-                ParDo.of(
-                    new KafkaSourceConsumerFn<>(
-                        CounterSourceConnector.class,
-                        sourceRecord -> (Integer) sourceRecord.value(),
-                        1)))
-            .setCoder(VarIntCoder.of());
+    pipeline
+        .apply(
+            Create.of(Lists.newArrayList(config))
+                .withCoder(MapCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of())))
+        .apply(
+            ParDo.of(
+                new KafkaSourceConsumerFn<>(
+                    CounterSourceConnector.class,
+                    sourceRecord -> (Integer) sourceRecord.value(),
+                    1)))
+        .setCoder(VarIntCoder.of());
 
     pipeline.run().waitUntilFinish();
     Assert.assertEquals(3, CounterTask.getCountTasks());

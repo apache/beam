@@ -28,8 +28,9 @@ import (
 )
 
 const (
-	preparedModDir  = "testModDir"
-	preparedWorkDir = "workingDir"
+	sourceDir       = "sourceDir"
+	destinationDir  = "destinationDir"
+	pipelinesFolder = "executable_files"
 )
 
 func TestMain(m *testing.M) {
@@ -42,21 +43,16 @@ func TestMain(m *testing.M) {
 }
 
 func setupPreparedFiles() error {
-	err := os.Mkdir(preparedModDir, 0755)
+	err := os.Mkdir(sourceDir, 0755)
 	if err != nil {
 		return err
 	}
-	err = os.MkdirAll(filepath.Join(preparedWorkDir, baseFileFolder), 0755)
+	err = os.Mkdir(destinationDir, 0755)
 	if err != nil {
 		return err
 	}
-	testModFile := filepath.Join(preparedModDir, "go.mod")
-	testSumFile := filepath.Join(preparedModDir, "go.sum")
-	_, err = os.Create(testModFile)
-	if err != nil {
-		return err
-	}
-	_, err = os.Create(testSumFile)
+	filePath := filepath.Join(sourceDir, "file.txt")
+	_, err = os.Create(filePath)
 	if err != nil {
 		return err
 	}
@@ -64,11 +60,15 @@ func setupPreparedFiles() error {
 }
 
 func teardown() {
-	err := os.RemoveAll(preparedModDir)
+	err := os.RemoveAll(sourceDir)
 	if err != nil {
 		logger.Fatal(err)
 	}
-	err = os.RemoveAll(preparedWorkDir)
+	err = os.RemoveAll(destinationDir)
+	if err != nil {
+		logger.Fatal(err)
+	}
+	err = os.RemoveAll(pipelinesFolder)
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -76,7 +76,7 @@ func teardown() {
 
 func TestLifeCycle_CreateExecutableFile(t *testing.T) {
 	pipelineId := uuid.New()
-	baseFileFolder := fmt.Sprintf("%s_%s", baseFileFolder, pipelineId)
+	baseFileFolder := fmt.Sprintf("%s/%s", pipelinesFolder, pipelineId)
 	srcFileFolder := baseFileFolder + "/src"
 	binFileFolder := baseFileFolder + "/bin"
 
@@ -115,11 +115,11 @@ func TestLifeCycle_CreateExecutableFile(t *testing.T) {
 			createFolders: []string{srcFileFolder},
 			fields: fields{
 				folder:     Folder{SourceFileFolder: srcFileFolder},
-				extension:  Extension{SourceFileExtension: javaSourceFileExtension},
+				extension:  Extension{SourceFileExtension: JavaSourceFileExtension},
 				pipelineId: pipelineId,
 			},
 			args:    args{code: "TEST_CODE"},
-			want:    pipelineId.String() + javaSourceFileExtension,
+			want:    pipelineId.String() + JavaSourceFileExtension,
 			wantErr: false,
 		},
 	}
@@ -149,7 +149,7 @@ func TestLifeCycle_CreateExecutableFile(t *testing.T) {
 
 func TestLifeCycle_CreateFolders(t *testing.T) {
 	pipelineId := uuid.New()
-	baseFileFolder := fmt.Sprintf("%s_%s", baseFileFolder, pipelineId)
+	baseFileFolder := fmt.Sprintf("%s/%s", pipelinesFolder, pipelineId)
 
 	type fields struct {
 		folderGlobs []string
@@ -191,7 +191,7 @@ func TestLifeCycle_CreateFolders(t *testing.T) {
 
 func TestLifeCycle_DeleteFolders(t *testing.T) {
 	pipelineId := uuid.New()
-	baseFileFolder := fmt.Sprintf("%s_%s", baseFileFolder, pipelineId)
+	baseFileFolder := fmt.Sprintf("%s/%s", pipelinesFolder, pipelineId)
 
 	type fields struct {
 		folderGlobs []string
@@ -231,14 +231,15 @@ func TestLifeCycle_DeleteFolders(t *testing.T) {
 func TestNewLifeCycle(t *testing.T) {
 	pipelineId := uuid.New()
 	workingDir := "workingDir"
-	baseFileFolder := fmt.Sprintf("%s/%s/%s", workingDir, baseFileFolder, pipelineId)
+	preparedPipelinesFolder := filepath.Join(workingDir, pipelinesFolder)
+	baseFileFolder := fmt.Sprintf("%s/%s", preparedPipelinesFolder, pipelineId)
 	srcFileFolder := baseFileFolder + "/src"
 	binFileFolder := baseFileFolder + "/bin"
 
 	type args struct {
-		sdk        pb.Sdk
-		pipelineId uuid.UUID
-		workingDir string
+		sdk             pb.Sdk
+		pipelineId      uuid.UUID
+		pipelinesFolder string
 	}
 	tests := []struct {
 		name    string
@@ -249,9 +250,9 @@ func TestNewLifeCycle(t *testing.T) {
 		{
 			name: "Available SDK",
 			args: args{
-				sdk:        pb.Sdk_SDK_JAVA,
-				pipelineId: pipelineId,
-				workingDir: workingDir,
+				sdk:             pb.Sdk_SDK_JAVA,
+				pipelineId:      pipelineId,
+				pipelinesFolder: preparedPipelinesFolder,
 			},
 			want: &LifeCycle{
 				folderGlobs: []string{baseFileFolder, srcFileFolder, binFileFolder},
@@ -261,7 +262,7 @@ func TestNewLifeCycle(t *testing.T) {
 					ExecutableFileFolder: binFileFolder,
 				},
 				Extension: Extension{
-					SourceFileExtension:     javaSourceFileExtension,
+					SourceFileExtension:     JavaSourceFileExtension,
 					ExecutableFileExtension: javaCompiledFileExtension,
 				},
 				ExecutableName: executableName,
@@ -272,9 +273,9 @@ func TestNewLifeCycle(t *testing.T) {
 		{
 			name: "Unavailable SDK",
 			args: args{
-				sdk:        pb.Sdk_SDK_UNSPECIFIED,
-				pipelineId: pipelineId,
-				workingDir: workingDir,
+				sdk:             pb.Sdk_SDK_UNSPECIFIED,
+				pipelineId:      pipelineId,
+				pipelinesFolder: preparedPipelinesFolder,
 			},
 			want:    nil,
 			wantErr: true,
@@ -282,7 +283,7 @@ func TestNewLifeCycle(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := NewLifeCycle(tt.args.sdk, tt.args.pipelineId, tt.args.workingDir)
+			got, err := NewLifeCycle(tt.args.sdk, tt.args.pipelineId, tt.args.pipelinesFolder)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewLifeCycle() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -305,10 +306,10 @@ func TestNewLifeCycle(t *testing.T) {
 
 func TestLifeCycle_GetAbsoluteExecutableFilePath(t *testing.T) {
 	pipelineId := uuid.New()
-	baseFileFolder := fmt.Sprintf("%s_%s", baseFileFolder, pipelineId)
+	baseFileFolder := fmt.Sprintf("%s/%s", pipelinesFolder, pipelineId)
 	srcFileFolder := baseFileFolder + "/src"
 
-	filePath := fmt.Sprintf("%s/%s", srcFileFolder, pipelineId.String()+javaSourceFileExtension)
+	filePath := filepath.Join(srcFileFolder, fmt.Sprintf("%s%s", pipelineId.String(), JavaSourceFileExtension))
 	absolutePath, _ := filepath.Abs(filePath)
 	type fields struct {
 		folderGlobs []string
@@ -329,7 +330,7 @@ func TestLifeCycle_GetAbsoluteExecutableFilePath(t *testing.T) {
 					BaseFolder:       baseFileFolder,
 					SourceFileFolder: srcFileFolder,
 				},
-				Extension:  Extension{SourceFileExtension: javaSourceFileExtension},
+				Extension:  Extension{SourceFileExtension: JavaSourceFileExtension},
 				pipelineId: pipelineId,
 			},
 			want: absolutePath,
@@ -353,7 +354,7 @@ func TestLifeCycle_GetAbsoluteExecutableFilePath(t *testing.T) {
 
 func TestLifeCycle_GetAbsoluteExecutableFilesFolderPath(t *testing.T) {
 	pipelineId := uuid.New()
-	baseFileFolder := fmt.Sprintf("%s_%s", baseFileFolder, pipelineId)
+	baseFileFolder := fmt.Sprintf("%s/%s", pipelinesFolder, pipelineId)
 
 	absolutePath, _ := filepath.Abs(baseFileFolder)
 	type fields struct {
@@ -372,7 +373,7 @@ func TestLifeCycle_GetAbsoluteExecutableFilesFolderPath(t *testing.T) {
 			name: "GetAbsoluteExecutableFolderPath",
 			fields: fields{
 				Folder:     Folder{BaseFolder: baseFileFolder},
-				Extension:  Extension{SourceFileExtension: javaSourceFileExtension},
+				Extension:  Extension{SourceFileExtension: JavaSourceFileExtension},
 				pipelineId: pipelineId,
 			},
 			want: absolutePath,
@@ -396,8 +397,7 @@ func TestLifeCycle_GetAbsoluteExecutableFilesFolderPath(t *testing.T) {
 
 func TestLifeCycle_ExecutableName(t *testing.T) {
 	pipelineId := uuid.New()
-	workingDir := "workingDir"
-	baseFileFolder := fmt.Sprintf("%s/%s/%s", workingDir, baseFileFolder, pipelineId)
+	baseFileFolder := fmt.Sprintf("%s/%s", pipelinesFolder, pipelineId)
 	binFileFolder := baseFileFolder + "/bin"
 
 	type fields struct {
@@ -439,7 +439,7 @@ func TestLifeCycle_ExecutableName(t *testing.T) {
 				ExecutableName: tt.fields.ExecutableName,
 				pipelineId:     tt.fields.pipelineId,
 			}
-			got, err := l.ExecutableName(pipelineId, workingDir)
+			got, err := l.ExecutableName(pipelineId, pipelinesFolder)
 			if got != tt.want {
 				t.Errorf("GetExecutableName() got = %v, want %v", got, tt.want)
 			}
@@ -450,7 +450,7 @@ func TestLifeCycle_ExecutableName(t *testing.T) {
 	}
 }
 
-func TestLifeCycle_CopyFiles(t *testing.T) {
+func TestCopyFile(t *testing.T) {
 	type fields struct {
 		folderGlobs    []string
 		Folder         Folder
@@ -459,8 +459,9 @@ func TestLifeCycle_CopyFiles(t *testing.T) {
 		pipelineId     uuid.UUID
 	}
 	type args struct {
-		workingDir     string
-		preparedModDir string
+		fileName       string
+		sourceDir      string
+		destinationDir string
 	}
 	tests := []struct {
 		name    string
@@ -469,7 +470,7 @@ func TestLifeCycle_CopyFiles(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "go.mod and go.sum exists in current dir",
+			name: "file doesn't exist",
 			fields: fields{
 				folderGlobs:    nil,
 				Folder:         Folder{},
@@ -478,25 +479,27 @@ func TestLifeCycle_CopyFiles(t *testing.T) {
 				pipelineId:     uuid.UUID{},
 			},
 			args: args{
-				workingDir:     preparedWorkDir,
-				preparedModDir: preparedModDir,
-			},
-			wantErr: false,
-		},
-		{
-			name: "go.mod or go.sum does not exists in current dir",
-			fields: fields{
-				folderGlobs:    nil,
-				Folder:         Folder{},
-				Extension:      Extension{},
-				ExecutableName: nil,
-				pipelineId:     uuid.UUID{},
-			},
-			args: args{
-				workingDir:     preparedWorkDir,
-				preparedModDir: "",
+				fileName:       "file1.txt",
+				sourceDir:      sourceDir,
+				destinationDir: destinationDir,
 			},
 			wantErr: true,
+		},
+		{
+			name: "file exists",
+			fields: fields{
+				folderGlobs:    nil,
+				Folder:         Folder{},
+				Extension:      Extension{},
+				ExecutableName: nil,
+				pipelineId:     uuid.UUID{},
+			},
+			args: args{
+				fileName:       "file.txt",
+				sourceDir:      sourceDir,
+				destinationDir: destinationDir,
+			},
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
@@ -508,8 +511,16 @@ func TestLifeCycle_CopyFiles(t *testing.T) {
 				ExecutableName: tt.fields.ExecutableName,
 				pipelineId:     tt.fields.pipelineId,
 			}
-			if err := l.CopyFiles(tt.args.workingDir, tt.args.preparedModDir); (err != nil) != tt.wantErr {
-				t.Errorf("CopyFiles() error = %v, wantErr %v", err, tt.wantErr)
+			err := l.CopyFile(tt.args.fileName, tt.args.sourceDir, tt.args.destinationDir)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("CopyFile() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err == nil && !tt.wantErr {
+				newFilePath := filepath.Join(destinationDir, tt.args.fileName)
+				_, err = os.Stat(newFilePath)
+				if os.IsNotExist(err) {
+					t.Errorf("CopyFile() should create a new file: %s", newFilePath)
+				}
 			}
 		})
 	}

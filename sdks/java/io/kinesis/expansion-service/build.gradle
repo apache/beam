@@ -21,7 +21,6 @@ apply plugin: 'application'
 mainClassName = "org.apache.beam.sdk.expansion.service.ExpansionService"
 
 applyJavaNature(
-  suppressUnusedVariable: true,
     automaticModuleName: 'org.apache.beam.sdk.io.kinesis.expansion.service',
     exportJavadoc: false,
     validateShadowJar: false,
@@ -32,9 +31,9 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Kinesis :: Expansion Service
 ext.summary = "Expansion service serving KinesisIO"
 
 dependencies {
-  compile project(":sdks:java:expansion-service")
+  implementation project(":sdks:java:expansion-service")
   permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
-  compile project(":sdks:java:io:kinesis")
+  implementation project(":sdks:java:io:kinesis")
   permitUnusedDeclared project(":sdks:java:io:kinesis") // BEAM-11761
-  runtime library.java.slf4j_jdk14
+  runtimeOnly library.java.slf4j_jdk14
 }

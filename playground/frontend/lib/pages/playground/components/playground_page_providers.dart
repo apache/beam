@@ -17,12 +17,16 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:playground/constants/params.dart';
+import 'package:playground/modules/analytics/analytics_service.dart';
 import 'package:playground/modules/editor/repository/code_repository/code_client/grpc_code_client.dart';
 import 'package:playground/modules/editor/repository/code_repository/code_repository.dart';
+import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/examples/repositories/example_client/grpc_example_client.dart';
 import 'package:playground/modules/examples/repositories/example_repository.dart';
 import 'package:playground/modules/output/models/output_placement_state.dart';
 import 'package:playground/pages/playground/states/examples_state.dart';
+import 'package:playground/pages/playground/states/feedback_state.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:provider/provider.dart';
 
@@ -42,6 +46,7 @@ class PlaygroundPageProviders extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        Provider<AnalyticsService>(create: (context) => AnalyticsService()),
         ChangeNotifierProvider<ExampleState>(
           create: (context) => ExampleState(kExampleRepository)..init(),
         ),
@@ -54,13 +59,22 @@ class PlaygroundPageProviders extends StatelessWidget {
 
             if (exampleState.sdkCategories != null &&
                 playground.selectedExample == null) {
-              final defaultExample =
-                  exampleState.defaultExamplesMap![playground.sdk]!;
-              return PlaygroundState(
+              final example = _getExample(exampleState, playground);
+              final newPlayground = PlaygroundState(
                 codeRepository: kCodeRepository,
                 sdk: playground.sdk,
-                selectedExample: defaultExample,
+                selectedExample: null,
               );
+              if (example != null) {
+                exampleState
+                    .loadExampleInfo(
+                      example,
+                      playground.sdk,
+                    )
+                    .then((exampleWithInfo) =>
+                        newPlayground.setExample(exampleWithInfo));
+              }
+              return newPlayground;
             }
             return playground;
           },
@@ -68,8 +82,30 @@ class PlaygroundPageProviders extends StatelessWidget {
         ChangeNotifierProvider<OutputPlacementState>(
           create: (context) => OutputPlacementState(),
         ),
+        ChangeNotifierProvider<FeedbackState>(
+          create: (context) => FeedbackState(),
+        ),
       ],
       child: child,
+    );
+  }
+
+  ExampleModel? _getExample(
+    ExampleState exampleState,
+    PlaygroundState playground,
+  ) {
+    final examplePath = Uri.base.queryParameters[kExampleParam];
+    final allExamples = exampleState.sdkCategories?.values
+        .expand((sdkCategory) => sdkCategory.map((e) => e.examples))
+        .expand((element) => element)
+        .toList();
+    if (allExamples?.isEmpty ?? true) {
+      return null;
+    }
+    final defaultExample = exampleState.defaultExamplesMap![playground.sdk]!;
+    return allExamples?.firstWhere(
+      (example) => example.path == examplePath,
+      orElse: () => defaultExample,
     );
   }
 }

@@ -24,20 +24,20 @@ import (
 )
 
 const (
-	javaSourceFileExtension   = ".java"
+	JavaSourceFileExtension   = ".java"
 	javaCompiledFileExtension = ".class"
 )
 
 // newJavaLifeCycle creates LifeCycle with java SDK environment.
-func newJavaLifeCycle(pipelineId uuid.UUID, workingDir string) *LifeCycle {
-	javaLifeCycle := newCompilingLifeCycle(pipelineId, workingDir, javaSourceFileExtension, javaCompiledFileExtension)
+func newJavaLifeCycle(pipelineId uuid.UUID, pipelinesFolder string) *LifeCycle {
+	javaLifeCycle := newCompilingLifeCycle(pipelineId, pipelinesFolder, JavaSourceFileExtension, javaCompiledFileExtension)
 	javaLifeCycle.ExecutableName = executableName
 	return javaLifeCycle
 }
 
 // executableName returns name that should be executed (HelloWorld for HelloWorld.class for java SDK)
-func executableName(pipelineId uuid.UUID, workingDir string) (string, error) {
-	baseFileFolder := filepath.Join(workingDir, baseFileFolder, pipelineId.String())
+func executableName(pipelineId uuid.UUID, pipelinesFolder string) (string, error) {
+	baseFileFolder := filepath.Join(pipelinesFolder, pipelineId.String())
 	binFileFolder := filepath.Join(baseFileFolder, compiledFolderName)
 	dirEntries, err := os.ReadDir(binFileFolder)
 	if err != nil {

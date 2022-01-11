@@ -119,6 +119,8 @@ class MeanCombineFn(core.CombineFn):
 
 class Count(object):
   """Combiners for counting elements."""
+  @with_input_types(T)
+  @with_output_types(int)
   class Globally(CombinerWithoutDefaults):
     """combiners.Count.Globally counts the total number of elements."""
     def expand(self, pcoll):
@@ -127,11 +129,15 @@ class Count(object):
       else:
         return pcoll | core.CombineGlobally(CountCombineFn()).without_defaults()
 
+  @with_input_types(Tuple[K, V])
+  @with_output_types(Tuple[K, int])
   class PerKey(ptransform.PTransform):
     """combiners.Count.PerKey counts how many elements each unique key has."""
     def expand(self, pcoll):
       return pcoll | core.CombinePerKey(CountCombineFn())
 
+  @with_input_types(T)
+  @with_output_types(Tuple[T, int])
   class PerElement(ptransform.PTransform):
     """combiners.Count.PerElement counts how many times each element occurs."""
     def expand(self, pcoll):
