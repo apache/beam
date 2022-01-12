@@ -25,9 +25,7 @@
  *    and determine if they need to be added or upgraded (e.g. protobuf)
  * 3. Validate built artifacts by running linkage tool
  *    (https://github.com/apache/beam/tree/master/vendor#how-to-validate-the-vendored-dependencies)
- *    and unit and integration tests in a PR. Example PRs:
- *      * A version upgrade for gRPC https://github.com/apache/beam/pull/16460
- *      * A minor version to vendored package: https://github.com/apache/beam/pull/16476
+ *    and unit and integration tests in a PR.
  */
 
 plugins { id 'org.apache.beam.vendor-java' }
