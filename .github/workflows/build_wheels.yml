@@ -203,7 +203,7 @@ jobs:
         run: gsutil cp -r -a public-read source/* ${{ env.GCP_PATH }}
 
   build_wheels:
-    name: Build python wheels on ${{matrix.arch}} for ${{ matrix.os_python.os }}
+    name: Build python wheels on ${{matrix.arch}} for ${{ fromJSON(matrix.os_python.os) }}
     needs: build_source
     env:
       CIBW_ARCHS_LINUX: ${{matrix.arch}}
