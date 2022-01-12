@@ -111,6 +111,6 @@ repositories {
 }
 ```
 
-3. Migrate all references from the old dependency to the new dependency, including imports if needed. 
+3. Migrate all references from the old dependency to the new dependency, including imports if needed.
 
 4. Commit any added or changed files and create a PR (can be a draft, as you will not merge this PR) to test on.
