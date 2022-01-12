@@ -158,9 +158,6 @@ jobs:
       - name: Clean GitHub workspace
         if: contains(matrix.os, 'ubuntu-20.04')
         run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
-      - name: Clean GitHub workspace Windows
-        if: startsWith(matrix.os, 'windows')
-        run: echo TODO commands to clean workspace in self-hosted-windows
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Install python
@@ -197,9 +194,6 @@ jobs:
       - name: Clean GitHub workspace
         if: contains(matrix.os, 'ubuntu-20.04')
         run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
-      - name: Clean GitHub workspace Windows
-        if: startsWith(matrix.os, 'windows')
-        run: echo TODO commands to clean workspace in self-hosted-windows
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Install python
