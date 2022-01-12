@@ -160,6 +160,7 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 			}),
 			Version: newMsg(version{
 				JobType: apiJobType,
+				// TODO(BEAM-13647): Major version 9 should be compatible with Runner V2 artifact service
 				Major:   "6",
 			}),
 			SdkPipelineOptions: newMsg(pipelineOptions{
