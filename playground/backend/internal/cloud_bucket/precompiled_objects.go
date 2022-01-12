@@ -178,7 +178,9 @@ func (cd *CloudStorage) GetPrecompiledObjects(ctx context.Context, targetSdk pb.
 // GetDefaultPrecompileObject returns the default precompiled object for the sdk
 func (cd *CloudStorage) GetDefaultPrecompileObject(ctx context.Context, targetSdk pb.Sdk, workingDir string) (*ObjectInfo, error) {
 	defaultExampleToSdk, err := getDefaultExamplesFromJson(workingDir)
-
+	if err != nil {
+		return nil, err
+	}
 	infoPath := filepath.Join(defaultExampleToSdk[targetSdk.String()], MetaInfoName)
 	metaInfo, err := cd.getFileFromBucket(ctx, infoPath, "")
 	if err != nil {
