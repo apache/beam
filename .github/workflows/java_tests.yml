@@ -42,7 +42,7 @@ jobs:
   check_gcp_variables:
     timeout-minutes: 5
     name: "Check GCP variables set"
-    runs-on: self-hosted
+    runs-on: [self-hosted, ubuntu-20.04]
     outputs:
       gcp-variables-set: ${{ steps.check_gcp_variables.outputs.gcp-variables-set }}
     steps:

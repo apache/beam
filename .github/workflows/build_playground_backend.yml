@@ -26,7 +26,7 @@ on:
 jobs:
   build_playground_backend_docker_image:
     name: Build Playground Backend App
-    runs-on: self-hosted
+    runs-on: [self-hosted, ubuntu-20.04]
     env:
       GO_VERSION: 1.17.0
       BEAM_VERSION: 2.33.0

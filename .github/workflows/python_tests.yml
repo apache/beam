@@ -41,7 +41,7 @@ jobs:
   check_gcp_variables:
     timeout-minutes: 5
     name: "Check GCP variables"
-    runs-on: self-hosted
+    runs-on: [self-hosted, ubuntu-20.04]
     outputs:
       gcp-variables-set: ${{ steps.check_gcp_variables.outputs.gcp-variables-set }}
     steps:
@@ -68,7 +68,7 @@ jobs:
       )
     needs:
       - check_gcp_variables
-    runs-on: self-hosted
+    runs-on: [self-hosted, ubuntu-20.04]
     steps:
       - name: Clean GitHub workspace
         run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
