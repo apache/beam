@@ -30,6 +30,7 @@ import 'package:playground/modules/sdk/models/sdk.dart';
 const kTitleLength = 15;
 const kPrecompiledDelay = Duration(seconds: 1);
 const kTitle = 'Catalog';
+const kExecutionCancelledText = '\nPipeline cancelled';
 const kPipelineOptionsParseError =
     'Failed to parse pipeline options, please check the format (example: --key1 value1 --key2 value2), only alphanumeric and ",*,/,-,:,;,\',. symbols are allowed';
 
@@ -144,14 +145,16 @@ class PlaygroundState with ChangeNotifier {
   }
 
   Future<void> cancelRun() async {
-    if (_runSubscription != null) {
-      _runSubscription?.cancel();
-    }
+    _runSubscription?.cancel();
     final pipelineUuid = result?.pipelineUuid ?? '';
     if (pipelineUuid.isNotEmpty) {
       await _codeRepository?.cancelExecution(pipelineUuid);
     }
-    _result = null;
+    _result = RunCodeResult(
+      status: RunCodeStatus.finished,
+      output: _result?.output,
+      log: (_result?.log ?? '') + kExecutionCancelledText,
+    );
     notifyListeners();
   }
 
