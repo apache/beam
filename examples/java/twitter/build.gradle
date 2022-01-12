@@ -50,14 +50,11 @@ dependencies {
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation library.java.joda_time
     implementation library.java.slf4j_api
-    provided library.java.commons_io
-    provided library.java.commons_csv
     runtimeOnly project(path: ":runners:direct-java", configuration: "shadow")
     implementation ("org.twitter4j:twitter4j-stream:4.0.7")
     implementation ("org.twitter4j:twitter4j-core:4.0.7")
     testImplementation project(path: ":runners:direct-java", configuration: "shadow")
-    testImplementation library.java.hamcrest_core
-    testImplementation library.java.hamcrest_library
+    testImplementation library.java.hamcrest
     testImplementation library.java.junit
     testImplementation library.java.mockito_core
     testImplementation library.java.testcontainers_gcloud
@@ -66,7 +63,7 @@ dependencies {
     // For each runner a project level dependency on the examples project.
     for (String runner : preCommitRunners) {
         delegate.add(runner + "PreCommit", project(":examples:java:twitter"))
-        delegate.add(runner + "PreCommit", project(path: ":examples:java:twitter", configuration: "testRuntime"))
+        delegate.add(runner + "PreCommit", project(path: ":examples:java:twitter", configuration: "testRuntimeMigration"))
     }
     directRunnerPreCommit project(path: ":runners:direct-java", configuration: "shadow")
     flinkRunnerPreCommit project(":runners:flink:${project.ext.latestFlinkVersion}")
@@ -101,5 +98,5 @@ task preCommit() {
 }
 
 task execute (type:JavaExec) {
-    main = "org.apache.beam.examples.twitterstreamgenerator.TwitterStream"
+    mainClass = "org.apache.beam.examples.twitterstreamgenerator.TwitterStream"
 }

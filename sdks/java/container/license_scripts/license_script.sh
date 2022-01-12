@@ -41,9 +41,10 @@ mkdir -p "$DOWNLOAD_DIR"
 cp -r "${EXISTING_LICENSE_DIR}"/*.jar "${DOWNLOAD_DIR}"
 
 $PYTHON -m venv ${ENV_DIR} && . ${ENV_DIR}/bin/activate
+pip install --retries 10 --upgrade pip setuptools wheel
 
 # install packages
-${ENV_DIR}/bin/pip install -r ${SCRIPT_DIR}/requirement.txt
+pip install --retries 10 -r ${SCRIPT_DIR}/requirement.txt
 
 # pull licenses, notices and source code
 FLAGS="--license_index=${INDEX_FILE} \

@@ -20,9 +20,9 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.cloud.bigquery.storage.v1beta2.AppendRowsResponse;
-import com.google.cloud.bigquery.storage.v1beta2.ProtoRows;
-import com.google.cloud.bigquery.storage.v1beta2.WriteStream.Type;
+import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
+import com.google.cloud.bigquery.storage.v1.ProtoRows;
+import com.google.cloud.bigquery.storage.v1.WriteStream.Type;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.List;
@@ -171,17 +171,6 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         this.pendingMessages = Lists.newArrayList();
         this.datasetService = datasetService;
         this.useDefaultStream = useDefaultStream;
-      }
-
-      void close() {
-        if (streamAppendClient != null) {
-          try {
-            streamAppendClient.close();
-            streamAppendClient = null;
-          } catch (Exception e) {
-            throw new RuntimeException(e);
-          }
-        }
       }
 
       String getDefaultStreamName() {
@@ -403,9 +392,6 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
     @Teardown
     public void teardown() {
-      for (DestinationState state : destinations.values()) {
-        state.close();
-      }
       destinations.clear();
       try {
         if (datasetService != null) {

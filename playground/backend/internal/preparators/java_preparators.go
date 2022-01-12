@@ -16,7 +16,6 @@
 package preparators
 
 import (
-	"beam.apache.org/playground/backend/internal/fs_tool"
 	"beam.apache.org/playground/backend/internal/logger"
 	"beam.apache.org/playground/backend/internal/validators"
 	"bufio"
@@ -189,7 +188,7 @@ func changeJavaTestFileName(args ...interface{}) error {
 	validationResults := args[1].(*sync.Map)
 	isUnitTest, ok := validationResults.Load(validators.UnitTestValidatorName)
 	if ok && isUnitTest.(bool) {
-		err, className := getPublicClassName(filePath)
+		className, err := getPublicClassName(filePath)
 		if err != nil {
 			return err
 		}
@@ -203,18 +202,18 @@ func changeJavaTestFileName(args ...interface{}) error {
 
 func renameJavaFile(filePath string, className string) error {
 	currentFileName := filepath.Base(filePath)
-	newFilePath := strings.Replace(filePath, currentFileName, fmt.Sprintf("%s%s", className, fs_tool.JavaSourceFileExtension), 1)
+	newFilePath := strings.Replace(filePath, currentFileName, fmt.Sprintf("%s%s", className, filepath.Ext(currentFileName)), 1)
 	err := os.Rename(filePath, newFilePath)
 	return err
 }
 
-func getPublicClassName(filePath string) (error, string) {
+func getPublicClassName(filePath string) (string, error) {
 	code, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		logger.Errorf("Preparator: Error during open file: %s, err: %s\n", filePath, err.Error())
-		return err, ""
+		return "", err
 	}
 	re := regexp.MustCompile(publicClassNamePattern)
 	className := re.FindStringSubmatch(string(code))[1]
-	return err, className
+	return className, err
 }

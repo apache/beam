@@ -34,21 +34,30 @@ dependencies {
   implementation library.java.protobuf_java
   implementation library.java.slf4j_api
   implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.vendored_calcite_1_28_0
+  implementation "com.alibaba:fastjson:1.2.69"
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation "org.threeten:threetenbp:1.4.5"
-  provided project(":sdks:java:extensions:sql")
+  compileOnly project(":sdks:java:extensions:sql")
 
   // Dependencies for the example
-  provided project(":sdks:java:io:google-cloud-platform")
-  provided library.java.slf4j_api
+  implementation project(":sdks:java:extensions:google-cloud-platform-core")
+  compileOnly project(":sdks:java:io:google-cloud-platform")
+  permitUnusedDeclared project(":sdks:java:io:google-cloud-platform")
+  implementation library.java.slf4j_api
 
+  testImplementation project(":sdks:java:extensions:sql")
   testImplementation project(":sdks:java:extensions:sql:zetasql")
+  testImplementation project(":runners:direct-java")
+  testImplementation project(":sdks:java:io:google-cloud-platform")
+  testImplementation library.java.google_api_services_bigquery
+  testImplementation library.java.junit
   testRuntimeOnly library.java.slf4j_simple
 }
 
 task runDataCatalogExample(type: JavaExec) {
   description = "Run SQL example of how to use Data Catalog table provider"
-  main = "org.apache.beam.sdk.extensions.sql.example.BeamSqlDataCatalogExample"
+  mainClass = "org.apache.beam.sdk.extensions.sql.example.BeamSqlDataCatalogExample"
   classpath = sourceSets.main.runtimeClasspath
 
   def runner = project.findProperty('runner') ?: 'DirectRunner'

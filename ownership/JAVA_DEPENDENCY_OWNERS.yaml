@@ -514,11 +514,6 @@ deps:
     artifact: opencensus-contrib-grpc-metrics
     owners:
 
-  io.spring.gradle:propdeps-plugin:
-    group: io.spring.gradle
-    artifact: propdeps-plugin
-    owners:
-
   javax.xml.bind:jaxb-api:
     group: javax.xml.bind
     artifact: jaxb-api
@@ -547,11 +542,6 @@ deps:
   net.java.dev.jna:jna:
     group: net.java.dev.jna
     artifact: jna
-    owners:
-
-  net.ltgt.gradle:gradle-apt-plugin:
-    group: net.ltgt.gradle
-    artifact: gradle-apt-plugin
     owners:
 
   net.ltgt.gradle:gradle-errorprone-plugin:

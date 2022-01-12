@@ -68,16 +68,12 @@ dependencies {
   implementation library.java.joda_time
   implementation library.java.slf4j_api
   implementation library.java.vendored_grpc_1_36_0
-
-  // Swap to use the officially published version of 0.4.x once available
-  // instead of relying on a community published copy. See
-  // https://github.com/jbellis/jamm/issues/44 for additional details.
-  implementation 'io.github.stephankoelle:jamm:0.4.1'
+  implementation library.java.jamm
   testImplementation library.java.junit
   testImplementation library.java.mockito_core
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation project(":runners:core-construction-java")
-  testImplementation project(path: ":sdks:java:fn-execution", configuration: "testRuntime")
+  testImplementation project(path: ":sdks:java:fn-execution", configuration: "testRuntimeMigration")
   shadowTestRuntimeClasspath library.java.slf4j_jdk14
   jmhImplementation project(path: ":sdks:java:harness", configuration: "shadowTest")
   jmhImplementation project(":runners:java-fn-execution")

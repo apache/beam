@@ -27,7 +27,7 @@ enableJavaPerformanceTesting()
 description = "Apache Beam :: SDKs :: Java :: IO :: Elasticsearch-Tests :: 7.x"
 ext.summary = "Tests of ElasticsearchIO on Elasticsearch 7.x"
 
-def log4j_version = "2.16.0"
+def log4j_version = "2.17.1"
 def elastic_search_version = "7.13.4"
 
 configurations.all {
@@ -44,7 +44,7 @@ test {
 }
 
 dependencies {
-  testImplementation project(path: ":sdks:java:io:elasticsearch-tests:elasticsearch-tests-common", configuration: "testRuntime")
+  testImplementation project(path: ":sdks:java:io:elasticsearch-tests:elasticsearch-tests-common", configuration: "testRuntimeMigration")
   testImplementation "org.elasticsearch.test:framework:$elastic_search_version"
   testImplementation "org.elasticsearch.plugin:transport-netty4-client:$elastic_search_version"
   testImplementation "com.carrotsearch.randomizedtesting:randomizedtesting-runner:2.7.5"
@@ -52,10 +52,9 @@ dependencies {
 
   testImplementation project(path: ":sdks:java:core", configuration: "shadow")
   testImplementation project(":sdks:java:io:elasticsearch")
-  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntime")
+  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
   testImplementation library.java.slf4j_api
-  testImplementation library.java.hamcrest_core
-  testImplementation library.java.hamcrest_library
+  testImplementation library.java.hamcrest
   testImplementation library.java.junit
   testImplementation "org.elasticsearch.client:elasticsearch-rest-client:$elastic_search_version"
   testRuntimeOnly "org.apache.logging.log4j:log4j-api:$log4j_version"

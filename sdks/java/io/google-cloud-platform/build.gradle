@@ -100,8 +100,8 @@ dependencies {
   implementation library.java.guava
   implementation library.java.hamcrest
   implementation library.java.http_client
-  implementation library.java.hamcrest_core
-  permitUnusedDeclared library.java.hamcrest_core // BEAM-11761
+  implementation library.java.hamcrest
+  permitUnusedDeclared library.java.hamcrest // BEAM-11761
   implementation library.java.http_core
   implementation library.java.jackson_core
   implementation library.java.jackson_databind
@@ -111,7 +111,6 @@ dependencies {
   implementation library.java.netty_tcnative_boringssl_static
   permitUnusedDeclared library.java.netty_tcnative_boringssl_static // BEAM-11761
   implementation library.java.proto_google_cloud_bigquery_storage_v1
-  implementation library.java.proto_google_cloud_bigquery_storage_v1beta2
   implementation library.java.proto_google_cloud_bigtable_admin_v2
   implementation library.java.proto_google_cloud_bigtable_v2
   implementation library.java.proto_google_cloud_datastore_v1
@@ -131,14 +130,15 @@ dependencies {
   implementation library.java.arrow_vector
 
   implementation "org.threeten:threetenbp:1.4.4"
+  implementation "io.opencensus:opencensus-api:0.30.0"
 
   testImplementation library.java.arrow_memory_netty
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
-  testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
-  testImplementation project(path: ":sdks:java:extensions:protobuf", configuration: "testRuntime")
+  testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:extensions:protobuf", configuration: "testRuntimeMigration")
   testImplementation project(path: ":runners:direct-java", configuration: "shadow")
-  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntime")
-  testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
+  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
   testImplementation library.java.mockito_core
   testImplementation library.java.powermock
   testImplementation library.java.powermock_mockito

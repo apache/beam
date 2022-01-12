@@ -31,7 +31,7 @@ class AnalyticsService {
     _analytics = AnalyticsHtml(kAnalyticsUA, 'beam', '1.0');
   }
 
-  static get(BuildContext context) {
+  static AnalyticsService get(BuildContext context) {
     return Provider.of<AnalyticsService>(context, listen: false);
   }
 
@@ -83,7 +83,7 @@ class AnalyticsService {
     safeSendEvent(
       kFeedbackCategory,
       kClickEnjoyPlaygroundEvent,
-      label: isEnjoying.toString(),
+      label: 'isEnjoying = ' + isEnjoying.toString(),
     );
   }
 
@@ -99,12 +99,32 @@ class AnalyticsService {
     );
   }
 
-  void safeSendEvent(String category, String action, {String? label}) {
+  void trackClickSendFeedback(String feedback) {
+    safeSendEvent(
+      kFeedbackCategory,
+      kClickSendFeedbackEvent,
+      label: feedback,
+    );
+  }
+
+  void trackRunTimeEvent(String exampleName, int runTimeMs) {
+    safeSendEvent(
+      kRunCodeCategory,
+      kRunTimeEvent,
+      label: exampleName,
+      value: runTimeMs,
+    );
+  }
+
+  void safeSendEvent(String category, String action,
+      {String? label, int? value, Map<String, String>? parameters}) {
     try {
       _analytics.sendEvent(
         category,
         action,
         label: label,
+        value: value,
+        parameters: parameters,
       );
     } catch (e) {
       // ignore analytics errors sync they don't affect app

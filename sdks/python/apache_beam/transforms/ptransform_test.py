@@ -1000,6 +1000,18 @@ class TestGroupBy(unittest.TestCase):
               beam.Row(square=4, big=True, sum=2, positive=True),     # [2]
           ]))
 
+  def test_pickled_field(self):
+    with TestPipeline() as p:
+      assert_that(
+          p
+          | beam.Create(['a', 'a', 'b'])
+          | beam.Map(
+              lambda s: beam.Row(
+                  key1=PickledObject(s), key2=s.upper(), value=0))
+          | beam.GroupBy('key1', 'key2')
+          | beam.MapTuple(lambda k, vs: (k.key1.value, k.key2, len(list(vs)))),
+          equal_to([('a', 'A', 2), ('b', 'B', 1)]))
+
 
 class SelectTest(unittest.TestCase):
   def test_simple(self):

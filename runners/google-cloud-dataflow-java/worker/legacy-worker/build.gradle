@@ -45,9 +45,8 @@ def getWorkerRelocatedPath = { String suffix ->
 def sdk_provided_dependencies = [
         google_api_services_dataflow,
         library.java.avro,
-        library.java.google_api_client,
         library.java.google_http_client,
-        library.java.google_http_client_jackson,
+        library.java.google_http_client_gson,
         library.java.jackson_annotations,
         library.java.jackson_core,
         library.java.jackson_databind,
@@ -74,8 +73,7 @@ def excluded_dependencies = [
         "org.objenesis:objenesis",                   // Transitive dependency introduced from Beam
         library.java.commons_compress,               // Transitive dependency introduced from Beam
         library.java.error_prone_annotations,        // Provided scope added in worker
-        library.java.hamcrest_core,                  // Test only
-        library.java.hamcrest_library,               // Test only
+        library.java.hamcrest,                       // Test only
         library.java.junit,                          // Test only
         library.java.jsonassert                      // Test only
 ]
@@ -185,17 +183,22 @@ compileTestJava {
 }
 
 dependencies {
+    implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+
     // Note that any dependency that is modified here should also be modified within
     // runners/google-cloud-dataflow-java/worker/build.gradle using the rules provided
     // there.
     sdk_provided_dependencies.each {
-        provided(it)
+        compileOnly(it)
+        testImplementation(it)
     }
     sdk_provided_shaded_project_dependencies.each {
-        provided project(path: it, configuration: "shadow")
+        compileOnly project(path: it, configuration: "shadow")
+        testImplementation project(path: it, configuration: "shadow")
     }
     sdk_provided_project_dependencies.each {
-        provided project(it)
+        compileOnly project(path: it)
+        testImplementation project(path: it)
     }
 
     implementation project(path: ":model:fn-execution", configuration: "shadow")
@@ -207,6 +210,9 @@ dependencies {
     implementation project(":sdks:java:fn-execution")
     implementation project(path: ":runners:google-cloud-dataflow-java:worker:windmill", configuration: "shadow")
     shadow library.java.vendored_guava_26_0_jre
+
+    implementation library.java.google_auth_library_credentials
+    implementation library.java.proto_google_common_protos
 
     // Conscrypt shouldn't be included here because Conscrypt won't work when being shaded.
     // (Context: https://github.com/apache/beam/pull/13846)
@@ -222,15 +228,17 @@ dependencies {
     implementation library.java.jackson_databind
     implementation library.java.joda_time
     implementation library.java.slf4j_api
+    implementation "io.opencensus:opencensus-api:0.28.0"
     implementation library.java.vendored_grpc_1_36_0
-    provided library.java.error_prone_annotations
+    implementation library.java.error_prone_annotations
+    permitUnusedDeclared library.java.error_prone_annotations
     runtimeOnly library.java.slf4j_jdk14
 
     // Any test dependency which intersects with our relocation rules above needs to be relocated
     // as well and placed within the testImplementation configuration. Otherwise we can place it within
     // the shadowTest configuration.
-    testImplementation project(path: ":runners:core-java", configuration: "testRuntime")
-    shadowTest project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
+    testImplementation project(path: ":runners:core-java", configuration: "testRuntimeMigration")
+    shadowTest project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntimeMigration")
     shadowTest project(path: ":runners:direct-java", configuration: "shadow")
     shadowTest project(path: ":sdks:java:harness", configuration: "shadowTest")
     shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")

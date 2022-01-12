@@ -45,6 +45,7 @@ class ExampleModel with Comparable<ExampleModel> {
   final String description;
   String? source;
   String? outputs;
+  String? logs;
   String? pipelineOptions;
 
   ExampleModel({
@@ -54,6 +55,7 @@ class ExampleModel with Comparable<ExampleModel> {
     required this.type,
     this.source,
     this.outputs,
+    this.logs,
     this.pipelineOptions,
   });
 
@@ -64,6 +66,22 @@ class ExampleModel with Comparable<ExampleModel> {
   setOutputs(String outputs) {
     this.outputs = outputs;
   }
+
+  setLogs(String logs) {
+    this.logs = logs;
+  }
+
+  bool isInfoFetched() {
+    // checking only source, because outputs/logs can be empty
+    return source?.isNotEmpty ?? false;
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) || (other is ExampleModel && path == other.path);
+
+  @override
+  int get hashCode => path.hashCode;
 
   @override
   int compareTo(ExampleModel other) {

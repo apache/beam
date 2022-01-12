@@ -13,7 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// minimal_wordcount is an example that counts words in Shakespeare.
+// minimal_wordcount is an example that counts words in King Lear,
+// by William Shakespeare.
 //
 // This example is the first in a series of four successively more detailed
 // 'word count' examples. Here, for simplicity, we don't show any
@@ -35,6 +36,17 @@
 // the direct runner. You can see the results in the output file named
 // "wordcounts.txt" in your current working directory.
 package main
+
+// beam-playground:
+//   name: MinimalWordCount
+//   description: An example that counts words in King Lear,
+//     by William Shakespeare.
+//   multifile: false
+//   pipeline_options:
+//   categories:
+//     - IO
+//     - Combiners
+//     - Core Transforms
 
 import (
 	"context"
@@ -67,9 +79,9 @@ func main() {
 	// PCollection where each element is one line from the input text
 	// (one of of Shakespeare's texts).
 
-	// This example reads a public data set consisting of the complete works
-	// of Shakespeare.
-	lines := textio.Read(s, "gs://apache-beam-samples/shakespeare/*")
+	// This example reads from a public dataset containing the text
+	// of King Lear.
+	lines := textio.Read(s, "gs://apache-beam-samples/shakespeare/kinglear.txt")
 
 	// Concept #2: Invoke a ParDo transform on our PCollection of text lines.
 	// This ParDo invokes a DoFn (defined in-line) on each element that

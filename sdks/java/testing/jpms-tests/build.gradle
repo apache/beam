@@ -59,9 +59,9 @@ dependencies {
   implementation project(path: ":sdks:java:extensions:google-cloud-platform-core")
 
   testImplementation library.java.junit
-  testImplementation library.java.hamcrest_core
+  testImplementation library.java.hamcrest
 
-  baseIntegrationTest project(path: ":sdks:java:testing:jpms-tests", configuration: "testRuntime")
+  baseIntegrationTest project(path: ":sdks:java:testing:jpms-tests", configuration: "testRuntimeMigration")
   directRunnerIntegrationTest project(":runners:direct-java")
   flinkRunnerIntegrationTest project(":runners:flink:${project.ext.latestFlinkVersion}")
   dataflowRunnerIntegrationTest project(":runners:google-cloud-dataflow-java")

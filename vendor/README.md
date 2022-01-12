@@ -61,8 +61,8 @@ As long as Beam's use of gRPC does not touch these optional Netty features or th
 available at runtime, it's fine to have the
 references to the missing classes. Here are the known linkage errors:
 
-- References to `org.junit.runners`: `io.grpc.testing.GrpcCleanupRule` uses JUnit classes, which are
-  present when we run Beam's tests.
+- References to `org.junit.*`: `io.grpc.testing.GrpcCleanupRule` and `io.grpc.testing.GrpcServerRule`
+  uses JUnit classes, which are present when we run Beam's tests.
 - References from `io.netty.handler.ssl`: Netty users can choose SSL implementation based
   on the platform ([Netty documentation](https://netty.io/wiki/forked-tomcat-native.html#wiki-h2-4)).
   Beam's vendored gRPC uses `netty-tcnative-boringssl-static`, which contains the static libraries

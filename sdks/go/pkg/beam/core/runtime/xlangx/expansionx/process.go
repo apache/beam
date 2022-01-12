@@ -17,7 +17,9 @@ package expansionx
 
 import (
 	"fmt"
+	"net"
 	"os/exec"
+	"time"
 )
 
 // ExpansionServiceRunner is a type that holds information required to
@@ -29,18 +31,38 @@ type ExpansionServiceRunner struct {
 	serviceCommand *exec.Cmd
 }
 
+func findOpenPort() (int, error) {
+	listener, err := net.Listen("tcp", ":0")
+	if err != nil {
+		return 0, err
+	}
+	defer listener.Close()
+	return listener.Addr().(*net.TCPAddr).Port, nil
+}
+
 // NewExpansionServiceRunner builds an ExpansionServiceRunner struct for a given gradle target and
-// Beam version and returns a pointer to it.
-func NewExpansionServiceRunner(jarPath, servicePort string) *ExpansionServiceRunner {
+// Beam version and returns a pointer to it. Passing an empty string as servicePort will request an
+// open port to be assigned to the service.
+func NewExpansionServiceRunner(jarPath, servicePort string) (*ExpansionServiceRunner, error) {
 	if servicePort == "" {
-		servicePort = "8097"
+		port, err := findOpenPort()
+		if err != nil {
+			return nil, fmt.Errorf("failed to find open port for service, got %v", err)
+		}
+		servicePort = fmt.Sprintf("%d", port)
 	}
 	serviceCommand := exec.Command("java", "-jar", jarPath, servicePort)
-	return &ExpansionServiceRunner{jarPath: jarPath, servicePort: servicePort, serviceCommand: serviceCommand}
+	return &ExpansionServiceRunner{jarPath: jarPath, servicePort: servicePort, serviceCommand: serviceCommand}, nil
 }
 
 func (e *ExpansionServiceRunner) String() string {
 	return fmt.Sprintf("JAR: %v, Port: %v, Process: %v", e.jarPath, e.servicePort, e.serviceCommand.Process)
+}
+
+// Endpoint returns the formatted endpoint the ExpansionServiceRunner is set to start the expansion
+// service on. 
+func (e *ExpansionServiceRunner) Endpoint() string {
+	return "localhost:" + e.servicePort
 }
 
 // StartService starts the expansion service for a given ExpansionServiceRunner. If this is
@@ -51,6 +73,9 @@ func (e *ExpansionServiceRunner) StartService() error {
 	if err != nil {
 		return err
 	}
+	// Start() is non-blocking so a brief sleep to let the JAR start up and begin accepting
+	// connections is necessary.
+	time.Sleep(2 * time.Second)
 	if e.serviceCommand.ProcessState != nil {
 		return fmt.Errorf("process %v exited when it should still be running", e.serviceCommand.Process)
 	}
