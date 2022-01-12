@@ -254,9 +254,7 @@ class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
           expr.getArgumentList().get(i).nodeKind();
       if (i == 0 && resolvedNodeKinds.contains(resolvedNodeKind)) {
         argList.add(columnRefOff);
-      } else if (i > 0
-          && resolvedNodeKind
-              == RESOLVED_LITERAL) { // Doesn't support RESOLVED LITERAL as first argument
+      } else if (resolvedNodeKind == RESOLVED_LITERAL) {
         continue;
       } else {
         throw new UnsupportedOperationException(
