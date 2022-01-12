@@ -25,5 +25,5 @@ spec:
     kind: Deployment
     name: github-actions-runners-deployment
   minReplicas: 5
-  maxReplicas: 16
+  maxReplicas: 12
   targetCPUUtilizationPercentage: 50
