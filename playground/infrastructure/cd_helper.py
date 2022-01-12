@@ -26,7 +26,7 @@ import shutil
 from pathlib import Path
 from typing import List
 
-import tqdm
+from tqdm import tqdm
 from google.cloud import storage
 
 import logger
@@ -89,14 +89,11 @@ class CDHelper:
     """
     self._storage_client = storage.Client()
     self._bucket = self._storage_client.bucket(Config.BUCKET_NAME)
-    pbar = tqdm(total=len(examples))
-    for example in examples:
+    for example in tqdm(examples):
       file_names = self._write_to_local_fs(example)
       for cloud_file_name, local_file_name in file_names.items():
         self._upload_blob(
             source_file=local_file_name, destination_blob_name=cloud_file_name)
-      pbar.update(1)
-    pbar.close()
 
   def _write_to_local_fs(self, example: Example):
     """
