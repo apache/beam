@@ -118,9 +118,6 @@ void main() {
       when(client.getRunOutput(kPipelineUuid, kRequestMock)).thenAnswer(
         (_) async => kRunOutputResponse,
       );
-      when(client.getRunErrorOutput(kPipelineUuid, kRequestMock)).thenAnswer(
-        (_) async => kRunErrorOutputResponse,
-      );
       when(client.getLogOutput(kPipelineUuid, kRequestMock)).thenAnswer(
         (_) async => kLogOutputResponse,
       );
@@ -230,17 +227,17 @@ void main() {
         ),
         RunCodeResult(
           status: RunCodeStatus.executing,
-          output: kRunOutput + kRunErrorOutput,
+          output: kRunOutput,
           log: kProcessingStartedText + kLogOutput,
         ),
         RunCodeResult(
           status: RunCodeStatus.executing,
-          output: (kRunOutput + kRunErrorOutput) * 2,
+          output: kRunOutput * 2,
           log: kProcessingStartedText + kLogOutput * 2,
         ),
         RunCodeResult(
           status: RunCodeStatus.finished,
-          output: (kRunOutput + kRunErrorOutput) * 3,
+          output: kRunOutput * 3 + kRunErrorOutput,
           log: kProcessingStartedText + kLogOutput * 3,
         ),
       ]),

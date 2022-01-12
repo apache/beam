@@ -135,6 +135,17 @@ class CodeRepository {
           log: prevLog,
         );
       case RunCodeStatus.executing:
+        final responses = await Future.wait([
+          _client.getRunOutput(pipelineUuid, request),
+          _client.getLogOutput(pipelineUuid, request),
+        ]);
+        final output = responses[0];
+        final log = responses[1];
+        return RunCodeResult(
+          status: status,
+          output: prevOutput + output.output,
+          log: prevLog + log.output,
+        );
       case RunCodeStatus.finished:
         final responses = await Future.wait([
           _client.getRunOutput(pipelineUuid, request),
