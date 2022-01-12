@@ -18,6 +18,10 @@ package cloud_bucket
 import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"context"
+	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 )
@@ -25,6 +29,7 @@ import (
 const (
 	precompiledObjectPath = "SDK_JAVA/MinimalWordCount"
 	targetSdk             = pb.Sdk_SDK_UNSPECIFIED
+	defaultExamplesConfig = "{\n  \"SDK_JAVA\": \"1\",\n  \"SDK_GO\": \"2\",\n  \"SDK_PYTHON\": \"3\"\n}"
 )
 
 var bucket *CloudStorage
@@ -33,6 +38,35 @@ var ctx context.Context
 func init() {
 	bucket = New()
 	ctx = context.Background()
+}
+
+func TestMain(m *testing.M) {
+	err := setup()
+	if err != nil {
+		panic(fmt.Errorf("error during test setup: %s", err.Error()))
+	}
+	defer teardown()
+	m.Run()
+}
+
+func setup() error {
+	err := os.Mkdir(configFolderName, fs.ModePerm)
+	if err != nil {
+		return err
+	}
+	filePath := filepath.Join(configFolderName, defaultExamplesConfigName)
+	err = os.WriteFile(filePath, []byte(defaultExamplesConfig), 0600)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func teardown() {
+	err := os.RemoveAll(configFolderName)
+	if err != nil {
+		panic(fmt.Errorf("error during test setup: %s", err.Error()))
+	}
 }
 
 func Test_getFullFilePath(t *testing.T) {
@@ -250,6 +284,50 @@ func Benchmark_GetPrecompiledObjectOutput(b *testing.B) {
 
 func Benchmark_GetPrecompiledObject(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_, _ = bucket.GetPrecompiledObject(ctx, precompiledObjectPath)
+		_, _ = bucket.GetPrecompiledObjectCode(ctx, precompiledObjectPath)
+	}
+}
+
+func Benchmark_GetDefaultPrecompileObject(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_, _ = bucket.GetDefaultPrecompileObject(ctx, targetSdk, "")
+	}
+}
+
+func Test_getDefaultExamplesFromJson(t *testing.T) {
+	expectedMap := map[string]string{"SDK_JAVA": "1", "SDK_GO": "2", "SDK_PYTHON": "3"}
+	type args struct {
+		workingDir string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    map[string]string
+		wantErr bool
+	}{
+		{
+			name:    "get object from json",
+			args:    args{workingDir: ""},
+			want:    expectedMap,
+			wantErr: false,
+		},
+		{
+			name:    "error if wrong json path",
+			args:    args{workingDir: "Wrong_path"},
+			want:    nil,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := getDefaultExamplesFromJson(tt.args.workingDir)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("getDefaultExamplesFromJson() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("getDefaultExamplesFromJson() got = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }

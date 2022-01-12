@@ -17,13 +17,18 @@
  */
 
 ///
+//  Generated code. Do not modify.
+//  source: api/v1/api.proto
+//
+// @dart = 2.12
+// ignore_for_file: annotate_overrides,camel_case_types,unnecessary_const,non_constant_identifier_names,library_prefixes,unused_import,unused_shown_name,return_of_invalid_type,unnecessary_this,prefer_final_fields
+
 import 'dart:async' as $async;
+
 import 'dart:core' as $core;
 
 import 'package:grpc/service_api.dart' as $grpc;
-
 import 'api.pb.dart' as $0;
-
 export 'api.pb.dart';
 
 class PlaygroundServiceClient extends $grpc.Client {
@@ -107,6 +112,13 @@ class PlaygroundServiceClient extends $grpc.Client {
       ($0.GetPrecompiledObjectLogsRequest value) => value.writeToBuffer(),
       ($core.List<$core.int> value) =>
           $0.GetPrecompiledObjectLogsResponse.fromBuffer(value));
+  static final _$getDefaultPrecompiledObject = $grpc.ClientMethod<
+          $0.GetDefaultPrecompiledObjectRequest,
+          $0.GetDefaultPrecompiledObjectResponse>(
+      '/api.v1.PlaygroundService/GetDefaultPrecompiledObject',
+      ($0.GetDefaultPrecompiledObjectRequest value) => value.writeToBuffer(),
+      ($core.List<$core.int> value) =>
+          $0.GetDefaultPrecompiledObjectResponse.fromBuffer(value));
 
   PlaygroundServiceClient($grpc.ClientChannel channel,
       {$grpc.CallOptions? options,
@@ -188,6 +200,13 @@ class PlaygroundServiceClient extends $grpc.Client {
       getPrecompiledObjectLogs($0.GetPrecompiledObjectLogsRequest request,
           {$grpc.CallOptions? options}) {
     return $createUnaryCall(_$getPrecompiledObjectLogs, request,
+        options: options);
+  }
+
+  $grpc.ResponseFuture<$0.GetDefaultPrecompiledObjectResponse>
+      getDefaultPrecompiledObject($0.GetDefaultPrecompiledObjectRequest request,
+          {$grpc.CallOptions? options}) {
+    return $createUnaryCall(_$getDefaultPrecompiledObject, request,
         options: options);
   }
 }
@@ -308,6 +327,16 @@ abstract class PlaygroundServiceBase extends $grpc.Service {
         ($core.List<$core.int> value) =>
             $0.GetPrecompiledObjectLogsRequest.fromBuffer(value),
         ($0.GetPrecompiledObjectLogsResponse value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.GetDefaultPrecompiledObjectRequest,
+            $0.GetDefaultPrecompiledObjectResponse>(
+        'GetDefaultPrecompiledObject',
+        getDefaultPrecompiledObject_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) =>
+            $0.GetDefaultPrecompiledObjectRequest.fromBuffer(value),
+        ($0.GetDefaultPrecompiledObjectResponse value) =>
+            value.writeToBuffer()));
   }
 
   $async.Future<$0.RunCodeResponse> runCode_Pre(
@@ -383,42 +412,40 @@ abstract class PlaygroundServiceBase extends $grpc.Service {
     return getPrecompiledObjectLogs(call, await request);
   }
 
+  $async.Future<$0.GetDefaultPrecompiledObjectResponse>
+      getDefaultPrecompiledObject_Pre($grpc.ServiceCall call,
+          $async.Future<$0.GetDefaultPrecompiledObjectRequest> request) async {
+    return getDefaultPrecompiledObject(call, await request);
+  }
+
   $async.Future<$0.RunCodeResponse> runCode(
       $grpc.ServiceCall call, $0.RunCodeRequest request);
-
   $async.Future<$0.CheckStatusResponse> checkStatus(
       $grpc.ServiceCall call, $0.CheckStatusRequest request);
-
   $async.Future<$0.GetRunOutputResponse> getRunOutput(
       $grpc.ServiceCall call, $0.GetRunOutputRequest request);
-
   $async.Future<$0.GetLogsResponse> getLogs(
       $grpc.ServiceCall call, $0.GetLogsRequest request);
-
   $async.Future<$0.GetRunErrorResponse> getRunError(
       $grpc.ServiceCall call, $0.GetRunErrorRequest request);
-
   $async.Future<$0.GetValidationOutputResponse> getValidationOutput(
       $grpc.ServiceCall call, $0.GetValidationOutputRequest request);
-
   $async.Future<$0.GetPreparationOutputResponse> getPreparationOutput(
       $grpc.ServiceCall call, $0.GetPreparationOutputRequest request);
-
   $async.Future<$0.GetCompileOutputResponse> getCompileOutput(
       $grpc.ServiceCall call, $0.GetCompileOutputRequest request);
-
   $async.Future<$0.CancelResponse> cancel(
       $grpc.ServiceCall call, $0.CancelRequest request);
-
   $async.Future<$0.GetPrecompiledObjectsResponse> getPrecompiledObjects(
       $grpc.ServiceCall call, $0.GetPrecompiledObjectsRequest request);
-
   $async.Future<$0.GetPrecompiledObjectCodeResponse> getPrecompiledObjectCode(
       $grpc.ServiceCall call, $0.GetPrecompiledObjectCodeRequest request);
-
   $async.Future<$0.GetPrecompiledObjectOutputResponse>
       getPrecompiledObjectOutput(
           $grpc.ServiceCall call, $0.GetPrecompiledObjectOutputRequest request);
   $async.Future<$0.GetPrecompiledObjectLogsResponse> getPrecompiledObjectLogs(
       $grpc.ServiceCall call, $0.GetPrecompiledObjectLogsRequest request);
+  $async.Future<$0.GetDefaultPrecompiledObjectResponse>
+      getDefaultPrecompiledObject($grpc.ServiceCall call,
+          $0.GetDefaultPrecompiledObjectRequest request);
 }

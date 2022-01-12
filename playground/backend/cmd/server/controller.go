@@ -262,7 +262,7 @@ func (controller *playgroundController) GetPrecompiledObjects(ctx context.Contex
 // GetPrecompiledObjectCode returns the code of the specific example
 func (controller *playgroundController) GetPrecompiledObjectCode(ctx context.Context, info *pb.GetPrecompiledObjectCodeRequest) (*pb.GetPrecompiledObjectCodeResponse, error) {
 	cd := cloud_bucket.New()
-	codeString, err := cd.GetPrecompiledObject(ctx, info.GetCloudPath())
+	codeString, err := cd.GetPrecompiledObjectCode(ctx, info.GetCloudPath())
 	if err != nil {
 		logger.Errorf("GetPrecompiledObjectCode(): cloud storage error: %s", err.Error())
 		return nil, errors.InternalError("Error during getting Precompiled Object's code", "Error with cloud connection")
@@ -292,5 +292,30 @@ func (controller *playgroundController) GetPrecompiledObjectLogs(ctx context.Con
 		return nil, errors.InternalError("Error during getting Precompiled Object's logs", "Error with cloud connection")
 	}
 	response := pb.GetPrecompiledObjectLogsResponse{Output: logs}
+	return &response, nil
+}
+
+// GetDefaultPrecompiledObject returns the default precompile object for sdk.
+func (controller *playgroundController) GetDefaultPrecompiledObject(ctx context.Context, info *pb.GetDefaultPrecompiledObjectRequest) (*pb.GetDefaultPrecompiledObjectResponse, error) {
+	switch info.Sdk {
+	case pb.Sdk_SDK_UNSPECIFIED, pb.Sdk_SDK_SCIO:
+		logger.Errorf("GetDefaultPrecompiledObject(): unimplemented sdk: %s\n", info.Sdk)
+		return nil, errors.InvalidArgumentError("Error during preparing", "Sdk is not implemented yet: %s", info.Sdk.String())
+	}
+
+	bucket := cloud_bucket.New()
+	precompiledObject, err := bucket.GetDefaultPrecompileObject(ctx, info.Sdk, controller.env.ApplicationEnvs.WorkingDir())
+	if err != nil {
+		logger.Errorf("GetDefaultPrecompileObject(): cloud storage error: %s", err.Error())
+		return nil, errors.InternalError("Error during getting default Precompiled Object", "Error with cloud connection")
+	}
+
+	response := pb.GetDefaultPrecompiledObjectResponse{PrecompiledObject: &pb.PrecompiledObject{
+		CloudPath:       precompiledObject.CloudPath,
+		Name:            precompiledObject.Name,
+		Description:     precompiledObject.Description,
+		Type:            precompiledObject.Type,
+		PipelineOptions: precompiledObject.PipelineOptions,
+	}}
 	return &response, nil
 }

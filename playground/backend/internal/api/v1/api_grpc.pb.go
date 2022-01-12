@@ -61,6 +61,8 @@ type PlaygroundServiceClient interface {
 	GetPrecompiledObjectOutput(ctx context.Context, in *GetPrecompiledObjectOutputRequest, opts ...grpc.CallOption) (*GetPrecompiledObjectOutputResponse, error)
 	// Get the logs of an PrecompiledObject.
 	GetPrecompiledObjectLogs(ctx context.Context, in *GetPrecompiledObjectLogsRequest, opts ...grpc.CallOption) (*GetPrecompiledObjectLogsResponse, error)
+	// Get the default precompile object for the sdk.
+	GetDefaultPrecompiledObject(ctx context.Context, in *GetDefaultPrecompiledObjectRequest, opts ...grpc.CallOption) (*GetDefaultPrecompiledObjectResponse, error)
 }
 
 type playgroundServiceClient struct {
@@ -188,6 +190,15 @@ func (c *playgroundServiceClient) GetPrecompiledObjectLogs(ctx context.Context, 
 	return out, nil
 }
 
+func (c *playgroundServiceClient) GetDefaultPrecompiledObject(ctx context.Context, in *GetDefaultPrecompiledObjectRequest, opts ...grpc.CallOption) (*GetDefaultPrecompiledObjectResponse, error) {
+	out := new(GetDefaultPrecompiledObjectResponse)
+	err := c.cc.Invoke(ctx, "/api.v1.PlaygroundService/GetDefaultPrecompiledObject", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PlaygroundServiceServer is the server API for PlaygroundService service.
 // All implementations should embed UnimplementedPlaygroundServiceServer
 // for forward compatibility
@@ -218,6 +229,8 @@ type PlaygroundServiceServer interface {
 	GetPrecompiledObjectOutput(context.Context, *GetPrecompiledObjectOutputRequest) (*GetPrecompiledObjectOutputResponse, error)
 	// Get the logs of an PrecompiledObject.
 	GetPrecompiledObjectLogs(context.Context, *GetPrecompiledObjectLogsRequest) (*GetPrecompiledObjectLogsResponse, error)
+	// Get the default precompile object for the sdk.
+	GetDefaultPrecompiledObject(context.Context, *GetDefaultPrecompiledObjectRequest) (*GetDefaultPrecompiledObjectResponse, error)
 }
 
 // UnimplementedPlaygroundServiceServer should be embedded to have forward compatible implementations.
@@ -262,6 +275,9 @@ func (UnimplementedPlaygroundServiceServer) GetPrecompiledObjectOutput(context.C
 }
 func (UnimplementedPlaygroundServiceServer) GetPrecompiledObjectLogs(context.Context, *GetPrecompiledObjectLogsRequest) (*GetPrecompiledObjectLogsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetPrecompiledObjectLogs not implemented")
+}
+func (UnimplementedPlaygroundServiceServer) GetDefaultPrecompiledObject(context.Context, *GetDefaultPrecompiledObjectRequest) (*GetDefaultPrecompiledObjectResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetDefaultPrecompiledObject not implemented")
 }
 
 // UnsafePlaygroundServiceServer may be embedded to opt out of forward compatibility for this service.
@@ -509,6 +525,24 @@ func _PlaygroundService_GetPrecompiledObjectLogs_Handler(srv interface{}, ctx co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PlaygroundService_GetDefaultPrecompiledObject_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetDefaultPrecompiledObjectRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PlaygroundServiceServer).GetDefaultPrecompiledObject(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.v1.PlaygroundService/GetDefaultPrecompiledObject",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PlaygroundServiceServer).GetDefaultPrecompiledObject(ctx, req.(*GetDefaultPrecompiledObjectRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // PlaygroundService_ServiceDesc is the grpc.ServiceDesc for PlaygroundService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -567,6 +601,10 @@ var PlaygroundService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetPrecompiledObjectLogs",
 			Handler:    _PlaygroundService_GetPrecompiledObjectLogs_Handler,
+		},
+		{
+			MethodName: "GetDefaultPrecompiledObject",
+			Handler:    _PlaygroundService_GetDefaultPrecompiledObject_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

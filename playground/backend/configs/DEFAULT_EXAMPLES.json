@@ -1,0 +1,5 @@
+{
+  "SDK_JAVA": "SDK_JAVA/MinimalWordCount",
+  "SDK_GO": "SDK_GO/MinimalWordCount",
+  "SDK_PYTHON": "SDK_PYTHON/WordCountWithMetrics"
+}

@@ -32,16 +32,18 @@ import (
 )
 
 const (
-	BucketName       = "playground-precompiled-objects"
-	OutputExtension  = "output"
-	LogsExtension    = "log"
-	MetaInfoName     = "meta.info"
-	Timeout          = time.Second * 10
-	javaExtension    = "java"
-	goExtension      = "go"
-	pyExtension      = "py"
-	scioExtension    = "scala"
-	separatorsNumber = 2
+	BucketName                = "playground-precompiled-objects"
+	OutputExtension           = "output"
+	LogsExtension             = "log"
+	MetaInfoName              = "meta.info"
+	Timeout                   = time.Second * 10
+	javaExtension             = "java"
+	goExtension               = "go"
+	pyExtension               = "py"
+	scioExtension             = "scala"
+	separatorsNumber          = 2
+	defaultExamplesConfigName = "DEFAULT_EXAMPLES.json"
+	configFolderName          = "configs"
 )
 
 type ObjectInfo struct {
@@ -93,8 +95,8 @@ func New() *CloudStorage {
 	return &CloudStorage{}
 }
 
-// GetPrecompiledObject returns the source code of the example
-func (cd *CloudStorage) GetPrecompiledObject(ctx context.Context, precompiledObjectPath string) (string, error) {
+// GetPrecompiledObjectCode returns the source code of the example
+func (cd *CloudStorage) GetPrecompiledObjectCode(ctx context.Context, precompiledObjectPath string) (string, error) {
 	extension, err := getFileExtensionBySdk(precompiledObjectPath)
 	if err != nil {
 		return "", err
@@ -171,6 +173,28 @@ func (cd *CloudStorage) GetPrecompiledObjects(ctx context.Context, targetSdk pb.
 		rc.Close()
 	}
 	return &precompiledObjects, nil
+}
+
+// GetDefaultPrecompileObject returns the default precompiled object for the sdk
+func (cd *CloudStorage) GetDefaultPrecompileObject(ctx context.Context, targetSdk pb.Sdk, workingDir string) (*ObjectInfo, error) {
+	defaultExampleToSdk, err := getDefaultExamplesFromJson(workingDir)
+
+	infoPath := filepath.Join(defaultExampleToSdk[targetSdk.String()], MetaInfoName)
+	metaInfo, err := cd.getFileFromBucket(ctx, infoPath, "")
+	if err != nil {
+		return nil, err
+	}
+
+	precompiledObject := ObjectInfo{}
+	err = json.Unmarshal(metaInfo, &precompiledObject)
+	if err != nil {
+		logger.Errorf("json.Unmarshal: %v", err.Error())
+		return nil, err
+	}
+
+	precompiledObject.CloudPath = filepath.Dir(infoPath)
+
+	return &precompiledObject, nil
 }
 
 // getPrecompiledObjectsDirs finds directories with precompiled objects
@@ -267,6 +291,9 @@ func getFileExtensionBySdk(precompiledObjectPath string) (string, error) {
 
 // getFullFilePath get full path to the precompiled object file
 func getFullFilePath(objectDir string, extension string) string {
+	if extension == "" {
+		return objectDir
+	}
 	precompiledObjectName := filepath.Base(objectDir) //the base of the object's directory matches the name of the file
 	fileName := strings.Join([]string{precompiledObjectName, extension}, ".")
 	filePath := filepath.Join(objectDir, fileName)
@@ -287,4 +314,19 @@ func isDir(path string) bool {
 func getSdkName(path string) string {
 	sdkName := strings.Split(path, string(os.PathSeparator))[0] // the path of the form "sdkName/example/", where the first part is sdkName
 	return sdkName
+}
+
+// getDefaultExamplesFromJson reads a json file that contains information about default examples for sdk and converts him to map
+func getDefaultExamplesFromJson(workingDir string) (map[string]string, error) {
+	defaultExampleToSdk := map[string]string{}
+	configPath := filepath.Join(workingDir, configFolderName, defaultExamplesConfigName)
+	file, err := ioutil.ReadFile(configPath)
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(file, &defaultExampleToSdk)
+	if err != nil {
+		return nil, err
+	}
+	return defaultExampleToSdk, nil
 }
