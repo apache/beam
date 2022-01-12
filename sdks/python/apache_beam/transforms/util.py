@@ -199,7 +199,7 @@ class CoGroupByKey(PTransform):
         typehints.List[t] for t in input_value_types)
 
     output_value_type = typehints.Dict[
-        str, typehints.Union[iterable_input_value_types]]
+        str, typehints.Union[iterable_input_value_types or [typehints.Any]]]
     result = (
         pcolls_dict
         | 'CoGroupByKeyImpl' >>
