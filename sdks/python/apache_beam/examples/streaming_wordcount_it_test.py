@@ -19,6 +19,15 @@
 
 # pytype: skip-file
 
+# beam-playground:
+#   name: StreamingWordCountITTest
+#   description: Unit-test for the streaming WordCount example.
+#   multifile: false
+#   pipeline_options:
+#   categories:
+#     - Streaming
+#     - IO
+
 import logging
 import unittest
 import uuid
