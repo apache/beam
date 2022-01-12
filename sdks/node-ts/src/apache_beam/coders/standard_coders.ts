@@ -14,6 +14,28 @@ import {
   WindowedValue,
 } from "../values";
 
+/**
+ * @fileoverview Defines all of the Apache Beam standard coders.
+ * 
+ * Standard coders are a necessary part of the Apache Beam model. They provide of standard
+ * ways of encode data for communication between the runner, the Beam workers, and the user's
+ * code.
+ * 
+ * For example for any aggregations the runner and the SDK need to agree on the encoding of
+ * key-value pairs; so that the SDK will encode keys properly, and the runner will be able to
+ * group elements of the same key together.
+ * 
+ * Standard coders are also a requirement to support schema-aware transforms and external transforms
+ * (also known as cross-language transforms).
+ * 
+ * For schema-aware transforms we require RowCoder, which is a coder for rows of data with a predetermined
+ * schema.
+ * 
+ * For external transforms (or x-lang transforms) this is because to be able to share data between SDKs
+ * written in different languages, we have to agree on a standard for encoding various user data types.
+ */
+
+
 function writeBytes(val, buf, pos) {
   for (var i = 0; i < val.length; ++i) {
     buf[pos + i] = val[i];
@@ -24,11 +46,35 @@ function writeByte(val, buf, pos) {
   buf[pos] = val & 0xff;
 }
 
+/**
+ * Coder for byte-array data types.
+ */
 export class BytesCoder implements Coder<Uint8Array> {
   static URN: string = "beam:coder:bytes:v1";
   static INSTANCE: BytesCoder = new BytesCoder();
   type: string = "bytescoder";
 
+  /**
+   * Encode the input element (a byte-string) into the output byte stream from `writer`.
+   * If context is `needsDelimiters`, the byte string is encoded prefixed with a
+   * 32-bit varint representing its length.
+   * 
+   * If the context is `wholeStream`, the byte string is encoded as-is.
+   * 
+   * For example:
+   * ```js
+   * const w1 = new Writer()
+   * const data = new TextEncoder().encode("bytes")
+   * new BytesCoder().encode(data, w1, Context.needsDelimiters)
+   * console.log(w1.finish())  // ==> prints Uint8Array(6) [ 5, 98, 121, 116, 101, 115 ], where 5 is the length prefix.
+   * const w2 = new Writer()
+   * new BytesCoder().encode("bytes", w1, Context.wholeStream)
+   * console.log(w2.finish())  // ==> prints Uint8Array(5) [ 98, 121, 116, 101, 115 ], without the length prefix
+   * ```
+   * @param value - a byte array to encode. This represents an element to be encoded.
+   * @param writer - a writer to access the stream of bytes with encoded data
+   * @param context - whether to encode the data with delimiters (`Context.needsDelimiters`), or without (`Context.wholeStream`).
+   */
   encode(value: Uint8Array, writer: Writer, context: Context) {
     var len = value.length;
     var hackedWriter = <any>writer;
@@ -45,6 +91,17 @@ export class BytesCoder implements Coder<Uint8Array> {
     }
   }
 
+  /**
+   * Decode the input byte stream into a byte array.
+   * If context is `needsDelimiters`, the first bytes will be interpreted as a var-int32 encoding
+   * the length of the data.
+   * 
+   * If the context is `wholeStream`, the whole input stream is decoded as-is.
+   * 
+   * @param reader - a reader to access the input byte stream
+   * @param context - whether the data is encoded with delimiters (`Context.needsDelimiters`), or without (`Context.wholeStream`).
+   * @returns 
+   */
   decode(reader: Reader, context: Context): Uint8Array {
     switch (context) {
       case Context.wholeStream:
@@ -112,6 +169,9 @@ export class KVCoder<K, V> implements Coder<KV<K, V>> {
 }
 CODER_REGISTRY.register(KVCoder.URN, KVCoder);
 
+/**
+ * Swap the endianness of the input number. The input number is expected to be a 32-bit integer.
+ */
 function swapEndian32(x: number): number {
   return (
     ((x & 0xff000000) >> 24) |
