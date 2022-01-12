@@ -70,6 +70,7 @@ public class Log {
                   }
 
                   LOG.info(message);
+                  System.out.println(message)
 
                   out.output(element);
                 }
