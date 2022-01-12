@@ -81,7 +81,7 @@ def _run_ci_cd(step: config.Config.CI_CD_LITERAL, sdk: Sdk):
   logging.info("Start of searching Playground examples ...")
   examples = find_examples(root_dir, supported_categories, sdk)
   logging.info("Finish of searching Playground examples")
-  logging.info("Count of found Playground examples: %s", len(examples))
+  logging.info("Number of found Playground examples: %s", len(examples))
 
   if step == config.Config.CI_STEP_NAME:
     logging.info("Start of verification Playground examples ...")

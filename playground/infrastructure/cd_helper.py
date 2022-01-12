@@ -48,7 +48,7 @@ class CDHelper:
     """
     logger.info("Start of executing Playground examples ...")
     asyncio.run(self._get_outputs(examples))
-    logger.info("Start of executing Playground examples ...")
+    logger.info("Finish of executing Playground examples")
 
     logger.info("Start of sending Playground examples to the bucket ...")
     self._save_to_cloud_storage(examples)

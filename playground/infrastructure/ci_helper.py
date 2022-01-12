@@ -87,7 +87,7 @@ class CIHelper:
         logging.error("Example: %s has execution error: %s", example.filepath, err)
       verify_failed = True
 
-    logging.info("Count of verified Playground examples: %s / %s", count_of_verified, len(examples))
-    logging.info("Count of Playground examples with some error: %s / %s", len(examples) - count_of_verified, len(examples))
+    logging.info("Number of verified Playground examples: %s / %s", count_of_verified, len(examples))
+    logging.info("Number of Playground examples with some error: %s / %s", len(examples) - count_of_verified, len(examples))
     if verify_failed:
       raise Exception("CI step failed due to errors in the examples")
