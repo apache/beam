@@ -87,7 +87,7 @@ To add a new constant do the following steps:
 
 ## Theming
 
-Playground app supports light and dart themes. Component themes are declared
+Playground app supports light and dark themes. Component themes are declared
 in [theme.dart](./lib/config/theme.dart) file.
 
 To use specific color inside component you can use helper `ThemeColors` utility:

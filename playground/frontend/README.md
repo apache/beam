@@ -68,7 +68,7 @@ To add a new localization, follow next steps:
 
 3. Run the following command to generate a build and localization files:
 
-$ flutter build web
+`$ flutter build web`
 
 ### Configuration
 
@@ -83,10 +83,10 @@ For more information see See [CONTRIBUTE.md](CONTRIBUTE.md)
 
 ### Additional
 
-The full list of command can be found [here](https://flutter.dev/docs/reference/flutter-cli)
+The full list of commands can be found [here](https://flutter.dev/docs/reference/flutter-cli)
 
 ## Contribution guide
 
 If you'd like to contribute to the Apache Beam Playground website, read
 our [contribution guide](CONTRIBUTE.md) where you can find detailed instructions on how to work with
-the website.
+the playground.
