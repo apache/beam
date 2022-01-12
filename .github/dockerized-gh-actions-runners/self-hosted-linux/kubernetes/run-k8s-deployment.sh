@@ -17,4 +17,5 @@
 kubectl apply -f github-actions-secrets.yml
 kubectl apply -f github-actions-deployment.yml
 kubectl apply -f github-actions-hpa.yml
+gcloud container clusters update  github-actions-linux-runners --enable-vertical-pod-autoscaling --zone us-central1-a
 kubectl apply -f github-actions-vpa.yml
