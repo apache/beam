@@ -172,7 +172,7 @@ func Test_Process(t *testing.T) {
 			code:                  "MOCK_CODE",
 			cancelFunc:            false,
 			expectedStatus:        pb.Status_STATUS_COMPILE_ERROR,
-			expectedCompileOutput: "error: exit status 1, output: %s:1: error: reached end of file while parsing\nMOCK_CODE\n^\n1 error\n",
+			expectedCompileOutput: "error: exit status 1\noutput: %s:1: error: reached end of file while parsing\nMOCK_CODE\n^\n1 error\n",
 			expectedRunOutput:     nil,
 			expectedRunError:      nil,
 			args: args{
@@ -193,7 +193,7 @@ func Test_Process(t *testing.T) {
 			expectedStatus:        pb.Status_STATUS_RUN_ERROR,
 			expectedCompileOutput: "",
 			expectedRunOutput:     "",
-			expectedRunError:      "error: exit status 1, output: Exception in thread \"main\" java.lang.ArithmeticException: / by zero\n\tat HelloWorld.main(%s.java:3)\n",
+			expectedRunError:      "error: exit status 1\noutput: Exception in thread \"main\" java.lang.ArithmeticException: / by zero\n\tat HelloWorld.main(%s.java:3)\n",
 			args: args{
 				ctx:             context.Background(),
 				appEnv:          appEnvs,

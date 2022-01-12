@@ -191,8 +191,13 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 		return
 	}
 	if !ok {
-		if runOutput.Error != nil {
-			runError.Write([]byte(runOutput.Error.Error()))
+		// If unit test has some error then error output is placed as RunOutput
+		if isUnitTest {
+			output, err := GetProcessingOutput(ctx, cacheService, pipelineId, cache.RunOutput, "")
+			if err == nil {
+				runError.Write([]byte(output))
+			}
+
 		}
 		// Run step is finished, but code contains some error (divide by 0 for example)
 		if sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_GO {
@@ -424,7 +429,7 @@ func finishByTimeout(ctx context.Context, pipelineId uuid.UUID, cacheService cac
 func processErrorWithSavingOutput(ctx context.Context, err error, errorOutput []byte, pipelineId uuid.UUID, subKey cache.SubKey, cacheService cache.Cache, errorTitle string, newStatus pb.Status) error {
 	logger.Errorf("%s: %s(): err: %s, output: %s\n", pipelineId, errorTitle, err.Error(), errorOutput)
 
-	if err := utils.SetToCache(ctx, cacheService, pipelineId, subKey, fmt.Sprintf("error: %s, output: %s", err.Error(), errorOutput)); err != nil {
+	if err := utils.SetToCache(ctx, cacheService, pipelineId, subKey, fmt.Sprintf("error: %s\noutput: %s", err.Error(), errorOutput)); err != nil {
 		return err
 	}
 
@@ -439,7 +444,7 @@ func processRunError(ctx context.Context, errorChannel chan error, errorOutput [
 	err := <-errorChannel
 	logger.Errorf("%s: Run(): err: %s, output: %s\n", pipelineId, err.Error(), errorOutput)
 
-	if err := utils.SetToCache(ctx, cacheService, pipelineId, cache.RunError, fmt.Sprintf("error: %s, output: %s", err.Error(), string(errorOutput))); err != nil {
+	if err := utils.SetToCache(ctx, cacheService, pipelineId, cache.RunError, fmt.Sprintf("error: %s\noutput: %s", err.Error(), string(errorOutput))); err != nil {
 		return err
 	}
 
