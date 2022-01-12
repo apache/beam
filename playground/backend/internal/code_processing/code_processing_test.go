@@ -248,7 +248,7 @@ func Test_Process(t *testing.T) {
 				t.Fatalf("error during prepare folders: %s", err.Error())
 			}
 			if tt.createExecFile {
-				_, _ = lc.CreateSourceCodeFile(tt.code)
+				_ = lc.CreateSourceCodeFile(tt.code)
 			}
 			if err = utils.SetToCache(tt.args.ctx, cacheService, tt.args.pipelineId, cache.Canceled, false); err != nil {
 				t.Fatal("error during set cancel flag to cache")
@@ -269,7 +269,7 @@ func Test_Process(t *testing.T) {
 
 			compileOutput, _ := cacheService.GetValue(tt.args.ctx, tt.args.pipelineId, cache.CompileOutput)
 			if tt.expectedCompileOutput != nil && strings.Contains(tt.expectedCompileOutput.(string), "%s") {
-				tt.expectedCompileOutput = fmt.Sprintf(tt.expectedCompileOutput.(string), lc.GetAbsoluteSourceFilePath())
+				tt.expectedCompileOutput = fmt.Sprintf(tt.expectedCompileOutput.(string), lc.Paths.AbsoluteSourceFilePath)
 			}
 			if !reflect.DeepEqual(compileOutput, tt.expectedCompileOutput) {
 				t.Errorf("processCode() set compileOutput: %s, but expectes: %s", compileOutput, tt.expectedCompileOutput)
@@ -535,7 +535,7 @@ func TestGetLastIndex(t *testing.T) {
 func Test_setJavaExecutableFile(t *testing.T) {
 	pipelineId := uuid.New()
 	lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, pipelineId, filepath.Join(os.Getenv("APP_WORK_DIR"), pipelinesFolder))
-	lc.ExecutableName = fakeExecutableName
+	lc.Paths.ExecutableName = fakeExecutableName
 	executorBuilder := executors.NewExecutorBuilder().WithRunner().WithCommand("fake cmd").ExecutorBuilder
 	type args struct {
 		lc              *fs_tool.LifeCycle
@@ -572,7 +572,7 @@ func Test_setJavaExecutableFile(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := setJavaExecutableFile(tt.args.lc, tt.args.id, tt.args.service, tt.args.ctx, tt.args.executorBuilder, tt.args.dir)
+			got, err := setJavaExecutableFile(tt.args.lc.Paths, tt.args.id, tt.args.service, tt.args.ctx, tt.args.executorBuilder, tt.args.dir)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("setJavaExecutableFile() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -692,7 +692,7 @@ func prepareFiles(b *testing.B, pipelineId uuid.UUID, code string, sdk pb.Sdk) *
 	if err != nil {
 		b.Fatalf("error during prepare folders: %s", err.Error())
 	}
-	_, err = lc.CreateSourceCodeFile(code)
+	err = lc.CreateSourceCodeFile(code)
 	if err != nil {
 		b.Fatalf("error during prepare source code file: %s", err.Error())
 	}

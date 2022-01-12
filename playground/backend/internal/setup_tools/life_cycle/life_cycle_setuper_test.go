@@ -18,25 +18,30 @@ package life_cycle
 import (
 	playground "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/fs_tool"
+	"fmt"
 	"github.com/google/uuid"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"reflect"
 	"testing"
 )
 
 const (
-	workingDir              = "workingDir"
-	sourceFolder            = "src"
-	executableFolder        = "bin"
-	javaSourceFileExtension = ".java"
-	pipelinesFolder         = "executable_files"
+	workingDir                = "workingDir"
+	sourceFolder              = "src"
+	executableFolder          = "bin"
+	javaSourceFileExtension   = ".java"
+	javaCompiledFileExtension = ".class"
+	pipelinesFolder           = "executable_files"
+	logFileName               = "logs.log"
 )
 
 func TestSetup(t *testing.T) {
 	errorPipelineId := uuid.New()
 	successPipelineId := uuid.New()
+	baseFileFolder, _ := filepath.Abs(filepath.Join(workingDir, pipelinesFolder, successPipelineId.String()))
+	srcFileFolder := filepath.Join(baseFileFolder, sourceFolder)
+	execFileFolder := filepath.Join(baseFileFolder, executableFolder)
 
 	err := os.MkdirAll(workingDir, fs.ModePerm)
 	if err != nil {
@@ -47,11 +52,6 @@ func TestSetup(t *testing.T) {
 		panic(err)
 	}
 	defer os.RemoveAll(workingDir)
-
-	lc, err := fs_tool.NewLifeCycle(playground.Sdk_SDK_JAVA, successPipelineId, filepath.Join(workingDir, pipelinesFolder))
-	if err != nil {
-		panic(err)
-	}
 	type args struct {
 		sdk             playground.Sdk
 		code            string
@@ -114,7 +114,18 @@ func TestSetup(t *testing.T) {
 				}
 				return true
 			},
-			want:    lc,
+			want: &fs_tool.LifeCycle{
+				Paths: fs_tool.LifeCyclePaths{
+					SourceFileName:                   fmt.Sprintf("%s%s", successPipelineId.String(), javaSourceFileExtension),
+					AbsoluteSourceFileFolderPath:     srcFileFolder,
+					AbsoluteSourceFilePath:           filepath.Join(srcFileFolder, fmt.Sprintf("%s%s", successPipelineId.String(), javaSourceFileExtension)),
+					ExecutableFileName:               fmt.Sprintf("%s%s", successPipelineId.String(), javaCompiledFileExtension),
+					AbsoluteExecutableFileFolderPath: execFileFolder,
+					AbsoluteExecutableFilePath:       filepath.Join(execFileFolder, fmt.Sprintf("%s%s", successPipelineId.String(), javaCompiledFileExtension)),
+					AbsoluteBaseFolderPath:           baseFileFolder,
+					AbsoluteLogFilePath:              filepath.Join(baseFileFolder, logFileName),
+				},
+			},
 			wantErr: false,
 		},
 	}
@@ -126,17 +137,22 @@ func TestSetup(t *testing.T) {
 				return
 			}
 			if got != nil {
-				if !reflect.DeepEqual(got.Folder, tt.want.Folder) {
-					t.Errorf("Setup() got.Folder = %v, want %v", got.Folder, tt.want.Folder)
-				}
-				if !reflect.DeepEqual(got.Extension, tt.want.Extension) {
-					t.Errorf("Setup() got.Extension = %v, want %v", got.Extension, tt.want.Extension)
-				}
-				if !tt.check() {
-					t.Errorf("Setup() doesn't prepare necessary files/folders")
+				if !checkPathsEqual(got.Paths, tt.want.Paths) {
+					t.Errorf("Setup() got.Paths = %v, want %v", got.Paths, tt.want.Paths)
 				}
 			}
-			os.RemoveAll(tt.args.pipelinesFolder)
+			os.RemoveAll(pipelinesFolder)
 		})
 	}
+}
+
+func checkPathsEqual(paths1, paths2 fs_tool.LifeCyclePaths) bool {
+	return paths1.SourceFileName == paths2.SourceFileName &&
+		paths1.AbsoluteSourceFileFolderPath == paths2.AbsoluteSourceFileFolderPath &&
+		paths1.AbsoluteSourceFilePath == paths2.AbsoluteSourceFilePath &&
+		paths1.ExecutableFileName == paths2.ExecutableFileName &&
+		paths1.AbsoluteExecutableFileFolderPath == paths2.AbsoluteExecutableFileFolderPath &&
+		paths1.AbsoluteExecutableFilePath == paths2.AbsoluteExecutableFilePath &&
+		paths1.AbsoluteBaseFolderPath == paths2.AbsoluteBaseFolderPath &&
+		paths1.AbsoluteLogFilePath == paths2.AbsoluteLogFilePath
 }
