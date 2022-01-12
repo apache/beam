@@ -128,6 +128,7 @@ class PlaygroundState with ChangeNotifier {
       notifyListeners();
       return;
     }
+    _executionTime?.close();
     _executionTime = _createExecutionTimeStream();
     if (_selectedExample?.source == source &&
         _selectedExample?.outputs != null &&
@@ -178,10 +179,8 @@ class PlaygroundState with ChangeNotifier {
     int ms = 0;
 
     void stopTimer() {
-      if (timer != null) {
-        timer?.cancel();
-        streamController?.close();
-      }
+      timer?.cancel();
+      streamController?.close();
     }
 
     void tick(_) {
