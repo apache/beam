@@ -287,6 +287,24 @@ class ElasticsearchIOTestCommon implements Serializable {
     executeWriteTest(write);
   }
 
+  /** Test that DocToBulk and BulkIO can be constructed and operate independently of Write */
+  void testDocToBulkAndBulkIO() throws Exception {
+    DocToBulk docToBulk = ElasticsearchIO.docToBulk();
+    BulkIO bulkIO = ElasticsearchIO.bulkIO().withConnectionConfiguration(connectionConfiguration);
+
+    List<String> data =
+        ElasticsearchIOTestUtils.createDocuments(
+            numDocs, ElasticsearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
+    pipeline.apply(Create.of(data)).apply(docToBulk).apply(bulkIO);
+    pipeline.run();
+
+    long currentNumDocs = refreshIndexAndGetCurrentNumDocs(connectionConfiguration, restClient);
+    assertEquals(numDocs, currentNumDocs);
+
+    int count = countByScientistName(connectionConfiguration, restClient, "Einstein", null);
+    assertEquals(numDocs / NUM_SCIENTISTS, count);
+  }
+
   void testWriteStateful() throws Exception {
     Write write =
         ElasticsearchIO.write()
