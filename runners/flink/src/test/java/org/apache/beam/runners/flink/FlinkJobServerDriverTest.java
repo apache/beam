@@ -131,4 +131,51 @@ public class FlinkJobServerDriverTest {
       }
     }
   }
+
+  @Test(timeout = 30_000)
+  public void testJobServerDriverWithoutExpansionService() throws Exception {
+    FlinkJobServerDriver driver = null;
+    Thread driverThread = null;
+    final PrintStream oldErr = System.err;
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    PrintStream newErr = new PrintStream(baos);
+    try {
+      System.setErr(newErr);
+      driver =
+          FlinkJobServerDriver.fromParams(
+              new String[] {"--job-port=0", "--artifact-port=0", "--expansion-port=-1"});
+      driverThread = new Thread(driver);
+      driverThread.start();
+      boolean success = false;
+      while (!success) {
+        newErr.flush();
+        String output = baos.toString(Charsets.UTF_8.name());
+        if (output.contains("JobService started on localhost:")
+            && output.contains("ArtifactStagingService started on localhost:")) {
+          success = true;
+        } else if (output.contains("ExpansionService started on localhost:")) {
+          throw new RuntimeException("ExpansionService started but should not.");
+        }
+        {
+          Thread.sleep(100);
+        }
+      }
+      assertThat(driver.getJobServerUrl(), is(not(nullValue())));
+      assertThat(baos.toString(Charsets.UTF_8.name()), containsString(driver.getJobServerUrl()));
+      assertThat(driverThread.isAlive(), is(true));
+    } catch (Throwable t) {
+      // restore to print exception
+      System.setErr(oldErr);
+      throw t;
+    } finally {
+      System.setErr(oldErr);
+      if (driver != null) {
+        driver.stop();
+      }
+      if (driverThread != null) {
+        driverThread.interrupt();
+        driverThread.join();
+      }
+    }
+  }
 }
