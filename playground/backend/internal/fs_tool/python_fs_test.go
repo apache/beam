@@ -24,7 +24,7 @@ import (
 
 func Test_newPythonLifeCycle(t *testing.T) {
 	pipelineId := uuid.New()
-	workingDir := "workingDir"
+	workingDir, _ := filepath.Abs("workingDir")
 	baseFileFolder := filepath.Join(workingDir, pipelinesFolder, pipelineId.String())
 
 	type args struct {
@@ -46,16 +46,16 @@ func Test_newPythonLifeCycle(t *testing.T) {
 			},
 			want: &LifeCycle{
 				folderGlobs: []string{baseFileFolder},
-				Folder: Folder{
-					BaseFolder:           baseFileFolder,
-					SourceFileFolder:     baseFileFolder,
-					ExecutableFileFolder: baseFileFolder,
+				Paths: LifeCyclePaths{
+					SourceFileName:                   pipelineId.String() + pythonExecutableFileExtension,
+					AbsoluteSourceFileFolderPath:     baseFileFolder,
+					AbsoluteSourceFilePath:           filepath.Join(baseFileFolder, pipelineId.String()+pythonExecutableFileExtension),
+					ExecutableFileName:               pipelineId.String() + pythonExecutableFileExtension,
+					AbsoluteExecutableFileFolderPath: baseFileFolder,
+					AbsoluteExecutableFilePath:       filepath.Join(baseFileFolder, pipelineId.String()+pythonExecutableFileExtension),
+					AbsoluteBaseFolderPath:           baseFileFolder,
+					AbsoluteLogFilePath:              filepath.Join(baseFileFolder, logFileName),
 				},
-				Extension: Extension{
-					SourceFileExtension:     pythonExecutableFileExtension,
-					ExecutableFileExtension: pythonExecutableFileExtension,
-				},
-				pipelineId: pipelineId,
 			},
 		},
 	}
@@ -65,14 +65,8 @@ func Test_newPythonLifeCycle(t *testing.T) {
 			if !reflect.DeepEqual(got.folderGlobs, tt.want.folderGlobs) {
 				t.Errorf("newPythonLifeCycle() folderGlobs = %v, want %v", got.folderGlobs, tt.want.folderGlobs)
 			}
-			if !reflect.DeepEqual(got.Folder, tt.want.Folder) {
-				t.Errorf("newPythonLifeCycle() Folder = %v, want %v", got.Folder, tt.want.Folder)
-			}
-			if !reflect.DeepEqual(got.Extension, tt.want.Extension) {
-				t.Errorf("newPythonLifeCycle() Extension = %v, want %v", got.Extension, tt.want.Extension)
-			}
-			if !reflect.DeepEqual(got.pipelineId, tt.want.pipelineId) {
-				t.Errorf("newPythonLifeCycle() pipelineId = %v, want %v", got.pipelineId, tt.want.pipelineId)
+			if !checkPathsEqual(got.Paths, tt.want.Paths) {
+				t.Errorf("newPythonLifeCycle() Paths = %v, want %v", got.Paths, tt.want.Paths)
 			}
 		})
 	}

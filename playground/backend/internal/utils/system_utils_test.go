@@ -47,7 +47,6 @@ func TestGetFuncName(t *testing.T) {
 }
 
 func Test_checkNumOfTheParallelJobs(t *testing.T) {
-	baseFileFolder := "executable_files"
 	type args struct {
 		workingDir        string
 		numOfParallelJobs int
@@ -78,7 +77,7 @@ func Test_checkNumOfTheParallelJobs(t *testing.T) {
 				numOfParallelJobs: 2,
 			},
 			prepareFunc: func() {
-				err := os.MkdirAll(filepath.Join(baseFileFolder, "1"), fs.ModePerm)
+				err := os.MkdirAll(filepath.Join(executableFiles, "1"), fs.ModePerm)
 				if err != nil {
 					panic(err)
 				}
@@ -94,7 +93,7 @@ func Test_checkNumOfTheParallelJobs(t *testing.T) {
 				numOfParallelJobs: 1,
 			},
 			prepareFunc: func() {
-				err := os.MkdirAll(filepath.Join(baseFileFolder, "1"), fs.ModePerm)
+				err := os.MkdirAll(filepath.Join(executableFiles, "1"), fs.ModePerm)
 				if err != nil {
 					panic(err)
 				}
@@ -110,7 +109,7 @@ func Test_checkNumOfTheParallelJobs(t *testing.T) {
 				numOfParallelJobs: 0,
 			},
 			prepareFunc: func() {
-				err := os.MkdirAll(filepath.Join(baseFileFolder, "1"), fs.ModePerm)
+				err := os.MkdirAll(filepath.Join(executableFiles, "1"), fs.ModePerm)
 				if err != nil {
 					panic(err)
 				}
@@ -124,7 +123,7 @@ func Test_checkNumOfTheParallelJobs(t *testing.T) {
 			if got := checkNumOfTheParallelJobs(tt.args.workingDir, tt.args.numOfParallelJobs); got != tt.want {
 				t.Errorf("checkNumOfTheParallelJobs() = %v, want %v", got, tt.want)
 			}
-			os.RemoveAll(baseFileFolder)
+			os.RemoveAll(executableFiles)
 		})
 	}
 }
