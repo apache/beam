@@ -127,3 +127,46 @@ func ResolveArtifactsWithConfig(ctx context.Context, edges []*graph.MultiEdge, c
 	}
 	return paths, nil
 }
+
+func UpdateArtifactTypeFromFileToUrl(edges []*graph.MultiEdge) {
+	for _, e := range edges {
+		if e.Op == graph.External && e.External != nil {
+			components, err := graphx.ExpandedComponents(e.External.Expanded)
+			if err != nil {
+				panic(errors.WithContextf(err,
+					"updating URL artifacts type for edge %v", e.Name()))
+			}
+			envs := components.Environments
+			for _, env := range envs {
+				deps := env.GetDependencies()
+				var resolvedDeps []*pipepb.ArtifactInformation
+				for _, a := range deps {
+					path, sha256 := artifact.MustExtractFilePayload(a)
+					var typeUrn string
+					var typePayload []byte
+					if strings.Contains(path, "://") {
+						typeUrn = "beam:artifact:type:url:v1"
+						typePayload = protox.MustEncode(
+							&pipepb.ArtifactUrlPayload{
+								Url:    path,
+								Sha256: sha256,
+							},
+						)
+					} else {
+						typeUrn = a.TypeUrn
+						typePayload = a.TypePayload
+					}
+					resolvedDeps = append(resolvedDeps,
+						&pipepb.ArtifactInformation{
+							TypeUrn:     typeUrn,
+							TypePayload: typePayload,
+							RoleUrn:     a.RoleUrn,
+							RolePayload: a.RolePayload,
+						},
+					)
+				}
+				env.Dependencies = resolvedDeps
+			}
+		}
+	}
+}
