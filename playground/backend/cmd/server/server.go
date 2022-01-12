@@ -52,9 +52,12 @@ func runServer() error {
 		cacheService: cacheService,
 	})
 
-	err = setupExamplesCatalog(ctx, cacheService)
-	if err != nil {
-		return err
+	// Examples catalog should be retrieved and saved to cache only if the server doesn't suppose to run code, i.e. SDK is unspecified
+	if envService.BeamSdkEnvs.ApacheBeamSdk == pb.Sdk_SDK_UNSPECIFIED {
+		err = setupExamplesCatalog(ctx, cacheService)
+		if err != nil {
+			return err
+		}
 	}
 
 	errChan := make(chan error)
@@ -116,6 +119,7 @@ func setupCache(ctx context.Context, appEnv environment.ApplicationEnvs) (cache.
 	}
 }
 
+// setupExamplesCatalog saves precompiled objects catalog from storage to cache
 func setupExamplesCatalog(ctx context.Context, cacheService cache.Cache) error {
 	sdkCategories, err := utils.GetPrecompiledObjectsCatalogFromStorage(ctx, pb.Sdk_SDK_UNSPECIFIED, "")
 	if err != nil {
