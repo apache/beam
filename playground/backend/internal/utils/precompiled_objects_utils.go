@@ -17,7 +17,16 @@ package utils
 
 import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"beam.apache.org/playground/backend/internal/cache"
 	"beam.apache.org/playground/backend/internal/cloud_bucket"
+	"beam.apache.org/playground/backend/internal/errors"
+	"beam.apache.org/playground/backend/internal/logger"
+	"context"
+	"github.com/google/uuid"
+)
+
+var (
+	ExamplesDataPipelineId = uuid.Nil
 )
 
 // PutPrecompiledObjectsToCategory adds categories with precompiled objects to protobuf object
@@ -36,4 +45,38 @@ func PutPrecompiledObjectsToCategory(categoryName string, precompiledObjects *cl
 		})
 	}
 	sdkCategory.Categories = append(sdkCategory.Categories, &category)
+}
+
+// GetPrecompiledObjectsCatalogFromCache returns the precompiled objects catalog from the cache
+func GetPrecompiledObjectsCatalogFromCache(ctx context.Context, cacheService cache.Cache) ([]*pb.Categories, error) {
+	value, err := cacheService.GetValue(ctx, ExamplesDataPipelineId, cache.ExamplesCatalog)
+	if err != nil {
+		logger.Errorf("%s: cache.GetValue: %s\n", ExamplesDataPipelineId, err.Error())
+		return nil, err
+	}
+	catalog, converted := value.([]*pb.Categories)
+	if !converted {
+		logger.Errorf("%s: couldn't convert value to catalog: %s", cache.ExamplesCatalog, value)
+		return nil, errors.InternalError("Error during getting the catalog from cache", "Error during getting status")
+	}
+	return catalog, nil
+}
+
+// GetPrecompiledObjectsCatalogFromStorage returns the precompiled objects catalog from the cloud storage in the response format
+func GetPrecompiledObjectsCatalogFromStorage(ctx context.Context, sdk pb.Sdk, category string) ([]*pb.Categories, error) {
+	bucket := cloud_bucket.New()
+	sdkToCategories, err := bucket.GetPrecompiledObjects(ctx, sdk, category)
+	if err != nil {
+		logger.Errorf("GetPrecompiledObjects(): cloud storage error: %s", err.Error())
+		return nil, err
+	}
+	sdkCategories := make([]*pb.Categories, 0)
+	for sdkName, categories := range *sdkToCategories {
+		sdkCategory := pb.Categories{Sdk: pb.Sdk(pb.Sdk_value[sdkName]), Categories: make([]*pb.Categories_Category, 0)}
+		for categoryName, precompiledObjects := range categories {
+			PutPrecompiledObjectsToCategory(categoryName, &precompiledObjects, &sdkCategory)
+		}
+		sdkCategories = append(sdkCategories, &sdkCategory)
+	}
+	return sdkCategories, nil
 }

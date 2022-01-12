@@ -22,7 +22,9 @@ import (
 	"beam.apache.org/playground/backend/internal/cache/redis"
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/logger"
+	"beam.apache.org/playground/backend/internal/utils"
 	"context"
+	"github.com/google/uuid"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"google.golang.org/grpc"
 )
@@ -49,6 +51,11 @@ func runServer() error {
 		env:          envService,
 		cacheService: cacheService,
 	})
+
+	err = setupExamplesCatalog(ctx, cacheService)
+	if err != nil {
+		return err
+	}
 
 	errChan := make(chan error)
 
@@ -107,6 +114,17 @@ func setupCache(ctx context.Context, appEnv environment.ApplicationEnvs) (cache.
 	default:
 		return local.New(ctx), nil
 	}
+}
+
+func setupExamplesCatalog(ctx context.Context, cacheService cache.Cache) error {
+	sdkCategories, err := utils.GetPrecompiledObjectsCatalogFromStorage(ctx, pb.Sdk_SDK_UNSPECIFIED, "")
+	if err != nil {
+		return err
+	}
+	if err = utils.SetToCache(ctx, cacheService, uuid.Nil, cache.ExamplesCatalog, sdkCategories); err != nil {
+		return err
+	}
+	return nil
 }
 
 func main() {
