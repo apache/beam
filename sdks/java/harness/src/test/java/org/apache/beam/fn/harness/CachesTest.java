@@ -17,15 +17,16 @@
  */
 package org.apache.beam.fn.harness;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 
 import org.apache.beam.fn.harness.Cache.Shrinkable;
 import org.apache.beam.fn.harness.Caches.ClearableCache;
-import org.apache.beam.fn.harness.Caches.ShrinkOnEviction;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.sdk.util.WeightedValue;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -49,18 +50,17 @@ public class CachesTest {
 
           @Override
           public Object shrink() {
-            return "wasShrunk";
+            return WeightedValue.of("wasShrunk", 1);
           }
         };
 
-    Cache<Object, Object> cache =
-        Caches.forCache(new ShrinkOnEviction(CacheBuilder.newBuilder().maximumSize(1)).getCache());
-    cache.put("shrinkable", shrinkable);
+    Cache<Object, Object> cache = Caches.forMaximumBytes(1 << Caches.WEIGHT_RATIO);
+    cache.put("shrinkable", WeightedValue.of(shrinkable, 1));
     // Check that we didn't evict it yet
     assertSame(shrinkable, cache.peek("shrinkable"));
 
-    // The next insertion should cause the value to b "shrunk"
-    cache.put("other", "value");
+    // The next insertion should cause the value to be "shrunk"
+    cache.put("other", WeightedValue.of("value", 1));
     assertEquals("wasShrunk", cache.peek("shrinkable"));
   }
 
@@ -159,5 +159,21 @@ public class CachesTest {
     // Test compute with load
     assertEquals("value2", cache.computeIfAbsent("key2", (unused) -> "value2"));
     assertEquals("value2", cache.peek("key2"));
+  }
+
+  @Test
+  public void testDescribeStats() throws Exception {
+    Cache<Integer, WeightedValue<String>> cache = Caches.forMaximumBytes(1000 * 1048576L);
+    for (int i = 0; i < 100; ++i) {
+      cache.computeIfAbsent(i, (key) -> WeightedValue.of("value", 1048576L));
+      cache.peek(i);
+      cache.put(100 + i, WeightedValue.of("value", 1048576L));
+    }
+
+    assertThat(cache.describeStats(), containsString("used/max 200/1000 MB"));
+    assertThat(cache.describeStats(), containsString("hit 50.00%"));
+    assertThat(cache.describeStats(), containsString("lookups 200"));
+    assertThat(cache.describeStats(), containsString("avg load time"));
+    assertThat(cache.describeStats(), containsString("load count 100"));
   }
 }

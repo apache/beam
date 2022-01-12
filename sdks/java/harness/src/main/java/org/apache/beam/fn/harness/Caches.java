@@ -23,13 +23,16 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Function;
 import org.apache.beam.fn.harness.Cache.Shrinkable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.util.Weighted;
+import org.apache.beam.sdk.util.WeightedValue;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheStats;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.RemovalListener;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.RemovalNotification;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Weigher;
@@ -43,7 +46,12 @@ import org.slf4j.LoggerFactory;
 public final class Caches {
   private static final Logger LOG = LoggerFactory.getLogger(Caches.class);
 
-  private static final int WEIGHT_RATIO = 64;
+  /**
+   * Object sizes will always be rounded up to the next multiple of {@code 2^WEIGHT_RATIO} when
+   * stored in the cache. This allows us to work around the limit on the Guava cache method which
+   * only allows int weights by scaling object sizes appropriately.
+   */
+  @VisibleForTesting static final int WEIGHT_RATIO = 6;
 
   private static final MemoryMeter MEMORY_METER =
       MemoryMeter.builder().withGuessing(Guess.BEST).build();
@@ -57,31 +65,36 @@ public final class Caches {
 
   /** An eviction listener that reduces the size of entries that are {@link Shrinkable}. */
   @VisibleForTesting
-  static class ShrinkOnEviction implements RemovalListener<CompositeKey, Object> {
+  static class ShrinkOnEviction implements RemovalListener<CompositeKey, WeightedValue<Object>> {
 
     private final org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache<
-            CompositeKey, Object>
+            CompositeKey, WeightedValue<Object>>
         cache;
+    private final LongAdder weightInBytes;
 
-    ShrinkOnEviction(CacheBuilder<Object, Object> cacheBuilder) {
+    ShrinkOnEviction(
+        CacheBuilder<Object, WeightedValue<Object>> cacheBuilder, LongAdder weightInBytes) {
       this.cache = cacheBuilder.removalListener(this).build();
+      this.weightInBytes = weightInBytes;
     }
 
     public org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache<
-            CompositeKey, Object>
+            CompositeKey, WeightedValue<Object>>
         getCache() {
       return cache;
     }
 
     @Override
-    public void onRemoval(RemovalNotification<CompositeKey, Object> removalNotification) {
+    public void onRemoval(
+        RemovalNotification<CompositeKey, WeightedValue<Object>> removalNotification) {
+      weightInBytes.add(-removalNotification.getValue().getWeight());
       if (removalNotification.wasEvicted()) {
-        if (!(removalNotification.getValue() instanceof Cache.Shrinkable)) {
+        if (!(removalNotification.getValue().getValue() instanceof Cache.Shrinkable)) {
           return;
         }
-        Object updatedEntry = ((Shrinkable<?>) removalNotification.getValue()).shrink();
+        Object updatedEntry = ((Shrinkable<?>) removalNotification.getValue().getValue()).shrink();
         if (updatedEntry != null) {
-          cache.put(removalNotification.getKey(), updatedEntry);
+          cache.put(removalNotification.getKey(), addWeightedValue(updatedEntry, weightInBytes));
         }
       }
     }
@@ -89,19 +102,12 @@ public final class Caches {
 
   /** A cache that never stores any values. */
   public static <K, V> Cache<K, V> noop() {
-    // We specifically use Guava cache since it allows for recursive computeIfAbsent calls
-    // preventing deadlock from occurring when a loading function mutates the underlying cache
-    return (Cache<K, V>)
-        forCache(new ShrinkOnEviction(CacheBuilder.newBuilder().maximumSize(0)).getCache());
+    return forMaximumBytes(0L);
   }
 
   /** A cache that never evicts any values. */
   public static <K, V> Cache<K, V> eternal() {
-    // We specifically use Guava cache since it allows for recursive computeIfAbsent calls
-    // preventing deadlock from occurring when a loading function mutates the underlying cache
-    return (Cache<K, V>)
-        forCache(
-            new ShrinkOnEviction(CacheBuilder.newBuilder().maximumSize(Long.MAX_VALUE)).getCache());
+    return forMaximumBytes(Long.MAX_VALUE);
   }
 
   /**
@@ -109,40 +115,8 @@ public final class Caches {
    * parameters within {@link SdkHarnessOptions}.
    */
   public static <K, V> Cache<K, V> fromOptions(PipelineOptions options) {
-    // We specifically use Guava cache since it allows for recursive computeIfAbsent calls
-    // preventing deadlock from occurring when a loading function mutates the underlying cache
-    return (Cache<K, V>)
-        forCache(
-            new ShrinkOnEviction(
-                    CacheBuilder.newBuilder()
-                        .maximumWeight(
-                            options.as(SdkHarnessOptions.class).getMaxCacheMemoryUsageMb()
-                                * 1024L
-                                * 1024L
-                                / WEIGHT_RATIO)
-                        .weigher(
-                            new Weigher<Object, Object>() {
-
-                              @Override
-                              public int weigh(Object key, Object value) {
-                                long size;
-                                if (value instanceof Weighted) {
-                                  size = Caches.weigh(key) + ((Weighted) value).getWeight();
-                                } else {
-                                  size = Caches.weigh(key) + Caches.weigh(value);
-                                }
-                                size = size / WEIGHT_RATIO + 1;
-                                if (size >= Integer.MAX_VALUE) {
-                                  LOG.warn(
-                                      "Entry with size {} MiBs inserted into the cache. This is larger than the maximum individual entry size of {} MiBs. The cache will under report its memory usage by the difference. This may lead to OutOfMemoryErrors.",
-                                      (size / 1048576L) + 1,
-                                      2 * WEIGHT_RATIO * 1024);
-                                  return Integer.MAX_VALUE;
-                                }
-                                return (int) size;
-                              }
-                            }))
-                .getCache());
+    return forMaximumBytes(
+        options.as(SdkHarnessOptions.class).getMaxCacheMemoryUsageMb() * 1048576L);
   }
 
   /**
@@ -156,7 +130,9 @@ public final class Caches {
     if (cache instanceof SubCache) {
       return new SubCache<>(
           ((SubCache<?, ?>) cache).cache,
-          ((SubCache<?, ?>) cache).keyPrefix.subKey(keyPrefix, additionalKeyPrefix));
+          ((SubCache<?, ?>) cache).keyPrefix.subKey(keyPrefix, additionalKeyPrefix),
+          ((SubCache<?, ?>) cache).maxWeightInBytes,
+          ((SubCache<?, ?>) cache).weightInBytes);
     }
     throw new IllegalArgumentException(
         String.format(
@@ -165,10 +141,50 @@ public final class Caches {
   }
 
   @VisibleForTesting
-  static Cache<Object, Object> forCache(
-      org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache<CompositeKey, Object>
-          cache) {
-    return new SubCache<>(cache, CompositeKeyPrefix.ROOT);
+  static <K, V> Cache<K, V> forMaximumBytes(long maximumBytes) {
+    // We specifically use Guava cache since it allows for recursive computeIfAbsent calls
+    // preventing deadlock from occurring when a loading function mutates the underlying cache
+    LongAdder weightInBytes = new LongAdder();
+    return new SubCache<>(
+        new ShrinkOnEviction(
+                CacheBuilder.newBuilder()
+                    .maximumWeight(maximumBytes >> WEIGHT_RATIO)
+                    .weigher(
+                        new Weigher<Object, WeightedValue<Object>>() {
+
+                          @Override
+                          public int weigh(Object key, WeightedValue<Object> value) {
+                            // Round up to the next closest multiple of WEIGHT_RATIO
+                            long size = ((value.getWeight() - 1) >> WEIGHT_RATIO) + 1;
+                            if (size > Integer.MAX_VALUE) {
+                              LOG.warn(
+                                  "Entry with size {} MiBs inserted into the cache. This is larger than the maximum individual entry size of {} MiBs. The cache will under report its memory usage by the difference. This may lead to OutOfMemoryErrors.",
+                                  ((size - 1) >> 20) + 1,
+                                  2 << (WEIGHT_RATIO + 10));
+                              return Integer.MAX_VALUE;
+                            }
+                            return (int) size;
+                          }
+                        })
+                    .recordStats(),
+                weightInBytes)
+            .getCache(),
+        CompositeKeyPrefix.ROOT,
+        maximumBytes,
+        weightInBytes);
+  }
+
+  private static WeightedValue<Object> addWeightedValue(Object o, LongAdder weightInBytes) {
+    WeightedValue<Object> rval;
+    if (o instanceof WeightedValue) {
+      rval = (WeightedValue<Object>) o;
+    } else if (o instanceof Weighted) {
+      rval = WeightedValue.of(o, ((Weighted) o).getWeight());
+    } else {
+      rval = WeightedValue.of(o, weigh(o));
+    }
+    weightInBytes.add(rval.getWeight());
+    return rval;
   }
 
   /**
@@ -179,27 +195,43 @@ public final class Caches {
    */
   private static class SubCache<K, V> implements Cache<K, V> {
     private final org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache<
-            CompositeKey, Object>
+            CompositeKey, WeightedValue<Object>>
         cache;
     private final CompositeKeyPrefix keyPrefix;
+    private final long maxWeightInBytes;
+    private final LongAdder weightInBytes;
 
     SubCache(
-        org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache<CompositeKey, Object>
+        org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache<
+                CompositeKey, WeightedValue<Object>>
             cache,
-        CompositeKeyPrefix keyPrefix) {
+        CompositeKeyPrefix keyPrefix,
+        long maxWeightInBytes,
+        LongAdder weightInBytes) {
       this.cache = cache;
       this.keyPrefix = keyPrefix;
+      this.maxWeightInBytes = maxWeightInBytes;
+      this.weightInBytes = weightInBytes;
     }
 
     @Override
     public V peek(K key) {
-      return (V) cache.getIfPresent(keyPrefix.valueKey(key));
+      WeightedValue<Object> value = cache.getIfPresent(keyPrefix.valueKey(key));
+      if (value == null) {
+        return null;
+      }
+      return (V) value.getValue();
     }
 
     @Override
     public V computeIfAbsent(K key, Function<K, V> loadingFunction) {
       try {
-        return (V) cache.get(keyPrefix.valueKey(key), () -> loadingFunction.apply(key));
+        return (V)
+            cache
+                .get(
+                    keyPrefix.valueKey(key),
+                    () -> addWeightedValue(loadingFunction.apply(key), weightInBytes))
+                .getValue();
       } catch (ExecutionException e) {
         throw new RuntimeException(e);
       }
@@ -207,12 +239,25 @@ public final class Caches {
 
     @Override
     public void put(K key, V value) {
-      cache.put(keyPrefix.valueKey(key), value);
+      cache.put(keyPrefix.valueKey(key), addWeightedValue(value, weightInBytes));
     }
 
     @Override
     public void remove(K key) {
       cache.invalidate(keyPrefix.valueKey(key));
+    }
+
+    @Override
+    public String describeStats() {
+      CacheStats stats = cache.stats();
+      return String.format(
+          "used/max %d/%d MB, hit %.2f%%, lookups %d, avg load time %.0f ns, load count %d",
+          weightInBytes.longValue() >> 20,
+          maxWeightInBytes >> 20,
+          stats.hitRate() * 100.,
+          stats.requestCount(),
+          stats.averageLoadPenalty(),
+          stats.loadCount());
     }
   }
 
@@ -310,7 +355,11 @@ public final class Caches {
     private final Set<K> weakHashSet;
 
     public ClearableCache(Cache<K, V> cache) {
-      super(((SubCache<K, V>) cache).cache, ((SubCache<CompositeKey, V>) cache).keyPrefix);
+      super(
+          ((SubCache<K, V>) cache).cache,
+          ((SubCache<CompositeKey, V>) cache).keyPrefix,
+          ((SubCache<CompositeKey, V>) cache).maxWeightInBytes,
+          ((SubCache<CompositeKey, V>) cache).weightInBytes);
       // We specifically use a weak hash map so that once the key is no longer referenced we don't
       // have to keep track of it anymore and the weak hash map will garbage collect it for us.
       this.weakHashSet = Collections.newSetFromMap(new WeakHashMap<>());

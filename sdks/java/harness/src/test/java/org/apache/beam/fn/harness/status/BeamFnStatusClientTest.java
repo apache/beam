@@ -34,6 +34,7 @@ import java.util.StringJoiner;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler.BundleProcessor;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler.BundleProcessorCache;
@@ -86,7 +87,8 @@ public class BeamFnStatusClientTest {
             apiServiceDescriptor,
             channelFactory::forDescriptor,
             handler.getBundleProcessorCache(),
-            PipelineOptionsFactory.create());
+            PipelineOptionsFactory.create(),
+            Caches.noop());
     StringJoiner joiner = new StringJoiner("\n");
     joiner.add(client.getActiveProcessBundleState());
     String actualState = joiner.toString();
@@ -128,7 +130,8 @@ public class BeamFnStatusClientTest {
           apiServiceDescriptor,
           channelFactory::forDescriptor,
           processorCache,
-          PipelineOptionsFactory.create());
+          PipelineOptionsFactory.create(),
+          Caches.noop());
       StreamObserver<WorkerStatusRequest> requestObserver = requestObservers.take();
       requestObserver.onNext(WorkerStatusRequest.newBuilder().setId("id").build());
       WorkerStatusResponse response = values.take();
@@ -137,5 +140,19 @@ public class BeamFnStatusClientTest {
     } finally {
       server.shutdownNow();
     }
+  }
+
+  @Test
+  public void testCacheStatsExist() {
+    ManagedChannelFactory channelFactory = InProcessManagedChannelFactory.create();
+    BeamFnStatusClient client =
+        new BeamFnStatusClient(
+            apiServiceDescriptor,
+            channelFactory::forDescriptor,
+            mock(BundleProcessorCache.class),
+            PipelineOptionsFactory.create(),
+            Caches.fromOptions(
+                PipelineOptionsFactory.fromArgs("--maxCacheMemoryUsageMb=234").create()));
+    assertThat(client.getCacheStats(), containsString("used/max 0/234 MB"));
   }
 }
