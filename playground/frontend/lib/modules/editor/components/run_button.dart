@@ -21,6 +21,11 @@ import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/shortcuts/components/shortcut_tooltip.dart';
 import 'package:playground/modules/shortcuts/constants/global_shortcuts.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:playground/pages/playground/states/playground_state.dart';
+import 'package:provider/provider.dart';
+
+const kMsToSec = 1000;
+const kSecondsFractions = 1;
 
 class RunButton extends StatelessWidget {
   final bool isRunning;
@@ -43,7 +48,18 @@ class RunButton extends StatelessWidget {
                 ),
               )
             : const Icon(Icons.play_arrow),
-        label: Text(AppLocalizations.of(context)!.run),
+        label: StreamBuilder(
+            stream: Provider.of<PlaygroundState>(context).executionTime,
+            builder: (context, AsyncSnapshot<int> state) {
+              final seconds = (state.data ?? 0) / kMsToSec;
+              final runText = AppLocalizations.of(context)!.run;
+              if (seconds > 0) {
+                return Text(
+                  '$runText (${seconds.toStringAsFixed(kSecondsFractions)} s)',
+                );
+              }
+              return Text(runText);
+            }),
         onPressed: !isRunning ? runCode : null,
       ),
     );
