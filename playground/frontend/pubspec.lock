@@ -156,7 +156,7 @@ packages:
     source: hosted
     version: "1.0.2"
   collection:
-    dependency: transitive
+    dependency: "direct dev"
     description:
       name: collection
       url: "https://pub.dartlang.org"

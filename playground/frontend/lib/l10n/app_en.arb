@@ -142,5 +142,37 @@
   "clearOutput": "Clear Output",
   "@clearOutput": {
     "description": "Title for the Clear Output shortcut row"
+  },
+  "pipelineOptions": "Pipeline Options",
+  "@pipelineOptions": {
+    "description": "Title for the Pipeline Options"
+  },
+  "rawPipelineOptions": "Raw",
+  "@rawPipelineOptions": {
+    "description": "Title for the Raw Pipeline Options Tab"
+  },
+  "optionsPipelineOptions": "Options",
+  "@optionsPipelineOptions": {
+    "description": "Title for the Options Pipeline Options Tab"
+  },
+  "saveAndClose": "Save & close",
+  "@saveAndClose": {
+    "description": "Text for save and close button on pipeline dropdown"
+  },
+  "addPipelineOptionParameter": "Add parameter",
+  "@addPipelineOptionParameter": {
+    "description": "Text for add parameter button on pipeline dropdown"
+  },
+  "input": "Input",
+  "@input": {
+    "description": "Text input label"
+  },
+  "name": "Name",
+  "@name": {
+    "description": "Text name label"
+  },
+  "value": "Value",
+  "@value": {
+    "description": "Text value label"
   }
 }
