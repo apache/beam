@@ -69,7 +69,7 @@ jobs:
         os: [[self-hosted, ubuntu-20.04], macos-latest, windows-latest]
     steps:
       - name: Clean GitHub workspace
-        if: startsWith(matrix.os, 'self')
+        if: contains(matrix.os, 'ubuntu-20.04')
         run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
       - name: Checkout code
         uses: actions/checkout@v2
@@ -131,7 +131,7 @@ jobs:
         os: [[self-hosted, ubuntu-20.04], macos-latest, windows-latest]
     steps:
       - name: Clean GitHub workspace
-        if: startsWith(matrix.os, 'self')
+        if: contains(matrix.os, 'ubuntu-20.04')
         run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
       - name: Checkout code
         uses: actions/checkout@v2
@@ -177,7 +177,7 @@ jobs:
         os: [[self-hosted, ubuntu-20.04], macos-latest, windows-latest]
     steps:
       - name: Clean GitHub workspace
-        if: startsWith(matrix.os, 'self')
+        if: contains(matrix.os, 'ubuntu-20.04')
         run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
       - name: Checkout code
         uses: actions/checkout@v2
