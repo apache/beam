@@ -64,8 +64,8 @@ func NewLifeCycle(sdk pb.Sdk, pipelineId uuid.UUID, pipelinesFolder string) (*Li
 }
 
 // CreateFolders creates all folders which will be used for code execution.
-func (l *LifeCycle) CreateFolders() error {
-	for _, folder := range l.folderGlobs {
+func (lc *LifeCycle) CreateFolders() error {
+	for _, folder := range lc.folderGlobs {
 		err := os.MkdirAll(folder, fs.ModePerm)
 		if err != nil {
 			return err
@@ -75,8 +75,8 @@ func (l *LifeCycle) CreateFolders() error {
 }
 
 // DeleteFolders deletes all previously provisioned folders.
-func (l *LifeCycle) DeleteFolders() error {
-	for _, folder := range l.folderGlobs {
+func (lc *LifeCycle) DeleteFolders() error {
+	for _, folder := range lc.folderGlobs {
 		err := os.RemoveAll(folder)
 		if err != nil {
 			return err
@@ -86,12 +86,12 @@ func (l *LifeCycle) DeleteFolders() error {
 }
 
 // CreateSourceCodeFile creates an executable file (i.e. file.{sourceFileExtension}).
-func (l *LifeCycle) CreateSourceCodeFile(code string) error {
-	if _, err := os.Stat(l.Paths.AbsoluteSourceFileFolderPath); os.IsNotExist(err) {
+func (lc *LifeCycle) CreateSourceCodeFile(code string) error {
+	if _, err := os.Stat(lc.Paths.AbsoluteSourceFileFolderPath); os.IsNotExist(err) {
 		return err
 	}
 
-	filePath := l.Paths.AbsoluteSourceFilePath
+	filePath := lc.Paths.AbsoluteSourceFilePath
 	err := os.WriteFile(filePath, []byte(code), fileMode)
 	if err != nil {
 		return err
@@ -100,7 +100,7 @@ func (l *LifeCycle) CreateSourceCodeFile(code string) error {
 }
 
 // CopyFile copies a file with fileName from sourceDir to destinationDir.
-func (l *LifeCycle) CopyFile(fileName, sourceDir, destinationDir string) error {
+func (lc *LifeCycle) CopyFile(fileName, sourceDir, destinationDir string) error {
 	absSourcePath := filepath.Join(sourceDir, fileName)
 	absDestinationPath := filepath.Join(destinationDir, fileName)
 	sourceFileStat, err := os.Stat(absSourcePath)
