@@ -177,7 +177,8 @@ class CoGroupByKey(PTransform):
         tags = list(pcolls.keys())
         pcolls_dict = {str(ix): pcolls[tag] for (ix, tag) in enumerate(tags)}
         restore_tags = lambda vs: {
-            tag: vs[str(ix)] for (ix, tag) in enumerate(tags)
+            tag: vs[str(ix)]
+            for (ix, tag) in enumerate(tags)
         }
     else:
       # Tags are tuple indices.
@@ -198,21 +199,19 @@ class CoGroupByKey(PTransform):
         typehints.List[t] for t in input_value_types)
 
     output_value_type = typehints.Dict[
-          str,
-          typehints.Union[iterable_input_value_types]]
+        str, typehints.Union[iterable_input_value_types]]
     result = (
         pcolls_dict
-        | 'CoGroupByKeyImpl'
-        >> _CoGBKImpl(pipeline=self.pipeline).with_output_types(
+        | 'CoGroupByKeyImpl' >>
+        _CoGBKImpl(pipeline=self.pipeline).with_output_types(
             typehints.Tuple[output_key_type, output_value_type]))
 
     if restore_tags:
       if isinstance(pcolls, dict):
-        dict_key_type = typehints.Union[
-            tuple(trivial_inference.instance_to_type(tag) for tag in tags)]
+        dict_key_type = typehints.Union[tuple(
+            trivial_inference.instance_to_type(tag) for tag in tags)]
         output_value_type = typehints.Dict[
-            dict_key_type,
-            typehints.Union[iterable_input_value_types]]
+            dict_key_type, typehints.Union[iterable_input_value_types]]
       else:
         output_value_type = typehints.Tuple[iterable_input_value_types]
       result |= 'RestoreTags' >> MapTuple(
