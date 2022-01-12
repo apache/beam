@@ -49,6 +49,7 @@ evaluationDependsOn(":runners:google-cloud-dataflow-java:worker:legacy-worker")
 evaluationDependsOn(":runners:google-cloud-dataflow-java:worker")
 evaluationDependsOn(":sdks:java:container:java8")
 evaluationDependsOn(":sdks:java:container:java11")
+evaluationDependsOn(":sdks:java:container:java17")
 
 processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
@@ -262,7 +263,14 @@ def createRunnerV2ValidatesRunnerTest = { Map args ->
 // task directly ('dependsOn buildAndPushDockerContainer'). This ensures the correct
 // task ordering such that the registry doesn't get cleaned up prior to task completion.
 task buildAndPushDockerContainer() {
-  def javaVer = project.hasProperty('compileAndRunTestsWithJava11') ? "java11" : "java8"
+  def javaVer = "java8"
+
+  if(project.hasProperty('compileAndRunTestsWithJava17')) {
+    javaVer = "java17"
+  } else if(project.hasProperty('compileAndRunTestsWithJava11')) {
+    javaVer = "java11"
+  }
+
   dependsOn ":sdks:java:container:${javaVer}:docker"
   def defaultDockerImageName = containerImageName(
           name: "${project.docker_image_default_repo_prefix}${javaVer}_sdk",
@@ -317,6 +325,16 @@ task validatesRunner {
   group = "Verification"
   description "Validates Dataflow runner"
   dependsOn(createLegacyWorkerValidatesRunnerTest(name: 'validatesRunnerLegacyWorkerTest'))
+}
+
+task validatesRunnerJavaSDK17(type: Test) {
+  group = "Verification"
+  description "Validates Dataflow runner on Java SDK 17"
+  dependsOn(createLegacyWorkerValidatesRunnerTest(name: 'validatesRunnerLegacyWorkerTestOnJava17'))
+
+  javaLauncher = javaToolchains.launcherFor {
+    languageVersion = JavaLanguageVersion.of(17)
+  }
 }
 
 task validatesRunnerStreaming {
@@ -606,6 +624,38 @@ task examplesJavaRunnerV2IntegrationTest(type: Test) {
   dependsOn buildAndPushDockerContainer
 
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2PipelineOptions)
+
+  // The examples/java preCommit task already covers running WordCountIT/WindowedWordCountIT so
+  // this postCommit integration test excludes them.
+  include '**/*IT.class'
+  exclude '**/WordCountIT.class'
+  exclude '**/WindowedWordCountIT.class'
+  exclude '**/TopWikipediaSessionsIT.class'
+  exclude '**/AutoCompleteIT.class'
+  // TODO(BEAM-11201): test times out.
+  exclude '**/FhirIOReadIT.class'
+
+  maxParallelForks 4
+  classpath = configurations.examplesJavaIntegrationTest
+  testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
+  useJUnit { }
+}
+
+task setJavaSDK8AsCompiler(type: JavaCompile) {
+  javaCompiler = javaToolchains.compilerFor {
+    languageVersion = JavaLanguageVersion.of(8)
+  }
+}
+
+task examplesJavaRunnerV2IntegrationTestJavaSDK17(type: Test) {
+  group = "Verification"
+  dependsOn buildAndPushDockerContainer
+
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2PipelineOptions)
+
+  javaLauncher = javaToolchains.launcherFor {
+    languageVersion = JavaLanguageVersion.of(17)
+  }
 
   // The examples/java preCommit task already covers running WordCountIT/WindowedWordCountIT so
   // this postCommit integration test excludes them.

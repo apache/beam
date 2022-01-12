@@ -90,7 +90,7 @@ jmh {
     if (file("/opt/cprof/profiler_java_agent.so").exists()) {
       def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
       def userName = System.getProperty("user.name").toLowerCase().replaceAll(" ", "_")
-      jvmArgs '-agentpath:/opt/cprof/profiler_java_agent.so=-cprof_service=' + userName + "_" + project.getProperty("benchmark").toLowerCase() + '_' + System.currentTimeMillis() + ',-cprof_project_id=' + gcpProject + ',-cprof_zone_name=us-central1-a'
+      jvmArgs '--add-opens=java.base/java.lang.reflection=ALL-UNNAMED -agentpath:/opt/cprof/profiler_java_agent.so=-cprof_service=' + userName + "_" + project.getProperty("benchmark").toLowerCase() + '_' + System.currentTimeMillis() + ',-cprof_project_id=' + gcpProject + ',-cprof_zone_name=us-central1-a'
     }
   }
 }

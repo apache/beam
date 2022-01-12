@@ -154,6 +154,10 @@ task validatesRunner(type: Test) {
   String[] pipelineOptions = ["--runner=DirectRunner", "--runnerDeterminedSharding=false"]
   systemProperty "beamTestPipelineOptions", pipelineOptionsStringCrossPlatformHandling(pipelineOptions)
 
+  javaLauncher = javaToolchains.launcherFor {
+    languageVersion = JavaLanguageVersion.of(11)
+  }
+
   classpath = configurations.validatesRunner
   // NOTE: We only add to the test class dirs to ensure that the direct runner
   // tests (i.e., those from this subproject) get scanned.
@@ -170,6 +174,40 @@ task validatesRunner(type: Test) {
     excludeCategories "org.apache.beam.sdk.testing.UsesPythonExpansionService"
     // https://issues.apache.org/jira/browse/BEAM-2791
     excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'
+  }
+}
+
+task validatesRunnerOnJavaSDK17(type: Test) {
+  group = "Verification"
+  description "Validates Direct runner on Java 17"
+
+  String[] pipelineOptions = ["--runner=DirectRunner", "--runnerDeterminedSharding=false"]
+  systemProperty "beamTestPipelineOptions", pipelineOptionsStringCrossPlatformHandling(pipelineOptions)
+
+  javaLauncher = javaToolchains.launcherFor {
+    languageVersion = JavaLanguageVersion.of(17)
+  }
+
+  classpath = configurations.validatesRunner
+  // NOTE: We only add to the test class dirs to ensure that the direct runner
+  // tests (i.e., those from this subproject) get scanned.
+  testClassesDirs += files(project(":runners:core-construction-java").sourceSets.test.output.classesDirs)
+  testClassesDirs += files(project(":runners:core-java").sourceSets.test.output.classesDirs)
+  testClassesDirs += files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+  useJUnit {
+    includeCategories "org.apache.beam.sdk.testing.ValidatesRunner"
+    excludeCategories "org.apache.beam.sdk.testing.LargeKeys\$Above100MB"
+    excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
+    excludeCategories "org.apache.beam.sdk.testing.UsesCrossLanguageTransforms"
+    excludeCategories "org.apache.beam.sdk.testing.UsesPythonExpansionService"
+    // https://issues.apache.org/jira/browse/BEAM-2791
+    excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'
+  }
+}
+
+task setJavaSDK8AsCompiler(type: JavaCompile) {
+  javaCompiler = javaToolchains.compilerFor {
+    languageVersion = JavaLanguageVersion.of(8)
   }
 }
 
