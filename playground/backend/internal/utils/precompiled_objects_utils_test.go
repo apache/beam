@@ -125,9 +125,9 @@ func TestGetPrecompiledObjectsCatalogFromCache(t *testing.T) {
 			want:    sdkCategories,
 			wantErr: false,
 		},
-		// Test case with getting Precompiled Objects Catalog from cache when it doesn't exist.
-		// As a result, want to receive an error.
 		{
+			// Test case with getting Precompiled Objects Catalog from cache when it doesn't exist.
+			// As a result, want to receive an error.
 			name: "get missing catalog",
 			args: args{
 				ctx:          ctx,

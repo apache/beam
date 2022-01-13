@@ -57,12 +57,12 @@ func GetPrecompiledObjectsCatalogFromCache(ctx context.Context, cacheService cac
 	catalog, converted := value.([]*pb.Categories)
 	if !converted {
 		logger.Errorf("%s: couldn't convert value to catalog: %s", cache.ExamplesCatalog, value)
-		return nil, errors.InternalError("Error during getting the catalog from cache", "Error during getting status")
+		return nil, errors.InternalError("Error during getting the catalog from cache", "Error during getting catalog")
 	}
 	return catalog, nil
 }
 
-// GetPrecompiledObjectsCatalogFromStorage returns the precompiled objects catalog from the cloud storage in the response format
+// GetPrecompiledObjectsCatalogFromStorage returns the precompiled objects catalog from the cloud storage
 func GetPrecompiledObjectsCatalogFromStorage(ctx context.Context, sdk pb.Sdk, category string) ([]*pb.Categories, error) {
 	bucket := cloud_bucket.New()
 	sdkToCategories, err := bucket.GetPrecompiledObjects(ctx, sdk, category)
@@ -79,4 +79,13 @@ func GetPrecompiledObjectsCatalogFromStorage(ctx context.Context, sdk pb.Sdk, ca
 		sdkCategories = append(sdkCategories, &sdkCategory)
 	}
 	return sdkCategories, nil
+}
+
+// GetPrecompiledObjectsCatalogFromStorageToResponse returns the precompiled objects catalog from the cloud storage in the response format
+func GetPrecompiledObjectsCatalogFromStorageToResponse(ctx context.Context, sdk pb.Sdk, category string) (*pb.GetPrecompiledObjectsResponse, error) {
+	sdkCategories, err := GetPrecompiledObjectsCatalogFromStorage(ctx, sdk, category)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.GetPrecompiledObjectsResponse{SdkCategories: sdkCategories}, nil
 }
