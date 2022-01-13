@@ -1,0 +1,20 @@
+# This workflow will triage pull requests and apply a label based on the
+# paths that are modified in the pull request.
+
+name: LabelPrs
+on: [pull_request]
+
+jobs:
+  label:
+
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+    - uses: actions/labeler@v3
+      with:
+        repo-token: "${{ secrets.GITHUB_TOKEN }}"
+        configuration-path: '.github/autolabeler.yml'
+        sync-labels: true # Remove labels when matching files are reverted
