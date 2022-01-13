@@ -16,6 +16,7 @@
 #
 
 import logging
+from time import time
 import unittest
 
 from apache_beam.io.debezium import DriverClassName
@@ -46,17 +47,21 @@ class TestDebezium(unittest.TestCase):
     pass
 
   def test_stream_write(self):
+    start = time.time()
+    period_time = 1200
     with TestPipeline() as p:
-      results = (
-          p
-          | 'Read from debezium' >> ReadFromDebezium(
-              username=self.username,
-              password=self.password,
-              host=self.host,
-              port=self.port,
-              connector_class=self.connector_class,
-              connection_properties=self.connection_properties))
-      assert_that(results, equal_to([]))
+      while True:
+        results = (
+            p
+            | 'Read from debezium' >> ReadFromDebezium(
+                username=self.username,
+                password=self.password,
+                host=self.host,
+                port=self.port,
+                connector_class=self.connector_class,
+                connection_properties=self.connection_properties))
+        assert_that(results, equal_to([]))
+        if time.time() > start + period_time: break
 
   def start_db_container(self, retries):
     for i in range(retries):
