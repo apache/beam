@@ -60,14 +60,15 @@ class RunButton extends StatelessWidget {
               final seconds = (state.data ?? 0) / kMsToSec;
               final runText = AppLocalizations.of(context)!.run;
               final cancelText = AppLocalizations.of(context)!.cancel;
+              final buttonText = isRunning ? cancelText : runText;
               if (seconds > 0) {
                 return Text(
-                  '$cancelText (${seconds.toStringAsFixed(kSecondsFractions)} s)',
+                  '$buttonText (${seconds.toStringAsFixed(kSecondsFractions)} s)',
                 );
               }
-              return Text(runText);
+              return Text(buttonText);
             }),
-        onPressed: !isRunning ? runCode : null,
+        onPressed: !isRunning ? runCode : cancelRun,
       ),
     );
   }

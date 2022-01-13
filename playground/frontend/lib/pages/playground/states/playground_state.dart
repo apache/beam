@@ -165,6 +165,7 @@ class PlaygroundState with ChangeNotifier {
       output: _result?.output,
       log: (_result?.log ?? '') + kExecutionCancelledText,
     );
+    _executionTime?.close();
     notifyListeners();
   }
 
