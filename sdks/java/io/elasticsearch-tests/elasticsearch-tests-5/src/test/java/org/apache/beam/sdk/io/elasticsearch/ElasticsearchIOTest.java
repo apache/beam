@@ -268,6 +268,12 @@ public class ElasticsearchIOTest implements Serializable {
   }
 
   @Test
+  public void testDocToBulkAndBulkIO() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testDocToBulkAndBulkIO();
+  }
+
+  @Test
   public void testDocumentCoder() throws Exception {
     elasticsearchIOTestCommon.testDocumentCoder();
   }
