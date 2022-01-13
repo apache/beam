@@ -1,6 +1,8 @@
 ---
 type: languages
 title: "Java multi-language pipelines quickstart"
+aliases:
+  - /documentation/patterns/cross-language/
 ---
 
 <!--
