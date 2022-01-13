@@ -348,8 +348,6 @@ func TestApplicationEnvs_PipelinesFolder(t *testing.T) {
 		workingDir             string
 		cacheEnvs              *CacheEnvs
 		pipelineExecuteTimeout time.Duration
-		launchSite             string
-		projectId              string
 		pipelinesFolder        string
 	}
 	tests := []struct {

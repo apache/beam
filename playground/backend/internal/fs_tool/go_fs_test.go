@@ -24,10 +24,10 @@ import (
 
 func Test_newGoLifeCycle(t *testing.T) {
 	pipelineId := uuid.New()
-	workingDir := "workingDir"
+	workingDir, _ := filepath.Abs("workingDir")
 	baseFileFolder := filepath.Join(workingDir, pipelinesFolder, pipelineId.String())
-	srcFileFolder := baseFileFolder + "/src"
-	binFileFolder := baseFileFolder + "/bin"
+	srcFileFolder := filepath.Join(baseFileFolder, "src")
+	binFileFolder := filepath.Join(baseFileFolder, "bin")
 
 	type args struct {
 		pipelineId      uuid.UUID
@@ -48,16 +48,16 @@ func Test_newGoLifeCycle(t *testing.T) {
 			},
 			want: &LifeCycle{
 				folderGlobs: []string{baseFileFolder, srcFileFolder, binFileFolder},
-				Folder: Folder{
-					BaseFolder:           baseFileFolder,
-					SourceFileFolder:     srcFileFolder,
-					ExecutableFileFolder: binFileFolder,
+				Paths: LifeCyclePaths{
+					SourceFileName:                   pipelineId.String() + goSourceFileExtension,
+					AbsoluteSourceFileFolderPath:     srcFileFolder,
+					AbsoluteSourceFilePath:           filepath.Join(srcFileFolder, pipelineId.String()+goSourceFileExtension),
+					ExecutableFileName:               pipelineId.String() + goExecutableFileExtension,
+					AbsoluteExecutableFileFolderPath: binFileFolder,
+					AbsoluteExecutableFilePath:       filepath.Join(binFileFolder, pipelineId.String()+goExecutableFileExtension),
+					AbsoluteBaseFolderPath:           baseFileFolder,
+					AbsoluteLogFilePath:              filepath.Join(baseFileFolder, logFileName),
 				},
-				Extension: Extension{
-					SourceFileExtension:     goSourceFileExtension,
-					ExecutableFileExtension: goExecutableFileExtension,
-				},
-				pipelineId: pipelineId,
 			},
 		},
 	}
@@ -67,14 +67,8 @@ func Test_newGoLifeCycle(t *testing.T) {
 			if !reflect.DeepEqual(got.folderGlobs, tt.want.folderGlobs) {
 				t.Errorf("newGoLifeCycle() folderGlobs = %v, want %v", got.folderGlobs, tt.want.folderGlobs)
 			}
-			if !reflect.DeepEqual(got.Folder, tt.want.Folder) {
-				t.Errorf("newGoLifeCycle() Folder = %v, want %v", got.Folder, tt.want.Folder)
-			}
-			if !reflect.DeepEqual(got.Extension, tt.want.Extension) {
-				t.Errorf("newGoLifeCycle() Extension = %v, want %v", got.Extension, tt.want.Extension)
-			}
-			if !reflect.DeepEqual(got.pipelineId, tt.want.pipelineId) {
-				t.Errorf("newGoLifeCycle() pipelineId = %v, want %v", got.pipelineId, tt.want.pipelineId)
+			if !reflect.DeepEqual(got.Paths, tt.want.Paths) {
+				t.Errorf("newGoLifeCycle() Paths = %v, want %v", got.Paths, tt.want.Paths)
 			}
 		})
 	}
