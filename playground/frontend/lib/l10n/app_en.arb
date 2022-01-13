@@ -174,5 +174,9 @@
   "value": "Value",
   "@value": {
     "description": "Text value label"
+  },
+  "pipelineOptionsError": "Please check the format (example: --key1 value1 --key2 value2), only alphanumeric and \",*,/,-,:,;,',. symbols are allowed",
+  "@value": {
+    "description": "Pipeline options parse error"
   }
 }

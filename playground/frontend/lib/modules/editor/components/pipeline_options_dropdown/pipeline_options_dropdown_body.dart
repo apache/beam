@@ -18,12 +18,15 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:playground/config/theme.dart';
+import 'package:playground/constants/colors.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_option_model.dart';
 import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_options_dropdown_input.dart';
 import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_options_dropdown_separator.dart';
 import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_options_form.dart';
 import 'package:playground/modules/editor/parsers/run_options_parser.dart';
+import 'package:playground/modules/notifications/components/notification.dart';
 
 const kOptionsTabIndex = 0;
 const kRawTabIndex = 1;
@@ -55,6 +58,7 @@ class _PipelineOptionsDropdownBodyState
       TextEditingController();
   List<PipelineOptionController> pipelineOptionsList = kDefaultOption;
   int selectedTab = kOptionsTabIndex;
+  bool showError = false;
 
   @override
   void initState() {
@@ -127,15 +131,13 @@ class _PipelineOptionsDropdownBodyState
         Padding(
           padding: const EdgeInsets.all(kXlSpacing),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               SizedBox(
                 height: kButtonHeight,
                 child: ElevatedButton(
                   child: Text(appLocale.saveAndClose),
-                  onPressed: () {
-                    widget.setPipelineOptions(pipelineOptionsValue);
-                    widget.close();
-                  },
+                  onPressed: () => _save(context),
                 ),
               ),
               const SizedBox(width: kLgSpacing),
@@ -147,6 +149,17 @@ class _PipelineOptionsDropdownBodyState
                     onPressed: () => setState(() {
                       pipelineOptionsList.add(PipelineOptionController());
                     }),
+                  ),
+                ),
+              if (showError && selectedTab == kRawTabIndex)
+                Flexible(
+                  child: Text(
+                    appLocale.pipelineOptionsError,
+                    style: Theme.of(context)
+                        .textTheme
+                        .caption
+                        ?.copyWith(color: kErrorNotificationColor),
+                    softWrap: true,
                   ),
                 ),
             ],
@@ -169,6 +182,23 @@ class _PipelineOptionsDropdownBodyState
       return pipelineOptionsController.text;
     }
     return pipelineOptionsToString(pipelineOptionsListValue);
+  }
+
+  _save(BuildContext context) {
+    if (selectedTab == kRawTabIndex && !_isPipelineOptionsTextValid()) {
+      setState(() {
+        showError = true;
+      });
+      return;
+    }
+    widget.setPipelineOptions(pipelineOptionsValue);
+    widget.close();
+  }
+
+  bool _isPipelineOptionsTextValid() {
+    final options = pipelineOptionsController.text;
+    final parsedOptions = parsePipelineOptions(options);
+    return options.isEmpty && parsedOptions != null;
   }
 
   _updateRawValue() {
