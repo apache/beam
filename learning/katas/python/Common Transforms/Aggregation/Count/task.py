@@ -21,6 +21,7 @@
 #   pipeline_options:
 #   categories:
 #     - Combiners
+#     - Quick Start
 
 import apache_beam as beam
 

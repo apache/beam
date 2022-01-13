@@ -27,6 +27,7 @@ package org.apache.beam.examples;
 //     - Filtering
 //     - IO
 //     - Core Transforms
+//     - Quick Start
 
 import java.util.Arrays;
 import org.apache.beam.sdk.Pipeline;

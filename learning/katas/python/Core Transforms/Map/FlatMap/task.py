@@ -22,6 +22,7 @@
 #   pipeline_options:
 #   categories:
 #     - Core Transforms
+#     - Quick Start
 
 import apache_beam as beam
 

@@ -25,6 +25,7 @@ package org.apache.beam.learning.katas.commontransforms.aggregation.count;
 //   pipeline_options:
 //   categories:
 //     - Combiners
+//     - Quick Start
 
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;
