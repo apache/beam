@@ -73,6 +73,9 @@ void main() {
       when(client.getCompileOutput(kPipelineUuid, kRequestMock)).thenAnswer(
         (_) async => kCompileOutputResponse,
       );
+      when(client.getRunErrorOutput(kPipelineUuid, kRequestMock)).thenAnswer(
+        (_) async => kRunErrorOutputResponse,
+      );
       when(client.getLogOutput(kPipelineUuid, kRequestMock)).thenAnswer(
         (_) async => kLogOutputResponse,
       );
@@ -92,7 +95,7 @@ void main() {
           RunCodeResult(
             pipelineUuid: kPipelineUuid,
             status: RunCodeStatus.finished,
-            output: kRunOutput,
+            output: kRunOutput + kRunErrorOutput,
             log: kProcessingStartedText + kLogOutput,
           ),
         ]),
@@ -240,7 +243,7 @@ void main() {
         RunCodeResult(
           pipelineUuid: kPipelineUuid,
           status: RunCodeStatus.finished,
-          output: kRunOutput * 3,
+          output: kRunOutput * 3 + kRunErrorOutput,
           log: kProcessingStartedText + kLogOutput * 3,
         ),
       ]),
