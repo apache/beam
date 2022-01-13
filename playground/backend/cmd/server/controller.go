@@ -245,29 +245,24 @@ func (controller *playgroundController) Cancel(ctx context.Context, info *pb.Can
 //	- If there is no catalog in the cache, gets the catalog from the Storage and saves it to the cache
 // - If SDK or category is specified in the request, gets the specific catalog from the Storage
 func (controller *playgroundController) GetPrecompiledObjects(ctx context.Context, info *pb.GetPrecompiledObjectsRequest) (*pb.GetPrecompiledObjectsResponse, error) {
-	var response *pb.GetPrecompiledObjectsResponse
-	var err error
-	if info.Sdk != pb.Sdk_SDK_UNSPECIFIED || info.Category != "" {
-		response, err = utils.GetPrecompiledObjectsCatalogFromStorageToResponse(ctx, info.Sdk, info.Category)
-		if err != nil {
-			return nil, errors.InternalError("Error during getting Precompiled Objects", "Error with cloud connection")
-		}
-	} else {
+	if info.Sdk == pb.Sdk_SDK_UNSPECIFIED && info.Category == "" {
 		catalog, err := utils.GetPrecompiledObjectsCatalogFromCache(ctx, controller.cacheService)
 		if err == nil {
-			response = &pb.GetPrecompiledObjectsResponse{SdkCategories: catalog}
+			return &pb.GetPrecompiledObjectsResponse{SdkCategories: catalog}, nil
 		} else {
 			logger.Errorf("GetPrecompiledObjects(): cache error: %s", err.Error())
-			response, err = utils.GetPrecompiledObjectsCatalogFromStorageToResponse(ctx, info.Sdk, info.Category)
-			if err != nil {
-				return nil, errors.InternalError("Error during getting Precompiled Objects", "Error with cloud connection")
-			}
-			if err = utils.SetToCache(ctx, controller.cacheService, uuid.Nil, cache.ExamplesCatalog, response.SdkCategories); err != nil {
-				logger.Errorf("GetPrecompiledObjects(): cache error: %s", err.Error())
-			}
 		}
 	}
-	return response, nil
+	catalog, err := utils.GetPrecompiledObjectsCatalogFromStorage(ctx, info.Sdk, info.Category)
+	if err != nil {
+		return nil, errors.InternalError("Error during getting Precompiled Objects", "Error with cloud connection")
+	}
+	if info.Sdk == pb.Sdk_SDK_UNSPECIFIED && info.Category == "" {
+		if err = utils.SetToCache(ctx, controller.cacheService, uuid.Nil, cache.ExamplesCatalog, catalog); err != nil {
+			logger.Errorf("GetPrecompiledObjects(): cache error: %s", err.Error())
+		}
+	}
+	return &pb.GetPrecompiledObjectsResponse{SdkCategories: catalog}, nil
 }
 
 // GetPrecompiledObjectCode returns the code of the specific example

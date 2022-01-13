@@ -80,12 +80,3 @@ func GetPrecompiledObjectsCatalogFromStorage(ctx context.Context, sdk pb.Sdk, ca
 	}
 	return sdkCategories, nil
 }
-
-// GetPrecompiledObjectsCatalogFromStorageToResponse returns the precompiled objects catalog from the cloud storage in the response format
-func GetPrecompiledObjectsCatalogFromStorageToResponse(ctx context.Context, sdk pb.Sdk, category string) (*pb.GetPrecompiledObjectsResponse, error) {
-	sdkCategories, err := GetPrecompiledObjectsCatalogFromStorage(ctx, sdk, category)
-	if err != nil {
-		return nil, err
-	}
-	return &pb.GetPrecompiledObjectsResponse{SdkCategories: sdkCategories}, nil
-}
