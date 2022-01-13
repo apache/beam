@@ -54,10 +54,10 @@ import os
 import shutil
 import sys
 import tempfile
+from typing import Callable
 from typing import List
 from typing import Optional
 from typing import Tuple
-from typing import Callable
 from urllib.parse import urlparse
 
 import pkg_resources
