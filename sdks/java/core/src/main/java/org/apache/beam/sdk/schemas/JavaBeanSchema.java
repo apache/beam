@@ -26,6 +26,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.annotations.SchemaCaseFormat;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.DefaultTypeConversionsFactory;
 import org.apache.beam.sdk.schemas.utils.FieldValueTypeSupplier;
@@ -119,6 +120,12 @@ public class JavaBeanSchema extends GetterBasedSchemaProvider {
           .map(FieldValueTypeInformation::forSetter)
           .map(
               t -> {
+                if (t.getMethod().getAnnotation(SchemaFieldNumber.class) != null) {
+                  throw new RuntimeException(
+                      String.format(
+                          "@SchemaFieldNumber can only be used on getters in Java Beans. Found on setter '%s'",
+                          t.getMethod().getName()));
+                }
                 if (t.getMethod().getAnnotation(SchemaFieldName.class) != null) {
                   throw new RuntimeException(
                       String.format(
