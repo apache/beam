@@ -1,5 +1,3 @@
-// XXX rename to combiners or combineFns.
-
 import { CombineFn } from "./group_and_combine";
 
 export class CountFn implements CombineFn<any, number, number> {

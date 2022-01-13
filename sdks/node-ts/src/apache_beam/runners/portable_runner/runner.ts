@@ -16,13 +16,13 @@ const TERMINAL_STATES = [
   JobState_Enum.DRAINED,
 ];
 
-class NodeRunnerPipelineResult implements PipelineResult {
+class PortableRunnerPipelineResult implements PipelineResult {
   jobId: string;
-  runner: NodeRunner;
+  runner: PortableRunner;
   workers?: ExternalWorkerPool;
 
   constructor(
-    runner: NodeRunner,
+    runner: PortableRunner,
     jobId: string,
     workers: ExternalWorkerPool | undefined = undefined
   ) {
@@ -39,7 +39,7 @@ class NodeRunnerPipelineResult implements PipelineResult {
     const state = await this.runner.getJobState(this.jobId);
     if (
       this.workers != undefined &&
-      NodeRunnerPipelineResult.isTerminal(state.state)
+      PortableRunnerPipelineResult.isTerminal(state.state)
     ) {
       this.workers.stop();
       this.workers = undefined;
@@ -54,7 +54,7 @@ class NodeRunnerPipelineResult implements PipelineResult {
   async waitUntilFinish(duration?: number) {
     let { state } = await this.getState();
     const start = Date.now();
-    while (!NodeRunnerPipelineResult.isTerminal(state)) {
+    while (!PortableRunnerPipelineResult.isTerminal(state)) {
       const now = Date.now();
       if (duration !== undefined && now - start > duration) {
         return state;
@@ -66,7 +66,7 @@ class NodeRunnerPipelineResult implements PipelineResult {
   }
 }
 
-export class NodeRunner extends Runner {
+export class PortableRunner extends Runner {
   client: RemoteJobServiceClient;
 
   constructor(client: RemoteJobServiceClient) {
@@ -111,7 +111,7 @@ export class NodeRunner extends Runner {
       options
     );
     const { jobId } = await this.client.run(preparationId);
-    return new NodeRunnerPipelineResult(this, jobId, workers);
+    return new PortableRunnerPipelineResult(this, jobId, workers);
   }
 
   async runPipelineWithJsonValueProto(

@@ -2,7 +2,7 @@ import { KV } from "../values";
 import { PTransform } from "./transform";
 import { PCollection } from "../pvalue";
 import { GroupByKey, CombinePerKey } from "./internal";
-import { CountFn } from "./combine";
+import { CountFn } from "./combiners";
 
 // TODO: Consider groupBy as a top-level method on PCollections.
 // TBD how to best express the combiners.

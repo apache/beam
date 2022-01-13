@@ -4,4 +4,4 @@ export * from "./flatten";
 export * from "./group_and_combine";
 export * from "./pardo";
 export * from "./transform";
-export * from "./windowing";
+export * from "./window";

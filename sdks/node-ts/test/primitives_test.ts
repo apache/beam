@@ -12,7 +12,7 @@ import { GeneralObjectCoder } from "../src/apache_beam/coders/js_coders";
 
 import { DirectRunner } from "../src/apache_beam/runners/direct_runner";
 import * as testing from "../src/apache_beam/testing/assert";
-import * as windowing from "../src/apache_beam/transforms/windowing";
+import * as windowings from "../src/apache_beam/transforms/windowings";
 
 describe("primitives module", function () {
   describe("applies basic transforms", function () {
@@ -74,7 +74,7 @@ describe("primitives module", function () {
       await new DirectRunner().run((root) => {
         root
           .apply(new beam.Create(["apple", "apricot", "banana"]))
-          .apply(new beam.WindowInto(new windowing.GlobalWindows()))
+          .apply(new beam.WindowInto(new windowings.GlobalWindows()))
           .apply(new beam.GroupBy((e: string) => e[0]))
           .apply(
             new testing.AssertDeepEqual([
@@ -89,7 +89,7 @@ describe("primitives module", function () {
         root
           .apply(new beam.Create([1, 2, 3, 4, 5, 10, 11, 12]))
           .apply(new beam.AssignTimestamps((t) => Long.fromValue(t * 1000)))
-          .apply(new beam.WindowInto(new windowing.FixedWindows(10)))
+          .apply(new beam.WindowInto(new windowings.FixedWindows(10)))
           .apply(new beam.GroupBy((e: number) => ""))
           .apply(
             new testing.AssertDeepEqual([

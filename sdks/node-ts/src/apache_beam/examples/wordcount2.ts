@@ -4,11 +4,11 @@ import * as beam from "../../apache_beam";
 import * as textio from "../io/textio";
 import { DirectRunner } from "../runners/direct_runner";
 
-import { CountFn } from "../transforms/combine";
+import { CountFn } from "../transforms/combiners";
 import { GroupBy } from "../transforms/group_and_combine";
 
-import { NodeRunner } from "../runners/node_runner/runner";
-import { RemoteJobServiceClient } from "../runners/node_runner/client";
+import { PortableRunner } from "../runners/portable_runner/runner";
+import { RemoteJobServiceClient } from "../runners/portable_runner/client";
 
 class CountElements extends beam.PTransform<
   beam.PCollection<any>,
@@ -34,7 +34,7 @@ function wordCount(lines: beam.PCollection<string>): beam.PCollection<any> {
 
 async function main() {
   // python apache_beam/runners/portability/local_job_service_main.py --port 3333
-  await new NodeRunner(new RemoteJobServiceClient("localhost:3333")).run(
+  await new PortableRunner(new RemoteJobServiceClient("localhost:3333")).run(
     async (root) => {
       const lines = await root.asyncApply(
         new textio.ReadFromText(

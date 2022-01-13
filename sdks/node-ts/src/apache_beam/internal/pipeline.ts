@@ -2,7 +2,7 @@ import equal from "fast-deep-equal";
 
 import * as runnerApi from "../proto/beam_runner_api";
 import { PTransform, AsyncPTransform } from "../transforms/transform";
-import { GlobalWindows } from "../transforms/windowing";
+import { GlobalWindows } from "../transforms/windowings";
 import { PValue, PCollection, flattenPValue } from "../pvalue";
 import { PipelineContext } from "../base";
 import { WindowInto } from "../base";

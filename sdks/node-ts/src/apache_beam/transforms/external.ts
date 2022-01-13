@@ -255,8 +255,8 @@ function encodeSchemaPayload(
 }
 
 import * as beam from "../../apache_beam";
-import { NodeRunner } from "../runners/node_runner/runner";
-import { RemoteJobServiceClient } from "../runners/node_runner/client";
+import { PortableRunner } from "../runners/portable_runner/runner";
+import { RemoteJobServiceClient } from "../runners/portable_runner/client";
 
 // async function main() {
 // //     const kvCoder = new coders.KVCoder(new coders.VarIntCoder(), new coders.VarIntCoder());
@@ -275,7 +275,7 @@ import { RemoteJobServiceClient } from "../runners/node_runner/client";
 // //
 //
 //     const kvCoder = new coders.KVCoder(new coders.StrUtf8Coder(), new coders.StrUtf8Coder());
-//     await new NodeRunner(new RemoteJobServiceClient('localhost:3333')).run(
+//     await new PortableRunner(new RemoteJobServiceClient('localhost:3333')).run(
 // //         await new DirectRunner().run(
 //             async (root) => {
 // //                 const lines = root.apply(new beam.Create([
