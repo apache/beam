@@ -130,6 +130,7 @@ class CDHelper:
     file_names[output_path] = example.output
     meta = example.tag._asdict()
     meta["type"] = example.type
+    meta["link"] = example.link
     file_names[meta_path] = json.dumps(meta)
     file_names[log_path] = example.logs
     for file_name, file_content in file_names.items():

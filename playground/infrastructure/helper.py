@@ -22,7 +22,7 @@ import logging
 import os
 from collections import namedtuple
 from dataclasses import dataclass, fields
-from typing import List, Optional, Dict, Union
+from typing import List, Optional, Dict
 
 import yaml
 from yaml import YAMLError
@@ -61,6 +61,7 @@ class Example:
   type: PrecompiledObjectType = PRECOMPILED_OBJECT_TYPE_UNSPECIFIED
   pipeline_id: str = ""
   output: str = ""
+  link: str = ""
 
 
 @dataclass
@@ -240,6 +241,7 @@ def _get_example(
   with open(filepath, encoding="utf-8") as parsed_file:
     content = parsed_file.read()
   content = content.replace(tag.tag_as_string, "")
+  link = Config.LINK_PREFIX + (filepath.replace(os.getenv("BEAM_ROOT_DIR"), "", 1))
 
   return Example(
       name=name,
@@ -248,7 +250,8 @@ def _get_example(
       code=content,
       status=STATUS_UNSPECIFIED,
       tag=Tag(**tag.tag_as_dict),
-      type=object_type)
+      type=object_type,
+      link=link)
 
 
 def _validate(tag: dict, supported_categories: List[str]) -> bool:
