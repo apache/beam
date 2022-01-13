@@ -70,6 +70,25 @@ public class PartitionMetadataDao {
   }
 
   /**
+   * Checks whether the metadata table already exists in the database.
+   *
+   * @return true if the table exists, false if the table does not exist.
+   */
+  public boolean tableExists() {
+    final String checkTableExistsStmt =
+        "SELECT t.table_name FROM information_schema.tables AS t "
+            + "WHERE t.table_catalog = '' AND "
+            + "t.table_schema = '' AND "
+            + "t.table_name = '"
+            + metadataTableName
+            + "'";
+    try (ResultSet queryResultSet = databaseClient.singleUseReadOnlyTransaction()
+        .executeQuery(Statement.of(checkTableExistsStmt))) {
+      return queryResultSet.next();
+    }
+  }
+
+  /**
    * Fetches the partition metadata row data for the given partition token.
    *
    * @param partitionToken the partition unique identifier

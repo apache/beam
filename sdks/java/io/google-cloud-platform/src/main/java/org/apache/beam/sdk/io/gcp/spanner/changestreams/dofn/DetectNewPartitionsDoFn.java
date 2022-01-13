@@ -54,7 +54,7 @@ import org.slf4j.LoggerFactory;
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
-public class DetectNewPartitionsDoFn extends DoFn<byte[], PartitionMetadata> {
+public class DetectNewPartitionsDoFn extends DoFn<PartitionMetadata, PartitionMetadata> {
 
   private static final long serialVersionUID = 1523712495885011374L;
   private static final Duration DEFAULT_RESUME_DURATION = Duration.millis(100L);

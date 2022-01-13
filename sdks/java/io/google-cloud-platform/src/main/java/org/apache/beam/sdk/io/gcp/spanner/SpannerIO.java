@@ -65,11 +65,11 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.PipelineInitializer;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.TimestampConverter;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.actions.ActionFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.DaoFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.DetectNewPartitionsDoFn;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.InitializeDoFn;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.PostProcessingMetricsDoFn;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.ReadChangeStreamPartitionDoFn;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.MapperFactory;
@@ -1552,18 +1552,14 @@ public class SpannerIO {
                 input.getPipeline().getOptions().getJobName());
         final ActionFactory actionFactory = new ActionFactory();
 
+        final InitializeDoFn initializeDoFn =
+            new InitializeDoFn(daoFactory, mapperFactory, startTimestamp, endTimestamp);
         final DetectNewPartitionsDoFn detectNewPartitionsDoFn =
             new DetectNewPartitionsDoFn(daoFactory, mapperFactory, metrics);
         final ReadChangeStreamPartitionDoFn readChangeStreamPartitionDoFn =
             new ReadChangeStreamPartitionDoFn(daoFactory, mapperFactory, actionFactory, metrics);
         final PostProcessingMetricsDoFn postProcessingMetricsDoFn =
             new PostProcessingMetricsDoFn(metrics);
-
-        PipelineInitializer.initialize(
-            daoFactory.getPartitionMetadataAdminDao(),
-            daoFactory.getPartitionMetadataDao(),
-            startTimestamp,
-            endTimestamp);
 
         LOG.info("Partition metadata table that will be used is " + partitionMetadataTableName);
 
@@ -1573,6 +1569,7 @@ public class SpannerIO {
         //     .apply(ParDo.of(new CleanUpReadChangeStreamDoFn(daoFactory)));
         return input
             .apply(Impulse.create())
+            .apply("Initialize the connector", ParDo.of(initializeDoFn))
             .apply("Detect new partitions", ParDo.of(detectNewPartitionsDoFn))
             .apply("Read change stream partition", ParDo.of(readChangeStreamPartitionDoFn))
             .apply("Gather metrics", ParDo.of(postProcessingMetricsDoFn));
