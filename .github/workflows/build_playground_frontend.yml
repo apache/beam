@@ -46,14 +46,14 @@ jobs:
         run: |
             wget https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_$FLUTTER_VERSION.tar.xz &&\
             tar -xf flutter_linux_$FLUTTER_VERSION.tar.xz &&\
-            mv flutter /opt/ &&\
-            ln -s /opt/flutter/bin/flutter /usr/local/bin/flutter &&\
-            ln -s /opt/flutter/bin/dart /usr/local/bin/dart &&\
-            dart pub global activate protoc_plugin &&\
-            ln -s /root/.pub-cache/bin/protoc-gen-dart /usr/local/bin/
+            sudo mv flutter /opt/ &&\
+            sudo ln -s /opt/flutter/bin/flutter /usr/local/bin/flutter &&\
+            sudo ln -s /opt/flutter/bin/dart /usr/local/bin/dart &&\
+            sudo dart pub global activate protoc_plugin &&\
+            sudo ln -s /root/.pub-cache/bin/protoc-gen-dart /usr/local/bin/
       - name: Remove default github maven configuration
         # This step is a workaround to avoid a decryption issue
-        run: rm ~/.m2/settings.xml
+        run: sudo rm ~/.m2/settings.xml
       - name: Run PreCommit
         run: ./gradlew playground:frontend:precommit
       - name: install npm
