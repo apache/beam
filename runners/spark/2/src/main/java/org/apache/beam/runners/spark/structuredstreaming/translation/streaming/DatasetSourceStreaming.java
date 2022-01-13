@@ -203,7 +203,10 @@ class DatasetSourceStreaming implements DataSourceV2, MicroBatchReadSupport {
       implements InputPartitionReader<InternalRow> {
     private boolean started;
     private boolean closed;
+
+    @SuppressWarnings("unused")
     private final UnboundedSource<T, CheckpointMarkT> source;
+
     private UnboundedSource.UnboundedReader<T> reader;
     private final Coder<T> coder;
 

@@ -118,7 +118,10 @@ public class DatasetSourceBatch implements DataSourceV2, ReadSupport {
   private static class DatasetPartitionReader<T> implements InputPartitionReader<InternalRow> {
     private boolean started;
     private boolean closed;
+
+    @SuppressWarnings("unused")
     private final BoundedSource<T> source;
+
     private BoundedReader<T> reader;
     private final Coder<T> coder;
 
