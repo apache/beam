@@ -20,6 +20,7 @@ package org.apache.beam.runners.core.construction.graph;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -107,12 +108,21 @@ public class ProjectionPushdownOptimizer {
       return outputs.entrySet().stream()
           .map(
               oldOutput -> {
-                // If output is a single PCollection, use it directly; else if output is a
-                // PCollectionTuple, look up component PCollections using the original output tags.
-                PCollection<?> newOutputPColl =
-                    newOutput.expand().size() == 1
-                        ? (PCollection<?>) Iterables.getOnlyElement(newOutput.expand().values())
-                        : (PCollection<?>) newOutput.expand().get(oldOutput.getKey());
+                PCollection<?> newOutputPColl;
+                if (newOutput.expand().size() == 1) {
+                  // If output is a single PCollection, use it directly.
+                  newOutputPColl =
+                      (PCollection<?>) Iterables.getOnlyElement(newOutput.expand().values());
+                } else {
+                  // Output is a PCollectionTuple, look up component PCollections using the original
+                  // output tags.
+                  newOutputPColl =
+                      Objects.requireNonNull(
+                          (PCollection<?>) newOutput.expand().get(oldOutput.getKey()),
+                          String.format(
+                              "No PCollection found for output tag %s. Were output tags changed in actuateProjectionPushdown?",
+                              oldOutput.getKey()));
+                }
                 return new SimpleEntry<>(
                     newOutputPColl,
                     ReplacementOutput.of(
