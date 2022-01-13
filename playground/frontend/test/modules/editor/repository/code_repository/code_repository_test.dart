@@ -90,6 +90,7 @@ void main() {
             log: kProcessingStartedText,
           ),
           RunCodeResult(
+            pipelineUuid: kPipelineUuid,
             status: RunCodeStatus.finished,
             output: kRunOutput,
             log: kProcessingStartedText + kLogOutput,
@@ -132,6 +133,7 @@ void main() {
             log: kProcessingStartedText,
           ),
           RunCodeResult(
+            pipelineUuid: kPipelineUuid,
             status: RunCodeStatus.compileError,
             output: kCompileOutput,
             log: kProcessingStartedText,
@@ -176,6 +178,7 @@ void main() {
             log: kProcessingStartedText,
           ),
           RunCodeResult(
+            pipelineUuid: kPipelineUuid,
             status: RunCodeStatus.runError,
             output: kRunErrorOutput,
             log: kProcessingStartedText,
@@ -223,16 +226,19 @@ void main() {
           log: kProcessingStartedText,
         ),
         RunCodeResult(
+          pipelineUuid: kPipelineUuid,
           status: RunCodeStatus.executing,
           output: kRunOutput,
           log: kProcessingStartedText + kLogOutput,
         ),
         RunCodeResult(
+          pipelineUuid: kPipelineUuid,
           status: RunCodeStatus.executing,
           output: kRunOutput * 2,
           log: kProcessingStartedText + kLogOutput * 2,
         ),
         RunCodeResult(
+          pipelineUuid: kPipelineUuid,
           status: RunCodeStatus.finished,
           output: kRunOutput * 3,
           log: kProcessingStartedText + kLogOutput * 3,
