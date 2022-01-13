@@ -254,9 +254,9 @@ function encodeSchemaPayload(
   });
 }
 
-import * as beam from "../../apache_beam";
-import { PortableRunner } from "../runners/portable_runner/runner";
-import { RemoteJobServiceClient } from "../runners/portable_runner/client";
+// import * as beam from "../../apache_beam";
+// import { PortableRunner } from "../runners/portable_runner/runner";
+// import { RemoteJobServiceClient } from "../runners/portable_runner/client";
 
 // async function main() {
 // //     const kvCoder = new coders.KVCoder(new coders.VarIntCoder(), new coders.VarIntCoder());
