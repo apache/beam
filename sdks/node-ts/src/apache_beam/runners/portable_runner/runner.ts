@@ -1,4 +1,10 @@
-import { RemoteJobServiceClient } from "./client";
+import { ChannelCredentials } from "@grpc/grpc-js";
+import { GrpcTransport } from "@protobuf-ts/grpc-transport";
+
+import { PrepareJobRequest } from "../../proto/beam_job_api";
+// TODO: standardize on .client or .grpc-client.
+import { JobServiceClient } from "../../proto/beam_job_api.client";
+
 import { Pipeline } from "../../base";
 import { PipelineResult, Runner } from "../runner";
 import { PipelineOptions } from "../../options/pipeline_options";
@@ -67,15 +73,21 @@ class PortableRunnerPipelineResult implements PipelineResult {
 }
 
 export class PortableRunner extends Runner {
-  client: RemoteJobServiceClient;
+  client: JobServiceClient;
 
-  constructor(client: RemoteJobServiceClient) {
+  constructor(host: string) {
     super();
-    this.client = client;
+    this.client = new JobServiceClient(
+      new GrpcTransport({
+        host,
+        channelCredentials: ChannelCredentials.createInsecure(),
+      })
+    );
   }
 
   async getJobState(jobId: string) {
-    return this.client.getState(jobId);
+    const call = this.client.getState({ jobId });
+    return await call.response;
   }
 
   async runPipeline(
@@ -91,6 +103,7 @@ export class PortableRunner extends Runner {
     options?: PipelineOptions
   ) {
     // Replace the default environment according to the pipeline options.
+    // TODO: Choose a free port.
     const externalWorkerServiceAddress = "localhost:5555";
     const workers = new ExternalWorkerPool(externalWorkerServiceAddress);
     workers.start();
@@ -105,12 +118,15 @@ export class PortableRunner extends Runner {
       }
     }
 
-    const { preparationId } = await this.client.prepare(
-      pipeline,
-      jobName,
-      options
-    );
-    const { jobId } = await this.client.run(preparationId);
+    let message: PrepareJobRequest = { pipeline, jobName };
+    if (options) {
+      message.pipelineOptions = options;
+    }
+    const prepareCall = this.client.prepare(message);
+    const { preparationId } = await prepareCall.response;
+
+    const runCall = this.client.run({ preparationId, retrievalToken: "" });
+    const { jobId } = await runCall.response;
     return new PortableRunnerPipelineResult(this, jobId, workers);
   }
 
