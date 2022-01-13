@@ -3,7 +3,7 @@
 import * as beam from "../../apache_beam";
 import { DirectRunner } from "../runners/direct_runner";
 
-import { CountFn } from "../transforms/combine";
+import { CountFn } from "../transforms/combiners";
 import { GroupBy } from "../transforms/group_and_combine";
 
 class CountElements extends beam.PTransform<

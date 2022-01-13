@@ -1,4 +1,3 @@
-// XXX rename to windowings
 import Long from "long";
 
 import * as runnerApi from "../proto/beam_runner_api";

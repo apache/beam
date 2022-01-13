@@ -1,8 +1,8 @@
 import fs from "fs";
 import assert from "assert";
 
-import { RemoteJobServiceClient } from "../src/apache_beam/runners/node_runner/client";
-import { NodeRunner } from "../src/apache_beam/runners/node_runner/runner";
+import { RemoteJobServiceClient } from "../src/apache_beam/runners/portable_runner/client";
+import { PortableRunner } from "../src/apache_beam/runners/portable_runner/runner";
 import { JobState_Enum } from "../src/apache_beam/proto/beam_job_api";
 
 const JOB_SERVICE_HOST = process.env["JOB_SERVICE_HOST"];
@@ -16,7 +16,7 @@ describe("node runner", () => {
 
     const pipelineJson = fs.readFileSync(JSON_PROTO_PATH, "utf-8");
 
-    const runner = new NodeRunner(new RemoteJobServiceClient(JOB_SERVICE_HOST));
+    const runner = new PortableRunner(new RemoteJobServiceClient(JOB_SERVICE_HOST));
     const pipelineResult = await runner.runPipelineWithJsonStringProto(
       pipelineJson,
       "pipeline"

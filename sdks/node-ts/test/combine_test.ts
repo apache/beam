@@ -3,9 +3,9 @@ import { DirectRunner } from "../src/apache_beam/runners/direct_runner";
 import * as testing from "../src/apache_beam/testing/assert";
 import { KV } from "../src/apache_beam/values";
 
-import { NodeRunner } from "../src/apache_beam/runners/node_runner/runner";
-import { RemoteJobServiceClient } from "../src/apache_beam/runners/node_runner/client";
-import { SumFn, MeanFn, MaxFn } from "../src/apache_beam/transforms/combine";
+import { PortableRunner } from "../src/apache_beam/runners/portable_runner/runner";
+import { RemoteJobServiceClient } from "../src/apache_beam/runners/portable_runner/client";
+import { SumFn, MeanFn, MaxFn } from "../src/apache_beam/transforms/combiners";
 import {
   CombineFn,
   GroupBy,
@@ -16,7 +16,7 @@ import {
 
 describe("Apache Beam combiners", function () {
   it("runs wordcount with a countPerKey transform and asserts the result", async function () {
-    //         await new NodeRunner(new RemoteJobServiceClient('localhost:3333')).run(
+    //         await new PortableRunner(new RemoteJobServiceClient('localhost:3333')).run(
     await new DirectRunner().run((root) => {
       const lines = root.apply(
         new beam.Create([

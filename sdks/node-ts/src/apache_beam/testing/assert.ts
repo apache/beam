@@ -1,5 +1,5 @@
 import * as beam from "../../apache_beam";
-import { GlobalWindows } from "../../apache_beam/transforms/windowing";
+import { GlobalWindows } from "../../apache_beam/transforms/windowings";
 
 import * as assert from "assert";
 
