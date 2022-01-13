@@ -18,6 +18,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:playground/config/theme.dart';
+import 'package:playground/constants/colors.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/examples/components/examples_components.dart';
 import 'package:playground/modules/examples/models/selector_size_model.dart';
@@ -151,18 +152,30 @@ class _ExampleSelectorState extends State<ExampleSelector>
                           color: Theme.of(context).backgroundColor,
                           borderRadius: BorderRadius.circular(kMdBorderRadius),
                         ),
-                        child: Column(
-                          children: [
-                            SearchField(controller: textController),
-                            const TypeFilter(),
-                            ExampleList(
-                              controller: scrollController,
-                              selectedExample: playgroundState.selectedExample!,
-                              animationController: animationController,
-                              dropdown: examplesDropdown,
-                            ),
-                          ],
-                        ),
+                        child: exampleState.sdkCategories == null ||
+                                playgroundState.selectedExample == null
+                            ? const Center(
+                                child: SizedBox(
+                                  height: kContainerHeight,
+                                  width: kContainerHeight,
+                                  child: CircularProgressIndicator(
+                                    color: kLightPrimary,
+                                  ),
+                                ),
+                              )
+                            : Column(
+                                children: [
+                                  SearchField(controller: textController),
+                                  const TypeFilter(),
+                                  ExampleList(
+                                    controller: scrollController,
+                                    selectedExample:
+                                        playgroundState.selectedExample!,
+                                    animationController: animationController,
+                                    dropdown: examplesDropdown,
+                                  ),
+                                ],
+                              ),
                       ),
                     ),
                   ),
