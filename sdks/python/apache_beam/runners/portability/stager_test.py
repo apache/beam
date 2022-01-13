@@ -87,7 +87,8 @@ class StagerTest(unittest.TestCase):
     else:
       shutil.copyfile(from_path, to_path)
 
-  def populate_requirements_cache(self, requirements_file, cache_dir):
+  def populate_requirements_cache(
+      self, requirements_file, cache_dir, fetch_binary=False):
     _ = requirements_file
     self.create_temp_file(os.path.join(cache_dir, 'abc.txt'), 'nothing')
     self.create_temp_file(os.path.join(cache_dir, 'def.txt'), 'nothing')
@@ -709,7 +710,7 @@ class StagerTest(unittest.TestCase):
     self.assertEqual(['apache_beam\n', 'avro-python3\n', 'numpy\n'],
                      sorted(lines))
 
-  def test_download_whl_with_default_container_image(self):
+  def test_download_source_or_whl_using_fetch_binary(self):
     staging_dir = self.make_temp_dir()
     requirements_cache_dir = self.make_temp_dir()
     source_dir = self.make_temp_dir()
@@ -726,7 +727,7 @@ class StagerTest(unittest.TestCase):
     options.view_as(
         WorkerOptions).sdk_container_image = None  # default value is None
 
-    def _create_file(temp_dir, fetch_binary=True, **unused_args):
+    def _create_file(requirements_file, temp_dir, fetch_binary):
       if fetch_binary:
         self.create_temp_file(os.path.join(temp_dir, 'nothing.whl'), 'Fake whl')
       else:
@@ -734,13 +735,19 @@ class StagerTest(unittest.TestCase):
             os.path.join(temp_dir, 'nothing.tar.gz'), 'Fake tarball')
 
     with mock.patch('apache_beam.runners.portability.stager_test'
-                    '.stager.Stager._download_pypi_package',
+                    '.stager.Stager._populate_requirements_cache',
                     staticmethod(_create_file)):
       resources = self.stager.create_and_stage_job_resources(
           options, staging_location=staging_dir)[1]
       # in the resources, only a whl should be present
       for f in resources:
         self.assertTrue('.tar.gz' not in f)
+
+      options.view_as(WorkerOptions).sdk_container_image = 'fake docker URL'
+      resources = self.stager.create_and_stage_job_resources(
+          options, staging_location=staging_dir)[1]
+
+      self.assertTrue('nothing.tar.gz' in resources)
 
 
 class TestStager(stager.Stager):
