@@ -28,8 +28,6 @@ import (
 	"testing"
 )
 
-const pipelinesFolder = "executable_files"
-
 func Test_replace(t *testing.T) {
 	codeWithPublicClass := "package org.apache.beam.sdk.transforms; \n public class Class {\n    public static void main(String[] args) {\n        System.out.println(\"Hello World!\");\n    }\n}"
 	codeWithoutPublicClass := "package org.apache.beam.sdk.transforms; \n class Class {\n    public static void main(String[] args) {\n        System.out.println(\"Hello World!\");\n    }\n}"
@@ -42,7 +40,7 @@ func Test_replace(t *testing.T) {
 	lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, uuid.New(), filepath.Join(path, "temp"))
 	_ = lc.CreateFolders()
 	defer os.RemoveAll(filepath.Join(path, "temp"))
-	_, _ = lc.CreateSourceCodeFile(codeWithPublicClass)
+	_ = lc.CreateSourceCodeFile(codeWithPublicClass)
 
 	type args struct {
 		args []interface{}
@@ -60,14 +58,14 @@ func Test_replace(t *testing.T) {
 		},
 		{
 			name:     "original file exists",
-			args:     args{[]interface{}{lc.GetAbsoluteSourceFilePath(), classWithPublicModifierPattern, classWithoutPublicModifierPattern}},
+			args:     args{[]interface{}{lc.Paths.AbsoluteSourceFilePath, classWithPublicModifierPattern, classWithoutPublicModifierPattern}},
 			wantCode: codeWithoutPublicClass,
 			wantErr:  false,
 		},
 		{
 			// Test that file where package is used changes to import all dependencies from this package
 			name:     "original file with package",
-			args:     args{[]interface{}{lc.GetAbsoluteSourceFilePath(), packagePattern, importStringPattern}},
+			args:     args{[]interface{}{lc.Paths.AbsoluteSourceFilePath, packagePattern, importStringPattern}},
 			wantCode: codeWithImportedPackage,
 			wantErr:  false,
 		},
@@ -123,7 +121,7 @@ func Test_changeJavaTestFileName(t *testing.T) {
 	lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, uuid.New(), filepath.Join(path, "temp"))
 	_ = lc.CreateFolders()
 	defer os.RemoveAll(filepath.Join(path, "temp"))
-	_, _ = lc.CreateSourceCodeFile(codeWithPublicClass)
+	_ = lc.CreateSourceCodeFile(codeWithPublicClass)
 	validationResults := sync.Map{}
 	validationResults.Store(validators.UnitTestValidatorName, true)
 
@@ -139,7 +137,7 @@ func Test_changeJavaTestFileName(t *testing.T) {
 		{
 			// Test that file changes its name to the name of its public class
 			name:     "file with java unit test code to be renamed",
-			args:     args{[]interface{}{lc.GetAbsoluteSourceFilePath(), &validationResults}},
+			args:     args{[]interface{}{lc.Paths.AbsoluteSourceFilePath, &validationResults}},
 			wantErr:  false,
 			wantName: "Class.java",
 		},
@@ -149,7 +147,7 @@ func Test_changeJavaTestFileName(t *testing.T) {
 			if err := changeJavaTestFileName(tt.args.args...); (err != nil) != tt.wantErr {
 				t.Errorf("changeJavaTestFileName() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			files, err := filepath.Glob(fmt.Sprintf("%s/*java", lc.GetAbsoluteSourceFolderPath()))
+			files, err := filepath.Glob(fmt.Sprintf("%s/*java", lc.Paths.AbsoluteSourceFileFolderPath))
 			if err != nil {
 				t.Errorf("changeJavaTestFileName() error = %v, wantErr %v", err, tt.wantErr)
 			}
