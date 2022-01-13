@@ -3,7 +3,6 @@ title: "Beam Programming Guide"
 aliases:
   - /learn/programming-guide/
   - /docs/learn/programming-guide/
-  - /documentation/patterns/cross-language/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
