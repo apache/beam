@@ -40,6 +40,7 @@ public class DistributionImpl extends AbstractMetric<DistributionData> implement
     distributionData.update(value);
   }
 
+  @SuppressWarnings("unused")
   private void update(DistributionData update) {
     distributionData = distributionData.combine(update);
   }
