@@ -17,15 +17,10 @@
  */
 package org.apache.beam.runners.core.construction.graph;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import jdk.internal.util.xml.impl.Input;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor.Defaults;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
@@ -55,11 +50,12 @@ public class ProjectionPushdownOptimizerTest {
   @Test
   public void testSourceDoesNotImplementPushdownProjector() {
     Pipeline p = Pipeline.create();
-    p.apply(new SimpleSource(FieldAccessDescriptor.withAllFields()))
+    SimpleSource source = new SimpleSource(FieldAccessDescriptor.withAllFields());
+    p.apply(source)
         .apply(new FieldAccessTransform(FieldAccessDescriptor.withFieldNames("foo", "bar")));
 
     ProjectionPushdownOptimizer.optimize(p);
-    // TODO(ibzib) check
+    Assert.assertTrue(pipelineHasTransform(p, source));
   }
 
   @Test
@@ -72,10 +68,10 @@ public class ProjectionPushdownOptimizerTest {
     p.apply(originalSource).apply(new FieldAccessTransform(downstreamFieldAccess));
 
     SimpleSourceWithPushdown expectedSource = new SimpleSourceWithPushdown(downstreamFieldAccess);
-    testProjectionPushdown(
-        p,
-        ImmutableList.of(expectedSource),
-        ImmutableList.of(originalSource) /* unexpectedSources */);
+
+    ProjectionPushdownOptimizer.optimize(p);
+    Assert.assertTrue(pipelineHasTransform(p, expectedSource));
+    Assert.assertFalse(pipelineHasTransform(p, originalSource));
   }
 
   @Test
@@ -89,73 +85,80 @@ public class ProjectionPushdownOptimizerTest {
 
     SimpleSourceWithPushdown expectedSource =
         new SimpleSourceWithPushdown(FieldAccessDescriptor.withFieldNames("foo", "bar"));
-    testProjectionPushdown(p, ImmutableList.of(expectedSource), ImmutableList.of(originalSource));
-  }
 
-  // TODO(ibzib) test pardo with side inputs
-  @Test
-  public void testBranchedProjectionPushdow2n() {
-    Pipeline p = Pipeline.create();
-    SimpleSourceWithPushdown originalSource =
-        new SimpleSourceWithPushdown(FieldAccessDescriptor.withAllFields());
-    PCollection<Row> input = p.apply(originalSource);
-    input.apply(new FieldAccessTransform(FieldAccessDescriptor.withFieldNames("foo")));
-    input.apply(new FieldAccessTransform(FieldAccessDescriptor.withFieldNames("bar")));
-
-    SimpleSourceWithPushdown expectedSource =
-        new SimpleSourceWithPushdown(FieldAccessDescriptor.withFieldNames("foo", "bar"));
-    testProjectionPushdown(p, ImmutableList.of(expectedSource), ImmutableList.of(originalSource));
+    ProjectionPushdownOptimizer.optimize(p);
+    Assert.assertTrue(pipelineHasTransform(p, expectedSource));
+    Assert.assertFalse(pipelineHasTransform(p, originalSource));
   }
 
   @Test
   public void testIntermediateProducer() {
     Pipeline p = Pipeline.create();
-    SimpleSource source =
-        new SimpleSource(FieldAccessDescriptor.withAllFields());
-    IntermediateTransformWithPushdown originalT = new IntermediateTransformWithPushdown(FieldAccessDescriptor.withAllFields());
+    SimpleSource source = new SimpleSource(FieldAccessDescriptor.withAllFields());
+    IntermediateTransformWithPushdown originalT =
+        new IntermediateTransformWithPushdown(FieldAccessDescriptor.withAllFields());
     FieldAccessDescriptor downstreamFieldAccess =
         FieldAccessDescriptor.withFieldNames("foo", "bar");
     p.apply(source).apply(originalT).apply(new FieldAccessTransform(downstreamFieldAccess));
 
-    IntermediateTransformWithPushdown expectedT =
-        new IntermediateTransformWithPushdown(FieldAccessDescriptor.withFieldNames("foo", "bar"));
-    testProjectionPushdown(p, ImmutableList.of(source, expectedT), ImmutableList.of(originalT));
+    // TODO(BEAM-13658) Support pushdown on intermediate transforms.
+    // For now, test that the pushdown optimizer ignores immediate transforms.
+    ProjectionPushdownOptimizer.optimize(p);
+    Assert.assertTrue(pipelineHasTransform(p, originalT));
   }
 
-  // TODO(ibzib) test unknown ptransform
+  @Test
+  public void testMultipleOutputs() {
+    Pipeline p = Pipeline.create();
+    MultipleOutputSourceWithPushdown originalSource =
+        new MultipleOutputSourceWithPushdown(
+            FieldAccessDescriptor.withAllFields(), FieldAccessDescriptor.withAllFields());
+    PCollectionTuple inputs = p.apply(originalSource);
+    inputs
+        .get(originalSource.tag1)
+        .apply(new FieldAccessTransform(FieldAccessDescriptor.withFieldNames("foo")));
+    inputs
+        .get(originalSource.tag1)
+        .apply(new FieldAccessTransform(FieldAccessDescriptor.withFieldNames("bar")));
+    inputs
+        .get(originalSource.tag2)
+        .apply(new FieldAccessTransform(FieldAccessDescriptor.withFieldNames("baz")));
+    inputs
+        .get(originalSource.tag2)
+        .apply(new FieldAccessTransform(FieldAccessDescriptor.withFieldNames("qux")));
 
-  private void testProjectionPushdown(
-      Pipeline p, List<SchemaTransform<?>> expectedSources, List<SchemaTransform<?>> unexpectedSources) {
+    MultipleOutputSourceWithPushdown expectedSource =
+        new MultipleOutputSourceWithPushdown(
+            FieldAccessDescriptor.withFieldNames("foo", "bar"),
+            FieldAccessDescriptor.withFieldNames("baz", "qux"));
+
     ProjectionPushdownOptimizer.optimize(p);
+    Assert.assertTrue(pipelineHasTransform(p, expectedSource));
+    Assert.assertFalse(pipelineHasTransform(p, originalSource));
+  }
 
-    PipelineVisitor pipelineVisitor =
-        new Defaults() {
-          final List<PTransform<?, ?>> foundSources = new ArrayList<>();
+  public boolean pipelineHasTransform(Pipeline p, PTransform<?, ?> t) {
+    HasTransformVisitor hasTransformVisitor = new HasTransformVisitor(t);
+    p.traverseTopologically(hasTransformVisitor);
+    return hasTransformVisitor.found;
+  }
 
-          @Override
-          public CompositeBehavior enterCompositeTransform(Node node) {
-            for (SchemaTransform<?> expected : expectedSources) {
-              if (expected.equals(node.getTransform())) {
-                foundSources.add(node.getTransform());
-              }
-            }
-            for (SchemaTransform<?> unexpected : unexpectedSources) {
-              Assert.assertNotEquals(unexpected, node.getTransform());
-            }
-            return CompositeBehavior.ENTER_TRANSFORM;
-          }
+  private static class HasTransformVisitor extends Defaults {
+    private final PTransform<?, ?> t;
+    boolean found = false;
 
-          @Override
-          public void leavePipeline(Pipeline p) {
-            Assert.assertEquals(
-                "Not all expected sources found in optimized pipeline.",
-                expectedSources,
-                foundSources);
-            super.leavePipeline(p);
-          }
-        };
+    HasTransformVisitor(PTransform<?, ?> t) {
+      this.t = t;
+    }
 
-    p.traverseTopologically(pipelineVisitor);
+    @Override
+    public CompositeBehavior enterCompositeTransform(Node node) {
+      if (t.equals(node.getTransform())) {
+        found = true;
+        return CompositeBehavior.DO_NOT_ENTER_TRANSFORM;
+      }
+      return CompositeBehavior.ENTER_TRANSFORM;
+    }
   }
 
   static class FieldAccessTransform extends PTransform<PCollection<Row>, PCollection<Row>> {
@@ -189,7 +192,7 @@ public class ProjectionPushdownOptimizerTest {
 
   static Schema createStringSchema(FieldAccessDescriptor fieldAccessDescriptor) {
     if (fieldAccessDescriptor.getAllFields()) {
-      return createStringSchema(FieldAccessDescriptor.withFieldNames("foo", "bar", "baz"));
+      return createStringSchema(FieldAccessDescriptor.withFieldNames("foo", "bar", "baz", "qux"));
     }
     Schema.Builder schemaBuilder = Schema.builder();
     for (FieldDescriptor field : fieldAccessDescriptor.getFieldsAccessed()) {
@@ -198,8 +201,8 @@ public class ProjectionPushdownOptimizerTest {
     return schemaBuilder.build();
   }
 
-  // TODO(ibzib) make this generic
-  private abstract static class SchemaTransform<InputT extends PInput> extends PTransform<InputT, PCollection<Row>> {
+  private abstract static class SchemaTransform<InputT extends PInput>
+      extends PTransform<InputT, PCollection<Row>> {
     private final FieldAccessDescriptor fieldAccessDescriptor;
     protected final Schema schema;
 
@@ -216,7 +219,7 @@ public class ProjectionPushdownOptimizerTest {
       if (o == null || getClass() != o.getClass()) {
         return false;
       }
-      SchemaTransform that = (SchemaTransform) o;
+      SchemaTransform<?> that = (SchemaTransform<?>) o;
       return Objects.equals(
           fieldAccessDescriptor.fieldNamesAccessed(),
           that.fieldAccessDescriptor.fieldNamesAccessed());
@@ -240,29 +243,6 @@ public class ProjectionPushdownOptimizerTest {
     }
   }
 
-  private static class IntermediateTransformWithPushdown extends SchemaTransform<PCollection<Row>> implements ProjectionProducer<PTransform<PCollection<Row>, PCollection<Row>>> {
-
-    IntermediateTransformWithPushdown(FieldAccessDescriptor fieldAccessDescriptor) {
-      super(fieldAccessDescriptor);
-    }
-
-    @Override
-    public PCollection<Row> expand(PCollection<Row> input) {
-      return input.apply(ParDo.of(new NoOpDoFn<>())).setRowSchema(schema);
-    }
-
-    @Override
-    public boolean supportsProjectionPushdown() {
-      return true;
-    }
-
-    @Override
-    public PTransform<PCollection<Row>, PCollection<Row>> actuateProjectionPushdown(
-        Map<TupleTag<?>, FieldAccessDescriptor> outputFields) {
-      return new IntermediateTransformWithPushdown(Iterables.getOnlyElement(outputFields.values()));
-    }
-  }
-
   private static class SimpleSourceWithPushdown extends SimpleSource
       implements ProjectionProducer<PTransform<PBegin, PCollection<Row>>> {
 
@@ -283,15 +263,55 @@ public class ProjectionPushdownOptimizerTest {
     }
   }
 
+  private static class IntermediateTransformWithPushdown extends SchemaTransform<PCollection<Row>>
+      implements ProjectionProducer<PTransform<PCollection<Row>, PCollection<Row>>> {
+
+    IntermediateTransformWithPushdown(FieldAccessDescriptor fieldAccessDescriptor) {
+      super(fieldAccessDescriptor);
+    }
+
+    @Override
+    public PCollection<Row> expand(PCollection<Row> input) {
+      return input.apply(ParDo.of(new NoOpDoFn<>())).setRowSchema(schema);
+    }
+
+    @Override
+    public boolean supportsProjectionPushdown() {
+      return true;
+    }
+
+    @Override
+    public PTransform<PCollection<Row>, PCollection<Row>> actuateProjectionPushdown(
+        Map<TupleTag<?>, FieldAccessDescriptor> outputFields) {
+      Assert.assertEquals(
+          new TupleTag<>("output"), Iterables.getOnlyElement(outputFields.keySet()));
+      return new IntermediateTransformWithPushdown(Iterables.getOnlyElement(outputFields.values()));
+    }
+  }
+
   private static class NoOpDoFn<T> extends DoFn<T, Row> {
     @ProcessElement
     public void processElement(ProcessContext c) {}
   }
 
-  // TODO(ibzib) test this
-  @SuppressWarnings("unused") // no
   private static class MultipleOutputSourceWithPushdown extends PTransform<PBegin, PCollectionTuple>
       implements ProjectionProducer<PTransform<PBegin, PCollectionTuple>> {
+    private final FieldAccessDescriptor fieldAccessDescriptor1;
+    private final FieldAccessDescriptor fieldAccessDescriptor2;
+    protected final Schema schema1;
+    protected final Schema schema2;
+
+    final TupleTag<Row> tag1 = new TupleTag<>("output1");
+    final TupleTag<Row> tag2 = new TupleTag<>("output2");
+
+    MultipleOutputSourceWithPushdown(
+        FieldAccessDescriptor fieldAccessDescriptor1,
+        FieldAccessDescriptor fieldAccessDescriptor2) {
+      this.fieldAccessDescriptor1 = fieldAccessDescriptor1;
+      this.fieldAccessDescriptor2 = fieldAccessDescriptor2;
+      this.schema1 = createStringSchema(fieldAccessDescriptor1);
+      this.schema2 = createStringSchema(fieldAccessDescriptor2);
+    }
 
     @Override
     public PCollectionTuple expand(PBegin input) {
@@ -302,8 +322,8 @@ public class ProjectionPushdownOptimizerTest {
                   ParDo.of(new NoOpDoFn<>())
                       .withOutputTags(
                           new TupleTag<>("output1"), TupleTagList.of(new TupleTag<>("output2"))));
-      outputs.get("output1").setRowSchema(Schema.builder().build());
-      outputs.get("output2").setRowSchema(Schema.builder().build());
+      outputs.get(tag1).setRowSchema(schema1);
+      outputs.get(tag2).setRowSchema(schema2);
       return outputs;
     }
 
@@ -315,7 +335,30 @@ public class ProjectionPushdownOptimizerTest {
     @Override
     public PTransform<PBegin, PCollectionTuple> actuateProjectionPushdown(
         Map<TupleTag<?>, FieldAccessDescriptor> fields) {
-      return this;
+      return new MultipleOutputSourceWithPushdown(fields.get(tag1), fields.get(tag2));
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      MultipleOutputSourceWithPushdown that = (MultipleOutputSourceWithPushdown) o;
+      return Objects.equals(
+              fieldAccessDescriptor1.fieldNamesAccessed(),
+              that.fieldAccessDescriptor1.fieldNamesAccessed())
+          && Objects.equals(
+              fieldAccessDescriptor2.fieldNamesAccessed(),
+              that.fieldAccessDescriptor2.fieldNamesAccessed());
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(
+          fieldAccessDescriptor1.fieldNamesAccessed(), fieldAccessDescriptor2.fieldNamesAccessed());
     }
   }
 }

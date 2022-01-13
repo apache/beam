@@ -34,9 +34,15 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableBiMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
-/** {@link PipelineVisitor} to convert projection pushdown targets from PCollections to TupleTags.
+/**
+ * {@link PipelineVisitor} to convert projection pushdown targets from PCollections to TupleTags.
  *
- * <p>For example, if we can do pushdown on PTransform T's output PCollection P by rewriting T, we need to get T's output tag for P. This is necessary because PCollection objects are not instantiated until pipeline construction, but output tags are constants that are known before pipeline construction, so transform authors can identify them in {@link ProjectionProducer#actuateProjectionPushdown(Map)}. */
+ * <p>For example, if we can do pushdown on PTransform T's output PCollection P by rewriting T, we
+ * need to get T's output tag for P. This is necessary because PCollection objects are not
+ * instantiated until pipeline construction, but output tags are constants that are known before
+ * pipeline construction, so transform authors can identify them in {@link
+ * ProjectionProducer#actuateProjectionPushdown(Map)}.
+ */
 class PCollectionOutputTagVisitor extends PipelineVisitor.Defaults {
   private final Map<
           ProjectionProducer<PTransform<?, ?>>, Map<PCollection<?>, FieldAccessDescriptor>>
@@ -76,9 +82,9 @@ class PCollectionOutputTagVisitor extends PipelineVisitor.Defaults {
           tagFieldAccess.build().get(entry.getKey());
       if (tagEntryBuilder == null) {
         tagEntryBuilder = ImmutableMap.builder();
+        tagFieldAccess.put(entry.getKey(), tagEntryBuilder);
       }
       tagEntryBuilder.put(tag, fieldAccess);
-      tagFieldAccess.put(entry.getKey(), tagEntryBuilder);
     }
   }
 }
