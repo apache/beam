@@ -23,6 +23,8 @@ import logging
 import tempfile
 import unittest
 
+import pytest
+
 from apache_beam.examples.cookbook import group_with_coder
 from apache_beam.testing.util import open_shards
 
@@ -32,6 +34,7 @@ group_with_coder.PlayerCoder.decode = lambda self, s: group_with_coder.Player(  
     s.decode('utf-8'))
 
 
+@pytest.mark.examples_postcommit
 class GroupWithCoderTest(unittest.TestCase):
 
   SAMPLE_RECORDS = [

@@ -35,6 +35,12 @@ const (
 	// RunError is used to keep run code error value
 	RunError SubKey = "RUN_ERROR"
 
+	// ValidationOutput is used to keep validation output value
+	ValidationOutput SubKey = "VALIDATION_OUTPUT"
+
+	// PreparationOutput is used to keep prepare step output value
+	PreparationOutput SubKey = "PREPARATION_OUTPUT"
+
 	// CompileOutput is used to keep compilation output value
 	CompileOutput SubKey = "COMPILE_OUTPUT"
 
@@ -43,6 +49,12 @@ const (
 
 	// RunOutputIndex is the index of the start of the run step's output
 	RunOutputIndex SubKey = "RUN_OUTPUT_INDEX"
+
+	// Logs is used to keep logs value
+	Logs SubKey = "LOGS"
+
+	// LogsIndex is the index of the start of the log
+	LogsIndex SubKey = "LOGS_INDEX"
 )
 
 // Cache is used to store states and outputs for Apache Beam pipelines that running in Playground

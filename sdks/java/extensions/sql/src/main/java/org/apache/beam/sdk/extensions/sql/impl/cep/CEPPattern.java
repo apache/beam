@@ -28,15 +28,12 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexCall;
 })
 public class CEPPattern implements Serializable {
 
-  private final Schema mySchema;
   private final String patternVar;
   private final CEPCall patternCondition;
   private final Quantifier quant;
 
-  private CEPPattern(
-      Schema mySchema, String patternVar, @Nullable RexCall patternDef, Quantifier quant) {
+  private CEPPattern(String patternVar, @Nullable RexCall patternDef, Quantifier quant) {
 
-    this.mySchema = mySchema;
     this.patternVar = patternVar;
     this.quant = quant;
 
@@ -67,6 +64,6 @@ public class CEPPattern implements Serializable {
 
   public static CEPPattern of(
       Schema theSchema, String patternVar, RexCall patternDef, Quantifier quant) {
-    return new CEPPattern(theSchema, patternVar, patternDef, quant);
+    return new CEPPattern(patternVar, patternDef, quant);
   }
 }

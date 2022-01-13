@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import collections
+import logging
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
@@ -44,6 +45,7 @@ if TYPE_CHECKING:
 T = TypeVar('T')
 
 TARGET_PARTITION_SIZE = 1 << 23  # 8M
+MIN_PARTITION_SIZE = 1 << 19  # 0.5M
 MAX_PARTITIONS = 1000
 DEFAULT_PARTITIONS = 100
 MIN_PARTITIONS = 10
@@ -177,7 +179,7 @@ class _DataframeExpressionsTransform(transforms.PTransform):
         return '%s:%s' % (self.stage.ops, id(self))
 
       def expand(self, pcolls):
-
+        logging.info('Computing dataframe stage %s for %s', self, self.stage)
         scalar_inputs = [expr for expr in self.stage.inputs if is_scalar(expr)]
         tabular_inputs = [
             expr for expr in self.stage.inputs if not is_scalar(expr)
@@ -270,8 +272,12 @@ class _DataframeExpressionsTransform(transforms.PTransform):
       """
       def __init__(self, inputs, partitioning):
         self.inputs = set(inputs)
-        if len(self.inputs) > 1 and partitioning == partitionings.Arbitrary():
+        if (len(self.inputs) > 1 and
+            partitioning.is_subpartitioning_of(partitionings.Index())):
           # We have to shuffle to co-locate, might as well partition.
+          self.partitioning = partitionings.Index()
+        elif isinstance(partitioning, partitionings.JoinIndex):
+          # Not an actionable partitioning, use index.
           self.partitioning = partitionings.Index()
         else:
           self.partitioning = partitioning
@@ -299,9 +305,15 @@ class _DataframeExpressionsTransform(transforms.PTransform):
       """Return the output partitioning of expr when computed in stage,
       or returns None if the expression cannot be computed in this stage.
       """
+      def maybe_upgrade_to_join_index(partitioning):
+        if partitioning.is_subpartitioning_of(partitionings.JoinIndex()):
+          return partitionings.JoinIndex(expr)
+        else:
+          return partitioning
+
       if expr in stage.inputs or expr in inputs:
         # Inputs are all partitioned by stage.partitioning.
-        return stage.partitioning
+        return maybe_upgrade_to_join_index(stage.partitioning)
 
       # Anything that's not an input must have arguments
       assert len(expr.args())
@@ -313,7 +325,7 @@ class _DataframeExpressionsTransform(transforms.PTransform):
       if len(arg_partitionings) == 0:
         # All inputs are scalars, output partitioning isn't dependent on the
         # input.
-        return expr.preserves_partition_by()
+        return maybe_upgrade_to_join_index(expr.preserves_partition_by())
 
       if len(arg_partitionings) > 1:
         # Arguments must be identically partitioned, can't compute this
@@ -327,7 +339,8 @@ class _DataframeExpressionsTransform(transforms.PTransform):
         # Arguments aren't partitioned sufficiently for this expression
         return None
 
-      return expressions.output_partitioning(expr, arg_partitioning)
+      return maybe_upgrade_to_join_index(
+          expressions.output_partitioning(expr, arg_partitioning))
 
     def is_computable_in_stage(expr, stage):
       return output_partitioning_in_stage(expr, stage) is not None
@@ -345,29 +358,48 @@ class _DataframeExpressionsTransform(transforms.PTransform):
 
     @_memoize
     def expr_to_stages(expr):
-      assert expr not in inputs
+      if expr in inputs:
+        # Don't create a stage for each input, but it is still useful to record
+        # what which stages inputs are available from.
+        return []
+
       # First attempt to compute this expression as part of an existing stage,
       # if possible.
-      #
-      # If expr does not require partitioning, just grab any stage, else grab
-      # the first stage where all of expr's inputs are partitioned as required.
-      # In either case, use the first such stage because earlier stages are
-      # closer to the inputs (have fewer intermediate stages).
-      required_partitioning = expr.requires_partition_by()
-      for stage in common_stages([expr_to_stages(arg) for arg in expr.args()
-                                  if arg not in inputs]):
-        if is_computable_in_stage(expr, stage):
-          break
-      else:
-        # Otherwise, compute this expression as part of a new stage.
-        stage = Stage(expr.args(), required_partitioning)
+      if all(arg in inputs for arg in expr.args()):
+        # All input arguments;  try to pick a stage that already has as many
+        # of the inputs, correctly partitioned, as possible.
+        inputs_by_stage = collections.defaultdict(int)
         for arg in expr.args():
-          if arg not in inputs:
-            # For each non-input argument, declare that it is also available in
-            # this new stage.
-            expr_to_stages(arg).append(stage)
-            # It also must be declared as an output of the producing stage.
-            expr_to_stage(arg).outputs.add(arg)
+          for stage in expr_to_stages(arg):
+            if is_computable_in_stage(expr, stage):
+              inputs_by_stage[stage] += 1 + 100 * (
+                  expr.requires_partition_by() == stage.partitioning)
+        if inputs_by_stage:
+          # Take the stage with the largest count.
+          stage = max(inputs_by_stage.items(), key=lambda kv: kv[1])[0]
+        else:
+          stage = None
+      else:
+        # Try to pick a stage that has all the available non-input expressions.
+        # TODO(robertwb): Baring any that have all of them, we could try and
+        # pick one that has the most, but we need to ensure it is not a
+        # predecessor of any of the missing argument's stages.
+        for stage in common_stages([expr_to_stages(arg) for arg in expr.args()
+                                    if arg not in inputs]):
+          if is_computable_in_stage(expr, stage):
+            break
+        else:
+          stage = None
+
+      if stage is None:
+        # No stage available, compute this expression as part of a new stage.
+        stage = Stage(expr.args(), expr.requires_partition_by())
+        for arg in expr.args():
+          # For each argument, declare that it is also available in
+          # this new stage.
+          expr_to_stages(arg).append(stage)
+          # It also must be declared as an output of the producing stage.
+          expr_to_stage(arg).outputs.add(arg)
       stage.ops.append(expr)
       # Ensure that any inputs for the overall transform are added
       # in downstream stages.
@@ -452,8 +484,10 @@ def _total_memory_usage(frame):
 
 
 class _PreBatch(beam.DoFn):
-  def __init__(self, target_size=TARGET_PARTITION_SIZE):
+  def __init__(
+      self, target_size=TARGET_PARTITION_SIZE, min_size=MIN_PARTITION_SIZE):
     self._target_size = target_size
+    self._min_size = min_size
 
   def start_bundle(self):
     self._parts = collections.defaultdict(list)
@@ -465,7 +499,7 @@ class _PreBatch(beam.DoFn):
       window=beam.DoFn.WindowParam,
       timestamp=beam.DoFn.TimestampParam):
     part_size = _total_memory_usage(part)
-    if part_size >= self._target_size:
+    if part_size >= self._min_size:
       yield part
     else:
       self._running_size += part_size
@@ -475,8 +509,7 @@ class _PreBatch(beam.DoFn):
 
   def finish_bundle(self):
     for (window, timestamp), parts in self._parts.items():
-      yield windowed_value.WindowedValue(
-          pd.concat(parts), timestamp, (window, ))
+      yield windowed_value.WindowedValue(_concat(parts), timestamp, (window, ))
     self.start_bundle()
 
 
@@ -486,8 +519,10 @@ class _ReBatch(beam.DoFn):
   Also groups across partitions, up to a given data size, to recover some
   efficiency in the face of over-partitioning.
   """
-  def __init__(self, target_size=TARGET_PARTITION_SIZE):
+  def __init__(
+      self, target_size=TARGET_PARTITION_SIZE, min_size=MIN_PARTITION_SIZE):
     self._target_size = target_size
+    self._min_size = min_size
 
   def start_bundle(self):
     self._parts = collections.defaultdict(lambda: collections.defaultdict(list))
@@ -510,7 +545,7 @@ class _ReBatch(beam.DoFn):
     for (window, timestamp), tagged_parts in self._parts.items():
       yield windowed_value.WindowedValue(  # yapf break
       {
-          tag: pd.concat(parts) if parts else None
+          tag: _concat(parts) if parts else None
           for (tag, parts) in tagged_parts.items()
       },
       timestamp, (window, ))
@@ -534,6 +569,13 @@ def _dict_union(dicts):
   for d in dicts:
     result.update(d)
   return result
+
+
+def _concat(parts):
+  if len(parts) == 1:
+    return parts[0]
+  else:
+    return pd.concat(parts)
 
 
 def _flatten(

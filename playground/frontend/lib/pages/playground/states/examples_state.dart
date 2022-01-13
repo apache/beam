@@ -40,25 +40,36 @@ class ExampleState with ChangeNotifier {
     return sdkCategories?[sdk] ?? [];
   }
 
-  Future<String> getExampleOutput(String id) async {
-    String output = await _exampleRepository.getExampleOutput(
-      GetExampleRequestWrapper(id),
+  Future<String> getExampleOutput(String id, SDK sdk) async {
+    return await _exampleRepository.getExampleOutput(
+      GetExampleRequestWrapper(id, sdk),
     );
-    return output;
   }
 
-  Future<String> getExampleSource(String id) async {
-    String source = await _exampleRepository.getExampleSource(
-      GetExampleRequestWrapper(id),
+  Future<String> getExampleSource(String id, SDK sdk) async {
+    return await _exampleRepository.getExampleSource(
+      GetExampleRequestWrapper(id, sdk),
     );
-    return source;
   }
 
-  Future<ExampleModel> loadExampleInfo(ExampleModel example) async {
-    String source = await getExampleSource(example.path);
-    example.setSource(source);
-    final outputs = await getExampleOutput(example.path);
-    example.setOutputs(outputs);
+  Future<String> getExampleLogs(String id, SDK sdk) async {
+    return await _exampleRepository.getExampleLogs(
+      GetExampleRequestWrapper(id, sdk),
+    );
+  }
+
+  Future<ExampleModel> loadExampleInfo(ExampleModel example, SDK sdk) async {
+    if (example.isInfoFetched()) {
+      return example;
+    }
+    final exampleData = await Future.wait([
+      getExampleSource(example.path, sdk),
+      getExampleOutput(example.path, sdk),
+      getExampleLogs(example.path, sdk)
+    ]);
+    example.setSource(exampleData[0]);
+    example.setOutputs(exampleData[1]);
+    example.setLogs(exampleData[2]);
     return example;
   }
 
@@ -82,7 +93,7 @@ class ExampleState with ChangeNotifier {
       ExampleModel? defaultExample = sdkCategories![sdk]?.first.examples.first;
       if (defaultExample != null) {
         // load source and output async
-        loadExampleInfo(defaultExample);
+        loadExampleInfo(defaultExample, sdk);
         entries.add(MapEntry(sdk, defaultExample));
       }
     }

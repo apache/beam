@@ -15,32 +15,16 @@
 
 import mock
 
-from ci_cd import ci_step, cd_step
+from ci_cd import _ci_step, _cd_step
 
 
-@mock.patch('ci_helper.CIHelper.verify_examples')
-@mock.patch('ci_cd.find_examples')
-@mock.patch('ci_cd.os.getenv')
-def test_ci_step(mock_os_getenv, mock_find_examples, mock_verify_examples):
-    mock_os_getenv.return_value = "MOCK_VALUE"
-    mock_find_examples.return_value = []
-
-    ci_step()
-
-    mock_os_getenv.assert_called_once_with("BEAM_ROOT_DIR")
-    mock_find_examples.assert_called_once_with("MOCK_VALUE")
-    mock_verify_examples.assert_called_once_with([])
+@mock.patch("ci_helper.CIHelper.verify_examples")
+def test_ci_step(mock_verify_examples):
+  _ci_step([])
+  mock_verify_examples.assert_called_once_with([])
 
 
-@mock.patch('cd_helper.CDHelper.store_examples')
-@mock.patch('ci_cd.find_examples')
-@mock.patch('ci_cd.os.getenv')
-def test_cd_step(mock_os_getenv, mock_find_examples, mock_store_examples):
-    mock_os_getenv.return_value = "MOCK_VALUE"
-    mock_find_examples.return_value = []
-
-    cd_step()
-
-    mock_os_getenv.assert_called_once_with("BEAM_ROOT_DIR")
-    mock_find_examples.assert_called_once_with("MOCK_VALUE")
-    mock_store_examples.assert_called_once_with([])
+@mock.patch("cd_helper.CDHelper.store_examples")
+def test_cd_step(mock_store_examples):
+  _cd_step([])
+  mock_store_examples.assert_called_once_with([])

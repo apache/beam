@@ -13,17 +13,66 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+Configuration for CI/CD steps
+"""
+
 import os
 from dataclasses import dataclass
-from api.v1.api_pb2 import STATUS_VALIDATION_ERROR, STATUS_ERROR, STATUS_PREPARATION_ERROR, STATUS_COMPILE_ERROR, \
-    STATUS_RUN_TIMEOUT, STATUS_RUN_ERROR
+from typing import Literal
 
-from api.v1.api_pb2 import SDK_JAVA
+from api.v1.api_pb2 import STATUS_VALIDATION_ERROR, STATUS_ERROR, \
+  STATUS_PREPARATION_ERROR, STATUS_COMPILE_ERROR, \
+  STATUS_RUN_TIMEOUT, STATUS_RUN_ERROR, SDK_JAVA, SDK_GO, SDK_PYTHON, Sdk
 
 
 @dataclass(frozen=True)
 class Config:
-    SERVER_ADDRESS = os.getenv("SERVER_ADDRESS", "localhost:8080")
-    ERROR_STATUSES = [STATUS_VALIDATION_ERROR, STATUS_ERROR, STATUS_PREPARATION_ERROR, STATUS_COMPILE_ERROR,
-                      STATUS_RUN_TIMEOUT, STATUS_RUN_ERROR]
-    SUPPORTED_SDK = {'java': SDK_JAVA}
+  """
+  General configuration for CI/CD steps
+  """
+  SERVER_ADDRESS = os.getenv("SERVER_ADDRESS", "localhost:8080")
+  EXTENSION_TO_SDK = {"java": SDK_JAVA, "go": SDK_GO, "py": SDK_PYTHON}
+  SUPPORTED_SDK = (Sdk.Name(SDK_JAVA), Sdk.Name(SDK_GO), Sdk.Name(SDK_PYTHON))
+  BUCKET_NAME = "playground-precompiled-objects"
+  TEMP_FOLDER = "temp"
+  SDK_TO_EXTENSION = {SDK_JAVA: "java", SDK_GO: "go", SDK_PYTHON: "py"}
+  NO_STORE = "no-store"
+  ERROR_STATUSES = [
+      STATUS_VALIDATION_ERROR,
+      STATUS_ERROR,
+      STATUS_PREPARATION_ERROR,
+      STATUS_COMPILE_ERROR,
+      STATUS_RUN_TIMEOUT,
+      STATUS_RUN_ERROR
+  ]
+  BEAM_PLAYGROUND_TITLE = "beam-playground:\n"
+  BEAM_PLAYGROUND = "beam-playground"
+  PAUSE_DELAY = 10
+  CI_STEP_NAME = "CI"
+  CD_STEP_NAME = "CD"
+  CI_CD_LITERAL = Literal["CI", "CD"]
+
+
+@dataclass(frozen=True)
+class TagFields:
+  name: str = "name"
+  description: str = "description"
+  multifile: str = "multifile"
+  categories: str = "categories"
+  pipeline_options: str = "pipeline_options"
+
+
+@dataclass(frozen=True)
+class PrecompiledExample:
+  OUTPUT_EXTENSION = "output"
+  LOG_EXTENSION = "log"
+  META_NAME = "meta"
+  META_EXTENSION = "info"
+
+
+@dataclass(frozen=True)
+class PrecompiledExampleType:
+  examples = "examples"
+  katas = "katas"
+  test_ends = ("test", "it")

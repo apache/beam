@@ -710,7 +710,7 @@ class StagerTest(unittest.TestCase):
 
 
 class TestStager(stager.Stager):
-  def stage_artifact(self, local_path_to_artifact, artifact_name):
+  def stage_artifact(self, local_path_to_artifact, artifact_name, sha256):
     _LOGGER.info(
         'File copy from %s to %s.', local_path_to_artifact, artifact_name)
     shutil.copyfile(local_path_to_artifact, artifact_name)

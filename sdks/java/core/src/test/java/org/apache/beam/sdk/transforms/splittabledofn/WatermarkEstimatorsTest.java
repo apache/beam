@@ -59,33 +59,39 @@ public class WatermarkEstimatorsTest {
 
   @Test
   public void testWallTimeWatermarkEstimator() {
-    DateTimeUtils.setCurrentMillisFixed(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis());
-    WatermarkEstimator<Instant> watermarkEstimator =
-        new WatermarkEstimators.WallTime(new Instant());
-    DateTimeUtils.setCurrentMillisFixed(
-        BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(1)).getMillis());
-    assertEquals(
-        BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(1)),
-        watermarkEstimator.currentWatermark());
+    try {
+      DateTimeUtils.setCurrentMillisFixed(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis());
+      WatermarkEstimator<Instant> watermarkEstimator =
+          new WatermarkEstimators.WallTime(new Instant());
+      DateTimeUtils.setCurrentMillisFixed(
+          BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(1)).getMillis());
+      assertEquals(
+          BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(1)),
+          watermarkEstimator.currentWatermark());
 
-    DateTimeUtils.setCurrentMillisFixed(
-        BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(2)).getMillis());
-    // Make sure that we don't mutate state even if the clock advanced
-    assertEquals(
-        BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(1)), watermarkEstimator.getState());
-    assertEquals(
-        BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(2)),
-        watermarkEstimator.currentWatermark());
-    assertEquals(
-        BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(2)), watermarkEstimator.getState());
+      DateTimeUtils.setCurrentMillisFixed(
+          BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(2)).getMillis());
+      // Make sure that we don't mutate state even if the clock advanced
+      assertEquals(
+          BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(1)),
+          watermarkEstimator.getState());
+      assertEquals(
+          BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(2)),
+          watermarkEstimator.currentWatermark());
+      assertEquals(
+          BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(2)),
+          watermarkEstimator.getState());
 
-    // Handle the case if the clock ever goes backwards. Could happen if we resumed processing
-    // on a machine that had misconfigured clock or due to clock skew.
-    DateTimeUtils.setCurrentMillisFixed(
-        BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(1)).getMillis());
-    assertEquals(
-        BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(2)),
-        watermarkEstimator.currentWatermark());
+      // Handle the case if the clock ever goes backwards. Could happen if we resumed processing
+      // on a machine that had misconfigured clock or due to clock skew.
+      DateTimeUtils.setCurrentMillisFixed(
+          BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(1)).getMillis());
+      assertEquals(
+          BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(2)),
+          watermarkEstimator.currentWatermark());
+    } finally {
+      DateTimeUtils.setCurrentMillisSystem();
+    }
   }
 
   @Test

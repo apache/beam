@@ -19,7 +19,7 @@
 import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(suppressUnusedVariable: true, publish: false, exportJavadoc: false)
+applyJavaNature( publish: false, exportJavadoc: false)
 // Evaluate the given project before this one, to allow referencing
 // its sourceSets.test.output directly.
 evaluationDependsOn(":examples:java")
@@ -31,8 +31,7 @@ evaluationDependsOn(":sdks:java:container")
 configurations { dataflowRunnerPreCommit }
 
 dependencies {
-  testRuntimeOnly project(":examples:java")
-  testRuntimeOnly project(path: ":examples:java", configuration: "testRuntime")
+  testRuntimeOnly project(path: ":examples:java", configuration: "testRuntimeMigration")
   testRuntimeOnly project(":runners:google-cloud-dataflow-java")
 }
 

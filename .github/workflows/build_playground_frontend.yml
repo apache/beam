@@ -36,7 +36,7 @@ jobs:
         run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
       - name: Check out the repo
         uses: actions/checkout@v2
-      - name: Setup Java
+      - name: Set up Java
         uses: actions/setup-java@v2
         with:
           distribution: 'zulu'
@@ -83,3 +83,4 @@ jobs:
         run: terraform init && terraform apply -auto-approve -var="project_id=${{ secrets.PROJECT_ID }}" -var="docker_registry_address=${{ secrets.REGISTRY_NAME}}/${{ secrets.PROJECT_ID }}/playground-repository"
         working-directory: playground/terraform/applications/backend
         if: startsWith(github.ref, 'ref/tags/')
+        

@@ -18,15 +18,22 @@
 
 import 'package:flutter/material.dart';
 import 'package:playground/modules/examples/components/examples_components.dart';
+import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/pages/playground/states/example_selector_state.dart';
 import 'package:provider/provider.dart';
 
 class ExampleList extends StatelessWidget {
   final ScrollController controller;
+  final AnimationController animationController;
+  final OverlayEntry? dropdown;
+  final ExampleModel selectedExample;
 
   const ExampleList({
     Key? key,
     required this.controller,
+    required this.selectedExample,
+    required this.animationController,
+    required this.dropdown,
   }) : super(key: key);
 
   @override
@@ -42,8 +49,11 @@ class ExampleList extends StatelessWidget {
             child: ListView.builder(
               itemCount: state.categories.length,
               itemBuilder: (context, index) => CategoryExpansionPanel(
+                selectedExample: selectedExample,
                 categoryName: state.categories[index].name,
                 examples: state.categories[index].examples,
+                animationController: animationController,
+                dropdown: dropdown,
               ),
               controller: controller,
               shrinkWrap: true,

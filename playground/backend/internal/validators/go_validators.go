@@ -15,8 +15,34 @@
 
 package validators
 
+import (
+	"beam.apache.org/playground/backend/internal/logger"
+	"io/ioutil"
+	"strings"
+)
+
+const goUnitTestPattern = "*testing.T"
+
 // GetGoValidators return validators methods that should be applied to Go code
-func GetGoValidators() *[]Validator {
-	//TODO: Will be added in task [BEAM-13153]
-	return &[]Validator{}
+func GetGoValidators(filePath string) *[]Validator {
+	validatorArgs := make([]interface{}, 1)
+	validatorArgs[0] = filePath
+	unitTestValidator := Validator{
+		Validator: CheckIsUnitTestGo,
+		Args:      validatorArgs,
+		Name:      UnitTestValidatorName,
+	}
+	validators := []Validator{unitTestValidator}
+	return &validators
+}
+
+func CheckIsUnitTestGo(args ...interface{}) (bool, error) {
+	filePath := args[0].(string)
+	code, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		logger.Errorf("Validation: Error during open file: %s, err: %s\n", filePath, err.Error())
+		return false, err
+	}
+	// check whether Go code is unit test code
+	return strings.Contains(string(code), goUnitTestPattern), nil
 }

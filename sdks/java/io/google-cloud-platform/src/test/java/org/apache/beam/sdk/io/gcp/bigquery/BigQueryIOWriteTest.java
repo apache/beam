@@ -229,7 +229,9 @@ public class BigQueryIOWriteTest implements Serializable {
     FakeDatasetService.setUp();
     BigQueryIO.clearCreatedTables();
     fakeDatasetService.createDataset("bigquery-project-id", "dataset-id", "", "", null);
+    fakeDatasetService.createDataset("bigquery-project-id", "temp-dataset-id", "", "", null);
     fakeDatasetService.createDataset("project-id", "dataset-id", "", "", null);
+    fakeDatasetService.createDataset("project-id", "temp-dataset-id", "", "", null);
   }
 
   @After
@@ -612,6 +614,54 @@ public class BigQueryIOWriteTest implements Serializable {
         containsInAnyOrder(Iterables.toArray(elements, TableRow.class)));
   }
 
+  @Test
+  public void testTriggeredFileLoadsWithTempTablesAndDataset() throws Exception {
+    String tableRef = "bigquery-project-id:dataset-id.table-id";
+    List<TableRow> elements = Lists.newArrayList();
+    for (int i = 0; i < 30; ++i) {
+      elements.add(new TableRow().set("number", i));
+    }
+    TestStream<TableRow> testStream =
+        TestStream.create(TableRowJsonCoder.of())
+            .addElements(
+                elements.get(0), Iterables.toArray(elements.subList(1, 10), TableRow.class))
+            .advanceProcessingTime(Duration.standardMinutes(1))
+            .addElements(
+                elements.get(10), Iterables.toArray(elements.subList(11, 20), TableRow.class))
+            .advanceProcessingTime(Duration.standardMinutes(1))
+            .addElements(
+                elements.get(20), Iterables.toArray(elements.subList(21, 30), TableRow.class))
+            .advanceWatermarkToInfinity();
+
+    BigQueryIO.Write.Method method = Method.FILE_LOADS;
+    p.apply(testStream)
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to(tableRef)
+                .withSchema(
+                    new TableSchema()
+                        .setFields(
+                            ImmutableList.of(
+                                new TableFieldSchema().setName("number").setType("INTEGER"))))
+                .withTestServices(fakeBqServices)
+                .withTriggeringFrequency(Duration.standardSeconds(30))
+                .withNumFileShards(2)
+                .withMaxBytesPerPartition(1)
+                .withMaxFilesPerPartition(1)
+                .withMethod(method)
+                .withoutValidation()
+                .withWriteTempDataset("temp-dataset-id"));
+    p.run();
+
+    final int projectIdSplitter = tableRef.indexOf(':');
+    final String projectId =
+        projectIdSplitter == -1 ? "project-id" : tableRef.substring(0, projectIdSplitter);
+
+    assertThat(
+        fakeDatasetService.getAllRows(projectId, "dataset-id", "table-id"),
+        containsInAnyOrder(Iterables.toArray(elements, TableRow.class)));
+  }
+
   public void testTriggeredFileLoadsWithTempTables(String tableRef) throws Exception {
     if (useStorageApi || !useStreaming) {
       return;
@@ -670,6 +720,36 @@ public class BigQueryIOWriteTest implements Serializable {
   @Test
   public void testTriggeredFileLoadsWithTempTables() throws Exception {
     testTriggeredFileLoadsWithTempTables("project-id:dataset-id.table-id");
+  }
+
+  @Test
+  public void testUntriggeredFileLoadsWithTempTables() throws Exception {
+    // Test only non-streaming inserts.
+    if (useStorageApi || useStreaming) {
+      return;
+    }
+    List<TableRow> elements = Lists.newArrayList();
+    for (int i = 0; i < 30; ++i) {
+      elements.add(new TableRow().set("number", i));
+    }
+    p.apply(Create.of(elements))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to("project-id:dataset-id.table-id")
+                .withSchema(
+                    new TableSchema()
+                        .setFields(
+                            ImmutableList.of(
+                                new TableFieldSchema().setName("number").setType("INTEGER"))))
+                .withTestServices(fakeBqServices)
+                .withMaxBytesPerPartition(1)
+                .withMaxFilesPerPartition(1)
+                .withoutValidation());
+    p.run();
+
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(Iterables.toArray(elements, TableRow.class)));
   }
 
   @Test
@@ -1946,7 +2026,8 @@ public class BigQueryIOWriteTest implements Serializable {
             null,
             "NEWLINE_DELIMITED_JSON",
             false,
-            Collections.emptySet());
+            Collections.emptySet(),
+            null);
 
     PCollection<KV<TableDestination, WriteTables.Result>> writeTablesOutput =
         writeTablesInput

@@ -12,32 +12,80 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+"""
+Module implements CI/CD steps for Beam Playground examples
+"""
+import argparse
 import asyncio
 import os
+from typing import List
 
+import config
+from api.v1.api_pb2 import Sdk
 from cd_helper import CDHelper
 from ci_helper import CIHelper
-from helper import find_examples
+from helper import find_examples, get_supported_categories, Example
 from logger import setup_logger
 
+parser = argparse.ArgumentParser(
+    description="CI/CD Steps for Playground objects")
+parser.add_argument(
+    "--step",
+    dest="step",
+    required=True,
+    help="CI step to verify all beam examples/tests/katas. CD step to save all "
+    "beam examples/tests/katas and their outputs on the GCS",
+    choices=[config.Config.CI_STEP_NAME, config.Config.CD_STEP_NAME])
+parser.add_argument(
+    "--sdk",
+    dest="sdk",
+    required=True,
+    help="Supported SDKs",
+    choices=config.Config.SUPPORTED_SDK)
 
-def ci_step():
-    """
-    CI step to verify all beam examples/tests/katas
-    """
-    setup_logger()
-    root_dir = os.getenv("BEAM_ROOT_DIR")
-    ci_helper = CIHelper()
-    examples = find_examples(root_dir)
-    asyncio.run(ci_helper.verify_examples(examples))
+root_dir = os.getenv("BEAM_ROOT_DIR")
+categories_file = os.getenv("BEAM_EXAMPLE_CATEGORIES")
 
 
-def cd_step():
-    """
-    CD step to save all beam examples/tests/katas and their outputs on the Google Cloud
-    """
-    setup_logger()
-    root_dir = os.getenv("BEAM_ROOT_DIR")
-    cd_helper = CDHelper()
-    examples = find_examples(root_dir)
-    cd_helper.store_examples(examples)
+def _ci_step(examples: List[Example]):
+  """
+  CI step to verify all beam examples/tests/katas
+  """
+
+  ci_helper = CIHelper()
+  asyncio.run(ci_helper.verify_examples(examples))
+
+
+def _cd_step(examples: List[Example]):
+  """
+  CD step to save all beam examples/tests/katas and their outputs on the GCS
+  """
+  cd_helper = CDHelper()
+  cd_helper.store_examples(examples)
+
+
+def _check_envs():
+  if root_dir is None:
+    raise KeyError(
+        "BEAM_ROOT_DIR environment variable should be specified in os")
+  if categories_file is None:
+    raise KeyError(
+        "BEAM_EXAMPLE_CATEGORIES environment variable should be specified in os"
+    )
+
+
+def _run_ci_cd(step: config.Config.CI_CD_LITERAL, sdk: Sdk):
+  supported_categories = get_supported_categories(categories_file)
+  examples = find_examples(root_dir, supported_categories, sdk)
+  if step == config.Config.CI_STEP_NAME:
+    _ci_step(examples=examples)
+  if step == config.Config.CD_STEP_NAME:
+    _cd_step(examples=examples)
+
+
+if __name__ == "__main__":
+  parser = parser.parse_args()
+  _check_envs()
+  setup_logger()
+  _run_ci_cd(parser.step, Sdk.Value(parser.sdk))

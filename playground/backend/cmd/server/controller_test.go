@@ -33,11 +33,15 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 const (
-	bufSize    = 1024 * 1024
-	javaConfig = "{\n  \"compile_cmd\": \"javac\",\n  \"run_cmd\": \"java\",\n  \"compile_args\": [\"-d\", \"bin\", \"-classpath\"],\n  \"run_args\": [\"-cp\", \"bin:\"]\n}"
+	bufSize               = 1024 * 1024
+	javaConfig            = "{\n  \"compile_cmd\": \"javac\",\n  \"run_cmd\": \"java\",\n  \"test_cmd\": \"java\",\n  \"compile_args\": [\n    \"-d\",\n    \"bin\",\n    \"-classpath\"\n  ],\n  \"run_args\": [\n    \"-cp\",\n    \"bin:\"\n  ],\n  \"test_args\": [\n    \"-cp\",\n    \"bin:\",\n    \"JUnit\"\n  ]\n}"
+	javaLogConfigFilename = "logging.properties"
+	baseFileFolder        = "executable_files"
+	configFolder          = "configs"
 )
 
 var lis *bufconn.Listener
@@ -57,12 +61,18 @@ func setup() *grpc.Server {
 	s := grpc.NewServer()
 
 	// create configs for java
-	err := os.MkdirAll("configs", fs.ModePerm)
+	err := os.MkdirAll(configFolder, fs.ModePerm)
 	if err != nil {
 		panic(err)
 	}
-	filePath := filepath.Join("configs", pb.Sdk_SDK_JAVA.String()+".json")
+	filePath := filepath.Join(configFolder, pb.Sdk_SDK_JAVA.String()+".json")
 	err = os.WriteFile(filePath, []byte(javaConfig), 0600)
+	if err != nil {
+		panic(err)
+	}
+
+	// create log config file
+	_, err = os.Create(javaLogConfigFilename)
 	if err != nil {
 		panic(err)
 	}
@@ -74,8 +84,12 @@ func setup() *grpc.Server {
 	if err != nil {
 		panic(err)
 	}
-	os.Setenv("BEAM_SDK", pb.Sdk_SDK_JAVA.String())
-	os.Setenv("APP_WORK_DIR", path)
+	if err = os.Setenv("BEAM_SDK", pb.Sdk_SDK_JAVA.String()); err != nil {
+		panic(err)
+	}
+	if err = os.Setenv("APP_WORK_DIR", path); err != nil {
+		panic(err)
+	}
 
 	networkEnv, err := environment.GetNetworkEnvsFromOsEnvs()
 	if err != nil {
@@ -104,13 +118,14 @@ func setup() *grpc.Server {
 func teardown(server *grpc.Server) {
 	server.Stop()
 
-	err := os.RemoveAll("configs")
-	if err != nil {
-		panic(fmt.Errorf("error during test teardown: %s", err.Error()))
-	}
-	err = os.RemoveAll("executable_files")
-	if err != nil {
-		panic(fmt.Errorf("error during test teardown: %s", err.Error()))
+	removeDir(configFolder)
+	removeDir(javaLogConfigFilename)
+	removeDir(baseFileFolder)
+}
+
+func removeDir(dir string) {
+	if err := os.RemoveAll(dir); err != nil {
+		panic(fmt.Errorf("error during remove dir %s: %s", dir, err.Error()))
 	}
 }
 
@@ -125,10 +140,9 @@ func TestPlaygroundController_RunCode(t *testing.T) {
 		request *pb.RunCodeRequest
 	}
 	tests := []struct {
-		name       string
-		args       args
-		wantStatus pb.Status
-		wantErr    bool
+		name    string
+		args    args
+		wantErr bool
 	}{
 		{
 			// Test case with calling RunCode method with incorrect SDK.
@@ -154,8 +168,7 @@ func TestPlaygroundController_RunCode(t *testing.T) {
 					Sdk:  pb.Sdk_SDK_JAVA,
 				},
 			},
-			wantStatus: pb.Status_STATUS_COMPILING,
-			wantErr:    false,
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
@@ -174,20 +187,15 @@ func TestPlaygroundController_RunCode(t *testing.T) {
 				if response == nil {
 					t.Errorf("PlaygroundController_RunCode() response shoudn't be nil")
 				} else {
+					// wait for code processing is finished
+					time.Sleep(time.Second * 10)
 					if response.PipelineUuid == "" {
 						t.Errorf("PlaygroundController_RunCode() response.pipeLineId shoudn't be nil")
-					} else {
-						path := os.Getenv("APP_WORK_DIR") + "/executable_files"
-						os.RemoveAll(path)
 					}
-					status, _ := cacheService.GetValue(tt.args.ctx, uuid.MustParse(response.PipelineUuid), cache.Status)
-					if status == nil {
-						t.Errorf("PlaygroundController_RunCode() status shoudn't be nil")
+					_, err := cacheService.GetValue(tt.args.ctx, uuid.MustParse(response.PipelineUuid), cache.Status)
+					if err != nil {
+						t.Errorf("PlaygroundController_RunCode() status should exist")
 					}
-					if !reflect.DeepEqual(status, tt.wantStatus) {
-						t.Errorf("PlaygroundController_RunCode() status = %v, wantStatus %v", status, tt.wantStatus)
-					}
-
 				}
 			}
 		})
@@ -455,6 +463,115 @@ func TestPlaygroundController_GetRunOutput(t *testing.T) {
 			if !tt.wantErr {
 				if !strings.EqualFold(got.Output, tt.want.Output) {
 					t.Errorf("GetRunOutput() got = %v, want %v", got.Output, tt.want.Output)
+				}
+			}
+		})
+	}
+}
+
+func TestPlaygroundController_GetLogs(t *testing.T) {
+	defer goleak.VerifyNone(t, opt)
+	ctx := context.Background()
+	pipelineId := uuid.New()
+	logs := "MOCK_LOGS"
+	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithInsecure())
+	if err != nil {
+		t.Fatalf("Failed to dial bufnet: %v", err)
+	}
+	defer conn.Close()
+	client := pb.NewPlaygroundServiceClient(conn)
+
+	type args struct {
+		ctx  context.Context
+		info *pb.GetLogsRequest
+	}
+	tests := []struct {
+		name    string
+		prepare func()
+		args    args
+		want    *pb.GetLogsResponse
+		wantErr bool
+	}{
+		{
+			// Test case with calling GetLogs method with incorrect pipelineId.
+			// As a result, want to receive an error
+			name:    "incorrect pipelineId",
+			prepare: func() {},
+			args: args{
+				ctx:  ctx,
+				info: &pb.GetLogsRequest{PipelineUuid: "NO_UUID_STRING"},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			// Test case with calling GetRLogs method with pipelineId which doesn't exist.
+			// As a result, want to receive an error.
+			name:    "pipelineId doesn't exist",
+			prepare: func() {},
+			args: args{
+				ctx:  ctx,
+				info: &pb.GetLogsRequest{PipelineUuid: pipelineId.String()},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			// Test case with calling GetLogs method with pipelineId which doesn't contain logs.
+			// As a result, want to receive an error.
+			name: "logs don't exist",
+			prepare: func() {
+				_ = cacheService.SetValue(ctx, pipelineId, cache.Status, pb.Status_STATUS_EXECUTING)
+			},
+			args: args{
+				ctx:  ctx,
+				info: &pb.GetLogsRequest{PipelineUuid: pipelineId.String()},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			// Test case with calling GetLogs method with pipelineId which contains logs.
+			// As a result want to receive response with an expected logs.
+			name: "logs exist",
+			prepare: func() {
+				_ = cacheService.SetValue(ctx, pipelineId, cache.LogsIndex, 0)
+				_ = cacheService.SetValue(ctx, pipelineId, cache.Logs, logs)
+			},
+			args: args{
+				ctx:  ctx,
+				info: &pb.GetLogsRequest{PipelineUuid: pipelineId.String()},
+			},
+			want:    &pb.GetLogsResponse{Output: logs},
+			wantErr: false,
+		},
+		{
+			// Test case with calling GetLogs method with pipelineId which contain logs and index of logs is 1.
+			// As a result want to receive response with correct logs (logs[1:]).
+			name: "get the second part",
+			prepare: func() {
+				_ = cacheService.SetValue(ctx, pipelineId, cache.LogsIndex, 1)
+				_ = cacheService.SetValue(ctx, pipelineId, cache.Logs, logs)
+			},
+			args: args{
+				ctx:  ctx,
+				info: &pb.GetLogsRequest{PipelineUuid: pipelineId.String()},
+			},
+			want:    &pb.GetLogsResponse{Output: logs[1:]},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.prepare()
+			got, err := client.GetLogs(tt.args.ctx, tt.args.info)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetLogs() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr {
+				if !strings.EqualFold(got.Output, tt.want.Output) {
+					t.Errorf("GetLogs() got = %v, want %v", got.Output, tt.want.Output)
 				}
 			}
 		})

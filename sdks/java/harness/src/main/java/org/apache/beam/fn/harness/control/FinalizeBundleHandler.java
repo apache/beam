@@ -35,8 +35,6 @@ import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A bundle finalization handler that expires entries after a specified amount of time.
@@ -65,16 +63,27 @@ public class FinalizeBundleHandler {
     public abstract BundleFinalizer.Callback getCallback();
   }
 
-  private static final Logger LOG = LoggerFactory.getLogger(FinalizeBundleHandler.class);
   private final ConcurrentMap<String, Collection<CallbackRegistration>> bundleFinalizationCallbacks;
   private final PriorityQueue<TimestampedValue<String>> cleanUpQueue;
+
+  @SuppressWarnings("unused")
   private final Future<Void> cleanUpResult;
 
   public FinalizeBundleHandler(ExecutorService executorService) {
     this.bundleFinalizationCallbacks = new ConcurrentHashMap<>();
     this.cleanUpQueue =
         new PriorityQueue<>(11, Comparator.comparing(TimestampedValue::getTimestamp));
-    this.cleanUpResult =
+    // Wait until we have at least one element. We are notified on each element
+    // being added.
+    // Wait until the current time has past the expiry time for the head of the
+    // queue.
+    // We are notified on each element being added.
+    // Wait until we have at least one element. We are notified on each element
+    // being added.
+    // Wait until the current time has past the expiry time for the head of the
+    // queue.
+    // We are notified on each element being added.
+    cleanUpResult =
         executorService.submit(
             (Callable<Void>)
                 () -> {
