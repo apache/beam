@@ -137,7 +137,7 @@ public class ProjectionPushdownOptimizerTest {
     Assert.assertFalse(pipelineHasTransform(p, originalSource));
   }
 
-  public boolean pipelineHasTransform(Pipeline p, PTransform<?, ?> t) {
+  private static boolean pipelineHasTransform(Pipeline p, PTransform<?, ?> t) {
     HasTransformVisitor hasTransformVisitor = new HasTransformVisitor(t);
     p.traverseTopologically(hasTransformVisitor);
     return hasTransformVisitor.found;
@@ -161,7 +161,7 @@ public class ProjectionPushdownOptimizerTest {
     }
   }
 
-  static class FieldAccessTransform extends PTransform<PCollection<Row>, PCollection<Row>> {
+  private static class FieldAccessTransform extends PTransform<PCollection<Row>, PCollection<Row>> {
     private final FieldAccessDescriptor fieldAccessDescriptor;
 
     FieldAccessTransform(FieldAccessDescriptor fieldAccessDescriptor) {
@@ -190,7 +190,7 @@ public class ProjectionPushdownOptimizerTest {
     }
   }
 
-  static Schema createStringSchema(FieldAccessDescriptor fieldAccessDescriptor) {
+  private static Schema createStringSchema(FieldAccessDescriptor fieldAccessDescriptor) {
     if (fieldAccessDescriptor.getAllFields()) {
       return createStringSchema(FieldAccessDescriptor.withFieldNames("foo", "bar", "baz", "qux"));
     }
