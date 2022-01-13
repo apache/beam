@@ -34,13 +34,14 @@ func init() {
 //  );
 
 type JdbcWriteTestRow struct {
-	Role_id   int64  `beam:"role_id"`
-	Role_name string `beam:"role_name"`
+	F_id     int64   `beam:"f_id"`
+	F_real   float64 `beam:"f_real"`
+	F_string string  `beam:"f_string"`
 }
 
 func writeRows(s beam.Scope, expansionAddr, tableName, driverClassName, jdbcUrl, username, password string) {
 	s = s.Scope("jdbc_test.WriteToJdbc")
-	rows := []JdbcWriteTestRow{{1, "row1"}, {2, "row2"}}
+	rows := []JdbcWriteTestRow{{1, 1.1, "row1"}, {2, 2.2, "row2"}}
 
 	input := beam.CreateList(s, rows)
 	jdbcio.Write(s, expansionAddr, tableName, driverClassName, jdbcUrl, username, password, input) //, statement)
