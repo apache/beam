@@ -29,7 +29,6 @@ from typing import List
 from tqdm import tqdm
 from google.cloud import storage
 
-import logger
 from api.v1.api_pb2 import Sdk
 from config import Config, PrecompiledExample
 from grpc_client import GRPCClient
@@ -46,13 +45,13 @@ class CDHelper:
     """
     Store beam examples and their output in the Google Cloud.
     """
-    logger.info("Start of executing Playground examples ...")
+    logging.info("Start of executing Playground examples ...")
     asyncio.run(self._get_outputs(examples))
-    logger.info("Finish of executing Playground examples")
+    logging.info("Finish of executing Playground examples")
 
-    logger.info("Start of sending Playground examples to the bucket ...")
+    logging.info("Start of sending Playground examples to the bucket ...")
     self._save_to_cloud_storage(examples)
-    logger.info("Finish of sending Playground examples to the bucket")
+    logging.info("Finish of sending Playground examples to the bucket")
     self._clear_temp_folder()
 
   async def _get_outputs(self, examples: List[Example]):
