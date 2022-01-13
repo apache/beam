@@ -66,6 +66,7 @@ public class AvroSpecificCoder<T extends SpecificRecord> extends CustomCoder<T> 
     return new AvroSpecificCoder<>(type, schema);
   }
 
+  @SuppressWarnings("unused")
   private final Class<T> type;
   private final SerializableSchemaSupplier schemaSupplier;
   private final TypeDescriptor<T> typeDescriptor;
