@@ -966,10 +966,12 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
           f"got {axis!r}.")
 
     if not isinstance(key, tuple):
-      key = (key, )
+      key_size = 1
+      key_series = pd.Series([key], index=[key])
+    else:
+      key_size = len(key)
+      key_series = pd.Series([key], pd.MultiIndex.from_tuples([key]))
 
-    key_size = len(key)
-    key_series = pd.Series([key], pd.MultiIndex.from_tuples([key]))
     key_expr = expressions.ConstantExpression(
         key_series, proxy=key_series.iloc[:0])
 
@@ -992,7 +994,11 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     def xs_partitioned(frame, key):
       if not len(key):
         # key is not in this partition, return empty dataframe
-        return frame.iloc[:0].droplevel(list(range(key_size)))
+        result = frame.iloc[:0]
+        if key_size < frame.index.nlevels:
+          return result.droplevel(list(range(key_size)))
+        else:
+          return result
 
       # key should be in this partition, call xs. Will raise KeyError if not
       # present.
@@ -1095,6 +1101,15 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
       requires_partition_by=partitionings.Arbitrary(),
       # Manipulates index, partitioning is not preserved
       preserves_partition_by=partitionings.Singleton())
+
+  @frame_base.with_docs_from(pd.DataFrame)
+  def pipe(self, func, *args, **kwargs):
+    if isinstance(func, tuple):
+      func, data = func
+      kwargs[data] = self
+      return func(*args, **kwargs)
+
+    return func(self, *args, **kwargs)
 
 
 @populate_not_implemented(pd.Series)
@@ -4077,6 +4092,15 @@ class DeferredGroupBy(frame_base.DeferredFrame):
             proxy=proxy,
             requires_partition_by=partitionings.Index(levels),
             preserves_partition_by=partitionings.Index(self._grouping_indexes)))
+
+  @frame_base.with_docs_from(DataFrameGroupBy)
+  def pipe(self, func, *args, **kwargs):
+    if isinstance(func, tuple):
+      func, data = func
+      kwargs[data] = self
+      return func(*args, **kwargs)
+
+    return func(self, *args, **kwargs)
 
   @frame_base.with_docs_from(DataFrameGroupBy)
   def filter(self, func=None, dropna=True):

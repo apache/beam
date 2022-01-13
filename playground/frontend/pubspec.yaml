@@ -54,6 +54,10 @@ dependencies:
   grpc: ^3.0.0
   flutter_web_plugins:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  intl: ^0.17.0
+  aligned_dialog: ^0.0.6
 
 dev_dependencies:
   flutter_test:
@@ -77,6 +81,8 @@ dev_dependencies:
 flutter:
   assets:
     - assets/
+
+  generate: true
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in

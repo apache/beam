@@ -276,6 +276,21 @@ class DeferredFrameTest(_AbstractFrameTest):
         lambda df: df.num_legs.xs(('bird', 'walks'), level=[0, 'locomotion']),
         df)
 
+  def test_dataframe_xs(self):
+    # Test cases reported in BEAM-13421
+    df = pd.DataFrame(
+        np.array([
+            ['state', 'day1', 12],
+            ['state', 'day1', 1],
+            ['state', 'day2', 14],
+            ['county', 'day1', 9],
+        ]),
+        columns=['provider', 'time', 'value'])
+
+    self._run_test(lambda df: df.xs('state'), df.set_index(['provider']))
+    self._run_test(
+        lambda df: df.xs('state'), df.set_index(['provider', 'time']))
+
   def test_set_column(self):
     def new_column(df):
       df['NewCol'] = df['Speed']
@@ -1246,24 +1261,28 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(lambda s2: s2.idxmax(skipna=False), s2)
 
   def test_pipe(self):
-    def sum(x):
-      x['A'] = x['A'] * 2
+    def df_times(df, column, times):
+      df[column] = df[column] * times
+      return df
 
-    df = pd.DataFrame({'A': [1, 2, 3], 'B': [4, 5, 6]})
+    def df_times_shuffled(column, times, df):
+      return df_times(df, column, times)
 
-    func_1 = sum
-    func_2 = frames.DeferredDataFrame.sum
+    def s_times(s, times):
+      return s * times
 
-    # _expr or proxy doesnt exist
-    self._run_test(lambda df: df.pipe(func_1), df)
-    self._run_test(lambda df: df.pipe(func_2), df)
+    def s_times_shuffled(times, s):
+      return s_times(s, times)
 
-  def test_pipe_series(self):
+    df = pd.DataFrame({'A': [1, 2, 3], 'B': [4, 5, 6]}, index=[0, 1, 2])
+    s = pd.Series([1, 2, 3, 4, 5], index=[0, 1, 2, 3, 4])
 
-    s = pd.Series([1, 2, 3, 4, 5])
-    fn_sum = frames.DeferredSeries.sum
+    self._run_inplace_test(lambda df: df.pipe(df_times, 'A', 2), df)
+    self._run_inplace_test(
+        lambda df: df.pipe((df_times_shuffled, 'df'), 'A', 2), df)
 
-    self._run_test(lambda s: s.pipe(fn_sum), s)
+    self._run_test(lambda s: s.pipe(s_times, 2), s)
+    self._run_test(lambda s: s.pipe((s_times_shuffled, 's'), 2), s)
 
 
 # pandas doesn't support kurtosis on GroupBys:
@@ -1448,6 +1467,18 @@ class GroupByTest(_AbstractFrameTest):
         lambda df: df.groupby('Date')['Data'].transform(
             lambda x: (x - x.mean()) / x.std()),
         df)
+
+  def test_groupby_pipe(self):
+    df = GROUPBY_DF
+
+    self._run_test(lambda df: df.groupby('group').pipe(lambda x: x.sum()), df)
+    self._run_test(
+        lambda df: df.groupby('group')['bool'].pipe(lambda x: x.any()), df)
+    self._run_test(
+        lambda df: df.groupby(['group', 'foo']).pipe(
+            (lambda a, x: x.sum(numeric_only=a), 'x'), False),
+        df,
+        check_proxy=False)
 
   def test_groupby_apply_modified_index(self):
     df = GROUPBY_DF

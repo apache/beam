@@ -35,20 +35,19 @@ repositories {
 }
 
 dependencies {
-    compile group: 'com.cdancy', name: 'jenkins-rest', version: '0.0.22'
-    compile 'com.offbytwo.jenkins:jenkins-client:0.3.8'
-    compile library.java.jackson_databind
-    compile group: 'org.jenkins-ci.plugins', name: 'junit', version: '1.49'
-    compile group: 'org.yaml', name: 'snakeyaml', version: '1.28'
-    compile library.java.jackson_dataformat_yaml
-    compile 'org.slf4j:slf4j-simple:1.7.9'
-    compile group: 'junit', name: 'junit', version: '4.12'
-    compile project(path: ":sdks:java:core")
-    compile project(path: ":sdks:java:core", configuration: "shadowTest")
-    compile project(path: ":runners:spark:3")
-    compile project(path: ":runners:flink:${latestFlinkVersion}")
-    compile project(path: ":runners:core-java")
-    compile project(path: ":runners:core-java", configuration: "testRuntime")
+    implementation group: 'com.cdancy', name: 'jenkins-rest', version: '0.0.22'
+    implementation 'com.offbytwo.jenkins:jenkins-client:0.3.8'
+    implementation library.java.jackson_databind
+    implementation group: 'org.jenkins-ci.plugins', name: 'junit', version: '1.49'
+    implementation group: 'org.yaml', name: 'snakeyaml', version: '1.28'
+    implementation library.java.jackson_dataformat_yaml
+    implementation 'org.slf4j:slf4j-simple:1.7.9'
+    implementation group: 'junit', name: 'junit', version: '4.12'
+    implementation project(path: ":sdks:java:core")
+    implementation project(path: ":sdks:java:core", configuration: "shadowTest")
+    implementation project(path: ":runners:spark:3")
+    implementation project(path: ":runners:flink:${latestFlinkVersion}")
+    implementation project(path: ":runners:core-java", configuration: "testRuntimeMigration")
 }
 
 
@@ -62,6 +61,6 @@ if (project.hasProperty("args")) {
 
 task runner(type: JavaExec) {
     classpath = sourceSets.main.runtimeClasspath
-    main = "org.apache.beam.validate.runner.Main"
+    mainClass = "org.apache.beam.validate.runner.Main"
     args cmdargs.split()
 }

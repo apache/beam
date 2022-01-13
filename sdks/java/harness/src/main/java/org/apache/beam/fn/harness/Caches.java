@@ -18,51 +18,90 @@
 package org.apache.beam.fn.harness;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Objects;
-import java.util.concurrent.TimeUnit;
+import java.util.Set;
+import java.util.WeakHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
+import org.apache.beam.fn.harness.Cache.Shrinkable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.SdkHarnessOptions;
+import org.apache.beam.sdk.util.Weighted;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
-import org.cache2k.Cache2kBuilder;
-import org.cache2k.operation.Weigher;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.RemovalListener;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.RemovalNotification;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Weigher;
 import org.github.jamm.MemoryMeter;
+import org.github.jamm.MemoryMeter.Guess;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Utility methods used to instantiate and operate over cache instances. */
 @SuppressWarnings("nullness")
 public final class Caches {
+  private static final Logger LOG = LoggerFactory.getLogger(Caches.class);
+
+  private static final int WEIGHT_RATIO = 64;
+
+  private static final MemoryMeter MEMORY_METER =
+      MemoryMeter.builder().withGuessing(Guess.BEST).build();
+
+  public static long weigh(Object o) {
+    if (o == null) {
+      return 8;
+    }
+    return MEMORY_METER.measureDeep(o);
+  }
+
+  /** An eviction listener that reduces the size of entries that are {@link Shrinkable}. */
+  @VisibleForTesting
+  static class ShrinkOnEviction implements RemovalListener<CompositeKey, Object> {
+
+    private final org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache<
+            CompositeKey, Object>
+        cache;
+
+    ShrinkOnEviction(CacheBuilder<Object, Object> cacheBuilder) {
+      this.cache = cacheBuilder.removalListener(this).build();
+    }
+
+    public org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache<
+            CompositeKey, Object>
+        getCache() {
+      return cache;
+    }
+
+    @Override
+    public void onRemoval(RemovalNotification<CompositeKey, Object> removalNotification) {
+      if (removalNotification.wasEvicted()) {
+        if (!(removalNotification.getValue() instanceof Cache.Shrinkable)) {
+          return;
+        }
+        Object updatedEntry = ((Shrinkable<?>) removalNotification.getValue()).shrink();
+        if (updatedEntry != null) {
+          cache.put(removalNotification.getKey(), updatedEntry);
+        }
+      }
+    }
+  }
 
   /** A cache that never stores any values. */
   public static <K, V> Cache<K, V> noop() {
-    // We specifically use cache2k since it allows for recursive computeIfAbsent calls
+    // We specifically use Guava cache since it allows for recursive computeIfAbsent calls
     // preventing deadlock from occurring when a loading function mutates the underlying cache
-    org.cache2k.Cache<CompositeKey, Object> cache =
-        Cache2kBuilder.of(CompositeKey.class, Object.class)
-            .entryCapacity(1)
-            .storeByReference(true)
-            .expireAfterWrite(0, TimeUnit.NANOSECONDS)
-            .sharpExpiry(true)
-            .executor(MoreExecutors.directExecutor())
-            .build();
-
-    return (Cache<K, V>) forCache(cache);
+    return (Cache<K, V>)
+        forCache(new ShrinkOnEviction(CacheBuilder.newBuilder().maximumSize(0)).getCache());
   }
 
   /** A cache that never evicts any values. */
   public static <K, V> Cache<K, V> eternal() {
-    // We specifically use cache2k since it allows for recursive computeIfAbsent calls
+    // We specifically use Guava cache since it allows for recursive computeIfAbsent calls
     // preventing deadlock from occurring when a loading function mutates the underlying cache
-    org.cache2k.Cache<CompositeKey, Object> cache =
-        Cache2kBuilder.of(CompositeKey.class, Object.class)
-            .entryCapacity(Long.MAX_VALUE)
-            .storeByReference(true)
-            .executor(MoreExecutors.directExecutor())
-            .build();
-    return (Cache<K, V>) forCache(cache);
+    return (Cache<K, V>)
+        forCache(
+            new ShrinkOnEviction(CacheBuilder.newBuilder().maximumSize(Long.MAX_VALUE)).getCache());
   }
 
   /**
@@ -70,27 +109,40 @@ public final class Caches {
    * parameters within {@link SdkHarnessOptions}.
    */
   public static <K, V> Cache<K, V> fromOptions(PipelineOptions options) {
-    // We specifically use cache2k since it allows for recursive computeIfAbsent calls
+    // We specifically use Guava cache since it allows for recursive computeIfAbsent calls
     // preventing deadlock from occurring when a loading function mutates the underlying cache
-    org.cache2k.Cache<CompositeKey, Object> cache =
-        Cache2kBuilder.of(CompositeKey.class, Object.class)
-            .maximumWeight(
-                options.as(SdkHarnessOptions.class).getMaxCacheMemoryUsageMb() * 1024L * 1024L)
-            .weigher(
-                new Weigher<CompositeKey, Object>() {
-                  private final MemoryMeter memoryMeter = MemoryMeter.builder().build();
+    return (Cache<K, V>)
+        forCache(
+            new ShrinkOnEviction(
+                    CacheBuilder.newBuilder()
+                        .maximumWeight(
+                            options.as(SdkHarnessOptions.class).getMaxCacheMemoryUsageMb()
+                                * 1024L
+                                * 1024L
+                                / WEIGHT_RATIO)
+                        .weigher(
+                            new Weigher<Object, Object>() {
 
-                  @Override
-                  public int weigh(CompositeKey key, Object value) {
-                    long size = memoryMeter.measureDeep(key) + memoryMeter.measureDeep(value);
-                    return size > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) size;
-                  }
-                })
-            .storeByReference(true)
-            .executor(MoreExecutors.directExecutor())
-            .build();
-
-    return (Cache<K, V>) forCache(cache);
+                              @Override
+                              public int weigh(Object key, Object value) {
+                                long size;
+                                if (value instanceof Weighted) {
+                                  size = Caches.weigh(key) + ((Weighted) value).getWeight();
+                                } else {
+                                  size = Caches.weigh(key) + Caches.weigh(value);
+                                }
+                                size = size / WEIGHT_RATIO + 1;
+                                if (size >= Integer.MAX_VALUE) {
+                                  LOG.warn(
+                                      "Entry with size {} MiBs inserted into the cache. This is larger than the maximum individual entry size of {} MiBs. The cache will under report its memory usage by the difference. This may lead to OutOfMemoryErrors.",
+                                      (size / 1048576L) + 1,
+                                      2 * WEIGHT_RATIO * 1024);
+                                  return Integer.MAX_VALUE;
+                                }
+                                return (int) size;
+                              }
+                            }))
+                .getCache());
   }
 
   /**
@@ -98,9 +150,6 @@ public final class Caches {
    *
    * <p>All lookups, insertions, and removals into the parent {@link Cache} will be prefixed by the
    * specified prefixes.
-   *
-   * <p>Operations which operate over the entire caches contents such as {@link Cache#clear} only
-   * operate over keys with the specified prefixes.
    */
   public static <K, V> Cache<K, V> subCache(
       Cache<?, ?> cache, Object keyPrefix, Object... additionalKeyPrefix) {
@@ -115,7 +164,10 @@ public final class Caches {
             cache == null ? "null" : cache.getClass()));
   }
 
-  private static Cache<Object, Object> forCache(org.cache2k.Cache<CompositeKey, Object> cache) {
+  @VisibleForTesting
+  static Cache<Object, Object> forCache(
+      org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache<CompositeKey, Object>
+          cache) {
     return new SubCache<>(cache, CompositeKeyPrefix.ROOT);
   }
 
@@ -124,28 +176,33 @@ public final class Caches {
    *
    * <p>All lookups, insertions, and removals into the parent {@link Cache} will be prefixed by the
    * specified prefixes.
-   *
-   * <p>Operations which operate over the entire caches contents such as {@link Cache#clear} only
-   * operate over keys with the specified prefixes.
    */
   private static class SubCache<K, V> implements Cache<K, V> {
-    private final org.cache2k.Cache<CompositeKey, Object> cache;
+    private final org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache<
+            CompositeKey, Object>
+        cache;
     private final CompositeKeyPrefix keyPrefix;
 
-    SubCache(org.cache2k.Cache<CompositeKey, Object> cache, CompositeKeyPrefix keyPrefix) {
+    SubCache(
+        org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache<CompositeKey, Object>
+            cache,
+        CompositeKeyPrefix keyPrefix) {
       this.cache = cache;
       this.keyPrefix = keyPrefix;
     }
 
     @Override
     public V peek(K key) {
-      return (V) cache.peek(keyPrefix.valueKey(key));
+      return (V) cache.getIfPresent(keyPrefix.valueKey(key));
     }
 
     @Override
     public V computeIfAbsent(K key, Function<K, V> loadingFunction) {
-      return (V)
-          cache.computeIfAbsent(keyPrefix.valueKey(key), o -> loadingFunction.apply((K) o.key));
+      try {
+        return (V) cache.get(keyPrefix.valueKey(key), () -> loadingFunction.apply(key));
+      } catch (ExecutionException e) {
+        throw new RuntimeException(e);
+      }
     }
 
     @Override
@@ -154,22 +211,8 @@ public final class Caches {
     }
 
     @Override
-    public void clear() {
-      for (CompositeKey key : Sets.filter(cache.keys(), keyPrefix::isProperPrefixOf)) {
-        cache.remove(key);
-      }
-    }
-
-    @Override
-    public Iterable<K> keys() {
-      return Iterables.transform(
-          Sets.filter(cache.keys(), keyPrefix::isEquivalentNamespace),
-          input -> (K) Preconditions.checkNotNull(input.key));
-    }
-
-    @Override
     public void remove(K key) {
-      cache.remove(keyPrefix.valueKey(key));
+      cache.invalidate(keyPrefix.valueKey(key));
     }
   }
 
@@ -254,6 +297,49 @@ public final class Caches {
     @Override
     public int hashCode() {
       return Arrays.hashCode(namespace);
+    }
+  }
+
+  /**
+   * A cache that tracks keys that have been inserted into the cache and supports clearing them.
+   *
+   * <p>The set of keys that are tracked are only those provided to {@link #peek} and {@link
+   * #computeIfAbsent}.
+   */
+  public static class ClearableCache<K, V> extends SubCache<K, V> {
+    private final Set<K> weakHashSet;
+
+    public ClearableCache(Cache<K, V> cache) {
+      super(((SubCache<K, V>) cache).cache, ((SubCache<CompositeKey, V>) cache).keyPrefix);
+      // We specifically use a weak hash map so that once the key is no longer referenced we don't
+      // have to keep track of it anymore and the weak hash map will garbage collect it for us.
+      this.weakHashSet = Collections.newSetFromMap(new WeakHashMap<>());
+    }
+
+    @Override
+    public V computeIfAbsent(K key, Function<K, V> loadingFunction) {
+      weakHashSet.add(key);
+      return super.computeIfAbsent(key, loadingFunction);
+    }
+
+    @Override
+    public void put(K key, V value) {
+      weakHashSet.add(key);
+      super.put(key, value);
+    }
+
+    @Override
+    public void remove(K key) {
+      weakHashSet.remove(key);
+      super.remove(key);
+    }
+
+    /** Removes all tracked keys from the cache. */
+    public void clear() {
+      for (K key : weakHashSet) {
+        super.remove(key);
+      }
+      weakHashSet.clear();
     }
   }
 }

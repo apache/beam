@@ -24,7 +24,6 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +40,7 @@ import java.util.function.Supplier;
 import org.apache.beam.fn.harness.BeamFnDataReadRunner;
 import org.apache.beam.fn.harness.Cache;
 import org.apache.beam.fn.harness.Caches;
+import org.apache.beam.fn.harness.Caches.ClearableCache;
 import org.apache.beam.fn.harness.PTransformRunnerFactory;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Context;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.ProgressRequestCallback;
@@ -53,7 +53,6 @@ import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
-import org.apache.beam.fn.harness.state.CachingBeamFnStateClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
@@ -83,9 +82,7 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.data.TimerEndpoint;
 import org.apache.beam.sdk.function.ThrowingRunnable;
-import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
@@ -150,29 +147,10 @@ public class ProcessBundleHandler {
     REGISTERED_RUNNER_FACTORIES = builder.build();
   }
 
-  // Creates a new map of state data for newly encountered state keys
-  private CacheLoader<
-          BeamFnApi.StateKey,
-          Map<CachingBeamFnStateClient.StateCacheKey, BeamFnApi.StateGetResponse>>
-      stateKeyMapCacheLoader =
-          new CacheLoader<
-              BeamFnApi.StateKey,
-              Map<CachingBeamFnStateClient.StateCacheKey, BeamFnApi.StateGetResponse>>() {
-            @Override
-            public Map<CachingBeamFnStateClient.StateCacheKey, BeamFnApi.StateGetResponse> load(
-                BeamFnApi.StateKey key) {
-              return new HashMap<>();
-            }
-          };
-
   private final PipelineOptions options;
   private final Function<String, BeamFnApi.ProcessBundleDescriptor> fnApiRegistry;
   private final BeamFnDataClient beamFnDataClient;
   private final BeamFnStateGrpcClientCache beamFnStateGrpcClientCache;
-  private final LoadingCache<
-          BeamFnApi.StateKey,
-          Map<CachingBeamFnStateClient.StateCacheKey, BeamFnApi.StateGetResponse>>
-      stateCache;
   private final FinalizeBundleHandler finalizeBundleHandler;
   private final ShortIdMap shortIds;
   private final boolean runnerAcceptsShortIds;
@@ -219,7 +197,6 @@ public class ProcessBundleHandler {
     this.fnApiRegistry = fnApiRegistry;
     this.beamFnDataClient = beamFnDataClient;
     this.beamFnStateGrpcClientCache = beamFnStateGrpcClientCache;
-    this.stateCache = CacheBuilder.newBuilder().build(stateKeyMapCacheLoader);
     this.finalizeBundleHandler = finalizeBundleHandler;
     this.shortIds = shortIds;
     this.runnerAcceptsShortIds =
@@ -666,20 +643,7 @@ public class ProcessBundleHandler {
       BeamFnStateClient underlyingClient =
           beamFnStateGrpcClientCache.forApiServiceDescriptor(
               bundleDescriptor.getStateApiServiceDescriptor());
-
-      // If pipeline is batch, use a CachingBeamFnStateClient to store state responses.
-      // Once streaming is supported use CachingBeamFnStateClient for both.
-      // TODO(BEAM-10212): Remove experiment once cross bundle caching is used by default
-      if (ExperimentalOptions.hasExperiment(options, "cross_bundle_caching")) {
-        beamFnStateClient =
-            new BlockTillStateCallsFinish(
-                options.as(StreamingOptions.class).isStreaming()
-                    ? underlyingClient
-                    : new CachingBeamFnStateClient(
-                        underlyingClient, stateCache, processBundleRequest.getCacheTokensList()));
-      } else {
-        beamFnStateClient = new BlockTillStateCallsFinish(underlyingClient);
-      }
+      beamFnStateClient = new BlockTillStateCallsFinish(underlyingClient);
     } else {
       beamFnStateClient = new FailAllStateCallsForBundle(processBundleRequest);
     }
@@ -927,7 +891,7 @@ public class ProcessBundleHandler {
 
     private String instructionId;
     private List<CacheToken> cacheTokens;
-    private Cache<Object, Object> bundleCache;
+    private ClearableCache<Object, Object> bundleCache;
 
     abstract Cache<?, ?> getProcessWideCache();
 
@@ -973,7 +937,9 @@ public class ProcessBundleHandler {
 
     synchronized Cache<Object, Object> getBundleCache() {
       if (this.bundleCache == null) {
-        this.bundleCache = Caches.subCache(getProcessWideCache(), "Bundle", this.instructionId);
+        this.bundleCache =
+            new Caches.ClearableCache<>(
+                Caches.subCache(getProcessWideCache(), "Bundle", this.instructionId));
       }
       return this.bundleCache;
     }

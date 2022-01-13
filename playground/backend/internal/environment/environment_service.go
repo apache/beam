@@ -17,6 +17,7 @@ package environment
 
 import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"beam.apache.org/playground/backend/internal/logger"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -25,6 +26,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -34,12 +36,18 @@ const (
 	beamSdkKey                    = "BEAM_SDK"
 	workingDirKey                 = "APP_WORK_DIR"
 	preparedModDirKey             = "PREPARED_MOD_DIR"
+	numOfParallelJobsKey          = "NUM_PARALLEL_JOBS"
 	cacheTypeKey                  = "CACHE_TYPE"
 	cacheAddressKey               = "CACHE_ADDRESS"
 	beamPathKey                   = "BEAM_PATH"
 	cacheKeyExpirationTimeKey     = "KEY_EXPIRATION_TIME"
 	pipelineExecuteTimeoutKey     = "PIPELINE_EXPIRATION_TIMEOUT"
 	protocolTypeKey               = "PROTOCOL_TYPE"
+	launchSiteKey                 = "LAUNCH_SITE"
+	projectIdKey                  = "GOOGLE_CLOUD_PROJECT"
+	pipelinesFolderKey            = "PIPELINES_FOLDER_NAME"
+	defaultPipelinesFolder        = "executable_files"
+	defaultLaunchSite             = "local"
 	defaultProtocol               = "HTTP"
 	defaultIp                     = "localhost"
 	defaultPort                   = 8080
@@ -51,6 +59,7 @@ const (
 	defaultPipelineExecuteTimeout = time.Minute * 10
 	jsonExt                       = ".json"
 	configFolderName              = "configs"
+	defaultNumOfParallelJobs      = 20
 )
 
 // Environment operates with environment structures: NetworkEnvs, BeamEnvs, ApplicationEnvs
@@ -89,6 +98,9 @@ func GetApplicationEnvsFromOsEnvs() (*ApplicationEnvs, error) {
 	cacheExpirationTime := defaultCacheKeyExpirationTime
 	cacheType := getEnv(cacheTypeKey, defaultCacheType)
 	cacheAddress := getEnv(cacheAddressKey, defaultCacheAddress)
+	launchSite := getEnv(launchSiteKey, defaultLaunchSite)
+	projectId := os.Getenv(projectIdKey)
+	pipelinesFolder := getEnv(pipelinesFolderKey, defaultPipelinesFolder)
 
 	if value, present := os.LookupEnv(cacheKeyExpirationTimeKey); present {
 		if converted, err := time.ParseDuration(value); err == nil {
@@ -106,7 +118,7 @@ func GetApplicationEnvsFromOsEnvs() (*ApplicationEnvs, error) {
 	}
 
 	if value, present := os.LookupEnv(workingDirKey); present {
-		return NewApplicationEnvs(value, NewCacheEnvs(cacheType, cacheAddress, cacheExpirationTime), pipelineExecuteTimeout), nil
+		return NewApplicationEnvs(value, launchSite, projectId, pipelinesFolder, NewCacheEnvs(cacheType, cacheAddress, cacheExpirationTime), pipelineExecuteTimeout), nil
 	}
 	return nil, errors.New("APP_WORK_DIR env should be provided with os.env")
 }
@@ -137,6 +149,21 @@ func GetNetworkEnvsFromOsEnvs() (*NetworkEnvs, error) {
 func ConfigureBeamEnvs(workDir string) (*BeamEnvs, error) {
 	sdk := pb.Sdk_SDK_UNSPECIFIED
 	preparedModDir, modDirExist := os.LookupEnv(preparedModDirKey)
+
+	numOfParallelJobs := defaultNumOfParallelJobs
+	if value, present := os.LookupEnv(numOfParallelJobsKey); present {
+		convertedValue, err := strconv.Atoi(value)
+		if err != nil {
+			logger.Errorf("Incorrect value for %s. Should be integer. Will be used default value: %d", numOfParallelJobsKey, defaultNumOfParallelJobs)
+		} else {
+			if convertedValue <= 0 {
+				logger.Errorf("Incorrect value for %s. Should be a positive integer value but it is %d. Will be used default value: %d", numOfParallelJobsKey, convertedValue, defaultNumOfParallelJobs)
+			} else {
+				numOfParallelJobs = convertedValue
+			}
+		}
+	}
+
 	if value, present := os.LookupEnv(beamSdkKey); present {
 
 		switch value {
@@ -161,7 +188,7 @@ func ConfigureBeamEnvs(workDir string) (*BeamEnvs, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewBeamEnvs(sdk, executorConfig, preparedModDir), nil
+	return NewBeamEnvs(sdk, executorConfig, preparedModDir, numOfParallelJobs), nil
 }
 
 // createExecutorConfig creates ExecutorConfig that corresponds to specific Apache Beam SDK.
@@ -173,9 +200,13 @@ func createExecutorConfig(apacheBeamSdk pb.Sdk, configPath string) (*ExecutorCon
 	}
 	switch apacheBeamSdk {
 	case pb.Sdk_SDK_JAVA:
-		executorConfig.CompileArgs = append(executorConfig.CompileArgs, getEnv(beamPathKey, defaultBeamJarsPath))
-		executorConfig.RunArgs[1] = fmt.Sprintf("%s%s", executorConfig.RunArgs[1], getEnv(beamPathKey, defaultBeamJarsPath))
-		executorConfig.TestArgs[1] = fmt.Sprintf("%s%s", executorConfig.TestArgs[1], getEnv(beamPathKey, defaultBeamJarsPath))
+		args, err := ConcatBeamJarsToString()
+		if err != nil {
+			return nil, fmt.Errorf("error during proccessing jars: %s", err.Error())
+		}
+		executorConfig.CompileArgs = append(executorConfig.CompileArgs, args)
+		executorConfig.RunArgs[1] = fmt.Sprintf("%s%s", executorConfig.RunArgs[1], args)
+		executorConfig.TestArgs[1] = fmt.Sprintf("%s%s", executorConfig.TestArgs[1], args)
 	case pb.Sdk_SDK_GO:
 		// Go sdk doesn't need any additional arguments from the config file
 	case pb.Sdk_SDK_PYTHON:
@@ -184,6 +215,15 @@ func createExecutorConfig(apacheBeamSdk pb.Sdk, configPath string) (*ExecutorCon
 		return nil, errors.New("not yet supported")
 	}
 	return executorConfig, nil
+}
+
+func ConcatBeamJarsToString() (string, error) {
+	jars, err := filepath.Glob(getEnv(beamPathKey, defaultBeamJarsPath))
+	if err != nil {
+		return "", err
+	}
+	args := strings.Join(jars, ":")
+	return args, nil
 }
 
 // getConfigFromJson reads a json file to ExecutorConfig
