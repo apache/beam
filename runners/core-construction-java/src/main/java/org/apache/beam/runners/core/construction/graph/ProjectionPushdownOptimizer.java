@@ -53,7 +53,7 @@ public class ProjectionPushdownOptimizer {
     Map<ProjectionProducer<PTransform<?, ?>>, Map<PCollection<?>, FieldAccessDescriptor>>
         pushdownOpportunities = pushdownProjectorVisitor.getPushdownOpportunities();
 
-    // TODO(ibzib) comment
+    // Translate target PCollections to their output TupleTags.
     PCollectionOutputTagVisitor outputTagVisitor =
         new PCollectionOutputTagVisitor(pushdownOpportunities);
     pipeline.traverseTopologically(outputTagVisitor);
@@ -70,7 +70,6 @@ public class ProjectionPushdownOptimizer {
     }
   }
 
-  @SuppressWarnings("unused") // pls
   private static class PushdownOverrideFactory<
           TransformT extends PTransform<PBegin, PCollection<Row>>>
       implements PTransformOverrideFactory<PBegin, PCollection<Row>, TransformT> {
@@ -84,6 +83,7 @@ public class ProjectionPushdownOptimizer {
     public PTransformReplacement<PBegin, PCollection<Row>> getReplacementTransform(
         AppliedPTransform<PBegin, PCollection<Row>, TransformT> transform) {
       // TODO(ibzib) make this work for upstream transforms that aren't sources.
+      // i.e. - instead of PTransform<PBegin, V>, make K generic.
       return PTransformReplacement.of(
           transform.getPipeline().begin(),
           ((ProjectionProducer<PTransform<PBegin, PCollection<Row>>>) transform.getTransform())
@@ -94,6 +94,7 @@ public class ProjectionPushdownOptimizer {
     public Map<PCollection<?>, ReplacementOutput> mapOutputs(
         Map<TupleTag<?>, PCollection<?>> outputs, PCollection<Row> newOutput) {
       // TODO(ibzib) handle mutlipel outputs.
+      // i.e. - instead of PTransform<K, PCollection<Row>>, make V generic.
       Map.Entry<TupleTag<?>, PCollection<?>> original =
           Iterables.getOnlyElement(outputs.entrySet());
       Map.Entry<TupleTag<?>, PCollection<?>> replacement =
