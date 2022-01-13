@@ -21,20 +21,21 @@
 // successively more detailed 'word count' examples. You may first want to
 // take a look at minimal_wordcount and wordcount.
 // Then look at debugging_worcount for some testing and validation concepts.
-// After you've looked at this example, then see the windowed_wordcount pipeline,
-// for introduction of additional concepts.
+// After you've looked at this example, follow up with the windowed_wordcount
+// pipeline, for introduction of additional concepts.
 //
 // Basic concepts, also in the minimal_wordcount and wordcount examples:
 // Reading text files; counting a PCollection; executing a Pipeline both locally
 // and using a selected runner; defining DoFns.
 //
-// Additional concepts, like testing DoFns.
-//
 // New Concepts:
 //
 //   1. Using a SplittableDoFn transform to read the IOs.
-//   2. Using a Map Side Input to randomly access KV pairs from a sorted a keyspace.
-//   3. Testing your Pipeline via passert, using Go testing tools.
+//   2. Using a Map Side Input to access values for specific keys.
+//   3. Testing your Pipeline via passert and metrics, using Go testing tools.
+//
+// This example will not be enumerating concepts, but will document them as they
+// appear. There may be repetition from previous examples.
 //
 // To change the runner, specify:
 //
@@ -61,7 +62,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/harnessopts"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 
@@ -78,25 +78,20 @@ import (
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/universal"
 )
 
-// TODO(herohde) 10/16/2017: support metrics and log level cutoff.
-
 var (
 	input  = flag.String("input", "gs://apache-beam-samples/shakespeare/*.txt", "File(s) to read.")
 	output = flag.String("output", "", "Output file (required). Use @* or @N (eg. @5) to indicate dynamic, or fixed number of shards. No shard indicator means a single file.")
 )
 
-// Concept #1: a DoFn can also be a struct with methods for setup/teardown and
-// element/bundle processing. It also allows configuration values to be made
-// available at runtime.
+// Concept: DoFn and Type Registration
+// All DoFns and user types used as PCollection elements must be registered with beam.
 
 func init() {
 	beam.RegisterFunction(extractFn)
 	beam.RegisterFunction(formatFn)
-	// To be correctly serialized on non-direct runners, struct form DoFns must be
-	// registered during initialization.
 	beam.RegisterType(reflect.TypeOf((*makeMetakeys)(nil)).Elem())
 	beam.RegisterType(reflect.TypeOf((*metakey)(nil)).Elem())
-	beam.RegisterType(reflect.TypeOf((*pairWithMetaKey)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*pairWithMetakey)(nil)).Elem())
 	beam.RegisterType(reflect.TypeOf((*writeTempFiles)(nil)).Elem())
 	beam.RegisterType(reflect.TypeOf((*renameFiles)(nil)).Elem())
 }
@@ -128,10 +123,43 @@ func CountWords(s beam.Scope, lines beam.PCollection) beam.PCollection {
 	return stats.Count(s, col)
 }
 
-// makeMetakeys produces metakeys for each shard.
-type makeMetakeys struct {
-	Output  string // The format of output files.
-	Dynamic int    // The number of elements for each dynamic shard. Default 10k. Ignored if the format doesn't contain `@*`.
+// SortAndShard is defined earlier in the file, so it can provide an overview of this
+// complex segment of pipeline. The DoFns that build it up follow.
+
+// SortAndShard is a composite transform takes in a PCollection<string,int>
+// and an output pattern. It returns a PCollection<string> with the output file paths.
+// It demonstrates using a side input, a map side input and producing output.
+func SortAndShard(s beam.Scope, in beam.PCollection, output string) beam.PCollection {
+	s = s.Scope("SortAndShard")
+	// For the sake of example, we drop the values from the keys.
+	keys := beam.DropValue(s, in)
+
+	// Concept: Impulse and Side Input to process on a single worker.
+	// makeMetakeys is being started with an Impulse, and blocked from starting
+	// until it's side input is ready. This will have all the work done for this
+	// DoFn executed in a single bundle, on a single worker. This requires that
+	// the values fit into memory for a single worker.
+
+	// makeMetakeys divides the data into several shards as determined by the output pattern.
+	// One metakey is produced per shard.
+	metakeys := beam.ParDo(s, &makeMetakeys{Output: output}, beam.Impulse(s), beam.SideInput{Input: keys})
+
+	// Takes the metakeys, and pairs each key with it's metakey.
+	rekeys := beam.ParDo(s, &pairWithMetakey{}, keys, beam.SideInput{Input: metakeys})
+
+	// Group all the newly paired values with their metakeys.
+	// This forms the individual shards we will write to files.
+	gbmeta := beam.GroupByKey(s, rekeys)
+
+	// writeTempFiles produces temporary output files with the metakey.
+	// Counts for each word are looked up in the map side input of the
+	// original word + count pairs.
+	tmpFiles := beam.ParDo(s, &writeTempFiles{Output: output}, gbmeta, beam.SideInput{Input: in})
+
+	// renameFiles takes the tmp files, and renames them to the final destination.
+	// Using temporary names and then renaming is recommended to avoid conflicts on retries,
+	// if the original files fail to write.
+	return beam.ParDo(s, &renameFiles{Output: output}, metakeys, beam.SideInput{Input: tmpFiles})
 }
 
 // metakey serves the purpose of being a key for splitting up input
@@ -139,29 +167,44 @@ type makeMetakeys struct {
 type metakey struct {
 	Low, High    string
 	Shard, Total int
-	TmpPrefix    int64
+	TmpInfix     int64
 }
 
+// outputRE is a regular expression representing the shard indicator: @* or @<shard count>
 var outputRE = regexp.MustCompile(`(@\*|@\d+)`)
 
-func makeTmpPrefix(v int64) string {
+// makeTmpInfix converts a unix time into a compact string representation.
+func makeTmpInfix(v int64) string {
 	return strconv.FormatInt(v, 36)
 }
 
+// TmpFileName produces a temporary filename for this meta key, including an infix to
+// group temporary files from the same run together.
 func (m *metakey) TmpFileName(output string) string {
-	shard := fmt.Sprintf("%03d-%03d.%s", m.Shard, m.Total, makeTmpPrefix(m.TmpPrefix))
+	shard := fmt.Sprintf("%03d-%03d.%s", m.Shard, m.Total, makeTmpInfix(m.TmpInfix))
 	return outputRE.ReplaceAllString(output, shard)
 }
 
+// FinalFileName produces the final file name for this shard.
 func (m *metakey) FinalFileName(output string) string {
 	shard := fmt.Sprintf("%03d-%03d", m.Shard, m.Total)
 	return outputRE.ReplaceAllString(output, shard)
+}
+
+// makeMetakeys produces metakeys for each shard.
+type makeMetakeys struct {
+	Output  string // The format of output files.
+	Dynamic int    // The number of elements for each dynamic shard. Default 10k. Ignored if the format doesn't contain `@*`.
+
+	keycount, metakeycount beam.Counter
 }
 
 func (fn *makeMetakeys) StartBundle(_ func(*string) bool, _ func(metakey)) {
 	if fn.Dynamic <= 0 {
 		fn.Dynamic = 10000
 	}
+	fn.keycount = beam.NewCounter("wordcount", "keycount")
+	fn.metakeycount = beam.NewCounter("metakeys", "metakeycount")
 }
 
 func (fn *makeMetakeys) ProcessElement(ctx context.Context, _ []byte, iter func(*string) bool, emit func(metakey)) error {
@@ -172,6 +215,12 @@ func (fn *makeMetakeys) ProcessElement(ctx context.Context, _ []byte, iter func(
 		keys = append(keys, v)
 	}
 	sort.StringSlice(keys).Sort()
+
+	// Increment for all the keys at once.
+	fn.keycount.Inc(ctx, int64(len(keys)))
+
+	// Code within DoFns can be arbitrarily complex,
+	// and executes as ordinary code would.
 
 	// first, parse fn.Output for a shard.
 	match := outputRE.FindString(fn.Output)
@@ -192,52 +241,65 @@ func (fn *makeMetakeys) ProcessElement(ctx context.Context, _ []byte, iter func(
 		}
 		rs = r.EvenSplits(int64(n))
 	}
-	// Use the current time in unix as the temp prefix.
-	// Since it's included with all metakeys, an int64 is preferable to strings for compactness.
-	tmpPrefix := time.Now().Unix()
+	// Increment the number of expected shards.
+	fn.metakeycount.Inc(ctx, int64(len(rs)))
+
+	// Use the current time in unix as the temp infix.
+	// Since it's included with all metakeys, an int64 is preferable to a string for compactness.
+	tmpInfix := time.Now().Unix()
+
 	// Log the identifier to assist with debugging.
-	log.Infof(ctx, "makeMetakeys: temp file identifier %s used for output path %s", makeTmpPrefix(tmpPrefix), fn.Output)
+	log.Infof(ctx, "makeMetakeys: temp file identifier %s used for output path %s", makeTmpInfix(tmpInfix), fn.Output)
 	for s, ri := range rs {
 		emit(metakey{
-			Low:       keys[int(ri.Start)],
-			High:      keys[int(ri.End)],
-			Shard:     s,
-			Total:     len(rs),
-			TmpPrefix: tmpPrefix,
+			Low:      keys[int(ri.Start)],
+			High:     keys[int(ri.End)],
+			Shard:    s,
+			Total:    len(rs),
+			TmpInfix: tmpInfix,
 		})
 	}
 	return nil
 }
 
-// pairWithMetaKey processes each element, and re-emits them with the metakey.
-// This associates them with each shard.
-type pairWithMetaKey struct {
+// pairWithMetakey processes each element, and re-emits them with the metakey.
+// This associates them with each shard of the final output.
+type pairWithMetakey struct {
+	mks []metakey
 }
 
-func (fn *pairWithMetaKey) ProcessElement(ctx context.Context, v string, iter func(*metakey) bool, emit func(metakey, string)) {
-	// TODO move the read and sort into a start bundle if per is warranted.
-	var mks []metakey
-	var mk metakey
-	for iter(&mk) {
-		mks = append(mks, mk)
+func (fn *pairWithMetakey) ProcessElement(ctx context.Context, v string, iter func(*metakey) bool, emit func(metakey, string)) {
+	// Read in all the metakeys and sort on the first element.
+	// Since this pipeline runs with the global window, the side input
+	// will not change, so it can be cached in the DoFn.
+	// This will only happen once per bundle.
+	if fn.mks == nil {
+		var mk metakey
+		for iter(&mk) {
+			fn.mks = append(fn.mks, mk)
+		}
+		sort.Slice(fn.mks, func(i, j int) bool {
+			return fn.mks[i].Shard < fn.mks[j].Shard
+		})
 	}
-	sort.Slice(mks, func(i, j int) bool {
-		return mks[i].Shard < mks[j].Shard
-	})
 
-	n := len(mks)
+	n := len(fn.mks)
 	i := sort.Search(n, func(i int) bool {
-		return v <= mks[i].High
+		return v <= fn.mks[i].High
 	})
 
-	emit(mks[i], v)
+	emit(fn.mks[i], v)
+}
+
+func (fn *pairWithMetakey) FinishBundle(_ func(*metakey) bool, _ func(metakey, string)) {
+	fn.mks = nil // allow the metakeys to be garbage collected when the bundle is finished.
 }
 
 // writeTempFiles takes each metakey and it's grouped words (the original keys), and uses
 // a map side input to lookup the original sum for each word.
 //
-// All words for the metakey is sorted in memory and written to a temporary file, outputing
-// the temporary file name. Each metakey includes a temporary prefix used to distinguish
+// All words for the metakey are sorted in memory and written to a temporary file, outputing
+// the temporary file name. Each metakey includes a temporary infix used to distinguish
 // a given attempt's set of files from each other, and the final successful files.
 //
 // A more robust implementation would write to the pipeline's temporary folder instead,
@@ -245,7 +307,8 @@ func (fn *pairWithMetaKey) ProcessElement(ctx context.Context, v string, iter fu
 type writeTempFiles struct {
 	Output string
 
-	fs filesystem.Interface
+	fs          filesystem.Interface
+	countdistro beam.Distribution
 }
 
 func (fn *writeTempFiles) StartBundle(ctx context.Context, _ func(string) func(*int) bool, _ func(string)) error {
@@ -254,17 +317,18 @@ func (fn *writeTempFiles) StartBundle(ctx context.Context, _ func(string) func(*
 		return err
 	}
 	fn.fs = fs
+	fn.countdistro = beam.NewDistribution("wordcount", "countdistro")
 	return nil
 }
 
 func (fn *writeTempFiles) ProcessElement(ctx context.Context, k metakey, iter func(*string) bool, lookup func(string) func(*int) bool, emitFileName func(string)) error {
-	// Pull in and sort all the keys in memory.
+	// Pull in and sort all the keys for this shard.
 	var v string
-	var keys []string
+	var words []string
 	for iter(&v) {
-		keys = append(keys, v)
+		words = append(words, v)
 	}
-	sort.StringSlice(keys).Sort()
+	sort.StringSlice(words).Sort()
 
 	tmpFile := k.TmpFileName(fn.Output)
 	wc, err := fn.fs.OpenWrite(ctx, tmpFile)
@@ -272,10 +336,14 @@ func (fn *writeTempFiles) ProcessElement(ctx context.Context, k metakey, iter fu
 		return err
 	}
 	defer wc.Close()
-	var count int
-	for _, word := range keys {
-		lookup(word)(&count) // Get the count for the word.
+	for _, word := range words {
+		var count int
+		// Get the count for the word from the map side input.
+		lookup(word)(&count)
+		// Write the word and count to the file.
 		fmt.Fprintf(wc, "%v: %d\n", word, count)
+		// The count to a distribution for word counts.
+		fn.countdistro.Update(ctx, int64(count))
 	}
 	emitFileName(tmpFile)
 	return nil
@@ -322,7 +390,7 @@ func (fn *renameFiles) ProcessElement(ctx context.Context, k metakey, _ func(*st
 	}
 
 	// Rename's complete, so we emit the final file name, in case a downstream
-	// consumer wishes to use them.
+	// consumer wishes to block on their readiness.
 	emit(final)
 	return nil
 }
@@ -331,29 +399,6 @@ func (fn *renameFiles) FinishBundle(ctx context.Context, _ func(*string) bool, _
 	fn.fs.Close()
 	fn.fs = nil
 	return nil
-}
-
-// SortAndShard takes in a PCollection<string,int> pairs and an output pattern,
-// then produces a PCollection<string> with the output files.
-// It demonstrates using a side input, a map side input and producing output.
-func SortAndShard(s beam.Scope, in beam.PCollection, output string) beam.PCollection {
-	s.Scope("SortAndShard")
-	keys := beam.DropValue(s, in)
-	// Use a side input to have a single worker sort and shard all the input. One metakey is produced per shard.
-	// Requires that the keys fit in single worker memory.
-	metakeys := beam.ParDo(s, &makeMetakeys{Output: output}, beam.Impulse(s), beam.SideInput{Input: keys})
-
-	// Takes the metakeys, and pairs each key with it's metakey.
-	rekeys := beam.ParDo(s, &pairWithMetaKey{}, keys, beam.SideInput{Input: metakeys})
-
-	gbmeta := beam.GroupByKey(s, rekeys)
-
-	// writeTempFiles produces temporary output files with the metakey.
-	tmpFiles := beam.ParDo(s, &writeTempFiles{Output: output}, gbmeta, beam.SideInput{Input: in})
-
-	// renameFiles takes the tmp files, and renames them to the final destination.
-	// Using temporary names and then renaming is recommended to avoid conflicts on retries.
-	return beam.ParDo(s, &renameFiles{Output: output}, metakeys, beam.SideInput{Input: tmpFiles})
 }
 
 // pipeline builds and executes the pipeline, returning a PCollection of strings
@@ -368,10 +413,7 @@ func Pipeline(s beam.Scope, input, output string) beam.PCollection {
 func main() {
 	flag.Parse()
 	beam.Init()
-	harnessopts.SideInputCacheCapacity(10000)
 
-	// Concept #2: the beam logging package works both during pipeline
-	// construction and at runtime. It should always be used.
 	ctx := context.Background()
 	if *output == "" {
 		log.Exit(ctx, "No output provided")
