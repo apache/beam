@@ -9,8 +9,12 @@ import {
   combineGlobally,
   countGlobally,
   countPerKey,
+  SumFn,
+  MeanFn,
+  MaxFn,
 } from "../src/apache_beam/transforms/combine";
 import { CombineFn, keyBy } from "../src/apache_beam";
+import { GroupBy } from "../src/apache_beam/transforms/core";
 
 describe("Apache Beam combiners", function () {
   it("runs wordcount with a countPerKey transform and asserts the result", async function () {
@@ -140,6 +144,114 @@ describe("Apache Beam combiners", function () {
         .apply(
           new testing.AssertDeepEqual([
             { mean: 3.611111111111111, stdDev: 3.2746913580246897 },
+          ])
+        );
+    });
+  });
+
+  it("test GroupBy with combining", async function () {
+    await new DirectRunner().run((root) => {
+      const inputs = root.apply(
+        new beam.Create([
+          { k: "k1", a: 1, b: 100 },
+          { k: "k1", a: 2, b: 200 },
+          { k: "k2", a: 9, b: 1000 },
+        ])
+      );
+
+      inputs
+        .apply(
+          new GroupBy("k")
+            .combining("a", new MaxFn(), "aMax")
+            .combining("a", new SumFn(), "aSum")
+            .combining("b", new MeanFn(), "mean")
+        )
+        .apply(
+          new testing.AssertDeepEqual([
+            { k: "k1", aMax: 2, aSum: 3, mean: 150 },
+            { k: "k2", aMax: 9, aSum: 9, mean: 1000 },
+          ])
+        );
+    });
+  });
+
+  it("test GroupBy list with combining", async function () {
+    await new DirectRunner().run((root) => {
+      const inputs = root.apply(
+        new beam.Create([
+          { a: 1, b: 10, c: 100 },
+          { a: 2, b: 10, c: 100 },
+          { a: 1, b: 10, c: 400 },
+        ])
+      );
+
+      inputs
+        .apply(new GroupBy(["a", "b"]).combining("c", new SumFn(), "sum"))
+        .apply(
+          new testing.AssertDeepEqual([
+            { a: 1, b: 10, sum: 500 },
+            { a: 2, b: 10, sum: 100 },
+          ])
+        );
+
+      inputs
+        .apply(new GroupBy(["b", "c"]).combining("a", new SumFn(), "sum"))
+        .apply(
+          new testing.AssertDeepEqual([
+            { b: 10, c: 100, sum: 3 },
+            { b: 10, c: 400, sum: 1 },
+          ])
+        );
+    });
+  });
+
+  it("test GroupBy expr with combining", async function () {
+    await new DirectRunner().run((root) => {
+      const inputs = root.apply(
+        new beam.Create([
+          { a: 1, b: 10 },
+          { a: 0, b: 20 },
+          { a: -1, b: 30 },
+        ])
+      );
+
+      inputs
+        .apply(
+          new GroupBy((element: any) => element.a * element.a).combining(
+            "b",
+            new SumFn(),
+            "sum"
+          )
+        )
+        .apply(
+          new testing.AssertDeepEqual([
+            { key: 1, sum: 40 },
+            { key: 0, sum: 20 },
+          ])
+        );
+    });
+  });
+
+  it("test GroupBy with binary combinefn", async function () {
+    await new DirectRunner().run((root) => {
+      const inputs = root.apply(
+        new beam.Create([
+          { key: 0, value: 10 },
+          { key: 1, value: 20 },
+          { key: 0, value: 30 },
+        ])
+      );
+
+      inputs
+        .apply(
+          new GroupBy("key")
+            .combining("value", (x, y) => x + y, "sum")
+            .combining("value", (x, y) => Math.max(x, y), "max")
+        )
+        .apply(
+          new testing.AssertDeepEqual([
+            { key: 0, sum: 40, max: 30 },
+            { key: 1, sum: 20, max: 20 },
           ])
         );
     });

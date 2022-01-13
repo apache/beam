@@ -85,7 +85,7 @@ export class CombineBy<T, K, I, O> extends PTransform<
 }
 
 // TODO(pabloem): Consider implementing Combines as primitives rather than with PArDos.
-class CombinePerKey<K, InputT, AccT, OutputT> extends PTransform<
+export class CombinePerKey<K, InputT, AccT, OutputT> extends PTransform<
   PCollection<KV<K, InputT>>,
   PCollection<KV<K, OutputT>>
 > {
@@ -102,7 +102,7 @@ class CombinePerKey<K, InputT, AccT, OutputT> extends PTransform<
         input.pipeline.getProto().components!.pcollections[input.id]
           .windowingStrategyId
       ];
-    if (
+    if (false && // breaks for non-string, non-integer keys
       windowingStrategy?.windowFn?.urn == "beam:window_fn:global_windows:v1"
     ) {
       return input
@@ -171,6 +171,40 @@ export class SumFn implements CombineFn<number, number, number> {
   }
   extractOutput(acc: number) {
     return acc;
+  }
+}
+
+export class MaxFn implements CombineFn<any, any, any> {
+  createAccumulator() {
+    return null;
+  }
+  addInput(acc: any, i: any) {
+    if (acc == null || acc < i) {
+      return i;
+    } else {
+      return acc;
+    }
+  }
+  mergeAccumulators(accumulators: any[]) {
+    return accumulators.reduce((a, b) => (a > b ? a : b));
+  }
+  extractOutput(acc: any) {
+    return acc;
+  }
+}
+
+export class MeanFn implements CombineFn<number, [number, number], number> {
+  createAccumulator() {
+    return [0, 0] as [number, number];
+  }
+  addInput(acc: [number, number], i: number) {
+    return [acc[0] + i, acc[1] + 1] as [number, number];
+  }
+  mergeAccumulators(accumulators: [number, number][]) {
+    return accumulators.reduce(([sum0, count0], [sum1, count1]) => [sum0 + sum1, count0 + count1]);
+  }
+  extractOutput(acc: number) {
+    return acc[0] / acc[1];
   }
 }
 
