@@ -1,5 +1,6 @@
 ---
-title: "Cross-language transforms"
+type: languages
+title: "Java multi-language pipelines quickstart"
 ---
 
 <!--
@@ -14,11 +15,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Cross-language transforms
+# Java multi-language pipelines quickstart
+
+> **Note:** This page is a work in progress. Please see [Multi-language pipelines](https://beam.apache.org/documentation/programming-guide/#multi-language-pipelines) for full documentation.
 
 With the samples on this page we will demonstrate how to create and leverage cross-language pipelines.
-
-> **Note:** Please see the [Beam Programming Guide](https://beam.apache.org/documentation/programming-guide/#multi-language-pipelines) for full documentation on cross-language transforms.
 
 The goal of a cross-language pipeline is to incorporate transforms from one SDK (e.g. the Python SDK) into a pipeline written using another SDK (e.g. the Java SDK). This enables having already developed transforms (e.g. ML transforms in Python) and libraries (e.g. the vast library of IOs in Java), and strengths of certain languages at your disposal in whichever language you are more comfortable authoring pipelines while vastly expanding your toolkit in given language.
 
