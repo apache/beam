@@ -2844,6 +2844,10 @@ public class ParDoTest implements Serializable {
             }
           };
 
+      if (unbounded) {
+        pipeline.getOptions().as(StreamingOptions.class).setStreaming(true);
+      }
+
       PCollection<Iterable<TimestampedValue<String>>> output =
           pipeline
               .apply(
@@ -2852,7 +2856,6 @@ public class ParDoTest implements Serializable {
                       KV.of("hello", TimestampedValue.of("b", Instant.ofEpochMilli(42))),
                       KV.of("hello", TimestampedValue.of("b", Instant.ofEpochMilli(52))),
                       KV.of("hello", TimestampedValue.of("c", Instant.ofEpochMilli(12)))))
-              .setIsBoundedInternal(unbounded ? IsBounded.UNBOUNDED : IsBounded.BOUNDED)
               .apply(ParDo.of(fn));
 
       List<TimestampedValue<String>> expected =
@@ -2906,6 +2909,10 @@ public class ParDoTest implements Serializable {
             }
           };
 
+      if (unbounded) {
+        pipeline.getOptions().as(StreamingOptions.class).setStreaming(true);
+      }
+
       PCollection<Iterable<TimestampedValue<String>>> output =
           pipeline
               .apply(
@@ -2914,7 +2921,6 @@ public class ParDoTest implements Serializable {
                       KV.of("hello", TimestampedValue.of("b", Instant.ofEpochMilli(42))),
                       KV.of("hello", TimestampedValue.of("b", Instant.ofEpochMilli(52))),
                       KV.of("hello", TimestampedValue.of("c", Instant.ofEpochMilli(12)))))
-              .setIsBoundedInternal(unbounded ? IsBounded.UNBOUNDED : IsBounded.BOUNDED)
               .apply(ParDo.of(fn));
 
       List<TimestampedValue<String>> expected1 = Lists.newArrayList();
@@ -2983,6 +2989,9 @@ public class ParDoTest implements Serializable {
             }
           };
 
+      if (unbounded) {
+        pipeline.getOptions().as(StreamingOptions.class).setStreaming(true);
+      }
       PCollection<Iterable<TimestampedValue<String>>> output =
           pipeline
               .apply(
@@ -2991,7 +3000,6 @@ public class ParDoTest implements Serializable {
                       KV.of("hello", TimestampedValue.of("b", Instant.ofEpochMilli(42))),
                       KV.of("hello", TimestampedValue.of("b", Instant.ofEpochMilli(52))),
                       KV.of("hello", TimestampedValue.of("c", Instant.ofEpochMilli(12)))))
-              .setIsBoundedInternal(unbounded ? IsBounded.UNBOUNDED : IsBounded.BOUNDED)
               .apply(ParDo.of(fn));
 
       List<TimestampedValue<String>> expected =
@@ -6409,7 +6417,6 @@ public class ParDoTest implements Serializable {
               Create.timestamped(
                   // first window
                   TimestampedValue.of(KV.of("hello", 7), new Instant(3)),
-
                   // second window
                   TimestampedValue.of(KV.of("hi", 35), new Instant(13))));
       if (!globalWindow) {

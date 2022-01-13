@@ -35,6 +35,12 @@ const (
 	// RunError is used to keep run code error value
 	RunError SubKey = "RUN_ERROR"
 
+	// ValidationOutput is used to keep validation output value
+	ValidationOutput SubKey = "VALIDATION_OUTPUT"
+
+	// PreparationOutput is used to keep prepare step output value
+	PreparationOutput SubKey = "PREPARATION_OUTPUT"
+
 	// CompileOutput is used to keep compilation output value
 	CompileOutput SubKey = "COMPILE_OUTPUT"
 

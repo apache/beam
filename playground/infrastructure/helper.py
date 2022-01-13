@@ -63,6 +63,15 @@ class Example:
   output: str = ""
 
 
+@dataclass
+class ExampleTag:
+  """
+  Class which contains all information about beam playground tag
+  """
+  tag_as_dict: Dict[str, str]
+  tag_as_string: str
+
+
 def find_examples(work_dir: str, supported_categories: List[str],
                   sdk: Sdk) -> List[Example]:
   """
@@ -122,7 +131,7 @@ async def get_statuses(examples: List[Example]):
   await asyncio.gather(*tasks)
 
 
-def get_tag(filepath) -> Optional[Dict[str, str]]:
+def get_tag(filepath) -> Optional[ExampleTag]:
   """
   Parse file by filepath and find beam tag
 
@@ -135,27 +144,30 @@ def get_tag(filepath) -> Optional[Dict[str, str]]:
   """
   add_to_yaml = False
   yaml_string = ""
+  tag_string = ""
 
   with open(filepath, encoding="utf-8") as parsed_file:
     lines = parsed_file.readlines()
 
   for line in lines:
-    line = line.replace("//", "").replace("#", "")
+    formatted_line = line.replace("//", "").replace("#", "")
     if add_to_yaml is False:
-      if line.lstrip() == Config.BEAM_PLAYGROUND_TITLE:
+      if formatted_line.lstrip() == Config.BEAM_PLAYGROUND_TITLE:
         add_to_yaml = True
-        yaml_string += line.lstrip()
+        yaml_string += formatted_line.lstrip()
+        tag_string += line
     else:
-      yaml_with_new_string = yaml_string + line
+      yaml_with_new_string = yaml_string + formatted_line
       try:
         yaml.load(yaml_with_new_string, Loader=yaml.SafeLoader)
-        yaml_string += line
+        yaml_string += formatted_line
+        tag_string += line
       except YAMLError:
         break
 
   if add_to_yaml:
     tag_object = yaml.load(yaml_string, Loader=yaml.SafeLoader)
-    return tag_object[Config.BEAM_PLAYGROUND]
+    return ExampleTag(tag_object[Config.BEAM_PLAYGROUND], tag_string)
 
   return None
 
@@ -185,7 +197,7 @@ def _check_file(examples, filename, filepath, supported_categories, sdk: Sdk):
   if extension == Config.SDK_TO_EXTENSION[sdk]:
     tag = get_tag(filepath)
     if tag is not None:
-      if _validate(tag, supported_categories) is False:
+      if _validate(tag.tag_as_dict, supported_categories) is False:
         logging.error(
             "%s contains beam playground tag with incorrect format", filepath)
         has_error = True
@@ -210,8 +222,7 @@ def get_supported_categories(categories_path: str) -> List[str]:
 
 
 def _get_example(
-    filepath: str, filename: str, tag: Dict[str, Union[str,
-                                                       List[str]]]) -> Example:
+    filepath: str, filename: str, tag: ExampleTag) -> Example:
   """
   Return an Example by filepath and filename.
 
@@ -228,6 +239,7 @@ def _get_example(
   object_type = _get_object_type(filename, filepath)
   with open(filepath, encoding="utf-8") as parsed_file:
     content = parsed_file.read()
+  content = content.replace(tag.tag_as_string, "")
 
   return Example(
       name=name,
@@ -235,7 +247,7 @@ def _get_example(
       filepath=filepath,
       code=content,
       status=STATUS_UNSPECIFIED,
-      tag=Tag(**tag),
+      tag=Tag(**tag.tag_as_dict),
       type=object_type)
 
 
@@ -255,6 +267,7 @@ def _validate(tag: dict, supported_categories: List[str]) -> bool:
       In case tag is not valid, False
   """
   valid = True
+  # check that all fields exist and they have no empty value
   for field in fields(TagFields):
     if field.default not in tag:
       logging.error(
@@ -266,16 +279,20 @@ def _validate(tag: dict, supported_categories: List[str]) -> bool:
           tag.__str__())
       valid = False
 
-    name = tag.get(TagFields.name)
-    if name == "":
+    value = tag.get(field.default)
+    if value == "" or value is None:
       logging.error(
-          "tag's field name is incorrect: %s \nname can not be empty.",
-          tag.__str__())
+          "tag's value is incorrect: %s\nvalue for %s field can not be empty.",
+          tag.__str__(),
+          field.default.__str__())
       valid = False
 
+  if valid is False:
+    return valid
+
+  # check that multifile's value is boolean
   multifile = tag.get(TagFields.multifile)
-  if (multifile is not None) and (str(multifile).lower() not in ["true",
-                                                                 "false"]):
+  if str(multifile).lower() not in ["true", "false"]:
     logging.error(
         "tag's field multifile is incorrect: %s \n"
         "multifile variable should be boolean format, but tag contains: %s",
@@ -283,26 +300,26 @@ def _validate(tag: dict, supported_categories: List[str]) -> bool:
         str(multifile))
     valid = False
 
+  # check that categories' value is a list of supported categories
   categories = tag.get(TagFields.categories)
-  if categories is not None:
-    if not isinstance(categories, list):
-      logging.error(
-          "tag's field categories is incorrect: %s \n"
-          "categories variable should be list format, but tag contains: %s",
-          tag.__str__(),
-          str(type(categories)))
-      valid = False
-    else:
-      for category in categories:
-        if category not in supported_categories:
-          logging.error(
-              "tag contains unsupported category: %s \n"
-              "If you are sure that %s category should be placed in "
-              "Beam Playground, you can add it to the "
-              "`playground/categories.yaml` file",
-              category,
-              category)
-          valid = False
+  if not isinstance(categories, list):
+    logging.error(
+        "tag's field categories is incorrect: %s \n"
+        "categories variable should be list format, but tag contains: %s",
+        tag.__str__(),
+        str(type(categories)))
+    valid = False
+  else:
+    for category in categories:
+      if category not in supported_categories:
+        logging.error(
+            "tag contains unsupported category: %s \n"
+            "If you are sure that %s category should be placed in "
+            "Beam Playground, you can add it to the "
+            "`playground/categories.yaml` file",
+            category,
+            category)
+        valid = False
   return valid
 
 
@@ -336,7 +353,7 @@ async def _update_example_status(example: Example, client: GRPCClient):
       client: client to send requests to the server.
   """
   pipeline_id = await client.run_code(
-      example.code, example.sdk, example.tag.pipeline_options)
+      example.code, example.sdk, example.tag[TagFields.pipeline_options])
   example.pipeline_id = pipeline_id
   status = await client.check_status(pipeline_id)
   while status in [STATUS_VALIDATING,

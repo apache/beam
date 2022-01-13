@@ -73,6 +73,7 @@ import org.apache.beam.sdk.schemas.transforms.Select;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -87,6 +88,7 @@ import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.joda.time.LocalDate;
 import org.joda.time.chrono.ISOChronology;
 import org.junit.BeforeClass;
@@ -527,6 +529,31 @@ public class JdbcIOTest implements Serializable {
   }
 
   @Test
+  public void testWriteWithAutosharding() throws Exception {
+    String tableName = DatabaseTestHelper.getTestTableName("UT_WRITE");
+    DatabaseTestHelper.createTable(DATA_SOURCE, tableName);
+    TestStream.Builder<KV<Integer, String>> ts =
+        TestStream.create(KvCoder.of(VarIntCoder.of(), StringUtf8Coder.of()))
+            .advanceWatermarkTo(Instant.now());
+
+    try {
+      List<KV<Integer, String>> data = getDataToWrite(EXPECTED_ROW_COUNT);
+      for (KV<Integer, String> elm : data) {
+        ts = ts.addElements(elm);
+      }
+      pipeline
+          .apply(ts.advanceWatermarkToInfinity())
+          .apply(getJdbcWrite(tableName).withAutoSharding());
+
+      pipeline.run().waitUntilFinish();
+
+      assertRowCount(DATA_SOURCE, tableName, EXPECTED_ROW_COUNT);
+    } finally {
+      DatabaseTestHelper.deleteTable(DATA_SOURCE, tableName);
+    }
+  }
+
+  @Test
   public void testWriteWithWriteResults() throws Exception {
     String firstTableName = DatabaseTestHelper.getTestTableName("UT_WRITE");
     DatabaseTestHelper.createTable(DATA_SOURCE, firstTableName);
@@ -545,6 +572,9 @@ public class JdbcIOTest implements Serializable {
                         return new JdbcTestHelper.TestDto(JdbcTestHelper.TestDto.EMPTY_RESULT);
                       }));
       resultSetCollection.setCoder(JdbcTestHelper.TEST_DTO_CODER);
+
+      PAssert.thatSingleton(resultSetCollection.apply(Count.globally()))
+          .isEqualTo((long) EXPECTED_ROW_COUNT);
 
       List<JdbcTestHelper.TestDto> expectedResult = new ArrayList<>();
       for (int i = 0; i < EXPECTED_ROW_COUNT; i++) {

@@ -197,8 +197,14 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         String localName = entry.getKey();
         TimeDomain timeDomain = entry.getValue().getKey();
         Coder<Timer<Object>> coder = entry.getValue().getValue();
-        context.addIncomingTimerEndpoint(
-            localName, coder, timer -> runner.processTimer(localName, timeDomain, timer));
+        if (!localName.equals("")
+            && localName.equals(runner.parDoPayload.getOnWindowExpirationTimerFamilySpec())) {
+          context.addIncomingTimerEndpoint(
+              localName, coder, timer -> runner.processOnWindowExpiration(timer));
+        } else {
+          context.addIncomingTimerEndpoint(
+              localName, coder, timer -> runner.processTimer(localName, timeDomain, timer));
+        }
       }
       return runner;
     }
@@ -238,6 +244,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private final StartBundleArgumentProvider startBundleArgumentProvider;
   private final ProcessBundleContextBase processContext;
   private final OnTimerContext<?> onTimerContext;
+  private final OnWindowExpirationContext<?> onWindowExpirationContext;
   private final FinishBundleArgumentProvider finishBundleArgumentProvider;
 
   /**
@@ -279,14 +286,14 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
   /**
    * Only valid during {@link #processElementForPairWithRestriction}, {@link
-   * #processElementForSplitRestriction}, and {@link #processElementForSizedElementAndRestriction},
-   * null otherwise.
+   * #processElementForSplitRestriction}, and {@link
+   * #processElementForWindowObservingSizedElementAndRestriction}, null otherwise.
    */
   private RestrictionT currentRestriction;
 
   /**
    * Only valid during {@link #processElementForSplitRestriction}, and {@link
-   * #processElementForSizedElementAndRestriction}, null otherwise.
+   * #processElementForWindowObservingSizedElementAndRestriction}, null otherwise.
    */
   private WatermarkEstimatorStateT currentWatermarkEstimatorState;
 
@@ -296,7 +303,10 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
    */
   private Instant initialWatermark;
 
-  /** Only valid during {@link #processElementForSizedElementAndRestriction}, null otherwise. */
+  /**
+   * Only valid during {@link #processElementForWindowObservingSizedElementAndRestriction}, null
+   * otherwise.
+   */
   private WatermarkEstimators.WatermarkAndStateObserver<WatermarkEstimatorStateT>
       currentWatermarkEstimator;
 
@@ -306,10 +316,15 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
    */
   private BoundedWindow currentWindow;
 
-  /** Only valid during {@link #processElementForSizedElementAndRestriction}, null otherwise. */
+  /**
+   * Only valid during {@link #processElementForWindowObservingSizedElementAndRestriction}, null
+   * otherwise.
+   */
   private RestrictionTracker<RestrictionT, PositionT> currentTracker;
 
-  /** Only valid during {@link #processTimer}, null otherwise. */
+  /**
+   * Only valid during {@link #processTimer} and {@link #processOnWindowExpiration}, null otherwise.
+   */
   private Timer<?> currentTimer;
 
   /** Only valid during {@link #processTimer}, null otherwise. */
@@ -462,6 +477,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     this.splitListener = splitListener;
     this.bundleFinalizer = bundleFinalizer;
     this.onTimerContext = new OnTimerContext();
+    this.onWindowExpirationContext = new OnWindowExpirationContext<>();
 
     try {
       this.mainInputId = ParDoTranslation.getMainInputName(pTransform);
@@ -1720,6 +1736,23 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     doFnInvoker.invokeOnTimer(timerId, timerFamilyId, onTimerContext);
   }
 
+  private <K> void processOnWindowExpiration(Timer<K> timer) {
+    try {
+      currentKey = timer.getUserKey();
+      currentTimer = timer;
+      Iterator<BoundedWindow> windowIterator =
+          (Iterator<BoundedWindow>) timer.getWindows().iterator();
+      while (windowIterator.hasNext()) {
+        currentWindow = windowIterator.next();
+        doFnInvoker.invokeOnWindowExpiration(onWindowExpirationContext);
+      }
+    } finally {
+      currentKey = null;
+      currentTimer = null;
+      currentWindow = null;
+    }
+  }
+
   private void finishBundle() throws Exception {
     timerBundleTracker.outputTimers(timerFamilyOrId -> outboundTimerReceivers.get(timerFamilyOrId));
     for (CloseableFnDataReceiver<?> outboundTimerReceiver : outboundTimerReceivers.values()) {
@@ -2505,6 +2538,159 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     @Override
     public WatermarkEstimator<?> watermarkEstimator() {
       return currentWatermarkEstimator;
+    }
+  }
+
+  /**
+   * Provides arguments for a {@link DoFnInvoker} for {@link
+   * DoFn.OnWindowExpiration @OnWindowExpiration}.
+   */
+  private class OnWindowExpirationContext<K> extends BaseArgumentProvider<InputT, OutputT> {
+    private class Context extends DoFn<InputT, OutputT>.OnWindowExpirationContext {
+      private Context() {
+        doFn.super();
+      }
+
+      @Override
+      public PipelineOptions getPipelineOptions() {
+        return pipelineOptions;
+      }
+
+      @Override
+      public BoundedWindow window() {
+        return currentWindow;
+      }
+
+      @Override
+      public void output(OutputT output) {
+        outputTo(
+            mainOutputConsumers,
+            WindowedValue.of(
+                output, currentTimer.getHoldTimestamp(), currentWindow, currentTimer.getPane()));
+      }
+
+      @Override
+      public void outputWithTimestamp(OutputT output, Instant timestamp) {
+        checkOnWindowExpirationTimestamp(timestamp);
+        outputTo(
+            mainOutputConsumers,
+            WindowedValue.of(output, timestamp, currentWindow, currentTimer.getPane()));
+      }
+
+      @Override
+      public <T> void output(TupleTag<T> tag, T output) {
+        Collection<FnDataReceiver<WindowedValue<T>>> consumers =
+            (Collection) localNameToConsumer.get(tag.getId());
+        if (consumers == null) {
+          throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
+        }
+        outputTo(
+            consumers,
+            WindowedValue.of(
+                output, currentTimer.getHoldTimestamp(), currentWindow, currentTimer.getPane()));
+      }
+
+      @Override
+      public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+        checkOnWindowExpirationTimestamp(timestamp);
+        Collection<FnDataReceiver<WindowedValue<T>>> consumers =
+            (Collection) localNameToConsumer.get(tag.getId());
+        if (consumers == null) {
+          throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
+        }
+        outputTo(
+            consumers, WindowedValue.of(output, timestamp, currentWindow, currentTimer.getPane()));
+      }
+
+      @SuppressWarnings(
+          "deprecation") // Allowed Skew is deprecated for users, but must be respected
+      private void checkOnWindowExpirationTimestamp(Instant timestamp) {
+        Instant lowerBound;
+        try {
+          lowerBound = currentTimer.getHoldTimestamp().minus(doFn.getAllowedTimestampSkew());
+        } catch (ArithmeticException e) {
+          lowerBound = BoundedWindow.TIMESTAMP_MIN_VALUE;
+        }
+        if (timestamp.isBefore(lowerBound)
+            || timestamp.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+          throw new IllegalArgumentException(
+              String.format(
+                  "Cannot output with timestamp %s. Output timestamps must be no earlier than the "
+                      + "timestamp of the timer (%s) minus the allowed skew (%s) and no later "
+                      + "than %s. See the DoFn#getAllowedTimestampSkew() Javadoc for details on "
+                      + "changing the allowed skew.",
+                  timestamp,
+                  currentTimer.getHoldTimestamp(),
+                  PeriodFormat.getDefault().print(doFn.getAllowedTimestampSkew().toPeriod()),
+                  BoundedWindow.TIMESTAMP_MAX_VALUE));
+        }
+      }
+    }
+
+    private final OnWindowExpirationContext.Context context =
+        new OnWindowExpirationContext.Context();
+
+    @Override
+    public BoundedWindow window() {
+      return currentWindow;
+    }
+
+    @Override
+    public Instant timestamp(DoFn<InputT, OutputT> doFn) {
+      return currentTimer.getHoldTimestamp();
+    }
+
+    @Override
+    public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
+      return currentTimeDomain;
+    }
+
+    @Override
+    public K key() {
+      return (K) currentTimer.getUserKey();
+    }
+
+    @Override
+    public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
+      return DoFnOutputReceivers.windowedReceiver(context, null);
+    }
+
+    @Override
+    public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
+      return DoFnOutputReceivers.rowReceiver(context, null, mainOutputSchemaCoder);
+    }
+
+    @Override
+    public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
+      return DoFnOutputReceivers.windowedMultiReceiver(context);
+    }
+
+    @Override
+    public State state(String stateId, boolean alwaysFetched) {
+      StateDeclaration stateDeclaration = doFnSignature.stateDeclarations().get(stateId);
+      checkNotNull(stateDeclaration, "No state declaration found for %s", stateId);
+      StateSpec<?> spec;
+      try {
+        spec = (StateSpec<?>) stateDeclaration.field().get(doFn);
+      } catch (IllegalAccessException e) {
+        throw new RuntimeException(e);
+      }
+      State state = spec.bind(stateId, stateAccessor);
+      if (alwaysFetched) {
+        return (State) ((ReadableState) state).readLater();
+      } else {
+        return state;
+      }
+    }
+
+    @Override
+    public PipelineOptions pipelineOptions() {
+      return pipelineOptions;
+    }
+
+    @Override
+    public String getErrorContext() {
+      return "FnApiDoFnRunner/OnWindowExpiration";
     }
   }
 

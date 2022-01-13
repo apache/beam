@@ -150,6 +150,12 @@ public class ParDoTranslationTest {
       assertEquals(
           parDo.getFn() instanceof StateTimerDropElementsFn,
           components.requirements().contains(ParDoTranslation.REQUIRES_STATEFUL_PROCESSING_URN));
+      assertEquals(
+          parDo.getFn() instanceof StateTimerDropElementsFn,
+          components.requirements().contains(ParDoTranslation.REQUIRES_ON_WINDOW_EXPIRATION_URN));
+      assertEquals(
+          parDo.getFn() instanceof StateTimerDropElementsFn ? "onWindowExpiration0" : "",
+          payload.getOnWindowExpirationTimerFamilySpec());
     }
 
     @Test
@@ -338,6 +344,9 @@ public class ParDoTranslationTest {
 
     @OnTimer(PROCESSING_TIMER_ID)
     public void onProcessingTime(OnTimerContext context) {}
+
+    @OnWindowExpiration
+    public void onWindowExpiration() {}
 
     @Override
     public boolean equals(@Nullable Object other) {

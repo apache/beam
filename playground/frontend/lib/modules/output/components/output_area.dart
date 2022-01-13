@@ -17,12 +17,10 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground/modules/output/components/output_result.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:provider/provider.dart';
-
-const kLogText = 'Log';
-const kGraphText = 'Graph';
 
 class OutputArea extends StatelessWidget {
   final TabController tabController;
@@ -47,7 +45,7 @@ class OutputArea extends StatelessWidget {
                 text: state.result?.log ?? '',
                 isSelected: tabController.index == 1,
               ),
-              const Center(child: Text(kGraphText)),
+              Center(child: Text(AppLocalizations.of(context)!.graph)),
             ],
           );
         },

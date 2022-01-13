@@ -17,6 +17,7 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground/modules/output/components/output_header/output_tab.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:provider/provider.dart';
@@ -28,6 +29,7 @@ class OutputTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations appLocale = AppLocalizations.of(context)!;
     return Consumer<PlaygroundState>(builder: (context, state, child) {
       return SizedBox(
         width: 300,
@@ -35,17 +37,17 @@ class OutputTabs extends StatelessWidget {
           controller: tabController,
           tabs: <Widget>[
             OutputTab(
-              name: 'Output',
+              name: appLocale.output,
               isSelected: tabController.index == 0,
               value: state.result?.output ?? '',
             ),
             OutputTab(
-              name: 'Log',
+              name: appLocale.log,
               isSelected: tabController.index == 1,
               value: state.result?.log ?? '',
             ),
             OutputTab(
-              name: 'Graph',
+              name: appLocale.graph,
               isSelected: tabController.index == 2,
               value: '',
             ),

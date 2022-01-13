@@ -43,7 +43,8 @@ dependencies {
   // Dependencies for the example
   implementation project(":sdks:java:extensions:google-cloud-platform-core")
   compileOnly project(":sdks:java:io:google-cloud-platform")
-  compileOnly library.java.slf4j_api
+  permitUnusedDeclared project(":sdks:java:io:google-cloud-platform")
+  implementation library.java.slf4j_api
 
   testImplementation project(":sdks:java:extensions:sql")
   testImplementation project(":sdks:java:extensions:sql:zetasql")
@@ -56,7 +57,7 @@ dependencies {
 
 task runDataCatalogExample(type: JavaExec) {
   description = "Run SQL example of how to use Data Catalog table provider"
-  main = "org.apache.beam.sdk.extensions.sql.example.BeamSqlDataCatalogExample"
+  mainClass = "org.apache.beam.sdk.extensions.sql.example.BeamSqlDataCatalogExample"
   classpath = sourceSets.main.runtimeClasspath
 
   def runner = project.findProperty('runner') ?: 'DirectRunner'

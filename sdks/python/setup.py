@@ -152,7 +152,7 @@ REQUIRED_PACKAGES = [
     'python-dateutil>=2.8.0,<3',
     'pytz>=2018.3',
     'requests>=2.24.0,<3.0.0',
-    'typing-extensions>=3.7.0,<4',
+    'typing-extensions>=3.7.0',
 ]
 
 # [BEAM-8181] pyarrow cannot be installed on 32-bit Windows platforms.
@@ -186,7 +186,8 @@ GCP_REQUIREMENTS = [
     # https://github.com/googleapis/google-cloud-python/issues/10566
     'google-auth>=1.18.0,<3',
     'google-cloud-datastore>=1.8.0,<2',
-    'google-cloud-pubsub>=0.39.0,<2',
+    'google-cloud-pubsub>=2.1.0,<3',
+    'google-cloud-pubsublite>=1.2.0,<2',
     # GCP packages required by tests
     'google-cloud-bigquery>=1.6.0,<3',
     'google-cloud-bigquery-storage>=2.6.3',
