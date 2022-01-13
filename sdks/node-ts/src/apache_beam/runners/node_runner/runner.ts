@@ -1,5 +1,6 @@
 import { RemoteJobServiceClient } from "./client";
-import { Pipeline, PipelineResult, Runner } from "../../base";
+import { Pipeline } from "../../base";
+import { PipelineResult, Runner } from "../runner";
 import { PipelineOptions } from "../../options/pipeline_options";
 import * as runnerApiProto from "../../proto/beam_runner_api";
 import { JobState_Enum } from "../../proto/beam_job_api";

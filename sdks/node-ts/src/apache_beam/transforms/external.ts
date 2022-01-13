@@ -13,7 +13,6 @@ import { AtomicType, Schema } from "../proto/schema";
 import { Writer } from "protobufjs";
 
 import * as base from "../base";
-import * as core from "../transforms/core";
 import * as runnerApi from "../proto/beam_runner_api";
 // import { Context as CoderContext } from '../coders/coders'
 import * as coders from "../coders/standard_coders";

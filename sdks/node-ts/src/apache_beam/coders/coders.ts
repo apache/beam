@@ -29,7 +29,11 @@ class CoderRegistry {
     this.internal_registry[urn] = coderClass;
   }
 }
-export const CODER_REGISTRY = new CoderRegistry();
+
+const CODER_REGISTRY = new CoderRegistry();
+export function globalRegistry(): CoderRegistry {
+  return CODER_REGISTRY;
+}
 
 /**
  * The context for encoding a PCollection element.
@@ -87,4 +91,31 @@ export interface Coder<T> {
    * @param pipelineContext - a context that holds relevant pipeline attributes such as other coders already in the pipeline.
    */
   toProto(pipelineContext: PipelineContext): runnerApi.Coder;
+}
+
+function writeByteCallback(val, buf, pos) {
+  buf[pos] = val & 0xff;
+}
+
+/**
+ * Write a single byte, as an unsigned integer, directly to the writer.
+ */
+export function writeRawByte(b, writer: Writer) {
+  var hackedWriter = <any>writer;
+  hackedWriter._push(writeByteCallback, 1, b);
+}
+
+function writeBytesCallback(val, buf, pos) {
+  for (var i = 0; i < val.length; ++i) {
+    buf[pos + i] = val[i];
+  }
+}
+
+/**
+ * Writes a sequence of bytes, as unsigned integers, directly to the writer,
+ * without a prefixing with the length of the bytes that writer.bytes() does.
+ */
+export function writeRawBytes(value: Uint8Array, writer: Writer) {
+  var hackedWriter = <any>writer;
+  hackedWriter._push(writeBytesCallback, value.length, value);
 }

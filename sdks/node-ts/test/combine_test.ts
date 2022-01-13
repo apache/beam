@@ -5,16 +5,14 @@ import { KV } from "../src/apache_beam/values";
 
 import { NodeRunner } from "../src/apache_beam/runners/node_runner/runner";
 import { RemoteJobServiceClient } from "../src/apache_beam/runners/node_runner/client";
+import { SumFn, MeanFn, MaxFn } from "../src/apache_beam/transforms/combine";
 import {
-  combineGlobally,
-  countGlobally,
-  countPerKey,
-  SumFn,
-  MeanFn,
-  MaxFn,
-} from "../src/apache_beam/transforms/combine";
-import { CombineFn, keyBy } from "../src/apache_beam";
-import { GroupBy } from "../src/apache_beam/transforms/core";
+  CombineFn,
+  GroupBy,
+  GroupGlobally,
+  CountPerElement,
+  CountGlobally,
+} from "../src/apache_beam/transforms/group_and_combine";
 
 describe("Apache Beam combiners", function () {
   it("runs wordcount with a countPerKey transform and asserts the result", async function () {
@@ -34,8 +32,8 @@ describe("Apache Beam combiners", function () {
         .flatMap(function* (line: string) {
           yield* line.split(/[^a-z]+/);
         })
-        .apply(keyBy((elm) => elm))
-        .apply(countPerKey())
+        .map((elm) => ({ key: elm, value: 1 }))
+        .apply(new GroupBy("key").combining("value", new SumFn(), "value"))
         .apply(
           new testing.AssertDeepEqual([
             { key: "in", value: 1 },
@@ -82,46 +80,43 @@ describe("Apache Beam combiners", function () {
         .flatMap(function* (line: string) {
           yield* line.split(/[^a-z]+/);
         })
-        .apply(countGlobally())
+        .apply(new CountGlobally())
         .apply(new testing.AssertDeepEqual([11]));
     });
   });
 
   it("runs an example where a custom combine function is passed", async function () {
-    type MeandAndStdDev = { mean: number; stdDev: number };
-    type MeanAndStdDevAcc = {
+    type StdDevAcc = {
       count: number;
       sum: number;
       sumOfSquares: number;
     };
-    class MedianAndUnstableStdDev
-      implements CombineFn<number, any, MeandAndStdDev>
+
+    class UnstableStdDevCombineFn
+      implements CombineFn<number, StdDevAcc, number>
     {
       // NOTE: This Standard Deviation algorithm is **unstable**, so it is not recommended
       //    for an actual production-level pipeline.
       createAccumulator() {
         return { count: 0, sum: 0, sumOfSquares: 0 };
       }
-      addInput(acc: MeanAndStdDevAcc, inp: number) {
+      addInput(acc: StdDevAcc, inp: number) {
         return {
           count: acc.count + 1,
           sum: acc.sum + inp,
           sumOfSquares: acc.sumOfSquares + inp * inp,
         };
       }
-      mergeAccumulators(accumulators: MeanAndStdDevAcc[]) {
+      mergeAccumulators(accumulators: StdDevAcc[]) {
         return accumulators.reduce((previous, current) => ({
           count: previous.count + current.count,
           sum: previous.sum + current.sum,
           sumOfSquares: previous.sumOfSquares + current.sumOfSquares,
         }));
       }
-      extractOutput(acc: MeanAndStdDevAcc) {
+      extractOutput(acc: StdDevAcc) {
         const mean = acc.sum / acc.count;
-        return {
-          mean: mean,
-          stdDev: acc.sumOfSquares / acc.count - mean * mean,
-        };
+        return acc.sumOfSquares / acc.count - mean * mean;
       }
     }
     await new DirectRunner().run((root) => {
@@ -140,7 +135,11 @@ describe("Apache Beam combiners", function () {
           yield* line.split(/[^a-z]+/);
         })
         .map((word) => word.length)
-        .apply(combineGlobally(new MedianAndUnstableStdDev()))
+        .apply(
+          new GroupGlobally()
+            .combining((c) => c, new MeanFn(), "mean")
+            .combining((c) => c, new UnstableStdDevCombineFn(), "stdDev")
+        )
         .apply(
           new testing.AssertDeepEqual([
             { mean: 3.611111111111111, stdDev: 3.2746913580246897 },

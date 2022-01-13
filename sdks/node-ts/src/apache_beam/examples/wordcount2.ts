@@ -4,7 +4,8 @@ import * as beam from "../../apache_beam";
 import * as textio from "../io/textio";
 import { DirectRunner } from "../runners/direct_runner";
 
-import { CombineBy, CountFn } from "../transforms/combine";
+import { CountFn } from "../transforms/combine";
+import { GroupBy } from "../transforms/group_and_combine";
 
 import { NodeRunner } from "../runners/node_runner/runner";
 import { RemoteJobServiceClient } from "../runners/node_runner/client";
@@ -15,8 +16,10 @@ class CountElements extends beam.PTransform<
 > {
   expand(input: beam.PCollection<any>) {
     return input
-      .map((e) => ({ element: e, count: 1 }))
-      .apply(new CombineBy("element", "count", new CountFn()));
+      .map((e) => ({ element: e }))
+      .apply(
+        new GroupBy("element").combining("element", new CountFn(), "count")
+      );
   }
 }
 

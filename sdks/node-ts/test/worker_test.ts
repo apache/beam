@@ -1,9 +1,6 @@
 import Long from "long";
 
-import {
-  GlobalWindow,
-  PaneInfoCoder,
-} from "../src/apache_beam/coders/standard_coders";
+import { PaneInfoCoder } from "../src/apache_beam/coders/standard_coders";
 
 import {
   PTransform,
@@ -15,6 +12,7 @@ import * as worker from "../src/apache_beam/worker/worker";
 import * as operators from "../src/apache_beam/worker/operators";
 import {
   BoundedWindow,
+  GlobalWindow,
   Instant,
   PaneInfo,
   WindowedValue,

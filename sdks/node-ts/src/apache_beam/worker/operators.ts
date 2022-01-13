@@ -6,7 +6,7 @@ import { ProcessBundleDescriptor, RemoteGrpcPort } from "../proto/beam_fn_api";
 import { MultiplexingDataChannel, IDataChannel } from "./data";
 
 import * as base from "../base";
-import * as translations from "../internal/translations";
+import * as urns from "../internal/urns";
 import { Coder, Context as CoderContext } from "../coders/coders";
 import { BoundedWindow, Instant, PaneInfo, WindowedValue } from "../values";
 
@@ -383,27 +383,27 @@ registerOperatorConstructor(
     );
     const spec = runnerApi.ParDoPayload.fromBinary(transform.spec!.payload);
     // TODO: Ideally we could branch on the urn itself, but some runners have a closed set of known URNs.
-    if (spec.doFn?.urn == translations.SERIALIZED_JS_DOFN_INFO) {
+    if (spec.doFn?.urn == urns.SERIALIZED_JS_DOFN_INFO) {
       return new GenericParDoOperator(
         context.getReceiver(onlyElement(Object.values(transform.outputs))),
         spec,
         base.fakeDeserialize(spec.doFn.payload!)
       );
-    } else if (spec.doFn?.urn == translations.IDENTITY_DOFN_URN) {
+    } else if (spec.doFn?.urn == urns.IDENTITY_DOFN_URN) {
       return new IdentityParDoOperator(
         context.getReceiver(onlyElement(Object.values(transform.outputs)))
       );
-    } else if (spec.doFn?.urn == translations.JS_WINDOW_INTO_DOFN_URN) {
+    } else if (spec.doFn?.urn == urns.JS_WINDOW_INTO_DOFN_URN) {
       return new AssignWindowsParDoOperator(
         context.getReceiver(onlyElement(Object.values(transform.outputs))),
         base.fakeDeserialize(spec.doFn.payload!).windowFn
       );
-    } else if (spec.doFn?.urn == translations.JS_ASSIGN_TIMESTAMPS_DOFN_URN) {
+    } else if (spec.doFn?.urn == urns.JS_ASSIGN_TIMESTAMPS_DOFN_URN) {
       return new AssignTimestampsParDoOperator(
         context.getReceiver(onlyElement(Object.values(transform.outputs))),
         base.fakeDeserialize(spec.doFn.payload!).func
       );
-    } else if (spec.doFn?.urn == translations.SPLITTING_JS_DOFN_URN) {
+    } else if (spec.doFn?.urn == urns.SPLITTING_JS_DOFN_URN) {
       return new SplittingDoFnOperator(
         base.fakeDeserialize(spec.doFn.payload!).splitter,
         Object.fromEntries(

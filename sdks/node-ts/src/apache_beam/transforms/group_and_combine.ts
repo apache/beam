@@ -1,51 +1,30 @@
-import {
-  PTransform,
-  PCollection,
-  Impulse,
-  Root,
-  CombineFn,
-  DoFn,
-} from "../base";
-import * as translations from "../internal/translations";
-import * as runnerApi from "../proto/beam_runner_api";
-import { BytesCoder, KVCoder } from "../coders/standard_coders";
+import { KV } from "../values";
+import { PTransform } from "./transform";
+import { PCollection } from "../pvalue";
+import { GroupByKey, CombinePerKey } from "./internal";
+import { CountFn } from "./combine";
 
-import { GroupByKey } from "../base";
-import { GeneralObjectCoder } from "../coders/js_coders";
-import { BoundedWindow, Instant, KV, PaneInfo } from "../values";
-import { ParDo } from "..";
-import { CombinePerKey } from "./combine";
+// TODO: Consider groupBy as a top-level method on PCollections.
+// TBD how to best express the combiners.
+//     - Idea 1: We could allow these as extra arguments to groupBy
+//     - Idea 2: We could return a special GroupedPCollection that has a nice,
+//               chain-able combining() method. We'd want the intermediates to
+//               still be usable, but lazy.
 
-/**
- * A Ptransform that represents a 'static' source with a list of elements passed at construction time. It
- * returns a PCollection that contains the elements in the input list.
- *
- * @extends PTransform
- */
-export class Create<T> extends PTransform<Root, PCollection<T>> {
-  elements: T[];
-
-  /**
-   * Construct a new Create PTransform.
-   * @param elements - the list of elements in the PCollection
-   */
-  constructor(elements: T[]) {
-    super("Create");
-    this.elements = elements;
-  }
-
-  expand(root: Root) {
-    const this_ = this;
-    // TODO: Store encoded values and conditionally shuffle.
-    return root.apply(new Impulse()).flatMap(function* (_) {
-      yield* this_.elements;
-    });
-  }
+export interface CombineFn<I, A, O> {
+  createAccumulator: () => A;
+  addInput: (A, I) => A;
+  mergeAccumulators: (accumulators: Iterable<A>) => A;
+  extractOutput: (A) => O;
 }
 
+// TODO: When typing this as ((a: I, b: I) => I), types are not inferred well.
+type Combiner<I> = CombineFn<I, any, any> | ((a: any, b: any) => any);
+
 /**
- * A PTransform that takes a PCollection of elements, and returns a PCollection of
- * elements grouped by a key.
+ * A PTransform that takes a PCollection of elements, and returns a PCollection
+ * of elements grouped by a field, multiple fields, an expression that is used
+ * as the grouping key.
  *
  * @extends PTransform
  */
@@ -62,9 +41,12 @@ export class GroupBy<T, K> extends PTransform<
    *
    * @param key: The name of the key in the JSON object, or a function that returns the key for a given element.
    */
-  constructor(key: string | string[] | ((element: T) => K)) {
+  constructor(
+    key: string | string[] | ((element: T) => K),
+    keyName: string | undefined = undefined
+  ) {
     super();
-    [this.keyFn, this.keyNames] = extractFnAndName(key, "key");
+    [this.keyFn, this.keyNames] = extractFnAndName(key, keyName || "key");
     this.keyName = typeof this.keyNames == "string" ? this.keyNames : "key";
   }
 
@@ -90,16 +72,48 @@ export class GroupBy<T, K> extends PTransform<
   }
 }
 
+/**
+ * Groups all elements of the input PCollection together.
+ *
+ * This is generally used with one or more combining specifications, as one
+ * looses parallelization benefits in bringing all elements of a distributed
+ * PCollection together on a single machine.
+ */
+export class GroupGlobally<T> extends PTransform<
+  PCollection<T>,
+  PCollection<Iterable<T>>
+> {
+  constructor() {
+    super();
+  }
+
+  expand(input) {
+    return input.apply(new GroupBy((_) => null)).map((kv) => kv[1]);
+  }
+
+  combining<I>(
+    expr: string | ((element: T) => I),
+    combiner: Combiner<I>,
+    resultName: string
+  ) {
+    return new GroupByAndCombine((_) => null, undefined, []).combining(
+      expr,
+      combiner,
+      resultName
+    );
+  }
+}
+
 class GroupByAndCombine<T, O> extends PTransform<
   PCollection<T>,
   PCollection<O>
 > {
   keyFn: (element: T) => any;
-  keyNames: string | string[];
+  keyNames: string | string[] | undefined;
   combiners: CombineSpec<T, any, any>[];
   constructor(
     keyFn: (element: T) => any,
-    keyNames: string | string[],
+    keyNames: string | string[] | undefined,
     combiners: CombineSpec<T, any, any>[]
   ) {
     super();
@@ -143,7 +157,9 @@ class GroupByAndCombine<T, O> extends PTransform<
       )
       .map(function (kv) {
         const result = {};
-        if (typeof this_.keyNames == "string") {
+        if (this_.keyNames == undefined) {
+          // Don't populate a key at all.
+        } else if (typeof this_.keyNames == "string") {
           result[this_.keyNames] = kv.key;
         } else {
           for (let i = 0; i < this_.keyNames.length; i++) {
@@ -158,8 +174,34 @@ class GroupByAndCombine<T, O> extends PTransform<
   }
 }
 
-// TODO: When typing this as ((a: I, b: I) => I), types are not inferred well.
-type Combiner<I> = CombineFn<I, any, any> | ((a: any, b: any) => any);
+// TODO: Does this carry its weight as a top-level built-in function?
+// Cons: It's just a combine. Pros: It's kind of a non-obvious one.
+// NOTE: The encoded form of the elements will be used for equality checking.
+export class CountPerElement<T> extends PTransform<
+  PCollection<T>,
+  PCollection<{ element: T; count: number }>
+> {
+  expand(input) {
+    return input.apply(
+      new GroupBy((e) => e, "element").combining(
+        (e) => e,
+        new CountFn(),
+        "count"
+      )
+    );
+  }
+}
+
+export class CountGlobally<T> extends PTransform<
+  PCollection<T>,
+  PCollection<number>
+> {
+  expand(input) {
+    return input
+      .apply(new GroupGlobally().combining((e) => e, new CountFn(), "count"))
+      .map((o) => o.count);
+  }
+}
 
 function toCombineFn<I>(combiner: Combiner<I>): CombineFn<I, any, any> {
   if (typeof combiner == "function") {
@@ -262,22 +304,4 @@ function extractFnAndName<T, K>(
 
 function extractFn<T, K>(extractor: string | string[] | ((T) => K)) {
   return extractFnAndName(extractor, undefined!)[0];
-}
-
-class KeyBy<InputT, KeyT> extends PTransform<
-  PCollection<InputT>,
-  PCollection<KV<KeyT, InputT>>
-> {
-  keyFn: (elm: InputT) => KeyT;
-  constructor(keyFn: (elm: InputT) => KeyT) {
-    super();
-    this.keyFn = keyFn;
-  }
-  expand(input: PCollection<InputT>) {
-    return input.map((elm) => ({ key: this.keyFn(elm), value: elm }));
-  }
-}
-
-export function keyBy<InputT, KeyT>(keyFn: (elm: InputT) => KeyT) {
-  return new KeyBy(keyFn);
 }

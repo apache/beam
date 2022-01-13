@@ -1,3 +1,4 @@
+// XXX rename to windowings
 import Long from "long";
 
 import * as runnerApi from "../proto/beam_runner_api";
@@ -7,11 +8,10 @@ import {
 } from "../proto/standard_window_fns";
 import { WindowFn } from "../base";
 import {
-  GlobalWindow,
   GlobalWindowCoder,
   IntervalWindowCoder,
 } from "../coders/standard_coders";
-import { Instant, IntervalWindow } from "../values";
+import { GlobalWindow, Instant, IntervalWindow } from "../values";
 
 export class GlobalWindows implements WindowFn<GlobalWindow> {
   assignWindows(Instant) {

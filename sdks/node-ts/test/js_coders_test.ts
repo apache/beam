@@ -8,7 +8,6 @@ import {
   StrUtf8Coder,
   VarIntCoder,
 } from "../src/apache_beam/coders/standard_coders";
-import { GroupBy } from "../src/apache_beam/transforms/core";
 import {
   BsonObjectCoder,
   GeneralObjectCoder,

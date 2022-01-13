@@ -1,6 +1,6 @@
 import * as BSON from "bson";
 import { Writer, Reader } from "protobufjs";
-import { Coder, CODER_REGISTRY, Context } from "./coders";
+import { Coder, Context, globalRegistry } from "./coders";
 import {
   BoolCoder,
   DoubleCoder,
@@ -12,14 +12,17 @@ import { PipelineContext } from "../base";
 
 export class BsonObjectCoder<T> implements Coder<T> {
   static URN = "beam:coder:bsonjs:v1";
+
   encode(element: T, writer: Writer, context: Context) {
     const buff = BSON.serialize(element);
     writer.bytes(buff);
   }
+
   decode(reader: Reader, context: Context): T {
     const encoded = reader.bytes();
     return BSON.deserialize(encoded) as T;
   }
+
   toProto(pipelineContext: PipelineContext): runnerApi.Coder {
     return {
       spec: {
@@ -30,7 +33,7 @@ export class BsonObjectCoder<T> implements Coder<T> {
     };
   }
 }
-CODER_REGISTRY.register(BsonObjectCoder.URN, BsonObjectCoder);
+globalRegistry().register(BsonObjectCoder.URN, BsonObjectCoder);
 
 class NumberOrFloatCoder implements Coder<number> {
   static URN = "beam:coder:numbersforjs:v1";
@@ -46,6 +49,7 @@ class NumberOrFloatCoder implements Coder<number> {
       this.intCoder.encode(element, writer, context);
     }
   }
+
   decode(reader: Reader, context: Context): number {
     const typeMarker = reader.string();
     if (typeMarker === "f") {
@@ -54,6 +58,7 @@ class NumberOrFloatCoder implements Coder<number> {
       return this.intCoder.decode(reader, context);
     }
   }
+
   toProto(pipelineContext: PipelineContext): runnerApi.Coder {
     return {
       spec: {
@@ -67,7 +72,7 @@ class NumberOrFloatCoder implements Coder<number> {
 
 export class GeneralObjectCoder<T> implements Coder<T> {
   static URN = "beam:coder:genericobjectjs:v1";
-  componentCoders = {
+  codersByType = {
     string: new StrUtf8Coder(),
     number: new NumberOrFloatCoder(),
     object: new BsonObjectCoder(),
@@ -82,6 +87,7 @@ export class GeneralObjectCoder<T> implements Coder<T> {
     object: "O",
     boolean: "B",
   };
+
   // This is a map of type markers to type names. It maps a type marker to its
   // type name.
   markerToTypes = {
@@ -90,16 +96,29 @@ export class GeneralObjectCoder<T> implements Coder<T> {
     O: "object",
     B: "boolean",
   };
+
   encode(element: T, writer: Writer, context: Context) {
-    const type = typeof element;
-    writer.string(this.typeMarkers[type]);
-    this.componentCoders[type].encode(element, writer, context);
+    if (element == null) {
+      // typeof is "object" but BSON can't handle it.
+      writer.string("Z");
+    } else {
+      const type = typeof element;
+      // TODO: Write a single byte (no need for the length prefix).
+      writer.string(this.typeMarkers[type]);
+      this.codersByType[type].encode(element, writer, context);
+    }
   }
+
   decode(reader: Reader, context: Context): T {
     const typeMarker = reader.string();
-    const type = this.markerToTypes[typeMarker];
-    return this.componentCoders[type].decode(reader, context);
+    if (typeMarker == "Z") {
+      return null!;
+    } else {
+      const type = this.markerToTypes[typeMarker];
+      return this.codersByType[type].decode(reader, context);
+    }
   }
+
   toProto(pipelineContext: PipelineContext): runnerApi.Coder {
     return {
       spec: {
@@ -110,4 +129,4 @@ export class GeneralObjectCoder<T> implements Coder<T> {
     };
   }
 }
-CODER_REGISTRY.register(GeneralObjectCoder.URN, GeneralObjectCoder);
+globalRegistry().register(GeneralObjectCoder.URN, GeneralObjectCoder);

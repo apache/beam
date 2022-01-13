@@ -6,18 +6,18 @@ import { PTransform, PCollection } from "../proto/beam_runner_api";
 import { ProcessBundleDescriptor } from "../proto/beam_fn_api";
 import { JobState_Enum } from "../proto/beam_job_api";
 
-import {
-  Runner,
-  Pipeline,
-  Root,
-  Impulse,
-  GroupByKey,
-  PipelineResult,
-} from "../base";
+import { Pipeline, Root, Impulse, GroupByKey } from "../base";
+import { Runner, PipelineResult } from "./runner";
 import * as worker from "../worker/worker";
 import * as operators from "../worker/operators";
-import { BoundedWindow, Instant, PaneInfo, WindowedValue } from "../values";
-import { GlobalWindow, PaneInfoCoder } from "../coders/standard_coders";
+import {
+  BoundedWindow,
+  GlobalWindow,
+  Instant,
+  PaneInfo,
+  WindowedValue,
+} from "../values";
+import { PaneInfoCoder } from "../coders/standard_coders";
 import { Coder, Context as CoderContext } from "../coders/coders";
 
 export class DirectRunner extends Runner {

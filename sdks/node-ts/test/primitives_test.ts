@@ -7,7 +7,7 @@ import {
   IterableCoder,
   KVCoder,
 } from "../src/apache_beam/coders/standard_coders";
-import { GroupBy } from "../src/apache_beam/transforms/core";
+import { GroupBy } from "../src/apache_beam/transforms/group_and_combine";
 import { GeneralObjectCoder } from "../src/apache_beam/coders/js_coders";
 
 import { DirectRunner } from "../src/apache_beam/runners/direct_runner";
@@ -19,14 +19,14 @@ describe("primitives module", function () {
     // TODO: test output with direct runner.
     it("runs a basic Impulse expansion", function () {
       var p = new beam.Pipeline();
-      var res = p.apply(new beam.Impulse());
+      var res = new beam.Root(p).apply(new beam.Impulse());
 
       assert.equal(res.type, "pcollection");
       assert.deepEqual(p.context.getPCollectionCoder(res), new BytesCoder());
     });
     it("runs a ParDo expansion", function () {
       var p = new beam.Pipeline();
-      var res = p
+      var res = new beam.Root(p)
         .apply(new beam.Impulse())
         .map(function (v: any) {
           return v * 2;
@@ -44,7 +44,7 @@ describe("primitives module", function () {
     // why doesn't map need types here?
     it("runs a GroupBy expansion", function () {
       var p = new beam.Pipeline();
-      var res = p
+      var res = new beam.Root(p)
         .apply(new beam.Impulse())
         .map(function (v) {
           return { name: "pablo", lastName: "wat" };

@@ -1,9 +1,8 @@
 import {
   Coder,
-  CODER_REGISTRY,
   Context,
+  globalRegistry,
 } from "../src/apache_beam/coders/coders";
-import { GlobalWindow } from "../src/apache_beam/coders/standard_coders";
 import { Writer, Reader } from "protobufjs";
 import Long from "long";
 
@@ -11,7 +10,7 @@ import assertions = require("assert");
 import yaml = require("js-yaml");
 import fs = require("fs");
 import util = require("util");
-import { Timing } from "../src/apache_beam/values";
+import { GlobalWindow, Timing } from "../src/apache_beam/values";
 
 const STANDARD_CODERS_FILE =
   "../../model/fn-execution/src/main/resources/org/apache/beam/model/fnexecution/v1/standard_coders.yaml";
@@ -114,13 +113,13 @@ describe("standard Beam coders on Javascript", function () {
       describe("in Context " + context, function () {
         const spec = doc;
 
-        const coderConstructor = CODER_REGISTRY.get(urn);
+        const coderConstructor = globalRegistry().get(urn);
         var coder;
         if (spec.coder.components) {
           var components;
           try {
             components = spec.coder.components.map(
-              (c) => new (CODER_REGISTRY.get(c.urn))()
+              (c) => new (globalRegistry().get(c.urn))()
             );
           } catch (Error) {
             return;
