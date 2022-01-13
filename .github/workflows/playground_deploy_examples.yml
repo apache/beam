@@ -1,0 +1,130 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Collect And Deploy Playground Examples
+
+on:
+  push:
+    branches: ['beam-12812-githubactions']
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  deploy_examples:
+    name: Deploy examples
+    runs-on: [self-hosted, ubuntu-20.04]
+    env:
+      BEAM_ROOT_DIR: ../../
+      BEAM_EXAMPLE_CATEGORIES: ../categories.yaml
+      BEAM_VERSION: 2.33.0
+      SERVER_ADDRESS: backend-python-dot-datatokenization.uc.r.appspot.com
+      K8S_NAMESPACE: playground-backend
+      HELM_APP_NAME: playground-backend
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.8'
+      - uses: actions/setup-java@v2
+        with:
+          distribution: 'zulu'
+          java-version: '8'
+      - name: Install kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" &&\
+          chmod +x kubectl &&\
+          mv kubectl /usr/local/bin/
+      - name: Install helm
+        run: |
+          curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 &&\
+          chmod 700 get_helm.sh &&\
+          ./get_helm.sh
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v0.3.0
+      - name: install deps
+        run: pip install -r requirements.txt
+        working-directory: playground/infrastructure
+      - name: Setup GCP account
+        run: |
+          echo "${{ secrets.GCP_ACCESS_KEY }}" | base64 -d > /tmp/gcp_access.json
+          gcloud auth activate-service-account --project=datatokenization --key-file=/tmp/gcp_access.json
+      - name: Get K8s Config
+        run: gcloud container clusters get-credentials --region     us-central1-a playground-examples
+      - name: Login to Docker Registry
+        run: cat /tmp/gcp_access.json | docker login -u _json_key --password-stdin https://${{ secrets.REGISTRY_NAME }}
+      - name: Build And Push Java Backend
+        run: ./gradlew playground:backend:containers:java:dockerTagPush -Pdocker-repository-root='${{ secrets.REGISTRY_NAME}}/${{ secrets.PROJECT_ID }}/playground-repository' -Pbase-image='apache/beam_java8_sdk:${{ env.BEAM_VERSION }}' -Pdocker-tag="$GITHUB_SHA"
+      - name: Build And Push Go Backend
+        run: ./gradlew playground:backend:containers:go:dockerTagPush -Pdocker-repository-root='${{ secrets.REGISTRY_NAME}}/${{ secrets.PROJECT_ID }}/playground-repository' -Pdocker-tag="$GITHUB_SHA"
+      - name: Build And Push Python Backend
+        run: ./gradlew playground:backend:containers:python:dockerTagPush -Pdocker-repository-root='${{ secrets.REGISTRY_NAME}}/${{ secrets.PROJECT_ID }}/playground-repository' -Pdocker-tag="$GITHUB_SHA"
+      - name: Install helm chart
+        run: |
+          kubectl create namespace $K8S_NAMESPACE --dry-run=client -o yaml | kubectl apply -f - &&\
+          helm install  --namespace $K8S_NAMESPACE $HELM_APP_NAME . --set global.registry="${{ secrets.REGISTRY_NAME }}/${{ secrets.PROJECT_ID }}/playground-repository" --set global.tag="$GITHUB_SHA" &&\
+          sleep 120
+        working-directory: playground/infrastructure/helm
+      - name: Run Python Examples CI
+        run: |
+          K8S_SERVER_ADDRESS=$(kubectl get svc -n $K8S_NAMESPACE -l "app=service-python" -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')
+          BEAM_ROOT_DIR="../../"
+          BEAM_EXAMPLE_CATEGORIES="../../playground/categories.yaml"
+          export SERVER_ADDRESS="$K8S_SERVER_ADDRESS:8081" && python3 ci_cd.py --step CI --sdk SDK_PYTHON
+        working-directory: playground/infrastructure
+      - name: Run Python Examples CD
+        run: |
+          K8S_SERVER_ADDRESS=$(kubectl get svc -n $K8S_NAMESPACE -l "app=service-python" -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')
+          BEAM_ROOT_DIR="../../"
+          BEAM_EXAMPLE_CATEGORIES="../../playground/categories.yaml"
+          export SERVER_ADDRESS="$K8S_SERVER_ADDRESS:8081" && python3 ci_cd.py --step CD --sdk SDK_PYTHON
+        working-directory: playground/infrastructure
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp_access.json
+      - name: Run Go Examples CI
+        run: |
+          K8S_SERVER_ADDRESS=$(kubectl get svc -n $K8S_NAMESPACE -l "app=service-go" -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')
+          BEAM_ROOT_DIR="../../"
+          BEAM_EXAMPLE_CATEGORIES="../../playground/categories.yaml"
+          export SERVER_ADDRESS="$K8S_SERVER_ADDRESS:8082" && python3 ci_cd.py --step CI --sdk SDK_GO
+        working-directory: playground/infrastructure
+      - name: Run Go Examples CD
+        run: |
+          K8S_SERVER_ADDRESS=$(kubectl get svc -n $K8S_NAMESPACE -l "app=service-go" -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')
+          BEAM_ROOT_DIR="../../"
+          BEAM_EXAMPLE_CATEGORIES="../../playground/categories.yaml"
+          export SERVER_ADDRESS="$K8S_SERVER_ADDRESS:8082" && python3 ci_cd.py --step CD --sdk SDK_GO
+        working-directory: playground/infrastructure
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp_access.json
+      - name: Run Java Examples CI
+        run: |
+          K8S_SERVER_ADDRESS=$(kubectl get svc -n $K8S_NAMESPACE -l "app=service-java" -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')
+          BEAM_ROOT_DIR="../../"
+          BEAM_EXAMPLE_CATEGORIES="../../playground/categories.yaml"
+          export SERVER_ADDRESS="$K8S_SERVER_ADDRESS:8080" && python3 ci_cd.py --step CI --sdk SDK_JAVA
+        working-directory: playground/infrastructure
+      - name: Run Java Examples CD
+        run: |
+          K8S_SERVER_ADDRESS=$(kubectl get svc -n $K8S_NAMESPACE -l "app=service-java" -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')
+          BEAM_ROOT_DIR="../../"
+          BEAM_EXAMPLE_CATEGORIES="../../playground/categories.yaml"
+          export SERVER_ADDRESS="$K8S_SERVER_ADDRESS:8080" && python3 ci_cd.py --step CD --sdk SDK_JAVA
+        working-directory: playground/infrastructure
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp_access.json
+      - name: Delete Helm Chart
+        run: |
+          helm del --namespace $K8S_NAMESPACE $HELM_APP_NAME

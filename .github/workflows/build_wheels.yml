@@ -23,7 +23,7 @@ on:
   schedule:
     - cron: '10 2 * * *'
   push:
-    branches: ['master', 'release-*', 'beam-12812-githubactions']
+    branches: ['master', 'release-*']
     tags: 'v*'
   pull_request:
     branches: ['master', 'release-*']
