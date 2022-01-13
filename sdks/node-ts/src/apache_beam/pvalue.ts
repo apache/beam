@@ -84,7 +84,7 @@ export class PCollection<T> {
   }
 
   flatMap<OutputT>(
-    fn: (element: T) => Generator<OutputT>
+    fn: (element: T) => Iterable<OutputT>
   ): PCollection<OutputT> {
     return this.apply(
       new ParDo<T, OutputT>(new FlatMapDoFn<T, OutputT>(fn))
@@ -233,8 +233,8 @@ class MapDoFn<InputT, OutputT> extends DoFn<InputT, OutputT> {
 
 // TODO: If this is exported, should probably move out of this module.
 class FlatMapDoFn<InputT, OutputT> extends DoFn<InputT, OutputT> {
-  private fn: (element: InputT) => Generator<OutputT>;
-  constructor(fn: (element: InputT) => Generator<OutputT>) {
+  private fn: (element: InputT) => Iterable<OutputT>;
+  constructor(fn: (element: InputT) => Iterable<OutputT>) {
     super();
     this.fn = fn;
   }

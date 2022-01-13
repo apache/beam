@@ -74,6 +74,9 @@ class DirectImpulseOperator implements operators.IOperator {
 operators.registerOperator(Impulse.urn, DirectImpulseOperator);
 
 // Only to be used in direct runner, as this will only group within a single bundle.
+// TODO: This could be used as a base for the PGBKOperation operator,
+// and then this class could simply invoke that with an unbounded size and the
+// concat-to-list CombineFn.
 class DirectGbkOperator implements operators.IOperator {
   receiver: operators.Receiver;
   groups: Map<any, any[]>;

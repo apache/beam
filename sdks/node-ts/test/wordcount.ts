@@ -6,7 +6,6 @@ import { GroupBy } from "../src/apache_beam/transforms/group_and_combine";
 import { SumFn } from "../src/apache_beam/transforms/combiners";
 
 import { PortableRunner } from "../src/apache_beam/runners/portable_runner/runner";
-import { RemoteJobServiceClient } from "../src/apache_beam/runners/portable_runner/client";
 
 function wordCount(
   lines: beam.PCollection<string>
@@ -32,7 +31,7 @@ class CountElements extends beam.PTransform<
 
 describe("wordcount", function () {
   it("wordcount", async function () {
-    //         await new PortableRunner(new RemoteJobServiceClient('localhost:3333')).run(
+    //         await new PortableRunner('localhost:3333').run(
     await new DirectRunner().run((root) => {
       const lines = root.apply(
         new beam.Create([
