@@ -2,15 +2,11 @@ import * as beam from "../src/apache_beam";
 import { DirectRunner } from "../src/apache_beam/runners/direct_runner";
 import * as testing from "../src/apache_beam/testing/assert";
 import { KV } from "../src/apache_beam/values";
+import { GroupBy } from "../src/apache_beam/transforms/group_and_combine";
+import { SumFn } from "../src/apache_beam/transforms/combine";
 
 import { NodeRunner } from "../src/apache_beam/runners/node_runner/runner";
 import { RemoteJobServiceClient } from "../src/apache_beam/runners/node_runner/client";
-import {
-  countPerKey,
-  CombineBy,
-  CountFn,
-} from "../src/apache_beam/transforms/combine";
-import { keyBy } from "../src/apache_beam";
 
 function wordCount(
   lines: beam.PCollection<string>
@@ -28,7 +24,9 @@ class CountElements extends beam.PTransform<
   beam.PCollection<KV<any, number>>
 > {
   expand(input: beam.PCollection<any>) {
-    return input.apply(beam.keyBy((e) => e)).apply(countPerKey());
+    return input.apply(
+      new GroupBy((e) => e, "element").combining((e) => 1, new SumFn(), "count")
+    );
   }
 }
 
@@ -59,14 +57,14 @@ describe("wordcount", function () {
 
       lines.apply(wordCount).apply(
         new testing.AssertDeepEqual([
-          { key: "and", value: 2 },
-          { key: "god", value: 1 },
-          { key: "said", value: 1 },
-          { key: "let", value: 1 },
-          { key: "there", value: 2 },
-          { key: "be", value: 1 },
-          { key: "light", value: 2 },
-          { key: "was", value: 1 },
+          { element: "and", count: 2 },
+          { element: "god", count: 1 },
+          { element: "said", count: 1 },
+          { element: "let", count: 1 },
+          { element: "there", count: 2 },
+          { element: "be", count: 1 },
+          { element: "light", count: 2 },
+          { element: "was", count: 1 },
         ])
       );
     });

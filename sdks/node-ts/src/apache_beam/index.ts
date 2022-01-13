@@ -1,3 +1,3 @@
 export * from "./base";
-export * from "./transforms/core";
+export * from "./transforms";
 export * from "./values";

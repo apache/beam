@@ -1,8 +1,7 @@
 import * as runnerApi from "../proto/beam_runner_api";
-import * as translations from "../internal/translations";
 
 import { Writer, Reader } from "protobufjs";
-import { Coder, Context, CODER_REGISTRY } from "./coders";
+import { Coder, Context, globalRegistry } from "./coders";
 
 import { Schema, Field, FieldType, AtomicType } from "../proto/schema";
 import { PipelineContext } from "..";
@@ -20,8 +19,6 @@ const argsort = (x) =>
     .map((v, i) => [v, i])
     .sort()
     .map((y) => y[1]);
-
-// const util = require('util');
 
 export class RowCoder implements Coder<any> {
   public static URN: string = "beam:coder:row:v1";
@@ -380,4 +377,5 @@ export class RowCoder implements Coder<any> {
     };
   }
 }
-CODER_REGISTRY.register(RowCoder.URN, RowCoder);
+
+globalRegistry().register(RowCoder.URN, RowCoder);
