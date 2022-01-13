@@ -16,17 +16,17 @@
     limitations under the License.
 -->
 # GitHub Actions - Self-hosted Linux Runners
-These folders contain the required resources to deploy the GitHub Actions self-hosted runners for the workflows running in Ubuntu OS. 
+These folders contain the required resources to deploy the GitHub Actions self-hosted runners for the workflows running in Ubuntu OS.
 * /docker
   * Dockerfile and entrypoint: Resources needed to create a new self-hosted-runner image.
-  * docker-compose.yml: In case you would like to test and run the self-hosted runner locally. 
+  * docker-compose.yml: In case you would like to test and run the self-hosted runner locally.
 
 * /kubernetes
   * Kubernetes files to create the resources needed to deploy the sel-hosted runners.
 
-## Docker 
+## Docker
 
-#### How to build a new image and push it to the Artifact Registry? 
+#### How to build a new image and push it to the Artifact Registry?
 * Create the image locally
 
 `docker build -t $LOCAL_IMAGE_NAME:TAG .`
@@ -53,7 +53,7 @@ These folders contain the required resources to deploy the GitHub Actions self-h
 
 * You will be able to see the self-hosted runner in the Settings of your GitHub repository
 
-## Kubernetes 
+## Kubernetes
 * Configure your Kubernetes local context
 
 `gcloud container clusters get-credentials $CLUSTER_NAME --zone us-central1-a --project $PROJECT-ID`
