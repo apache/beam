@@ -70,6 +70,17 @@ TextButtonThemeData createTextButtonTheme(Color textColor) {
   );
 }
 
+OutlinedButtonThemeData createOutlineButtonTheme(Color textColor) {
+  return OutlinedButtonThemeData(
+    style: OutlinedButton.styleFrom(
+      primary: textColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(kSmBorderRadius)),
+      ),
+    ),
+  );
+}
+
 ElevatedButtonThemeData createElevatedButtonTheme(Color primaryColor) {
   return ElevatedButtonThemeData(
     style: ElevatedButton.styleFrom(primary: primaryColor),
@@ -95,9 +106,12 @@ AppBarTheme createAppBarTheme(Color backgroundColor) {
 }
 
 TabBarTheme createTabBarTheme(Color textColor, Color indicatorColor) {
+  const labelStyle = TextStyle(fontWeight: kMediumWeight);
   return TabBarTheme(
     unselectedLabelColor: textColor,
     labelColor: textColor,
+    labelStyle: labelStyle,
+    unselectedLabelStyle: labelStyle,
     indicator: UnderlineTabIndicator(
       borderSide: BorderSide(width: 2.0, color: indicatorColor),
     ),
@@ -122,6 +136,7 @@ final kLightTheme = ThemeData(
   textTheme: createTextTheme(kLightText),
   popupMenuTheme: createPopupMenuTheme(),
   textButtonTheme: createTextButtonTheme(kLightText),
+  outlinedButtonTheme: createOutlineButtonTheme(kLightText),
   elevatedButtonTheme: createElevatedButtonTheme(kLightPrimary),
   tabBarTheme: createTabBarTheme(kLightText, kLightPrimary),
   dialogTheme: createDialogTheme(kLightText),
@@ -135,6 +150,7 @@ final kDarkTheme = ThemeData(
   textTheme: createTextTheme(kDarkText),
   popupMenuTheme: createPopupMenuTheme(),
   textButtonTheme: createTextButtonTheme(kDarkText),
+  outlinedButtonTheme: createOutlineButtonTheme(kDarkText),
   elevatedButtonTheme: createElevatedButtonTheme(kDarkPrimary),
   tabBarTheme: createTabBarTheme(kDarkText, kDarkPrimary),
   dialogTheme: createDialogTheme(kDarkText),
