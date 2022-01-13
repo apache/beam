@@ -41,43 +41,21 @@ export class RemoteJobServiceClient {
     jobName: string,
     pipelineOptions?: Struct
   ) {
-    return await this.callPrepare(
-      this.client,
-      pipeline,
-      jobName,
-      pipelineOptions
-    );
-  }
-
-  async run(preparationId: string) {
-    return await this.callRun(this.client, preparationId);
-  }
-
-  async getState(jobId: string) {
-    return await this.callGetState(this.client, jobId);
-  }
-
-  private async callPrepare(
-    client: IJobServiceClient,
-    pipeline: runnerApiProto.Pipeline,
-    jobName: string,
-    pipelineOptions?: Struct
-  ) {
     let message: PrepareJobRequest = { pipeline, jobName };
     if (pipelineOptions) {
       message.pipelineOptions = pipelineOptions;
     }
-    const call = client.prepare(message);
+    const call = this.client.prepare(message);
     return await call.response;
   }
 
-  private async callRun(client: IJobServiceClient, preparationId: string) {
-    const call = client.run({ preparationId, retrievalToken: "" });
+  async run(preparationId: string) {
+    const call = this.client.run({ preparationId, retrievalToken: "" });
     return await call.response;
   }
 
-  private async callGetState(client: IJobServiceClient, jobId: string) {
-    const call = client.getState({ jobId });
+  async getState(jobId: string) {
+    const call = this.client.getState({ jobId });
     return await call.response;
   }
 }
