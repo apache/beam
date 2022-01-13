@@ -6,10 +6,9 @@ interface Class<T> {
   new (...args: any[]): T;
 }
 
-
 /**
  * A registry of coder classes.
- * 
+ *
  * Coder classes are registered by their URN. Most coders have a URN of the type `"beam:coder:{coder_name}:v1"`,
  * and they can register a constructor that takes zero or more parameters as input.
  * Constructor input parameters for a coder are usually internal coders that represent sub-components
@@ -32,13 +31,12 @@ class CoderRegistry {
 }
 export const CODER_REGISTRY = new CoderRegistry();
 
-
 /**
  * The context for encoding a PCollection element.
  * For example, for strings of utf8 characters or bytes, `wholeStream` encoding means
  * that the string will be encoded as-is; while `needsDelimiter` encoding means that the
  * string will be encoded prefixed with its length.
- * 
+ *
  * ```js
  * coder = new StrUtf8Coder()
  * w1 = new Writer()
@@ -67,7 +65,6 @@ export enum Context {
  * elements of a PCollection.
  */
 export interface Coder<T> {
-
   /**
    * Encode an element into a stream of bytes.
    * @param element - an element within a PCollection
