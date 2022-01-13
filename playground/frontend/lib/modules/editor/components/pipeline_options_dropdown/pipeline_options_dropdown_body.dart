@@ -198,7 +198,7 @@ class _PipelineOptionsDropdownBodyState
   bool _isPipelineOptionsTextValid() {
     final options = pipelineOptionsController.text;
     final parsedOptions = parsePipelineOptions(options);
-    return options.isEmpty && parsedOptions != null;
+    return options.isEmpty || parsedOptions != null;
   }
 
   _updateRawValue() {
@@ -212,13 +212,15 @@ class _PipelineOptionsDropdownBodyState
     final parsedOptions =
         _pipelineOptionsMapToList(pipelineOptionsController.text);
     if (parsedOptions.isNotEmpty) {
-      pipelineOptionsList = parsedOptions;
+      setState(() {
+        pipelineOptionsList = parsedOptions;
+      });
     }
   }
 
   List<PipelineOptionController> _pipelineOptionsMapToList(
       String pipelineOptions) {
-    return parsePipelineOptions(widget.pipelineOptions)
+    return parsePipelineOptions(pipelineOptions)
             ?.entries
             .map((e) => PipelineOptionController(name: e.key, value: e.value))
             .toList() ??
