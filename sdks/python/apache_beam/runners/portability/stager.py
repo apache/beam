@@ -716,6 +716,8 @@ class Stager(object):
           '--no-binary',
           ':all:'
       ]
+      _LOGGER.info('Executing command: %s', cmd_args)
+      processes.check_output(cmd_args, stderr=processes.STDOUT)
     else:  # try to download wheels
       language_implementation_tag = 'cp'
       language_version_tag = '%d%d' % (
@@ -754,8 +756,8 @@ class Stager(object):
                   '--exists-action',
                   'i',
               ])
-    _LOGGER.info('Executing command: %s', cmd_args)
-    processes.check_output(cmd_args, stderr=processes.STDOUT)
+        _LOGGER.info('Executing command: %s', cmd_args)
+        processes.check_output(cmd_args, stderr=processes.STDOUT)
 
   @staticmethod
   def _build_setup_package(setup_file,  # type: str
