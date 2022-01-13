@@ -16,7 +16,6 @@
 package preparators
 
 import (
-	"beam.apache.org/playground/backend/internal/fs_tool"
 	"beam.apache.org/playground/backend/internal/logger"
 	"beam.apache.org/playground/backend/internal/validators"
 	"bufio"
@@ -203,7 +202,7 @@ func changeJavaTestFileName(args ...interface{}) error {
 
 func renameJavaFile(filePath string, className string) error {
 	currentFileName := filepath.Base(filePath)
-	newFilePath := strings.Replace(filePath, currentFileName, fmt.Sprintf("%s%s", className, fs_tool.JavaSourceFileExtension), 1)
+	newFilePath := strings.Replace(filePath, currentFileName, fmt.Sprintf("%s%s", className, filepath.Ext(currentFileName)), 1)
 	err := os.Rename(filePath, newFilePath)
 	return err
 }

@@ -47,7 +47,7 @@ func TestSetupExecutor(t *testing.T) {
 		panic(err)
 	}
 
-	srcFilePath := lc.GetAbsoluteSourceFilePath()
+	srcFilePath := lc.Paths.AbsoluteSourceFilePath
 
 	sdkEnv := environment.NewBeamEnvs(sdk, executorConfig, "", 0)
 	val, err := utils.GetValidators(sdk, srcFilePath)
@@ -60,8 +60,8 @@ func TestSetupExecutor(t *testing.T) {
 	}
 
 	wantExecutor := executors.NewExecutorBuilder().
-		WithExecutableFileName(lc.GetAbsoluteExecutableFilePath()).
-		WithWorkingDir(lc.GetAbsoluteBaseFolderPath()).
+		WithExecutableFileName(lc.Paths.AbsoluteExecutableFilePath).
+		WithWorkingDir(lc.Paths.AbsoluteBaseFolderPath).
 		WithValidator().
 		WithSdkValidators(val).
 		WithPreparator().
@@ -77,11 +77,11 @@ func TestSetupExecutor(t *testing.T) {
 		WithTestRunner().
 		WithCommand(executorConfig.TestCmd).
 		WithArgs(executorConfig.TestArgs).
-		WithWorkingDir(lc.GetAbsoluteBaseFolderPath()).
+		WithWorkingDir(lc.Paths.AbsoluteBaseFolderPath).
 		ExecutorBuilder
 
 	type args struct {
-		lc              *fs_tool.LifeCycle
+		dto             fs_tool.LifeCyclePaths
 		pipelineOptions string
 		sdkEnv          *environment.BeamEnvs
 	}
@@ -95,7 +95,7 @@ func TestSetupExecutor(t *testing.T) {
 			// Test case with calling Setup with incorrect SDK.
 			// As a result, want to receive an error.
 			name:    "incorrect sdk",
-			args:    args{lc, pipelineOptions, environment.NewBeamEnvs(pb.Sdk_SDK_UNSPECIFIED, executorConfig, "", 0)},
+			args:    args{lc.Paths, pipelineOptions, environment.NewBeamEnvs(pb.Sdk_SDK_UNSPECIFIED, executorConfig, "", 0)},
 			want:    nil,
 			wantErr: true,
 		},
@@ -103,14 +103,14 @@ func TestSetupExecutor(t *testing.T) {
 			// Test case with calling Setup with correct SDK.
 			// As a result, want to receive an expected builder.
 			name:    "correct sdk",
-			args:    args{lc, pipelineOptions, sdkEnv},
+			args:    args{lc.Paths, pipelineOptions, sdkEnv},
 			want:    &wantExecutor,
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := SetupExecutorBuilder(tt.args.lc, tt.args.pipelineOptions, tt.args.sdkEnv)
+			got, err := SetupExecutorBuilder(tt.args.dto, tt.args.pipelineOptions, tt.args.sdkEnv)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("SetupExecutorBuilder() error = %v, wantErr %v", err, tt.wantErr)
 				return
