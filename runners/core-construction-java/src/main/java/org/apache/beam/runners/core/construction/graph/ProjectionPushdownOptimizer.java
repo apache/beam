@@ -20,7 +20,6 @@ package org.apache.beam.runners.core.construction.graph;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Objects;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -30,6 +29,7 @@ import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.ProjectionProducer;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
@@ -117,7 +117,7 @@ public class ProjectionPushdownOptimizer {
                   // Output is a PCollectionTuple, look up component PCollections using the original
                   // output tags.
                   newOutputPColl =
-                      Objects.requireNonNull(
+                      Preconditions.checkArgumentNotNull(
                           (PCollection<?>) newOutput.expand().get(oldOutput.getKey()),
                           String.format(
                               "No PCollection found for output tag %s. Were output tags changed in actuateProjectionPushdown?",
