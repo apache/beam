@@ -21,7 +21,7 @@ name: Local environment tests
 
 on:
   push:
-    branches: ['master', 'release-*', 'beam-12812-githubactions']
+    branches: ['master', 'release-*']
     tags: 'v*'
   pull_request:
     branches: ['master', 'release-*']

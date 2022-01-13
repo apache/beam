@@ -17,8 +17,7 @@ name: Build And Deploy Playground Backend Application
 
 on:
   push:
-    branches: ['beam-12812-githubactions']
-    tags: ['v*']
+    tags: 'v*'
   pull_request:
     paths: ['playground/backend/**']
   workflow_dispatch:

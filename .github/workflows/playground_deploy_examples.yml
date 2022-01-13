@@ -17,8 +17,7 @@ name: Collect And Deploy Playground Examples
 
 on:
   push:
-    branches: ['beam-12812-githubactions']
-    tags: ['v*']
+    tags: 'v*'
   workflow_dispatch:
 
 jobs:
