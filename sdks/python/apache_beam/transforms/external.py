@@ -24,6 +24,7 @@ No backward compatibility guarantees. Everything in this module is experimental.
 import contextlib
 import copy
 import functools
+import glob
 import threading
 from collections import OrderedDict
 from typing import Dict
@@ -43,7 +44,8 @@ from apache_beam.portability.api.external_transforms_pb2 import JavaClassLookupP
 from apache_beam.runners import pipeline_context
 from apache_beam.runners.portability import artifact_service
 from apache_beam.transforms import ptransform
-from apache_beam.typehints.native_type_compatibility import convert_to_typing_type
+from apache_beam.typehints import native_type_compatibility
+from apache_beam.typehints import row_type
 from apache_beam.typehints.schemas import named_fields_to_schema
 from apache_beam.typehints.schemas import named_tuple_from_schema
 from apache_beam.typehints.schemas import named_tuple_to_schema
@@ -53,6 +55,13 @@ from apache_beam.typehints.typehints import UnionConstraint
 from apache_beam.utils import subprocess_server
 
 DEFAULT_EXPANSION_SERVICE = 'localhost:8097'
+
+
+def convert_to_typing_type(type_):
+  if isinstance(type_, row_type.RowTypeConstraint):
+    return named_tuple_from_schema(named_fields_to_schema(type_._fields))
+  else:
+    return native_type_compatibility.convert_to_typing_type(type_)
 
 
 def _is_optional_or_none(typehint):
@@ -140,7 +149,7 @@ class NamedTupleBasedPayloadBuilder(SchemaBasedPayloadBuilder):
     """
     :param tuple_instance: an instance of a typing.NamedTuple
     """
-    super(NamedTupleBasedPayloadBuilder, self).__init__()
+    super().__init__()
     self._tuple_instance = tuple_instance
 
   def _get_named_tuple_instance(self):
@@ -283,11 +292,34 @@ class JavaClassLookupPayloadBuilder(PayloadBuilder):
 class JavaExternalTransform(ptransform.PTransform):
   """A proxy for Java-implemented external transforms.
 
-  One builds these transforms just as one would in Java.
+  One builds these transforms just as one would in Java, e.g.::
+
+      transform = JavaExternalTransform('fully.qualified.ClassName'
+          )(contructorArg, ... ).builderMethod(...)
+
+  or::
+
+      JavaExternalTransform('fully.qualified.ClassName').staticConstructor(
+          ...).builderMethod1(...).builderMethod2(...)
+
+  :param class_name: fully qualified name of the java class
+  :param expansion_service: (Optional) an expansion service to use.  If none is
+      provided, a default expansion service will be started.
+  :param classpath: (Optional) A list paths to additional jars to place on the
+      expansion service classpath.
   """
-  def __init__(self, class_name, expansion_service=None):
+  def __init__(self, class_name, expansion_service=None, classpath=None):
+    if expansion_service and classpath:
+      raise ValueError(
+          f'Only one of expansion_service ({expansion_service}) '
+          f'or classpath ({classpath}) may be provided.')
     self._payload_builder = JavaClassLookupPayloadBuilder(class_name)
-    self._expansion_service = None
+    self._classpath = classpath
+    self._expansion_service = expansion_service
+    # Beam explicitly looks for following attributes. Hence adding
+    # 'None' values here to prevent '__getattr__' from being called.
+    self.inputs = None
+    self._fn_api_payload = None
 
   def __call__(self, *args, **kwargs):
     self._payload_builder.with_constructor(*args, **kwargs)
@@ -297,7 +329,11 @@ class JavaExternalTransform(ptransform.PTransform):
     # Don't try to emulate special methods.
     if name.startswith('__') and name.endswith('__'):
       return super().__getattr__(name)
+    else:
+      return self[name]
 
+  def __getitem__(self, name):
+    # Use directly for keywords or attribute conflicts.
     def construct(*args, **kwargs):
       if self._payload_builder._has_constructor():
         builder_method = self._payload_builder.add_builder_method
@@ -309,9 +345,14 @@ class JavaExternalTransform(ptransform.PTransform):
     return construct
 
   def expand(self, pcolls):
+    if self._expansion_service is None:
+      self._expansion_service = BeamJarExpansionService(
+          ':sdks:java:expansion-service:app:shadowJar',
+          extra_args=['{{PORT}}', '--javaClassLookupAllowlistFile=*'],
+          classpath=self._classpath)
     return pcolls | ExternalTransform(
-        common_urns.java_class_lookup,
-        self._payload_builder.build(),
+        common_urns.java_class_lookup.urn,
+        self._payload_builder,
         self._expansion_service)
 
 
@@ -384,7 +425,7 @@ class ExternalTransform(ptransform.PTransform):
     """
     expansion_service = expansion_service or DEFAULT_EXPANSION_SERVICE
     if not urn and isinstance(payload, JavaClassLookupPayloadBuilder):
-      urn = common_urns.java_class_lookup
+      urn = common_urns.java_class_lookup.urn
     self._urn = urn
     self._payload = (
         payload.payload() if isinstance(payload, PayloadBuilder) else payload)
@@ -636,7 +677,7 @@ class ExpansionAndArtifactRetrievalStub(
   def __init__(self, channel, **kwargs):
     self._channel = channel
     self._kwargs = kwargs
-    super(ExpansionAndArtifactRetrievalStub, self).__init__(channel, **kwargs)
+    super().__init__(channel, **kwargs)
 
   def artifact_service(self):
     return beam_artifact_api_pb2_grpc.ArtifactRetrievalServiceStub(
@@ -650,22 +691,29 @@ class JavaJarExpansionService(object):
   argument which will spawn a subprocess using this jar to expand the
   transform.
   """
-  def __init__(self, path_to_jar, extra_args=None):
-    if extra_args is None:
-      extra_args = ['{{PORT}}']
+  def __init__(self, path_to_jar, extra_args=None, classpath=None):
     self._path_to_jar = path_to_jar
     self._extra_args = extra_args
+    self._classpath = classpath
     self._service_count = 0
+
+  def _default_args(self):
+    to_stage = ','.join([self._path_to_jar] + sum(
+        (glob.glob(path) or [path] for path in self._classpath or []), []))
+    return ['{{PORT}}', f'--filesToStage={to_stage}']
 
   def __enter__(self):
     if self._service_count == 0:
       self._path_to_jar = subprocess_server.JavaJarServer.local_jar(
           self._path_to_jar)
+      if self._extra_args is None:
+        self._extra_args = self._default_args()
       # Consider memoizing these servers (with some timeout).
       self._service_provider = subprocess_server.JavaJarServer(
           ExpansionAndArtifactRetrievalStub,
           self._path_to_jar,
-          self._extra_args)
+          self._extra_args,
+          classpath=self._classpath)
       self._service = self._service_provider.__enter__()
     self._service_count += 1
     return self._service
@@ -683,10 +731,15 @@ class BeamJarExpansionService(JavaJarExpansionService):
   if it exists, otherwise attempts to download and cache the released artifact
   corresponding to this version of Beam from the apache maven repository.
   """
-  def __init__(self, gradle_target, extra_args=None, gradle_appendix=None):
+  def __init__(
+      self,
+      gradle_target,
+      extra_args=None,
+      gradle_appendix=None,
+      classpath=None):
     path_to_jar = subprocess_server.JavaJarServer.path_to_beam_jar(
         gradle_target, gradle_appendix)
-    super(BeamJarExpansionService, self).__init__(path_to_jar, extra_args)
+    super().__init__(path_to_jar, extra_args, classpath=classpath)
 
 
 def memoize(func):

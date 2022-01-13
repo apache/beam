@@ -439,13 +439,10 @@ public class BoundedSourceSystem {
     }
 
     static SamzaPipelineOptions getPipelineOptions(Config config) {
-      final SamzaPipelineOptions options =
-          Base64Serializer.deserializeUnchecked(
-                  config.get("beamPipelineOptions"), SerializablePipelineOptions.class)
-              .get()
-              .as(SamzaPipelineOptions.class);
-      options.setConfigOverride(new HashMap<>(config));
-      return options;
+      return Base64Serializer.deserializeUnchecked(
+              config.get("beamPipelineOptions"), SerializablePipelineOptions.class)
+          .get()
+          .as(SamzaPipelineOptions.class);
     }
   }
 }

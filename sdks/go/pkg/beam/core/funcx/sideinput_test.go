@@ -68,3 +68,25 @@ func TestIsReIter(t *testing.T) {
 		}
 	}
 }
+
+func TestIsMultiMap(t *testing.T) {
+	tests := []struct {
+		Fn  interface{}
+		Exp bool
+	}{
+		{func(int) func(*int) bool { return nil }, true},
+		{func() func(*int) bool { return nil }, false},      // Doesn't take an input (is a ReIter)
+		{func(*int) bool { return false }, false},           // Doesn't return an iterator (is an iterator)
+		{func(int) int { return 0 }, false},                 // Doesn't return an iterator (returns a value)
+		{func(string) func(*int) int { return nil }, false}, // Returned iterator isn't a boolean return
+		{func(string) func(int) bool { return nil }, false}, // Returned iterator doesn't have a pointer receiver
+		{func(string) func(*typex.EventTime, *int) bool { return nil }, true},
+		{func(string) func(*typex.EventTime, *int) { return nil }, false}, // Returned iterator does not have a bool return
+	}
+	for _, test := range tests {
+		val := reflect.TypeOf(test.Fn)
+		if actual := IsMultiMap(val); actual != test.Exp {
+			t.Errorf("IsMultiMap(%v) = %v, want %v", val, actual, test.Exp)
+		}
+	}
+}

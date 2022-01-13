@@ -20,8 +20,6 @@ package org.apache.beam.examples.subprocess.utils;
 import org.apache.beam.examples.subprocess.configuration.SubProcessConfiguration;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Contains the configuration for the external library. */
 @DefaultCoder(AvroCoder.class)
@@ -34,8 +32,6 @@ public class ExecutableFile {
 
   private String sourceGCSLocation;
   private String destinationLocation;
-
-  private static final Logger LOG = LoggerFactory.getLogger(ExecutableFile.class);
 
   public String getSourceGCSLocation() {
     return sourceGCSLocation;

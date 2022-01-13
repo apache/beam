@@ -30,12 +30,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import org.apache.beam.fn.harness.control.AddHarnessIdInterceptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.WorkerStatusRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.WorkerStatusResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnWorkerStatusGrpc;
 import org.apache.beam.model.fnexecution.v1.BeamFnWorkerStatusGrpc.BeamFnWorkerStatusStub;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
+import org.apache.beam.sdk.fn.channel.AddHarnessIdInterceptor;
 import org.apache.beam.sdk.fn.server.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.sdk.fn.server.GrpcFnServer;
 import org.apache.beam.sdk.fn.server.InProcessServerFactory;
@@ -89,8 +89,7 @@ public class BeamWorkerStatusGrpcServiceTest {
 
   @Test
   public void testClientConnected() throws Exception {
-    StreamObserver<WorkerStatusResponse> workerStatusResponseStreamObserver =
-        stub.workerStatus(mockObserver);
+    stub.workerStatus(mockObserver);
     WorkerStatusClient client = waitAndGetStatusClient(ID);
     assertNotNull(client);
   }

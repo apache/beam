@@ -233,8 +233,8 @@ public abstract class DoFnSignature {
      * Whether this method observes - directly or indirectly - the window that an element resides
      * in.
      *
-     * <p>{@link State} and {@link Timer} parameters indirectly observe the window, because they are
-     * each scoped to a single window.
+     * <p>{@link State}, {@link Timer}, {@link DoFn.SideInput} parameters indirectly observe the
+     * window, because they are each scoped to a single window.
      */
     default boolean observesWindow() {
       return extraParameters().stream()
@@ -243,7 +243,8 @@ public abstract class DoFnSignature {
                       Predicates.instanceOf(WindowParameter.class),
                       Predicates.instanceOf(TimerParameter.class),
                       Predicates.instanceOf(TimerFamilyParameter.class),
-                      Predicates.instanceOf(StateParameter.class))
+                      Predicates.instanceOf(StateParameter.class),
+                      Predicates.instanceOf(SideInputParameter.class))
                   ::apply);
     }
 

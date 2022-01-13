@@ -48,6 +48,8 @@ import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.awscore.AwsResponseMetadata;
+import software.amazon.awssdk.http.SdkHttpResponse;
 import software.amazon.awssdk.services.sns.SnsAsyncClient;
 import software.amazon.awssdk.services.sns.SnsClient;
 import software.amazon.awssdk.services.sns.model.GetTopicAttributesRequest;
@@ -83,6 +85,12 @@ import software.amazon.awssdk.services.sns.model.PublishResponse;
  *   <li>AwsCredentialsProvider, which you can pass on to BasicSnsClientProvider
  *   <li>publishRequestFn, a function to convert your message into PublishRequest
  * </ul>
+ *
+ * <p>By default, the output {@link PublishResponse} contains only the SNS messageId, all other
+ * fields are null. If you need to include the full {@link SdkHttpResponse} and {@link
+ * AwsResponseMetadata}, you can call {@link Write#withFullPublishResponse()}. If you need the HTTP
+ * status code only but no headers, you can use {@link
+ * Write#withFullPublishResponseWithoutHeaders()}.
  *
  * <h3>Writing to SNS Asynchronously</h3>
  *
@@ -143,6 +151,8 @@ public final class SnsIO {
    */
   @AutoValue
   public abstract static class RetryConfiguration implements Serializable {
+    private static final Duration DEFAULT_INITIAL_DURATION = Duration.standardSeconds(5);
+
     @VisibleForTesting
     static final RetryPredicate DEFAULT_RETRY_PREDICATE = new DefaultRetryPredicate();
 
@@ -150,18 +160,31 @@ public final class SnsIO {
 
     abstract Duration getMaxDuration();
 
+    abstract Duration getInitialDuration();
+
     abstract RetryPredicate getRetryPredicate();
 
     abstract Builder builder();
 
     public static RetryConfiguration create(int maxAttempts, Duration maxDuration) {
+      return create(maxAttempts, maxDuration, DEFAULT_INITIAL_DURATION);
+    }
+
+    @VisibleForTesting
+    static RetryConfiguration create(
+        int maxAttempts, Duration maxDuration, Duration initialDuration) {
       checkArgument(maxAttempts > 0, "maxAttempts should be greater than 0");
       checkArgument(
           maxDuration != null && maxDuration.isLongerThan(Duration.ZERO),
           "maxDuration should be greater than 0");
+      checkArgument(
+          initialDuration != null && initialDuration.isLongerThan(Duration.ZERO),
+          "initialDuration should be greater than 0");
+
       return new AutoValue_SnsIO_RetryConfiguration.Builder()
           .setMaxAttempts(maxAttempts)
           .setMaxDuration(maxDuration)
+          .setInitialDuration(initialDuration)
           .setRetryPredicate(DEFAULT_RETRY_PREDICATE)
           .build();
     }
@@ -172,6 +195,8 @@ public final class SnsIO {
 
       abstract Builder setMaxDuration(Duration maxDuration);
 
+      abstract Builder setInitialDuration(Duration initialDuration);
+
       abstract Builder setRetryPredicate(RetryPredicate retryPredicate);
 
       abstract RetryConfiguration build();
@@ -180,7 +205,7 @@ public final class SnsIO {
     /**
      * An interface used to control if we retry the SNS Publish call when a {@link Throwable}
      * occurs. If {@link RetryPredicate#test(Object)} returns true, {@link Write} tries to resend
-     * the requests to the Solr server if the {@link RetryConfiguration} permits it.
+     * the requests to SNS if the {@link RetryConfiguration} permits it.
      */
     @FunctionalInterface
     interface RetryPredicate extends Predicate<Throwable>, Serializable {}
@@ -212,6 +237,8 @@ public final class SnsIO {
 
     abstract @Nullable RetryConfiguration getRetryConfiguration();
 
+    abstract @Nullable Coder<PublishResponse> getCoder();
+
     abstract Builder<T> builder();
 
     @AutoValue.Builder
@@ -225,6 +252,8 @@ public final class SnsIO {
       abstract Builder<T> setSnsClientProvider(SnsClientProvider snsClientProvider);
 
       abstract Builder<T> setRetryConfiguration(RetryConfiguration retryConfiguration);
+
+      abstract Builder<T> setCoder(Coder<PublishResponse> coder);
 
       abstract Write<T> build();
     }
@@ -318,6 +347,27 @@ public final class SnsIO {
       }
     }
 
+    /**
+     * Encode the full {@code PublishResult} object, including sdkResponseMetadata and
+     * sdkHttpMetadata with the HTTP response headers.
+     */
+    public Write<T> withFullPublishResponse() {
+      return withCoder(PublishResponseCoders.fullPublishResponse());
+    }
+
+    /**
+     * Encode the full {@code PublishResult} object, including sdkResponseMetadata and
+     * sdkHttpMetadata but excluding the HTTP response headers.
+     */
+    public Write<T> withFullPublishResponseWithoutHeaders() {
+      return withCoder(PublishResponseCoders.fullPublishResponseWithoutHeaders());
+    }
+
+    /** Encode the {@code PublishResult} with the given coder. */
+    public Write<T> withCoder(Coder<PublishResponse> coder) {
+      return builder().setCoder(coder).build();
+    }
+
     @Override
     public PCollection<PublishResponse> expand(PCollection<T> input) {
       checkArgument(getTopicArn() != null, "withTopicArn() is required");
@@ -328,14 +378,17 @@ public final class SnsIO {
           "Topic arn %s does not exist",
           getTopicArn());
 
-      return input.apply(ParDo.of(new SnsWriterFn<>(this)));
+      PCollection<PublishResponse> result = input.apply(ParDo.of(new SnsWriterFn<>(this)));
+      if (getCoder() != null) {
+        result.setCoder(getCoder());
+      }
+      return result;
     }
 
     static class SnsWriterFn<T> extends DoFn<T, PublishResponse> {
       @VisibleForTesting
       static final String RETRY_ATTEMPT_LOG = "Error writing to SNS. Retry attempt[%d]";
 
-      private static final Duration RETRY_INITIAL_BACKOFF = Duration.standardSeconds(5);
       private transient FluentBackoff retryBackoff; // defaults to no retries
       private static final Logger LOG = LoggerFactory.getLogger(SnsWriterFn.class);
       private static final Counter SNS_WRITE_FAILURES =
@@ -353,14 +406,12 @@ public final class SnsIO {
         // Initialize SnsPublisher
         producer = spec.getSnsClientProvider().getSnsClient();
 
-        retryBackoff =
-            FluentBackoff.DEFAULT
-                .withMaxRetries(0) // default to no retrying
-                .withInitialBackoff(RETRY_INITIAL_BACKOFF);
+        retryBackoff = FluentBackoff.DEFAULT.withMaxRetries(0); // default to no retrying
         if (spec.getRetryConfiguration() != null) {
           retryBackoff =
               retryBackoff
                   .withMaxRetries(spec.getRetryConfiguration().getMaxAttempts() - 1)
+                  .withInitialBackoff(spec.getRetryConfiguration().getInitialDuration())
                   .withMaxCumulativeBackoff(spec.getRetryConfiguration().getMaxDuration());
         }
       }
@@ -369,6 +420,7 @@ public final class SnsIO {
       public void processElement(ProcessContext context) throws Exception {
         PublishRequest request =
             (PublishRequest) spec.getPublishRequestFn().apply(context.element());
+
         Sleeper sleeper = Sleeper.DEFAULT;
         BackOff backoff = retryBackoff.backoff();
         int attempt = 0;

@@ -187,7 +187,8 @@ class SchemaTest(unittest.TestCase):
         typing_to_runner_api(np.uint32),
         schema_pb2.FieldType(
             logical_type=schema_pb2.LogicalType(
-                urn="beam:logical:pythonsdk_any:v1")))
+                urn="beam:logical:pythonsdk_any:v1"),
+            nullable=True))
 
   def test_unknown_atomic_raise_valueerror(self):
     self.assertRaises(
@@ -274,6 +275,19 @@ class SchemaTest(unittest.TestCase):
     schema = named_tuple_to_schema(MyCuteClass)
     self.assertTrue(hasattr(MyCuteClass, '_beam_schema_id'))
     self.assertEqual(MyCuteClass._beam_schema_id, schema.id)
+
+  def test_schema_with_bad_field_raises_helpful_error(self):
+    schema_proto = schema_pb2.Schema(
+        fields=[
+            schema_pb2.Field(
+                name="type_with_no_typeinfo", type=schema_pb2.FieldType())
+        ])
+
+    # Should raise an exception referencing the problem field
+    self.assertRaisesRegex(
+        ValueError,
+        "type_with_no_typeinfo",
+        lambda: named_tuple_from_schema(schema_proto))
 
 
 if __name__ == '__main__':

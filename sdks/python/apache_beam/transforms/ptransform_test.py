@@ -21,6 +21,7 @@
 
 import collections
 import operator
+import os
 import pickle
 import random
 import re
@@ -32,11 +33,12 @@ from unittest.mock import patch
 
 import hamcrest as hc
 import pytest
+from parameterized import parameterized_class
 
 import apache_beam as beam
-import apache_beam.pvalue as pvalue
 import apache_beam.transforms.combiners as combine
-import apache_beam.typehints as typehints
+from apache_beam import pvalue
+from apache_beam import typehints
 from apache_beam.io.iobase import Read
 from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricsFilter
@@ -48,7 +50,6 @@ from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import SortLists
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.testing.util import is_empty
 from apache_beam.transforms import WindowInto
 from apache_beam.transforms import trigger
 from apache_beam.transforms import window
@@ -505,12 +506,10 @@ class PTransformTest(unittest.TestCase):
           | beam.Create([(1, 1), (1, 2), (1, 3), (1, 4)])
           | WindowInto(
               window.GlobalWindows(),
-              trigger=trigger.AfterCount(5),
+              trigger=trigger.AfterCount(4),
               accumulation_mode=trigger.AccumulationMode.ACCUMULATING)
           | beam.GroupByKey())
-      # We need five, but it only has four - Displays how this option is
-      # dangerous.
-      assert_that(pcoll, is_empty())
+      assert_that(pcoll, equal_to([(1, [1, 2, 3, 4])]))
 
   def test_group_by_key_reiteration(self):
     class MyDoFn(beam.DoFn):
@@ -1000,6 +999,18 @@ class TestGroupBy(unittest.TestCase):
               beam.Row(square=4, big=False, sum=-2, positive=False),  # [-2]
               beam.Row(square=4, big=True, sum=2, positive=True),     # [2]
           ]))
+
+  def test_pickled_field(self):
+    with TestPipeline() as p:
+      assert_that(
+          p
+          | beam.Create(['a', 'a', 'b'])
+          | beam.Map(
+              lambda s: beam.Row(
+                  key1=PickledObject(s), key2=s.upper(), value=0))
+          | beam.GroupBy('key1', 'key2')
+          | beam.MapTuple(lambda k, vs: (k.key1.value, k.key2, len(list(vs)))),
+          equal_to([('a', 'A', 2), ('b', 'B', 1)]))
 
 
 class SelectTest(unittest.TestCase):
@@ -1840,6 +1851,19 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     assert_that(d, equal_to([6]))
     self.p.run()
 
+  def test_combine_properly_pipeline_type_checks_without_decorator(self):
+    def sum_ints(ints):
+      return sum(ints)
+
+    d = (
+        self.p
+        | beam.Create([1, 2, 3])
+        | beam.Map(lambda x: ('key', x))
+        | beam.CombinePerKey(sum_ints))
+
+    self.assertEqual(typehints.Tuple[str, typehints.Any], d.element_type)
+    self.p.run()
+
   def test_combine_func_type_hint_does_not_take_iterable_using_decorator(self):
     @with_output_types(int)
     @with_input_types(a=int)
@@ -2159,9 +2183,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     d = (
         self.p
         | beam.Create(range(5)).with_output_types(int)
-        | (
-            'EvenGroup' >> beam.Map(lambda x: (not x % 2, x)).with_output_types(
-                typing.Tuple[bool, int]))
+        | 'EvenGroup' >> beam.Map(lambda x: (not x % 2, x)).with_output_types(
+            typing.Tuple[bool, int])
         | 'CountInt' >> combine.Count.PerKey())
 
     self.assertCompatible(typing.Tuple[bool, int], d.element_type)
@@ -2176,10 +2199,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
           | 'CountInt' >> combine.Count.PerKey())
 
     self.assertStartswith(
-        e.exception.args[0],
-        "Type hint violation for 'CombinePerKey(CountCombineFn)': "
-        "requires Tuple[TypeVariable[K], Any] "
-        "but got {} for element".format(int))
+        e.exception.args[0], 'Input type hint violation at CountInt')
 
   def test_count_perkey_runtime_type_checking_satisfied(self):
     self.p._options.view_as(TypeOptions).runtime_type_check = True
@@ -2522,6 +2542,235 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     with self.assertRaises(KeyError,
                            msg='Tag \'foo\' is not a defined output tag'):
       result.foo
+
+
+@parameterized_class([{'use_subprocess': False}, {'use_subprocess': True}])
+class DeadLettersTest(unittest.TestCase):
+  @classmethod
+  def die(cls, x):
+    if cls.use_subprocess:
+      os._exit(x)
+    else:
+      raise ValueError(x)
+
+  @classmethod
+  def die_if_negative(cls, x):
+    if x < 0:
+      cls.die(x)
+    else:
+      return x
+
+  @classmethod
+  def exception_if_negative(cls, x):
+    if x < 0:
+      raise ValueError(x)
+    else:
+      return x
+
+  @classmethod
+  def die_if_less(cls, x, bound=0):
+    if x < bound:
+      cls.die(x)
+    else:
+      return x, bound
+
+  def test_error_messages(self):
+    with TestPipeline() as p:
+      good, bad = (
+          p
+          | beam.Create([-1, 10, -100, 2, 0])
+          | beam.Map(self.exception_if_negative).with_exception_handling())
+      assert_that(good, equal_to([0, 2, 10]), label='CheckGood')
+      assert_that(
+          bad |
+          beam.MapTuple(lambda e, exc_info: (e, exc_info[1].replace(',', ''))),
+          equal_to([(-1, 'ValueError(-1)'), (-100, 'ValueError(-100)')]),
+          label='CheckBad')
+
+  def test_filters_exceptions(self):
+    with TestPipeline() as p:
+      good, _ = (
+          p
+          | beam.Create([-1, 10, -100, 2, 0])
+          | beam.Map(self.exception_if_negative).with_exception_handling(
+              use_subprocess=self.use_subprocess,
+              exc_class=(ValueError, TypeError)))
+      assert_that(good, equal_to([0, 2, 10]), label='CheckGood')
+
+    with self.assertRaises(Exception):
+      with TestPipeline() as p:
+        good, _ = (
+            p
+            | beam.Create([-1, 10, -100, 2, 0])
+            | beam.Map(self.die_if_negative).with_exception_handling(
+                use_subprocess=self.use_subprocess,
+                exc_class=TypeError))
+
+  def test_tuples(self):
+
+    with TestPipeline() as p:
+      good, _ = (
+          p
+          | beam.Create([(1, 2), (3, 2), (1, -10)])
+          | beam.MapTuple(self.die_if_less).with_exception_handling(
+              use_subprocess=self.use_subprocess))
+      assert_that(good, equal_to([(3, 2), (1, -10)]), label='CheckGood')
+
+  def test_side_inputs(self):
+
+    with TestPipeline() as p:
+      input = p | beam.Create([-1, 10, 100])
+
+      assert_that((
+          input
+          | 'Default' >> beam.Map(self.die_if_less).with_exception_handling(
+              use_subprocess=self.use_subprocess)).good,
+                  equal_to([(10, 0), (100, 0)]),
+                  label='CheckDefault')
+      assert_that((
+          input
+          | 'Pos' >> beam.Map(self.die_if_less, 20).with_exception_handling(
+              use_subprocess=self.use_subprocess)).good,
+                  equal_to([(100, 20)]),
+                  label='PosSideInput')
+      assert_that((
+          input
+          |
+          'Key' >> beam.Map(self.die_if_less, bound=30).with_exception_handling(
+              use_subprocess=self.use_subprocess)).good,
+                  equal_to([(100, 30)]),
+                  label='KeySideInput')
+
+  def test_multiple_outputs(self):
+    die = type(self).die
+
+    def die_on_negative_even_odd(x):
+      if x < 0:
+        die(x)
+      elif x % 2 == 0:
+        return pvalue.TaggedOutput('even', x)
+      elif x % 2 == 1:
+        return pvalue.TaggedOutput('odd', x)
+
+    with TestPipeline() as p:
+      results = (
+          p
+          | beam.Create([1, -1, 2, -2, 3])
+          | beam.Map(die_on_negative_even_odd).with_exception_handling(
+              use_subprocess=self.use_subprocess))
+      assert_that(results.even, equal_to([2]), label='CheckEven')
+      assert_that(results.odd, equal_to([1, 3]), label='CheckOdd')
+
+  def test_params(self):
+    die = type(self).die
+
+    def die_if_negative_with_timestamp(x, ts=beam.DoFn.TimestampParam):
+      if x < 0:
+        die(x)
+      else:
+        return x, ts
+
+    with TestPipeline() as p:
+      good, _ = (
+          p
+          | beam.Create([-1, 0, 1])
+          | beam.Map(lambda x: TimestampedValue(x, x))
+          | beam.Map(die_if_negative_with_timestamp).with_exception_handling(
+              use_subprocess=self.use_subprocess))
+      assert_that(good, equal_to([(0, Timestamp(0)), (1, Timestamp(1))]))
+
+  def test_lifecycle(self):
+    die = type(self).die
+
+    class MyDoFn(beam.DoFn):
+      state = None
+
+      def setup(self):
+        assert self.state is None
+        self.state = 'setup'
+
+      def start_bundle(self):
+        assert self.state in ('setup', 'finish_bundle'), self.state
+        self.state = 'start_bundle'
+
+      def finish_bundle(self):
+        assert self.state in ('start_bundle', ), self.state
+        self.state = 'finish_bundle'
+
+      def teardown(self):
+        assert self.state in ('setup', 'finish_bundle'), self.state
+        self.state = 'teardown'
+
+      def process(self, x):
+        if x < 0:
+          die(x)
+        else:
+          yield self.state
+
+    with TestPipeline() as p:
+      good, _ = (
+          p
+          | beam.Create([-1, 0, 1, -10, 10])
+          | beam.ParDo(MyDoFn()).with_exception_handling(
+              use_subprocess=self.use_subprocess))
+      assert_that(good, equal_to(['start_bundle'] * 3))
+
+  def test_partial(self):
+    if self.use_subprocess:
+      self.skipTest('Subprocess and partial mutally exclusive.')
+
+    def die_if_negative_iter(elements):
+      for element in elements:
+        if element < 0:
+          raise ValueError(element)
+        yield element
+
+    with TestPipeline() as p:
+      input = p | beam.Create([(-1, 1, 11), (2, -2, 22), (3, 33, -3), (4, 44)])
+
+      assert_that((
+          input
+          | 'Partial' >> beam.FlatMap(
+              die_if_negative_iter).with_exception_handling(partial=True)).good,
+                  equal_to([2, 3, 33, 4, 44]),
+                  'CheckPartial')
+
+      assert_that((
+          input
+          | 'Complete' >> beam.FlatMap(die_if_negative_iter).
+          with_exception_handling(partial=False)).good,
+                  equal_to([4, 44]),
+                  'CheckComplete')
+
+  def test_threshold(self):
+    # The threshold is high enough.
+    with TestPipeline() as p:
+      _ = (
+          p
+          | beam.Create([-1, -2, 0, 1, 2, 3, 4, 5])
+          | beam.Map(self.die_if_negative).with_exception_handling(
+              threshold=0.5, use_subprocess=self.use_subprocess))
+
+    # The threshold is too low enough.
+    with self.assertRaisesRegex(Exception, "2 / 8 = 0.25 > 0.1"):
+      with TestPipeline() as p:
+        _ = (
+            p
+            | beam.Create([-1, -2, 0, 1, 2, 3, 4, 5])
+            | beam.Map(self.die_if_negative).with_exception_handling(
+                threshold=0.1, use_subprocess=self.use_subprocess))
+
+    # The threshold is too low per window.
+    with self.assertRaisesRegex(Exception, "2 / 2 = 1.0 > 0.5"):
+      with TestPipeline() as p:
+        _ = (
+            p
+            | beam.Create([-1, -2, 0, 1, 2, 3, 4, 5])
+            | beam.Map(lambda x: TimestampedValue(x, x))
+            | beam.Map(self.die_if_negative).with_exception_handling(
+                threshold=0.5,
+                threshold_windowing=window.FixedWindows(10),
+                use_subprocess=self.use_subprocess))
 
 
 class TestPTransformFn(TypeHintTestCase):

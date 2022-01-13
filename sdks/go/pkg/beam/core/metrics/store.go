@@ -91,6 +91,10 @@ type Extractor struct {
 	DistributionInt64 func(labels Labels, count, sum, min, max int64)
 	// GaugeInt64 extracts data from Gauge Int64 counters.
 	GaugeInt64 func(labels Labels, v int64, t time.Time)
+
+	// MsecsInt64 extracts data from StateRegistry of ExecutionState.
+	// Extraction of Msec counters is experimental and subject to change.
+	MsecsInt64 func(labels string, e *[4]ExecutionState)
 }
 
 // ExtractFrom the given metrics Store all the metrics for
@@ -123,6 +127,11 @@ func (e Extractor) ExtractFrom(store *Store) error {
 			}
 		}
 	}
+	if e.MsecsInt64 != nil {
+		for l, es := range store.stateRegistry {
+			e.MsecsInt64(l, es)
+		}
+	}
 	return nil
 }
 
@@ -145,16 +154,53 @@ type ptCounterSet struct {
 	gauges        map[nameHash]*gauge
 }
 
+type bundleProcState int
+
+const (
+	// StartBundle indicates starting state of a bundle
+	StartBundle bundleProcState = 0
+	// ProcessBundle indicates processing state of a bundle
+	ProcessBundle bundleProcState = 1
+	// FinishBundle indicates finishing state of a bundle
+	FinishBundle bundleProcState = 2
+	// TotalBundle (not a state) used for aggregating above states of a bundle
+	TotalBundle bundleProcState = 3
+)
+
+// ExecutionState stores the information about a bundle in a particular state.
+type ExecutionState struct {
+	State        bundleProcState
+	IsProcessing bool // set to true when sent as a response to ProcessBundleProgress Request
+	TotalTime    time.Duration
+}
+
+// BundleState stores information about a PTransform for execution time metrics.
+type BundleState struct {
+	pid          string
+	currentState bundleProcState
+}
+
+// currentStateVal exports the current state of a bundle wrt PTransform.
+type currentStateVal struct {
+	pid         string
+	state       bundleProcState
+	transitions int64
+}
+
 // Store retains per transform countersets, intended for per bundle use.
 type Store struct {
-	mu  sync.RWMutex
-	css []*ptCounterSet
+	mu            sync.RWMutex
+	css           []*ptCounterSet
+	stateRegistry map[string]*[4]ExecutionState
 
 	store map[Labels]userMetric
+
+	transitions *int64
+	bundleState *BundleState
 }
 
 func newStore() *Store {
-	return &Store{store: make(map[Labels]userMetric)}
+	return &Store{store: make(map[Labels]userMetric), stateRegistry: make(map[string]*[4]ExecutionState), transitions: new(int64), bundleState: &BundleState{}}
 }
 
 // storeMetric stores a metric away on its first use so it may be retrieved later on.

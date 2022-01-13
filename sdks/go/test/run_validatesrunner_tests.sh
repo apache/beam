@@ -81,7 +81,7 @@ RUNNER=portable
 
 # Default timeout. This timeout is applied per-package, as tests in different
 # packages are executed in parallel.
-TIMEOUT=1h
+TIMEOUT=2h
 
 # Default limit on simultaneous test binaries/packages being executed.
 SIMULTANEOUS=3
@@ -396,7 +396,7 @@ ARGS="$ARGS $PIPELINE_OPTS"
 
 cd sdks/go
 echo ">>> RUNNING $RUNNER integration tests with pipeline options: $ARGS"
-go test -v $TESTS $ARGS 1>&2 \
+./run_with_go_version.sh test -v $TESTS $ARGS 1>&2 \
     || TEST_EXIT_CODE=$? # don't fail fast here; clean up environment before exiting
 cd ../..
 

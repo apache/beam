@@ -15,6 +15,16 @@
 
 package main
 
+// beam-playground:
+//   name: Contains
+//   description: An example counts received substring in Shakespeare's works.
+//   multifile: false
+//   pipeline_options: --search king
+//   categories:
+//     - Filtering
+//     - Options
+//     - Debugging
+
 import (
 	"context"
 	"flag"
@@ -38,6 +48,8 @@ var (
 )
 
 func init() {
+	beam.RegisterFunction(extractFn)
+	beam.RegisterFunction(formatFn)
 	beam.RegisterType(reflect.TypeOf((*includeFn)(nil)).Elem())
 }
 

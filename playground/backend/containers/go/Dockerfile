@@ -15,5 +15,58 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ###############################################################################
-
 #Dokerfile to set up the Beam Go SDK
+ARG BASE_IMAGE=golang:1.16-bullseye
+FROM $BASE_IMAGE
+
+# Setup Go Environment
+ENV GOPATH /go
+ENV PATH $GOPATH/bin:$PATH
+RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
+RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.27.1 &&\
+    go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.1
+
+# Prepare Application
+COPY src /go/src/playground/backend
+
+ARG BEAM_VERSION=2.33.0
+ENV PREPARED_MOD_DIR=/opt/playground/prepared_folder/
+ENV PIPELINES_FOLDER_NAME="executable_files"
+RUN mkdir -p /opt/playground/ $PREPARED_MOD_DIR
+WORKDIR $PREPARED_MOD_DIR
+
+RUN go mod init $PIPELINES_FOLDER_NAME &&\
+    go get -u github.com/apache/beam/sdks/v2@v$BEAM_VERSION &&\
+    go mod download all
+
+# Build Application
+
+#RUN
+WORKDIR /go/src/playground/backend
+RUN ls
+# Build Application
+RUN go mod download &&\
+    go mod tidy &&\
+    cd cmd/server &&\
+    go build -o /opt/playground/backend/server_go_backend
+
+ENV SERVER_IP=0.0.0.0
+ENV SERVER_PORT=8080
+ENV APP_WORK_DIR=/opt/playground/backend/
+ENV BEAM_SDK="SDK_GO"
+## Copy build result
+COPY src/configs /opt/playground/backend/configs/
+
+# Install mitmpoxy
+RUN mkdir /opt/mitmproxy &&\
+    cd /opt/mitmproxy &&\
+    wget https://snapshots.mitmproxy.org/7.0.4/mitmproxy-7.0.4-linux.tar.gz &&\
+    tar -zxvf mitmproxy-7.0.4-linux.tar.gz &&\
+    mkdir /usr/local/share/ca-certificates/extra
+COPY entrypoint.sh /
+COPY allow_list_proxy.py /opt/mitmproxy/
+COPY allow_list.py /opt/mitmproxy/
+ENV HTTP_PROXY="http://127.0.0.1:8081"
+ENV HTTPS_PROXY="http://127.0.0.1:8081"
+
+ENTRYPOINT ["/entrypoint.sh"]

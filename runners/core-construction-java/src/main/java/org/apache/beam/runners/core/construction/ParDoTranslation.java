@@ -30,6 +30,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
+import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -38,12 +39,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
-import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput.Builder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardRequirements;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformTranslator;
@@ -117,6 +118,9 @@ public class ParDoTranslation {
    */
   public static final String REQUIRES_SPLITTABLE_DOFN_URN =
       "beam:requirement:pardo:splittable_dofn:v1";
+  /** This requirement indicates that the ParDo requires a callback on each window expiration. */
+  public static final String REQUIRES_ON_WINDOW_EXPIRATION_URN =
+      "beam:requirement:pardo:on_window_expiration:v1";
 
   static {
     checkState(
@@ -133,6 +137,9 @@ public class ParDoTranslation {
     checkState(
         REQUIRES_SPLITTABLE_DOFN_URN.equals(
             getUrn(StandardRequirements.Enum.REQUIRES_SPLITTABLE_DOFN)));
+    checkState(
+        REQUIRES_ON_WINDOW_EXPIRATION_URN.equals(
+            getUrn(StandardRequirements.Enum.REQUIRES_ON_WINDOW_EXPIRATION)));
   }
 
   /** The URN for an unknown Java {@link DoFn}. */
@@ -282,8 +289,7 @@ public class ParDoTranslation {
           }
 
           @Override
-          public Map<String, RunnerApi.TimerFamilySpec> translateTimerFamilySpecs(
-              SdkComponents newComponents) {
+          public ParDoLikeTimerFamilySpecs translateTimerFamilySpecs(SdkComponents newComponents) {
             Map<String, RunnerApi.TimerFamilySpec> timerFamilySpecs = new HashMap<>();
 
             for (Map.Entry<String, TimerDeclaration> timer :
@@ -307,14 +313,34 @@ public class ParDoTranslation {
                       windowCoder);
               timerFamilySpecs.put(timerFamily.getKey(), spec);
             }
-            return timerFamilySpecs;
+
+            String onWindowExpirationTimerFamilySpec = null;
+            if (signature.onWindowExpiration() != null) {
+              RunnerApi.TimerFamilySpec spec =
+                  RunnerApi.TimerFamilySpec.newBuilder()
+                      .setTimeDomain(translateTimeDomain(TimeDomain.EVENT_TIME))
+                      .setTimerFamilyCoderId(
+                          registerCoderOrThrow(components, Timer.Coder.of(keyCoder, windowCoder)))
+                      .build();
+              for (int i = 0; i < Integer.MAX_VALUE; ++i) {
+                onWindowExpirationTimerFamilySpec = "onWindowExpiration" + i;
+                if (!timerFamilySpecs.containsKey(onWindowExpirationTimerFamilySpec)) {
+                  break;
+                }
+              }
+              timerFamilySpecs.put(onWindowExpirationTimerFamilySpec, spec);
+            }
+
+            return ParDoLikeTimerFamilySpecs.create(
+                timerFamilySpecs, onWindowExpirationTimerFamilySpec);
           }
 
           @Override
           public boolean isStateful() {
             return !signature.stateDeclarations().isEmpty()
                 || !signature.timerDeclarations().isEmpty()
-                || !signature.timerFamilyDeclarations().isEmpty();
+                || !signature.timerFamilyDeclarations().isEmpty()
+                || signature.onWindowExpiration() != null;
           }
 
           @Override
@@ -646,7 +672,7 @@ public class ParDoTranslation {
     }
   }
 
-  private static String registerCoderOrThrow(SdkComponents components, Coder coder) {
+  public static String registerCoderOrThrow(SdkComponents components, Coder coder) {
     try {
       return components.registerCoder(coder);
     } catch (IOException exc) {
@@ -666,7 +692,7 @@ public class ParDoTranslation {
         .build();
   }
 
-  private static RunnerApi.TimeDomain.Enum translateTimeDomain(TimeDomain timeDomain) {
+  public static RunnerApi.TimeDomain.Enum translateTimeDomain(TimeDomain timeDomain) {
     switch (timeDomain) {
       case EVENT_TIME:
         return RunnerApi.TimeDomain.Enum.EVENT_TIME;
@@ -724,7 +750,7 @@ public class ParDoTranslation {
   }
 
   public static SideInput translateView(PCollectionView<?> view, SdkComponents components) {
-    Builder builder = SideInput.newBuilder();
+    RunnerApi.SideInput.Builder builder = SideInput.newBuilder();
     builder.setAccessPattern(
         FunctionSpec.newBuilder().setUrn(view.getViewFn().getMaterialization().getUrn()).build());
     builder.setViewFn(translateViewFn(view.getViewFn(), components));
@@ -770,6 +796,22 @@ public class ParDoTranslation {
         .build();
   }
 
+  @AutoValue
+  public abstract static class ParDoLikeTimerFamilySpecs {
+
+    public static ParDoLikeTimerFamilySpecs create(
+        Map<String, RunnerApi.TimerFamilySpec> timerFamilySpecs,
+        @Nullable String onWindowExpirationTimerFamilySpec) {
+      return new AutoValue_ParDoTranslation_ParDoLikeTimerFamilySpecs(
+          timerFamilySpecs, onWindowExpirationTimerFamilySpec);
+    }
+
+    abstract Map<String, RunnerApi.TimerFamilySpec> timerFamilySpecs();
+
+    @Nullable
+    abstract String onWindowExpirationTimerFamilySpec();
+  }
+
   /** These methods drive to-proto translation from Java and from rehydrated ParDos. */
   public interface ParDoLike {
     FunctionSpec translateDoFn(SdkComponents newComponents);
@@ -779,7 +821,7 @@ public class ParDoTranslation {
     Map<String, RunnerApi.StateSpec> translateStateSpecs(SdkComponents components)
         throws IOException;
 
-    Map<String, RunnerApi.TimerFamilySpec> translateTimerFamilySpecs(SdkComponents newComponents);
+    ParDoLikeTimerFamilySpecs translateTimerFamilySpecs(SdkComponents newComponents);
 
     boolean isStateful();
 
@@ -813,15 +855,24 @@ public class ParDoTranslation {
       components.addRequirement(REQUIRES_TIME_SORTED_INPUT_URN);
     }
 
-    return ParDoPayload.newBuilder()
-        .setDoFn(parDo.translateDoFn(components))
-        .putAllStateSpecs(parDo.translateStateSpecs(components))
-        .putAllTimerFamilySpecs(parDo.translateTimerFamilySpecs(components))
-        .putAllSideInputs(parDo.translateSideInputs(components))
-        .setRequiresStableInput(parDo.isRequiresStableInput())
-        .setRequiresTimeSortedInput(parDo.isRequiresTimeSortedInput())
-        .setRestrictionCoderId(parDo.translateRestrictionCoderId(components))
-        .setRequestsFinalization(parDo.requestsFinalization())
-        .build();
+    ParDoLikeTimerFamilySpecs timerFamilySpecs = parDo.translateTimerFamilySpecs(components);
+    ParDoPayload.Builder builder =
+        ParDoPayload.newBuilder()
+            .setDoFn(parDo.translateDoFn(components))
+            .putAllStateSpecs(parDo.translateStateSpecs(components))
+            .putAllTimerFamilySpecs(timerFamilySpecs.timerFamilySpecs())
+            .putAllSideInputs(parDo.translateSideInputs(components))
+            .setRequiresStableInput(parDo.isRequiresStableInput())
+            .setRequiresTimeSortedInput(parDo.isRequiresTimeSortedInput())
+            .setRestrictionCoderId(parDo.translateRestrictionCoderId(components))
+            .setRequestsFinalization(parDo.requestsFinalization());
+
+    if (timerFamilySpecs.onWindowExpirationTimerFamilySpec() != null) {
+      components.addRequirement(REQUIRES_ON_WINDOW_EXPIRATION_URN);
+      builder.setOnWindowExpirationTimerFamilySpec(
+          timerFamilySpecs.onWindowExpirationTimerFamilySpec());
+    }
+
+    return builder.build();
   }
 }

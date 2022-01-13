@@ -16,6 +16,8 @@
 
 set -e
 
+# Get currently used Python version from Gradle or assume a default.
+PYTHON=${1:-python3}
 SCRIPT_DIR="${PWD}/license_scripts"
 ENV_DIR="${PWD}/build/virtualenv"
 
@@ -38,11 +40,11 @@ if [ -d "$DOWNLOAD_DIR" ]; then rm -rf "$DOWNLOAD_DIR" ; fi
 mkdir -p "$DOWNLOAD_DIR"
 cp -r "${EXISTING_LICENSE_DIR}"/*.jar "${DOWNLOAD_DIR}"
 
-# activate virtualenv
-virtualenv --python=python3 ${ENV_DIR} && . ${ENV_DIR}/bin/activate
+$PYTHON -m venv ${ENV_DIR} && . ${ENV_DIR}/bin/activate
+pip install --retries 10 --upgrade pip setuptools wheel
 
 # install packages
-${ENV_DIR}/bin/pip install -r ${SCRIPT_DIR}/requirement.txt
+pip install --retries 10 -r ${SCRIPT_DIR}/requirement.txt
 
 # pull licenses, notices and source code
 FLAGS="--license_index=${INDEX_FILE} \

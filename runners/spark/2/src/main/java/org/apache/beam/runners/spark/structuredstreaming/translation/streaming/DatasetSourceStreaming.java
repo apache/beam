@@ -76,7 +76,7 @@ class DatasetSourceStreaming implements DataSourceV2, MicroBatchReadSupport {
   @Override
   public MicroBatchReader createMicroBatchReader(
       Optional<StructType> schema, String checkpointLocation, DataSourceOptions options) {
-    return new DatasetMicroBatchReader(checkpointLocation, options);
+    return new DatasetMicroBatchReader(options);
   }
 
   /** This class is mapped to Beam {@link UnboundedSource}. */
@@ -91,7 +91,7 @@ class DatasetSourceStreaming implements DataSourceV2, MicroBatchReadSupport {
     private final List<DatasetPartitionReader> partitionReaders = new ArrayList<>();
 
     @SuppressWarnings("unchecked")
-    private DatasetMicroBatchReader(String checkpointLocation, DataSourceOptions options) {
+    private DatasetMicroBatchReader(DataSourceOptions options) {
       if (!options.get(BEAM_SOURCE_OPTION).isPresent()) {
         throw new RuntimeException("Beam source was not set in DataSource options");
       }

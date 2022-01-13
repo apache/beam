@@ -21,8 +21,19 @@ import groovy.json.JsonOutput
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.runners.dataflow',
-  enableChecker: false,
-  )
+  classesTriggerCheckerBugs: [
+    'PrimitiveParDoSingleFactory': 'https://github.com/typetools/checker-framework/issues/3791',
+    // TODO(BEAM-12687): This currently crashes with checkerframework 3.10.0
+    // when compiling :runners:google-cloud-dataflow-java:compileJava with:
+    // message: class file for com.google.api.services.bigquery.model.TableRow not found
+    // ; The Checker Framework crashed.  Please report the crash.
+    // Compilation unit: /usr/local/google/home/lcwik/git/beam/runners/google-cloud-dataflow-java/src/main/java/org/apache/beam/runners/dataflow/util/DefaultCoderCloudObjectTranslatorRegistrar.java
+    // Last visited tree at line 57 column 1:
+    // @AutoService(CoderCloudObjectTranslatorRegistrar.class)
+    // Exception: com.sun.tools.javac.code.Symbol$CompletionFailure: class file for com.google.api.services.bigquery.model.TableRow not found; com.sun.tools.javac.code.Symbol$CompletionFailure: class file for com.google.api.services.bigquery.model.TableRow not found
+    'DefaultCoderCloudObjectTranslatorRegistrar': 'TODO(BEAM-12687): Report the crash if still occurring on newest version',
+  ],
+)
 
 description = "Apache Beam :: Runners :: Google Cloud Dataflow"
 
@@ -43,7 +54,7 @@ processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'dataflow.legacy_environment_major_version' : '8',
     'dataflow.fnapi_environment_major_version' : '8',
-    'dataflow.legacy_container_version' : 'beam-master-20210913',
+    'dataflow.legacy_container_version' : 'beam-master-20211213',
     'dataflow.fnapi_container_version' : 'beam-master-20210913',
     'dataflow.container_base_repository' : 'gcr.io/cloud-dataflow/v1beta3',
   ]
@@ -66,57 +77,55 @@ configurations {
 }
 
 dependencies {
-  compile enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+  implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
   permitUnusedDeclared enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
-  compile library.java.vendored_guava_26_0_jre
-  compile project(path: ":model:pipeline", configuration: "shadow")
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(":sdks:java:extensions:google-cloud-platform-core")
-  compile project(":sdks:java:io:kafka")
-  compile project(":sdks:java:io:google-cloud-platform")
-  compile project(":runners:core-construction-java")
-  compile library.java.avro
-  compile library.java.bigdataoss_util
-  compile library.java.commons_codec
-  compile library.java.flogger_system_backend // Avoids conflicts with bigdataoss_util (BEAM-11010)
+  implementation library.java.vendored_guava_26_0_jre
+  implementation project(path: ":model:pipeline", configuration: "shadow")
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(":sdks:java:extensions:google-cloud-platform-core")
+  implementation project(":sdks:java:io:kafka")
+  implementation project(":sdks:java:io:google-cloud-platform")
+  implementation project(":runners:core-construction-java")
+  implementation library.java.avro
+  implementation library.java.bigdataoss_util
+  implementation library.java.commons_codec
+  implementation library.java.flogger_system_backend // Avoids conflicts with bigdataoss_util (BEAM-11010)
   permitUnusedDeclared library.java.flogger_system_backend
-  compile library.java.google_api_client
-  compile library.java.google_api_services_clouddebugger
-  compile library.java.google_api_services_dataflow
-  compile library.java.google_api_services_storage
+  implementation library.java.google_api_client
+  implementation library.java.google_api_services_clouddebugger
+  implementation library.java.google_api_services_dataflow
+  implementation library.java.google_api_services_storage
   permitUnusedDeclared library.java.google_api_services_storage // BEAM-11761
-  compile library.java.google_auth_library_credentials
-  compile library.java.google_auth_library_oauth2_http
-  compile library.java.google_http_client
-  compile library.java.google_http_client_jackson2
+  implementation library.java.google_auth_library_credentials
+  implementation library.java.google_auth_library_oauth2_http
+  implementation library.java.google_http_client
+  implementation library.java.google_http_client_jackson2
   permitUnusedDeclared library.java.google_http_client_jackson2 // BEAM-11761
-  compile library.java.hamcrest
-  compile library.java.jackson_annotations
-  compile library.java.jackson_core
-  compile library.java.jackson_databind
-  compile library.java.joda_time
-  compile library.java.slf4j_api
-  compile library.java.vendored_grpc_1_36_0
-  testCompile library.java.guava_testlib
-  testCompile library.java.junit
-  testCompile project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntime")
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
-  testCompile project(path: ":runners:core-construction-java", configuration: "testRuntime")
-  testCompile library.java.google_cloud_dataflow_java_proto_library_all
-  testCompile library.java.jackson_dataformat_yaml
-  testCompile library.java.mockito_core
+  implementation library.java.hamcrest
+  implementation library.java.jackson_annotations
+  implementation library.java.jackson_core
+  implementation library.java.jackson_databind
+  implementation library.java.joda_time
+  implementation library.java.slf4j_api
+  implementation library.java.vendored_grpc_1_36_0
+  testImplementation library.java.guava_testlib
+  testImplementation library.java.junit
+  testImplementation project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":runners:core-construction-java", configuration: "testRuntimeMigration")
+  testImplementation library.java.google_cloud_dataflow_java_proto_library_all
+  testImplementation library.java.jackson_dataformat_yaml
+  testImplementation library.java.mockito_core
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
-  validatesRunner project(project.path)
-  validatesRunner project(path: project.path, configuration: "testRuntime")
-  validatesRunner library.java.hamcrest_core
-  validatesRunner library.java.hamcrest_library
+  validatesRunner project(path: project.path, configuration: "testRuntimeMigration")
+  validatesRunner library.java.hamcrest
   coreSDKJavaIntegrationTest project(project.path)
   coreSDKJavaIntegrationTest project(path: ":sdks:java:core", configuration: "shadowTest")
   examplesJavaIntegrationTest project(project.path)
-  examplesJavaIntegrationTest project(path: ":examples:java", configuration: "testRuntime")
+  examplesJavaIntegrationTest project(path: ":examples:java", configuration: "testRuntimeMigration")
   googleCloudPlatformIntegrationTest project(project.path)
-  googleCloudPlatformIntegrationTest project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntime")
+  googleCloudPlatformIntegrationTest project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntimeMigration")
 }
 
 def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
@@ -154,13 +163,14 @@ def runnerV2PipelineOptions = [
 ]
 
 def commonLegacyExcludeCategories = [
+  // Should be run only in a properly configured SDK harness environment
+  'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment',
   'org.apache.beam.sdk.testing.LargeKeys$Above10MB',
   'org.apache.beam.sdk.testing.UsesAttemptedMetrics',
   'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms',
   'org.apache.beam.sdk.testing.UsesPythonExpansionService',
   'org.apache.beam.sdk.testing.UsesDistributionMetrics',
   'org.apache.beam.sdk.testing.UsesGaugeMetrics',
-  'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs',
   'org.apache.beam.sdk.testing.UsesTestStream',
   'org.apache.beam.sdk.testing.UsesParDoLifecycle',
   'org.apache.beam.sdk.testing.UsesMetricsPusher',
@@ -420,7 +430,9 @@ task validatesRunnerV2Streaming {
       'org.apache.beam.sdk.testing.LargeKeys$Above10KB',
       'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo',
       'org.apache.beam.sdk.testing.UsesCommittedMetrics',
+      'org.apache.beam.sdk.testing.UsesStrictTimerOrdering' /* BEAM-8543 */,
       'org.apache.beam.sdk.testing.UsesTestStream',
+      'org.apache.beam.sdk.testing.UsesOnWindowExpiration',
     ],
     excludedTests: [
       'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindows',
@@ -433,9 +445,6 @@ task validatesRunnerV2Streaming {
       'org.apache.beam.sdk.io.AvroIOTest.testWindowedAvroIOWriteViaSink',
       'org.apache.beam.sdk.extensions.sql.BeamSqlDslAggregationTest.testTriggeredTumble',
       'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleWithTimestampsStreaming',
-
-      'org.apache.beam.sdk.transforms.ParDoTest$OnWindowExpirationTests.testOnWindowExpirationSimpleBounded',
-      'org.apache.beam.sdk.transforms.ParDoTest$OnWindowExpirationTests.testOnWindowExpirationSimpleUnbounded',
 
       // TODO(BEAM-11858) reading a side input twice fails
       'org.apache.beam.sdk.transforms.ParDoTest$MultipleInputsAndOutputTests.testSameSideInputReadTwice',
@@ -454,11 +463,6 @@ task validatesRunnerV2Streaming {
       'org.apache.beam.sdk.transforms.SplittableDoFnTest.testPairWithIndexBasicUnbounded',
       'org.apache.beam.sdk.transforms.SplittableDoFnTest.testOutputAfterCheckpointUnbounded',
       'org.apache.beam.sdk.transforms.SplittableDoFnTest.testBundleFinalizationOccursOnUnboundedSplittableDoFn',
-
-      // TODO(BEAM-8543): streaming timers are not strictly time ordered
-      'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerOrderingWithCreate',
-      'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testTwoTimersSettingEachOther',
-      'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testTwoTimersSettingEachOtherWithCreateAsInput',
 
       'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerAlignAfterGcTimeUnbounded',
 
@@ -490,6 +494,10 @@ task validatesRunnerV2Streaming {
 
       // TODO(BEAM-12353): Identify whether it's bug or a feature gap.
       'org.apache.beam.sdk.transforms.GroupByKeyTest$WindowTests.testRewindowWithTimestampCombiner',
+
+      // TODO(BEAM-13525)
+      'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testProcessElementSkew',
+      'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testOnWindowTimestampSkew',
     ]
   ))
 }
@@ -561,6 +569,7 @@ task googleCloudPlatformRunnerV2IntegrationTest(type: Test) {
   exclude '**/FhirIOWriteIT.class'
   exclude '**/FhirIOLROIT.class'
   exclude '**/FhirIOSearchIT.class'
+  exclude '**/FhirIOPatientEverythingIT.class'
 
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest
@@ -701,7 +710,7 @@ createJavaExamplesArchetypeValidationTask(type: 'MobileGaming',
 
 // Standalone task for testing GCS upload, use with -PfilesToStage and -PdataflowTempRoot.
 task GCSUpload(type: JavaExec) {
-  main = 'org.apache.beam.runners.dataflow.util.GCSUploadMain'
+  mainClass = 'org.apache.beam.runners.dataflow.util.GCSUploadMain'
   classpath = sourceSets.test.runtimeClasspath
   args "--stagingLocation=${dataflowUploadTemp}/staging",
        "--filesToStage=${testFilesToStage}"

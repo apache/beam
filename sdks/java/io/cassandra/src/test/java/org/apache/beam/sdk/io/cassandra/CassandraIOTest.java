@@ -98,7 +98,6 @@ public class CassandraIOTest implements Serializable {
   private static final String CASSANDRA_TABLE = "scientist";
   private static final Logger LOG = LoggerFactory.getLogger(CassandraIOTest.class);
   private static final String STORAGE_SERVICE_MBEAN = "org.apache.cassandra.db:type=StorageService";
-  private static final float ACCEPTABLE_EMPTY_SPLITS_PERCENTAGE = 0.5f;
   private static final int FLUSH_TIMEOUT = 30000;
   private static final int JMX_CONF_TIMEOUT = 1000;
   private static int jmxPort;
@@ -488,7 +487,7 @@ public class CassandraIOTest implements Serializable {
     private final ListeningExecutorService executor =
         MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(10));
 
-    final Callable<Void> asyncTask = () -> (null);
+    final Callable<Void> asyncTask = () -> null;
 
     @Override
     public Iterator map(ResultSet resultSet) {

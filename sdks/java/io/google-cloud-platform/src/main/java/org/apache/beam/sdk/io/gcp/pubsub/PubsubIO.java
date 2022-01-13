@@ -235,11 +235,11 @@ public class PubsubIO {
       FAKE
     }
 
-    private final Type type;
+    private final PubsubSubscription.Type type;
     private final String project;
     private final String subscription;
 
-    private PubsubSubscription(Type type, String project, String subscription) {
+    private PubsubSubscription(PubsubSubscription.Type type, String project, String subscription) {
       this.type = type;
       this.project = project;
       this.subscription = subscription;
@@ -265,7 +265,7 @@ public class PubsubIO {
     public static PubsubSubscription fromPath(String path) {
       if (path.startsWith(SUBSCRIPTION_RANDOM_TEST_PREFIX)
           || path.startsWith(SUBSCRIPTION_STARTING_SIGNAL)) {
-        return new PubsubSubscription(Type.FAKE, "", path);
+        return new PubsubSubscription(PubsubSubscription.Type.FAKE, "", path);
       }
 
       String projectName, subscriptionName;
@@ -291,7 +291,7 @@ public class PubsubIO {
 
       validateProjectName(projectName);
       validatePubsubName(subscriptionName);
-      return new PubsubSubscription(Type.NORMAL, projectName, subscriptionName);
+      return new PubsubSubscription(PubsubSubscription.Type.NORMAL, projectName, subscriptionName);
     }
 
     /**
@@ -302,7 +302,7 @@ public class PubsubIO {
      */
     @Deprecated
     public String asV1Beta1Path() {
-      if (type == Type.NORMAL) {
+      if (type == PubsubSubscription.Type.NORMAL) {
         return "/subscriptions/" + project + "/" + subscription;
       } else {
         return subscription;
@@ -317,7 +317,7 @@ public class PubsubIO {
      */
     @Deprecated
     public String asV1Beta2Path() {
-      if (type == Type.NORMAL) {
+      if (type == PubsubSubscription.Type.NORMAL) {
         return "projects/" + project + "/subscriptions/" + subscription;
       } else {
         return subscription;
@@ -329,7 +329,7 @@ public class PubsubIO {
      * API.
      */
     public String asPath() {
-      if (type == Type.NORMAL) {
+      if (type == PubsubSubscription.Type.NORMAL) {
         return "projects/" + project + "/subscriptions/" + subscription;
       } else {
         return subscription;
@@ -369,11 +369,11 @@ public class PubsubIO {
       FAKE
     }
 
-    private final Type type;
+    private final PubsubTopic.Type type;
     private final String project;
     private final String topic;
 
-    private PubsubTopic(Type type, String project, String topic) {
+    private PubsubTopic(PubsubTopic.Type type, String project, String topic) {
       this.type = type;
       this.project = project;
       this.topic = topic;
@@ -397,7 +397,7 @@ public class PubsubIO {
      */
     public static PubsubTopic fromPath(String path) {
       if (path.equals(TOPIC_DEV_NULL_TEST_NAME)) {
-        return new PubsubTopic(Type.FAKE, "", path);
+        return new PubsubTopic(PubsubTopic.Type.FAKE, "", path);
       }
 
       String projectName, topicName;
@@ -421,7 +421,7 @@ public class PubsubIO {
 
       validateProjectName(projectName);
       validatePubsubName(topicName);
-      return new PubsubTopic(Type.NORMAL, projectName, topicName);
+      return new PubsubTopic(PubsubTopic.Type.NORMAL, projectName, topicName);
     }
 
     /**
@@ -432,7 +432,7 @@ public class PubsubIO {
      */
     @Deprecated
     public String asV1Beta1Path() {
-      if (type == Type.NORMAL) {
+      if (type == PubsubTopic.Type.NORMAL) {
         return "/topics/" + project + "/" + topic;
       } else {
         return topic;
@@ -447,7 +447,7 @@ public class PubsubIO {
      */
     @Deprecated
     public String asV1Beta2Path() {
-      if (type == Type.NORMAL) {
+      if (type == PubsubTopic.Type.NORMAL) {
         return "projects/" + project + "/topics/" + topic;
       } else {
         return topic;
@@ -456,7 +456,7 @@ public class PubsubIO {
 
     /** Returns the string representation of this topic as a path used in the Cloud Pub/Sub API. */
     public String asPath() {
-      if (type == Type.NORMAL) {
+      if (type == PubsubTopic.Type.NORMAL) {
         return "projects/" + project + "/topics/" + topic;
       } else {
         return topic;
@@ -1191,15 +1191,6 @@ public class PubsubIO {
      */
     public Write<T> withIdAttribute(String idAttribute) {
       return toBuilder().setIdAttribute(idAttribute).build();
-    }
-
-    /**
-     * Used to write a PubSub message together with PubSub attributes. The user-supplied format
-     * function translates the input type T to a PubsubMessage object, which is used by the sink to
-     * separately set the PubSub message's payload and attributes.
-     */
-    private Write<T> withFormatFn(SimpleFunction<T, PubsubMessage> formatFn) {
-      return toBuilder().setFormatFn(formatFn).build();
     }
 
     @Override

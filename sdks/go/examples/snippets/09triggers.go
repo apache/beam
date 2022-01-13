@@ -23,33 +23,77 @@
 package snippets
 
 import (
+	"time"
+
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/teststream"
-	"time"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window/trigger"
 )
 
-func generateStream(s beam.Scope) beam.PCollection {
-	con := teststream.NewConfig()
-	con.AddElements(1000, 1.0, 2.0, 3.0)
-	con.AdvanceWatermark(11000)
-	return teststream.Create(s, con)
-}
-
-func TriggerAfterEndOfWindow(s beam.Scope) {
-	pCollection := generateStream(s)
-	windowSize := 10 * time.Second
+func TriggerAfterEndOfWindow(s beam.Scope, pCollection beam.PCollection) {
 	// [START after_window_trigger]
-	trigger := window.TriggerAfterEndOfWindow().EarlyFiring(window.TriggerAfterProcessingTime(60000)).LateFiring(window.TriggerRepeat(window.TriggerAfterCount(1)))
+	trigger := trigger.AfterEndOfWindow().
+		EarlyFiring(trigger.AfterProcessingTime().
+			PlusDelay(60 * time.Second)).
+		LateFiring(trigger.Repeat(trigger.AfterCount(1)))
 	// [END after_window_trigger]
-	beam.WindowInto(s, window.NewFixedWindows(windowSize), pCollection, beam.Trigger(trigger), beam.PanesDiscard())
+	beam.WindowInto(s, window.NewFixedWindows(10*time.Second), pCollection, beam.Trigger(trigger), beam.PanesDiscard())
 }
 
-func TriggerAlways(s beam.Scope) {
-	pCollection := generateStream(s)
+func TriggerAlways(s beam.Scope, pCollection beam.PCollection) {
 	// [START always_trigger]
-	windowSize := 10 * time.Second
-	trigger := window.TriggerAlways()
-	beam.WindowInto(s, window.NewFixedWindows(windowSize), pCollection, beam.Trigger(trigger), beam.PanesDiscard())
+	beam.WindowInto(s, window.NewFixedWindows(10*time.Second), pCollection,
+		beam.Trigger(trigger.Always()),
+		beam.PanesDiscard(),
+	)
 	// [END always_trigger]
+}
+
+func ComplexTriggers(s beam.Scope, pcollection beam.PCollection) {
+	// [START setting_a_trigger]
+	windowedItems := beam.WindowInto(s,
+		window.NewFixedWindows(1*time.Minute), pcollection,
+		beam.Trigger(trigger.AfterProcessingTime().
+			PlusDelay(1*time.Minute)),
+		beam.AllowedLateness(30*time.Minute),
+		beam.PanesDiscard(),
+	)
+	// [END setting_a_trigger]
+
+	// [START setting_allowed_lateness]
+	allowedToBeLateItems := beam.WindowInto(s,
+		window.NewFixedWindows(1*time.Minute), pcollection,
+		beam.Trigger(trigger.AfterProcessingTime().
+			PlusDelay(1*time.Minute)),
+		beam.AllowedLateness(30*time.Minute),
+	)
+	// [END setting_allowed_lateness]
+
+	// [START model_composite_triggers]
+	compositeTriggerItems := beam.WindowInto(s,
+		window.NewFixedWindows(1*time.Minute), pcollection,
+		beam.Trigger(trigger.AfterEndOfWindow().
+			LateFiring(trigger.AfterProcessingTime().
+				PlusDelay(10*time.Minute))),
+		beam.AllowedLateness(2*24*time.Hour),
+	)
+	// [END model_composite_triggers]
+
+	// TODO(BEAM-3304) AfterAny is not yet implemented.
+	// Implement so the following compiles when no longer commented out.
+
+	// [START other_composite_trigger]
+	// beam.Trigger(
+	// 	trigger.TriggerAfterAny(
+	// 		trigger.AfterCount(100),
+	// 		trigger.AfterProcessingTime().
+	// 			PlusDelay(1*time.Minute)),
+	// )
+	// [END other_composite_trigger]
+
+	_ = []beam.PCollection{
+		windowedItems,
+		allowedToBeLateItems,
+		compositeTriggerItems,
+	}
 }

@@ -156,16 +156,21 @@ public class SchemaTranslation {
         } else {
           logicalTypeBuilder =
               SchemaApi.LogicalType.newBuilder()
-                  .setArgumentType(
-                      fieldTypeToProto(logicalType.getArgumentType(), serializeLogicalType))
-                  .setArgument(
-                      fieldValueToProto(logicalType.getArgumentType(), logicalType.getArgument()))
                   .setRepresentation(
                       fieldTypeToProto(logicalType.getBaseType(), serializeLogicalType))
                   // TODO(BEAM-7855): "javasdk" types should only be a last resort. Types defined in
                   // Beam should have their own URN, and there should be a mechanism for users to
                   // register their own types by URN.
                   .setUrn(URN_BEAM_LOGICAL_JAVASDK);
+          if (logicalType.getArgumentType() != null) {
+            logicalTypeBuilder =
+                logicalTypeBuilder
+                    .setArgumentType(
+                        fieldTypeToProto(logicalType.getArgumentType(), serializeLogicalType))
+                    .setArgument(
+                        fieldValueToProto(
+                            logicalType.getArgumentType(), logicalType.getArgument()));
+          }
           if (serializeLogicalType) {
             logicalTypeBuilder =
                 logicalTypeBuilder.setPayload(
@@ -226,7 +231,13 @@ public class SchemaTranslation {
     Schema.Builder builder = Schema.builder();
     Map<String, Integer> encodingLocationMap = Maps.newHashMap();
     for (SchemaApi.Field protoField : protoSchema.getFieldsList()) {
-      Field field = fieldFromProto(protoField);
+      Field field;
+      try {
+        field = fieldFromProto(protoField);
+      } catch (Exception e) {
+        throw new IllegalArgumentException(
+            "Failed to decode Schema due to an error decoding Field proto:\n\n" + protoField, e);
+      }
       builder.addField(field);
       encodingLocationMap.put(protoField.getName(), protoField.getEncodingPosition());
     }

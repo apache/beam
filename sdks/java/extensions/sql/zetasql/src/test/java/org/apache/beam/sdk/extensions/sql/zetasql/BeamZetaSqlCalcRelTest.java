@@ -24,12 +24,12 @@ import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
@@ -80,18 +80,15 @@ public class BeamZetaSqlCalcRelTest extends ZetaSqlTestBase {
 
     ParDo.MultiOutput<Row, Row> pardo =
         (ParDo.MultiOutput<Row, Row>) nodeGetter.producer.getTransform();
-    DoFnSignature sig = DoFnSignatures.getSignature(pardo.getFn().getClass());
+    PCollection<Row> input =
+        (PCollection<Row>) Iterables.getOnlyElement(nodeGetter.producer.getInputs().values());
 
-    Assert.assertEquals(1, sig.fieldAccessDeclarations().size());
-    DoFnSignature.FieldAccessDeclaration dec =
-        sig.fieldAccessDeclarations().values().iterator().next();
-    FieldAccessDescriptor fieldAccess = (FieldAccessDescriptor) dec.field().get(pardo.getFn());
+    DoFnSchemaInformation info = ParDo.getDoFnSchemaInformation(pardo.getFn(), input);
+
+    FieldAccessDescriptor fieldAccess = info.getFieldAccessDescriptor();
 
     Assert.assertTrue(fieldAccess.referencesSingleField());
-
-    fieldAccess =
-        fieldAccess.resolve(nodeGetter.producer.getInputs().values().iterator().next().getSchema());
-    Assert.assertEquals("Key", fieldAccess.fieldNamesAccessed().iterator().next());
+    Assert.assertEquals("Key", Iterables.getOnlyElement(fieldAccess.fieldNamesAccessed()));
 
     pipeline.run().waitUntilFinish();
   }
@@ -107,12 +104,12 @@ public class BeamZetaSqlCalcRelTest extends ZetaSqlTestBase {
 
     ParDo.MultiOutput<Row, Row> pardo =
         (ParDo.MultiOutput<Row, Row>) nodeGetter.producer.getTransform();
-    DoFnSignature sig = DoFnSignatures.getSignature(pardo.getFn().getClass());
+    PCollection<Row> input =
+        (PCollection<Row>) Iterables.getOnlyElement(nodeGetter.producer.getInputs().values());
 
-    Assert.assertEquals(1, sig.fieldAccessDeclarations().size());
-    DoFnSignature.FieldAccessDeclaration dec =
-        sig.fieldAccessDeclarations().values().iterator().next();
-    FieldAccessDescriptor fieldAccess = (FieldAccessDescriptor) dec.field().get(pardo.getFn());
+    DoFnSchemaInformation info = ParDo.getDoFnSchemaInformation(pardo.getFn(), input);
+
+    FieldAccessDescriptor fieldAccess = info.getFieldAccessDescriptor();
 
     Assert.assertFalse(fieldAccess.getAllFields());
     Assert.assertTrue(fieldAccess.getFieldsAccessed().isEmpty());

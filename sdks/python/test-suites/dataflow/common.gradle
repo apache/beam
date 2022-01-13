@@ -124,6 +124,51 @@ task postCommitIT {
   }
 }
 
+task spannerioIT {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+  dependsOn ':runners:google-cloud-dataflow-java:worker:shadowJar'
+
+  def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+
+  doLast {
+    def testOpts = basicPytestOpts + ["--numprocesses=8", "--dist=loadfile"]
+    def argMap = [
+        "test_opts": testOpts,
+        "sdk_location": files(configurations.distTarBall.files).singleFile,
+        "worker_jar": dataflowWorkerJar,
+        "suite": "postCommitIT-df${pythonVersionSuffix}",
+        "collect": "spannerio_it"
+    ]
+    def cmdArgs = mapToArgString(argMap)
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+    }
+  }
+}
+
+task examples {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+
+  doLast {
+    def testOpts = basicPytestOpts + ["--numprocesses=8", "--dist=loadfile"]
+    def argMap = [
+            "test_opts": testOpts,
+            "sdk_location": files(configurations.distTarBall.files).singleFile,
+            "runner_v2": "true",
+            "suite": "postCommitIT-df${pythonVersionSuffix}",
+            "collect": "examples_postcommit"
+    ]
+    def cmdArgs = mapToArgString(argMap)
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+    }
+  }
+}
+
 task validatesRunnerBatchTests {
   dependsOn 'installGcpTest'
   dependsOn ':sdks:python:sdist'

@@ -124,13 +124,25 @@ class S3WritableByteChannel implements WritableByteChannel {
 
     int totalBytesWritten = 0;
     while (sourceBuffer.hasRemaining()) {
+      int position = sourceBuffer.position();
       int bytesWritten = Math.min(sourceBuffer.remaining(), uploadBuffer.remaining());
       totalBytesWritten += bytesWritten;
 
-      byte[] copyBuffer = new byte[bytesWritten];
-      sourceBuffer.get(copyBuffer);
-      uploadBuffer.put(copyBuffer);
-      md5.update(copyBuffer);
+      if (sourceBuffer.hasArray()) {
+        // If the underlying array is accessible, direct access is the most efficient approach.
+        int start = sourceBuffer.arrayOffset() + position;
+        uploadBuffer.put(sourceBuffer.array(), start, bytesWritten);
+        md5.update(sourceBuffer.array(), start, bytesWritten);
+      } else {
+        // Otherwise, use a readonly copy with an appropriate mark to read the current range of the
+        // buffer twice.
+        ByteBuffer copyBuffer = sourceBuffer.asReadOnlyBuffer();
+        copyBuffer.mark().limit(position + bytesWritten);
+        uploadBuffer.put(copyBuffer);
+        copyBuffer.reset();
+        md5.update(copyBuffer);
+      }
+      sourceBuffer.position(position + bytesWritten); // move position forward by the bytes written
 
       if (!uploadBuffer.hasRemaining() || sourceBuffer.hasRemaining()) {
         flush();
@@ -142,7 +154,8 @@ class S3WritableByteChannel implements WritableByteChannel {
 
   private void flush() throws IOException {
     uploadBuffer.flip();
-    ByteArrayInputStream inputStream = new ByteArrayInputStream(uploadBuffer.array());
+    ByteArrayInputStream inputStream =
+        new ByteArrayInputStream(uploadBuffer.array(), 0, uploadBuffer.limit());
 
     UploadPartRequest request =
         UploadPartRequest.builder()
@@ -150,7 +163,7 @@ class S3WritableByteChannel implements WritableByteChannel {
             .key(path.getKey())
             .uploadId(uploadId)
             .partNumber(partNumber++)
-            .contentLength((long) uploadBuffer.remaining())
+            .contentLength((long) uploadBuffer.limit())
             .sseCustomerKey(options.getSSECustomerKey().getKey())
             .sseCustomerAlgorithm(options.getSSECustomerKey().getAlgorithm())
             .sseCustomerKeyMD5(options.getSSECustomerKey().getMD5())

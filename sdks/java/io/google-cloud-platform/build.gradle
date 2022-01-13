@@ -31,119 +31,127 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Google Cloud Platform"
 ext.summary = "IO library to read and write Google Cloud Platform systems from Beam."
 
 dependencies {
-  compile enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+  implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
   permitUnusedDeclared enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
-  compile project(path: ":model:pipeline", configuration: "shadow")
-  compile project(":runners:core-java")
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(":sdks:java:expansion-service")
+  implementation project(path: ":model:pipeline", configuration: "shadow")
+  implementation project(":runners:core-java")
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(":sdks:java:expansion-service")
   permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
-  compile project(":sdks:java:extensions:google-cloud-platform-core")
-  compile project(":sdks:java:extensions:protobuf")
-  compile project(":runners:core-construction-java")
-  compile project(":sdks:java:extensions:arrow")
-  compile library.java.avro
-  compile library.java.bigdataoss_util
-  compile library.java.error_prone_annotations
-  compile library.java.flogger_system_backend // Avoids conflicts with bigdataoss_util (BEAM-11010)
+  implementation project(":sdks:java:extensions:google-cloud-platform-core")
+  implementation project(":sdks:java:extensions:protobuf")
+  implementation project(":runners:core-construction-java")
+  implementation project(":sdks:java:extensions:arrow")
+  implementation library.java.avro
+  implementation library.java.bigdataoss_util
+  implementation library.java.error_prone_annotations
+  implementation library.java.flogger_system_backend // Avoids conflicts with bigdataoss_util (BEAM-11010)
   permitUnusedDeclared library.java.flogger_system_backend // BEAM-11010
-  compile library.java.gax
-  compile library.java.gax_grpc
-  compile library.java.gax_httpjson
+  implementation library.java.gax
+  implementation library.java.gax_grpc
+  implementation library.java.gax_httpjson
   permitUnusedDeclared library.java.gax_httpjson // BEAM-8755
-  compile library.java.google_api_client
-  compile library.java.google_api_common
-  compile library.java.google_api_services_bigquery
-  compile library.java.google_api_services_healthcare
-  compile library.java.google_api_services_pubsub
-  compile library.java.google_api_services_storage
-  compile library.java.google_auth_library_credentials
-  compile library.java.google_auth_library_oauth2_http
-  compile library.java.google_cloud_bigquery_storage
-  compile(library.java.google_cloud_bigtable_client_core) {
+  implementation library.java.google_api_client
+  implementation library.java.google_api_common
+  implementation library.java.google_api_services_bigquery
+  implementation library.java.google_api_services_healthcare
+  implementation library.java.google_api_services_pubsub
+  implementation library.java.google_api_services_storage
+  implementation library.java.google_auth_library_credentials
+  implementation library.java.google_auth_library_oauth2_http
+  implementation library.java.google_cloud_bigquery_storage
+  implementation(library.java.google_cloud_bigtable_client_core) {
     exclude group: 'io.grpc', module: 'grpc-core' // Use Beam's version
     exclude group: 'io.grpc', module: 'grpc-grpclb'
   }
-  compile library.java.google_cloud_core
-  compile(library.java.google_cloud_core_grpc) {
+  implementation library.java.google_cloud_core
+  implementation(library.java.google_cloud_core_grpc) {
     exclude group: 'io.grpc', module: 'grpc-core' // Use Beam's version
   }
   permitUnusedDeclared library.java.google_cloud_core_grpc // BEAM-11761
-  compile library.java.google_cloud_datastore_v1_proto_client
-  compile library.java.google_cloud_firestore
-  compile library.java.google_cloud_pubsublite
+  implementation library.java.google_cloud_datastore_v1_proto_client
+  implementation library.java.google_cloud_firestore
+  implementation library.java.google_cloud_pubsublite
   // GCP PubSub client is used in TestPubSub
-  compile library.java.google_cloud_pubsub
-  compile library.java.google_cloud_spanner
-  compile library.java.google_code_gson
-  compile library.java.google_http_client
-  compile library.java.google_http_client_jackson2
-  compile library.java.grpc_alts
+  implementation library.java.google_cloud_pubsub
+  implementation library.java.google_cloud_spanner
+  implementation library.java.google_code_gson
+  implementation library.java.google_http_client
+  implementation library.java.google_http_client_jackson2
+  implementation library.java.grpc_alts
   permitUnusedDeclared library.java.grpc_alts // BEAM-11761
-  compile library.java.grpc_api
-  compile library.java.grpc_auth
-  compile library.java.grpc_core
+  implementation library.java.grpc_api
+  implementation library.java.grpc_auth
+  implementation library.java.grpc_core
   permitUnusedDeclared library.java.grpc_core // BEAM-11761
-  compile library.java.grpc_context
+  implementation library.java.grpc_context
   permitUnusedDeclared library.java.grpc_context // BEAM-11761
-  compile library.java.grpc_grpclb
+  implementation library.java.grpc_grpclb
   permitUnusedDeclared library.java.grpc_grpclb // BEAM-11761
-  compile library.java.grpc_netty
-  compile library.java.grpc_netty_shaded
+  implementation library.java.grpc_netty
+  implementation library.java.grpc_netty_shaded
   permitUnusedDeclared library.java.grpc_netty_shaded // BEAM-11761
-  compile library.java.grpc_protobuf
-  compile library.java.grpc_stub
+  implementation library.java.grpc_protobuf
+  implementation library.java.grpc_stub
   permitUnusedDeclared library.java.grpc_stub // BEAM-11761
-  compile library.java.grpc_google_cloud_pubsub_v1
-  compile library.java.grpc_google_cloud_pubsublite_v1
+  implementation library.java.grpc_google_cloud_pubsub_v1
+  implementation library.java.grpc_google_cloud_pubsublite_v1
   permitUnusedDeclared library.java.grpc_google_cloud_pubsublite_v1 // BEAM-11761
-  compile library.java.guava
-  compile library.java.hamcrest
-  compile library.java.http_client
-  compile library.java.hamcrest_core
-  permitUnusedDeclared library.java.hamcrest_core // BEAM-11761
-  compile library.java.http_core
-  compile library.java.jackson_core
-  compile library.java.jackson_databind
-  compile library.java.joda_time
-  compile library.java.junit
-  compile library.java.netty_handler
-  compile library.java.netty_tcnative_boringssl_static
+  implementation library.java.guava
+  implementation library.java.hamcrest
+  implementation library.java.http_client
+  implementation library.java.hamcrest
+  permitUnusedDeclared library.java.hamcrest // BEAM-11761
+  implementation library.java.http_core
+  implementation library.java.jackson_core
+  implementation library.java.jackson_databind
+  implementation library.java.joda_time
+  implementation library.java.junit
+  implementation library.java.netty_handler
+  implementation library.java.netty_tcnative_boringssl_static
   permitUnusedDeclared library.java.netty_tcnative_boringssl_static // BEAM-11761
-  compile library.java.proto_google_cloud_bigquery_storage_v1
-  compile library.java.proto_google_cloud_bigquery_storage_v1beta2
-  compile library.java.proto_google_cloud_bigtable_admin_v2
-  compile library.java.proto_google_cloud_bigtable_v2
-  compile library.java.proto_google_cloud_datastore_v1
-  compile library.java.proto_google_cloud_firestore_v1
-  compile library.java.proto_google_cloud_pubsub_v1
-  compile library.java.proto_google_cloud_pubsublite_v1
-  compile library.java.proto_google_cloud_spanner_admin_database_v1
+  implementation library.java.proto_google_cloud_bigquery_storage_v1
+  implementation library.java.proto_google_cloud_bigtable_admin_v2
+  implementation library.java.proto_google_cloud_bigtable_v2
+  implementation library.java.proto_google_cloud_datastore_v1
+  implementation library.java.proto_google_cloud_firestore_v1
+  implementation library.java.proto_google_cloud_pubsub_v1
+  implementation library.java.proto_google_cloud_pubsublite_v1
+  implementation library.java.proto_google_cloud_spanner_admin_database_v1
   permitUnusedDeclared library.java.proto_google_cloud_spanner_admin_database_v1 // BEAM-11761
-  compile library.java.proto_google_cloud_spanner_v1
-  compile library.java.proto_google_common_protos
-  compile library.java.protobuf_java
-  compile library.java.protobuf_java_util
-  compile library.java.slf4j_api
-  compile library.java.vendored_grpc_1_36_0
-  compile library.java.vendored_guava_26_0_jre
-  compile library.java.arrow_memory_core
-  compile library.java.arrow_vector
+  implementation library.java.proto_google_cloud_spanner_v1
+  implementation library.java.proto_google_common_protos
+  implementation library.java.protobuf_java
+  implementation library.java.protobuf_java_util
+  implementation library.java.slf4j_api
+  implementation library.java.vendored_grpc_1_36_0
+  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.arrow_memory_core
+  implementation library.java.arrow_vector
 
-  compile "org.threeten:threetenbp:1.4.4"
+  implementation "org.threeten:threetenbp:1.4.4"
+  implementation "io.opencensus:opencensus-api:0.30.0"
 
-  testCompile library.java.arrow_memory_netty
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
-  testCompile project(path: ":sdks:java:extensions:protobuf", configuration: "testRuntime")
-  testCompile project(path: ":runners:direct-java", configuration: "shadow")
-  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
-  testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
-  testCompile library.java.mockito_core
-  testCompile library.java.powermock
-  testCompile library.java.powermock_mockito
-  testCompile library.java.joda_time
+  testImplementation library.java.arrow_memory_netty
+  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:extensions:protobuf", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":runners:direct-java", configuration: "shadow")
+  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
+  testImplementation library.java.mockito_core
+  testImplementation library.java.powermock
+  testImplementation library.java.powermock_mockito
+  testImplementation library.java.joda_time
   testRuntimeOnly library.java.slf4j_jdk14
+}
+
+// Don't pull in newer versions of the checker framework from dependencies.
+// TODO(BEAM-11125) Remove this when Beam upgrades to newest checker framework version.
+configurations.implementation {
+  resolutionStrategy {
+    force library.java.checker_qual
+  }
 }
 
 

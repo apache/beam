@@ -26,18 +26,18 @@ ext.summary = """Contains code shared across the Beam Java SDK Harness and Java 
 the Beam Portability Framework."""
 
 dependencies {
-  compile project(path: ":model:pipeline", configuration: "shadow")
-  compile project(path: ":model:fn-execution", configuration: "shadow")
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile library.java.vendored_grpc_1_36_0
-  compile library.java.vendored_guava_26_0_jre
-  compile library.java.slf4j_api
-  compile library.java.joda_time
-  provided library.java.junit
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile library.java.junit
-  testCompile library.java.mockito_core
-  testCompile library.java.commons_lang3
-  testCompile "com.github.stefanbirkner:system-rules:1.19.0"
+  implementation project(path: ":model:pipeline", configuration: "shadow")
+  implementation project(path: ":model:fn-execution", configuration: "shadow")
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation library.java.vendored_grpc_1_36_0
+  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.slf4j_api
+  implementation library.java.joda_time
+  compileOnly library.java.junit
+  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation library.java.junit
+  testImplementation library.java.mockito_core
+  testImplementation library.java.commons_lang3
+  testImplementation "com.github.stefanbirkner:system-rules:1.19.0"
   testRuntimeOnly library.java.slf4j_jdk14
 }

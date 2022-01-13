@@ -32,24 +32,27 @@ from typing import Union
 
 import apache_beam as beam
 from apache_beam.pvalue import PValue
-from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive.background_caching_job import has_source_to_cache
 from apache_beam.runners.interactive.caching.cacheable import CacheKey
 from apache_beam.runners.interactive.caching.reify import reify_to_cache
 from apache_beam.runners.interactive.caching.reify import unreify_from_cache
 from apache_beam.runners.interactive.display.pcoll_visualization import visualize_computed_pcoll
+from apache_beam.runners.interactive.sql.sql_chain import SqlChain
+from apache_beam.runners.interactive.sql.sql_chain import SqlNode
+from apache_beam.runners.interactive.sql.utils import DataflowOptionsForm
 from apache_beam.runners.interactive.sql.utils import find_pcolls
-from apache_beam.runners.interactive.sql.utils import is_namedtuple
 from apache_beam.runners.interactive.sql.utils import pformat_namedtuple
 from apache_beam.runners.interactive.sql.utils import register_coder_for_schema
 from apache_beam.runners.interactive.sql.utils import replace_single_pcoll_token
+from apache_beam.runners.interactive.utils import create_var_in_main
 from apache_beam.runners.interactive.utils import obfuscate
 from apache_beam.runners.interactive.utils import pcoll_by_name
 from apache_beam.runners.interactive.utils import progress_indicated
 from apache_beam.testing import test_stream
 from apache_beam.testing.test_stream_service import TestStreamServiceController
 from apache_beam.transforms.sql import SqlTransform
+from apache_beam.typehints.native_type_compatibility import match_is_named_tuple
 from IPython.core.magic import Magics
 from IPython.core.magic import line_cell_magic
 from IPython.core.magic import magics_class
@@ -58,11 +61,11 @@ _LOGGER = logging.getLogger(__name__)
 
 _EXAMPLE_USAGE = """beam_sql magic to execute Beam SQL in notebooks
 ---------------------------------------------------------
-%%beam_sql [-o OUTPUT_NAME] query
+%%beam_sql [-o OUTPUT_NAME] [-v] [-r RUNNER] query
 ---------------------------------------------------------
 Or
 ---------------------------------------------------------
-%%%%beam_sql [-o OUTPUT_NAME] query-line#1
+%%%%beam_sql [-o OUTPUT_NAME] [-v] [-r RUNNER] query-line#1
 query-line#2
 ...
 query-line#N
@@ -82,6 +85,8 @@ _NOT_SUPPORTED_MSG = """The query was valid and successfully applied.
     to build Beam pipelines in a non-interactive manner.
 """
 
+_SUPPORTED_RUNNERS = ['DirectRunner', 'DataflowRunner']
+
 
 class BeamSqlParser:
   """A parser to parse beam_sql inputs."""
@@ -99,6 +104,14 @@ class BeamSqlParser:
         '--verbose',
         action='store_true',
         help='Display more details about the magic execution.')
+    self._parser.add_argument(
+        '-r',
+        '--runner',
+        dest='runner',
+        help=(
+            'The runner to run the query. Supported runners are %s. If not '
+            'provided, DirectRunner is used and results can be inspected '
+            'locally.' % _SUPPORTED_RUNNERS))
     self._parser.add_argument(
         'query',
         type=str,
@@ -157,8 +170,9 @@ class BeamSqlMagics(Magics):
       cell: everything else in the same notebook cell as a string. If None,
         beam_sql is used as line magic. Otherwise, cell magic.
 
-    Returns None if running into an error, otherwise a PValue as if a
-    SqlTransform is applied.
+    Returns None if running into an error or waiting for user input (running on
+    a selected runner remotely), otherwise a PValue as if a SqlTransform is
+    applied.
     """
     input_str = line
     if cell:
@@ -170,6 +184,7 @@ class BeamSqlMagics(Magics):
     output_name = parsed.output_name
     verbose = parsed.verbose
     query = parsed.query
+    runner = parsed.runner
 
     if output_name and not output_name.isidentifier() or keyword.iskeyword(
         output_name):
@@ -181,11 +196,18 @@ class BeamSqlMagics(Magics):
     if not query:
       on_error('Please supply the SQL query to be executed.')
       return
+    if runner and runner not in _SUPPORTED_RUNNERS:
+      on_error(
+          'Runner "%s" is not supported. Supported runners are %s.',
+          runner,
+          _SUPPORTED_RUNNERS)
     query = ' '.join(query)
 
     found = find_pcolls(query, pcoll_by_name(), verbose=verbose)
+    schemas = set()
+    main_session = importlib.import_module('__main__')
     for _, pcoll in found.items():
-      if not is_namedtuple(pcoll.element_type):
+      if not match_is_named_tuple(pcoll.element_type):
         on_error(
             'PCollection %s of type %s is not a NamedTuple. See '
             'https://beam.apache.org/documentation/programming-guide/#schemas '
@@ -194,45 +216,93 @@ class BeamSqlMagics(Magics):
             pcoll.element_type)
         return
       register_coder_for_schema(pcoll.element_type, verbose=verbose)
+      # Only care about schemas defined by the user in the main module.
+      if hasattr(main_session, pcoll.element_type.__name__):
+        schemas.add(pcoll.element_type)
 
-    output_name, output = apply_sql(query, output_name, found)
-    cache_output(output_name, output)
-    return output
+    if runner in ('DirectRunner', None):
+      collect_data_for_local_run(query, found)
+      output_name, output, chain = apply_sql(query, output_name, found)
+      chain.current.schemas = schemas
+      cache_output(output_name, output)
+      return output
+
+    output_name, current_node, chain = apply_sql(
+        query, output_name, found, False)
+    current_node.schemas = schemas
+    # TODO(BEAM-10708): Move the options setup and result handling to a
+    # separate module when more runners are supported.
+    if runner == 'DataflowRunner':
+      _ = chain.to_pipeline()
+      _ = DataflowOptionsForm(
+          output_name, pcoll_by_name()[output_name],
+          verbose).display_for_input()
+      return None
+    else:
+      raise ValueError('Unsupported runner %s.', runner)
+
+
+@progress_indicated
+def collect_data_for_local_run(query: str, found: Dict[str, beam.PCollection]):
+  from apache_beam.runners.interactive import interactive_beam as ib
+  for name, pcoll in found.items():
+    try:
+      _ = ib.collect(pcoll)
+    except (KeyboardInterrupt, SystemExit):
+      raise
+    except:
+      _LOGGER.error(
+          'Cannot collect data for PCollection %s. Please make sure the '
+          'PCollections queried in the sql "%s" are all from a single '
+          'pipeline using an InteractiveRunner. Make sure there is no '
+          'ambiguity, for example, same named PCollections from multiple '
+          'pipelines or notebook re-executions.',
+          name,
+          query)
+      raise
 
 
 @progress_indicated
 def apply_sql(
-    query: str, output_name: Optional[str],
-    found: Dict[str, beam.PCollection]) -> Tuple[str, PValue]:
+    query: str,
+    output_name: Optional[str],
+    found: Dict[str, beam.PCollection],
+    run: bool = True) -> Tuple[str, Union[PValue, SqlNode], SqlChain]:
   """Applies a SqlTransform with the given sql and queried PCollections.
 
   Args:
     query: The SQL query executed in the magic.
     output_name: (optional) The output variable name in __main__ module.
     found: The PCollections with variable names found to be used in the query.
+    run: Whether to prepare the SQL pipeline for a local run or not.
 
   Returns:
-    A Tuple[str, PValue]. First str value is the output variable name in
-    __main__ module (auto-generated if not provided). Second PValue is
-    most likely a PCollection, depending on the query.
+    A tuple of values. First str value is the output variable name in
+    __main__ module, auto-generated if not provided. Second value: if run,
+    it's a PValue; otherwise, a SqlNode tracks the SQL without applying it or
+    executing it. Third value: SqlChain is a chain of SqlNodes that have been
+    applied.
   """
   output_name = _generate_output_name(output_name, query, found)
-  query, sql_source = _build_query_components(query, found)
-  try:
-    output = sql_source | SqlTransform(query)
-    # Declare a variable with the output_name and output value in the
-    # __main__ module so that the user can use the output smoothly.
-    setattr(importlib.import_module('__main__'), output_name, output)
-    ib.watch({output_name: output})
-    _LOGGER.info(
-        "The output PCollection variable is %s with element_type %s",
-        output_name,
-        pformat_namedtuple(output.element_type))
-    return output_name, output
-  except (KeyboardInterrupt, SystemExit):
-    raise
-  except Exception as e:
-    on_error('Error when applying the Beam SQL: %s', e)
+  query, sql_source, chain = _build_query_components(
+      query, found, output_name, run)
+  if run:
+    try:
+      output = sql_source | SqlTransform(query)
+      # Declare a variable with the output_name and output value in the
+      # __main__ module so that the user can use the output smoothly.
+      output_name, output = create_var_in_main(output_name, output)
+      _LOGGER.info(
+          "The output PCollection variable is %s with element_type %s",
+          output_name,
+          pformat_namedtuple(output.element_type))
+      return output_name, output, chain
+    except (KeyboardInterrupt, SystemExit):
+      raise
+    except Exception as e:
+      on_error('Error when applying the Beam SQL: %s', e)
+  else:
+    return output_name, chain.current, chain
 
 
 def pcolls_from_streaming_cache(
@@ -304,19 +374,26 @@ def _generate_output_name(
 
 
 def _build_query_components(
-    query: str, found: Dict[str, beam.PCollection]
+    query: str,
+    found: Dict[str, beam.PCollection],
+    output_name: str,
+    run: bool = True
 ) -> Tuple[str,
-           Union[Dict[str, beam.PCollection], beam.PCollection, beam.Pipeline]]:
+           Union[Dict[str, beam.PCollection], beam.PCollection, beam.Pipeline],
+           SqlChain]:
   """Builds necessary components needed to apply the SqlTransform.
 
   Args:
     query: The SQL query to be executed by the magic.
     found: The PCollections with variable names found to be used by the query.
+    output_name: The output variable name in __main__ module.
+    run: Whether to prepare components for a local run or not.
 
   Returns:
-    The processed query to be executed by the magic and a source to apply the
+    The processed query to be executed by the magic; a source to apply the
     SqlTransform to: a dictionary of tagged PCollections, or a single
-    PCollection, or the pipeline to execute the query.
+    PCollection, or the pipeline to execute the query; the chain of applied
+    beam_sql magics this one belongs to.
   """
   if found:
     user_pipeline = ie.current_env().user_pipeline(
@@ -324,26 +401,38 @@ def _build_query_components(
     sql_pipeline = beam.Pipeline(options=user_pipeline._options)
     ie.current_env().add_derived_pipeline(user_pipeline, sql_pipeline)
     sql_source = {}
-    if has_source_to_cache(user_pipeline):
-      sql_source = pcolls_from_streaming_cache(
-          user_pipeline, sql_pipeline, found)
+    if run:
+      if has_source_to_cache(user_pipeline):
+        sql_source = pcolls_from_streaming_cache(
+            user_pipeline, sql_pipeline, found)
+      else:
+        cache_manager = ie.current_env().get_cache_manager(
+            user_pipeline, create_if_absent=True)
+        for pcoll_name, pcoll in found.items():
+          cache_key = CacheKey.from_pcoll(pcoll_name, pcoll).to_str()
+          sql_source[pcoll_name] = unreify_from_cache(
+              pipeline=sql_pipeline,
+              cache_key=cache_key,
+              cache_manager=cache_manager,
+              element_type=pcoll.element_type)
     else:
-      cache_manager = ie.current_env().get_cache_manager(
-          user_pipeline, create_if_absent=True)
-      for pcoll_name, pcoll in found.items():
-        cache_key = CacheKey.from_pcoll(pcoll_name, pcoll).to_str()
-        sql_source[pcoll_name] = unreify_from_cache(
-            pipeline=sql_pipeline,
-            cache_key=cache_key,
-            cache_manager=cache_manager,
-            element_type=pcoll.element_type)
+      sql_source = found
     if len(sql_source) == 1:
       query = replace_single_pcoll_token(query, next(iter(sql_source.keys())))
       sql_source = next(iter(sql_source.values()))
-  else:
+
+    node = SqlNode(
+        output_name=output_name, source=set(found.keys()), query=query)
+    chain = ie.current_env().get_sql_chain(
+        user_pipeline, set_user_pipeline=True).append(node)
+  else:  # does not query any existing PCollection
     sql_source = beam.Pipeline()
     ie.current_env().add_user_pipeline(sql_source)
-  return query, sql_source
+
+    # The node should be the root node of the chain created below.
+    node = SqlNode(output_name=output_name, source=sql_source, query=query)
+    chain = ie.current_env().get_sql_chain(sql_source).append(node)
+  return query, sql_source, chain
 
 
 @progress_indicated

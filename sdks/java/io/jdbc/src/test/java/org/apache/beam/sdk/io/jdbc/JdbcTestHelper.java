@@ -88,7 +88,8 @@ class JdbcTestHelper {
   static class CreateTestRowOfNameAndId implements JdbcIO.RowMapper<TestRow> {
     @Override
     public TestRow mapRow(ResultSet resultSet) throws Exception {
-      return TestRow.create(resultSet.getInt("id"), resultSet.getString("name"));
+      return TestRow.create(
+          Long.valueOf(resultSet.getLong("id")).intValue(), resultSet.getString("name"));
     }
   }
 

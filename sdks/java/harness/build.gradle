@@ -56,23 +56,40 @@ ext.summary = "This contains the SDK Fn Harness for Beam Java"
 
 dependencies {
   dependOnShadedProjects.each {
-    compile project(path: it, configuration: "shadow")
+    implementation project(path: it, configuration: "shadow")
   }
   dependOnProjects.each {
-    compile project(it)
+    implementation project(it)
   }
   shadow library.java.vendored_guava_26_0_jre
   shadowTest library.java.powermock
   shadowTest library.java.powermock_mockito
-  compile library.java.joda_time
-  compile library.java.slf4j_api
-  compile library.java.vendored_grpc_1_36_0
-  testCompile library.java.junit
-  testCompile library.java.mockito_core
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile project(":runners:core-construction-java")
-  testCompile project(path: ":sdks:java:fn-execution", configuration: "testRuntime")
+  implementation library.java.joda_time
+  implementation library.java.slf4j_api
+  implementation library.java.vendored_grpc_1_36_0
+  implementation library.java.jamm
+  testImplementation library.java.junit
+  testImplementation library.java.mockito_core
+  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation project(":runners:core-construction-java")
+  testImplementation project(path: ":sdks:java:fn-execution", configuration: "testRuntimeMigration")
   shadowTestRuntimeClasspath library.java.slf4j_jdk14
-  jmhCompile project(path: ":sdks:java:harness", configuration: "shadowTest")
-  jmhRuntime library.java.slf4j_jdk14
+  jmhImplementation project(path: ":sdks:java:harness", configuration: "shadowTest")
+  jmhImplementation project(":runners:java-fn-execution")
+  jmhRuntimeOnly library.java.slf4j_jdk14
+}
+
+jmh {
+  // Specify -Pbenchmark=ProcessBundleBenchmark.testTinyBundle on the command
+  // line to enable running a single benchmark.
+  if (project.hasProperty("benchmark")) {
+    args project.getProperty("benchmark")
+    // Add JVM arguments allowing one to additionally use Google's Java Profiler
+    // Agent: (see https://cloud.google.com/profiler/docs/profiling-java#installing-profiler for instructions on how to install)
+    if (file("/opt/cprof/profiler_java_agent.so").exists()) {
+      def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+      def userName = System.getProperty("user.name").toLowerCase().replaceAll(" ", "_")
+      jvmArgs '-agentpath:/opt/cprof/profiler_java_agent.so=-cprof_service=' + userName + "_" + project.getProperty("benchmark").toLowerCase() + '_' + System.currentTimeMillis() + ',-cprof_project_id=' + gcpProject + ',-cprof_zone_name=us-central1-a'
+    }
+  }
 }

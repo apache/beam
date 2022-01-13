@@ -21,6 +21,8 @@
 
 import dataclasses
 import logging
+import os
+import tempfile
 import typing
 import unittest
 
@@ -40,6 +42,7 @@ from apache_beam.transforms.external import AnnotationBasedPayloadBuilder
 from apache_beam.transforms.external import ImplicitSchemaPayloadBuilder
 from apache_beam.transforms.external import JavaClassLookupPayloadBuilder
 from apache_beam.transforms.external import JavaExternalTransform
+from apache_beam.transforms.external import JavaJarExpansionService
 from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
 from apache_beam.typehints import typehints
 from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
@@ -335,7 +338,7 @@ class ExternalAnnotationPayloadTest(PayloadBase, unittest.TestCase):
           mapping: typing.Mapping[str, float],
           optional_integer: typing.Optional[int] = None,
           expansion_service=None):
-        super(AnnotatedTransform, self).__init__(
+        super().__init__(
             self.URN,
             AnnotationBasedPayloadBuilder(
                 self,
@@ -363,7 +366,7 @@ class ExternalAnnotationPayloadTest(PayloadBase, unittest.TestCase):
           mapping: typehints.Dict[str, float],
           optional_integer: typehints.Optional[int] = None,
           expansion_service=None):
-        super(AnnotatedTransform, self).__init__(
+        super().__init__(
             self.URN,
             AnnotationBasedPayloadBuilder(
                 self,
@@ -545,6 +548,27 @@ class JavaClassLookupPayloadBuilderTest(unittest.TestCase):
     build_method = payload_from_bytes.builder_methods[1]
     self.assertEqual('build', build_method.name)
     self._verify_row(build_method.schema, build_method.payload, {})
+
+
+class JavaJarExpansionServiceTest(unittest.TestCase):
+  def test_classpath(self):
+    with tempfile.TemporaryDirectory() as temp_dir:
+      try:
+        # Avoid having to prefix everything in our test strings.
+        oldwd = os.getcwd()
+        os.chdir(temp_dir)
+        # Touch some files for globing.
+        with open('a1.jar', 'w') as _:
+          pass
+
+        service = JavaJarExpansionService(
+            'main.jar', classpath=['a*.jar', 'b.jar'])
+        self.assertEqual(
+            service._default_args(),
+            ['{{PORT}}', '--filesToStage=main.jar,a1.jar,b.jar'])
+
+      finally:
+        os.chdir(oldwd)
 
 
 if __name__ == '__main__':

@@ -53,7 +53,6 @@ public class SamzaMetricsContainer {
 
   private static final Logger LOG = LoggerFactory.getLogger(SamzaMetricsContainer.class);
   private static final String BEAM_METRICS_GROUP = "BeamMetrics";
-  private static final String DELIMITER = "-";
   // global metrics container is the default container that can be used in user threads
   public static final String GLOBAL_CONTAINER_STEP_NAME = "GLOBAL_METRICS";
   public static final String USE_SHORT_METRIC_NAMES_CONFIG =

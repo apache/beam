@@ -40,8 +40,6 @@ import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
-import org.apache.beam.sdk.fn.IdGenerator;
-import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.server.GrpcFnServer;
 import org.apache.beam.sdk.options.ManualDockerEnvironmentOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -67,8 +65,6 @@ public class DockerEnvironmentFactoryTest {
   private static final Environment ENVIRONMENT = Environments.createDockerEnvironment(IMAGE_NAME);
   private static final String CONTAINER_ID =
       "e4485f0f2b813b63470feacba5fe9cb89699878c095df4124abd320fd5401385";
-
-  private static final IdGenerator ID_GENERATOR = IdGenerators.incrementingLongs();
 
   @Mock DockerCommand docker;
 
@@ -130,7 +126,6 @@ public class DockerEnvironmentFactoryTest {
               docker,
               provisioningServiceServer,
               throwsException ? exceptionClientSource : normalClientSource,
-              ID_GENERATOR,
               pipelineOptions);
       if (throwsException) {
         expectedException.expect(Exception.class);
@@ -209,7 +204,6 @@ public class DockerEnvironmentFactoryTest {
           docker,
           provisioningServiceServer,
           clientSource,
-          ID_GENERATOR,
           PipelineOptionsFactory.as(RemoteEnvironmentOptions.class));
     }
   }

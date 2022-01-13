@@ -394,6 +394,12 @@ class Pipeline(object):
 
     self.visit(TransformUpdater(self))
 
+    # Ensure no type information is lost.
+    for old, new in output_map.items():
+      if new.element_type == typehints.Any:
+        # TODO(robertwb): Perhaps take the intersection?
+        new.element_type = old.element_type
+
     # Adjusting inputs and outputs
     class InputOutputUpdater(PipelineVisitor):  # pylint: disable=used-before-assignment
       """"A visitor that records input and output values to be replaced.
@@ -458,15 +464,15 @@ class Pipeline(object):
 
     self.visit(InputOutputUpdater(self))
 
-    for transform in output_replacements:
-      for tag, output in output_replacements[transform]:
+    for transform, output_replacement in output_replacements.items():
+      for tag, output in output_replacement:
         transform.replace_output(output, tag=tag)
 
-    for transform in input_replacements:
-      transform.replace_inputs(input_replacements[transform])
+    for transform, input_replacement in input_replacements.items():
+      transform.replace_inputs(input_replacement)
 
-    for transform in side_input_replacements:
-      transform.replace_side_inputs(side_input_replacements[transform])
+    for transform, side_input_replacement in side_input_replacements.items():
+      transform.replace_side_inputs(side_input_replacement)
 
   def _check_replacement(self, override):
     # type: (PTransformOverride) -> None
@@ -772,15 +778,17 @@ class Pipeline(object):
         input_types = type_hints.input_types
         if input_types and input_types[0]:
           declared_input_type = input_types[0][0]
-          result_pcollection.element_type = typehints.bind_type_variables(
+          result_element_type = typehints.bind_type_variables(
               declared_output_type,
               typehints.match_type_variables(
                   declared_input_type, input_element_type))
         else:
-          result_pcollection.element_type = declared_output_type
+          result_element_type = declared_output_type
       else:
-        result_pcollection.element_type = transform.infer_output_type(
-            input_element_type)
+        result_element_type = transform.infer_output_type(input_element_type)
+      # Any remaining type variables have no bindings higher than this scope.
+      result_pcollection.element_type = typehints.bind_type_variables(
+          result_element_type, {'*': typehints.Any})
     elif isinstance(result_pcollection, pvalue.DoOutputsTuple):
       # {Single, multi}-input, multi-output inference.
       # TODO(BEAM-4132): Add support for tagged type hints.
@@ -884,7 +892,9 @@ class Pipeline(object):
                   pcoll.element_type)
             if (isinstance(output.element_type,
                            typehints.TupleHint.TupleConstraint) and
-                len(output.element_type.tuple_types) == 2):
+                len(output.element_type.tuple_types) == 2 and
+                pcoll.element_type.tuple_types[0] ==
+                output.element_type.tuple_types[0]):
               output.requires_deterministic_key_coder = (
                   deterministic_key_coders and transform_node.full_label)
         for side_input in transform_node.transform.side_inputs:
@@ -1232,7 +1242,13 @@ class AppliedPTransform(object):
       assert not self.main_inputs and not self.side_inputs
       return {}
     else:
-      return self.transform._named_inputs(self.main_inputs, self.side_inputs)
+      named_inputs = self.transform._named_inputs(
+          self.main_inputs, self.side_inputs)
+      if not self.parts:
+        for name, pc_out in self.outputs.items():
+          if pc_out.producer is not self:
+            named_inputs[f'__implicit_input_{name}'] = pc_out
+      return named_inputs
 
   def named_outputs(self):
     # type: () -> Dict[str, pvalue.PCollection]

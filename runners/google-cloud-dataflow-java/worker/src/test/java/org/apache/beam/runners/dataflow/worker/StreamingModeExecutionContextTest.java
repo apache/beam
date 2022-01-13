@@ -63,9 +63,7 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.util.SerializableUtils;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.hamcrest.Matchers;
@@ -115,11 +113,6 @@ public class StreamingModeExecutionContextTest {
                 "test-work-item-id"),
             executionStateRegistry,
             Long.MAX_VALUE);
-  }
-
-  // Helper to aid type inference
-  private static TupleTag<Iterable<WindowedValue<String>>> newStringTag() {
-    return new TupleTag<>();
   }
 
   @Test
@@ -175,7 +168,7 @@ public class StreamingModeExecutionContextTest {
     // still fire.
     Instant now = Instant.now();
     long offsetMillis = 60 * 1000;
-    Instant timerTimestamp = now.plus(offsetMillis);
+    Instant timerTimestamp = now.plus(Duration.millis(offsetMillis));
     timerBuilder
         .setTag(ByteString.copyFromUtf8("a"))
         .setTimestamp(timerTimestamp.getMillis() * 1000)

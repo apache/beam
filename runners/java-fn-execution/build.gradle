@@ -24,24 +24,25 @@ applyJavaNature(
 description = "Apache Beam :: Runners :: Java Fn Execution"
 
 dependencies {
-  compile library.java.vendored_guava_26_0_jre
-  compile project(":runners:core-construction-java")
-  provided project(":sdks:java:harness")
-  compile project(path: ":model:pipeline", configuration: "shadow")
-  compile project(path: ":model:fn-execution", configuration: "shadow")
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(":sdks:java:fn-execution")
-  compile project(":runners:core-construction-java")
-  compile library.java.vendored_grpc_1_36_0
-  compile library.java.slf4j_api
-  compile project(path: ":model:job-management", configuration: "shadow")
-  compile library.java.joda_time
-  testCompile project(":sdks:java:harness")
-  testCompile project(":runners:core-construction-java")
-  testCompile project(path: ":runners:core-java", configuration: "testRuntime")
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile library.java.junit
-  testCompile library.java.mockito_core
+  implementation library.java.vendored_guava_26_0_jre
+  implementation project(":runners:core-construction-java")
+  implementation project(":runners:core-java")
+  compileOnly project(":sdks:java:harness")
+  implementation project(path: ":model:pipeline", configuration: "shadow")
+  implementation project(path: ":model:fn-execution", configuration: "shadow")
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(":sdks:java:fn-execution")
+  implementation project(":runners:core-construction-java")
+  implementation library.java.vendored_grpc_1_36_0
+  implementation library.java.slf4j_api
+  implementation project(path: ":model:job-management", configuration: "shadow")
+  implementation library.java.joda_time
+  testImplementation project(":sdks:java:harness")
+  testImplementation project(":runners:core-construction-java")
+  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation project(path: ":runners:core-java", configuration: "testRuntimeMigration")
+  testImplementation library.java.junit
+  testImplementation library.java.mockito_core
   testRuntimeOnly library.java.slf4j_simple
 }
 

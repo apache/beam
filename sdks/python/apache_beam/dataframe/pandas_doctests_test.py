@@ -57,7 +57,10 @@ class DoctestTest(unittest.TestCase):
                 # These inputs rely on tail (wont implement, order
                 # sensitive) for verification
                 "df.tail()",
-                "df.loc['2016-01-05':'2016-01-10', :].tail()",
+                "df.truncate(before=pd.Timestamp('2016-01-05'),\n"
+                "            after=pd.Timestamp('2016-01-10')).tail()",
+                "df.truncate('2016-01-05', '2016-01-10').tail()",
+                "df.loc['2016-01-05':'2016-01-10', :].tail()"
             ],
             'pandas.core.generic.NDFrame.replace': [
                 "s.replace([1, 2], method='bfill')",
@@ -275,6 +278,10 @@ class DoctestTest(unittest.TestCase):
                 "df.set_index([s, s**2])",
             ],
 
+            'pandas.core.frame.DataFrame.set_axis': [
+                "df.set_axis(range(0,2), axis='index')",
+            ],
+
             # TODO(BEAM-12495)
             'pandas.core.frame.DataFrame.value_counts': [
               'df.value_counts(dropna=False)'
@@ -293,6 +300,7 @@ class DoctestTest(unittest.TestCase):
                 # Returns deferred index.
                 'df.axes',
             ],
+            # Skipped because the relies on loc to set cells in df2
             'pandas.core.frame.DataFrame.compare': ['*'],
             'pandas.core.frame.DataFrame.cov': [
                 # Relies on setting entries ahead of time.
@@ -300,8 +308,6 @@ class DoctestTest(unittest.TestCase):
                 "df.loc[df.index[5:10], 'b'] = np.nan",
                 'df.cov(min_periods=12)',
             ],
-            'pandas.core.frame.DataFrame.idxmax': ['*'],
-            'pandas.core.frame.DataFrame.idxmin': ['*'],
             'pandas.core.frame.DataFrame.rename': [
                 # Returns deferred index.
                 'df.index',
@@ -312,7 +318,11 @@ class DoctestTest(unittest.TestCase):
                 # a DeferredIndex, and we should fail it as order-sensitive.
                 "df.set_index([pd.Index([1, 2, 3, 4]), 'year'])",
             ],
-            'pandas.core.frame.DataFrame.set_axis': ['*'],
+            'pandas.core.frame.DataFrame.set_axis': [
+                # This should pass as set_axis(axis='columns')
+                # and fail with set_axis(axis='index')
+                "df.set_axis(['a', 'b', 'c'], axis='index')"
+            ],
             'pandas.core.frame.DataFrame.to_markdown': ['*'],
             'pandas.core.frame.DataFrame.to_parquet': ['*'],
 
@@ -491,15 +501,15 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.append': [
                 's1.append(s2, verify_integrity=True)',
             ],
-            # Throws NotImplementedError when modifying df
-            'pandas.core.series.Series.compare': ['*'],
             'pandas.core.series.Series.cov': [
                 # Differs in LSB on jenkins.
                 "s1.cov(s2)",
             ],
+            # Skipped idxmax/idxmin due an issue with the test framework
+            'pandas.core.series.Series.idxmin': ['s.idxmin()'],
+            'pandas.core.series.Series.idxmax': ['s.idxmax()'],
             'pandas.core.series.Series.duplicated': ['*'],
-            'pandas.core.series.Series.idxmax': ['*'],
-            'pandas.core.series.Series.idxmin': ['*'],
+            'pandas.core.series.Series.set_axis': ['*'],
             'pandas.core.series.Series.nonzero': ['*'],
             'pandas.core.series.Series.pop': ['ser'],  # testing side effect
             # Raises right exception, but testing framework has matching issues.
@@ -510,7 +520,6 @@ class DoctestTest(unittest.TestCase):
                 # This doctest seems to be incorrectly parsed.
                 "x = pd.Categorical(['apple', 'bread', 'bread',"
             ],
-            'pandas.core.series.Series.set_axis': ['*'],
             'pandas.core.series.Series.to_csv': ['*'],
             'pandas.core.series.Series.to_markdown': ['*'],
             'pandas.core.series.Series.update': ['*'],
@@ -650,9 +659,6 @@ class DoctestTest(unittest.TestCase):
         not_implemented_ok={
             'pandas.core.groupby.groupby.GroupBy.ngroup': ['*'],
             'pandas.core.groupby.groupby.GroupBy.sample': ['*'],
-            'pandas.core.groupby.groupby.BaseGroupBy.pipe': ['*'],
-            # pipe tests are in a different location in pandas 1.1.x
-            'pandas.core.groupby.groupby._GroupBy.pipe': ['*'],
             'pandas.core.groupby.groupby.GroupBy.nth': [
                 "df.groupby('A', as_index=False).nth(1)",
             ],
@@ -736,6 +742,9 @@ class DoctestTest(unittest.TestCase):
                 # Dropping invalid columns during a transform is unsupported.
                 'grouped.transform(lambda x: (x - x.mean()) / x.std())'
             ],
+            # Skipped idxmax/idxmin due an issue with the test framework
+            'pandas.core.groupby.generic.SeriesGroupBy.idxmin': ['s.idxmin()'],
+            'pandas.core.groupby.generic.SeriesGroupBy.idxmax': ['s.idxmax()'],
         })
     self.assertEqual(result.failed, 0)
 

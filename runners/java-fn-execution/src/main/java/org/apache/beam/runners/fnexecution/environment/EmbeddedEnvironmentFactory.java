@@ -25,6 +25,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
+import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.fn.harness.FnHarness;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
@@ -106,7 +107,8 @@ public class EmbeddedEnvironmentFactory implements EnvironmentFactory {
                     controlServer.getApiServiceDescriptor(),
                     null,
                     InProcessManagedChannelFactory.create(),
-                    OutboundObserverFactory.clientDirect());
+                    OutboundObserverFactory.clientDirect(),
+                    Caches.fromOptions(options));
               } catch (NoClassDefFoundError e) {
                 // TODO: https://issues.apache.org/jira/browse/BEAM-4384 load the FnHarness in a
                 // Restricted classpath that we control for any user.
@@ -139,8 +141,7 @@ public class EmbeddedEnvironmentFactory implements EnvironmentFactory {
         if (executor.isShutdown()) {
           throw new IllegalStateException("FnHarness startup failed");
         }
-        // TODO: find some way to populate the actual ID in FnHarness.main()
-        handler = clientSource.take("", Duration.ofSeconds(5L));
+        handler = clientSource.take(workerId, Duration.ofSeconds(5L));
       } catch (TimeoutException timeoutEx) {
         LOG.info("Still waiting for startup of FnHarness");
       } catch (InterruptedException interruptEx) {

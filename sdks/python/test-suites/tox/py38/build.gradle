@@ -34,16 +34,47 @@ apply from: "../common.gradle"
 // TODO(BEAM-8954): Remove this once tox uses isolated builds.
 testPy38Cython.mustRunAfter testPython38, testPy38CloudCoverage
 
+// Create a test task for each major version of pyarrow
 toxTask "testPy38pyarrow-0", "py38-pyarrow-0"
-toxTask "testPy38pyarrow-1", "py38-pyarrow-1"
-toxTask "testPy38pyarrow-2", "py38-pyarrow-2"
-toxTask "testPy38pyarrow-3", "py38-pyarrow-3"
-toxTask "testPy38pyarrow-4", "py38-pyarrow-4"
 test.dependsOn "testPy38pyarrow-0"
+preCommitPy38.dependsOn "testPy38pyarrow-0"
+
+toxTask "testPy38pyarrow-1", "py38-pyarrow-1"
 test.dependsOn "testPy38pyarrow-1"
+preCommitPy38.dependsOn "testPy38pyarrow-1"
+
+toxTask "testPy38pyarrow-2", "py38-pyarrow-2"
 test.dependsOn "testPy38pyarrow-2"
+preCommitPy38.dependsOn "testPy38pyarrow-2"
+
+toxTask "testPy38pyarrow-3", "py38-pyarrow-3"
 test.dependsOn "testPy38pyarrow-3"
+preCommitPy38.dependsOn "testPy38pyarrow-3"
+
+toxTask "testPy38pyarrow-4", "py38-pyarrow-4"
 test.dependsOn "testPy38pyarrow-4"
+preCommitPy38.dependsOn "testPy38pyarrow-4"
+
+toxTask "testPy38pyarrow-5", "py38-pyarrow-5"
+test.dependsOn "testPy38pyarrow-5"
+preCommitPy38.dependsOn "testPy38pyarrow-5"
+
+toxTask "testPy38pyarrow-6", "py38-pyarrow-6"
+test.dependsOn "testPy38pyarrow-6"
+preCommitPy38.dependsOn "testPy38pyarrow-6"
+
+// Create a test task for each minor version of pandas
+toxTask "testPy38pandas-11", "py38-pandas-11"
+test.dependsOn "testPy38pandas-11"
+preCommitPy38.dependsOn "testPy38pandas-11"
+
+toxTask "testPy38pandas-12", "py38-pandas-12"
+test.dependsOn "testPy38pandas-12"
+preCommitPy38.dependsOn "testPy38pandas-12"
+
+toxTask "testPy38pandas-13", "py38-pandas-13"
+test.dependsOn "testPy38pandas-13"
+preCommitPy38.dependsOn "testPy38pandas-13"
 
 toxTask "whitespacelint", "whitespacelint"
 

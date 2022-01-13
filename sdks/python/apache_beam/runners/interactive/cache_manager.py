@@ -194,7 +194,9 @@ class FileBasedCacheManager(CacheManager):
     return 0
 
   def exists(self, *labels):
-    return bool(self._match(*labels))
+    if labels and any(labels[1:]):
+      return bool(self._match(*labels))
+    return False
 
   def _latest_version(self, *labels):
     timestamp = 0
@@ -345,7 +347,7 @@ class WriteCache(beam.PTransform):
 class SafeFastPrimitivesCoder(coders.Coder):
   """This class add an quote/unquote step to escape special characters."""
 
-  # pylint: disable=deprecated-urllib-function
+  # pylint: disable=bad-option-value
 
   def encode(self, value):
     return quote(

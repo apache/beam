@@ -125,7 +125,7 @@ class _BeamArgumentParser(argparse.ArgumentParser):
   def error(self, message):
     if message.startswith('ambiguous option: '):
       return
-    super(_BeamArgumentParser, self).error(message)
+    super().error(message)
 
 
 class PipelineOptions(HasDisplayData):
@@ -391,7 +391,7 @@ class PipelineOptions(HasDisplayData):
 
   def __setattr__(self, name, value):
     if name in ('_flags', '_all_options', '_visible_options'):
-      super(PipelineOptions, self).__setattr__(name, value)
+      super().__setattr__(name, value)
     elif name in self._visible_option_list():
       self._all_options[name] = value
     else:
@@ -707,7 +707,9 @@ class GoogleCloudOptions(PipelineOptions):
         help=(
             'Options to configure the Dataflow service. These '
             'options decouple service side feature availbility '
-            'from the Apache Beam release cycle.'))
+            'from the Apache Beam release cycle.'
+            'Note: If set programmatically, must be set as a '
+            'list of strings'))
     parser.add_argument(
         '--enable_hot_key_logging',
         default=False,
@@ -715,6 +717,13 @@ class GoogleCloudOptions(PipelineOptions):
         help='When true, will enable the direct logging of any detected hot '
         'keys into Cloud Logging. Warning: this will log the literal key as an '
         'unobfuscated string.')
+    parser.add_argument(
+        '--enable_artifact_caching',
+        default=False,
+        action='store_true',
+        help=
+        'When true, artifacts will be cached across job submissions in the GCS '
+        'staging bucket')
 
   def _create_default_gcs_bucket(self):
     try:
@@ -751,6 +760,12 @@ class GoogleCloudOptions(PipelineOptions):
         errors.append(
             '--dataflow_job_file and --template_location '
             'are mutually exclusive.')
+
+    # Validate that dataflow_service_options is a list
+    if self.dataflow_service_options:
+      errors.extend(
+          validator.validate_repeatable_argument_passed_as_list(
+              self, 'dataflow_service_options'))
 
     return errors
 
@@ -984,6 +999,14 @@ class DebugOptions(PipelineOptions):
         return experiment.split('=', 1)[1]
     return default
 
+  def validate(self, validator):
+    errors = []
+    if self.experiments:
+      errors.extend(
+          validator.validate_repeatable_argument_passed_as_list(
+              self, 'experiments'))
+    return errors
+
 
 class ProfilingOptions(PipelineOptions):
   @classmethod
@@ -1056,6 +1079,12 @@ class SetupOptions(PipelineOptions):
             'currently an experimental flag and provides no stability. '
             'Multiple --beam_plugin options can be specified if more than '
             'one plugin is needed.'))
+    parser.add_argument(
+        '--pickle_library',
+        default='default',
+        help=(
+            'Chooses which pickle library to use. Options are dill, '
+            'cloudpickle or default.'))
     parser.add_argument(
         '--save_main_session',
         default=False,

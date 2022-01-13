@@ -172,6 +172,8 @@ import org.slf4j.LoggerFactory;
 
 /** Unit tests for {@link StreamingDataflowWorker}. */
 @RunWith(Parameterized.class)
+// TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
+@SuppressWarnings("unused")
 public class StreamingDataflowWorkerTest {
 
   private final boolean streamingEngine;
@@ -188,7 +190,7 @@ public class StreamingDataflowWorkerTest {
   private static final Logger LOG = LoggerFactory.getLogger(StreamingDataflowWorkerTest.class);
 
   private static final IntervalWindow DEFAULT_WINDOW =
-      new IntervalWindow(new Instant(1234), new Duration(1000));
+      new IntervalWindow(new Instant(1234), Duration.millis(1000));
 
   private static final IntervalWindow WINDOW_AT_ZERO =
       new IntervalWindow(new Instant(0), new Instant(1000));
@@ -799,7 +801,7 @@ public class StreamingDataflowWorkerTest {
           makeInput(i, TimeUnit.MILLISECONDS.toMicros(i), "key", DEFAULT_SHARDING_KEY));
     }
 
-    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(numIters);
+    server.waitForAndGetCommits(numIters);
     worker.stop();
 
     verify(hotKeyLogger, atLeastOnce())
@@ -835,7 +837,7 @@ public class StreamingDataflowWorkerTest {
           makeInput(i, TimeUnit.MILLISECONDS.toMicros(i), "key", DEFAULT_SHARDING_KEY));
     }
 
-    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(numIters);
+    server.waitForAndGetCommits(numIters);
     worker.stop();
 
     verify(hotKeyLogger, atLeastOnce()).logHotKeyDetection(nullable(String.class), any());

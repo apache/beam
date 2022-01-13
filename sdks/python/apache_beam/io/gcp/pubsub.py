@@ -116,15 +116,14 @@ class PubsubMessage(object):
     Returns:
       A new PubsubMessage object.
     """
-    msg = pubsub.types.pubsub_pb2.PubsubMessage()
-    msg.ParseFromString(proto_msg)
+    msg = pubsub.types.PubsubMessage.deserialize(proto_msg)
     # Convert ScalarMapContainer to dict.
     attributes = dict((key, msg.attributes[key]) for key in msg.attributes)
     return PubsubMessage(
         msg.data,
         attributes,
         msg.message_id,
-        msg.publish_time.ToDatetime(),
+        msg.publish_time,
         msg.ordering_key)
 
   def _to_proto_str(self, for_publish=False):
@@ -141,16 +140,16 @@ class PubsubMessage(object):
       https://cloud.google.com/pubsub/docs/reference/rpc/google.pubsub.v1#google.pubsub.v1.PubsubMessage
       containing the payload of this object.
     """
-    msg = pubsub.types.pubsub_pb2.PubsubMessage()
+    msg = pubsub.types.PubsubMessage()
     msg.data = self.data
     for key, value in self.attributes.items():
       msg.attributes[key] = value
     if self.message_id and not for_publish:
       msg.message_id = self.message_id
     if self.publish_time and not for_publish:
-      msg.publish_time = msg.publish_time.FromDatetime(self.publish_time)
+      msg.publish_time = self.publish_time
     msg.ordering_key = self.ordering_key
-    return msg.SerializeToString()
+    return pubsub.types.PubsubMessage.serialize(msg)
 
   @staticmethod
   def _from_message(msg):
@@ -219,7 +218,7 @@ class ReadFromPubSub(PTransform):
           timestamp is optional, and digits beyond the first three (i.e., time
           units smaller than milliseconds) may be ignored.
     """
-    super(ReadFromPubSub, self).__init__()
+    super().__init__()
     self.with_attributes = with_attributes
     self._source = _PubSubSource(
         topic=topic,
@@ -250,7 +249,7 @@ def ReadStringsFromPubSub(topic=None, subscription=None, id_label=None):
 class _ReadStringsFromPubSub(PTransform):
   """This class is deprecated. Use ``ReadFromPubSub`` instead."""
   def __init__(self, topic=None, subscription=None, id_label=None):
-    super(_ReadStringsFromPubSub, self).__init__()
+    super().__init__()
     self.topic = topic
     self.subscription = subscription
     self.id_label = id_label
@@ -278,7 +277,7 @@ class _WriteStringsToPubSub(PTransform):
     Attributes:
       topic: Cloud Pub/Sub topic in the form "/topics/<project>/<topic>".
     """
-    super(_WriteStringsToPubSub, self).__init__()
+    super().__init__()
     self.topic = topic
 
   def expand(self, pcoll):
@@ -315,7 +314,7 @@ class WriteToPubSub(PTransform):
       timestamp_attribute: If set, will set an attribute for each Cloud Pub/Sub
         message with the given name and the message's publish time as the value.
     """
-    super(WriteToPubSub, self).__init__()
+    super().__init__()
     self.with_attributes = with_attributes
     self.id_label = id_label
     self.timestamp_attribute = timestamp_attribute
@@ -335,9 +334,9 @@ class WriteToPubSub(PTransform):
   @staticmethod
   def bytes_to_proto_str(element):
     # type: (bytes) -> bytes
-    msg = pubsub.types.pubsub_pb2.PubsubMessage()
+    msg = pubsub.types.PubsubMessage()
     msg.data = element
-    return msg.SerializeToString()
+    return pubsub.types.PubsubMessage.serialize(msg)
 
   def expand(self, pcoll):
     if self.with_attributes:

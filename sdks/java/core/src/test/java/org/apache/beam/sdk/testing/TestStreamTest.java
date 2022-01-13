@@ -36,7 +36,6 @@ import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.state.ValueState;
-import org.apache.beam.sdk.testing.TestStream.Builder;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -78,6 +77,8 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link TestStream}. */
 @RunWith(JUnit4.class)
+// TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
+@SuppressWarnings("unused")
 public class TestStreamTest implements Serializable {
   @Rule public transient TestPipeline p = TestPipeline.create();
   @Rule public transient ExpectedException thrown = ExpectedException.none();
@@ -326,16 +327,18 @@ public class TestStreamTest implements Serializable {
 
   @Test
   public void testElementAtPositiveInfinityThrows() {
-    Builder<Integer> stream =
+    TestStream.Builder<Integer> stream =
         TestStream.create(VarIntCoder.of())
-            .addElements(TimestampedValue.of(-1, BoundedWindow.TIMESTAMP_MAX_VALUE.minus(1L)));
+            .addElements(
+                TimestampedValue.of(
+                    -1, BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.millis(1L))));
     thrown.expect(IllegalArgumentException.class);
     stream.addElements(TimestampedValue.of(1, BoundedWindow.TIMESTAMP_MAX_VALUE));
   }
 
   @Test
   public void testAdvanceWatermarkNonMonotonicThrows() {
-    Builder<Integer> stream =
+    TestStream.Builder<Integer> stream =
         TestStream.create(VarIntCoder.of()).advanceWatermarkTo(new Instant(0L));
     thrown.expect(IllegalArgumentException.class);
     stream.advanceWatermarkTo(new Instant(-1L));
@@ -343,9 +346,9 @@ public class TestStreamTest implements Serializable {
 
   @Test
   public void testAdvanceWatermarkEqualToPositiveInfinityThrows() {
-    Builder<Integer> stream =
+    TestStream.Builder<Integer> stream =
         TestStream.create(VarIntCoder.of())
-            .advanceWatermarkTo(BoundedWindow.TIMESTAMP_MAX_VALUE.minus(1L));
+            .advanceWatermarkTo(BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.millis(1L)));
     thrown.expect(IllegalArgumentException.class);
     stream.advanceWatermarkTo(BoundedWindow.TIMESTAMP_MAX_VALUE);
   }
@@ -437,6 +440,7 @@ public class TestStreamTest implements Serializable {
             .apply(
                 ParDo.of(
                     new DoFn<KV<String, String>, String>() {
+
                       @StateId("seen")
                       private final StateSpec<ValueState<String>> seenSpec =
                           StateSpecs.value(StringUtf8Coder.of());

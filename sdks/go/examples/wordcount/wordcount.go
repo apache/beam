@@ -55,11 +55,21 @@
 // with --input.
 package main
 
+// beam-playground:
+//   name: WordCount
+//   description: An example that counts words in Shakespeare's works.
+//   multifile: false
+//   pipeline_options: --output output.txt
+//   categories:
+//     - Combiners
+//     - Options
+
 import (
 	"context"
 	"flag"
 	"fmt"
 	"log"
+	"reflect"
 	"regexp"
 	"strings"
 
@@ -107,6 +117,7 @@ var (
 // by calling beam.RegisterFunction in an init() call.
 func init() {
 	beam.RegisterFunction(formatFn)
+	beam.RegisterType(reflect.TypeOf((*extractFn)(nil)))
 }
 
 var (

@@ -136,7 +136,7 @@ public class GroupTest implements Serializable {
                         toRow.apply(Basic.of("key2", 4L, "value4"))))
                 .build());
 
-    PAssert.that(grouped).satisfies(actual -> containsKIterableVs(expected, actual, new Basic[0]));
+    PAssert.that(grouped).satisfies(actual -> containsKIterableVs(expected, actual));
     pipeline.run();
   }
 
@@ -179,7 +179,7 @@ public class GroupTest implements Serializable {
                         toRow.apply(Basic.of("key2", 2L, "value4"))))
                 .build());
 
-    PAssert.that(grouped).satisfies(actual -> containsKIterableVs(expected, actual, new Basic[0]));
+    PAssert.that(grouped).satisfies(actual -> containsKIterableVs(expected, actual));
     pipeline.run();
   }
 
@@ -238,7 +238,7 @@ public class GroupTest implements Serializable {
                         toRow.apply(Outer.of(Basic.of("key2", 2L, "value4")))))
                 .build());
 
-    PAssert.that(grouped).satisfies(actual -> containsKIterableVs(expected, actual, new Outer[0]));
+    PAssert.that(grouped).satisfies(actual -> containsKIterableVs(expected, actual));
     pipeline.run();
   }
 
@@ -537,7 +537,7 @@ public class GroupTest implements Serializable {
   @DefaultSchema(AutoValueSchema.class)
   @AutoValue
   abstract static class BasicEnum {
-    enum Test {
+    enum TestEnum {
       ZERO,
       ONE,
       TWO
@@ -545,9 +545,9 @@ public class GroupTest implements Serializable {
 
     abstract String getKey();
 
-    abstract Test getEnumeration();
+    abstract TestEnum getEnumeration();
 
-    static BasicEnum of(String key, Test value) {
+    static BasicEnum of(String key, TestEnum value) {
       return new AutoValue_GroupTest_BasicEnum(key, value);
     }
   }
@@ -565,7 +565,7 @@ public class GroupTest implements Serializable {
   public void testAggregateBaseValuesGlobally() {
     Collection<BasicEnum> elements =
         Lists.newArrayList(
-            BasicEnum.of("a", BasicEnum.Test.ONE), BasicEnum.of("a", BasicEnum.Test.TWO));
+            BasicEnum.of("a", BasicEnum.TestEnum.ONE), BasicEnum.of("a", BasicEnum.TestEnum.TWO));
 
     PCollection<Row> aggregate =
         pipeline
@@ -585,7 +585,7 @@ public class GroupTest implements Serializable {
   public void testAggregateLogicalValuesGlobally() {
     Collection<BasicEnum> elements =
         Lists.newArrayList(
-            BasicEnum.of("a", BasicEnum.Test.ONE), BasicEnum.of("a", BasicEnum.Test.TWO));
+            BasicEnum.of("a", BasicEnum.TestEnum.ONE), BasicEnum.of("a", BasicEnum.TestEnum.TWO));
 
     CombineFn<EnumerationType.Value, ?, Iterable<EnumerationType.Value>> sampleAnyCombineFn =
         Sample.anyCombineFn(100);
@@ -617,9 +617,7 @@ public class GroupTest implements Serializable {
     pipeline.run();
   }
 
-  private static <T> Void containsKIterableVs(
-      List<Row> expectedKvs, Iterable<Row> actualKvs, T[] emptyArray) {
-    List<Row> list = Lists.newArrayList(actualKvs);
+  private static <T> Void containsKIterableVs(List<Row> expectedKvs, Iterable<Row> actualKvs) {
     List<Matcher<? super Row>> matchers = new ArrayList<>();
     for (Row expected : expectedKvs) {
       List<Matcher> fieldMatchers = Lists.newArrayList();

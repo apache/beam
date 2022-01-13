@@ -17,11 +17,9 @@
 
 # pytype: skip-file
 
-import itertools
-from array import array
-
 from apache_beam.coders import typecoders
-from apache_beam.coders.coder_impl import StreamCoderImpl
+from apache_beam.coders.coder_impl import LogicalTypeCoderImpl
+from apache_beam.coders.coder_impl import RowCoderImpl
 from apache_beam.coders.coders import BooleanCoder
 from apache_beam.coders.coders import BytesCoder
 from apache_beam.coders.coders import Coder
@@ -31,7 +29,6 @@ from apache_beam.coders.coders import IterableCoder
 from apache_beam.coders.coders import MapCoder
 from apache_beam.coders.coders import NullableCoder
 from apache_beam.coders.coders import StrUtf8Coder
-from apache_beam.coders.coders import TupleCoder
 from apache_beam.coders.coders import VarIntCoder
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import schema_pb2
@@ -50,7 +47,7 @@ class RowCoder(FastCoder):
 
   Implements the beam:coder:row:v1 standard coder spec.
   """
-  def __init__(self, schema):
+  def __init__(self, schema, force_deterministic=False):
     """Initializes a :class:`RowCoder`.
 
     Args:
@@ -59,10 +56,19 @@ class RowCoder(FastCoder):
         to encode/decode.
     """
     self.schema = schema
+
+    # Eagerly generate type hint to escalate any issues with the Schema proto
+    self._type_hint = named_tuple_from_schema(self.schema)
+
     # Use non-null coders because null values are represented separately
     self.components = [
         _nonnull_coder_from_type(field.type) for field in self.schema.fields
     ]
+    if force_deterministic:
+      self.components = [
+          c.as_deterministic_coder(force_deterministic) for c in self.components
+      ]
+    self.forced_deterministic = bool(force_deterministic)
 
   def _create_impl(self):
     return RowCoderImpl(self.schema, self.components)
@@ -70,14 +76,22 @@ class RowCoder(FastCoder):
   def is_deterministic(self):
     return all(c.is_deterministic() for c in self.components)
 
+  def as_deterministic_coder(self, step_label, error_message=None):
+    if self.is_deterministic():
+      return self
+    else:
+      return RowCoder(self.schema, error_message or step_label)
+
   def to_type_hint(self):
-    return named_tuple_from_schema(self.schema)
+    return self._type_hint
 
   def __hash__(self):
     return hash(self.schema.SerializeToString())
 
   def __eq__(self, other):
-    return type(self) == type(other) and self.schema == other.schema
+    return (
+        type(self) == type(other) and self.schema == other.schema and
+        self.forced_deterministic == other.forced_deterministic)
 
   def to_runner_api_parameter(self, unused_context):
     return (common_urns.coders.ROW.urn, self.schema, [])
@@ -152,74 +166,6 @@ def _nonnull_coder_from_type(field_type):
       field_type)
 
 
-class RowCoderImpl(StreamCoderImpl):
-  """For internal use only; no backwards-compatibility guarantees."""
-  SIZE_CODER = VarIntCoder().get_impl()
-  NULL_MARKER_CODER = BytesCoder().get_impl()
-
-  def __init__(self, schema, components):
-    self.schema = schema
-    self.constructor = named_tuple_from_schema(schema)
-    self.components = list(c.get_impl() for c in components)
-    self.has_nullable_fields = any(
-        field.type.nullable for field in self.schema.fields)
-
-  def encode_to_stream(self, value, out, nested):
-    nvals = len(self.schema.fields)
-    self.SIZE_CODER.encode_to_stream(nvals, out, True)
-    attrs = [getattr(value, f.name) for f in self.schema.fields]
-
-    words = array('B')
-    if self.has_nullable_fields:
-      nulls = list(attr is None for attr in attrs)
-      if any(nulls):
-        words = array('B', itertools.repeat(0, (nvals + 7) // 8))
-        for i, is_null in enumerate(nulls):
-          words[i // 8] |= is_null << (i % 8)
-
-    self.NULL_MARKER_CODER.encode_to_stream(words.tobytes(), out, True)
-
-    for c, field, attr in zip(self.components, self.schema.fields, attrs):
-      if attr is None:
-        if not field.type.nullable:
-          raise ValueError(
-              "Attempted to encode null for non-nullable field \"{}\".".format(
-                  field.name))
-        continue
-      c.encode_to_stream(attr, out, True)
-
-  def decode_from_stream(self, in_stream, nested):
-    nvals = self.SIZE_CODER.decode_from_stream(in_stream, True)
-    words = array('B')
-    words.frombytes(self.NULL_MARKER_CODER.decode_from_stream(in_stream, True))
-
-    if words:
-      nulls = ((words[i // 8] >> (i % 8)) & 0x01 for i in range(nvals))
-    else:
-      nulls = itertools.repeat(False, nvals)
-
-    # If this coder's schema has more attributes than the encoded value, then
-    # the schema must have changed. Populate the unencoded fields with nulls.
-    if len(self.components) > nvals:
-      nulls = itertools.chain(
-          nulls, itertools.repeat(True, len(self.components) - nvals))
-
-    # Note that if this coder's schema has *fewer* attributes than the encoded
-    # value, we just need to ignore the additional values, which will occur
-    # here because we only decode as many values as we have coders for.
-    return self.constructor(
-        *(
-            None if is_null else c.decode_from_stream(in_stream, True) for c,
-            is_null in zip(self.components, nulls)))
-
-  def _make_value_coder(self, nulls=itertools.repeat(False)):
-    components = [
-        component for component,
-        is_null in zip(self.components, nulls) if not is_null
-    ] if self.has_nullable_fields else self.components
-    return TupleCoder(components).get_impl()
-
-
 class LogicalTypeCoder(FastCoder):
   def __init__(self, logical_type, representation_coder):
     self.logical_type = logical_type
@@ -233,17 +179,3 @@ class LogicalTypeCoder(FastCoder):
 
   def to_type_hint(self):
     return self.logical_type.language_type()
-
-
-class LogicalTypeCoderImpl(StreamCoderImpl):
-  def __init__(self, logical_type, representation_coder):
-    self.logical_type = logical_type
-    self.representation_coder = representation_coder.get_impl()
-
-  def encode_to_stream(self, value, out, nested):
-    return self.representation_coder.encode_to_stream(
-        self.logical_type.to_representation_type(value), out, nested)
-
-  def decode_from_stream(self, in_stream, nested):
-    return self.logical_type.to_language_type(
-        self.representation_coder.decode_from_stream(in_stream, nested))

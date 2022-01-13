@@ -160,8 +160,9 @@ function install_sdk() {
   print_separator "Creating new virtualenv with $2 interpreter and installing the SDK from $sdk_file."
   gsutil version -l
   rm -rf ./temp_virtualenv_${2}
-  virtualenv temp_virtualenv_${2} -p $2
-  . temp_virtualenv_${2}/bin/activate
+  $2 -m venv temp_virtualenv_${2}
+  . ./temp_virtualenv_${2}/bin/activate
+  pip install --upgrade pip setuptools wheel
   gcloud_version=$(gcloud --version | head -1 | awk '{print $4}')
   if [[ "$gcloud_version" < "189" ]]; then
     update_gcloud
