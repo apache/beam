@@ -72,7 +72,7 @@ func TestQueryCache_EmptyCase(t *testing.T) {
 	}
 	output := s.QueryCache(ctx, "side1", "transform1", win, key)
 	if output != nil {
-		t.Errorf("Cache hit when it should have missed, got %v", output)
+		t.Errorf("cache hit when it should have missed, got %v", output)
 	}
 }
 
@@ -89,7 +89,7 @@ func TestSetCache_UncacheableCase(t *testing.T) {
 	s.SetCache(ctx, "t1", "s1", win, key, input)
 	output := s.QueryCache(ctx, "t1", "s1", win, key)
 	if output != nil {
-		t.Errorf("Cache hit when should have missed, got %v", output)
+		t.Errorf("cache hit when should have missed, got %v", output)
 	}
 }
 
@@ -117,7 +117,7 @@ func TestSetCache_CacheableCase(t *testing.T) {
 		t.Errorf("failed to convert value to integer, got %v", getValue(output))
 	}
 	if val != 10 {
-		t.Errorf("element mismatch, expected 10, got %v", val)
+		t.Errorf("element mismatch, got %v, want 10", val)
 	}
 }
 
@@ -131,6 +131,10 @@ func makeRequest(transformID, sideInputID string, t token) *fnpb.ProcessBundleRe
 			},
 		},
 	}
+}
+
+func makeCacheToken(transformID, sideInputID string, tok token) cacheToken {
+	return cacheToken{transformID: transformID, sideInputID: sideInputID, tok: tok}
 }
 
 func TestSetValidTokens(t *testing.T) {
@@ -169,19 +173,20 @@ func TestSetValidTokens(t *testing.T) {
 	}
 
 	s.SetValidTokens(tokens...)
-	if len(s.idsToTokens) != len(inputs) {
-		t.Errorf("Missing tokens, expected %v, got %v", len(inputs), len(s.idsToTokens))
+	if got, want := len(s.idsToTokens), len(inputs); got != want {
+		t.Errorf("got %d tokens, want %d", got, want)
 	}
 
 	for i, input := range inputs {
+		fullTok := makeCacheToken(input.transformID, input.sideInputID, input.tok)
 		// Check that the token is in the valid list
-		if !s.isValid(input.tok) {
-			t.Errorf("error in input %v, token %v is not valid", i, input.tok)
+		if !s.isValid(fullTok) {
+			t.Errorf("error in input %v, token %v is not valid", i, fullTok)
 		}
 		// Check that the mapping of IDs to tokens is correct
-		mapped := s.idsToTokens[input.transformID+input.sideInputID]
-		if mapped != input.tok {
-			t.Errorf("token mismatch for input %v, expected %v, got %v", i, input.tok, mapped)
+		got := s.idsToTokens[input.transformID+input.sideInputID]
+		if got != input.tok {
+			t.Errorf("got token %v for element %d, want %v", got, i, input.tok)
 		}
 	}
 }
@@ -221,21 +226,22 @@ func TestSetValidTokens_ClearingBetween(t *testing.T) {
 		s.SetValidTokens(tok)
 
 		// Check that the token is in the valid list
-		if !s.isValid(input.tk) {
+		fullTok := makeCacheToken(input.transformID, input.sideInputID, input.tk)
+		if !s.isValid(fullTok) {
 			t.Errorf("error in input %v, token %v is not valid", i, input.tk)
 		}
 		// Check that the mapping of IDs to tokens is correct
-		mapped := s.idsToTokens[input.transformID+input.sideInputID]
-		if mapped != input.tk {
-			t.Errorf("token mismatch for input %v, expected %v, got %v", i, input.tk, mapped)
+		got := s.idsToTokens[input.transformID+input.sideInputID]
+		if got != input.tk {
+			t.Errorf("got token %v for element %d, want %v", got, i, input.tk)
 		}
 
 		s.CompleteBundle(tok)
 	}
 
 	for k := range s.validTokens {
-		if s.validTokens[k] != 0 {
-			t.Errorf("token count mismatch for token %v, expected 0, got %v", k, s.validTokens[k])
+		if got, want := s.validTokens[k], int8(0); got != want {
+			t.Errorf("got %d total valid tokens, want %d", got, want)
 		}
 	}
 }
@@ -262,11 +268,11 @@ func TestSetCache_Eviction(t *testing.T) {
 	s.SetValidTokens(tokTwo)
 	s.SetCache(ctx, "t2", "s2", win, key, inTwo)
 
-	if len(s.cache) != 1 {
-		t.Errorf("cache size incorrect, expected 1, got %v", len(s.cache))
+	if got, want := len(s.cache), 1; got != want {
+		t.Errorf("got %d elements in cache, want %d", got, want)
 	}
-	if s.metrics.Evictions != 1 {
-		t.Errorf("number evictions incorrect, expected 1, got %v", s.metrics.Evictions)
+	if got, want := s.metrics.Evictions, int64(1); got != want {
+		t.Errorf("got %d evictions, want %d", got, want)
 	}
 }
 
@@ -291,10 +297,10 @@ func TestSetCache_EvictionFailure(t *testing.T) {
 	// Should fail to evict because the first token is still valid
 	s.SetCache(ctx, "t2", "s2", win, key, inTwo)
 	// Cache should not exceed size 1
-	if len(s.cache) != 1 {
-		t.Errorf("cache size incorrect, expected 1, got %v", len(s.cache))
+	if got, want := len(s.cache), 1; got != want {
+		t.Errorf("got cache size of %d, want %d", got, want)
 	}
-	if s.metrics.InUseEvictions != 1 {
-		t.Errorf("number of failed evicition calls incorrect, expected 1, got %v", s.metrics.InUseEvictions)
+	if got, want := s.metrics.InUseEvictions, int64(1); got != want {
+		t.Errorf("got %d in-use eviction calls, want %d", got, want)
 	}
 }

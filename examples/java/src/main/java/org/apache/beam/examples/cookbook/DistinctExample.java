@@ -17,6 +17,18 @@
  */
 package org.apache.beam.examples.cookbook;
 
+// beam-playground:
+//   name: DistinctExample
+//   description: An example uses as input text of King Lear,
+//     by William Shakespeare as plain text files and removes
+//     duplicate lines across all the files.
+//   multifile: false
+//   pipeline_options: --output output.txt
+//   categories:
+//     - Filtering
+//     - Options
+//     - Core Transforms
+
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.TextIO;
@@ -28,8 +40,8 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Distinct;
 
 /**
- * This example uses as input Shakespeare's plays as plaintext files, and will remove any duplicate
- * lines across all the files. (The output does not preserve any input order).
+ * This example uses as input text of King Lear, by William Shakespeare as plaintext files, and will
+ * remove any duplicate lines from this file. (The output does not preserve any input order).
  *
  * <p>Concepts: the Distinct transform, and how to wire transforms together. Demonstrates {@link
  * org.apache.beam.sdk.io.TextIO.Read}/ {@link Distinct}/{@link
@@ -46,8 +58,8 @@ import org.apache.beam.sdk.transforms.Distinct;
  *
  * See examples/java/README.md for instructions about how to configure different runners.
  *
- * <p>The input defaults to {@code gs://apache-beam-samples/shakespeare/*} and can be overridden
- * with {@code --input}.
+ * <p>The input defaults to {@code gs://apache-beam-samples/shakespeare/kinglear.txt} and can be
+ * overridden with {@code --input}.
  */
 public class DistinctExample {
 
@@ -58,7 +70,7 @@ public class DistinctExample {
    */
   public interface Options extends PipelineOptions {
     @Description("Path to the directory or GCS prefix containing files to read from")
-    @Default.String("gs://apache-beam-samples/shakespeare/*")
+    @Default.String("gs://apache-beam-samples/shakespeare/kinglear.txt")
     String getInput();
 
     void setInput(String value);

@@ -17,6 +17,17 @@
  */
 package org.apache.beam.examples;
 
+// beam-playground:
+//   name: MinimalWordCount
+//   description: An example that counts words in Shakespeare's works.
+//   multifile: false
+//   pipeline_options:
+//   categories:
+//     - Combiners
+//     - Filtering
+//     - IO
+//     - Core Transforms
+
 import java.util.Arrays;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
@@ -87,8 +98,8 @@ public class MinimalWordCount {
     // of input text files. TextIO.Read returns a PCollection where each element is one line from
     // the input text (a set of Shakespeare's texts).
 
-    // This example reads a public data set consisting of the complete works of Shakespeare.
-    p.apply(TextIO.read().from("gs://apache-beam-samples/shakespeare/*"))
+    // This example reads from a public dataset containing the text of King Lear.
+    p.apply(TextIO.read().from("gs://apache-beam-samples/shakespeare/kinglear.txt"))
 
         // Concept #2: Apply a FlatMapElements transform the PCollection of text lines.
         // This transform splits the lines in PCollection<String>, where each element is an

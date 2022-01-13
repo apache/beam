@@ -1622,9 +1622,10 @@ public class RemoteExecutionTest implements Serializable {
                   @OnTimer("event")
                   public void eventTimer(
                       OnTimerContext context,
+                      @Key String key,
                       @TimerId("event") Timer eventTimeTimer,
                       @TimerId("processing") Timer processingTimeTimer) {
-                    context.output(KV.of("event", ""));
+                    context.output(KV.of("event", key));
                     eventTimeTimer
                         .withOutputTimestamp(context.timestamp())
                         .set(context.fireTimestamp().plus(Duration.millis(11L)));
@@ -1635,14 +1636,21 @@ public class RemoteExecutionTest implements Serializable {
                   @OnTimer("processing")
                   public void processingTimer(
                       OnTimerContext context,
+                      @Key String key,
                       @TimerId("event") Timer eventTimeTimer,
                       @TimerId("processing") Timer processingTimeTimer) {
-                    context.output(KV.of("processing", ""));
+                    context.output(KV.of("processing", key));
                     eventTimeTimer
                         .withOutputTimestamp(context.timestamp())
                         .set(context.fireTimestamp().plus(Duration.millis(21L)));
                     processingTimeTimer.offset(Duration.millis(22L));
                     processingTimeTimer.setRelative();
+                  }
+
+                  @OnWindowExpiration
+                  public void onWindowExpiration(
+                      @Key String key, OutputReceiver<KV<String, String>> outputReceiver) {
+                    outputReceiver.output(KV.of("onWindowExpiration", key));
                   }
                 }))
         // Force the output to be materialized
@@ -1702,10 +1710,13 @@ public class RemoteExecutionTest implements Serializable {
 
     ProcessBundleDescriptors.TimerSpec eventTimerSpec = null;
     ProcessBundleDescriptors.TimerSpec processingTimerSpec = null;
+    ProcessBundleDescriptors.TimerSpec onWindowExpirationSpec = null;
     for (Map<String, ProcessBundleDescriptors.TimerSpec> timerSpecs :
         descriptor.getTimerSpecs().values()) {
       for (ProcessBundleDescriptors.TimerSpec timerSpec : timerSpecs.values()) {
-        if (TimeDomain.EVENT_TIME.equals(timerSpec.getTimerSpec().getTimeDomain())) {
+        if ("onWindowExpiration0".equals(timerSpec.timerId())) {
+          onWindowExpirationSpec = timerSpec;
+        } else if (TimeDomain.EVENT_TIME.equals(timerSpec.getTimerSpec().getTimeDomain())) {
           eventTimerSpec = timerSpec;
         } else if (TimeDomain.PROCESSING_TIME.equals(timerSpec.getTimerSpec().getTimeDomain())) {
           processingTimerSpec = timerSpec;
@@ -1737,6 +1748,12 @@ public class RemoteExecutionTest implements Serializable {
             .getTimerReceivers()
             .get(KV.of(processingTimerSpec.transformId(), processingTimerSpec.timerId()))
             .accept(timerForTest("Z", 2000L, 200L));
+        bundle
+            .getTimerReceivers()
+            .get(KV.of(onWindowExpirationSpec.transformId(), onWindowExpirationSpec.timerId()))
+            // Normally fireTimestamp and holdTimestamp would be the same in window expirations but
+            // we specifically set them to different values to ensure that they are used correctly.
+            .accept(timerForTest("key", 5001L, 5000L));
       }
       String mainOutputTransform =
           Iterables.getOnlyElement(descriptor.getRemoteOutputCoders().keySet());
@@ -1745,11 +1762,14 @@ public class RemoteExecutionTest implements Serializable {
           containsInAnyOrder(
               valueInGlobalWindow(KV.of("mainX", "")),
               WindowedValue.timestampedValueInGlobalWindow(
-                  KV.of("event", ""),
+                  KV.of("event", "Y"),
                   BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(100L))),
               WindowedValue.timestampedValueInGlobalWindow(
-                  KV.of("processing", ""),
-                  BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(200L)))));
+                  KV.of("processing", "Z"),
+                  BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(200L))),
+              WindowedValue.timestampedValueInGlobalWindow(
+                  KV.of("onWindowExpiration", "key"),
+                  BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(5000L)))));
       assertThat(
           timerValues.get(KV.of(eventTimerSpec.transformId(), eventTimerSpec.timerId())),
           containsInAnyOrder(

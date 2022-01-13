@@ -29,6 +29,7 @@ func listenHttp(ctx context.Context, errChan chan error, envs *environment.Envir
 
 	mux := http.NewServeMux()
 	mux.Handle("/", handler)
+	mux.HandleFunc("/liveness", utils.GetLivenessFunction())
 	mux.HandleFunc("/readiness", utils.GetReadinessFunction(envs))
 
 	if err := http.ListenAndServe(address, mux); err != nil {

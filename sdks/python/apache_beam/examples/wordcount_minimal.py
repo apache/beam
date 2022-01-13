@@ -46,6 +46,18 @@ pipeline. You can see the results in your output bucket in the GCS browser.
 
 # pytype: skip-file
 
+# beam-playground:
+#   name: WordCountMinimal
+#   description: An example that counts words in Shakespeare's works.
+#   multifile: false
+#   pipeline_options: --output output.txt
+#   categories:
+#     - IO
+#     - Core Transforms
+#     - Flatten
+#     - Options
+#     - Combiners
+
 import argparse
 import logging
 import re

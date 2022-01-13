@@ -267,6 +267,7 @@ def _validate(tag: dict, supported_categories: List[str]) -> bool:
       In case tag is not valid, False
   """
   valid = True
+  # check that all fields exist and they have no empty value
   for field in fields(TagFields):
     if field.default not in tag:
       logging.error(
@@ -278,16 +279,20 @@ def _validate(tag: dict, supported_categories: List[str]) -> bool:
           tag.__str__())
       valid = False
 
-    name = tag.get(TagFields.name)
-    if name == "":
+    value = tag.get(field.default)
+    if value == "" or value is None:
       logging.error(
-          "tag's field name is incorrect: %s \nname can not be empty.",
-          tag.__str__())
+          "tag's value is incorrect: %s\nvalue for %s field can not be empty.",
+          tag.__str__(),
+          field.default.__str__())
       valid = False
 
+  if valid is False:
+    return valid
+
+  # check that multifile's value is boolean
   multifile = tag.get(TagFields.multifile)
-  if (multifile is not None) and (str(multifile).lower() not in ["true",
-                                                                 "false"]):
+  if str(multifile).lower() not in ["true", "false"]:
     logging.error(
         "tag's field multifile is incorrect: %s \n"
         "multifile variable should be boolean format, but tag contains: %s",
@@ -295,26 +300,26 @@ def _validate(tag: dict, supported_categories: List[str]) -> bool:
         str(multifile))
     valid = False
 
+  # check that categories' value is a list of supported categories
   categories = tag.get(TagFields.categories)
-  if categories is not None:
-    if not isinstance(categories, list):
-      logging.error(
-          "tag's field categories is incorrect: %s \n"
-          "categories variable should be list format, but tag contains: %s",
-          tag.__str__(),
-          str(type(categories)))
-      valid = False
-    else:
-      for category in categories:
-        if category not in supported_categories:
-          logging.error(
-              "tag contains unsupported category: %s \n"
-              "If you are sure that %s category should be placed in "
-              "Beam Playground, you can add it to the "
-              "`playground/categories.yaml` file",
-              category,
-              category)
-          valid = False
+  if not isinstance(categories, list):
+    logging.error(
+        "tag's field categories is incorrect: %s \n"
+        "categories variable should be list format, but tag contains: %s",
+        tag.__str__(),
+        str(type(categories)))
+    valid = False
+  else:
+    for category in categories:
+      if category not in supported_categories:
+        logging.error(
+            "tag contains unsupported category: %s \n"
+            "If you are sure that %s category should be placed in "
+            "Beam Playground, you can add it to the "
+            "`playground/categories.yaml` file",
+            category,
+            category)
+        valid = False
   return valid
 
 

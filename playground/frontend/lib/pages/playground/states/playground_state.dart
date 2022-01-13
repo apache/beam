@@ -28,6 +28,7 @@ import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 
 const kTitleLength = 15;
+const kExecutionTimeUpdate = 100;
 const kPrecompiledDelay = Duration(seconds: 1);
 const kTitle = 'Catalog';
 const kExecutionCancelledText = '\nPipeline cancelled';
@@ -43,6 +44,7 @@ class PlaygroundState with ChangeNotifier {
   StreamSubscription<RunCodeResult>? _runSubscription;
   String _pipelineOptions = '';
   DateTime? resetKey;
+  StreamController<int>? _executionTime;
 
   PlaygroundState({
     SDK sdk = SDK.java,
@@ -73,11 +75,14 @@ class PlaygroundState with ChangeNotifier {
 
   String get pipelineOptions => _pipelineOptions;
 
+  Stream<int>? get executionTime => _executionTime?.stream;
+
   setExample(ExampleModel example) {
     _selectedExample = example;
     _pipelineOptions = example.pipelineOptions ?? '';
     _source = example.source ?? '';
     _result = null;
+    _executionTime = null;
     notifyListeners();
   }
 
@@ -99,6 +104,7 @@ class PlaygroundState with ChangeNotifier {
     _source = _selectedExample?.source ?? '';
     _pipelineOptions = selectedExample?.pipelineOptions ?? '';
     resetKey = DateTime.now();
+    _executionTime = null;
     notifyListeners();
   }
 
@@ -124,6 +130,8 @@ class PlaygroundState with ChangeNotifier {
       notifyListeners();
       return;
     }
+    _executionTime?.close();
+    _executionTime = _createExecutionTimeStream();
     if (_selectedExample?.source == source &&
         _selectedExample?.outputs != null &&
         !_arePipelineOptionsChanges) {
@@ -138,9 +146,11 @@ class PlaygroundState with ChangeNotifier {
         _result = event;
         if (event.isFinished && onFinish != null) {
           onFinish();
+          _executionTime?.close();
         }
         notifyListeners();
       });
+      notifyListeners();
     }
   }
 
@@ -174,6 +184,37 @@ class PlaygroundState with ChangeNotifier {
       output: _selectedExample!.outputs,
       log: _selectedExample!.logs,
     );
+    _executionTime?.close();
     notifyListeners();
+  }
+
+  StreamController<int> _createExecutionTimeStream() {
+    StreamController<int>? streamController;
+    Timer? timer;
+    Duration timerInterval = const Duration(milliseconds: kExecutionTimeUpdate);
+    int ms = 0;
+
+    void stopTimer() {
+      timer?.cancel();
+      streamController?.close();
+    }
+
+    void tick(_) {
+      ms += kExecutionTimeUpdate;
+      streamController?.add(ms);
+    }
+
+    void startTimer() {
+      timer = Timer.periodic(timerInterval, tick);
+    }
+
+    streamController = StreamController<int>(
+      onListen: startTimer,
+      onCancel: stopTimer,
+      onResume: startTimer,
+      onPause: stopTimer,
+    );
+
+    return streamController;
   }
 }

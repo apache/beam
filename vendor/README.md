@@ -28,6 +28,7 @@ The upgrading of the vendored dependencies should be performed in two steps:
 
 # How to validate the vendored dependencies
 
+## Linkage Tool
 The [linkage tool](https://lists.apache.org/thread.html/eb5d95b9a33d7e32dc9bcd0f7d48ba8711d42bd7ed03b9cf0f1103f1%40%3Cdev.beam.apache.org%3E)
 is useful for the vendored dependency upgrades. It reports the linkage errors across multiple Apache Beam artifact ids.
 
@@ -48,7 +49,7 @@ $ mvn install:install-file \
 $ ./gradlew -PvendoredDependenciesOnly -Ppublishing -PjavaLinkageArtifactIds=beam-vendor-grpc-1_36_0:0.1 :checkJavaLinkage
 ```
 
-## Known Linkage Errors in the Vendored gRPC Dependencies
+### Known Linkage Errors in the Vendored gRPC Dependencies
 
 It's expected that the task outputs some linkage errors.
 While the `checkJavaLinkage` task does not retrieve optional dependencies to avoid bloated
@@ -61,8 +62,8 @@ As long as Beam's use of gRPC does not touch these optional Netty features or th
 available at runtime, it's fine to have the
 references to the missing classes. Here are the known linkage errors:
 
-- References to `org.junit.runners`: `io.grpc.testing.GrpcCleanupRule` uses JUnit classes, which are
-  present when we run Beam's tests.
+- References to `org.junit.*`: `io.grpc.testing.GrpcCleanupRule` and `io.grpc.testing.GrpcServerRule`
+  uses JUnit classes, which are present when we run Beam's tests.
 - References from `io.netty.handler.ssl`: Netty users can choose SSL implementation based
   on the platform ([Netty documentation](https://netty.io/wiki/forked-tomcat-native.html#wiki-h2-4)).
   Beam's vendored gRPC uses `netty-tcnative-boringssl-static`, which contains the static libraries
@@ -78,3 +79,38 @@ references to the missing classes. Here are the known linkage errors:
   to be included in the vendored artifact. Slf4j-api is available at Beam's runtime.
 - References to `reactor.blockhound`: When enabled, Netty's BlockHound integration can detect
   unexpected blocking calls. Beam does not use it.
+
+## Create testing PR against new artifacts
+
+Once you've verified using the linkage tool, you can test new artifacts by running unit and integration tests against a PR.
+
+Example PRs:
+- Updating gRPC version (large) https://github.com/apache/beam/pull/16460
+- Updating protobuf for calcite (minor version update): https://github.com/apache/beam/pull/16476
+
+Steps:
+
+1. Generate new artifact files with `publishMavenJavaPublicationToMavenLocal`, e.g.
+
+```
+./gradlew -p vendor/grpc-1_43_2 publishMavenJavaPublicationToMavenLocal -Ppublishing -PvendoredDependenciesOnly
+
+# Copy files (jar/poms/metadata) to your beam repository
+cp -R ~/.m2/repository/org/apache/beam/beam-vendor-grpc-1_43_2/ \
+      $BEAMDIR/tempLib/org/apache/beam/beam-vendor-grpc-1_43_2
+```
+
+2. Add whatever folder (here I use `tempLib`) to the expected project repositories, e.g.
+
+```
+repositories {
+    maven { url "${project.rootDir}/tempLib" }
+    maven {
+      ...
+    }
+}
+```
+
+3. Migrate all references from the old dependency to the new dependency, including imports if needed.
+
+4. Commit any added or changed files and create a PR (can be a draft, as you will not merge this PR) to test on.

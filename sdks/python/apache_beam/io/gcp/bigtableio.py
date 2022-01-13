@@ -66,8 +66,8 @@ try:
 
     def flush(self):
       if len(self.rows) != 0:
-        rows = self.table.mutate_rows(self.rows)
-        self.callback_fn(rows)
+        response = self.table.mutate_rows(self.rows)
+        self.callback_fn(response)
         self.total_mutation_count = 0
         self.total_size = 0
         self.rows = []
@@ -116,11 +116,11 @@ class _BigTableWriteFn(beam.DoFn):
     self.service_call_metric = None
     self.written = Metrics.counter(self.__class__, 'Written Row')
 
-  def write_mutate_metrics(self, rows):
-    for status in rows:
+  def write_mutate_metrics(self, response):
+    for status in response:
+      code = status.code if status else None
       grpc_status_string = (
-          ServiceCallMetric.bigtable_error_code_to_grpc_status_string(
-              status.code))
+          ServiceCallMetric.bigtable_error_code_to_grpc_status_string(code))
       self.service_call_metric.call(grpc_status_string)
 
   def start_service_call_metrics(self, project_id, instance_id, table_id):
@@ -165,6 +165,8 @@ class _BigTableWriteFn(beam.DoFn):
     self.batcher.mutate(row)
 
   def finish_bundle(self):
+    # TODO(BEAM-13606): failed row mutations need to be retried or
+    # output for further handling.
     self.batcher.flush()
     self.batcher = None
 
