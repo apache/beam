@@ -99,7 +99,7 @@ export class CombinePerKey<K, InputT, AccT, OutputT> extends PTransform<
     // TODO: Check other windowing properties as well.
     const windowingStrategy =
       input.pipeline!.getProto().components!.windowingStrategies[
-        input.pipeline.getProto().components!.pcollections[input.id]
+        input.pipeline.getProto().components!.pcollections[input.getId()]
           .windowingStrategyId
       ];
     if (false && // breaks for non-string, non-integer keys

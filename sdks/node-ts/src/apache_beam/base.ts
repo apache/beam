@@ -125,6 +125,15 @@ export class PipelineContext {
     return coderId;
   }
 
+  getPCollectionCoder<T>(pcoll: PCollection<T>): Coder<T> {
+    return this.getCoder(this.getPCollectionCoderId(pcoll));
+  }
+
+  getPCollectionCoderId<T>(pcoll: PCollection<T>): string {
+    const pcollId = typeof pcoll == "string" ? pcoll : pcoll.getId();
+    return this.components!.pcollections[pcollId].coderId;
+  }
+
   getWindowingStrategy(id: string): runnerApi.WindowingStrategy {
     return this.components.windowingStrategies[id];
   }
@@ -197,7 +206,7 @@ export class Pipeline {
           .concat([name || transform.name])
           .join("/"),
       subtransforms: [],
-      inputs: objectMap(flattenPValue(input), (pc) => pc.id),
+      inputs: objectMap(flattenPValue(input), (pc) => pc.getId()),
       outputs: {},
       environmentId: this.defaultEnvironment,
       displayData: [],
@@ -251,7 +260,9 @@ export class Pipeline {
     transformProto: runnerApi.PTransform,
     result: OutputT
   ) {
-    transformProto.outputs = objectMap(flattenPValue(result), (pc) => pc.id);
+    transformProto.outputs = objectMap(flattenPValue(result), (pc) =>
+      pc.getId()
+    );
 
     // Propagate any unset PCollection properties.
     const this_ = this;
@@ -292,13 +303,27 @@ export class Pipeline {
   }
 
   createPCollectionInternal<OutputT>(
-    coder: Coder<any> | string,
+    coder: Coder<OutputT> | string,
     windowingStrategy:
       | runnerApi.WindowingStrategy
       | string
       | undefined = undefined,
     isBounded: runnerApi.IsBounded_Enum | undefined = undefined
-  ) {
+  ): PCollection<OutputT> {
+    return new PCollection<OutputT>(
+      this,
+      this.createPCollectionIdInternal(coder, windowingStrategy, isBounded)
+    );
+  }
+
+  createPCollectionIdInternal<OutputT>(
+    coder: Coder<OutputT> | string,
+    windowingStrategy:
+      | runnerApi.WindowingStrategy
+      | string
+      | undefined = undefined,
+    isBounded: runnerApi.IsBounded_Enum | undefined = undefined
+  ): string {
     const pcollId = pcollectionName();
     let coderId: string;
     let windowingStrategyId: string;
@@ -323,7 +348,7 @@ export class Pipeline {
       windowingStrategyId: windowingStrategyId,
       displayData: [],
     };
-    return new PCollection<OutputT>(this, pcollId);
+    return pcollId;
   }
 
   getCoder<T>(coderId: string): Coder<T> {
@@ -341,14 +366,24 @@ export class Pipeline {
 
 export class PCollection<T> {
   type: string = "pcollection";
-  id: string;
-  proto: runnerApi.PCollection;
   pipeline: Pipeline;
+  private id: string;
+  private computeId: () => string;
 
-  constructor(pipeline: Pipeline, id: string) {
-    this.proto = pipeline.getProto().components!.pcollections[id]; // TODO: redundant?
+  constructor(pipeline: Pipeline, id: string | (() => string)) {
     this.pipeline = pipeline;
-    this.id = id;
+    if (typeof id == "string") {
+      this.id = id;
+    } else {
+      this.computeId = id;
+    }
+  }
+
+  getId(): string {
+    if (this.id == undefined) {
+      this.id = this.computeId();
+    }
+    return this.id;
   }
 
   apply<OutputT extends PValue<any>>(
@@ -648,8 +683,7 @@ export class WindowInto<T, W extends BoundedWindow> extends PTransform<
       ),
     });
 
-    const inputCoder =
-      pipeline.getProto().components!.pcollections[input.id]!.coderId;
+    const inputCoder = pipeline.context.getPCollectionCoderId(input);
     return pipeline.createPCollectionInternal<T>(
       inputCoder,
       WindowInto.createWindowingStrategy(
@@ -686,9 +720,9 @@ export class AssignTimestamps<T> extends PTransform<
       ),
     });
 
-    const inputCoder =
-      pipeline.getProto().components!.pcollections[input.id]!.coderId;
-    return pipeline.createPCollectionInternal<T>(inputCoder);
+    return pipeline.createPCollectionInternal<T>(
+      pipeline.context.getPCollectionCoderId(input)
+    );
   }
 }
 
@@ -814,7 +848,7 @@ export class GroupByKey<K, V> extends PTransform<
       pipeline.getProto().components!;
     const inputCoderProto =
       pipelineComponents.coders[
-        pipelineComponents.pcollections[input.id].coderId
+        pipelineComponents.pcollections[input.getId()].coderId
       ];
 
     if (inputCoderProto.spec!.urn != KVCoder.URN) {
@@ -926,12 +960,12 @@ export class Split<T> extends PTransform<
     });
 
     const this_ = this;
-    const inputCoder =
-      pipeline.getProto().components!.pcollections[input.id]!.coderId;
     return Object.fromEntries(
       this_.tags.map((tag) => [
         tag,
-        pipeline.createPCollectionInternal<T>(inputCoder),
+        pipeline.createPCollectionInternal<T>(
+          pipeline.context.getPCollectionCoderId(input)
+        ),
       ])
     );
   }

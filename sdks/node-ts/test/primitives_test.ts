@@ -22,7 +22,7 @@ describe("primitives module", function () {
       var res = p.apply(new beam.Impulse());
 
       assert.equal(res.type, "pcollection");
-      assert.deepEqual(p.getCoder(res.proto.coderId), new BytesCoder());
+      assert.deepEqual(p.context.getPCollectionCoder(res), new BytesCoder());
     });
     it("runs a ParDo expansion", function () {
       var p = new beam.Pipeline();
@@ -35,8 +35,10 @@ describe("primitives module", function () {
           return v * 4;
         });
 
-      const coder = p.getCoder(res.proto.coderId);
-      assert.deepEqual(coder, new GeneralObjectCoder());
+      assert.deepEqual(
+        p.context.getPCollectionCoder(res),
+        new GeneralObjectCoder()
+      );
       assert.equal(res.type, "pcollection");
     });
     // why doesn't map need types here?
@@ -49,9 +51,8 @@ describe("primitives module", function () {
         })
         .apply(new GroupBy("lastName"));
 
-      const coder = p.getCoder(res.proto.coderId);
       assert.deepEqual(
-        coder,
+        p.context.getPCollectionCoder(res),
         new KVCoder(
           new GeneralObjectCoder(),
           new IterableCoder(new GeneralObjectCoder())
