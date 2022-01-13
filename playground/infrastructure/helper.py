@@ -151,7 +151,7 @@ def get_tag(filepath) -> Optional[ExampleTag]:
     lines = parsed_file.readlines()
 
   for line in lines:
-    formatted_line = line.replace("//", "").replace("#", "")
+    formatted_line = line.replace("//", "").replace("#", "").replace("\t", "    ")
     if add_to_yaml is False:
       if formatted_line.lstrip() == Config.BEAM_PLAYGROUND_TITLE:
         add_to_yaml = True
