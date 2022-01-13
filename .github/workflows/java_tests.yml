@@ -29,16 +29,23 @@ on:
     - cron: '10 2 * * *'
   push:
     branches: ['master', 'release-*', 'beam-12812-githubactions']
-    tags: 'v*'
+    tags: ['v*']
   pull_request:
     branches: ['master', 'release-*']
-    tags: 'v*'
+    tags: ['v*']
     paths: ['sdks/java/**', 'model/**', 'runners/**', 'examples/java/**',
             'examples/kotlin/**', 'release/**', 'buildSrc/**']
 
 
 jobs:
-
+  setup-go:
+    name: "Set up Go"
+    runs-on: [[self-hosted, ubuntu-20.04], macos-latest, windows-latest ]
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: '1.16.12'
   check_gcp_variables:
     timeout-minutes: 5
     name: "Check GCP variables set"
@@ -123,6 +130,7 @@ jobs:
           path: runners/core-java/build/reports/tests/test
 
   java_wordcount_direct_runner:
+    needs: setup-go
     name: 'Java Wordcount Direct Runner'
     runs-on: ${{ matrix.os }}
     strategy:
@@ -165,6 +173,7 @@ jobs:
     name: 'Java Wordcount Dataflow'
     needs:
       - check_gcp_variables
+      - setup-go
     runs-on: ${{ matrix.os }}
     if: |
       needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && (
