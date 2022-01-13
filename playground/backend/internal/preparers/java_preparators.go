@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package preparators
+package preparers
 
 import (
 	"beam.apache.org/playground/backend/internal/logger"
@@ -50,37 +50,37 @@ func (b *PreparersBuilder) JavaPreparers() *JavaPreparersBuilder {
 
 //WithPublicClassRemover adds preparer to remove public class
 func (a *JavaPreparersBuilder) WithPublicClassRemover() *JavaPreparersBuilder {
-	removePublicClassPreparator := Preparator{
+	removePublicClassPreparer := Preparer{
 		Prepare: removePublicClassModifier,
 		Args:    []interface{}{a.filePath, classWithPublicModifierPattern, classWithoutPublicModifierPattern},
 	}
-	a.AddPreparer(removePublicClassPreparator)
+	a.AddPreparer(removePublicClassPreparer)
 	return a
 }
 
 //WithPackageChanger adds preparer to change package
 func (a *JavaPreparersBuilder) WithPackageChanger() *JavaPreparersBuilder {
-	changePackagePreparator := Preparator{
+	changePackagePreparer := Preparer{
 		Prepare: changePackage,
 		Args:    []interface{}{a.filePath, packagePattern, importStringPattern},
 	}
-	a.AddPreparer(changePackagePreparator)
+	a.AddPreparer(changePackagePreparer)
 	return a
 }
 
 //WithPackageRemover adds preparer to remove package
 func (a *JavaPreparersBuilder) WithPackageRemover() *JavaPreparersBuilder {
-	removePackagePreparator := Preparator{
+	removePackagePreparer := Preparer{
 		Prepare: removePackage,
 		Args:    []interface{}{a.filePath, packagePattern, newLinePattern},
 	}
-	a.AddPreparer(removePackagePreparator)
+	a.AddPreparer(removePackagePreparer)
 	return a
 }
 
 //WithFileNameChanger adds preparer to remove package
 func (a *JavaPreparersBuilder) WithFileNameChanger() *JavaPreparersBuilder {
-	unitTestFileNameChanger := Preparator{
+	unitTestFileNameChanger := Preparer{
 		Prepare: changeJavaTestFileName,
 		Args:    []interface{}{a.filePath},
 	}
@@ -88,8 +88,8 @@ func (a *JavaPreparersBuilder) WithFileNameChanger() *JavaPreparersBuilder {
 	return a
 }
 
-// GetJavaPreparators returns preparation methods that should be applied to Java code
-func GetJavaPreparators(builder *PreparersBuilder, isUnitTest bool, isKata bool) {
+// GetJavaPreparers returns preparation methods that should be applied to Java code
+func GetJavaPreparers(builder *PreparersBuilder, isUnitTest bool, isKata bool) {
 	if !isUnitTest && !isKata {
 		builder.JavaPreparers().
 			WithPublicClassRemover().
@@ -237,7 +237,7 @@ func renameJavaFile(filePath string, className string) error {
 func getPublicClassName(filePath string) (string, error) {
 	code, err := ioutil.ReadFile(filePath)
 	if err != nil {
-		logger.Errorf("Preparator: Error during open file: %s, err: %s\n", filePath, err.Error())
+		logger.Errorf("Preparer: Error during open file: %s, err: %s\n", filePath, err.Error())
 		return "", err
 	}
 	re := regexp.MustCompile(publicClassNamePattern)

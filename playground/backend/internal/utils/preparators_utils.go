@@ -17,31 +17,31 @@ package utils
 
 import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
-	"beam.apache.org/playground/backend/internal/preparators"
+	"beam.apache.org/playground/backend/internal/preparers"
 	"beam.apache.org/playground/backend/internal/validators"
 	"fmt"
 	"regexp"
 	"sync"
 )
 
-// GetPreparators returns slice of preparators.Preparator according to sdk
-func GetPreparators(sdk pb.Sdk, filepath string, valResults *sync.Map) (*[]preparators.Preparator, error) {
+// GetPreparers returns slice of preparers.Preparer according to sdk
+func GetPreparers(sdk pb.Sdk, filepath string, valResults *sync.Map) (*[]preparers.Preparer, error) {
 	isUnitTest, ok := valResults.Load(validators.UnitTestValidatorName)
 	if !ok {
-		return nil, fmt.Errorf("GetPreparators:: No information about unit test validation result")
+		return nil, fmt.Errorf("GetPreparers:: No information about unit test validation result")
 	}
-	builder := preparators.NewPreparersBuilder(filepath)
+	builder := preparers.NewPreparersBuilder(filepath)
 	switch sdk {
 	case pb.Sdk_SDK_JAVA:
 		isKata, ok := valResults.Load(validators.KatasValidatorName)
 		if !ok {
-			return nil, fmt.Errorf("GetPreparators:: No information about katas validation result")
+			return nil, fmt.Errorf("GetPreparers:: No information about katas validation result")
 		}
-		preparators.GetJavaPreparators(builder, isUnitTest.(bool), isKata.(bool))
+		preparers.GetJavaPreparers(builder, isUnitTest.(bool), isKata.(bool))
 	case pb.Sdk_SDK_GO:
-		preparators.GetGoPreparators(builder, isUnitTest.(bool))
+		preparers.GetGoPreparers(builder, isUnitTest.(bool))
 	case pb.Sdk_SDK_PYTHON:
-		preparators.GetPythonPreparators(builder)
+		preparers.GetPythonPreparers(builder)
 	default:
 		return nil, fmt.Errorf("incorrect sdk: %s", sdk)
 	}

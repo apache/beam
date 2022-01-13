@@ -16,26 +16,12 @@
 package executors
 
 import (
-	pb "beam.apache.org/playground/backend/internal/api/v1"
-	"beam.apache.org/playground/backend/internal/environment"
-	"beam.apache.org/playground/backend/internal/preparators"
+	"beam.apache.org/playground/backend/internal/preparers"
 	"beam.apache.org/playground/backend/internal/validators"
 	"context"
 	"os/exec"
 	"reflect"
 	"testing"
-)
-
-const defaultBeamJarsPath = "pathToJars"
-
-var (
-	executorConfig = environment.NewExecutorConfig(
-		"javac", "java", "java",
-		[]string{"-d", "bin", "-classpath", defaultBeamJarsPath},
-		[]string{"-cp", "bin:" + defaultBeamJarsPath},
-		[]string{"-cp", "bin:" + defaultBeamJarsPath, "JUnit"},
-	)
-	env = environment.NewEnvironment(environment.NetworkEnvs{}, *environment.NewBeamEnvs(pb.Sdk_SDK_JAVA, executorConfig, "", 0), environment.ApplicationEnvs{})
 )
 
 func TestExecutor_Compile(t *testing.T) {
@@ -95,7 +81,7 @@ func TestExecutor_Run(t *testing.T) {
 		runArgs     CmdConfiguration
 		testArgs    CmdConfiguration
 		validators  []validators.Validator
-		preparators []preparators.Preparator
+		preparers   []preparers.Preparer
 	}
 	tests := []struct {
 		name   string
@@ -137,7 +123,7 @@ func TestExecutor_Run(t *testing.T) {
 				runArgs:     tt.fields.runArgs,
 				testArgs:    tt.fields.testArgs,
 				validators:  tt.fields.validators,
-				preparators: tt.fields.preparators,
+				preparers:   tt.fields.preparers,
 			}
 			if got := ex.Run(context.Background()); !reflect.DeepEqual(got.String(), tt.want.String()) {
 				t.Errorf("WithRunner() = %v, want %v", got, tt.want)
@@ -152,7 +138,7 @@ func TestExecutor_RunTest(t *testing.T) {
 		runArgs     CmdConfiguration
 		testArgs    CmdConfiguration
 		validators  []validators.Validator
-		preparators []preparators.Preparator
+		preparers   []preparers.Preparer
 	}
 	type args struct {
 		ctx context.Context
@@ -197,7 +183,7 @@ func TestExecutor_RunTest(t *testing.T) {
 				runArgs:     tt.fields.runArgs,
 				testArgs:    tt.fields.testArgs,
 				validators:  tt.fields.validators,
-				preparators: tt.fields.preparators,
+				preparers:   tt.fields.preparers,
 			}
 			if got := ex.RunTest(tt.args.ctx); !reflect.DeepEqual(got.String(), tt.want.String()) {
 				t.Errorf("RunTest() = %v, want %v", got, tt.want)

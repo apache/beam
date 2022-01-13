@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package preparators
+package preparers
 
 import (
 	"beam.apache.org/playground/backend/internal/logger"
@@ -26,8 +26,8 @@ const (
 	addLogHandlerCode = "import logging\nlogging.basicConfig(\n    level=logging.DEBUG,\n    format=\"%(asctime)s [%(levelname)s] %(message)s\",\n    handlers=[\n        logging.FileHandler(\"logs.log\"),\n    ]\n)\n"
 )
 
-// GetPythonPreparators returns preparation methods that should be applied to Python code
-func GetPythonPreparators(builder *PreparersBuilder) {
+// GetPythonPreparers returns preparation methods that should be applied to Python code
+func GetPythonPreparers(builder *PreparersBuilder) {
 	builder.
 		PythonPreparers().
 		WithLogHandler()
@@ -45,7 +45,7 @@ func (b *PreparersBuilder) PythonPreparers() *PythonPreparersBuilder {
 
 //WithLogHandler adds code for logging
 func (a *PythonPreparersBuilder) WithLogHandler() *PythonPreparersBuilder {
-	addLogHandler := Preparator{
+	addLogHandler := Preparer{
 		Prepare: addCodeToFile,
 		Args:    []interface{}{a.filePath, addLogHandlerCode},
 	}

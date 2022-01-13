@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package preparators
+package preparers
 
 import (
 	"errors"
@@ -27,7 +27,6 @@ import (
 const (
 	goName  = "go"
 	fmtArgs = "fmt"
-	mvCmd   = "mv"
 	sep     = "."
 )
 
@@ -43,17 +42,17 @@ func (b *PreparersBuilder) GoPreparers() *GoPreparersBuilder {
 
 //WithCodeFormatter adds code formatter preparer
 func (a *GoPreparersBuilder) WithCodeFormatter() *GoPreparersBuilder {
-	formatCodePreparator := Preparator{
+	formatCodePreparer := Preparer{
 		Prepare: formatCode,
 		Args:    []interface{}{a.filePath},
 	}
-	a.AddPreparer(formatCodePreparator)
+	a.AddPreparer(formatCodePreparer)
 	return a
 }
 
 //WithFileNameChanger adds preparer to change file name
 func (a *GoPreparersBuilder) WithFileNameChanger() *GoPreparersBuilder {
-	changeTestFileName := Preparator{
+	changeTestFileName := Preparer{
 		Prepare: changeGoTestFileName,
 		Args:    []interface{}{a.filePath},
 	}
@@ -61,8 +60,8 @@ func (a *GoPreparersBuilder) WithFileNameChanger() *GoPreparersBuilder {
 	return a
 }
 
-// GetGoPreparators returns reparation methods that should be applied to Go code
-func GetGoPreparators(builder *PreparersBuilder, isUnitTest bool) {
+// GetGoPreparers returns reparation methods that should be applied to Go code
+func GetGoPreparers(builder *PreparersBuilder, isUnitTest bool) {
 	builder.
 		GoPreparers().
 		WithCodeFormatter()

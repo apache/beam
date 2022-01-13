@@ -13,19 +13,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package preparators
+package preparers
 
-// Preparator is used to make preparations with file with code.
-type Preparator struct {
+// Preparer is used to make preparations with file with code.
+type Preparer struct {
 	Prepare func(args ...interface{}) error
 	Args    []interface{}
 }
 
 type Preparers struct {
-	preparersFunctions *[]Preparator
+	preparersFunctions *[]Preparer
 }
 
-func (p *Preparers) GetPreparers() *[]Preparator {
+func (p *Preparers) GetPreparers() *[]Preparer {
 	return p.preparersFunctions
 }
 
@@ -37,7 +37,7 @@ type PreparersBuilder struct {
 
 //NewPreparersBuilder constructor for PreparersBuilder
 func NewPreparersBuilder(filePath string) *PreparersBuilder {
-	return &PreparersBuilder{preparers: &Preparers{preparersFunctions: &[]Preparator{}}, filePath: filePath}
+	return &PreparersBuilder{preparers: &Preparers{preparersFunctions: &[]Preparer{}}, filePath: filePath}
 }
 
 //Build builds preparers from PreparersBuilder
@@ -45,6 +45,6 @@ func (b *PreparersBuilder) Build() *Preparers {
 	return b.preparers
 }
 
-func (p *PreparersBuilder) AddPreparer(newPreparer Preparator) {
+func (p *PreparersBuilder) AddPreparer(newPreparer Preparer) {
 	*p.preparers.preparersFunctions = append(*p.preparers.preparersFunctions, newPreparer)
 }

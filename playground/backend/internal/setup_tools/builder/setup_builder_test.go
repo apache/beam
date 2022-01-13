@@ -117,14 +117,14 @@ func TestPreparer(t *testing.T) {
 	validationResults.Store(validators.UnitTestValidatorName, false)
 	validationResults.Store(validators.KatasValidatorName, false)
 
-	prep, err := utils.GetPreparators(sdkEnv.ApacheBeamSdk, paths.AbsoluteSourceFilePath, &validationResults)
+	prep, err := utils.GetPreparers(sdkEnv.ApacheBeamSdk, paths.AbsoluteSourceFilePath, &validationResults)
 	if err != nil {
 		panic(err)
 	}
 	pipelineOptions := ""
 	wantExecutor := executors.NewExecutorBuilder().
-		WithPreparator().
-		WithSdkPreparators(prep)
+		WithPreparer().
+		WithSdkPreparers(prep)
 
 	wrongSdkEnv := environment.NewBeamEnvs(pb.Sdk_SDK_UNSPECIFIED, sdkEnv.ExecutorConfig, "", 0)
 
