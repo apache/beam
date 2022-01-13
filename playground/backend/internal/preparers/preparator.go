@@ -22,11 +22,11 @@ type Preparer struct {
 }
 
 type Preparers struct {
-	preparersFunctions *[]Preparer
+	functions *[]Preparer
 }
 
-func (p *Preparers) GetPreparers() *[]Preparer {
-	return p.preparersFunctions
+func (preparers *Preparers) GetPreparers() *[]Preparer {
+	return preparers.functions
 }
 
 //PreparersBuilder struct
@@ -37,14 +37,14 @@ type PreparersBuilder struct {
 
 //NewPreparersBuilder constructor for PreparersBuilder
 func NewPreparersBuilder(filePath string) *PreparersBuilder {
-	return &PreparersBuilder{preparers: &Preparers{preparersFunctions: &[]Preparer{}}, filePath: filePath}
+	return &PreparersBuilder{preparers: &Preparers{functions: &[]Preparer{}}, filePath: filePath}
 }
 
 //Build builds preparers from PreparersBuilder
-func (b *PreparersBuilder) Build() *Preparers {
-	return b.preparers
+func (builder *PreparersBuilder) Build() *Preparers {
+	return builder.preparers
 }
 
-func (p *PreparersBuilder) AddPreparer(newPreparer Preparer) {
-	*p.preparers.preparersFunctions = append(*p.preparers.preparersFunctions, newPreparer)
+func (builder *PreparersBuilder) AddPreparer(newPreparer Preparer) {
+	*builder.preparers.functions = append(*builder.preparers.functions, newPreparer)
 }

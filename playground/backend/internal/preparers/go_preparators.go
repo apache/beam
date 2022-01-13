@@ -36,28 +36,28 @@ type GoPreparersBuilder struct {
 }
 
 //GoPreparers chains to type *PreparersBuilder and returns a *GoPreparersBuilder
-func (b *PreparersBuilder) GoPreparers() *GoPreparersBuilder {
-	return &GoPreparersBuilder{*b}
+func (builder *PreparersBuilder) GoPreparers() *GoPreparersBuilder {
+	return &GoPreparersBuilder{*builder}
 }
 
 //WithCodeFormatter adds code formatter preparer
-func (a *GoPreparersBuilder) WithCodeFormatter() *GoPreparersBuilder {
+func (builder *GoPreparersBuilder) WithCodeFormatter() *GoPreparersBuilder {
 	formatCodePreparer := Preparer{
 		Prepare: formatCode,
-		Args:    []interface{}{a.filePath},
+		Args:    []interface{}{builder.filePath},
 	}
-	a.AddPreparer(formatCodePreparer)
-	return a
+	builder.AddPreparer(formatCodePreparer)
+	return builder
 }
 
 //WithFileNameChanger adds preparer to change file name
-func (a *GoPreparersBuilder) WithFileNameChanger() *GoPreparersBuilder {
+func (builder *GoPreparersBuilder) WithFileNameChanger() *GoPreparersBuilder {
 	changeTestFileName := Preparer{
 		Prepare: changeGoTestFileName,
-		Args:    []interface{}{a.filePath},
+		Args:    []interface{}{builder.filePath},
 	}
-	a.AddPreparer(changeTestFileName)
-	return a
+	builder.AddPreparer(changeTestFileName)
+	return builder
 }
 
 // GetGoPreparers returns reparation methods that should be applied to Go code

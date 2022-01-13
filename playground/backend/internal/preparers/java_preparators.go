@@ -44,48 +44,48 @@ type JavaPreparersBuilder struct {
 }
 
 //JavaPreparers chains to type *PreparersBuilder and returns a *JavaPreparersBuilder
-func (b *PreparersBuilder) JavaPreparers() *JavaPreparersBuilder {
-	return &JavaPreparersBuilder{*b}
+func (builder *PreparersBuilder) JavaPreparers() *JavaPreparersBuilder {
+	return &JavaPreparersBuilder{*builder}
 }
 
 //WithPublicClassRemover adds preparer to remove public class
-func (a *JavaPreparersBuilder) WithPublicClassRemover() *JavaPreparersBuilder {
+func (builder *JavaPreparersBuilder) WithPublicClassRemover() *JavaPreparersBuilder {
 	removePublicClassPreparer := Preparer{
 		Prepare: removePublicClassModifier,
-		Args:    []interface{}{a.filePath, classWithPublicModifierPattern, classWithoutPublicModifierPattern},
+		Args:    []interface{}{builder.filePath, classWithPublicModifierPattern, classWithoutPublicModifierPattern},
 	}
-	a.AddPreparer(removePublicClassPreparer)
-	return a
+	builder.AddPreparer(removePublicClassPreparer)
+	return builder
 }
 
 //WithPackageChanger adds preparer to change package
-func (a *JavaPreparersBuilder) WithPackageChanger() *JavaPreparersBuilder {
+func (builder *JavaPreparersBuilder) WithPackageChanger() *JavaPreparersBuilder {
 	changePackagePreparer := Preparer{
 		Prepare: changePackage,
-		Args:    []interface{}{a.filePath, packagePattern, importStringPattern},
+		Args:    []interface{}{builder.filePath, packagePattern, importStringPattern},
 	}
-	a.AddPreparer(changePackagePreparer)
-	return a
+	builder.AddPreparer(changePackagePreparer)
+	return builder
 }
 
 //WithPackageRemover adds preparer to remove package
-func (a *JavaPreparersBuilder) WithPackageRemover() *JavaPreparersBuilder {
+func (builder *JavaPreparersBuilder) WithPackageRemover() *JavaPreparersBuilder {
 	removePackagePreparer := Preparer{
 		Prepare: removePackage,
-		Args:    []interface{}{a.filePath, packagePattern, newLinePattern},
+		Args:    []interface{}{builder.filePath, packagePattern, newLinePattern},
 	}
-	a.AddPreparer(removePackagePreparer)
-	return a
+	builder.AddPreparer(removePackagePreparer)
+	return builder
 }
 
 //WithFileNameChanger adds preparer to remove package
-func (a *JavaPreparersBuilder) WithFileNameChanger() *JavaPreparersBuilder {
+func (builder *JavaPreparersBuilder) WithFileNameChanger() *JavaPreparersBuilder {
 	unitTestFileNameChanger := Preparer{
 		Prepare: changeJavaTestFileName,
-		Args:    []interface{}{a.filePath},
+		Args:    []interface{}{builder.filePath},
 	}
-	a.AddPreparer(unitTestFileNameChanger)
-	return a
+	builder.AddPreparer(unitTestFileNameChanger)
+	return builder
 }
 
 // GetJavaPreparers returns preparation methods that should be applied to Java code

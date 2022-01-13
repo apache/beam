@@ -39,18 +39,18 @@ type PythonPreparersBuilder struct {
 }
 
 //PythonPreparers chains to type *PreparersBuilder and returns a *GoPreparersBuilder
-func (b *PreparersBuilder) PythonPreparers() *PythonPreparersBuilder {
-	return &PythonPreparersBuilder{*b}
+func (builder *PreparersBuilder) PythonPreparers() *PythonPreparersBuilder {
+	return &PythonPreparersBuilder{*builder}
 }
 
 //WithLogHandler adds code for logging
-func (a *PythonPreparersBuilder) WithLogHandler() *PythonPreparersBuilder {
+func (builder *PythonPreparersBuilder) WithLogHandler() *PythonPreparersBuilder {
 	addLogHandler := Preparer{
 		Prepare: addCodeToFile,
-		Args:    []interface{}{a.filePath, addLogHandlerCode},
+		Args:    []interface{}{builder.filePath, addLogHandlerCode},
 	}
-	a.AddPreparer(addLogHandler)
-	return a
+	builder.AddPreparer(addLogHandler)
+	return builder
 }
 
 // addCodeToFile processes file by filePath and adds additional code
