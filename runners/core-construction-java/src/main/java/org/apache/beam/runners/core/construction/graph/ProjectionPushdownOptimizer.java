@@ -119,9 +119,8 @@ public class ProjectionPushdownOptimizer {
                   newOutputPColl =
                       Preconditions.checkArgumentNotNull(
                           (PCollection<?>) newOutput.expand().get(oldOutput.getKey()),
-                          String.format(
-                              "No PCollection found for output tag %s. Were output tags changed in actuateProjectionPushdown?",
-                              oldOutput.getKey()));
+                          "No PCollection found for output tag %s. Were output tags changed in actuateProjectionPushdown?",
+                          oldOutput.getKey());
                 }
                 return new SimpleEntry<>(
                     newOutputPColl,
