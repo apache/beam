@@ -16,14 +16,11 @@
 package xlang
 
 import (
-	"context"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/xlangx/expansionx"
 	"github.com/apache/beam/sdks/v2/go/test/integration"
-	"google.golang.org/grpc"
 )
 
 const (
@@ -49,14 +46,6 @@ func TestAutomatedExpansionService(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to start expansion service JAR, got %v", err)
 	}
-
-	ctx, canFunc := context.WithTimeout(context.Background(), 15*time.Second)
-	t.Cleanup(func() { canFunc() })
-	conn, err := grpc.DialContext(ctx, serviceRunner.Endpoint(), grpc.WithInsecure(), grpc.WithBlock())
-	if err != nil {
-		t.Fatalf("could not connect to endpoint %v, got %v", serviceRunner.Endpoint(), err)
-	}
-	conn.Close()
 
 	err = serviceRunner.StopService()
 	if err != nil {
