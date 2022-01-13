@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.core.construction.graph;
 
-import com.google.common.collect.Iterables;
 import java.util.Map;
 import java.util.Objects;
 import org.apache.beam.sdk.Pipeline;
@@ -38,6 +37,7 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
