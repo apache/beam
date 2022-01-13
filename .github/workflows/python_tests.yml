@@ -38,6 +38,17 @@ on:
 
 jobs:
 
+  setup-go:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [[ self-hosted, ubuntu-20.04 ], macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: '1.16.12'
+
   check_gcp_variables:
     timeout-minutes: 5
     name: "Check GCP variables"
@@ -179,6 +190,7 @@ jobs:
     name: 'Python Wordcount Dataflow'
     needs:
       - build_python_sdk_source
+      - setup-go
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
