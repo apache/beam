@@ -106,12 +106,12 @@ func TestGetJavaPreparers(t *testing.T) {
 		},
 		{
 			name: "Test number of preparers for unit test",
-			args: args{"MOCK_FILEPATH", false, false},
+			args: args{"MOCK_FILEPATH", true, false},
 			want: 2,
 		},
 		{
 			name: "Test number of preparers for kata",
-			args: args{"MOCK_FILEPATH", false, false},
+			args: args{"MOCK_FILEPATH", false, true},
 			want: 2,
 		},
 	}

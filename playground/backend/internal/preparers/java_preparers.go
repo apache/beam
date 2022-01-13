@@ -61,7 +61,7 @@ func (builder *JavaPreparersBuilder) WithPublicClassRemover() *JavaPreparersBuil
 //WithPackageChanger adds preparer to change package
 func (builder *JavaPreparersBuilder) WithPackageChanger() *JavaPreparersBuilder {
 	changePackagePreparer := Preparer{
-		Prepare: changePackage,
+		Prepare: replace,
 		Args:    []interface{}{builder.filePath, packagePattern, importStringPattern},
 	}
 	builder.AddPreparer(changePackagePreparer)
@@ -71,7 +71,7 @@ func (builder *JavaPreparersBuilder) WithPackageChanger() *JavaPreparersBuilder 
 //WithPackageRemover adds preparer to remove package
 func (builder *JavaPreparersBuilder) WithPackageRemover() *JavaPreparersBuilder {
 	removePackagePreparer := Preparer{
-		Prepare: removePackage,
+		Prepare: replace,
 		Args:    []interface{}{builder.filePath, packagePattern, newLinePattern},
 	}
 	builder.AddPreparer(removePackagePreparer)
@@ -105,18 +105,6 @@ func GetJavaPreparers(builder *PreparersBuilder, isUnitTest bool, isKata bool) {
 			WithPublicClassRemover().
 			WithPackageRemover()
 	}
-}
-
-//changePackage changes the 'package' to 'import' and the last directory in the package value to '*'
-func changePackage(args ...interface{}) error {
-	err := replace(args...)
-	return err
-}
-
-//removePackage remove the package line in the katas.
-func removePackage(args ...interface{}) error {
-	err := replace(args...)
-	return err
 }
 
 // replace processes file by filePath and replaces all patterns to newPattern
