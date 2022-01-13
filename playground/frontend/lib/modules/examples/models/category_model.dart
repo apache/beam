@@ -26,6 +26,12 @@ class CategoryModel with Comparable<CategoryModel> {
 
   @override
   int compareTo(CategoryModel other) {
+    if (name.toLowerCase() == 'quick start') {
+      return -1;
+    }
+    if (other.name.toLowerCase() == 'quick start') {
+      return 1;
+    }
     return name.toLowerCase().compareTo(other.name.toLowerCase());
   }
 }
