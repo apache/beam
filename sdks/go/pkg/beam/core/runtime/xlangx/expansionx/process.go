@@ -16,10 +16,13 @@
 package expansionx
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os/exec"
 	"time"
+
+	"google.golang.org/grpc"
 )
 
 // ExpansionServiceRunner is a type that holds information required to
@@ -60,10 +63,23 @@ func (e *ExpansionServiceRunner) String() string {
 }
 
 // Endpoint returns the formatted endpoint the ExpansionServiceRunner is set to start the expansion
-// service on. 
+// service on.
 func (e *ExpansionServiceRunner) Endpoint() string {
 	return "localhost:" + e.servicePort
 }
+
+func (e *ExpansionServiceRunner) pingEndpoint(timeout time.Duration) error {
+	ctx, canFunc := context.WithTimeout(context.Background(), timeout)
+	defer canFunc()
+	conn, err := grpc.DialContext(ctx, e.Endpoint(), grpc.WithInsecure(), grpc.WithBlock())
+	if err != nil {
+		return err
+	}
+	conn.Close()
+	return nil
+}
+
+const connectionTimeout = 15 * time.Second
 
 // StartService starts the expansion service for a given ExpansionServiceRunner. If this is
 // called and does not return an error, the expansion service will be running in the background
@@ -73,11 +89,10 @@ func (e *ExpansionServiceRunner) StartService() error {
 	if err != nil {
 		return err
 	}
-	// Start() is non-blocking so a brief sleep to let the JAR start up and begin accepting
-	// connections is necessary.
-	time.Sleep(2 * time.Second)
-	if e.serviceCommand.ProcessState != nil {
-		return fmt.Errorf("process %v exited when it should still be running", e.serviceCommand.Process)
+
+	err = e.pingEndpoint(connectionTimeout)
+	if err != nil {
+		return err
 	}
 	return nil
 }
