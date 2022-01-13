@@ -22,7 +22,6 @@ import static org.joda.time.Duration.millis;
 import static org.joda.time.Duration.standardSeconds;
 
 import com.amazonaws.http.SdkHttpMetadata;
-import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
 import com.amazonaws.services.sns.AmazonSNS;
 import com.amazonaws.services.sns.model.GetTopicAttributesResult;
 import com.amazonaws.services.sns.model.InternalErrorException;
@@ -77,11 +76,6 @@ public class SnsIOTest implements Serializable {
 
     public Provider(AmazonSNS pub) {
       publisher = pub;
-    }
-
-    @Override
-    public AmazonCloudWatch getCloudWatchClient() {
-      return Mockito.mock(AmazonCloudWatch.class);
     }
 
     @Override
