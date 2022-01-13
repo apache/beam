@@ -64,6 +64,7 @@ from apache_beam.transforms.userstate import on_timer
 from apache_beam.transforms.window import NonMergingWindowFn
 from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import TimestampedValue
+from apache_beam.typehints import trivial_inference
 from apache_beam.typehints.decorators import get_signature
 from apache_beam.typehints.sharded_key_type import ShardedKeyType
 from apache_beam.utils import windowed_value
@@ -166,7 +167,8 @@ class CoGroupByKey(PTransform):
 
   def expand(self, pcolls):
     if isinstance(pcolls, dict):
-      if all(isinstance(tag, str) and len(tag) < 10 for tag in pcolls.keys()):
+      tags = list(pcolls.keys())
+      if all(isinstance(tag, str) and len(tag) < 10 for tag in tags):
         # Small, string tags. Pass them as data.
         pcolls_dict = pcolls
         restore_tags = None
@@ -180,17 +182,43 @@ class CoGroupByKey(PTransform):
         }
     else:
       # Tags are tuple indices.
-      num_tags = len(pcolls)
-      pcolls_dict = {str(ix): pcolls[ix] for ix in range(num_tags)}
-      restore_tags = lambda vs: tuple(vs[str(ix)] for ix in range(num_tags))
+      tags = [str(ix) for ix in range(len(pcolls))]
+      pcolls_dict = dict(zip(tags, pcolls))
+      restore_tags = lambda vs: tuple(vs[tag] for tag in tags)
 
+    input_key_types = []
+    input_value_types = []
+    for pcoll in pcolls_dict.values():
+      key_type, value_type = typehints.trivial_inference.key_value_types(
+          pcoll.element_type)
+      input_key_types.append(key_type)
+      input_value_types.append(value_type)
+    output_key_type = typehints.Union[tuple(input_key_types)]
+    iterable_input_value_types = tuple(
+        # TODO: Change List[t] to Iterable[t]
+        typehints.List[t] for t in input_value_types)
+
+    output_value_type = typehints.Dict[
+        str, typehints.Union[iterable_input_value_types or [typehints.Any]]]
     result = (
-        pcolls_dict | 'CoGroupByKeyImpl' >> _CoGBKImpl(pipeline=self.pipeline))
+        pcolls_dict
+        | 'CoGroupByKeyImpl' >>
+        _CoGBKImpl(pipeline=self.pipeline).with_output_types(
+            typehints.Tuple[output_key_type, output_value_type]))
+
     if restore_tags:
-      return result | 'RestoreTags' >> MapTuple(
-          lambda k, vs: (k, restore_tags(vs)))
-    else:
-      return result
+      if isinstance(pcolls, dict):
+        dict_key_type = typehints.Union[tuple(
+            trivial_inference.instance_to_type(tag) for tag in tags)]
+        output_value_type = typehints.Dict[
+            dict_key_type, typehints.Union[iterable_input_value_types]]
+      else:
+        output_value_type = typehints.Tuple[iterable_input_value_types]
+      result |= 'RestoreTags' >> MapTuple(
+          lambda k, vs: (k, restore_tags(vs))).with_output_types(
+              typehints.Tuple[output_key_type, output_value_type])
+
+    return result
 
 
 class _CoGBKImpl(PTransform):
