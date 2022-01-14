@@ -1,5 +1,5 @@
 ---
-title: "Try Apache Beam Playground (Beta)"
+title: "Try Beam Playground (Beta)"
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,13 +15,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Try Apache Beam Playground (Beta)
+# Try Beam Playground (Beta)
 
 Beam Playground is an interactive environment to try out Beam transforms and examples
 without having to install Apache Beam in your environment.
 
 You can try an Apache Beam examples at
-[Apache Beam Playground](https://frontend-beta-dot-apache-beam-testing.appspot.com/).
+[Beam Playground](https://frontend-beta-dot-apache-beam-testing.appspot.com/).
 
 ## Beam Playground WordCount Example
 
@@ -43,6 +43,8 @@ add the `beam-playground` tag into the file to be added.
 //     - category 1
 //     - category 2
 //     - category N
+
+// example code
 {{< /highlight >}}
 {{< highlight py >}}
 # beam-playground:
@@ -54,6 +56,8 @@ add the `beam-playground` tag into the file to be added.
 #     - category 1
 #     - category 2
 #     - category N
+
+# example code
 {{< /highlight >}}
 {{< highlight go >}}
 // beam-playground:
@@ -65,6 +69,8 @@ add the `beam-playground` tag into the file to be added.
 //     - category 1
 //     - category 2
 //     - category N
+
+// example code
 {{< /highlight >}}
 
 The 'beam-playground' tag consists of the following **required** elements:
