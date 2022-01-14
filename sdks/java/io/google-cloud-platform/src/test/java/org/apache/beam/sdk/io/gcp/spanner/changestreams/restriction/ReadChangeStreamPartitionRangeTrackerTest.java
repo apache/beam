@@ -29,13 +29,14 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.junit.Test;
 
-public class LenientOffsetRangeTrackerTest {
+public class ReadChangeStreamPartitionRangeTrackerTest {
 
   @Test
   public void testTryClaim() {
     final PartitionMetadata partition = mock(PartitionMetadata.class);
     final OffsetRange range = new OffsetRange(100, 200);
-    final LenientOffsetRangeTracker tracker = new LenientOffsetRangeTracker(partition, range);
+    final ReadChangeStreamPartitionRangeTracker tracker =
+        new ReadChangeStreamPartitionRangeTracker(partition, range);
     assertEquals(range, tracker.currentRestriction());
     assertTrue(tracker.tryClaim(100L));
     assertTrue(tracker.tryClaim(100L));
@@ -48,7 +49,8 @@ public class LenientOffsetRangeTrackerTest {
   public void testTrySplitReturnsNullForInitialPartition() {
     final PartitionMetadata partition = mock(PartitionMetadata.class);
     final OffsetRange range = new OffsetRange(100, 200);
-    final LenientOffsetRangeTracker tracker = new LenientOffsetRangeTracker(partition, range);
+    final ReadChangeStreamPartitionRangeTracker tracker =
+        new ReadChangeStreamPartitionRangeTracker(partition, range);
 
     when(partition.getPartitionToken()).thenReturn(InitialPartition.PARTITION_TOKEN);
 

@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.InitialPartition;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.range.OffsetRange;
@@ -27,7 +25,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 
 /**
  * This restriction tracker is a decorator on top of the {@link OffsetRangeTracker}. It modifies the
- * behaviour of {@link OffsetRangeTracker#tryClaim(Long)} to allow for claiming the same long
+ * behaviour of {@link OffsetRangeTracker#tryClaim(Long)} to ignore claims for the same long
  * multiple times. This is because several change stream records might have the same timestamp, thus
  * leading to multiple claims of the same {@link Long}. Other than that, it modifies the {@link
  * OffsetRangeTracker#trySplit(double)} method to always deny splits for the {@link
@@ -36,7 +34,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
-public class LenientOffsetRangeTracker extends OffsetRangeTracker {
+public class ReadChangeStreamPartitionRangeTracker extends OffsetRangeTracker {
 
   private final PartitionMetadata partition;
 
@@ -47,7 +45,7 @@ public class LenientOffsetRangeTracker extends OffsetRangeTracker {
    * @param partition the partition that will use the tracker
    * @param range closed / open range interval representing the start / end times for a partition
    */
-  public LenientOffsetRangeTracker(PartitionMetadata partition, OffsetRange range) {
+  public ReadChangeStreamPartitionRangeTracker(PartitionMetadata partition, OffsetRange range) {
     super(range);
     this.partition = partition;
   }
@@ -62,20 +60,10 @@ public class LenientOffsetRangeTracker extends OffsetRangeTracker {
    */
   @Override
   public boolean tryClaim(Long i) {
-    checkArgument(
-        lastAttemptedOffset == null || i >= lastAttemptedOffset,
-        "Trying to claim offset %s while last attempted was %s",
-        i,
-        lastAttemptedOffset);
-    checkArgument(
-        i >= range.getFrom(), "Trying to claim offset %s before start of the range %s", i, range);
-    lastAttemptedOffset = i;
-    // No respective checkArgument for i < range.to() - it's ok to try claiming offsets beyond it.
-    if (i >= range.getTo()) {
-      return false;
+    if (i.equals(lastAttemptedOffset)) {
+      return true;
     }
-    lastClaimedOffset = i;
-    return true;
+    return super.tryClaim(i);
   }
 
   /**

@@ -40,7 +40,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.MapperFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.PartitionMetadataMapper;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.LenientOffsetRangeTracker;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.ReadChangeStreamPartitionRangeTracker;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
@@ -152,9 +152,9 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
   }
 
   @NewTracker
-  public LenientOffsetRangeTracker newTracker(
+  public ReadChangeStreamPartitionRangeTracker newTracker(
       @Element PartitionMetadata partition, @Restriction OffsetRange offsetRange) {
-    return new LenientOffsetRangeTracker(partition, offsetRange);
+    return new ReadChangeStreamPartitionRangeTracker(partition, offsetRange);
   }
 
   /**
@@ -195,7 +195,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
    * <p>The processing of a partition is delegated to the {@link QueryChangeStreamAction}.
    *
    * @param partition the partition to be queried
-   * @param tracker an instance of {@link LenientOffsetRangeTracker}
+   * @param tracker an instance of {@link ReadChangeStreamPartitionRangeTracker}
    * @param receiver a {@link DataChangeRecord} {@link
    *     org.apache.beam.sdk.transforms.DoFn.OutputReceiver}
    * @param watermarkEstimator a {@link ManualWatermarkEstimator} of {@link Instant}
