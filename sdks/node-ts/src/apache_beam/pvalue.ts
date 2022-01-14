@@ -245,7 +245,11 @@ class MapDoFn<InputT, OutputT, ContextT> extends DoFn<
     this.fn = fn;
   }
   *process(element: InputT, context: ContextT) {
-    yield this.fn(element, context);
+    // While it's legal to call a function with extra arguments which will
+    // be ignored, this can have surprising behavior (e.g. for map(console.log))
+    yield context == undefined
+      ? (this.fn as (InputT) => OutputT)(element)
+      : this.fn(element, context);
   }
 }
 

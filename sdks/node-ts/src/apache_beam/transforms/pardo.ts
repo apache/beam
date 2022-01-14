@@ -26,7 +26,6 @@ export class DoFn<InputT, OutputT, ContextT = undefined> {
 // impact would be for creating promises for every element of every operation
 // which is typically a very performance critical spot to optimize.)
 
-
 export class ParDo<InputT, OutputT, ContextT = undefined> extends PTransform<
   PCollection<InputT>,
   PCollection<OutputT>
