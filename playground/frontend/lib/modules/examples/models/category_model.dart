@@ -18,9 +18,14 @@
 
 import 'package:playground/modules/examples/models/example_model.dart';
 
-class CategoryModel {
+class CategoryModel with Comparable<CategoryModel> {
   final String name;
   final List<ExampleModel> examples;
 
-  CategoryModel(this.name, this.examples);
+  const CategoryModel({required this.name, required this.examples});
+
+  @override
+  int compareTo(CategoryModel other) {
+    return name.toLowerCase().compareTo(other.name.toLowerCase());
+  }
 }

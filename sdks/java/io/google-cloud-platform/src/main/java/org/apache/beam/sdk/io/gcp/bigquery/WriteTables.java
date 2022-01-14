@@ -145,8 +145,9 @@ class WriteTables<DestinationT>
   private final @Nullable String kmsKey;
   private final String sourceFormat;
   private final boolean useAvroLogicalTypes;
-  private @Nullable DatasetService datasetService;
+  private transient @Nullable DatasetService datasetService;
   private @Nullable JobService jobService;
+  private final @Nullable String tempDataset;
 
   private class WriteTablesDoFn
       extends DoFn<
@@ -251,6 +252,9 @@ class WriteTables<DestinationT>
               c.sideInput(loadJobIdPrefixView), tableDestination, partition, c.pane().getIndex());
 
       if (tempTable) {
+        if (tempDataset != null) {
+          tableReference.setDatasetId(tempDataset);
+        }
         // This is a temp table. Create a new one for each partition and each pane.
         tableReference.setTableId(jobIdPrefix);
       }
@@ -398,7 +402,8 @@ class WriteTables<DestinationT>
       String kmsKey,
       String sourceFormat,
       boolean useAvroLogicalTypes,
-      Set<SchemaUpdateOption> schemaUpdateOptions) {
+      Set<SchemaUpdateOption> schemaUpdateOptions,
+      @Nullable String tempDataset) {
 
     this.tempTable = tempTable;
     this.bqServices = bqServices;
@@ -416,6 +421,7 @@ class WriteTables<DestinationT>
     this.sourceFormat = sourceFormat;
     this.useAvroLogicalTypes = useAvroLogicalTypes;
     this.schemaUpdateOptions = schemaUpdateOptions;
+    this.tempDataset = tempDataset;
   }
 
   @Override

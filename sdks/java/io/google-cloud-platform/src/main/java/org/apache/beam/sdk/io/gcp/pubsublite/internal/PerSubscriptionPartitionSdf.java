@@ -76,33 +76,28 @@ class PerSubscriptionPartitionSdf extends DoFn<SubscriptionPartition, SequencedM
       @Element SubscriptionPartition subscriptionPartition,
       OutputReceiver<SequencedMessage> receiver)
       throws Exception {
-    try (SubscriptionPartitionProcessor processor =
-        processorFactory.newProcessor(subscriptionPartition, tracker, receiver)) {
-      processor.start();
-      ProcessContinuation result = processor.waitForCompletion(maxSleepTime);
-      processor
-          .lastClaimed()
-          .ifPresent(
-              lastClaimedOffset -> {
-                Offset commitOffset = Offset.of(lastClaimedOffset.value() + 1);
-                try {
-                  committerFactory.apply(subscriptionPartition).commitOffset(commitOffset);
-                } catch (Exception e) {
-                  throw ExtractStatus.toCanonical(e).underlying;
-                }
-              });
-      return result;
-    }
+    SubscriptionPartitionProcessor processor =
+        processorFactory.newProcessor(subscriptionPartition, tracker, receiver);
+    ProcessContinuation result = processor.runFor(maxSleepTime);
+    processor
+        .lastClaimed()
+        .ifPresent(
+            lastClaimedOffset -> {
+              Offset commitOffset = Offset.of(lastClaimedOffset.value() + 1);
+              try {
+                committerFactory.apply(subscriptionPartition).commitOffset(commitOffset);
+              } catch (Exception e) {
+                throw ExtractStatus.toCanonical(e).underlying;
+              }
+            });
+    return result;
   }
 
   @GetInitialRestriction
   public OffsetByteRange getInitialRestriction(
       @Element SubscriptionPartition subscriptionPartition) {
-    try (InitialOffsetReader reader = offsetReaderFactory.apply(subscriptionPartition)) {
-      Offset offset = reader.read();
-      return OffsetByteRange.of(
-          new OffsetRange(offset.value(), Long.MAX_VALUE /* open interval */));
-    }
+    Offset offset = offsetReaderFactory.apply(subscriptionPartition).read();
+    return OffsetByteRange.of(new OffsetRange(offset.value(), Long.MAX_VALUE /* open interval */));
   }
 
   @NewTracker

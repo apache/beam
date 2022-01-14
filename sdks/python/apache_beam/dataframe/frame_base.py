@@ -151,7 +151,7 @@ def _elementwise_method(
       inplace,
       base,
       requires_partition_by=partitionings.Arbitrary(),
-      preserves_partition_by=partitionings.Singleton())
+      preserves_partition_by=partitionings.Arbitrary())
 
 
 def _proxy_method(
@@ -160,8 +160,10 @@ def _proxy_method(
     restrictions=None,
     inplace=False,
     base=None,
-    requires_partition_by=partitionings.Singleton(),
-    preserves_partition_by=partitionings.Arbitrary()):
+    *,
+    requires_partition_by,  # type: partitionings.Partitioning
+    preserves_partition_by,  # type: partitionings.Partitioning
+):
   if name is None:
     name, func = name_and_func(func)
   if base is None:
@@ -172,8 +174,8 @@ def _proxy_method(
       restrictions,
       inplace,
       base,
-      requires_partition_by,
-      preserves_partition_by)
+      requires_partition_by=requires_partition_by,
+      preserves_partition_by=preserves_partition_by)
 
 
 def _elementwise_function(
@@ -185,7 +187,7 @@ def _elementwise_function(
       inplace,
       base,
       requires_partition_by=partitionings.Arbitrary(),
-      preserves_partition_by=partitionings.Singleton())
+      preserves_partition_by=partitionings.Arbitrary())
 
 
 def _proxy_function(
@@ -194,10 +196,9 @@ def _proxy_function(
     restrictions=None,  # type: Optional[Dict[str, Union[Any, List[Any]]]]
     inplace=False,  # type: bool
     base=None,  # type: Optional[type]
-    requires_partition_by=partitionings.Singleton(
-    ),  # type: partitionings.Partitioning
-    preserves_partition_by=partitionings.Arbitrary(
-    ),  # type: partitionings.Partitioning
+    *,
+    requires_partition_by,  # type: partitionings.Partitioning
+    preserves_partition_by,  # type: partitionings.Partitioning
 ):
 
   if name is None:
@@ -296,7 +297,7 @@ def _proxy_function(
         sum(isinstance(arg.proxy(), pd.core.generic.NDFrame)
             for arg in deferred_exprs) > 1):
       # Implicit join on index if there is more than one indexed input.
-      actual_requires_partition_by = partitionings.Index()
+      actual_requires_partition_by = partitionings.JoinIndex()
     else:
       actual_requires_partition_by = requires_partition_by
 

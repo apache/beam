@@ -19,6 +19,7 @@ import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/cache"
 	"beam.apache.org/playground/backend/internal/cache/local"
+	"beam.apache.org/playground/backend/internal/cache/redis"
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/logger"
 	"context"
@@ -35,6 +36,9 @@ func runServer() error {
 	if err != nil {
 		return err
 	}
+
+	logger.SetupLogger(ctx, envService.ApplicationEnvs.LaunchSite(), envService.ApplicationEnvs.GoogleProjectId())
+
 	grpcServer := grpc.NewServer()
 
 	cacheService, err := setupCache(ctx, envService.ApplicationEnvs)
@@ -53,7 +57,7 @@ func runServer() error {
 		go listenTcp(ctx, errChan, envService.NetworkEnvs, grpcServer)
 	case "HTTP":
 		handler := Wrap(grpcServer, getGrpcWebOptions())
-		go listenHttp(ctx, errChan, envService.NetworkEnvs, handler)
+		go listenHttp(ctx, errChan, envService, handler)
 	}
 
 	for {
@@ -98,6 +102,8 @@ func getGrpcWebOptions() []grpcweb.Option {
 // setupCache constructs required cache by application environment
 func setupCache(ctx context.Context, appEnv environment.ApplicationEnvs) (cache.Cache, error) {
 	switch appEnv.CacheEnvs().CacheType() {
+	case "remote":
+		return redis.New(ctx, appEnv.CacheEnvs().Address())
 	default:
 		return local.New(ctx), nil
 	}

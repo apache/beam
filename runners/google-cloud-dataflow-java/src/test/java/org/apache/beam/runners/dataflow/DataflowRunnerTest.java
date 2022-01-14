@@ -30,6 +30,7 @@ import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
+import static org.hamcrest.Matchers.matchesRegex;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -180,6 +181,8 @@ import org.powermock.modules.junit4.PowerMockRunner;
  * <p>Implements {@link Serializable} because it is caught in closures.
  */
 @RunWith(JUnit4.class)
+// TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
+@SuppressWarnings("unused")
 public class DataflowRunnerTest implements Serializable {
 
   private static final String VALID_BUCKET = "valid-bucket";
@@ -782,7 +785,7 @@ public class DataflowRunnerTest implements Serializable {
     DataflowPipelineOptions options = buildPipelineOptions();
     options.setExperiments(Arrays.asList("upload_graph"));
     Pipeline p = buildDataflowPipeline(options);
-    DataflowPipelineJob job = (DataflowPipelineJob) p.run();
+    p.run();
 
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
     Mockito.verify(mockJobs).create(eq(PROJECT_ID), eq(REGION_ID), jobCaptor.capture());
@@ -958,8 +961,7 @@ public class DataflowRunnerTest implements Serializable {
                     StandardOpenOption.DELETE_ON_CLOSE));
 
     Pipeline p = buildDataflowPipeline(options);
-
-    DataflowPipelineJob job = (DataflowPipelineJob) p.run();
+    p.run();
   }
 
   @Test
@@ -1174,6 +1176,93 @@ public class DataflowRunnerTest implements Serializable {
         "DataflowRunner requires gcpTempLocation, "
             + "but failed to retrieve a value from PipelineOption");
     DataflowRunner.fromOptions(options);
+  }
+
+  @Test
+  public void testApplySdkEnvironmentOverrides() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    String dockerHubPythonContainerUrl = "apache/beam_python3.8_sdk:latest";
+    String gcrPythonContainerUrl = "gcr.io/apache-beam-testing/beam-sdk/beam_python3.8_sdk:latest";
+    options.setSdkHarnessContainerImageOverrides(".*python.*," + gcrPythonContainerUrl);
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    RunnerApi.Pipeline pipeline =
+        RunnerApi.Pipeline.newBuilder()
+            .setComponents(
+                RunnerApi.Components.newBuilder()
+                    .putEnvironments(
+                        "env",
+                        RunnerApi.Environment.newBuilder()
+                            .setUrn(
+                                BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.DOCKER))
+                            .setPayload(
+                                RunnerApi.DockerPayload.newBuilder()
+                                    .setContainerImage(dockerHubPythonContainerUrl)
+                                    .build()
+                                    .toByteString())
+                            .build()))
+            .build();
+    RunnerApi.Pipeline expectedPipeline =
+        RunnerApi.Pipeline.newBuilder()
+            .setComponents(
+                RunnerApi.Components.newBuilder()
+                    .putEnvironments(
+                        "env",
+                        RunnerApi.Environment.newBuilder()
+                            .setUrn(
+                                BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.DOCKER))
+                            .setPayload(
+                                RunnerApi.DockerPayload.newBuilder()
+                                    .setContainerImage(gcrPythonContainerUrl)
+                                    .build()
+                                    .toByteString())
+                            .build()))
+            .build();
+    assertThat(runner.applySdkEnvironmentOverrides(pipeline, options), equalTo(expectedPipeline));
+  }
+
+  @Test
+  public void testStageArtifactWithoutStagedName() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+
+    File temp1 = File.createTempFile("artifact1-", ".txt");
+    temp1.deleteOnExit();
+    File temp2 = File.createTempFile("artifact2-", ".txt");
+    temp2.deleteOnExit();
+
+    RunnerApi.ArtifactInformation fooLocalArtifact =
+        RunnerApi.ArtifactInformation.newBuilder()
+            .setTypeUrn(BeamUrns.getUrn(RunnerApi.StandardArtifacts.Types.FILE))
+            .setTypePayload(
+                RunnerApi.ArtifactFilePayload.newBuilder()
+                    .setPath(temp1.getAbsolutePath())
+                    .build()
+                    .toByteString())
+            .build();
+    RunnerApi.ArtifactInformation barLocalArtifact =
+        RunnerApi.ArtifactInformation.newBuilder()
+            .setTypeUrn(BeamUrns.getUrn(RunnerApi.StandardArtifacts.Types.FILE))
+            .setTypePayload(
+                RunnerApi.ArtifactFilePayload.newBuilder()
+                    .setPath(temp2.getAbsolutePath())
+                    .build()
+                    .toByteString())
+            .build();
+    RunnerApi.Pipeline pipeline =
+        RunnerApi.Pipeline.newBuilder()
+            .setComponents(
+                RunnerApi.Components.newBuilder()
+                    .putEnvironments(
+                        "env",
+                        RunnerApi.Environment.newBuilder()
+                            .addAllDependencies(
+                                ImmutableList.of(fooLocalArtifact, barLocalArtifact))
+                            .build()))
+            .build();
+    List<DataflowPackage> packages = runner.stageArtifacts(pipeline);
+    for (DataflowPackage pkg : packages) {
+      assertThat(pkg.getName(), matchesRegex("artifact[1,2]-.+\\.txt"));
+    }
   }
 
   @Test
@@ -1517,6 +1606,7 @@ public class DataflowRunnerTest implements Serializable {
         .apply(
             ParDo.of(
                 new DoFn<KV<Integer, Integer>, Void>() {
+
                   @StateId("fizzle")
                   private final StateSpec<MapState<Void, Void>> voidState = StateSpecs.map();
 
@@ -1554,6 +1644,7 @@ public class DataflowRunnerTest implements Serializable {
         .apply(
             ParDo.of(
                 new DoFn<KV<Integer, Integer>, Void>() {
+
                   @StateId("fizzle")
                   private final StateSpec<SetState<Void>> voidState = StateSpecs.set();
 
@@ -1788,6 +1879,7 @@ public class DataflowRunnerTest implements Serializable {
         .apply(
             ParDo.of(
                 new DoFn<KV<Integer, Integer>, Void>() {
+
                   @StateId("fizzle")
                   private final StateSpec<ValueState<Void>> voidState = StateSpecs.value();
 

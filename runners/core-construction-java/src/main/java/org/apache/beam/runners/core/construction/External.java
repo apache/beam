@@ -314,7 +314,6 @@ public class External {
                       .addAllArtifacts(artifacts)
                       .build())
               .getReplacementsList()) {
-        RunnerApi.ArtifactInformation.Builder newArtifact = artifact.toBuilder();
         Path path = Files.createTempFile("beam-artifact", "");
         try (FileOutputStream fout = new FileOutputStream(path.toFile())) {
           for (Iterator<ArtifactApi.GetArtifactResponse> it =

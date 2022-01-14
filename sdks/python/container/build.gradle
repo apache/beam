@@ -21,46 +21,18 @@ applyGoNature()
 
 description = "Apache Beam :: SDKs :: Python :: Container"
 
-// Disable gogradle's dependency resolution so it uses Go modules instead.
-installDependencies.enabled = false
-resolveBuildDependencies.enabled = false
-resolveTestDependencies.enabled = false
-
 configurations {
   sdkSourceTarball
   sdkHarnessLauncher
 }
 
 dependencies {
-  golang {
-    // TODO(herohde): use "./" prefix to prevent gogradle use base github path, for now.
-    // TODO(herohde): get the pkg subdirectory only, if possible. We spend mins pulling cmd/beamctl deps.
-    build name: './github.com/apache/beam/sdks/go', dir: project(':sdks:go').projectDir
-    test name: './github.com/apache/beam/sdks/go', dir: project(':sdks:go').projectDir
-  }
   sdkSourceTarball project(path: ":sdks:python", configuration: "distTarBall")
 }
 
-golang {
-  packagePath = 'github.com/apache/beam/sdks/v2/python/container'
-
-  // Set -modcacherw on common tasks so module cache can be deleted by goBuild.
-  goTest {
-    environment 'GOFLAGS', '-modcacherw'
-  }
-  goVet {
-    environment 'GOFLAGS', '-modcacherw'
-  }
-  gofmt {
-    environment 'GOFLAGS', '-modcacherw'
-  }
-  goBuild {
-    environment 'GOFLAGS', '-modcacherw'
-
-    // Build for linux and mac.
-    targetPlatform = ['linux-amd64', 'darwin-amd64']
-    outputLocation = './build/target/launcher/${GOOS}_${GOARCH}/boot'
-  }
+goBuild {
+  goTargets = '*.go' // only build the immediate directory.
+  outputLocation = './build/target/launcher/${GOOS}_${GOARCH}/boot'
 }
 
 task buildAll {
@@ -73,6 +45,12 @@ task pushAll {
   dependsOn ':sdks:python:container:py36:dockerPush'
   dependsOn ':sdks:python:container:py37:dockerPush'
   dependsOn ':sdks:python:container:py38:dockerPush'
+}
+
+task generatePythonRequirementsAll {
+  dependsOn ':sdks:python:container:py36:generatePythonRequirements'
+  dependsOn ':sdks:python:container:py37:generatePythonRequirements'
+  dependsOn ':sdks:python:container:py38:generatePythonRequirements'
 }
 
 artifacts {

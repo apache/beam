@@ -25,6 +25,7 @@ import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.data.BeamFnTimerClient;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -64,6 +65,15 @@ public interface PTransformRunnerFactory<T> {
 
     /** A supplier containing the active process bundle instruction id. */
     Supplier<String> getProcessBundleInstructionIdSupplier();
+
+    /** A supplier containing the active cache tokens for this bundle. */
+    Supplier<List<ProcessBundleRequest.CacheToken>> getCacheTokensSupplier();
+
+    /** A cache that is used for each bundle and cleared when the bundle completes. */
+    Supplier<Cache<?, ?>> getBundleCacheSupplier();
+
+    /** A cache that is process wide and persists across bundle boundaries. */
+    Cache<?, ?> getProcessWideCache();
 
     /** An immutable mapping from PCollection id to PCollection definition. */
     Map<String, RunnerApi.PCollection> getPCollections();

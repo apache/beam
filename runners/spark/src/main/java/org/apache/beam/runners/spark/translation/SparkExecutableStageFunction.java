@@ -67,8 +67,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.broadcast.Broadcast;
 import org.joda.time.Instant;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 
 /**
@@ -87,7 +85,6 @@ import scala.Tuple2;
 class SparkExecutableStageFunction<InputT, SideInputT>
     implements FlatMapFunction<Iterator<WindowedValue<InputT>>, RawUnionValue> {
 
-  private static final Logger LOG = LoggerFactory.getLogger(SparkExecutableStageFunction.class);
 
   // Pipeline options for initializing the FileSystems
   private final SerializablePipelineOptions pipelineOptions;
@@ -151,8 +148,7 @@ class SparkExecutableStageFunction<InputT, SideInputT>
         if (executableStage.getTimers().size() == 0) {
           ReceiverFactory receiverFactory = new ReceiverFactory(collector, outputMap);
           processElements(
-              executableStage,
-              stateRequestHandler,
+            stateRequestHandler,
               receiverFactory,
               null,
               stageBundleFactory,
@@ -183,8 +179,7 @@ class SparkExecutableStageFunction<InputT, SideInputT>
 
         // Process inputs.
         processElements(
-            executableStage,
-            stateRequestHandler,
+          stateRequestHandler,
             receiverFactory,
             timerReceiverFactory,
             stageBundleFactory,
@@ -218,12 +213,11 @@ class SparkExecutableStageFunction<InputT, SideInputT>
   // Processes the inputs of the executable stage. Output is returned via side effects on the
   // receiver.
   private void processElements(
-      ExecutableStage executableStage,
-      StateRequestHandler stateRequestHandler,
-      ReceiverFactory receiverFactory,
-      TimerReceiverFactory timerReceiverFactory,
-      StageBundleFactory stageBundleFactory,
-      Iterator<WindowedValue<InputT>> inputs)
+    StateRequestHandler stateRequestHandler,
+    ReceiverFactory receiverFactory,
+    TimerReceiverFactory timerReceiverFactory,
+    StageBundleFactory stageBundleFactory,
+    Iterator<WindowedValue<InputT>> inputs)
       throws Exception {
     try (RemoteBundle bundle =
         stageBundleFactory.getBundle(

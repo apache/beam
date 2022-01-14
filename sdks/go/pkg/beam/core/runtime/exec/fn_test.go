@@ -84,6 +84,19 @@ func TestInvoke(t *testing.T) {
 			Expected: 2,
 		},
 		{
+			// Multimap side input
+			Fn: func(a int, get func(int) func(*int) bool) int {
+				var ret int
+				iter := get(a)
+				if !iter(&ret) {
+					return a
+				}
+				return ret
+			},
+			Args:     []interface{}{1, func(_ int) func(*int) bool { return func(out *int) bool { *out = 2; return true } }},
+			Expected: 2,
+		},
+		{
 			// Sum as Main
 			Fn:       func(a, b, c int) int { return a + b + c },
 			Opt:      &MainInput{Key: FullValue{Elm: 1}},

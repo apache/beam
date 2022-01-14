@@ -97,7 +97,9 @@ class CoderRegistry(object):
     self._register_coder_internal(typehints.DictConstraint, coders.MapCoder)
     # Default fallback coders applied in that order until the first matching
     # coder found.
-    default_fallback_coders = [coders.ProtoCoder, coders.FastPrimitivesCoder]
+    default_fallback_coders = [
+        coders.ProtoCoder, coders.ProtoPlusCoder, coders.FastPrimitivesCoder
+    ]
     self._fallback_coder = fallback_coder or FirstOf(default_fallback_coders)
 
   def register_fallback_coder(self, fallback_coder):

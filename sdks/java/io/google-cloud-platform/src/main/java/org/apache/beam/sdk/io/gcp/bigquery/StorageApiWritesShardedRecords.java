@@ -21,9 +21,9 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.api.core.ApiFuture;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.cloud.bigquery.storage.v1beta2.AppendRowsResponse;
-import com.google.cloud.bigquery.storage.v1beta2.ProtoRows;
-import com.google.cloud.bigquery.storage.v1beta2.WriteStream.Type;
+import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
+import com.google.cloud.bigquery.storage.v1.ProtoRows;
+import com.google.cloud.bigquery.storage.v1.WriteStream.Type;
 import com.google.protobuf.Descriptors.Descriptor;
 import io.grpc.Status;
 import io.grpc.Status.Code;
@@ -84,7 +84,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A transform to write sharded records to BigQuery using the Storage API. */
-@SuppressWarnings("FutureReturnValueIgnored")
+@SuppressWarnings({
+  "FutureReturnValueIgnored",
+  "unused" // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
+})
 public class StorageApiWritesShardedRecords<DestinationT, ElementT>
     extends PTransform<
         PCollection<KV<ShardedKey<DestinationT>, Iterable<byte[]>>>, PCollection<Void>> {
@@ -199,7 +202,7 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
 
     private Map<DestinationT, TableDestination> destinations = Maps.newHashMap();
 
-    private @Nullable DatasetService datasetServiceInternal = null;
+    private transient @Nullable DatasetService datasetServiceInternal = null;
 
     // Stores the current stream for this key.
     @StateId("streamName")
@@ -294,7 +297,7 @@ public class StorageApiWritesShardedRecords<DestinationT, ElementT>
       final String tableId = tableDestination.getTableUrn();
       final DatasetService datasetService = getDatasetService(pipelineOptions);
       MessageConverter<ElementT> messageConverter =
-          messageConverters.get(element.getKey().getKey(), dynamicDestinations);
+          messageConverters.get(element.getKey().getKey(), dynamicDestinations, datasetService);
       Descriptor descriptor = messageConverter.getSchemaDescriptor();
 
       // Each ProtoRows object contains at most 1MB of rows.

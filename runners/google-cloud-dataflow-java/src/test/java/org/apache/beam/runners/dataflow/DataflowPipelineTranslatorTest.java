@@ -832,24 +832,22 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     final PCollectionView<List<Integer>> view =
         pipeline.apply("CreateSideInput", Create.of(11, 13, 17, 23)).apply(View.asList());
 
-    PCollection<Integer> output =
-        pipeline
-            .apply("CreateMainInput", Create.of(29, 31))
-            .apply(
-                "OutputSideInputs",
-                ParDo.of(
-                        new DoFn<Integer, Integer>() {
-                          @ProcessElement
-                          public void processElement(ProcessContext c) {
-                            checkArgument(c.sideInput(view).size() == 4);
-                            checkArgument(
-                                c.sideInput(view).get(0).equals(c.sideInput(view).get(0)));
-                            for (Integer i : c.sideInput(view)) {
-                              c.output(i);
-                            }
-                          }
-                        })
-                    .withSideInputs(view));
+    pipeline
+        .apply("CreateMainInput", Create.of(29, 31))
+        .apply(
+            "OutputSideInputs",
+            ParDo.of(
+                    new DoFn<Integer, Integer>() {
+                      @ProcessElement
+                      public void processElement(ProcessContext c) {
+                        checkArgument(c.sideInput(view).size() == 4);
+                        checkArgument(c.sideInput(view).get(0).equals(c.sideInput(view).get(0)));
+                        for (Integer i : c.sideInput(view)) {
+                          c.output(i);
+                        }
+                      }
+                    })
+                .withSideInputs(view));
 
     DataflowRunner runner = DataflowRunner.fromOptions(options);
     DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
@@ -989,19 +987,17 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
 
     Pipeline pipeline = Pipeline.create(options);
-
-    PCollection<String> windowedInput =
-        pipeline
-            .apply(Impulse.create())
-            .apply(
-                MapElements.via(
-                    new SimpleFunction<byte[], String>() {
-                      @Override
-                      public String apply(byte[] input) {
-                        return "";
-                      }
-                    }))
-            .apply(Window.into(FixedWindows.of(Duration.standardMinutes(1))));
+    pipeline
+        .apply(Impulse.create())
+        .apply(
+            MapElements.via(
+                new SimpleFunction<byte[], String>() {
+                  @Override
+                  public String apply(byte[] input) {
+                    return "";
+                  }
+                }))
+        .apply(Window.into(FixedWindows.of(Duration.standardMinutes(1))));
 
     runner.replaceV1Transforms(pipeline);
 

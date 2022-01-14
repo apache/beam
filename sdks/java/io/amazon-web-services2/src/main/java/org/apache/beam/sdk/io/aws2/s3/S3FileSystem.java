@@ -229,9 +229,10 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
                 exception = pathWithEncoding.getException();
                 break;
               } else {
+                // TODO(BEAM-11821): Support file checksum in this method.
                 metadatas.add(
                     createBeamMetadata(
-                        pathWithEncoding.getPath(), pathWithEncoding.getContentEncoding()));
+                        pathWithEncoding.getPath(), pathWithEncoding.getContentEncoding(), null));
               }
             }
 
@@ -389,21 +390,26 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
             createBeamMetadata(
                 path.withSize(s3ObjectHead.contentLength())
                     .withLastModified(Date.from(s3ObjectHead.lastModified())),
-                Strings.nullToEmpty(s3ObjectHead.contentEncoding()))));
+                Strings.nullToEmpty(s3ObjectHead.contentEncoding()),
+                s3ObjectHead.eTag())));
   }
 
   private static MatchResult.Metadata createBeamMetadata(
-      S3ResourceId path, String contentEncoding) {
+      S3ResourceId path, String contentEncoding, String eTag) {
     checkArgument(path.getSize().isPresent(), "The resource id should have a size.");
     checkNotNull(contentEncoding, "contentEncoding");
     boolean isReadSeekEfficient = !NON_READ_SEEK_EFFICIENT_ENCODINGS.contains(contentEncoding);
 
-    return MatchResult.Metadata.builder()
-        .setIsReadSeekEfficient(isReadSeekEfficient)
-        .setResourceId(path)
-        .setSizeBytes(path.getSize().get())
-        .setLastModifiedMillis(path.getLastModified().transform(Date::getTime).or(0L))
-        .build();
+    MatchResult.Metadata.Builder ret =
+        MatchResult.Metadata.builder()
+            .setIsReadSeekEfficient(isReadSeekEfficient)
+            .setResourceId(path)
+            .setSizeBytes(path.getSize().get())
+            .setLastModifiedMillis(path.getLastModified().transform(Date::getTime).or(0L));
+    if (eTag != null) {
+      ret.setChecksum(eTag);
+    }
+    return ret.build();
   }
 
   @Override
@@ -615,7 +621,7 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
         keys.stream()
             .map((key) -> ObjectIdentifier.builder().key(key).build())
             .collect(Collectors.toList());
-    Delete delete = Delete.builder().objects(deleteKeyVersions).build();
+    Delete delete = Delete.builder().objects(deleteKeyVersions).quiet(true).build();
     DeleteObjectsRequest deleteObjectsRequest =
         DeleteObjectsRequest.builder().bucket(bucket).delete(delete).build();
     try {

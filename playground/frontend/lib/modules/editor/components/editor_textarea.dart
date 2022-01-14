@@ -18,6 +18,7 @@
 
 import 'package:code_text_field/code_text_field.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:highlight/languages/go.dart';
 import 'package:highlight/languages/java.dart';
 import 'package:highlight/languages/python.dart';
@@ -30,18 +31,18 @@ import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 import 'package:provider/provider.dart';
 
-const kCodeAreaSemantics = 'Code textarea';
-
 class EditorTextArea extends StatefulWidget {
   final SDK sdk;
   final ExampleModel? example;
-  final void Function(String) onSourceChange;
+  final bool enabled;
+  final void Function(String)? onSourceChange;
 
   const EditorTextArea({
     Key? key,
     required this.sdk,
     this.example,
-    required this.onSourceChange,
+    this.onSourceChange,
+    required this.enabled,
   }) : super(key: key);
 
   @override
@@ -60,10 +61,14 @@ class _EditorTextAreaState extends State<EditorTextArea> {
   void didChangeDependencies() {
     final themeProvider = Provider.of<ThemeProvider>(context, listen: true);
     _codeController = CodeController(
-      text: _codeController?.text ?? widget.example?.sources[widget.sdk] ?? '',
+      text: _codeController?.text ?? widget.example?.source ?? '',
       language: _getLanguageFromSdk(),
       theme: themeProvider.isDarkMode ? kDarkCodeTheme : kLightCodeTheme,
-      onChange: (newSource) => widget.onSourceChange(newSource),
+      onChange: (newSource) {
+        if (widget.onSourceChange != null) {
+          widget.onSourceChange!(newSource);
+        }
+      },
       webSpaceFix: false,
     );
     super.didChangeDependencies();
@@ -81,10 +86,11 @@ class _EditorTextAreaState extends State<EditorTextArea> {
       container: true,
       textField: true,
       multiline: true,
-      enabled: true,
-      readOnly: false,
-      label: kCodeAreaSemantics,
+      enabled: widget.enabled,
+      readOnly: widget.enabled,
+      label: AppLocalizations.of(context)!.codeTextArea,
       child: CodeField(
+        enabled: widget.enabled,
         controller: _codeController!,
         textStyle: getCodeFontStyle(
           textStyle: const TextStyle(fontSize: kCodeFontSize),

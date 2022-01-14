@@ -22,6 +22,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window/trigger"
 	v1pb "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/pipelinex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
@@ -156,10 +157,12 @@ func Marshal(edges []*graph.MultiEdge, opt *Options) (*pipepb.Pipeline, error) {
 
 	// If there are external transforms that need expanding, do it now.
 	if m.needsExpansion {
-		// Remap outputs of expanded external transforms to be the inputs for all downstream consumers
-		purgeOutputInput(edges, p)
 		// Merge the expanded components into the existing pipeline
 		mergeExpandedWithPipeline(edges, p)
+
+		// Remap outputs of expanded external transforms to be the inputs for all downstream consumers
+		// Must happen after merging, so that the inputs in the expanded transforms are also updated.
+		purgeOutputInput(edges, p)
 	}
 
 	return p, nil
@@ -283,6 +286,21 @@ func (m *marshaller) updateIfCombineComposite(s *ScopeTree, transform *pipepb.PT
 	return nil
 }
 
+func getSideWindowMappingUrn(winFn *window.Fn) string {
+	var mappingUrn string
+	switch winFn.Kind {
+	case window.GlobalWindows:
+		mappingUrn = URNWindowMappingGlobal
+	case window.FixedWindows:
+		mappingUrn = URNWindowMappingFixed
+	case window.SlidingWindows:
+		mappingUrn = URNWindowMappingSliding
+	case window.Sessions:
+		panic("session windowing is not supported for side inputs")
+	}
+	return mappingUrn
+}
+
 func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 	handleErr := func(err error) ([]string, error) {
 		return nil, errors.Wrapf(err, "failed to add input kind: %v", edge)
@@ -391,17 +409,7 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 				inputs[fmt.Sprintf("i%v", i)] = out
 
 				siWfn := in.From.WindowingStrategy().Fn
-				var mappingUrn string
-				switch siWfn.Kind {
-				case window.GlobalWindows:
-					mappingUrn = URNWindowMappingGlobal
-				case window.FixedWindows:
-					mappingUrn = URNWindowMappingFixed
-				case window.SlidingWindows:
-					mappingUrn = URNWindowMappingSliding
-				case window.Sessions:
-					panic("session windowing is not supported for side inputs")
-				}
+				mappingUrn := getSideWindowMappingUrn(siWfn)
 
 				siWSpec, err := makeWindowFn(siWfn)
 				if err != nil {
@@ -422,8 +430,28 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 				}
 
 			case graph.Map, graph.MultiMap:
-				return nil, errors.Errorf("not implemented")
+				// Already in a MultiMap form, don't need to add a fixed key.
+				// Get window mapping, arrange proto field.
+				siWfn := in.From.WindowingStrategy().Fn
+				mappingUrn := getSideWindowMappingUrn(siWfn)
 
+				siWSpec, err := makeWindowFn(siWfn)
+				if err != nil {
+					return nil, err
+				}
+
+				si[fmt.Sprintf("i%v", i)] = &pipepb.SideInput{
+					AccessPattern: &pipepb.FunctionSpec{
+						Urn: URNMultimapSideInput,
+					},
+					ViewFn: &pipepb.FunctionSpec{
+						Urn: "foo",
+					},
+					WindowMappingFn: &pipepb.FunctionSpec{
+						Urn:     mappingUrn,
+						Payload: siWSpec.Payload,
+					},
+				}
 			default:
 				return nil, errors.Errorf("unexpected input kind: %v", edge)
 			}
@@ -1034,50 +1062,50 @@ func makeAccumulationMode(m window.AccumulationMode) pipepb.AccumulationMode_Enu
 	}
 }
 
-func makeTrigger(t window.Trigger) *pipepb.Trigger {
-	switch t.Kind {
-	case window.DefaultTrigger:
+func makeTrigger(t trigger.Trigger) *pipepb.Trigger {
+	switch t := t.(type) {
+	case *trigger.DefaultTrigger:
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_Default_{
 				Default: &pipepb.Trigger_Default{},
 			},
 		}
-	case window.AlwaysTrigger:
+	case *trigger.AlwaysTrigger:
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_Always_{
 				Always: &pipepb.Trigger_Always{},
 			},
 		}
-	case window.AfterAnyTrigger:
+	case *trigger.AfterAnyTrigger:
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_AfterAny_{
 				AfterAny: &pipepb.Trigger_AfterAny{
-					Subtriggers: extractSubtriggers(t.SubTriggers),
+					Subtriggers: extractSubtriggers(t.SubTriggers()),
 				},
 			},
 		}
-	case window.AfterAllTrigger:
+	case *trigger.AfterAllTrigger:
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_AfterAll_{
 				AfterAll: &pipepb.Trigger_AfterAll{
-					Subtriggers: extractSubtriggers(t.SubTriggers),
+					Subtriggers: extractSubtriggers(t.SubTriggers()),
 				},
 			},
 		}
-	case window.AfterProcessingTimeTrigger:
-		if len(t.TimestampTransforms) == 0 {
+	case *trigger.AfterProcessingTimeTrigger:
+		if len(t.TimestampTransforms()) == 0 {
 			panic("AfterProcessingTime trigger set without a delay or alignment.")
 		}
 		tts := []*pipepb.TimestampTransform{}
-		for _, tt := range t.TimestampTransforms {
+		for _, tt := range t.TimestampTransforms() {
 			var ttp *pipepb.TimestampTransform
 			switch tt := tt.(type) {
-			case window.DelayTransform:
+			case trigger.DelayTransform:
 				ttp = &pipepb.TimestampTransform{
 					TimestampTransform: &pipepb.TimestampTransform_Delay_{
 						Delay: &pipepb.TimestampTransform_Delay{DelayMillis: tt.Delay},
 					}}
-			case window.AlignToTransform:
+			case trigger.AlignToTransform:
 				ttp = &pipepb.TimestampTransform{
 					TimestampTransform: &pipepb.TimestampTransform_AlignTo_{
 						AlignTo: &pipepb.TimestampTransform_AlignTo{
@@ -1095,41 +1123,38 @@ func makeTrigger(t window.Trigger) *pipepb.Trigger {
 				},
 			},
 		}
-	case window.ElementCountTrigger:
+	case *trigger.AfterCountTrigger:
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_ElementCount_{
-				ElementCount: &pipepb.Trigger_ElementCount{ElementCount: t.ElementCount},
+				ElementCount: &pipepb.Trigger_ElementCount{ElementCount: t.ElementCount()},
 			},
 		}
-	case window.AfterEndOfWindowTrigger:
+	case *trigger.AfterEndOfWindowTrigger:
 		var lateTrigger *pipepb.Trigger
-		if t.LateTrigger != nil {
-			lateTrigger = makeTrigger(*t.LateTrigger)
+		if t.Late() != nil {
+			lateTrigger = makeTrigger(t.Late())
 		}
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_AfterEndOfWindow_{
 				AfterEndOfWindow: &pipepb.Trigger_AfterEndOfWindow{
-					EarlyFirings: makeTrigger(*t.EarlyTrigger),
+					EarlyFirings: makeTrigger(t.Early()),
 					LateFirings:  lateTrigger,
 				},
 			},
 		}
-	case window.RepeatTrigger:
-		if len(t.SubTriggers) != 1 {
-			panic("Only 1 Subtrigger should be passed to Repeat Trigger")
-		}
+	case *trigger.RepeatTrigger:
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_Repeat_{
-				Repeat: &pipepb.Trigger_Repeat{Subtrigger: makeTrigger(t.SubTriggers[0])},
+				Repeat: &pipepb.Trigger_Repeat{Subtrigger: makeTrigger(t.SubTrigger())},
 			},
 		}
-	case window.NeverTrigger:
+	case *trigger.NeverTrigger:
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_Never_{
 				Never: &pipepb.Trigger_Never{},
 			},
 		}
-	case window.AfterSynchronizedProcessingTimeTrigger:
+	case *trigger.AfterSynchronizedProcessingTimeTrigger:
 		return &pipepb.Trigger{
 			Trigger: &pipepb.Trigger_AfterSynchronizedProcessingTime_{
 				AfterSynchronizedProcessingTime: &pipepb.Trigger_AfterSynchronizedProcessingTime{},
@@ -1144,7 +1169,7 @@ func makeTrigger(t window.Trigger) *pipepb.Trigger {
 	}
 }
 
-func extractSubtriggers(t []window.Trigger) []*pipepb.Trigger {
+func extractSubtriggers(t []trigger.Trigger) []*pipepb.Trigger {
 	if len(t) <= 0 {
 		panic("At least one subtrigger required for composite triggers.")
 	}

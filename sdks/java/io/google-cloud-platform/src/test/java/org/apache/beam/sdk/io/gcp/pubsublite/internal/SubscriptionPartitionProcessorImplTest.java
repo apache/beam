@@ -24,6 +24,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.times;
@@ -31,12 +32,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
+import com.google.api.core.SettableApiFuture;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode.Code;
 import com.google.cloud.pubsublite.Offset;
 import com.google.cloud.pubsublite.internal.CheckedApiException;
 import com.google.cloud.pubsublite.internal.testing.FakeApiService;
 import com.google.cloud.pubsublite.internal.wire.Subscriber;
+import com.google.cloud.pubsublite.internal.wire.SystemExecutors;
 import com.google.cloud.pubsublite.proto.Cursor;
 import com.google.cloud.pubsublite.proto.FlowControlRequest;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
@@ -52,12 +55,15 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.Spy;
+import org.mockito.stubbing.Answer;
 
 @RunWith(JUnit4.class)
 @SuppressWarnings("initialization.fields.uninitialized")
@@ -65,6 +71,8 @@ public class SubscriptionPartitionProcessorImplTest {
   @Spy RestrictionTracker<OffsetByteRange, OffsetByteProgress> tracker;
   @Mock OutputReceiver<SequencedMessage> receiver;
   @Mock Function<Consumer<List<SequencedMessage>>, Subscriber> subscriberFactory;
+
+  @Rule public Timeout globalTimeout = Timeout.seconds(30);
 
   abstract static class FakeSubscriber extends FakeApiService implements Subscriber {}
 
@@ -103,73 +111,79 @@ public class SubscriptionPartitionProcessorImplTest {
   @Test
   public void lifecycle() throws Exception {
     when(tracker.currentRestriction()).thenReturn(initialRange());
-    processor.start();
-    verify(subscriber).startAsync();
-    verify(subscriber).awaitRunning();
-    verify(subscriber)
+    assertEquals(ProcessContinuation.resume(), processor.runFor(Duration.millis(10)));
+    InOrder order = inOrder(subscriber);
+    order.verify(subscriber).startAsync();
+    order.verify(subscriber).awaitRunning();
+    order
+        .verify(subscriber)
         .allowFlow(
             FlowControlRequest.newBuilder()
                 .setAllowedBytes(DEFAULT_FLOW_CONTROL.bytesOutstanding())
                 .setAllowedMessages(DEFAULT_FLOW_CONTROL.messagesOutstanding())
                 .build());
-    processor.close();
-    verify(subscriber).stopAsync();
-    verify(subscriber).awaitTerminated();
+    order.verify(subscriber).stopAsync();
+    order.verify(subscriber).awaitTerminated();
   }
 
   @Test
   public void lifecycleFlowControlThrows() throws Exception {
     when(tracker.currentRestriction()).thenReturn(initialRange());
     doThrow(new CheckedApiException(Code.OUT_OF_RANGE)).when(subscriber).allowFlow(any());
-    assertThrows(CheckedApiException.class, () -> processor.start());
-  }
-
-  @Test
-  public void lifecycleSubscriberAwaitThrows() throws Exception {
-    when(tracker.currentRestriction()).thenReturn(initialRange());
-    processor.start();
-    doThrow(new CheckedApiException(Code.INTERNAL).underlying).when(subscriber).awaitTerminated();
-    assertThrows(ApiException.class, () -> processor.close());
-    verify(subscriber).stopAsync();
-    verify(subscriber).awaitTerminated();
+    assertThrows(ApiException.class, () -> processor.runFor(Duration.ZERO));
   }
 
   @Test
   public void subscriberFailureFails() throws Exception {
     when(tracker.currentRestriction()).thenReturn(initialRange());
-    processor.start();
-    subscriber.fail(new CheckedApiException(Code.OUT_OF_RANGE));
+    doAnswer(
+            (Answer<Void>)
+                args -> {
+                  subscriber.fail(new CheckedApiException(Code.OUT_OF_RANGE));
+                  return null;
+                })
+        .when(subscriber)
+        .awaitRunning();
     ApiException e =
         assertThrows(
-            // Longer wait is needed due to listener asynchrony.
-            ApiException.class, () -> processor.waitForCompletion(Duration.standardSeconds(1)));
+            // Longer wait is needed due to listener asynchrony, but should never wait this long.
+            ApiException.class, () -> processor.runFor(Duration.standardMinutes(2)));
     assertEquals(Code.OUT_OF_RANGE, e.getStatusCode().getCode());
   }
 
   @Test
   public void allowFlowFailureFails() throws Exception {
     when(tracker.currentRestriction()).thenReturn(initialRange());
-    processor.start();
     when(tracker.tryClaim(any())).thenReturn(true);
     doThrow(new CheckedApiException(Code.OUT_OF_RANGE)).when(subscriber).allowFlow(any());
-    leakedConsumer.accept(ImmutableList.of(messageWithOffset(1)));
+    SystemExecutors.getFuturesExecutor()
+        .execute(() -> leakedConsumer.accept(ImmutableList.of(messageWithOffset(1))));
     ApiException e =
-        assertThrows(ApiException.class, () -> processor.waitForCompletion(Duration.ZERO));
+        assertThrows(ApiException.class, () -> processor.runFor(Duration.standardHours(10)));
     assertEquals(Code.OUT_OF_RANGE, e.getStatusCode().getCode());
   }
 
   @Test
   public void timeoutReturnsResume() {
-    assertEquals(ProcessContinuation.resume(), processor.waitForCompletion(Duration.millis(10)));
+    assertEquals(ProcessContinuation.resume(), processor.runFor(Duration.millis(10)));
     assertFalse(processor.lastClaimed().isPresent());
   }
 
   @Test
-  public void failedClaimCausesStop() {
+  public void failedClaimCausesStop() throws Exception {
     when(tracker.tryClaim(any())).thenReturn(false);
+    SettableApiFuture<Void> runDone = SettableApiFuture.create();
+    SystemExecutors.getFuturesExecutor()
+        .execute(
+            () -> {
+              assertEquals(
+                  ProcessContinuation.stop(), processor.runFor(Duration.standardHours(10)));
+              runDone.set(null);
+            });
     leakedConsumer.accept(ImmutableList.of(messageWithOffset(1)));
+    runDone.get();
+
     verify(tracker, times(1)).tryClaim(any());
-    assertEquals(ProcessContinuation.stop(), processor.waitForCompletion(Duration.millis(10)));
     assertFalse(processor.lastClaimed().isPresent());
     // Future calls to process don't try to claim.
     leakedConsumer.accept(ImmutableList.of(messageWithOffset(2)));
@@ -179,9 +193,19 @@ public class SubscriptionPartitionProcessorImplTest {
   @Test
   public void successfulClaimThenTimeout() throws Exception {
     when(tracker.tryClaim(any())).thenReturn(true);
+    SettableApiFuture<Void> runDone = SettableApiFuture.create();
+    SystemExecutors.getFuturesExecutor()
+        .execute(
+            () -> {
+              assertEquals(
+                  ProcessContinuation.resume(), processor.runFor(Duration.standardSeconds(3)));
+              runDone.set(null);
+            });
+
     SequencedMessage message1 = messageWithOffset(1);
     SequencedMessage message3 = messageWithOffset(3);
     leakedConsumer.accept(ImmutableList.of(message1, message3));
+    runDone.get();
     InOrder order = inOrder(tracker, receiver, subscriber);
     order
         .verify(tracker)
@@ -200,7 +224,6 @@ public class SubscriptionPartitionProcessorImplTest {
                 .setAllowedMessages(2)
                 .setAllowedBytes(message1.getSizeBytes() + message3.getSizeBytes())
                 .build());
-    assertEquals(ProcessContinuation.resume(), processor.waitForCompletion(Duration.millis(10)));
     assertEquals(processor.lastClaimed().get(), Offset.of(3));
   }
 }

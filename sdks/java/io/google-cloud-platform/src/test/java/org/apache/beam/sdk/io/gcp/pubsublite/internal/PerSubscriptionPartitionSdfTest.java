@@ -139,7 +139,7 @@ public class PerSubscriptionPartitionSdfTest {
   @Test
   @SuppressWarnings("argument.type.incompatible")
   public void process() throws Exception {
-    when(processor.waitForCompletion(MAX_SLEEP_TIME)).thenReturn(ProcessContinuation.resume());
+    when(processor.runFor(MAX_SLEEP_TIME)).thenReturn(ProcessContinuation.resume());
     when(processorFactory.newProcessor(any(), any(), any()))
         .thenAnswer(
             args -> {
@@ -154,10 +154,8 @@ public class PerSubscriptionPartitionSdfTest {
     assertEquals(ProcessContinuation.resume(), sdf.processElement(tracker, PARTITION, output));
     verify(processorFactory).newProcessor(eq(PARTITION), any(), eq(output));
     InOrder order = inOrder(processor);
-    order.verify(processor).start();
-    order.verify(processor).waitForCompletion(MAX_SLEEP_TIME);
+    order.verify(processor).runFor(MAX_SLEEP_TIME);
     order.verify(processor).lastClaimed();
-    order.verify(processor).close();
     InOrder order2 = inOrder(committerFactory, committer);
     order2.verify(committerFactory).apply(PARTITION);
     order2.verify(committer).commitOffset(Offset.of(example(Offset.class).value() + 1));

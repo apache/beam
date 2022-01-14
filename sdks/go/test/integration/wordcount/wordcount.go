@@ -36,6 +36,11 @@ var (
 	smallWords = beam.NewCounter("extract", "smallWords")
 )
 
+func init() {
+	beam.RegisterFunction(extractFn)
+	beam.RegisterFunction(formatFn)
+}
+
 // CountWords is a composite transform that counts the words of a PCollection
 // of lines. It expects a PCollection of type string and returns a PCollection
 // of type KV<string,int>. The Beam type checker enforces these constraints

@@ -47,7 +47,9 @@ import java.util.stream.IntStream;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.WriteFn.WriteFnSpec;
@@ -64,15 +66,19 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
+import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.Wait;
+import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
@@ -80,10 +86,13 @@ import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.sdk.values.TypeDescriptors.TypeVariableExtractor;
 import org.apache.commons.dbcp2.BasicDataSource;
 import org.apache.commons.dbcp2.DataSourceConnectionFactory;
 import org.apache.commons.dbcp2.PoolableConnectionFactory;
@@ -92,6 +101,7 @@ import org.apache.commons.pool2.impl.GenericObjectPool;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -118,7 +128,6 @@ import org.slf4j.LoggerFactory;
  *        .withUsername("username")
  *        .withPassword("password"))
  *   .withQuery("select id,name from Person")
- *   .withCoder(KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of()))
  *   .withRowMapper(new JdbcIO.RowMapper<KV<Integer, String>>() {
  *     public KV<Integer, String> mapRow(ResultSet resultSet) throws Exception {
  *       return KV.of(resultSet.getInt(1), resultSet.getString(2));
@@ -136,7 +145,6 @@ import org.slf4j.LoggerFactory;
  *       "com.mysql.jdbc.Driver", "jdbc:mysql://hostname:3306/mydb",
  *       "username", "password"))
  *   .withQuery("select id,name from Person where name = ?")
- *   .withCoder(KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of()))
  *   .withStatementPreparator(new JdbcIO.StatementPreparator() {
  *     public void setParameters(PreparedStatement preparedStatement) throws Exception {
  *       preparedStatement.setString(1, "Darwin");
@@ -202,7 +210,6 @@ import org.slf4j.LoggerFactory;
  *  .withLowerBound(0)
  *  .withUpperBound(1000)
  *  .withNumPartitions(5)
- *  .withCoder(KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of()))
  *  .withRowMapper(new JdbcIO.RowMapper<KV<Integer, String>>() {
  *    public KV<Integer, String> mapRow(ResultSet resultSet) throws Exception {
  *      return KV.of(resultSet.getInt(1), resultSet.getString(2));
@@ -226,7 +233,6 @@ import org.slf4j.LoggerFactory;
  *  .withLowerBound(0)
  *  .withUpperBound(1000)
  *  .withNumPartitions(5)
- *  .withCoder(KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of()))
  *  .withRowMapper(new JdbcIO.RowMapper<KV<Integer, String>>() {
  *    public KV<Integer, String> mapRow(ResultSet resultSet) throws Exception {
  *      return KV.of(resultSet.getInt(1), resultSet.getString(2));
@@ -737,6 +743,11 @@ public class JdbcIO {
       return toBuilder().setRowMapper(rowMapper).build();
     }
 
+    /**
+     * @deprecated
+     *     <p>{@link JdbcIO} is able to infer aprppriate coders from other parameters.
+     */
+    @Deprecated
     public Read<T> withCoder(Coder<T> coder) {
       checkArgument(coder != null, "coder can not be null");
       return toBuilder().setCoder(coder).build();
@@ -764,27 +775,28 @@ public class JdbcIO {
     public PCollection<T> expand(PBegin input) {
       checkArgument(getQuery() != null, "withQuery() is required");
       checkArgument(getRowMapper() != null, "withRowMapper() is required");
-      checkArgument(getCoder() != null, "withCoder() is required");
       checkArgument(
           (getDataSourceProviderFn() != null),
           "withDataSourceConfiguration() or withDataSourceProviderFn() is required");
 
-      return input
-          .apply(Create.of((Void) null))
-          .apply(
-              JdbcIO.<Void, T>readAll()
-                  .withDataSourceProviderFn(getDataSourceProviderFn())
-                  .withQuery(getQuery())
-                  .withCoder(getCoder())
-                  .withRowMapper(getRowMapper())
-                  .withFetchSize(getFetchSize())
-                  .withOutputParallelization(getOutputParallelization())
-                  .withParameterSetter(
-                      (element, preparedStatement) -> {
-                        if (getStatementPreparator() != null) {
-                          getStatementPreparator().setParameters(preparedStatement);
-                        }
-                      }));
+      JdbcIO.ReadAll<Void, T> readAll =
+          JdbcIO.<Void, T>readAll()
+              .withDataSourceProviderFn(getDataSourceProviderFn())
+              .withQuery(getQuery())
+              .withRowMapper(getRowMapper())
+              .withFetchSize(getFetchSize())
+              .withOutputParallelization(getOutputParallelization())
+              .withParameterSetter(
+                  (element, preparedStatement) -> {
+                    if (getStatementPreparator() != null) {
+                      getStatementPreparator().setParameters(preparedStatement);
+                    }
+                  });
+
+      if (getCoder() != null) {
+        readAll = readAll.withCoder(getCoder());
+      }
+      return input.apply(Create.of((Void) null)).apply(readAll);
     }
 
     @Override
@@ -792,7 +804,9 @@ public class JdbcIO {
       super.populateDisplayData(builder);
       builder.add(DisplayData.item("query", getQuery()));
       builder.add(DisplayData.item("rowMapper", getRowMapper().getClass().getName()));
-      builder.add(DisplayData.item("coder", getCoder().getClass().getName()));
+      if (getCoder() != null) {
+        builder.add(DisplayData.item("coder", getCoder().getClass().getName()));
+      }
       if (getDataSourceProviderFn() instanceof HasDisplayData) {
         ((HasDisplayData) getDataSourceProviderFn()).populateDisplayData(builder);
       }
@@ -848,6 +862,11 @@ public class JdbcIO {
 
     public ReadAll<ParameterT, OutputT> withDataSourceProviderFn(
         SerializableFunction<Void, DataSource> dataSourceProviderFn) {
+      if (getDataSourceProviderFn() != null) {
+        throw new IllegalArgumentException(
+            "A dataSourceConfiguration or dataSourceProviderFn has "
+                + "already been provided, and does not need to be provided again.");
+      }
       return toBuilder().setDataSourceProviderFn(dataSourceProviderFn).build();
     }
 
@@ -877,6 +896,11 @@ public class JdbcIO {
       return toBuilder().setRowMapper(rowMapper).build();
     }
 
+    /**
+     * @deprecated
+     *     <p>{@link JdbcIO} is able to infer aprppriate coders from other parameters.
+     */
+    @Deprecated
     public ReadAll<ParameterT, OutputT> withCoder(Coder<OutputT> coder) {
       checkArgument(coder != null, "JdbcIO.readAll().withCoder(coder) called with null coder");
       return toBuilder().setCoder(coder).build();
@@ -900,8 +924,33 @@ public class JdbcIO {
       return toBuilder().setOutputParallelization(outputParallelization).build();
     }
 
+    private Coder<OutputT> inferCoder(CoderRegistry registry) {
+      if (getCoder() != null) {
+        return getCoder();
+      } else {
+        RowMapper<OutputT> rowMapper = getRowMapper();
+        TypeDescriptor<OutputT> outputType =
+            TypeDescriptors.extractFromTypeParameters(
+                rowMapper,
+                RowMapper.class,
+                new TypeVariableExtractor<RowMapper<OutputT>, OutputT>() {});
+        try {
+          return registry.getCoder(outputType);
+        } catch (CannotProvideCoderException e) {
+          LOG.warn("Unable to infer a coder for type {}", outputType);
+          return null;
+        }
+      }
+    }
+
     @Override
     public PCollection<OutputT> expand(PCollection<ParameterT> input) {
+      Coder<OutputT> coder = inferCoder(input.getPipeline().getCoderRegistry());
+      checkNotNull(
+          coder,
+          "Unable to infer a coder for JdbcIO.readAll() transform. "
+              + "Provide a coder via withCoder, or ensure that one can be inferred from the"
+              + " provided RowMapper.");
       PCollection<OutputT> output =
           input
               .apply(
@@ -912,14 +961,14 @@ public class JdbcIO {
                           getParameterSetter(),
                           getRowMapper(),
                           getFetchSize())))
-              .setCoder(getCoder());
+              .setCoder(coder);
 
       if (getOutputParallelization()) {
         output = output.apply(new Reparallelize<>());
       }
 
       try {
-        TypeDescriptor<OutputT> typeDesc = getCoder().getEncodedTypeDescriptor();
+        TypeDescriptor<OutputT> typeDesc = coder.getEncodedTypeDescriptor();
         SchemaRegistry registry = input.getPipeline().getSchemaRegistry();
         Schema schema = registry.getSchema(typeDesc);
         output.setSchema(
@@ -939,7 +988,9 @@ public class JdbcIO {
       super.populateDisplayData(builder);
       builder.add(DisplayData.item("query", getQuery()));
       builder.add(DisplayData.item("rowMapper", getRowMapper().getClass().getName()));
-      builder.add(DisplayData.item("coder", getCoder().getClass().getName()));
+      if (getCoder() != null) {
+        builder.add(DisplayData.item("coder", getCoder().getClass().getName()));
+      }
       if (getDataSourceProviderFn() instanceof HasDisplayData) {
         ((HasDisplayData) getDataSourceProviderFn()).populateDisplayData(builder);
       }
@@ -1005,6 +1056,11 @@ public class JdbcIO {
       return toBuilder().setRowMapper(rowMapper).build();
     }
 
+    /**
+     * @deprecated
+     *     <p>{@link JdbcIO} is able to infer aprppriate coders from other parameters.
+     */
+    @Deprecated
     public ReadWithPartitions<T> withCoder(Coder<T> coder) {
       checkNotNull(coder, "coder can not be null");
       return toBuilder().setCoder(coder).build();
@@ -1043,7 +1099,6 @@ public class JdbcIO {
     @Override
     public PCollection<T> expand(PBegin input) {
       checkNotNull(getRowMapper(), "withRowMapper() is required");
-      checkNotNull(getCoder(), "withCoder() is required");
       checkNotNull(
           getDataSourceProviderFn(),
           "withDataSourceConfiguration() or withDataSourceProviderFn() is required");
@@ -1069,15 +1124,13 @@ public class JdbcIO {
               .apply("Partitioning", ParDo.of(new PartitioningFn()))
               .apply("Group partitions", GroupByKey.create());
 
-      return ranges.apply(
-          "Read ranges",
+      JdbcIO.ReadAll<KV<String, Iterable<Long>>, T> readAll =
           JdbcIO.<KV<String, Iterable<Long>>, T>readAll()
               .withDataSourceProviderFn(getDataSourceProviderFn())
               .withQuery(
                   String.format(
                       "select * from %1$s where %2$s >= ? and %2$s < ?",
                       getTable(), getPartitionColumn()))
-              .withCoder(getCoder())
               .withRowMapper(getRowMapper())
               .withParameterSetter(
                   (PreparedStatementSetter<KV<String, Iterable<Long>>>)
@@ -1086,14 +1139,22 @@ public class JdbcIO {
                         preparedStatement.setLong(1, Long.parseLong(range[0]));
                         preparedStatement.setLong(2, Long.parseLong(range[1]));
                       })
-              .withOutputParallelization(false));
+              .withOutputParallelization(false);
+
+      if (getCoder() != null) {
+        readAll = readAll.withCoder(getCoder());
+      }
+
+      return ranges.apply("Read ranges", readAll);
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder.add(DisplayData.item("rowMapper", getRowMapper().getClass().getName()));
-      builder.add(DisplayData.item("coder", getCoder().getClass().getName()));
+      if (getCoder() != null) {
+        builder.add(DisplayData.item("coder", getCoder().getClass().getName()));
+      }
       builder.add(DisplayData.item("partitionColumn", getPartitionColumn()));
       builder.add(DisplayData.item("table", getTable()));
       builder.add(DisplayData.item("numPartitions", getNumPartitions()));
@@ -1263,6 +1324,11 @@ public class JdbcIO {
       this.inner = inner;
     }
 
+    /** See {@link WriteVoid#withAutoSharding()}. */
+    public Write<T> withAutoSharding() {
+      return new Write<>(inner.withAutoSharding());
+    }
+
     /** See {@link WriteVoid#withDataSourceConfiguration(DataSourceConfiguration)}. */
     public Write<T> withDataSourceConfiguration(DataSourceConfiguration config) {
       return new Write<>(inner.withDataSourceConfiguration(config));
@@ -1338,6 +1404,7 @@ public class JdbcIO {
           .setPreparedStatementSetter(inner.getPreparedStatementSetter())
           .setStatement(inner.getStatement())
           .setTable(inner.getTable())
+          .setAutoSharding(inner.getAutoSharding())
           .build();
     }
 
@@ -1351,6 +1418,50 @@ public class JdbcIO {
       inner.expand(input);
       return PDone.in(input.getPipeline());
     }
+  }
+
+  /* The maximum number of elements that will be included in a batch. */
+  private static final Integer MAX_BUNDLE_SIZE = 5000;
+
+  static <T> PCollection<Iterable<T>> batchElements(
+      PCollection<T> input, Boolean withAutoSharding) {
+    PCollection<Iterable<T>> iterables;
+    if (input.isBounded() == IsBounded.UNBOUNDED && withAutoSharding != null && withAutoSharding) {
+      iterables =
+          input
+              .apply(WithKeys.<String, T>of(""))
+              .apply(
+                  GroupIntoBatches.<String, T>ofSize(DEFAULT_BATCH_SIZE)
+                      .withMaxBufferingDuration(Duration.millis(200))
+                      .withShardedKey())
+              .apply(Values.create());
+    } else {
+      iterables =
+          input.apply(
+              ParDo.of(
+                  new DoFn<T, Iterable<T>>() {
+                    List<T> outputList;
+
+                    @ProcessElement
+                    public void process(ProcessContext c) {
+                      if (outputList == null) {
+                        outputList = new ArrayList<>();
+                      }
+                      outputList.add(c.element());
+                      if (outputList.size() > MAX_BUNDLE_SIZE) {
+                        c.output(outputList);
+                        outputList = null;
+                      }
+                    }
+
+                    @FinishBundle
+                    public void finish(FinishBundleContext c) {
+                      c.output(outputList, Instant.now(), GlobalWindow.INSTANCE);
+                      outputList = null;
+                    }
+                  }));
+    }
+    return iterables;
   }
 
   /** Interface implemented by functions that sets prepared statement data. */
@@ -1375,6 +1486,8 @@ public class JdbcIO {
   @AutoValue
   public abstract static class WriteWithResults<T, V extends JdbcWriteResult>
       extends PTransform<PCollection<T>, PCollection<V>> {
+    abstract @Nullable Boolean getAutoSharding();
+
     abstract @Nullable SerializableFunction<Void, DataSource> getDataSourceProviderFn();
 
     abstract @Nullable ValueProvider<String> getStatement();
@@ -1395,6 +1508,8 @@ public class JdbcIO {
     abstract static class Builder<T, V extends JdbcWriteResult> {
       abstract Builder<T, V> setDataSourceProviderFn(
           SerializableFunction<Void, DataSource> dataSourceProviderFn);
+
+      abstract Builder<T, V> setAutoSharding(Boolean autoSharding);
 
       abstract Builder<T, V> setStatement(ValueProvider<String> statement);
 
@@ -1430,6 +1545,11 @@ public class JdbcIO {
 
     public WriteWithResults<T, V> withPreparedStatementSetter(PreparedStatementSetter<T> setter) {
       return toBuilder().setPreparedStatementSetter(setter).build();
+    }
+
+    /** If true, enables using a dynamically determined number of shards to write. */
+    public WriteWithResults<T, V> withAutoSharding() {
+      return toBuilder().setAutoSharding(true).build();
     }
 
     /**
@@ -1494,8 +1614,14 @@ public class JdbcIO {
       checkArgument(
           (getDataSourceProviderFn() != null),
           "withDataSourceConfiguration() or withDataSourceProviderFn() is required");
+      checkArgument(
+          getAutoSharding() == null
+              || (getAutoSharding() && input.isBounded() != IsBounded.UNBOUNDED),
+          "Autosharding is only supported for streaming pipelines.");
+      ;
 
-      return input.apply(
+      PCollection<Iterable<T>> iterables = JdbcIO.<T>batchElements(input, getAutoSharding());
+      return iterables.apply(
           ParDo.of(
               new WriteFn<T, V>(
                   WriteFnSpec.builder()
@@ -1518,6 +1644,8 @@ public class JdbcIO {
   @AutoValue
   public abstract static class WriteVoid<T> extends PTransform<PCollection<T>, PCollection<Void>> {
 
+    abstract @Nullable Boolean getAutoSharding();
+
     abstract @Nullable SerializableFunction<Void, DataSource> getDataSourceProviderFn();
 
     abstract @Nullable ValueProvider<String> getStatement();
@@ -1536,6 +1664,8 @@ public class JdbcIO {
 
     @AutoValue.Builder
     abstract static class Builder<T> {
+      abstract Builder<T> setAutoSharding(Boolean autoSharding);
+
       abstract Builder<T> setDataSourceProviderFn(
           SerializableFunction<Void, DataSource> dataSourceProviderFn);
 
@@ -1552,6 +1682,11 @@ public class JdbcIO {
       abstract Builder<T> setTable(String table);
 
       abstract WriteVoid<T> build();
+    }
+
+    /** If true, enables using a dynamically determined number of shards to write. */
+    public WriteVoid<T> withAutoSharding() {
+      return toBuilder().setAutoSharding(true).build();
     }
 
     public WriteVoid<T> withDataSourceConfiguration(DataSourceConfiguration config) {
@@ -1653,7 +1788,10 @@ public class JdbcIO {
         checkArgument(
             spec.getPreparedStatementSetter() != null, "withPreparedStatementSetter() is required");
       }
-      return input
+
+      PCollection<Iterable<T>> iterables = JdbcIO.<T>batchElements(input, getAutoSharding());
+
+      return iterables
           .apply(
               ParDo.of(
                   new WriteFn<T, Void>(
@@ -1900,7 +2038,7 @@ public class JdbcIO {
    * @param <T>
    * @param <V>
    */
-  static class WriteFn<T, V> extends DoFn<T, V> {
+  static class WriteFn<T, V> extends DoFn<Iterable<T>, V> {
 
     @AutoValue
     abstract static class WriteFnSpec<T, V> implements Serializable, HasDisplayData {
@@ -1990,7 +2128,6 @@ public class JdbcIO {
     private Connection connection;
     private PreparedStatement preparedStatement;
     private static FluentBackoff retryBackOff;
-    private final List<T> records = new ArrayList<>();
 
     public WriteFn(WriteFnSpec<T, V> spec) {
       this.spec = spec;
@@ -2030,17 +2167,12 @@ public class JdbcIO {
 
     @ProcessElement
     public void processElement(ProcessContext context) throws Exception {
-      T record = context.element();
-      records.add(record);
-      if (records.size() >= spec.getBatchSize()) {
-        executeBatch(context);
-      }
+      executeBatch(context, context.element());
     }
 
     @FinishBundle
     public void finishBundle() throws Exception {
       // We pass a null context because we only execute a final batch for WriteVoid cases.
-      executeBatch(null);
       cleanUpStatementAndConnection();
     }
 
@@ -2069,11 +2201,8 @@ public class JdbcIO {
       }
     }
 
-    private void executeBatch(ProcessContext context)
+    private void executeBatch(ProcessContext context, Iterable<T> records)
         throws SQLException, IOException, InterruptedException {
-      if (records.isEmpty()) {
-        return;
-      }
       Long startTimeNs = System.nanoTime();
       Sleeper sleeper = Sleeper.DEFAULT;
       BackOff backoff = retryBackOff.backoff();
@@ -2082,8 +2211,10 @@ public class JdbcIO {
             getConnection().prepareStatement(spec.getStatement().get())) {
           try {
             // add each record in the statement batch
+            int recordsInBatch = 0;
             for (T record : records) {
               processRecord(record, preparedStatement, context);
+              recordsInBatch += 1;
             }
             if (!spec.getReturnResults()) {
               // execute the batch
@@ -2091,7 +2222,7 @@ public class JdbcIO {
               // commit the changes
               getConnection().commit();
             }
-            RECORDS_PER_BATCH.update(records.size());
+            RECORDS_PER_BATCH.update(recordsInBatch);
             MS_PER_BATCH.update(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTimeNs));
             break;
           } catch (SQLException exception) {
@@ -2109,7 +2240,6 @@ public class JdbcIO {
           }
         }
       }
-      records.clear();
     }
 
     private void processRecord(T record, PreparedStatement preparedStatement, ProcessContext c) {

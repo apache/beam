@@ -22,20 +22,48 @@ applyJavaNature(
   automaticModuleName: 'org.apache.beam.sdk.extensions.sql.meta.provider.hcatalog',
   classesTriggerCheckerBugs: [
     'HCatalogTable': 'TODO: file a bug report',
-  ]
+  ],
 )
+
+// TODO(BEAM-12687): This currently crashes with checkerframework 3.10.0
+// when compiling :sdks:java:extensions:sql:hcatalog:compileJava on Jenkins
+// with:
+// cannot access Statistic
+// class file for org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Statistic not found
+// Consult the following stack trace for details.
+// com.sun.tools.javac.code.Symbol$CompletionFailure: class file for org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Statistic not found
+checkerFramework {
+  skipCheckerFramework = true
+}
 
 def hive_version = "2.1.0"
 def netty_version = "4.1.51.Final"
 
+configurations.all {
+  resolutionStrategy {
+    // Pin log4j as workaround for CVE-2021-44228
+    // HIVE-25804 should address this upstream, but only in 4.0
+    // TODO(BEAM-9351): Upgrade Hive and remove this pin
+    def log4j_version = "2.17.1"
+    force "org.apache.logging.log4j:log4j-api:${log4j_version}"
+    force "org.apache.logging.log4j:log4j-core:${log4j_version}"
+    force "org.apache.logging.log4j:log4j-slf4j-impl:${log4j_version}"
+    force "org.apache.logging.log4j:log4j-1.2-api:${log4j_version}"
+    force "org.apache.logging.log4j:log4j-web:${log4j_version}"
+  }
+}
+
 dependencies {
-  provided project(":sdks:java:extensions:sql")
-  provided project(":sdks:java:io:hcatalog")
+  implementation project(":sdks:java:extensions:sql")
+  implementation project(":sdks:java:io:hcatalog")
+  implementation project(":sdks:java:core")
+  implementation "com.alibaba:fastjson:1.2.69"
+  implementation library.java.vendored_guava_26_0_jre
 
   // Needed for HCatalogTableProvider tests,
   // they use HCat* types
-  testCompile "io.netty:netty-all:$netty_version"
-  testCompile("org.apache.hive.hcatalog:hive-hcatalog-core:$hive_version") {
+  testImplementation "io.netty:netty-all:$netty_version"
+  testImplementation("org.apache.hive.hcatalog:hive-hcatalog-core:$hive_version") {
     // Hive brings full Calcite 1.6 + Avatica with JDBC driver which
     // gets registered and gets started instead of ours
     exclude group: "org.apache.calcite", module:"calcite-avatica"

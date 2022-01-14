@@ -54,6 +54,7 @@ from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.transforms.window import WindowFn
+from apache_beam.typehints import row_type
 from apache_beam.typehints import trivial_inference
 from apache_beam.typehints.decorators import TypeCheckError
 from apache_beam.typehints.decorators import WithTypeHints
@@ -2306,18 +2307,20 @@ class CombinePerKey(PTransformWithSideInputs):
         self.fn, *args, **kwargs)
 
   def default_type_hints(self):
-    hints = self.fn.get_type_hints()
-    if hints.input_types:
-      K = typehints.TypeVariable('K')
-      args, kwargs = hints.input_types
-      args = (typehints.Tuple[K, args[0]], ) + args[1:]
-      hints = hints.with_input_types(*args, **kwargs)
+    result = self.fn.get_type_hints()
+    k = typehints.TypeVariable('K')
+    if result.input_types:
+      args, kwargs = result.input_types
+      args = (typehints.Tuple[k, args[0]], ) + args[1:]
+      result = result.with_input_types(*args, **kwargs)
     else:
-      K = typehints.Any
-    if hints.output_types:
-      main_output_type = hints.simple_output_type('')
-      hints = hints.with_output_types(typehints.Tuple[K, main_output_type])
-    return hints
+      result = result.with_input_types(typehints.Tuple[k, typehints.Any])
+    if result.output_types:
+      main_output_type = result.simple_output_type('')
+      result = result.with_output_types(typehints.Tuple[k, main_output_type])
+    else:
+      result = result.with_output_types(typehints.Tuple[k, typehints.Any])
+    return result
 
   def to_runner_api_parameter(
       self,
@@ -2717,12 +2720,15 @@ class GroupBy(PTransform):
       key_exprs = [expr for _, expr in self._key_fields]
       return lambda element: key_type(*(expr(element) for expr in key_exprs))
 
-  def _key_type_hint(self):
+  def _key_type_hint(self, input_type):
     if not self._force_tuple_keys and len(self._key_fields) == 1:
-      return typing.Any
+      expr = self._key_fields[0][1]
+      return trivial_inference.infer_return_type(expr, [input_type])
     else:
-      return _dynamic_named_tuple(
-          'Key', tuple(name for name, _ in self._key_fields))
+      return row_type.RowTypeConstraint([
+          (name, trivial_inference.infer_return_type(expr, [input_type]))
+          for (name, expr) in self._key_fields
+      ])
 
   def default_label(self):
     return 'GroupBy(%s)' % ', '.join(name for name, _ in self._key_fields)
@@ -2732,7 +2738,7 @@ class GroupBy(PTransform):
     return (
         pcoll
         | Map(lambda x: (self._key_func()(x), x)).with_output_types(
-            typehints.Tuple[self._key_type_hint(), input_type])
+            typehints.Tuple[self._key_type_hint(input_type), input_type])
         | GroupByKey())
 
 
@@ -2783,7 +2789,8 @@ class _GroupAndAggregate(PTransform):
     result_fields = tuple(name
                           for name, _ in self._grouping._key_fields) + tuple(
                               dest for _, __, dest in self._aggregations)
-    key_type_hint = self._grouping.force_tuple_keys(True)._key_type_hint()
+    key_type_hint = self._grouping.force_tuple_keys(True)._key_type_hint(
+        pcoll.element_type)
 
     return (
         pcoll
@@ -2830,7 +2837,6 @@ class Select(PTransform):
                                 for name, expr in self._fields}))
 
   def infer_output_type(self, input_type):
-    from apache_beam.typehints import row_type
     return row_type.RowTypeConstraint([
         (name, trivial_inference.infer_return_type(expr, [input_type]))
         for (name, expr) in self._fields
@@ -2979,7 +2985,7 @@ class Windowing(object):
         output_time=self.timestamp_combiner,
         # TODO(robertwb): Support EMIT_IF_NONEMPTY
         closing_behavior=beam_runner_api_pb2.ClosingBehavior.EMIT_ALWAYS,
-        OnTimeBehavior=beam_runner_api_pb2.OnTimeBehavior.FIRE_ALWAYS,
+        on_time_behavior=beam_runner_api_pb2.OnTimeBehavior.FIRE_ALWAYS,
         allowed_lateness=self.allowed_lateness.micros // 1000,
         environment_id=environment_id)
 

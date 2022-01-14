@@ -17,6 +17,19 @@
 // and writes 2 output files.
 package main
 
+// beam-playground:
+//   name: MultiOut
+//   description: An example that counts words in Shakespeare's works and writes 2 output files,
+//     -- big - for small words,
+//     -- small - for big words.
+//   multifile: false
+//   pipeline_options: --small sOutput.txt --big bOutput.txt
+//   categories:
+//     - IO
+//     - Options
+//     - Branching
+//     - Multiple Outputs
+
 import (
 	"context"
 	"flag"
@@ -35,6 +48,11 @@ var (
 	small = flag.String("small", "", "Output file for small words (required).")
 	big   = flag.String("big", "", "Output file for big words (required).")
 )
+
+func init() {
+	beam.RegisterFunction(splitFn)
+	beam.RegisterFunction(formatFn)
+}
 
 var wordRE = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
 
@@ -70,8 +88,8 @@ func main() {
 
 	lines := textio.Read(s, *input)
 	bcol, scol := beam.ParDo2(s, splitFn, lines)
-	writeCounts(s, bcol, *big)
-	writeCounts(s, scol, *small)
+	writeCounts(s.Scope("Big"), bcol, *big)
+	writeCounts(s.Scope("Small"), scol, *small)
 
 	if err := beamx.Run(context.Background(), p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)

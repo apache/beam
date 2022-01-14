@@ -17,10 +17,14 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground/constants/sizes.dart';
+import 'package:playground/modules/analytics/analytics_service.dart';
 import 'package:playground/modules/editor/components/editor_textarea.dart';
+import 'package:playground/modules/editor/components/pipeline_options_text_field.dart';
 import 'package:playground/modules/editor/components/run_button.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
+import 'package:playground/modules/notifications/components/notification.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:provider/provider.dart';
@@ -36,29 +40,62 @@ class CodeTextAreaWrapper extends StatelessWidget {
           _handleError(context, state);
         });
       }
-      return Stack(
+      return Column(
+        key: ValueKey(EditorKeyObject(
+          state.sdk,
+          state.selectedExample,
+          state.resetKey,
+        )),
         children: [
-          Positioned.fill(
-            child: EditorTextArea(
-              key: ValueKey(EditorKeyObject(
-                state.sdk,
-                state.selectedExample,
-                state.resetKey,
-              )),
-              example: state.selectedExample,
-              sdk: state.sdk,
-              onSourceChange: state.setSource,
+          Expanded(
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: EditorTextArea(
+                    enabled: true,
+                    example: state.selectedExample,
+                    sdk: state.sdk,
+                    onSourceChange: state.setSource,
+                  ),
+                ),
+                Positioned(
+                  right: kXlSpacing,
+                  top: kXlSpacing,
+                  width: kRunButtonWidth,
+                  height: kRunButtonHeight,
+                  child: RunButton(
+                    isRunning: state.isCodeRunning,
+                    cancelRun: () {
+                      state.cancelRun().catchError(
+                            (_) => NotificationManager.showError(
+                              context,
+                              AppLocalizations.of(context)!.runCode,
+                              AppLocalizations.of(context)!.cancelExecution,
+                            ),
+                          );
+                    },
+                    runCode: () {
+                      final stopwatch = Stopwatch()..start();
+                      state.runCode(
+                        onFinish: () {
+                          AnalyticsService.get(context).trackRunTimeEvent(
+                            state.selectedExample?.path ??
+                                '${AppLocalizations.of(context)!.unknownExample}, sdk ${state.sdk.displayName}',
+                            stopwatch.elapsedMilliseconds,
+                          );
+                        },
+                      );
+                      AnalyticsService.get(context)
+                          .trackClickRunEvent(state.selectedExample);
+                    },
+                  ),
+                ),
+              ],
             ),
           ),
-          Positioned(
-            right: kXlSpacing,
-            top: kXlSpacing,
-            width: kRunButtonWidth,
-            height: kRunButtonHeight,
-            child: RunButton(
-              isRunning: state.isCodeRunning,
-              runCode: state.runCode,
-            ),
+          PipelineOptionsTextField(
+            pipelineOptions: state.pipelineOptions,
+            onChange: state.setPipelineOptions,
           ),
         ],
       );
@@ -66,8 +103,10 @@ class CodeTextAreaWrapper extends StatelessWidget {
   }
 
   _handleError(BuildContext context, PlaygroundState state) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(state.result?.errorMessage ?? '')),
+    NotificationManager.showError(
+      context,
+      AppLocalizations.of(context)!.runCode,
+      state.result?.errorMessage ?? '',
     );
     state.resetError();
   }
@@ -90,5 +129,5 @@ class EditorKeyObject {
           resetKey == other.resetKey;
 
   @override
-  int get hashCode => sdk.hashCode ^ example.hashCode ^ resetKey.hashCode;
+  int get hashCode => hashValues(sdk, example, resetKey);
 }

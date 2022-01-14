@@ -462,7 +462,10 @@ class TypeVariable(AnyTypeConstraint):
     return {self: concrete_type}
 
   def bind_type_variables(self, bindings):
-    return bindings.get(self, self)
+    return bindings.get(
+        self,
+        # Star matches all type variables.
+        bindings.get('*', self))
 
 
 class UnionHint(CompositeTypeHint):
@@ -531,8 +534,25 @@ class UnionHint(CompositeTypeHint):
               instance.__class__.__name__,
               error_msg))
 
+    def match_type_variables(self, concrete_type):
+      sub_bindings = [
+          match_type_variables(t, concrete_type) for t in self.union_types
+          if is_consistent_with(concrete_type, t)
+      ]
+      if sub_bindings:
+        return {
+            var: Union[(sub[var] for sub in sub_bindings)]
+            for var in set.intersection(
+                *[set(sub.keys()) for sub in sub_bindings])
+        }
+      else:
+        return {}
+
+    def bind_type_variables(self, bindings):
+      return Union[(bind_type_variables(t, bindings) for t in self.union_types)]
+
   def __getitem__(self, type_params):
-    if not isinstance(type_params, (abc.Sequence, set)):
+    if not isinstance(type_params, (abc.Iterable, set)):
       raise TypeError('Cannot create Union without a sequence of types.')
 
     # Flatten nested Union's and duplicated repeated type hints.
@@ -1180,9 +1200,9 @@ def is_consistent_with(sub, base):
     return True
   sub = normalize(sub, none_as_type=True)
   base = normalize(base, none_as_type=True)
-  if isinstance(base, TypeConstraint):
-    if isinstance(sub, UnionConstraint):
-      return all(is_consistent_with(c, base) for c in sub.union_types)
+  if isinstance(sub, UnionConstraint):
+    return all(is_consistent_with(c, base) for c in sub.union_types)
+  elif isinstance(base, TypeConstraint):
     return base._consistent_with_check_(sub)
   elif isinstance(sub, TypeConstraint):
     # Nothing but object lives above any type constraints.

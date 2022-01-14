@@ -29,43 +29,44 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Amazon Web Services 2"
 ext.summary = "IO library to read and write Amazon Web Services services from Beam."
 
 dependencies {
-  compile library.java.vendored_guava_26_0_jre
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile library.java.aws_java_sdk2_apache_client
-  compile library.java.aws_java_sdk2_auth
-  compile library.java.aws_java_sdk2_cloudwatch
-  compile library.java.aws_java_sdk2_dynamodb
-  compile library.java.aws_java_sdk2_kinesis
-  compile library.java.aws_java_sdk2_sdk_core
-  compile library.java.aws_java_sdk2_sns
-  compile library.java.aws_java_sdk2_sqs
-  compile library.java.aws_java_sdk2_s3
-  compile library.java.aws_java_sdk2_http_client_spi
-  compile library.java.aws_java_sdk2_regions
-  compile library.java.aws_java_sdk2_utils
-  compile library.java.jackson_core
-  compile library.java.jackson_annotations
-  compile library.java.jackson_databind
-  compile library.java.joda_time
-  compile library.java.slf4j_api
-  compile "software.amazon.kinesis:amazon-kinesis-client:2.3.4"
-  compile "commons-lang:commons-lang:2.6"
-  compile library.java.commons_lang3
-  compile library.java.http_core
-  compile library.java.commons_codec
-  runtime library.java.aws_java_sdk2_sts
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
-  testCompile project(path: ":sdks:java:io:kinesis", configuration: "testRuntime")
-  testCompile "io.findify:s3mock_2.12:0.2.6"
-  testCompile library.java.mockito_core
-  testCompile library.java.guava_testlib
-  testCompile library.java.junit
-  testCompile 'org.elasticmq:elasticmq-rest-sqs_2.12:0.15.6'
-  testCompile library.java.hamcrest_library
-  testCompile library.java.powermock
-  testCompile library.java.powermock_mockito
-  testCompile "org.assertj:assertj-core:3.11.1"
+  implementation library.java.vendored_guava_26_0_jre
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation library.java.aws_java_sdk2_apache_client
+  implementation library.java.aws_java_sdk2_auth
+  implementation library.java.aws_java_sdk2_cloudwatch
+  implementation library.java.aws_java_sdk2_dynamodb
+  implementation library.java.aws_java_sdk2_kinesis
+  implementation library.java.aws_java_sdk2_sdk_core
+  implementation library.java.aws_java_sdk2_aws_core
+  implementation library.java.aws_java_sdk2_sns
+  implementation library.java.aws_java_sdk2_sqs
+  implementation library.java.aws_java_sdk2_s3
+  implementation library.java.aws_java_sdk2_sts
+  implementation library.java.aws_java_sdk2_http_client_spi
+  implementation library.java.aws_java_sdk2_regions
+  implementation library.java.aws_java_sdk2_utils
+  implementation library.java.jackson_core
+  implementation library.java.jackson_annotations
+  implementation library.java.jackson_databind
+  implementation library.java.joda_time
+  implementation library.java.slf4j_api
+  implementation "software.amazon.kinesis:amazon-kinesis-client:2.3.4"
+  implementation "commons-lang:commons-lang:2.6"
+  implementation library.java.commons_lang3
+  implementation library.java.http_core
+  implementation library.java.commons_codec
+  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:io:kinesis", configuration: "testRuntimeMigration")
+  testImplementation "io.findify:s3mock_2.12:0.2.6"
+  testImplementation library.java.mockito_core
+  testImplementation library.java.guava_testlib
+  testImplementation library.java.junit
+  testImplementation 'org.elasticmq:elasticmq-rest-sqs_2.12:0.15.6'
+  testImplementation library.java.hamcrest
+  testImplementation library.java.powermock
+  testImplementation library.java.powermock_mockito
+  testImplementation "org.assertj:assertj-core:3.11.1"
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

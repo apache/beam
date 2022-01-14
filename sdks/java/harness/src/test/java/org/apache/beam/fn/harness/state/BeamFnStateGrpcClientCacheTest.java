@@ -164,10 +164,6 @@ public class BeamFnStateGrpcClientCacheTest {
       assertThat(e.toString(), containsString(SERVER_ERROR));
     }
 
-    // Send a response after the client will have received an error.
-    CompletableFuture<StateResponse> late =
-        client.handle(StateRequest.newBuilder().setInstructionId(SUCCESS));
-
     try {
       inflight.get();
       fail("Expected unsuccessful response due to server error");
@@ -194,10 +190,6 @@ public class BeamFnStateGrpcClientCacheTest {
     } catch (ExecutionException e) {
       assertThat(e.toString(), containsString("Server hanged up"));
     }
-
-    // Send a response after the client will have received an error.
-    CompletableFuture<StateResponse> late =
-        client.handle(StateRequest.newBuilder().setInstructionId(SUCCESS));
 
     try {
       inflight.get();

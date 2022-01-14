@@ -26,6 +26,10 @@ For a list of built-in aggregation transforms, see:
 * [Java Transform catalog](/documentation/transforms/java/overview/#aggregation)
 * [Python Transform catalog](/documentation/transforms/python/overview/#aggregation)
 
+To learn more, see:
+
+* [Basics of the Beam model: Aggregation](/documentation/basics/#aggregation)
+
 ## Apply
 
 A method for invoking a transform on an input PCollection (or set of PCollections) to produce one or more output PCollections. The `apply` method is attached to the PCollection (or value). Invoking multiple Beam transforms is similar to method chaining, but with a difference: You apply the transform to the input PCollection, passing the transform itself as an argument, and the operation returns the output PCollection. Because of Beam’s deferred execution model, applying a transform does not immediately execute that transform.
@@ -273,7 +277,8 @@ A potentially distributed, homogeneous dataset or data stream. PCollections repr
 
 To learn more, see:
 
-* [PCollections](/documentation/programming-guide/#pcollections)
+* [Basics of the Beam model: PCollection](/documentation/basics/#pcollection)
+* [Programming guide: PCollections](/documentation/programming-guide/#pcollections)
 
 ## Pipe operator (`|`)
 
@@ -289,6 +294,7 @@ An encapsulation of your entire data processing task, including reading input da
 
 To learn more, see:
 
+* [Basics of the Beam model: Pipeline](/documentation/basics/#pipeline)
 * [Overview](/documentation/programming-guide/#overview)
 * [Creating a pipeline](/documentation/programming-guide/#creating-a-pipeline)
 * [Design your pipeline](/documentation/pipelines/design-your-pipeline/)
@@ -309,6 +315,7 @@ A data processing operation, or a step, in your pipeline. A PTransform takes zer
 
 To learn more, see:
 
+* [Basics of the Beam model: PTransform](/documentation/basics/#ptransform)
 * [Overview](/documentation/programming-guide/#overview)
 * [Transforms](/documentation/programming-guide/#transforms)
 
@@ -326,6 +333,7 @@ A runner runs a pipeline on a specific platform. Most runners are translators or
 
 To learn more, see:
 
+* [Basics of the Beam model: Runner](/documentation/basics/#runner)
 * [Choosing a Runner](/documentation/#choosing-a-runner)
 * [Beam Capability Matrix](/documentation/runners/capability-matrix/)
 
@@ -335,7 +343,8 @@ A language-independent type definition for the elements of a PCollection. The sc
 
 To learn more, see:
 
-* [Schemas](/documentation/programming-guide/#schemas)
+* [Basics of the Beam model: Schema](/documentation/basics/#schema)
+* [Programming guide: Schemas](/documentation/programming-guide/#schemas)
 * [Schema Patterns](/documentation/patterns/schema/)
 
 ## Session
@@ -367,6 +376,7 @@ To learn more, see:
 * [Built-in I/O transforms](/documentation/io/built-in/)
 
 ## Source
+
 A transform that reads from an external storage system. A pipeline typically reads input data from a source. The source has a type, which may be different from the sink type, so you can change the format of data as it moves through your pipeline.
 
 To learn more, see:
@@ -381,7 +391,8 @@ A generalization of DoFn that makes it easier to create complex, modular I/O con
 
 To learn more, see:
 
-* [Splittable DoFns](/documentation/programming-guide/#splittable-dofns)
+* [Basics of the Beam model: Splittable DoFn](/documentation/basics/#splittable-dofn)
+* [Programming guide: Splittable DoFns](/documentation/programming-guide/#splittable-dofns)
 * [Splittable DoFn in Apache Beam is Ready to Use](/blog/splittable-do-fn-is-available/)
 
 ## Stage
@@ -394,7 +405,8 @@ Persistent values that a PTransform can access. The state API lets you augment e
 
 To learn more, see:
 
-* [State and Timers](/documentation/programming-guide/#state-and-timers)
+* [Basics of the Beam model: State and timers](/documentation/basics/#state-and-timers)
+* [Programming guide: State and Timers](/documentation/programming-guide/#state-and-timers)
 * [Stateful processing with Apache Beam](/blog/stateful-processing/)
 
 ## Streaming
@@ -412,7 +424,8 @@ A Beam feature that enables delayed processing of data stored using the state AP
 
 To learn more, see:
 
-* [State and Timers](/documentation/programming-guide/#state-and-timers)
+* [Basics of the Beam model: State and timers](/documentation/basics/#state-and-timers)
+* [Programming guide: State and Timers](/documentation/programming-guide/#state-and-timers)
 * [Stateful processing with Apache Beam](/blog/stateful-processing/)
 * [Timely (and Stateful) Processing with Apache Beam](/blog/timely-processing/)
 
@@ -422,6 +435,7 @@ A point in event time associated with an element in a PCollection and used to as
 
 To learn more, see:
 
+* [Basics of the Beam model: Timestamp](/documentation/basics/#timestamp)
 * [Element timestamps](/documentation/programming-guide/#element-timestamps)
 * [Adding timestamps to a PCollection’s elements](/documentation/programming-guide/#adding-timestamps-to-a-pcollections-elements)
 
@@ -435,7 +449,8 @@ Determines when to emit aggregated result data from a window. You can use trigge
 
 To learn more, see:
 
-* [Triggers](/documentation/programming-guide/#triggers)
+* [Basics of the Beam model: Trigger](/documentation/basics/#trigger)
+* [Programming guide: Triggers](/documentation/programming-guide/#triggers)
 
 ## Unbounded data
 
@@ -451,7 +466,7 @@ Custom logic that a PTransform applies to your data. Some PTransforms accept a u
 
 To learn more, see:
 
-* [User-Defined Functions (UDFs)](/documentation/basics/#user-defined-functions-udfs)
+* [Basics of the Beam model: User-Defined Functions (UDFs)](/documentation/basics/#user-defined-functions-udfs)
 * [ParDo](/documentation/programming-guide/#pardo)
 * [Requirements for writing user code for Beam transforms](/documentation/programming-guide/#requirements-for-writing-user-code-for-beam-transforms)
 
@@ -461,7 +476,8 @@ An estimate on the lower bound of the timestamps that will be seen (in the futur
 
 To learn more, see:
 
-* [Watermarks and late data](/documentation/programming-guide/#watermarks-and-late-data)
+* [Basics of the Beam model: Watermark](/documentation/basics/#watermark)
+* [Programming guide: Watermarks and late data](/documentation/programming-guide/#watermarks-and-late-data)
 
 ## Windowing
 
@@ -469,7 +485,8 @@ Partitioning a PCollection into bounded subsets grouped by the timestamps of ind
 
 To learn more, see:
 
-* [Windowing](/documentation/programming-guide/#windowing)
+* [Basics of the Beam model: Window](/documentation/basics/#window)
+* [Programming guide: Windowing](/documentation/programming-guide/#windowing)
 
 ## Worker
 

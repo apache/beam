@@ -17,11 +17,8 @@
  */
 package org.apache.beam.sdk.io.aws.sqs;
 
-import com.amazonaws.services.sqs.AmazonSQS;
-import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
 import com.amazonaws.services.sqs.model.Message;
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
@@ -29,8 +26,6 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.aws.sqs.SqsIO.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 @SuppressWarnings({
@@ -40,21 +35,10 @@ class SqsUnboundedSource extends UnboundedSource<Message, SqsCheckpointMark> {
 
   private final Read read;
   private final SqsConfiguration sqsConfiguration;
-  private final Supplier<AmazonSQS> sqs;
 
   public SqsUnboundedSource(Read read, SqsConfiguration sqsConfiguration) {
     this.read = read;
     this.sqsConfiguration = sqsConfiguration;
-
-    sqs =
-        Suppliers.memoize(
-            (Supplier<AmazonSQS> & Serializable)
-                () ->
-                    AmazonSQSClientBuilder.standard()
-                        .withClientConfiguration(sqsConfiguration.getClientConfiguration())
-                        .withCredentials(sqsConfiguration.getAwsCredentialsProvider())
-                        .withRegion(sqsConfiguration.getAwsRegion())
-                        .build());
   }
 
   @Override
@@ -90,8 +74,8 @@ class SqsUnboundedSource extends UnboundedSource<Message, SqsCheckpointMark> {
     return read;
   }
 
-  public AmazonSQS getSqs() {
-    return sqs.get();
+  SqsConfiguration getSqsConfiguration() {
+    return sqsConfiguration;
   }
 
   @Override

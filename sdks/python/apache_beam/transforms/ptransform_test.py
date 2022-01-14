@@ -1000,6 +1000,18 @@ class TestGroupBy(unittest.TestCase):
               beam.Row(square=4, big=True, sum=2, positive=True),     # [2]
           ]))
 
+  def test_pickled_field(self):
+    with TestPipeline() as p:
+      assert_that(
+          p
+          | beam.Create(['a', 'a', 'b'])
+          | beam.Map(
+              lambda s: beam.Row(
+                  key1=PickledObject(s), key2=s.upper(), value=0))
+          | beam.GroupBy('key1', 'key2')
+          | beam.MapTuple(lambda k, vs: (k.key1.value, k.key2, len(list(vs)))),
+          equal_to([('a', 'A', 2), ('b', 'B', 1)]))
+
 
 class SelectTest(unittest.TestCase):
   def test_simple(self):
@@ -1839,6 +1851,19 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     assert_that(d, equal_to([6]))
     self.p.run()
 
+  def test_combine_properly_pipeline_type_checks_without_decorator(self):
+    def sum_ints(ints):
+      return sum(ints)
+
+    d = (
+        self.p
+        | beam.Create([1, 2, 3])
+        | beam.Map(lambda x: ('key', x))
+        | beam.CombinePerKey(sum_ints))
+
+    self.assertEqual(typehints.Tuple[str, typehints.Any], d.element_type)
+    self.p.run()
+
   def test_combine_func_type_hint_does_not_take_iterable_using_decorator(self):
     @with_output_types(int)
     @with_input_types(a=int)
@@ -2158,9 +2183,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     d = (
         self.p
         | beam.Create(range(5)).with_output_types(int)
-        | (
-            'EvenGroup' >> beam.Map(lambda x: (not x % 2, x)).with_output_types(
-                typing.Tuple[bool, int]))
+        | 'EvenGroup' >> beam.Map(lambda x: (not x % 2, x)).with_output_types(
+            typing.Tuple[bool, int])
         | 'CountInt' >> combine.Count.PerKey())
 
     self.assertCompatible(typing.Tuple[bool, int], d.element_type)
@@ -2175,10 +2199,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
           | 'CountInt' >> combine.Count.PerKey())
 
     self.assertStartswith(
-        e.exception.args[0],
-        "Type hint violation for 'CombinePerKey(CountCombineFn)': "
-        "requires Tuple[TypeVariable[K], Any] "
-        "but got {} for element".format(int))
+        e.exception.args[0], 'Input type hint violation at CountInt')
 
   def test_count_perkey_runtime_type_checking_satisfied(self):
     self.p._options.view_as(TypeOptions).runtime_type_check = True
