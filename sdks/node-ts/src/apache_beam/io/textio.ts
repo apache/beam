@@ -5,7 +5,7 @@ export class ReadFromText extends beam.AsyncPTransform<
   beam.Root,
   beam.PCollection<string>
 > {
-  constructor(private path: string) {
+  constructor(private filePattern: string) {
     super();
   }
 
@@ -17,9 +17,8 @@ export class ReadFromText extends beam.AsyncPTransform<
       >(
         "beam:transforms:python:fully_qualified_named",
         {
-          // TODO: This is just Read followed by asserting that the output is string rather than PyObject.
-          constructor: "apache_beam.js_test.ReadFromText",
-          kwargs: { path: this.path },
+          constructor: "apache_beam.io.ReadFromText",
+          kwargs: { file_pattern: this.filePattern },
         },
         // python apache_beam/runners/portability/expansion_service_main.py --fully_qualified_name_glob='*' --port 4444 --environment_type='beam:env:embedded_python:v1'
         "localhost:4444"
