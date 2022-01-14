@@ -249,9 +249,8 @@ func (controller *playgroundController) GetPrecompiledObjects(ctx context.Contex
 		catalog, err := utils.GetPrecompiledObjectsCatalogFromCache(ctx, controller.cacheService)
 		if err == nil {
 			return &pb.GetPrecompiledObjectsResponse{SdkCategories: catalog}, nil
-		} else {
-			logger.Errorf("GetPrecompiledObjects(): cache error: %s", err.Error())
 		}
+		logger.Errorf("GetPrecompiledObjects(): cache error: %s", err.Error())
 	}
 	catalog, err := utils.GetPrecompiledObjectsCatalogFromStorage(ctx, info.Sdk, info.Category)
 	if err != nil {
