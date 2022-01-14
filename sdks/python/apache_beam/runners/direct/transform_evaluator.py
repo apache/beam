@@ -645,8 +645,8 @@ class _PubSubReadEvaluator(_TransformEvaluator):
         sub_project,
         'beam_%d_%x' % (int(time.time()), random.randrange(1 << 32)))
     topic_name = sub_client.topic_path(project, short_topic_name)
-    sub_client.create_subscription(sub_name, topic_name)
-    atexit.register(sub_client.delete_subscription, sub_name)
+    sub_client.create_subscription(name=sub_name, topic=topic_name)
+    atexit.register(sub_client.delete_subscription, subscription=sub_name)
     cls._subscription_cache[transform] = sub_name
     return cls._subscription_cache[transform]
 
@@ -674,8 +674,9 @@ class _PubSubReadEvaluator(_TransformEvaluator):
           except ValueError as e:
             raise ValueError('Bad timestamp value: %s' % e)
       else:
-        timestamp = Timestamp(
-            message.publish_time.seconds, message.publish_time.nanos // 1000)
+        if message.publish_time is None:
+          raise ValueError('No publish time present in message: %s' % message)
+        timestamp = Timestamp.from_utc_datetime(message.publish_time)
 
       return timestamp, parsed_message
 
@@ -686,13 +687,13 @@ class _PubSubReadEvaluator(_TransformEvaluator):
     sub_client = pubsub.SubscriberClient()
     try:
       response = sub_client.pull(
-          self._sub_name, max_messages=10, return_immediately=True)
+          subscription=self._sub_name, max_messages=10, timeout=30)
       results = [_get_element(rm.message) for rm in response.received_messages]
       ack_ids = [rm.ack_id for rm in response.received_messages]
       if ack_ids:
-        sub_client.acknowledge(self._sub_name, ack_ids)
+        sub_client.acknowledge(subscription=self._sub_name, ack_ids=ack_ids)
     finally:
-      sub_client.api.transport.channel.close()
+      sub_client.close()
 
     return results
 

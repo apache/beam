@@ -17,12 +17,10 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground/modules/output/components/output_result.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:provider/provider.dart';
-
-const kLogText = 'Log';
-const kGraphText = 'Graph';
 
 class OutputArea extends StatelessWidget {
   const OutputArea({Key? key}) : super(key: key);
@@ -37,8 +35,8 @@ class OutputArea extends StatelessWidget {
             physics: const NeverScrollableScrollPhysics(),
             children: <Widget>[
               OutputResult(text: state.result?.output ?? ''),
-              const Center(child: Text(kLogText)),
-              const Center(child: Text(kGraphText)),
+              OutputResult(text: state.result?.log ?? ''),
+              Center(child: Text(AppLocalizations.of(context)!.graph)),
             ],
           );
         },

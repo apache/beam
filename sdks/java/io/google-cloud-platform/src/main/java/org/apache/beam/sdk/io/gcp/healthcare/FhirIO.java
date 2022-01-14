@@ -924,7 +924,6 @@ public class FhirIO {
 
     @Override
     public Result expand(PCollection<String> input) {
-      PCollectionTuple bundles;
       switch (this.getWriteMethod()) {
         case IMPORT:
           LOG.warn(

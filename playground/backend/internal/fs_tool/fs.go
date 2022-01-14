@@ -26,52 +26,46 @@ import (
 )
 
 const (
-	fileMode = 0600
+	fileMode    = 0600
+	logFileName = "logs.log"
 )
 
-// Folder contains names of folders with executable and compiled files.
-// For each SDK these values should be set depending on folders that need for the SDK.
-type Folder struct {
-	BaseFolder           string
-	SourceFileFolder     string
-	ExecutableFileFolder string
+// LifeCyclePaths contains all files/folders paths
+type LifeCyclePaths struct {
+	SourceFileName                   string // {pipelineId}.{sourceFileExtension}
+	AbsoluteSourceFileFolderPath     string // /path/to/workingDir/pipelinesFolder/{pipelineId}/src
+	AbsoluteSourceFilePath           string // /path/to/workingDir/pipelinesFolder/{pipelineId}/src/{pipelineId}.{sourceFileExtension}
+	ExecutableFileName               string // {pipelineId}.{executableFileExtension}
+	AbsoluteExecutableFileFolderPath string // /path/to/workingDir/pipelinesFolder/{pipelineId}/bin
+	AbsoluteExecutableFilePath       string // /path/to/workingDir/pipelinesFolder/{pipelineId}/bin/{pipelineId}.{executableFileExtension}
+	AbsoluteBaseFolderPath           string // /path/to/workingDir/pipelinesFolder/{pipelineId}
+	AbsoluteLogFilePath              string // /path/to/workingDir/pipelinesFolder/{pipelineId}/logs.log
+	ExecutableName                   func(uuid.UUID, string) (string, error)
 }
 
-// Extension contains executable and compiled files' extensions.
-// For each SDK these values should be set depending on SDK's extensions.
-type Extension struct {
-	SourceFileExtension     string
-	ExecutableFileExtension string
-}
-
-// LifeCycle is used for preparing folders and files to process code for one request.
-// For each SDK folders (Folder) and extensions (Extension) should be set correctly.
+// LifeCycle is used for preparing folders and files to process code for one code processing request.
 type LifeCycle struct {
-	folderGlobs    []string //folders that should be created to process code
-	Folder         Folder
-	Extension      Extension
-	ExecutableName func(uuid.UUID, string) (string, error)
-	pipelineId     uuid.UUID
+	folderGlobs []string // folders that should be created to process code
+	Paths       LifeCyclePaths
 }
 
 // NewLifeCycle returns a corresponding LifeCycle depending on the given SDK.
-// workingDir should be existed and be prepared to create/delete/modify folders into him.
-func NewLifeCycle(sdk pb.Sdk, pipelineId uuid.UUID, workingDir string) (*LifeCycle, error) {
+func NewLifeCycle(sdk pb.Sdk, pipelineId uuid.UUID, pipelinesFolder string) (*LifeCycle, error) {
 	switch sdk {
 	case pb.Sdk_SDK_JAVA:
-		return newJavaLifeCycle(pipelineId, workingDir), nil
+		return newJavaLifeCycle(pipelineId, pipelinesFolder), nil
 	case pb.Sdk_SDK_GO:
-		return newGoLifeCycle(pipelineId, workingDir), nil
+		return newGoLifeCycle(pipelineId, pipelinesFolder), nil
 	case pb.Sdk_SDK_PYTHON:
-		return newPythonLifeCycle(pipelineId, workingDir), nil
+		return newPythonLifeCycle(pipelineId, pipelinesFolder), nil
 	default:
 		return nil, fmt.Errorf("%s isn't supported now", sdk)
 	}
 }
 
 // CreateFolders creates all folders which will be used for code execution.
-func (l *LifeCycle) CreateFolders() error {
-	for _, folder := range l.folderGlobs {
+func (lc *LifeCycle) CreateFolders() error {
+	for _, folder := range lc.folderGlobs {
 		err := os.MkdirAll(folder, fs.ModePerm)
 		if err != nil {
 			return err
@@ -81,8 +75,8 @@ func (l *LifeCycle) CreateFolders() error {
 }
 
 // DeleteFolders deletes all previously provisioned folders.
-func (l *LifeCycle) DeleteFolders() error {
-	for _, folder := range l.folderGlobs {
+func (lc *LifeCycle) DeleteFolders() error {
+	for _, folder := range lc.folderGlobs {
 		err := os.RemoveAll(folder)
 		if err != nil {
 			return err
@@ -92,43 +86,21 @@ func (l *LifeCycle) DeleteFolders() error {
 }
 
 // CreateSourceCodeFile creates an executable file (i.e. file.{sourceFileExtension}).
-func (l *LifeCycle) CreateSourceCodeFile(code string) (string, error) {
-	if _, err := os.Stat(l.Folder.SourceFileFolder); os.IsNotExist(err) {
-		return "", err
-	}
-
-	fileName := l.pipelineId.String() + l.Extension.SourceFileExtension
-	filePath := filepath.Join(l.Folder.SourceFileFolder, fileName)
-	err := os.WriteFile(filePath, []byte(code), fileMode)
-	if err != nil {
-		return "", err
-	}
-	return fileName, nil
-}
-
-// GetAbsoluteSourceFilePath returns absolute filepath to executable file (/path/to/workingDir/executable_files/{pipelineId}/src/{pipelineId}.{sourceFileExtension}).
-func (l *LifeCycle) GetAbsoluteSourceFilePath() string {
-	fileName := l.pipelineId.String() + l.Extension.SourceFileExtension
-	filePath := filepath.Join(l.Folder.SourceFileFolder, fileName)
-	absoluteFilePath, _ := filepath.Abs(filePath)
-	return absoluteFilePath
-}
-
-// CopyFiles copies a prepared go.mod and go.sum in baseFileFolder for executing beam pipeline with go SDK
-func (l *LifeCycle) CopyFiles(workingDir, preparedModDir string) error {
-	err := copyFile("go.mod", preparedModDir, filepath.Join(workingDir, baseFileFolder))
-	if err != nil {
+func (lc *LifeCycle) CreateSourceCodeFile(code string) error {
+	if _, err := os.Stat(lc.Paths.AbsoluteSourceFileFolderPath); os.IsNotExist(err) {
 		return err
 	}
-	err = copyFile("go.sum", preparedModDir, filepath.Join(workingDir, baseFileFolder))
+
+	filePath := lc.Paths.AbsoluteSourceFilePath
+	err := os.WriteFile(filePath, []byte(code), fileMode)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-// copyFile copies a file with fileName from sourceDir to destinationDir.
-func copyFile(fileName, sourceDir, destinationDir string) (err error) {
+// CopyFile copies a file with fileName from sourceDir to destinationDir.
+func (lc *LifeCycle) CopyFile(fileName, sourceDir, destinationDir string) error {
 	absSourcePath := filepath.Join(sourceDir, fileName)
 	absDestinationPath := filepath.Join(destinationDir, fileName)
 	sourceFileStat, err := os.Stat(absSourcePath)
@@ -156,18 +128,4 @@ func copyFile(fileName, sourceDir, destinationDir string) (err error) {
 		return err
 	}
 	return nil
-}
-
-// GetAbsoluteExecutableFilePath returns absolute filepath to compiled file (/path/to/workingDir/executable_files/{pipelineId}/bin/{pipelineId}.{executableExtension}).
-func (l *LifeCycle) GetAbsoluteExecutableFilePath() string {
-	fileName := l.pipelineId.String() + l.Extension.ExecutableFileExtension
-	filePath := filepath.Join(l.Folder.ExecutableFileFolder, fileName)
-	absoluteFilePath, _ := filepath.Abs(filePath)
-	return absoluteFilePath
-}
-
-// GetAbsoluteBaseFolderPath returns absolute path to executable folder (/path/to/workingDir/executable_files/{pipelineId}).
-func (l *LifeCycle) GetAbsoluteBaseFolderPath() string {
-	absoluteFilePath, _ := filepath.Abs(l.Folder.BaseFolder)
-	return absoluteFilePath
 }

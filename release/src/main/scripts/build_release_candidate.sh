@@ -271,7 +271,7 @@ if [[ $confirmation = "y" ]]; then
   echo '-------------------Creating Python Virtualenv-----------------'
   python3 -m venv "${LOCAL_PYTHON_VIRTUALENV}"
   source "${LOCAL_PYTHON_VIRTUALENV}/bin/activate"
-  pip install -U pip
+  pip install --upgrade pip setuptools wheel
   pip install requests python-dateutil
 
   echo '--------------Fetching GitHub Actions Artifacts--------------'
@@ -317,9 +317,11 @@ if [[ $confirmation = "y" ]]; then
 fi
 
 echo "[Current Step]: Stage docker images"
+echo "Note: this step will also prune your local docker image and container cache."
 echo "Do you want to proceed? [y|N]"
 read confirmation
 if [[ $confirmation = "y" ]]; then
+  docker system prune -a -f
   echo "============Staging SDK docker images on docker hub========="
   cd ~
   wipe_local_clone_dir
@@ -354,6 +356,7 @@ if [[ $confirmation = "y" ]]; then
   echo "------------------Building Python Doc------------------------"
   python3 -m venv "${LOCAL_PYTHON_VIRTUALENV}"
   source "${LOCAL_PYTHON_VIRTUALENV}/bin/activate"
+  pip install --upgrade pip setuptools wheel
   cd ${LOCAL_PYTHON_DOC}
   pip install -U pip
   pip install tox
@@ -380,9 +383,11 @@ if [[ $confirmation = "y" ]]; then
 
   echo "..........Copying generated javadoc into beam-site.........."
   cp -r ${GENERATE_JAVADOC} javadoc/${RELEASE}
+  cp -r ${GENERATE_JAVADOC} javadoc/current
 
   echo "............Copying generated pydoc into beam-site.........."
   cp -r ${GENERATED_PYDOC} pydoc/${RELEASE}
+  cp -r ${GENERATED_PYDOC} pydoc/current
 
   git add -A
   git commit -m "Update beam-site for release ${RELEASE}." -m "Content generated from commit ${RELEASE_COMMIT}."

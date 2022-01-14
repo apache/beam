@@ -1200,9 +1200,9 @@ def is_consistent_with(sub, base):
     return True
   sub = normalize(sub, none_as_type=True)
   base = normalize(base, none_as_type=True)
-  if isinstance(base, TypeConstraint):
-    if isinstance(sub, UnionConstraint):
-      return all(is_consistent_with(c, base) for c in sub.union_types)
+  if isinstance(sub, UnionConstraint):
+    return all(is_consistent_with(c, base) for c in sub.union_types)
+  elif isinstance(base, TypeConstraint):
     return base._consistent_with_check_(sub)
   elif isinstance(sub, TypeConstraint):
     # Nothing but object lives above any type constraints.

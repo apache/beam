@@ -18,7 +18,6 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  suppressUnusedVariable: true,
   automaticModuleName: 'org.apache.beam.sdk',
   classesTriggerCheckerBugs: [
     'DoFnTester': 'https://github.com/typetools/checker-framework/issues/3776',
@@ -79,9 +78,9 @@ dependencies {
   shadow library.java.vendored_bytebuddy_1_11_0
   shadow library.java.vendored_grpc_1_36_0
   shadow library.java.vendored_guava_26_0_jre
-  compile library.java.antlr_runtime
-  compile library.java.commons_compress
-  compile library.java.commons_lang3
+  implementation library.java.antlr_runtime
+  implementation library.java.commons_compress
+  implementation library.java.commons_lang3
   shadow library.java.jsr305
   shadow library.java.error_prone_annotations
   shadow library.java.jackson_core
@@ -91,19 +90,21 @@ dependencies {
   shadow library.java.avro
   shadow library.java.snappy_java
   shadow library.java.joda_time
-  provided library.java.junit
-  provided library.java.hamcrest_core
-  provided library.java.hamcrest_library
-  provided 'io.airlift:aircompressor:0.18'
-  provided 'com.facebook.presto.hadoop:hadoop-apache2:3.2.0-1'
+  compileOnly library.java.junit
+  compileOnly library.java.hamcrest
+  compileOnly 'io.airlift:aircompressor:0.18'
+  compileOnly 'com.facebook.presto.hadoop:hadoop-apache2:3.2.0-1'
+  permitUnusedDeclared 'com.facebook.presto.hadoop:hadoop-apache2:3.2.0-1'
   shadowTest library.java.jackson_dataformat_yaml
   shadowTest library.java.guava_testlib
   shadowTest library.java.mockito_core
-  shadowTest library.java.hamcrest_core
-  shadowTest library.java.hamcrest_library
+  shadowTest library.java.hamcrest
   shadowTest "com.esotericsoftware.kryo:kryo:2.21"
   shadowTest library.java.quickcheck_core
   shadowTest library.java.avro_tests
   shadowTest library.java.zstd_jni
+  shadowTest library.java.jamm
   testRuntimeOnly library.java.slf4j_jdk14
+  testImplementation 'io.airlift:aircompressor:0.18'
+  testImplementation 'com.facebook.presto.hadoop:hadoop-apache2:3.2.0-1'
 }

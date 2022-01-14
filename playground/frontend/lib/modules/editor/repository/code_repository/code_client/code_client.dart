@@ -24,6 +24,8 @@ import 'package:playground/modules/editor/repository/code_repository/run_code_re
 abstract class CodeClient {
   Future<RunCodeResponse> runCode(RunCodeRequestWrapper request);
 
+  Future<void> cancelExecution(String pipelineUuid);
+
   Future<CheckStatusResponse> checkStatus(
     String pipelineUuid,
     RunCodeRequestWrapper request,
@@ -35,6 +37,11 @@ abstract class CodeClient {
   );
 
   Future<OutputResponse> getRunOutput(
+    String pipelineUuid,
+    RunCodeRequestWrapper request,
+  );
+
+  Future<OutputResponse> getLogOutput(
     String pipelineUuid,
     RunCodeRequestWrapper request,
   );
