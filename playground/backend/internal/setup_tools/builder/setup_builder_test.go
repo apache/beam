@@ -21,10 +21,12 @@ import (
 	"beam.apache.org/playground/backend/internal/executors"
 	"beam.apache.org/playground/backend/internal/fs_tool"
 	"beam.apache.org/playground/backend/internal/utils"
+	"beam.apache.org/playground/backend/internal/validators"
 	"fmt"
 	"github.com/google/uuid"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -111,21 +113,26 @@ func TestValidator(t *testing.T) {
 }
 
 func TestPreparer(t *testing.T) {
-	prep, err := utils.GetPreparators(sdkEnv.ApacheBeamSdk, paths.AbsoluteSourceFilePath)
+	validationResults := sync.Map{}
+	validationResults.Store(validators.UnitTestValidatorName, false)
+	validationResults.Store(validators.KatasValidatorName, false)
+
+	prep, err := utils.GetPreparers(sdkEnv.ApacheBeamSdk, paths.AbsoluteSourceFilePath, &validationResults)
 	if err != nil {
 		panic(err)
 	}
 	pipelineOptions := ""
 	wantExecutor := executors.NewExecutorBuilder().
-		WithPreparator().
-		WithSdkPreparators(prep)
+		WithPreparer().
+		WithSdkPreparers(prep)
 
 	wrongSdkEnv := environment.NewBeamEnvs(pb.Sdk_SDK_UNSPECIFIED, sdkEnv.ExecutorConfig, "", 0)
 
 	type args struct {
-		dto             fs_tool.LifeCyclePaths
+		paths           fs_tool.LifeCyclePaths
 		pipelineOptions string
 		sdkEnv          *environment.BeamEnvs
+		valResults      *sync.Map
 	}
 	tests := []struct {
 		name    string
@@ -137,7 +144,7 @@ func TestPreparer(t *testing.T) {
 			// Test case with calling Setup with incorrect SDK.
 			// As a result, want to receive an error.
 			name:    "incorrect sdk",
-			args:    args{*paths, pipelineOptions, wrongSdkEnv},
+			args:    args{*paths, pipelineOptions, wrongSdkEnv, &validationResults},
 			want:    nil,
 			wantErr: true,
 		},
@@ -145,14 +152,14 @@ func TestPreparer(t *testing.T) {
 			// Test case with calling Setup with correct SDK.
 			// As a result, want to receive an expected preparer builder.
 			name:    "correct sdk",
-			args:    args{*paths, pipelineOptions, sdkEnv},
+			args:    args{*paths, pipelineOptions, sdkEnv, &validationResults},
 			want:    &wantExecutor.ExecutorBuilder,
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := Preparer(&tt.args.dto, tt.args.sdkEnv)
+			got, err := Preparer(&tt.args.paths, tt.args.sdkEnv, tt.args.valResults)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Preparer() error = %v, wantErr %v", err, tt.wantErr)
 				return

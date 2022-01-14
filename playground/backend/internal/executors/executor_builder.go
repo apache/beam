@@ -16,7 +16,7 @@
 package executors
 
 import (
-	"beam.apache.org/playground/backend/internal/preparators"
+	"beam.apache.org/playground/backend/internal/preparers"
 	"beam.apache.org/playground/backend/internal/validators"
 )
 
@@ -42,8 +42,8 @@ type ValidatorBuilder struct {
 	ExecutorBuilder
 }
 
-//PreparatorBuilder facet of ExecutorBuilder
-type PreparatorBuilder struct {
+//PreparerBuilder facet of ExecutorBuilder
+type PreparerBuilder struct {
 	ExecutorBuilder
 }
 
@@ -72,9 +72,9 @@ func (b *ExecutorBuilder) WithValidator() *ValidatorBuilder {
 	return &ValidatorBuilder{*b}
 }
 
-// WithPreparator - Lives chains to type *ExecutorBuilder and returns a *PreparatorBuilder
-func (b *ExecutorBuilder) WithPreparator() *PreparatorBuilder {
-	return &PreparatorBuilder{*b}
+// WithPreparer - Lives chains to type *ExecutorBuilder and returns a *PreparerBuilder
+func (b *ExecutorBuilder) WithPreparer() *PreparerBuilder {
+	return &PreparerBuilder{*b}
 }
 
 // WithTestRunner - Lives chains to type *ExecutorBuilder and returns a *UnitTestExecutorBuilder
@@ -202,10 +202,10 @@ func (b *ValidatorBuilder) WithSdkValidators(validators *[]validators.Validator)
 	return b
 }
 
-//WithSdkPreparators sets preparators to executor
-func (b *PreparatorBuilder) WithSdkPreparators(preparators *[]preparators.Preparator) *PreparatorBuilder {
+//WithSdkPreparers sets preparers to executor
+func (b *PreparerBuilder) WithSdkPreparers(preparers *[]preparers.Preparer) *PreparerBuilder {
 	b.actions = append(b.actions, func(e *Executor) {
-		e.preparators = *preparators
+		e.preparers = *preparers
 	})
 	return b
 }
