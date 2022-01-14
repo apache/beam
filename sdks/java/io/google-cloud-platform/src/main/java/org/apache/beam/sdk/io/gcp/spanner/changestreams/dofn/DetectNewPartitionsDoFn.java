@@ -108,8 +108,8 @@ public class DetectNewPartitionsDoFn extends DoFn<PartitionMetadata, PartitionMe
   }
 
   @GetInitialWatermarkEstimatorState
-  public Instant getInitialWatermarkEstimatorState(@Timestamp Instant currentElementTimestamp) {
-    return currentElementTimestamp;
+  public Instant getInitialWatermarkEstimatorState(@Element PartitionMetadata partition) {
+    return new Instant(partition.getStartTimestamp().toSqlTimestamp());
   }
 
   @NewWatermarkEstimator

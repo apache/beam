@@ -102,8 +102,8 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
   }
 
   @GetInitialWatermarkEstimatorState
-  public Instant getInitialWatermarkEstimatorState(@Timestamp Instant currentElementTimestamp) {
-    return currentElementTimestamp;
+  public Instant getInitialWatermarkEstimatorState(@Element PartitionMetadata partition) {
+    return new Instant(partition.getStartTimestamp().toSqlTimestamp());
   }
 
   @NewWatermarkEstimator
