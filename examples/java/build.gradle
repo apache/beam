@@ -51,6 +51,12 @@ configurations.sparkRunnerPreCommit {
   exclude group: "org.slf4j", module: "slf4j-jdk14"
 }
 
+allprojects {
+  repositories {
+    maven { url 'https://jitpack.io' }
+  }
+}
+
 dependencies {
   implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
   implementation library.java.vendored_guava_26_0_jre
@@ -91,6 +97,9 @@ dependencies {
   implementation "org.apache.commons:commons-lang3:3.9"
   implementation "org.apache.httpcomponents:httpclient:4.5.13"
   implementation "org.apache.httpcomponents:httpcore:4.4.13"
+  implementation "io.cdap.cdap:cdap-api:6.5.1"
+  implementation "io.cdap.cdap:cdap-etl-api:6.5.1"
+  implementation "com.github.data-integrations:salesforce:v1.3.9"
   testImplementation project(path: ":runners:direct-java", configuration: "shadow")
   testImplementation project(":sdks:java:io:google-cloud-platform")
   testImplementation project(":sdks:java:extensions:ml")
@@ -154,7 +163,7 @@ task preCommit() {
   }
 }
 
-task execute (type:JavaExec) {
+task executeExample (type:JavaExec) {
   mainClass = System.getProperty("mainClass")
   classpath = sourceSets.main.runtimeClasspath
   systemProperties System.getProperties()
