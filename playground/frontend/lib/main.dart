@@ -16,24 +16,13 @@
  * limitations under the License.
  */
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:intl/intl_browser.dart';
 import 'package:playground/configure_nonweb.dart'
 if (dart.library.html) 'package:playground/configure_web.dart';
 import 'package:playground/playground_app.dart';
 
 void main() {
-  LicenseRegistry.addLicense(() async* {
-    final license = await rootBundle.loadString('google_fonts/OFL.txt');
-    yield LicenseEntryWithLineBreaks(['google_fonts'], license);
-  });
-  LicenseRegistry.addLicense(() async* {
-    final license = await rootBundle.loadString('google_fonts/LICENSE.txt');
-    yield LicenseEntryWithLineBreaks(['google_fonts'], license);
-  });
-
   findSystemLocale();
   configureApp();
   runApp(const PlaygroundApp());

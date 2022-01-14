@@ -81,7 +81,6 @@ dev_dependencies:
 flutter:
   assets:
     - assets/
-    - google_fonts/
 
   generate: true
 
