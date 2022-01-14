@@ -77,18 +77,32 @@ export class PCollection<T> {
     return this.pipeline.asyncApplyTransform(transform, this, "");
   }
 
-  map<OutputT>(fn: (element: T) => OutputT): PCollection<OutputT> {
-    return this.apply(
-      new ParDo<T, OutputT>(new MapDoFn<T, OutputT>(fn))
-    ) as PCollection<OutputT>;
-  }
-
-  flatMap<OutputT>(
-    fn: (element: T) => Iterable<OutputT>
+  map<OutputT, ContextT>(
+    fn:
+      | (ContextT extends undefined ? (element: T) => OutputT : never)
+      | ((element: T, context: ContextT) => OutputT),
+    context: ContextT = undefined!
   ): PCollection<OutputT> {
     return this.apply(
-      new ParDo<T, OutputT>(new FlatMapDoFn<T, OutputT>(fn))
-    ) as PCollection<OutputT>;
+      new ParDo<T, OutputT, ContextT>(
+        new MapDoFn<T, OutputT, ContextT>(fn),
+        context
+      )
+    );
+  }
+
+  flatMap<OutputT, ContextT>(
+    fn:
+      | (ContextT extends undefined ? (element: T) => Iterable<OutputT> : never)
+      | ((element: T, context: ContextT) => Iterable<OutputT>),
+    context: ContextT = undefined!
+  ): PCollection<OutputT> {
+    return this.apply(
+      new ParDo<T, OutputT, ContextT>(
+        new FlatMapDoFn<T, OutputT, ContextT>(fn),
+        context
+      )
+    );
   }
 
   root(): Root {
@@ -220,25 +234,33 @@ class AsyncPTransformFromCallable<
 }
 
 // TODO: If this is exported, should probably move out of this module.
-class MapDoFn<InputT, OutputT> extends DoFn<InputT, OutputT> {
-  private fn: (element: InputT) => OutputT;
-  constructor(fn: (element: InputT) => OutputT) {
+class MapDoFn<InputT, OutputT, ContextT> extends DoFn<
+  InputT,
+  OutputT,
+  ContextT
+> {
+  private fn: (element: InputT, context: ContextT) => OutputT;
+  constructor(fn: (element: InputT, context: ContextT) => OutputT) {
     super();
     this.fn = fn;
   }
-  *process(element: InputT) {
-    yield this.fn(element);
+  *process(element: InputT, context: ContextT) {
+    yield this.fn(element, context);
   }
 }
 
 // TODO: If this is exported, should probably move out of this module.
-class FlatMapDoFn<InputT, OutputT> extends DoFn<InputT, OutputT> {
-  private fn: (element: InputT) => Iterable<OutputT>;
-  constructor(fn: (element: InputT) => Iterable<OutputT>) {
+class FlatMapDoFn<InputT, OutputT, ContextT> extends DoFn<
+  InputT,
+  OutputT,
+  ContextT
+> {
+  private fn: (element: InputT, context: ContextT) => Iterable<OutputT>;
+  constructor(fn: (element: InputT, context: ContextT) => Iterable<OutputT>) {
     super();
     this.fn = fn;
   }
-  *process(element: InputT) {
-    yield* this.fn(element);
+  *process(element: InputT, context: ContextT) {
+    yield* this.fn(element, context);
   }
 }
