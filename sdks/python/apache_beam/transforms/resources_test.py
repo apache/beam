@@ -21,6 +21,7 @@ from parameterized import param
 from parameterized import parameterized
 
 from apache_beam import PTransform
+from apache_beam.transforms.resources import ResourceHint
 
 
 class ResourcesTest(unittest.TestCase):
@@ -49,6 +50,7 @@ class ResourcesTest(unittest.TestCase):
   def test_known_resource_hints(self, name, val, urn, bytestr):
     t = PTransform()
     t = t.with_resource_hints(**{name: val})
+    self.assertTrue(ResourceHint.is_registered(name))
     self.assertEqual(t.get_resource_hints(), {urn: bytestr})
 
   @parameterized.expand([
