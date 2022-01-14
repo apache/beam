@@ -175,13 +175,9 @@ func (cd *CloudStorage) GetPrecompiledObjects(ctx context.Context, targetSdk pb.
 	return &precompiledObjects, nil
 }
 
-// GetDefaultPrecompileObject returns the default precompiled object for the sdk
-func (cd *CloudStorage) GetDefaultPrecompileObject(ctx context.Context, targetSdk pb.Sdk, workingDir string) (*ObjectInfo, error) {
-	defaultExampleToSdk, err := getDefaultExamplesFromJson(workingDir)
-	if err != nil {
-		return nil, err
-	}
-	infoPath := filepath.Join(defaultExampleToSdk[targetSdk.String()], MetaInfoName)
+// GetDefaultPrecompiledObject returns the default precompiled object for the sdk
+func (cd *CloudStorage) GetDefaultPrecompiledObject(ctx context.Context, defaultExamplePath string) (*ObjectInfo, error) {
+	infoPath := filepath.Join(defaultExamplePath, MetaInfoName)
 	metaInfo, err := cd.getFileFromBucket(ctx, infoPath, "")
 	if err != nil {
 		return nil, err
@@ -316,19 +312,4 @@ func isDir(path string) bool {
 func getSdkName(path string) string {
 	sdkName := strings.Split(path, string(os.PathSeparator))[0] // the path of the form "sdkName/example/", where the first part is sdkName
 	return sdkName
-}
-
-// getDefaultExamplesFromJson reads a json file that contains information about default examples for sdk and converts him to map
-func getDefaultExamplesFromJson(workingDir string) (map[string]string, error) {
-	defaultExampleToSdk := map[string]string{}
-	configPath := filepath.Join(workingDir, configFolderName, defaultExamplesConfigName)
-	file, err := ioutil.ReadFile(configPath)
-	if err != nil {
-		return nil, err
-	}
-	err = json.Unmarshal(file, &defaultExampleToSdk)
-	if err != nil {
-		return nil, err
-	}
-	return defaultExampleToSdk, nil
 }

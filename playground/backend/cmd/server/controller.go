@@ -304,9 +304,9 @@ func (controller *playgroundController) GetDefaultPrecompiledObject(ctx context.
 	}
 
 	bucket := cloud_bucket.New()
-	precompiledObject, err := bucket.GetDefaultPrecompileObject(ctx, info.Sdk, controller.env.ApplicationEnvs.WorkingDir())
+	precompiledObject, err := bucket.GetDefaultPrecompiledObject(ctx, controller.env.BeamSdkEnvs.DefaultExamplePath())
 	if err != nil {
-		logger.Errorf("GetDefaultPrecompileObject(): cloud storage error: %s", err.Error())
+		logger.Errorf("GetDefaultPrecompiledObject(): cloud storage error: %s", err.Error())
 		return nil, errors.InternalError("Error during getting default Precompiled Object", "Error with cloud connection")
 	}
 

@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	javaConfig       = "{\n  \"compile_cmd\": \"javac\",\n  \"run_cmd\": \"java\",\n  \"test_cmd\": \"java\",\n  \"compile_args\": [\n    \"-d\",\n    \"bin\",\n    \"-classpath\"\n  ],\n  \"run_args\": [\n    \"-cp\",\n    \"bin:\"\n  ],\n  \"test_args\": [\n    \"-cp\",\n    \"bin:\",\n    \"org.junit.runner.JUnitCore\"\n  ]\n}"
+	javaConfig       = "{\n  \"compile_cmd\": \"javac\",\n  \"run_cmd\": \"java\",\n  \"test_cmd\": \"java\",\n  \"compile_args\": [\n    \"-d\",\n    \"bin\",\n    \"-classpath\"\n  ],\n  \"run_args\": [\n    \"-cp\",\n    \"bin:\"\n  ],\n  \"test_args\": [\n    \"-cp\",\n    \"bin:\",\n    \"org.junit.runner.JUnitCore\"\n  ],\n  \"default_example\": \"SDK_JAVA/MinimalWordCount\"\n}"
 	defaultProjectId = ""
 )
 
@@ -86,13 +86,14 @@ func setOsEnvs(envsToSet map[string]string) error {
 func TestNewEnvironment(t *testing.T) {
 	executorConfig := NewExecutorConfig("javac", "java", "java", []string{""}, []string{""}, []string{""})
 	preparedModDir := ""
+	preparedDefaultExamplePath := ""
 	tests := []struct {
 		name string
 		want *Environment
 	}{
 		{name: "create env service with default envs", want: &Environment{
 			NetworkEnvs:     *NewNetworkEnvs(defaultIp, defaultPort, defaultProtocol),
-			BeamSdkEnvs:     *NewBeamEnvs(defaultSdk, executorConfig, preparedModDir, 0),
+			BeamSdkEnvs:     *NewBeamEnvs(defaultSdk, executorConfig, preparedModDir, preparedDefaultExamplePath, 0),
 			ApplicationEnvs: *NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout),
 		}},
 	}
@@ -100,7 +101,7 @@ func TestNewEnvironment(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := NewEnvironment(
 				*NewNetworkEnvs(defaultIp, defaultPort, defaultProtocol),
-				*NewBeamEnvs(defaultSdk, executorConfig, preparedModDir, 0),
+				*NewBeamEnvs(defaultSdk, executorConfig, preparedModDir, preparedDefaultExamplePath, 0),
 				*NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout)); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewEnvironment() = %v, want %v", got, tt.want)
 			}
@@ -111,6 +112,7 @@ func TestNewEnvironment(t *testing.T) {
 func Test_getSdkEnvsFromOsEnvs(t *testing.T) {
 	workingDir := "./"
 	preparedModDir := ""
+	preparedDefaultExamplePath := ""
 	tests := []struct {
 		name      string
 		want      *BeamEnvs
@@ -125,13 +127,13 @@ func Test_getSdkEnvsFromOsEnvs(t *testing.T) {
 		},
 		{
 			name:      "default beam envs",
-			want:      NewBeamEnvs(defaultSdk, executorConfig, preparedModDir, defaultNumOfParallelJobs),
+			want:      NewBeamEnvs(defaultSdk, executorConfig, preparedModDir, preparedDefaultExamplePath, defaultNumOfParallelJobs),
 			envsToSet: map[string]string{beamSdkKey: "SDK_JAVA"},
 			wantErr:   false,
 		},
 		{
 			name:      "specific sdk key in os envs",
-			want:      NewBeamEnvs(defaultSdk, executorConfig, preparedModDir, defaultNumOfParallelJobs),
+			want:      NewBeamEnvs(defaultSdk, executorConfig, preparedModDir, preparedDefaultExamplePath, defaultNumOfParallelJobs),
 			envsToSet: map[string]string{beamSdkKey: "SDK_JAVA"},
 			wantErr:   false,
 		},
@@ -304,6 +306,43 @@ func Test_getConfigFromJson(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("getConfigFromJson() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_getDefaultExamplesFromJson(t *testing.T) {
+	type args struct {
+		configPath string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		wantErr bool
+	}{
+		{
+			name:    "get object from json",
+			args:    args{filepath.Join(configFolderName, defaultSdk.String()+jsonExt)},
+			want:    "SDK_JAVA/MinimalWordCount",
+			wantErr: false,
+		},
+		{
+			name:    "error if wrong json path",
+			args:    args{filepath.Join("wrong_folder", defaultSdk.String()+jsonExt)},
+			want:    "",
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := getDefaultExamplesPathFromJson(tt.args.configPath)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("getDefaultExamplesPathFromJson() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("getDefaultExamplesPathFromJson() got = %v, want %v", got, tt.want)
 			}
 		})
 	}

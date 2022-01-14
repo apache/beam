@@ -42,15 +42,16 @@ func NewExecutorConfig(compileCmd, runCmd, testCmd string, compileArgs, runArgs,
 
 // BeamEnvs contains all environments related of ApacheBeam. These will use to run pipelines
 type BeamEnvs struct {
-	ApacheBeamSdk     pb.Sdk
-	ExecutorConfig    *ExecutorConfig
-	preparedModDir    string
-	numOfParallelJobs int
+	ApacheBeamSdk      pb.Sdk
+	ExecutorConfig     *ExecutorConfig
+	preparedModDir     string
+	numOfParallelJobs  int
+	defaultExamplePath string
 }
 
 // NewBeamEnvs is a BeamEnvs constructor
-func NewBeamEnvs(apacheBeamSdk pb.Sdk, executorConfig *ExecutorConfig, preparedModDir string, numOfParallelJobs int) *BeamEnvs {
-	return &BeamEnvs{ApacheBeamSdk: apacheBeamSdk, ExecutorConfig: executorConfig, preparedModDir: preparedModDir, numOfParallelJobs: numOfParallelJobs}
+func NewBeamEnvs(apacheBeamSdk pb.Sdk, executorConfig *ExecutorConfig, preparedModDir, defaultExamplePath string, numOfParallelJobs int) *BeamEnvs {
+	return &BeamEnvs{ApacheBeamSdk: apacheBeamSdk, ExecutorConfig: executorConfig, preparedModDir: preparedModDir, numOfParallelJobs: numOfParallelJobs, defaultExamplePath: defaultExamplePath}
 }
 
 // PreparedModDir returns the path to the directory where prepared go.mod and go.sum are located
@@ -61,4 +62,9 @@ func (b *BeamEnvs) PreparedModDir() string {
 // NumOfParallelJobs returns the max number of the possible code executions on the instance simultaneously.
 func (b *BeamEnvs) NumOfParallelJobs() int {
 	return b.numOfParallelJobs
+}
+
+// DefaultExamplePath returns the path to the default example
+func (b *BeamEnvs) DefaultExamplePath() string {
+	return b.defaultExamplePath
 }

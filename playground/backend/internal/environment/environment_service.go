@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/tidwall/gjson"
 	"io/ioutil"
 	"log"
 	"os"
@@ -47,6 +48,7 @@ const (
 	projectIdKey                  = "GOOGLE_CLOUD_PROJECT"
 	pipelinesFolderKey            = "PIPELINES_FOLDER_NAME"
 	defaultPipelinesFolder        = "executable_files"
+	defaultExampleKey             = "default_example"
 	defaultLaunchSite             = "local"
 	defaultProtocol               = "HTTP"
 	defaultIp                     = "localhost"
@@ -188,7 +190,11 @@ func ConfigureBeamEnvs(workDir string) (*BeamEnvs, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewBeamEnvs(sdk, executorConfig, preparedModDir, numOfParallelJobs), nil
+	defaultExamplePath, err := getDefaultExamplesPathFromJson(configPath)
+	if err != nil {
+		return nil, err
+	}
+	return NewBeamEnvs(sdk, executorConfig, preparedModDir, defaultExamplePath, numOfParallelJobs), nil
 }
 
 // createExecutorConfig creates ExecutorConfig that corresponds to specific Apache Beam SDK.
@@ -238,6 +244,16 @@ func getConfigFromJson(configPath string) (*ExecutorConfig, error) {
 		return nil, err
 	}
 	return &executorConfig, err
+}
+
+// getDefaultExamplesPathFromJson reads a json file and returns default example path
+func getDefaultExamplesPathFromJson(configPath string) (string, error) {
+	file, err := ioutil.ReadFile(configPath)
+	if err != nil {
+		return "", err
+	}
+	defaultExamplePath := gjson.Get(string(file), defaultExampleKey).String()
+	return defaultExamplePath, nil
 }
 
 // getEnv returns an environment variable or default value
