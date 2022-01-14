@@ -287,7 +287,7 @@ class ElasticsearchIOTestCommon implements Serializable {
     executeWriteTest(write);
   }
 
-  /** Test that DocToBulk and BulkIO can be constructed and operate independently of Write */
+  /** Test that DocToBulk and BulkIO can be constructed and operate independently of Write. */
   void testDocToBulkAndBulkIO() throws Exception {
     DocToBulk docToBulk =
         ElasticsearchIO.docToBulk().withConnectionConfiguration(connectionConfiguration);
