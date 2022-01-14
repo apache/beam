@@ -26,6 +26,7 @@ import static org.junit.Assert.assertSame;
 import org.apache.beam.fn.harness.Cache.Shrinkable;
 import org.apache.beam.fn.harness.Caches.ClearableCache;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.util.Weighted;
 import org.apache.beam.sdk.util.WeightedValue;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -161,19 +162,55 @@ public class CachesTest {
     assertEquals("value2", cache.peek("key2"));
   }
 
+  private static final long MB = 1 << 20;
+
+  private static class ShrinkableString implements Shrinkable<ShrinkableString>, Weighted {
+    private final String value;
+    private final long weight;
+
+    public ShrinkableString(String value, long weight) {
+      this.value = value;
+      this.weight = weight;
+    }
+
+    @Override
+    public ShrinkableString shrink() {
+      if (weight < 1000 * MB) {
+        return null;
+      }
+      return new ShrinkableString(value, weight / 2);
+    }
+
+    @Override
+    public long getWeight() {
+      return weight;
+    }
+  }
+
   @Test
   public void testDescribeStats() throws Exception {
-    Cache<Integer, WeightedValue<String>> cache = Caches.forMaximumBytes(1000 * 1048576L);
+    Cache<Integer, ShrinkableString> cache = Caches.forMaximumBytes(1000 * MB);
     for (int i = 0; i < 100; ++i) {
-      cache.computeIfAbsent(i, (key) -> WeightedValue.of("value", 1048576L));
+      cache.computeIfAbsent(i, (key) -> new ShrinkableString("value", MB));
       cache.peek(i);
-      cache.put(100 + i, WeightedValue.of("value", 1048576L));
+      cache.put(100 + i, new ShrinkableString("value", MB));
     }
 
     assertThat(cache.describeStats(), containsString("used/max 200/1000 MB"));
     assertThat(cache.describeStats(), containsString("hit 50.00%"));
     assertThat(cache.describeStats(), containsString("lookups 200"));
     assertThat(cache.describeStats(), containsString("avg load time"));
-    assertThat(cache.describeStats(), containsString("load count 100"));
+    assertThat(cache.describeStats(), containsString("loads 100"));
+    assertThat(cache.describeStats(), containsString("evictions 0"));
+
+    // Test eviction, evict all the other 200 elements that were added
+    cache.put(1000, new ShrinkableString("value", 1000 * MB));
+    assertThat(cache.describeStats(), containsString("used/max 1000/1000 MB"));
+    assertThat(cache.describeStats(), containsString("evictions 200"));
+
+    // Test shrinking, 1000 -> 500 + 55 = 555
+    cache.put(1001, new ShrinkableString("value", 55 * MB));
+    assertThat(cache.describeStats(), containsString("used/max 555/1000 MB"));
+    assertThat(cache.describeStats(), containsString("evictions 201"));
   }
 }

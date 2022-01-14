@@ -115,8 +115,7 @@ public final class Caches {
    * parameters within {@link SdkHarnessOptions}.
    */
   public static <K, V> Cache<K, V> fromOptions(PipelineOptions options) {
-    return forMaximumBytes(
-        options.as(SdkHarnessOptions.class).getMaxCacheMemoryUsageMb() * 1048576L);
+    return forMaximumBytes(options.as(SdkHarnessOptions.class).getMaxCacheMemoryUsageMb() << 20);
   }
 
   /**
@@ -166,6 +165,10 @@ public final class Caches {
                             return (int) size;
                           }
                         })
+                    // The maximum size of an entry in the cache is maxWeight / concurrencyLevel
+                    // which is why we set the concurrency level to 1. See
+                    // https://github.com/google/guava/issues/3462 for further details.
+                    .concurrencyLevel(1)
                     .recordStats(),
                 weightInBytes)
             .getCache(),
@@ -251,13 +254,14 @@ public final class Caches {
     public String describeStats() {
       CacheStats stats = cache.stats();
       return String.format(
-          "used/max %d/%d MB, hit %.2f%%, lookups %d, avg load time %.0f ns, load count %d",
+          "used/max %d/%d MB, hit %.2f%%, lookups %d, avg load time %.0f ns, loads %d, evictions %d",
           weightInBytes.longValue() >> 20,
           maxWeightInBytes >> 20,
           stats.hitRate() * 100.,
           stats.requestCount(),
           stats.averageLoadPenalty(),
-          stats.loadCount());
+          stats.loadCount(),
+          stats.evictionCount());
     }
   }
 
@@ -324,7 +328,7 @@ public final class Caches {
 
     @Override
     public String toString() {
-      return "CompositeKey{" + "namespace=" + Arrays.toString(namespace) + ", key=" + key + "}";
+      return "CompositeKey{namespace=" + Arrays.toString(namespace) + ", key=" + key + "}";
     }
 
     @Override
