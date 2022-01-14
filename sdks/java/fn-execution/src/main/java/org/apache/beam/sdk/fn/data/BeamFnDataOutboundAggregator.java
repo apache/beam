@@ -19,10 +19,9 @@ package org.apache.beam.sdk.fn.data;
 
 import java.io.IOException;
 import java.util.Collections;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
@@ -31,9 +30,11 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString.Output;
 import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -53,7 +54,7 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
-public class BeamFnDataOutboundAggregator {
+public class BeamFnDataOutboundAggregator implements AutoCloseable {
 
   public static final String DATA_BUFFER_SIZE_LIMIT = "data_buffer_size_limit=";
   public static final int DEFAULT_BUFFER_LIMIT_BYTES = 1_000_000;
@@ -63,8 +64,7 @@ public class BeamFnDataOutboundAggregator {
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataOutboundAggregator.class);
   private final int sizeLimit;
   private final long timeLimit;
-  private final Set<LogicalEndpoint> outputLocations;
-  private final Set<LogicalEndpoint> unregisteredOutputLocations;
+  private final Map<LogicalEndpoint, Coder<?>> outputLocations;
   private final StreamObserver<Elements> outboundObserver;
   private final Map<LogicalEndpoint, ByteString.Output> buffer;
   @VisibleForTesting ScheduledFuture<?> flushFuture;
@@ -74,8 +74,7 @@ public class BeamFnDataOutboundAggregator {
       PipelineOptions options, StreamObserver<BeamFnApi.Elements> outboundObserver) {
     this.sizeLimit = getSizeLimit(options);
     this.timeLimit = getTimeLimit(options);
-    this.outputLocations = new HashSet<>();
-    this.unregisteredOutputLocations = new HashSet<>();
+    this.outputLocations = new HashMap<>();
     this.buffer = new ConcurrentHashMap<>();
     this.outboundObserver = outboundObserver;
     if (timeLimit > 0) {
@@ -92,17 +91,13 @@ public class BeamFnDataOutboundAggregator {
     }
   }
 
-  public synchronized void registerOutputLocation(LogicalEndpoint endpoint) {
+  /**
+   * Register the outbound logical endpoint alongside it's value coder. All registered endpoints
+   * will eventually be removed when {@link #close()} is called at the end of a bundle.
+   */
+  public <T> void registerOutputLocation(LogicalEndpoint endpoint, Coder<T> coder) {
     LOG.debug("Registering endpoint: {}", endpoint);
-    outputLocations.add(endpoint);
-  }
-
-  public synchronized void unregisterOutputLocation(LogicalEndpoint endpoint) {
-    LOG.debug("UnRegistering endpoint: {}", endpoint);
-    unregisteredOutputLocations.add(endpoint);
-    if (unregisteredOutputLocations.equals(outputLocations)) {
-      sendBufferedDataAndFinishOutbounds();
-    }
+    outputLocations.put(endpoint, coder);
   }
 
   public void flush() throws IOException {
@@ -111,13 +106,18 @@ public class BeamFnDataOutboundAggregator {
     }
   }
 
-  public void sendBufferedDataAndFinishOutbounds() {
+  /**
+   * Closes the streams for all registered outbound endpoints. Should be called at the end of each
+   * bundle.
+   */
+  @Override
+  public void close() {
     LOG.debug("Closing streams for outbound endpoints {}", outputLocations);
     if (byteCounter == 0 && outputLocations.isEmpty()) {
       return;
     }
     Elements.Builder bufferedElements = convertBufferForTransmission();
-    for (LogicalEndpoint outputLocation : outputLocations) {
+    for (LogicalEndpoint outputLocation : outputLocations.keySet()) {
       if (outputLocation.isTimer()) {
         bufferedElements
             .addTimersBuilder()
@@ -134,19 +134,17 @@ public class BeamFnDataOutboundAggregator {
       }
     }
     outboundObserver.onNext(bufferedElements.build());
-
-    // This bundle is finished we can clear outputLocations. New outputLocations should be
-    // registered in startBundle phase for next bundle.
     outputLocations.clear();
-    unregisteredOutputLocations.clear();
   }
 
-  public void accept(LogicalEndpoint endpoint, ByteString.Output data) throws Exception {
+  public <T> void accept(LogicalEndpoint endpoint, T data) throws Exception {
     if (timeLimit > 0) {
       checkFlushThreadException();
     }
-    data.writeTo(buffer.computeIfAbsent(endpoint, e -> ByteString.newOutput()));
-    byteCounter += data.size();
+    Output output = buffer.computeIfAbsent(endpoint, e -> ByteString.newOutput());
+    int size = output.size();
+    ((Coder<T>) outputLocations.get(endpoint)).encode(data, output);
+    byteCounter += output.size() - size;
 
     if (byteCounter >= sizeLimit) {
       flush();

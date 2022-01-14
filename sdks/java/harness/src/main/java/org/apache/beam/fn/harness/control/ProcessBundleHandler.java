@@ -24,6 +24,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -47,8 +48,6 @@ import org.apache.beam.fn.harness.PTransformRunnerFactory.ProgressRequestCallbac
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
 import org.apache.beam.fn.harness.control.FinalizeBundleHandler.CallbackRegistration;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
-import org.apache.beam.fn.harness.data.BeamFnTimerClient;
-import org.apache.beam.fn.harness.data.BeamFnTimerGrpcClient;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
@@ -76,13 +75,14 @@ import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.ShortIdMap;
 import org.apache.beam.sdk.fn.data.BeamFnDataInboundObserver2;
-import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
+import org.apache.beam.sdk.fn.data.BeamFnDataOutboundAggregator;
 import org.apache.beam.sdk.fn.data.DataEndpoint;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.data.TimerEndpoint;
 import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
@@ -211,7 +211,6 @@ public class ProcessBundleHandler {
 
   private void createRunnerAndConsumersForPTransformRecursively(
       BeamFnStateClient beamFnStateClient,
-      BeamFnTimerClient beamFnTimerClient,
       BeamFnDataClient queueingClient,
       String pTransformId,
       PTransform pTransform,
@@ -231,7 +230,8 @@ public class ProcessBundleHandler {
       Consumer<ProgressRequestCallback> addProgressRequestCallback,
       BundleSplitListener splitListener,
       BundleFinalizer bundleFinalizer,
-      Collection<BeamFnDataReadRunner> channelRoots)
+      Collection<BeamFnDataReadRunner> channelRoots,
+      Map<ApiServiceDescriptor, BeamFnDataOutboundAggregator> outboundAggregatorMap)
       throws IOException {
 
     // Recursively ensure that all consumers of the output PCollection have been created.
@@ -242,7 +242,6 @@ public class ProcessBundleHandler {
       for (String consumingPTransformId : pCollectionIdsToConsumingPTransforms.get(pCollectionId)) {
         createRunnerAndConsumersForPTransformRecursively(
             beamFnStateClient,
-            beamFnTimerClient,
             queueingClient,
             consumingPTransformId,
             processBundleDescriptor.getTransformsMap().get(consumingPTransformId),
@@ -262,7 +261,8 @@ public class ProcessBundleHandler {
             addProgressRequestCallback,
             splitListener,
             bundleFinalizer,
-            channelRoots);
+            channelRoots,
+            outboundAggregatorMap);
       }
     }
 
@@ -298,11 +298,6 @@ public class ProcessBundleHandler {
                     @Override
                     public BeamFnStateClient getBeamFnStateClient() {
                       return beamFnStateClient;
-                    }
-
-                    @Override
-                    public BeamFnTimerClient getBeamFnTimerClient() {
-                      return beamFnTimerClient;
                     }
 
                     @Override
@@ -357,6 +352,23 @@ public class ProcessBundleHandler {
                         org.apache.beam.sdk.coders.Coder<T> valueCoder) {
                       pCollectionConsumerRegistry.register(
                           pCollectionId, pTransformId, consumer, valueCoder);
+                    }
+
+                    @Override
+                    public Map<ApiServiceDescriptor, BeamFnDataOutboundAggregator>
+                        getOutboundAggregators() {
+                      return outboundAggregatorMap;
+                    }
+
+                    @Override
+                    public BeamFnDataOutboundAggregator getTimersOutboundAggregator() {
+                      if (processBundleDescriptor.hasTimerApiServiceDescriptor()) {
+                        return outboundAggregatorMap.computeIfAbsent(
+                            processBundleDescriptor.getTimerApiServiceDescriptor(),
+                            queueingClient::createOutboundAggregator);
+                      } else {
+                        return new FailAllTimerRegistrations(processBundleInstructionId);
+                      }
                     }
 
                     @Override
@@ -489,7 +501,11 @@ public class ProcessBundleHandler {
             finishFunction.run();
           }
         }
-        beamFnDataClient.clear(request.getInstructionId());
+
+        for (BeamFnDataOutboundAggregator aggregator :
+            bundleProcessor.getOutboundAggregators().values()) {
+          aggregator.close();
+        }
 
         // Add all checkpointed residuals to the response.
         response.addAllResidualRoots(bundleProcessor.getSplitListener().getResidualRoots());
@@ -649,14 +665,6 @@ public class ProcessBundleHandler {
       beamFnStateClient = new FailAllStateCallsForBundle(processBundleRequest);
     }
 
-    // Instantiate a Timer client registration handler depending on whether a Timer
-    // ApiServiceDescriptor was specified.
-    BeamFnTimerClient beamFnTimerClient =
-        bundleDescriptor.hasTimerApiServiceDescriptor()
-            ? new BeamFnTimerGrpcClient(
-                beamFnDataClient, bundleDescriptor.getTimerApiServiceDescriptor())
-            : new FailAllTimerRegistrations(processBundleRequest);
-
     BundleSplitListener.InMemory splitListener = BundleSplitListener.InMemory.create();
 
     Collection<CallbackRegistration> bundleFinalizationCallbackRegistrations = new ArrayList<>();
@@ -702,7 +710,6 @@ public class ProcessBundleHandler {
 
       createRunnerAndConsumersForPTransformRecursively(
           beamFnStateClient,
-          beamFnTimerClient,
           beamFnDataClient,
           entry.getKey(),
           entry.getValue(),
@@ -727,14 +734,15 @@ public class ProcessBundleHandler {
           },
           (timerEndpoint) -> {
             if (!bundleDescriptor.hasTimerApiServiceDescriptor()) {
-              throw FailAllTimerRegistrations.fail(processBundleRequest);
+              throw FailAllTimerRegistrations.fail(bundleId);
             }
             bundleProcessor.getTimerEndpoints().add(timerEndpoint);
           },
           progressRequestCallbacks::add,
           splitListener,
           bundleFinalizer,
-          bundleProcessor.getChannelRoots());
+          bundleProcessor.getChannelRoots(),
+          bundleProcessor.getOutboundAggregators());
     }
     bundleProcessor.finish();
 
@@ -887,7 +895,8 @@ public class ProcessBundleHandler {
           /*inboundDataEndpoints=*/ new ArrayList<>(),
           /*timerEndpoints=*/ new ArrayList<>(),
           bundleFinalizationCallbackRegistrations,
-          new ArrayList<>());
+          new ArrayList<>(),
+          new HashMap<>());
     }
 
     private String instructionId;
@@ -927,6 +936,8 @@ public class ProcessBundleHandler {
     abstract Collection<CallbackRegistration> getBundleFinalizationCallbackRegistrations();
 
     abstract Collection<BeamFnDataReadRunner> getChannelRoots();
+
+    abstract Map<ApiServiceDescriptor, BeamFnDataOutboundAggregator> getOutboundAggregators();
 
     synchronized String getInstructionId() {
       return this.instructionId;
@@ -1076,28 +1087,29 @@ public class ProcessBundleHandler {
   }
 
   /**
-   * A {@link BeamFnTimerClient} which fails all registrations because the {@link
+   * A {@link BeamFnDataOutboundAggregator} which fails all registrations because the {@link
    * ProcessBundleRequest} does not contain a Timer {@link ApiServiceDescriptor}.
    */
-  private static class FailAllTimerRegistrations implements BeamFnTimerClient {
-    private final ProcessBundleRequest request;
+  private static class FailAllTimerRegistrations extends BeamFnDataOutboundAggregator {
+    private final Supplier<String> requestId;
 
-    private FailAllTimerRegistrations(ProcessBundleRequest request) {
-      this.request = request;
+    private FailAllTimerRegistrations(Supplier<String> requestId) {
+      super(PipelineOptionsFactory.create(), null);
+      this.requestId = requestId;
     }
 
     @Override
-    public <T> CloseableFnDataReceiver<Timer<T>> register(
-        LogicalEndpoint timerEndpoint, org.apache.beam.sdk.coders.Coder<Timer<T>> coder) {
-      throw fail(request);
+    public <T> void registerOutputLocation(
+        LogicalEndpoint endpoint, org.apache.beam.sdk.coders.Coder<T> coder) {
+      throw fail(requestId.get());
     }
 
-    private static IllegalStateException fail(ProcessBundleRequest request) {
+    private static IllegalStateException fail(String requestId) {
       throw new IllegalStateException(
           String.format(
               "Timers are unsupported because the "
                   + "ProcessBundleRequest %s does not provide a timer ApiServiceDescriptor.",
-              request));
+              requestId));
     }
   }
 

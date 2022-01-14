@@ -29,7 +29,6 @@ import java.util.function.Supplier;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.ProgressRequestCallback;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
-import org.apache.beam.fn.harness.data.BeamFnTimerClient;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;
@@ -42,10 +41,10 @@ import org.apache.beam.model.pipeline.v1.MetricsApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.fn.data.BeamFnDataOutboundAggregator;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.DataEndpoint;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.data.TimerEndpoint;
 import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -84,15 +83,8 @@ public abstract class PTransformRunnerFactoryTestContext
               }
 
               @Override
-              public <T> CloseableFnDataReceiver<T> send(
-                  ApiServiceDescriptor apiServiceDescriptor,
-                  LogicalEndpoint outputLocation,
-                  Coder<T> coder) {
-                throw new UnsupportedOperationException("Unexpected call during test.");
-              }
-
-              @Override
-              public void clear(String instructionId) {
+              public BeamFnDataOutboundAggregator createOutboundAggregator(
+                  ApiServiceDescriptor apiServiceDescriptor) {
                 throw new UnsupportedOperationException("Unexpected call during test.");
               }
             })
@@ -100,14 +92,6 @@ public abstract class PTransformRunnerFactoryTestContext
             new BeamFnStateClient() {
               @Override
               public CompletableFuture<StateResponse> handle(StateRequest.Builder requestBuilder) {
-                throw new UnsupportedOperationException("Unexpected call during test.");
-              }
-            })
-        .beamFnTimerClient(
-            new BeamFnTimerClient() {
-              @Override
-              public <K> CloseableFnDataReceiver<Timer<K>> register(
-                  LogicalEndpoint timerEndpoint, Coder<Timer<K>> coder) {
                 throw new UnsupportedOperationException("Unexpected call during test.");
               }
             })
@@ -119,6 +103,9 @@ public abstract class PTransformRunnerFactoryTestContext
             })
         .cacheTokensSupplier(() -> Collections.emptyList())
         .bundleCacheSupplier(() -> Caches.noop())
+        .outboundAggregators(new HashMap<>())
+        .timersOutboundAggregator(
+            new BeamFnDataOutboundAggregator(PipelineOptionsFactory.create(), null))
         .processWideCache(Caches.noop())
         .pCollections(Collections.emptyMap()) // expected to be immutable
         .coders(Collections.emptyMap()) // expected to be immutable
@@ -158,8 +145,6 @@ public abstract class PTransformRunnerFactoryTestContext
 
     Builder beamFnStateClient(BeamFnStateClient value);
 
-    Builder beamFnTimerClient(BeamFnTimerClient value);
-
     Builder pTransformId(String value);
 
     Builder pTransform(RunnerApi.PTransform value);
@@ -181,6 +166,10 @@ public abstract class PTransformRunnerFactoryTestContext
     Builder coders(Map<String, RunnerApi.Coder> value);
 
     Builder windowingStrategies(Map<String, RunnerApi.WindowingStrategy> value);
+
+    Builder outboundAggregators(Map<ApiServiceDescriptor, BeamFnDataOutboundAggregator> value);
+
+    Builder timersOutboundAggregator(BeamFnDataOutboundAggregator value);
 
     Builder pCollectionConsumers(Map<String, List<FnDataReceiver<?>>> value);
 

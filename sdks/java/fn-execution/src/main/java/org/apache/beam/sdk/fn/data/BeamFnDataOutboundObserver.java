@@ -18,9 +18,10 @@
 package org.apache.beam.sdk.fn.data;
 
 import java.io.IOException;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString.Output;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
 
 /**
  * An outbound {@link FnDataReceiver} for the Beam Fn Data API.
@@ -30,30 +31,34 @@ import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString.Output
  *
  * <p>TODO: Handle outputting elements that are zero bytes by outputting a single byte as a marker,
  * detect on the input side that no bytes were read and force reading a single byte.
+ *
+ * @deprecated Migrate to use {@link BeamFnDataOutboundAggregator} directly.
  */
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
+@Deprecated
 public class BeamFnDataOutboundObserver<T> implements CloseableFnDataReceiver<T> {
 
   private boolean closed;
-  private final Coder<T> coder;
   private final LogicalEndpoint outputLocation;
   private final BeamFnDataOutboundAggregator aggregator;
 
   public BeamFnDataOutboundObserver(
-      LogicalEndpoint outputLocation, Coder<T> coder, BeamFnDataOutboundAggregator aggregator) {
+      LogicalEndpoint outputLocation,
+      Coder<T> coder,
+      StreamObserver<Elements> outboundObserver,
+      PipelineOptions options) {
     this.outputLocation = outputLocation;
-    this.coder = coder;
-    this.aggregator = aggregator;
-    this.aggregator.registerOutputLocation(outputLocation);
+    this.aggregator = new BeamFnDataOutboundAggregator(options, outboundObserver);
+    this.aggregator.registerOutputLocation(outputLocation, (Coder<Object>) coder);
     this.closed = false;
   }
 
   @Override
   public void close() throws Exception {
+    this.aggregator.close();
     this.closed = true;
-    this.aggregator.unregisterOutputLocation(outputLocation);
   }
 
   @Override
@@ -64,8 +69,6 @@ public class BeamFnDataOutboundObserver<T> implements CloseableFnDataReceiver<T>
     if (closed) {
       throw new IllegalStateException("Already closed.");
     }
-    Output output = ByteString.newOutput();
-    coder.encode(t, output);
-    aggregator.accept(outputLocation, output);
+    aggregator.accept(outputLocation, t);
   }
 }

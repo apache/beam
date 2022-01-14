@@ -75,46 +75,39 @@ public class BeamFnDataOutboundAggregatorTest {
             TestStreams.<Elements>withOnNext(values::add)
                 .withOnCompleted(() -> onCompletedWasCalled.set(true))
                 .build());
-    CloseableFnDataReceiver<byte[]> consumer =
-        new BeamFnDataOutboundObserver<>(endpoint, CODER, aggregator);
 
     // Test that nothing is emitted till the default buffer size is surpassed.
-    consumer.accept(new byte[BeamFnDataOutboundAggregator.DEFAULT_BUFFER_LIMIT_BYTES - 50]);
+    aggregator.registerOutputLocation(endpoint, CODER);
+    aggregator.accept(
+        endpoint, new byte[BeamFnDataOutboundAggregator.DEFAULT_BUFFER_LIMIT_BYTES - 50]);
     assertThat(values, empty());
 
     // Test that when we cross the buffer, we emit.
-    consumer.accept(new byte[50]);
+    aggregator.accept(endpoint, new byte[50]);
     assertEquals(
         messageWithData(
             new byte[BeamFnDataOutboundAggregator.DEFAULT_BUFFER_LIMIT_BYTES - 50], new byte[50]),
         values.get(0));
 
     // Test that nothing is emitted till the default buffer size is surpassed after a reset
-    consumer.accept(new byte[BeamFnDataOutboundAggregator.DEFAULT_BUFFER_LIMIT_BYTES - 50]);
+    aggregator.accept(
+        endpoint, new byte[BeamFnDataOutboundAggregator.DEFAULT_BUFFER_LIMIT_BYTES - 50]);
     assertEquals(1, values.size());
 
     // Test that when we cross the buffer, we emit.
-    consumer.accept(new byte[50]);
+    aggregator.accept(endpoint, new byte[50]);
     assertEquals(
         messageWithData(
             new byte[BeamFnDataOutboundAggregator.DEFAULT_BUFFER_LIMIT_BYTES - 50], new byte[50]),
         values.get(1));
 
     // Test that when we close with an empty buffer we only have one end of stream
-    consumer.close();
+    aggregator.close();
 
     assertEquals(endMessage(), values.get(2));
 
-    // Test that we can't write to a closed stream.
-    try {
-      consumer.accept(new byte[BeamFnDataOutboundAggregator.DEFAULT_BUFFER_LIMIT_BYTES - 50]);
-      fail("Writing after close should be prohibited.");
-    } catch (IllegalStateException exn) {
-      // expected
-    }
-
     // Test that we can close a stream twice.
-    consumer.close();
+    aggregator.close();
   }
 
   @Test
@@ -131,21 +124,19 @@ public class BeamFnDataOutboundAggregatorTest {
             TestStreams.<Elements>withOnNext(values::add)
                 .withOnCompleted(() -> onCompletedWasCalled.set(true))
                 .build());
-    CloseableFnDataReceiver<byte[]> consumer =
-        new BeamFnDataOutboundObserver<>(endpoint, CODER, aggregator);
-
     // Test that nothing is emitted till the default buffer size is surpassed.
-    consumer.accept(new byte[51]);
+    aggregator.registerOutputLocation(endpoint, CODER);
+    aggregator.accept(endpoint, new byte[51]);
     assertThat(values, empty());
 
     // Test that when we cross the buffer, we emit.
-    consumer.accept(new byte[49]);
+    aggregator.accept(endpoint, new byte[49]);
     assertEquals(messageWithData(new byte[51], new byte[49]), values.get(0));
 
     // Test that when we close we empty the value, and then the stream terminator as part
     // of the same message
-    consumer.accept(new byte[1]);
-    consumer.close();
+    aggregator.accept(endpoint, new byte[1]);
+    aggregator.close();
 
     BeamFnApi.Elements.Builder builder = messageWithDataBuilder(new byte[1]);
     if (endpoint.isTimer()) {
@@ -184,10 +175,9 @@ public class BeamFnDataOutboundAggregatorTest {
                         })
                 .build());
 
-    CloseableFnDataReceiver<byte[]> consumer =
-        new BeamFnDataOutboundObserver<>(endpoint, CODER, aggregator);
     // Test that it emits when time passed the time limit
-    consumer.accept(new byte[1]);
+    aggregator.registerOutputLocation(endpoint, CODER);
+    aggregator.accept(endpoint, new byte[1]);
     waitForFlush.await(); // wait the flush thread to flush the buffer
     assertEquals(messageWithData(new byte[1]), values.get(0));
   }
@@ -208,11 +198,9 @@ public class BeamFnDataOutboundAggregatorTest {
                         })
                 .build());
 
-    CloseableFnDataReceiver<byte[]> consumer =
-        new BeamFnDataOutboundObserver<>(endpoint, CODER, aggregator);
-
     // Test that it emits when time passed the time limit
-    consumer.accept(new byte[1]);
+    aggregator.registerOutputLocation(endpoint, CODER);
+    aggregator.accept(endpoint, new byte[1]);
     // wait the flush thread to flush the buffer
     while (!aggregator.flushFuture.isDone()) {
       Thread.sleep(1);
@@ -220,7 +208,7 @@ public class BeamFnDataOutboundAggregatorTest {
     try {
       // Test that the exception caught in the flush thread is propagated to
       // the main thread when processing the next element
-      consumer.accept(new byte[1]);
+      aggregator.accept(endpoint, new byte[1]);
       fail();
     } catch (Exception e) {
       // expected
@@ -235,8 +223,8 @@ public class BeamFnDataOutboundAggregatorTest {
                           throw new RuntimeException("");
                         })
                 .build());
-    consumer = new BeamFnDataOutboundObserver<>(endpoint, CODER, aggregator);
-    consumer.accept(new byte[1]);
+    aggregator.registerOutputLocation(endpoint, CODER);
+    aggregator.accept(endpoint, new byte[1]);
     // wait the flush thread to flush the buffer
     while (!aggregator.flushFuture.isDone()) {
       Thread.sleep(1);
@@ -244,14 +232,78 @@ public class BeamFnDataOutboundAggregatorTest {
     try {
       // Test that the exception caught in the flush thread is propagated to
       // the main thread when closing
-      consumer.close();
+      aggregator.close();
       fail();
     } catch (Exception e) {
       // expected
     }
   }
 
+  @Test
+  public void testConfiguredBufferLimitMultipleEndpoints() throws Exception {
+    List<BeamFnApi.Elements> values = new ArrayList<>();
+    AtomicBoolean onCompletedWasCalled = new AtomicBoolean();
+    PipelineOptions options = PipelineOptionsFactory.create();
+    options
+        .as(ExperimentalOptions.class)
+        .setExperiments(Arrays.asList("data_buffer_size_limit=100"));
+    BeamFnDataOutboundAggregator aggregator =
+        new BeamFnDataOutboundAggregator(
+            options,
+            TestStreams.<Elements>withOnNext(values::add)
+                .withOnCompleted(() -> onCompletedWasCalled.set(true))
+                .build());
+    // Test that nothing is emitted till the default buffer size is surpassed.
+    LogicalEndpoint additionalEndpoint =
+        LogicalEndpoint.data(
+            endpoint.getInstructionId(), "additional:" + endpoint.getTransformId());
+    aggregator.registerOutputLocation(endpoint, CODER);
+    aggregator.registerOutputLocation(additionalEndpoint, CODER);
+    aggregator.accept(endpoint, new byte[51]);
+    assertThat(values, empty());
+
+    // Test that when we cross the buffer, we emit.
+    aggregator.accept(additionalEndpoint, new byte[49]);
+    assertEquals(
+        messageWithDataBuilder(new byte[51])
+            .mergeFrom(messageWithDataBuilder(additionalEndpoint, new byte[49]).build())
+            .build(),
+        values.get(0));
+
+    // Test that when we close we empty the value, and then the stream terminator as part
+    // of the same message
+    aggregator.accept(endpoint, new byte[1]);
+    aggregator.close();
+
+    BeamFnApi.Elements.Builder builder = messageWithDataBuilder(new byte[1]);
+    if (endpoint.isTimer()) {
+      builder.addTimers(
+          BeamFnApi.Elements.Timers.newBuilder()
+              .setInstructionId(endpoint.getInstructionId())
+              .setTransformId(endpoint.getTransformId())
+              .setTimerFamilyId(endpoint.getTimerFamilyId())
+              .setIsLast(true));
+    } else {
+      builder.addData(
+          BeamFnApi.Elements.Data.newBuilder()
+              .setInstructionId(endpoint.getInstructionId())
+              .setTransformId(endpoint.getTransformId())
+              .setIsLast(true));
+    }
+    builder.addData(
+        BeamFnApi.Elements.Data.newBuilder()
+            .setInstructionId(additionalEndpoint.getInstructionId())
+            .setTransformId(additionalEndpoint.getTransformId())
+            .setIsLast(true));
+    assertEquals(builder.build(), values.get(1));
+  }
+
   BeamFnApi.Elements.Builder messageWithDataBuilder(byte[]... datum) throws IOException {
+    return messageWithDataBuilder(endpoint, datum);
+  }
+
+  BeamFnApi.Elements.Builder messageWithDataBuilder(LogicalEndpoint endpoint, byte[]... datum)
+      throws IOException {
     ByteString.Output output = ByteString.newOutput();
     for (byte[] data : datum) {
       CODER.encode(data, output);

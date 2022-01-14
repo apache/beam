@@ -23,18 +23,15 @@ import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.util.Map;
 import java.util.function.Supplier;
-import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.StateBackedIterable.StateBackedIterableTranslationContext;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
-import org.apache.beam.model.pipeline.v1.Endpoints;
-import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
+import org.apache.beam.sdk.fn.data.BeamFnDataOutboundAggregator;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortWrite;
@@ -47,7 +44,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * transmission.
  *
  * <p>Can be re-used serially across {@link BeamFnApi.ProcessBundleRequest}s. For each request, call
- * {@link #registerForOutput()} to start and call {@link #close()} to finish.
+ * {@link #registerForOutput(Supplier, Coder)} to start.
  */
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
@@ -72,87 +69,67 @@ public class BeamFnDataWriteRunner<InputT> {
     public BeamFnDataWriteRunner<InputT> createRunnerForPTransform(Context context)
         throws IOException {
 
-      BeamFnDataWriteRunner<InputT> runner =
-          new BeamFnDataWriteRunner<>(
-              context.getBundleCacheSupplier(),
-              context.getPTransformId(),
-              context.getPTransform(),
-              context.getProcessBundleInstructionIdSupplier(),
-              context.getCoders(),
-              context.getBeamFnDataClient(),
-              context.getBeamFnStateClient());
-      context.addStartBundleFunction(runner::registerForOutput);
+      RemoteGrpcPort port = RemoteGrpcPortWrite.fromPTransform(context.getPTransform()).getPort();
+      RehydratedComponents components =
+          RehydratedComponents.forComponents(
+              Components.newBuilder().putAllCoders(context.getCoders()).build());
+      Coder<WindowedValue<InputT>> coder =
+          (Coder<WindowedValue<InputT>>)
+              CoderTranslation.fromProto(
+                  context.getCoders().get(port.getCoderId()),
+                  components,
+                  new StateBackedIterableTranslationContext() {
+                    @Override
+                    public Supplier<Cache<?, ?>> getCache() {
+                      return context.getBundleCacheSupplier();
+                    }
+
+                    @Override
+                    public BeamFnStateClient getStateClient() {
+                      return context.getBeamFnStateClient();
+                    }
+
+                    @Override
+                    public Supplier<String> getCurrentInstructionId() {
+                      return context.getProcessBundleInstructionIdSupplier();
+                    }
+                  });
+      BeamFnDataOutboundAggregator outboundAggregator =
+          context
+              .getOutboundAggregators()
+              .computeIfAbsent(
+                  port.getApiServiceDescriptor(),
+                  apiServiceDescriptor ->
+                      context.getBeamFnDataClient().createOutboundAggregator(apiServiceDescriptor));
+      Supplier<LogicalEndpoint> endpointSupplier =
+          () ->
+              LogicalEndpoint.data(
+                  context.getProcessBundleInstructionIdSupplier().get(), context.getPTransformId());
+      BeamFnDataWriteRunner<InputT> runner = new BeamFnDataWriteRunner<>(outboundAggregator);
+      context.addStartBundleFunction(() -> runner.registerForOutput(endpointSupplier, coder));
+
       context.addPCollectionConsumer(
           getOnlyElement(context.getPTransform().getInputsMap().values()),
           (FnDataReceiver) (FnDataReceiver<WindowedValue<InputT>>) runner::consume,
-          ((WindowedValueCoder<InputT>) runner.coder).getValueCoder());
+          ((WindowedValueCoder<InputT>) coder).getValueCoder());
 
-      context.addFinishBundleFunction(runner::close);
       return runner;
     }
   }
 
-  private final Endpoints.ApiServiceDescriptor apiServiceDescriptor;
-  private final String pTransformId;
-  private final Coder<WindowedValue<InputT>> coder;
-  private final BeamFnDataClient beamFnDataClientFactory;
-  private final Supplier<String> processBundleInstructionIdSupplier;
+  private final BeamFnDataOutboundAggregator outboundAggregator;
+  private LogicalEndpoint endpoint;
 
-  private CloseableFnDataReceiver<WindowedValue<InputT>> consumer;
-
-  BeamFnDataWriteRunner(
-      Supplier<Cache<?, ?>> cache,
-      String pTransformId,
-      RunnerApi.PTransform remoteWriteNode,
-      Supplier<String> processBundleInstructionIdSupplier,
-      Map<String, RunnerApi.Coder> coders,
-      BeamFnDataClient beamFnDataClientFactory,
-      BeamFnStateClient beamFnStateClient)
-      throws IOException {
-    this.pTransformId = pTransformId;
-    RemoteGrpcPort port = RemoteGrpcPortWrite.fromPTransform(remoteWriteNode).getPort();
-    this.apiServiceDescriptor = port.getApiServiceDescriptor();
-    this.beamFnDataClientFactory = beamFnDataClientFactory;
-    this.processBundleInstructionIdSupplier = processBundleInstructionIdSupplier;
-
-    RehydratedComponents components =
-        RehydratedComponents.forComponents(Components.newBuilder().putAllCoders(coders).build());
-    this.coder =
-        (Coder<WindowedValue<InputT>>)
-            CoderTranslation.fromProto(
-                coders.get(port.getCoderId()),
-                components,
-                new StateBackedIterableTranslationContext() {
-                  @Override
-                  public Supplier<Cache<?, ?>> getCache() {
-                    return cache;
-                  }
-
-                  @Override
-                  public BeamFnStateClient getStateClient() {
-                    return beamFnStateClient;
-                  }
-
-                  @Override
-                  public Supplier<String> getCurrentInstructionId() {
-                    return processBundleInstructionIdSupplier;
-                  }
-                });
+  BeamFnDataWriteRunner(BeamFnDataOutboundAggregator outboundAggregator) throws IOException {
+    this.outboundAggregator = outboundAggregator;
   }
 
-  public void registerForOutput() {
-    consumer =
-        beamFnDataClientFactory.send(
-            apiServiceDescriptor,
-            LogicalEndpoint.data(processBundleInstructionIdSupplier.get(), pTransformId),
-            coder);
-  }
-
-  public void close() throws Exception {
-    consumer.close();
+  public void registerForOutput(Supplier<LogicalEndpoint> outputLocation, Coder<?> coder) {
+    endpoint = outputLocation.get();
+    outboundAggregator.registerOutputLocation(endpoint, coder);
   }
 
   public void consume(WindowedValue<InputT> value) throws Exception {
-    consumer.accept(value);
+    outboundAggregator.accept(endpoint, value);
   }
 }

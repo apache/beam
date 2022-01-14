@@ -28,7 +28,6 @@ import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.BeamFnDataGrpcMultiplexer;
 import org.apache.beam.sdk.fn.data.BeamFnDataInboundObserver;
-import org.apache.beam.sdk.fn.data.BeamFnDataOutboundAggregator;
 import org.apache.beam.sdk.fn.data.BeamFnDataOutboundObserver;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.DecodingFnDataReceiver;
@@ -184,8 +183,8 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
       return new BeamFnDataOutboundObserver<>(
           outputLocation,
           coder,
-          new BeamFnDataOutboundAggregator(
-              options, connectedClient.get(3, TimeUnit.MINUTES).getOutboundObserver()));
+          connectedClient.get(3, TimeUnit.MINUTES).getOutboundObserver(),
+          options);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new RuntimeException(e);

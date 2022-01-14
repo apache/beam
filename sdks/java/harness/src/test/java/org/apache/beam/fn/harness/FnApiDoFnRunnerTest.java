@@ -31,7 +31,6 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
@@ -42,6 +41,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
@@ -57,7 +57,6 @@ import org.apache.beam.fn.harness.FnApiDoFnRunner.SplitResultsWithStopIndex;
 import org.apache.beam.fn.harness.FnApiDoFnRunner.WindowedSplitResult;
 import org.apache.beam.fn.harness.HandlesSplits.SplitResult;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
-import org.apache.beam.fn.harness.data.FakeBeamFnTimerClient;
 import org.apache.beam.fn.harness.state.FakeBeamFnStateClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.DelayedBundleApplication;
@@ -89,6 +88,7 @@ import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.fn.data.BeamFnDataOutboundAggregator;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.io.range.OffsetRange;
@@ -98,6 +98,7 @@ import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.ExperimentalOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.StateSpec;
@@ -852,6 +853,39 @@ public class FnApiDoFnRunnerTest implements Serializable {
       assertThat(result, containsInAnyOrder(expected.toArray()));
     }
 
+    private class TestBeamFnDataOutboundAggregator extends BeamFnDataOutboundAggregator {
+      private Map<LogicalEndpoint, List<org.apache.beam.runners.core.construction.Timer<?>>> timers;
+      private Map<LogicalEndpoint, List<WindowedValue<String>>> dataOutput;
+
+      public TestBeamFnDataOutboundAggregator() {
+        super(PipelineOptionsFactory.create(), null);
+        this.timers = new HashMap<>();
+        this.dataOutput = new HashMap<>();
+      }
+
+      @Override
+      public <T> void accept(LogicalEndpoint endpoint, T data) throws Exception {
+        if (endpoint.isTimer()) {
+          timers
+              .computeIfAbsent(endpoint, e -> new ArrayList<>())
+              .add((org.apache.beam.runners.core.construction.Timer<?>) data);
+        } else {
+          dataOutput
+              .computeIfAbsent(endpoint, e -> new ArrayList<>())
+              .add((WindowedValue<String>) data);
+        }
+      }
+
+      public Map<LogicalEndpoint, List<org.apache.beam.runners.core.construction.Timer<?>>>
+          getOutputTimers() {
+        return timers;
+      }
+
+      public Map<LogicalEndpoint, List<WindowedValue<String>>> getOutputData() {
+        return dataOutput;
+      }
+    }
+
     @Test
     public void testTimers() throws Exception {
       dateTimeProvider.setDateTimeFixed(10000L);
@@ -886,18 +920,18 @@ public class FnApiDoFnRunnerTest implements Serializable {
                   bagUserStateKey("bag", "X"), asList("X0"),
                   bagUserStateKey("bag", "A"), asList("A0"),
                   bagUserStateKey("bag", "C"), asList("C0")));
-      FakeBeamFnTimerClient fakeTimerClient = new FakeBeamFnTimerClient();
+      List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
+      TestBeamFnDataOutboundAggregator aggregator = new TestBeamFnDataOutboundAggregator();
 
       PTransformRunnerFactoryTestContext context =
           PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
               .beamFnStateClient(fakeStateClient)
-              .beamFnTimerClient(fakeTimerClient)
+              .timersOutboundAggregator(aggregator)
               .processBundleInstructionId("57L")
               .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
               .coders(pProto.getComponents().getCodersMap())
               .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
               .build();
-      List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
       context.addPCollectionConsumer(
           outputPCollectionId,
           (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add,
@@ -1001,16 +1035,11 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
       mainOutputValues.clear();
 
-      assertFalse(fakeTimerClient.isOutboundClosed(eventTimer));
-      assertFalse(fakeTimerClient.isOutboundClosed(processingTimer));
-      assertFalse(fakeTimerClient.isOutboundClosed(eventFamilyTimer));
-      assertFalse(fakeTimerClient.isOutboundClosed(processingFamilyTimer));
-
       // Timers will get delivered to the client when finishBundle is called.
       Iterables.getOnlyElement(context.getFinishBundleFunctions()).run();
 
       assertThat(
-          fakeTimerClient.getTimers(eventTimer),
+          aggregator.getOutputTimers().get(eventTimer),
           contains(
               clearedTimerInGlobalWindow("X"),
               timerInGlobalWindow("Y", new Instant(2100L), new Instant(2181L)),
@@ -1018,7 +1047,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
               timerInGlobalWindow("B", new Instant(2000L), new Instant(2071L)),
               timerInGlobalWindow("C", new Instant(1800L), new Instant(1861L))));
       assertThat(
-          fakeTimerClient.getTimers(processingTimer),
+          aggregator.getOutputTimers().get(processingTimer),
           contains(
               clearedTimerInGlobalWindow("X"),
               timerInGlobalWindow("Y", new Instant(2100L), new Instant(10082L)),
@@ -1027,7 +1056,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
               timerInGlobalWindow("C", new Instant(1800L), new Instant(10062L))));
 
       assertThat(
-          fakeTimerClient.getTimers(eventFamilyTimer),
+          aggregator.getOutputTimers().get(eventFamilyTimer),
           containsInAnyOrder(
               dynamicTimerInGlobalWindow(
                   "X", "event-timer1", new Instant(1200L), new Instant(1203L)),
@@ -1042,7 +1071,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
               dynamicTimerInGlobalWindow(
                   "C", "event-timer1", new Instant(1800L), new Instant(1863L))));
       assertThat(
-          fakeTimerClient.getTimers(processingFamilyTimer),
+          aggregator.getOutputTimers().get(processingFamilyTimer),
           containsInAnyOrder(
               dynamicTimerInGlobalWindow(
                   "X", "processing-timer1", new Instant(1200L), new Instant(10004L)),
@@ -1058,11 +1087,6 @@ public class FnApiDoFnRunnerTest implements Serializable {
                   "C", "processing-timer1", new Instant(1800L), new Instant(10064L))));
 
       assertThat(mainOutputValues, empty());
-
-      assertTrue(fakeTimerClient.isOutboundClosed(eventTimer));
-      assertTrue(fakeTimerClient.isOutboundClosed(processingTimer));
-      assertTrue(fakeTimerClient.isOutboundClosed(eventFamilyTimer));
-      assertTrue(fakeTimerClient.isOutboundClosed(processingFamilyTimer));
 
       Iterables.getOnlyElement(context.getTearDownFunctions()).run();
       assertThat(mainOutputValues, empty());
@@ -3540,6 +3564,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
               .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
               .coders(pProto.getComponents().getCodersMap())
               .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+              .outboundAggregators(new HashMap<>())
               .build();
       List<WindowedValue<KV<KV<String, OffsetRange>, Double>>> mainOutputValues = new ArrayList<>();
       Coder coder =
@@ -3670,6 +3695,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
               .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
               .coders(pProto.getComponents().getCodersMap())
               .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+              .outboundAggregators(new HashMap<>())
               .build();
       List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
       Coder coder = StringUtf8Coder.of();
@@ -3729,6 +3755,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
               .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
               .coders(pProto.getComponents().getCodersMap())
               .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+              .outboundAggregators(new HashMap<>())
               .build();
       Coder coder = StringUtf8Coder.of();
       context.addPCollectionConsumer(

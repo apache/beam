@@ -23,7 +23,6 @@ import java.util.Map;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
-import org.apache.beam.fn.harness.data.BeamFnTimerClient;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
 import org.apache.beam.model.pipeline.v1.Endpoints;
@@ -31,6 +30,7 @@ import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.fn.data.BeamFnDataOutboundAggregator;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -53,9 +53,6 @@ public interface PTransformRunnerFactory<T> {
 
     /** A client for handling state requests. */
     BeamFnStateClient getBeamFnStateClient();
-
-    /** A client for handling inbound and outbound timer streams. */
-    BeamFnTimerClient getBeamFnTimerClient();
 
     /** The id of the PTransform. */
     String getPTransformId();
@@ -90,6 +87,18 @@ public interface PTransformRunnerFactory<T> {
 
     /** Returns a {@link FnDataReceiver} to send output to for the specified PCollection id. */
     <T> FnDataReceiver<T> getPCollectionConsumer(String pCollectionId);
+
+    /**
+     * Returns all {@link Endpoints.ApiServiceDescriptor} to {@link BeamFnDataOutboundAggregator}
+     * mappings.
+     */
+    Map<Endpoints.ApiServiceDescriptor, BeamFnDataOutboundAggregator> getOutboundAggregators();
+
+    /**
+     * Returns the {@link BeamFnDataOutboundAggregator} responsible for sending the bundle's output
+     * timers.
+     */
+    BeamFnDataOutboundAggregator getTimersOutboundAggregator();
 
     /** Register any {@link DoFn.StartBundle} methods. */
     void addStartBundleFunction(ThrowingRunnable startBundleFunction);
