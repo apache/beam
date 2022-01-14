@@ -120,7 +120,12 @@ class ElasticsearchIOTestUtils {
                 + "\"order\": 0,"
                 + "\"index_patterns\": [\"*\"],"
                 + "\"template\": \"*\","
-                + "\"settings\": {\"index.number_of_shards\": 1, \"index.number_of_replicas\": 0}}",
+                + "\"settings\": {"
+                + "   \"index.number_of_shards\": 1,"
+                + "   \"index.number_of_replicas\": 0,"
+                + "   \"index.store.stats_refresh_interval\": 0"
+                + "  }"
+                + "}",
             ContentType.APPLICATION_JSON);
 
     request.setEntity(body);
