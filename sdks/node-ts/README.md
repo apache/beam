@@ -56,7 +56,7 @@ which finishes only when the pipeline is completely finished as well as
 
 * Rather than introduce PCollectionTuple, PCollectionList, etc. we let PValue
 literally be an
-(array or object with PValue values)[https://github.com/robertwb/beam-javascript/blob/de4390dd767f046903ac23fead5db333290462db/sdks/node-ts/src/apache_beam/pvalue.ts#L116]
+[array or object with PValue values](https://github.com/robertwb/beam-javascript/blob/de4390dd767f046903ac23fead5db333290462db/sdks/node-ts/src/apache_beam/pvalue.ts#L116)
 which transforms can consume or produce.
 These are applied by wrapping them with the `P` operator, e.g.
 `P([pc1, pc2, pc3]).apply(new Flatten())`.
