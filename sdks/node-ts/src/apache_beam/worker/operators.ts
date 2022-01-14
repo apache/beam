@@ -9,6 +9,7 @@ import * as base from "../base";
 import * as urns from "../internal/urns";
 import { Coder, Context as CoderContext } from "../coders/coders";
 import { BoundedWindow, Instant, PaneInfo, WindowedValue } from "../values";
+import { DoFn, ParamProvider } from "../transforms/pardo";
 
 export interface IOperator {
   startBundle: () => void;
@@ -246,18 +247,44 @@ class FlattenOperator implements IOperator {
 registerOperator("beam:transform:flatten:v1", FlattenOperator);
 
 class GenericParDoOperator implements IOperator {
+  private doFn: base.DoFn<any, any, any>;
+  private originalContext: object | undefined;
+  private augmentedContext: object | undefined;
+  private paramProvider: ParamProviderImpl;
+
   constructor(
     private receiver: Receiver,
     private spec: runnerApi.ParDoPayload,
-    private doFn: base.DoFn<any, any>
-  ) {}
+    private payload: { doFn: base.DoFn<any, any, any>; context: any }
+  ) {
+    this.doFn = payload.doFn;
+    this.originalContext = payload.context;
+  }
 
   startBundle() {
     this.doFn.startBundle();
+    this.paramProvider = new ParamProviderImpl();
+    this.augmentedContext = this.paramProvider.augmentContext(
+      this.originalContext
+    );
   }
 
   process(wvalue: WindowedValue<any>) {
-    const doFnOutput = this.doFn.process(wvalue.value);
+    if (this.augmentedContext && wvalue.windows.length != 1) {
+      // We need to process each window separately.
+      for (const window of wvalue.windows) {
+        this.process({
+          value: wvalue.value,
+          windows: [window],
+          pane: wvalue.pane,
+          timestamp: wvalue.timestamp,
+        });
+      }
+      return;
+    }
+
+    this.paramProvider.update(wvalue);
+    const doFnOutput = this.doFn.process(wvalue.value, this.augmentedContext);
     if (!doFnOutput) {
       return;
     }
@@ -269,6 +296,7 @@ class GenericParDoOperator implements IOperator {
         timestamp: wvalue.timestamp,
       });
     }
+    this.paramProvider.update(undefined);
   }
 
   finishBundle() {
@@ -281,6 +309,51 @@ class GenericParDoOperator implements IOperator {
     // elements from different windows, so each element must specify its window.
     for (const element of finishBundleOutput) {
       this.receiver.receive(element);
+    }
+  }
+}
+
+class ParamProviderImpl implements ParamProvider {
+  wvalue: WindowedValue<any> | undefined = undefined;
+
+  // Avoid modifying the original object, as that could have surprising results
+  // if they are widely shared.
+  augmentContext(context: any) {
+    if (typeof context != "object") {
+      return context;
+    }
+
+    const result = Object.create(context);
+    for (const [name, value] of Object.entries(context)) {
+      // Is this the best way to check post serialization?
+      if (
+        typeof value == "object" &&
+        value != null &&
+        value["parDoParamName"] != undefined
+      ) {
+        result[name] = Object.create(value);
+        result[name].provider = this;
+      }
+    }
+    return result;
+  }
+
+  update(wvalue: WindowedValue<any> | undefined) {
+    this.wvalue = wvalue;
+  }
+
+  provide(paramName) {
+    if (this.wvalue == undefined) {
+      throw new Error(paramName + " not defined outside of a process() call.");
+    }
+
+    switch (paramName) {
+      case "window":
+        // If we're here and there was more than one window, we have exploded.
+        return this.wvalue.windows[0];
+
+      default:
+        throw new Error("Unknown context parameter: " + paramName);
     }
   }
 }
