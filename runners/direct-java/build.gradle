@@ -57,10 +57,12 @@ description = "Apache Beam :: Runners :: Direct Java"
 evaluationDependsOn(":runners:core-construction-java")
 evaluationDependsOn(":runners:core-java")
 evaluationDependsOn(":sdks:java:core")
+evaluationDependsOn(":examples:java")
 
 configurations {
   needsRunner
   validatesRunner
+  examplesJavaIntegrationTest
 }
 
 dependencies {
@@ -94,6 +96,9 @@ dependencies {
   permitUnusedDeclared library.java.vendored_grpc_1_36_0
   permitUnusedDeclared project(":runners:java-fn-execution")
   permitUnusedDeclared project(":sdks:java:fn-execution")
+  examplesJavaIntegrationTest project(project.path)
+  examplesJavaIntegrationTest project(":examples:java")
+  examplesJavaIntegrationTest project(path: ":examples:java", configuration: "testRuntimeMigration")
 }
 
 // windows handles quotes differently from linux,
@@ -177,6 +182,7 @@ def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
 def gcsBucket = project.findProperty('gcsBucket') ?: 'temp-storage-for-release-validation-tests/nightly-snapshot-validation'
 def bqDataset = project.findProperty('bqDataset') ?: 'beam_postrelease_mobile_gaming'
 def pubsubTopic = project.findProperty('pubsubTopic') ?: 'java_mobile_gaming_topic'
+def tempLocation = project.findProperty('tempLocation') ?: 'gs://temp-storage-for-end-to-end-tests'
 
 // Generates :runners:direct-java:runQuickstartJavaDirect
 createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'Direct')
@@ -188,3 +194,28 @@ createJavaExamplesArchetypeValidationTask(type: 'MobileGaming',
   gcsBucket: gcsBucket,
   bqDataset: bqDataset,
   pubsubTopic: pubsubTopic)
+
+task examplesIntegrationTest(type: Test) {
+  description = "Runs examples tests on DirectRunner"
+
+  testLogging.showStandardStreams = true
+
+  String[] pipelineOptions = [
+          "--runner=DirectRunner",
+          "--runnerDeterminedSharding=false",
+          "--tempLocation=${tempLocation}",
+          "--tempRoot=${tempLocation}",
+          "--project=${gcpProject}",
+  ]
+  systemProperty "beamTestPipelineOptions", pipelineOptionsStringCrossPlatformHandling(pipelineOptions)
+
+  // TODO (BEAM-12572) Fix integration Tests to run with DirectRunner
+  include '**/*IT.class'
+  exclude '**/WindowedWordCountIT.class' // Timeouts
+  exclude '**/TopWikipediaSessionsIT.class' // OOM Exception
+  exclude '**/TfIdfIT.class' // Timeouts
+  maxParallelForks 4
+  classpath = configurations.examplesJavaIntegrationTest
+  testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
+  useJUnit { }
+}
