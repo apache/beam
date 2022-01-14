@@ -3991,39 +3991,6 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
-  public void testArrayAggConstantValue() {
-    String sql = "SELECT ARRAY_AGG(1) b FROM UNNEST([1, 2, 3]) a";
-
-    PCollection<Row> stream = execute(sql);
-
-    Schema schema = Schema.builder().addArrayField("array_field", FieldType.INT64).build();
-    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addArray(1L, 1L, 1L).build());
-
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
-  }
-
-  @Test
-  public void testTimestampNullMaxMin() {
-    String sql =
-        "SELECT MAX(CAST(NULL AS TIMESTAMP)) AS max_NULL,\n"
-            + " MIN(CAST(NULL AS TIMESTAMP)) AS min_NULL\n"
-            + "FROM (SELECT 1)";
-
-    PCollection<Row> stream = execute(sql);
-
-    Schema schema =
-        Schema.builder()
-            .addNullableField("field1", FieldType.INT64)
-            .addNullableField("field2", FieldType.INT64)
-            .build();
-    PAssert.that(stream)
-        .containsInAnyOrder(
-            Row.withSchema(schema).addValue((Long) null).addValue((Long) null).build());
-
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
-  }
-
-  @Test
   public void testInt64SumOverflow() {
     String sql =
         "SELECT SUM(col1)\n"
