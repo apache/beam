@@ -50,7 +50,7 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 		return nil, errors.InvalidArgumentError("Error during preparing", "Incorrect sdk. Want to receive %s, but the request contains %s", controller.env.BeamSdkEnvs.ApacheBeamSdk.String(), info.Sdk.String())
 	}
 	switch info.Sdk {
-	case pb.Sdk_SDK_UNSPECIFIED, pb.Sdk_SDK_SCIO:
+	case pb.Sdk_SDK_UNSPECIFIED:
 		logger.Errorf("RunCode(): unimplemented sdk: %s\n", info.Sdk)
 		return nil, errors.InvalidArgumentError("Error during preparing", "Sdk is not implemented yet: %s", info.Sdk.String())
 	}
