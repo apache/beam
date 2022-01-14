@@ -27,11 +27,11 @@ import static org.mockito.Mockito.when;
 
 import com.google.cloud.Timestamp;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.actions.ActionFactory;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.actions.ChildPartitionsRecordAction;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.actions.DataChangeRecordAction;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.actions.HeartbeatRecordAction;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.actions.QueryChangeStreamAction;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.ActionFactory;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.ChildPartitionsRecordAction;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.DataChangeRecordAction;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.HeartbeatRecordAction;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.QueryChangeStreamAction;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.DaoFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;

@@ -18,6 +18,6 @@
 
 /** Action processors for each of the types of Change Stream records received. */
 @Experimental
-package org.apache.beam.sdk.io.gcp.spanner.changestreams.actions;
+package org.apache.beam.sdk.io.gcp.spanner.changestreams.action;
 
 import org.apache.beam.sdk.annotations.Experimental;
