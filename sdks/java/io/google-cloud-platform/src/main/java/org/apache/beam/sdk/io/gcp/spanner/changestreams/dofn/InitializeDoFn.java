@@ -72,9 +72,7 @@ public class InitializeDoFn extends DoFn<byte[], PartitionMetadata> implements S
         Optional.ofNullable(partitionMetadataDao.getPartition(InitialPartition.PARTITION_TOKEN))
             .map(mapperFactory.partitionMetadataMapper()::from)
             .orElseThrow(
-                () ->
-                    new IllegalStateException(
-                        "Initial partition not found in metadata table."));
+                () -> new IllegalStateException("Initial partition not found in metadata table."));
     receiver.output(initialPartition);
   }
 

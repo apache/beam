@@ -82,8 +82,10 @@ public class PartitionMetadataDao {
             + "t.table_name = '"
             + metadataTableName
             + "'";
-    try (ResultSet queryResultSet = databaseClient.singleUseReadOnlyTransaction()
-        .executeQuery(Statement.of(checkTableExistsStmt))) {
+    try (ResultSet queryResultSet =
+        databaseClient
+            .singleUseReadOnlyTransaction()
+            .executeQuery(Statement.of(checkTableExistsStmt))) {
       return queryResultSet.next();
     }
   }
