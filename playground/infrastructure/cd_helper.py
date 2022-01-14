@@ -117,10 +117,10 @@ class CDHelper:
         file_name=example.tag.name,
         extension=PrecompiledExample.OUTPUT_EXTENSION)
     log_path = self._get_gcs_object_name(
-      sdk=example.sdk,
-      base_folder_name=example.tag.name,
-      file_name=example.tag.name,
-      extension=PrecompiledExample.LOG_EXTENSION)
+        sdk=example.sdk,
+        base_folder_name=example.tag.name,
+        file_name=example.tag.name,
+        extension=PrecompiledExample.LOG_EXTENSION)
     meta_path = self._get_gcs_object_name(
         sdk=example.sdk,
         base_folder_name=example.tag.name,

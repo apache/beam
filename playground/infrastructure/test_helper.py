@@ -284,7 +284,8 @@ async def test__update_example_status(
 
   assert example.pipeline_id == "pipeline_id"
   assert example.status == STATUS_FINISHED
-  mock_grpc_client_run_code.assert_called_once_with(example.code, example.sdk, "--key value")
+  mock_grpc_client_run_code.assert_called_once_with(
+      example.code, example.sdk, "--key value")
   mock_grpc_client_check_status.assert_has_calls([mock.call("pipeline_id")])
 
 

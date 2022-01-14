@@ -61,6 +61,7 @@ class TagFields:
   multifile: str = "multifile"
   categories: str = "categories"
   pipeline_options: str = "pipeline_options"
+  default_example: str = "default_example"
 
 
 @dataclass(frozen=True)

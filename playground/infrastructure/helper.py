@@ -42,7 +42,8 @@ Tag = namedtuple(
         TagFields.description,
         TagFields.multifile,
         TagFields.categories,
-        TagFields.pipeline_options
+        TagFields.pipeline_options,
+        TagFields.default_example
     ])
 
 
@@ -82,10 +83,11 @@ def find_examples(work_dir: str, supported_categories: List[str],
       name: NameOfExample
       description: Description of NameOfExample.
       multifile: false
+      default_example: false
       categories:
           - category-1
           - category-2
-      pipeline_options: --inputFile=your_file --outputFile=your_output_file
+      pipeline_options: --inputFile your_file --outputFile your_output_file
   If some example contain beam tag with incorrect format raise an error.
 
   Args:

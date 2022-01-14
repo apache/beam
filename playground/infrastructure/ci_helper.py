@@ -45,11 +45,11 @@ class CIHelper:
     3. Run processing for all examples to verify examples' code.
     """
     await get_statuses(examples)
-    await self._verify_examples_status(examples)
+    await self._verify_examples(examples)
 
-  async def _verify_examples_status(self, examples: List[Example]):
+  async def _verify_examples(self, examples: List[Example]):
     """
-    Verify statuses of beam examples.
+    Verify statuses of beam examples and the number of found default examples.
 
     Check example.status for each examples. If the status of the example is:
     - STATUS_VALIDATION_ERROR/STATUS_PREPARATION_ERROR
@@ -63,8 +63,12 @@ class CIHelper:
         examples: beam examples that should be verified
     """
     client = GRPCClient()
-    verify_failed = False
+    verify_status_failed = False
+    default_examples = []
+
     for example in examples:
+      if example.tag.default_example:
+        default_examples.append(example)
       if example.status not in Config.ERROR_STATUSES:
         continue
       if example.status == STATUS_VALIDATION_ERROR:
@@ -84,6 +88,19 @@ class CIHelper:
         err = await client.get_run_error(example.filepath)
         logging.error(
             "Example: %s has execution error: %s", example.filepath, err)
-      verify_failed = True
-    if verify_failed:
+      verify_status_failed = True
+
+    if len(default_examples) != 1:
+      if len(default_examples) == 0:
+        logging.error("Default example not found")
+      elif len(default_examples) > 1:
+        logging.error("Many default examples found")
+        logging.error("Examples where the default_example field is true:")
+        for example in default_examples:
+          logging.error(example.filepath)
+      raise Exception(
+        "CI step failed due to finding an incorrect number of default examples"
+      )
+
+    if verify_status_failed:
       raise Exception("CI step failed due to errors in the examples")
