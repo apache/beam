@@ -123,6 +123,11 @@ on a portable runner) but the following big-ticket items remain.
 
 * Other
 
+  * Standardize on a way for users to pass PTransform names, and enforce
+  unique names for pipeline update.
+
+  * Use a Javascript Object rather than proto Struct for pipeline options.
+
   * Though Dataflow Runner v2 supports portability, submission is still done
   via v1beta3 and interaction with GCS rather than the job submission API.
 
