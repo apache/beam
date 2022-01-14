@@ -52,7 +52,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import redis.clients.jedis.Jedis;
-import redis.clients.jedis.StreamEntry;
+import redis.clients.jedis.StreamEntryID;
+import redis.clients.jedis.resps.StreamEntry;
 import redis.embedded.RedisServer;
 
 /** Test on the Redis IO. */
@@ -128,7 +129,7 @@ public class RedisIOTest {
     p.run();
 
     assertEquals(newValue, client.get(key));
-    assertEquals(NO_EXPIRATION, client.ttl(key));
+    assertEquals(NO_EXPIRATION, Long.valueOf(client.ttl(key)));
   }
 
   @Test
@@ -208,7 +209,7 @@ public class RedisIOTest {
 
     long count = client.pfcount(key);
     assertEquals(6, count);
-    assertEquals(NO_EXPIRATION, client.ttl(key));
+    assertEquals(NO_EXPIRATION, Long.valueOf(client.ttl(key)));
   }
 
   @Test
@@ -289,7 +290,8 @@ public class RedisIOTest {
     p.run();
 
     for (String key : redisKeys) {
-      List<StreamEntry> streamEntries = client.xrange(key, null, null, Integer.MAX_VALUE);
+      List<StreamEntry> streamEntries =
+          client.xrange(key, (StreamEntryID) null, (StreamEntryID) null, Integer.MAX_VALUE);
       assertEquals(2, streamEntries.size());
       assertThat(transform(streamEntries, StreamEntry::getFields), hasItems(fooValues, barValues));
     }

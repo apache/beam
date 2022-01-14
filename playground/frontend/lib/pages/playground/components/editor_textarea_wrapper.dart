@@ -29,8 +29,6 @@ import 'package:playground/modules/sdk/models/sdk.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:provider/provider.dart';
 
-const kUnknownExamplePrefix = 'Unknown Example';
-
 class CodeTextAreaWrapper extends StatelessWidget {
   const CodeTextAreaWrapper({Key? key}) : super(key: key);
 
@@ -67,13 +65,22 @@ class CodeTextAreaWrapper extends StatelessWidget {
                   height: kRunButtonHeight,
                   child: RunButton(
                     isRunning: state.isCodeRunning,
+                    cancelRun: () {
+                      state.cancelRun().catchError(
+                            (_) => NotificationManager.showError(
+                              context,
+                              AppLocalizations.of(context)!.runCode,
+                              AppLocalizations.of(context)!.cancelExecution,
+                            ),
+                          );
+                    },
                     runCode: () {
                       final stopwatch = Stopwatch()..start();
                       state.runCode(
                         onFinish: () {
                           AnalyticsService.get(context).trackRunTimeEvent(
                             state.selectedExample?.path ??
-                                '$kUnknownExamplePrefix, sdk ${state.sdk.displayName}',
+                                '${AppLocalizations.of(context)!.unknownExample}, sdk ${state.sdk.displayName}',
                             stopwatch.elapsedMilliseconds,
                           );
                         },
@@ -122,5 +129,5 @@ class EditorKeyObject {
           resetKey == other.resetKey;
 
   @override
-  int get hashCode => sdk.hashCode ^ example.hashCode ^ resetKey.hashCode;
+  int get hashCode => hashValues(sdk, example, resetKey);
 }

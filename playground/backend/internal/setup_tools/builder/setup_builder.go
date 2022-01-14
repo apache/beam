@@ -32,25 +32,25 @@ const (
 )
 
 // SetupExecutorBuilder return executor with set args for validator, preparator, compiler and runner
-func SetupExecutorBuilder(lc *fs_tool.LifeCycle, pipelineOptions string, sdkEnv *environment.BeamEnvs) (*executors.ExecutorBuilder, error) {
+func SetupExecutorBuilder(paths fs_tool.LifeCyclePaths, pipelineOptions string, sdkEnv *environment.BeamEnvs) (*executors.ExecutorBuilder, error) {
 	sdk := sdkEnv.ApacheBeamSdk
 
 	if sdk == pb.Sdk_SDK_JAVA {
 		pipelineOptions = utils.ReplaceSpacesWithEquals(pipelineOptions)
 	}
 
-	val, err := utils.GetValidators(sdk, lc.GetAbsoluteSourceFilePath())
+	val, err := utils.GetValidators(sdk, paths.AbsoluteSourceFilePath)
 	if err != nil {
 		return nil, err
 	}
-	prep, err := utils.GetPreparators(sdk, lc.GetAbsoluteSourceFilePath())
+	prep, err := utils.GetPreparators(sdk, paths.AbsoluteSourceFilePath)
 	if err != nil {
 		return nil, err
 	}
 	executorConfig := sdkEnv.ExecutorConfig
 	builder := executors.NewExecutorBuilder().
-		WithExecutableFileName(lc.GetAbsoluteExecutableFilePath()).
-		WithWorkingDir(lc.GetAbsoluteBaseFolderPath()).
+		WithExecutableFileName(paths.AbsoluteExecutableFilePath).
+		WithWorkingDir(paths.AbsoluteBaseFolderPath).
 		WithValidator().
 		WithSdkValidators(val).
 		WithPreparator().
@@ -58,7 +58,7 @@ func SetupExecutorBuilder(lc *fs_tool.LifeCycle, pipelineOptions string, sdkEnv 
 		WithCompiler().
 		WithCommand(executorConfig.CompileCmd).
 		WithArgs(executorConfig.CompileArgs).
-		WithFileName(lc.GetAbsoluteSourceFilePath()).
+		WithFileName(paths.AbsoluteSourceFilePath).
 		WithRunner().
 		WithCommand(executorConfig.RunCmd).
 		WithArgs(executorConfig.RunArgs).
@@ -66,7 +66,7 @@ func SetupExecutorBuilder(lc *fs_tool.LifeCycle, pipelineOptions string, sdkEnv 
 		WithTestRunner().
 		WithCommand(executorConfig.TestCmd).
 		WithArgs(executorConfig.TestArgs).
-		WithWorkingDir(lc.GetAbsoluteSourceFolderPath()).
+		WithWorkingDir(paths.AbsoluteSourceFileFolderPath).
 		ExecutorBuilder
 
 	switch sdk {
@@ -74,20 +74,20 @@ func SetupExecutorBuilder(lc *fs_tool.LifeCycle, pipelineOptions string, sdkEnv 
 		args := make([]string, 0)
 		for _, arg := range executorConfig.RunArgs {
 			if strings.Contains(arg, javaLogConfigFilePlaceholder) {
-				logConfigFilePath := filepath.Join(lc.GetAbsoluteBaseFolderPath(), javaLogConfigFileName)
+				logConfigFilePath := filepath.Join(paths.AbsoluteBaseFolderPath, javaLogConfigFileName)
 				arg = strings.Replace(arg, javaLogConfigFilePlaceholder, logConfigFilePath, 1)
 			}
 			args = append(args, arg)
 		}
 		builder = builder.WithRunner().WithArgs(args).ExecutorBuilder
-		builder = builder.WithTestRunner().WithWorkingDir(lc.GetAbsoluteBaseFolderPath()).ExecutorBuilder //change directory for unit test
+		builder = builder.WithTestRunner().WithWorkingDir(paths.AbsoluteBaseFolderPath).ExecutorBuilder //change directory for unit test
 	case pb.Sdk_SDK_GO: //go run command is executable file itself
 		builder = builder.
 			WithExecutableFileName("").
 			WithRunner().
-			WithCommand(lc.GetAbsoluteExecutableFilePath()).ExecutorBuilder
+			WithCommand(paths.AbsoluteExecutableFilePath).ExecutorBuilder
 	case pb.Sdk_SDK_PYTHON:
-		builder = *builder.WithExecutableFileName(lc.GetAbsoluteExecutableFilePath())
+		builder = *builder.WithExecutableFileName(paths.AbsoluteExecutableFilePath)
 	case pb.Sdk_SDK_SCIO:
 		return nil, fmt.Errorf("SCIO is not supported yet")
 	default:
@@ -97,7 +97,7 @@ func SetupExecutorBuilder(lc *fs_tool.LifeCycle, pipelineOptions string, sdkEnv 
 }
 
 // GetFileNameFromFolder return a name of the first file in a specified folder
-func GetFileNameFromFolder(folderAbsolutePath string) string {
-	files, _ := filepath.Glob(fmt.Sprintf("%s/*%s", folderAbsolutePath, fs_tool.JavaSourceFileExtension))
+func GetFileNameFromFolder(folderAbsolutePath, extension string) string {
+	files, _ := filepath.Glob(fmt.Sprintf("%s/*%s", folderAbsolutePath, extension))
 	return files[0]
 }

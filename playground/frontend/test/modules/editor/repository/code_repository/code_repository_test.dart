@@ -73,6 +73,9 @@ void main() {
       when(client.getCompileOutput(kPipelineUuid, kRequestMock)).thenAnswer(
         (_) async => kCompileOutputResponse,
       );
+      when(client.getRunErrorOutput(kPipelineUuid, kRequestMock)).thenAnswer(
+        (_) async => kRunErrorOutputResponse,
+      );
       when(client.getLogOutput(kPipelineUuid, kRequestMock)).thenAnswer(
         (_) async => kLogOutputResponse,
       );
@@ -90,8 +93,9 @@ void main() {
             log: kProcessingStartedText,
           ),
           RunCodeResult(
+            pipelineUuid: kPipelineUuid,
             status: RunCodeStatus.finished,
-            output: kRunOutput,
+            output: kRunOutput + kRunErrorOutput,
             log: kProcessingStartedText + kLogOutput,
           ),
         ]),
@@ -132,6 +136,7 @@ void main() {
             log: kProcessingStartedText,
           ),
           RunCodeResult(
+            pipelineUuid: kPipelineUuid,
             status: RunCodeStatus.compileError,
             output: kCompileOutput,
             log: kProcessingStartedText,
@@ -176,6 +181,7 @@ void main() {
             log: kProcessingStartedText,
           ),
           RunCodeResult(
+            pipelineUuid: kPipelineUuid,
             status: RunCodeStatus.runError,
             output: kRunErrorOutput,
             log: kProcessingStartedText,
@@ -223,18 +229,21 @@ void main() {
           log: kProcessingStartedText,
         ),
         RunCodeResult(
+          pipelineUuid: kPipelineUuid,
           status: RunCodeStatus.executing,
           output: kRunOutput,
           log: kProcessingStartedText + kLogOutput,
         ),
         RunCodeResult(
+          pipelineUuid: kPipelineUuid,
           status: RunCodeStatus.executing,
           output: kRunOutput * 2,
           log: kProcessingStartedText + kLogOutput * 2,
         ),
         RunCodeResult(
+          pipelineUuid: kPipelineUuid,
           status: RunCodeStatus.finished,
-          output: kRunOutput * 3,
+          output: kRunOutput * 3 + kRunErrorOutput,
           log: kProcessingStartedText + kLogOutput * 3,
         ),
       ]),
