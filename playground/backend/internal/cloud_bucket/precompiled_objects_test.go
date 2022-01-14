@@ -18,10 +18,6 @@ package cloud_bucket
 import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"context"
-	"fmt"
-	"io/fs"
-	"os"
-	"path/filepath"
 	"reflect"
 	"testing"
 )
@@ -29,7 +25,6 @@ import (
 const (
 	precompiledObjectPath = "SDK_JAVA/MinimalWordCount"
 	targetSdk             = pb.Sdk_SDK_UNSPECIFIED
-	defaultExamplesConfig = "{\n  \"SDK_JAVA\": \"1\",\n  \"SDK_GO\": \"2\",\n  \"SDK_PYTHON\": \"3\"\n}"
 )
 
 var bucket *CloudStorage
@@ -38,35 +33,6 @@ var ctx context.Context
 func init() {
 	bucket = New()
 	ctx = context.Background()
-}
-
-func TestMain(m *testing.M) {
-	err := setup()
-	if err != nil {
-		panic(fmt.Errorf("error during test setup: %s", err.Error()))
-	}
-	defer teardown()
-	m.Run()
-}
-
-func setup() error {
-	err := os.Mkdir(configFolderName, fs.ModePerm)
-	if err != nil {
-		return err
-	}
-	filePath := filepath.Join(configFolderName, defaultExamplesConfigName)
-	err = os.WriteFile(filePath, []byte(defaultExamplesConfig), 0600)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func teardown() {
-	err := os.RemoveAll(configFolderName)
-	if err != nil {
-		panic(fmt.Errorf("error during test setup: %s", err.Error()))
-	}
 }
 
 func Test_getFullFilePath(t *testing.T) {

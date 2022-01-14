@@ -32,18 +32,16 @@ import (
 )
 
 const (
-	BucketName                = "playground-precompiled-objects"
-	OutputExtension           = "output"
-	LogsExtension             = "log"
-	MetaInfoName              = "meta.info"
-	Timeout                   = time.Second * 10
-	javaExtension             = "java"
-	goExtension               = "go"
-	pyExtension               = "py"
-	scioExtension             = "scala"
-	separatorsNumber          = 2
-	defaultExamplesConfigName = "DEFAULT_EXAMPLES.json"
-	configFolderName          = "configs"
+	BucketName       = "playground-precompiled-objects"
+	OutputExtension  = "output"
+	LogsExtension    = "log"
+	MetaInfoName     = "meta.info"
+	Timeout          = time.Second * 10
+	javaExtension    = "java"
+	goExtension      = "go"
+	pyExtension      = "py"
+	scioExtension    = "scala"
+	separatorsNumber = 2
 )
 
 type ObjectInfo struct {
