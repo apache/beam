@@ -15,12 +15,12 @@
 #    See the License for the spefic language governing permissions and
 #    limitations under the License.
 #
-#    Python version 3.6.13-3.7.10-3.8.9-3.9.4 installer via pyenv.
+#    Python versions installer via pyenv.
 #
 set -euo pipefail
 
 # Variable containing the python versions to install
-python_versions_arr=("3.6.13" "3.7.10" "3.8.9" "3.9.4")
+python_versions_arr=("3.8.9" "3.6.13" "3.7.10" "3.9.4" "3.10.1")
 
 # Install pyenv dependencies.
 pyenv_dep(){
@@ -80,7 +80,7 @@ clean(){
 }
 
 # Install pyenv environment with python versions
-pyenv(){
+python_installer(){
   pyenv_dep
   pyenv_install
   pyenv_post_install
@@ -89,4 +89,4 @@ pyenv(){
   clean
 }
 
-pyenv
+python_installer
