@@ -628,12 +628,10 @@ class PipelineResult(runner.PipelineResult):
           '  with Pipeline() as p:\n'
           '    p.apply(..)\n'
           'This ensures that the pipeline finishes before this program exits.')
-    has_exception = None
     for callback in self._cleanup_callbacks:
       try:
         callback()
-      except Exception:
-        has_exception = True
-    self._cleanup_callbacks = ()
-    if has_exception:
-      raise
+      except Exception as e:
+        raise e
+      finally:
+        self._cleanup_callbacks = ()
