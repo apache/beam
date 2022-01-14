@@ -1665,9 +1665,8 @@ class SDFBoundedSourceReader(PTransform):
         current_restriction = restriction_tracker.current_restriction()
         assert isinstance(current_restriction, _SDFBoundedSourceRestriction)
 
-        result = current_restriction.source().read(
+        return current_restriction.source().read(
             current_restriction.range_tracker())
-        return result
 
     return SDFBoundedSourceDoFn(self._data_to_display)
 

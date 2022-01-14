@@ -24,6 +24,7 @@ from functools import partial
 from typing import Optional
 
 from apache_beam.coders import coders
+from apache_beam import typehints
 from apache_beam.io import filebasedsink
 from apache_beam.io import filebasedsource
 from apache_beam.io import iobase
@@ -402,12 +403,19 @@ class _TextSource(filebasedsource.FileBasedSource):
       escape_count += 1
     return escape_count % 2 == 1
 
+  def output_type_hint(self):
+    return self._coder.to_type_hint()
+
 
 class _TextSourceWithFilename(_TextSource):
   def read_records(self, file_name, range_tracker):
     records = super().read_records(file_name, range_tracker)
     for record in records:
       yield (file_name, record)
+
+  def output_type_hint(self):
+    return typehints.KV[str, super().output_type_hint()]
+
 
 
 class _TextSink(filebasedsink.FileBasedSink):
@@ -675,7 +683,7 @@ class ReadFromText(PTransform):
         escapechar=escapechar)
 
   def expand(self, pvalue):
-    return pvalue.pipeline | Read(self._source)
+    return pvalue.pipeline | Read(self._source).with_output_types(self._source.output_type_hint())
 
 
 class ReadFromTextWithFilename(ReadFromText):
