@@ -161,7 +161,7 @@ func TestCoders(t *testing.T) {
 				if err := enc.Encode(test, &buf); err != nil {
 					t.Fatalf("Failed to encode %v: %v", test, err)
 				}
-				results = append(results, string(buf.Bytes()))
+				results = append(results, buf.String())
 			}
 			for i, d := range results {
 				if d != results[0] {
