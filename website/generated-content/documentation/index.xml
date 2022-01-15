@@ -14825,178 +14825,7 @@ limitations under the License.
 &lt;ul>
 &lt;li>&lt;a href="/documentation/programming-guide">Programming Guide&lt;/a> - Learn the details of creating your pipeline, configuring pipeline options, and applying transforms.&lt;/li>
 &lt;li>&lt;a href="/documentation/pipelines/test-your-pipeline">Test your pipeline&lt;/a>.&lt;/li>
-&lt;/ul></description></item><item><title>Documentation: Cross-language transforms</title><link>/documentation/patterns/cross-language/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/patterns/cross-language/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;h1 id="cross-language-transforms">Cross-language transforms&lt;/h1>
-&lt;p>With the samples on this page we will demonstrate how to create and leverage cross-language pipelines.&lt;/p>
-&lt;blockquote>
-&lt;p>&lt;strong>Note:&lt;/strong> Please see the &lt;a href="https://beam.apache.org/documentation/programming-guide/#multi-language-pipelines">Beam Programming Guide&lt;/a> for full documentation on cross-language transforms.&lt;/p>
-&lt;/blockquote>
-&lt;p>The goal of a cross-language pipeline is to incorporate transforms from one SDK (e.g. the Python SDK) into a pipeline written using another SDK (e.g. the Java SDK). This enables having already developed transforms (e.g. ML transforms in Python) and libraries (e.g. the vast library of IOs in Java), and strengths of certain languages at your disposal in whichever language you are more comfortable authoring pipelines while vastly expanding your toolkit in given language.&lt;/p>
-&lt;p>In this section we will cover a specific use-case: incorporating a Python transform that does inference on a model but is part of a larger Java pipeline. The section is broken down into 2 parts:&lt;/p>
-&lt;ol>
-&lt;li>How to author the cross-language pipeline?&lt;/li>
-&lt;li>How to run the cross-language pipeline?&lt;/li>
-&lt;/ol>
-&lt;nav class="language-switcher">
-&lt;strong>Adapt for:&lt;/strong>
-&lt;ul>
-&lt;li data-type="language-java" class="active">Java SDK&lt;/li>
-&lt;li data-type="language-py">Python SDK&lt;/li>
-&lt;/ul>
-&lt;/nav>
-&lt;h2 id="how-to-author-the-cross-language-pipeline">How to author the cross-language pipeline?&lt;/h2>
-&lt;p>This section digs into what changes when authoring a cross-language pipeline:&lt;/p>
-&lt;ol>
-&lt;li>&amp;ldquo;Classic&amp;rdquo; pipeline in Java&lt;/li>
-&lt;li>External transform in Python&lt;/li>
-&lt;li>Expansion server&lt;/li>
-&lt;/ol>
-&lt;h3 id="classic-pipeline">&amp;ldquo;Classic&amp;rdquo; pipeline&lt;/h3>
-&lt;p>We start by developing an Apache Beam pipeline like we would normally do if you were using only one SDK (e.g. the Java SDK):&lt;/p>
-&lt;div class='language-java snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="kd">public&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">CrossLanguageTransform&lt;/span> &lt;span class="kd">extends&lt;/span> &lt;span class="n">PTransform&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;,&lt;/span> &lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;span class="kd">private&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">final&lt;/span> &lt;span class="n">String&lt;/span> &lt;span class="n">URN&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s">&amp;#34;beam:transforms:xlang:pythontransform&amp;#34;&lt;/span>&lt;span class="o">;&lt;/span>
-&lt;span class="kd">private&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="n">String&lt;/span> &lt;span class="n">expansionAddress&lt;/span>&lt;span class="o">;&lt;/span>
-&lt;span class="kd">public&lt;/span> &lt;span class="nf">CrossLanguageTransform&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">String&lt;/span> &lt;span class="n">expansionAddress&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;span class="k">this&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">expansionAddress&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">expansionAddress&lt;/span>&lt;span class="o">;&lt;/span>
-&lt;span class="o">}&lt;/span>
-&lt;span class="nd">@Override&lt;/span>
-&lt;span class="kd">public&lt;/span> &lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="nf">expand&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">input&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">output&lt;/span> &lt;span class="o">=&lt;/span>
-&lt;span class="n">input&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>
-&lt;span class="s">&amp;#34;ExternalPythonTransform&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span>
-&lt;span class="n">External&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">URN&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="kt">byte&lt;/span> &lt;span class="o">[]&lt;/span> &lt;span class="o">{},&lt;/span> &lt;span class="k">this&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">expansionAddress&lt;/span>&lt;span class="o">)&lt;/span>
-&lt;span class="o">);&lt;/span>
-&lt;span class="o">}&lt;/span>
-&lt;span class="o">}&lt;/span>
-&lt;span class="kd">public&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">CrossLanguagePipeline&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kt">void&lt;/span> &lt;span class="nf">main&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">[]&lt;/span> &lt;span class="n">args&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;span class="n">Pipeline&lt;/span> &lt;span class="n">p&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">Pipeline&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">create&lt;/span>&lt;span class="o">();&lt;/span>
-&lt;span class="n">String&lt;/span> &lt;span class="n">expansionAddress&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s">&amp;#34;localhost:9097&amp;#34;&lt;/span>
-&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">inputs&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;features { feature { key: &amp;#39;country&amp;#39; value { bytes_list { value: &amp;#39;Belgium&amp;#39; }}}}&amp;#34;&lt;/span>&lt;span class="o">));&lt;/span>
-&lt;span class="n">input&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="n">CrossLanguageTransform&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">expansionAddress&lt;/span>&lt;span class="o">));&lt;/span>
-&lt;span class="n">p&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">run&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">waitUntilFinish&lt;/span>&lt;span class="o">();&lt;/span>
-&lt;span class="o">}&lt;/span>
-&lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;p>The main differences with authoring a classic pipeline and transform are&lt;/p>
-&lt;ul>
-&lt;li>The PTransform uses the &lt;a href="https://github.com/apache/beam/blob/master/runners/core-construction-java/src/main/java/org/apache/beam/runners/core/construction/External.java">External&lt;/a> transform.&lt;/li>
-&lt;li>This has a Uniform Resource Name (URN) which will identify the transform in your expansion service (more below).&lt;/li>
-&lt;li>The address on which the expansion service is running.&lt;/li>
-&lt;/ul>
-&lt;p>Check the &lt;a href="https://beam.apache.org/documentation/programming-guide/#use-x-lang-transforms">documentation&lt;/a> for a deeper understanding of using external transforms.&lt;/p>
-&lt;h3 id="external-transform">External transform&lt;/h3>
-&lt;p>The transform we are trying to call from Java is defined in Python as follows:&lt;/p>
-&lt;div class='language-java snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">Implemented&lt;/span> &lt;span class="n">in&lt;/span> &lt;span class="n">Python&lt;/span>&lt;span class="o">.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class='language-py snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">URN&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s2">&amp;#34;beam:transforms:xlang:pythontransform&amp;#34;&lt;/span>
-&lt;span class="nd">@ptransform.PTransform.register_urn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">URN&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="bp">None&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="k">class&lt;/span> &lt;span class="nc">PythonTransform&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">ptransform&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">PTransform&lt;/span>&lt;span class="p">):&lt;/span>
-&lt;span class="k">def&lt;/span> &lt;span class="fm">__init__&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">):&lt;/span>
-&lt;span class="nb">super&lt;/span>&lt;span class="p">()&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="fm">__init__&lt;/span>&lt;span class="p">()&lt;/span>
-&lt;span class="k">def&lt;/span> &lt;span class="nf">expand&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">pcoll&lt;/span>&lt;span class="p">):&lt;/span>
-&lt;span class="k">return&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">pcoll&lt;/span>
-&lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;Input preparation&amp;#34;&lt;/span>
-&lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;span class="k">lambda&lt;/span> &lt;span class="nb">input&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">google&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">protobuf&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">text_format&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Parse&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">input&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">tf&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">train&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Example&lt;/span>&lt;span class="p">())&lt;/span>
-&lt;span class="p">)&lt;/span>
-&lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;Get predictions&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">RunInference&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;span class="n">model_spec_pb2&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">InferenceSpecType&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;span class="n">saved_model_spec&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">model_spec_pb2&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">SavedModelSpec&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;span class="n">model_path&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">model_path&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;span class="n">signature_name&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s1">&amp;#39;serving_default&amp;#39;&lt;/span>&lt;span class="p">]))))&lt;/span>
-&lt;span class="k">def&lt;/span> &lt;span class="nf">to_runner_api_parameter&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">unused_context&lt;/span>&lt;span class="p">):&lt;/span>
-&lt;span class="k">return&lt;/span> &lt;span class="n">URN&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="bp">None&lt;/span>
-&lt;span class="k">def&lt;/span> &lt;span class="nf">from_runner_api_parameter&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;span class="n">unused_ptransform&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">unused_paramter&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">unused_context&lt;/span>&lt;span class="p">):&lt;/span>
-&lt;span class="k">return&lt;/span> &lt;span class="n">PythonTransform&lt;/span>&lt;span class="p">()&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;p>Check the &lt;a href="https://beam.apache.org/documentation/programming-guide/#create-x-lang-transforms">documentation&lt;/a> for a deeper understanding of creating an external transform.&lt;/p>
-&lt;h3 id="expansion-service">Expansion service&lt;/h3>
-&lt;p>The expansion service is written in the same language as the external transform. It takes care of injecting the transforms in your pipeline before submitting them to the Runner.&lt;/p>
-&lt;div class='language-java snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">Implemented&lt;/span> &lt;span class="n">in&lt;/span> &lt;span class="n">Python&lt;/span>&lt;span class="o">.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;div class='language-py snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">def&lt;/span> &lt;span class="nf">main&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">unused_argv&lt;/span>&lt;span class="p">):&lt;/span>
-&lt;span class="n">parser&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">argparse&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ArgumentParser&lt;/span>&lt;span class="p">()&lt;/span>
-&lt;span class="n">parser&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">add_argument&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;span class="s1">&amp;#39;-p&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;--port&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">type&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nb">int&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">help&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;port on which to serve the job api&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="n">options&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">parser&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">parse_args&lt;/span>&lt;span class="p">()&lt;/span>
-&lt;span class="k">global&lt;/span> &lt;span class="n">server&lt;/span>
-&lt;span class="n">server&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">grpc&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">server&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">thread_pool_executor&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">shared_unbounded_instance&lt;/span>&lt;span class="p">())&lt;/span>
-&lt;span class="n">beam_expansion_api_pb2_grpc&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">add_ExpansionServiceServicer_to_server&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;span class="n">expansion_service&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ExpansionServiceServicer&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;span class="n">PipelineOptions&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;span class="p">[&lt;/span>&lt;span class="s2">&amp;#34;--experiments&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;beam_fn_api&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;--sdk_location&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;container&amp;#34;&lt;/span>&lt;span class="p">])),&lt;/span> &lt;span class="n">server&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="n">server&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">add_insecure_port&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;localhost:{}&amp;#39;&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">format&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">options&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">port&lt;/span>&lt;span class="p">))&lt;/span>
-&lt;span class="n">server&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">start&lt;/span>&lt;span class="p">()&lt;/span>
-&lt;span class="n">_LOGGER&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">info&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;Listening for expansion requests at &lt;/span>&lt;span class="si">%d&lt;/span>&lt;span class="s1">&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">options&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">port&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="n">signal&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">signal&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">signal&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">SIGTERM&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">cleanup&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="n">signal&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">signal&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">signal&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">SIGINT&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">cleanup&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="n">signal&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">pause&lt;/span>&lt;span class="p">()&lt;/span>
-&lt;span class="k">if&lt;/span> &lt;span class="vm">__name__&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="s1">&amp;#39;__main__&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span>
-&lt;span class="n">logging&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">getLogger&lt;/span>&lt;span class="p">()&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">setLevel&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">logging&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">INFO&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="n">main&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">sys&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">argv&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;h2 id="how-to-run-the-cross-language-pipeline">How to run the cross-language pipeline?&lt;/h2>
-&lt;p>In this section, the steps to run a cross-language pipeline are set out:&lt;/p>
-&lt;ol>
-&lt;li>
-&lt;p>Start the &lt;strong>expansion service&lt;/strong> with your Python transforms: &lt;code>python expansion_service.py -p 9097&lt;/code>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Start the &lt;strong>Job Server&lt;/strong> which will translated into the stage that will run on your back-end or runner (e.g. Spark):&lt;/p>
-&lt;ul>
-&lt;li>From Apache Beam source code:
-&lt;code>./gradlew :runners:spark:job-server:runShadow&lt;/code>&lt;/li>
-&lt;li>Using the pre-build Docker container:
-&lt;code>docker run -net=host apache/beam_spark_job_server&lt;/code>&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;strong>Run pipeline&lt;/strong>: &lt;code>mvn exec:java -Dexec.mainClass=CrossLanguagePipeline \ -Pportable-runner \ -Dexec.args=&amp;quot; \ --runner=PortableRunner \ --jobEndpoint=localhost:8099 \ --useExternal=true \ --expansionServiceURL=localhost:9097 \ --experiments=beam_fn_api&amp;quot;&lt;/code>&lt;/p>
-&lt;/li>
-&lt;/ol></description></item><item><title>Documentation: Custom I/O patterns</title><link>/documentation/patterns/custom-io/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/patterns/custom-io/</guid><description>
+&lt;/ul></description></item><item><title>Documentation: Custom I/O patterns</title><link>/documentation/patterns/custom-io/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/patterns/custom-io/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18698,4 +18527,102 @@ to the output collection.&lt;/p>
 &lt;h2 id="related-transforms">Related transforms&lt;/h2>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/transforms/java/aggregation/groupbykey">GroupByKey&lt;/a> takes one input collection.&lt;/li>
-&lt;/ul></description></item></channel></rss>
+&lt;/ul></description></item><item><title>Documentation: GroupIntoBatches</title><link>/documentation/transforms/python/aggregation/groupintobatches/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/python/aggregation/groupintobatches/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;h1 id="groupintobatches">GroupIntoBatches&lt;/h1>
+&lt;script type="text/javascript">
+localStorage.setItem("language", "language-py")
+&lt;/script>
+&lt;table align="left" style="margin-right:1em">
+&lt;td>
+&lt;a
+class="button"
+target="_blank"
+href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.GroupIntoBatches"
+>&lt;img
+src="https://beam.apache.org/images/logos/sdks/python.png"
+width="32px"
+height="32px"
+alt="Pydoc"
+/>
+Pydoc&lt;/a
+>
+&lt;/td>
+&lt;/table>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
+&lt;p>Batches the input into desired batch size.&lt;/p>
+&lt;h2 id="examples">Examples&lt;/h2>
+&lt;p>In the following example, we create a pipeline with a &lt;code>PCollection&lt;/code> of produce by season.&lt;/p>
+&lt;p>We use &lt;code>GroupIntoBatches&lt;/code> to get fixed-sized batches for every key, which outputs a list of elements for every key.&lt;/p>
+&lt;div class='language-py snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupintobatches.py">
+&lt;img src="/images/code-icon.svg"/>
+&lt;/a>
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="kn">import&lt;/span> &lt;span class="nn">apache_beam&lt;/span> &lt;span class="kn">as&lt;/span> &lt;span class="nn">beam&lt;/span>
+&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">pipeline&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="n">batches_with_keys&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;span class="n">pipeline&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Create produce&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">([&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;spring&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍓&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;spring&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🥕&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;spring&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍆&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;spring&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍅&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;summer&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🥕&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;summer&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍅&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;summer&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🌽&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;fall&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🥕&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;fall&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍅&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;winter&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;🍆&amp;#39;&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="p">])&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Group into batches&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">GroupIntoBatches&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">3&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">print&lt;/span>&lt;span class="p">))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;p class="notebook-skip">Output:&lt;/p>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre>&lt;code>(&amp;#39;spring&amp;#39;, [&amp;#39;🍓&amp;#39;, &amp;#39;🥕&amp;#39;, &amp;#39;🍆&amp;#39;])
+(&amp;#39;summer&amp;#39;, [&amp;#39;🥕&amp;#39;, &amp;#39;🍅&amp;#39;, &amp;#39;🌽&amp;#39;])
+(&amp;#39;spring&amp;#39;, [&amp;#39;🍅&amp;#39;])
+(&amp;#39;fall&amp;#39;, [&amp;#39;🥕&amp;#39;, &amp;#39;🍅&amp;#39;])
+(&amp;#39;winter&amp;#39;, [&amp;#39;🍆&amp;#39;])&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;h2 id="related-transforms">Related transforms&lt;/h2>
+&lt;!-- TODO(BEAM-10889): Create a page for BatchElements and link to it here. //-->
+&lt;p>For unkeyed data and dynamic batch sizes, one may want to use
+&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.BatchElements">BatchElements&lt;/a>.&lt;/p>
+&lt;table align="left" style="margin-right:1em">
+&lt;td>
+&lt;a
+class="button"
+target="_blank"
+href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.GroupIntoBatches"
+>&lt;img
+src="https://beam.apache.org/images/logos/sdks/python.png"
+width="32px"
+height="32px"
+alt="Pydoc"
+/>
+Pydoc&lt;/a
+>
+&lt;/td>
+&lt;/table>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p></description></item></channel></rss>
