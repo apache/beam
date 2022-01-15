@@ -23,6 +23,7 @@ import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.util.Map;
 import java.util.function.Supplier;
+import org.apache.beam.fn.harness.PTransformRunnerFactory.Context;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.StateBackedIterable.StateBackedIterableTranslationContext;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -31,9 +32,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.fn.data.BeamFnDataOutboundAggregator;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortWrite;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
@@ -43,8 +42,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * Registers as a consumer with the Beam Fn Data Api. Consumes elements and encodes them for
  * transmission.
  *
- * <p>Can be re-used serially across {@link BeamFnApi.ProcessBundleRequest}s. For each request, call
- * {@link #registerForOutput(Supplier, Coder)} to start.
+ * <p>Can be re-used serially across {@link BeamFnApi.ProcessBundleRequest}s.
  */
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
@@ -63,11 +61,10 @@ public class BeamFnDataWriteRunner<InputT> {
   }
 
   /** A factory for {@link BeamFnDataWriteRunner}s. */
-  static class Factory<InputT> implements PTransformRunnerFactory<BeamFnDataWriteRunner<InputT>> {
+  static class Factory<InputT> implements PTransformRunnerFactory<BeamFnDataWriteRunner> {
 
     @Override
-    public BeamFnDataWriteRunner<InputT> createRunnerForPTransform(Context context)
-        throws IOException {
+    public BeamFnDataWriteRunner createRunnerForPTransform(Context context) throws IOException {
 
       RemoteGrpcPort port = RemoteGrpcPortWrite.fromPTransform(context.getPTransform()).getPort();
       RehydratedComponents components =
@@ -94,42 +91,27 @@ public class BeamFnDataWriteRunner<InputT> {
                       return context.getProcessBundleInstructionIdSupplier();
                     }
                   });
-      BeamFnDataOutboundAggregator outboundAggregator =
-          context
-              .getOutboundAggregators()
-              .computeIfAbsent(
-                  port.getApiServiceDescriptor(),
-                  apiServiceDescriptor ->
-                      context.getBeamFnDataClient().createOutboundAggregator(apiServiceDescriptor));
-      Supplier<LogicalEndpoint> endpointSupplier =
+      BeamFnDataWriteRunner<InputT> runner = new BeamFnDataWriteRunner<>();
+      context.addStartBundleFunction(
           () ->
-              LogicalEndpoint.data(
-                  context.getProcessBundleInstructionIdSupplier().get(), context.getPTransformId());
-      BeamFnDataWriteRunner<InputT> runner = new BeamFnDataWriteRunner<>(outboundAggregator);
-      context.addStartBundleFunction(() -> runner.registerForOutput(endpointSupplier, coder));
-
+              runner.setDataReceiver(
+                  context.addOutgoingDataEndpoint(port.getApiServiceDescriptor(), coder)));
       context.addPCollectionConsumer(
           getOnlyElement(context.getPTransform().getInputsMap().values()),
-          (FnDataReceiver) (FnDataReceiver<WindowedValue<InputT>>) runner::consume,
+          runner::consume,
           ((WindowedValueCoder<InputT>) coder).getValueCoder());
 
-      return runner;
+      return new BeamFnDataWriteRunner();
     }
   }
 
-  private final BeamFnDataOutboundAggregator outboundAggregator;
-  private LogicalEndpoint endpoint;
+  private FnDataReceiver<WindowedValue<InputT>> dataReceiver;
 
-  BeamFnDataWriteRunner(BeamFnDataOutboundAggregator outboundAggregator) throws IOException {
-    this.outboundAggregator = outboundAggregator;
+  public void consume(WindowedValue<InputT> data) throws Exception {
+    dataReceiver.accept(data);
   }
 
-  public void registerForOutput(Supplier<LogicalEndpoint> outputLocation, Coder<?> coder) {
-    endpoint = outputLocation.get();
-    outboundAggregator.registerOutputLocation(endpoint, coder);
-  }
-
-  public void consume(WindowedValue<InputT> value) throws Exception {
-    outboundAggregator.accept(endpoint, value);
+  public void setDataReceiver(FnDataReceiver<WindowedValue<InputT>> dataReceiver) {
+    this.dataReceiver = dataReceiver;
   }
 }

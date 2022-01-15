@@ -18,6 +18,7 @@
 package org.apache.beam.fn.harness.data;
 
 import java.util.List;
+import java.util.function.Supplier;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
@@ -65,13 +66,15 @@ public interface BeamFnDataClient {
 
   /**
    * Creates a {@link BeamFnDataOutboundAggregator} for buffering and sending outbound data and
-   * timers over the data plane. It is important that {@link BeamFnDataOutboundAggregator#close()}
-   * is called on the returned BeamFnDataOutboundAggregator at the end of each bundle.
+   * timers over the data plane. It is important that {@link
+   * BeamFnDataOutboundAggregator#sendBufferedDataAndFinishOutboundStreams()} is called on the
+   * returned BeamFnDataOutboundAggregator at the end of each bundle.
    *
    * <p>Closing the returned aggregator signals the end of the streams.
    *
    * <p>The returned aggregator is not thread safe.
    */
   BeamFnDataOutboundAggregator createOutboundAggregator(
-      Endpoints.ApiServiceDescriptor apiServiceDescriptor);
+      Endpoints.ApiServiceDescriptor apiServiceDescriptor,
+      Supplier<String> processBundleRequestIdSupplier);
 }

@@ -53,6 +53,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import org.apache.beam.fn.harness.FnApiDoFnRunner.SplitResultsWithStopIndex;
 import org.apache.beam.fn.harness.FnApiDoFnRunner.WindowedSplitResult;
 import org.apache.beam.fn.harness.HandlesSplits.SplitResult;
@@ -61,6 +62,7 @@ import org.apache.beam.fn.harness.state.FakeBeamFnStateClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.DelayedBundleApplication;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
+import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
@@ -857,8 +859,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
       private Map<LogicalEndpoint, List<org.apache.beam.runners.core.construction.Timer<?>>> timers;
       private Map<LogicalEndpoint, List<WindowedValue<String>>> dataOutput;
 
-      public TestBeamFnDataOutboundAggregator() {
-        super(PipelineOptionsFactory.create(), null);
+      public TestBeamFnDataOutboundAggregator(Supplier<String> bundleIdSupplier) {
+        super(PipelineOptionsFactory.create(), bundleIdSupplier, null);
         this.timers = new HashMap<>();
         this.dataOutput = new HashMap<>();
       }
@@ -921,16 +923,19 @@ public class FnApiDoFnRunnerTest implements Serializable {
                   bagUserStateKey("bag", "A"), asList("A0"),
                   bagUserStateKey("bag", "C"), asList("C0")));
       List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
-      TestBeamFnDataOutboundAggregator aggregator = new TestBeamFnDataOutboundAggregator();
+      TestBeamFnDataOutboundAggregator aggregator =
+          new TestBeamFnDataOutboundAggregator(() -> "57L");
 
       PTransformRunnerFactoryTestContext context =
           PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
               .beamFnStateClient(fakeStateClient)
-              .timersOutboundAggregator(aggregator)
               .processBundleInstructionId("57L")
               .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
               .coders(pProto.getComponents().getCodersMap())
               .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+              .outboundAggregators(
+                  ImmutableMap.of(ApiServiceDescriptor.getDefaultInstance(), aggregator))
+              .timerApiServiceDescriptor(ApiServiceDescriptor.getDefaultInstance())
               .build();
       context.addPCollectionConsumer(
           outputPCollectionId,

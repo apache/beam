@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
@@ -83,9 +84,11 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
 
   @Override
   public BeamFnDataOutboundAggregator createOutboundAggregator(
-      ApiServiceDescriptor apiServiceDescriptor) {
+      ApiServiceDescriptor apiServiceDescriptor, Supplier<String> processBundleRequestIdSupplier) {
     return new BeamFnDataOutboundAggregator(
-        options, getClientFor(apiServiceDescriptor).getOutboundObserver());
+        options,
+        processBundleRequestIdSupplier,
+        getClientFor(apiServiceDescriptor).getOutboundObserver());
   }
 
   private BeamFnDataGrpcMultiplexer2 getClientFor(

@@ -21,7 +21,7 @@ import java.io.IOException;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.StreamObserver;
 
 /**
  * An outbound {@link FnDataReceiver} for the Beam Fn Data API.
@@ -50,14 +50,16 @@ public class BeamFnDataOutboundObserver<T> implements CloseableFnDataReceiver<T>
       StreamObserver<Elements> outboundObserver,
       PipelineOptions options) {
     this.outputLocation = outputLocation;
-    this.aggregator = new BeamFnDataOutboundAggregator(options, outboundObserver);
+    this.aggregator =
+        new BeamFnDataOutboundAggregator(
+            options, outputLocation::getInstructionId, outboundObserver);
     this.aggregator.registerOutputLocation(outputLocation, (Coder<Object>) coder);
     this.closed = false;
   }
 
   @Override
   public void close() throws Exception {
-    this.aggregator.close();
+    this.aggregator.sendBufferedDataAndFinishOutboundStreams();
     this.closed = true;
   }
 

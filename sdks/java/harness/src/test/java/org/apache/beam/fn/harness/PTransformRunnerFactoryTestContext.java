@@ -84,7 +84,8 @@ public abstract class PTransformRunnerFactoryTestContext
 
               @Override
               public BeamFnDataOutboundAggregator createOutboundAggregator(
-                  ApiServiceDescriptor apiServiceDescriptor) {
+                  ApiServiceDescriptor apiServiceDescriptor,
+                  Supplier<String> processBundleRequestIdSupplier) {
                 throw new UnsupportedOperationException("Unexpected call during test.");
               }
             })
@@ -103,9 +104,6 @@ public abstract class PTransformRunnerFactoryTestContext
             })
         .cacheTokensSupplier(() -> Collections.emptyList())
         .bundleCacheSupplier(() -> Caches.noop())
-        .outboundAggregators(new HashMap<>())
-        .timersOutboundAggregator(
-            new BeamFnDataOutboundAggregator(PipelineOptionsFactory.create(), null))
         .processWideCache(Caches.noop())
         .pCollections(Collections.emptyMap()) // expected to be immutable
         .coders(Collections.emptyMap()) // expected to be immutable
@@ -118,6 +116,10 @@ public abstract class PTransformRunnerFactoryTestContext
         .progressRequestCallbacks(new ArrayList<>())
         .incomingDataEndpoints(new HashMap<>())
         .incomingTimerEndpoints(new ArrayList<>())
+        .outgoingDataEndpoints(new HashMap<>())
+        .outgoingTimersEndpoints(new ArrayList<>())
+        .outboundAggregators(new HashMap<>())
+        .timerApiServiceDescriptor(ApiServiceDescriptor.getDefaultInstance())
         .splitListener(
             new BundleSplitListener() {
               @Override
@@ -167,10 +169,6 @@ public abstract class PTransformRunnerFactoryTestContext
 
     Builder windowingStrategies(Map<String, RunnerApi.WindowingStrategy> value);
 
-    Builder outboundAggregators(Map<ApiServiceDescriptor, BeamFnDataOutboundAggregator> value);
-
-    Builder timersOutboundAggregator(BeamFnDataOutboundAggregator value);
-
     Builder pCollectionConsumers(Map<String, List<FnDataReceiver<?>>> value);
 
     Builder incomingDataEndpoints(Map<ApiServiceDescriptor, List<DataEndpoint<?>>> value);
@@ -190,6 +188,14 @@ public abstract class PTransformRunnerFactoryTestContext
     Builder splitListener(BundleSplitListener value);
 
     Builder bundleFinalizer(BundleFinalizer value);
+
+    Builder outboundAggregators(Map<ApiServiceDescriptor, BeamFnDataOutboundAggregator> value);
+
+    Builder outgoingDataEndpoints(Map<ApiServiceDescriptor, List<DataEndpoint<?>>> value);
+
+    Builder outgoingTimersEndpoints(List<TimerEndpoint<?>> value);
+
+    Builder timerApiServiceDescriptor(ApiServiceDescriptor value);
 
     PTransformRunnerFactoryTestContext build();
   }
@@ -252,6 +258,53 @@ public abstract class PTransformRunnerFactoryTestContext
     getIncomingTimerEndpoints()
         .add(TimerEndpoint.create(getPTransformId(), timerFamilyId, coder, receiver));
   }
+
+  public abstract Map<ApiServiceDescriptor, BeamFnDataOutboundAggregator> getOutboundAggregators();
+
+  public void addOutboundAggregator(
+      ApiServiceDescriptor apiServiceDescriptor, BeamFnDataOutboundAggregator aggregator) {
+    getOutboundAggregators().put(apiServiceDescriptor, aggregator);
+  }
+
+  public abstract Map<ApiServiceDescriptor, List<DataEndpoint<?>>> getOutgoingDataEndpoints();
+
+  @Override
+  public <T> FnDataReceiver<T> addOutgoingDataEndpoint(
+      ApiServiceDescriptor apiServiceDescriptor, Coder<T> coder) {
+    BeamFnDataOutboundAggregator aggregator = getOutboundAggregators().get(apiServiceDescriptor);
+    aggregator.registerOutputDataLocation(getPTransformId(), coder);
+    FnDataReceiver<T> receiver = data -> aggregator.acceptData(getPTransformId(), data);
+    getOutgoingDataEndpoints()
+        .computeIfAbsent(apiServiceDescriptor, (unused) -> new ArrayList<>())
+        .add(DataEndpoint.create(getPTransformId(), coder, receiver));
+    return receiver;
+  }
+
+  public abstract List<TimerEndpoint<?>> getOutgoingTimersEndpoints();
+
+  public <T> TimerEndpoint<T> getOutgoingTimersEndpoint(String timerFamilyId) {
+    for (TimerEndpoint<?> timerEndpoint : getOutgoingTimersEndpoints()) {
+      if (timerFamilyId.equals(timerEndpoint.getTimerFamilyId())) {
+        return (TimerEndpoint<T>) timerEndpoint;
+      }
+    }
+    throw new NoSuchElementException();
+  }
+
+  @Override
+  public <T> FnDataReceiver<Timer<T>> addOutgoingTimersEndpoint(
+      String timerFamilyId, Coder<Timer<T>> coder) {
+    BeamFnDataOutboundAggregator aggregator =
+        getOutboundAggregators().get(getTimerApiServiceDescriptor());
+    aggregator.registerOutputTimersLocation(getPTransformId(), timerFamilyId, coder);
+    FnDataReceiver<Timer<T>> receiver =
+        data -> aggregator.acceptTimers(getPTransformId(), timerFamilyId, data);
+    getOutgoingTimersEndpoints()
+        .add(TimerEndpoint.create(getPTransformId(), timerFamilyId, coder, receiver));
+    return receiver;
+  }
+
+  public abstract ApiServiceDescriptor getTimerApiServiceDescriptor();
 
   /** Returns a list of methods registered to perform {@link DoFn.StartBundle}. */
   public abstract List<ThrowingRunnable> getStartBundleFunctions();

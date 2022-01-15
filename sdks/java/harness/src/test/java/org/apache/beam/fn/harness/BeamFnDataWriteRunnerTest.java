@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -52,7 +53,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.hamcrest.collection.IsMapContaining;
@@ -107,11 +108,12 @@ public class BeamFnDataWriteRunnerTest {
   }
 
   private BeamFnDataOutboundAggregator createRecordingAggregator(
-      Map<String, List<WindowedValue<String>>> output) {
+      Map<String, List<WindowedValue<String>>> output, Supplier<String> bundleId) {
     PipelineOptions options = PipelineOptionsFactory.create();
     options.as(ExperimentalOptions.class).setExperiments(Arrays.asList("data_buffer_size_limit=0"));
     return new BeamFnDataOutboundAggregator(
         options,
+        bundleId,
         new StreamObserver<Elements>() {
           @Override
           public void onNext(Elements elements) {
@@ -145,7 +147,7 @@ public class BeamFnDataWriteRunnerTest {
     List<WindowedValue<String>> output1 = new ArrayList<>();
     Map<ApiServiceDescriptor, BeamFnDataOutboundAggregator> aggregators = new HashMap<>();
     BeamFnDataOutboundAggregator aggregator =
-        createRecordingAggregator(ImmutableMap.of("0", output0, "1", output1));
+        createRecordingAggregator(ImmutableMap.of("0", output0, "1", output1), bundleId::get);
     aggregators.put(PORT_SPEC.getApiServiceDescriptor(), aggregator);
 
     PTransformRunnerFactoryTestContext context =

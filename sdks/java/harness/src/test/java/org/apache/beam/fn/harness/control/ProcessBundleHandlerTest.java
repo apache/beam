@@ -105,7 +105,6 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.BeamFnDataOutboundAggregator;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.DataEndpoint;
-import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.data.TimerEndpoint;
 import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -1004,6 +1003,7 @@ public class ProcessBundleHandlerTest {
             (invocation) ->
                 new BeamFnDataOutboundAggregator(
                     PipelineOptionsFactory.create(),
+                    invocation.getArgument(1),
                     new StreamObserver<Elements>() {
                       @Override
                       public void onNext(Elements elements) {
@@ -1019,7 +1019,7 @@ public class ProcessBundleHandlerTest {
                       public void onCompleted() {}
                     }))
         .when(beamFnDataClient)
-        .createOutboundAggregator(any());
+        .createOutboundAggregator(any(), any());
 
     return new ProcessBundleHandler(
         PipelineOptionsFactory.create(),
@@ -1602,18 +1602,9 @@ public class ProcessBundleHandlerTest {
                 new PTransformRunnerFactory<Object>() {
                   @Override
                   public Object createRunnerForPTransform(Context context) throws IOException {
-                    BeamFnDataOutboundAggregator beamFnTimerAggregator =
-                        context.getTimersOutboundAggregator();
-                    context.addStartBundleFunction(
-                        () -> doTimerRegistrations(beamFnTimerAggregator));
+                    context.addOutgoingTimersEndpoint(
+                        "timer", Timer.Coder.of(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE));
                     return null;
-                  }
-
-                  private void doTimerRegistrations(
-                      BeamFnDataOutboundAggregator beamFnTimerAggregator) {
-                    beamFnTimerAggregator.registerOutputLocation(
-                        LogicalEndpoint.timer("1L", "2L", "Timer"),
-                        Timer.Coder.of(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE));
                   }
                 }),
             Caches.noop(),

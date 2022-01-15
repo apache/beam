@@ -72,6 +72,7 @@ public class BeamFnDataOutboundAggregatorTest {
     BeamFnDataOutboundAggregator aggregator =
         new BeamFnDataOutboundAggregator(
             PipelineOptionsFactory.create(),
+            endpoint::getInstructionId,
             TestStreams.<Elements>withOnNext(values::add)
                 .withOnCompleted(() -> onCompletedWasCalled.set(true))
                 .build());
@@ -102,12 +103,12 @@ public class BeamFnDataOutboundAggregatorTest {
         values.get(1));
 
     // Test that when we close with an empty buffer we only have one end of stream
-    aggregator.close();
+    aggregator.sendBufferedDataAndFinishOutboundStreams();
 
     assertEquals(endMessage(), values.get(2));
 
-    // Test that we can close a stream twice.
-    aggregator.close();
+    // Test that we can close twice.
+    aggregator.sendBufferedDataAndFinishOutboundStreams();
   }
 
   @Test
@@ -121,6 +122,7 @@ public class BeamFnDataOutboundAggregatorTest {
     BeamFnDataOutboundAggregator aggregator =
         new BeamFnDataOutboundAggregator(
             options,
+            endpoint::getInstructionId,
             TestStreams.<Elements>withOnNext(values::add)
                 .withOnCompleted(() -> onCompletedWasCalled.set(true))
                 .build());
@@ -133,10 +135,10 @@ public class BeamFnDataOutboundAggregatorTest {
     aggregator.accept(endpoint, new byte[49]);
     assertEquals(messageWithData(new byte[51], new byte[49]), values.get(0));
 
-    // Test that when we close we empty the value, and then the stream terminator as part
+    // Test that when we close we empty the value, and then send the stream terminator as part
     // of the same message
     aggregator.accept(endpoint, new byte[1]);
-    aggregator.close();
+    aggregator.sendBufferedDataAndFinishOutboundStreams();
 
     BeamFnApi.Elements.Builder builder = messageWithDataBuilder(new byte[1]);
     if (endpoint.isTimer()) {
@@ -167,6 +169,7 @@ public class BeamFnDataOutboundAggregatorTest {
     BeamFnDataOutboundAggregator aggregator =
         new BeamFnDataOutboundAggregator(
             options,
+            endpoint::getInstructionId,
             TestStreams.withOnNext(
                     (Consumer<Elements>)
                         e -> {
@@ -191,6 +194,7 @@ public class BeamFnDataOutboundAggregatorTest {
     BeamFnDataOutboundAggregator aggregator =
         new BeamFnDataOutboundAggregator(
             options,
+            endpoint::getInstructionId,
             TestStreams.withOnNext(
                     (Consumer<Elements>)
                         e -> {
@@ -217,6 +221,7 @@ public class BeamFnDataOutboundAggregatorTest {
     aggregator =
         new BeamFnDataOutboundAggregator(
             options,
+            endpoint::getInstructionId,
             TestStreams.withOnNext(
                     (Consumer<Elements>)
                         e -> {
@@ -232,7 +237,7 @@ public class BeamFnDataOutboundAggregatorTest {
     try {
       // Test that the exception caught in the flush thread is propagated to
       // the main thread when closing
-      aggregator.close();
+      aggregator.sendBufferedDataAndFinishOutboundStreams();
       fail();
     } catch (Exception e) {
       // expected
@@ -250,6 +255,7 @@ public class BeamFnDataOutboundAggregatorTest {
     BeamFnDataOutboundAggregator aggregator =
         new BeamFnDataOutboundAggregator(
             options,
+            endpoint::getInstructionId,
             TestStreams.<Elements>withOnNext(values::add)
                 .withOnCompleted(() -> onCompletedWasCalled.set(true))
                 .build());
@@ -273,7 +279,7 @@ public class BeamFnDataOutboundAggregatorTest {
     // Test that when we close we empty the value, and then the stream terminator as part
     // of the same message
     aggregator.accept(endpoint, new byte[1]);
-    aggregator.close();
+    aggregator.sendBufferedDataAndFinishOutboundStreams();
 
     BeamFnApi.Elements.Builder builder = messageWithDataBuilder(new byte[1]);
     if (endpoint.isTimer()) {

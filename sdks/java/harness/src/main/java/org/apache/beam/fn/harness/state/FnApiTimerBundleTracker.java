@@ -28,8 +28,7 @@ import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.fn.data.BeamFnDataOutboundAggregator;
-import org.apache.beam.sdk.fn.data.LogicalEndpoint;
+import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.UserCodeException;
@@ -182,8 +181,7 @@ public class FnApiTimerBundleTracker<K> {
   }
 
   public void outputTimers(
-      Function<String, LogicalEndpoint> getEndpointFromTimerIdFn,
-      BeamFnDataOutboundAggregator outboundAggregator) {
+      Function<String, FnDataReceiver<Timer<?>>> getTimersReceiverFromTimerIdFn) {
     for (Cell<ByteString, ByteString, Modifications<K>> cell : timerModifications.cellSet()) {
       Modifications<K> modifications = cell.getValue();
       if (modifications != null) {
@@ -193,7 +191,7 @@ public class FnApiTimerBundleTracker<K> {
           Timer<K> timer = timerCell.getValue();
           try {
             if (timerFamilyOrId != null && timer != null) {
-              outboundAggregator.accept(getEndpointFromTimerIdFn.apply(timerFamilyOrId), timer);
+              getTimersReceiverFromTimerIdFn.apply(timerFamilyOrId).accept(timer);
             }
           } catch (Throwable t) {
             throw UserCodeException.wrap(t);

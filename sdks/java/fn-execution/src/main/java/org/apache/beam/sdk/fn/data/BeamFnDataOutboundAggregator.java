@@ -28,14 +28,15 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Supplier;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString.Output;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.slf4j.Logger;
@@ -54,7 +55,7 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
-public class BeamFnDataOutboundAggregator implements AutoCloseable {
+public class BeamFnDataOutboundAggregator {
 
   public static final String DATA_BUFFER_SIZE_LIMIT = "data_buffer_size_limit=";
   public static final int DEFAULT_BUFFER_LIMIT_BYTES = 1_000_000;
@@ -64,19 +65,26 @@ public class BeamFnDataOutboundAggregator implements AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataOutboundAggregator.class);
   private final int sizeLimit;
   private final long timeLimit;
+  private final Supplier<String> processBundleRequestIdSupplier;
   private final Map<LogicalEndpoint, Coder<?>> outputLocations;
+  private final Map<LogicalEndpoint, Long> perEndpointByteCount;
+  private final Map<LogicalEndpoint, Long> perEndpointElementCount;
   private final StreamObserver<Elements> outboundObserver;
   private final Map<LogicalEndpoint, ByteString.Output> buffer;
   @VisibleForTesting ScheduledFuture<?> flushFuture;
-  private long byteCounter;
+  private final AtomicLong byteCounter = new AtomicLong(0L);
 
   public BeamFnDataOutboundAggregator(
-      PipelineOptions options, StreamObserver<BeamFnApi.Elements> outboundObserver) {
+      PipelineOptions options,
+      Supplier<String> processBundleRequestIdSupplier,
+      StreamObserver<BeamFnApi.Elements> outboundObserver) {
     this.sizeLimit = getSizeLimit(options);
     this.timeLimit = getTimeLimit(options);
     this.outputLocations = new HashMap<>();
-    this.buffer = new ConcurrentHashMap<>();
+    this.perEndpointByteCount = new HashMap<>();
+    this.perEndpointElementCount = new HashMap<>();
     this.outboundObserver = outboundObserver;
+    this.buffer = new ConcurrentHashMap<>();
     if (timeLimit > 0) {
       this.flushFuture =
           Executors.newSingleThreadScheduledExecutor(
@@ -89,20 +97,35 @@ public class BeamFnDataOutboundAggregator implements AutoCloseable {
     } else {
       this.flushFuture = null;
     }
+    this.processBundleRequestIdSupplier = processBundleRequestIdSupplier;
   }
 
   /**
-   * Register the outbound logical endpoint alongside it's value coder. All registered endpoints
-   * will eventually be removed when {@link #close()} is called at the end of a bundle.
+   * Register the outbound data logical endpoint for the transform alongside it's output value
+   * coder. All registered endpoints will eventually be removed when {@link
+   * #sendBufferedDataAndFinishOutboundStreams()} is called at the end of a bundle.
    */
+  public <T> void registerOutputDataLocation(String pTransformId, Coder<T> coder) {
+    registerOutputLocation(
+        LogicalEndpoint.data(processBundleRequestIdSupplier.get(), pTransformId), coder);
+  }
+
+  public <T> void registerOutputTimersLocation(
+      String pTransformId, String timerFamilyId, Coder<T> coder) {
+    registerOutputLocation(
+        LogicalEndpoint.timer(processBundleRequestIdSupplier.get(), pTransformId, timerFamilyId),
+        coder);
+  }
+
   public <T> void registerOutputLocation(LogicalEndpoint endpoint, Coder<T> coder) {
     LOG.debug("Registering endpoint: {}", endpoint);
     outputLocations.put(endpoint, coder);
   }
 
-  public void flush() throws IOException {
-    if (byteCounter > 0) {
-      outboundObserver.onNext(convertBufferForTransmission().build());
+  public synchronized void flush() throws IOException {
+    Elements.Builder elements = convertBufferForTransmission();
+    if (elements.getDataCount() > 0 || elements.getTimersCount() > 0) {
+      outboundObserver.onNext(elements.build());
     }
   }
 
@@ -110,10 +133,11 @@ public class BeamFnDataOutboundAggregator implements AutoCloseable {
    * Closes the streams for all registered outbound endpoints. Should be called at the end of each
    * bundle.
    */
-  @Override
-  public void close() {
+  public void sendBufferedDataAndFinishOutboundStreams() {
     LOG.debug("Closing streams for outbound endpoints {}", outputLocations);
-    if (byteCounter == 0 && outputLocations.isEmpty()) {
+    LOG.debug("Sent outbound data size : {}", perEndpointByteCount);
+    LOG.debug("Sent outbound element count : {}", perEndpointElementCount);
+    if (byteCounter.get() == 0 && outputLocations.isEmpty()) {
       return;
     }
     Elements.Builder bufferedElements = convertBufferForTransmission();
@@ -135,43 +159,77 @@ public class BeamFnDataOutboundAggregator implements AutoCloseable {
     }
     outboundObserver.onNext(bufferedElements.build());
     outputLocations.clear();
+    perEndpointByteCount.clear();
+    perEndpointElementCount.clear();
+  }
+
+  public <T> void acceptData(String pTransformId, T data) throws Exception {
+    accept(LogicalEndpoint.data(processBundleRequestIdSupplier.get(), pTransformId), data);
+  }
+
+  public <T> void acceptTimers(String pTransformId, String timerFamilyId, T timers)
+      throws Exception {
+    accept(
+        LogicalEndpoint.timer(processBundleRequestIdSupplier.get(), pTransformId, timerFamilyId),
+        timers);
   }
 
   public <T> void accept(LogicalEndpoint endpoint, T data) throws Exception {
     if (timeLimit > 0) {
       checkFlushThreadException();
     }
-    Output output = buffer.computeIfAbsent(endpoint, e -> ByteString.newOutput());
-    int size = output.size();
-    ((Coder<T>) outputLocations.get(endpoint)).encode(data, output);
-    byteCounter += output.size() - size;
+    buffer.compute(
+        endpoint,
+        (e, output) -> {
+          if (output == null) {
+            output = ByteString.newOutput();
+          }
+          int size = output.size();
+          try {
+            ((Coder<T>) outputLocations.get(e)).encode(data, output);
+          } catch (IOException ex) {
+            throw new RuntimeException("Failed to encode data.");
+          }
+          if (output.size() - size == 0) {
+            output.write(0);
+          }
+          final long delta = (long) output.size() - size;
+          byteCounter.getAndAdd(delta);
+          perEndpointByteCount.compute(
+              e, (e1, byteCount) -> byteCount == null ? delta : delta + byteCount);
+          return output;
+        });
 
-    if (byteCounter >= sizeLimit) {
+    if (byteCounter.get() >= sizeLimit) {
       flush();
     }
   }
 
   private Elements.Builder convertBufferForTransmission() {
     Elements.Builder bufferedElements = Elements.newBuilder();
-    for (Map.Entry<LogicalEndpoint, ByteString.Output> bufferEntry : buffer.entrySet()) {
-      LogicalEndpoint endpoint = bufferEntry.getKey();
+    for (LogicalEndpoint endpoint : buffer.keySet()) {
+      ByteString.Output output = buffer.remove(endpoint);
+      if (output == null) {
+        continue;
+      }
+      byteCounter.getAndAdd(-1 * output.size());
       if (endpoint.isTimer()) {
         bufferedElements
             .addTimersBuilder()
             .setInstructionId(endpoint.getInstructionId())
             .setTransformId(endpoint.getTransformId())
             .setTimerFamilyId(endpoint.getTimerFamilyId())
-            .setTimers(bufferEntry.getValue().toByteString());
+            .setTimers(output.toByteString());
       } else {
         bufferedElements
             .addDataBuilder()
             .setInstructionId(endpoint.getInstructionId())
             .setTransformId(endpoint.getTransformId())
-            .setData(bufferEntry.getValue().toByteString());
+            .setData(output.toByteString());
       }
+      perEndpointElementCount.compute(endpoint, (e, count) -> count == null ? 1 : count + 1);
+      output.reset();
     }
-    byteCounter = 0;
-    buffer.clear();
     return bufferedElements;
   }
 

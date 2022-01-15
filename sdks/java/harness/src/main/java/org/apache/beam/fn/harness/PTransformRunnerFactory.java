@@ -26,11 +26,11 @@ import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
 import org.apache.beam.model.pipeline.v1.Endpoints;
+import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.fn.data.BeamFnDataOutboundAggregator;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -89,16 +89,18 @@ public interface PTransformRunnerFactory<T> {
     <T> FnDataReceiver<T> getPCollectionConsumer(String pCollectionId);
 
     /**
-     * Returns all {@link Endpoints.ApiServiceDescriptor} to {@link BeamFnDataOutboundAggregator}
-     * mappings.
+     * Registers the outbound data endpoint with given {@link Endpoints.ApiServiceDescriptor} and
+     * {@link Coder}, returns the {@link FnDataReceiver} responsible for sending the outbound data.
      */
-    Map<Endpoints.ApiServiceDescriptor, BeamFnDataOutboundAggregator> getOutboundAggregators();
+    <T> FnDataReceiver<T> addOutgoingDataEndpoint(
+        ApiServiceDescriptor apiServiceDescriptor, Coder<T> coder);
 
     /**
-     * Returns the {@link BeamFnDataOutboundAggregator} responsible for sending the bundle's output
-     * timers.
+     * Registers the outbound timers endpoint with given timer family id and {@link Coder}, returns
+     * the {@link FnDataReceiver} responsible for sending the outbound timers.
      */
-    BeamFnDataOutboundAggregator getTimersOutboundAggregator();
+    <T> FnDataReceiver<Timer<T>> addOutgoingTimersEndpoint(
+        String timerFamilyId, Coder<Timer<T>> coder);
 
     /** Register any {@link DoFn.StartBundle} methods. */
     void addStartBundleFunction(ThrowingRunnable startBundleFunction);

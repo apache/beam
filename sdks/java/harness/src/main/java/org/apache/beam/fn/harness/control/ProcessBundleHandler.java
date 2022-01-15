@@ -78,11 +78,9 @@ import org.apache.beam.sdk.fn.data.BeamFnDataInboundObserver2;
 import org.apache.beam.sdk.fn.data.BeamFnDataOutboundAggregator;
 import org.apache.beam.sdk.fn.data.DataEndpoint;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.data.TimerEndpoint;
 import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
@@ -355,20 +353,39 @@ public class ProcessBundleHandler {
                     }
 
                     @Override
-                    public Map<ApiServiceDescriptor, BeamFnDataOutboundAggregator>
-                        getOutboundAggregators() {
-                      return outboundAggregatorMap;
+                    public <T> FnDataReceiver<T> addOutgoingDataEndpoint(
+                        ApiServiceDescriptor apiServiceDescriptor,
+                        org.apache.beam.sdk.coders.Coder<T> coder) {
+                      BeamFnDataOutboundAggregator aggregator =
+                          outboundAggregatorMap.computeIfAbsent(
+                              apiServiceDescriptor,
+                              asd ->
+                                  queueingClient.createOutboundAggregator(
+                                      asd, processBundleInstructionId));
+                      aggregator.registerOutputDataLocation(pTransformId, coder);
+                      return data -> aggregator.acceptData(pTransformId, data);
                     }
 
                     @Override
-                    public BeamFnDataOutboundAggregator getTimersOutboundAggregator() {
+                    public <T> FnDataReceiver<Timer<T>> addOutgoingTimersEndpoint(
+                        String timerFamilyId, org.apache.beam.sdk.coders.Coder<Timer<T>> coder) {
+                      BeamFnDataOutboundAggregator aggregator;
                       if (processBundleDescriptor.hasTimerApiServiceDescriptor()) {
-                        return outboundAggregatorMap.computeIfAbsent(
-                            processBundleDescriptor.getTimerApiServiceDescriptor(),
-                            queueingClient::createOutboundAggregator);
-                      } else {
-                        return new FailAllTimerRegistrations(processBundleInstructionId);
+                        aggregator =
+                            outboundAggregatorMap.computeIfAbsent(
+                                processBundleDescriptor.getTimerApiServiceDescriptor(),
+                                asd ->
+                                    queueingClient.createOutboundAggregator(
+                                        asd, processBundleInstructionId));
+                        aggregator.registerOutputTimersLocation(pTransformId, timerFamilyId, coder);
+                        return timers ->
+                            aggregator.acceptTimers(pTransformId, timerFamilyId, timers);
                       }
+                      throw new IllegalStateException(
+                          String.format(
+                              "Timers are unsupported because the "
+                                  + "ProcessBundleRequest %s does not provide a timer ApiServiceDescriptor.",
+                              processBundleInstructionId.get()));
                     }
 
                     @Override
@@ -504,7 +521,7 @@ public class ProcessBundleHandler {
 
         for (BeamFnDataOutboundAggregator aggregator :
             bundleProcessor.getOutboundAggregators().values()) {
-          aggregator.close();
+          aggregator.sendBufferedDataAndFinishOutboundStreams();
         }
 
         // Add all checkpointed residuals to the response.
@@ -734,7 +751,11 @@ public class ProcessBundleHandler {
           },
           (timerEndpoint) -> {
             if (!bundleDescriptor.hasTimerApiServiceDescriptor()) {
-              throw FailAllTimerRegistrations.fail(bundleId);
+              throw new IllegalStateException(
+                  String.format(
+                      "Timers are unsupported because the "
+                          + "ProcessBundleRequest %s does not provide a timer ApiServiceDescriptor.",
+                      bundleId));
             }
             bundleProcessor.getTimerEndpoints().add(timerEndpoint);
           },
@@ -1083,33 +1104,6 @@ public class ProcessBundleHandler {
               "State API calls are unsupported because the "
                   + "ProcessBundleRequest %s does not support state.",
               request));
-    }
-  }
-
-  /**
-   * A {@link BeamFnDataOutboundAggregator} which fails all registrations because the {@link
-   * ProcessBundleRequest} does not contain a Timer {@link ApiServiceDescriptor}.
-   */
-  private static class FailAllTimerRegistrations extends BeamFnDataOutboundAggregator {
-    private final Supplier<String> requestId;
-
-    private FailAllTimerRegistrations(Supplier<String> requestId) {
-      super(PipelineOptionsFactory.create(), null);
-      this.requestId = requestId;
-    }
-
-    @Override
-    public <T> void registerOutputLocation(
-        LogicalEndpoint endpoint, org.apache.beam.sdk.coders.Coder<T> coder) {
-      throw fail(requestId.get());
-    }
-
-    private static IllegalStateException fail(String requestId) {
-      throw new IllegalStateException(
-          String.format(
-              "Timers are unsupported because the "
-                  + "ProcessBundleRequest %s does not provide a timer ApiServiceDescriptor.",
-              requestId));
     }
   }
 

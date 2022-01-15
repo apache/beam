@@ -33,6 +33,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableSet;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -66,9 +67,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.fn.data.BeamFnDataOutboundAggregator;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.splittabledofn.RestrictionTrackers;
 import org.apache.beam.sdk.fn.splittabledofn.RestrictionTrackers.ClaimObserver;
 import org.apache.beam.sdk.fn.splittabledofn.WatermarkEstimators;
@@ -186,8 +185,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               (pCollectionId, consumer, valueCoder) ->
                   context.addPCollectionConsumer(
                       pCollectionId, (FnDataReceiver) consumer, (Coder) valueCoder),
+              context::addOutgoingTimersEndpoint,
               context::addProgressRequestCallback,
-              context.getTimersOutboundAggregator(),
               context.getSplitListener(),
               context.getBundleFinalizer());
 
@@ -214,7 +213,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private final PipelineOptions pipelineOptions;
   private final String pTransformId;
   private final PTransform pTransform;
-  private final Supplier<String> processBundleInstructionId;
   private final RehydratedComponents rehydratedComponents;
   private final DoFn<InputT, OutputT> doFn;
   private final DoFnSignature doFnSignature;
@@ -227,7 +225,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private final WindowingStrategy<InputT, ?> windowingStrategy;
   private final Map<TupleTag<?>, SideInputSpec> tagToSideInputSpecMap;
   private final Map<TupleTag<?>, Coder<?>> outputCoders;
-  private final BeamFnDataOutboundAggregator outboundAggregator;
+  private final BiFunction<String, Coder<Timer<Object>>, FnDataReceiver<Timer<Object>>>
+      getOutgoingTimersConsumer;
   private final Map<String, KV<TimeDomain, Coder<Timer<Object>>>> timerFamilyInfos;
   private final ParDoPayload parDoPayload;
   private final ListMultimap<String, FnDataReceiver<WindowedValue<?>>> localNameToConsumer;
@@ -237,7 +236,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
   private final String mainInputId;
   private final FnApiStateAccessor<?> stateAccessor;
-  private Map<String, LogicalEndpoint> outboundTimerEndpoints;
+  private Map<String, FnDataReceiver<?>> outboundTimerReceivers;
   private FnApiTimerBundleTracker timerBundleTracker;
   private final DoFnInvoker<InputT, OutputT> doFnInvoker;
   private final StartBundleArgumentProvider startBundleArgumentProvider;
@@ -350,15 +349,15 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       Consumer<ThrowingRunnable> addTearDownFunction,
       Function<String, FnDataReceiver<WindowedValue<?>>> getPCollectionConsumer,
       TriFunction<String, FnDataReceiver<WindowedValue<?>>, Coder<?>> addPCollectionConsumer,
+      BiFunction<String, Coder<Timer<Object>>, FnDataReceiver<Timer<Object>>>
+          getOutgoingTimersConsumer,
       Consumer<ProgressRequestCallback> addProgressRequestCallback,
-      BeamFnDataOutboundAggregator outboundAggregator,
       BundleSplitListener splitListener,
       BundleFinalizer bundleFinalizer) {
     this.pipelineOptions = pipelineOptions;
     this.pTransformId = pTransformId;
     this.pTransform = pTransform;
-    this.processBundleInstructionId = processBundleInstructionId;
-    this.outboundAggregator = outboundAggregator;
+    this.getOutgoingTimersConsumer = getOutgoingTimersConsumer;
     ImmutableMap.Builder<TupleTag<?>, SideInputSpec> tagToSideInputSpecMapBuilder =
         ImmutableMap.builder();
     try {
@@ -752,7 +751,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
   private void startBundle() {
     // Register as a consumer for each timer.
-    outboundTimerEndpoints = new HashMap<>();
+    outboundTimerReceivers = new HashMap<>();
     timerBundleTracker =
         new FnApiTimerBundleTracker(
             keyCoder, windowCoder, this::getCurrentKey, () -> currentWindow);
@@ -760,12 +759,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         timerFamilyInfos.entrySet()) {
       String localName = timerFamilyInfo.getKey();
       Coder<Timer<Object>> timerCoder = timerFamilyInfo.getValue().getValue();
-      outboundAggregator.registerOutputLocation(
-          outboundTimerEndpoints.computeIfAbsent(
-              localName,
-              name ->
-                  LogicalEndpoint.timer(processBundleInstructionId.get(), pTransformId, localName)),
-          timerCoder);
+      outboundTimerReceivers.put(localName, getOutgoingTimersConsumer.apply(localName, timerCoder));
     }
 
     doFnInvoker.invokeStartBundle(startBundleArgumentProvider);
@@ -1754,7 +1748,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   }
 
   private void finishBundle() throws Exception {
-    timerBundleTracker.outputTimers(outboundTimerEndpoints::get, outboundAggregator);
+    timerBundleTracker.outputTimers(outboundTimerReceivers::get);
 
     doFnInvoker.invokeFinishBundle(finishBundleArgumentProvider);
 
