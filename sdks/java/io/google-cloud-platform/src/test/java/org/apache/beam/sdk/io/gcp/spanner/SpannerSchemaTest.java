@@ -19,10 +19,10 @@ package org.apache.beam.sdk.io.gcp.spanner;
 
 import static org.junit.Assert.assertEquals;
 
+import com.google.cloud.spanner.Type;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import com.google.cloud.spanner.Type;
 
 /** A test of {@link SpannerSchema}. */
 @RunWith(JUnit4.class)

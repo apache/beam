@@ -46,7 +46,11 @@ public class MutationSizeEstimatorTest {
             .set("one")
             .to(new BigDecimal("12345678901234567890.123456789"))
             .build();
-    Mutation json = Mutation.newInsertOrUpdateBuilder("test").set("one").to(Value.json("{\"key1\":\"value1\", \"key2\":\"value2\"}")).build();
+    Mutation json =
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("one")
+            .to(Value.json("{\"key1\":\"value1\", \"key2\":\"value2\"}"))
+            .build();
 
     assertThat(MutationSizeEstimator.sizeOf(int64), is(8L));
     assertThat(MutationSizeEstimator.sizeOf(float64), is(8L));
@@ -87,7 +91,8 @@ public class MutationSizeEstimatorTest {
         Mutation.newInsertOrUpdateBuilder("test")
             .set("one")
             .toJsonArray(
-                ImmutableList.of("{\"key1\":\"value1\", \"key2\":\"value2\"}",
+                ImmutableList.of(
+                    "{\"key1\":\"value1\", \"key2\":\"value2\"}",
                     "{\"key1\":\"value1\", \"key2\":20}"))
             .build();
     assertThat(MutationSizeEstimator.sizeOf(int64), is(24L));

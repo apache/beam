@@ -179,7 +179,7 @@ class MutationSizeEstimator {
         return totalLength;
       case JSON:
         totalLength = 0;
-        for (String s: v.getJsonArray()) {
+        for (String s : v.getJsonArray()) {
           if (s == null) {
             continue;
           }
