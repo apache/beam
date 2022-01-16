@@ -123,6 +123,8 @@ class MutationSizeEstimator {
         // are also stored in the Spanner database as String, so this gives an approximation for
         // mutation value size.
         return v.isNull() ? 0 : v.getNumeric().toString().length();
+      case JSON:
+        return v.isNull() ? 0 : v.getJson().length();
       default:
         throw new IllegalArgumentException("Unsupported type " + v.getType());
     }
@@ -175,7 +177,15 @@ class MutationSizeEstimator {
           totalLength += n.toString().length();
         }
         return totalLength;
-
+      case JSON:
+        totalLength = 0;
+        for (String s: v.getJsonArray()) {
+          if (s == null) {
+            continue;
+          }
+          totalLength += s.length();
+        }
+        return totalLength;
       default:
         throw new IllegalArgumentException("Unsupported type " + v.getType());
     }
