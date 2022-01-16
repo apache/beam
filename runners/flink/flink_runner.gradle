@@ -41,6 +41,7 @@ description = "Apache Beam :: Runners :: Flink $flink_version"
  */
 evaluationDependsOn(":sdks:java:core")
 evaluationDependsOn(":runners:core-java")
+evaluationDependsOn(":examples:java")
 
 /*
  * Copy & merge source overrides into build directory.
@@ -59,7 +60,7 @@ def copyResourcesOverrides = tasks.register('copyResourcesOverrides', Copy) {
   it.into "${sourceOverridesBase}/main/resources"
   it.duplicatesStrategy DuplicatesStrategy.INCLUDE
 }
-compileJava.dependsOn copyResourcesOverrides
+processResources.dependsOn copyResourcesOverrides
 
 def copyTestSourceOverrides = tasks.register('copyTestSourceOverrides', Copy) {
   it.from test_source_overrides
@@ -73,7 +74,7 @@ def copyTestResourcesOverrides = tasks.register('copyTestResourcesOverrides', Co
   it.into "${sourceOverridesBase}/test/resources"
   it.duplicatesStrategy DuplicatesStrategy.INCLUDE
 }
-compileJava.dependsOn copyTestResourcesOverrides
+processTestResources.dependsOn copyTestResourcesOverrides
 
 /*
  * We have to explicitly set all directories here to make sure each
@@ -123,6 +124,7 @@ test {
 configurations {
   validatesRunner
   miniCluster
+  examplesJavaIntegrationTest
 }
 
 dependencies {
@@ -153,7 +155,7 @@ dependencies {
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   // FlinkStateInternalsTest extends abstract StateInternalsTest
   testImplementation project(path: ":runners:core-java", configuration: "testRuntimeMigration")
-  testImplementation library.java.hamcrest_core
+  testImplementation library.java.hamcrest
   testImplementation library.java.junit
   testImplementation library.java.mockito_core
   testImplementation library.java.powermock
@@ -177,7 +179,13 @@ dependencies {
   implementation library.java.jackson_databind
   implementation "org.apache.flink:flink-annotations:$flink_version"
   implementation "org.apache.flink:flink-optimizer_2.11:$flink_version"
+  examplesJavaIntegrationTest project(project.path)
+  examplesJavaIntegrationTest project(":examples:java")
+  examplesJavaIntegrationTest project(path: ":examples:java", configuration: "testRuntimeMigration")
 }
+
+def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+def tempLocation = project.findProperty('tempLocation') ?: 'gs://temp-storage-for-end-to-end-tests'
 
 class ValidatesRunnerConfig {
   String name
@@ -219,6 +227,8 @@ def createValidatesRunnerTask(Map m) {
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
       } else {
         includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+        // Should be run only in a properly configured SDK harness environment
+        excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
         excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
       }
       excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
@@ -226,7 +236,6 @@ def createValidatesRunnerTask(Map m) {
       excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
       excludeCategories 'org.apache.beam.sdk.testing.UsesSystemMetrics'
       excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
       excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'
       if (config.streaming) {
         excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
@@ -237,6 +246,8 @@ def createValidatesRunnerTask(Map m) {
         excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
         excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderedDelivery'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderInBundle'
       }
       filter {
         // https://issues.apache.org/jira/browse/BEAM-12039
@@ -245,6 +256,8 @@ def createValidatesRunnerTask(Map m) {
         excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testFirstElementLate'
         // https://issues.apache.org/jira/browse/BEAM-12038
         excludeTestsMatching 'org.apache.beam.sdk.testing.TestStreamTest.testLateDataAccumulating'
+        // TODO(BEAM-13573)
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testOnWindowTimestampSkew'
       }
     }
   }
@@ -270,6 +283,30 @@ tasks.register('validatesRunner') {
 // Generates :runners:flink:1.13:runQuickstartJavaFlinkLocal
 createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'FlinkLocal')
 
+task examplesIntegrationTest(type: Test) {
+  group = "Verification"
+  // Disable gradle cache
+  outputs.upToDateWhen { false }
+  def pipelineOptionsArray = ["--runner=TestFlinkRunner",
+                              "--parallelism=2",
+                              "--tempLocation=${tempLocation}",
+                              "--tempRoot=${tempLocation}",
+                              "--project=${gcpProject}",
+  ]
+
+  def pipelineOptions = JsonOutput.toJson(pipelineOptionsArray)
+  systemProperty "beamTestPipelineOptions", pipelineOptions
+
+  include '**/*IT.class'
+  // TODO (BEAM-12572) Fix integration Tests to run with FlinkRunner
+  exclude '**/BigQueryTornadoesIT.class' // Fails with AssertionError
+  exclude '**/WindowedWordCountIT.class' // Failed with Grpc connection error
+  maxParallelForks 4
+  classpath = configurations.examplesJavaIntegrationTest
+  testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
+  useJUnit { }
+}
+
 /**
  * Updates the documentation with the current pipeline options.
  */
@@ -278,7 +315,7 @@ def createPipelineOptionsTableTask(String target) {
     group = 'Website'
     description = "Generates a table with pipeline options for the Flink Runner documentation page"
     classpath = sourceSets.test.runtimeClasspath
-    main = 'org.apache.beam.runners.flink.website.PipelineOptionsTableGenerator'
+    mainClass = 'org.apache.beam.runners.flink.website.PipelineOptionsTableGenerator'
     args = [target]
     standardOutput = new ByteArrayOutputStream()
     doLast {

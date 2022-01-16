@@ -97,7 +97,7 @@ class SdkContainerImageBuilder(plugin.BeamPlugin):
       resources = Stager.extract_staging_tuple_iter(artifacts)
       # make a copy of the staged artifacts into the temp source folder.
       file_names = []
-      for path, name in resources:
+      for path, name, _ in resources:
         shutil.copyfile(path, os.path.join(self._temp_src_dir, name))
         file_names.append(name)
       with open(os.path.join(self._temp_src_dir, 'Dockerfile'), 'w') as file:

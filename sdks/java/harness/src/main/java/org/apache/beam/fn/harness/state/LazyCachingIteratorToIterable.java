@@ -22,7 +22,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
-import org.apache.beam.sdk.fn.stream.PrefetchableIterable;
+import org.apache.beam.sdk.fn.stream.PrefetchableIterables;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterator;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -31,7 +31,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Converts an iterator to an iterable lazily loading values from the underlying iterator and
  * caching them to support reiteration.
  */
-class LazyCachingIteratorToIterable<T> implements PrefetchableIterable<T> {
+class LazyCachingIteratorToIterable<T> extends PrefetchableIterables.Default<T> {
   private final List<T> cachedElements;
   private final PrefetchableIterator<T> iterator;
 
@@ -41,7 +41,7 @@ class LazyCachingIteratorToIterable<T> implements PrefetchableIterable<T> {
   }
 
   @Override
-  public PrefetchableIterator<T> iterator() {
+  public PrefetchableIterator<T> createIterator() {
     return new CachingIterator();
   }
 

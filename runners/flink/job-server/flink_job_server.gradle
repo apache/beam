@@ -124,7 +124,7 @@ runShadow {
     jvmArgs += ["-Dorg.slf4j.simpleLogger.defaultLogLevel=${project.property('logLevel')}"]
 }
 
-def portableValidatesRunnerTask(String name, Boolean streaming, Boolean checkpointing) {
+def portableValidatesRunnerTask(String name, boolean streaming, boolean checkpointing, boolean docker) {
   def pipelineOptions = [
       // Limit resource consumption via parallelism
       "--parallelism=2",
@@ -143,15 +143,24 @@ def portableValidatesRunnerTask(String name, Boolean streaming, Boolean checkpoi
     testClasspathConfiguration: configurations.validatesPortableRunner,
     numParallelTests: 1,
     pipelineOpts: pipelineOptions,
-    environment: BeamModulePlugin.PortableValidatesRunnerConfiguration.Environment.EMBEDDED,
+    environment: docker ? BeamModulePlugin.PortableValidatesRunnerConfiguration.Environment.DOCKER : BeamModulePlugin.PortableValidatesRunnerConfiguration.Environment.EMBEDDED,
     testCategories: {
-      if (streaming && checkpointing) {
-        includeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
-        excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
-        // TestStreamSource does not support checkpointing
-        excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
-      } else {
+        if (docker) {
+          includeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
+          return
+        }
+
+        if (streaming && checkpointing) {
+          includeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
+          excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
+          // TestStreamSource does not support checkpointing
+          excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+          return
+        }
+
         includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+        // Should be run only in a properly configured SDK harness environment
+        excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
         excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
         // Larger keys are possible, but they require more memory.
         excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above10MB'
@@ -174,14 +183,14 @@ def portableValidatesRunnerTask(String name, Boolean streaming, Boolean checkpoi
           excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'
           excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithMultipleStages'
           excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithOutputTimestamp'
-        } else {
-          excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
-          excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
-          excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
-          excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderedDelivery'
-          excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderInBundle'
+          return
         }
-      }
+
+        excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderedDelivery'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderInBundle'
     },
     testFilter: {
       // TODO(BEAM-10016)
@@ -198,11 +207,13 @@ def portableValidatesRunnerTask(String name, Boolean streaming, Boolean checkpoi
   )
 }
 
-project.ext.validatesPortableRunnerBatch = portableValidatesRunnerTask("Batch", false, false)
-project.ext.validatesPortableRunnerStreaming = portableValidatesRunnerTask("Streaming", true, false)
-project.ext.validatesPortableRunnerStreamingCheckpoint = portableValidatesRunnerTask("StreamingCheckpointing", true, true)
+project.ext.validatesPortableRunnerDocker = portableValidatesRunnerTask("Docker", false, false, true)
+project.ext.validatesPortableRunnerBatch = portableValidatesRunnerTask("Batch", false, false, false)
+project.ext.validatesPortableRunnerStreaming = portableValidatesRunnerTask("Streaming", true, false, false)
+project.ext.validatesPortableRunnerStreamingCheckpoint = portableValidatesRunnerTask("StreamingCheckpointing", true, true, false)
 
 task validatesPortableRunner() {
+  dependsOn validatesPortableRunnerDocker
   dependsOn validatesPortableRunnerBatch
   dependsOn validatesPortableRunnerStreaming
   dependsOn validatesPortableRunnerStreamingCheckpoint
