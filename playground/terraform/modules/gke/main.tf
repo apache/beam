@@ -18,11 +18,6 @@
 # under the License.
 #
 
-terraform {
-  backend "gcs" {
-    bucket  = "playground_terraform"
-  }
-}
 
 resource "google_container_cluster" "playground-gke" {
   name               = "playground-examples"
@@ -31,7 +26,7 @@ resource "google_container_cluster" "playground-gke" {
   initial_node_count = "${var.node_count}"
   node_config {
     machine_type     = "${var.machine_type}"
-    service_account  = "${var.service_account}"
+    service_account  = "service-account-playground@beam-337909.iam.gserviceaccount.com"
 
     oauth_scopes    = [
       "https://www.googleapis.com/auth/cloud-platform"

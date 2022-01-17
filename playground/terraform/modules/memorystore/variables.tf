@@ -25,3 +25,7 @@ variable "redis_version" {
   description = "The GCP Project ID where Playground Applications will be created"
   default     = "REDIS_6_X" 
 }
+
+variable "beam_playground_terraform" {
+  default     = "beam_playground_terraform"
+}

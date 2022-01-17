@@ -23,12 +23,11 @@ resource "google_storage_bucket" "examples_bucket" {
   location      = "${var.examples_bucket_location}"
   project       = "${var.project_id}"
   storage_class = "${var.examples_storage_class}"
-  uniform_bucket_level_access = true
 }
 
 resource "google_storage_bucket_access_control" "public_rule" {
   bucket = google_storage_bucket.examples_bucket.name
-  role   = "VIEWER"
+  role   = "READER"
   entity = "allUsers"
 }
 

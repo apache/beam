@@ -17,17 +17,11 @@
 # under the License.
 #
 
-terraform {
-  backend "gcs" {
-    bucket  = "beam_playground_terraform"
-    prefix  = "memorystore"
-  }
-}
 
 data "terraform_remote_state" "remote_state_vpc" {
   backend = "gcs"
   config = {
-    bucket  = "beam_playground_terraform"
+    bucket  = "${var.beam_playground_terraform}"
   }
 }
 
