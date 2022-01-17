@@ -127,6 +127,22 @@ class CodeRepository {
           output: output.output,
           log: prevLog,
         );
+      case RunCodeStatus.validationError:
+        final output =
+            await _client.getValidationErrorOutput(pipelineUuid, request);
+        return RunCodeResult(
+          status: status,
+          output: output.output,
+          log: prevLog,
+        );
+      case RunCodeStatus.preparationError:
+        final output =
+            await _client.getPreparationErrorOutput(pipelineUuid, request);
+        return RunCodeResult(
+          status: status,
+          output: output.output,
+          log: prevLog,
+        );
       case RunCodeStatus.unknownError:
         return RunCodeResult(
           status: status,

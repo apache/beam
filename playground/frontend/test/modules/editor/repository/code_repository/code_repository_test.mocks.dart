@@ -104,5 +104,22 @@ class MockCodeClient extends _i1.Mock implements _i5.CodeClient {
                   Future<_i4.OutputResponse>.value(_FakeOutputResponse_2()))
           as _i6.Future<_i4.OutputResponse>);
   @override
+  _i6.Future<_i4.OutputResponse> getValidationErrorOutput(
+          String? pipelineUuid, _i7.RunCodeRequestWrapper? request) =>
+      (super.noSuchMethod(
+          Invocation.method(#getValidationErrorOutput, [pipelineUuid, request]),
+          returnValue:
+              Future<_i4.OutputResponse>.value(_FakeOutputResponse_2())) as _i6
+          .Future<_i4.OutputResponse>);
+  @override
+  _i6.Future<_i4.OutputResponse> getPreparationErrorOutput(
+          String? pipelineUuid, _i7.RunCodeRequestWrapper? request) =>
+      (super.noSuchMethod(
+              Invocation.method(
+                  #getPreparationErrorOutput, [pipelineUuid, request]),
+              returnValue:
+                  Future<_i4.OutputResponse>.value(_FakeOutputResponse_2()))
+          as _i6.Future<_i4.OutputResponse>);
+  @override
   String toString() => super.toString();
 }
