@@ -20,7 +20,7 @@ package org.apache.beam.sdk.io.kafka;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.beam.sdk.io.kafka.KafkaIO.WriteRecords;
+import org.apache.beam.sdk.io.kafka.KafkaIO.WriteRecordsWithOutput;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.SinkMetrics;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -96,7 +96,7 @@ class KafkaWriter<K, V> extends DoFn<ProducerRecord<K, V>, Void> {
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaWriter.class);
 
-  private final WriteRecords<K, V> spec;
+  private final WriteRecordsWithOutput<K, V> spec;
   private final Map<String, Object> producerConfig;
 
   private transient Producer<K, V> producer = null;
@@ -106,7 +106,7 @@ class KafkaWriter<K, V> extends DoFn<ProducerRecord<K, V>, Void> {
 
   private final Counter elementsWritten = SinkMetrics.elementsWritten();
 
-  KafkaWriter(WriteRecords<K, V> spec) {
+  KafkaWriter(WriteRecordsWithOutput<K, V> spec) {
     this.spec = spec;
 
     this.producerConfig = new HashMap<>(spec.getProducerConfig());

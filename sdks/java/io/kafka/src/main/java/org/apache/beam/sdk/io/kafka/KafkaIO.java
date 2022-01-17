@@ -574,10 +574,13 @@ public class KafkaIO {
     return new AutoValue_KafkaIO_Write.Builder<K, V>()
         .setWriteRecordsTransform(
             new AutoValue_KafkaIO_WriteRecords.Builder<K, V>()
-                .setProducerConfig(WriteRecords.DEFAULT_PRODUCER_PROPERTIES)
-                .setEOS(false)
-                .setNumShards(0)
-                .setConsumerFactoryFn(KafkaIOUtils.KAFKA_CONSUMER_FACTORY_FN)
+                .setInner(
+                    new AutoValue_KafkaIO_WriteRecordsWithOutput.Builder<K, V>()
+                        .setProducerConfig(WriteRecordsWithOutput.DEFAULT_PRODUCER_PROPERTIES)
+                        .setEOS(false)
+                        .setNumShards(0)
+                        .setConsumerFactoryFn(KafkaIOUtils.KAFKA_CONSUMER_FACTORY_FN)
+                        .build())
                 .build())
         .build();
   }
@@ -589,10 +592,13 @@ public class KafkaIO {
    */
   public static <K, V> WriteRecords<K, V> writeRecords() {
     return new AutoValue_KafkaIO_WriteRecords.Builder<K, V>()
-        .setProducerConfig(WriteRecords.DEFAULT_PRODUCER_PROPERTIES)
-        .setEOS(false)
-        .setNumShards(0)
-        .setConsumerFactoryFn(KafkaIOUtils.KAFKA_CONSUMER_FACTORY_FN)
+        .setInner(
+            new AutoValue_KafkaIO_WriteRecordsWithOutput.Builder<K, V>()
+                .setProducerConfig(WriteRecordsWithOutput.DEFAULT_PRODUCER_PROPERTIES)
+                .setEOS(false)
+                .setNumShards(0)
+                .setConsumerFactoryFn(KafkaIOUtils.KAFKA_CONSUMER_FACTORY_FN)
+                .build())
         .build();
   }
 
@@ -2282,7 +2288,7 @@ public class KafkaIO {
 
   /**
    * A {@link PTransform} to write to a Kafka topic with ProducerRecord's. See {@link KafkaIO} for
-   * more information on usage and configuration.
+   * more information on usage and configuration, this delegates to WriteRecordsWithOutput.
    */
   @AutoValue
   @AutoValue.CopyAnnotations
@@ -2293,6 +2299,274 @@ public class KafkaIO {
     // parameterized depending on type of input collection (KV, ProducerRecords, etc). In such case,
     // we shouldn't have to duplicate the same API for similar transforms like {@link Write} and
     // {@link WriteRecords}. See example at {@link PubsubIO.Write}.
+
+    abstract @Nullable String getTopic();
+
+    abstract Map<String, Object> getProducerConfig();
+
+    abstract @Nullable SerializableFunction<Map<String, Object>, Producer<K, V>>
+        getProducerFactoryFn();
+
+    abstract @Nullable Class<? extends Serializer<K>> getKeySerializer();
+
+    abstract @Nullable Class<? extends Serializer<V>> getValueSerializer();
+
+    abstract @Nullable KafkaPublishTimestampFunction<ProducerRecord<K, V>>
+        getPublishTimestampFunction();
+
+    // Configuration for EOS sink
+    abstract boolean isEOS();
+
+    abstract @Nullable String getSinkGroupId();
+
+    abstract int getNumShards();
+
+    abstract @Nullable SerializableFunction<Map<String, Object>, ? extends Consumer<?, ?>>
+        getConsumerFactoryFn();
+
+    abstract Builder<K, V> toBuilder();
+
+    abstract WriteRecordsWithOutput<K, V> getInner();
+
+    @AutoValue.Builder
+    abstract static class Builder<K, V> {
+      abstract Builder<K, V> setTopic(String topic);
+
+      abstract Builder<K, V> setProducerConfig(Map<String, Object> producerConfig);
+
+      abstract Builder<K, V> setProducerFactoryFn(
+          SerializableFunction<Map<String, Object>, Producer<K, V>> fn);
+
+      abstract Builder<K, V> setKeySerializer(Class<? extends Serializer<K>> serializer);
+
+      abstract Builder<K, V> setValueSerializer(Class<? extends Serializer<V>> serializer);
+
+      abstract Builder<K, V> setPublishTimestampFunction(
+          KafkaPublishTimestampFunction<ProducerRecord<K, V>> timestampFunction);
+
+      abstract Builder<K, V> setEOS(boolean eosEnabled);
+
+      abstract Builder<K, V> setSinkGroupId(String sinkGroupId);
+
+      abstract Builder<K, V> setNumShards(int numShards);
+
+      abstract Builder<K, V> setConsumerFactoryFn(
+          SerializableFunction<Map<String, Object>, ? extends Consumer<?, ?>> fn);
+
+      abstract Builder<K, V> setInner(WriteRecordsWithOutput<K, V> inner);
+
+      abstract WriteRecords<K, V> build();
+    }
+
+    // WriteRecords(WriteRecordsWithOutput<K, V> inner) {
+    //  this.inner = inner;
+    // }
+
+    /**
+     * Returns a new {@link Write} transform with Kafka producer pointing to {@code
+     * bootstrapServers}.
+     */
+    public WriteRecords<K, V> withBootstrapServers(String bootstrapServers) {
+      // inner = inner.toBuilder().withBootstrapServers(bootstrapServers).build();
+      this.toBuilder().setInner(this.getInner().withBootstrapServers(bootstrapServers)).build();
+      // inner = inner.withBootstrapServers(bootstrapServers);
+      // this.toBuilder().setInner().
+      return this;
+    }
+
+    /**
+     * Sets the default Kafka topic to write to. Use {@code ProducerRecords} to set topic name per
+     * published record.
+     */
+    public WriteRecords<K, V> withTopic(String topic) {
+      this.toBuilder().setInner(this.getInner().withTopic(topic)).build();
+      return this;
+    }
+
+    /**
+     * Sets a {@link Serializer} for serializing key (if any) to bytes.
+     *
+     * <p>A key is optional while writing to Kafka. Note when a key is set, its hash is used to
+     * determine partition in Kafka (see {@link ProducerRecord} for more details).
+     */
+    public WriteRecords<K, V> withKeySerializer(Class<? extends Serializer<K>> keySerializer) {
+      this.toBuilder().setInner(this.getInner().withKeySerializer(keySerializer)).build();
+      return this;
+    }
+
+    /** Sets a {@link Serializer} for serializing value to bytes. */
+    public WriteRecords<K, V> withValueSerializer(Class<? extends Serializer<V>> valueSerializer) {
+      this.toBuilder().setInner(this.getInner().withValueSerializer(valueSerializer)).build();
+      return this;
+    }
+
+    /**
+     * Adds the given producer properties, overriding old values of properties with the same key.
+     *
+     * @deprecated as of version 2.13. Use {@link #withProducerConfigUpdates(Map)} instead.
+     */
+    @Deprecated
+    public WriteRecords<K, V> updateProducerProperties(Map<String, Object> configUpdates) {
+      this.toBuilder().setInner(this.getInner().updateProducerProperties(configUpdates)).build();
+      return this;
+    }
+
+    /**
+     * Update configuration for the producer. Note that the default producer properties will not be
+     * completely overridden. This method only updates the value which has the same key.
+     *
+     * <p>By default, the producer uses the configuration from {@link #DEFAULT_PRODUCER_PROPERTIES}.
+     */
+    public WriteRecords<K, V> withProducerConfigUpdates(Map<String, Object> configUpdates) {
+      this.toBuilder().setInner(this.getInner().withProducerConfigUpdates(configUpdates)).build();
+      return this;
+    }
+
+    /**
+     * Sets a custom function to create Kafka producer. Primarily used for tests. Default is {@link
+     * KafkaProducer}
+     */
+    public WriteRecords<K, V> withProducerFactoryFn(
+        SerializableFunction<Map<String, Object>, Producer<K, V>> producerFactoryFn) {
+      this.toBuilder().setInner(this.getInner().withProducerFactoryFn(producerFactoryFn)).build();
+      return this;
+    }
+
+    /**
+     * The timestamp for each record being published is set to timestamp of the element in the
+     * pipeline. This is equivalent to {@code withPublishTimestampFunction((e, ts) -> ts)}. <br>
+     * NOTE: Kafka's retention policies are based on message timestamps. If the pipeline is
+     * processing messages from the past, they might be deleted immediately by Kafka after being
+     * published if the timestamps are older than Kafka cluster's {@code log.retention.hours}.
+     */
+    public WriteRecords<K, V> withInputTimestamp() {
+      this.toBuilder().setInner(this.getInner().withInputTimestamp()).build();
+      return this;
+    }
+
+    /**
+     * A function to provide timestamp for records being published. <br>
+     * NOTE: Kafka's retention policies are based on message timestamps. If the pipeline is
+     * processing messages from the past, they might be deleted immediately by Kafka after being
+     * published if the timestamps are older than Kafka cluster's {@code log.retention.hours}.
+     *
+     * @deprecated use {@code ProducerRecords} to set publish timestamp.
+     */
+    @Deprecated
+    public WriteRecords<K, V> withPublishTimestampFunction(
+        KafkaPublishTimestampFunction<ProducerRecord<K, V>> timestampFunction) {
+      this.toBuilder()
+          .setInner(this.getInner().withPublishTimestampFunction(timestampFunction))
+          .build();
+      return this;
+    }
+
+    /**
+     * Provides exactly-once semantics while writing to Kafka, which enables applications with
+     * end-to-end exactly-once guarantees on top of exactly-once semantics <i>within</i> Beam
+     * pipelines. It ensures that records written to sink are committed on Kafka exactly once, even
+     * in the case of retries during pipeline execution even when some processing is retried.
+     * Retries typically occur when workers restart (as in failure recovery), or when the work is
+     * redistributed (as in an autoscaling event).
+     *
+     * <p>Beam runners typically provide exactly-once semantics for results of a pipeline, but not
+     * for side effects from user code in transform. If a transform such as Kafka sink writes to an
+     * external system, those writes might occur more than once. When EOS is enabled here, the sink
+     * transform ties checkpointing semantics in compatible Beam runners and transactions in Kafka
+     * (version 0.11+) to ensure a record is written only once. As the implementation relies on
+     * runners checkpoint semantics, not all the runners are compatible. The sink throws an
+     * exception during initialization if the runner is not explicitly allowed. The Dataflow, Flink,
+     * and Spark runners are compatible.
+     *
+     * <p>Note on performance: Exactly-once sink involves two shuffles of the records. In addition
+     * to cost of shuffling the records among workers, the records go through 2
+     * serialization-deserialization cycles. Depending on volume and cost of serialization, the CPU
+     * cost might be noticeable. The CPU cost can be reduced by writing byte arrays (i.e.
+     * serializing them to byte before writing to Kafka sink).
+     *
+     * @param numShards Sets sink parallelism. The state metadata stored on Kafka is stored across
+     *     this many virtual partitions using {@code sinkGroupId}. A good rule of thumb is to set
+     *     this to be around number of partitions in Kafka topic.
+     * @param sinkGroupId The <i>group id</i> used to store small amount of state as metadata on
+     *     Kafka. It is similar to <i>consumer group id</i> used with a {@link KafkaConsumer}. Each
+     *     job should use a unique group id so that restarts/updates of job preserve the state to
+     *     ensure exactly-once semantics. The state is committed atomically with sink transactions
+     *     on Kafka. See {@link KafkaProducer#sendOffsetsToTransaction(Map, String)} for more
+     *     information. The sink performs multiple sanity checks during initialization to catch
+     *     common mistakes so that it does not end up using state that does not <i>seem</i> to be
+     *     written by the same job.
+     */
+    public WriteRecords<K, V> withEOS(int numShards, String sinkGroupId) {
+      this.toBuilder().setInner(this.getInner().withEOS(numShards, sinkGroupId)).build();
+      return this;
+    }
+
+    /**
+     * When exactly-once semantics are enabled (see {@link #withEOS(int, String)}), the sink needs
+     * to fetch previously stored state with Kafka topic. Fetching the metadata requires a consumer.
+     * Similar to {@link Read#withConsumerFactoryFn(SerializableFunction)}, a factory function can
+     * be supplied if required in a specific case. The default is {@link KafkaConsumer}.
+     */
+    public WriteRecords<K, V> withConsumerFactoryFn(
+        SerializableFunction<Map<String, Object>, ? extends Consumer<?, ?>> consumerFactoryFn) {
+      this.toBuilder().setInner(this.getInner().withConsumerFactoryFn(consumerFactoryFn)).build();
+      return this;
+    }
+
+    @Override
+    public PDone expand(PCollection<ProducerRecord<K, V>> input) {
+      input.apply(this.getInner());
+      return PDone.in(input.getPipeline());
+    }
+
+    @Override
+    public void validate(PipelineOptions options) {
+      if (this.getInner().isEOS()) {
+        String runner = options.getRunner().getName();
+        if ("org.apache.beam.runners.direct.DirectRunner".equals(runner)
+            || runner.startsWith("org.apache.beam.runners.dataflow.")
+            || runner.startsWith("org.apache.beam.runners.spark.")
+            || runner.startsWith("org.apache.beam.runners.flink.")) {
+          return;
+        }
+        throw new UnsupportedOperationException(
+            runner
+                + " is not a runner known to be compatible with Kafka exactly-once sink. This"
+                + " implementation of exactly-once sink relies on specific checkpoint guarantees."
+                + " Only the runners with known to have compatible checkpoint semantics are"
+                + " allowed.");
+      }
+    }
+
+    // set config defaults
+    // private static final Map<String, Object> DEFAULT_PRODUCER_PROPERTIES =
+    //    ImmutableMap.of(ProducerConfig.RETRIES_CONFIG, 3);
+
+    /** A set of properties that are not required or don't make sense for our producer. */
+    // private static final Map<String, String> IGNORED_PRODUCER_PROPERTIES =
+    //    ImmutableMap.of(
+    //        ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "Use withKeySerializer instead",
+    //       ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "Use withValueSerializer instead");
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      this.getInner().populateDisplayData(builder);
+    }
+  }
+
+  /**
+   * A {@link PTransform} to write to a Kafka topic with ProducerRecord's and pass on the output.
+   * See {@link KafkaIO} for more information on usage and configuration.
+   */
+  @AutoValue
+  @AutoValue.CopyAnnotations
+  @SuppressWarnings({"rawtypes"})
+  public abstract static class WriteRecordsWithOutput<K, V>
+      extends PTransform<PCollection<ProducerRecord<K, V>>, PDone> {
+    // TODO (Version 3.0): Create the only one generic {@code Write<T>} transform which will be
+    // parameterized depending on type of input collection (KV, ProducerRecords, etc). In such case,
+    // we shouldn't have to duplicate the same API for similar transforms like {@link Write} and
+    // {@link WriteRecordsWithOutput}. See example at {@link PubsubIO.Write}.
 
     abstract @Nullable String getTopic();
 
@@ -2345,14 +2619,14 @@ public class KafkaIO {
       abstract Builder<K, V> setConsumerFactoryFn(
           SerializableFunction<Map<String, Object>, ? extends Consumer<?, ?>> fn);
 
-      abstract WriteRecords<K, V> build();
+      abstract WriteRecordsWithOutput<K, V> build();
     }
 
     /**
      * Returns a new {@link Write} transform with Kafka producer pointing to {@code
      * bootstrapServers}.
      */
-    public WriteRecords<K, V> withBootstrapServers(String bootstrapServers) {
+    public WriteRecordsWithOutput<K, V> withBootstrapServers(String bootstrapServers) {
       return withProducerConfigUpdates(
           ImmutableMap.of(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers));
     }
@@ -2361,7 +2635,7 @@ public class KafkaIO {
      * Sets the default Kafka topic to write to. Use {@code ProducerRecords} to set topic name per
      * published record.
      */
-    public WriteRecords<K, V> withTopic(String topic) {
+    public WriteRecordsWithOutput<K, V> withTopic(String topic) {
       return toBuilder().setTopic(topic).build();
     }
 
@@ -2371,12 +2645,14 @@ public class KafkaIO {
      * <p>A key is optional while writing to Kafka. Note when a key is set, its hash is used to
      * determine partition in Kafka (see {@link ProducerRecord} for more details).
      */
-    public WriteRecords<K, V> withKeySerializer(Class<? extends Serializer<K>> keySerializer) {
+    public WriteRecordsWithOutput<K, V> withKeySerializer(
+        Class<? extends Serializer<K>> keySerializer) {
       return toBuilder().setKeySerializer(keySerializer).build();
     }
 
     /** Sets a {@link Serializer} for serializing value to bytes. */
-    public WriteRecords<K, V> withValueSerializer(Class<? extends Serializer<V>> valueSerializer) {
+    public WriteRecordsWithOutput<K, V> withValueSerializer(
+        Class<? extends Serializer<V>> valueSerializer) {
       return toBuilder().setValueSerializer(valueSerializer).build();
     }
 
@@ -2386,7 +2662,8 @@ public class KafkaIO {
      * @deprecated as of version 2.13. Use {@link #withProducerConfigUpdates(Map)} instead.
      */
     @Deprecated
-    public WriteRecords<K, V> updateProducerProperties(Map<String, Object> configUpdates) {
+    public WriteRecordsWithOutput<K, V> updateProducerProperties(
+        Map<String, Object> configUpdates) {
       Map<String, Object> config =
           KafkaIOUtils.updateKafkaProperties(getProducerConfig(), configUpdates);
       return toBuilder().setProducerConfig(config).build();
@@ -2398,7 +2675,8 @@ public class KafkaIO {
      *
      * <p>By default, the producer uses the configuration from {@link #DEFAULT_PRODUCER_PROPERTIES}.
      */
-    public WriteRecords<K, V> withProducerConfigUpdates(Map<String, Object> configUpdates) {
+    public WriteRecordsWithOutput<K, V> withProducerConfigUpdates(
+        Map<String, Object> configUpdates) {
       Map<String, Object> config =
           KafkaIOUtils.updateKafkaProperties(getProducerConfig(), configUpdates);
       return toBuilder().setProducerConfig(config).build();
@@ -2408,7 +2686,7 @@ public class KafkaIO {
      * Sets a custom function to create Kafka producer. Primarily used for tests. Default is {@link
      * KafkaProducer}
      */
-    public WriteRecords<K, V> withProducerFactoryFn(
+    public WriteRecordsWithOutput<K, V> withProducerFactoryFn(
         SerializableFunction<Map<String, Object>, Producer<K, V>> producerFactoryFn) {
       return toBuilder().setProducerFactoryFn(producerFactoryFn).build();
     }
@@ -2420,7 +2698,7 @@ public class KafkaIO {
      * processing messages from the past, they might be deleted immediately by Kafka after being
      * published if the timestamps are older than Kafka cluster's {@code log.retention.hours}.
      */
-    public WriteRecords<K, V> withInputTimestamp() {
+    public WriteRecordsWithOutput<K, V> withInputTimestamp() {
       return withPublishTimestampFunction(KafkaPublishTimestampFunction.withElementTimestamp());
     }
 
@@ -2433,7 +2711,7 @@ public class KafkaIO {
      * @deprecated use {@code ProducerRecords} to set publish timestamp.
      */
     @Deprecated
-    public WriteRecords<K, V> withPublishTimestampFunction(
+    public WriteRecordsWithOutput<K, V> withPublishTimestampFunction(
         KafkaPublishTimestampFunction<ProducerRecord<K, V>> timestampFunction) {
       return toBuilder().setPublishTimestampFunction(timestampFunction).build();
     }
@@ -2473,7 +2751,7 @@ public class KafkaIO {
      *     common mistakes so that it does not end up using state that does not <i>seem</i> to be
      *     written by the same job.
      */
-    public WriteRecords<K, V> withEOS(int numShards, String sinkGroupId) {
+    public WriteRecordsWithOutput<K, V> withEOS(int numShards, String sinkGroupId) {
       KafkaExactlyOnceSink.ensureEOSSupport();
       checkArgument(numShards >= 1, "numShards should be >= 1");
       checkArgument(sinkGroupId != null, "sinkGroupId is required for exactly-once sink");
@@ -2486,11 +2764,12 @@ public class KafkaIO {
      * Similar to {@link Read#withConsumerFactoryFn(SerializableFunction)}, a factory function can
      * be supplied if required in a specific case. The default is {@link KafkaConsumer}.
      */
-    public WriteRecords<K, V> withConsumerFactoryFn(
+    public WriteRecordsWithOutput<K, V> withConsumerFactoryFn(
         SerializableFunction<Map<String, Object>, ? extends Consumer<?, ?>> consumerFactoryFn) {
       return toBuilder().setConsumerFactoryFn(consumerFactoryFn).build();
     }
 
+    // TODO: Set KafkaWriteREsult
     @Override
     public PDone expand(PCollection<ProducerRecord<K, V>> input) {
       checkArgument(
@@ -2500,20 +2779,24 @@ public class KafkaIO {
       checkArgument(getKeySerializer() != null, "withKeySerializer() is required");
       checkArgument(getValueSerializer() != null, "withValueSerializer() is required");
 
+      /*
       if (isEOS()) {
-        checkArgument(getTopic() != null, "withTopic() is required when isEOS() is true");
-        KafkaExactlyOnceSink.ensureEOSSupport();
+          checkArgument(getTopic() != null, "withTopic() is required when isEOS() is true");
+          KafkaExactlyOnceSink.ensureEOSSupport();
 
-        // TODO: Verify that the group_id does not have existing state stored on Kafka unless
-        //       this is an upgrade. This avoids issues with simple mistake of reusing group_id
-        //       across multiple runs or across multiple jobs. This is checked when the sink
-        //       transform initializes while processing the output. It might be better to
-        //       check here to catch common mistake.
-
-        input.apply(new KafkaExactlyOnceSink<>(this));
+          // TODO: Verify that the group_id does not have existing state stored on Kafka unless
+          //       this is an upgrade. This avoids issues with simple mistake of reusing group_id
+          //       across multiple runs or across multiple jobs. This is checked when the sink
+          //       transform initializes while processing the output. It might be better to
+          //       check here to catch common mistake.
+          // TODO: Return proper values to KafkaWriteResult
+          input.apply(new KafkaExactlyOnceSink<>(this));
+          return KafkaWriteResult.in(input.getPipeline(), null, null, null);
       } else {
-        input.apply(ParDo.of(new KafkaWriter<>(this)));
-      }
+          return KafkaWriteResult.in(
+                  input.getPipeline(), null, null, input.apply(ParDo.of(new KafkaWriter<>(this))));
+      }*/
+      input.apply(ParDo.of(new KafkaWriter<>(this)));
       return PDone.in(input.getPipeline());
     }
 
