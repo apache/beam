@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package preparators
+package preparers
 
 import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
@@ -40,7 +40,7 @@ func Test_replace(t *testing.T) {
 	lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, uuid.New(), filepath.Join(path, "temp"))
 	_ = lc.CreateFolders()
 	defer os.RemoveAll(filepath.Join(path, "temp"))
-	_, _ = lc.CreateSourceCodeFile(codeWithPublicClass)
+	_ = lc.CreateSourceCodeFile(codeWithPublicClass)
 
 	type args struct {
 		args []interface{}
@@ -58,14 +58,14 @@ func Test_replace(t *testing.T) {
 		},
 		{
 			name:     "original file exists",
-			args:     args{[]interface{}{lc.GetAbsoluteSourceFilePath(), classWithPublicModifierPattern, classWithoutPublicModifierPattern}},
+			args:     args{[]interface{}{lc.Paths.AbsoluteSourceFilePath, classWithPublicModifierPattern, classWithoutPublicModifierPattern}},
 			wantCode: codeWithoutPublicClass,
 			wantErr:  false,
 		},
 		{
 			// Test that file where package is used changes to import all dependencies from this package
 			name:     "original file with package",
-			args:     args{[]interface{}{lc.GetAbsoluteSourceFilePath(), packagePattern, importStringPattern}},
+			args:     args{[]interface{}{lc.Paths.AbsoluteSourceFilePath, packagePattern, importStringPattern}},
 			wantCode: codeWithImportedPackage,
 			wantErr:  false,
 		},
@@ -88,9 +88,11 @@ func Test_replace(t *testing.T) {
 	}
 }
 
-func TestGetJavaPreparators(t *testing.T) {
+func TestGetJavaPreparers(t *testing.T) {
 	type args struct {
-		filePath string
+		filePath   string
+		isUnitTest bool
+		isKata     bool
 	}
 	tests := []struct {
 		name string
@@ -98,15 +100,27 @@ func TestGetJavaPreparators(t *testing.T) {
 		want int
 	}{
 		{
-			name: "all success",
-			args: args{"MOCK_FILEPATH"},
-			want: 4,
+			name: "Test number of preparers for code",
+			args: args{"MOCK_FILEPATH", false, false},
+			want: 2,
+		},
+		{
+			name: "Test number of preparers for unit test",
+			args: args{"MOCK_FILEPATH", true, false},
+			want: 2,
+		},
+		{
+			name: "Test number of preparers for kata",
+			args: args{"MOCK_FILEPATH", false, true},
+			want: 2,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := GetJavaPreparators(tt.args.filePath); len(*got) != tt.want {
-				t.Errorf("GetJavaPreparation() returns %v Preparators, want %v", len(*got), tt.want)
+			builder := NewPreparersBuilder(tt.args.filePath)
+			GetJavaPreparers(builder, tt.args.isUnitTest, tt.args.isKata)
+			if got := builder.Build().GetPreparers(); len(*got) != tt.want {
+				t.Errorf("GetJavaPreparation() returns %v Preparers, want %v", len(*got), tt.want)
 			}
 		})
 	}
@@ -121,7 +135,7 @@ func Test_changeJavaTestFileName(t *testing.T) {
 	lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, uuid.New(), filepath.Join(path, "temp"))
 	_ = lc.CreateFolders()
 	defer os.RemoveAll(filepath.Join(path, "temp"))
-	_, _ = lc.CreateSourceCodeFile(codeWithPublicClass)
+	_ = lc.CreateSourceCodeFile(codeWithPublicClass)
 	validationResults := sync.Map{}
 	validationResults.Store(validators.UnitTestValidatorName, true)
 
@@ -137,7 +151,7 @@ func Test_changeJavaTestFileName(t *testing.T) {
 		{
 			// Test that file changes its name to the name of its public class
 			name:     "file with java unit test code to be renamed",
-			args:     args{[]interface{}{lc.GetAbsoluteSourceFilePath(), &validationResults}},
+			args:     args{[]interface{}{lc.Paths.AbsoluteSourceFilePath, &validationResults}},
 			wantErr:  false,
 			wantName: "Class.java",
 		},
@@ -147,7 +161,7 @@ func Test_changeJavaTestFileName(t *testing.T) {
 			if err := changeJavaTestFileName(tt.args.args...); (err != nil) != tt.wantErr {
 				t.Errorf("changeJavaTestFileName() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			files, err := filepath.Glob(fmt.Sprintf("%s/*java", lc.GetAbsoluteSourceFolderPath()))
+			files, err := filepath.Glob(fmt.Sprintf("%s/*java", lc.Paths.AbsoluteSourceFileFolderPath))
 			if err != nil {
 				t.Errorf("changeJavaTestFileName() error = %v, wantErr %v", err, tt.wantErr)
 			}

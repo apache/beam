@@ -444,8 +444,8 @@ class BeamModulePlugin implements Plugin<Project> {
     // Maven artifacts.
     def activemq_version = "5.14.5"
     def autovalue_version = "1.8.2"
-    def aws_java_sdk_version = "1.12.106"
-    def aws_java_sdk2_version = "2.17.77"
+    def aws_java_sdk_version = "1.12.135"
+    def aws_java_sdk2_version = "2.17.106"
     def cassandra_driver_version = "3.10.2"
     def checkerframework_version = "3.10.0"
     def classgraph_version = "4.8.104"
@@ -515,6 +515,7 @@ class BeamModulePlugin implements Plugin<Project> {
         aws_java_sdk2_dynamodb                      : "software.amazon.awssdk:dynamodb:$aws_java_sdk2_version",
         aws_java_sdk2_kinesis                       : "software.amazon.awssdk:kinesis:$aws_java_sdk2_version",
         aws_java_sdk2_sdk_core                      : "software.amazon.awssdk:sdk-core:$aws_java_sdk2_version",
+        aws_java_sdk2_aws_core                      : "software.amazon.awssdk:aws-core:$aws_java_sdk2_version",
         aws_java_sdk2_sns                           : "software.amazon.awssdk:sns:$aws_java_sdk2_version",
         aws_java_sdk2_sqs                           : "software.amazon.awssdk:sqs:$aws_java_sdk2_version",
         aws_java_sdk2_sts                           : "software.amazon.awssdk:sts:$aws_java_sdk2_version",

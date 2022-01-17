@@ -19,6 +19,18 @@
   "@run": {
     "description": "Title for the run button"
   },
+  "cancel": "Cancel",
+  "@cancel": {
+    "description": "Title for the cancel button"
+  },
+  "cancelExecution": "Cancel Execution",
+  "@cancelExecution": {
+    "description": "Title for the cancel execution notification"
+  },
+  "unknownExample": "Unknown Example",
+  "@unknownExample": {
+    "description": "Unknown example text part"
+  },
   "log": "Log",
   "@log": {
     "description": "Title for the log section"
