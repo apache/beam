@@ -124,7 +124,13 @@ class _ExampleSelectorState extends State<ExampleSelector>
           builder: (context, exampleState, playgroundState, child) => Stack(
             children: [
               GestureDetector(
-                onTap: () => closeDropdown(exampleState),
+                onTap: () {
+                  closeDropdown(exampleState);
+                  // handle description dialogs
+                  Navigator.of(context, rootNavigator: true).popUntil((route) {
+                    return route.isFirst;
+                  });
+                },
                 child: Container(
                   color: Colors.transparent,
                   height: double.infinity,
