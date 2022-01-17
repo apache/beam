@@ -11,6 +11,7 @@ import yaml = require("js-yaml");
 import fs = require("fs");
 import util = require("util");
 import { GlobalWindow, Timing } from "../src/apache_beam/values";
+import { IterableCoder } from "../src/apache_beam/coders/required_coders";
 
 const STANDARD_CODERS_FILE =
   "../../model/fn-execution/src/main/resources/org/apache/beam/model/fnexecution/v1/standard_coders.yaml";
@@ -172,20 +173,35 @@ function coderCase<T>(
   context,
   non_deterministic
 ) {
-  if (!non_deterministic) {
-    it(
-      util.format(
-        "encodes %s to %s",
-        util.inspect(obj, { colors: true, depth: Infinity }),
-        Buffer.from(expectedEncoded).toString("hex")
-      ),
-      function () {
-        var writer = new Writer();
-        coder.encode(obj, writer, context);
-        assertions.deepEqual(writer.finish(), expectedEncoded);
+  let encodeObj;
+  // Normally we would not support non-deterministic cases, but in the
+  // implementation that we have, the non-deterministic encodings happen
+  // to match our samples.
+  if (non_deterministic && coder instanceof IterableCoder) {
+    // We support the particular case of iterables of unknown length.
+    // The encoding here is not deterministic, but the test case works
+    // fine.
+    let typedIterable: Iterable<any> = (function* it() {
+      for(let elm in obj) {
+        yield obj[elm];
       }
-    );
+    })();
+    encodeObj = typedIterable;
+  } else {
+    encodeObj = obj;
   }
+  it(
+    util.format(
+      "encodes %s to %s",
+      util.inspect(encodeObj, { colors: true, depth: Infinity }),
+      Buffer.from(expectedEncoded).toString("hex")
+    ),
+    function () {
+      var writer = new Writer();
+      coder.encode(encodeObj, writer, context);
+      assertions.deepEqual(writer.finish(), expectedEncoded);
+    }
+  );
 
   it(
     util.format(

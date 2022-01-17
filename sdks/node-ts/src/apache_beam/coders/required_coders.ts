@@ -66,8 +66,6 @@ export class BytesCoder implements Coder<Uint8Array> {
    * @param context - whether to encode the data with delimiters (`Context.needsDelimiters`), or without (`Context.wholeStream`).
    */
   encode(value: Uint8Array, writer: Writer, context: Context) {
-    var len = value.length;
-    var hackedWriter = <any>writer;
     switch (context) {
       case Context.wholeStream:
         writeRawBytes(value, writer);
@@ -119,6 +117,9 @@ export class BytesCoder implements Coder<Uint8Array> {
 
 globalRegistry().register(BytesCoder.URN, BytesCoder);
 
+/**
+ * A coder for a key-value pair.
+ */
 export class KVCoder<K, V> implements Coder<KV<K, V>> {
   static URN: string = "beam:coder:kv:v1";
   type: string = "kvcoder";
@@ -131,6 +132,43 @@ export class KVCoder<K, V> implements Coder<KV<K, V>> {
     this.valueCoder = valueCoder;
   }
 
+  /**
+   * Encode the input element (a key-value pair) into a byte output stream. They key and value are encoded one after the
+   * other (first key, then value). The key is encoded with `Context.needsDelimiters`, while the value is encoded with
+   * the input context of the `KVCoder`.
+   *
+   * For example:
+   * ```js
+   * let w1 = new Writer()
+   * let data = {'key': 'k1', 'value': 'v1'}
+   * new KVCoder(new StrUtf8Coder(), new StrUtf8Coder()).encode(data, w1, Context.needsDelimiters)
+   * console.log(w1.finish())  // ==> prints  Uint8Array(6) [ 2, 107, 49, 2, 118, 49 ]
+   * // Note that bytes with value 2 represent length prefixes, and other bytes represent the encoded strings.
+   * ```
+   * @param element - the element to be encoded into an output byte stream
+   * @param writer - the writer that interfaces with the output byte stream
+   * @param context - whether to encode the data with delimiters (`Context.needsDelimiters`), or without (`Context.wholeStream`).
+   */
+  encode(element: KV<K, V>, writer: Writer, context: Context) {
+    this.keyCoder.encode(element.key, writer, Context.needsDelimiters);
+    this.valueCoder.encode(element.value, writer, context);
+  }
+
+  /**
+   * Decode the input byte stream into a `KV` element.
+   * @param reader
+   * @param context
+   * @returns the decoded element into a `KV`-typed object.
+   */
+  decode(reader: Reader, context: Context): KV<K, V> {
+    var key = this.keyCoder.decode(reader, Context.needsDelimiters);
+    var value = this.valueCoder.decode(reader, context);
+    return {
+      key: key,
+      value: value,
+    };
+  }
+
   toProto(pipelineContext: PipelineContext): runnerApi.Coder {
     return {
       spec: {
@@ -141,20 +179,6 @@ export class KVCoder<K, V> implements Coder<KV<K, V>> {
         pipelineContext.getCoderId(this.keyCoder),
         pipelineContext.getCoderId(this.valueCoder),
       ],
-    };
-  }
-
-  encode(element: KV<K, V>, writer: Writer, context: Context) {
-    this.keyCoder.encode(element.key, writer, Context.needsDelimiters);
-    this.valueCoder.encode(element.value, writer, context);
-  }
-
-  decode(reader: Reader, context: Context): KV<K, V> {
-    var key = this.keyCoder.decode(reader, Context.needsDelimiters);
-    var value = this.valueCoder.decode(reader, context);
-    return {
-      key: key,
-      value: value,
     };
   }
 }
@@ -174,6 +198,9 @@ function swapEndian32(x: number): number {
   );
 }
 
+/**
+ * A coder for a 'list' or a series of elements of the same type.
+ */
 export class IterableCoder<T> implements Coder<Iterable<T>> {
   static URN: string = "beam:coder:iterable:v1";
   type: string = "iterablecoder";
@@ -184,17 +211,48 @@ export class IterableCoder<T> implements Coder<Iterable<T>> {
     this.elementCoder = elementCoder;
   }
 
-  toProto(pipelineContext: PipelineContext): runnerApi.Coder {
-    return {
-      spec: {
-        urn: IterableCoder.URN,
-        payload: new Uint8Array(),
-      },
-      componentCoderIds: [pipelineContext.getCoderId(this.elementCoder)],
-    };
-  }
-
+  /**
+   * Encode the input iterable into a byte output stream. Elements can be encoded in two different ways:
+   *
+   * - If the length of the input iterable is known a-priori, then the length is encoded with a 32-bit
+   *     fixed-length integer.
+   * - If the length of the input iterable is not known a-priori, then a 32-bit integer with a value
+   *     of `-1` is encoded in the first position (instead of the length), and
+   *
+   * Then, each element is encoded individually in `Context.needsDelimiters`.
+   *
+   * For example:
+   * ```js
+   * let w1 = new Writer()
+   * let data = ["a", "b", "c"]
+   * new IterableCoder(new StrUtf8Coder()).encode(data, w1, Context.needsDelimiters)
+   * console.log(w1.finish())  // ==> prints
+   * // Uint8Array(10) [
+   * //    0, 0,  0, 3,  1,
+   * //    97, 1, 98, 1, 99
+   * // ]
+   * // The first 4 bytes represent the 32-bit-encoded length of the iterable (0,0,0,3),
+   * // and the next 6 bytes represent each of the elements in the iterable with their length
+   * // encoded as a prefixed var int (1), and their values afterwards (97, 98, 99).
+   * let w2 = new Writer()
+   * let data = ["a", "b", "c"]
+   * let encodeIterable = function* gen() {yield *data}
+   * new IterableCoder(new StrUtf8Coder()).encode(encodeIterable, w2, Context.needsDelimiters)
+   * console.log(w2.finish())  // ==> prints
+   * // Uint8Array(11) [
+   * //    255, 255, 255, 255,
+   * //    3, 1, 97, 1, 98,
+   * //    1, 99, 0,
+   * // ]
+   * // The first 4 bytes represent the 32-bit-encoded -1 to represent unknown length of the
+   * //  iterable, the next byte represents the length of the upcoming batch (3),
+   * //  and the next 6 bytes represent each of the elements in the iterable with their length
+   * // encoded as a prefixed var int (1), and their values afterwards (97, 98, 99).
+   * // Finally, the last byte tags the end of the iterable as a zero (0)
+   * ```
+   */
   encode(element: Iterable<T>, writer: Writer, context: Context) {
+    const elmLen = (element as Array<T>).length;
     if ((element as Array<T>).length !== undefined) {
       const eArray = element as Array<T>;
       writer.fixed32(swapEndian32(eArray.length));
@@ -202,7 +260,28 @@ export class IterableCoder<T> implements Coder<Iterable<T>> {
         this.elementCoder.encode(eArray[i], writer, Context.needsDelimiters);
       }
     } else {
-      throw new Error("Length-unknown iterables are not yet implemented");
+      writer.fixed32(swapEndian32(-1));
+      const _MAX_BATCH_LEN = 100;
+      let batch: Array<T> = [];
+      for (let v of element) {
+        batch.push(v);
+        if (batch.length >= _MAX_BATCH_LEN) {
+          this._flushBatch(batch, writer);
+          batch = [];
+        }
+      }
+      if (batch.length > 0) {
+        this._flushBatch(batch, writer);
+        batch = [];
+      }
+      writer.int32(0);
+    }
+  }
+
+  _flushBatch(batch: Array<T>, writer: Writer) {
+    writer.int32(batch.length);
+    for (let batchElm of batch) {
+      this.elementCoder.encode(batchElm, writer, Context.needsDelimiters);
     }
   }
 
@@ -229,6 +308,16 @@ export class IterableCoder<T> implements Coder<Iterable<T>> {
         }
       }
     }
+  }
+
+  toProto(pipelineContext: PipelineContext): runnerApi.Coder {
+    return {
+      spec: {
+        urn: IterableCoder.URN,
+        payload: new Uint8Array(),
+      },
+      componentCoderIds: [pipelineContext.getCoderId(this.elementCoder)],
+    };
   }
 }
 
