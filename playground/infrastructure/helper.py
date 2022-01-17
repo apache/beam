@@ -57,11 +57,11 @@ class Example:
   code: str
   status: STATUS_UNSPECIFIED
   tag: Tag
+  link: str
   logs: str = ""
   type: PrecompiledObjectType = PRECOMPILED_OBJECT_TYPE_UNSPECIFIED
   pipeline_id: str = ""
   output: str = ""
-  link: str = ""
 
 
 @dataclass
