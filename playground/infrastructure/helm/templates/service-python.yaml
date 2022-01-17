@@ -19,7 +19,7 @@ metadata:
   labels:
     app: service-python
   annotations:
-    cloud.google.com/neg: '{"exposed_ports": {"8081":{}}}'
+    cloud.google.com/neg: '{"exposed_ports": {"8080":{}}}'
 spec:
   ports:
   - name: 8080-8081

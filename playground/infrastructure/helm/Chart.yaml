@@ -16,5 +16,5 @@ apiVersion: v2
 name: playground
 description: A Helm chart for Apache Beam Application Deployment
 type: application
-version: beta
+version: 0.0.1
 appVersion: "1.16.0"
