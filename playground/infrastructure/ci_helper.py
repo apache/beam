@@ -81,11 +81,11 @@ class CIHelper:
       elif example.status == STATUS_RUN_TIMEOUT:
         logging.error("Example: %s failed because of timeout", example.filepath)
       elif example.status == STATUS_COMPILE_ERROR:
-        err = await client.get_compile_output(example.filepath)
+        err = await client.get_compile_output(example.pipeline_id)
         logging.error(
             "Example: %s has compilation error: %s", example.filepath, err)
       elif example.status == STATUS_RUN_ERROR:
-        err = await client.get_run_error(example.filepath)
+        err = await client.get_run_error(example.pipeline_id)
         logging.error(
             "Example: %s has execution error: %s", example.filepath, err)
       verify_status_failed = True

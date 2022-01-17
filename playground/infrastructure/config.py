@@ -77,3 +77,8 @@ class PrecompiledExampleType:
   examples = "examples"
   katas = "katas"
   test_ends = ("test", "it")
+
+@dataclass(frozen=True)
+class OptionalTagFields:
+  pipeline_options: str = "pipeline_options"
+  default_example: str = "default_example"

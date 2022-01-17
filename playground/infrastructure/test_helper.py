@@ -273,7 +273,7 @@ async def test__update_example_status(
       code="code",
       output="output",
       status=STATUS_UNSPECIFIED,
-      tag={"pipeline_options": "--key value"})
+      tag=Tag("", "desc", False, [], "--key value"))
 
   mock_grpc_client_run_code.return_value = "pipeline_id"
   mock_grpc_client_check_status.side_effect = [

@@ -32,7 +32,7 @@ from api.v1.api_pb2 import SDK_UNSPECIFIED, STATUS_UNSPECIFIED, Sdk, \
   STATUS_COMPILING, STATUS_EXECUTING, PRECOMPILED_OBJECT_TYPE_UNIT_TEST, \
   PRECOMPILED_OBJECT_TYPE_KATA, PRECOMPILED_OBJECT_TYPE_UNSPECIFIED, \
   PRECOMPILED_OBJECT_TYPE_EXAMPLE, PrecompiledObjectType
-from config import Config, TagFields, PrecompiledExampleType
+from config import Config, TagFields, PrecompiledExampleType, OptionalTagFields
 from grpc_client import GRPCClient
 
 Tag = namedtuple(
@@ -44,7 +44,7 @@ Tag = namedtuple(
         TagFields.categories,
         TagFields.pipeline_options,
         TagFields.default_example
-    ])
+    ], defaults=(None, None, None, None, None, None))
 
 
 @dataclass
@@ -269,24 +269,27 @@ def _validate(tag: dict, supported_categories: List[str]) -> bool:
       In case tag is not valid, False
   """
   valid = True
+  tag_fields = {f.default for f in fields(TagFields)
+                if f.default not in
+                {o_f.default for o_f in fields(OptionalTagFields)}}
   # check that all fields exist and they have no empty value
-  for field in fields(TagFields):
-    if field.default not in tag:
+  for field in tag_fields:
+    if field not in tag:
       logging.error(
           "tag doesn't contain %s field: %s \n"
           "Please, check that this field exists in the beam playground tag."
           "If you are sure that this field exists in the tag"
           " check the format of indenting.",
-          field.default,
+          field,
           tag.__str__())
       valid = False
 
-    value = tag.get(field.default)
+    value = tag.get(field)
     if value == "" or value is None:
       logging.error(
           "tag's value is incorrect: %s\nvalue for %s field can not be empty.",
           tag.__str__(),
-          field.default.__str__())
+          field.__str__())
       valid = False
 
   if valid is False:
@@ -355,7 +358,7 @@ async def _update_example_status(example: Example, client: GRPCClient):
       client: client to send requests to the server.
   """
   pipeline_id = await client.run_code(
-      example.code, example.sdk, example.tag[TagFields.pipeline_options])
+      example.code, example.sdk, example.tag.pipeline_options)
   example.pipeline_id = pipeline_id
   status = await client.check_status(pipeline_id)
   while status in [STATUS_VALIDATING,
