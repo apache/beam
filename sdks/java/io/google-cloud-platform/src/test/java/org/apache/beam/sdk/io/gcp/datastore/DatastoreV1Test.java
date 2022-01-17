@@ -623,6 +623,35 @@ public class DatastoreV1Test {
   }
 
   /**
+   * Tests {@link DatastoreWriterFn} with duplicated entries. Once a duplicated entry is found the
+   * batch gets flushed.
+   */
+  @Test
+  public void testDatatoreWriterFnWithDuplicatedEntities() throws Exception {
+
+    List<Mutation> mutations = new ArrayList<>(200);
+
+    for (int i = 1; i <= 180; i++) {
+      mutations.add(
+          makeUpsert(Entity.newBuilder().setKey(makeKey("key" + i, i + 1)).build()).build());
+
+      if (i % 90 == 0) {
+        mutations.add(
+            makeUpsert(Entity.newBuilder().setKey(makeKey("key" + i, i + 1)).build()).build());
+      }
+    }
+
+    DatastoreWriterFn datastoreWriter =
+        new DatastoreWriterFn(
+            StaticValueProvider.of(PROJECT_ID), null, mockDatastoreFactory, new FakeWriteBatcher());
+    DoFnTester<Mutation, Void> doFnTester = DoFnTester.of(datastoreWriter);
+    doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
+    doFnTester.processBundle(mutations);
+
+    verifyMetricWasSet("BatchDatastoreWrite", "ok", "", 5);
+  }
+
+  /**
    * Tests {@link DatastoreV1.Read#getEstimatedSizeBytes} to fetch and return estimated size for a
    * query.
    */
