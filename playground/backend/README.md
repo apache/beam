@@ -114,11 +114,3 @@ The following diagram represents the execution of beam code at the server:
 ### Validators/preparators representation
 To clarify which validators and preparators used with the code:
 ![](ValidatorsPreparators.png)
-
-## Deployment
-
-TBD
-
-## How to Contribute
-
-TBD
