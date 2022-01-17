@@ -1266,6 +1266,84 @@ public class DataflowRunnerTest implements Serializable {
   }
 
   @Test
+  public void testStageDuplicatedArtifacts() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+
+    File foo = File.createTempFile("foo-", ".txt");
+    foo.deleteOnExit();
+    File bar = File.createTempFile("bar-", ".txt");
+    bar.deleteOnExit();
+
+    RunnerApi.ArtifactInformation foo1LocalArtifact =
+        RunnerApi.ArtifactInformation.newBuilder()
+            .setTypeUrn(BeamUrns.getUrn(RunnerApi.StandardArtifacts.Types.FILE))
+            .setTypePayload(
+                RunnerApi.ArtifactFilePayload.newBuilder()
+                    .setPath(foo.getAbsolutePath())
+                    .build()
+                    .toByteString())
+            .setRoleUrn(BeamUrns.getUrn(RunnerApi.StandardArtifacts.Roles.STAGING_TO))
+            .setRolePayload(
+                RunnerApi.ArtifactStagingToRolePayload.newBuilder()
+                    .setStagedName("foo_staged1.jar")
+                    .build()
+                    .toByteString())
+            .build();
+    RunnerApi.ArtifactInformation foo2LocalArtifact =
+        RunnerApi.ArtifactInformation.newBuilder()
+            .setTypeUrn(BeamUrns.getUrn(RunnerApi.StandardArtifacts.Types.FILE))
+            .setTypePayload(
+                RunnerApi.ArtifactFilePayload.newBuilder()
+                    .setPath(foo.getAbsolutePath())
+                    .build()
+                    .toByteString())
+            .setRoleUrn(BeamUrns.getUrn(RunnerApi.StandardArtifacts.Roles.STAGING_TO))
+            .setRolePayload(
+                RunnerApi.ArtifactStagingToRolePayload.newBuilder()
+                    .setStagedName("foo_staged2.jar")
+                    .build()
+                    .toByteString())
+            .build();
+    RunnerApi.ArtifactInformation barLocalArtifact =
+        RunnerApi.ArtifactInformation.newBuilder()
+            .setTypeUrn(BeamUrns.getUrn(RunnerApi.StandardArtifacts.Types.FILE))
+            .setTypePayload(
+                RunnerApi.ArtifactFilePayload.newBuilder()
+                    .setPath(bar.getAbsolutePath())
+                    .build()
+                    .toByteString())
+            .setRoleUrn(BeamUrns.getUrn(RunnerApi.StandardArtifacts.Roles.STAGING_TO))
+            .setRolePayload(
+                RunnerApi.ArtifactStagingToRolePayload.newBuilder()
+                    .setStagedName("bar_staged.jar")
+                    .build()
+                    .toByteString())
+            .build();
+    RunnerApi.Environment env1 =
+        RunnerApi.Environment.newBuilder()
+            .addAllDependencies(ImmutableList.of(foo1LocalArtifact, barLocalArtifact))
+            .build();
+    RunnerApi.Environment env2 =
+        RunnerApi.Environment.newBuilder()
+            .addAllDependencies(ImmutableList.of(foo2LocalArtifact, barLocalArtifact))
+            .build();
+    RunnerApi.Pipeline pipeline =
+        RunnerApi.Pipeline.newBuilder()
+            .setComponents(
+                RunnerApi.Components.newBuilder()
+                    .putEnvironments("env1", env1)
+                    .putEnvironments("env2", env2))
+            .build();
+    List<DataflowPackage> packages = runner.stageArtifacts(pipeline);
+    List<String> packageNames =
+        packages.stream().map(DataflowPackage::getName).collect(Collectors.toList());
+    assertThat(packageNames.size(), equalTo(3));
+    assertThat(
+        packageNames, containsInAnyOrder("foo_staged1.jar", "foo_staged2.jar", "bar_staged.jar"));
+  }
+
+  @Test
   public void testResolveArtifacts() throws IOException {
     DataflowPipelineOptions options = buildPipelineOptions();
     DataflowRunner runner = DataflowRunner.fromOptions(options);

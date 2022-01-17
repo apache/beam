@@ -102,10 +102,10 @@ func (e *ExpansionServiceRunner) StartService() error {
 func (e *ExpansionServiceRunner) StopService() error {
 	expansionProcess := e.serviceCommand.Process
 	if expansionProcess == nil {
-		return fmt.Errorf("Process does not exist for runner %v", e)
+		return fmt.Errorf("process does not exist for runner %v", e)
 	}
 	if e.serviceCommand.ProcessState != nil {
-		return fmt.Errorf("Process has already completed, state: %v", e)
+		return fmt.Errorf("process has already completed, state: %v", e)
 	}
 	return expansionProcess.Kill()
 }
