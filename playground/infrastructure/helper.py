@@ -222,8 +222,7 @@ def get_supported_categories(categories_path: str) -> List[str]:
     return yaml_object[TagFields.categories]
 
 
-def _get_example(
-    filepath: str, filename: str, tag: ExampleTag) -> Example:
+def _get_example(filepath: str, filename: str, tag: ExampleTag) -> Example:
   """
   Return an Example by filepath and filename.
 
@@ -241,7 +240,8 @@ def _get_example(
   with open(filepath, encoding="utf-8") as parsed_file:
     content = parsed_file.read()
   content = content.replace(tag.tag_as_string, "")
-  link = Config.LINK_PREFIX + (filepath.replace(os.getenv("BEAM_ROOT_DIR"), "", 1))
+  root_dir = os.getenv("BEAM_ROOT_DIR", "")
+  link = "{}{}".format(Config.LINK_PREFIX, (filepath.replace(root_dir, "", 1)))
 
   return Example(
       name=name,

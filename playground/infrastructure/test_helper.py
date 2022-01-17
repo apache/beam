@@ -20,7 +20,7 @@ import pytest
 
 from api.v1.api_pb2 import SDK_UNSPECIFIED, STATUS_UNSPECIFIED, \
   STATUS_VALIDATING, \
-  STATUS_FINISHED, SDK_JAVA, SDK_PYTHON, SDK_GO, \
+  STATUS_FINISHED, SDK_JAVA, \
   PRECOMPILED_OBJECT_TYPE_EXAMPLE, PRECOMPILED_OBJECT_TYPE_KATA, \
   PRECOMPILED_OBJECT_TYPE_UNIT_TEST
 from grpc_client import GRPCClient
@@ -38,7 +38,7 @@ def test_find_examples_with_valid_tag(mock_os_walk, mock_check_file):
   sdk = SDK_UNSPECIFIED
   result = find_examples(work_dir="", supported_categories=[], sdk=sdk)
 
-  assert result == []
+  assert not result
   mock_os_walk.assert_called_once_with("")
   mock_check_file.assert_called_once_with(
       examples=[],
@@ -56,9 +56,8 @@ def test_find_examples_with_invalid_tag(mock_os_walk, mock_check_file):
   sdk = SDK_UNSPECIFIED
   with pytest.raises(
       ValueError,
-      match=
-      "Some of the beam examples contain beam playground tag with an incorrect format"
-  ):
+      match="Some of the beam examples contain beam playground tag with "
+      "an incorrect format"):
     find_examples("", [], sdk=sdk)
 
   mock_os_walk.assert_called_once_with("")
@@ -171,22 +170,16 @@ def test_get_supported_categories():
 @mock.patch("helper._get_name")
 def test__get_example(mock_get_name):
   mock_get_name.return_value = "filepath"
-  tag = ExampleTag(
-      {
-          "name": "Name",
-          "description": "Description",
-          "multifile": "False",
-          "categories": [""],
-          "pipeline_options": "--option option"
-      },
-      ""
-  )
+  tag = ExampleTag({
+      "name": "Name",
+      "description": "Description",
+      "multifile": "False",
+      "categories": [""],
+      "pipeline_options": "--option option"
+  },
+                   "")
 
-  result = _get_example(
-      "/root/filepath.java",
-      "filepath.java",
-      tag
-  )
+  result = _get_example("/root/filepath.java", "filepath.java", tag)
 
   assert result == Example(
       name="filepath",
@@ -194,7 +187,8 @@ def test__get_example(mock_get_name):
       filepath="/root/filepath.java",
       code="data",
       status=STATUS_UNSPECIFIED,
-      tag=Tag("Name", "Description", "False", [""], "--option option"))
+      tag=Tag("Name", "Description", "False", [""], "--option option"),
+      link="https://github.com/apache/beam/blob/master/root/filepath.java")
   mock_get_name.assert_called_once_with("filepath.java")
 
 
@@ -284,7 +278,8 @@ async def test__update_example_status(
 
   assert example.pipeline_id == "pipeline_id"
   assert example.status == STATUS_FINISHED
-  mock_grpc_client_run_code.assert_called_once_with(example.code, example.sdk, "--key value")
+  mock_grpc_client_run_code.assert_called_once_with(
+      example.code, example.sdk, "--key value")
   mock_grpc_client_check_status.assert_has_calls([mock.call("pipeline_id")])
 
 
