@@ -34,7 +34,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"reflect"
 	"sync"
 	"time"
@@ -61,117 +60,62 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 		DeleteFolders(pipelineId, lc)
 	}(lc)
 
-	errorChannel := make(chan error, 1)
-	successChannel := make(chan bool, 1)
 	cancelChannel := make(chan bool, 1)
-	stopReadLogsChannel := make(chan bool, 1)
-	finishReadLogsChannel := make(chan bool, 1)
+
 	var validationResults sync.Map
 
 	go cancelCheck(pipelineLifeCycleCtx, pipelineId, cancelChannel, cacheService)
 
-	executorBuilder, err := builder.SetupExecutorBuilder(lc, utils.ReduceWhiteSpacesToSinge(pipelineOptions), sdkEnv)
+	executor := validateStep(ctx, cacheService, &lc.Paths, pipelineId, sdkEnv, pipelineLifeCycleCtx, &validationResults, cancelChannel)
+	if executor == nil {
+		return
+	}
+
+	executor = prepareStep(ctx, cacheService, &lc.Paths, pipelineId, sdkEnv, pipelineLifeCycleCtx, &validationResults, cancelChannel)
+	if executor == nil {
+		return
+	}
+
+	// Check if is unit test
+	validateIsUnitTest, _ := validationResults.Load(validators.UnitTestValidatorName)
+	isUnitTest := validateIsUnitTest.(bool)
+
+	executor = compileStep(ctx, cacheService, &lc.Paths, pipelineId, sdkEnv, isUnitTest, pipelineLifeCycleCtx, cancelChannel)
+	if executor == nil {
+		return
+	}
+
+	// Run/RunTest
+	runStep(ctx, cacheService, &lc.Paths, pipelineId, isUnitTest, sdkEnv, pipelineOptions, pipelineLifeCycleCtx, cancelChannel)
+}
+
+func runStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeCyclePaths, pipelineId uuid.UUID, isUnitTest bool, sdkEnv *environment.BeamEnvs, pipelineOptions string, pipelineLifeCycleCtx context.Context, cancelChannel chan bool) {
+	errorChannel, successChannel := createStatusChannels()
+	stopReadLogsChannel := make(chan bool, 1)
+	finishReadLogsChannel := make(chan bool, 1)
+
+	executorBuilder := executors.NewExecutorBuilder()
+	err := error(nil)
+	if isUnitTest {
+		executorBuilder, err = builder.TestRunner(paths, sdkEnv)
+	} else {
+		executorBuilder, err = builder.Runner(paths, utils.ReduceWhiteSpacesToSinge(pipelineOptions), sdkEnv)
+	}
 	if err != nil {
 		_ = processSetupError(err, pipelineId, cacheService, pipelineLifeCycleCtx)
 		return
 	}
+
 	executor := executorBuilder.Build()
-	// Validate
-	logger.Infof("%s: Validate() ...\n", pipelineId)
-	validateFunc := executor.Validate()
-	// Run validate function
-	go validateFunc(successChannel, errorChannel, &validationResults)
-
-	// Start of the monitoring of background tasks (validate function/cancellation/timeout)
-	ok, err := reconcileBackgroundTask(pipelineLifeCycleCtx, ctx, pipelineId, cacheService, cancelChannel, successChannel)
-	if err != nil {
-		return
-	}
-	if !ok {
-		// Validate step is finished, but code isn't valid
-		err := <-errorChannel
-		_ = processErrorWithSavingOutput(pipelineLifeCycleCtx, err, []byte(err.Error()), pipelineId, cache.ValidationOutput, cacheService, "Validate", pb.Status_STATUS_VALIDATION_ERROR)
-		return
-	}
-	// Validate step is finished and code is valid
-	if err := processSuccess(pipelineLifeCycleCtx, pipelineId, cacheService, "Validate", pb.Status_STATUS_PREPARING); err != nil {
-		return
-	}
-
-	// Prepare
-	logger.Infof("%s: Prepare() ...\n", pipelineId)
-	prepareFunc := executor.Prepare()
-	// Run prepare function
-	go prepareFunc(successChannel, errorChannel, &validationResults)
-
-	// Start of the monitoring of background tasks (prepare function/cancellation/timeout)
-	ok, err = reconcileBackgroundTask(pipelineLifeCycleCtx, ctx, pipelineId, cacheService, cancelChannel, successChannel)
-	if err != nil {
-		return
-	}
-	if !ok {
-		// Prepare step is finished, but code couldn't be prepared (some error during prepare step)
-		err := <-errorChannel
-		_ = processErrorWithSavingOutput(pipelineLifeCycleCtx, err, []byte(err.Error()), pipelineId, cache.PreparationOutput, cacheService, "Prepare", pb.Status_STATUS_PREPARATION_ERROR)
-		return
-	}
-	// Prepare step is finished and code is prepared
-	if err := processSuccess(pipelineLifeCycleCtx, pipelineId, cacheService, "Prepare", pb.Status_STATUS_COMPILING); err != nil {
-		return
-	}
-
-	// Check if unit test
-	validateIsUnitTest, _ := validationResults.Load(validators.UnitTestValidatorName)
-	isUnitTest := validateIsUnitTest.(bool)
-
-	// This condition is used for cases when the playground doesn't compile source files. For the Python code and the Go Unit Tests
-	if sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_PYTHON || (sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_GO && isUnitTest) {
-		if err := processCompileSuccess(pipelineLifeCycleCtx, []byte(""), pipelineId, cacheService); err != nil {
-			return
-		}
-	} else { // in case of Java, Go (not unit test), Scala - need compile step
-		// Compile
-		if sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_JAVA {
-			executor = executorBuilder.WithCompiler().
-				WithFileName(builder.GetFileNameFromFolder(lc.GetAbsoluteSourceFolderPath())).Build() // Need changed name for unit tests
-		}
-		logger.Infof("%s: Compile() ...\n", pipelineId)
-		compileCmd := executor.Compile(pipelineLifeCycleCtx)
-		var compileError bytes.Buffer
-		var compileOutput bytes.Buffer
-		runCmdWithOutput(compileCmd, &compileOutput, &compileError, successChannel, errorChannel)
-
-		// Start of the monitoring of background tasks (compile step/cancellation/timeout)
-		ok, err = reconcileBackgroundTask(pipelineLifeCycleCtx, ctx, pipelineId, cacheService, cancelChannel, successChannel)
-		if err != nil {
-			return
-		}
-		if !ok { // Compile step is finished, but code couldn't be compiled (some typos for example)
-			err := <-errorChannel
-			_ = processErrorWithSavingOutput(pipelineLifeCycleCtx, err, compileError.Bytes(), pipelineId, cache.CompileOutput, cacheService, "Compile", pb.Status_STATUS_COMPILE_ERROR)
-			return
-		} // Compile step is finished and code is compiled
-		if err := processCompileSuccess(pipelineLifeCycleCtx, compileOutput.Bytes(), pipelineId, cacheService); err != nil {
-			return
-		}
-	}
-
-	// Run
-	if sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_JAVA {
-		executor, err = setJavaExecutableFile(lc, pipelineId, cacheService, pipelineLifeCycleCtx, executorBuilder, filepath.Join(appEnv.WorkingDir(), appEnv.PipelinesFolder()))
-		if err != nil {
-			return
-		}
-	}
-	logger.Infof("%s: Run() ...\n", pipelineId)
-	runCmd := getExecuteCmd(&validationResults, &executor, pipelineLifeCycleCtx)
+	logger.Infof("%s: Run()/Test() ...\n", pipelineId)
+	runCmd := getExecuteCmd(isUnitTest, &executor, pipelineLifeCycleCtx)
 	var runError bytes.Buffer
 	runOutput := streaming.RunOutputWriter{Ctx: pipelineLifeCycleCtx, CacheService: cacheService, PipelineId: pipelineId}
-	go readLogFile(pipelineLifeCycleCtx, ctx, cacheService, lc.GetAbsoluteLogFilePath(), pipelineId, stopReadLogsChannel, finishReadLogsChannel)
+	go readLogFile(pipelineLifeCycleCtx, ctx, cacheService, paths.AbsoluteLogFilePath, pipelineId, stopReadLogsChannel, finishReadLogsChannel)
 
 	if sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_GO {
 		// For go SDK all logs are placed to stdErr.
-		file, err := os.Create(lc.GetAbsoluteLogFilePath())
+		file, err := os.Create(paths.AbsoluteLogFilePath)
 		if err != nil {
 			// If some error with creating a log file do the same as with other SDK.
 			logger.Errorf("%s: error during create log file (go sdk): %s", pipelineId, err.Error())
@@ -186,18 +130,23 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 	}
 
 	// Start of the monitoring of background tasks (run step/cancellation/timeout)
-	ok, err = reconcileBackgroundTask(pipelineLifeCycleCtx, ctx, pipelineId, cacheService, cancelChannel, successChannel)
+	ok, err := reconcileBackgroundTask(pipelineLifeCycleCtx, ctx, pipelineId, cacheService, cancelChannel, successChannel)
 	if err != nil {
 		return
 	}
 	if !ok {
-		if runOutput.Error != nil {
-			runError.Write([]byte(runOutput.Error.Error()))
+		// If unit test has some error then error output is placed as RunOutput
+		if isUnitTest {
+			output, err := GetProcessingOutput(ctx, cacheService, pipelineId, cache.RunOutput, "")
+			if err == nil {
+				runError.Write([]byte(output))
+			}
+
 		}
 		// Run step is finished, but code contains some error (divide by 0 for example)
 		if sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_GO {
 			// For Go SDK stdErr was redirected to the log file.
-			errData, err := os.ReadFile(lc.GetAbsoluteLogFilePath())
+			errData, err := os.ReadFile(paths.AbsoluteLogFilePath)
 			if err != nil {
 				logger.Errorf("%s: error during read errors from log file (go sdk): %s", pipelineId, err.Error())
 			}
@@ -210,28 +159,115 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 	_ = processRunSuccess(pipelineLifeCycleCtx, pipelineId, cacheService, stopReadLogsChannel, finishReadLogsChannel)
 }
 
+func compileStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeCyclePaths, pipelineId uuid.UUID, sdkEnv *environment.BeamEnvs, isUnitTest bool, pipelineLifeCycleCtx context.Context, cancelChannel chan bool) *executors.Executor {
+	errorChannel, successChannel := createStatusChannels()
+	var executor = executors.Executor{}
+	// This condition is used for cases when the playground doesn't compile source files. For the Python code and the Go Unit Tests
+	if sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_PYTHON || (sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_GO && isUnitTest) {
+		if err := processCompileSuccess(pipelineLifeCycleCtx, []byte(""), pipelineId, cacheService); err != nil {
+			return nil
+		}
+	} else { // in case of Java, Go (not unit test), Scala - need compile step
+		executorBuilder := builder.Compiler(paths, sdkEnv)
+		executor := executorBuilder.Build()
+		logger.Infof("%s: Compile() ...\n", pipelineId)
+		compileCmd := executor.Compile(pipelineLifeCycleCtx)
+		var compileError bytes.Buffer
+		var compileOutput bytes.Buffer
+		runCmdWithOutput(compileCmd, &compileOutput, &compileError, successChannel, errorChannel)
+
+		// Start of the monitoring of background tasks (compile step/cancellation/timeout)
+		ok, err := reconcileBackgroundTask(pipelineLifeCycleCtx, ctx, pipelineId, cacheService, cancelChannel, successChannel)
+		if err != nil {
+			return nil
+		}
+		if !ok { // Compile step is finished, but code couldn't be compiled (some typos for example)
+			err := <-errorChannel
+			_ = processErrorWithSavingOutput(pipelineLifeCycleCtx, err, compileError.Bytes(), pipelineId, cache.CompileOutput, cacheService, "Compile", pb.Status_STATUS_COMPILE_ERROR)
+			return nil
+		} // Compile step is finished and code is compiled
+		if err := processCompileSuccess(pipelineLifeCycleCtx, compileOutput.Bytes(), pipelineId, cacheService); err != nil {
+			return nil
+		}
+	}
+	return &executor
+}
+
+func prepareStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeCyclePaths, pipelineId uuid.UUID, sdkEnv *environment.BeamEnvs, pipelineLifeCycleCtx context.Context, validationResults *sync.Map, cancelChannel chan bool) *executors.Executor {
+	errorChannel, successChannel := createStatusChannels()
+	executorBuilder, err := builder.Preparer(paths, sdkEnv, validationResults)
+	if err != nil {
+		_ = processSetupError(err, pipelineId, cacheService, pipelineLifeCycleCtx)
+		return nil
+	}
+	executor := executorBuilder.Build()
+	logger.Infof("%s: Prepare() ...\n", pipelineId)
+	prepareFunc := executor.Prepare()
+	go prepareFunc(successChannel, errorChannel, validationResults)
+
+	// Start of the monitoring of background tasks (prepare function/cancellation/timeout)
+	ok, err := reconcileBackgroundTask(pipelineLifeCycleCtx, ctx, pipelineId, cacheService, cancelChannel, successChannel)
+	if err != nil {
+		return nil
+	}
+	if !ok {
+		err := <-errorChannel
+		// Prepare step is finished, but code couldn't be prepared (some error during prepare step)
+		_ = processErrorWithSavingOutput(pipelineLifeCycleCtx, err, []byte(err.Error()), pipelineId, cache.PreparationOutput, cacheService, "Prepare", pb.Status_STATUS_PREPARATION_ERROR)
+		return nil
+	}
+	// Prepare step is finished and code is prepared
+	if err := processSuccess(pipelineLifeCycleCtx, pipelineId, cacheService, "Prepare", pb.Status_STATUS_COMPILING); err != nil {
+		return nil
+	}
+	return &executor
+}
+
+func validateStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeCyclePaths, pipelineId uuid.UUID, sdkEnv *environment.BeamEnvs, pipelineLifeCycleCtx context.Context, validationResults *sync.Map, cancelChannel chan bool) *executors.Executor {
+	errorChannel, successChannel := createStatusChannels()
+	executorBuilder, err := builder.Validator(paths, sdkEnv)
+	if err != nil {
+		_ = processSetupError(err, pipelineId, cacheService, pipelineLifeCycleCtx)
+		return nil
+	}
+	executor := executorBuilder.Build()
+	logger.Infof("%s: Validate() ...\n", pipelineId)
+	validateFunc := executor.Validate()
+	go validateFunc(successChannel, errorChannel, validationResults)
+
+	// Start of the monitoring of background tasks (validate function/cancellation/timeout)
+	ok, err := reconcileBackgroundTask(pipelineLifeCycleCtx, ctx, pipelineId, cacheService, cancelChannel, successChannel)
+	if err != nil {
+		return nil
+	}
+	if !ok {
+		err := <-errorChannel
+		// Validate step is finished, but code isn't valid
+		_ = processErrorWithSavingOutput(pipelineLifeCycleCtx, err, []byte(err.Error()), pipelineId, cache.ValidationOutput, cacheService, "Validate", pb.Status_STATUS_VALIDATION_ERROR)
+		return nil
+	}
+
+	// Validate step is finished and code is valid
+	if err := processSuccess(pipelineLifeCycleCtx, pipelineId, cacheService, "Validate", pb.Status_STATUS_PREPARING); err != nil {
+		return nil
+	}
+	return &executor
+}
+
+func createStatusChannels() (chan error, chan bool) {
+	errorChannel := make(chan error, 1)
+	successChannel := make(chan bool, 1)
+	return errorChannel, successChannel
+}
+
 // getExecuteCmd return cmd instance based on the code type: unit test or example code
-func getExecuteCmd(valRes *sync.Map, executor *executors.Executor, ctxWithTimeout context.Context) *exec.Cmd {
-	isUnitTest, ok := valRes.Load(validators.UnitTestValidatorName)
+func getExecuteCmd(isUnitTest bool, executor *executors.Executor, ctxWithTimeout context.Context) *exec.Cmd {
 	runType := executors.Run
-	if ok && isUnitTest.(bool) {
+	if isUnitTest {
 		runType = executors.Test
 	}
 	cmdReflect := reflect.ValueOf(executor).MethodByName(string(runType)).Call([]reflect.Value{reflect.ValueOf(ctxWithTimeout)})
 	return cmdReflect[0].Interface().(*exec.Cmd)
-}
-
-// setJavaExecutableFile sets executable file name to runner (JAVA class name is known after compilation step)
-func setJavaExecutableFile(lc *fs_tool.LifeCycle, id uuid.UUID, service cache.Cache, ctx context.Context, executorBuilder *executors.ExecutorBuilder, dir string) (executors.Executor, error) {
-	className, err := lc.ExecutableName(id, dir)
-	if err != nil {
-		if err = processSetupError(err, id, service, ctx); err != nil {
-			return executorBuilder.Build(), err
-		}
-	}
-	return executorBuilder.
-		WithExecutableFileName(className).
-		Build(), nil
 }
 
 // processSetupError processes errors during the setting up an executor builder
@@ -424,7 +460,7 @@ func finishByTimeout(ctx context.Context, pipelineId uuid.UUID, cacheService cac
 func processErrorWithSavingOutput(ctx context.Context, err error, errorOutput []byte, pipelineId uuid.UUID, subKey cache.SubKey, cacheService cache.Cache, errorTitle string, newStatus pb.Status) error {
 	logger.Errorf("%s: %s(): err: %s, output: %s\n", pipelineId, errorTitle, err.Error(), errorOutput)
 
-	if err := utils.SetToCache(ctx, cacheService, pipelineId, subKey, fmt.Sprintf("error: %s, output: %s", err.Error(), errorOutput)); err != nil {
+	if err := utils.SetToCache(ctx, cacheService, pipelineId, subKey, fmt.Sprintf("error: %s\noutput: %s", err.Error(), errorOutput)); err != nil {
 		return err
 	}
 
@@ -439,7 +475,7 @@ func processRunError(ctx context.Context, errorChannel chan error, errorOutput [
 	err := <-errorChannel
 	logger.Errorf("%s: Run(): err: %s, output: %s\n", pipelineId, err.Error(), errorOutput)
 
-	if err := utils.SetToCache(ctx, cacheService, pipelineId, cache.RunError, fmt.Sprintf("error: %s, output: %s", err.Error(), string(errorOutput))); err != nil {
+	if err := utils.SetToCache(ctx, cacheService, pipelineId, cache.RunError, fmt.Sprintf("error: %s\noutput: %s", err.Error(), string(errorOutput))); err != nil {
 		return err
 	}
 

@@ -25,10 +25,10 @@ import (
 
 func Test_newJavaLifeCycle(t *testing.T) {
 	pipelineId := uuid.New()
-	workingDir := "workingDir"
+	workingDir, _ := filepath.Abs("workingDir")
 	baseFileFolder := filepath.Join(workingDir, pipelinesFolder, pipelineId.String())
-	srcFileFolder := baseFileFolder + "/src"
-	binFileFolder := baseFileFolder + "/bin"
+	srcFileFolder := filepath.Join(baseFileFolder, "src")
+	binFileFolder := filepath.Join(baseFileFolder, "bin")
 
 	type args struct {
 		pipelineId      uuid.UUID
@@ -49,17 +49,17 @@ func Test_newJavaLifeCycle(t *testing.T) {
 			},
 			want: &LifeCycle{
 				folderGlobs: []string{baseFileFolder, srcFileFolder, binFileFolder},
-				Folder: Folder{
-					BaseFolder:           baseFileFolder,
-					SourceFileFolder:     srcFileFolder,
-					ExecutableFileFolder: binFileFolder,
+				Paths: LifeCyclePaths{
+					SourceFileName:                   pipelineId.String() + JavaSourceFileExtension,
+					AbsoluteSourceFileFolderPath:     srcFileFolder,
+					AbsoluteSourceFilePath:           filepath.Join(srcFileFolder, pipelineId.String()+JavaSourceFileExtension),
+					ExecutableFileName:               pipelineId.String() + javaCompiledFileExtension,
+					AbsoluteExecutableFileFolderPath: binFileFolder,
+					AbsoluteExecutableFilePath:       filepath.Join(binFileFolder, pipelineId.String()+javaCompiledFileExtension),
+					AbsoluteBaseFolderPath:           baseFileFolder,
+					AbsoluteLogFilePath:              filepath.Join(baseFileFolder, logFileName),
+					ExecutableName:                   executableName,
 				},
-				Extension: Extension{
-					SourceFileExtension:     JavaSourceFileExtension,
-					ExecutableFileExtension: javaCompiledFileExtension,
-				},
-				ExecutableName: executableName,
-				pipelineId:     pipelineId,
 			},
 		},
 	}
@@ -69,14 +69,8 @@ func Test_newJavaLifeCycle(t *testing.T) {
 			if !reflect.DeepEqual(got.folderGlobs, tt.want.folderGlobs) {
 				t.Errorf("newJavaLifeCycle() folderGlobs = %v, want %v", got.folderGlobs, tt.want.folderGlobs)
 			}
-			if !reflect.DeepEqual(got.Folder, tt.want.Folder) {
-				t.Errorf("newJavaLifeCycle() Folder = %v, want %v", got.Folder, tt.want.Folder)
-			}
-			if !reflect.DeepEqual(got.Extension, tt.want.Extension) {
-				t.Errorf("newJavaLifeCycle() Extension = %v, want %v", got.Extension, tt.want.Extension)
-			}
-			if !reflect.DeepEqual(got.pipelineId, tt.want.pipelineId) {
-				t.Errorf("newJavaLifeCycle() pipelineId = %v, want %v", got.pipelineId, tt.want.pipelineId)
+			if !checkPathsEqual(got.Paths, tt.want.Paths) {
+				t.Errorf("newJavaLifeCycle() Paths = %v, want %v", got.Paths, tt.want.Paths)
 			}
 		})
 	}
@@ -91,8 +85,7 @@ func Test_executableName(t *testing.T) {
 	defer os.RemoveAll(workDir)
 
 	type args struct {
-		pipelineId      uuid.UUID
-		pipelinesFolder string
+		executableFolder string
 	}
 	tests := []struct {
 		name    string
@@ -114,19 +107,18 @@ func Test_executableName(t *testing.T) {
 				}
 			},
 			args: args{
-				pipelineId:      pipelineId,
-				pipelinesFolder: preparedPipelinesFolder,
+				executableFolder: filepath.Join(workDir, pipelinesFolder, pipelineId.String(), "bin"),
 			},
 			want:    "temp",
 			wantErr: false,
 		},
 		{
-			// Test case with calling sourceFileName method with correct pipelineId and workingDir.
+			// Test case with calling sourceFileName method with wrong directory.
 			// As a result, want to receive an error.
 			name:    "directory doesn't exist",
 			prepare: func() {},
 			args: args{
-				pipelineId: uuid.New(),
+				executableFolder: filepath.Join(workDir, pipelineId.String()),
 			},
 			want:    "",
 			wantErr: true,
@@ -135,7 +127,7 @@ func Test_executableName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.prepare()
-			got, err := executableName(tt.args.pipelineId, tt.args.pipelinesFolder)
+			got, err := executableName(tt.args.executableFolder)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("sourceFileName() error = %v, wantErr %v", err, tt.wantErr)
 				return
