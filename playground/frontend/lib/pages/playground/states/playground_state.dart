@@ -31,6 +31,7 @@ const kTitleLength = 15;
 const kExecutionTimeUpdate = 100;
 const kPrecompiledDelay = Duration(seconds: 1);
 const kTitle = 'Catalog';
+const kExecutionCancelledText = '\nPipeline cancelled';
 const kPipelineOptionsParseError =
     'Failed to parse pipeline options, please check the format (example: --key1 value1 --key2 value2), only alphanumeric and ",*,/,-,:,;,\',. symbols are allowed';
 
@@ -40,6 +41,7 @@ class PlaygroundState with ChangeNotifier {
   ExampleModel? _selectedExample;
   String _source = '';
   RunCodeResult? _result;
+  StreamSubscription<RunCodeResult>? _runSubscription;
   String _pipelineOptions = '';
   DateTime? resetKey;
   StreamController<int>? _executionTime;
@@ -141,7 +143,7 @@ class PlaygroundState with ChangeNotifier {
         sdk: sdk,
         pipelineOptions: parsedPipelineOptions,
       );
-      _codeRepository?.runCode(request).listen((event) {
+      _runSubscription = _codeRepository?.runCode(request).listen((event) {
         _result = event;
         if (event.isFinished && onFinish != null) {
           onFinish();
@@ -151,6 +153,21 @@ class PlaygroundState with ChangeNotifier {
       });
       notifyListeners();
     }
+  }
+
+  Future<void> cancelRun() async {
+    _runSubscription?.cancel();
+    final pipelineUuid = result?.pipelineUuid ?? '';
+    if (pipelineUuid.isNotEmpty) {
+      await _codeRepository?.cancelExecution(pipelineUuid);
+    }
+    _result = RunCodeResult(
+      status: RunCodeStatus.finished,
+      output: _result?.output,
+      log: (_result?.log ?? '') + kExecutionCancelledText,
+    );
+    _executionTime?.close();
+    notifyListeners();
   }
 
   bool get _arePipelineOptionsChanges {

@@ -28,6 +28,8 @@ import 'package:playground/modules/examples/example_selector.dart';
 import 'package:playground/modules/sdk/components/sdk_selector.dart';
 import 'package:playground/modules/shortcuts/components/shortcuts_manager.dart';
 import 'package:playground/modules/shortcuts/constants/global_shortcuts.dart';
+import 'package:playground/pages/playground/components/close_listener_nonweb.dart'
+    if (dart.library.html) 'package:playground/pages/playground/components/close_listener.dart';
 import 'package:playground/pages/playground/components/more_actions.dart';
 import 'package:playground/pages/playground/components/playground_page_body.dart';
 import 'package:playground/pages/playground/components/playground_page_footer.dart';
@@ -40,55 +42,57 @@ class PlaygroundPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ShortcutsManager(
-      shortcuts: globalShortcuts,
-      child: Scaffold(
-        appBar: AppBar(
-          automaticallyImplyLeading: false,
-          title: Consumer<PlaygroundState>(
-            builder: (context, state, child) {
-              return Wrap(
-                crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: kXlSpacing,
-                children: [
-                  const Logo(),
-                  Consumer<ExampleState>(
-                    builder: (context, state, child) {
-                      return ExampleSelector(
-                        changeSelectorVisibility:
-                            state.changeSelectorVisibility,
-                        isSelectorOpened: state.isSelectorOpened,
-                      );
-                    },
-                  ),
-                  SDKSelector(
-                    sdk: state.sdk,
-                    setSdk: (newSdk) {
-                      AnalyticsService.get(context)
-                          .trackSelectSdk(state.sdk, newSdk);
-                      state.setSdk(newSdk);
-                    },
-                    setExample: state.setExample,
-                  ),
-                  PipelineOptionsDropdown(
-                    pipelineOptions: state.pipelineOptions,
-                    setPipelineOptions: state.setPipelineOptions,
-                  ),
-                  const NewExampleAction(),
-                  ResetAction(reset: state.reset),
-                ],
-              );
-            },
+    return CloseListener(
+      child: ShortcutsManager(
+        shortcuts: globalShortcuts,
+        child: Scaffold(
+          appBar: AppBar(
+            automaticallyImplyLeading: false,
+            title: Consumer<PlaygroundState>(
+              builder: (context, state, child) {
+                return Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: kXlSpacing,
+                  children: [
+                    const Logo(),
+                    Consumer<ExampleState>(
+                      builder: (context, state, child) {
+                        return ExampleSelector(
+                          changeSelectorVisibility:
+                              state.changeSelectorVisibility,
+                          isSelectorOpened: state.isSelectorOpened,
+                        );
+                      },
+                    ),
+                    SDKSelector(
+                      sdk: state.sdk,
+                      setSdk: (newSdk) {
+                        AnalyticsService.get(context)
+                            .trackSelectSdk(state.sdk, newSdk);
+                        state.setSdk(newSdk);
+                      },
+                      setExample: state.setExample,
+                    ),
+                    PipelineOptionsDropdown(
+                      pipelineOptions: state.pipelineOptions,
+                      setPipelineOptions: state.setPipelineOptions,
+                    ),
+                    const NewExampleAction(),
+                    ResetAction(reset: state.reset),
+                  ],
+                );
+              },
+            ),
+            actions: const [ToggleThemeButton(), MoreActions()],
           ),
-          actions: const [ToggleThemeButton(), MoreActions()],
+          body: Column(
+            children: const [
+              Expanded(child: PlaygroundPageBody()),
+              PlaygroundPageFooter(),
+            ],
+          ),
         ),
-        body: Column(
-          children: const [
-            Expanded(child: PlaygroundPageBody()),
-            PlaygroundPageFooter(),
-          ],
-        ),
-      ),
+      )
     );
   }
 }

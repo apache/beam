@@ -286,9 +286,9 @@ func TestNewLifeCycle(t *testing.T) {
 			want: &LifeCycle{
 				folderGlobs: []string{baseFileFolder, srcFileFolder, execFileFolder},
 				Paths: LifeCyclePaths{
-					SourceFileName:                   fmt.Sprintf("%s%s", pipelineId.String(), javaSourceFileExtension),
+					SourceFileName:                   fmt.Sprintf("%s%s", pipelineId.String(), JavaSourceFileExtension),
 					AbsoluteSourceFileFolderPath:     srcFileFolder,
-					AbsoluteSourceFilePath:           filepath.Join(srcFileFolder, fmt.Sprintf("%s%s", pipelineId.String(), javaSourceFileExtension)),
+					AbsoluteSourceFilePath:           filepath.Join(srcFileFolder, fmt.Sprintf("%s%s", pipelineId.String(), JavaSourceFileExtension)),
 					ExecutableFileName:               fmt.Sprintf("%s%s", pipelineId.String(), javaCompiledFileExtension),
 					AbsoluteExecutableFileFolderPath: execFileFolder,
 					AbsoluteExecutableFilePath:       filepath.Join(execFileFolder, fmt.Sprintf("%s%s", pipelineId.String(), javaCompiledFileExtension)),
