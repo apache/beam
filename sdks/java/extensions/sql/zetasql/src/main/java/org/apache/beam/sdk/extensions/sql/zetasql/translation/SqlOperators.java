@@ -183,8 +183,18 @@ public class SqlOperators {
     String inputType = args.get(0).getType().typeName();
     Value delimiter = null;
     if (args.size() == 2) {
-      delimiter = ((ResolvedNodes.ResolvedLiteral) args.get(1)).getValue();
+      ResolvedNodes.ResolvedExpr resolvedExpr = args.get(1);
+      if (resolvedExpr instanceof ResolvedNodes.ResolvedLiteral) {
+        delimiter = ((ResolvedNodes.ResolvedLiteral) resolvedExpr).getValue();
+      } else {
+        // TODO (BEAM-13673 Add support for params)
+        throw new UnsupportedOperationException(
+            String.format(
+                "STRING_AGG only supports ResolvedLiteral as delimiter, provided %s",
+                resolvedExpr.getClass().getName()));
+      }
     }
+
     switch (inputType) {
       case "BYTES":
         return SqlOperators.createUdafOperator(

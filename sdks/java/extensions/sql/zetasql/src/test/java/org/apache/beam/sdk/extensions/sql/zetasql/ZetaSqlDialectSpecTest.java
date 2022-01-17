@@ -2608,6 +2608,20 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
+  public void testStringAggregationParamsDelimiter() {
+    String sql = "SELECT string_agg(\"s\", @separator) FROM (SELECT 1)";
+
+    ImmutableMap<String, Value> params =
+        ImmutableMap.<String, Value>builder()
+            .put("separator", Value.createStringValue(","))
+            .build();
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    thrown.expect(UnsupportedOperationException.class);
+    zetaSQLQueryPlanner.convertToBeamRel(sql, params);
+  }
+
+  @Test
   @Ignore("Seeing exception in Beam, need further investigation on the cause of this failed query.")
   public void testNamedUNNESTJoin() {
     String sql =
