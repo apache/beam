@@ -41,6 +41,7 @@ class CDHelper:
 
   It is used to save beam examples/katas/tests and their output on the GCS.
   """
+
   def store_examples(self, examples: List[Example]):
     """
     Store beam examples and their output in the Google Cloud.
@@ -77,7 +78,7 @@ class CDHelper:
       example.output = output
 
     for log, example in zip(logs, examples):
-        example.logs = log
+      example.logs = log
 
   def _save_to_cloud_storage(self, examples: List[Example]):
     """
@@ -123,10 +124,10 @@ class CDHelper:
         file_name=example.tag.name,
         extension=PrecompiledExample.OUTPUT_EXTENSION)
     log_path = self._get_gcs_object_name(
-      sdk=example.sdk,
-      base_folder_name=example.tag.name,
-      file_name=example.tag.name,
-      extension=PrecompiledExample.LOG_EXTENSION)
+        sdk=example.sdk,
+        base_folder_name=example.tag.name,
+        file_name=example.tag.name,
+        extension=PrecompiledExample.LOG_EXTENSION)
     meta_path = self._get_gcs_object_name(
         sdk=example.sdk,
         base_folder_name=example.tag.name,

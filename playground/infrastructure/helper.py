@@ -151,7 +151,8 @@ def get_tag(filepath) -> Optional[ExampleTag]:
     lines = parsed_file.readlines()
 
   for line in lines:
-    formatted_line = line.replace("//", "").replace("#", "").replace("\t", "    ")
+    formatted_line = line.replace("//", "").replace("#",
+                                                    "").replace("\t", "    ")
     if add_to_yaml is False:
       if formatted_line.lstrip() == Config.BEAM_PLAYGROUND_TITLE:
         add_to_yaml = True
@@ -222,8 +223,7 @@ def get_supported_categories(categories_path: str) -> List[str]:
     return yaml_object[TagFields.categories]
 
 
-def _get_example(
-    filepath: str, filename: str, tag: ExampleTag) -> Example:
+def _get_example(filepath: str, filename: str, tag: ExampleTag) -> Example:
   """
   Return an Example by filepath and filename.
 
@@ -281,9 +281,10 @@ def _validate(tag: dict, supported_categories: List[str]) -> bool:
       valid = False
     if valid is True:
       value = tag.get(field.default)
-      if (value == "" or value is None) and field.default != TagFields.pipeline_options:
+      if (value == "" or
+          value is None) and field.default != TagFields.pipeline_options:
         logging.error(
-            "tag's value is incorrect: %s\nvalue for %s field can not be empty.",
+            "tag's value is incorrect: %s\n%s field can not be empty.",
             tag.__str__(),
             field.default.__str__())
         valid = False
