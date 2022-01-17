@@ -38,7 +38,6 @@ class Repositories {
 
       mavenCentral()
       mavenLocal()
-      jcenter()
 
       // For pentaho dependencies.
       maven {
