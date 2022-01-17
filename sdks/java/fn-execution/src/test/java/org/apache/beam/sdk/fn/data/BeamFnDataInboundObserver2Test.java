@@ -147,8 +147,7 @@ public class BeamFnDataInboundObserver2Test {
             () -> {
               observer.accept(dataWith("ABC"));
               assertThrows(
-                  "Inbound observer closed",
-                  IllegalStateException.class,
+                  BeamFnDataInboundObserver2.CloseException.class,
                   () -> {
                     while (true) {
                       // keep trying to send messages since the queue buffers messages and the
@@ -166,8 +165,7 @@ public class BeamFnDataInboundObserver2Test {
               return null;
             });
 
-    assertThrows(
-        "Inbound observer closed", IllegalStateException.class, () -> observer.awaitCompletion());
+    assertThrows(BeamFnDataInboundObserver2.CloseException.class, () -> observer.awaitCompletion());
     future.get();
     future2.get();
   }
