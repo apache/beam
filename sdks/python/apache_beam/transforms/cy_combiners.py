@@ -83,13 +83,14 @@ class CountAccumulator(object):
 
 
 class SumInt64Accumulator(object):
+  INT64_MAX = 2**_63-1
+  INT64_MIN = -2**_63
   def __init__(self):
     self.value = 0
 
   def add_input(self, element):
-    global INT64_MAX, INT64_MIN  # pylint: disable=global-variable-not-assigned
     element = int(element)
-    if not INT64_MIN <= element <= INT64_MAX:
+    if not self.INT64_MIN <= element <= self.INT64_MAX:
       raise OverflowError(element)
     self.value += element
 
@@ -98,20 +99,22 @@ class SumInt64Accumulator(object):
       self.value += accumulator.value
 
   def extract_output(self):
-    if not INT64_MIN <= self.value <= INT64_MAX:
+    if not self.INT64_MIN <= self.value <= self.INT64_MAX:
       self.value %= 2**64
-      if self.value >= INT64_MAX:
+      if self.value >= self.INT64_MAX:
         self.value -= 2**64
     return self.value
 
 
 class MinInt64Accumulator(object):
+  INT64_MAX = 2**_63-1
+  INT64_MIN = -2**_63
   def __init__(self):
-    self.value = INT64_MAX
+    self.value = self.INT64_MAX
 
   def add_input(self, element):
     element = int(element)
-    if not INT64_MIN <= element <= INT64_MAX:
+    if not self.INT64_MIN <= element <= self.INT64_MAX:
       raise OverflowError(element)
     if element < self.value:
       self.value = element
@@ -126,12 +129,14 @@ class MinInt64Accumulator(object):
 
 
 class MaxInt64Accumulator(object):
+  INT64_MAX = 2**_63-1
+  INT64_MIN = -2**_63
   def __init__(self):
-    self.value = INT64_MIN
+    self.value = self.INT64_MIN
 
   def add_input(self, element):
     element = int(element)
-    if not INT64_MIN <= element <= INT64_MAX:
+    if not self.INT64_MIN <= element <= self.INT64_MAX:
       raise OverflowError(element)
     if element > self.value:
       self.value = element
@@ -146,13 +151,15 @@ class MaxInt64Accumulator(object):
 
 
 class MeanInt64Accumulator(object):
+  INT64_MAX = 2**_63-1
+  INT64_MIN = -2**_63
   def __init__(self):
     self.sum = 0
     self.count = 0
 
   def add_input(self, element):
     element = int(element)
-    if not INT64_MIN <= element <= INT64_MAX:
+    if not self.INT64_MIN <= element <= self.INT64_MAX:
       raise OverflowError(element)
     self.sum += element
     self.count += 1
@@ -163,23 +170,25 @@ class MeanInt64Accumulator(object):
       self.count += accumulator.count
 
   def extract_output(self):
-    if not INT64_MIN <= self.sum <= INT64_MAX:
+    if not self.INT64_MIN <= self.sum <= self.INT64_MAX:
       self.sum %= 2**64
-      if self.sum >= INT64_MAX:
+      if self.sum >= self.INT64_MAX:
         self.sum -= 2**64
     return self.sum // self.count if self.count else _NAN
 
 
 class DistributionInt64Accumulator(object):
+  INT64_MAX = 2**_63-1
+  INT64_MIN = -2**_63
   def __init__(self):
     self.sum = 0
     self.count = 0
-    self.min = INT64_MAX
-    self.max = INT64_MIN
+    self.min = self.INT64_MAX
+    self.max = self.INT64_MIN
 
   def add_input(self, element):
     element = int(element)
-    if not INT64_MIN <= element <= INT64_MAX:
+    if not self.INT64_MIN <= element <= self.INT64_MAX:
       raise OverflowError(element)
     self.sum += element
     self.count += 1
@@ -194,9 +203,9 @@ class DistributionInt64Accumulator(object):
       self.max = max(self.max, accumulator.max)
 
   def extract_output(self):
-    if not INT64_MIN <= self.sum <= INT64_MAX:
+    if not self.INT64_MIN <= self.sum <= self.INT64_MAX:
       self.sum %= 2**64
-      if self.sum >= INT64_MAX:
+      if self.sum >= self.INT64_MAX:
         self.sum -= 2**64
     mean = self.sum // self.count if self.count else _NAN
     return mean, self.sum, self.count, self.min, self.max

@@ -72,6 +72,7 @@ class DataflowDistributionCounter(object):
     distribution(1,2,5 bucketing). Max bucket_index is 58( sys.maxint as input).
     is_cythonized: mark whether DataflowDistributionCounter cythonized.
   """
+  INT64_MAX = 2**63-1
   # Assume the max input is sys.maxint, then the possible max bucket size is 59
   MAX_BUCKET_SIZE = 59
 
@@ -79,8 +80,7 @@ class DataflowDistributionCounter(object):
   BUCKET_PER_TEN = 3
 
   def __init__(self):
-    global INT64_MAX  # pylint: disable=global-variable-not-assigned
-    self.min = INT64_MAX
+    self.min = self.INT64_MAX
     self.max = 0
     self.count = 0
     self.sum = 0

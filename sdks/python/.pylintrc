@@ -140,8 +140,6 @@ disable =
   super-init-not-called,
   super-on-old-class,
   try-except-raise,
-  undefined-variable,
-  unexpected-keyword-arg,
   unidiomatic-typecheck,
   unnecessary-comprehension,
   unnecessary-lambda,

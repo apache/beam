@@ -65,9 +65,9 @@ class FrameBaseTest(unittest.TestCase):
     x = frames.DeferredSeries(original_expr)
     x.add_one()
     self.assertIs(x._expr, original_expr)
-    x.add_one(inplace=False)
+    x.add_one(frame=False)
     self.assertIs(x._expr, original_expr)
-    x.add_one(inplace=True)
+    x.add_one(frame=False)
     self.assertIsNot(x._expr, original_expr)
 
   def test_args_to_kwargs(self):
