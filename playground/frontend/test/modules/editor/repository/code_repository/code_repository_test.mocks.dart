@@ -64,6 +64,11 @@ class MockCodeClient extends _i1.Mock implements _i5.CodeClient {
                   Future<_i2.RunCodeResponse>.value(_FakeRunCodeResponse_0()))
           as _i6.Future<_i2.RunCodeResponse>);
   @override
+  _i6.Future<void> cancelExecution(String? pipelineUuid) =>
+      (super.noSuchMethod(Invocation.method(#cancelExecution, [pipelineUuid]),
+          returnValue: Future<void>.value(),
+          returnValueForMissingStub: Future<void>.value()) as _i6.Future<void>);
+  @override
   _i6.Future<_i3.CheckStatusResponse> checkStatus(
           String? pipelineUuid, _i7.RunCodeRequestWrapper? request) =>
       (super.noSuchMethod(

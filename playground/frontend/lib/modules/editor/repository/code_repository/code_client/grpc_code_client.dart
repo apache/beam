@@ -51,6 +51,12 @@ class GrpcCodeClient implements CodeClient {
   }
 
   @override
+  Future<void> cancelExecution(String pipelineUuid) {
+    return _runSafely(() => _defaultClient
+        .cancel(grpc.CancelRequest(pipelineUuid: pipelineUuid)));
+  }
+
+  @override
   Future<CheckStatusResponse> checkStatus(
     String pipelineUuid,
     RunCodeRequestWrapper request,

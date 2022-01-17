@@ -1475,6 +1475,7 @@ class DoFnContext(object):
 
 def group_by_key_input_visitor(deterministic_key_coders=True):
   # Importing here to avoid a circular dependency
+  # pylint: disable=wrong-import-order, wrong-import-position
   from apache_beam.pipeline import PipelineVisitor
   from apache_beam.transforms.core import GroupByKey
 
@@ -1492,8 +1493,6 @@ def group_by_key_input_visitor(deterministic_key_coders=True):
       self.visit_transform(transform_node)
 
     def visit_transform(self, transform_node):
-      # Imported here to avoid circular dependencies.
-      # pylint: disable=wrong-import-order, wrong-import-position
       if isinstance(transform_node.transform, GroupByKey):
         pcoll = transform_node.inputs[0]
         pcoll.element_type = typehints.coerce_to_kv_type(

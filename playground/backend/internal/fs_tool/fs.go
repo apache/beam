@@ -40,7 +40,7 @@ type LifeCyclePaths struct {
 	AbsoluteExecutableFilePath       string // /path/to/workingDir/pipelinesFolder/{pipelineId}/bin/{pipelineId}.{executableFileExtension}
 	AbsoluteBaseFolderPath           string // /path/to/workingDir/pipelinesFolder/{pipelineId}
 	AbsoluteLogFilePath              string // /path/to/workingDir/pipelinesFolder/{pipelineId}/logs.log
-	ExecutableName                   func(uuid.UUID, string) (string, error)
+	ExecutableName                   func(string) (string, error)
 }
 
 // LifeCycle is used for preparing folders and files to process code for one code processing request.
