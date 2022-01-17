@@ -55,9 +55,11 @@ public class CancellableQueue<T extends @NonNull Object> {
   /**
    * Adds an element to this queue. Will block until the queue is not full or is cancelled.
    *
+   * @throws InterruptedException if this thread was interrupted waiting to put the element. The
+   *     caller must invoke {@link #cancel} if the interrupt is unrecoverable.
    * @throws Exception if the queue is cancelled.
    */
-  public void put(T t) throws Exception {
+  public void put(T t) throws Exception, InterruptedException {
     try {
       lock.lockInterruptibly();
       while (count >= capacity && cancellationException == null) {
@@ -70,9 +72,6 @@ public class CancellableQueue<T extends @NonNull Object> {
       addIndex = (addIndex + 1) % elements.length;
       count += 1;
       notEmpty.signal();
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new RuntimeException(e);
     } finally {
       lock.unlock();
     }
@@ -81,9 +80,11 @@ public class CancellableQueue<T extends @NonNull Object> {
   /**
    * Takes an element from this queue. Will block until the queue is not full or is cancelled.
    *
+   * @throws InterruptedException if this thread was interrupted waiting for an element. The caller
+   *     must invoke {@link #cancel} if the interrupt is unrecoverable.
    * @throws Exception if the queue is cancelled.
    */
-  public T take() throws Exception {
+  public T take() throws Exception, InterruptedException {
     Object rval;
     try {
       lock.lockInterruptibly();
@@ -98,9 +99,6 @@ public class CancellableQueue<T extends @NonNull Object> {
       takeIndex = (takeIndex + 1) % elements.length;
       count -= 1;
       notFull.signal();
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new RuntimeException(e);
     } finally {
       lock.unlock();
     }
@@ -114,14 +112,11 @@ public class CancellableQueue<T extends @NonNull Object> {
    * queue clears the exception.
    */
   public void cancel(Exception exception) {
+    lock.lock();
     try {
-      lock.lockInterruptibly();
       cancellationException = exception;
       notEmpty.signalAll();
       notFull.signalAll();
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new RuntimeException(e);
     } finally {
       lock.unlock();
     }
@@ -129,15 +124,12 @@ public class CancellableQueue<T extends @NonNull Object> {
 
   /** Enables the queue to be re-used after it has been cancelled. */
   public void reset() {
+    lock.lock();
     try {
-      lock.lockInterruptibly();
       cancellationException = null;
       addIndex = 0;
       takeIndex = 0;
       count = 0;
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new RuntimeException(e);
     } finally {
       lock.unlock();
     }

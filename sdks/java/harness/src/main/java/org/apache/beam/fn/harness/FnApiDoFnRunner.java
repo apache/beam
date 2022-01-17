@@ -39,13 +39,13 @@ import java.util.function.Supplier;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.ProgressRequestCallback;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnTimerClient;
-import org.apache.beam.fn.harness.data.BeamFnTimerClient.TimerHandler;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.FnApiStateAccessor;
 import org.apache.beam.fn.harness.state.FnApiTimerBundleTracker;
 import org.apache.beam.fn.harness.state.FnApiTimerBundleTracker.Modifications;
 import org.apache.beam.fn.harness.state.FnApiTimerBundleTracker.TimerInfo;
 import org.apache.beam.fn.harness.state.SideInputSpec;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.DelayedBundleApplication;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
@@ -67,6 +67,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.splittabledofn.RestrictionTrackers;
@@ -128,6 +129,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.joda.time.format.PeriodFormat;
 
 /**
  * A {@link DoFnRunner} specific to integrating with the Fn Api. This is to remove the layers of
@@ -173,13 +175,16 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               context.getPTransformId(),
               context.getPTransform(),
               context.getProcessBundleInstructionIdSupplier(),
+              context.getCacheTokensSupplier(),
+              context.getBundleCacheSupplier(),
+              context.getProcessWideCache(),
               context.getPCollections(),
               context.getCoders(),
               context.getWindowingStrategies(),
               context::addStartBundleFunction,
               context::addFinishBundleFunction,
               context::addTearDownFunction,
-              pCollectionId -> context.getPCollectionConsumer(pCollectionId),
+              context::getPCollectionConsumer,
               (pCollectionId, consumer, valueCoder) ->
                   context.addPCollectionConsumer(
                       pCollectionId, (FnDataReceiver) consumer, (Coder) valueCoder),
@@ -187,6 +192,20 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               context.getSplitListener(),
               context.getBundleFinalizer());
 
+      for (Map.Entry<String, KV<TimeDomain, Coder<Timer<Object>>>> entry :
+          runner.timerFamilyInfos.entrySet()) {
+        String localName = entry.getKey();
+        TimeDomain timeDomain = entry.getValue().getKey();
+        Coder<Timer<Object>> coder = entry.getValue().getValue();
+        if (!localName.equals("")
+            && localName.equals(runner.parDoPayload.getOnWindowExpirationTimerFamilySpec())) {
+          context.addIncomingTimerEndpoint(
+              localName, coder, timer -> runner.processOnWindowExpiration(timer));
+        } else {
+          context.addIncomingTimerEndpoint(
+              localName, coder, timer -> runner.processTimer(localName, timeDomain, timer));
+        }
+      }
       return runner;
     }
   }
@@ -194,7 +213,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
   private final PipelineOptions pipelineOptions;
-  private final BeamFnStateClient beamFnStateClient;
   private final String pTransformId;
   private final PTransform pTransform;
   private final Supplier<String> processBundleInstructionId;
@@ -203,7 +221,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private final DoFnSignature doFnSignature;
   private final TupleTag<OutputT> mainOutputTag;
   private final Coder<?> inputCoder;
-  private final SchemaCoder<InputT> schemaCoder;
+
   private final Coder<?> keyCoder;
   private final SchemaCoder<OutputT> mainOutputSchemaCoder;
   private final Coder<? extends BoundedWindow> windowCoder;
@@ -220,12 +238,13 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
   private final String mainInputId;
   private final FnApiStateAccessor<?> stateAccessor;
-  private Map<String, BeamFnTimerClient.TimerHandler<?>> timerHandlers;
+  private Map<String, CloseableFnDataReceiver<Timer<Object>>> outboundTimerReceivers;
   private FnApiTimerBundleTracker timerBundleTracker;
   private final DoFnInvoker<InputT, OutputT> doFnInvoker;
   private final StartBundleArgumentProvider startBundleArgumentProvider;
   private final ProcessBundleContextBase processContext;
   private final OnTimerContext<?> onTimerContext;
+  private final OnWindowExpirationContext<?> onWindowExpirationContext;
   private final FinishBundleArgumentProvider finishBundleArgumentProvider;
 
   /**
@@ -267,14 +286,14 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
   /**
    * Only valid during {@link #processElementForPairWithRestriction}, {@link
-   * #processElementForSplitRestriction}, and {@link #processElementForSizedElementAndRestriction},
-   * null otherwise.
+   * #processElementForSplitRestriction}, and {@link
+   * #processElementForWindowObservingSizedElementAndRestriction}, null otherwise.
    */
   private RestrictionT currentRestriction;
 
   /**
    * Only valid during {@link #processElementForSplitRestriction}, and {@link
-   * #processElementForSizedElementAndRestriction}, null otherwise.
+   * #processElementForWindowObservingSizedElementAndRestriction}, null otherwise.
    */
   private WatermarkEstimatorStateT currentWatermarkEstimatorState;
 
@@ -284,7 +303,10 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
    */
   private Instant initialWatermark;
 
-  /** Only valid during {@link #processElementForSizedElementAndRestriction}, null otherwise. */
+  /**
+   * Only valid during {@link #processElementForWindowObservingSizedElementAndRestriction}, null
+   * otherwise.
+   */
   private WatermarkEstimators.WatermarkAndStateObserver<WatermarkEstimatorStateT>
       currentWatermarkEstimator;
 
@@ -294,10 +316,15 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
    */
   private BoundedWindow currentWindow;
 
-  /** Only valid during {@link #processElementForSizedElementAndRestriction}, null otherwise. */
+  /**
+   * Only valid during {@link #processElementForWindowObservingSizedElementAndRestriction}, null
+   * otherwise.
+   */
   private RestrictionTracker<RestrictionT, PositionT> currentTracker;
 
-  /** Only valid during {@link #processTimer}, null otherwise. */
+  /**
+   * Only valid during {@link #processTimer} and {@link #processOnWindowExpiration}, null otherwise.
+   */
   private Timer<?> currentTimer;
 
   /** Only valid during {@link #processTimer}, null otherwise. */
@@ -314,6 +341,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       String pTransformId,
       PTransform pTransform,
       Supplier<String> processBundleInstructionId,
+      Supplier<List<BeamFnApi.ProcessBundleRequest.CacheToken>> cacheTokens,
+      Supplier<Cache<?, ?>> bundleCache,
+      Cache<?, ?> processWideCache,
       Map<String, PCollection> pCollections,
       Map<String, RunnerApi.Coder> coders,
       Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
@@ -326,7 +356,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       BundleSplitListener splitListener,
       BundleFinalizer bundleFinalizer) {
     this.pipelineOptions = pipelineOptions;
-    this.beamFnStateClient = beamFnStateClient;
     this.beamFnTimerClient = beamFnTimerClient;
     this.pTransformId = pTransformId;
     this.pTransform = pTransform;
@@ -376,11 +405,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         this.keyCoder = ((KvCoder) inputCoder).getKeyCoder();
       } else {
         this.keyCoder = null;
-      }
-      if (inputCoder instanceof SchemaCoder) {
-        this.schemaCoder = ((SchemaCoder<InputT>) inputCoder);
-      } else {
-        this.schemaCoder = null;
       }
 
       windowingStrategy =
@@ -453,6 +477,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     this.splitListener = splitListener;
     this.bundleFinalizer = bundleFinalizer;
     this.onTimerContext = new OnTimerContext();
+    this.onWindowExpirationContext = new OnWindowExpirationContext<>();
 
     try {
       this.mainInputId = ParDoTranslation.getMainInputName(pTransform);
@@ -550,7 +575,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                   }
 
                   @Override
-                  public SplitResult trySplit(double fractionOfRemainder) {
+                  public HandlesSplits.SplitResult trySplit(double fractionOfRemainder) {
                     return trySplitForWindowObservingTruncateRestriction(
                         fractionOfRemainder, splitDelegate);
                   }
@@ -590,7 +615,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                   }
 
                   @Override
-                  public SplitResult trySplit(double fractionOfRemainder) {
+                  public HandlesSplits.SplitResult trySplit(double fractionOfRemainder) {
                     return splitDelegate.trySplit(fractionOfRemainder);
                   }
 
@@ -698,6 +723,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             pipelineOptions,
             pTransformId,
             processBundleInstructionId,
+            cacheTokens,
+            bundleCache,
+            processWideCache,
             tagToSideInputSpecMap,
             beamFnStateClient,
             keyCoder,
@@ -725,21 +753,19 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
   private void startBundle() {
     // Register as a consumer for each timer.
-    timerHandlers = new HashMap<>();
+    outboundTimerReceivers = new HashMap<>();
     timerBundleTracker =
         new FnApiTimerBundleTracker(
             keyCoder, windowCoder, this::getCurrentKey, () -> currentWindow);
     for (Map.Entry<String, KV<TimeDomain, Coder<Timer<Object>>>> timerFamilyInfo :
         timerFamilyInfos.entrySet()) {
       String localName = timerFamilyInfo.getKey();
-      TimeDomain timeDomain = timerFamilyInfo.getValue().getKey();
       Coder<Timer<Object>> timerCoder = timerFamilyInfo.getValue().getValue();
-      timerHandlers.put(
+      outboundTimerReceivers.put(
           localName,
-          beamFnTimerClient.register(
+          beamFnTimerClient.<Object>register(
               LogicalEndpoint.timer(processBundleInstructionId.get(), pTransformId, localName),
-              timerCoder,
-              (FnDataReceiver<Timer<Object>>) timer -> processTimer(localName, timeDomain, timer)));
+              timerCoder));
     }
 
     doFnInvoker.invokeStartBundle(startBundleArgumentProvider);
@@ -1092,7 +1118,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private abstract class SplittableFnDataReceiver
       implements HandlesSplits, FnDataReceiver<WindowedValue> {
     @Override
-    public SplitResult trySplit(double fractionOfRemainder) {
+    public HandlesSplits.SplitResult trySplit(double fractionOfRemainder) {
       return trySplitForElementAndRestriction(fractionOfRemainder, Duration.ZERO);
     }
 
@@ -1710,13 +1736,27 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     doFnInvoker.invokeOnTimer(timerId, timerFamilyId, onTimerContext);
   }
 
-  private void finishBundle() throws Exception {
-    timerBundleTracker.outputTimers(timerFamilyOrId -> timerHandlers.get(timerFamilyOrId));
-    for (TimerHandler timerHandler : timerHandlers.values()) {
-      timerHandler.awaitCompletion();
+  private <K> void processOnWindowExpiration(Timer<K> timer) {
+    try {
+      currentKey = timer.getUserKey();
+      currentTimer = timer;
+      Iterator<BoundedWindow> windowIterator =
+          (Iterator<BoundedWindow>) timer.getWindows().iterator();
+      while (windowIterator.hasNext()) {
+        currentWindow = windowIterator.next();
+        doFnInvoker.invokeOnWindowExpiration(onWindowExpirationContext);
+      }
+    } finally {
+      currentKey = null;
+      currentTimer = null;
+      currentWindow = null;
     }
-    for (TimerHandler timerHandler : timerHandlers.values()) {
-      timerHandler.close();
+  }
+
+  private void finishBundle() throws Exception {
+    timerBundleTracker.outputTimers(timerFamilyOrId -> outboundTimerReceivers.get(timerFamilyOrId));
+    for (CloseableFnDataReceiver<?> outboundTimerReceiver : outboundTimerReceivers.values()) {
+      outboundTimerReceiver.close();
     }
 
     doFnInvoker.invokeFinishBundle(finishBundleArgumentProvider);
@@ -1829,7 +1869,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         target =
             millisSinceStart == 0
                 ? fireTimestamp
-                : fireTimestamp.plus(period).minus(millisSinceStart);
+                : fireTimestamp.plus(period).minus(Duration.millis(millisSinceStart));
       }
       target = minTargetAndGcTime(target);
       timerBundleTracker.timerModified(timerIdOrFamily, timeDomain, getTimerForTime(target));
@@ -1881,14 +1921,28 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       return Timer.cleared(userKey, dynamicTimerTag, Collections.singletonList(boundedWindow));
     }
 
+    @SuppressWarnings("deprecation") // Allowed Skew is deprecated for users, but must be respected
     private Timer<K> getTimerForTime(Instant scheduledTime) {
       if (outputTimestamp != null) {
-        checkArgument(
-            !outputTimestamp.isBefore(elementTimestampOrTimerHoldTimestamp),
-            "output timestamp %s should be after input message timestamp or output timestamp of"
-                + " firing timers %s",
-            outputTimestamp,
-            elementTimestampOrTimerHoldTimestamp);
+        Instant lowerBound;
+        try {
+          lowerBound = elementTimestampOrTimerHoldTimestamp.minus(doFn.getAllowedTimestampSkew());
+        } catch (ArithmeticException e) {
+          lowerBound = BoundedWindow.TIMESTAMP_MIN_VALUE;
+        }
+        if (outputTimestamp.isBefore(lowerBound)
+            || outputTimestamp.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+          throw new IllegalArgumentException(
+              String.format(
+                  "Cannot output timer with output timestamp %s. Output timestamps must be no "
+                      + "earlier than the timestamp of the current input (%s) minus the allowed skew "
+                      + "(%s) and no later than %s. See the DoFn#getAllowedTimestampSkew() Javadoc for "
+                      + "details on changing the allowed skew.",
+                  outputTimestamp,
+                  elementTimestampOrTimerHoldTimestamp,
+                  PeriodFormat.getDefault().print(doFn.getAllowedTimestampSkew().toPeriod()),
+                  BoundedWindow.TIMESTAMP_MAX_VALUE));
+        }
       }
 
       // Output timestamp is set to the delivery time if not initialized by an user.
@@ -1983,6 +2037,28 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
   }
 
+  @SuppressWarnings("deprecation") // Allowed Skew is deprecated for users, but must be respected
+  private void checkTimestamp(Instant timestamp) {
+    Instant lowerBound;
+    try {
+      lowerBound = currentElement.getTimestamp().minus(doFn.getAllowedTimestampSkew());
+    } catch (ArithmeticException e) {
+      lowerBound = BoundedWindow.TIMESTAMP_MIN_VALUE;
+    }
+    if (timestamp.isBefore(lowerBound) || timestamp.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Cannot output with timestamp %s. Output timestamps must be no earlier than the "
+                  + "timestamp of the current input (%s) minus the allowed skew (%s) and no later "
+                  + "than %s. See the DoFn#getAllowedTimestampSkew() Javadoc for details on "
+                  + "changing the allowed skew.",
+              timestamp,
+              currentElement.getTimestamp(),
+              PeriodFormat.getDefault().print(doFn.getAllowedTimestampSkew().toPeriod()),
+              BoundedWindow.TIMESTAMP_MAX_VALUE));
+    }
+  }
+
   private class StartBundleArgumentProvider extends BaseArgumentProvider<InputT, OutputT> {
     private class Context extends DoFn<InputT, OutputT>.StartBundleContext {
       Context() {
@@ -1995,7 +2071,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       }
     }
 
-    private final Context context = new Context();
+    private final StartBundleArgumentProvider.Context context =
+        new StartBundleArgumentProvider.Context();
 
     @Override
     public DoFn<InputT, OutputT>.StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
@@ -2046,7 +2123,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       }
     }
 
-    private final Context context = new Context();
+    private final FinishBundleArgumentProvider.Context context =
+        new FinishBundleArgumentProvider.Context();
 
     @Override
     public DoFn<InputT, OutputT>.FinishBundleContext finishBundleContext(
@@ -2141,6 +2219,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public void outputWithTimestamp(OutputT output, Instant timestamp) {
+      // TODO: Check that timestamp is valid once all runners can provide proper timestamps.
       outputTo(
           mainOutputConsumers,
           WindowedValue.of(output, timestamp, currentWindow, currentElement.getPane()));
@@ -2148,6 +2227,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+      // TODO: Check that timestamp is valid once all runners can provide proper timestamps.
       Collection<FnDataReceiver<WindowedValue<T>>> consumers =
           (Collection) localNameToConsumer.get(tag.getId());
       if (consumers == null) {
@@ -2170,6 +2250,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     @Override
     // OutputT == RestrictionT
     public void outputWithTimestamp(OutputT output, Instant timestamp) {
+      checkTimestamp(timestamp);
       double size =
           doFnInvoker.invokeGetSize(
               new DelegatingArgumentProvider<InputT, OutputT>(
@@ -2216,6 +2297,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     @Override
     // OutputT == RestrictionT
     public void outputWithTimestamp(OutputT output, Instant timestamp) {
+      checkTimestamp(timestamp);
       double size =
           doFnInvoker.invokeGetSize(
               new DelegatingArgumentProvider<InputT, OutputT>(
@@ -2254,6 +2336,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private class NonWindowObservingProcessBundleContext extends ProcessBundleContextBase {
     @Override
     public void outputWithTimestamp(OutputT output, Instant timestamp) {
+      checkTimestamp(timestamp);
       outputTo(
           mainOutputConsumers,
           WindowedValue.of(
@@ -2262,6 +2345,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+      checkTimestamp(timestamp);
       Collection<FnDataReceiver<WindowedValue<T>>> consumers =
           (Collection) localNameToConsumer.get(tag.getId());
       if (consumers == null) {
@@ -2457,6 +2541,159 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
   }
 
+  /**
+   * Provides arguments for a {@link DoFnInvoker} for {@link
+   * DoFn.OnWindowExpiration @OnWindowExpiration}.
+   */
+  private class OnWindowExpirationContext<K> extends BaseArgumentProvider<InputT, OutputT> {
+    private class Context extends DoFn<InputT, OutputT>.OnWindowExpirationContext {
+      private Context() {
+        doFn.super();
+      }
+
+      @Override
+      public PipelineOptions getPipelineOptions() {
+        return pipelineOptions;
+      }
+
+      @Override
+      public BoundedWindow window() {
+        return currentWindow;
+      }
+
+      @Override
+      public void output(OutputT output) {
+        outputTo(
+            mainOutputConsumers,
+            WindowedValue.of(
+                output, currentTimer.getHoldTimestamp(), currentWindow, currentTimer.getPane()));
+      }
+
+      @Override
+      public void outputWithTimestamp(OutputT output, Instant timestamp) {
+        checkOnWindowExpirationTimestamp(timestamp);
+        outputTo(
+            mainOutputConsumers,
+            WindowedValue.of(output, timestamp, currentWindow, currentTimer.getPane()));
+      }
+
+      @Override
+      public <T> void output(TupleTag<T> tag, T output) {
+        Collection<FnDataReceiver<WindowedValue<T>>> consumers =
+            (Collection) localNameToConsumer.get(tag.getId());
+        if (consumers == null) {
+          throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
+        }
+        outputTo(
+            consumers,
+            WindowedValue.of(
+                output, currentTimer.getHoldTimestamp(), currentWindow, currentTimer.getPane()));
+      }
+
+      @Override
+      public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+        checkOnWindowExpirationTimestamp(timestamp);
+        Collection<FnDataReceiver<WindowedValue<T>>> consumers =
+            (Collection) localNameToConsumer.get(tag.getId());
+        if (consumers == null) {
+          throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
+        }
+        outputTo(
+            consumers, WindowedValue.of(output, timestamp, currentWindow, currentTimer.getPane()));
+      }
+
+      @SuppressWarnings(
+          "deprecation") // Allowed Skew is deprecated for users, but must be respected
+      private void checkOnWindowExpirationTimestamp(Instant timestamp) {
+        Instant lowerBound;
+        try {
+          lowerBound = currentTimer.getHoldTimestamp().minus(doFn.getAllowedTimestampSkew());
+        } catch (ArithmeticException e) {
+          lowerBound = BoundedWindow.TIMESTAMP_MIN_VALUE;
+        }
+        if (timestamp.isBefore(lowerBound)
+            || timestamp.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+          throw new IllegalArgumentException(
+              String.format(
+                  "Cannot output with timestamp %s. Output timestamps must be no earlier than the "
+                      + "timestamp of the timer (%s) minus the allowed skew (%s) and no later "
+                      + "than %s. See the DoFn#getAllowedTimestampSkew() Javadoc for details on "
+                      + "changing the allowed skew.",
+                  timestamp,
+                  currentTimer.getHoldTimestamp(),
+                  PeriodFormat.getDefault().print(doFn.getAllowedTimestampSkew().toPeriod()),
+                  BoundedWindow.TIMESTAMP_MAX_VALUE));
+        }
+      }
+    }
+
+    private final OnWindowExpirationContext.Context context =
+        new OnWindowExpirationContext.Context();
+
+    @Override
+    public BoundedWindow window() {
+      return currentWindow;
+    }
+
+    @Override
+    public Instant timestamp(DoFn<InputT, OutputT> doFn) {
+      return currentTimer.getHoldTimestamp();
+    }
+
+    @Override
+    public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
+      return currentTimeDomain;
+    }
+
+    @Override
+    public K key() {
+      return (K) currentTimer.getUserKey();
+    }
+
+    @Override
+    public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
+      return DoFnOutputReceivers.windowedReceiver(context, null);
+    }
+
+    @Override
+    public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
+      return DoFnOutputReceivers.rowReceiver(context, null, mainOutputSchemaCoder);
+    }
+
+    @Override
+    public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
+      return DoFnOutputReceivers.windowedMultiReceiver(context);
+    }
+
+    @Override
+    public State state(String stateId, boolean alwaysFetched) {
+      StateDeclaration stateDeclaration = doFnSignature.stateDeclarations().get(stateId);
+      checkNotNull(stateDeclaration, "No state declaration found for %s", stateId);
+      StateSpec<?> spec;
+      try {
+        spec = (StateSpec<?>) stateDeclaration.field().get(doFn);
+      } catch (IllegalAccessException e) {
+        throw new RuntimeException(e);
+      }
+      State state = spec.bind(stateId, stateAccessor);
+      if (alwaysFetched) {
+        return (State) ((ReadableState) state).readLater();
+      } else {
+        return state;
+      }
+    }
+
+    @Override
+    public PipelineOptions pipelineOptions() {
+      return pipelineOptions;
+    }
+
+    @Override
+    public String getErrorContext() {
+      return "FnApiDoFnRunner/OnWindowExpiration";
+    }
+  }
+
   /** Provides arguments for a {@link DoFnInvoker} for {@link DoFn.OnTimer @OnTimer}. */
   private class OnTimerContext<K> extends BaseArgumentProvider<InputT, OutputT> {
 
@@ -2485,11 +2722,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
       @Override
       public void outputWithTimestamp(OutputT output, Instant timestamp) {
-        checkArgument(
-            !currentTimer.getHoldTimestamp().isAfter(timestamp),
-            "Output time %s can not be before timer timestamp %s.",
-            timestamp,
-            currentTimer.getHoldTimestamp());
+        checkTimerTimestamp(timestamp);
         outputTo(
             mainOutputConsumers,
             WindowedValue.of(output, timestamp, currentWindow, currentTimer.getPane()));
@@ -2510,11 +2743,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
       @Override
       public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
-        checkArgument(
-            !currentTimer.getHoldTimestamp().isAfter(timestamp),
-            "Output time %s can not be before timer timestamp %s.",
-            timestamp,
-            currentTimer.getHoldTimestamp());
+        checkTimerTimestamp(timestamp);
         Collection<FnDataReceiver<WindowedValue<T>>> consumers =
             (Collection) localNameToConsumer.get(tag.getId());
         if (consumers == null) {
@@ -2538,9 +2767,33 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       public Instant timestamp() {
         return currentTimer.getHoldTimestamp();
       }
+
+      @SuppressWarnings(
+          "deprecation") // Allowed Skew is deprecated for users, but must be respected
+      private void checkTimerTimestamp(Instant timestamp) {
+        Instant lowerBound;
+        try {
+          lowerBound = currentTimer.getHoldTimestamp().minus(doFn.getAllowedTimestampSkew());
+        } catch (ArithmeticException e) {
+          lowerBound = BoundedWindow.TIMESTAMP_MIN_VALUE;
+        }
+        if (timestamp.isBefore(lowerBound)
+            || timestamp.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+          throw new IllegalArgumentException(
+              String.format(
+                  "Cannot output with timestamp %s. Output timestamps must be no earlier than the "
+                      + "timestamp of the timer (%s) minus the allowed skew (%s) and no later "
+                      + "than %s. See the DoFn#getAllowedTimestampSkew() Javadoc for details on "
+                      + "changing the allowed skew.",
+                  timestamp,
+                  currentTimer.getHoldTimestamp(),
+                  PeriodFormat.getDefault().print(doFn.getAllowedTimestampSkew().toPeriod()),
+                  BoundedWindow.TIMESTAMP_MAX_VALUE));
+        }
+      }
     }
 
-    private final Context context = new Context();
+    private final OnTimerContext.Context context = new OnTimerContext.Context();
 
     @Override
     public BoundedWindow window() {

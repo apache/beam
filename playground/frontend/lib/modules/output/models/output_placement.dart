@@ -16,12 +16,14 @@
  * limitations under the License.
  */
 
+import 'package:flutter/cupertino.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground/constants/assets.dart';
 
 enum OutputPlacement {
-  bottom,
-  left,
   right,
+  left,
+  bottom,
 }
 
 extension OutputPlacementToIcon on OutputPlacement {
@@ -33,6 +35,21 @@ extension OutputPlacementToIcon on OutputPlacement {
         return kOutputRightIconAsset;
       case OutputPlacement.left:
         return kOutputLeftIconAsset;
+    }
+  }
+}
+
+extension OutputPlacementName on OutputPlacement {
+  String name(BuildContext context) {
+    AppLocalizations appLocale = AppLocalizations.of(context)!;
+
+    switch (this) {
+      case OutputPlacement.bottom:
+        return appLocale.bottom;
+      case OutputPlacement.right:
+        return appLocale.right;
+      case OutputPlacement.left:
+        return appLocale.left;
     }
   }
 }

@@ -20,61 +20,41 @@ package org.apache.beam.sdk.io.aws2.kinesis;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
-import java.util.Set;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import java.util.List;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 import software.amazon.awssdk.services.kinesis.model.Shard;
 import software.amazon.kinesis.common.InitialPositionInStream;
 
 /** * */
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(Shard.class)
+@RunWith(MockitoJUnitRunner.class)
 public class DynamicCheckpointGeneratorTest {
 
   @Mock private SimplifiedKinesisClient kinesisClient;
-  @Mock private StartingPointShardsFinder startingPointShardsFinder;
-  @Mock private Shard shard1, shard2, shard3;
+  private Shard shard1, shard2, shard3;
+
+  @Before
+  public void init() {
+    shard1 = Shard.builder().shardId("shard-01").build();
+    shard2 = Shard.builder().shardId("shard-02").build();
+    shard3 = Shard.builder().shardId("shard-03").build();
+  }
 
   @Test
   public void shouldMapAllShardsToCheckpoints() throws Exception {
-    when(shard1.shardId()).thenReturn("shard-01");
-    when(shard2.shardId()).thenReturn("shard-02");
-    when(shard3.shardId()).thenReturn("shard-03");
-    Set<Shard> shards = Sets.newHashSet(shard1, shard2, shard3);
+    List<Shard> shards = ImmutableList.of(shard1, shard2, shard3);
+    String streamName = "stream";
     StartingPoint startingPoint = new StartingPoint(InitialPositionInStream.LATEST);
-    when(startingPointShardsFinder.findShardsAtStartingPoint(
-            kinesisClient, "stream", startingPoint))
-        .thenReturn(shards);
+    when(kinesisClient.listShardsAtPoint(streamName, startingPoint)).thenReturn(shards);
     DynamicCheckpointGenerator underTest =
-        new DynamicCheckpointGenerator("stream", startingPoint, startingPointShardsFinder);
+        new DynamicCheckpointGenerator(streamName, startingPoint);
 
     KinesisReaderCheckpoint checkpoint = underTest.generate(kinesisClient);
 
     assertThat(checkpoint).hasSize(3);
-  }
-
-  @Test
-  public void shouldMapAllValidShardsToCheckpoints() throws Exception {
-    when(shard1.shardId()).thenReturn("shard-01");
-    when(shard2.shardId()).thenReturn("shard-02");
-    when(shard3.shardId()).thenReturn("shard-03");
-    String streamName = "stream";
-    Set<Shard> shards = Sets.newHashSet(shard1, shard2);
-    StartingPoint startingPoint = new StartingPoint(InitialPositionInStream.LATEST);
-    when(startingPointShardsFinder.findShardsAtStartingPoint(
-            kinesisClient, "stream", startingPoint))
-        .thenReturn(shards);
-
-    DynamicCheckpointGenerator underTest =
-        new DynamicCheckpointGenerator(streamName, startingPoint, startingPointShardsFinder);
-
-    KinesisReaderCheckpoint checkpoint = underTest.generate(kinesisClient);
-    assertThat(checkpoint)
-        .hasSize(2)
-        .doesNotContain(new ShardCheckpoint(streamName, shard3.shardId(), startingPoint));
   }
 }

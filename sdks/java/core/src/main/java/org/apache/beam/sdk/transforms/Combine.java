@@ -43,7 +43,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.CombineFnBase.AbstractGlobalCombineFn;
 import org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
-import org.apache.beam.sdk.transforms.CombineWithContext.Context;
 import org.apache.beam.sdk.transforms.CombineWithContext.RequiresContextInternal;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -608,11 +607,11 @@ public class Combine {
     @Override
     public void encode(Holder<V> accumulator, OutputStream outStream)
         throws CoderException, IOException {
-      encode(accumulator, outStream, Context.NESTED);
+      encode(accumulator, outStream, Coder.Context.NESTED);
     }
 
     @Override
-    public void encode(Holder<V> accumulator, OutputStream outStream, Context context)
+    public void encode(Holder<V> accumulator, OutputStream outStream, Coder.Context context)
         throws CoderException, IOException {
       if (accumulator.present) {
         outStream.write(1);
@@ -624,11 +623,11 @@ public class Combine {
 
     @Override
     public Holder<V> decode(InputStream inStream) throws CoderException, IOException {
-      return decode(inStream, Context.NESTED);
+      return decode(inStream, Coder.Context.NESTED);
     }
 
     @Override
-    public Holder<V> decode(InputStream inStream, Context context)
+    public Holder<V> decode(InputStream inStream, Coder.Context context)
         throws CoderException, IOException {
       if (inStream.read() == 1) {
         return new Holder<>(valueCoder.decode(inStream, context));
@@ -1768,27 +1767,29 @@ public class Combine {
         hotPreCombine =
             new CombineFnWithContext<InputT, AccumT, AccumT>() {
               @Override
-              public AccumT createAccumulator(Context c) {
+              public AccumT createAccumulator(CombineWithContext.Context c) {
                 return fnWithContext.createAccumulator(c);
               }
 
               @Override
-              public AccumT addInput(AccumT accumulator, InputT value, Context c) {
+              public AccumT addInput(
+                  AccumT accumulator, InputT value, CombineWithContext.Context c) {
                 return fnWithContext.addInput(accumulator, value, c);
               }
 
               @Override
-              public AccumT mergeAccumulators(Iterable<AccumT> accumulators, Context c) {
+              public AccumT mergeAccumulators(
+                  Iterable<AccumT> accumulators, CombineWithContext.Context c) {
                 return fnWithContext.mergeAccumulators(accumulators, c);
               }
 
               @Override
-              public AccumT compact(AccumT accumulator, Context c) {
+              public AccumT compact(AccumT accumulator, CombineWithContext.Context c) {
                 return fnWithContext.compact(accumulator, c);
               }
 
               @Override
-              public AccumT extractOutput(AccumT accumulator, Context c) {
+              public AccumT extractOutput(AccumT accumulator, CombineWithContext.Context c) {
                 return accumulator;
               }
 
@@ -1808,13 +1809,15 @@ public class Combine {
         postCombine =
             new CombineFnWithContext<InputOrAccum<InputT, AccumT>, AccumT, OutputT>() {
               @Override
-              public AccumT createAccumulator(Context c) {
+              public AccumT createAccumulator(CombineWithContext.Context c) {
                 return fnWithContext.createAccumulator(c);
               }
 
               @Override
               public AccumT addInput(
-                  AccumT accumulator, InputOrAccum<InputT, AccumT> value, Context c) {
+                  AccumT accumulator,
+                  InputOrAccum<InputT, AccumT> value,
+                  CombineWithContext.Context c) {
                 if (value.accum == null) {
                   return fnWithContext.addInput(accumulator, value.input, c);
                 } else {
@@ -1824,17 +1827,18 @@ public class Combine {
               }
 
               @Override
-              public AccumT mergeAccumulators(Iterable<AccumT> accumulators, Context c) {
+              public AccumT mergeAccumulators(
+                  Iterable<AccumT> accumulators, CombineWithContext.Context c) {
                 return fnWithContext.mergeAccumulators(accumulators, c);
               }
 
               @Override
-              public AccumT compact(AccumT accumulator, Context c) {
+              public AccumT compact(AccumT accumulator, CombineWithContext.Context c) {
                 return fnWithContext.compact(accumulator, c);
               }
 
               @Override
-              public OutputT extractOutput(AccumT accumulator, Context c) {
+              public OutputT extractOutput(AccumT accumulator, CombineWithContext.Context c) {
                 return fnWithContext.extractOutput(accumulator, c);
               }
 

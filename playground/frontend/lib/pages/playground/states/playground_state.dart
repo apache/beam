@@ -16,19 +16,35 @@
  * limitations under the License.
  */
 
+import 'dart:async';
+import 'dart:math';
+
 import 'package:flutter/material.dart';
+import 'package:playground/modules/editor/parsers/run_options_parser.dart';
 import 'package:playground/modules/editor/repository/code_repository/code_repository.dart';
 import 'package:playground/modules/editor/repository/code_repository/run_code_request.dart';
 import 'package:playground/modules/editor/repository/code_repository/run_code_result.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 
+const kTitleLength = 15;
+const kExecutionTimeUpdate = 100;
+const kPrecompiledDelay = Duration(seconds: 1);
+const kTitle = 'Catalog';
+const kExecutionCancelledText = '\nPipeline cancelled';
+const kPipelineOptionsParseError =
+    'Failed to parse pipeline options, please check the format (example: --key1 value1 --key2 value2), only alphanumeric and ",*,/,-,:,;,\',. symbols are allowed';
+
 class PlaygroundState with ChangeNotifier {
   late SDK _sdk;
   CodeRepository? _codeRepository;
   ExampleModel? _selectedExample;
-  String _source = "";
+  String _source = '';
   RunCodeResult? _result;
+  StreamSubscription<RunCodeResult>? _runSubscription;
+  String _pipelineOptions = '';
+  DateTime? resetKey;
+  StreamController<int>? _executionTime;
 
   PlaygroundState({
     SDK sdk = SDK.java,
@@ -36,9 +52,15 @@ class PlaygroundState with ChangeNotifier {
     CodeRepository? codeRepository,
   }) {
     _selectedExample = selectedExample;
+    _pipelineOptions = selectedExample?.pipelineOptions ?? '';
     _sdk = sdk;
-    _source = _selectedExample?.sources[_sdk] ?? "";
+    _source = _selectedExample?.source ?? '';
     _codeRepository = codeRepository;
+  }
+
+  String get examplesTitle {
+    final name = _selectedExample?.name ?? kTitle;
+    return name.substring(0, min(kTitleLength, name.length));
   }
 
   ExampleModel? get selectedExample => _selectedExample;
@@ -47,13 +69,20 @@ class PlaygroundState with ChangeNotifier {
 
   String get source => _source;
 
-  bool get isCodeRunning => result?.status == RunCodeStatus.executing;
+  bool get isCodeRunning => !(result?.isFinished ?? true);
 
   RunCodeResult? get result => _result;
 
+  String get pipelineOptions => _pipelineOptions;
+
+  Stream<int>? get executionTime => _executionTime?.stream;
+
   setExample(ExampleModel example) {
     _selectedExample = example;
-    _source = example.sources[_sdk] ?? "";
+    _pipelineOptions = example.pipelineOptions ?? '';
+    _source = example.source ?? '';
+    _result = null;
+    _executionTime = null;
     notifyListeners();
   }
 
@@ -66,9 +95,16 @@ class PlaygroundState with ChangeNotifier {
     _source = source;
   }
 
+  clearOutput() {
+    _result = null;
+    notifyListeners();
+  }
+
   reset() {
-    _sdk = SDK.java;
-    _source = _selectedExample?.sources[_sdk] ?? "";
+    _source = _selectedExample?.source ?? '';
+    _pipelineOptions = selectedExample?.pipelineOptions ?? '';
+    resetKey = DateTime.now();
+    _executionTime = null;
     notifyListeners();
   }
 
@@ -80,12 +116,106 @@ class PlaygroundState with ChangeNotifier {
     notifyListeners();
   }
 
-  void runCode() {
-    _codeRepository
-        ?.runCode(RunCodeRequestWrapper(code: source, sdk: sdk))
-        .listen((event) {
-      _result = event;
+  setPipelineOptions(String options) {
+    _pipelineOptions = options;
+  }
+
+  void runCode({Function? onFinish}) {
+    final parsedPipelineOptions = parsePipelineOptions(pipelineOptions);
+    if (parsedPipelineOptions == null) {
+      _result = RunCodeResult(
+        status: RunCodeStatus.compileError,
+        errorMessage: kPipelineOptionsParseError,
+      );
       notifyListeners();
-    });
+      return;
+    }
+    _executionTime?.close();
+    _executionTime = _createExecutionTimeStream();
+    if (_selectedExample?.source == source &&
+        _selectedExample?.outputs != null &&
+        !_arePipelineOptionsChanges) {
+      _showPrecompiledResult();
+    } else {
+      final request = RunCodeRequestWrapper(
+        code: source,
+        sdk: sdk,
+        pipelineOptions: parsedPipelineOptions,
+      );
+      _runSubscription = _codeRepository?.runCode(request).listen((event) {
+        _result = event;
+        if (event.isFinished && onFinish != null) {
+          onFinish();
+          _executionTime?.close();
+        }
+        notifyListeners();
+      });
+      notifyListeners();
+    }
+  }
+
+  Future<void> cancelRun() async {
+    _runSubscription?.cancel();
+    final pipelineUuid = result?.pipelineUuid ?? '';
+    if (pipelineUuid.isNotEmpty) {
+      await _codeRepository?.cancelExecution(pipelineUuid);
+    }
+    _result = RunCodeResult(
+      status: RunCodeStatus.finished,
+      output: _result?.output,
+      log: (_result?.log ?? '') + kExecutionCancelledText,
+    );
+    _executionTime?.close();
+    notifyListeners();
+  }
+
+  bool get _arePipelineOptionsChanges {
+    return pipelineOptions != (_selectedExample?.pipelineOptions ?? '');
+  }
+
+  _showPrecompiledResult() async {
+    _result = RunCodeResult(
+      status: RunCodeStatus.preparation,
+    );
+    notifyListeners();
+    // add a little delay to improve user experience
+    await Future.delayed(kPrecompiledDelay);
+    _result = RunCodeResult(
+      status: RunCodeStatus.finished,
+      output: _selectedExample!.outputs,
+      log: _selectedExample!.logs,
+    );
+    _executionTime?.close();
+    notifyListeners();
+  }
+
+  StreamController<int> _createExecutionTimeStream() {
+    StreamController<int>? streamController;
+    Timer? timer;
+    Duration timerInterval = const Duration(milliseconds: kExecutionTimeUpdate);
+    int ms = 0;
+
+    void stopTimer() {
+      timer?.cancel();
+      streamController?.close();
+    }
+
+    void tick(_) {
+      ms += kExecutionTimeUpdate;
+      streamController?.add(ms);
+    }
+
+    void startTimer() {
+      timer = Timer.periodic(timerInterval, tick);
+    }
+
+    streamController = StreamController<int>(
+      onListen: startTimer,
+      onCancel: stopTimer,
+      onResume: startTimer,
+      onPause: stopTimer,
+    );
+
+    return streamController;
   }
 }

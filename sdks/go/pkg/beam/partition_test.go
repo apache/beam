@@ -15,6 +15,14 @@
 
 package beam_test
 
+// beam-playground:
+//   name: PartitionTest
+//   description: Unit-test for the Partition example.
+//   multifile: false
+//   pipeline_options:
+//   categories:
+//     - Core Transforms
+
 import (
 	"testing"
 

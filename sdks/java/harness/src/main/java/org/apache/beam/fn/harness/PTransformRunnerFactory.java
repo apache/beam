@@ -25,8 +25,11 @@ import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.data.BeamFnTimerClient;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
+import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.function.ThrowingRunnable;
@@ -63,6 +66,15 @@ public interface PTransformRunnerFactory<T> {
     /** A supplier containing the active process bundle instruction id. */
     Supplier<String> getProcessBundleInstructionIdSupplier();
 
+    /** A supplier containing the active cache tokens for this bundle. */
+    Supplier<List<ProcessBundleRequest.CacheToken>> getCacheTokensSupplier();
+
+    /** A cache that is used for each bundle and cleared when the bundle completes. */
+    Supplier<Cache<?, ?>> getBundleCacheSupplier();
+
+    /** A cache that is process wide and persists across bundle boundaries. */
+    Cache<?, ?> getProcessWideCache();
+
     /** An immutable mapping from PCollection id to PCollection definition. */
     Map<String, RunnerApi.PCollection> getPCollections();
 
@@ -84,6 +96,14 @@ public interface PTransformRunnerFactory<T> {
 
     /** Register any {@link DoFn.FinishBundle} methods. */
     void addFinishBundleFunction(ThrowingRunnable finishBundleFunction);
+
+    <T> void addIncomingDataEndpoint(
+        Endpoints.ApiServiceDescriptor apiServiceDescriptor,
+        Coder<T> coder,
+        FnDataReceiver<T> receiver);
+
+    <T> void addIncomingTimerEndpoint(
+        String timerFamilyId, Coder<Timer<T>> coder, FnDataReceiver<Timer<T>> receiver);
 
     /**
      * Register any reset methods. This should not invoke any user code which should be done instead

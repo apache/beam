@@ -31,6 +31,7 @@ from apache_beam.portability.api import schema_pb2
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.typehints.schemas import named_tuple_from_schema
 from apache_beam.typehints.schemas import typing_to_runner_api
 from apache_beam.utils.timestamp import Timestamp
 
@@ -46,6 +47,15 @@ Person = typing.NamedTuple(
         ("custom_metadata", typing.Mapping[str, int]),
         ("favorite_time", Timestamp),
     ])
+
+NullablePerson = typing.NamedTuple(
+    "NullablePerson",
+    [("name", typing.Optional[str]), ("age", np.int32),
+     ("address", typing.Optional[str]), ("aliases", typing.List[str]),
+     ("knows_javascript", bool), ("payload", typing.Optional[bytes]),
+     ("custom_metadata", typing.Mapping[str, int]),
+     ("favorite_time", typing.Optional[Timestamp]),
+     ("one_more_field", typing.Optional[str])])
 
 coders_registry.register_coder(Person, RowCoder)
 
@@ -81,6 +91,23 @@ class RowCoderTest(unittest.TestCase):
           b"I've made a huge mistake", {},
           Timestamp.from_rfc3339('2020-08-12T15:51:00.032Z'))
   ]
+
+  def test_row_accepts_trailing_zeros_truncated(self):
+    expected_coder = RowCoder(
+        typing_to_runner_api(NullablePerson).row_type.schema)
+    person = NullablePerson(
+        None,
+        np.int32(25),
+        "Westeros", ["Mother of Dragons"],
+        False,
+        None, {"dragons": 3},
+        None,
+        "NotNull")
+    out = expected_coder.encode(person)
+    # 9 fields, 1 null byte, field 0, 5, 7 are null
+    new_payload = bytes([9, 1, 1 | 1 << 5 | 1 << 7]) + out[4:]
+    new_value = expected_coder.decode(new_payload)
+    self.assertEqual(person, new_value)
 
   def test_create_row_coder_from_named_tuple(self):
     expected_coder = RowCoder(typing_to_runner_api(Person).row_type.schema)
@@ -255,6 +282,85 @@ class RowCoderTest(unittest.TestCase):
     coder = RowCoder(typing_to_runner_api(Pair).row_type.schema)
 
     self.assertEqual(value, coder.decode(coder.encode(value)))
+
+  def test_encoding_position_reorder_fields(self):
+    schema1 = schema_pb2.Schema(
+        id="reorder_test_schema1",
+        fields=[
+            schema_pb2.Field(
+                name="f_int32",
+                type=schema_pb2.FieldType(atomic_type=schema_pb2.INT32),
+            ),
+            schema_pb2.Field(
+                name="f_str",
+                type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING),
+            ),
+        ])
+    schema2 = schema_pb2.Schema(
+        id="reorder_test_schema2",
+        encoding_positions_set=True,
+        fields=[
+            schema_pb2.Field(
+                name="f_str",
+                type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING),
+                encoding_position=1,
+            ),
+            schema_pb2.Field(
+                name="f_int32",
+                type=schema_pb2.FieldType(atomic_type=schema_pb2.INT32),
+                encoding_position=0,
+            ),
+        ])
+
+    RowSchema1 = named_tuple_from_schema(schema1)
+    RowSchema2 = named_tuple_from_schema(schema2)
+    roundtripped = RowCoder(schema2).decode(
+        RowCoder(schema1).encode(RowSchema1(42, "Hello World!")))
+
+    self.assertEqual(RowSchema2(f_int32=42, f_str="Hello World!"), roundtripped)
+
+  def test_encoding_position_add_fields_and_reorder(self):
+    old_schema = schema_pb2.Schema(
+        id="add_test_old",
+        fields=[
+            schema_pb2.Field(
+                name="f_int32",
+                type=schema_pb2.FieldType(atomic_type=schema_pb2.INT32),
+            ),
+            schema_pb2.Field(
+                name="f_str",
+                type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING),
+            ),
+        ])
+    new_schema = schema_pb2.Schema(
+        encoding_positions_set=True,
+        id="add_test_new",
+        fields=[
+            schema_pb2.Field(
+                name="f_new_str",
+                type=schema_pb2.FieldType(
+                    atomic_type=schema_pb2.STRING, nullable=True),
+                encoding_position=2,
+            ),
+            schema_pb2.Field(
+                name="f_int32",
+                type=schema_pb2.FieldType(atomic_type=schema_pb2.INT32),
+                encoding_position=0,
+            ),
+            schema_pb2.Field(
+                name="f_str",
+                type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING),
+                encoding_position=1,
+            ),
+        ])
+
+    Old = named_tuple_from_schema(old_schema)
+    New = named_tuple_from_schema(new_schema)
+    roundtripped = RowCoder(new_schema).decode(
+        RowCoder(old_schema).encode(Old(42, "Hello World!")))
+
+    self.assertEqual(
+        New(f_new_str=None, f_int32=42, f_str="Hello World!"), roundtripped)
 
   def test_row_coder_fail_early_bad_schema(self):
     schema_proto = schema_pb2.Schema(

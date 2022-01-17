@@ -78,4 +78,10 @@ public interface KinesisTestOptions extends TestPipelineOptions {
   Boolean getUseLocalstack();
 
   void setUseLocalstack(Boolean useLocalstack);
+
+  @Description("Create stream. Enabled when using localstack")
+  @Default.Boolean(false)
+  Boolean getCreateStream();
+
+  void setCreateStream(Boolean createStream);
 }

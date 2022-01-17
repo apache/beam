@@ -17,10 +17,13 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-
 import 'package:playground/config/theme.dart';
 import 'package:playground/constants/assets.dart';
+import 'package:playground/constants/links.dart';
+import 'package:playground/modules/analytics/analytics_service.dart';
+import 'package:playground/modules/shortcuts/components/shortcuts_modal.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 enum HeaderAction {
@@ -32,29 +35,18 @@ enum HeaderAction {
   aboutBeam,
 }
 
-const kShortcutsText = "Shortcuts";
-
-const kBeamPlaygroundGithubText = "Beam Playground on GitHub";
-const kBeamPlaygroundGithubLink =
-    "https://github.com/apache/beam/tree/master/playground/frontend";
-
-const kApacheBeamGithubText = "Apache Beam on GitHub";
-const kApacheBeamGithubLink =
-    "https://github.com/apache/beam/tree/master/playground/frontend";
-
-const kScioGithubText = "SCIO on GitHub";
-const kScioGithubLink = "https://github.com/spotify/scio";
-
-const kBeamWebsiteText = "To Apache Beam website";
-const kBeamWebsiteLink = "https://beam.apache.org/";
-
-const kAboutBeamText = "About Apache Beam";
-
-class MoreActions extends StatelessWidget {
+class MoreActions extends StatefulWidget {
   const MoreActions({Key? key}) : super(key: key);
 
   @override
+  State<MoreActions> createState() => _MoreActionsState();
+}
+
+class _MoreActionsState extends State<MoreActions> {
+  @override
   Widget build(BuildContext context) {
+    AppLocalizations appLocale = AppLocalizations.of(context)!;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: PopupMenuButton<HeaderAction>(
@@ -68,7 +60,14 @@ class MoreActions extends StatelessWidget {
             value: HeaderAction.shortcuts,
             child: ListTile(
               leading: SvgPicture.asset(kShortcutsIconAsset),
-              title: const Text(kShortcutsText),
+              title: Text(appLocale.shortcuts),
+              onTap: () {
+              AnalyticsService.get(context).trackOpenShortcutsModal();
+              showDialog<void>(
+                  context: context,
+                  builder: (BuildContext context) => const ShortcutsModal(),
+                );
+              },
             ),
           ),
           PopupMenuItem<HeaderAction>(
@@ -76,8 +75,8 @@ class MoreActions extends StatelessWidget {
             value: HeaderAction.beamPlaygroundGithub,
             child: ListTile(
               leading: SvgPicture.asset(kGithubIconAsset),
-              title: const Text(kBeamPlaygroundGithubText),
-              onTap: () => launch(kBeamPlaygroundGithubLink),
+              title: Text(appLocale.beamPlaygroundOnGithub),
+              onTap: () => _openLink(kBeamPlaygroundGithubLink, context),
             ),
           ),
           PopupMenuItem<HeaderAction>(
@@ -85,8 +84,8 @@ class MoreActions extends StatelessWidget {
             value: HeaderAction.apacheBeamGithub,
             child: ListTile(
               leading: SvgPicture.asset(kGithubIconAsset),
-              title: const Text(kApacheBeamGithubText),
-              onTap: () => launch(kApacheBeamGithubLink),
+              title: Text(appLocale.apacheBeamOnGithub),
+              onTap: () => _openLink(kApacheBeamGithubLink, context),
             ),
           ),
           PopupMenuItem<HeaderAction>(
@@ -94,8 +93,8 @@ class MoreActions extends StatelessWidget {
             value: HeaderAction.scioGithub,
             child: ListTile(
               leading: SvgPicture.asset(kGithubIconAsset),
-              title: const Text(kScioGithubText),
-              onTap: () => launch(kScioGithubLink),
+              title: Text(appLocale.scioOnGithub),
+              onTap: () => _openLink(kScioGithubLink, context),
             ),
           ),
           const PopupMenuDivider(height: 16.0),
@@ -103,21 +102,27 @@ class MoreActions extends StatelessWidget {
             padding: EdgeInsets.zero,
             value: HeaderAction.beamWebsite,
             child: ListTile(
-              leading: const Image(image: AssetImage('beam.png')),
-              title: const Text(kBeamWebsiteText),
-              onTap: () => launch(kBeamWebsiteLink),
+              leading: const Image(image: AssetImage(kBeamIconAsset)),
+              title: Text(appLocale.toApacheBeamWebsite),
+              onTap: () => _openLink(kBeamWebsiteLink, context),
             ),
           ),
-          const PopupMenuItem<HeaderAction>(
+          PopupMenuItem<HeaderAction>(
             padding: EdgeInsets.zero,
             value: HeaderAction.beamWebsite,
             child: ListTile(
-              leading: Icon(Icons.info_outline),
-              title: Text(kAboutBeamText),
+              leading: const Icon(Icons.info_outline),
+              title: Text(appLocale.aboutApacheBeam),
+              onTap: () => _openLink(kAboutBeamLink, context),
             ),
           ),
         ],
       ),
     );
+  }
+
+  _openLink(String link, BuildContext context) {
+    launch(link);
+    AnalyticsService.get(context).trackOpenLink(link);
   }
 }

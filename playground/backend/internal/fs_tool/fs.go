@@ -17,59 +17,56 @@ package fs_tool
 
 import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
-	"errors"
 	"fmt"
 	"github.com/google/uuid"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 const (
-	projectRoot          = "backend"
-	parentBaseFileFolder = "internal"
-	fileMode             = 0600
+	fileMode    = 0600
+	logFileName = "logs.log"
 )
 
-// Folder contains names of folders with executable and compiled files (/src and /bin for java SDK)
-type Folder struct {
-	BaseFolder       string
-	ExecutableFolder string
-	CompiledFolder   string
+// LifeCyclePaths contains all files/folders paths
+type LifeCyclePaths struct {
+	SourceFileName                   string // {pipelineId}.{sourceFileExtension}
+	AbsoluteSourceFileFolderPath     string // /path/to/workingDir/pipelinesFolder/{pipelineId}/src
+	AbsoluteSourceFilePath           string // /path/to/workingDir/pipelinesFolder/{pipelineId}/src/{pipelineId}.{sourceFileExtension}
+	ExecutableFileName               string // {pipelineId}.{executableFileExtension}
+	AbsoluteExecutableFileFolderPath string // /path/to/workingDir/pipelinesFolder/{pipelineId}/bin
+	AbsoluteExecutableFilePath       string // /path/to/workingDir/pipelinesFolder/{pipelineId}/bin/{pipelineId}.{executableFileExtension}
+	AbsoluteBaseFolderPath           string // /path/to/workingDir/pipelinesFolder/{pipelineId}
+	AbsoluteLogFilePath              string // /path/to/workingDir/pipelinesFolder/{pipelineId}/logs.log
+	ExecutableName                   func(string) (string, error)
 }
 
-// Extension contains executable and compiled files' extensions (.java and .class for java SDK)
-type Extension struct {
-	ExecutableExtension string
-	CompiledExtension   string
-}
-
+// LifeCycle is used for preparing folders and files to process code for one code processing request.
 type LifeCycle struct {
-	folderGlobs []string
-	Folder      Folder
-	Extension   Extension
-	pipelineId  uuid.UUID
+	folderGlobs []string // folders that should be created to process code
+	Paths       LifeCyclePaths
 }
 
 // NewLifeCycle returns a corresponding LifeCycle depending on the given SDK.
-func NewLifeCycle(sdk pb.Sdk, pipelineId uuid.UUID) (*LifeCycle, error) {
+func NewLifeCycle(sdk pb.Sdk, pipelineId uuid.UUID, pipelinesFolder string) (*LifeCycle, error) {
 	switch sdk {
 	case pb.Sdk_SDK_JAVA:
-		return newJavaLifeCycle(pipelineId), nil
+		return newJavaLifeCycle(pipelineId, pipelinesFolder), nil
+	case pb.Sdk_SDK_GO:
+		return newGoLifeCycle(pipelineId, pipelinesFolder), nil
+	case pb.Sdk_SDK_PYTHON:
+		return newPythonLifeCycle(pipelineId, pipelinesFolder), nil
 	default:
 		return nil, fmt.Errorf("%s isn't supported now", sdk)
 	}
 }
 
 // CreateFolders creates all folders which will be used for code execution.
-func (l *LifeCycle) CreateFolders() error {
-	err := setUpWorkingDir()
-	if err != nil {
-		return err
-	}
-	for _, folder := range l.folderGlobs {
-		err = os.MkdirAll(folder, fs.ModePerm)
+func (lc *LifeCycle) CreateFolders() error {
+	for _, folder := range lc.folderGlobs {
+		err := os.MkdirAll(folder, fs.ModePerm)
 		if err != nil {
 			return err
 		}
@@ -78,13 +75,9 @@ func (l *LifeCycle) CreateFolders() error {
 }
 
 // DeleteFolders deletes all previously provisioned folders.
-func (l *LifeCycle) DeleteFolders() error {
-	err := setUpWorkingDir()
-	if err != nil {
-		return err
-	}
-	for _, folder := range l.folderGlobs {
-		err = os.RemoveAll(folder)
+func (lc *LifeCycle) DeleteFolders() error {
+	for _, folder := range lc.folderGlobs {
+		err := os.RemoveAll(folder)
 		if err != nil {
 			return err
 		}
@@ -92,88 +85,47 @@ func (l *LifeCycle) DeleteFolders() error {
 	return nil
 }
 
-// CreateExecutableFile creates an executable file (i.e. file.java for the Java SDK).
-func (l *LifeCycle) CreateExecutableFile(code string) (string, error) {
-	err := setUpWorkingDir()
+// CreateSourceCodeFile creates an executable file (i.e. file.{sourceFileExtension}).
+func (lc *LifeCycle) CreateSourceCodeFile(code string) error {
+	if _, err := os.Stat(lc.Paths.AbsoluteSourceFileFolderPath); os.IsNotExist(err) {
+		return err
+	}
+
+	filePath := lc.Paths.AbsoluteSourceFilePath
+	err := os.WriteFile(filePath, []byte(code), fileMode)
 	if err != nil {
-		return "", err
+		return err
 	}
-	if _, err = os.Stat(l.Folder.ExecutableFolder); os.IsNotExist(err) {
-		return "", err
-	}
-
-	fileName := getFileName(l.pipelineId, l.Extension.ExecutableExtension)
-	filePath := filepath.Join(l.Folder.ExecutableFolder, fileName)
-	err = os.WriteFile(filePath, []byte(code), fileMode)
-	if err != nil {
-		return "", err
-	}
-	return fileName, nil
+	return nil
 }
 
-// GetAbsoluteExecutableFilePath returns absolute filepath to executable file (.../internal/executable_files/src/file.java for java SDK).
-func (l *LifeCycle) GetAbsoluteExecutableFilePath() string {
-	fileName := getFileName(l.pipelineId, l.Extension.ExecutableExtension)
-	filePath := filepath.Join(l.Folder.ExecutableFolder, fileName)
-	absoluteFilePath, _ := filepath.Abs(filePath)
-	return absoluteFilePath
-}
-
-// GetRelativeExecutableFilePath returns relative filepath to executable file (src/file.java for java SDK).
-func (l *LifeCycle) GetRelativeExecutableFilePath() string {
-	fileName := getFileName(l.pipelineId, l.Extension.ExecutableExtension)
-	filePath := filepath.Join(l.Folder.ExecutableFolder, fileName)
-	return filePath[len(l.Folder.BaseFolder)+1:]
-}
-
-// GetExecutableName returns name that should be executed (HelloWorld for HelloWorld.class for java SDK)
-func (l *LifeCycle) GetExecutableName() (string, error) {
-	dirEntries, err := os.ReadDir(l.Folder.CompiledFolder)
-	if err != nil {
-		return "", err
-	}
-	if len(dirEntries) != 1 {
-		return "", errors.New("number of executable files should be equal to one")
-	}
-	return strings.Split(dirEntries[0].Name(), ".")[0], nil
-}
-
-// getFileName returns fileName by pipelineId and fileType (pipelineId.java for java SDK).
-func getFileName(pipelineId uuid.UUID, fileType string) string {
-	return fmt.Sprintf("%s.%s", pipelineId, fileType)
-}
-
-// setUpWorkingDir sets projectRoot as a working directory.
-func setUpWorkingDir() error {
-	folder, err := getWorkingDirName()
+// CopyFile copies a file with fileName from sourceDir to destinationDir.
+func (lc *LifeCycle) CopyFile(fileName, sourceDir, destinationDir string) error {
+	absSourcePath := filepath.Join(sourceDir, fileName)
+	absDestinationPath := filepath.Join(destinationDir, fileName)
+	sourceFileStat, err := os.Stat(absSourcePath)
 	if err != nil {
 		return err
 	}
 
-	// go up to parent directory until working dir isn't projectRoot dir
-	for !strings.EqualFold(folder, projectRoot) {
-		err = os.Chdir("..")
-		if err != nil {
-			return err
-		}
-
-		folder, err = getWorkingDirName()
-		if err != nil {
-			return err
-		}
+	if !sourceFileStat.Mode().IsRegular() {
+		return fmt.Errorf("%s is not a regular file", fileName)
 	}
 
-	return nil
-}
-
-// getWorkingDirName returns the working directory's name.
-func getWorkingDirName() (string, error) {
-	path, err := os.Getwd()
+	sourceFile, err := os.Open(absSourcePath)
 	if err != nil {
-		return "", err
+		return err
 	}
+	defer sourceFile.Close()
 
-	folders := strings.Split(path, "/")
-	folder := folders[len(folders)-1]
-	return folder, nil
+	destinationFile, err := os.Create(absDestinationPath)
+	if err != nil {
+		return err
+	}
+	defer destinationFile.Close()
+	_, err = io.Copy(destinationFile, sourceFile)
+	if err != nil {
+		return err
+	}
+	return nil
 }

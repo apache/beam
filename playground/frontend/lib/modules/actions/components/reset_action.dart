@@ -21,8 +21,10 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:playground/config/theme.dart';
 import 'package:playground/constants/assets.dart';
 import 'package:playground/modules/actions/components/header_icon_button.dart';
-
-const kResetButtonText = "Reset";
+import 'package:playground/modules/analytics/analytics_service.dart';
+import 'package:playground/modules/shortcuts/components/shortcut_tooltip.dart';
+import 'package:playground/modules/shortcuts/constants/global_shortcuts.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class ResetAction extends StatelessWidget {
   final VoidCallback reset;
@@ -31,13 +33,19 @@ class ResetAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return HeaderIconButton(
-      icon: SvgPicture.asset(
-        kResetIconAsset,
-        color: ThemeColors.of(context).grey1Color,
+    return ShortcutTooltip(
+      shortcut: kResetShortcut,
+      child: HeaderIconButton(
+        icon: SvgPicture.asset(
+          kResetIconAsset,
+          color: ThemeColors.of(context).grey1Color,
+        ),
+        label: AppLocalizations.of(context)!.reset,
+        onPressed: () {
+          reset();
+          AnalyticsService.get(context).trackReset();
+        },
       ),
-      label: kResetButtonText,
-      onPressed: reset,
     );
   }
 }

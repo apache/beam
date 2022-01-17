@@ -17,31 +17,59 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:playground/config/theme.dart';
 import 'package:playground/constants/sizes.dart';
+import 'package:playground/modules/shortcuts/components/shortcut_tooltip.dart';
+import 'package:playground/modules/shortcuts/constants/global_shortcuts.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:playground/pages/playground/states/playground_state.dart';
+import 'package:provider/provider.dart';
 
-const kRunText = "Run";
+const kMsToSec = 1000;
+const kSecondsFractions = 1;
 
 class RunButton extends StatelessWidget {
   final bool isRunning;
   final VoidCallback runCode;
+  final VoidCallback cancelRun;
 
-  const RunButton({Key? key, required this.isRunning, required this.runCode})
-      : super(key: key);
+  const RunButton({
+    Key? key,
+    required this.isRunning,
+    required this.runCode,
+    required this.cancelRun,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return ElevatedButton.icon(
-      icon: isRunning
-          ? SizedBox(
-              width: kIconSizeSm,
-              height: kIconSizeSm,
-              child: CircularProgressIndicator(
-                color: Theme.of(context).primaryColor,
-              ),
-            )
-          : const Icon(Icons.play_arrow),
-      label: const Text(kRunText),
-      onPressed: !isRunning ? runCode : null,
+    return ShortcutTooltip(
+      shortcut: kRunShortcut,
+      child: ElevatedButton.icon(
+        icon: isRunning
+            ? SizedBox(
+                width: kIconSizeSm,
+                height: kIconSizeSm,
+                child: CircularProgressIndicator(
+                  color: ThemeColors.of(context).primaryBackgroundTextColor,
+                ),
+              )
+            : const Icon(Icons.play_arrow),
+        label: StreamBuilder(
+            stream: Provider.of<PlaygroundState>(context).executionTime,
+            builder: (context, AsyncSnapshot<int> state) {
+              final seconds = (state.data ?? 0) / kMsToSec;
+              final runText = AppLocalizations.of(context)!.run;
+              final cancelText = AppLocalizations.of(context)!.cancel;
+              final buttonText = isRunning ? cancelText : runText;
+              if (seconds > 0) {
+                return Text(
+                  '$buttonText (${seconds.toStringAsFixed(kSecondsFractions)} s)',
+                );
+              }
+              return Text(buttonText);
+            }),
+        onPressed: !isRunning ? runCode : cancelRun,
+      ),
     );
   }
 }

@@ -41,6 +41,16 @@
 // with --input.
 package main
 
+// beam-playground:
+//   name: DebuggingWordCount
+//   description: An example that counts words in Shakespeare's works includes regex filter("Flourish|stomach").
+//   multifile: false
+//   pipeline_options: --output output.txt
+//   categories:
+//     - Options
+//     - Filtering
+//     - Debugging
+
 import (
 	"context"
 	"flag"
@@ -69,6 +79,8 @@ var (
 // available at runtime.
 
 func init() {
+	beam.RegisterFunction(extractFn)
+	beam.RegisterFunction(formatFn)
 	// To be correctly serialized on non-direct runners, struct form DoFns must be
 	// registered during initialization.
 	beam.RegisterType(reflect.TypeOf((*filterFn)(nil)).Elem())

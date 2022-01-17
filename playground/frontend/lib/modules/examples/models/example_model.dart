@@ -16,11 +16,75 @@
  * limitations under the License.
  */
 
-import 'package:playground/modules/sdk/models/sdk.dart';
+enum ExampleType {
+  all,
+  example,
+  kata,
+  test,
+}
 
-class ExampleModel {
-  final Map<SDK, String> sources;
+extension ExampleTypeToString on ExampleType {
+  String get name {
+    switch (this) {
+      case ExampleType.example:
+        return 'Examples';
+      case ExampleType.kata:
+        return 'Katas';
+      case ExampleType.test:
+        return 'Unit tests';
+      case ExampleType.all:
+        return 'All';
+    }
+  }
+}
+
+class ExampleModel with Comparable<ExampleModel> {
+  final ExampleType type;
   final String name;
+  final String path;
+  final String description;
+  String? source;
+  String? outputs;
+  String? logs;
+  String? pipelineOptions;
 
-  const ExampleModel(this.sources, this.name);
+  ExampleModel({
+    required this.name,
+    required this.path,
+    required this.description,
+    required this.type,
+    this.source,
+    this.outputs,
+    this.logs,
+    this.pipelineOptions,
+  });
+
+  setSource(String source) {
+    this.source = source;
+  }
+
+  setOutputs(String outputs) {
+    this.outputs = outputs;
+  }
+
+  setLogs(String logs) {
+    this.logs = logs;
+  }
+
+  bool isInfoFetched() {
+    // checking only source, because outputs/logs can be empty
+    return source?.isNotEmpty ?? false;
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) || (other is ExampleModel && path == other.path);
+
+  @override
+  int get hashCode => path.hashCode;
+
+  @override
+  int compareTo(ExampleModel other) {
+    return name.toLowerCase().compareTo(other.name.toLowerCase());
+  }
 }

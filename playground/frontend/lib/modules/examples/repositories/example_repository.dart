@@ -16,38 +16,42 @@
  * limitations under the License.
  */
 
-import 'package:playground/modules/examples/models/example_model.dart';
+import 'package:playground/modules/examples/models/category_model.dart';
+import 'package:playground/modules/examples/repositories/example_client/example_client.dart';
+import 'package:playground/modules/examples/repositories/models/get_example_request.dart';
+import 'package:playground/modules/examples/repositories/models/get_list_of_examples_request.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 
-const javaHelloWorld = '''class HelloWorld {
-  public static void main(String[] args) {
-    System.out.println("Hello World!");
-  }
-}''';
-
-const pythonHelloWorld = "print(‘Hello World’)";
-
-const goHelloWorld = '''package main
-
-import "fmt"
-
-// this is a comment
-
-func main() {
-  fmt.Println("Hello World")
-}''';
-
 class ExampleRepository {
-  Future<List<ExampleModel>> getExamples() {
-    return Future.value([
-      const ExampleModel(
-        {
-          SDK.java: javaHelloWorld,
-          SDK.go: goHelloWorld,
-          SDK.python: pythonHelloWorld,
-        },
-        "Initial Example",
-      )
-    ]);
+  late final ExampleClient _client;
+
+  ExampleRepository(ExampleClient client) {
+    _client = client;
+  }
+
+  Future<Map<SDK, List<CategoryModel>>> getListOfExamples(
+    GetListOfExamplesRequestWrapper request,
+  ) async {
+    final result = await _client.getListOfExamples(request);
+    return result.categories;
+  }
+
+  Future<String> getExampleSource(GetExampleRequestWrapper request) async {
+    final result = await _client.getExample(request);
+    return result.code;
+  }
+
+  Future<String> getExampleOutput(
+    GetExampleRequestWrapper request,
+  ) async {
+    final result = await _client.getExampleOutput(request);
+    return result.output;
+  }
+
+  Future<String> getExampleLogs(
+    GetExampleRequestWrapper request,
+  ) async {
+    final result = await _client.getExampleLogs(request);
+    return result.output;
   }
 }

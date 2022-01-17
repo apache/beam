@@ -26,7 +26,6 @@ import com.google.cloud.pubsublite.AdminClientSettings;
 import com.google.cloud.pubsublite.Offset;
 import com.google.cloud.pubsublite.Partition;
 import com.google.cloud.pubsublite.TopicPath;
-import com.google.cloud.pubsublite.internal.wire.Committer;
 import com.google.cloud.pubsublite.internal.wire.Subscriber;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
 import java.util.List;
@@ -44,6 +43,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.math.LongMath;
 import org.joda.time.Duration;
 
 public class SubscribeTransform extends PTransform<PBegin, PCollection<SequencedMessage>> {
+  private static final long MEBIBYTE = 1L << 20;
+
   private final SubscriberOptions options;
 
   public SubscribeTransform(SubscriberOptions options) {
@@ -92,6 +93,13 @@ public class SubscribeTransform extends PTransform<PBegin, PCollection<Sequenced
     return new SubscriberAssembler(options, subscriptionPartition.partition()).getBacklogReader();
   }
 
+  private long calculateMinWindowBytes() {
+    long minFromFlowControl =
+        LongMath.saturatedMultiply(options.flowControlSettings().bytesOutstanding(), 10);
+    // Dataflow will not accept outputs larger than 1 GiB. Cap the maximum at 750 MiB to avoid this.
+    return Math.min(minFromFlowControl, 750 * MEBIBYTE);
+  }
+
   private TrackerWithProgress newRestrictionTracker(
       TopicBacklogReader backlogReader, OffsetByteRange initial) {
     return new OffsetByteRangeTracker(
@@ -99,7 +107,7 @@ public class SubscribeTransform extends PTransform<PBegin, PCollection<Sequenced
         backlogReader,
         Stopwatch.createUnstarted(),
         options.minBundleTimeout(),
-        LongMath.saturatedMultiply(options.flowControlSettings().bytesOutstanding(), 10));
+        calculateMinWindowBytes());
   }
 
   private InitialOffsetReader newInitialOffsetReader(SubscriptionPartition subscriptionPartition) {
@@ -108,7 +116,7 @@ public class SubscribeTransform extends PTransform<PBegin, PCollection<Sequenced
         .getInitialOffsetReader();
   }
 
-  private Committer newCommitter(SubscriptionPartition subscriptionPartition) {
+  private BlockingCommitter newCommitter(SubscriptionPartition subscriptionPartition) {
     checkSubscription(subscriptionPartition);
     return new SubscriberAssembler(options, subscriptionPartition.partition()).getCommitter();
   }

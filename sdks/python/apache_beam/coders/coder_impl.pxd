@@ -159,7 +159,7 @@ cdef class _AbstractIterable:
 
 
 cdef class IterableCoderImpl(SequenceCoderImpl):
-  pass
+  cdef bint _use_abstract_iterable
 
 
 cdef class ListCoderImpl(SequenceCoderImpl):
@@ -232,3 +232,30 @@ cdef class ParamWindowedValueCoderImpl(WindowedValueCoderImpl):
 
 cdef class LengthPrefixCoderImpl(StreamCoderImpl):
   cdef CoderImpl _value_coder
+
+
+cdef class RowCoderImpl(StreamCoderImpl):
+  cdef object schema
+  cdef int num_fields
+  cdef list field_names
+  cdef list field_nullable
+  cdef object constructor
+  cdef list encoding_positions
+  cdef list encoding_positions_argsort
+  cdef bint encoding_positions_are_trivial
+  cdef list components
+  cdef bint has_nullable_fields
+
+  @cython.locals(i=int, nvals=libc.stdint.int64_t, running=int, component_coder=CoderImpl)
+  cpdef decode_from_stream(self, InputStream stream, bint nested)
+
+  @cython.locals(i=int, running=int, component_coder=CoderImpl)
+  cpdef encode_to_stream(self, value, OutputStream stream, bint nested)
+
+
+cdef class LogicalTypeCoderImpl(StreamCoderImpl):
+  cdef object logical_type
+  cdef CoderImpl representation_coder
+
+  cpdef decode_from_stream(self, InputStream stream, bint nested)
+  cpdef encode_to_stream(self, value, OutputStream stream, bint nested)

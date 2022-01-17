@@ -17,6 +17,7 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/output/models/output_placement.dart';
@@ -34,15 +35,20 @@ class OutputPlacements extends StatelessWidget {
           spacing: kMdSpacing,
           children: OutputPlacement.values
               .map(
-                (placement) => IconButton(
-                  splashRadius: kIconButtonSplashRadius,
-                  icon: SvgPicture.asset(
-                    placement.icon,
-                    color: state.placement == placement
-                        ? Theme.of(context).primaryColor
-                        : null,
+                (placement) => Semantics(
+                  label:
+                      '${AppLocalizations.of(context)!.outputPlacementSemantic}'
+                      ' ${placement.name(context)}',
+                  child: IconButton(
+                    splashRadius: kIconButtonSplashRadius,
+                    icon: SvgPicture.asset(
+                      placement.icon,
+                      color: state.placement == placement
+                          ? Theme.of(context).primaryColor
+                          : null,
+                    ),
+                    onPressed: () => state.setPlacement(placement),
                   ),
-                  onPressed: () => state.setPlacement(placement),
                 ),
               )
               .toList(),

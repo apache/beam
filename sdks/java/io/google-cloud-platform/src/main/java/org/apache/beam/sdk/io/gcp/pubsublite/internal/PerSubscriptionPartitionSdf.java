@@ -17,11 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 
-import static com.google.cloud.pubsublite.internal.wire.ApiServiceUtils.blockingShutdown;
-
 import com.google.cloud.pubsublite.Offset;
 import com.google.cloud.pubsublite.internal.ExtractStatus;
-import com.google.cloud.pubsublite.internal.wire.Committer;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -40,7 +37,7 @@ class PerSubscriptionPartitionSdf extends DoFn<SubscriptionPartition, SequencedM
       offsetReaderFactory;
   private final SerializableBiFunction<TopicBacklogReader, OffsetByteRange, TrackerWithProgress>
       trackerFactory;
-  private final SerializableFunction<SubscriptionPartition, Committer> committerFactory;
+  private final SerializableFunction<SubscriptionPartition, BlockingCommitter> committerFactory;
 
   PerSubscriptionPartitionSdf(
       Duration maxSleepTime,
@@ -49,7 +46,7 @@ class PerSubscriptionPartitionSdf extends DoFn<SubscriptionPartition, SequencedM
       SerializableBiFunction<TopicBacklogReader, OffsetByteRange, TrackerWithProgress>
           trackerFactory,
       SubscriptionPartitionProcessorFactory processorFactory,
-      SerializableFunction<SubscriptionPartition, Committer> committerFactory) {
+      SerializableFunction<SubscriptionPartition, BlockingCommitter> committerFactory) {
     this.maxSleepTime = maxSleepTime;
     this.backlogReaderFactory = backlogReaderFactory;
     this.processorFactory = processorFactory;
@@ -79,36 +76,28 @@ class PerSubscriptionPartitionSdf extends DoFn<SubscriptionPartition, SequencedM
       @Element SubscriptionPartition subscriptionPartition,
       OutputReceiver<SequencedMessage> receiver)
       throws Exception {
-    try (SubscriptionPartitionProcessor processor =
-        processorFactory.newProcessor(subscriptionPartition, tracker, receiver)) {
-      processor.start();
-      ProcessContinuation result = processor.waitForCompletion(maxSleepTime);
-      processor
-          .lastClaimed()
-          .ifPresent(
-              lastClaimedOffset -> {
-                Committer committer = committerFactory.apply(subscriptionPartition);
-                committer.startAsync().awaitRunning();
-                // Commit the next-to-deliver offset.
-                try {
-                  committer.commitOffset(Offset.of(lastClaimedOffset.value() + 1)).get();
-                } catch (Exception e) {
-                  throw ExtractStatus.toCanonical(e).underlying;
-                }
-                blockingShutdown(committer);
-              });
-      return result;
-    }
+    SubscriptionPartitionProcessor processor =
+        processorFactory.newProcessor(subscriptionPartition, tracker, receiver);
+    ProcessContinuation result = processor.runFor(maxSleepTime);
+    processor
+        .lastClaimed()
+        .ifPresent(
+            lastClaimedOffset -> {
+              Offset commitOffset = Offset.of(lastClaimedOffset.value() + 1);
+              try {
+                committerFactory.apply(subscriptionPartition).commitOffset(commitOffset);
+              } catch (Exception e) {
+                throw ExtractStatus.toCanonical(e).underlying;
+              }
+            });
+    return result;
   }
 
   @GetInitialRestriction
   public OffsetByteRange getInitialRestriction(
       @Element SubscriptionPartition subscriptionPartition) {
-    try (InitialOffsetReader reader = offsetReaderFactory.apply(subscriptionPartition)) {
-      Offset offset = reader.read();
-      return OffsetByteRange.of(
-          new OffsetRange(offset.value(), Long.MAX_VALUE /* open interval */));
-    }
+    Offset offset = offsetReaderFactory.apply(subscriptionPartition).read();
+    return OffsetByteRange.of(new OffsetRange(offset.value(), Long.MAX_VALUE /* open interval */));
   }
 
   @NewTracker

@@ -13,85 +13,113 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package executors
 package executors
 
 import (
-	pb "beam.apache.org/playground/backend/internal/api/v1"
-	"beam.apache.org/playground/backend/internal/fs_tool"
-	"fmt"
+	"beam.apache.org/playground/backend/internal/preparers"
+	"beam.apache.org/playground/backend/internal/validators"
+	"context"
 	"os/exec"
+	"sync"
 )
 
-type validatorWithArgs struct {
-	validator func(filePath string, args ...interface{}) error
-	args      []interface{}
+type ExecutionType string
+
+const (
+	Run  ExecutionType = "Run"
+	Test ExecutionType = "RunTest"
+)
+
+//CmdConfiguration for base cmd code execution
+type CmdConfiguration struct {
+	fileName        string
+	workingDir      string
+	commandName     string
+	commandArgs     []string
+	pipelineOptions []string
 }
 
-// Executor interface for all executors (Java/Python/Go/SCIO)
+// Executor struct for all sdks (Java/Python/Go/SCIO)
 type Executor struct {
-	relativeFilePath string
-	absoulteFilePath string
-	dirPath          string
-	executableDir    string
-	validators       []validatorWithArgs
-	compileName      string
-	compileArgs      []string
-	runName          string
-	runArgs          []string
+	compileArgs CmdConfiguration
+	runArgs     CmdConfiguration
+	testArgs    CmdConfiguration
+	validators  []validators.Validator
+	preparers   []preparers.Preparer
 }
 
-// Validate checks that the file exists and that extension of the file matches the SDK.
-// Return result of validation (true/false) and error if it occurs
-func (ex *Executor) Validate() error {
-	for _, validator := range ex.validators {
-		err := validator.validator(ex.absoulteFilePath, validator.args...)
-		if err != nil {
-			return err
+// Validate returns the function that applies all validators of executor
+func (ex *Executor) Validate() func(chan bool, chan error, *sync.Map) {
+	return func(doneCh chan bool, errCh chan error, valRes *sync.Map) {
+		validationErrors := make(chan error, len(ex.validators))
+		var wg sync.WaitGroup
+		for _, validator := range ex.validators {
+			wg.Add(1)
+			go func(validationErrors chan error, valRes *sync.Map, validator validators.Validator) {
+				defer wg.Done()
+				res, err := validator.Validator(validator.Args...)
+				if err != nil {
+					validationErrors <- err
+				}
+				valRes.Store(validator.Name, res)
+			}(validationErrors, valRes, validator)
+		}
+		wg.Wait()
+		select {
+		case err := <-validationErrors:
+			errCh <- err
+			doneCh <- false
+		default:
+			doneCh <- true
 		}
 	}
-	return nil
 }
 
-// Compile compiles the code and creates executable file.
-// Return error if it occurs
-func (ex *Executor) Compile() error {
-	args := append(ex.compileArgs, ex.relativeFilePath)
-	cmd := exec.Command(ex.compileName, args...)
-	cmd.Dir = ex.dirPath
-	s := cmd.String()
-	fmt.Println(s)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return &CompileError{string(out)}
-	}
-	return nil
-}
-
-// Run runs the executable file.
-// Return logs and error if it occurs
-func (ex *Executor) Run(name string) (string, error) {
-	args := append(ex.runArgs, name)
-	cmd := exec.Command(ex.runName, args...)
-	cmd.Dir = ex.dirPath
-	out, err := cmd.Output()
-	return string(out), err
-}
-
-// NewExecutor executes the compilation, running and validation of code
-func NewExecutor(apacheBeamSdk pb.Sdk, fs *fs_tool.LifeCycle) (*Executor, error) {
-	switch apacheBeamSdk {
-	case pb.Sdk_SDK_JAVA:
-		return NewJavaExecutor(fs, GetJavaValidators()), nil
-	default:
-		return nil, fmt.Errorf("%s isn't supported now", apacheBeamSdk)
+// Prepare returns the function that applies all preparations of executor
+func (ex *Executor) Prepare() func(chan bool, chan error, *sync.Map) {
+	return func(doneCh chan bool, errCh chan error, validationResults *sync.Map) {
+		for _, preparer := range ex.preparers {
+			preparer.Args = append(preparer.Args, validationResults)
+			err := preparer.Prepare(preparer.Args...)
+			if err != nil {
+				errCh <- err
+				doneCh <- false
+				return
+			}
+		}
+		doneCh <- true
 	}
 }
 
-type CompileError struct {
-	error string
+// Compile prepares the Cmd for code compilation
+// Returns Cmd instance
+func (ex *Executor) Compile(ctx context.Context) *exec.Cmd {
+	args := append(ex.compileArgs.commandArgs, ex.compileArgs.fileName)
+	cmd := exec.CommandContext(ctx, ex.compileArgs.commandName, args...)
+	cmd.Dir = ex.compileArgs.workingDir
+	return cmd
 }
 
-func (e *CompileError) Error() string {
-	return fmt.Sprintf("Compilation error: %v", e.error)
+// Run prepares the Cmd for execution of the code
+// Returns Cmd instance
+func (ex *Executor) Run(ctx context.Context) *exec.Cmd {
+	args := ex.runArgs.commandArgs
+	if ex.runArgs.fileName != "" {
+		args = append(args, ex.runArgs.fileName)
+	}
+	if ex.runArgs.pipelineOptions[0] != "" {
+		args = append(args, ex.runArgs.pipelineOptions...)
+	}
+	cmd := exec.CommandContext(ctx, ex.runArgs.commandName, args...)
+	cmd.Dir = ex.runArgs.workingDir
+	return cmd
+}
+
+// RunTest prepares the Cmd for execution of the unit test
+// Returns Cmd instance
+func (ex *Executor) RunTest(ctx context.Context) *exec.Cmd {
+	args := append(ex.testArgs.commandArgs, ex.testArgs.fileName)
+	cmd := exec.CommandContext(ctx, ex.testArgs.commandName, args...)
+	cmd.Dir = ex.testArgs.workingDir
+	return cmd
 }

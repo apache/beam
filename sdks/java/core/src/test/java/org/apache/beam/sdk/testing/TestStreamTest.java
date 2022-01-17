@@ -17,6 +17,14 @@
  */
 package org.apache.beam.sdk.testing;
 
+// beam-playground:
+//   name: TestStreamTest
+//   description: Unit-test for the TestStream example.
+//   multifile: false
+//   pipeline_options:
+//   categories:
+//     - Streaming
+
 import static org.apache.beam.sdk.transforms.windowing.Window.into;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
@@ -77,6 +85,8 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link TestStream}. */
 @RunWith(JUnit4.class)
+// TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
+@SuppressWarnings("unused")
 public class TestStreamTest implements Serializable {
   @Rule public transient TestPipeline p = TestPipeline.create();
   @Rule public transient ExpectedException thrown = ExpectedException.none();
@@ -327,7 +337,9 @@ public class TestStreamTest implements Serializable {
   public void testElementAtPositiveInfinityThrows() {
     TestStream.Builder<Integer> stream =
         TestStream.create(VarIntCoder.of())
-            .addElements(TimestampedValue.of(-1, BoundedWindow.TIMESTAMP_MAX_VALUE.minus(1L)));
+            .addElements(
+                TimestampedValue.of(
+                    -1, BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.millis(1L))));
     thrown.expect(IllegalArgumentException.class);
     stream.addElements(TimestampedValue.of(1, BoundedWindow.TIMESTAMP_MAX_VALUE));
   }
@@ -344,7 +356,7 @@ public class TestStreamTest implements Serializable {
   public void testAdvanceWatermarkEqualToPositiveInfinityThrows() {
     TestStream.Builder<Integer> stream =
         TestStream.create(VarIntCoder.of())
-            .advanceWatermarkTo(BoundedWindow.TIMESTAMP_MAX_VALUE.minus(1L));
+            .advanceWatermarkTo(BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.millis(1L)));
     thrown.expect(IllegalArgumentException.class);
     stream.advanceWatermarkTo(BoundedWindow.TIMESTAMP_MAX_VALUE);
   }
@@ -436,6 +448,7 @@ public class TestStreamTest implements Serializable {
             .apply(
                 ParDo.of(
                     new DoFn<KV<String, String>, String>() {
+
                       @StateId("seen")
                       private final StateSpec<ValueState<String>> seenSpec =
                           StateSpecs.value(StringUtf8Coder.of());

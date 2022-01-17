@@ -93,6 +93,7 @@ echo "    :inherited-members:" >> target/docs/source/apache_beam.dataframe.frame
 cat > target/docs/source/conf.py <<'EOF'
 import os
 import sys
+from apache_beam import version as beam_version
 
 import sphinx_rtd_theme
 
@@ -117,6 +118,8 @@ master_doc = 'index'
 html_theme = 'sphinx_rtd_theme'
 html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 project = 'Apache Beam'
+version = beam_version.__version__
+release = version
 
 autoclass_content = 'both'
 autodoc_inherit_docstrings = False
@@ -153,9 +156,6 @@ ignore_identifiers = [
 
   # Ignore broken built-in type references
   'tuple',
-
-  # Ignore future.builtin type references
-  'future.types.newobject.newobject',
 
   # Ignore private classes
   'apache_beam.coders.coders._PickleCoderBase',

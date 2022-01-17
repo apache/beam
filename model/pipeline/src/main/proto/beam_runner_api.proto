@@ -452,7 +452,7 @@ message StandardSideInputTypes {
     // Represents a view over a PCollection<KV<K, V>>.
     //
     // StateGetRequests performed on this side input must use
-    // StateKey.IterableSideInput or StateKey.MultimapSideInput.
+    // StateKey.MultimapKeysSideInput or StateKey.MultimapSideInput.
     MULTIMAP = 1 [(beam_urn) = "beam:side_input:multimap:v1"];
   }
 }
@@ -523,6 +523,12 @@ message ParDoPayload {
   // If this is set, the corresponding standard requirement should also
   // be placed in the pipeline requirements.
   bool requires_stable_input = 11;
+
+  // If populated, the name of the timer family spec which should be notified
+  // on each window expiry.
+  // If this is set, the corresponding standard requirement should also
+  // be placed in the pipeline requirements.
+  string on_window_expiration_timer_family_spec = 12;
 
   reserved 6;
 }
@@ -1095,7 +1101,7 @@ message WindowingStrategy {
   int64 allowed_lateness = 8;
 
   // (Required) Indicate whether empty on-time panes should be omitted.
-  OnTimeBehavior.Enum OnTimeBehavior = 9;
+  OnTimeBehavior.Enum on_time_behavior = 9;
 
   // (Required) Whether or not the window fn assigns inputs to exactly one window
   //
@@ -1354,9 +1360,8 @@ message SideInput {
   // This access pattern defines the SDK harness <-> Runner Harness RPC
   // interface for accessing a side input.
   //
-  // The only access pattern intended for Beam, because of its superior
-  // performance possibilities, is "beam:sideinput:multimap" (or some such
-  // URN)
+  // See StandardSideInputTypes for an enumeration of all side input types
+  // defined.
   FunctionSpec access_pattern = 1;
 
   // (Required) The FunctionSpec of the UDF that adapts a particular
@@ -1570,6 +1575,12 @@ message StandardProtocols {
     // the entire SDK harness process, not specific to a bundle.
     HARNESS_MONITORING_INFOS = 4
         [(beam_urn) = "beam:protocol:harness_monitoring_infos:v1"];
+
+    // Indicates that this SDK can process elements embedded in the
+    // ProcessBundleRequest. See more about the protocol at
+    // https://s.apache.org/beam-fn-api-control-data-embedding
+    CONTROL_REQUEST_ELEMENTS_EMBEDDING = 6
+        [(beam_urn) = "beam:protocol:control_request_elements_embedding:v1"];
   }
 }
 
@@ -1579,6 +1590,12 @@ message StandardRunnerProtocols {
   enum Enum {
     // Indicates suport the MonitoringInfo short id protocol.
     MONITORING_INFO_SHORT_IDS = 0 [(beam_urn) = "beam:protocol:monitoring_info_short_ids:v1"];
+
+    // Indicates that this runner can process elements embedded in the
+    // ProcessBundleResponse. See more about the protocol at
+    // https://s.apache.org/beam-fn-api-control-data-embedding
+    CONTROL_RESPONSE_ELEMENTS_EMBEDDING = 6
+    [(beam_urn) = "beam:protocol:control_response_elements_embedding:v1"];
   }
 }
 
@@ -1589,7 +1606,7 @@ message StandardRunnerProtocols {
 // to be added in a forwards-compatible way).
 message StandardRequirements {
   enum Enum {
-    // This requirement indicates the state_spec and time_spec fields of ParDo
+    // This requirement indicates the state_specs and timer_family_specs fields of ParDo
     // transform payloads must be inspected.
     REQUIRES_STATEFUL_PROCESSING = 0 [(beam_urn) = "beam:requirement:pardo:stateful:v1"];
 
@@ -1608,6 +1625,10 @@ message StandardRequirements {
     // This requirement indicates the restriction_coder_id field of ParDo
     // transform payloads must be inspected.
     REQUIRES_SPLITTABLE_DOFN = 4 [(beam_urn) = "beam:requirement:pardo:splittable_dofn:v1"];
+
+    // This requirement indicates that the on_window_expiration_timer_family_spec field
+    // of ParDo transform payloads must be inspected.
+    REQUIRES_ON_WINDOW_EXPIRATION = 5 [(beam_urn) = "beam:requirement:pardo:on_window_expiration:v1"];
   }
 }
 

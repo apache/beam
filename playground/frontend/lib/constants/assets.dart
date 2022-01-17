@@ -16,11 +16,26 @@
  * limitations under the License.
  */
 
-const kThemeIconAsset = "theme.svg";
-const kResetIconAsset = "reset.svg";
-const kOutputBottomIconAsset = "output_bottom.svg";
-const kOutputRightIconAsset = "output_right.svg";
-const kOutputLeftIconAsset = "output_left.svg";
-const kShortcutsIconAsset = "shortcuts.svg";
-const kGithubIconAsset = "github.svg";
-const kBeamIconAsset = "beam.png";
+const kThemeIconAsset = 'theme.svg';
+const kResetIconAsset = 'reset.svg';
+const kOutputBottomIconAsset = 'output_bottom.svg';
+const kOutputRightIconAsset = 'output_right.svg';
+const kOutputLeftIconAsset = 'output_left.svg';
+const kShortcutsIconAsset = 'shortcuts.svg';
+const kGithubIconAsset = 'github.svg';
+const kBeamIconAsset = 'beam.png';
+const kBeamLgIconAsset = 'beam_lg.png';
+const kThumbUpIconAsset = 'thumb_up.svg';
+const kThumbUpIconAssetFilled = 'thumb_up_filled.svg';
+const kThumbDownIconAsset = 'thumb_down.svg';
+const kThumbDownIconAssetFilled = 'thumb_down_filled.svg';
+const kCopyIconAsset = 'copy.svg';
+const kLinkIconAsset = 'link.svg';
+const kDragHorizontalIconAsset = 'drag_horizontal.svg';
+const kDragVerticalIconAsset = 'drag_vertical.svg';
+
+// notifications icons
+const kErrorNotificationIconAsset = 'error_notification.svg';
+const kWarningNotificationIconAsset = 'warning_notification.svg';
+const kSuccessNotificationIconAsset = 'success_notification.svg';
+const kInfoNotificationIconAsset = 'info_notification.svg';

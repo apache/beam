@@ -32,7 +32,9 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.common.DatabaseTestHelper;
 import org.apache.beam.sdk.io.common.HashingFn;
@@ -40,6 +42,7 @@ import org.apache.beam.sdk.io.common.PostgresIOTestPipelineOptions;
 import org.apache.beam.sdk.io.common.TestRow;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
@@ -52,6 +55,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.joda.time.Instant;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -89,8 +93,6 @@ public class JdbcIOIT {
   private static int numberOfRows;
   private static PGSimpleDataSource dataSource;
   private static String tableName;
-  private static String bigQueryDataset;
-  private static String bigQueryTable;
   private static Long tableSize;
   private static InfluxDBSettings settings;
   @Rule public TestPipeline pipelineWrite = TestPipeline.create();
@@ -101,8 +103,6 @@ public class JdbcIOIT {
     PostgresIOTestPipelineOptions options =
         readIOTestPipelineOptions(PostgresIOTestPipelineOptions.class);
 
-    bigQueryDataset = options.getBigQueryDataset();
-    bigQueryTable = options.getBigQueryTable();
     numberOfRows = options.getNumberOfRecords();
     dataSource = DatabaseTestHelper.getPostgresDataSource(options);
     tableName = DatabaseTestHelper.getTestTableName("IT");
@@ -147,13 +147,11 @@ public class JdbcIOIT {
         getWriteMetricSuppliers(uuid, timestamp);
     IOITMetrics writeMetrics =
         new IOITMetrics(metricSuppliers, writeResult, NAMESPACE, uuid, timestamp);
-    writeMetrics.publish(bigQueryDataset, bigQueryTable);
     writeMetrics.publishToInflux(settings);
 
     IOITMetrics readMetrics =
         new IOITMetrics(
             getReadMetricSuppliers(uuid, timestamp), readResult, NAMESPACE, uuid, timestamp);
-    readMetrics.publish(bigQueryDataset, bigQueryTable);
     readMetrics.publishToInflux(settings);
   }
 
@@ -236,8 +234,7 @@ public class JdbcIOIT {
                 JdbcIO.<TestRow>read()
                     .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
                     .withQuery(String.format("select name,id from %s;", tableName))
-                    .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
-                    .withCoder(SerializableCoder.of(TestRow.class)))
+                    .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId()))
             .apply(ParDo.of(new TimeMonitor<>(NAMESPACE, "read_time")));
 
     PAssert.thatSingleton(namesAndIds.apply("Count All", Count.globally()))
@@ -260,6 +257,40 @@ public class JdbcIOIT {
     PAssert.thatSingletonIterable(backOfList).containsInAnyOrder(expectedBackOfList);
 
     return pipelineRead.run();
+  }
+
+  @Test
+  public void testWriteWithAutosharding() throws Exception {
+    String firstTableName = DatabaseTestHelper.getTestTableName("UT_WRITE");
+    DatabaseTestHelper.createTable(dataSource, firstTableName);
+    try {
+      List<KV<Integer, String>> data = getTestDataToWrite(EXPECTED_ROW_COUNT);
+      TestStream.Builder<KV<Integer, String>> ts =
+          TestStream.create(KvCoder.of(VarIntCoder.of(), StringUtf8Coder.of()))
+              .advanceWatermarkTo(Instant.now());
+      for (KV<Integer, String> elm : data) {
+        ts.addElements(elm);
+      }
+
+      PCollection<KV<Integer, String>> dataCollection =
+          pipelineWrite.apply(ts.advanceWatermarkToInfinity());
+      dataCollection.apply(
+          JdbcIO.<KV<Integer, String>>write()
+              .withDataSourceProviderFn(voidInput -> dataSource)
+              .withStatement(String.format("insert into %s values(?, ?) returning *", tableName))
+              .withAutoSharding()
+              .withPreparedStatementSetter(
+                  (element, statement) -> {
+                    statement.setInt(1, element.getKey());
+                    statement.setString(2, element.getValue());
+                  }));
+
+      pipelineWrite.run().waitUntilFinish();
+
+      runRead();
+    } finally {
+      DatabaseTestHelper.deleteTable(dataSource, firstTableName);
+    }
   }
 
   @Test

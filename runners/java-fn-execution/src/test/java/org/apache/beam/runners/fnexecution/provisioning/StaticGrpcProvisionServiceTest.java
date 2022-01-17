@@ -25,6 +25,7 @@ import org.apache.beam.model.fnexecution.v1.ProvisionApi.GetProvisionInfoRespons
 import org.apache.beam.model.fnexecution.v1.ProvisionApi.ProvisionInfo;
 import org.apache.beam.model.fnexecution.v1.ProvisionServiceGrpc;
 import org.apache.beam.model.fnexecution.v1.ProvisionServiceGrpc.ProvisionServiceBlockingStub;
+import org.apache.beam.sdk.fn.channel.AddHarnessIdInterceptor;
 import org.apache.beam.sdk.fn.server.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.sdk.fn.server.GrpcFnServer;
 import org.apache.beam.sdk.fn.server.InProcessServerFactory;
@@ -72,7 +73,9 @@ public class StaticGrpcProvisionServiceTest {
 
     ProvisionServiceBlockingStub stub =
         ProvisionServiceGrpc.newBlockingStub(
-            InProcessChannelBuilder.forName(server.getApiServiceDescriptor().getUrl()).build());
+            InProcessChannelBuilder.forName(server.getApiServiceDescriptor().getUrl())
+                .intercept(AddHarnessIdInterceptor.create("test_worker"))
+                .build());
 
     GetProvisionInfoResponse provisionResponse =
         stub.getProvisionInfo(GetProvisionInfoRequest.getDefaultInstance());

@@ -55,45 +55,18 @@ PS> python -m pip install --upgrade pip
 {{< /shell >}}
 
 
-### Install Python virtual environment
-
-It is recommended that you install a [Python virtual environment](https://docs.python-guide.org/en/latest/dev/virtualenvs/)
-for initial experiments. If you do not have `virtualenv` version 13.1.0 or
-newer, run the following command to install it. This command might require
-administrative privileges.
-
-{{< shell unix >}}
-pip install --upgrade virtualenv
-{{< /shell >}}
-
-{{< shell powerShell >}}
-PS> python -m pip install --upgrade virtualenv
-{{< /shell >}}
-
-If you do not want to use a Python virtual environment (not recommended), ensure
-`setuptools` is installed on your machine. If you do not have `setuptools`
-version 17.1 or newer, run the following command to install it.
-
-{{< shell unix >}}
-pip install --upgrade setuptools
-{{< /shell >}}
-
-{{< shell powerShell >}}
-PS> python -m pip install --upgrade setuptools
-{{< /shell >}}
-
 ## Get Apache Beam
 
 ### Create and activate a virtual environment
 
-A virtual environment is a directory tree containing its own Python distribution. To create a virtual environment, create a directory and run:
+A virtual environment is a directory tree containing its own Python distribution. To create a virtual environment, run:
 
 {{< shell unix >}}
-virtualenv /path/to/directory
+python -m venv /path/to/directory
 {{< /shell >}}
 
 {{< shell powerShell >}}
-PS> virtualenv C:\path\to\directory
+PS> python -m venv C:\path\to\directory
 {{< /shell >}}
 
 A virtual environment needs to be activated for each shell that is to use it.
@@ -112,7 +85,7 @@ PS> C:\path\to\directory\Scripts\activate.ps1
 
 That is, execute the `activate` script under the virtual environment directory you created.
 
-For instructions using other shells, see the [virtualenv documentation](https://virtualenv.pypa.io/en/stable/userguide/#activate-script).
+For instructions using other shells, see the [venv documentation](https://docs.python.org/3/library/venv.html).
 
 ### Download and install
 

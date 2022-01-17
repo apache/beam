@@ -31,15 +31,33 @@ enum Sdk {
 
 enum Status {
   STATUS_UNSPECIFIED = 0;
-  STATUS_EXECUTING = 1;
-  STATUS_FINISHED = 2;
-  STATUS_ERROR = 3;
+  STATUS_VALIDATING = 1;
+  STATUS_VALIDATION_ERROR = 2;
+  STATUS_PREPARING = 3;
+  STATUS_PREPARATION_ERROR = 4;
+  STATUS_COMPILING = 5;
+  STATUS_COMPILE_ERROR = 6;
+  STATUS_EXECUTING = 7;
+  STATUS_FINISHED = 8;
+  STATUS_RUN_ERROR = 9;
+  STATUS_ERROR = 10;
+  STATUS_RUN_TIMEOUT = 11;
+  STATUS_CANCELED = 12;
+}
+
+enum PrecompiledObjectType {
+  PRECOMPILED_OBJECT_TYPE_UNSPECIFIED = 0;
+  PRECOMPILED_OBJECT_TYPE_EXAMPLE = 1;
+  PRECOMPILED_OBJECT_TYPE_KATA = 2;
+  PRECOMPILED_OBJECT_TYPE_UNIT_TEST = 3;
 }
 
 // RunCodeRequest represents a code text and options of SDK which executes the code.
 message RunCodeRequest {
   string code = 1;
   Sdk sdk = 2;
+  // The pipeline options as they would be passed to the program (e.g. "--option1 value1 --option2 value2")
+  string pipeline_options = 3;
 }
 
 // RunCodeResponse contains information of the pipeline uuid.
@@ -57,6 +75,26 @@ message CheckStatusResponse {
   Status status = 1;
 }
 
+// GetValidationOutputRequest contains information of the pipeline uuid.
+message GetValidationOutputRequest {
+  string pipeline_uuid = 1;
+}
+
+// GetValidationOutputResponse represents the result of the code validation.
+message GetValidationOutputResponse {
+  string output = 1;
+}
+
+// GetPreparationOutputRequest contains information of the pipeline uuid.
+message GetPreparationOutputRequest {
+  string pipeline_uuid = 1;
+}
+
+// GetPreparationOutputResponse represents the result of the code preparation.
+message GetPreparationOutputResponse {
+  string output = 1;
+}
+
 // GetCompileOutputRequest contains information of the pipeline uuid.
 message GetCompileOutputRequest {
   string pipeline_uuid = 1;
@@ -65,7 +103,6 @@ message GetCompileOutputRequest {
 // GetCompileOutputResponse represents the result of the compiled code.
 message GetCompileOutputResponse {
   string output = 1;
-  Status compilation_status = 2;
 }
 
 // GetRunOutputRequest contains information of the pipeline uuid.
@@ -76,7 +113,95 @@ message GetRunOutputRequest {
 // RunOutputResponse represents the result of the executed code.
 message GetRunOutputResponse {
   string output = 1;
-  Status compilation_status = 2;
+}
+
+// GetRunErrorRequest contains information of the pipeline uuid.
+message GetRunErrorRequest {
+  string pipeline_uuid = 1;
+}
+
+// GetRunErrorResponse represents the error of the executed code.
+message GetRunErrorResponse {
+  string output = 1;
+}
+
+// GetLogsRequest contains information of the pipeline uuid.
+message GetLogsRequest {
+  string pipeline_uuid = 1;
+}
+
+// RunOutputResponse represents the logs of the executed code.
+message GetLogsResponse {
+  string output = 1;
+}
+
+// CancelRequest request to cancel code processing
+message CancelRequest {
+  string pipeline_uuid = 1;
+}
+
+// CancelResponse response for cancel request
+message CancelResponse {
+}
+
+// PrecompiledObject represents one PrecompiledObject with its information
+message PrecompiledObject{
+  string cloud_path = 1;
+  string name = 2;
+  string description = 3;
+  PrecompiledObjectType type = 4;
+  string pipeline_options = 5;
+}
+
+// Categories represent the array of messages with sdk and categories at this sdk
+message Categories{
+  message Category{
+    string category_name = 1;
+    repeated PrecompiledObject precompiled_objects = 2;
+  }
+  Sdk sdk = 1;
+  repeated Category categories = 2;
+}
+
+// GetPrecompiledObjectsRequest contains information of the needed PrecompiledObjects sdk and categories.
+message GetPrecompiledObjectsRequest{
+  Sdk sdk = 1;
+  string category = 2;
+}
+
+// GetPrecompiledObjectCodeRequest contains information of the PrecompiledObject uuid.
+message GetPrecompiledObjectCodeRequest{
+  string cloud_path = 1;
+}
+
+// GetPrecompiledObjectOutputRequest contains information of the PrecompiledObject uuid.
+message GetPrecompiledObjectOutputRequest{
+  string cloud_path = 1;
+}
+
+// GetPrecompiledObjectLogsRequest contains information of the PrecompiledObject uuid.
+message GetPrecompiledObjectLogsRequest{
+  string cloud_path = 1;
+}
+
+// GetListOfPrecompiledObjectsResponse represent the map between sdk and categories for the sdk.
+message GetPrecompiledObjectsResponse{
+  repeated Categories sdk_categories = 1;
+}
+
+// GetPrecompiledObjectResponse represents the source code of the PrecompiledObject.
+message GetPrecompiledObjectCodeResponse{
+  string code = 1;
+}
+
+// GetPrecompiledObjectOutputResponse represents the result of the executed code.
+message GetPrecompiledObjectOutputResponse {
+  string output = 1;
+}
+
+// GetPrecompiledObjectLogsResponse represents the result of the executed code.
+message GetPrecompiledObjectLogsResponse {
+  string output = 1;
 }
 
 service PlaygroundService {
@@ -90,6 +215,33 @@ service PlaygroundService {
   // Get the result of pipeline execution.
   rpc GetRunOutput(GetRunOutputRequest) returns (GetRunOutputResponse);
 
+  // Get the logs of pipeline execution.
+  rpc GetLogs(GetLogsRequest) returns (GetLogsResponse);
+
+  // Get the error of pipeline execution.
+  rpc GetRunError(GetRunErrorRequest) returns (GetRunErrorResponse);
+
+  // Get the result of pipeline validation.
+  rpc GetValidationOutput(GetValidationOutputRequest) returns (GetValidationOutputResponse);
+
+  // Get the result of pipeline preparation.
+  rpc GetPreparationOutput(GetPreparationOutputRequest) returns (GetPreparationOutputResponse);
+
   // Get the result of pipeline compilation.
   rpc GetCompileOutput(GetCompileOutputRequest) returns (GetCompileOutputResponse);
+
+  // Cancel code processing
+  rpc Cancel(CancelRequest) returns (CancelResponse);
+
+  // Get all precompiled objects from the cloud storage.
+  rpc GetPrecompiledObjects(GetPrecompiledObjectsRequest) returns (GetPrecompiledObjectsResponse);
+
+  // Get the code of an PrecompiledObject.
+  rpc GetPrecompiledObjectCode(GetPrecompiledObjectCodeRequest) returns (GetPrecompiledObjectCodeResponse);
+
+  // Get the precompiled details of an PrecompiledObject.
+  rpc GetPrecompiledObjectOutput(GetPrecompiledObjectOutputRequest) returns (GetPrecompiledObjectOutputResponse);
+
+  // Get the logs of an PrecompiledObject.
+  rpc GetPrecompiledObjectLogs(GetPrecompiledObjectLogsRequest) returns (GetPrecompiledObjectLogsResponse);
 }

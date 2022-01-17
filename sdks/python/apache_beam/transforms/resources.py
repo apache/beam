@@ -84,6 +84,10 @@ class ResourceHint:
     return ResourceHint._name_to_known_hints[name]
 
   @staticmethod
+  def is_registered(name):
+    return name in ResourceHint._name_to_known_hints
+
+  @staticmethod
   def register_resource_hint(
       hint_name, hint_class):  # type: (str, type) -> None
     assert issubclass(hint_class, ResourceHint)

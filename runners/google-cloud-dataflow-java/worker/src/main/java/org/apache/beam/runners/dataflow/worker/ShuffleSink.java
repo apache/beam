@@ -66,7 +66,6 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
 
   final PipelineOptions options;
 
-  private final BatchModeExecutionContext executionContext;
   private final DataflowOperationContext operationContext;
   private ExecutionStateTracker tracker;
   private ExecutionState writeState;
@@ -102,7 +101,6 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
     this.shuffleWriterConfig = shuffleWriterConfig;
     this.shuffleKind = shuffleKind;
     this.options = options;
-    this.executionContext = executionContext;
     this.operationContext = operationContext;
     this.writeState = operationContext.newExecutionState("write-shuffle");
     this.tracker = executionContext.getExecutionStateTracker();
