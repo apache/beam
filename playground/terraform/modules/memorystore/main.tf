@@ -1,4 +1,3 @@
-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,22 +18,26 @@
 #
 
 
-resource "google_container_cluster" "playground-gke" {
-  name               = "playground-examples"
-  project            = "${var.project_id}"
-  location           = "us-central1-a"
-  initial_node_count = "${var.node_count}"
-  node_config {
-    machine_type     = "${var.machine_type}"
-    service_account  = "service-account-playground@beam-337909.iam.gserviceaccount.com"
-
-    oauth_scopes    = [
-      "https://www.googleapis.com/auth/cloud-platform"
-    ]
-    labels = {
-      component      = "beam-playground"
-    }
-    tags             = ["beam-playground"]
-
+data "terraform_remote_state" "remote_state_vpc" {
+  backend = "gcs"
+  config = {
+    bucket  = "${var.beam_playground_terraform}"
   }
+}
+
+
+resource "google_redis_instance" "cache" {
+  provider           = google-beta
+  project            = "${var.project_id}"
+#  region             = "${data.terraform_remote_state.remote_state_vpc.outputs.subnet_region}"
+  region              = "us-central1"
+  name               = "playground-backend-cache"
+  tier               = "BASIC"
+  memory_size_gb     = 16
+
+#  authorized_network = "${data.terraform_remote_state.remote_state_vpc.outputs.vpc_id}"
+
+  redis_version      = "${var.redis_version}"
+  display_name       = "Playground Cache"
+
 }

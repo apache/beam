@@ -1,4 +1,3 @@
-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,23 +17,15 @@
 # under the License.
 #
 
+variable "project_id" {
+  description = "The GCP Project ID where Playground Applications will be created"
+}
 
-resource "google_container_cluster" "playground-gke" {
-  name               = "playground-examples"
-  project            = "${var.project_id}"
-  location           = "us-central1-a"
-  initial_node_count = "${var.node_count}"
-  node_config {
-    machine_type     = "${var.machine_type}"
-    service_account  = "service-account-playground@beam-337909.iam.gserviceaccount.com"
+variable "redis_version" {
+  description = "The GCP Project ID where Playground Applications will be created"
+  default     = "REDIS_6_X" 
+}
 
-    oauth_scopes    = [
-      "https://www.googleapis.com/auth/cloud-platform"
-    ]
-    labels = {
-      component      = "beam-playground"
-    }
-    tags             = ["beam-playground"]
-
-  }
+variable "beam_playground_terraform" {
+  default     = "beam_playground_terraform"
 }
