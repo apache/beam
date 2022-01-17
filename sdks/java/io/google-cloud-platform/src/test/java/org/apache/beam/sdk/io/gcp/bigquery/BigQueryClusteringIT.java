@@ -121,61 +121,60 @@ public class BigQueryClusteringIT {
       return SCHEMA;
     }
   }
-/*
-  @Test
-  public void testE2EBigQueryClustering() throws Exception {
-    String tableName = "weather_stations_clustered_" + System.currentTimeMillis();
+  /*
+   @Test
+   public void testE2EBigQueryClustering() throws Exception {
+     String tableName = "weather_stations_clustered_" + System.currentTimeMillis();
 
-    Pipeline p = Pipeline.create(options);
+     Pipeline p = Pipeline.create(options);
 
-    p.apply(BigQueryIO.readTableRows().from(options.getBqcInput()))
-        .apply(ParDo.of(new KeepStationNumberAndConvertDate()))
-        .apply(
-            BigQueryIO.writeTableRows()
-                .to(String.format("%s.%s", DATASET_NAME, tableName))
-                .withClustering(CLUSTERING)
-                .withSchema(SCHEMA)
-                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-                .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
+     p.apply(BigQueryIO.readTableRows().from(options.getBqcInput()))
+         .apply(ParDo.of(new KeepStationNumberAndConvertDate()))
+         .apply(
+             BigQueryIO.writeTableRows()
+                 .to(String.format("%s.%s", DATASET_NAME, tableName))
+                 .withClustering(CLUSTERING)
+                 .withSchema(SCHEMA)
+                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                 .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
 
-    p.run().waitUntilFinish();
+     p.run().waitUntilFinish();
 
-    Table table = bqClient.tables().get(options.getProject(), DATASET_NAME, tableName).execute();
+     Table table = bqClient.tables().get(options.getProject(), DATASET_NAME, tableName).execute();
 
-    Assert.assertEquals(table.getClustering(), CLUSTERING);
-  }
+     Assert.assertEquals(table.getClustering(), CLUSTERING);
+   }
 
-  @Test
-  public void testE2EBigQueryClusteringTableFunction() throws Exception {
-    String tableName = "weather_stations_clustered_table_function_" + System.currentTimeMillis();
+   @Test
+   public void testE2EBigQueryClusteringTableFunction() throws Exception {
+     String tableName = "weather_stations_clustered_table_function_" + System.currentTimeMillis();
 
-    Pipeline p = Pipeline.create(options);
+     Pipeline p = Pipeline.create(options);
 
-    p.apply(BigQueryIO.readTableRows().from(options.getBqcInput()))
-        .apply(ParDo.of(new KeepStationNumberAndConvertDate()))
-        .apply(
-            BigQueryIO.writeTableRows()
-                .to(
-                    (ValueInSingleWindow<TableRow> vsw) ->
-                        new TableDestination(
-                            String.format("%s.%s", DATASET_NAME, tableName),
-                            null,
-                            null,
-                            CLUSTERING))
-                .withClustering(CLUSTERING)
-                .withSchema(SCHEMA)
-                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-                .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
+     p.apply(BigQueryIO.readTableRows().from(options.getBqcInput()))
+         .apply(ParDo.of(new KeepStationNumberAndConvertDate()))
+         .apply(
+             BigQueryIO.writeTableRows()
+                 .to(
+                     (ValueInSingleWindow<TableRow> vsw) ->
+                         new TableDestination(
+                             String.format("%s.%s", DATASET_NAME, tableName),
+                             null,
+                             null,
+                             CLUSTERING))
+                 .withClustering(CLUSTERING)
+                 .withSchema(SCHEMA)
+                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                 .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
 
-    p.run().waitUntilFinish();
+     p.run().waitUntilFinish();
 
-    Table table = bqClient.tables().get(options.getProject(), DATASET_NAME, tableName).execute();
+     Table table = bqClient.tables().get(options.getProject(), DATASET_NAME, tableName).execute();
 
-    Assert.assertEquals(table.getClustering(), CLUSTERING);
-  }
-  
- */
+     Assert.assertEquals(table.getClustering(), CLUSTERING);
+   }
 
+  */
 
   @Test
   public void testE2EBigQueryClusteringDynamicDestinations() throws Exception {
@@ -200,4 +199,3 @@ public class BigQueryClusteringIT {
     Assert.assertEquals(table.getClustering(), CLUSTERING);
   }
 }
-

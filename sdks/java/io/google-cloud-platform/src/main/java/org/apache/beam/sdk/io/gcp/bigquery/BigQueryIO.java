@@ -2228,9 +2228,9 @@ public class BigQueryIO {
     /**
      * Allows writing to clustered tables when {@link #to(SerializableFunction)} or {@link
      * #to(DynamicDestinations)} is used. The returned {@link TableDestination} objects should
-     * specify the clustering fields per table. If writing to a single table,
-     * use {@link #withClustering(Clustering)} instead to pass a {@link Clustering} instance that
-     * specifies the static clustering fields to use.
+     * specify the clustering fields per table. If writing to a single table, use {@link
+     * #withClustering(Clustering)} instead to pass a {@link Clustering} instance that specifies the
+     * static clustering fields to use.
      *
      * <p>Setting this option enables use of {@link TableDestinationCoderV3} which encodes
      * clustering information. The updated coder is compatible with non-clustered tables, so can be
