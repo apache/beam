@@ -21,6 +21,8 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_option_label.dart';
 import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_options_text_field.dart';
 
+const kPipelineOptionsInputLines = 8;
+
 class PipelineOptionsDropdownInput extends StatelessWidget {
   final TextEditingController controller;
 
@@ -37,7 +39,7 @@ class PipelineOptionsDropdownInput extends StatelessWidget {
       children: [
         PipelineOptionLabel(text: appLocale.input),
         PipelineOptionsTextField(
-          lines: 8,
+          lines: kPipelineOptionsInputLines,
           controller: controller,
         ),
       ],
