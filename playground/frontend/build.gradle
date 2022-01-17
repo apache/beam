@@ -123,6 +123,7 @@ task copyDockerfileDependencies(type: Copy) {
       from '.'
       into 'build/'
       exclude 'build'
+      exclude 'Dockerfile'
    }
    copy {
       from '../playground'
