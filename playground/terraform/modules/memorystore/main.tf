@@ -1,4 +1,3 @@
-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,22 +17,27 @@
 # under the License.
 #
 
-resource "google_storage_bucket" "examples_bucket" {
-  name          = "${var.examples_bucket_name}"
-  location      = "${var.examples_bucket_location}"
-  project       = "${var.project_id}"
-  storage_class = "${var.examples_storage_class}"
+
+data "terraform_remote_state" "remote_state_vpc" {
+  backend = "gcs"
+  config = {
+    bucket  = "${var.beam_playground_terraform}"
+  }
 }
 
-resource "google_storage_bucket_access_control" "public_rule" {
-  bucket = google_storage_bucket.examples_bucket.name
-  role   = "READER"
-  entity = "allUsers"
-}
 
-resource "google_storage_bucket" "terraform_bucket" {
-  name          = "${var.terraform_bucket_name}"
-  location      = "${var.terraform_bucket_location}"
-  project       = "${var.project_id}"
-  storage_class = "${var.terraform_storage_class}"
+resource "google_redis_instance" "cache" {
+  provider           = google-beta
+  project            = "${var.project_id}"
+#  region             = "${data.terraform_remote_state.remote_state_vpc.outputs.subnet_region}"
+  region              = "us-central1"
+  name               = "playground-backend-cache"
+  tier               = "BASIC"
+  memory_size_gb     = 16
+
+#  authorized_network = "${data.terraform_remote_state.remote_state_vpc.outputs.vpc_id}"
+
+  redis_version      = "${var.redis_version}"
+  display_name       = "Playground Cache"
+
 }

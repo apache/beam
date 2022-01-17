@@ -18,11 +18,6 @@
 # under the License.
 #
 
-terraform {
-  backend "gcs" {
-    bucket  = "playground_terraform"
-  }
-}
 
 resource "google_container_cluster" "playground-gke" {
   name               = "playground-examples"

@@ -1,4 +1,3 @@
-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,22 +17,15 @@
 # under the License.
 #
 
-resource "google_storage_bucket" "examples_bucket" {
-  name          = "${var.examples_bucket_name}"
-  location      = "${var.examples_bucket_location}"
-  project       = "${var.project_id}"
-  storage_class = "${var.examples_storage_class}"
+variable "project_id" {
+  description = "The GCP Project ID where Playground Applications will be created"
 }
 
-resource "google_storage_bucket_access_control" "public_rule" {
-  bucket = google_storage_bucket.examples_bucket.name
-  role   = "READER"
-  entity = "allUsers"
+variable "redis_version" {
+  description = "The GCP Project ID where Playground Applications will be created"
+  default     = "REDIS_6_X" 
 }
 
-resource "google_storage_bucket" "terraform_bucket" {
-  name          = "${var.terraform_bucket_name}"
-  location      = "${var.terraform_bucket_location}"
-  project       = "${var.project_id}"
-  storage_class = "${var.terraform_storage_class}"
+variable "beam_playground_terraform" {
+  default     = "beam_playground_terraform"
 }
