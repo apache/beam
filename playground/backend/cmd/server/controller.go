@@ -316,6 +316,7 @@ func (controller *playgroundController) GetDefaultPrecompiledObject(ctx context.
 		Description:     precompiledObject.Description,
 		Type:            precompiledObject.Type,
 		PipelineOptions: precompiledObject.PipelineOptions,
+		Link:            precompiledObject.Link,
 	}}
 	return &response, nil
 }

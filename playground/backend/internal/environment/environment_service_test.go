@@ -322,12 +322,16 @@ func Test_getDefaultExamplesFromJson(t *testing.T) {
 		wantErr bool
 	}{
 		{
+			// Test case with getting default example from json when it exists.
+			// As a result, want to receive an expected path to default example on bucket.
 			name:    "get object from json",
 			args:    args{filepath.Join(configFolderName, defaultSdk.String()+jsonExt)},
 			want:    "SDK_JAVA/MinimalWordCount",
 			wantErr: false,
 		},
 		{
+			// Test case with getting default example from json when it doesn't exist.
+			// As a result, want to receive an error.
 			name:    "error if wrong json path",
 			args:    args{filepath.Join("wrong_folder", defaultSdk.String()+jsonExt)},
 			want:    "",
