@@ -26,7 +26,7 @@ resource "google_container_cluster" "playground-gke" {
   initial_node_count = "${var.node_count}"
   node_config {
     machine_type     = "${var.machine_type}"
-    service_account  = "service-account-playground@beam-337909.iam.gserviceaccount.com"
+    service_account  = "${var.service_account}"
 
     oauth_scopes    = [
       "https://www.googleapis.com/auth/cloud-platform"
