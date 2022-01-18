@@ -55,6 +55,7 @@ import org.apache.beam.sdk.io.FileBasedSink.FileResult;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink.WriteOperation;
 import org.apache.beam.sdk.io.FileBasedSink.Writer;
+import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -240,7 +241,8 @@ public class FileBasedSinkTest {
     // TODO: test with null first argument?
     List<KV<FileResult<Void>, ResourceId>> resultsToFinalFilenames =
         writeOp.finalizeDestination(null, GlobalWindow.INSTANCE, null, fileResults);
-    writeOp.moveToOutputFiles(resultsToFinalFilenames);
+    writeOp.moveToOutputFiles(
+        resultsToFinalFilenames, StandardMoveOptions.OVERWRITE_IF_DESTINATION_EXISTS);
 
     for (int i = 0; i < numFiles; i++) {
       ResourceId outputFilename =
@@ -338,7 +340,8 @@ public class FileBasedSinkTest {
     }
 
     // Copy input files to output files.
-    writeOp.moveToOutputFiles(resultsToFinalFilenames);
+    writeOp.moveToOutputFiles(
+        resultsToFinalFilenames, StandardMoveOptions.OVERWRITE_IF_DESTINATION_EXISTS);
 
     // Assert that the contents were copied.
     for (int i = 0; i < expectedOutputPaths.size(); i++) {

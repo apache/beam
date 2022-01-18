@@ -49,6 +49,7 @@ import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.MatchResult.Status;
 import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
+import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptionsException;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
@@ -417,6 +418,8 @@ public class FileSystems {
         moveOptionSet.contains(StandardMoveOptions.IGNORE_MISSING_FILES);
     final boolean skipExistingDest =
         moveOptionSet.contains(StandardMoveOptions.SKIP_IF_DESTINATION_EXISTS);
+    final boolean failExistingDest =
+        moveOptionSet.contains(StandardMoveOptions.FAIL_IF_DESTINATION_EXISTS);
     final int size = srcResourceIds.size();
 
     // Match necessary srcs and dests with a single match call.
@@ -424,7 +427,8 @@ public class FileSystems {
     if (ignoreMissingSrc) {
       matchResources.addAll(srcResourceIds);
     }
-    if (skipExistingDest) {
+    // OVERWRITE_IF_DESTINATION_EXISTS is default behaviour
+    if (skipExistingDest || failExistingDest) {
       matchResources.addAll(destResourceIds);
     }
     List<MatchResult> matchResults =
@@ -432,7 +436,7 @@ public class FileSystems {
             FluentIterable.from(matchResources).transform(ResourceId::toString).toList());
     List<MatchResult> matchSrcResults = ignoreMissingSrc ? matchResults.subList(0, size) : null;
     List<MatchResult> matchDestResults =
-        skipExistingDest
+        (skipExistingDest || failExistingDest)
             ? matchResults.subList(matchResults.size() - size, matchResults.size())
             : null;
 
@@ -441,24 +445,22 @@ public class FileSystems {
         // If the source is not found, and we are ignoring missing source files, then we skip it.
         continue;
       }
-      if (matchDestResults != null
-          && matchDestResults.get(i).status().equals(Status.OK)
-          && checksumMatch(
-              matchDestResults.get(i).metadata().get(0),
-              matchSrcResults.get(i).metadata().get(0))) {
-        // If the destination exists, and we are skipping when destinations exist, then we skip
-        // the copy but note that the source exists in case it should be deleted.
-        result.filteredExistingSrcs.add(srcResourceIds.get(i));
-        continue;
+      if (matchDestResults != null && matchDestResults.get(i).status().equals(Status.OK)) {
+        // If the destination file exists, and we are skipping/failing when destinations exists
+        if (failExistingDest) {
+          throw new StandardMoveOptionsException(
+              String.format(
+                  "Target file %s exists. Failing according to writeDisposition strategy.",
+                  destResourceIds.get(i)));
+        } else if (skipExistingDest) {
+          result.filteredExistingSrcs.add(srcResourceIds.get(i));
+          continue;
+        }
       }
       result.resultSources.add(srcResourceIds.get(i));
       result.resultDestinations.add(destResourceIds.get(i));
     }
     return result;
-  }
-
-  private static boolean checksumMatch(MatchResult.Metadata first, MatchResult.Metadata second) {
-    return first.checksum() != null && first.checksum().equals(second.checksum());
   }
 
   private static void validateSrcDestLists(

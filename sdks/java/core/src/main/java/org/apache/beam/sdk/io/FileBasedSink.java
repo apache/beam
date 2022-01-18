@@ -785,7 +785,9 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     @VisibleForTesting
     @Experimental(Kind.FILESYSTEM)
     final void moveToOutputFiles(
-        List<KV<FileResult<DestinationT>, ResourceId>> resultsToFinalFilenames) throws IOException {
+        List<KV<FileResult<DestinationT>, ResourceId>> resultsToFinalFilenames,
+        StandardMoveOptions moveOption)
+        throws IOException {
       int numFiles = resultsToFinalFilenames.size();
 
       LOG.debug("Copying {} files.", numFiles);
@@ -799,11 +801,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       }
       // During a failure case, files may have been deleted in an earlier step. Thus
       // we ignore missing files here.
-      FileSystems.rename(
-          srcFiles,
-          dstFiles,
-          StandardMoveOptions.IGNORE_MISSING_FILES,
-          StandardMoveOptions.SKIP_IF_DESTINATION_EXISTS);
+      FileSystems.rename(srcFiles, dstFiles, StandardMoveOptions.IGNORE_MISSING_FILES, moveOption);
 
       // The rename ensures that the source files are deleted.  However we may still need to clean
       // up the directory or orphaned files.

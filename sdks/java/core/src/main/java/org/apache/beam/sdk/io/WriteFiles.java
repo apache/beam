@@ -46,6 +46,7 @@ import org.apache.beam.sdk.io.FileBasedSink.FileResult;
 import org.apache.beam.sdk.io.FileBasedSink.FileResultCoder;
 import org.apache.beam.sdk.io.FileBasedSink.WriteOperation;
 import org.apache.beam.sdk.io.FileBasedSink.Writer;
+import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -166,6 +167,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         .setWindowedWrites(false)
         .setMaxNumWritersPerBundle(DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE)
         .setSideInputs(sink.getDynamicDestinations().getSideInputs())
+        .setMoveOption(StandardMoveOptions.OVERWRITE_IF_DESTINATION_EXISTS)
         .build();
   }
 
@@ -182,6 +184,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   public abstract boolean getWindowedWrites();
 
   abstract int getMaxNumWritersPerBundle();
+
+  abstract StandardMoveOptions getMoveOption();
 
   abstract List<PCollectionView<?>> getSideInputs();
 
@@ -204,6 +208,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
     abstract Builder<UserT, DestinationT, OutputT> setMaxNumWritersPerBundle(
         int maxNumWritersPerBundle);
+
+    abstract Builder<UserT, DestinationT, OutputT> setMoveOption(StandardMoveOptions moveOption);
 
     abstract Builder<UserT, DestinationT, OutputT> setSideInputs(
         List<PCollectionView<?>> sideInputs);
@@ -246,6 +252,11 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   public WriteFiles<UserT, DestinationT, OutputT> withNumShards(
       ValueProvider<Integer> numShardsProvider) {
     return toBuilder().setNumShardsProvider(numShardsProvider).build();
+  }
+
+  /** Set the writeDisposition strategy to use when target file exists. */
+  public WriteFiles<UserT, DestinationT, OutputT> withMoveOption(StandardMoveOptions moveOption) {
+    return toBuilder().setMoveOption(moveOption).build();
   }
 
   /** Set the maximum number of writers created in a bundle before spilling to shuffle. */
@@ -398,7 +409,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     }
 
     return tempFileResults.apply(
-        "FinalizeTempFileBundles", new FinalizeTempFileBundles(numShardsView, destinationCoder));
+        "FinalizeTempFileBundles",
+        new FinalizeTempFileBundles(numShardsView, destinationCoder, getMoveOption()));
   }
 
   @Override
@@ -990,11 +1002,15 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
           PCollection<List<FileResult<DestinationT>>>, WriteFilesResult<DestinationT>> {
     private final @Nullable PCollectionView<Integer> numShardsView;
     private final Coder<DestinationT> destinationCoder;
+    private final StandardMoveOptions moveOption;
 
     private FinalizeTempFileBundles(
-        @Nullable PCollectionView<Integer> numShardsView, Coder<DestinationT> destinationCoder) {
+        @Nullable PCollectionView<Integer> numShardsView,
+        Coder<DestinationT> destinationCoder,
+        StandardMoveOptions moveOption) {
       this.numShardsView = numShardsView;
       this.destinationCoder = destinationCoder;
+      this.moveOption = moveOption;
     }
 
     @Override
@@ -1040,7 +1056,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                 ? writeOperation.finalizeDestination(
                     defaultDest, GlobalWindow.INSTANCE, fixedNumShards, fileResults)
                 : finalizeAllDestinations(fileResults, fixedNumShards);
-        writeOperation.moveToOutputFiles(resultsToFinalFilenames);
+        writeOperation.moveToOutputFiles(resultsToFinalFilenames, moveOption);
         for (KV<FileResult<DestinationT>, ResourceId> entry : resultsToFinalFilenames) {
           FileResult<DestinationT> res = entry.getKey();
           c.output(KV.of(res.getDestination(), entry.getValue().toString()));

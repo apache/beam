@@ -42,6 +42,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult;
+import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -371,6 +372,7 @@ public class FileIO {
         .setCompression(Compression.UNCOMPRESSED)
         .setIgnoreWindowing(false)
         .setNoSpilling(false)
+        .setMoveOption(StandardMoveOptions.OVERWRITE_IF_DESTINATION_EXISTS)
         .build();
   }
 
@@ -384,6 +386,7 @@ public class FileIO {
         .setCompression(Compression.UNCOMPRESSED)
         .setIgnoreWindowing(false)
         .setNoSpilling(false)
+        .setMoveOption(StandardMoveOptions.OVERWRITE_IF_DESTINATION_EXISTS)
         .build();
   }
 
@@ -933,6 +936,8 @@ public class FileIO {
 
     abstract @Nullable PTransform<PCollection<UserT>, PCollectionView<Integer>> getSharding();
 
+    abstract StandardMoveOptions getMoveOption();
+
     abstract boolean getIgnoreWindowing();
 
     abstract boolean getNoSpilling();
@@ -978,6 +983,8 @@ public class FileIO {
 
       abstract Builder<DestinationT, UserT> setSharding(
           PTransform<PCollection<UserT>, PCollectionView<Integer>> sharding);
+
+      abstract Builder<DestinationT, UserT> setMoveOption(StandardMoveOptions moveOption);
 
       abstract Builder<DestinationT, UserT> setIgnoreWindowing(boolean ignoreWindowing);
 
@@ -1192,6 +1199,12 @@ public class FileIO {
       return toBuilder().setSharding(sharding).build();
     }
 
+    /** Specifies strategy to use when target file exists. */
+    public Write<DestinationT, UserT> withMoveOption(StandardMoveOptions moveOption) {
+      checkArgument(moveOption != null, "moveOption can not be null");
+      return toBuilder().setMoveOption(moveOption).build();
+    }
+
     /**
      * Specifies to ignore windowing information in the input, and instead rewindow it to global
      * window with the default trigger.
@@ -1298,7 +1311,8 @@ public class FileIO {
       Write<DestinationT, UserT> resolved = resolvedSpec.build();
       WriteFiles<UserT, DestinationT, ?> writeFiles =
           WriteFiles.to(new ViaFileBasedSink<>(resolved))
-              .withSideInputs(Lists.newArrayList(resolved.getAllSideInputs()));
+              .withSideInputs(Lists.newArrayList(resolved.getAllSideInputs()))
+              .withMoveOption(getMoveOption());
       if (getNumShards() != null) {
         writeFiles = writeFiles.withNumShards(getNumShards());
       } else if (getSharding() != null) {

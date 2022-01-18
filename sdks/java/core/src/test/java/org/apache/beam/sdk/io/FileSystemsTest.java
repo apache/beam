@@ -196,6 +196,55 @@ public class FileSystemsTest {
   }
 
   @Test
+  public void testRenameOverwriteIfDestinationExists() throws Exception {
+    Path srcPath = temporaryFolder.newFile().toPath();
+    Path destPath = srcPath.resolveSibling("dest");
+
+    createFileWithContent(srcPath, "content");
+    createFileWithContent(destPath, "any content");
+
+    FileSystems.rename(
+        toResourceIds(ImmutableList.of(srcPath), false /* isDirectory */),
+        toResourceIds(ImmutableList.of(destPath), false /* isDirectory */),
+        MoveOptions.StandardMoveOptions.OVERWRITE_IF_DESTINATION_EXISTS);
+
+    assertThat(
+        Files.readLines(destPath.toFile(), StandardCharsets.UTF_8), containsInAnyOrder("content"));
+  }
+
+  @Test
+  public void testRenameSkipIfDestinationExists() throws Exception {
+    Path srcPath = temporaryFolder.newFile().toPath();
+    Path destPath = srcPath.resolveSibling("dest");
+
+    createFileWithContent(srcPath, "content");
+    createFileWithContent(destPath, "any content");
+
+    FileSystems.rename(
+        toResourceIds(ImmutableList.of(srcPath), false /* isDirectory */),
+        toResourceIds(ImmutableList.of(destPath), false /* isDirectory */),
+        MoveOptions.StandardMoveOptions.SKIP_IF_DESTINATION_EXISTS);
+
+    assertThat(
+        Files.readLines(destPath.toFile(), StandardCharsets.UTF_8),
+        containsInAnyOrder("any content"));
+  }
+
+  @Test(expected = MoveOptions.StandardMoveOptionsException.class)
+  public void testRenameFailIfDestinationExists() throws Exception {
+    Path srcPath = temporaryFolder.newFile().toPath();
+    Path destPath = srcPath.resolveSibling("dest");
+
+    createFileWithContent(srcPath, "content");
+    createFileWithContent(destPath, "any content");
+
+    FileSystems.rename(
+        toResourceIds(ImmutableList.of(srcPath), false /* isDirectory */),
+        toResourceIds(ImmutableList.of(destPath), false /* isDirectory */),
+        MoveOptions.StandardMoveOptions.FAIL_IF_DESTINATION_EXISTS);
+  }
+
+  @Test
   public void testRenameWithFilteringAfterUnsupportedOptions() throws Exception {
     FileSystem mockFileSystem = mock(FileSystem.class);
 

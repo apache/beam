@@ -28,6 +28,18 @@ public interface MoveOptions {
   /** Defines the standard {@link MoveOptions}. */
   enum StandardMoveOptions implements MoveOptions {
     IGNORE_MISSING_FILES,
+    OVERWRITE_IF_DESTINATION_EXISTS,
     SKIP_IF_DESTINATION_EXISTS,
+    FAIL_IF_DESTINATION_EXISTS
+  }
+
+  /**
+   * Thrown if {@link MoveOptions#StandardMoveOptions StandardMoveOptions} is set to {@code
+   * FAIL_IF_DESTINATION_EXISTS} and a target file exists.
+   */
+  class StandardMoveOptionsException extends RuntimeException {
+    public StandardMoveOptionsException(String message) {
+      super(message);
+    }
   }
 }
