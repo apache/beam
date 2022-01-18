@@ -115,7 +115,8 @@ public final class Caches {
    * parameters within {@link SdkHarnessOptions}.
    */
   public static <K, V> Cache<K, V> fromOptions(PipelineOptions options) {
-    return forMaximumBytes(options.as(SdkHarnessOptions.class).getMaxCacheMemoryUsageMb() << 20);
+    return forMaximumBytes(
+        ((long) options.as(SdkHarnessOptions.class).getMaxCacheMemoryUsageMb()) << 20);
   }
 
   /**
@@ -168,6 +169,9 @@ public final class Caches {
                     // The maximum size of an entry in the cache is maxWeight / concurrencyLevel
                     // which is why we set the concurrency level to 1. See
                     // https://github.com/google/guava/issues/3462 for further details.
+                    //
+                    // The ProcessBundleBenchmark#testStateWithCaching shows no noticeable change
+                    // when this parameter is left at the default.
                     .concurrencyLevel(1)
                     .recordStats(),
                 weightInBytes)
