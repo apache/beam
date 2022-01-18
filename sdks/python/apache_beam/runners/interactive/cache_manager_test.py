@@ -216,7 +216,11 @@ class FileBasedCacheManagerTest(object):
         type(coders.registry.get_coder(int)))
 
   def test_interactive_beam_cache_dir_option(self):
+    """
+    Check FileBasedCacheManager.cache_dir
+    """
     pass
+
 
 
 class TextFileBasedCacheManagerTest(
