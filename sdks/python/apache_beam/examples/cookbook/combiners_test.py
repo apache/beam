@@ -29,7 +29,6 @@ checked directly on the last PCollection produced.
 #   name: CombinersTest
 #   description: Unit-test to showcase combiners.
 #   multifile: false
-#   pipeline_options:
 #   categories:
 #     - Combiners
 

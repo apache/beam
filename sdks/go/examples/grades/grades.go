@@ -19,7 +19,6 @@ package main
 //   name: Grades
 //   description: An example that combines grades data.
 //   multifile: false
-//   pipeline_options:
 //   categories:
 //     - Debugging
 //     - Combiners

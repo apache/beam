@@ -22,7 +22,6 @@ package org.apache.beam.learning.katas.commontransforms.filter.filter;
 //   name: Filter
 //   description: Task from katas to implement a filter function that filters out odd numbers.
 //   multifile: false
-//   pipeline_options:
 //   categories:
 //     - Filtering
 

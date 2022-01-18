@@ -19,7 +19,6 @@ package beam_test
 //   name: CombineTest
 //   description: Unit-test for the Combine example.
 //   multifile: false
-//   pipeline_options:
 //   categories:
 //     - Combiners
 

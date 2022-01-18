@@ -18,7 +18,6 @@
 #   name: HelloBeam
 #   description: Task from katas to create a simple pipeline that takes a hardcoded input element "Hello Beam".
 #   multifile: false
-#   pipeline_options:
 #   categories:
 #     - Testing
 

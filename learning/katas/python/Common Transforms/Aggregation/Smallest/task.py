@@ -18,7 +18,6 @@
 #   name: AggregationSmallest
 #   description: Task from katas to compute the smallest of elements.
 #   multifile: false
-#   pipeline_options:
 #   categories:
 #     - Combiners
 

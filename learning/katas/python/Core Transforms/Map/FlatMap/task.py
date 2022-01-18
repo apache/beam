@@ -19,7 +19,6 @@
 #   description: Task from katas to implement a function that maps each input sentence
 #     into words split by whitespace (" ").
 #   multifile: false
-#   pipeline_options:
 #   categories:
 #     - Core Transforms
 

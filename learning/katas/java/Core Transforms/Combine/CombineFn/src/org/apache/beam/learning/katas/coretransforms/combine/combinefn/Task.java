@@ -22,7 +22,6 @@ package org.apache.beam.learning.katas.coretransforms.combine.combinefn;
 //   name: CombineFn
 //   description: Task from katas averaging.
 //   multifile: false
-//   pipeline_options:
 //   categories:
 //     - Combiners
 //     - Core Transforms

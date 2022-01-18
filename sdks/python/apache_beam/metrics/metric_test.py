@@ -21,7 +21,6 @@
 #   name: MetricTest
 #   description: Unit-test for the Metric example.
 #   multifile: false
-#   pipeline_options:
 #   categories:
 #   - Metrics
 

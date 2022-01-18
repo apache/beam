@@ -19,7 +19,6 @@
 #   description: Task from katas to branch out the numbers to two different transforms, one transform
 #     is multiplying each number by 5 and the other transform is multiplying each number by 10.
 #   multifile: false
-#   pipeline_options:
 #   categories:
 #     - Branching
 #     - Multiple Outputs

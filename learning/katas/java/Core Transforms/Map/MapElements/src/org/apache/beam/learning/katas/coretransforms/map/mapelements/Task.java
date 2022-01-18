@@ -22,7 +22,6 @@ package org.apache.beam.learning.katas.coretransforms.map.mapelements;
 //   name: Map
 //   description: Task from katas to implement a simple map function that multiplies all input elements by 5.
 //   multifile: false
-//   pipeline_options:
 //   categories:
 //     - Core Transforms
 
