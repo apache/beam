@@ -2617,7 +2617,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             .build();
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    thrown.expect(UnsupportedOperationException.class);
+    thrown.expect(ZetaSqlException.class); // BEAM-13673
     zetaSQLQueryPlanner.convertToBeamRel(sql, params);
   }
 
