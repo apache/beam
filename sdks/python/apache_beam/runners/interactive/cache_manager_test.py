@@ -215,6 +215,9 @@ class FileBasedCacheManagerTest(object):
         type(self.cache_manager.load_pcoder('full', 'a key')),
         type(coders.registry.get_coder(int)))
 
+  def test_interactive_beam_cache_dir_option(self):
+    pass
+
 
 class TextFileBasedCacheManagerTest(
     FileBasedCacheManagerTest,

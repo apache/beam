@@ -221,24 +221,23 @@ class Options(interactive_options.InteractiveOptions):
     self._display_timezone = value
 
   @property
-  def cache_dir(self):
-    """The cache directory
+  def specified_cache_dir(self):
+    """The user cache directory
 
-    Defaults to local storage(?).
+    Defaults to None.
     """
-    return self._cache_dir
+    return self._specified_cache_dir
 
-  @cache_dir.setter
-  def cache_dir(self, value):
+  @specified_cache_dir.setter
+  def user_cache_dir(self, value):
     """Sets the cache directory.
 
     Defaults to local timezone.
 
     Example::
-
-      interactive_beam.options.cache_dir = "gs://…"
+      interactive_beam.options.cache_dir = "gs://"
     """
-    self._cache_dir = value
+    self._specified_cache_dir = value
 
 class Recordings():
   """An introspection interface for recordings for pipelines.
