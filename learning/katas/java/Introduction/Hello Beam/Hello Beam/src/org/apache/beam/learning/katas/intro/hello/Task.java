@@ -24,6 +24,7 @@ package org.apache.beam.learning.katas.intro.hello;
 //   multifile: false
 //   categories:
 //     - Testing
+//     - Quickstart
 
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;

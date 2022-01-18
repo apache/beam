@@ -27,6 +27,7 @@
 #   categories:
 #     - Combiners
 #     - Options
+#     - Quickstart
 
 import argparse
 import logging

@@ -20,6 +20,7 @@
 #   multifile: false
 #   categories:
 #     - Testing
+#     - Quickstart
 
 import apache_beam as beam
 

@@ -57,6 +57,7 @@ pipeline. You can see the results in your output bucket in the GCS browser.
 #     - Flatten
 #     - Options
 #     - Combiners
+#     - Quickstart
 
 import argparse
 import logging

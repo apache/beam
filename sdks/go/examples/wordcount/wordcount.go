@@ -63,6 +63,7 @@ package main
 //   categories:
 //     - Combiners
 //     - Options
+//     - Quickstart
 
 import (
 	"context"
