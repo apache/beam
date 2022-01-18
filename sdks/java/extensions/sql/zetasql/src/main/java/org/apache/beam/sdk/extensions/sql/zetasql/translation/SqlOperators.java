@@ -20,6 +20,8 @@ package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 import static org.apache.beam.sdk.extensions.sql.zetasql.BeamZetaSqlCatalog.ZETASQL_FUNCTION_GROUP_NAME;
 
 import com.google.zetasql.Value;
+import com.google.zetasql.io.grpc.Status;
+import com.google.zetasql.io.grpc.StatusRuntimeException;
 import com.google.zetasql.resolvedast.ResolvedNodes;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
@@ -34,6 +36,7 @@ import org.apache.beam.sdk.extensions.sql.impl.transform.agg.CountIf;
 import org.apache.beam.sdk.extensions.sql.impl.udaf.ArrayAgg;
 import org.apache.beam.sdk.extensions.sql.impl.udaf.StringAgg;
 import org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils;
+import org.apache.beam.sdk.extensions.sql.zetasql.ZetaSqlException;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.impl.BeamBuiltinMethods;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.impl.CastFunctionImpl;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.JavaTypeFactoryImpl;
@@ -187,11 +190,13 @@ public class SqlOperators {
       if (resolvedExpr instanceof ResolvedNodes.ResolvedLiteral) {
         delimiter = ((ResolvedNodes.ResolvedLiteral) resolvedExpr).getValue();
       } else {
-        // TODO (BEAM-13673 Add support for params)
-        throw new UnsupportedOperationException(
-            String.format(
-                "STRING_AGG only supports ResolvedLiteral as delimiter, provided %s",
-                resolvedExpr.getClass().getName()));
+        // TODO(BEAM-13673) Add support for params
+        throw new ZetaSqlException(
+            new StatusRuntimeException(
+                Status.INVALID_ARGUMENT.withDescription(
+                    String.format(
+                        "STRING_AGG only supports ResolvedLiteral as delimiter, provided %s",
+                        resolvedExpr.getClass().getName()))));
       }
     }
 
