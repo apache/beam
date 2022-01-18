@@ -17,19 +17,24 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:playground/constants/colors.dart';
 
-const defaultRatio = 0.65;
+const defaultRatio = 0.7;
+const kContainerTopBorder = Border(
+  top: BorderSide(
+    width: 1,
+    color: kLightGrey,
+  ),
+);
 
 class EmbeddedSplitView extends StatefulWidget {
   final Widget first;
   final Widget second;
-  final double dividerSize;
 
   const EmbeddedSplitView({
     Key? key,
     required this.first,
     required this.second,
-    required this.dividerSize,
   }) : super(key: key);
 
   @override
@@ -38,7 +43,6 @@ class EmbeddedSplitView extends StatefulWidget {
 
 class _EmbeddedSplitViewState extends State<EmbeddedSplitView> {
   double _maxSize = 0;
-  double kAppBarHeight = AppBar().preferredSize.height;
 
   get _sizeFirst => defaultRatio * _maxSize;
 
@@ -55,7 +59,9 @@ class _EmbeddedSplitViewState extends State<EmbeddedSplitView> {
   }
 
   Widget _buildVerticalLayout(
-      BuildContext context, BoxConstraints constraints) {
+    BuildContext context,
+    BoxConstraints constraints,
+  ) {
     return SizedBox(
       height: constraints.maxHeight,
       width: double.infinity,
@@ -65,11 +71,10 @@ class _EmbeddedSplitViewState extends State<EmbeddedSplitView> {
             height: _sizeFirst,
             child: widget.first,
           ),
-          Divider(
-            height: widget.dividerSize,
-          ),
-          SizedBox(
+          Container(
             height: _sizeSecond,
+            width: double.infinity,
+            decoration: const BoxDecoration(border: kContainerTopBorder),
             child: widget.second,
           ),
         ],
@@ -78,12 +83,8 @@ class _EmbeddedSplitViewState extends State<EmbeddedSplitView> {
   }
 
   void _updateMaxSize(BoxConstraints constraints) {
-    _calculateMaxSize(constraints.maxHeight);
-  }
-
-  void _calculateMaxSize(double maxSize) {
-    if (_maxSize != maxSize) {
-      _maxSize = maxSize - widget.dividerSize - kAppBarHeight;
+    if (_maxSize != constraints.maxHeight) {
+      _maxSize = constraints.maxHeight;
     }
   }
 }

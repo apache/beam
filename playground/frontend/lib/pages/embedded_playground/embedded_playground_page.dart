@@ -103,9 +103,8 @@ class EmbeddedPlaygroundPage extends StatelessWidget {
           ],
         ),
         body: EmbeddedSplitView(
-          dividerSize: 1,
           first: const EmbeddedEditor(),
-          second: OutputResult(text: state.result?.output ?? ''),
+          second: OutputResult(text: state.result?.log ?? ''),
         ),
       ),
     );
