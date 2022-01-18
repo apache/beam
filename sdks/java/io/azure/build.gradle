@@ -26,8 +26,6 @@ applyJavaNature(
 description = "Apache Beam :: SDKs :: Java :: IO :: Azure"
 ext.summary = "IO library to read and write Azure services from Beam."
 
-repositories { jcenter() }
-
 dependencies {
   implementation library.java.commons_io
   permitUnusedDeclared library.java.commons_io // BEAM-11761

@@ -31,9 +31,9 @@ import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.NUM_
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.SCRIPT_SOURCE;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.countByMatch;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.countByScientistName;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.flushAndRefreshAllIndices;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.insertTestDocuments;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.mapToInputId;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.refreshAllIndices;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.refreshIndexAndGetCurrentNumDocs;
 import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
 import static org.apache.beam.sdk.values.TypeDescriptors.integers;
@@ -738,7 +738,7 @@ class ElasticsearchIOTestCommon implements Serializable {
                 .withRoutingFn(new ExtractValueFn("scientist")));
     pipeline.run();
 
-    refreshAllIndices(restClient);
+    flushAndRefreshAllIndices(restClient);
     for (String scientist : FAMOUS_SCIENTISTS) {
       Map<String, String> urlParams = Collections.singletonMap("routing", scientist);
 
