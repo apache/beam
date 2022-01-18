@@ -17,15 +17,11 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:playground/components/toggle_theme_button/toggle_theme_icon_button.dart';
 import 'package:playground/constants/assets.dart';
 import 'package:playground/constants/params.dart';
 import 'package:playground/constants/sizes.dart';
-import 'package:playground/pages/playground/states/playground_state.dart';
-import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 const kTryPlaygroundButtonWidth = 200.0;
@@ -36,28 +32,12 @@ class EmbeddedActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      runSpacing: kMdSpacing,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      alignment: WrapAlignment.end,
-      children: [
-        const ToggleThemeIconButton(),
-        IconButton(
-          iconSize: kIconSizeLg,
-          splashRadius: kIconButtonSplashRadius,
-          icon: SvgPicture.asset(kCopyIconAsset),
-          onPressed: () {
-            final source =
-                Provider.of<PlaygroundState>(context, listen: false).source;
-            Clipboard.setData(ClipboardData(text: source));
-          },
-        ),
-        ElevatedButton.icon(
-          style: ButtonStyle(
-            fixedSize: MaterialStateProperty.all(
-              const Size(kTryPlaygroundButtonWidth, kTryPlaygroundButtonHeight),
-            ),
-          ),
+    return Padding(
+      padding: const EdgeInsets.all(kLgSpacing),
+      child: SizedBox(
+        width: kTryPlaygroundButtonWidth,
+        height: kTryPlaygroundButtonHeight,
+        child: ElevatedButton.icon(
           icon: SvgPicture.asset(kLinkIconAsset),
           label: Text(AppLocalizations.of(context)!.tryInPlayground),
           onPressed: () {
@@ -65,7 +45,7 @@ class EmbeddedActions extends StatelessWidget {
             launch('/?$kExampleParam=$exampleId');
           },
         ),
-      ],
+      ),
     );
   }
 }

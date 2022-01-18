@@ -22,8 +22,8 @@ import 'package:playground/constants/colors.dart';
 const defaultRatio = 0.7;
 const kContainerTopBorder = Border(
   top: BorderSide(
-    width: 1,
-    color: kLightGrey,
+    width: 0.5,
+    color: kLightGrey1,
   ),
 );
 
