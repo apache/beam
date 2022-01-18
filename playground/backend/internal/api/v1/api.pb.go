@@ -1106,7 +1106,8 @@ type PrecompiledObject struct {
 	Description     string                `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
 	Type            PrecompiledObjectType `protobuf:"varint,4,opt,name=type,proto3,enum=api.v1.PrecompiledObjectType" json:"type,omitempty"`
 	PipelineOptions string                `protobuf:"bytes,5,opt,name=pipeline_options,json=pipelineOptions,proto3" json:"pipeline_options,omitempty"`
-	Link            string                `protobuf:"bytes,6,opt,name=link,proto3" json:"link,omitempty"`
+	// Link to the example in the Beam repository
+	Link string `protobuf:"bytes,6,opt,name=link,proto3" json:"link,omitempty"`
 }
 
 func (x *PrecompiledObject) Reset() {

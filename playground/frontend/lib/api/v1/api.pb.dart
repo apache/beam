@@ -1158,7 +1158,6 @@ class PrecompiledObject extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(3)
   $core.bool hasDescription() => $_has(2);
-
   @$pb.TagNumber(3)
   void clearDescription() => clearField(3);
 
@@ -1172,7 +1171,6 @@ class PrecompiledObject extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(4)
   $core.bool hasType() => $_has(3);
-
   @$pb.TagNumber(4)
   void clearType() => clearField(4);
 
@@ -1186,7 +1184,6 @@ class PrecompiledObject extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(5)
   $core.bool hasPipelineOptions() => $_has(4);
-
   @$pb.TagNumber(5)
   void clearPipelineOptions() => clearField(5);
 
@@ -1200,7 +1197,6 @@ class PrecompiledObject extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(6)
   $core.bool hasLink() => $_has(5);
-
   @$pb.TagNumber(6)
   void clearLink() => clearField(6);
 }

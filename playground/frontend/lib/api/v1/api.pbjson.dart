@@ -273,7 +273,8 @@ const GetLogsResponse$json = const {
 };
 
 /// Descriptor for `GetLogsResponse`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List getLogsResponseDescriptor = $convert.base64Decode('Cg9HZXRMb2dzUmVzcG9uc2USFgoGb3V0cHV0GAEgASgJUgZvdXRwdXQ=');
+final $typed_data.Uint8List getLogsResponseDescriptor = $convert
+    .base64Decode('Cg9HZXRMb2dzUmVzcG9uc2USFgoGb3V0cHV0GAEgASgJUgZvdXRwdXQ=');
 @$core.Deprecated('Use cancelRequestDescriptor instead')
 const CancelRequest$json = const {
   '1': 'CancelRequest',
@@ -409,7 +410,9 @@ const GetPrecompiledObjectLogsRequest$json = const {
 };
 
 /// Descriptor for `GetPrecompiledObjectLogsRequest`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List getPrecompiledObjectLogsRequestDescriptor = $convert.base64Decode('Ch9HZXRQcmVjb21waWxlZE9iamVjdExvZ3NSZXF1ZXN0Eh0KCmNsb3VkX3BhdGgYASABKAlSCWNsb3VkUGF0aA==');
+final $typed_data.Uint8List getPrecompiledObjectLogsRequestDescriptor =
+    $convert.base64Decode(
+        'Ch9HZXRQcmVjb21waWxlZE9iamVjdExvZ3NSZXF1ZXN0Eh0KCmNsb3VkX3BhdGgYASABKAlSCWNsb3VkUGF0aA==');
 @$core.Deprecated('Use getPrecompiledObjectsResponseDescriptor instead')
 const GetPrecompiledObjectsResponse$json = const {
   '1': 'GetPrecompiledObjectsResponse',
