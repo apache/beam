@@ -121,7 +121,7 @@ public class BigQueryClusteringIT {
       return SCHEMA;
     }
   }
-  /*
+
    @Test
    public void testE2EBigQueryClustering() throws Exception {
      String tableName = "weather_stations_clustered_" + System.currentTimeMillis();
@@ -173,8 +173,6 @@ public class BigQueryClusteringIT {
 
      Assert.assertEquals(table.getClustering(), CLUSTERING);
    }
-
-  */
 
   @Test
   public void testE2EBigQueryClusteringDynamicDestinations() throws Exception {
