@@ -88,7 +88,7 @@ it does not matter which instance process the code.
 
 ## How to add a new supported language
 
-- Add the language to [api.proto](../api/v1/api.proto) file:
+1. Add the language to [api.proto](../api/v1/api.proto) file:
 
 ```
 enum Sdk {
@@ -100,21 +100,21 @@ enum Sdk {
 }
 ```
 
-1. Create a new environment for a new language as [this one](containers/java)
-2. Create a new config file for a new language as [this one](configs/SDK_JAVA.json)
-3. Update a method to create file system according to a new language [here](internal/fs_tool/fs.go) (`NewLifeCycle()`
+2. Create a new environment for a new language as [this one](containers/java)
+3. Create a new config file for a new language as [this one](configs/SDK_JAVA.json)
+4. Update a method to create file system according to a new language [here](internal/fs_tool/fs.go) (`NewLifeCycle()`
    method)
-4. Update a method to set up a file system according to a new
+5. Update a method to set up a file system according to a new
    language [here](internal/setup_tools/life_cycle/life_cycle_setuper.go) (`Setup()` method)
-5. Update a method to set up code validator according to a new language[here](internal/utils/validators_utils.go)
-6. Update a method to set up code preparers according to a new language [here](internal/utils/preparators_utils.go)
-7. Update a method to set up compiler according to a new
+6. Update a method to set up code validator according to a new language[here](internal/utils/validators_utils.go)
+7. Update a method to set up code preparers according to a new language [here](internal/utils/preparators_utils.go)
+8. Update a method to set up compiler according to a new
    language [here](internal/setup_tools/builder/setup_builder.go) (`Compiler()` method)
-8. Update a method to set up runner according to a new
+9. Update a method to set up runner according to a new
    language [here](internal/setup_tools/builder/setup_builder.go) (`Runner()` method)
-9. Update a method to set up test runner according to a new
-   language [here](internal/setup_tools/builder/setup_builder.go) (`TestRunner()` method)
-10. Update a method to compile client's code according to a new
+10. Update a method to set up test runner according to a new
+    language [here](internal/setup_tools/builder/setup_builder.go) (`TestRunner()` method)
+11. Update a method to compile client's code according to a new
     language [here](internal/code_processing/code_processing.go) (`compileStep()` method)
-11. Update a method to execute client's code according to a new
+12. Update a method to execute client's code according to a new
     language [here](internal/code_processing/code_processing.go) (`runStep()` method)
