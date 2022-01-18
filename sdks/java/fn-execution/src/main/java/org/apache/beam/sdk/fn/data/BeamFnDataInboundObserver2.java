@@ -66,7 +66,7 @@ public class BeamFnDataInboundObserver2 implements CloseableFnDataReceiver<BeamF
   protected static class CloseException extends Exception {
     private CloseException() {
       super(
-          "BeamFnDataInboundObserver2 closed.",
+          "Inbound observer closed.",
           null,
           /*enableSuppression=*/ false,
           /*writableStackTrace=*/ false);
