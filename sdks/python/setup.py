@@ -138,7 +138,7 @@ REQUIRED_PACKAGES = [
     # See: https://github.com/uqfoundation/dill/issues/341.
     'dill>=0.3.1.1,<0.3.2',
     'cloudpickle>=2.0.0,<3',
-    'fastavro>=0.21.4,<2',
+    'fastavro>=0.23.6,<2',
     'grpcio>=1.29.0,<2',
     'hdfs>=2.1.0,<3.0.0',
     'httplib2>=0.8,<0.20.0',
