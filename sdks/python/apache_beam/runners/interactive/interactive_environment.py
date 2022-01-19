@@ -360,8 +360,12 @@ class InteractiveEnvironment(object):
     cache_manager = self._cache_managers.get(str(id(pipeline)), None)
     if not cache_manager and create_if_absent:
       from apache_beam.runners.interactive import interactive_beam as ib
-      if ib.options.specified_cache_dir:
-        cache_dir = ib.options.specified_cache_dir
+      if ib.options.cache_root:
+        if ib.options.cache_root.startswith("gs://"):
+          # Add GCS support here
+          pass
+        else:
+          cache_dir = tempfile.mkdtemp(dir=ib.options.cache_root)
       else:
         cache_dir = tempfile.mkdtemp(
             suffix=str(id(pipeline)),

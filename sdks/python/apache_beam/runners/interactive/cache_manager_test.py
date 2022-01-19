@@ -215,21 +215,21 @@ class FileBasedCacheManagerTest(object):
         type(self.cache_manager.load_pcoder('full', 'a key')),
         type(coders.registry.get_coder(int)))
 
-  def test_cache_manager_uses_ib_specified_cache_dir(self):
+  def test_cache_manager_uses_ib_cache_root(self):
     """
     Check that FileBasedCacheManager._cache_dir is set to the 
-    specified_cache_dir set under Interactive Beam.
+    cache_root set under Interactive Beam.
     """
     # Set Interactive Beam specified cache dir to cloud storage
-    ib.options.specified_cache_dir = "gs://"
+    ib.options.cache_root = "gs://"
 
     cache_manager = cache.FileBasedCacheManager(
-        cache_dir=ib.options.specified_cache_dir)
+        cache_dir=ib.options.cache_root)
 
-    self.assertEqual(ib.options.specified_cache_dir, cache_manager._cache_dir)
+    self.assertEqual(ib.options.cache_root, cache_manager._cache_dir)
     
     # Reset Interactive Beam setting
-    ib.options.specified_cache_dir = None
+    ib.options.cache_root = None
 
 class TextFileBasedCacheManagerTest(
     FileBasedCacheManagerTest,

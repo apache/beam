@@ -233,8 +233,8 @@ def has_source_to_cache(user_pipeline):
       file_based_cm = ie.current_env().get_cache_manager(user_pipeline)
       cache_dir = file_based_cm._cache_dir
       from apache_beam.runners.interactive import interactive_beam as ib
-      if ib.options.specified_cache_dir:
-            cache_dir = ib.options.specified_cache_dir
+      if ib.options.cache_root:
+            cache_dir = ib.options.cache_root
       ie.current_env().set_cache_manager(
           streaming_cache.StreamingCache(
               cache_dir,

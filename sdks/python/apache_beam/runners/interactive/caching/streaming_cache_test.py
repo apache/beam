@@ -450,19 +450,19 @@ class StreamingCacheTest(unittest.TestCase):
     cache = StreamingCache(cache_dir=None)
     self.assertRaises(TypeError, cache.write, 'some value', 'a key')
 
-  def test_streaming_cache_uses_ib_specified_cache_dir(self):
+  def test_streaming_cache_uses_ib_cache_root(self):
     """
     Check that StreamingCache._cache_dir is set to the 
-    specified_cache_dir set under Interactive Beam.
+    cache_root set under Interactive Beam.
     """
     # Set Interactive Beam specified cache dir to cloud storage
-    ib.options.specified_cache_dir = "gs://"
-    cache = StreamingCache(cache_dir=ib.options.specified_cache_dir)
+    ib.options.cache_root = "gs://"
+    cache = StreamingCache(cache_dir=ib.options.cache_root)
 
-    self.assertEqual(ib.options.specified_cache_dir, cache._cache_dir)
+    self.assertEqual(ib.options.cache_root, cache._cache_dir)
 
     # Reset Interactive Beam setting
-    ib.options.specified_cache_dir = None
+    ib.options.cache_root = None
 
 if __name__ == '__main__':
   unittest.main()

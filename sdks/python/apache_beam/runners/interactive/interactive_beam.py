@@ -221,23 +221,26 @@ class Options(interactive_options.InteractiveOptions):
     self._display_timezone = value
 
   @property
-  def specified_cache_dir(self):
+  def cache_root(self):
     """The cache directory specified by the user.
 
     Defaults to None.
     """
-    return self._specified_cache_dir
+    return self._cache_root
 
-  @specified_cache_dir.setter
-  def specified_cache_dir(self, value):
+  @cache_root.setter
+  def cache_root(self, value):
     """Sets the cache directory.
 
     Defaults to None.
 
-    Example::
-      interactive_beam.options.specified_cache_dir = "gs://"
+    Example of local directory usage::
+      interactive_beam.options.cache_root = "/Users/username/my/cache/dir"
+
+    Example of GCS directory usage::
+      interactive_beam.options.cache_root = "gs://my-gcs-bucket/cache/dir"
     """
-    self._specified_cache_dir = value
+    self._cache_root = value
 
 class Recordings():
   """An introspection interface for recordings for pipelines.
