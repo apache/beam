@@ -60,7 +60,7 @@ class EditorTextArea extends StatefulWidget {
 
 class _EditorTextAreaState extends State<EditorTextArea> {
   CodeController? _codeController;
-  FocusNode focusNode = FocusNode();
+  var focusNode = FocusNode();
 
   @override
   void initState() {
