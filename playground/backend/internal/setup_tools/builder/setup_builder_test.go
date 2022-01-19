@@ -47,7 +47,7 @@ func setup() {
 		CompileCmd:  "MOCK_COMPILE_CMD",
 		CompileArgs: []string{"MOCK_COMPILE_ARG"},
 	}
-	sdkEnv = environment.NewBeamEnvs(sdk, executorConfig, "", 0)
+	sdkEnv = environment.NewBeamEnvs(sdk, executorConfig, "", "", 0)
 }
 
 func TestValidator(t *testing.T) {
@@ -59,7 +59,7 @@ func TestValidator(t *testing.T) {
 		WithValidator().
 		WithSdkValidators(vals)
 
-	wrongSdkEnv := environment.NewBeamEnvs(pb.Sdk_SDK_UNSPECIFIED, sdkEnv.ExecutorConfig, "", 0)
+	wrongSdkEnv := environment.NewBeamEnvs(pb.Sdk_SDK_UNSPECIFIED, sdkEnv.ExecutorConfig, "", "", 0)
 
 	type args struct {
 		paths  *fs_tool.LifeCyclePaths
@@ -126,7 +126,7 @@ func TestPreparer(t *testing.T) {
 		WithPreparer().
 		WithSdkPreparers(prep)
 
-	wrongSdkEnv := environment.NewBeamEnvs(pb.Sdk_SDK_UNSPECIFIED, sdkEnv.ExecutorConfig, "", 0)
+	wrongSdkEnv := environment.NewBeamEnvs(pb.Sdk_SDK_UNSPECIFIED, sdkEnv.ExecutorConfig, "", "", 0)
 
 	type args struct {
 		paths           fs_tool.LifeCyclePaths

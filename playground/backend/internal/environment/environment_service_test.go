@@ -112,7 +112,7 @@ func TestNewEnvironment(t *testing.T) {
 func Test_getSdkEnvsFromOsEnvs(t *testing.T) {
 	workingDir := "./"
 	preparedModDir := ""
-	preparedDefaultExamplePath := ""
+	preparedDefaultExamplePath := "SDK_JAVA/MinimalWordCount"
 	tests := []struct {
 		name      string
 		want      *BeamEnvs
