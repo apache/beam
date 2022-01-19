@@ -69,6 +69,12 @@ public class JvmVerification {
     assertEquals(v11.name, version);
   }
 
+  @Test
+  public void verifyRunningJVMVersionIs17() {
+    final String version = getJavaSpecification();
+    assertEquals(v17.name, version);
+  }
+
   private static <T> Java getByteCodeVersion(final Class<T> clazz) throws IOException {
     final InputStream stream =
         clazz.getClassLoader().getResourceAsStream(clazz.getName().replace(".", "/") + ".class");
