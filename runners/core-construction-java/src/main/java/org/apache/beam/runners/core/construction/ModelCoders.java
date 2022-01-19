@@ -60,6 +60,8 @@ public class ModelCoders {
   public static final String PARAM_WINDOWED_VALUE_CODER_URN =
       getUrn(StandardCoders.Enum.PARAM_WINDOWED_VALUE);
 
+  public static final String ROW_V1_CODER_URN = getUrn(StandardCoders.Enum.ROW_V1);
+
   public static final String ROW_CODER_URN = getUrn(StandardCoders.Enum.ROW);
 
   public static final String STATE_BACKED_ITERABLE_CODER_URN =
@@ -87,6 +89,7 @@ public class ModelCoders {
           CUSTOM_WINDOW_CODER_URN,
           WINDOWED_VALUE_CODER_URN,
           DOUBLE_CODER_URN,
+          ROW_V1_CODER_URN,
           ROW_CODER_URN,
           PARAM_WINDOWED_VALUE_CODER_URN,
           STATE_BACKED_ITERABLE_CODER_URN,

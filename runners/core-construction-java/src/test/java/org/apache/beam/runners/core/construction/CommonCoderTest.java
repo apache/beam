@@ -47,6 +47,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardCoders;
+import org.apache.beam.model.pipeline.v1.RunnerApi.StandardCoders.Enum;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.runners.core.construction.CoderTranslation.TranslationContext;
 import org.apache.beam.sdk.coders.BooleanCoder;
@@ -57,7 +58,6 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.TimestampPrefixingWindowCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
@@ -115,7 +115,6 @@ public class CommonCoderTest {
           .put(
               getUrn(StandardCoders.Enum.PARAM_WINDOWED_VALUE),
               WindowedValue.ParamWindowedValueCoder.class)
-          .put(getUrn(StandardCoders.Enum.ROW), RowCoder.class)
           .put(getUrn(StandardCoders.Enum.SHARDED_KEY), ShardedKey.Coder.class)
           .put(getUrn(StandardCoders.Enum.CUSTOM_WINDOW), TimestampPrefixingWindowCoder.class)
           .build();
@@ -237,7 +236,10 @@ public class CommonCoderTest {
   }
 
   private static void assertCoderIsKnown(CommonCoder coder) {
-    assertThat("not a known coder", coders.keySet(), hasItem(coder.getUrn()));
+    if (!coder.getUrn().equals(ModelCoders.ROW_V1_CODER_URN)
+        && !coder.getUrn().equals(ModelCoders.ROW_CODER_URN)) {
+      assertThat("not a known coder " + coder.getUrn(), coders.keySet(), hasItem(coder.getUrn()));
+    }
     for (CommonCoder component : coder.getComponents()) {
       assertCoderIsKnown(component);
     }
@@ -331,11 +333,16 @@ public class CommonCoderTest {
       return WindowedValue.of(windowValue, timestamp, windows, paneInfo);
     } else if (s.equals(getUrn(StandardCoders.Enum.DOUBLE))) {
       return Double.parseDouble((String) value);
-    } else if (s.equals(getUrn(StandardCoders.Enum.ROW))) {
+    } else if (s.equals(getUrn(StandardCoders.Enum.ROW)) || s.equals(getUrn(Enum.ROW_V1))) {
       Schema schema;
       try {
-        schema =
-            SchemaTranslation.schemaFromProto(SchemaApi.Schema.parseFrom(coderSpec.getPayload()));
+        SchemaApi.Schema protoSchema;
+        if (s.equals(getUrn(StandardCoders.Enum.ROW))) {
+          protoSchema = SchemaApi.SchemaCoderPayload.parseFrom(coderSpec.getPayload()).getSchema();
+        } else {
+          protoSchema = SchemaApi.Schema.parseFrom(coderSpec.getPayload());
+        }
+        schema = SchemaTranslation.schemaFromProto(protoSchema);
       } catch (InvalidProtocolBufferException e) {
         throw new RuntimeException("Failed to parse schema payload for row coder", e);
       }
@@ -431,13 +438,22 @@ public class CommonCoderTest {
     for (CommonCoder innerCoder : coder.getComponents()) {
       components.add(instantiateCoder(innerCoder));
     }
-    Class<? extends Coder> coderType =
-        ModelCoderRegistrar.BEAM_MODEL_CODER_URNS.inverse().get(coder.getUrn());
-    checkNotNull(coderType, "Unknown coder URN: " + coder.getUrn());
-
-    CoderTranslator<?> translator = ModelCoderRegistrar.BEAM_MODEL_CODERS.get(coderType);
-    checkNotNull(
-        translator, "No translator found for common coder class: " + coderType.getSimpleName());
+    CoderTranslator<?> translator;
+    if (coder.getUrn().equals(ModelCoders.ROW_CODER_URN)) {
+      translator =
+          CoderTranslators.isSchemaCoder(coder.getUrn(), coder.getPayload())
+              ? CoderTranslators.schema()
+              : CoderTranslators.row();
+    } else if (coder.getUrn().equals(ModelCoders.ROW_V1_CODER_URN)) {
+      translator = CoderTranslators.rowV1();
+    } else {
+      Class<? extends Coder> coderType =
+          ModelCoderRegistrar.BEAM_MODEL_CODER_URNS.inverse().get(coder.getUrn());
+      checkNotNull(coderType, "Unknown coder URN: " + coder.getUrn());
+      translator = ModelCoderRegistrar.BEAM_MODEL_CODERS.get(coderType);
+      checkNotNull(
+          translator, "No translator found for common coder class: " + coderType.getSimpleName());
+    }
 
     return translator.fromComponents(components, coder.getPayload(), new TranslationContext() {});
   }
@@ -505,6 +521,8 @@ public class CommonCoderTest {
 
       assertEquals(expectedValue, actualValue);
     } else if (s.equals(getUrn(StandardCoders.Enum.ROW))) {
+      assertEquals(expectedValue, actualValue);
+    } else if (s.equals(getUrn(Enum.ROW_V1))) {
       assertEquals(expectedValue, actualValue);
     } else if (s.equals(getUrn(StandardCoders.Enum.SHARDED_KEY))) {
       assertEquals(expectedValue, actualValue);

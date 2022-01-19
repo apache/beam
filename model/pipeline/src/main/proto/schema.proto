@@ -21,7 +21,7 @@
 // complex types.
 //
 // The primary application of Schema is as the payload for the standard coder
-// "beam:coder:row:v1", defined in beam_runner_api.proto
+// "beam:coder:row:v2", defined in beam_runner_api.proto
 
 syntax = "proto3";
 
@@ -30,6 +30,11 @@ package org.apache.beam.model.pipeline.v1;
 option go_package = "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1;pipeline_v1";
 option java_package = "org.apache.beam.model.pipeline.v1";
 option java_outer_classname = "SchemaApi";
+
+message SchemaCoderPayload {
+  Schema schema = 1;
+  map<string, bytes> sdk_information = 2;
+}
 
 message Schema {
   // List of fields for this schema. Two fields may not share a name.

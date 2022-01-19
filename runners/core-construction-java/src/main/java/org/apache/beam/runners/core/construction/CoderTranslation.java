@@ -23,16 +23,22 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.ServiceLoader;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableBiMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 
 /** Converts to and from Beam Runner API representations of {@link Coder Coders}. */
 @SuppressWarnings({
@@ -63,6 +69,9 @@ public class CoderTranslation {
   @VisibleForTesting
   static final BiMap<Class<? extends Coder>, String> KNOWN_CODER_URNS = loadCoderURNs();
 
+  static final Set<Class<? extends Coder>> SCHEMA_CODERS =
+      ImmutableSet.of(RowCoder.class, SchemaCoder.class);
+
   @VisibleForTesting
   static final Map<Class<? extends Coder>, CoderTranslator<? extends Coder>> KNOWN_TRANSLATORS =
       loadTranslators();
@@ -70,7 +79,9 @@ public class CoderTranslation {
   private static BiMap<Class<? extends Coder>, String> loadCoderURNs() {
     ImmutableBiMap.Builder<Class<? extends Coder>, String> coderUrns = ImmutableBiMap.builder();
     for (CoderTranslatorRegistrar registrar : ServiceLoader.load(CoderTranslatorRegistrar.class)) {
-      coderUrns.putAll(registrar.getCoderURNs());
+      coderUrns.putAll(
+          registrar.getCoderURNs().entrySet().stream()
+              .collect(Collectors.toMap(Entry::getKey, Entry::getValue)));
     }
     return coderUrns.build();
   }
@@ -80,8 +91,14 @@ public class CoderTranslation {
         ImmutableMap.builder();
     for (CoderTranslatorRegistrar coderTranslatorRegistrar :
         ServiceLoader.load(CoderTranslatorRegistrar.class)) {
-      translators.putAll(coderTranslatorRegistrar.getCoderTranslators());
+      translators.putAll(
+          coderTranslatorRegistrar.getCoderTranslators().entrySet().stream()
+              .filter(e -> !e.getKey().equals(RowCoder.class))
+              .filter(e -> !e.getKey().equals(SchemaCoder.class))
+              .collect(Collectors.toList()));
     }
+    translators.put(RowCoder.class, CoderTranslators.row());
+    translators.put(SchemaCoder.class, CoderTranslators.schema());
     return translators.build();
   }
 
@@ -97,12 +114,14 @@ public class CoderTranslation {
   public static RunnerApi.Coder toProto(Coder<?> coder, SdkComponents components)
       throws IOException {
     if (KNOWN_CODER_URNS.containsKey(coder.getClass())) {
-      return toKnownCoder(coder, components);
+      return toKnownCoder(coder, components, KNOWN_CODER_URNS.get(coder.getClass()));
+    } else if (SCHEMA_CODERS.contains(coder.getClass())) {
+      return toKnownCoder(coder, components, ModelCoders.ROW_CODER_URN);
     }
     return toCustomCoder(coder);
   }
 
-  private static RunnerApi.Coder toKnownCoder(Coder<?> coder, SdkComponents components)
+  private static RunnerApi.Coder toKnownCoder(Coder<?> coder, SdkComponents components, String urn)
       throws IOException {
     CoderTranslator translator = KNOWN_TRANSLATORS.get(coder.getClass());
     List<String> componentIds = registerComponents(coder, translator, components);
@@ -110,7 +129,7 @@ public class CoderTranslation {
         .addAllComponentCoderIds(componentIds)
         .setSpec(
             FunctionSpec.newBuilder()
-                .setUrn(KNOWN_CODER_URNS.get(coder.getClass()))
+                .setUrn(urn)
                 .setPayload(ByteString.copyFrom(translator.getPayload(coder))))
         .build();
   }
@@ -160,8 +179,18 @@ public class CoderTranslation {
                   components.getComponents().getCodersOrThrow(componentId), components, context);
       coderComponents.add(innerCoder);
     }
-    Class<? extends Coder> coderType = KNOWN_CODER_URNS.inverse().get(coderUrn);
-    CoderTranslator<?> translator = KNOWN_TRANSLATORS.get(coderType);
+    CoderTranslator<?> translator;
+    if (coderUrn.equals(ModelCoders.ROW_CODER_URN)) {
+      translator =
+          CoderTranslators.isSchemaCoder(coder)
+              ? CoderTranslators.schema()
+              : CoderTranslators.row();
+    } else if (coderUrn.equals(ModelCoders.ROW_V1_CODER_URN)) {
+      translator = CoderTranslators.rowV1();
+    } else {
+      Class<? extends Coder> coderType = KNOWN_CODER_URNS.inverse().get(coderUrn);
+      translator = KNOWN_TRANSLATORS.get(coderType);
+    }
     checkArgument(
         translator != null,
         "Unknown Coder URN %s. Known URNs: %s",

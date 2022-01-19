@@ -20,9 +20,10 @@ package org.apache.beam.runners.core.construction;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
-import java.util.Collections;
 import java.util.Map;
-import java.util.Set;
+import java.util.Map.Entry;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -34,6 +35,7 @@ import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.TimestampPrefixingWindowCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
 import org.apache.beam.sdk.util.ShardedKey;
@@ -43,6 +45,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableBiMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 
 /** The {@link CoderTranslatorRegistrar} for coders which are shared across languages. */
@@ -73,12 +76,9 @@ public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
               WindowedValue.ParamWindowedValueCoder.class,
               ModelCoders.PARAM_WINDOWED_VALUE_CODER_URN)
           .put(DoubleCoder.class, ModelCoders.DOUBLE_CODER_URN)
-          .put(RowCoder.class, ModelCoders.ROW_CODER_URN)
           .put(ShardedKey.Coder.class, ModelCoders.SHARDED_KEY_CODER_URN)
           .put(TimestampPrefixingWindowCoder.class, ModelCoders.CUSTOM_WINDOW_CODER_URN)
           .build();
-
-  public static final Set<String> WELL_KNOWN_CODER_URNS = BEAM_MODEL_CODER_URNS.values();
 
   @VisibleForTesting
   static final Map<Class<? extends Coder>, CoderTranslator<? extends Coder>> BEAM_MODEL_CODERS =
@@ -96,10 +96,16 @@ public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
           .put(FullWindowedValueCoder.class, CoderTranslators.fullWindowedValue())
           .put(WindowedValue.ParamWindowedValueCoder.class, CoderTranslators.paramWindowedValue())
           .put(DoubleCoder.class, CoderTranslators.atomic(DoubleCoder.class))
-          .put(RowCoder.class, CoderTranslators.row())
           .put(ShardedKey.Coder.class, CoderTranslators.shardedKey())
           .put(TimestampPrefixingWindowCoder.class, CoderTranslators.timestampPrefixingWindow())
           .build();
+
+  static final Map<Class<? extends Coder>, CoderTranslator<? extends Coder>>
+      BEAM_MODEL_SCHEMA_CODERS =
+          ImmutableMap.<Class<? extends Coder>, CoderTranslator<? extends Coder>>builder()
+              .put(RowCoder.class, CoderTranslators.row())
+              .put(SchemaCoder.class, CoderTranslators.schema())
+              .build();
 
   static {
     checkState(
@@ -116,7 +122,10 @@ public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
                  * is not part of the coder translation checks as these are meant to be used only
                  * during pipeline construction.
                  */
-                Collections.singleton(ModelCoders.STATE_BACKED_ITERABLE_CODER_URN))
+                ImmutableSet.of(
+                    ModelCoders.STATE_BACKED_ITERABLE_CODER_URN,
+                    ModelCoders.ROW_V1_CODER_URN,
+                    ModelCoders.ROW_CODER_URN))
             .equals(BEAM_MODEL_CODER_URNS.values()),
         "All Model %ss should have an associated java %s",
         Coder.class.getSimpleName(),
@@ -134,6 +143,8 @@ public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
 
   @Override
   public Map<Class<? extends Coder>, CoderTranslator<? extends Coder>> getCoderTranslators() {
-    return BEAM_MODEL_CODERS;
+    return Stream.concat(
+            BEAM_MODEL_CODERS.entrySet().stream(), BEAM_MODEL_SCHEMA_CODERS.entrySet().stream())
+        .collect(Collectors.toMap(Entry::getKey, Entry::getValue));
   }
 }

@@ -1006,7 +1006,7 @@ message StandardCoders {
     //     BYTES:     beam:coder:bytes:v1
     //   ArrayType:   beam:coder:iterable:v1 (always has a known length)
     //   MapType:     not a standard coder, specification defined below.
-    //   RowType:     beam:coder:row:v1
+    //   RowType:     beam:coder:row:v2
     //   LogicalType: Uses the coder for its representation.
     //
     // The MapType is encoded by:
@@ -1029,7 +1029,8 @@ message StandardCoders {
     // The payload for RowCoder is an instance of Schema.
     // Components: None
     // Experimental.
-    ROW = 13 [(beam_urn) = "beam:coder:row:v1"];
+    ROW_V1 = 13 [(beam_urn) = "beam:coder:row:v1"];
+    ROW = 17 [(beam_urn) = "beam:coder:row:v2"];
 
     // Encodes a user key and a shard id which is an opaque byte string.
     //
