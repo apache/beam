@@ -17,6 +17,7 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:playground/components/loading_indicator/loading_indicator.dart';
 import 'package:playground/config/theme.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/examples/components/examples_components.dart';
@@ -157,18 +158,10 @@ class _ExampleSelectorState extends State<ExampleSelector>
                           color: Theme.of(context).backgroundColor,
                           borderRadius: BorderRadius.circular(kMdBorderRadius),
                         ),
-                        child: Column(
-                          children: [
-                            SearchField(controller: textController),
-                            const TypeFilter(),
-                            ExampleList(
-                              controller: scrollController,
-                              selectedExample: playgroundState.selectedExample!,
-                              animationController: animationController,
-                              dropdown: examplesDropdown,
-                            ),
-                          ],
-                        ),
+                        child: exampleState.sdkCategories == null ||
+                                playgroundState.selectedExample == null
+                            ? const LoadingIndicator(size: kContainerHeight)
+                            : _buildDropdownContent(playgroundState),
                       ),
                     ),
                   ),
@@ -178,6 +171,21 @@ class _ExampleSelectorState extends State<ExampleSelector>
           ),
         );
       },
+    );
+  }
+
+  Widget _buildDropdownContent(PlaygroundState playgroundState) {
+    return Column(
+      children: [
+        SearchField(controller: textController),
+        const TypeFilter(),
+        ExampleList(
+          controller: scrollController,
+          selectedExample: playgroundState.selectedExample!,
+          animationController: animationController,
+          dropdown: examplesDropdown,
+        ),
+      ],
     );
   }
 
