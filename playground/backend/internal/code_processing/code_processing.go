@@ -94,7 +94,7 @@ func runStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeC
 	stopReadLogsChannel := make(chan bool, 1)
 	finishReadLogsChannel := make(chan bool, 1)
 
-	executorBuilder := executors.NewExecutorBuilder()
+	var executorBuilder *executors.ExecutorBuilder
 	err := error(nil)
 	if isUnitTest {
 		executorBuilder, err = builder.TestRunner(paths, sdkEnv)

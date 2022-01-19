@@ -900,7 +900,6 @@ func Test_compileStep(t *testing.T) {
 	type args struct {
 		ctx                  context.Context
 		cacheService         cache.Cache
-		paths                *fs_tool.LifeCyclePaths
 		pipelineId           uuid.UUID
 		sdkEnv               *environment.BeamEnvs
 		isUnitTest           bool
