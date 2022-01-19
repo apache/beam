@@ -231,7 +231,6 @@ class FileBasedCacheManagerTest(object):
     # Reset Interactive Beam setting
     ib.options.specified_cache_dir = None
 
-
 class TextFileBasedCacheManagerTest(
     FileBasedCacheManagerTest,
     unittest.TestCase,
