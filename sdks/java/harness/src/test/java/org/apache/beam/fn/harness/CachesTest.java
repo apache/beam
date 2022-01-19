@@ -17,15 +17,17 @@
  */
 package org.apache.beam.fn.harness;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 
 import org.apache.beam.fn.harness.Cache.Shrinkable;
 import org.apache.beam.fn.harness.Caches.ClearableCache;
-import org.apache.beam.fn.harness.Caches.ShrinkOnEviction;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.sdk.util.Weighted;
+import org.apache.beam.sdk.util.WeightedValue;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -44,24 +46,24 @@ public class CachesTest {
 
   @Test
   public void testShrinkableIsShrunk() throws Exception {
+    WeightedValue<String> shrinkableKey = WeightedValue.of("shrinkable", MB);
     Shrinkable<Object> shrinkable =
         new Shrinkable<Object>() {
 
           @Override
           public Object shrink() {
-            return "wasShrunk";
+            return WeightedValue.of("wasShrunk", 1);
           }
         };
 
-    Cache<Object, Object> cache =
-        Caches.forCache(new ShrinkOnEviction(CacheBuilder.newBuilder().maximumSize(1)).getCache());
-    cache.put("shrinkable", shrinkable);
+    Cache<Object, Object> cache = Caches.forMaximumBytes(2 * MB);
+    cache.put(shrinkableKey, WeightedValue.of(shrinkable, MB));
     // Check that we didn't evict it yet
-    assertSame(shrinkable, cache.peek("shrinkable"));
+    assertSame(shrinkable, cache.peek(shrinkableKey));
 
-    // The next insertion should cause the value to b "shrunk"
-    cache.put("other", "value");
-    assertEquals("wasShrunk", cache.peek("shrinkable"));
+    // The next insertion should cause the value to be "shrunk"
+    cache.put(WeightedValue.of("other", 1), WeightedValue.of("value", 1));
+    assertEquals("wasShrunk", cache.peek(shrinkableKey));
   }
 
   @Test
@@ -159,5 +161,64 @@ public class CachesTest {
     // Test compute with load
     assertEquals("value2", cache.computeIfAbsent("key2", (unused) -> "value2"));
     assertEquals("value2", cache.peek("key2"));
+  }
+
+  private static final long MB = 1 << 20;
+
+  private static class ShrinkableString implements Shrinkable<ShrinkableString>, Weighted {
+    private final String value;
+    private final long weight;
+
+    public ShrinkableString(String value, long weight) {
+      this.value = value;
+      this.weight = weight;
+    }
+
+    @Override
+    public ShrinkableString shrink() {
+      if (weight < 800 * MB) {
+        return null;
+      }
+      return new ShrinkableString(value, weight / 2);
+    }
+
+    @Override
+    public long getWeight() {
+      return weight;
+    }
+  }
+
+  @Test
+  public void testDescribeStats() throws Exception {
+    Cache<WeightedValue<Integer>, ShrinkableString> cache = Caches.forMaximumBytes(1000 * MB);
+    for (int i = 0; i < 100; ++i) {
+      cache.computeIfAbsent(
+          WeightedValue.of(i, MB), (key) -> new ShrinkableString("value", 2 * MB));
+      cache.peek(WeightedValue.of(i, MB));
+      cache.put(WeightedValue.of(100 + i, MB), new ShrinkableString("value", 2 * MB));
+    }
+
+    assertThat(cache.describeStats(), containsString("used/max 600/1000 MB"));
+    assertThat(cache.describeStats(), containsString("hit 50.00%"));
+    assertThat(cache.describeStats(), containsString("lookups 200"));
+    assertThat(cache.describeStats(), containsString("avg load time"));
+    assertThat(cache.describeStats(), containsString("loads 100"));
+    assertThat(cache.describeStats(), containsString("evictions 0"));
+
+    // Test eviction, evict all the other 200 elements that were added
+    cache.put(WeightedValue.of(1000, 100 * MB), new ShrinkableString("value", 900 * MB));
+    assertThat(cache.describeStats(), containsString("used/max 1000/1000 MB"));
+    assertThat(cache.describeStats(), containsString("evictions 200"));
+
+    // Test shrinking, 900 -> 450 + 100 + 55 + 1 = 606
+    cache.put(WeightedValue.of(1001, MB), new ShrinkableString("value", 55 * MB));
+    assertThat(cache.describeStats(), containsString("used/max 606/1000 MB"));
+    assertThat(cache.describeStats(), containsString("evictions 201"));
+
+    // Test composite key namespace is weighed as well.
+    // 33 + 8 + 3 = 44 more then last used/max of 606 = 650
+    Caches.subCache(cache, WeightedValue.of("subCache", 33 * MB))
+        .put(WeightedValue.of("subCacheKey", 8 * MB), WeightedValue.of("subCacheValue", 3 * MB));
+    assertThat(cache.describeStats(), containsString("used/max 650/1000 MB"));
   }
 }
