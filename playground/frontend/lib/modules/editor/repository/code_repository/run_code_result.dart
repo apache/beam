@@ -21,13 +21,15 @@ import 'package:flutter/material.dart';
 enum RunCodeStatus {
   unspecified,
   preparation,
+  preparationError,
+  validationError,
   compiling,
-  executing,
   compileError,
-  timeout,
+  executing,
   runError,
+  finished,
+  timeout,
   unknownError,
-  finished
 }
 
 const kFinishedStatuses = [
@@ -35,6 +37,8 @@ const kFinishedStatuses = [
   RunCodeStatus.timeout,
   RunCodeStatus.compileError,
   RunCodeStatus.runError,
+  RunCodeStatus.validationError,
+  RunCodeStatus.preparationError,
   RunCodeStatus.finished,
 ];
 

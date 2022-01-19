@@ -50,4 +50,14 @@ abstract class CodeClient {
     String pipelineUuid,
     RunCodeRequestWrapper request,
   );
+
+  Future<OutputResponse> getValidationErrorOutput(
+    String pipelineUuid,
+    RunCodeRequestWrapper request,
+  );
+
+  Future<OutputResponse> getPreparationErrorOutput(
+    String pipelineUuid,
+    RunCodeRequestWrapper request,
+  );
 }
