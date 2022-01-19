@@ -18,11 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.Bigquery;
-import com.google.api.services.bigquery.model.Clustering;
-import com.google.api.services.bigquery.model.Table;
-import com.google.api.services.bigquery.model.TableFieldSchema;
-import com.google.api.services.bigquery.model.TableRow;
-import com.google.api.services.bigquery.model.TableSchema;
+import com.google.api.services.bigquery.model.*;
 import java.util.Arrays;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
@@ -51,6 +47,8 @@ public class BigQueryClusteringIT {
   private static final String DATASET_NAME = "BigQueryClusteringIT";
   private static final Clustering CLUSTERING =
       new Clustering().setFields(Arrays.asList("station_number"));
+  private static final TimePartitioning TIME_PARTITIONING =
+      new TimePartitioning().setField("date").setType("DAY");
   private static final TableSchema SCHEMA =
       new TableSchema()
           .setFields(
@@ -108,7 +106,10 @@ public class BigQueryClusteringIT {
     @Override
     public TableDestination getDestination(ValueInSingleWindow<TableRow> element) {
       return new TableDestination(
-          String.format("%s.%s", DATASET_NAME, tableName), null, null, CLUSTERING);
+          String.format("%s.%s", DATASET_NAME, tableName),
+          "description",
+          TIME_PARTITIONING,
+          CLUSTERING);
     }
 
     @Override
@@ -123,7 +124,7 @@ public class BigQueryClusteringIT {
   }
 
   @Test
-  public void testE2EBigQueryClustering() throws Exception {
+  public void testE2EBigQueryClusteringNoPartition() throws Exception {
     String tableName = "weather_stations_clustered_" + System.currentTimeMillis();
 
     Pipeline p = Pipeline.create(options);
@@ -134,6 +135,7 @@ public class BigQueryClusteringIT {
             BigQueryIO.writeTableRows()
                 .to(String.format("%s.%s", DATASET_NAME, tableName))
                 .withClustering(CLUSTERING)
+                .withTableDescription("tabledescription") // Delete this line
                 .withSchema(SCHEMA)
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
                 .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
@@ -142,11 +144,11 @@ public class BigQueryClusteringIT {
 
     Table table = bqClient.tables().get(options.getProject(), DATASET_NAME, tableName).execute();
 
-    Assert.assertEquals(table.getClustering(), CLUSTERING);
+    Assert.assertEquals(CLUSTERING, table.getClustering());
   }
 
   @Test
-  public void testE2EBigQueryClusteringTableFunction() throws Exception {
+  public void testE2EBigQueryClusteringNoPartitionTableFunction() throws Exception {
     String tableName = "weather_stations_clustered_table_function_" + System.currentTimeMillis();
 
     Pipeline p = Pipeline.create(options);
@@ -159,7 +161,7 @@ public class BigQueryClusteringIT {
                     (ValueInSingleWindow<TableRow> vsw) ->
                         new TableDestination(
                             String.format("%s.%s", DATASET_NAME, tableName),
-                            null,
+                            "descript",
                             null,
                             CLUSTERING))
                 .withClustering(CLUSTERING)
@@ -171,11 +173,11 @@ public class BigQueryClusteringIT {
 
     Table table = bqClient.tables().get(options.getProject(), DATASET_NAME, tableName).execute();
 
-    Assert.assertEquals(table.getClustering(), CLUSTERING);
+    Assert.assertEquals(CLUSTERING, table.getClustering());
   }
 
   @Test
-  public void testE2EBigQueryClusteringDynamicDestinations() throws Exception {
+  public void testE2EBigQueryClusteringNoPartitionDynamicDestinations() throws Exception {
     String tableName =
         "weather_stations_clustered_dynamic_destinations_" + System.currentTimeMillis();
 
@@ -194,6 +196,6 @@ public class BigQueryClusteringIT {
 
     Table table = bqClient.tables().get(options.getProject(), DATASET_NAME, tableName).execute();
 
-    Assert.assertEquals(table.getClustering(), CLUSTERING);
+    Assert.assertEquals(CLUSTERING, table.getClustering());
   }
 }
