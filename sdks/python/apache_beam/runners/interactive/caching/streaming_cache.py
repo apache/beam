@@ -238,8 +238,6 @@ class StreamingCacheSource:
 class StreamingCache(CacheManager):
   """Abstraction that holds the logic for reading and writing to cache.
   """
-  # import options...
-
   def __init__(
       self,
       cache_dir,
