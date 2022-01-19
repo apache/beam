@@ -35,17 +35,20 @@ class SqsUnboundedSource extends UnboundedSource<Message, SqsCheckpointMark> {
 
   private final Read read;
   private final SqsConfiguration sqsConfiguration;
+  private final Coder<Message> outputCoder;
 
-  public SqsUnboundedSource(Read read, SqsConfiguration sqsConfiguration) {
+  public SqsUnboundedSource(
+      Read read, SqsConfiguration sqsConfiguration, Coder<Message> outputCoder) {
     this.read = read;
     this.sqsConfiguration = sqsConfiguration;
+    this.outputCoder = outputCoder;
   }
 
   @Override
   public List<SqsUnboundedSource> split(int desiredNumSplits, PipelineOptions options) {
     List<SqsUnboundedSource> sources = new ArrayList<>();
     for (int i = 0; i < Math.max(1, desiredNumSplits); ++i) {
-      sources.add(new SqsUnboundedSource(read, sqsConfiguration));
+      sources.add(new SqsUnboundedSource(read, sqsConfiguration, outputCoder));
     }
     return sources;
   }
@@ -67,7 +70,7 @@ class SqsUnboundedSource extends UnboundedSource<Message, SqsCheckpointMark> {
 
   @Override
   public Coder<Message> getOutputCoder() {
-    return SerializableCoder.of(Message.class);
+    return outputCoder;
   }
 
   public Read getRead() {
