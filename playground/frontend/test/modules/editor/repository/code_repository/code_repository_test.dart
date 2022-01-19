@@ -41,6 +41,8 @@ const kRunOutput = 'RunOutput';
 const kLogOutput = 'LogOutput';
 const kCompileOutput = 'CompileOutput';
 const kRunErrorOutput = 'RunErrorOutput';
+const kPreparationErrorOutput = 'PreparationErrorOutput';
+const kValidationErrorOutput = 'ValidationErrorOutput';
 
 final kRunCodeResponse = RunCodeResponse(kPipelineUuid);
 final kFinishedStatusResponse = CheckStatusResponse(RunCodeStatus.finished);
@@ -49,11 +51,17 @@ final kRunErrorStatusResponse = CheckStatusResponse(RunCodeStatus.runError);
 final kExecutingStatusResponse = CheckStatusResponse(RunCodeStatus.executing);
 final kCompileErrorStatusResponse =
     CheckStatusResponse(RunCodeStatus.compileError);
+final kValidationErrorStatusResponse =
+    CheckStatusResponse(RunCodeStatus.validationError);
+final kPreparationErrorStatusResponse =
+    CheckStatusResponse(RunCodeStatus.preparationError);
 
 final kRunOutputResponse = OutputResponse(kRunOutput);
 final kLogOutputResponse = OutputResponse(kLogOutput);
 final kCompileOutputResponse = OutputResponse(kCompileOutput);
 final kRunErrorOutputResponse = OutputResponse(kRunErrorOutput);
+final kValidationErrorOutputResponse = OutputResponse(kValidationErrorOutput);
+final kPreparationErrorOutputResponse = OutputResponse(kPreparationErrorOutput);
 
 @GenerateMocks([CodeClient])
 void main() {
@@ -139,6 +147,78 @@ void main() {
             pipelineUuid: kPipelineUuid,
             status: RunCodeStatus.compileError,
             output: kCompileOutput,
+            log: kProcessingStartedText,
+          ),
+        ]),
+      );
+    });
+
+    test('should return validation error output for validation error',
+        () async {
+      // stubs
+      final client = MockCodeClient();
+      when(client.runCode(kRequestMock)).thenAnswer(
+        (_) async => kRunCodeResponse,
+      );
+      when(client.checkStatus(kPipelineUuid, kRequestMock)).thenAnswer(
+        (_) async => kValidationErrorStatusResponse,
+      );
+      when(client.getValidationErrorOutput(kPipelineUuid, kRequestMock))
+          .thenAnswer(
+        (_) async => kValidationErrorOutputResponse,
+      );
+
+      // test variables
+      final repository = CodeRepository(client);
+      final stream = repository.runCode(kRequestMock);
+
+      // test assertion
+      await expectLater(
+        stream,
+        emitsInOrder([
+          RunCodeResult(
+            status: RunCodeStatus.preparation,
+            log: kProcessingStartedText,
+          ),
+          RunCodeResult(
+            status: RunCodeStatus.validationError,
+            output: kValidationErrorOutput,
+            log: kProcessingStartedText,
+          ),
+        ]),
+      );
+    });
+
+    test('should return preparation error output for preparation error',
+        () async {
+      // stubs
+      final client = MockCodeClient();
+      when(client.runCode(kRequestMock)).thenAnswer(
+        (_) async => kRunCodeResponse,
+      );
+      when(client.checkStatus(kPipelineUuid, kRequestMock)).thenAnswer(
+        (_) async => kPreparationErrorStatusResponse,
+      );
+      when(client.getPreparationErrorOutput(kPipelineUuid, kRequestMock))
+          .thenAnswer(
+        (_) async => kPreparationErrorOutputResponse,
+      );
+
+      // test variables
+      final repository = CodeRepository(client);
+      final stream = repository.runCode(kRequestMock);
+
+      // test assertion
+      await expectLater(
+        stream,
+        emitsInOrder([
+          RunCodeResult(
+            status: RunCodeStatus.preparation,
+            log: kProcessingStartedText,
+          ),
+          RunCodeResult(
+            status: RunCodeStatus.preparationError,
+            output: kPreparationErrorOutput,
             log: kProcessingStartedText,
           ),
         ]),
