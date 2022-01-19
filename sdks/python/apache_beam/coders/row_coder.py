@@ -94,10 +94,10 @@ class RowCoder(FastCoder):
         self.forced_deterministic == other.forced_deterministic)
 
   def to_runner_api_parameter(self, unused_context):
-    return (common_urns.coders.ROW.urn, self.schema, [])
+    return (common_urns.coders.ROW_V1.urn, self.schema, [])
 
   @staticmethod
-  @Coder.register_urn(common_urns.coders.ROW.urn, schema_pb2.Schema)
+  @Coder.register_urn(common_urns.coders.ROW_V1.urn, schema_pb2.Schema)
   def from_runner_api_parameter(schema, components, unused_context):
     return RowCoder(schema)
 

@@ -342,7 +342,7 @@ class TestStreamTest(unittest.TestCase):
     self.assertTrue(
         isinstance(
             beam.Row(
-                windowed_value=windowed_value, urn=common_urns.coders.ROW.urn),
+                windowed_value=windowed_value, urn=common_urns.coders.ROW_V1.urn),
             WindowedValueHolder))
     self.assertFalse(
         isinstance(

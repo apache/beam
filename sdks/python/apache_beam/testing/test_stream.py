@@ -222,7 +222,7 @@ class WindowedValueHolderMeta(type):
         isinstance(other, beam.Row) and hasattr(other, 'windowed_value') and
         hasattr(other, 'urn') and
         isinstance(other.windowed_value, WindowedValue) and
-        other.urn == common_urns.coders.ROW.urn)
+        other.urn == common_urns.coders.ROW_V1.urn)
 
 
 class WindowedValueHolder(beam.Row, metaclass=WindowedValueHolderMeta):
@@ -241,7 +241,7 @@ class WindowedValueHolder(beam.Row, metaclass=WindowedValueHolderMeta):
             WindowedValue, windowed_value)
     super().__init__(
         **{
-            'windowed_value': windowed_value, 'urn': common_urns.coders.ROW.urn
+            'windowed_value': windowed_value, 'urn': common_urns.coders.ROW_V1.urn
         })
 
   @classmethod
