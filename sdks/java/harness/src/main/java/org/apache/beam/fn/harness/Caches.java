@@ -73,7 +73,7 @@ public final class Caches {
     private final LongAdder weightInBytes;
 
     ShrinkOnEviction(
-        CacheBuilder<Object, WeightedValue<Object>> cacheBuilder, LongAdder weightInBytes) {
+        CacheBuilder<CompositeKey, WeightedValue<Object>> cacheBuilder, LongAdder weightInBytes) {
       this.cache = cacheBuilder.removalListener(this).build();
       this.weightInBytes = weightInBytes;
     }
@@ -87,14 +87,17 @@ public final class Caches {
     @Override
     public void onRemoval(
         RemovalNotification<CompositeKey, WeightedValue<Object>> removalNotification) {
-      weightInBytes.add(-removalNotification.getValue().getWeight());
+      weightInBytes.add(
+          -(removalNotification.getKey().getWeight() + removalNotification.getValue().getWeight()));
       if (removalNotification.wasEvicted()) {
         if (!(removalNotification.getValue().getValue() instanceof Cache.Shrinkable)) {
           return;
         }
         Object updatedEntry = ((Shrinkable<?>) removalNotification.getValue().getValue()).shrink();
         if (updatedEntry != null) {
-          cache.put(removalNotification.getKey(), addWeightedValue(updatedEntry, weightInBytes));
+          cache.put(
+              removalNotification.getKey(),
+              addWeightedValue(removalNotification.getKey(), updatedEntry, weightInBytes));
         }
       }
     }
@@ -150,12 +153,13 @@ public final class Caches {
                 CacheBuilder.newBuilder()
                     .maximumWeight(maximumBytes >> WEIGHT_RATIO)
                     .weigher(
-                        new Weigher<Object, WeightedValue<Object>>() {
+                        new Weigher<CompositeKey, WeightedValue<Object>>() {
 
                           @Override
-                          public int weigh(Object key, WeightedValue<Object> value) {
+                          public int weigh(CompositeKey key, WeightedValue<Object> value) {
                             // Round up to the next closest multiple of WEIGHT_RATIO
-                            long size = ((value.getWeight() - 1) >> WEIGHT_RATIO) + 1;
+                            long size =
+                                ((key.getWeight() + value.getWeight() - 1) >> WEIGHT_RATIO) + 1;
                             if (size > Integer.MAX_VALUE) {
                               LOG.warn(
                                   "Entry with size {} MiBs inserted into the cache. This is larger than the maximum individual entry size of {} MiBs. The cache will under report its memory usage by the difference. This may lead to OutOfMemoryErrors.",
@@ -181,7 +185,18 @@ public final class Caches {
         weightInBytes);
   }
 
-  private static WeightedValue<Object> addWeightedValue(Object o, LongAdder weightInBytes) {
+  private static long findWeight(Object o) {
+    if (o instanceof WeightedValue) {
+      return ((WeightedValue<Object>) o).getWeight();
+    } else if (o instanceof Weighted) {
+      return ((Weighted) o).getWeight();
+    } else {
+      return weigh(o);
+    }
+  }
+
+  private static WeightedValue<Object> addWeightedValue(
+      CompositeKey key, Object o, LongAdder weightInBytes) {
     WeightedValue<Object> rval;
     if (o instanceof WeightedValue) {
       rval = (WeightedValue<Object>) o;
@@ -190,7 +205,7 @@ public final class Caches {
     } else {
       rval = WeightedValue.of(o, weigh(o));
     }
-    weightInBytes.add(rval.getWeight());
+    weightInBytes.add(key.getWeight() + rval.getWeight());
     return rval;
   }
 
@@ -233,11 +248,12 @@ public final class Caches {
     @Override
     public V computeIfAbsent(K key, Function<K, V> loadingFunction) {
       try {
+        CompositeKey compositeKey = keyPrefix.valueKey(key);
         return (V)
             cache
                 .get(
-                    keyPrefix.valueKey(key),
-                    () -> addWeightedValue(loadingFunction.apply(key), weightInBytes))
+                    compositeKey,
+                    () -> addWeightedValue(compositeKey, loadingFunction.apply(key), weightInBytes))
                 .getValue();
       } catch (ExecutionException e) {
         throw new RuntimeException(e);
@@ -246,7 +262,8 @@ public final class Caches {
 
     @Override
     public void put(K key, V value) {
-      cache.put(keyPrefix.valueKey(key), addWeightedValue(value, weightInBytes));
+      CompositeKey compositeKey = keyPrefix.valueKey(key);
+      cache.put(compositeKey, addWeightedValue(compositeKey, value, weightInBytes));
     }
 
     @Override
@@ -271,12 +288,14 @@ public final class Caches {
 
   /** A key prefix used to generate keys that are stored within a sub-cache. */
   static class CompositeKeyPrefix {
-    public static final CompositeKeyPrefix ROOT = new CompositeKeyPrefix(new Object[0]);
+    public static final CompositeKeyPrefix ROOT = new CompositeKeyPrefix(new Object[0], 0);
 
     private final Object[] namespace;
+    private final long weight;
 
-    private CompositeKeyPrefix(Object[] namespace) {
+    private CompositeKeyPrefix(Object[] namespace, long weight) {
       this.namespace = namespace;
+      this.weight = weight;
     }
 
     CompositeKeyPrefix subKey(Object suffix, Object... additionalSuffixes) {
@@ -285,11 +304,15 @@ public final class Caches {
       subKey[namespace.length] = suffix;
       System.arraycopy(
           additionalSuffixes, 0, subKey, namespace.length + 1, additionalSuffixes.length);
-      return new CompositeKeyPrefix(subKey);
+      long subKeyWeight = weight + findWeight(suffix);
+      for (int i = 0; i < additionalSuffixes.length; ++i) {
+        subKeyWeight += findWeight(additionalSuffixes[i]);
+      }
+      return new CompositeKeyPrefix(subKey, subKeyWeight);
     }
 
     <K> CompositeKey valueKey(K k) {
-      return new CompositeKey(namespace, k);
+      return new CompositeKey(namespace, weight, k);
     }
 
     boolean isProperPrefixOf(CompositeKey otherKey) {
@@ -321,13 +344,15 @@ public final class Caches {
 
   /** A tuple of key parts used to represent a key within a cache. */
   @VisibleForTesting
-  static class CompositeKey {
+  static class CompositeKey implements Weighted {
     private final Object[] namespace;
     private final Object key;
+    private final long weight;
 
-    private CompositeKey(Object[] namespace, Object key) {
+    private CompositeKey(Object[] namespace, long namespaceWeight, Object key) {
       this.namespace = namespace;
       this.key = key;
+      this.weight = namespaceWeight + findWeight(key);
     }
 
     @Override
@@ -350,6 +375,11 @@ public final class Caches {
     @Override
     public int hashCode() {
       return Arrays.hashCode(namespace);
+    }
+
+    @Override
+    public long getWeight() {
+      return weight;
     }
   }
 
