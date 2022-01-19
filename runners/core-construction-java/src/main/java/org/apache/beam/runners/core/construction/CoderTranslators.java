@@ -271,21 +271,36 @@ class CoderTranslators {
         try {
           SchemaCoderPayload parsedPayload = SchemaApi.SchemaCoderPayload.parseFrom(payload);
           Schema schema = SchemaTranslation.schemaFromProto(parsedPayload.getSchema());
+          ByteString typeDescriptorBytes =
+              parsedPayload.getSdkInformationMap().get(TYPE_DESCRIPTOR);
+          if (typeDescriptorBytes == null) {
+            throw new IllegalArgumentException(
+                "Expected SchemaCoder payload to have a " + TYPE_DESCRIPTOR + " parameter.");
+          }
           TypeDescriptor<T> typeDescriptor =
               (TypeDescriptor<T>)
                   SerializableUtils.deserializeFromByteArray(
-                      parsedPayload.getSdkInformationMap().get(TYPE_DESCRIPTOR).toByteArray(),
-                      "typeDescriptor");
+                      typeDescriptorBytes.toByteArray(), "typeDescriptor");
+
+          ByteString toRowBytes = parsedPayload.getSdkInformationMap().get(TO_ROW_FUNCTION);
+          if (toRowBytes == null) {
+            throw new IllegalArgumentException(
+                "Expected SchemaCoder payload to have a " + TO_ROW_FUNCTION + " parameter.");
+          }
           SerializableFunction<T, Row> toRowFunction =
               (SerializableFunction<T, Row>)
                   SerializableUtils.deserializeFromByteArray(
-                      parsedPayload.getSdkInformationMap().get(TO_ROW_FUNCTION).toByteArray(),
-                      "toRowFunction");
+                      toRowBytes.toByteArray(), "toRowFunction");
+
+          ByteString fromRowBytes = parsedPayload.getSdkInformationMap().get(FROM_ROW_FUNCTION);
+          if (fromRowBytes == null) {
+            throw new IllegalArgumentException(
+                "Expected SchemaCoder payload to have a " + FROM_ROW_FUNCTION + " parameter.");
+          }
           SerializableFunction<Row, T> fromRowFunction =
               (SerializableFunction<Row, T>)
                   SerializableUtils.deserializeFromByteArray(
-                      parsedPayload.getSdkInformationMap().get(FROM_ROW_FUNCTION).toByteArray(),
-                      "fromRowFunction");
+                      fromRowBytes.toByteArray(), "fromRowFunction");
 
           return SchemaCoder.of(schema, typeDescriptor, toRowFunction, fromRowFunction);
         } catch (InvalidProtocolBufferException e) {
