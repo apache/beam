@@ -247,11 +247,8 @@ class StreamingCache(CacheManager):
     self._sample_resolution_sec = sample_resolution_sec
     self._is_cache_complete = is_cache_complete
 
-    from apache_beam.runners.interactive import interactive_beam as ib
     if cache_dir:
       self._cache_dir = cache_dir
-    elif ib.options.specified_cache_dir:
-      self._cache_dir = ib.options.specified_cache_dir
     else:
       self._cache_dir = tempfile.mkdtemp(
           prefix='ib-', dir=os.environ.get('TEST_TMPDIR', None))

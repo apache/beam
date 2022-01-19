@@ -224,7 +224,7 @@ class FileBasedCacheManagerTest(object):
     ib.options.specified_cache_dir = "gs://"
 
     cache_manager = cache.FileBasedCacheManager(
-        cache_format=self.cache_format)
+        cache_format=ib.options.specified_cache_dir)
 
     self.assertEqual(ib.options.specified_cache_dir, cache_manager._cache_dir)
     

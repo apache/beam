@@ -457,7 +457,7 @@ class StreamingCacheTest(unittest.TestCase):
     """
     # Set Interactive Beam specified cache dir to cloud storage
     ib.options.specified_cache_dir = "gs://"
-    cache = StreamingCache(cache_dir=None)
+    cache = StreamingCache(cache_dir=ib.options.specified_cache_dir)
 
     self.assertEqual(ib.options.specified_cache_dir, cache._cache_dir)
 
