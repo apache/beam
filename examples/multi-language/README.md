@@ -19,23 +19,32 @@
 
 # Example multi-language pipelines
 
-* Example 1 - addprefix: A python pipeline that reads a text file and attaches a prefix in Java side to each input.
-* Example 2 - javacount: A Python pipeline that counts words using the Java 'Count.perElement()' transform.
-* Example 3 - javadatagenerator: A Python pipeline that produces a set of strings that were generated from Java. This example demonstrates the 'JavaExternalTransform' API.
+This project provides examples of Apache Beam
+[multi-language pipelines](https://beam.apache.org/documentation/programming-guide/#multi-language-pipelines):
+
+* **python/addprefix** - A Python pipeline that reads a text file and attaches a prefix on the Java side to each input.
+* **python/javacount** - A Python pipeline that counts words using the Java `Count.perElement()` transform.
+* **python/javadatagenerator** - A Python pipeline that produces a set of strings generated from Java.
+                                  This example demonstrates the `JavaExternalTransform` API.
 
 ## Instructions for running the pipelines
 
-* Start the expansion service.
-  * Download the latest released 'beam-examples-multi-language' jar.
-  * Run the following command
-    $ java -jar beam-examples-multi-language-<version>.jar <port> --javaClassLookupAllowlistFile='*'
+### 1) Start the expansion service
 
-* Setup a Python virtual environment for Apache Beam.
-  * See [here](https://cloud.google.com/dataflow/docs/quickstarts/quickstart-python)
-    for more information.
+1. Download the latest 'beam-examples-multi-language' JAR. Starting with Apache Beam 2.36.0,
+   you can find it in [the Maven Central Repository](https://search.maven.org/search?q=g:org.apache.beam).
+2. Run the following command, replacing `<version>` and `<port>` with valid values:
+  `java -jar beam-examples-multi-language-<version>.jar <port> --javaClassLookupAllowlistFile='*'`
 
-* Execute the Python pipeline.
-  * In a new shell, run the corresponding Python pipelines in the './python' directory using
-    a Beam runner that supports multi-language pipelines.
-  * Python programs in the './python' directory contains more details on actual commands to run.
+### 2) Set up a Python virtual environment for Beam
+
+1. See [the Python quickstart](https://beam.apache.org/get-started/quickstart-py/)
+   for more information.
+
+### 3) Execute the Python pipeline
+
+1. In a new shell, run a pipeline in the **python** directory using a Beam runner that supports
+   multi-language pipelines.
+
+   The Python files contain details about the actual commands to run.
 
