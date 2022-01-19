@@ -58,6 +58,7 @@ class CodeTextAreaWrapper extends StatelessWidget {
                     example: state.selectedExample,
                     sdk: state.sdk,
                     onSourceChange: state.setSource,
+                    isEmbedded: false,
                   ),
                 ),
                 Positioned(

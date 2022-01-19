@@ -32,6 +32,7 @@ class EmbeddedEditor extends StatelessWidget {
       enabled: true,
       sdk: state.sdk,
       example: state.selectedExample,
+      isEmbedded: true,
     );
   }
 }

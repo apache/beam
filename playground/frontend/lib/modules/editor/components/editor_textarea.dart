@@ -36,6 +36,7 @@ class EditorTextArea extends StatefulWidget {
   final ExampleModel? example;
   final bool enabled;
   final void Function(String)? onSourceChange;
+  final bool isEmbedded;
 
   const EditorTextArea({
     Key? key,
@@ -43,6 +44,7 @@ class EditorTextArea extends StatefulWidget {
     this.example,
     this.onSourceChange,
     required this.enabled,
+    required this.isEmbedded,
   }) : super(key: key);
 
   @override
@@ -89,16 +91,19 @@ class _EditorTextAreaState extends State<EditorTextArea> {
       enabled: widget.enabled,
       readOnly: widget.enabled,
       label: AppLocalizations.of(context)!.codeTextArea,
-      child: CodeField(
-        enabled: widget.enabled,
-        controller: _codeController!,
-        textStyle: getCodeFontStyle(
-          textStyle: const TextStyle(fontSize: kCodeFontSize),
-        ),
-        expands: true,
-        lineNumberStyle: LineNumberStyle(
-          textStyle: TextStyle(
-            color: ThemeColors.of(context).grey1Color,
+      child: FocusScope(
+        node: FocusScopeNode(canRequestFocus: !widget.isEmbedded),
+        child: CodeField(
+          enabled: widget.enabled,
+          controller: _codeController!,
+          textStyle: getCodeFontStyle(
+            textStyle: const TextStyle(fontSize: kCodeFontSize),
+          ),
+          expands: true,
+          lineNumberStyle: LineNumberStyle(
+            textStyle: TextStyle(
+              color: ThemeColors.of(context).grey1Color,
+            ),
           ),
         ),
       ),
