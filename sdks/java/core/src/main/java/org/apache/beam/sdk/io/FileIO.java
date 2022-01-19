@@ -372,7 +372,6 @@ public class FileIO {
         .setCompression(Compression.UNCOMPRESSED)
         .setIgnoreWindowing(false)
         .setNoSpilling(false)
-        .setMoveOption(StandardMoveOptions.OVERWRITE_IF_DESTINATION_EXISTS)
         .build();
   }
 
@@ -386,7 +385,6 @@ public class FileIO {
         .setCompression(Compression.UNCOMPRESSED)
         .setIgnoreWindowing(false)
         .setNoSpilling(false)
-        .setMoveOption(StandardMoveOptions.OVERWRITE_IF_DESTINATION_EXISTS)
         .build();
   }
 
@@ -936,7 +934,7 @@ public class FileIO {
 
     abstract @Nullable PTransform<PCollection<UserT>, PCollectionView<Integer>> getSharding();
 
-    abstract StandardMoveOptions getMoveOption();
+    abstract @Nullable StandardMoveOptions getMoveOption();
 
     abstract boolean getIgnoreWindowing();
 

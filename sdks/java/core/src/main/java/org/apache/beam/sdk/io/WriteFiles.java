@@ -167,7 +167,6 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         .setWindowedWrites(false)
         .setMaxNumWritersPerBundle(DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE)
         .setSideInputs(sink.getDynamicDestinations().getSideInputs())
-        .setMoveOption(StandardMoveOptions.OVERWRITE_IF_DESTINATION_EXISTS)
         .build();
   }
 
@@ -185,7 +184,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
   abstract int getMaxNumWritersPerBundle();
 
-  abstract StandardMoveOptions getMoveOption();
+  abstract @Nullable StandardMoveOptions getMoveOption();
 
   abstract List<PCollectionView<?>> getSideInputs();
 
@@ -1010,7 +1009,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         StandardMoveOptions moveOption) {
       this.numShardsView = numShardsView;
       this.destinationCoder = destinationCoder;
-      this.moveOption = moveOption;
+      this.moveOption =
+          moveOption != null ? moveOption : StandardMoveOptions.OVERWRITE_IF_DESTINATION_EXISTS;
     }
 
     @Override
