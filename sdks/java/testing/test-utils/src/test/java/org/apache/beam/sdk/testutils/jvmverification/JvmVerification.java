@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.testutils.jvmverification;
 
 import static org.apache.beam.sdk.testutils.jvmverification.JvmVerification.Java.v11;
+import static org.apache.beam.sdk.testutils.jvmverification.JvmVerification.Java.v17;
 import static org.apache.beam.sdk.testutils.jvmverification.JvmVerification.Java.v1_8;
 import static org.junit.Assert.assertEquals;
 
@@ -37,6 +38,7 @@ public class JvmVerification {
   static {
     versionMapping.put("0034", v1_8);
     versionMapping.put("0037", v11);
+    versionMapping.put("0043", v17);
   }
 
   // bytecode
@@ -53,6 +55,11 @@ public class JvmVerification {
   @Test
   public void verifyTestCodeIsCompiledWithJava11() throws IOException {
     assertEquals(v11, getByteCodeVersion(JvmVerification.class));
+  }
+
+  @Test
+  public void verifyTestCodeIsCompiledWithJava17() throws IOException {
+    assertEquals(v17, getByteCodeVersion(JvmVerification.class));
   }
 
   // jvm
@@ -77,7 +84,8 @@ public class JvmVerification {
 
   enum Java {
     v1_8("1.8"),
-    v11("11");
+    v11("11"),
+    v17("17");
 
     final String name;
 

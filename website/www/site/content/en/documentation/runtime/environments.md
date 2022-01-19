@@ -112,6 +112,7 @@ This method requires building image artifacts from Beam source. For additional i
   # The default repository of each SDK
   ./gradlew :sdks:java:container:java8:docker
   ./gradlew :sdks:java:container:java11:docker
+  ./gradlew :sdks:java:container:java17:docker
   ./gradlew :sdks:go:container:docker
   ./gradlew :sdks:python:container:py36:docker
   ./gradlew :sdks:python:container:py37:docker
