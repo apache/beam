@@ -275,6 +275,28 @@ const GetLogsResponse$json = const {
 /// Descriptor for `GetLogsResponse`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List getLogsResponseDescriptor = $convert
     .base64Decode('Cg9HZXRMb2dzUmVzcG9uc2USFgoGb3V0cHV0GAEgASgJUgZvdXRwdXQ=');
+@$core.Deprecated('Use getGraphRequestDescriptor instead')
+const GetGraphRequest$json = const {
+  '1': 'GetGraphRequest',
+  '2': const [
+    const {'1': 'pipeline_uuid', '3': 1, '4': 1, '5': 9, '10': 'pipelineUuid'},
+  ],
+};
+
+/// Descriptor for `GetGraphRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List getGraphRequestDescriptor = $convert.base64Decode(
+    'Cg9HZXRHcmFwaFJlcXVlc3QSIwoNcGlwZWxpbmVfdXVpZBgBIAEoCVIMcGlwZWxpbmVVdWlk');
+@$core.Deprecated('Use getGraphResponseDescriptor instead')
+const GetGraphResponse$json = const {
+  '1': 'GetGraphResponse',
+  '2': const [
+    const {'1': 'graph', '3': 1, '4': 1, '5': 12, '10': 'graph'},
+  ],
+};
+
+/// Descriptor for `GetGraphResponse`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List getGraphResponseDescriptor = $convert
+    .base64Decode('ChBHZXRHcmFwaFJlc3BvbnNlEhQKBWdyYXBoGAEgASgMUgVncmFwaA==');
 @$core.Deprecated('Use cancelRequestDescriptor instead')
 const CancelRequest$json = const {
   '1': 'CancelRequest',
@@ -284,7 +306,8 @@ const CancelRequest$json = const {
 };
 
 /// Descriptor for `CancelRequest`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List cancelRequestDescriptor = $convert.base64Decode('Cg1DYW5jZWxSZXF1ZXN0EiMKDXBpcGVsaW5lX3V1aWQYASABKAlSDHBpcGVsaW5lVXVpZA==');
+final $typed_data.Uint8List cancelRequestDescriptor = $convert.base64Decode(
+    'Cg1DYW5jZWxSZXF1ZXN0EiMKDXBpcGVsaW5lX3V1aWQYASABKAlSDHBpcGVsaW5lVXVpZA==');
 @$core.Deprecated('Use cancelResponseDescriptor instead')
 const CancelResponse$json = const {
   '1': 'CancelResponse',
@@ -400,7 +423,9 @@ const GetPrecompiledObjectOutputRequest$json = const {
 };
 
 /// Descriptor for `GetPrecompiledObjectOutputRequest`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List getPrecompiledObjectOutputRequestDescriptor = $convert.base64Decode('CiFHZXRQcmVjb21waWxlZE9iamVjdE91dHB1dFJlcXVlc3QSHQoKY2xvdWRfcGF0aBgBIAEoCVIJY2xvdWRQYXRo');
+final $typed_data.Uint8List getPrecompiledObjectOutputRequestDescriptor =
+    $convert.base64Decode(
+        'CiFHZXRQcmVjb21waWxlZE9iamVjdE91dHB1dFJlcXVlc3QSHQoKY2xvdWRfcGF0aBgBIAEoCVIJY2xvdWRQYXRo');
 @$core.Deprecated('Use getPrecompiledObjectLogsRequestDescriptor instead')
 const GetPrecompiledObjectLogsRequest$json = const {
   '1': 'GetPrecompiledObjectLogsRequest',

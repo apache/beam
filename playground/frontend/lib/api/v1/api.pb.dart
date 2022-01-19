@@ -947,21 +947,195 @@ class GetLogsResponse extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(1)
   $core.String get output => $_getSZ(0);
+
   @$pb.TagNumber(1)
-  set output($core.String v) { $_setString(0, v); }
+  set output($core.String v) {
+    $_setString(0, v);
+  }
+
   @$pb.TagNumber(1)
   $core.bool hasOutput() => $_has(0);
+
   @$pb.TagNumber(1)
   void clearOutput() => clearField(1);
 }
 
+class GetGraphRequest extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      const $core.bool.fromEnvironment('protobuf.omit_message_names')
+          ? ''
+          : 'GetGraphRequest',
+      package: const $pb.PackageName(
+          const $core.bool.fromEnvironment('protobuf.omit_message_names')
+              ? ''
+              : 'api.v1'),
+      createEmptyInstance: create)
+    ..aOS(
+        1,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'pipelineUuid')
+    ..hasRequiredFields = false;
+
+  GetGraphRequest._() : super();
+
+  factory GetGraphRequest({
+    $core.String? pipelineUuid,
+  }) {
+    final _result = create();
+    if (pipelineUuid != null) {
+      _result.pipelineUuid = pipelineUuid;
+    }
+    return _result;
+  }
+
+  factory GetGraphRequest.fromBuffer($core.List<$core.int> i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(i, r);
+
+  factory GetGraphRequest.fromJson($core.String i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(i, r);
+
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+      'Will be removed in next major version')
+  GetGraphRequest clone() => GetGraphRequest()..mergeFromMessage(this);
+
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+      'Will be removed in next major version')
+  GetGraphRequest copyWith(void Function(GetGraphRequest) updates) =>
+      super.copyWith((message) => updates(message as GetGraphRequest))
+          as GetGraphRequest; // ignore: deprecated_member_use
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static GetGraphRequest create() => GetGraphRequest._();
+
+  GetGraphRequest createEmptyInstance() => create();
+
+  static $pb.PbList<GetGraphRequest> createRepeated() =>
+      $pb.PbList<GetGraphRequest>();
+
+  @$core.pragma('dart2js:noInline')
+  static GetGraphRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<GetGraphRequest>(create);
+  static GetGraphRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get pipelineUuid => $_getSZ(0);
+
+  @$pb.TagNumber(1)
+  set pipelineUuid($core.String v) {
+    $_setString(0, v);
+  }
+
+  @$pb.TagNumber(1)
+  $core.bool hasPipelineUuid() => $_has(0);
+
+  @$pb.TagNumber(1)
+  void clearPipelineUuid() => clearField(1);
+}
+
+class GetGraphResponse extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      const $core.bool.fromEnvironment('protobuf.omit_message_names')
+          ? ''
+          : 'GetGraphResponse',
+      package: const $pb.PackageName(
+          const $core.bool.fromEnvironment('protobuf.omit_message_names')
+              ? ''
+              : 'api.v1'),
+      createEmptyInstance: create)
+    ..a<$core.List<$core.int>>(
+        1,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'graph',
+        $pb.PbFieldType.OY)
+    ..hasRequiredFields = false;
+
+  GetGraphResponse._() : super();
+
+  factory GetGraphResponse({
+    $core.List<$core.int>? graph,
+  }) {
+    final _result = create();
+    if (graph != null) {
+      _result.graph = graph;
+    }
+    return _result;
+  }
+
+  factory GetGraphResponse.fromBuffer($core.List<$core.int> i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(i, r);
+
+  factory GetGraphResponse.fromJson($core.String i,
+          [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(i, r);
+
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+      'Will be removed in next major version')
+  GetGraphResponse clone() => GetGraphResponse()..mergeFromMessage(this);
+
+  @$core.Deprecated('Using this can add significant overhead to your binary. '
+      'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+      'Will be removed in next major version')
+  GetGraphResponse copyWith(void Function(GetGraphResponse) updates) =>
+      super.copyWith((message) => updates(message as GetGraphResponse))
+          as GetGraphResponse; // ignore: deprecated_member_use
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static GetGraphResponse create() => GetGraphResponse._();
+
+  GetGraphResponse createEmptyInstance() => create();
+
+  static $pb.PbList<GetGraphResponse> createRepeated() =>
+      $pb.PbList<GetGraphResponse>();
+
+  @$core.pragma('dart2js:noInline')
+  static GetGraphResponse getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<GetGraphResponse>(create);
+  static GetGraphResponse? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.List<$core.int> get graph => $_getN(0);
+
+  @$pb.TagNumber(1)
+  set graph($core.List<$core.int> v) {
+    $_setBytes(0, v);
+  }
+
+  @$pb.TagNumber(1)
+  $core.bool hasGraph() => $_has(0);
+
+  @$pb.TagNumber(1)
+  void clearGraph() => clearField(1);
+}
+
 class CancelRequest extends $pb.GeneratedMessage {
-  static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'CancelRequest', package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'api.v1'), createEmptyInstance: create)
-    ..aOS(1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'pipelineUuid')
-    ..hasRequiredFields = false
-  ;
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      const $core.bool.fromEnvironment('protobuf.omit_message_names')
+          ? ''
+          : 'CancelRequest',
+      package: const $pb.PackageName(
+          const $core.bool.fromEnvironment('protobuf.omit_message_names')
+              ? ''
+              : 'api.v1'),
+      createEmptyInstance: create)
+    ..aOS(
+        1,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'pipelineUuid')
+    ..hasRequiredFields = false;
 
   CancelRequest._() : super();
+
   factory CancelRequest({
     $core.String? pipelineUuid,
   }) {

@@ -24,6 +24,7 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/go-redis/redismock/v8"
 	"github.com/google/uuid"
+	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -292,6 +293,11 @@ func Test_unmarshalBySubKey(t *testing.T) {
 	statusValue, _ := json.Marshal(status)
 	output := "MOCK_OUTPUT"
 	outputValue, _ := json.Marshal(output)
+	graph, err := os.ReadFile("pipeline_graph.dot")
+	if err != nil {
+		panic(err)
+	}
+	graphValue, _ := json.Marshal(graph)
 	type args struct {
 		ctx    context.Context
 		subKey cache.SubKey
@@ -329,6 +335,15 @@ func Test_unmarshalBySubKey(t *testing.T) {
 				value:  string(outputValue),
 			},
 			want:    output,
+			wantErr: false,
+		},
+		{
+			name: "graph subKey",
+			args: args{
+				subKey: cache.Graph,
+				value:  string(graphValue),
+			},
+			want:    graph,
 			wantErr: false,
 		},
 	}

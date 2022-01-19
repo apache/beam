@@ -43,6 +43,8 @@ type PlaygroundServiceClient interface {
 	GetRunOutput(ctx context.Context, in *GetRunOutputRequest, opts ...grpc.CallOption) (*GetRunOutputResponse, error)
 	// Get the logs of pipeline execution.
 	GetLogs(ctx context.Context, in *GetLogsRequest, opts ...grpc.CallOption) (*GetLogsResponse, error)
+	// Get the graph of pipeline execution.
+	GetGraph(ctx context.Context, in *GetGraphRequest, opts ...grpc.CallOption) (*GetGraphResponse, error)
 	// Get the error of pipeline execution.
 	GetRunError(ctx context.Context, in *GetRunErrorRequest, opts ...grpc.CallOption) (*GetRunErrorResponse, error)
 	// Get the result of pipeline validation.
@@ -101,6 +103,15 @@ func (c *playgroundServiceClient) GetRunOutput(ctx context.Context, in *GetRunOu
 func (c *playgroundServiceClient) GetLogs(ctx context.Context, in *GetLogsRequest, opts ...grpc.CallOption) (*GetLogsResponse, error) {
 	out := new(GetLogsResponse)
 	err := c.cc.Invoke(ctx, "/api.v1.PlaygroundService/GetLogs", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *playgroundServiceClient) GetGraph(ctx context.Context, in *GetGraphRequest, opts ...grpc.CallOption) (*GetGraphResponse, error) {
+	out := new(GetGraphResponse)
+	err := c.cc.Invoke(ctx, "/api.v1.PlaygroundService/GetGraph", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -200,6 +211,8 @@ type PlaygroundServiceServer interface {
 	GetRunOutput(context.Context, *GetRunOutputRequest) (*GetRunOutputResponse, error)
 	// Get the logs of pipeline execution.
 	GetLogs(context.Context, *GetLogsRequest) (*GetLogsResponse, error)
+	// Get the graph of pipeline execution.
+	GetGraph(context.Context, *GetGraphRequest) (*GetGraphResponse, error)
 	// Get the error of pipeline execution.
 	GetRunError(context.Context, *GetRunErrorRequest) (*GetRunErrorResponse, error)
 	// Get the result of pipeline validation.
@@ -235,6 +248,9 @@ func (UnimplementedPlaygroundServiceServer) GetRunOutput(context.Context, *GetRu
 }
 func (UnimplementedPlaygroundServiceServer) GetLogs(context.Context, *GetLogsRequest) (*GetLogsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetLogs not implemented")
+}
+func (UnimplementedPlaygroundServiceServer) GetGraph(context.Context, *GetGraphRequest) (*GetGraphResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetGraph not implemented")
 }
 func (UnimplementedPlaygroundServiceServer) GetRunError(context.Context, *GetRunErrorRequest) (*GetRunErrorResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetRunError not implemented")
@@ -343,6 +359,24 @@ func _PlaygroundService_GetLogs_Handler(srv interface{}, ctx context.Context, de
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(PlaygroundServiceServer).GetLogs(ctx, req.(*GetLogsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PlaygroundService_GetGraph_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetGraphRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PlaygroundServiceServer).GetGraph(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.v1.PlaygroundService/GetGraph",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PlaygroundServiceServer).GetGraph(ctx, req.(*GetGraphRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -531,6 +565,10 @@ var PlaygroundService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetLogs",
 			Handler:    _PlaygroundService_GetLogs_Handler,
+		},
+		{
+			MethodName: "GetGraph",
+			Handler:    _PlaygroundService_GetGraph_Handler,
 		},
 		{
 			MethodName: "GetRunError",
