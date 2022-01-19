@@ -165,6 +165,11 @@ class ConvertTest(unittest.TestCase):
     # cache size
     gc.disable()
 
+    # Also disable logging, as some implementations may artificially extend
+    # the life of objects.
+    import logging
+    logging.disable(logging.INFO)
+
     try:
       self.test_convert_memoization()
       self.assertEqual(len(convert.TO_PCOLLECTION_CACHE), 3)
@@ -175,8 +180,9 @@ class ConvertTest(unittest.TestCase):
       # scope and are GC'd
       self.assertEqual(len(convert.TO_PCOLLECTION_CACHE), 0)
     finally:
-      # Always re-enable GC
+      # Always re-enable GC and logging
       gc.enable()
+      logging.disable(logging.NOTSET)
 
 
 if __name__ == '__main__':
