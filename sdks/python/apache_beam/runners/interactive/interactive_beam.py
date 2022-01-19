@@ -229,7 +229,7 @@ class Options(interactive_options.InteractiveOptions):
     return self._specified_cache_dir
 
   @specified_cache_dir.setter
-  def user_cache_dir(self, value):
+  def specified_cache_dir(self, value):
     """Sets the cache directory.
 
     Defaults to local timezone.

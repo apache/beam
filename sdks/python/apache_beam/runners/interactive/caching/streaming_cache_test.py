@@ -32,6 +32,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import *
 from apache_beam.transforms.window import TimestampedValue
+from apache_beam.runners.interactive import interactive_beam as ib
 
 # Nose automatically detects tests if they match a regex. Here, it mistakens
 # these protos as tests. For more info see the Nose docs at:
@@ -449,6 +450,19 @@ class StreamingCacheTest(unittest.TestCase):
     cache = StreamingCache(cache_dir=None)
     self.assertRaises(TypeError, cache.write, 'some value', 'a key')
 
+  def test_streaming_cache_uses_ib_specified_cache_dir(self):
+    """
+    Check that StreamingCache._cache_dir is set to the 
+    specified_cache_dir set under Interactive Beam.
+    """
+    # Set Interactive Beam specified cache dir to cloud storage
+    ib.options.specified_cache_dir = "gs://"
+    cache = StreamingCache(cache_dir=None)
+
+    self.assertEqual(ib.options.specified_cache_dir, cache._cache_dir)
+
+    # Reset Interactive Beam setting
+    ib.options.specified_cache_dir = None
 
 if __name__ == '__main__':
   unittest.main()
