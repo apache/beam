@@ -23,7 +23,6 @@ import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.api.services.bigquery.model.TimePartitioning;
 import java.util.Arrays;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
@@ -109,10 +108,7 @@ public class BigQueryClusteringIT {
     @Override
     public TableDestination getDestination(ValueInSingleWindow<TableRow> element) {
       return new TableDestination(
-          String.format("%s.%s", DATASET_NAME, tableName),
-          "description",
-          null,
-          CLUSTERING);
+          String.format("%s.%s", DATASET_NAME, tableName), null, null, CLUSTERING);
     }
 
     @Override
@@ -138,7 +134,6 @@ public class BigQueryClusteringIT {
             BigQueryIO.writeTableRows()
                 .to(String.format("%s.%s", DATASET_NAME, tableName))
                 .withClustering(CLUSTERING)
-                .withTableDescription("tabledescription") // Delete this line
                 .withSchema(SCHEMA)
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
                 .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
@@ -164,7 +159,7 @@ public class BigQueryClusteringIT {
                     (ValueInSingleWindow<TableRow> vsw) ->
                         new TableDestination(
                             String.format("%s.%s", DATASET_NAME, tableName),
-                            "descript",
+                            null,
                             null,
                             CLUSTERING))
                 .withClustering(CLUSTERING)
