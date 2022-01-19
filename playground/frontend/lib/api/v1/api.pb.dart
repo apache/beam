@@ -888,54 +888,17 @@ class CancelResponse extends $pb.GeneratedMessage {
 }
 
 class PrecompiledObject extends $pb.GeneratedMessage {
-  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
-      const $core.bool.fromEnvironment('protobuf.omit_message_names')
-          ? ''
-          : 'PrecompiledObject',
-      package: const $pb.PackageName(
-          const $core.bool.fromEnvironment('protobuf.omit_message_names')
-              ? ''
-              : 'api.v1'),
-      createEmptyInstance: create)
-    ..aOS(
-        1,
-        const $core.bool.fromEnvironment('protobuf.omit_field_names')
-            ? ''
-            : 'cloudPath')
-    ..aOS(
-        2,
-        const $core.bool.fromEnvironment('protobuf.omit_field_names')
-            ? ''
-            : 'name')
-    ..aOS(
-        3,
-        const $core.bool.fromEnvironment('protobuf.omit_field_names')
-            ? ''
-            : 'description')
-    ..e<PrecompiledObjectType>(
-        4,
-        const $core.bool.fromEnvironment('protobuf.omit_field_names')
-            ? ''
-            : 'type',
-        $pb.PbFieldType.OE,
-        defaultOrMaker:
-            PrecompiledObjectType.PRECOMPILED_OBJECT_TYPE_UNSPECIFIED,
-        valueOf: PrecompiledObjectType.valueOf,
-        enumValues: PrecompiledObjectType.values)
-    ..aOS(
-        5,
-        const $core.bool.fromEnvironment('protobuf.omit_field_names')
-            ? ''
-            : 'pipelineOptions')
-    ..aOS(
-        6,
-        const $core.bool.fromEnvironment('protobuf.omit_field_names')
-            ? ''
-            : 'link')
-    ..hasRequiredFields = false;
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'PrecompiledObject', package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'api.v1'), createEmptyInstance: create)
+    ..aOS(1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'cloudPath')
+    ..aOS(2, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'name')
+    ..aOS(3, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'description')
+    ..e<PrecompiledObjectType>(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'type', $pb.PbFieldType.OE, defaultOrMaker: PrecompiledObjectType.PRECOMPILED_OBJECT_TYPE_UNSPECIFIED, valueOf: PrecompiledObjectType.valueOf, enumValues: PrecompiledObjectType.values)
+    ..aOS(5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'pipelineOptions')
+    ..aOS(6, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'link')
+    ..hasRequiredFields = false
+  ;
 
   PrecompiledObject._() : super();
-
   factory PrecompiledObject({
     $core.String? cloudPath,
     $core.String? name,
@@ -1006,12 +969,8 @@ class PrecompiledObject extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(3)
   $core.String get description => $_getSZ(2);
-
   @$pb.TagNumber(3)
-  set description($core.String v) {
-    $_setString(2, v);
-  }
-
+  set description($core.String v) { $_setString(2, v); }
   @$pb.TagNumber(3)
   $core.bool hasDescription() => $_has(2);
   @$pb.TagNumber(3)
@@ -1019,12 +978,8 @@ class PrecompiledObject extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(4)
   PrecompiledObjectType get type => $_getN(3);
-
   @$pb.TagNumber(4)
-  set type(PrecompiledObjectType v) {
-    setField(4, v);
-  }
-
+  set type(PrecompiledObjectType v) { setField(4, v); }
   @$pb.TagNumber(4)
   $core.bool hasType() => $_has(3);
   @$pb.TagNumber(4)
@@ -1032,12 +987,8 @@ class PrecompiledObject extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(5)
   $core.String get pipelineOptions => $_getSZ(4);
-
   @$pb.TagNumber(5)
-  set pipelineOptions($core.String v) {
-    $_setString(4, v);
-  }
-
+  set pipelineOptions($core.String v) { $_setString(4, v); }
   @$pb.TagNumber(5)
   $core.bool hasPipelineOptions() => $_has(4);
   @$pb.TagNumber(5)
@@ -1045,12 +996,8 @@ class PrecompiledObject extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(6)
   $core.String get link => $_getSZ(5);
-
   @$pb.TagNumber(6)
-  set link($core.String v) {
-    $_setString(5, v);
-  }
-
+  set link($core.String v) { $_setString(5, v); }
   @$pb.TagNumber(6)
   $core.bool hasLink() => $_has(5);
   @$pb.TagNumber(6)

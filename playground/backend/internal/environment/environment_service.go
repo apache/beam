@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/tidwall/gjson"
 	"io/ioutil"
 	"log"
 	"os"
@@ -252,8 +251,13 @@ func getDefaultExamplesPathFromJson(configPath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defaultExamplePath := gjson.Get(string(file), defaultExampleKey).String()
-	return defaultExamplePath, nil
+	jsonMap := make(map[string]interface{})
+	err = json.Unmarshal(file, &jsonMap)
+	if err != nil {
+		return "", err
+	}
+	defaultExamplePath := jsonMap[defaultExampleKey]
+	return fmt.Sprint(defaultExamplePath), nil
 }
 
 // getEnv returns an environment variable or default value
