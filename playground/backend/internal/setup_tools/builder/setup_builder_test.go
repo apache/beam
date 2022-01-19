@@ -21,69 +21,118 @@ import (
 	"beam.apache.org/playground/backend/internal/executors"
 	"beam.apache.org/playground/backend/internal/fs_tool"
 	"beam.apache.org/playground/backend/internal/utils"
+	"beam.apache.org/playground/backend/internal/validators"
 	"fmt"
 	"github.com/google/uuid"
+	"reflect"
 	"strings"
+	"sync"
 	"testing"
 )
 
-func TestSetupExecutor(t *testing.T) {
+var paths *fs_tool.LifeCyclePaths
+var sdkEnv *environment.BeamEnvs
+
+func TestMain(m *testing.M) {
+	setup()
+	m.Run()
+}
+
+func setup() {
 	pipelineId := uuid.New()
-	sdk := pb.Sdk_SDK_JAVA
-	lc, err := fs_tool.NewLifeCycle(sdk, pipelineId, "")
-	if err != nil {
-		t.Error(err)
-	}
-	pipelineOptions := ""
+	sdk := pb.Sdk_SDK_PYTHON
+	lc, _ := fs_tool.NewLifeCycle(sdk, pipelineId, "")
+	paths = &lc.Paths
 	executorConfig := &environment.ExecutorConfig{
 		CompileCmd:  "MOCK_COMPILE_CMD",
-		RunCmd:      "MOCK_RUN_CMD",
-		TestCmd:     "MOCK_TEST_CMD",
 		CompileArgs: []string{"MOCK_COMPILE_ARG"},
-		RunArgs:     []string{"MOCK_RUN_ARG"},
-		TestArgs:    []string{"MOCK_TEST_ARG"},
 	}
+	sdkEnv = environment.NewBeamEnvs(sdk, executorConfig, "", 0)
+}
+
+func TestValidator(t *testing.T) {
+	vals, err := utils.GetValidators(sdkEnv.ApacheBeamSdk, paths.AbsoluteSourceFilePath)
 	if err != nil {
 		panic(err)
 	}
-
-	srcFilePath := lc.GetAbsoluteSourceFilePath()
-
-	sdkEnv := environment.NewBeamEnvs(sdk, executorConfig, "", 0)
-	val, err := utils.GetValidators(sdk, srcFilePath)
-	if err != nil {
-		panic(err)
-	}
-	prep, err := utils.GetPreparators(sdk, srcFilePath)
-	if err != nil {
-		panic(err)
-	}
-
 	wantExecutor := executors.NewExecutorBuilder().
-		WithExecutableFileName(lc.GetAbsoluteExecutableFilePath()).
-		WithWorkingDir(lc.GetAbsoluteBaseFolderPath()).
 		WithValidator().
-		WithSdkValidators(val).
-		WithPreparator().
-		WithSdkPreparators(prep).
-		WithCompiler().
-		WithCommand(executorConfig.CompileCmd).
-		WithArgs(executorConfig.CompileArgs).
-		WithFileName(srcFilePath).
-		WithRunner().
-		WithCommand(executorConfig.RunCmd).
-		WithArgs(executorConfig.RunArgs).
-		WithPipelineOptions(strings.Split(pipelineOptions, " ")).
-		WithTestRunner().
-		WithCommand(executorConfig.TestCmd).
-		WithArgs(executorConfig.TestArgs).
-		WithWorkingDir(lc.GetAbsoluteBaseFolderPath()).
-		ExecutorBuilder
+		WithSdkValidators(vals)
+
+	wrongSdkEnv := environment.NewBeamEnvs(pb.Sdk_SDK_UNSPECIFIED, sdkEnv.ExecutorConfig, "", 0)
 
 	type args struct {
-		lc              *fs_tool.LifeCycle
+		paths  *fs_tool.LifeCyclePaths
+		sdkEnv *environment.BeamEnvs
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    *executors.ExecutorBuilder
+		wantErr bool
+	}{
+		{
+			// Test case with calling Setup with correct data.
+			// As a result, want to receive an expected validator builder.
+			name: "Test correct validator builder",
+			args: args{
+				paths:  paths,
+				sdkEnv: sdkEnv,
+			},
+			want:    &wantExecutor.ExecutorBuilder,
+			wantErr: false,
+		},
+		{
+			// Test case with calling Setup with incorrect SDK.
+			// As a result, want to receive an error.
+			name: "incorrect sdk",
+			args: args{
+				paths:  paths,
+				sdkEnv: wrongSdkEnv,
+			},
+			want:    nil,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := Validator(tt.args.paths, tt.args.sdkEnv)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Validator() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err != nil && !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Validator() got = %v, want %v", got, tt.want)
+				return
+			}
+			if err == nil && !reflect.DeepEqual(fmt.Sprint(got.Build()), fmt.Sprint(tt.want.Build())) {
+				t.Errorf("Validator() got = %v\n, want %v", got.Build(), tt.want.Build())
+			}
+		})
+	}
+}
+
+func TestPreparer(t *testing.T) {
+	validationResults := sync.Map{}
+	validationResults.Store(validators.UnitTestValidatorName, false)
+	validationResults.Store(validators.KatasValidatorName, false)
+
+	prep, err := utils.GetPreparers(sdkEnv.ApacheBeamSdk, paths.AbsoluteSourceFilePath, &validationResults)
+	if err != nil {
+		panic(err)
+	}
+	pipelineOptions := ""
+	wantExecutor := executors.NewExecutorBuilder().
+		WithPreparer().
+		WithSdkPreparers(prep)
+
+	wrongSdkEnv := environment.NewBeamEnvs(pb.Sdk_SDK_UNSPECIFIED, sdkEnv.ExecutorConfig, "", 0)
+
+	type args struct {
+		paths           fs_tool.LifeCyclePaths
 		pipelineOptions string
 		sdkEnv          *environment.BeamEnvs
+		valResults      *sync.Map
 	}
 	tests := []struct {
 		name    string
@@ -95,28 +144,176 @@ func TestSetupExecutor(t *testing.T) {
 			// Test case with calling Setup with incorrect SDK.
 			// As a result, want to receive an error.
 			name:    "incorrect sdk",
-			args:    args{lc, pipelineOptions, environment.NewBeamEnvs(pb.Sdk_SDK_UNSPECIFIED, executorConfig, "", 0)},
+			args:    args{*paths, pipelineOptions, wrongSdkEnv, &validationResults},
 			want:    nil,
 			wantErr: true,
 		},
 		{
 			// Test case with calling Setup with correct SDK.
-			// As a result, want to receive an expected builder.
+			// As a result, want to receive an expected preparer builder.
 			name:    "correct sdk",
-			args:    args{lc, pipelineOptions, sdkEnv},
-			want:    &wantExecutor,
+			args:    args{*paths, pipelineOptions, sdkEnv, &validationResults},
+			want:    &wantExecutor.ExecutorBuilder,
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := SetupExecutorBuilder(tt.args.lc, tt.args.pipelineOptions, tt.args.sdkEnv)
+			got, err := Preparer(&tt.args.paths, tt.args.sdkEnv, tt.args.valResults)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("SetupExecutorBuilder() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Preparer() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if err == nil && fmt.Sprint(got.Build()) != fmt.Sprint(tt.want.Build()) {
-				t.Errorf("SetupExecutorBuilder() got = %v\n, want %v", got.Build(), tt.want.Build())
+			if err != nil && !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Preparer() got = %v, want %v", got, tt.want)
+				return
+			}
+			if err == nil && !reflect.DeepEqual(fmt.Sprint(got.Build()), fmt.Sprint(tt.want.Build())) {
+				t.Errorf("Preparer() got = %v, want %v", got.Build(), tt.want.Build())
+			}
+		})
+	}
+}
+
+func TestCompiler(t *testing.T) {
+	wantExecutor := executors.NewExecutorBuilder().
+		WithCompiler().
+		WithCommand(sdkEnv.ExecutorConfig.CompileCmd).
+		WithWorkingDir(paths.AbsoluteBaseFolderPath).
+		WithArgs(sdkEnv.ExecutorConfig.CompileArgs).
+		WithFileName(paths.AbsoluteSourceFilePath)
+
+	type args struct {
+		paths  *fs_tool.LifeCyclePaths
+		sdkEnv *environment.BeamEnvs
+	}
+	tests := []struct {
+		name string
+		args args
+		want *executors.ExecutorBuilder
+	}{
+		{
+			// Test case with calling Setup with correct data.
+			// As a result, want to receive an expected compiler builder.
+			name: "Test correct compiler builder",
+			args: args{
+				paths:  paths,
+				sdkEnv: sdkEnv,
+			},
+			want: &wantExecutor.ExecutorBuilder,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := Compiler(tt.args.paths, tt.args.sdkEnv)
+			if !reflect.DeepEqual(fmt.Sprint(got.Build()), fmt.Sprint(tt.want.Build())) {
+				t.Errorf("Compiler() = %v, want %v", got.Build(), tt.want.Build())
+			}
+		})
+	}
+}
+
+func TestRunnerBuilder(t *testing.T) {
+	wantExecutor := executors.NewExecutorBuilder().
+		WithRunner().
+		WithExecutableFileName(paths.AbsoluteExecutableFilePath).
+		WithWorkingDir(paths.AbsoluteBaseFolderPath).
+		WithCommand(sdkEnv.ExecutorConfig.RunCmd).
+		WithArgs(sdkEnv.ExecutorConfig.RunArgs).
+		WithPipelineOptions(strings.Split("", " "))
+
+	type args struct {
+		paths           *fs_tool.LifeCyclePaths
+		pipelineOptions string
+		sdkEnv          *environment.BeamEnvs
+	}
+	tests := []struct {
+		name string
+		args args
+		want *executors.ExecutorBuilder
+	}{
+		{
+			// Test case with calling Setup with correct data.
+			// As a result, want to receive an expected run builder.
+			name: "Test correct run builder",
+			args: args{
+				paths:  paths,
+				sdkEnv: sdkEnv,
+			},
+			want: &wantExecutor.ExecutorBuilder,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, _ := Runner(tt.args.paths, tt.args.pipelineOptions, tt.args.sdkEnv)
+			if !reflect.DeepEqual(fmt.Sprint(got.Build()), fmt.Sprint(tt.want.Build())) {
+				t.Errorf("Runner() got = %v, want %v", got.Build(), tt.want.Build())
+			}
+		})
+	}
+}
+
+func TestTestRunner(t *testing.T) {
+	wantExecutor := executors.NewExecutorBuilder().
+		WithTestRunner().
+		WithExecutableFileName(paths.AbsoluteExecutableFilePath).
+		WithCommand(sdkEnv.ExecutorConfig.TestCmd).
+		WithArgs(sdkEnv.ExecutorConfig.TestArgs).
+		WithWorkingDir(paths.AbsoluteSourceFileFolderPath)
+
+	type args struct {
+		paths  *fs_tool.LifeCyclePaths
+		sdkEnv *environment.BeamEnvs
+	}
+	tests := []struct {
+		name string
+		args args
+		want *executors.ExecutorBuilder
+	}{
+		{
+			// Test case with calling Setup with correct data.
+			// As a result, want to receive an expected test builder.
+			name: "Test correct test builder",
+			args: args{
+				paths:  paths,
+				sdkEnv: sdkEnv,
+			},
+			want: &wantExecutor.ExecutorBuilder,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, _ := TestRunner(tt.args.paths, tt.args.sdkEnv)
+			if !reflect.DeepEqual(fmt.Sprint(got.Build()), fmt.Sprint(tt.want.Build())) {
+				t.Errorf("TestRunner() got = %v, want %v", got.Build(), tt.want.Build())
+			}
+		})
+	}
+}
+
+func Test_replaceLogPlaceholder(t *testing.T) {
+	type args struct {
+		paths          *fs_tool.LifeCyclePaths
+		executorConfig *environment.ExecutorConfig
+	}
+	tests := []struct {
+		name string
+		args args
+		want []string
+	}{
+		{
+			name: "Test to check the replacement of log work with no error",
+			args: args{
+				paths:          paths,
+				executorConfig: sdkEnv.ExecutorConfig,
+			},
+			want: []string{},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := replaceLogPlaceholder(tt.args.paths, tt.args.executorConfig); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("replaceLogPlaceholder() = %v, want %v", got, tt.want)
 			}
 		})
 	}

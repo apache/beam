@@ -16,22 +16,22 @@
  * limitations under the License.
  */
 
-import org.apache.beam.gradle.GrpcVendoring_1_36_0
+import org.apache.beam.gradle.GrpcVendoring_1_43_2
 
 plugins { id 'org.apache.beam.vendor-java' }
 
-description = "Apache Beam :: Vendored Dependencies :: gRPC :: 1.36.0"
+description = "Apache Beam :: Vendored Dependencies :: gRPC :: 1.43.2"
 
 group = "org.apache.beam"
-version = "0.2"
+version = "0.1"
 
 vendorJava(
-  dependencies: GrpcVendoring_1_36_0.dependencies(),
-  runtimeDependencies: GrpcVendoring_1_36_0.runtimeDependencies(),
-  testDependencies: GrpcVendoring_1_36_0.testDependencies(),
-  relocations: GrpcVendoring_1_36_0.relocations(),
-  exclusions: GrpcVendoring_1_36_0.exclusions(),
-  artifactId: "beam-vendor-grpc-1_36_0",
+  dependencies: GrpcVendoring_1_43_2.dependencies(),
+  runtimeDependencies: GrpcVendoring_1_43_2.runtimeDependencies(),
+  testDependencies: GrpcVendoring_1_43_2.testDependencies(),
+  relocations: GrpcVendoring_1_43_2.relocations(),
+  exclusions: GrpcVendoring_1_43_2.exclusions(),
+  artifactId: "beam-vendor-grpc-1_43_2",
   groupId: group,
   version: version,
 )

@@ -257,6 +257,21 @@ public class SpannerIOWriteTest implements Serializable {
   }
 
   @Test
+  public void singleMutationPipelineNoProjectId() throws Exception {
+    Mutation mutation = m(2L);
+    PCollection<Mutation> mutations = pipeline.apply(Create.of(mutation));
+
+    mutations.apply(
+        SpannerIO.write()
+            .withInstanceId("test-instance")
+            .withDatabaseId("test-database")
+            .withServiceFactory(serviceFactory));
+    pipeline.run();
+
+    verifyBatches(batch(m(2L)));
+  }
+
+  @Test
   public void singleMutationGroupPipeline() throws Exception {
     PCollection<MutationGroup> mutations =
         pipeline.apply(Create.<MutationGroup>of(g(m(1L), m(2L), m(3L))));

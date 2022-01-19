@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import static org.apache.beam.runners.core.construction.Environments.JAVA_SDK_HARNESS_CONTAINER_URL;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
@@ -183,17 +184,38 @@ public class EnvironmentsTest implements Serializable {
 
   @Test
   public void testCapabilities() {
+    // Check a subset of coders
     assertThat(Environments.getJavaCapabilities(), hasItem(ModelCoders.LENGTH_PREFIX_CODER_URN));
     assertThat(Environments.getJavaCapabilities(), hasItem(ModelCoders.ROW_CODER_URN));
+    // Check all protocol based capabilities
     assertThat(
         Environments.getJavaCapabilities(),
         hasItem(BeamUrns.getUrn(RunnerApi.StandardProtocols.Enum.MULTI_CORE_BUNDLE_PROCESSING)));
+    assertThat(
+        Environments.getJavaCapabilities(),
+        hasItem(BeamUrns.getUrn(RunnerApi.StandardProtocols.Enum.PROGRESS_REPORTING)));
+    assertThat(
+        Environments.getJavaCapabilities(),
+        hasItem(BeamUrns.getUrn(RunnerApi.StandardProtocols.Enum.HARNESS_MONITORING_INFOS)));
+    assertThat(
+        Environments.getJavaCapabilities(),
+        hasItem(
+            BeamUrns.getUrn(RunnerApi.StandardProtocols.Enum.CONTROL_REQUEST_ELEMENTS_EMBEDDING)));
+    assertThat(
+        Environments.getJavaCapabilities(),
+        hasItem(BeamUrns.getUrn(RunnerApi.StandardProtocols.Enum.STATE_CACHING)));
+    // Check that SDF truncation is supported
     assertThat(
         Environments.getJavaCapabilities(),
         hasItem(
             BeamUrns.getUrn(
                 RunnerApi.StandardPTransforms.SplittableParDoComponents
                     .TRUNCATE_SIZED_RESTRICTION)));
+    // Check that the sdk_base is inserted
+    assertThat(
+        Environments.getJavaCapabilities(),
+        hasItem("beam:version:sdk_base:" + JAVA_SDK_HARNESS_CONTAINER_URL));
+    // Check that ToString is supported for pretty printing user data.
     assertThat(
         Environments.getJavaCapabilities(),
         hasItem(BeamUrns.getUrn(RunnerApi.StandardPTransforms.Primitives.TO_STRING)));

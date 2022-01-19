@@ -23,6 +23,7 @@ import com.google.cloud.spanner.Options;
 import com.google.cloud.spanner.Partition;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.SpannerException;
+import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.TimestampBound;
 import java.util.HashMap;
@@ -151,6 +152,7 @@ abstract class BatchSpannerRead
     private final PCollectionView<? extends Transaction> txView;
 
     private transient SpannerAccessor spannerAccessor;
+    private transient String projectId;
 
     public ReadFromPartitionFn(
         SpannerConfig config, PCollectionView<? extends Transaction> txView) {
@@ -161,6 +163,10 @@ abstract class BatchSpannerRead
     @Setup
     public void setup() throws Exception {
       spannerAccessor = SpannerAccessor.getOrCreate(config);
+      projectId =
+          this.config.getProjectId() == null
+              ? SpannerOptions.getDefaultProjectId()
+              : this.config.getProjectId().get();
     }
 
     @Teardown
@@ -172,9 +178,7 @@ abstract class BatchSpannerRead
     public void processElement(ProcessContext c) throws Exception {
       ServiceCallMetric serviceCallMetric =
           createServiceCallMetric(
-              this.config.getProjectId().toString(),
-              this.config.getDatabaseId().toString(),
-              this.config.getInstanceId().toString());
+              projectId, this.config.getDatabaseId().get(), this.config.getInstanceId().get());
       Transaction tx = c.sideInput(txView);
 
       BatchReadOnlyTransaction batchTx =

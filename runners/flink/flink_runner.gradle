@@ -41,6 +41,7 @@ description = "Apache Beam :: Runners :: Flink $flink_version"
  */
 evaluationDependsOn(":sdks:java:core")
 evaluationDependsOn(":runners:core-java")
+evaluationDependsOn(":examples:java")
 
 /*
  * Copy & merge source overrides into build directory.
@@ -123,6 +124,7 @@ test {
 configurations {
   validatesRunner
   miniCluster
+  examplesJavaIntegrationTest
 }
 
 dependencies {
@@ -134,7 +136,7 @@ dependencies {
   implementation project(":runners:java-fn-execution")
   implementation project(":runners:java-job-service")
   implementation project(":sdks:java:extensions:google-cloud-platform-core")
-  implementation library.java.vendored_grpc_1_36_0
+  implementation library.java.vendored_grpc_1_43_2
   implementation library.java.slf4j_api
   implementation library.java.joda_time
   implementation library.java.args4j
@@ -177,7 +179,13 @@ dependencies {
   implementation library.java.jackson_databind
   implementation "org.apache.flink:flink-annotations:$flink_version"
   implementation "org.apache.flink:flink-optimizer_2.11:$flink_version"
+  examplesJavaIntegrationTest project(project.path)
+  examplesJavaIntegrationTest project(":examples:java")
+  examplesJavaIntegrationTest project(path: ":examples:java", configuration: "testRuntimeMigration")
 }
+
+def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+def tempLocation = project.findProperty('tempLocation') ?: 'gs://temp-storage-for-end-to-end-tests'
 
 class ValidatesRunnerConfig {
   String name
@@ -274,6 +282,30 @@ tasks.register('validatesRunner') {
 
 // Generates :runners:flink:1.13:runQuickstartJavaFlinkLocal
 createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'FlinkLocal')
+
+task examplesIntegrationTest(type: Test) {
+  group = "Verification"
+  // Disable gradle cache
+  outputs.upToDateWhen { false }
+  def pipelineOptionsArray = ["--runner=TestFlinkRunner",
+                              "--parallelism=2",
+                              "--tempLocation=${tempLocation}",
+                              "--tempRoot=${tempLocation}",
+                              "--project=${gcpProject}",
+  ]
+
+  def pipelineOptions = JsonOutput.toJson(pipelineOptionsArray)
+  systemProperty "beamTestPipelineOptions", pipelineOptions
+
+  include '**/*IT.class'
+  // TODO (BEAM-12572) Fix integration Tests to run with FlinkRunner
+  exclude '**/BigQueryTornadoesIT.class' // Fails with AssertionError
+  exclude '**/WindowedWordCountIT.class' // Failed with Grpc connection error
+  maxParallelForks 4
+  classpath = configurations.examplesJavaIntegrationTest
+  testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
+  useJUnit { }
+}
 
 /**
  * Updates the documentation with the current pipeline options.

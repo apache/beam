@@ -20,21 +20,34 @@ package org.apache.beam.gradle
 
 /**
  * Utilities for working with our vendored version of gRPC.
+ * 
+ * To update:
+ * 1. Determine the set of io.grpc libraries we want to include, most likely a superset of
+ *    of the previous vendored gRPC version.
+ * 2. Use mvn dependency:tree and https://search.maven.org/search?q=g:io.grpc
+ *    to determine dependency tree. You may need to search for optional dependencies
+ *    and determine if they are needed (e.g. conscrypt).
+ * 3. Validate built artifacts by running linkage tool
+ *    (https://github.com/apache/beam/tree/master/vendor#how-to-validate-the-vendored-dependencies)
+ *    and unit and integration tests in a PR (e.g. https://github.com/apache/beam/pull/16460,
+ *    https://github.com/apache/beam/pull/16459)
  */
-class GrpcVendoring_1_36_0 {
+class GrpcVendoring_1_43_2 {
+  static def grpc_version = "1.43.2"
 
-  static def guava_version = "30.1-jre"
-  static def protobuf_version = "3.15.3"
-  static def grpc_version = "1.36.0"
-  static def gson_version = "2.8.6"
-  // tcnative version from https://github.com/grpc/grpc-java/blob/master/SECURITY.md#netty
-  static def netty_version = "4.1.52.Final"
-  // google-auth-library version from https://search.maven.org/artifact/io.grpc/grpc-auth/1.36.0/jar
+  // See https://github.com/grpc/grpc-java/blob/v1.43.2/build.gradle
+  // or https://search.maven.org/search?q=g:io.grpc%201.43.2
+  static def guava_version = "30.1.1-jre"
+  static def protobuf_version = "3.19.2"
+  static def gson_version = "2.8.9"
   static def google_auth_version = "0.22.2"
-  // proto-google-common-protos version from https://search.maven.org/artifact/io.grpc/grpc-protobuf/1.36.0/jar
-  static def proto_google_common_protos_version = "2.0.1"
   static def opencensus_version = "0.28.0"
   static def conscrypt_version = "2.5.1"
+  static def proto_google_common_protos_version = "2.0.1"
+
+  // tcnative version from https://github.com/grpc/grpc-java/blob/master/SECURITY.md#netty
+  static def netty_version = "4.1.63.Final"
+  static def netty_tcnative_version = "2.0.38.Final"
 
   /** Returns the list of implementation time dependencies. */
   static List<String> dependencies() {
@@ -49,13 +62,12 @@ class GrpcVendoring_1_36_0 {
       "io.grpc:grpc-netty:$grpc_version",
       "io.grpc:grpc-protobuf:$grpc_version",
       "io.grpc:grpc-stub:$grpc_version",
+      "io.grpc:grpc-testing:$grpc_version",
       // Use a classifier to ensure we get the jar containing native libraries. In the future
       // hopefully netty releases a single jar containing native libraries for all architectures.
       "io.netty:netty-transport-native-epoll:$netty_version:linux-x86_64",
-      // tcnative version from https://github.com/grpc/grpc-java/blob/master/SECURITY.md#netty
-      "io.netty:netty-tcnative-boringssl-static:2.0.34.Final",
+      "io.netty:netty-tcnative-boringssl-static:$netty_tcnative_version",
       "com.google.auth:google-auth-library-credentials:$google_auth_version",
-      "io.grpc:grpc-testing:$grpc_version",
       "com.google.api.grpc:proto-google-common-protos:$proto_google_common_protos_version",
       "io.opencensus:opencensus-api:$opencensus_version",
       "io.opencensus:opencensus-contrib-grpc-metrics:$opencensus_version",
@@ -68,7 +80,7 @@ class GrpcVendoring_1_36_0 {
    */
   static List<String> runtimeDependencies() {
     return [
-      'com.google.errorprone:error_prone_annotations:2.4.0',
+      'com.google.errorprone:error_prone_annotations:2.9.0',
       // TODO(BEAM-9288): Enable relocation for conscrypt
       "org.conscrypt:conscrypt-openjdk-uber:$conscrypt_version"
     ]
@@ -98,7 +110,7 @@ class GrpcVendoring_1_36_0 {
     // those libraries may provide. The 'validateShadedJarDoesntLeakNonOrgApacheBeamClasses'
     // ensures that there are no classes outside of the 'org.apache.beam' namespace.
 
-    String version = "v1p36p0";
+    String version = "v1p43p2";
     String prefix = "org.apache.beam.vendor.grpc.${version}";
     List<String> packagesToRelocate = [
       // guava uses the com.google.common and com.google.thirdparty package namespaces
@@ -136,8 +148,9 @@ class GrpcVendoring_1_36_0 {
   /** Returns the list of shading exclusions. */
   static List<String> exclusions() {
     return [
-      // Don't include android annotations, errorprone, checkerframework, JDK8 annotations, objenesis, junit,
-      // commons-logging, log4j, slf4j and mockito in the vendored jar
+      // Don't include in the vendored jar:
+      // android annotations, errorprone, checkerframework, JDK8 annotations, objenesis, junit,
+      // commons-logging, log4j, slf4j and mockito
       "android/annotation/**/",
       "com/google/errorprone/**",
       "com/google/instrumentation/**",

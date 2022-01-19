@@ -113,8 +113,8 @@ func TestAnnotations(t *testing.T) {
 				if strings.Compare(name, "privacy_property") != 0 {
 					t.Errorf("Annotation name: got %v, want %v", name, "privacy_property")
 				}
-				if bytes.Compare(annotation, []byte("differential_privacy")) != 0 {
-					t.Errorf("Annotation value: got %v, want %v", annotation, []byte("differential_privacy"))
+				if got, want := annotation, []byte("differential_privacy"); !bytes.Equal(got, want) {
+					t.Errorf("Annotation value: got %v, want %v", got, want)
 				}
 			}
 		}

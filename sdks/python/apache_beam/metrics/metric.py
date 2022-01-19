@@ -179,8 +179,9 @@ class MetricResults(object):
 
     """True iff the '/'-delimited pieces of filter_scope exist as a sub-list
     of the '/'-delimited pieces of actual_scope"""
-    return MetricResults._is_sub_list(
-        filter_scope.split('/'), actual_scope.split('/'))
+    return bool(
+        actual_scope and MetricResults._is_sub_list(
+            filter_scope.split('/'), actual_scope.split('/')))
 
   @staticmethod
   def _matches_scope(filter, metric_key):
