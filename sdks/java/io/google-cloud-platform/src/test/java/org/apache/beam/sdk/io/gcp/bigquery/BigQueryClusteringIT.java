@@ -52,8 +52,6 @@ public class BigQueryClusteringIT {
   private static final String DATASET_NAME = "BigQueryClusteringIT";
   private static final Clustering CLUSTERING =
       new Clustering().setFields(Arrays.asList("station_number"));
-  private static final TimePartitioning TIME_PARTITIONING =
-      new TimePartitioning().setField("date").setType("DAY");
   private static final TableSchema SCHEMA =
       new TableSchema()
           .setFields(
@@ -113,7 +111,7 @@ public class BigQueryClusteringIT {
       return new TableDestination(
           String.format("%s.%s", DATASET_NAME, tableName),
           "description",
-          TIME_PARTITIONING,
+          null,
           CLUSTERING);
     }
 
