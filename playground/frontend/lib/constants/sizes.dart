@@ -41,6 +41,7 @@ const double kXlBorderRadius = 28.0;
 const double kElevation = 2;
 
 // icon sizes
+const double kIconSizeXs = 8.0;
 const double kIconSizeSm = 16.0;
 const double kIconSizeMd = 24.0;
 const double kIconSizeLg = 32.0;
