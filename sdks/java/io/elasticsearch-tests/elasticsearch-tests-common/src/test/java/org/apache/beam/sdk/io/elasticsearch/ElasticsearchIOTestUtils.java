@@ -120,7 +120,12 @@ class ElasticsearchIOTestUtils {
                 + "\"order\": 0,"
                 + "\"index_patterns\": [\"*\"],"
                 + "\"template\": \"*\","
-                + "\"settings\": {\"index.number_of_shards\": 1, \"index.number_of_replicas\": 0}}",
+                + "\"settings\": {"
+                + "   \"index.number_of_shards\": 1,"
+                + "   \"index.number_of_replicas\": 0,"
+                + "   \"index.store.stats_refresh_interval\": 0"
+                + "  }"
+                + "}",
             ContentType.APPLICATION_JSON);
 
     request.setEntity(body);
@@ -140,7 +145,7 @@ class ElasticsearchIOTestUtils {
                 source, target),
             ContentType.APPLICATION_JSON);
     Request request = new Request("POST", "/_reindex");
-    request.addParameters(Collections.singletonMap("refresh", "wait_for"));
+    flushAndRefreshAllIndices(restClient);
     request.setEntity(entity);
     restClient.performRequest(request);
   }
@@ -166,11 +171,10 @@ class ElasticsearchIOTestUtils {
     HttpEntity requestBody =
         new NStringEntity(bulkRequest.toString(), ContentType.APPLICATION_JSON);
     Request request = new Request("POST", endPoint);
-    request.addParameters(Collections.singletonMap("refresh", "wait_for"));
     request.setEntity(requestBody);
     Response response = restClient.performRequest(request);
     ElasticsearchIO.createWriteReport(response.getEntity(), Collections.emptySet(), true);
-    refreshAllIndices(restClient);
+    flushAndRefreshAllIndices(restClient);
   }
 
   /** Inserts the given number of test documents into Elasticsearch. */
@@ -183,8 +187,10 @@ class ElasticsearchIOTestUtils {
     insertTestDocuments(connectionConfiguration, data, restClient);
   }
 
-  static void refreshAllIndices(RestClient restClient) throws IOException {
-    Request request = new Request("POST", "/_refresh");
+  static void flushAndRefreshAllIndices(RestClient restClient) throws IOException {
+    Request request = new Request("POST", "/_flush");
+    restClient.performRequest(request);
+    request = new Request("POST", "/_refresh");
     restClient.performRequest(request);
   }
 
@@ -253,7 +259,7 @@ class ElasticsearchIOTestUtils {
       throws IOException {
     long result = 0;
     try {
-      refreshAllIndices(restClient);
+      flushAndRefreshAllIndices(restClient);
 
       String endPoint = generateSearchPath(index, type);
       Request request = new Request("GET", endPoint);

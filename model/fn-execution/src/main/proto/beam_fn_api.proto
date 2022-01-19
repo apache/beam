@@ -300,6 +300,10 @@ message ProcessBundleRequest {
   // (Optional) A list of cache tokens that can be used by an SDK to reuse
   // cached data returned by the State API across multiple bundles.
   //
+  // Note that SDKs that can efficiently consume this field should declare
+  // the beam:protocol:state_caching:v1 capability enabling runners to reduce
+  // the amount of memory used.
+  //
   // See https://s.apache.org/beam-fn-state-api-and-bundle-processing#heading=h.7ghoih5aig5m
   // for additional details on how to use the cache token with the State API
   // to cache data across bundle boundaries.

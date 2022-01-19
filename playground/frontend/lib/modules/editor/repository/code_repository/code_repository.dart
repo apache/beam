@@ -166,6 +166,7 @@ class CodeRepository {
         final log = responses[1];
         final error = responses[2];
         return RunCodeResult(
+          pipelineUuid: pipelineUuid,
           status: status,
           output: prevOutput + output.output + error.output,
           log: prevLog + log.output,
