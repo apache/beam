@@ -234,6 +234,7 @@ public class ElasticsearchIO {
         .setMaxBatchSizeBytes(5L * 1024L * 1024L)
         .setUseStatefulBatches(false)
         .setMaxParallelRequestsPerWindow(1)
+        .setThrowWriteErrors(true)
         .build();
   }
 

@@ -22,8 +22,9 @@ import logging
 import os
 from collections import namedtuple
 from dataclasses import dataclass, fields
-from typing import List, Optional, Dict, Union
+from typing import List, Optional, Dict
 
+from tqdm.asyncio import tqdm
 import yaml
 from yaml import YAMLError
 
@@ -130,7 +131,7 @@ async def get_statuses(examples: List[Example]):
   client = GRPCClient()
   for example in examples:
     tasks.append(_update_example_status(example, client))
-  await asyncio.gather(*tasks)
+  await tqdm.gather(*tasks)
 
 
 def get_tag(filepath) -> Optional[ExampleTag]:
@@ -152,7 +153,8 @@ def get_tag(filepath) -> Optional[ExampleTag]:
     lines = parsed_file.readlines()
 
   for line in lines:
-    formatted_line = line.replace("//", "").replace("#", "")
+    formatted_line = line.replace("//", "").replace("#",
+                                                    "").replace("\t", "    ")
     if add_to_yaml is False:
       if formatted_line.lstrip() == Config.BEAM_PLAYGROUND_TITLE:
         add_to_yaml = True
@@ -223,8 +225,7 @@ def get_supported_categories(categories_path: str) -> List[str]:
     return yaml_object[TagFields.categories]
 
 
-def _get_example(
-    filepath: str, filename: str, tag: ExampleTag) -> Example:
+def _get_example(filepath: str, filename: str, tag: ExampleTag) -> Example:
   """
   Return an Example by filepath and filename.
 
@@ -283,14 +284,15 @@ def _validate(tag: dict, supported_categories: List[str]) -> bool:
           field,
           tag.__str__())
       valid = False
-
-    value = tag.get(field)
-    if value == "" or value is None:
-      logging.error(
-          "tag's value is incorrect: %s\nvalue for %s field can not be empty.",
-          tag.__str__(),
-          field.__str__())
-      valid = False
+    if valid is True:
+      value = tag.get(field)
+      if (value == "" or
+          value is None) and field != TagFields.pipeline_options:
+        logging.error(
+            "tag's value is incorrect: %s\n%s field can not be empty.",
+            tag.__str__(),
+            field.__str__())
+        valid = False
 
   if valid is False:
     return valid

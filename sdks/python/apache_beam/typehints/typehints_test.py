@@ -218,6 +218,7 @@ class UnionHintTestCase(TypeHintTestCase):
         Union[int, Tuple[Any, Any]], Union[Tuple[int, Any], Tuple[Any, int]])
     self.assertCompatible(Union[int, SuperClass], SubClass)
     self.assertCompatible(Union[int, float, SuperClass], Union[int, SubClass])
+    self.assertCompatible(int, Union[()])
 
     self.assertNotCompatible(Union[int, SubClass], SuperClass)
     self.assertNotCompatible(

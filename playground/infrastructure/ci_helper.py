@@ -36,6 +36,7 @@ class CIHelper:
 
   It is used to find and verify correctness if beam examples/katas/tests.
   """
+
   async def verify_examples(self, examples: List[Example]):
     """
     Verify correctness of beam examples.
@@ -62,6 +63,7 @@ class CIHelper:
     Args:
         examples: beam examples that should be verified
     """
+    count_of_verified = 0
     client = GRPCClient()
     verify_status_failed = False
     default_examples = []
@@ -70,6 +72,7 @@ class CIHelper:
       if example.tag.default_example:
         default_examples.append(example)
       if example.status not in Config.ERROR_STATUSES:
+        count_of_verified += 1
         continue
       if example.status == STATUS_VALIDATION_ERROR:
         logging.error("Example: %s has validation error", example.filepath)
@@ -89,6 +92,15 @@ class CIHelper:
         logging.error(
             "Example: %s has execution error: %s", example.filepath, err)
       verify_status_failed = True
+
+    logging.info(
+        "Number of verified Playground examples: %s / %s",
+        count_of_verified,
+        len(examples))
+    logging.info(
+        "Number of Playground examples with some error: %s / %s",
+        len(examples) - count_of_verified,
+        len(examples))
 
     if len(default_examples) != 1:
       if len(default_examples) == 0:

@@ -31,9 +31,9 @@ import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.NUM_
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.SCRIPT_SOURCE;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.countByMatch;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.countByScientistName;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.flushAndRefreshAllIndices;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.insertTestDocuments;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.mapToInputId;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.refreshAllIndices;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.refreshIndexAndGetCurrentNumDocs;
 import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
 import static org.apache.beam.sdk.values.TypeDescriptors.integers;
@@ -285,6 +285,25 @@ class ElasticsearchIOTestCommon implements Serializable {
   void testWrite() throws Exception {
     Write write = ElasticsearchIO.write().withConnectionConfiguration(connectionConfiguration);
     executeWriteTest(write);
+  }
+
+  /** Test that DocToBulk and BulkIO can be constructed and operate independently of Write. */
+  void testDocToBulkAndBulkIO() throws Exception {
+    DocToBulk docToBulk =
+        ElasticsearchIO.docToBulk().withConnectionConfiguration(connectionConfiguration);
+    BulkIO bulkIO = ElasticsearchIO.bulkIO().withConnectionConfiguration(connectionConfiguration);
+
+    List<String> data =
+        ElasticsearchIOTestUtils.createDocuments(
+            numDocs, ElasticsearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
+    pipeline.apply(Create.of(data)).apply(docToBulk).apply(bulkIO);
+    pipeline.run();
+
+    long currentNumDocs = refreshIndexAndGetCurrentNumDocs(connectionConfiguration, restClient);
+    assertEquals(numDocs, currentNumDocs);
+
+    int count = countByScientistName(connectionConfiguration, restClient, "Einstein", null);
+    assertEquals(numDocs / NUM_SCIENTISTS, count);
   }
 
   void testWriteStateful() throws Exception {
@@ -738,7 +757,7 @@ class ElasticsearchIOTestCommon implements Serializable {
                 .withRoutingFn(new ExtractValueFn("scientist")));
     pipeline.run();
 
-    refreshAllIndices(restClient);
+    flushAndRefreshAllIndices(restClient);
     for (String scientist : FAMOUS_SCIENTISTS) {
       Map<String, String> urlParams = Collections.singletonMap("routing", scientist);
 

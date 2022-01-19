@@ -90,7 +90,8 @@ Example PRs:
 
 Steps:
 
-1. Generate new artifact files with `publishMavenJavaPublicationToMavenLocal`, e.g.
+1. Generate new artifact files with `publishMavenJavaPublicationToMavenLocal` and
+   copy to a folder in Beam (e.g. `tempLib`):
 
 ```
 ./gradlew -p vendor/grpc-1_43_2 publishMavenJavaPublicationToMavenLocal -Ppublishing -PvendoredDependenciesOnly
@@ -100,7 +101,7 @@ cp -R ~/.m2/repository/org/apache/beam/beam-vendor-grpc-1_43_2/ \
       $BEAMDIR/tempLib/org/apache/beam/beam-vendor-grpc-1_43_2
 ```
 
-2. Add whatever folder (here I use `tempLib`) to the expected project repositories, e.g.
+2. Add the folder to the expected project repositories:
 
 ```
 repositories {
@@ -113,4 +114,4 @@ repositories {
 
 3. Migrate all references from the old dependency to the new dependency, including imports if needed.
 
-4. Commit any added or changed files and create a PR (can be a draft, as you will not merge this PR) to test on.
+4. Commit any added or changed files and create a PR to run unit and integration tests on. This can be a draft PR, as you will not merge this PR.
