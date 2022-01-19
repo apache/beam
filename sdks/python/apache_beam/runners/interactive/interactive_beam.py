@@ -222,7 +222,7 @@ class Options(interactive_options.InteractiveOptions):
 
   @property
   def specified_cache_dir(self):
-    """The user cache directory
+    """The cache directory specified by the user.
 
     Defaults to None.
     """
@@ -233,7 +233,7 @@ class Options(interactive_options.InteractiveOptions):
     """Sets the cache directory.
 
     Defaults to None.
-    
+
     Example::
       interactive_beam.options.cache_dir = "gs://"
     """
