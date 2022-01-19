@@ -235,7 +235,7 @@ class Options(interactive_options.InteractiveOptions):
     Defaults to None.
 
     Example::
-      interactive_beam.options.cache_dir = "gs://"
+      interactive_beam.options.specified_cache_dir = "gs://"
     """
     self._specified_cache_dir = value
 
