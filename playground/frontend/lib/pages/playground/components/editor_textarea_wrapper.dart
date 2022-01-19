@@ -23,6 +23,7 @@ import 'package:playground/modules/analytics/analytics_service.dart';
 import 'package:playground/modules/editor/components/editor_textarea.dart';
 import 'package:playground/modules/editor/components/pipeline_options_text_field.dart';
 import 'package:playground/modules/editor/components/run_button.dart';
+import 'package:playground/modules/examples/components/description_popover/description_popover_button.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/notifications/components/notification.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
@@ -61,33 +62,42 @@ class CodeTextAreaWrapper extends StatelessWidget {
                 Positioned(
                   right: kXlSpacing,
                   top: kXlSpacing,
-                  width: kRunButtonWidth,
                   height: kRunButtonHeight,
-                  child: RunButton(
-                    isRunning: state.isCodeRunning,
-                    cancelRun: () {
-                      state.cancelRun().catchError(
-                            (_) => NotificationManager.showError(
-                              context,
-                              AppLocalizations.of(context)!.runCode,
-                              AppLocalizations.of(context)!.cancelExecution,
-                            ),
-                          );
-                    },
-                    runCode: () {
-                      final stopwatch = Stopwatch()..start();
-                      state.runCode(
-                        onFinish: () {
-                          AnalyticsService.get(context).trackRunTimeEvent(
-                            state.selectedExample?.path ??
-                                '${AppLocalizations.of(context)!.unknownExample}, sdk ${state.sdk.displayName}',
-                            stopwatch.elapsedMilliseconds,
-                          );
+                  child: Row(
+                    children: [
+                      if (state.selectedExample != null)
+                        DescriptionPopoverButton(
+                          example: state.selectedExample!,
+                          followerAnchor: Alignment.topRight,
+                          targetAnchor: Alignment.bottomRight,
+                        ),
+                      RunButton(
+                        isRunning: state.isCodeRunning,
+                        cancelRun: () {
+                          state.cancelRun().catchError(
+                                (_) => NotificationManager.showError(
+                                  context,
+                                  AppLocalizations.of(context)!.runCode,
+                                  AppLocalizations.of(context)!.cancelExecution,
+                                ),
+                              );
                         },
-                      );
-                      AnalyticsService.get(context)
-                          .trackClickRunEvent(state.selectedExample);
-                    },
+                        runCode: () {
+                          final stopwatch = Stopwatch()..start();
+                          state.runCode(
+                            onFinish: () {
+                              AnalyticsService.get(context).trackRunTimeEvent(
+                                state.selectedExample?.path ??
+                                    '${AppLocalizations.of(context)!.unknownExample}, sdk ${state.sdk.displayName}',
+                                stopwatch.elapsedMilliseconds,
+                              );
+                            },
+                          );
+                          AnalyticsService.get(context)
+                              .trackClickRunEvent(state.selectedExample);
+                        },
+                      ),
+                    ],
                   ),
                 ),
               ],
