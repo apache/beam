@@ -602,6 +602,15 @@ public class KafkaIO {
         .build();
   }
 
+  public static <K, V> WriteRecordsWithOutput<K, V> writeRecordWithOutput() {
+    return new AutoValue_KafkaIO_WriteRecordsWithOutput.Builder<K, V>()
+        .setProducerConfig(WriteRecordsWithOutput.DEFAULT_PRODUCER_PROPERTIES)
+        .setEOS(false)
+        .setNumShards(0)
+        .setConsumerFactoryFn(KafkaIOUtils.KAFKA_CONSUMER_FACTORY_FN)
+        .build();
+  }
+
   ///////////////////////// Read Support \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
   /**
@@ -2779,8 +2788,7 @@ public class KafkaIO {
       checkArgument(getKeySerializer() != null, "withKeySerializer() is required");
       checkArgument(getValueSerializer() != null, "withValueSerializer() is required");
 
-      /*
-      if (isEOS()) {
+      /*if (isEOS()) {
           checkArgument(getTopic() != null, "withTopic() is required when isEOS() is true");
           KafkaExactlyOnceSink.ensureEOSSupport();
 
@@ -2796,7 +2804,20 @@ public class KafkaIO {
           return KafkaWriteResult.in(
                   input.getPipeline(), null, null, input.apply(ParDo.of(new KafkaWriter<>(this))));
       }*/
-      input.apply(ParDo.of(new KafkaWriter<>(this)));
+      if (isEOS()) {
+        checkArgument(getTopic() != null, "withTopic() is required when isEOS() is true");
+        KafkaExactlyOnceSink.ensureEOSSupport();
+
+        // TODO: Verify that the group_id does not have existing state stored on Kafka unless
+        //       this is an upgrade. This avoids issues with simple mistake of reusing group_id
+        //       across multiple runs or across multiple jobs. This is checked when the sink
+        //       transform initializes while processing the output. It might be better to
+        //       check here to catch common mistake.
+
+        input.apply(new KafkaExactlyOnceSink<>(this));
+      } else {
+        input.apply(ParDo.of(new KafkaWriter<>(this)));
+      }
       return PDone.in(input.getPipeline());
     }
 

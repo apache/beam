@@ -37,7 +37,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.io.kafka.KafkaIO.WriteRecords;
+import org.apache.beam.sdk.io.kafka.KafkaIO.WriteRecordsWithOutput;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.SinkMetrics;
@@ -138,7 +138,7 @@ class KafkaExactlyOnceSink<K, V>
   private static final Logger LOG = LoggerFactory.getLogger(KafkaExactlyOnceSink.class);
   private static final String METRIC_NAMESPACE = "KafkaExactlyOnceSink";
 
-  private final WriteRecords<K, V> spec;
+  private final WriteRecordsWithOutput<K, V> spec;
 
   static void ensureEOSSupport() {
     checkArgument(
@@ -148,7 +148,7 @@ class KafkaExactlyOnceSink<K, V>
         "exactly-once semantics. Please use Kafka client version 0.11 or newer.");
   }
 
-  KafkaExactlyOnceSink(WriteRecords<K, V> spec) {
+  KafkaExactlyOnceSink(WriteRecordsWithOutput<K, V> spec) {
     this.spec = spec;
   }
 
@@ -258,7 +258,7 @@ class KafkaExactlyOnceSink<K, V>
     @StateId(WRITER_ID)
     private final StateSpec<ValueState<String>> writerIdSpec = StateSpecs.value();
 
-    private final WriteRecords<K, V> spec;
+    private final WriteRecordsWithOutput<K, V> spec;
 
     // Metrics
     private final Counter elementsWritten = SinkMetrics.elementsWritten();
@@ -266,7 +266,7 @@ class KafkaExactlyOnceSink<K, V>
     private final Counter elementsBuffered = Metrics.counter(METRIC_NAMESPACE, "elementsBuffered");
     private final Counter numTransactions = Metrics.counter(METRIC_NAMESPACE, "numTransactions");
 
-    ExactlyOnceWriter(WriteRecords<K, V> spec, Coder<ProducerRecord<K, V>> elemCoder) {
+    ExactlyOnceWriter(WriteRecordsWithOutput<K, V> spec, Coder<ProducerRecord<K, V>> elemCoder) {
       this.spec = spec;
       this.outOfOrderBufferSpec =
           StateSpecs.bag(KvCoder.of(BigEndianLongCoder.of(), TimestampedValueCoder.of(elemCoder)));
@@ -451,7 +451,7 @@ class KafkaExactlyOnceSink<K, V>
       private final String writerId;
       private final Producer<K, V> producer;
       private final String producerName;
-      private final WriteRecords<K, V> spec;
+      private final WriteRecordsWithOutput<K, V> spec;
       private long committedId;
 
       ShardWriter(
@@ -459,7 +459,7 @@ class KafkaExactlyOnceSink<K, V>
           String writerId,
           Producer<K, V> producer,
           String producerName,
-          WriteRecords<K, V> spec,
+          WriteRecordsWithOutput<K, V> spec,
           long committedId) {
         this.shard = shard;
         this.writerId = writerId;
@@ -690,7 +690,7 @@ class KafkaExactlyOnceSink<K, V>
    * Opens a generic consumer that is mainly meant for metadata operations like fetching number of
    * partitions for a topic rather than for fetching messages.
    */
-  private static Consumer<?, ?> openConsumer(WriteRecords<?, ?> spec) {
+  private static Consumer<?, ?> openConsumer(WriteRecordsWithOutput<?, ?> spec) {
     return spec.getConsumerFactoryFn()
         .apply(
             ImmutableMap.of(
@@ -705,7 +705,7 @@ class KafkaExactlyOnceSink<K, V>
   }
 
   private static <K, V> Producer<K, V> initializeExactlyOnceProducer(
-      WriteRecords<K, V> spec, String producerName) {
+      WriteRecordsWithOutput<K, V> spec, String producerName) {
 
     Map<String, Object> producerConfig = new HashMap<>(spec.getProducerConfig());
     producerConfig.putAll(
