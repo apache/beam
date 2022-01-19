@@ -27,6 +27,7 @@ from config import Config
 
 class GRPCClient:
   """GRPCClient is gRPC client for sending a request to the backend."""
+
   def __init__(self):
     self._channel = grpc.aio.insecure_channel(Config.SERVER_ADDRESS)
     self._stub = api_pb2_grpc.PlaygroundServiceStub(self._channel)
