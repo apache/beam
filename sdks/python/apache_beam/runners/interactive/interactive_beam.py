@@ -232,8 +232,8 @@ class Options(interactive_options.InteractiveOptions):
   def specified_cache_dir(self, value):
     """Sets the cache directory.
 
-    Defaults to local timezone.
-
+    Defaults to None.
+    
     Example::
       interactive_beam.options.cache_dir = "gs://"
     """
