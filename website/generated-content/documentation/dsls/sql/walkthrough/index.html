@@ -88,7 +88,7 @@ to either a single <code>PCollection</code> or a <code>PCollectionTuple</code> w
         <span class=n>SqlTransform</span><span class=o>.</span><span class=na>query</span><span class=o>(</span>
           <span class=s>&#34;SELECT appId, description, rowtime &#34;</span>
             <span class=o>+</span> <span class=s>&#34;FROM PCOLLECTION &#34;</span>
-            <span class=o>+</span> <span class=s>&#34;WHERE id=1&#34;</span><span class=o>));</span>
+            <span class=o>+</span> <span class=s>&#34;WHERE appId=1&#34;</span><span class=o>));</span>
     </code></pre></div></div></div></p></li><li><p>when applying to a <code>PCollectionTuple</code>, the tuple tag for each <code>PCollection</code> in the tuple defines the table name that may be used to query it. Note that table names are bound to the specific <code>PCollectionTuple</code>, and thus are only valid in the context of queries applied to it.</p><p>For example, you can join two <code>PCollections</code>:<div class="language-java snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-java data-lang=java>    <span class=c1>// Create the schema for reviews
 </span><span class=c1></span>    <span class=n>Schema</span> <span class=n>reviewSchema</span> <span class=o>=</span>
         <span class=n>Schema</span>
