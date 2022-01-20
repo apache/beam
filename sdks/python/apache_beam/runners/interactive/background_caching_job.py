@@ -234,6 +234,9 @@ def has_source_to_cache(user_pipeline):
       cache_dir = file_based_cm._cache_dir
       from apache_beam.runners.interactive import interactive_beam as ib
       if ib.options.cache_root:
+        #TODO(victorhc): Handle the case when the path starts with "gs://"
+        if ib.options.cache_root.startswith("gs://"):
+          raise ValueError("GCS paths are not currently supported.")
         cache_dir = ib.options.cache_root
       ie.current_env().set_cache_manager(
           streaming_cache.StreamingCache(
