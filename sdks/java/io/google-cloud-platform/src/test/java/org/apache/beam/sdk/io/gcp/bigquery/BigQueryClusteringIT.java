@@ -123,8 +123,9 @@ public class BigQueryClusteringIT {
   }
 
   /*
-  THE FOLLOWING TEST WOULD BE NICE IF WORKED, BUT GOT ISSUE SUFFICIENTLY SOLVED,
+  THE FOLLOWING TEST WOULD BE NICE IF WORKED, BUT CURRENT ISSUE SUFFICIENTLY SOLVED,
   WORTH REVISITING BUT NOT NEEDED FOR NOW.
+  TODO: GET THIS TEST TO PASS...
   @Test
   public void testE2EBigQueryClusteringNoPartition() throws Exception {
     String tableName = "weather_stations_clustered_" + System.currentTimeMillis();
