@@ -269,6 +269,9 @@ class Timestamp(object):
     other = Duration.of(other)
     return Duration(micros=self.micros % other.micros)
 
+  def __neg__(self):
+    return -self.micros
+
 
 MIN_TIMESTAMP = Timestamp(
     micros=int(common_urns.constants.MIN_TIMESTAMP_MILLIS.constant) * 1000)
