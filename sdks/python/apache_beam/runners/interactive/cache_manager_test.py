@@ -246,7 +246,7 @@ class FileBasedCacheManagerTest(object):
     reader_one, version_one = self.cache_manager.read(prefix, cache_label)
     pcoll_list_one = list(reader_one)
 
-    # Set Interactive Beam specified cache dir to cloud storage
+    # Set Interactive Beam specified cache dir to local directory
     ib.options.cache_root = "/tmp/it-test/"
     cache_manager_with_ib_option = cache.FileBasedCacheManager(
         cache_dir=ib.options.cache_root)
