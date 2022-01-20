@@ -17,7 +17,6 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground/modules/output/components/output_result.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:provider/provider.dart';
@@ -36,7 +35,8 @@ class OutputArea extends StatelessWidget {
             children: <Widget>[
               OutputResult(text: state.result?.output ?? ''),
               OutputResult(text: state.result?.log ?? ''),
-              Center(child: Text(AppLocalizations.of(context)!.graph)),
+              // Not supported yet
+              // Center(child: Text(AppLocalizations.of(context)!.graph)),
             ],
           );
         },

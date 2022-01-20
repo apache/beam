@@ -17,7 +17,7 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/modules/output/components/output_result.dart';
+import 'package:playground/modules/output/components/output.dart';
 import 'package:playground/pages/embedded_playground/components/embedded_actions.dart';
 import 'package:playground/pages/embedded_playground/components/embedded_appbar_title.dart';
 import 'package:playground/pages/embedded_playground/components/embedded_editor.dart';
@@ -29,7 +29,12 @@ const kActionsWidth = 300.0;
 const kActionsHeight = 40.0;
 
 class EmbeddedPlaygroundPage extends StatelessWidget {
-  const EmbeddedPlaygroundPage({Key? key}) : super(key: key);
+  final bool isEditable;
+
+  const EmbeddedPlaygroundPage({
+    Key? key,
+    required this.isEditable,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -41,10 +46,11 @@ class EmbeddedPlaygroundPage extends StatelessWidget {
           actions: const [EmbeddedActions()],
         ),
         body: EmbeddedSplitView(
-          first: const EmbeddedEditor(),
+          first: EmbeddedEditor(isEditable: isEditable),
           second: Container(
-              color: Theme.of(context).backgroundColor,
-              child: OutputResult(text: state.result?.log ?? '')),
+            color: Theme.of(context).backgroundColor,
+            child: const Output(isEmbedded: true),
+          ),
         ),
       ),
     );

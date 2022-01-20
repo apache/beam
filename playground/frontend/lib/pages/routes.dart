@@ -22,7 +22,8 @@ import 'package:playground/pages/playground/playground_page.dart';
 
 class Routes {
   static const String playground = '/';
-  static const String embedded = '/embedded';
+  static const String embeddedEditable = '/embedded_editable';
+  static const String embeddedNotEditable = '/embedded_not_editable';
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
     final name = settings.name ?? '';
@@ -32,8 +33,14 @@ class Routes {
     switch (routePath) {
       case Routes.playground:
         return Routes.renderRoute(const PlaygroundPage());
-      case Routes.embedded:
-        return Routes.renderRoute(const EmbeddedPlaygroundPage());
+      case Routes.embeddedEditable:
+        return Routes.renderRoute(const EmbeddedPlaygroundPage(
+          isEditable: true,
+        ));
+      case Routes.embeddedNotEditable:
+        return Routes.renderRoute(const EmbeddedPlaygroundPage(
+          isEditable: false,
+        ));
       default:
         return Routes.renderRoute(const PlaygroundPage());
     }

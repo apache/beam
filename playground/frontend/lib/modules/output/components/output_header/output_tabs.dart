@@ -32,7 +32,8 @@ class OutputTabs extends StatelessWidget {
         tabs: <Widget>[
           Tab(text: appLocale.output),
           Tab(text: appLocale.log),
-          Tab(text: appLocale.graph),
+          // Not supported yet
+          // Tab(text: appLocale.graph),
         ],
       ),
     );

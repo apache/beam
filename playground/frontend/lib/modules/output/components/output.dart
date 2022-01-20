@@ -21,14 +21,19 @@ import 'package:playground/modules/output/components/output_area.dart';
 import 'package:playground/modules/output/components/output_header/output_header.dart';
 
 class Output extends StatelessWidget {
-  const Output({Key? key}) : super(key: key);
+  final bool isEmbedded;
+
+  const Output({Key? key, required this.isEmbedded}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 3,
+      length: 2,
       child: Column(
-        children: const [OutputHeader(), Expanded(child: OutputArea())],
+        children: [
+          OutputHeader(isEmbedded: isEmbedded),
+          const Expanded(child: OutputArea())
+        ],
       ),
     );
   }

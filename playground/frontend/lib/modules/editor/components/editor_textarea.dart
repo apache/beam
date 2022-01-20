@@ -36,7 +36,7 @@ class EditorTextArea extends StatefulWidget {
   final ExampleModel? example;
   final bool enabled;
   final void Function(String)? onSourceChange;
-  final bool isEmbedded;
+  final bool isEditable;
 
   const EditorTextArea({
     Key? key,
@@ -44,7 +44,7 @@ class EditorTextArea extends StatefulWidget {
     this.example,
     this.onSourceChange,
     required this.enabled,
-    required this.isEmbedded,
+    required this.isEditable,
   }) : super(key: key);
 
   @override
@@ -92,7 +92,7 @@ class _EditorTextAreaState extends State<EditorTextArea> {
       readOnly: widget.enabled,
       label: AppLocalizations.of(context)!.codeTextArea,
       child: FocusScope(
-        node: FocusScopeNode(canRequestFocus: !widget.isEmbedded),
+        node: FocusScopeNode(canRequestFocus: widget.isEditable),
         child: CodeField(
           enabled: widget.enabled,
           controller: _codeController!,
