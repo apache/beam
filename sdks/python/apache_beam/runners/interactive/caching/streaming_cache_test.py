@@ -450,19 +450,58 @@ class StreamingCacheTest(unittest.TestCase):
     cache = StreamingCache(cache_dir=None)
     self.assertRaises(TypeError, cache.write, 'some value', 'a key')
 
-  def test_streaming_cache_uses_ib_cache_root(self):
+  def test_streaming_cache_uses_gcs_ib_cache_root(self):
     """
-    Check that StreamingCache._cache_dir is set to the 
-    cache_root set under Interactive Beam.
+    Checks that StreamingCache._cache_dir is set to the 
+    cache_root set under Interactive Beam for a GCS directory.
     """
     # Set Interactive Beam specified cache dir to cloud storage
     ib.options.cache_root = "gs://"
-    cache = StreamingCache(cache_dir=ib.options.cache_root)
+    cache_manager_with_ib_option = StreamingCache(
+        cache_dir=ib.options.cache_root)
 
-    self.assertEqual(ib.options.cache_root, cache._cache_dir)
+    self.assertEqual(
+        ib.options.cache_root, cache_manager_with_ib_option._cache_dir)
 
     # Reset Interactive Beam setting
     ib.options.cache_root = None
+
+  def test_streaming_cache_uses_local_ib_cache_root(self):
+    """
+    Checks that StreamingCache._cache_dir is set to the 
+    cache_root set under Interactive Beam for a local directory
+    and that the cached values are the same as the values of a
+    cache using default settings.
+    """
+    CACHED_PCOLLECTION_KEY = repr(CacheKey('arbitrary_key', '', '', ''))
+    values = (FileRecordsBuilder(CACHED_PCOLLECTION_KEY)
+                  .advance_processing_time(1)
+                  .advance_watermark(watermark_secs=0)
+                  .add_element(element=1, event_time_secs=0)
+                  .build()) # yapf: disable
+
+    local_cache = StreamingCache(cache_dir=None)
+    local_cache.write(values, CACHED_PCOLLECTION_KEY)
+    reader_one, version_one = local_cache.read(CACHED_PCOLLECTION_KEY)
+    pcoll_list_one = list(reader_one)
+
+    # Set Interactive Beam specified cache dir to cloud storage
+    ib.options.cache_root = "/tmp/it-test/"
+    cache_manager_with_ib_option = StreamingCache(
+        cache_dir=ib.options.cache_root)
+
+    self.assertEqual(
+        ib.options.cache_root, cache_manager_with_ib_option._cache_dir)
+
+    cache_manager_with_ib_option.write(values, CACHED_PCOLLECTION_KEY)
+    reader_two, version_two = cache_manager_with_ib_option.read(CACHED_PCOLLECTION_KEY)
+    pcoll_list_two = list(reader_two)
+
+    self.assertEqual(pcoll_list_one, pcoll_list_two)
+
+    # Reset Interactive Beam setting
+    ib.options.cache_root = None
+
 
 if __name__ == '__main__':
   unittest.main()

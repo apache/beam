@@ -218,7 +218,7 @@ class FileBasedCacheManagerTest(object):
 
   def test_cache_manager_uses_gcs_ib_cache_root(self):
     """
-    Check that FileBasedCacheManager._cache_dir is set to the 
+    Checks that FileBasedCacheManager._cache_dir is set to the 
     cache_root set under Interactive Beam for a GCS directory.
     """
     # Set Interactive Beam specified cache dir to cloud storage
@@ -235,8 +235,10 @@ class FileBasedCacheManagerTest(object):
 
   def test_cache_manager_uses_local_ib_cache_root(self):
     """
-    Check that FileBasedCacheManager._cache_dir is set to the 
-    cache_root set under Interactive Beam for a local directory.
+    Checks that FileBasedCacheManager._cache_dir is set to the
+    cache_root set under Interactive Beam for a local directory
+    and that the cached values are the same as the values of a
+    cache using default settings.
     """
     prefix = 'full'
     cache_label = 'some-cache-label'

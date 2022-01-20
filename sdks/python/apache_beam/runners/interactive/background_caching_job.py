@@ -234,14 +234,6 @@ def has_source_to_cache(user_pipeline):
       cache_dir = file_based_cm._cache_dir
       from apache_beam.runners.interactive import interactive_beam as ib
       if ib.options.cache_root:
-        _LOGGER.warning(
-            'Interactive Beam has detected a set value for the cache_root '
-            'option. Please note: existing cache managers will not have '
-            'their current cache directory changed. The option must be '
-            'set in Interactive Beam prior to the initialization of new '
-            'pipelines to take effect. To apply changes to new pipelines, '
-            'the kernel must be restarted or the pipeline creation codes '
-            'must be re-executed. ')
         cache_dir = ib.options.cache_root
       ie.current_env().set_cache_manager(
           streaming_cache.StreamingCache(

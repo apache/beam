@@ -236,11 +236,17 @@ class Options(interactive_options.InteractiveOptions):
 
     Example of local directory usage::
       interactive_beam.options.cache_root = "/Users/username/my/cache/dir"
-
-    Example of GCS directory usage::
-      interactive_beam.options.cache_root = "gs://my-gcs-bucket/cache/dir"
     """
+    _LOGGER.warning(
+        'Interactive Beam has detected a set value for the cache_root '
+        'option. Please note: existing cache managers will not have '
+        'their current cache directory changed. The option must be '
+        'set in Interactive Beam prior to the initialization of new '
+        'pipelines to take effect. To apply changes to new pipelines, '
+        'the kernel must be restarted or the pipeline creation codes '
+        'must be re-executed. ')
     self._cache_root = value
+
 
 class Recordings():
   """An introspection interface for recordings for pipelines.
