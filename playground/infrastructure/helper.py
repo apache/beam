@@ -45,7 +45,7 @@ Tag = namedtuple(
         TagFields.categories,
         TagFields.pipeline_options,
         TagFields.default_example
-    ], defaults=(None, None, None, None, None, None))
+    ], defaults=(None, None, False, None, None, False))
 
 
 @dataclass
@@ -194,6 +194,8 @@ def _check_file(examples, filename, filepath, supported_categories, sdk: Sdk):
       False if file doesn't contains beam playground tag.
   """
   if filepath.endswith("infrastructure/helper.py"):
+    return False
+  if filepath.endswith("minimal_wordcount/minimal_wordcount.go") is False and filepath.endswith("yatzy/yatzy.go") is False:
     return False
 
   has_error = False
