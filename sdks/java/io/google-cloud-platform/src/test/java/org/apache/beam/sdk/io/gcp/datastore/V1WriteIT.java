@@ -19,16 +19,30 @@ package org.apache.beam.sdk.io.gcp.datastore;
 
 import static org.apache.beam.sdk.io.gcp.datastore.V1TestUtil.countEntities;
 import static org.apache.beam.sdk.io.gcp.datastore.V1TestUtil.deleteAllEntities;
+import static org.apache.beam.sdk.metrics.MetricResultsMatchers.metricsResult;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 
+import com.google.datastore.v1.Entity;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.gcp.datastore.V1TestUtil.CreateEntityFn;
+import org.apache.beam.sdk.metrics.MetricQueryResults;
+import org.apache.beam.sdk.metrics.MetricsFilter;
+import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.PCollection;
+import org.hamcrest.Matcher;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -72,6 +86,60 @@ public class V1WriteIT {
     long numEntitiesWritten = countEntities(options, project, ancestor);
 
     assertEquals(numEntities, numEntitiesWritten);
+  }
+
+  /**
+   * Tests {@link DatastoreV1.DatastoreWriterFn} with duplicated entries. Once a duplicated entry is
+   * found the batch gets flushed.
+   */
+  @Test
+  public void testDatatoreWriterFnWithDuplicatedEntities() throws Exception {
+
+    List<Long> longMutations = new ArrayList<>(200);
+    V1TestOptions options = TestPipeline.testingPipelineOptions().as(V1TestOptions.class);
+    Pipeline pipeline = TestPipeline.create(options);
+
+    for (int i = 1; i <= 180; i++) {
+      longMutations.add((long) i);
+
+      if (i % 90 == 0) {
+        longMutations.add((long) i);
+      }
+    }
+
+    PCollection<Long> input = pipeline.apply(Create.of(longMutations));
+
+    PTransform<PCollection<? extends Long>, PCollection<Entity>> datastoreWriterTransform =
+        ParDo.of(
+            new V1TestUtil.CreateEntityFn(
+                options.getKind(), options.getNamespace(), UUID.randomUUID().toString(), 0));
+
+    PCollection<Entity> output = input.apply(datastoreWriterTransform);
+
+    output.apply(
+        DatastoreIO.v1()
+            .write()
+            .withProjectId(
+                TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject()));
+
+    PipelineResult pResult = pipeline.run();
+
+    MetricQueryResults metricResults =
+        pResult
+            .metrics()
+            .queryMetrics(
+                MetricsFilter.builder()
+                    .addNameFilter(
+                        MetricNameFilter.named(
+                            DatastoreV1.DatastoreWriterFn.class, "duplicateKeys"))
+                    .build());
+
+    Matcher hasItemMatcher =
+        hasItem(
+            metricsResult(
+                DatastoreV1.DatastoreWriterFn.class.getName(), "duplicateKeys", null, 2, true));
+
+    assertThat(metricResults.getCounters(), hasItemMatcher);
   }
 
   /**

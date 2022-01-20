@@ -68,11 +68,11 @@ import com.google.datastore.v1.client.DatastoreException;
 import com.google.datastore.v1.client.QuerySplitter;
 import com.google.protobuf.Int32Value;
 import com.google.rpc.Code;
+import java.util.Set;
+import java.util.List;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.List;
-import java.util.Set;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
@@ -94,9 +94,8 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.DoFnTester;
+import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.transforms.DoFnTester.CloningBehavior;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.values.PBegin;
@@ -620,35 +619,6 @@ public class DatastoreV1Test {
     doFnTester.processBundle(mutations);
     verifyMetricWasSet("BatchDatastoreWrite", "ok", "", 2);
     verifyMetricWasSet("BatchDatastoreWrite", "unknown", "", 1);
-  }
-
-  /**
-   * Tests {@link DatastoreWriterFn} with duplicated entries. Once a duplicated entry is found the
-   * batch gets flushed.
-   */
-  @Test
-  public void testDatatoreWriterFnWithDuplicatedEntities() throws Exception {
-
-    List<Mutation> mutations = new ArrayList<>(200);
-
-    for (int i = 1; i <= 180; i++) {
-      mutations.add(
-          makeUpsert(Entity.newBuilder().setKey(makeKey("key" + i, i + 1)).build()).build());
-
-      if (i % 90 == 0) {
-        mutations.add(
-            makeUpsert(Entity.newBuilder().setKey(makeKey("key" + i, i + 1)).build()).build());
-      }
-    }
-
-    DatastoreWriterFn datastoreWriter =
-        new DatastoreWriterFn(
-            StaticValueProvider.of(PROJECT_ID), null, mockDatastoreFactory, new FakeWriteBatcher());
-    DoFnTester<Mutation, Void> doFnTester = DoFnTester.of(datastoreWriter);
-    doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
-    doFnTester.processBundle(mutations);
-
-    verifyMetricWasSet("BatchDatastoreWrite", "ok", "", 5);
   }
 
   /**

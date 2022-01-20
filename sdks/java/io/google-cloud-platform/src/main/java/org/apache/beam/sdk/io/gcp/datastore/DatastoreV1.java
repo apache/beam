@@ -1411,6 +1411,7 @@ public class DatastoreV1 {
         Metrics.counter(DatastoreWriterFn.class, "datastoreRpcErrors");
     private final Counter rpcSuccesses =
         Metrics.counter(DatastoreWriterFn.class, "datastoreRpcSuccesses");
+    private final Counter duplicateKeys = Metrics.counter(DatastoreWriterFn.class, "duplicateKeys");
     private final Counter entitiesMutated =
         Metrics.counter(DatastoreWriterFn.class, "datastoreEntitiesMutated");
     private final Distribution latencyMsPerMutation =
@@ -1462,6 +1463,7 @@ public class DatastoreV1 {
       int size = write.getSerializedSize();
 
       if (!uniqueMutations.add(c.element())) {
+        duplicateKeys.inc();
         flushBatch();
       }
 
