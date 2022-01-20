@@ -55,6 +55,9 @@ const (
 
 	// LogsIndex is the index of the start of the log
 	LogsIndex SubKey = "LOGS_INDEX"
+
+	// ExamplesCatalog is catalog of examples available in Playground
+	ExamplesCatalog SubKey = "EXAMPLES_CATALOG"
 )
 
 // Cache is used to store states and outputs for Apache Beam pipelines that running in Playground
