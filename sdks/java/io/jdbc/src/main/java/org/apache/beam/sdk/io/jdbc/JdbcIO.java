@@ -1421,7 +1421,6 @@ public class JdbcIO {
   }
 
   /* The maximum number of elements that will be included in a batch. */
-  private static final Integer MAX_BUNDLE_SIZE = 5000;
 
   static <T> PCollection<Iterable<T>> batchElements(
       PCollection<T> input, Boolean withAutoSharding) {
@@ -1431,7 +1430,7 @@ public class JdbcIO {
           input
               .apply(WithKeys.<String, T>of(""))
               .apply(
-                  GroupIntoBatches.<String, T>ofSize(DEFAULT_BATCH_SIZE)
+                  GroupIntoBatches.<String, T>ofSize(getBatchSize())
                       .withMaxBufferingDuration(Duration.millis(200))
                       .withShardedKey())
               .apply(Values.create());
@@ -1448,7 +1447,7 @@ public class JdbcIO {
                         outputList = new ArrayList<>();
                       }
                       outputList.add(c.element());
-                      if (outputList.size() > MAX_BUNDLE_SIZE) {
+                      if (outputList.size() > getBatchSize()) {
                         c.output(outputList);
                         outputList = null;
                       }
