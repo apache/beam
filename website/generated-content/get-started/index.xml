@@ -4846,4 +4846,113 @@ View on GitHub
 &lt;li>Join the Beam &lt;a href="/community/contact-us">users@&lt;/a> mailing list.&lt;/li>
 &lt;li>If you&amp;rsquo;re interested in contributing to the Apache Beam codebase, see the &lt;a href="/contribute">Contribution Guide&lt;/a>.&lt;/li>
 &lt;/ul>
+&lt;p>Please don&amp;rsquo;t hesitate to &lt;a href="/community/contact-us">reach out&lt;/a> if you encounter any issues!&lt;/p></description></item><item><title>Get-Started: Try Beam Playground (Beta)</title><link>/get-started/try-beam-playground/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/get-started/try-beam-playground/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;h1 id="try-beam-playground-beta">Try Beam Playground (Beta)&lt;/h1>
+&lt;p>Beam Playground is an interactive environment to try out Beam transforms and examples
+without having to install Apache Beam in your environment.&lt;/p>
+&lt;p>You can try an Apache Beam examples at
+&lt;a href="https://frontend-beta-dot-apache-beam-testing.appspot.com/">Beam Playground&lt;/a>.&lt;/p>
+&lt;h2 id="beam-playground-wordcount-example">Beam Playground WordCount Example&lt;/h2>
+&lt;iframe
+src="https://frontend-beta-dot-apache-beam-testing.appspot.com/embedded?example=SDK_JAVA%2fMinimalWordCount"
+width="100%"
+height="350px"
+class="code-snippet playground"
+allow="clipboard-write">
+&lt;/iframe>
+&lt;h2 id="how-to-add-new-examples">How To Add New Examples&lt;/h2>
+&lt;p>To add an Apache Beam example/test/kata into Beam Playground catalog,
+add the &lt;code>beam-playground&lt;/code> tag into the file to be added.
+&lt;code>beam-playground&lt;/code> tag is a yaml format comment:&lt;/p>
+&lt;p>
+&lt;div class='language-java snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="c1">// beam-playground:
+&lt;/span>&lt;span class="c1">// name: Name of the example/test/kata
+&lt;/span>&lt;span class="c1">// description: Description of the example/test/kata
+&lt;/span>&lt;span class="c1">// multifile: false
+&lt;/span>&lt;span class="c1">// pipeline_options: --option1 value1 --option2 value2
+&lt;/span>&lt;span class="c1">// categories:
+&lt;/span>&lt;span class="c1">// - category 1
+&lt;/span>&lt;span class="c1">// - category 2
+&lt;/span>&lt;span class="c1">// - category N
+&lt;/span>&lt;span class="c1">&lt;/span>
+&lt;span class="o">//&lt;/span> &lt;span class="n">example&lt;/span> &lt;span class="n">code&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class='language-py snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="c1"># beam-playground:&lt;/span>
+&lt;span class="c1"># name: Name of the example/test/kata&lt;/span>
+&lt;span class="c1"># description: Description of the example/test/kata&lt;/span>
+&lt;span class="c1"># multifile: false&lt;/span>
+&lt;span class="c1"># pipeline_options: --option1 value1 --option2 value2&lt;/span>
+&lt;span class="c1"># categories:&lt;/span>
+&lt;span class="c1"># - category 1&lt;/span>
+&lt;span class="c1"># - category 2&lt;/span>
+&lt;span class="c1"># - category N&lt;/span>
+&lt;span class="c1"># example code&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class='language-go snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="c1">// beam-playground:
+&lt;/span>&lt;span class="c1">// name: Name of the example/test/kata
+&lt;/span>&lt;span class="c1">// description: Description of the example/test/kata
+&lt;/span>&lt;span class="c1">// multifile: false
+&lt;/span>&lt;span class="c1">// pipeline_options: --option1 value1 --option2 value2
+&lt;/span>&lt;span class="c1">// categories:
+&lt;/span>&lt;span class="c1">// - category 1
+&lt;/span>&lt;span class="c1">// - category 2
+&lt;/span>&lt;span class="c1">// - category N
+&lt;/span>&lt;span class="c1">&lt;/span>
+&lt;span class="o">//&lt;/span> &lt;span class="nx">example&lt;/span> &lt;span class="nx">code&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/p>
+&lt;p>The &amp;lsquo;beam-playground&amp;rsquo; tag consists of the following &lt;strong>required&lt;/strong> elements:&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>beam-playground&lt;/code> - tag title.&lt;/li>
+&lt;li>&lt;code>name&lt;/code> - string field. Name of the Beam example/test/kata that will be displayed in the Beam Playground
+examples catalog.&lt;/li>
+&lt;li>&lt;code>description&lt;/code> - string field. Description of the Beam example/test/kata that will be displayed in Beam Playground.&lt;/li>
+&lt;li>&lt;code>multifile&lt;/code> - boolean field. Specifies if the given example consists of multiple files or not.&lt;/li>
+&lt;li>&lt;code>pipeline_options&lt;/code> - string field. Contains information about pipeline options of the Beam example/test/kata.&lt;/li>
+&lt;li>&lt;code>categories&lt;/code> - list type field.
+Lists categories this example is included into. Available categories are listed in
+&lt;a href="https://github.com/apache/beam/blob/master/playground/categories.yaml">playground/categories.yaml&lt;/a>.
+If some Beam example/kata/test needs to add a new category, then please submit PR with the changes to &lt;code>categories.yaml&lt;/code>.
+After the category has been added, it can be used in the examples.&lt;/li>
+&lt;/ul>
+&lt;p>More details on examples in Apache Beam Playground can be found
+&lt;a href="https://docs.google.com/document/d/1LBeGVTYwJHYbtmLt06OjhBR1CJ1Wgz18MEZjvNkuofc/edit?usp=sharing">here&lt;/a>.&lt;/p>
+&lt;h2 id="next-steps">Next Steps&lt;/h2>
+&lt;ul>
+&lt;li>Try examples in &lt;a href="https://frontend-beta-dot-apache-beam-testing.appspot.com/">Apache Beam Playground&lt;/a>.&lt;/li>
+&lt;li>Submit feedback using &amp;ldquo;Enjoying Playground?&amp;rdquo; in
+&lt;a href="https://frontend-beta-dot-apache-beam-testing.appspot.com/">Apache Beam Playground&lt;/a> or via
+&lt;a href="https://docs.google.com/forms/d/e/1FAIpQLSd5_5XeOwwW2yjEVHUXmiBad8Lxk-4OtNcgG45pbyAZzd4EbA/viewform?usp=pp_url">this form&lt;/a>.&lt;/li>
+&lt;li>Join the Beam &lt;a href="/community/contact-us">users@&lt;/a> mailing list.&lt;/li>
+&lt;li>If you&amp;rsquo;re interested in contributing to the Apache Beam Playground codebase, see the &lt;a href="/contribute">Contribution Guide&lt;/a>.&lt;/li>
+&lt;/ul>
 &lt;p>Please don&amp;rsquo;t hesitate to &lt;a href="/community/contact-us">reach out&lt;/a> if you encounter any issues!&lt;/p></description></item></channel></rss>
