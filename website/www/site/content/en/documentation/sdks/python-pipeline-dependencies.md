@@ -80,6 +80,7 @@ You can pass a container image with all the dependencies that are needed for the
        RUN python -m pip download -r /tmp/requirements.txt --exists-action i --no-binary :all:
 
 **Note:** Follow these [instructions](https://beam.apache.org/documentation/runtime/environments/#writing-new-dockerfiles) to build the custom container images on top of Apache Beam Python SDK.
+
         
 ## Multiple File Dependencies
 
@@ -137,3 +138,18 @@ If your pipeline uses non-Python packages (e.g. packages that require installati
 
 **Note:** Because custom commands execute after the dependencies for your workflow are installed (by `pip`), you should omit the PyPI package dependency from the pipeline's `requirements.txt` file and from the `install_requires` parameter in the `setuptools.setup()` call of your `setup.py` file.
 
+## Pre-building SDK container image
+
+In the pre-building step, we install pipeline dependencies on the container image prior to the job submission. This would speed up the pipeline execution.\
+To use pre-building the dependencies from `requirements.txt` on the container image. Follow the steps below.
+1. Provide the container engine. We support docker and cloud build for now. 
+
+       --prebuild_sdk_container_enginer <execution_environment>
+2. To pass a base image for pre-building dependencies, enable this flag. If not, apache beam's base image would be used.
+
+       --prebuild_sdk_container_base_image <location_to_base_image>
+3. To push the pre-build image to a docker repository, provide URL to the docker registry by passing
+   
+       --docker_registry_push_url <IMAGE_URL>
+              
+**NOTE**: For now, this feature is available only for the Dataflow.
