@@ -2215,14 +2215,26 @@ public class BigQueryIO {
     }
 
     /**
-     * Specifies the clustering fields to use when writing to a single output table. Can only be
-     * used when {@link#withTimePartitioning(TimePartitioning)} is set. If {@link
+     * Specifies the clustering fields to use when writing to a single output table. Can be used
+     * when {@link#withTimePartitioning(TimePartitioning)} is set, or without. If {@link
      * #to(SerializableFunction)} or {@link #to(DynamicDestinations)} is used to write to dynamic
      * tables, the fields here will be ignored; call {@link #withClustering()} instead.
      */
     public Write<T> withClustering(Clustering clustering) {
       checkArgument(clustering != null, "clustering can not be null");
       return toBuilder().setClustering(clustering).build();
+    }
+
+    /**
+     * Allows newly created tables to include a {@link Clustering} class. Can only be used when
+     * writing to a single table. If {@link #to(SerializableFunction)} or {@link
+     * #to(DynamicDestinations)} is used to write dynamic tables, clustering can be directly set in
+     * the returned {@link Clustering}.
+     */
+    public Write<T> withClustering(TimePartitioning partitioning) {
+      checkArgument(partitioning != null, "partitioning can not be null");
+      return withJsonTimePartitioning(
+          StaticValueProvider.of(BigQueryHelpers.toJsonString(partitioning)));
     }
 
     /**
