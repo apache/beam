@@ -163,7 +163,7 @@ class Stager(object):
                            temp_dir,  # type: str
                            build_setup_args=None,  # type: Optional[List[str]]
                            pypi_requirements=None, # type: Optional[List[str]]
-                           populate_requirements_cache=None,  # type: Optional[Callable]
+                           populate_requirements_cache=None,  # type: Optional[Callable[[str, str, bool], None]]
                            skip_prestaged_dependencies=False, # type: Optional[bool]
                            ):
     """For internal use only; no backwards-compatibility guarantees.
@@ -198,8 +198,7 @@ class Stager(object):
     resources = []  # type: List[beam_runner_api_pb2.ArtifactInformation]
 
     setup_options = options.view_as(SetupOptions)
-    # True when sdk_container_image is apache beam image
-    fetch_binary = (
+    use_default_container_image = (
         setup_options.view_as(WorkerOptions).sdk_container_image is None)
 
     # We can skip boot dependencies: apache beam sdk, python packages from
@@ -225,16 +224,18 @@ class Stager(object):
                 setup_options.requirements_file, REQUIREMENTS_FILE))
         # Populate cache with packages from the requirement file option and
         # stage the files in the cache.
-        if not fetch_binary:  # display warning.
+        if not use_default_container_image:
           _LOGGER.warning(
-              'Avoid using requirements.txt when using a '
-              'custom container image.')
+              'When using a custom container image, prefer installing'
+              ' additional PyPI dependencies directly into the image,'
+              ' instead of specifying them via runtime options, '
+              'such as --requirements_file. ')
         (
             populate_requirements_cache if populate_requirements_cache else
             Stager._populate_requirements_cache)(
                 setup_options.requirements_file,
                 requirements_cache_path,
-                fetch_binary=fetch_binary)
+                fetch_binary=use_default_container_image)
 
       if pypi_requirements:
         tf = tempfile.NamedTemporaryFile(mode='w', delete=False)
@@ -246,7 +247,9 @@ class Stager(object):
         (
             populate_requirements_cache if populate_requirements_cache else
             Stager._populate_requirements_cache)(
-                tf.name, requirements_cache_path, fetch_binary=fetch_binary)
+                tf.name,
+                requirements_cache_path,
+                fetch_binary=use_default_container_image)
 
       if setup_options.requirements_file is not None or pypi_requirements:
         for pkg in glob.glob(os.path.join(requirements_cache_path, '*')):
@@ -403,7 +406,7 @@ class Stager(object):
       build_setup_args=None,  # type: Optional[List[str]]
       temp_dir=None,  # type: Optional[str]
       pypi_requirements=None,  # type: Optional[List[str]]
-      populate_requirements_cache=None,  # type: Optional[Callable]
+      populate_requirements_cache=None,  # type: Optional[Callable[[str, str, bool], None]]
       staging_location=None  # type: Optional[str]
       ):
     """For internal use only; no backwards-compatibility guarantees.
@@ -666,8 +669,8 @@ class Stager(object):
       for i in range(len(lines)):
         if not lines[i].startswith(dependency_to_remove):
           tf.write(lines[i])
-          requirements_to_install.append(lines[i].strip())
-
+          if not lines[i].startswith('#'):
+            requirements_to_install.append(lines[i].strip())
     return tmp_requirements_filename, requirements_to_install
 
   @staticmethod
@@ -719,26 +722,14 @@ class Stager(object):
       _LOGGER.info('Executing command: %s', cmd_args)
       processes.check_output(cmd_args, stderr=processes.STDOUT)
     else:  # try to download wheels
-      language_implementation_tag = 'cp'
-      language_version_tag = '%d%d' % (
-          sys.version_info[0], sys.version_info[1])  # Python version
-      abi_suffix = 'm' if sys.version_info < (
-          3, 8) else ''  # ABI suffix to use for the whl
-      abi_tag = 'cp%d%d%s' % (
-          sys.version_info[0], sys.version_info[1], abi_suffix
-      )  # ABI tag to use
+
       # install each package individually
       for requirement in requirements_to_install:
         try:
-          # download the bdist compatible with the debian platform
-          # TODO(anandinguva): the platform tag will get updated. Check PEP 600
-          cmd_args = Stager._download_pypi_package(
+          cmd_args = Stager._build_pypi_cmd(
               package_name=requirement,
               temp_dir=cache_dir,
               fetch_binary=True,
-              language_version_tag=language_version_tag,
-              language_implementation_tag=language_implementation_tag,
-              abi_tag=abi_tag,
               other_flags=[
                   '--exists-action',
                   'i',
@@ -748,7 +739,7 @@ class Stager(object):
           _LOGGER.info(
               'No whl was found for the package %s, downloading source' %
               requirement)
-          cmd_args = Stager._download_pypi_package(
+          cmd_args = Stager._build_pypi_cmd(
               package_name=requirement,
               temp_dir=cache_dir,
               fetch_binary=False,
@@ -891,13 +882,9 @@ class Stager(object):
           'Please set --sdk_location command-line option '
           'or install a valid {} distribution.'.format(package_name))
 
-    cmd_args = Stager._download_pypi_package(
+    cmd_args = Stager._build_pypi_cmd(
         temp_dir=temp_dir,
         fetch_binary=fetch_binary,
-        language_version_tag=language_version_tag,
-        language_implementation_tag=language_implementation_tag,
-        abi_tag=abi_tag,
-        platform_tag=platform_tag,
         package_name='%s==%s' % (package_name, version),
         other_flags=['--no-deps'])
     if fetch_binary:
@@ -935,16 +922,30 @@ class Stager(object):
         (expected_files))
 
   @staticmethod
-  def _download_pypi_package(
-      temp_dir,
-      fetch_binary=False,
-      language_version_tag='27',
-      language_implementation_tag='cp',
-      abi_tag='cp27mu',
-      platform_tag='manylinux2014_x86_64',
-      package_name=None,
-      other_flags=None):
-    """Downloads SDK package from PyPI and returns path to local path."""
+  def _get_manylinux_distribution():
+    # TODO(anandinguva): When https://github.com/pypa/pip/issues/10760 is
+    # addressed download wheel based on glib version in Beam's Python Base image
+    pip_version = pkg_resources.get_distribution('pip').version
+    if pip_version >= 19.3:
+      return 'manylinux2014_x86_64'
+    else:
+      return 'manylinux2010_x86_64'
+
+  @staticmethod
+  def _build_pypi_cmd(
+      temp_dir, # type: str
+      package_name=None, # type: str
+      fetch_binary=False, # type: bool
+      other_flags=None, # type: Optional[List, None]
+  ):
+    """Returns list of cmd args to download package from PyPI"""
+    language_implementation_tag = 'cp'
+    python_version = '%d%d' % (sys.version_info[0], sys.version_info[1])
+    abi_suffix = 'm' if sys.version_info < (3, 8) else ''
+    abi_tag = 'cp%d%d%s' % (
+        sys.version_info[0], sys.version_info[1], abi_suffix)
+    platform_tag = Stager._get_manylinux_distribution()
+
     if other_flags is None:
       other_flags = []
     package_name = package_name or Stager.get_sdk_package_name()
@@ -969,7 +970,7 @@ class Stager(object):
           '--only-binary',
           ':all:',
           '--python-version',
-          language_version_tag,
+          python_version,
           '--implementation',
           language_implementation_tag,
           '--abi',
