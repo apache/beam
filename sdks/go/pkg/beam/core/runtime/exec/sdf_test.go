@@ -946,6 +946,7 @@ func TestMultiWindowProcessing(t *testing.T) {
 		defer close(errchan)
 		if err := p.Execute(context.Background(), "1", DataContext{}); err != nil {
 			errchan <- fmt.Sprintf("execute failed: %v", err)
+			return
 		}
 		done <- struct{}{}
 	}()
@@ -984,7 +985,7 @@ func TestMultiWindowProcessing(t *testing.T) {
 	wsdf.block <- struct{}{}
 	<-done
 
-	for msg := range errchan  {
+	for msg := range errchan {
 		t.Fatal(msg)
 	}
 

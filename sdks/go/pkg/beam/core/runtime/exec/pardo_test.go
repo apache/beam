@@ -136,9 +136,11 @@ func BenchmarkParDo_EmitSumFn(b *testing.B) {
 		defer close(errchan)
 		if err := p.Execute(context.Background(), "1", DataContext{}); err != nil {
 			errchan <- fmt.Sprintf("execute failed: %v", err)
+			return
 		}
 		if err := p.Down(context.Background()); err != nil {
 			errchan <- fmt.Sprintf("down failed: %v", err)
+			return
 		}
 	}()
 	b.ResetTimer()
