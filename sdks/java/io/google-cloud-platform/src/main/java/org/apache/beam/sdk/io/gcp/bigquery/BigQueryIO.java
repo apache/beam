@@ -2226,18 +2226,6 @@ public class BigQueryIO {
     }
 
     /**
-     * Allows newly created tables to include a {@link Clustering} class. Can only be used when
-     * writing to a single table. If {@link #to(SerializableFunction)} or {@link
-     * #to(DynamicDestinations)} is used to write dynamic tables, clustering can be directly set in
-     * the returned {@link Clustering}.
-     */
-    public Write<T> withClustering(TimePartitioning partitioning) {
-      checkArgument(partitioning != null, "partitioning can not be null");
-      return withJsonTimePartitioning(
-          StaticValueProvider.of(BigQueryHelpers.toJsonString(partitioning)));
-    }
-
-    /**
      * Allows writing to clustered tables when {@link #to(SerializableFunction)} or {@link
      * #to(DynamicDestinations)} is used. The returned {@link TableDestination} objects should
      * specify the clustering fields per table. If writing to a single table, use {@link
