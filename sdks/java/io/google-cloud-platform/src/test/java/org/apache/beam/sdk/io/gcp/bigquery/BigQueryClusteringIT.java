@@ -122,34 +122,6 @@ public class BigQueryClusteringIT {
     }
   }
 
-  /*
-  THE FOLLOWING TEST WOULD BE NICE IF WORKED, BUT CURRENT ISSUE SUFFICIENTLY SOLVED,
-  WORTH REVISITING BUT NOT NEEDED FOR NOW.
-  TODO: GET THIS TEST TO PASS...
-  @Test
-  public void testE2EBigQueryClusteringNoPartition() throws Exception {
-    String tableName = "weather_stations_clustered_" + System.currentTimeMillis();
-
-    Pipeline p = Pipeline.create(options);
-
-    p.apply(BigQueryIO.readTableRows().from(options.getBqcInput()))
-        .apply(ParDo.of(new KeepStationNumberAndConvertDate()))
-        .apply(
-            BigQueryIO.writeTableRows()
-                .to(String.format("%s.%s", DATASET_NAME, tableName))
-                .withClustering(CLUSTERING)
-                .withSchema(SCHEMA)
-                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-                .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
-
-    p.run().waitUntilFinish();
-
-    Table table = bqClient.tables().get(options.getProject(), DATASET_NAME, tableName).execute();
-
-    Assert.assertEquals(CLUSTERING, table.getClustering());
-  }
-   */
-
   @Test
   public void testE2EBigQueryClusteringNoPartitionTableFunction() throws Exception {
     String tableName = "weather_stations_clustered_table_function_" + System.currentTimeMillis();
