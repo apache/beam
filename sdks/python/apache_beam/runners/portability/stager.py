@@ -714,17 +714,16 @@ class Stager(object):
           processes.check_output(cmd_args_pip_compile, stderr=processes.STDOUT)
         except processes.CalledProcessError as e:
           raise RuntimeError(repr(e))
-
         language_implementation_tag = 'cp'
-        python_version = '%d%d' % (sys.version_info[0], sys.version_info[1])
+        # python_version = '%d%d' % (sys.version_info[0], sys.version_info[1])
         abi_suffix = 'm' if sys.version_info < (3, 8) else ''
         abi_tag = 'cp%d%d%s' % (
             sys.version_info[0], sys.version_info[1], abi_suffix)
         platform_tag = Stager._get_manylinux_distribution()
         extra_flags = [
             '--no-deps',
-            '--python-version',
-            python_version,
+            # omiting python version, we don't need this in the first place
+            # but liniking issue here,https://github.com/pypa/pip/issues/6121
             '--implementation',
             language_implementation_tag,
             '--abi',
