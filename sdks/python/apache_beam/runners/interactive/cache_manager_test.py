@@ -25,6 +25,7 @@ from apache_beam import coders
 from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.runners.interactive import interactive_beam as ib
 
+
 class FileBasedCacheManagerTest(object):
   """Unit test for FileBasedCacheManager.
 
@@ -215,21 +216,53 @@ class FileBasedCacheManagerTest(object):
         type(self.cache_manager.load_pcoder('full', 'a key')),
         type(coders.registry.get_coder(int)))
 
-  def test_cache_manager_uses_ib_cache_root(self):
+  def test_cache_manager_uses_gcs_ib_cache_root(self):
     """
     Check that FileBasedCacheManager._cache_dir is set to the 
-    cache_root set under Interactive Beam.
+    cache_root set under Interactive Beam for a GCS directory.
     """
     # Set Interactive Beam specified cache dir to cloud storage
     ib.options.cache_root = "gs://"
 
-    cache_manager = cache.FileBasedCacheManager(
+    cache_manager_with_ib_option = cache.FileBasedCacheManager(
         cache_dir=ib.options.cache_root)
 
-    self.assertEqual(ib.options.cache_root, cache_manager._cache_dir)
-    
+    self.assertEqual(
+        ib.options.cache_root, cache_manager_with_ib_option._cache_dir)
+
     # Reset Interactive Beam setting
     ib.options.cache_root = None
+
+  def test_cache_manager_uses_local_ib_cache_root(self):
+    """
+    Check that FileBasedCacheManager._cache_dir is set to the 
+    cache_root set under Interactive Beam for a local directory.
+    """
+    prefix = 'full'
+    cache_label = 'some-cache-label'
+    cached_values = [1, 2, 3]
+
+    self.mock_write_cache(cached_values, prefix, cache_label)
+    reader_one, version_one = self.cache_manager.read(prefix, cache_label)
+    pcoll_list_one = list(reader_one)
+
+    # Set Interactive Beam specified cache dir to cloud storage
+    ib.options.cache_root = "/tmp/it-test/"
+    cache_manager_with_ib_option = cache.FileBasedCacheManager(
+        cache_dir=ib.options.cache_root)
+    self.assertEqual(
+        ib.options.cache_root, cache_manager_with_ib_option._cache_dir)
+
+    cache_manager_with_ib_option.write(cached_values, *[prefix, cache_label])
+    reader_two, version_two = self.cache_manager.read(prefix, cache_label)
+    pcoll_list_two = list(reader_two)
+
+    # Writing to a different directory should not impact the cached values
+    self.assertEqual(pcoll_list_one, pcoll_list_two)
+
+    # Reset Interactive Beam setting
+    ib.options.cache_root = None
+
 
 class TextFileBasedCacheManagerTest(
     FileBasedCacheManagerTest,
