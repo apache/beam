@@ -132,10 +132,12 @@ func BenchmarkParDo_EmitSumFn(b *testing.B) {
 	}
 	go func() {
 		if err := p.Execute(context.Background(), "1", DataContext{}); err != nil {
-			b.Fatalf("execute failed: %v", err)
+			b.Errorf("execute failed: %v", err)
+			return
 		}
 		if err := p.Down(context.Background()); err != nil {
-			b.Fatalf("down failed: %v", err)
+			b.Errorf("down failed: %v", err)
+			return
 		}
 	}()
 	b.ResetTimer()

@@ -942,7 +942,8 @@ func TestMultiWindowProcessing(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		if err := p.Execute(context.Background(), "1", DataContext{}); err != nil {
-			t.Fatalf("execute failed: %v", err)
+			t.Errorf("execute failed: %v", err)
+			return
 		}
 		done <- struct{}{}
 	}()
