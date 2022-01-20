@@ -218,7 +218,7 @@ class FileBasedCacheManagerTest(object):
 
   def test_cache_manager_uses_gcs_ib_cache_root(self):
     """
-    Checks that FileBasedCacheManager._cache_dir is set to the 
+    Checks that FileBasedCacheManager._cache_dir is set to the
     cache_root set under Interactive Beam for a GCS directory.
     """
     # Set Interactive Beam specified cache dir to cloud storage
@@ -245,7 +245,7 @@ class FileBasedCacheManagerTest(object):
     cached_values = [1, 2, 3]
 
     self.mock_write_cache(cached_values, prefix, cache_label)
-    reader_one, version_one = self.cache_manager.read(prefix, cache_label)
+    reader_one, _ = self.cache_manager.read(prefix, cache_label)
     pcoll_list_one = list(reader_one)
 
     # Set Interactive Beam specified cache dir to local directory
@@ -256,7 +256,7 @@ class FileBasedCacheManagerTest(object):
         ib.options.cache_root, cache_manager_with_ib_option._cache_dir)
 
     cache_manager_with_ib_option.write(cached_values, *[prefix, cache_label])
-    reader_two, version_two = self.cache_manager.read(prefix, cache_label)
+    reader_two, _ = self.cache_manager.read(prefix, cache_label)
     pcoll_list_two = list(reader_two)
 
     # Writing to a different directory should not impact the cached values
