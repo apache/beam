@@ -35,7 +35,6 @@ type elementHasher interface {
 }
 
 func makeElementHasher(c *coder.Coder, wc *coder.WindowCoder) elementHasher {
-	// TODO(lostluck): move to a faster hashing library once we can take dependencies easily.
 	hasher := &maphash.Hash{}
 	we := MakeWindowEncoder(wc)
 	switch c.Kind {
