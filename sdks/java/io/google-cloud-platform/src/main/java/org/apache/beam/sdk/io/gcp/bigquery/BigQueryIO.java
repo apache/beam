@@ -1791,6 +1791,8 @@ public class BigQueryIO {
 
     abstract @Nullable ValueProvider<String> getJsonTimePartitioning();
 
+    abstract @Nullable ValueProvider<String> getJsonClustering();
+
     abstract @Nullable Clustering getClustering();
 
     abstract CreateDisposition getCreateDisposition();
@@ -1879,6 +1881,8 @@ public class BigQueryIO {
       abstract Builder<T> setJsonSchema(ValueProvider<String> jsonSchema);
 
       abstract Builder<T> setJsonTimePartitioning(ValueProvider<String> jsonTimePartitioning);
+
+      abstract Builder<T> setJsonClustering(ValueProvider<String> jsonClustering);
 
       abstract Builder<T> setClustering(Clustering clustering);
 
@@ -2223,6 +2227,23 @@ public class BigQueryIO {
     public Write<T> withClustering(Clustering clustering) {
       checkArgument(clustering != null, "clustering can not be null");
       return toBuilder().setClustering(clustering).build();
+    }
+
+    /**
+     * Allows newly created tables to include a {@link Clustering} class. Can only be used when
+     * writing to a single table. If {@link #to(SerializableFunction)} or {@link
+     * #to(DynamicDestinations)} is used to write dynamic tables, time partitioning can be directly
+     * set in the returned {@link TableDestination}.
+     */
+    public Write<T> withTimePartitioning(Clustering clustering) {
+      checkArgument(clustering != null, "partitioning can not be null");
+      return withJsonClustering(StaticValueProvider.of(BigQueryHelpers.toJsonString(clustering)));
+    }
+
+    /** The same as {@link #withTimePartitioning}, but takes a JSON-serialized object. */
+    public Write<T> withJsonClustering(ValueProvider<String> clustering) {
+      checkArgument(clustering != null, "clustering can not be null");
+      return toBuilder().setJsonClustering(clustering).build();
     }
 
     /**
