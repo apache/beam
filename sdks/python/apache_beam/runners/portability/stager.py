@@ -59,6 +59,7 @@ from typing import List
 from typing import Optional
 from typing import Tuple
 from urllib.parse import urlparse
+
 import pkg_resources
 
 from apache_beam.internal import pickler
@@ -746,9 +747,6 @@ class Stager(object):
       cmd_args.extend(extra_flags)
       _LOGGER.info('Executing command: %s', cmd_args)
       processes.check_output(cmd_args, stderr=processes.STDOUT)
-      _LOGGER.info('STOP')
-      while True:
-        pass
 
   @staticmethod
   def _build_setup_package(setup_file,  # type: str
