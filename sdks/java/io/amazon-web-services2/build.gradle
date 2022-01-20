@@ -37,6 +37,7 @@ dependencies {
   implementation library.java.aws_java_sdk2_dynamodb
   implementation library.java.aws_java_sdk2_kinesis
   implementation library.java.aws_java_sdk2_sdk_core
+  implementation library.java.aws_java_sdk2_aws_core
   implementation library.java.aws_java_sdk2_sns
   implementation library.java.aws_java_sdk2_sqs
   implementation library.java.aws_java_sdk2_s3

@@ -67,7 +67,7 @@ dependencies {
   shadowTest library.java.powermock_mockito
   implementation library.java.joda_time
   implementation library.java.slf4j_api
-  implementation library.java.vendored_grpc_1_36_0
+  implementation library.java.vendored_grpc_1_43_2
   implementation library.java.jamm
   testImplementation library.java.junit
   testImplementation library.java.mockito_core

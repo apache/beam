@@ -21,6 +21,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toMap;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static software.amazon.awssdk.services.sqs.model.MessageSystemAttributeName.SENT_TIMESTAMP;
 import static software.amazon.awssdk.services.sqs.model.QueueAttributeName.VISIBILITY_TIMEOUT;
 
 import java.io.IOException;
@@ -64,7 +65,6 @@ import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchRequestEntry;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageBatchResponse;
 import software.amazon.awssdk.services.sqs.model.GetQueueAttributesRequest;
 import software.amazon.awssdk.services.sqs.model.Message;
-import software.amazon.awssdk.services.sqs.model.MessageSystemAttributeName;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
 
@@ -380,7 +380,7 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
       throw new NoSuchElementException();
     }
 
-    return getTimestamp(current.getTimeStamp());
+    return new Instant(current.getTimeStamp());
   }
 
   @Override
@@ -438,7 +438,7 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
 
     if (current != null) {
       // Current is consumed. It can no longer contribute to holding back the watermark.
-      minUnreadTimestampMsSinceEpoch.remove(Long.parseLong(current.getRequestTimeStamp()));
+      minUnreadTimestampMsSinceEpoch.remove(current.getRequestTimeStamp());
       current = null;
     }
 
@@ -610,7 +610,7 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
     final ReceiveMessageRequest receiveMessageRequest =
         ReceiveMessageRequest.builder()
             .maxNumberOfMessages(MAX_NUMBER_OF_MESSAGES)
-            .attributeNamesWithStrings(MessageSystemAttributeName.SENT_TIMESTAMP.toString())
+            .attributeNamesWithStrings(SENT_TIMESTAMP.toString())
             .queueUrl(source.getRead().queueUrl())
             .build();
 
@@ -627,15 +627,14 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
 
     // Capture the received messages.
     for (Message orgMsg : messages) {
-      String timeStamp = orgMsg.attributes().get(MessageSystemAttributeName.SENT_TIMESTAMP);
-      String requestTimeStamp = Long.toString(requestTimeMsSinceEpoch);
+      long msgTimeStamp = Long.parseLong(orgMsg.attributes().get(SENT_TIMESTAMP));
       SqsMessage message =
           SqsMessage.create(
               orgMsg.body(),
               orgMsg.messageId(),
               orgMsg.receiptHandle(),
-              timeStamp,
-              requestTimeStamp);
+              msgTimeStamp,
+              requestTimeMsSinceEpoch);
       messagesNotYetRead.add(message);
       notYetReadBytes += message.getBody().getBytes(UTF_8).length;
       inFlight.put(
@@ -644,12 +643,9 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
               message.getReceiptHandle(), requestTimeMsSinceEpoch, deadlineMsSinceEpoch));
       numReceived++;
       numReceivedRecently.add(requestTimeMsSinceEpoch, 1L);
-      minReceivedTimestampMsSinceEpoch.add(
-          requestTimeMsSinceEpoch, getTimestamp(message.getTimeStamp()).getMillis());
-      maxReceivedTimestampMsSinceEpoch.add(
-          requestTimeMsSinceEpoch, getTimestamp(message.getTimeStamp()).getMillis());
-      minUnreadTimestampMsSinceEpoch.add(
-          requestTimeMsSinceEpoch, getTimestamp(message.getTimeStamp()).getMillis());
+      minReceivedTimestampMsSinceEpoch.add(requestTimeMsSinceEpoch, msgTimeStamp);
+      maxReceivedTimestampMsSinceEpoch.add(requestTimeMsSinceEpoch, msgTimeStamp);
+      minUnreadTimestampMsSinceEpoch.add(requestTimeMsSinceEpoch, msgTimeStamp);
     }
   }
 
@@ -885,9 +881,5 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
         new Instant(lastReceivedMsSinceEpoch));
 
     lastLogTimestampMsSinceEpoch = nowMsSinceEpoch;
-  }
-
-  private Instant getTimestamp(String timeStamp) {
-    return new Instant(Long.parseLong(timeStamp));
   }
 }

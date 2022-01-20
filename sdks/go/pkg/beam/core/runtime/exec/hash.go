@@ -124,7 +124,7 @@ func newNumberHasher(hash hash.Hash64, we WindowEncoder) *numberHasher {
 		hash: hash,
 		we:   we,
 		// Pre allocate slice to avoid re-allocations.
-		cache: make([]byte, 8, 8),
+		cache: make([]byte, 8),
 	}
 }
 

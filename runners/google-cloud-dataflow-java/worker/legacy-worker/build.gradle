@@ -52,7 +52,7 @@ def sdk_provided_dependencies = [
         library.java.jackson_databind,
         library.java.joda_time,
         library.java.slf4j_api,
-        library.java.vendored_grpc_1_36_0,
+        library.java.vendored_grpc_1_43_2,
 ]
 
 def sdk_provided_shaded_project_dependencies = [
@@ -229,7 +229,7 @@ dependencies {
     implementation library.java.joda_time
     implementation library.java.slf4j_api
     implementation "io.opencensus:opencensus-api:0.28.0"
-    implementation library.java.vendored_grpc_1_36_0
+    implementation library.java.vendored_grpc_1_43_2
     implementation library.java.error_prone_annotations
     permitUnusedDeclared library.java.error_prone_annotations
     runtimeOnly library.java.slf4j_jdk14

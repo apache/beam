@@ -297,7 +297,7 @@ def _proxy_function(
         sum(isinstance(arg.proxy(), pd.core.generic.NDFrame)
             for arg in deferred_exprs) > 1):
       # Implicit join on index if there is more than one indexed input.
-      actual_requires_partition_by = partitionings.Index()
+      actual_requires_partition_by = partitionings.JoinIndex()
     else:
       actual_requires_partition_by = requires_partition_by
 

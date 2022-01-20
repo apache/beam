@@ -1098,6 +1098,15 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
       # Manipulates index, partitioning is not preserved
       preserves_partition_by=partitionings.Singleton())
 
+  @frame_base.with_docs_from(pd.DataFrame)
+  def pipe(self, func, *args, **kwargs):
+    if isinstance(func, tuple):
+      func, data = func
+      kwargs[data] = self
+      return func(*args, **kwargs)
+
+    return func(self, *args, **kwargs)
+
 
 @populate_not_implemented(pd.Series)
 @frame_base.DeferredFrame._register_for(pd.Series)
@@ -4080,6 +4089,15 @@ class DeferredGroupBy(frame_base.DeferredFrame):
             preserves_partition_by=partitionings.Index(self._grouping_indexes)))
 
   @frame_base.with_docs_from(DataFrameGroupBy)
+  def pipe(self, func, *args, **kwargs):
+    if isinstance(func, tuple):
+      func, data = func
+      kwargs[data] = self
+      return func(*args, **kwargs)
+
+    return func(self, *args, **kwargs)
+
+  @frame_base.with_docs_from(DataFrameGroupBy)
   def filter(self, func=None, dropna=True):
     if func is None or not callable(func):
       raise TypeError("func must be specified and it must be callable")
@@ -4485,7 +4503,7 @@ class _DeferredLoc(object):
             func,
             args,
             requires_partition_by=(
-                partitionings.Index()
+                partitionings.JoinIndex()
                 if len(args) > 1
                 else partitionings.Arbitrary()),
             preserves_partition_by=partitionings.Arbitrary()))

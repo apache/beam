@@ -30,7 +30,7 @@ const kTimeoutErrorText =
     'to try examples without timeout limitation.';
 const kUnknownErrorText =
     'Something went wrong. Please try again later or create a jira ticket';
-const kProcessingStartedText = 'The processing has started';
+const kProcessingStartedText = 'The processing has started\n';
 
 class CodeRepository {
   late final CodeClient _client;
@@ -62,6 +62,10 @@ class CodeRepository {
     }
   }
 
+  Future<void> cancelExecution(String pipelineUuid) {
+    return _client.cancelExecution(pipelineUuid);
+  }
+
   Stream<RunCodeResult> _checkPipelineExecution(
     String pipelineUuid,
     RunCodeRequestWrapper request, {
@@ -88,6 +92,7 @@ class CodeRepository {
       }
     } on RunCodeError catch (error) {
       yield RunCodeResult(
+        pipelineUuid: prevResult?.pipelineUuid,
         status: RunCodeStatus.unknownError,
         errorMessage: error.message ?? kUnknownErrorText,
         output: error.message ?? kUnknownErrorText,
@@ -110,18 +115,38 @@ class CodeRepository {
           request,
         );
         return RunCodeResult(
+          pipelineUuid: pipelineUuid,
           status: status,
           output: compileOutput.output,
           log: prevLog,
         );
       case RunCodeStatus.timeout:
         return RunCodeResult(
+          pipelineUuid: pipelineUuid,
           status: status,
           errorMessage: kTimeoutErrorText,
           output: kTimeoutErrorText,
+          log: prevLog,
         );
       case RunCodeStatus.runError:
         final output = await _client.getRunErrorOutput(pipelineUuid, request);
+        return RunCodeResult(
+          pipelineUuid: pipelineUuid,
+          status: status,
+          output: output.output,
+          log: prevLog,
+        );
+      case RunCodeStatus.validationError:
+        final output =
+            await _client.getValidationErrorOutput(pipelineUuid, request);
+        return RunCodeResult(
+          status: status,
+          output: output.output,
+          log: prevLog,
+        );
+      case RunCodeStatus.preparationError:
+        final output =
+            await _client.getPreparationErrorOutput(pipelineUuid, request);
         return RunCodeResult(
           status: status,
           output: output.output,
@@ -129,26 +154,46 @@ class CodeRepository {
         );
       case RunCodeStatus.unknownError:
         return RunCodeResult(
+          pipelineUuid: pipelineUuid,
           status: status,
           errorMessage: kUnknownErrorText,
           output: kUnknownErrorText,
           log: prevLog,
         );
       case RunCodeStatus.executing:
-      case RunCodeStatus.finished:
         final responses = await Future.wait([
           _client.getRunOutput(pipelineUuid, request),
-          _client.getLogOutput(pipelineUuid, request)
+          _client.getLogOutput(pipelineUuid, request),
         ]);
         final output = responses[0];
         final log = responses[1];
         return RunCodeResult(
+          pipelineUuid: pipelineUuid,
           status: status,
           output: prevOutput + output.output,
           log: prevLog + log.output,
         );
+      case RunCodeStatus.finished:
+        final responses = await Future.wait([
+          _client.getRunOutput(pipelineUuid, request),
+          _client.getLogOutput(pipelineUuid, request),
+          _client.getRunErrorOutput(pipelineUuid, request)
+        ]);
+        final output = responses[0];
+        final log = responses[1];
+        final error = responses[2];
+        return RunCodeResult(
+          pipelineUuid: pipelineUuid,
+          status: status,
+          output: prevOutput + output.output + error.output,
+          log: prevLog + log.output,
+        );
       default:
-        return RunCodeResult(status: status);
+        return RunCodeResult(
+          pipelineUuid: pipelineUuid,
+          log: prevLog,
+          status: status,
+        );
     }
   }
 }

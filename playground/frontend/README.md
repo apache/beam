@@ -21,10 +21,11 @@
 
 ## About
 
-Apache Beam is an open-source, unified model for defining parallel processing pipelines for batch and streaming data.
-It provides a portable API layer for building sophisticated data-parallel processing pipelines that may be executed across a diversity of execution engines, or runners.
+Beam Playground is an interactive environment to try out Beam transforms and examples. The vision for the Playground is to be a web application where users can try out Beam without having to install/initialize a Beam environment.
 
 ## Getting Started
+
+### Run
 
 See [playground/README.md](../README.md) for details on requirements and setup.
 
@@ -32,9 +33,13 @@ The following command is used to build and serve the website locally:
 
 `$ flutter run`
 
+### Build
+
 Run the following command to generate a release build:
 
-`$flutter build web`
+`$ flutter build web`
+
+### Tests
 
 Playground tests may be run using next commands:
 
@@ -42,13 +47,18 @@ Playground tests may be run using next commands:
 
 `$ flutter test`
 
-Dart code should follow next [code style](https://dart-lang.github.io/linter/lints/index.html). Code may be analyzed using this command:
+### Code style
+
+Dart code should follow next [code style](https://dart-lang.github.io/linter/lints/index.html). Code
+may be analyzed using this command:
 
 `$ flutter analyze`
 
-The full list of command can be found [here](https://flutter.dev/docs/reference/flutter-cli)
+Code can be automatically reformatted using:
 
-##Localization
+`$ flutter format ./lib`
+
+### Localization
 
 To add a new localization, follow next steps:
 
@@ -58,4 +68,25 @@ To add a new localization, follow next steps:
 
 3. Run the following command to generate a build and localization files:
 
-$ flutter build web
+`$ flutter build web`
+
+### Configuration
+
+The app could be configured using gradle task (e.g. api url)
+
+```
+cd beam
+./gradlew :playground:frontend:createConfig
+```
+
+For more information see See [CONTRIBUTE.md](CONTRIBUTE.md)
+
+### Additional
+
+The full list of commands can be found [here](https://flutter.dev/docs/reference/flutter-cli)
+
+## Contribution guide
+
+If you'd like to contribute to the Apache Beam Playground website, read
+our [contribution guide](CONTRIBUTE.md) where you can find detailed instructions on how to work with
+the playground.

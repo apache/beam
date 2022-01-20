@@ -41,9 +41,11 @@ description = "Apache Beam :: Runners :: Spark $spark_version"
 evaluationDependsOn(":sdks:java:core")
 evaluationDependsOn(":sdks:java:io:hadoop-format")
 evaluationDependsOn(":runners:core-java")
+evaluationDependsOn(":examples:java")
 
 configurations {
   validatesRunner
+  examplesJavaIntegrationTest
 }
 
 def hadoopVersions = [
@@ -160,7 +162,7 @@ dependencies {
   implementation project(path: ":model:fn-execution", configuration: "shadow")
   implementation project(path: ":model:job-management", configuration: "shadow")
   implementation project(":sdks:java:fn-execution")
-  implementation library.java.vendored_grpc_1_36_0
+  implementation library.java.vendored_grpc_1_43_2
   implementation library.java.vendored_guava_26_0_jre
   implementation "com.codahale.metrics:metrics-core:3.0.1"
   implementation "org.apache.spark:spark-core_$spark_scala_version:$spark_version"
@@ -210,6 +212,9 @@ dependencies {
     "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-common:$kv.value"
   }
 }
+
+def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+def tempLocation = project.findProperty('tempLocation') ?: 'gs://temp-storage-for-end-to-end-tests'
 
 configurations.testRuntimeClasspath {
   // Testing the Spark runner causes a StackOverflowError if slf4j-jdk14 is on the classpath
@@ -397,6 +402,34 @@ task hadoopVersionsTest(group: "Verification") {
       .map{num -> "hadoopVersion${num}Test"}
       .collect(Collectors.toList())
   dependsOn taskNames
+}
+
+task examplesIntegrationTest(type: Test) {
+  group = "Verification"
+  // Disable gradle cache
+  outputs.upToDateWhen { false }
+  def pipelineOptions = JsonOutput.toJson([
+          "--runner=TestSparkRunner",
+          "--enableSparkMetricSinks=true",
+          "--tempLocation=${tempLocation}",
+          "--tempRoot=${tempLocation}",
+          "--project=${gcpProject}",
+  ])
+  systemProperty "beamTestPipelineOptions", pipelineOptions
+  systemProperty "beam.spark.test.reuseSparkContext", "true"
+  systemProperty "spark.ui.enabled", "false"
+  systemProperty "spark.ui.showConsoleProgress", "false"
+
+  include '**/*IT.class'
+  exclude '**/WindowedWordCountIT.class' // Failed to read from sharded output
+  exclude '**/AutoCompleteIT.class' // Failed to serialize and deserialize property 'bigQuerySchema'
+  exclude '**/TrafficMaxLaneFlowIT.class' // Failed to serialize and deserialize property 'bigQuerySchema'
+  exclude '**/TrafficRoutesIT.class' // Property [windowDuration] is marked with contradictory annotations.
+  maxParallelForks 4
+  classpath = configurations.validatesRunner
+  testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
+  useJUnit { }
+  jvmArgs '-Xmx3g'
 }
 
 hadoopVersions.each {kv ->

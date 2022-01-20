@@ -93,6 +93,7 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
     except:  # pylint: disable=bare-except
       logging.error('Could not stop the postgreSQL container.')
 
+  @unittest.skip("BEAM-13611")
   def test_xlang_jdbc_write(self):
     table_name = 'jdbc_external_test_write'
     self.engine.execute(

@@ -22,8 +22,9 @@ import logging
 import os
 from collections import namedtuple
 from dataclasses import dataclass, fields
-from typing import List, Optional, Dict, Union
+from typing import List, Optional, Dict
 
+from tqdm.asyncio import tqdm
 import yaml
 from yaml import YAMLError
 
@@ -128,7 +129,7 @@ async def get_statuses(examples: List[Example]):
   client = GRPCClient()
   for example in examples:
     tasks.append(_update_example_status(example, client))
-  await asyncio.gather(*tasks)
+  await tqdm.gather(*tasks)
 
 
 def get_tag(filepath) -> Optional[ExampleTag]:
@@ -150,7 +151,8 @@ def get_tag(filepath) -> Optional[ExampleTag]:
     lines = parsed_file.readlines()
 
   for line in lines:
-    formatted_line = line.replace("//", "").replace("#", "")
+    formatted_line = line.replace("//", "").replace("#",
+                                                    "").replace("\t", "    ")
     if add_to_yaml is False:
       if formatted_line.lstrip() == Config.BEAM_PLAYGROUND_TITLE:
         add_to_yaml = True
@@ -221,8 +223,7 @@ def get_supported_categories(categories_path: str) -> List[str]:
     return yaml_object[TagFields.categories]
 
 
-def _get_example(
-    filepath: str, filename: str, tag: ExampleTag) -> Example:
+def _get_example(filepath: str, filename: str, tag: ExampleTag) -> Example:
   """
   Return an Example by filepath and filename.
 
@@ -267,6 +268,7 @@ def _validate(tag: dict, supported_categories: List[str]) -> bool:
       In case tag is not valid, False
   """
   valid = True
+  # check that all fields exist and they have no empty value
   for field in fields(TagFields):
     if field.default not in tag:
       logging.error(
@@ -277,17 +279,22 @@ def _validate(tag: dict, supported_categories: List[str]) -> bool:
           field.default,
           tag.__str__())
       valid = False
+    if valid is True:
+      value = tag.get(field.default)
+      if (value == "" or
+          value is None) and field.default != TagFields.pipeline_options:
+        logging.error(
+            "tag's value is incorrect: %s\n%s field can not be empty.",
+            tag.__str__(),
+            field.default.__str__())
+        valid = False
 
-    name = tag.get(TagFields.name)
-    if name == "":
-      logging.error(
-          "tag's field name is incorrect: %s \nname can not be empty.",
-          tag.__str__())
-      valid = False
+  if valid is False:
+    return valid
 
+  # check that multifile's value is boolean
   multifile = tag.get(TagFields.multifile)
-  if (multifile is not None) and (str(multifile).lower() not in ["true",
-                                                                 "false"]):
+  if str(multifile).lower() not in ["true", "false"]:
     logging.error(
         "tag's field multifile is incorrect: %s \n"
         "multifile variable should be boolean format, but tag contains: %s",
@@ -295,26 +302,26 @@ def _validate(tag: dict, supported_categories: List[str]) -> bool:
         str(multifile))
     valid = False
 
+  # check that categories' value is a list of supported categories
   categories = tag.get(TagFields.categories)
-  if categories is not None:
-    if not isinstance(categories, list):
-      logging.error(
-          "tag's field categories is incorrect: %s \n"
-          "categories variable should be list format, but tag contains: %s",
-          tag.__str__(),
-          str(type(categories)))
-      valid = False
-    else:
-      for category in categories:
-        if category not in supported_categories:
-          logging.error(
-              "tag contains unsupported category: %s \n"
-              "If you are sure that %s category should be placed in "
-              "Beam Playground, you can add it to the "
-              "`playground/categories.yaml` file",
-              category,
-              category)
-          valid = False
+  if not isinstance(categories, list):
+    logging.error(
+        "tag's field categories is incorrect: %s \n"
+        "categories variable should be list format, but tag contains: %s",
+        tag.__str__(),
+        str(type(categories)))
+    valid = False
+  else:
+    for category in categories:
+      if category not in supported_categories:
+        logging.error(
+            "tag contains unsupported category: %s \n"
+            "If you are sure that %s category should be placed in "
+            "Beam Playground, you can add it to the "
+            "`playground/categories.yaml` file",
+            category,
+            category)
+        valid = False
   return valid
 
 
@@ -348,7 +355,7 @@ async def _update_example_status(example: Example, client: GRPCClient):
       client: client to send requests to the server.
   """
   pipeline_id = await client.run_code(
-      example.code, example.sdk, example.tag[TagFields.pipeline_options])
+      example.code, example.sdk, example.tag.pipeline_options)
   example.pipeline_id = pipeline_id
   status = await client.check_status(pipeline_id)
   while status in [STATUS_VALIDATING,
