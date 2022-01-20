@@ -1611,6 +1611,7 @@ public class SpannerIO {
     // Fluent Backoff is not serializable so create at runtime in setup().
     private transient FluentBackoff bundleWriteBackoff;
     private transient String projectId;
+    private transient ServiceCallMetric serviceCallMetric;
 
     WriteToSpannerFn(
         SpannerConfig spannerConfig, FailureMode failureMode, TupleTag<MutationGroup> failedTag) {
@@ -1636,6 +1637,16 @@ public class SpannerIO {
     @Teardown
     public void teardown() {
       spannerAccessor.close();
+    }
+
+    @StartBundle
+    public void startBundle() {
+      serviceCallMetric =
+          createServiceCallMetric(
+              projectId,
+              this.spannerConfig.getDatabaseId().get(),
+              this.spannerConfig.getInstanceId().get(),
+              "Write");
     }
 
     @ProcessElement
@@ -1684,12 +1695,6 @@ public class SpannerIO {
     private void spannerWriteWithRetryIfSchemaChange(Iterable<Mutation> batch)
         throws SpannerException {
       for (int retry = 1; ; retry++) {
-        ServiceCallMetric serviceCallMetric =
-            createServiceCallMetric(
-                projectId,
-                this.spannerConfig.getDatabaseId().get(),
-                this.spannerConfig.getInstanceId().get(),
-                "Write");
         try {
           if (spannerConfig.getRpcPriority() != null
               && spannerConfig.getRpcPriority().get() != null) {
