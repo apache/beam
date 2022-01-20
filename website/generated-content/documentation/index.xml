@@ -6644,7 +6644,7 @@ To access the window an input element falls into, add a keyword parameter defaul
 If an element falls in multiple windows (for example, this will happen when using &lt;code>SlidingWindows&lt;/code>), then the
 &lt;code>process&lt;/code> method will be invoked multiple time for the element, once for each window.&lt;/p>
 &lt;p class="language-go">&lt;strong>Window:&lt;/strong>
-To access the timestamp of an input element, add a &lt;code>beam.Window&lt;/code> parameter before the element.
+To access the window an input element falls into, add a &lt;code>beam.Window&lt;/code> parameter before the element.
 If an element falls in multiple windows (for example, this will happen when using SlidingWindows),
 then the &lt;code>ProcessElement&lt;/code> method will be invoked multiple time for the element, once for each window.
 Since &lt;code>beam.Window&lt;/code> is an interface it&amp;rsquo;s possible to type assert to the concrete implementation of the window.
