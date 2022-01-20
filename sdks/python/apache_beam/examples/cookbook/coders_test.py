@@ -61,7 +61,7 @@ class CodersTest(unittest.TestCase):
           result, equal_to([('Italy', 0), ('Brasil', 6), ('Germany', 3)]))
 
   @pytest.mark.examples_postcommit
-  def test_basics(self):
+  def test_coders_output_files_on_small_input(self):
     EXPECTED_RESULT = '["Germany", 3]\n'\
                         '["Italy", 0]\n'\
                         '["Brasil", 6]'

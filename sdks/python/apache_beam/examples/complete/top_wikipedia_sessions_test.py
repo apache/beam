@@ -87,7 +87,7 @@ class ComputeTopSessionsTest(unittest.TestCase):
       assert_that(result, equal_to(self.EXPECTED))
 
   @pytest.mark.examples_postcommit
-  def test_basics(self):
+  def test_top_wikipedia_sessions_output_files_on_small_input(self):
     # Setup the files with expected content.
     temp_folder = tempfile.mkdtemp()
     self.create_file(

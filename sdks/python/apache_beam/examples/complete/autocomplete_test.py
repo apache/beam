@@ -80,7 +80,7 @@ class AutocompleteTest(unittest.TestCase):
       assert_that(checksum, equal_to([self.KINGLEAR_HASH_SUM]))
 
   @pytest.mark.examples_postcommit
-  def test_basics(self):
+  def test_autocomplete_output_files_on_small_input(self):
     EXPECTED_PREFIXES = "t: [(3, 'to'), (2, 'this'), (1, 'that')]\n" \
                           "th: [(2, 'this'), (1, 'that')]\n" \
                           "thi: [(2, 'this')]\n" \
@@ -97,8 +97,7 @@ class AutocompleteTest(unittest.TestCase):
         '--input=%s/input.txt' % temp_folder,
         '--output',
         os.path.join(temp_folder, 'result')
-    ],
-                     save_main_session=False)
+    ])
 
     # Load result file and compare.
     with open_shards(os.path.join(temp_folder, 'result-*-of-*')) as result_file:

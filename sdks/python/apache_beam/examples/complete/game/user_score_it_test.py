@@ -86,7 +86,7 @@ class UserScoreIT(unittest.TestCase):
         save_main_session=False)
 
   @pytest.mark.examples_postcommit
-  def test_basics(self):
+  def test_userscore_output_checksum_on_small_input(self):
     # Small dataset to prevent OOM when running in local runners
     INPUT_FILE = 'gs://apache-beam-samples/game/small/gaming_data.csv'
     EXPECTED_CHECKSUM = '5b1bc0e8080e3c0f162809ac4c0f49acab23854e'

@@ -91,7 +91,7 @@ class HourlyTeamScoreIT(unittest.TestCase):
         save_main_session=False)
 
   @pytest.mark.examples_postcommit
-  def test_basics(self):
+  def test_hourly_team_score_output_checksum_on_small_input(self):
     # Small dataset to prevent OOM when running in local runners
     INPUT_FILE = 'gs://apache-beam-samples/game/small/gaming_data.csv'
     EXPECTED_CHECKSUM = '91143e81622aa391eb62eaa3f3a5123401edb07d'

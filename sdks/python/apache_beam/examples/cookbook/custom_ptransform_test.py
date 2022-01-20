@@ -60,7 +60,7 @@ class CustomCountTest(unittest.TestCase):
           result, equal_to([('CAT', (3 * factor)), ('DOG', (2 * factor))]))
 
   @pytest.mark.examples_postcommit
-  def test_basics(self):
+  def test_custom_ptransform_output_files_on_small_input(self):
     EXPECTED_RESULT = "('CAT DOG CAT CAT DOG', 2)"
 
     # Setup the files with expected content.

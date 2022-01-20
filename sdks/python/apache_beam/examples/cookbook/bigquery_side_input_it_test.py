@@ -44,12 +44,12 @@ class BigQuerySideInputIT(unittest.TestCase):
     self.output = '/'.join([self.DEFAULT_OUTPUT_FILE, self.uuid, 'results'])
 
   @pytest.mark.examples_postcommit
-  def test_basics(self):
+  def test_bigquery_side_input_it(self):
     state_verifier = PipelineStateMatcher(PipelineState.DONE)
     NUM_GROUPS = 3
 
     extra_opts = {
-        'output': self.output + '/side-input',
+        'output': self.output,
         'num_groups': str(NUM_GROUPS),
         'on_success_matcher': all_of(state_verifier)
     }

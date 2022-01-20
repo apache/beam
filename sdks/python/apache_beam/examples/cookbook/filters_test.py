@@ -99,7 +99,7 @@ class FiltersTest(unittest.TestCase):
       assert_that(results, equal_to([]))
 
   @pytest.mark.examples_postcommit
-  def test_filters_it(self):
+  def test_filters_output_bigquery_matcher(self):
     test_pipeline = TestPipeline(is_integration_test=True)
 
     # Set extra options to the pipeline for test purpose
