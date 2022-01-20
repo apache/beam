@@ -270,11 +270,11 @@ def _validate(tag: dict, supported_categories: List[str]) -> bool:
       In case tag is not valid, False
   """
   valid = True
-  tag_fields = {f.default for f in fields(TagFields)
+  required_tag_fields = {f.default for f in fields(TagFields)
                 if f.default not in
                 {o_f.default for o_f in fields(OptionalTagFields)}}
   # check that all fields exist and they have no empty value
-  for field in tag_fields:
+  for field in required_tag_fields:
     if field not in tag:
       logging.error(
           "tag doesn't contain %s field: %s \n"
@@ -282,7 +282,7 @@ def _validate(tag: dict, supported_categories: List[str]) -> bool:
           "If you are sure that this field exists in the tag"
           " check the format of indenting.",
           field,
-          tag.__str__())
+          tag)
       valid = False
     if valid is True:
       value = tag.get(field)
@@ -290,8 +290,8 @@ def _validate(tag: dict, supported_categories: List[str]) -> bool:
           value is None) and field != TagFields.pipeline_options:
         logging.error(
             "tag's value is incorrect: %s\n%s field can not be empty.",
-            tag.__str__(),
-            field.__str__())
+            tag,
+            field)
         valid = False
 
   if valid is False:
@@ -303,8 +303,8 @@ def _validate(tag: dict, supported_categories: List[str]) -> bool:
     logging.error(
         "tag's field multifile is incorrect: %s \n"
         "multifile variable should be boolean format, but tag contains: %s",
-        tag.__str__(),
-        str(multifile))
+        tag,
+        multifile)
     valid = False
 
   # check that categories' value is a list of supported categories
@@ -313,8 +313,8 @@ def _validate(tag: dict, supported_categories: List[str]) -> bool:
     logging.error(
         "tag's field categories is incorrect: %s \n"
         "categories variable should be list format, but tag contains: %s",
-        tag.__str__(),
-        str(type(categories)))
+        tag,
+        type(categories))
     valid = False
   else:
     for category in categories:
