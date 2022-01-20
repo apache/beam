@@ -59,7 +59,6 @@ from typing import List
 from typing import Optional
 from typing import Tuple
 from urllib.parse import urlparse
-
 import pkg_resources
 
 from apache_beam.internal import pickler
@@ -696,14 +695,42 @@ class Stager(object):
     #  The apache-beam dependency is excluded from requirements cache population
     #  because we stage the SDK separately.
     with tempfile.TemporaryDirectory() as temp_directory:
-      tmp_requirements_filepath, requirements_to_install = (
+      tmp_requirements_filepath, _ = (
         Stager._remove_dependency_from_requirements(
           requirements_file=requirements_file,
           dependency_to_remove='apache-beam',
           temp_directory_path=temp_directory)
       )
-    if not fetch_binary:
-      # download only sources. if no source found, this fails.
+      if not fetch_binary:
+        # download only sources.
+        # if no source found for a package, this fails.
+        extra_flags = ['--no-binary', ':all:']
+      else:
+        # generate a new requirements.txt using the user
+        # provided requirements file
+        cmd_args_pip_compile = ['pip-compile', tmp_requirements_filepath]
+        try:
+          processes.check_output(cmd_args_pip_compile, stderr=processes.STDOUT)
+        except processes.CalledProcessError as e:
+          raise RuntimeError(repr(e))
+
+        language_implementation_tag = 'cp'
+        python_version = '%d%d' % (sys.version_info[0], sys.version_info[1])
+        abi_suffix = 'm' if sys.version_info < (3, 8) else ''
+        abi_tag = 'cp%d%d%s' % (
+            sys.version_info[0], sys.version_info[1], abi_suffix)
+        platform_tag = Stager._get_manylinux_distribution()
+        extra_flags = [
+            '--no-deps',
+            '--python-version',
+            python_version,
+            '--implementation',
+            language_implementation_tag,
+            '--abi',
+            abi_tag,
+            '--platform',
+            platform_tag
+        ]
       cmd_args = [
           Stager._get_python_executable(),
           '-m',
@@ -715,40 +742,13 @@ class Stager(object):
           tmp_requirements_filepath,
           '--exists-action',
           'i',
-          # Download from PyPI source distributions.
-          '--no-binary',
-          ':all:'
       ]
+      cmd_args.extend(extra_flags)
       _LOGGER.info('Executing command: %s', cmd_args)
       processes.check_output(cmd_args, stderr=processes.STDOUT)
-    else:  # try to download wheels
-
-      # install each package individually
-      for requirement in requirements_to_install:
-        try:
-          cmd_args = Stager._build_pypi_cmd(
-              package_name=requirement,
-              temp_dir=cache_dir,
-              fetch_binary=True,
-              other_flags=[
-                  '--exists-action',
-                  'i',
-              ])
-        except:  # pylint: disable=bare-except
-          # Download the source package
-          _LOGGER.info(
-              'No whl was found for the package %s, downloading source' %
-              requirement)
-          cmd_args = Stager._build_pypi_cmd(
-              package_name=requirement,
-              temp_dir=cache_dir,
-              fetch_binary=False,
-              other_flags=[
-                  '--exists-action',
-                  'i',
-              ])
-        _LOGGER.info('Executing command: %s', cmd_args)
-        processes.check_output(cmd_args, stderr=processes.STDOUT)
+      _LOGGER.info('STOP')
+      while True:
+        pass
 
   @staticmethod
   def _build_setup_package(setup_file,  # type: str
@@ -881,13 +881,32 @@ class Stager(object):
       raise RuntimeError(
           'Please set --sdk_location command-line option '
           'or install a valid {} distribution.'.format(package_name))
+    cmd_args = [
+        Stager._get_python_executable(),
+        '-m',
+        'pip',
+        'download',
+        '--dest',
+        temp_dir,
+        '%s==%s' % (package_name, version),
+        '--no-deps'
+    ]
 
-    cmd_args = Stager._build_pypi_cmd(
-        temp_dir=temp_dir,
-        fetch_binary=fetch_binary,
-        package_name='%s==%s' % (package_name, version),
-        other_flags=['--no-deps'])
     if fetch_binary:
+      _LOGGER.info('Downloading binary distribution of the SDK from PyPi')
+      # Get a wheel distribution for the SDK from PyPI.
+      cmd_args.extend([
+          '--only-binary',
+          ':all:',
+          '--python-version',
+          language_version_tag,
+          '--implementation',
+          language_implementation_tag,
+          '--abi',
+          abi_tag,
+          '--platform',
+          platform_tag
+      ])
       # Example wheel: apache_beam-2.4.0-cp27-cp27mu-manylinux1_x86_64.whl
       expected_files = [
           os.path.join(
@@ -901,6 +920,8 @@ class Stager(object):
                   platform_tag))
       ]
     else:
+      _LOGGER.info('Downloading source distribution of the SDK from PyPi')
+      cmd_args.extend(['--no-binary', ':all:'])
       expected_files = [
           os.path.join(temp_dir, '%s-%s.zip' % (package_name, version)),
           os.path.join(temp_dir, '%s-%s.tar.gz' % (package_name, version))
@@ -926,59 +947,7 @@ class Stager(object):
     # TODO(anandinguva): When https://github.com/pypa/pip/issues/10760 is
     # addressed download wheel based on glib version in Beam's Python Base image
     pip_version = pkg_resources.get_distribution('pip').version
-    if pip_version >= 19.3:
+    if float(pip_version[0:4]) >= 19.3:
       return 'manylinux2014_x86_64'
     else:
       return 'manylinux2010_x86_64'
-
-  @staticmethod
-  def _build_pypi_cmd(
-      temp_dir, # type: str
-      package_name=None, # type: str
-      fetch_binary=False, # type: bool
-      other_flags=None, # type: Optional[List, None]
-  ):
-    """Returns list of cmd args to download package from PyPI"""
-    language_implementation_tag = 'cp'
-    python_version = '%d%d' % (sys.version_info[0], sys.version_info[1])
-    abi_suffix = 'm' if sys.version_info < (3, 8) else ''
-    abi_tag = 'cp%d%d%s' % (
-        sys.version_info[0], sys.version_info[1], abi_suffix)
-    platform_tag = Stager._get_manylinux_distribution()
-
-    if other_flags is None:
-      other_flags = []
-    package_name = package_name or Stager.get_sdk_package_name()
-    cmd_args = [
-        Stager._get_python_executable(),
-        '-m',
-        'pip',
-        'download',
-        '--dest',
-        temp_dir,
-        package_name,
-    ]
-
-    if other_flags:
-      cmd_args.extend(other_flags)  # flags like --no-deps
-
-    if fetch_binary:
-      _LOGGER.info(
-          'Downloading binary distribution of the %s from PyPi' % package_name)
-      # Get a wheel distribution for the SDK from PyPI.
-      cmd_args.extend([
-          '--only-binary',
-          ':all:',
-          '--python-version',
-          python_version,
-          '--implementation',
-          language_implementation_tag,
-          '--abi',
-          abi_tag,
-          '--platform',
-          platform_tag
-      ])
-    else:
-      cmd_args.extend(['--no-binary', ':all'])
-
-    return cmd_args

@@ -124,7 +124,6 @@ except ImportError:
   cythonize = lambda *args, **kwargs: []
 
 REQUIRED_PACKAGES = [
-    # Avro 1.9.2 for python3 was broken. The issue was fixed in version 1.9.2.1
     'crcmod>=1.7,<2.0',
     # dataclasses backport for python_version<3.7. No version bound because this
     # is Python standard since Python 3.7 and each Python version is compatible
@@ -153,6 +152,7 @@ REQUIRED_PACKAGES = [
     'pytz>=2018.3',
     'requests>=2.24.0,<3.0.0',
     'typing-extensions>=3.7.0,<4',
+    'pip-tools>=4.0.0'
 ]
 
 # [BEAM-8181] pyarrow cannot be installed on 32-bit Windows platforms.
