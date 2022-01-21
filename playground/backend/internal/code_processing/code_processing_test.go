@@ -208,6 +208,7 @@ func Test_Process(t *testing.T) {
 			expectedStatus:        pb.Status_STATUS_CANCELED,
 			expectedCompileOutput: "",
 			expectedRunOutput:     "",
+			expectedRunError:      "",
 			args: args{
 				ctx:             context.Background(),
 				appEnv:          appEnvs,
@@ -226,7 +227,7 @@ func Test_Process(t *testing.T) {
 			expectedStatus:        pb.Status_STATUS_FINISHED,
 			expectedCompileOutput: "",
 			expectedRunOutput:     "Hello world!\n",
-			expectedRunError:      nil,
+			expectedRunError:      "",
 			args: args{
 				ctx:             context.Background(),
 				appEnv:          appEnvs,

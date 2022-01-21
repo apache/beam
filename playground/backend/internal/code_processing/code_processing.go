@@ -522,6 +522,9 @@ func processCompileSuccess(ctx context.Context, output []byte, pipelineId uuid.U
 	if err := utils.SetToCache(ctx, cacheService, pipelineId, cache.RunOutput, ""); err != nil {
 		return err
 	}
+	if err := utils.SetToCache(ctx, cacheService, pipelineId, cache.RunError, ""); err != nil {
+		return err
+	}
 	if err := utils.SetToCache(ctx, cacheService, pipelineId, cache.Logs, ""); err != nil {
 		return err
 	}
