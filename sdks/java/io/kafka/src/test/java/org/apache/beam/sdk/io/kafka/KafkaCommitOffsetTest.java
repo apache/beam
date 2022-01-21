@@ -18,9 +18,7 @@
 package org.apache.beam.sdk.io.kafka;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import org.apache.beam.sdk.io.kafka.KafkaCommitOffset.CommitOffsetDoFn;
 import org.apache.beam.sdk.io.kafka.KafkaIO.ReadSourceDescriptors;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -40,43 +38,40 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class KafkaCommitOffsetTest {
 
-  private final TopicPartition partition = new TopicPartition("topic",0);
+  private final TopicPartition partition = new TopicPartition("topic", 0);
 
   private final KafkaCommitOffsetMockConsumer consumer = new KafkaCommitOffsetMockConsumer(null);
 
   @Test
-  public void testCommitOffsetDoFn(){
+  public void testCommitOffsetDoFn() {
     Map<String, Object> configMap = new HashMap<>();
     configMap.put(ConsumerConfig.GROUP_ID_CONFIG, "group1");
 
-    ReadSourceDescriptors<Object,Object> descriptors = ReadSourceDescriptors.read()
-        .withBootstrapServers("bootstrap_server")
-        .withConsumerConfigUpdates(configMap)
-        .withConsumerFactoryFn(
-            new SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>() {
-              @Override
-              public Consumer<byte[], byte[]> apply(Map<String, Object> input) {
-                Assert.assertEquals("group1",input.get(ConsumerConfig.GROUP_ID_CONFIG));
-                return consumer;
-              }
-            });
+    ReadSourceDescriptors<Object, Object> descriptors =
+        ReadSourceDescriptors.read()
+            .withBootstrapServers("bootstrap_server")
+            .withConsumerConfigUpdates(configMap)
+            .withConsumerFactoryFn(
+                new SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>() {
+                  @Override
+                  public Consumer<byte[], byte[]> apply(Map<String, Object> input) {
+                    Assert.assertEquals("group1", input.get(ConsumerConfig.GROUP_ID_CONFIG));
+                    return consumer;
+                  }
+                });
     CommitOffsetDoFn doFn = new CommitOffsetDoFn(descriptors);
 
-    doFn.processElement(KV.of(
-        KafkaSourceDescriptor.of(
-            partition,null,null,
-            null,null,null),
-        1L));
+    doFn.processElement(
+        KV.of(KafkaSourceDescriptor.of(partition, null, null, null, null, null), 1L));
 
-    Assert.assertEquals(2L,consumer.commit.get(partition).offset());
+    Assert.assertEquals(2L, consumer.commit.get(partition).offset());
   }
 
-  private static class KafkaCommitOffsetMockConsumer extends MockConsumer<byte[],byte[]>{
+  private static class KafkaCommitOffsetMockConsumer extends MockConsumer<byte[], byte[]> {
 
     public Map<TopicPartition, OffsetAndMetadata> commit;
 
-    public KafkaCommitOffsetMockConsumer(
-        OffsetResetStrategy offsetResetStrategy) {
+    public KafkaCommitOffsetMockConsumer(OffsetResetStrategy offsetResetStrategy) {
       super(offsetResetStrategy);
     }
 
@@ -85,6 +80,5 @@ public class KafkaCommitOffsetTest {
       commitAsync(offsets, null);
       commit = offsets;
     }
-
   }
 }
