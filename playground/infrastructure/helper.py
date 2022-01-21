@@ -195,8 +195,6 @@ def _check_file(examples, filename, filepath, supported_categories, sdk: Sdk):
   """
   if filepath.endswith("infrastructure/helper.py"):
     return False
-  if filepath.endswith("minimal_wordcount/minimal_wordcount.go") is False and filepath.endswith("yatzy/yatzy.go") is False:
-    return False
 
   has_error = False
   extension = filepath.split(os.extsep)[-1]
