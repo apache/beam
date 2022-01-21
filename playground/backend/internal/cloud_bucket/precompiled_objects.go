@@ -32,7 +32,7 @@ import (
 )
 
 const (
-	BucketName       = "playground-examples228"
+	BucketName       = "playground-precompiled-objects"
 	OutputExtension  = "output"
 	LogsExtension    = "log"
 	MetaInfoName     = "meta.info"
