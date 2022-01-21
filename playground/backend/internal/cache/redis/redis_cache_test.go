@@ -293,7 +293,7 @@ func Test_unmarshalBySubKey(t *testing.T) {
 	statusValue, _ := json.Marshal(status)
 	output := "MOCK_OUTPUT"
 	outputValue, _ := json.Marshal(output)
-	graph, err := os.ReadFile("pipeline_graph.dot")
+	graph, err := os.ReadFile("redis_cache.go")
 	if err != nil {
 		panic(err)
 	}
