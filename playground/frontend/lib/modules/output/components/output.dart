@@ -59,7 +59,7 @@ class _OutputState extends State<Output> with SingleTickerProviderStateMixin {
       children: [
         OutputHeader(
           tabController: tabController,
-          isEmbedded: isEmbedded,
+          isEmbedded: widget.isEmbedded,
         ),
         Expanded(child: OutputArea(tabController: tabController)),
       ],

@@ -18,14 +18,15 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:playground/components/toggle_theme_button/toggle_theme_icon_button.dart';
 import 'package:playground/constants/assets.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/analytics/analytics_service.dart';
 import 'package:playground/modules/editor/components/run_button.dart';
+import 'package:playground/modules/notifications/components/notification.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
-import 'package:playground/pages/playground/components/editor_textarea_wrapper.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:provider/provider.dart';
 
@@ -41,13 +42,22 @@ class EmbeddedAppBarTitle extends StatelessWidget {
         children: [
           RunButton(
             isRunning: state.isCodeRunning,
+            cancelRun: () {
+              state.cancelRun().catchError(
+                    (_) => NotificationManager.showError(
+                      context,
+                      AppLocalizations.of(context)!.runCode,
+                      AppLocalizations.of(context)!.cancelExecution,
+                    ),
+                  );
+            },
             runCode: () {
               final stopwatch = Stopwatch()..start();
               state.runCode(
                 onFinish: () {
                   AnalyticsService.get(context).trackRunTimeEvent(
                     state.selectedExample?.path ??
-                        '$kUnknownExamplePrefix, sdk ${state.sdk.displayName}',
+                        '${AppLocalizations.of(context)!.unknownExample}, sdk ${state.sdk.displayName}',
                     stopwatch.elapsedMilliseconds,
                   );
                 },
@@ -64,8 +74,7 @@ class EmbeddedAppBarTitle extends StatelessWidget {
             icon: SvgPicture.asset(kCopyIconAsset),
             onPressed: () {
               final source =
-                  Provider.of<PlaygroundState>(context, listen: false)
-                      .source;
+                  Provider.of<PlaygroundState>(context, listen: false).source;
               Clipboard.setData(ClipboardData(text: source));
             },
           ),
