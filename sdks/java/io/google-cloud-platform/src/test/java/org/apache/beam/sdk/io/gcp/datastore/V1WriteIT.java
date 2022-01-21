@@ -17,22 +17,23 @@
  */
 package org.apache.beam.sdk.io.gcp.datastore;
 
+import static com.google.datastore.v1.client.DatastoreHelper.makeKey;
+import static com.google.datastore.v1.client.DatastoreHelper.makeUpsert;
 import static org.apache.beam.sdk.io.gcp.datastore.V1TestUtil.countEntities;
 import static org.apache.beam.sdk.io.gcp.datastore.V1TestUtil.deleteAllEntities;
-import static org.apache.beam.sdk.metrics.MetricResultsMatchers.metricsResult;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 
 import com.google.datastore.v1.Entity;
+import com.google.datastore.v1.Key;
+import com.google.datastore.v1.Mutation;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.GenerateSequence;
-import org.apache.beam.sdk.io.gcp.datastore.V1TestUtil.CreateEntityFn;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
@@ -42,7 +43,6 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
-import org.hamcrest.Matcher;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -77,7 +77,10 @@ public class V1WriteIT {
 
     // Write to datastore
     p.apply(GenerateSequence.from(0).to(numEntities))
-        .apply(ParDo.of(new CreateEntityFn(options.getKind(), options.getNamespace(), ancestor, 0)))
+        .apply(
+            ParDo.of(
+                new V1TestUtil.CreateEntityFn(
+                    options.getKind(), options.getNamespace(), ancestor, 0)))
         .apply(DatastoreIO.v1().write().withProjectId(project));
 
     p.run();
@@ -95,32 +98,30 @@ public class V1WriteIT {
   @Test
   public void testDatatoreWriterFnWithDuplicatedEntities() throws Exception {
 
-    List<Long> longMutations = new ArrayList<>(200);
+    List<Mutation> mutations = new ArrayList<>(200);
     V1TestOptions options = TestPipeline.testingPipelineOptions().as(V1TestOptions.class);
     Pipeline pipeline = TestPipeline.create(options);
 
     for (int i = 1; i <= 180; i++) {
-      longMutations.add((long) i);
+      Key key = makeKey("key" + i, i + 1).build();
+
+      mutations.add(makeUpsert(Entity.newBuilder().setKey(key).build()).build());
 
       if (i % 90 == 0) {
-        longMutations.add((long) i);
+        mutations.add(makeUpsert(Entity.newBuilder().setKey(key).build()).build());
       }
     }
 
-    PCollection<Long> input = pipeline.apply(Create.of(longMutations));
+    PCollection<Mutation> input = pipeline.apply(Create.of(mutations));
 
-    PTransform<PCollection<? extends Long>, PCollection<Entity>> datastoreWriterTransform =
-        ParDo.of(
-            new V1TestUtil.CreateEntityFn(
-                options.getKind(), options.getNamespace(), UUID.randomUUID().toString(), 0));
+    DatastoreV1.DatastoreWriterFn datastoreWriter =
+        new DatastoreV1.DatastoreWriterFn(
+            TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject(), null);
 
-    PCollection<Entity> output = input.apply(datastoreWriterTransform);
+    PTransform<PCollection<? extends Mutation>, PCollection<Void>> datastoreWriterTransform =
+        ParDo.of(datastoreWriter);
 
-    output.apply(
-        DatastoreIO.v1()
-            .write()
-            .withProjectId(
-                TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject()));
+    input.apply(datastoreWriterTransform);
 
     PipelineResult pResult = pipeline.run();
 
@@ -134,12 +135,18 @@ public class V1WriteIT {
                             DatastoreV1.DatastoreWriterFn.class, "duplicateKeys"))
                     .build());
 
-    Matcher hasItemMatcher =
-        hasItem(
-            metricsResult(
-                DatastoreV1.DatastoreWriterFn.class.getName(), "duplicateKeys", null, 2, true));
+    AtomicLong duplicatedCount = new AtomicLong();
 
-    assertThat(metricResults.getCounters(), hasItemMatcher);
+    metricResults
+        .getCounters()
+        .forEach(
+            counter -> {
+              if (counter.getName().getName().equals("duplicateKeys")) {
+                duplicatedCount.set(counter.getCommitted());
+              }
+            });
+
+    assertEquals(1, duplicatedCount.get());
   }
 
   /**
@@ -158,6 +165,7 @@ public class V1WriteIT {
      * 1MB in size, then we hit the limit on the size of the write long before we hit the limit on
      * the number of entities per writes.
      */
+
     final int rawPropertySize = 900_000;
     final int numLargeEntities = 100;
 
@@ -165,7 +173,7 @@ public class V1WriteIT {
     p.apply(GenerateSequence.from(0).to(numLargeEntities))
         .apply(
             ParDo.of(
-                new CreateEntityFn(
+                new V1TestUtil.CreateEntityFn(
                     options.getKind(), options.getNamespace(), ancestor, rawPropertySize)))
         .apply(DatastoreIO.v1().write().withProjectId(project));
 
