@@ -36,6 +36,7 @@ class CIHelper:
 
   It is used to find and verify correctness if beam examples/katas/tests.
   """
+
   async def verify_examples(self, examples: List[Example]):
     """
     Verify correctness of beam examples.
@@ -62,10 +63,12 @@ class CIHelper:
     Args:
         examples: beam examples that should be verified
     """
+    count_of_verified = 0
     client = GRPCClient()
     verify_failed = False
     for example in examples:
       if example.status not in Config.ERROR_STATUSES:
+        count_of_verified += 1
         continue
       if example.status == STATUS_VALIDATION_ERROR:
         logging.error("Example: %s has validation error", example.filepath)
@@ -77,13 +80,22 @@ class CIHelper:
       elif example.status == STATUS_RUN_TIMEOUT:
         logging.error("Example: %s failed because of timeout", example.filepath)
       elif example.status == STATUS_COMPILE_ERROR:
-        err = await client.get_compile_output(example.filepath)
+        err = await client.get_compile_output(example.pipeline_id)
         logging.error(
             "Example: %s has compilation error: %s", example.filepath, err)
       elif example.status == STATUS_RUN_ERROR:
-        err = await client.get_run_error(example.filepath)
+        err = await client.get_run_error(example.pipeline_id)
         logging.error(
             "Example: %s has execution error: %s", example.filepath, err)
       verify_failed = True
+
+    logging.info(
+        "Number of verified Playground examples: %s / %s",
+        count_of_verified,
+        len(examples))
+    logging.info(
+        "Number of Playground examples with some error: %s / %s",
+        len(examples) - count_of_verified,
+        len(examples))
     if verify_failed:
       raise Exception("CI step failed due to errors in the examples")

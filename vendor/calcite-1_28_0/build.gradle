@@ -23,7 +23,7 @@
  * 1. Use mvn dependency:tree and/or https://search.maven.org/search?q=g:org.apache.calcite%20AND%20a:calcite-core
  *    to determine dependency tree. You may need to search for optional transitive dependencies
  *    and determine if they need to be added or upgraded (e.g. protobuf)
- * 3. Validate built artifacts by running linkage tool
+ * 2. Validate built artifacts by running linkage tool
  *    (https://github.com/apache/beam/tree/master/vendor#how-to-validate-the-vendored-dependencies)
  *    and unit and integration tests in a PR.
  */

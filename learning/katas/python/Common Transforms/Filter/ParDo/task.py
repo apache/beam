@@ -18,7 +18,6 @@
 #   name: FilterParDo
 #   description: Task from katas to implement a filter function that filters out the even numbers.
 #   multifile: false
-#   pipeline_options:
 #   categories:
 #     - Filtering
 

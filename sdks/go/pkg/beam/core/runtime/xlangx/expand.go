@@ -90,6 +90,10 @@ func expand(
 	ext *graph.ExternalTransform) (*jobpb.ExpansionResponse, error) {
 
 	h, config := defaultReg.getHandlerFunc(transform.GetSpec().GetUrn(), ext.ExpansionAddr)
+	// Overwrite expansion address if changed due to override for service or URN.
+	if config != ext.ExpansionAddr {
+		ext.ExpansionAddr = config
+	}
 	return h(ctx, &HandlerParams{
 		Config: config,
 		Req: &jobpb.ExpansionRequest{

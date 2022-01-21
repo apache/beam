@@ -23,9 +23,14 @@ import 'package:playground/modules/output/components/output_header/output_placem
 import 'output_tabs.dart';
 
 class OutputHeader extends StatelessWidget {
+  final TabController tabController;
   final bool isEmbedded;
 
-  const OutputHeader({Key? key, required this.isEmbedded}) : super(key: key);
+  const OutputHeader({
+    Key? key,
+    required this.tabController,
+    required this.isEmbedded,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +44,7 @@ class OutputHeader extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const OutputTabs(),
+            OutputTabs(tabController: tabController),
             isEmbedded ? const SizedBox() : const OutputPlacements(),
           ],
         ),
