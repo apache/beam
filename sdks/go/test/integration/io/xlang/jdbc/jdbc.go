@@ -19,9 +19,11 @@ package jdbc
 
 import (
 	"reflect"
+	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/xlang/jdbcio"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 )
 
 func init() {
@@ -34,13 +36,12 @@ func init() {
 //  );
 
 type JdbcWriteTestRow struct {
-	Role_id   int64  `beam:"role_id"`
-	Role_name string `beam:"role_name"`
+	Role_id int8 `beam:"role_id"`
 }
 
 func writeRows(s beam.Scope, expansionAddr, tableName, driverClassName, jdbcUrl, username, password string) {
 	s = s.Scope("jdbc_test.WriteToJdbc")
-	rows := []JdbcWriteTestRow{{1, "row1"}, {2, "row2"}}
+	rows := []JdbcWriteTestRow{{int8(1)}, {int8(2)}}
 
 	input := beam.CreateList(s, rows)
 	jdbcio.Write(s, expansionAddr, tableName, driverClassName, jdbcUrl, username, password, input) //, statement)
@@ -54,11 +55,18 @@ func WritePipeline(expansionAddr, tableName, driverClassName, jdbcUrl, username,
 	return p
 }
 
-func ReadPipeline(expansionAddr, tableName, driverClassName, jdbcUrl, username, password string) *beam.Pipeline {
+type ReadRow struct {
+	Id int8
+}
+
+func ReadPipeline(t *testing.T, expansionAddr, tableName, driverClassName, jdbcUrl, username, password string) *beam.Pipeline {
 	beam.Init()
 	p, s := beam.NewPipelineWithRoot()
-	s = s.Scope("jdbc_test.WriteToJdbc")
-	jdbcio.Read(s, expansionAddr, tableName, driverClassName, jdbcUrl, username, password)
+	s = s.Scope("jdbc_test.ReadFromJdbc")
+	j := JdbcWriteTestRow{}
+	res := jdbcio.Read(s, expansionAddr, tableName, driverClassName, jdbcUrl, username, password, j)
 
+	want := beam.CreateList(s, []JdbcWriteTestRow{{Role_id: 11}})
+	passert.Equals(s, res, want)
 	return p
 }

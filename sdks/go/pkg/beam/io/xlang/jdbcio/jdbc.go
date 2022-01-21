@@ -26,7 +26,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
 func init() {
@@ -114,7 +113,7 @@ func ConnectionInitSQLs(initStatements []string) writeOption {
 
 type readOption func(*Config)
 
-func Read(s beam.Scope, addr, tableName, driverClassName, jdbcUrl, username, password string, opts ...readOption) {
+func Read(s beam.Scope, addr, tableName, driverClassName, jdbcUrl, username, password string, j interface{}, opts ...readOption) beam.PCollection {
 	s = s.Scope("jdbcio.Read")
 
 	rpl := Config{
@@ -131,7 +130,12 @@ func Read(s beam.Scope, addr, tableName, driverClassName, jdbcUrl, username, pas
 		Config:   toRow(rpl),
 	}
 	pl := beam.CrossLanguagePayload(jcs)
-	beam.CrossLanguage(s, readURN, pl, addr, nil, beam.UnnamedOutput(typex.New(reflectx.Int64)))
+	// rows := sql.Rows{}
+	result := beam.CrossLanguage(s, readURN, pl, addr, nil, beam.UnnamedOutput(typex.New(reflect.TypeOf(j))))
+	// result := beam.CrossLanguage(s, readURN, pl, addr, nil, nil)
+
+	// res := beam.DropKey(s, result[beam.UnnamedOutputTag()])
+	return result[beam.UnnamedOutputTag()]
 }
 
 func ReadQuery(query string) readOption {

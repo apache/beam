@@ -15,8 +15,11 @@
 package jdbc
 
 import (
+	"context"
+	"database/sql"
 	"fmt"
 	"testing"
+	"time"
 
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/dataflow"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/flink"
@@ -24,8 +27,11 @@ import (
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/spark"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 	"github.com/apache/beam/sdks/v2/go/test/integration"
+	"github.com/docker/go-connections/nat"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 func checkFlags(t *testing.T) {
@@ -34,62 +40,68 @@ func checkFlags(t *testing.T) {
 	}
 }
 
-// TestJDBCIO_BasicReadWrite tests basic writes and reads from JDBC.
+// TestJDBCIO_BasicReadWrite tests basic read and write transform from JDBC.
 func TestJDBCIO_BasicReadWrite(t *testing.T) {
 	integration.CheckFilters(t)
 	checkFlags(t)
-	// dbname := "postjdbc"
-	// username := "newuser"
-	// password := "password"
+	dbname := "postjdbc"
+	username := "newuser"
+	password := "password"
 
-	// var env = map[string]string{
-	// 	"POSTGRES_PASSWORD": password,
-	// 	"POSTGRES_USER":     username,
-	// 	"POSTGRES_DB":       dbname,
-	// }
+	var env = map[string]string{
+		"POSTGRES_PASSWORD": password,
+		"POSTGRES_USER":     username,
+		"POSTGRES_DB":       dbname,
+	}
 
-	// var port = "5432/tcp"
-	// dbURL := func(port nat.Port) string {
-	// 	return fmt.Sprintf("postgres://%s:%s@localhost:%s/%s?sslmode=disable", username, password, port.Port(), dbname)
-	// }
+	var port = "5432/tcp"
+	dbURL := func(port nat.Port) string {
+		return fmt.Sprintf("postgres://%s:%s@localhost:%s/%s?sslmode=disable", username, password, port.Port(), dbname)
+	}
 
-	// req := testcontainers.GenericContainerRequest{
-	// 	ContainerRequest: testcontainers.ContainerRequest{
-	// 		Image:        "postgres",
-	// 		ExposedPorts: []string{port},
-	// 		Env:          env,
-	// 		WaitingFor:   wait.ForSQL(nat.Port(port), "postgres", dbURL).Timeout(time.Second * 5),
-	// 	},
-	// 	Started: true,
-	// }
-	// ctx := context.Background()
-	// container, err := testcontainers.GenericContainer(ctx, req)
-	// if err != nil {
-	// 	t.Errorf("failed to start container: %s", err)
-	// }
+	req := testcontainers.GenericContainerRequest{
+		ContainerRequest: testcontainers.ContainerRequest{
+			Image:        "postgres",
+			ExposedPorts: []string{port},
+			Env:          env,
+			WaitingFor:   wait.ForSQL(nat.Port(port), "postgres", dbURL).Timeout(time.Second * 5),
+		},
+		Started: true,
+	}
+	ctx := context.Background()
+	container, err := testcontainers.GenericContainer(ctx, req)
+	if err != nil {
+		t.Errorf("failed to start container: %s", err)
+	}
 
-	// mappedPort, err := container.MappedPort(ctx, nat.Port(port))
-	// if err != nil {
-	// 	t.Errorf("failed to get container external port: %s", err)
-	// }
-	// p := mappedPort.Int()
-	// host, err := container.ContainerIP(ctx)
-	// if err != nil {
-	// 	t.Error("error in container ip")
-	// }
-	// t.Error(host, p)
+	mappedPort, err := container.MappedPort(ctx, nat.Port(port))
+	if err != nil {
+		t.Errorf("failed to get container external port: %s", err)
+	}
+	p := mappedPort.Int()
+
+	url := fmt.Sprintf("postgres://%s:%s@localhost:%s/%s?sslmode=disable", username, password, mappedPort.Port(), dbname)
+	db, err := sql.Open("postgres", url)
+	if err != nil {
+		t.Fatalf("failed to establish database connection: %s", err)
+	}
+	_, err = db.ExecContext(ctx, "CREATE TABLE roles(role_id bigint PRIMARY KEY);")
+	if err != nil {
+		t.Fatalf("can't create table, check command and access level")
+	}
+
 	tableName := "roles"
 	host := "localhost"
-	p := 5432
-	dbname := "posts"
-	username := "newuser"
-	password := "newuser123"
 	jdbcUrl := fmt.Sprintf("jdbc:postgresql://%s:%d/%s", host, p, dbname)
 
-	// read := ReadPipeline(*integration.IoExpansionAddr, tableName, "org.postgresql.Driver", jdbcUrl, username, password)
-	// ptest.RunAndValidate(t, read)
 	write := WritePipeline(*integration.IoExpansionAddr, tableName, "org.postgresql.Driver", jdbcUrl, username, password)
 	ptest.RunAndValidate(t, write)
+	_, err = db.ExecContext(ctx, fmt.Sprintf("INSERT INTO roles(role_id) VALUES(%d);", int8(11)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	read := ReadPipeline(t, *integration.IoExpansionAddr, tableName, "org.postgresql.Driver", jdbcUrl, username, password)
+	ptest.RunAndValidate(t, read)
 }
 
 func TestMain(m *testing.M) {
