@@ -14,6 +14,14 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
+# beam-playground:
+#   name: WordCount
+#   description: Task from katas to create a pipeline that counts the number of words.
+#   multifile: false
+#   pipeline_options:
+#   categories:
+#     - Combiners
+
 import apache_beam as beam
 
 from log_elements import LogElements

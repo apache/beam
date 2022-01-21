@@ -14,6 +14,15 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
+# beam-playground:
+#   name: FlatMap
+#   description: Task from katas to implement a function that maps each input sentence
+#     into words split by whitespace (" ").
+#   multifile: false
+#   pipeline_options:
+#   categories:
+#     - Core Transforms
+
 import apache_beam as beam
 
 from log_elements import LogElements

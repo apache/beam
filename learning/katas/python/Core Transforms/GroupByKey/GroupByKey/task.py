@@ -14,6 +14,14 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
+# beam-playground:
+#   name: GroupByKey
+#   description: Task from katas that groups words by its first letter.
+#   multifile: false
+#   pipeline_options:
+#   categories:
+#     - Combiners
+
 import apache_beam as beam
 
 from log_elements import LogElements

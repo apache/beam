@@ -16,6 +16,9 @@
 package utils
 
 import (
+	"io/fs"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -39,6 +42,88 @@ func TestGetFuncName(t *testing.T) {
 			if got := GetFuncName(tt.args.i); got != tt.want {
 				t.Errorf("GetFuncName() = %v, want %v", got, tt.want)
 			}
+		})
+	}
+}
+
+func Test_checkNumOfTheParallelJobs(t *testing.T) {
+	type args struct {
+		workingDir        string
+		numOfParallelJobs int
+	}
+	tests := []struct {
+		name        string
+		args        args
+		prepareFunc func()
+		want        bool
+	}{
+		{
+			// Test case with calling checkNumOfTheParallelJobs when there is no code processing folders.
+			// As a result, want to receive true
+			name: "there is no code processing folder",
+			args: args{
+				workingDir:        "",
+				numOfParallelJobs: 0,
+			},
+			prepareFunc: func() {},
+			want:        true,
+		},
+		{
+			// Test case with calling checkNumOfTheParallelJobs when there is one code processing folder.
+			// As a result, want to receive true
+			name: "less than needed",
+			args: args{
+				workingDir:        "",
+				numOfParallelJobs: 2,
+			},
+			prepareFunc: func() {
+				err := os.MkdirAll(filepath.Join(executableFiles, "1"), fs.ModePerm)
+				if err != nil {
+					panic(err)
+				}
+			},
+			want: true,
+		},
+		{
+			// Test case with calling checkNumOfTheParallelJobs when the number of the code processing folders is equals numOfParallelJobs.
+			// As a result, want to receive false
+			name: "there are enough code processing folders",
+			args: args{
+				workingDir:        "",
+				numOfParallelJobs: 1,
+			},
+			prepareFunc: func() {
+				err := os.MkdirAll(filepath.Join(executableFiles, "1"), fs.ModePerm)
+				if err != nil {
+					panic(err)
+				}
+			},
+			want: false,
+		},
+		{
+			// Test case with calling checkNumOfTheParallelJobs when the number of the code processing folders is more than numOfParallelJobs.
+			// As a result, want to receive false
+			name: "more than needed",
+			args: args{
+				workingDir:        "",
+				numOfParallelJobs: 0,
+			},
+			prepareFunc: func() {
+				err := os.MkdirAll(filepath.Join(executableFiles, "1"), fs.ModePerm)
+				if err != nil {
+					panic(err)
+				}
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.prepareFunc()
+			if got := checkNumOfTheParallelJobs(tt.args.workingDir, tt.args.numOfParallelJobs); got != tt.want {
+				t.Errorf("checkNumOfTheParallelJobs() = %v, want %v", got, tt.want)
+			}
+			os.RemoveAll(executableFiles)
 		})
 	}
 }

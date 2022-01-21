@@ -26,6 +26,7 @@ import 'package:playground/modules/examples/repositories/example_client/grpc_exa
 import 'package:playground/modules/examples/repositories/example_repository.dart';
 import 'package:playground/modules/output/models/output_placement_state.dart';
 import 'package:playground/pages/playground/states/examples_state.dart';
+import 'package:playground/pages/playground/states/feedback_state.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:provider/provider.dart';
 
@@ -80,6 +81,9 @@ class PlaygroundPageProviders extends StatelessWidget {
         ),
         ChangeNotifierProvider<OutputPlacementState>(
           create: (context) => OutputPlacementState(),
+        ),
+        ChangeNotifierProvider<FeedbackState>(
+          create: (context) => FeedbackState(),
         ),
       ],
       child: child,

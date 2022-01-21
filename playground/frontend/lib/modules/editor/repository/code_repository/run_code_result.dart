@@ -16,16 +16,20 @@
  * limitations under the License.
  */
 
+import 'package:flutter/material.dart';
+
 enum RunCodeStatus {
   unspecified,
   preparation,
+  preparationError,
+  validationError,
   compiling,
-  executing,
   compileError,
-  timeout,
+  executing,
   runError,
+  finished,
+  timeout,
   unknownError,
-  finished
 }
 
 const kFinishedStatuses = [
@@ -33,17 +37,21 @@ const kFinishedStatuses = [
   RunCodeStatus.timeout,
   RunCodeStatus.compileError,
   RunCodeStatus.runError,
+  RunCodeStatus.validationError,
+  RunCodeStatus.preparationError,
   RunCodeStatus.finished,
 ];
 
 class RunCodeResult {
   final RunCodeStatus status;
+  final String? pipelineUuid;
   final String? output;
   final String? log;
   final String? errorMessage;
 
   RunCodeResult({
     required this.status,
+    this.pipelineUuid,
     this.output,
     this.log,
     this.errorMessage,
@@ -58,6 +66,7 @@ class RunCodeResult {
       identical(this, other) ||
       other is RunCodeResult &&
           runtimeType == other.runtimeType &&
+          pipelineUuid == other.pipelineUuid &&
           status == other.status &&
           output == other.output &&
           log == other.log &&
@@ -65,10 +74,10 @@ class RunCodeResult {
 
   @override
   int get hashCode =>
-      status.hashCode ^ output.hashCode ^ log.hashCode ^ errorMessage.hashCode;
+      hashValues(pipelineUuid, status, output, log, errorMessage);
 
   @override
   String toString() {
-    return 'RunCodeResult{status: $status, output: $output, log: $log, errorMessage: $errorMessage}';
+    return 'RunCodeResult{pipelineId: $pipelineUuid, status: $status, output: $output, log: $log, errorMessage: $errorMessage}';
   }
 }

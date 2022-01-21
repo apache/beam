@@ -342,3 +342,43 @@ func TestApplicationEnvs_GoogleProjectId(t *testing.T) {
 		})
 	}
 }
+
+func TestApplicationEnvs_PipelinesFolder(t *testing.T) {
+	type fields struct {
+		workingDir             string
+		cacheEnvs              *CacheEnvs
+		pipelineExecuteTimeout time.Duration
+		pipelinesFolder        string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{
+			// Test case with calling PipelinesFolder method.
+			// As a result, want to receive an expected name of pipelines folder.
+			name: "get google project id",
+			fields: fields{
+				workingDir:             "",
+				cacheEnvs:              &CacheEnvs{},
+				pipelineExecuteTimeout: 0,
+				pipelinesFolder:        "MOCK_PIPELINES_FOLDER",
+			},
+			want: "MOCK_PIPELINES_FOLDER",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ae := &ApplicationEnvs{
+				workingDir:             tt.fields.workingDir,
+				cacheEnvs:              tt.fields.cacheEnvs,
+				pipelineExecuteTimeout: tt.fields.pipelineExecuteTimeout,
+				pipelinesFolder:        tt.fields.pipelinesFolder,
+			}
+			if got := ae.PipelinesFolder(); got != tt.want {
+				t.Errorf("PipelinesFolder() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

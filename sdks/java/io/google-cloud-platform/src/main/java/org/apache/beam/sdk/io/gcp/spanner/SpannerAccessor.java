@@ -33,13 +33,7 @@ import com.google.spanner.v1.CommitRequest;
 import com.google.spanner.v1.CommitResponse;
 import com.google.spanner.v1.ExecuteSqlRequest;
 import com.google.spanner.v1.PartialResultSet;
-import io.grpc.CallOptions;
-import io.grpc.Channel;
-import io.grpc.ClientCall;
-import io.grpc.ClientInterceptor;
-import io.grpc.MethodDescriptor;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.util.ReleaseInfo;
@@ -204,24 +198,6 @@ public class SpannerAccessor implements AutoCloseable {
           spanner.close();
         }
       }
-    }
-  }
-
-  private static class CommitDeadlineSettingInterceptor implements ClientInterceptor {
-    private final long commitDeadlineMilliseconds;
-
-    private CommitDeadlineSettingInterceptor(Duration commitDeadline) {
-      this.commitDeadlineMilliseconds = commitDeadline.getMillis();
-    }
-
-    @Override
-    public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(
-        MethodDescriptor<ReqT, RespT> method, CallOptions callOptions, Channel next) {
-      if (method.getFullMethodName().equals("google.spanner.v1.Spanner/Commit")) {
-        callOptions =
-            callOptions.withDeadlineAfter(commitDeadlineMilliseconds, TimeUnit.MILLISECONDS);
-      }
-      return next.newCall(method, callOptions);
     }
   }
 }

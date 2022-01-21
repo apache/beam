@@ -157,10 +157,12 @@ func Marshal(edges []*graph.MultiEdge, opt *Options) (*pipepb.Pipeline, error) {
 
 	// If there are external transforms that need expanding, do it now.
 	if m.needsExpansion {
-		// Remap outputs of expanded external transforms to be the inputs for all downstream consumers
-		purgeOutputInput(edges, p)
 		// Merge the expanded components into the existing pipeline
 		mergeExpandedWithPipeline(edges, p)
+
+		// Remap outputs of expanded external transforms to be the inputs for all downstream consumers
+		// Must happen after merging, so that the inputs in the expanded transforms are also updated.
+		purgeOutputInput(edges, p)
 	}
 
 	return p, nil

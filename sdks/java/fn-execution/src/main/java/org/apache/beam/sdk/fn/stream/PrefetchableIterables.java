@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.fn.stream;
 
 import java.util.NoSuchElementException;
+import javax.annotation.Nullable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
 
 /**
@@ -26,8 +27,42 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIt
  */
 public class PrefetchableIterables {
 
+  /**
+   * A default implementation that caches an iterator to be returned when {@link #prefetch} is
+   * invoked.
+   */
+  public abstract static class Default<T> implements PrefetchableIterable<T> {
+    @Nullable private PrefetchableIterator<T> iterator = null;
+
+    @Override
+    public final void prefetch() {
+      if (iterator != null) {
+        return;
+      }
+      iterator = createIterator();
+      iterator.prefetch();
+    }
+
+    @Override
+    public final PrefetchableIterator<T> iterator() {
+      if (iterator == null) {
+        return createIterator();
+      }
+      PrefetchableIterator<T> rval = iterator;
+      iterator = null;
+      return rval;
+    }
+
+    protected abstract PrefetchableIterator<T> createIterator();
+  }
+
   private static final PrefetchableIterable<Object> EMPTY_ITERABLE =
-      PrefetchableIterators::emptyIterator;
+      new Default<Object>() {
+        @Override
+        protected PrefetchableIterator<Object> createIterator() {
+          return PrefetchableIterators.emptyIterator();
+        }
+      };
 
   /** Returns an empty {@link PrefetchableIterable}. */
   public static <T> PrefetchableIterable<T> emptyIterable() {
@@ -44,9 +79,9 @@ public class PrefetchableIterables {
     if (values.length == 0) {
       return emptyIterable();
     }
-    return new PrefetchableIterable<T>() {
+    return new Default<T>() {
       @Override
-      public PrefetchableIterator<T> iterator() {
+      public PrefetchableIterator<T> createIterator() {
         return PrefetchableIterators.fromArray(values);
       }
     };
@@ -63,9 +98,9 @@ public class PrefetchableIterables {
     if (iterable instanceof PrefetchableIterable) {
       return (PrefetchableIterable<T>) iterable;
     }
-    return new PrefetchableIterable<T>() {
+    return new Default<T>() {
       @Override
-      public PrefetchableIterator<T> iterator() {
+      public PrefetchableIterator<T> createIterator() {
         return PrefetchableIterators.maybePrefetchable(iterable.iterator());
       }
     };
@@ -87,10 +122,10 @@ public class PrefetchableIterables {
     } else if (iterables.length == 1) {
       return maybePrefetchable(iterables[0]);
     }
-    return new PrefetchableIterable<T>() {
+    return new Default<T>() {
       @SuppressWarnings("methodref.receiver.invalid")
       @Override
-      public PrefetchableIterator<T> iterator() {
+      public PrefetchableIterator<T> createIterator() {
         return PrefetchableIterators.concatIterators(
             FluentIterable.from(iterables).transform(Iterable::iterator).iterator());
       }
@@ -100,9 +135,9 @@ public class PrefetchableIterables {
   /** Limits the {@link PrefetchableIterable} to the specified number of elements. */
   public static <T> PrefetchableIterable<T> limit(Iterable<T> iterable, int limit) {
     PrefetchableIterable<T> prefetchableIterable = maybePrefetchable(iterable);
-    return new PrefetchableIterable<T>() {
+    return new Default<T>() {
       @Override
-      public PrefetchableIterator<T> iterator() {
+      public PrefetchableIterator<T> createIterator() {
         return new PrefetchableIterator<T>() {
           PrefetchableIterator<T> delegate = prefetchableIterable.iterator();
           int currentPosition;

@@ -46,10 +46,11 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayLis
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import redis.clients.jedis.Jedis;
-import redis.clients.jedis.Pipeline;
-import redis.clients.jedis.ScanParams;
-import redis.clients.jedis.ScanResult;
 import redis.clients.jedis.StreamEntryID;
+import redis.clients.jedis.Transaction;
+import redis.clients.jedis.params.ScanParams;
+import redis.clients.jedis.params.XAddParams;
+import redis.clients.jedis.resps.ScanResult;
 
 /**
  * An IO to manipulate Redis key/value database.
@@ -617,7 +618,7 @@ public class RedisIO {
       private final Write spec;
 
       private transient Jedis jedis;
-      private transient Pipeline pipeline;
+      private transient @Nullable Transaction transaction;
 
       private int batchCount;
 
@@ -632,8 +633,7 @@ public class RedisIO {
 
       @StartBundle
       public void startBundle() {
-        pipeline = jedis.pipelined();
-        pipeline.multi();
+        transaction = jedis.multi();
         batchCount = 0;
       }
 
@@ -646,9 +646,8 @@ public class RedisIO {
         batchCount++;
 
         if (batchCount >= DEFAULT_BATCH_SIZE) {
-          pipeline.exec();
-          pipeline.sync();
-          pipeline.multi();
+          transaction.exec();
+          transaction.multi();
           batchCount = 0;
         }
       }
@@ -678,7 +677,7 @@ public class RedisIO {
         String key = record.getKey();
         String value = record.getValue();
 
-        pipeline.append(key, value);
+        transaction.append(key, value);
 
         setExpireTimeWhenRequired(key, expireTime);
       }
@@ -688,9 +687,9 @@ public class RedisIO {
         String value = record.getValue();
 
         if (expireTime != null) {
-          pipeline.psetex(key, expireTime, value);
+          transaction.psetex(key, expireTime, value);
         } else {
-          pipeline.set(key, value);
+          transaction.set(key, value);
         }
       }
 
@@ -701,9 +700,9 @@ public class RedisIO {
         String value = record.getValue();
 
         if (Method.LPUSH == method) {
-          pipeline.lpush(key, value);
+          transaction.lpush(key, value);
         } else if (Method.RPUSH == method) {
-          pipeline.rpush(key, value);
+          transaction.rpush(key, value);
         }
 
         setExpireTimeWhenRequired(key, expireTime);
@@ -713,7 +712,7 @@ public class RedisIO {
         String key = record.getKey();
         String value = record.getValue();
 
-        pipeline.sadd(key, value);
+        transaction.sadd(key, value);
 
         setExpireTimeWhenRequired(key, expireTime);
       }
@@ -722,7 +721,7 @@ public class RedisIO {
         String key = record.getKey();
         String value = record.getValue();
 
-        pipeline.pfadd(key, value);
+        transaction.pfadd(key, value);
 
         setExpireTimeWhenRequired(key, expireTime);
       }
@@ -731,7 +730,7 @@ public class RedisIO {
         String key = record.getKey();
         String value = record.getValue();
         long inc = Long.parseLong(value);
-        pipeline.incrBy(key, inc);
+        transaction.incrBy(key, inc);
 
         setExpireTimeWhenRequired(key, expireTime);
       }
@@ -740,23 +739,26 @@ public class RedisIO {
         String key = record.getKey();
         String value = record.getValue();
         long decr = Long.parseLong(value);
-        pipeline.decrBy(key, decr);
+        transaction.decrBy(key, decr);
 
         setExpireTimeWhenRequired(key, expireTime);
       }
 
       private void setExpireTimeWhenRequired(String key, Long expireTime) {
         if (expireTime != null) {
-          pipeline.pexpire(key, expireTime);
+          transaction.pexpire(key, expireTime);
         }
       }
 
       @FinishBundle
       public void finishBundle() {
-        if (pipeline.isInMulti()) {
-          pipeline.exec();
-          pipeline.sync();
+        if (batchCount > 0) {
+          transaction.exec();
         }
+        if (transaction != null) {
+          transaction.close();
+        }
+        transaction = null;
         batchCount = 0;
       }
 
@@ -860,7 +862,7 @@ public class RedisIO {
       private final WriteStreams spec;
 
       private transient Jedis jedis;
-      private transient Pipeline pipeline;
+      private transient @Nullable Transaction transaction;
 
       private int batchCount;
 
@@ -875,8 +877,7 @@ public class RedisIO {
 
       @StartBundle
       public void startBundle() {
-        pipeline = jedis.pipelined();
-        pipeline.multi();
+        transaction = jedis.multi();
         batchCount = 0;
       }
 
@@ -889,9 +890,8 @@ public class RedisIO {
         batchCount++;
 
         if (batchCount >= DEFAULT_BATCH_SIZE) {
-          pipeline.exec();
-          pipeline.sync();
-          pipeline.multi();
+          transaction.exec();
+          transaction.multi();
           batchCount = 0;
         }
       }
@@ -899,19 +899,25 @@ public class RedisIO {
       private void writeRecord(KV<String, Map<String, String>> record) {
         String key = record.getKey();
         Map<String, String> value = record.getValue();
+        final XAddParams params = new XAddParams().id(StreamEntryID.NEW_ENTRY);
         if (spec.maxLen() > 0L) {
-          pipeline.xadd(key, StreamEntryID.NEW_ENTRY, value, spec.maxLen(), spec.approximateTrim());
-        } else {
-          pipeline.xadd(key, StreamEntryID.NEW_ENTRY, value);
+          params.maxLen(spec.maxLen());
+          if (spec.approximateTrim()) {
+            params.approximateTrimming();
+          }
         }
+        transaction.xadd(key, params, value);
       }
 
       @FinishBundle
       public void finishBundle() {
-        if (pipeline.isInMulti()) {
-          pipeline.exec();
-          pipeline.sync();
+        if (batchCount > 0) {
+          transaction.exec();
         }
+        if (transaction != null) {
+          transaction.close();
+        }
+        transaction = null;
         batchCount = 0;
       }
 

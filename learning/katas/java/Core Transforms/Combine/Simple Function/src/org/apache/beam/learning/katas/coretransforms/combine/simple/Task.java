@@ -18,6 +18,15 @@
 
 package org.apache.beam.learning.katas.coretransforms.combine.simple;
 
+// beam-playground:
+//   name: FilterSimpleFunction
+//   description: Task from katas to implement the summation of numbers.
+//   multifile: false
+//   pipeline_options:
+//   categories:
+//     - Combiners
+//     - Core Transforms
+
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;

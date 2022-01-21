@@ -58,28 +58,28 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.auth.Credentials;
 import com.google.auth.http.HttpCredentialsAdapter;
+import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
+import com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsRequest;
+import com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsResponse;
 import com.google.cloud.bigquery.storage.v1.BigQueryReadClient;
 import com.google.cloud.bigquery.storage.v1.BigQueryReadSettings;
+import com.google.cloud.bigquery.storage.v1.BigQueryWriteClient;
+import com.google.cloud.bigquery.storage.v1.BigQueryWriteSettings;
 import com.google.cloud.bigquery.storage.v1.CreateReadSessionRequest;
+import com.google.cloud.bigquery.storage.v1.CreateWriteStreamRequest;
+import com.google.cloud.bigquery.storage.v1.FinalizeWriteStreamRequest;
+import com.google.cloud.bigquery.storage.v1.FinalizeWriteStreamResponse;
+import com.google.cloud.bigquery.storage.v1.FlushRowsRequest;
+import com.google.cloud.bigquery.storage.v1.FlushRowsResponse;
+import com.google.cloud.bigquery.storage.v1.ProtoRows;
+import com.google.cloud.bigquery.storage.v1.ProtoSchema;
 import com.google.cloud.bigquery.storage.v1.ReadRowsRequest;
 import com.google.cloud.bigquery.storage.v1.ReadRowsResponse;
 import com.google.cloud.bigquery.storage.v1.ReadSession;
 import com.google.cloud.bigquery.storage.v1.SplitReadStreamRequest;
 import com.google.cloud.bigquery.storage.v1.SplitReadStreamResponse;
-import com.google.cloud.bigquery.storage.v1beta2.AppendRowsResponse;
-import com.google.cloud.bigquery.storage.v1beta2.BatchCommitWriteStreamsRequest;
-import com.google.cloud.bigquery.storage.v1beta2.BatchCommitWriteStreamsResponse;
-import com.google.cloud.bigquery.storage.v1beta2.BigQueryWriteClient;
-import com.google.cloud.bigquery.storage.v1beta2.BigQueryWriteSettings;
-import com.google.cloud.bigquery.storage.v1beta2.CreateWriteStreamRequest;
-import com.google.cloud.bigquery.storage.v1beta2.FinalizeWriteStreamRequest;
-import com.google.cloud.bigquery.storage.v1beta2.FinalizeWriteStreamResponse;
-import com.google.cloud.bigquery.storage.v1beta2.FlushRowsRequest;
-import com.google.cloud.bigquery.storage.v1beta2.FlushRowsResponse;
-import com.google.cloud.bigquery.storage.v1beta2.ProtoRows;
-import com.google.cloud.bigquery.storage.v1beta2.ProtoSchema;
-import com.google.cloud.bigquery.storage.v1beta2.StreamWriterV2;
-import com.google.cloud.bigquery.storage.v1beta2.WriteStream;
+import com.google.cloud.bigquery.storage.v1.StreamWriter;
+import com.google.cloud.bigquery.storage.v1.WriteStream;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
 import com.google.protobuf.Descriptors.Descriptor;
@@ -1194,8 +1194,11 @@ class BigQueryServicesImpl implements BigQueryServices {
         throws Exception {
       ProtoSchema protoSchema =
           ProtoSchema.newBuilder().setProtoDescriptor(descriptor.toProto()).build();
-      StreamWriterV2 streamWriter =
-          StreamWriterV2.newBuilder(streamName).setWriterSchema(protoSchema).build();
+      StreamWriter streamWriter =
+          StreamWriter.newBuilder(streamName)
+              .setWriterSchema(protoSchema)
+              .setTraceId("Dataflow")
+              .build();
       return new StreamAppendClient() {
         private int pins = 0;
         private boolean closed = false;

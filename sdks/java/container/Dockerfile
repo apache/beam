@@ -30,6 +30,9 @@ ADD target/beam-sdks-java-harness.jar /opt/apache/beam/jars/
 ADD target/beam-sdks-java-io-kafka.jar /opt/apache/beam/jars/
 ADD target/kafka-clients.jar /opt/apache/beam/jars/
 
+# Required to use jamm as a javaagent to get accurate object size measuring
+ADD target/jamm.jar /opt/apache/beam/jars/
+
 ADD target/linux_amd64/boot /opt/apache/beam/
 
 COPY target/LICENSE /opt/apache/beam/

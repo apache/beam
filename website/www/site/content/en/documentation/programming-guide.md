@@ -2081,7 +2081,7 @@ If an element falls in multiple windows (for example, this will happen when usin
 
 {{< paragraph class="language-go" >}}
 **Window:**
-To access the timestamp of an input element, add a `beam.Window` parameter before the element.
+To access the window an input element falls into, add a `beam.Window` parameter before the element.
 If an element falls in multiple windows (for example, this will happen when using SlidingWindows),
 then the `ProcessElement` method will be invoked multiple time for the element, once for each window.
 Since `beam.Window` is an interface it's possible to type assert to the concrete implementation of the window.

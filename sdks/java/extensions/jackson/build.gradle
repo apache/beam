@@ -31,5 +31,6 @@ dependencies {
   implementation library.java.jackson_databind
   implementation library.java.jackson_core
   testImplementation library.java.junit
+  testImplementation library.java.hamcrest
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }
