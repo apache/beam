@@ -34,13 +34,14 @@ const (
 	newLinePattern                    = "\n"
 	javaPublicClassNamePattern        = "public class (.*?) [{|implements(.*)]"
 	pipelineNamePattern               = `Pipeline\s([A-z|0-9_]*)\s=\sPipeline\.create`
+	findImportsPattern                = `import.*\;`
 	graphSavePattern                  = "String dotString = org.apache.beam.runners.core.construction.renderer.PipelineDotRenderer.toDotString(%s);\n" +
-		"    try (java.io.PrintWriter out = new java.io.PrintWriter(\"%s\")) {\n      " +
+		"    try (java.io.PrintWriter out = new java.io.PrintWriter(\"Graph.dot\")) {\n      " +
 		"		out.println(dotString);\n    " +
 		"	} catch (java.io.FileNotFoundException e) {\n" +
 		"      e.printStackTrace();\n    " +
-		"\n}\n"
-	graphRunPattern = "(.*%s.run.*;)"
+		"\n}\n" +
+		"%s.run"
 )
 
 //JavaPreparersBuilder facet of PreparersBuilder
