@@ -28,7 +28,7 @@ import (
 
 func TestPutPrecompiledObjectsToCategory(t *testing.T) {
 	precompiledObjectToAdd := &cloud_bucket.PrecompiledObjects{
-		{"TestName", "SDK_JAVA/TestCategory/TestName.java", "TestDescription", pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE, []string{""}, "", ""},
+		{"TestName", "SDK_JAVA/TestCategory/TestName.java", "TestDescription", pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE, []string{""}, "", "", false},
 	}
 	type args struct {
 		categoryName       string
@@ -152,6 +152,89 @@ func TestGetPrecompiledObjectsCatalogFromCache(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetPrecompiledObjectsCatalogFromCache() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetDefaultPrecompiledObjects(t *testing.T) {
+	preparedPrecompiledObjectJava := pb.PrecompiledObject{
+		CloudPath:      "SDK_JAVA/TestCategory/TestName1.java",
+		Name:           "TestName1",
+		Description:    "TestDescription",
+		Type:           pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+		DefaultExample: true,
+	}
+	preparedPrecompiledObjectGo := pb.PrecompiledObject{
+		CloudPath:      "SDK_GO/TestCategory/TestName.go",
+		Name:           "TestName",
+		Description:    "TestDescription",
+		Type:           pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+		DefaultExample: true,
+	}
+	sdkCategories := []*pb.Categories{
+		{
+			Sdk: pb.Sdk_SDK_JAVA,
+			Categories: []*pb.Categories_Category{
+				{
+					CategoryName: "TestCategory1", PrecompiledObjects: []*pb.PrecompiledObject{
+						{
+							CloudPath:      "SDK_JAVA/TestCategory/TestName.java",
+							Name:           "TestName",
+							Description:    "TestDescription",
+							Type:           pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+							DefaultExample: false,
+						},
+					},
+				},
+				{
+					CategoryName: "TestCategory2", PrecompiledObjects: []*pb.PrecompiledObject{
+						&preparedPrecompiledObjectJava,
+						{
+							CloudPath:      "SDK_JAVA/TestCategory/TestName2.java",
+							Name:           "TestName2",
+							Description:    "TestDescription",
+							Type:           pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+							DefaultExample: false,
+						},
+					},
+				},
+			},
+		},
+		{
+			Sdk: pb.Sdk_SDK_GO,
+			Categories: []*pb.Categories_Category{
+				{
+					CategoryName: "TestCategory", PrecompiledObjects: []*pb.PrecompiledObject{
+						&preparedPrecompiledObjectGo,
+					},
+				},
+			},
+		},
+	}
+	expectedDefaultPrecompiledObjects := make(map[pb.Sdk]*pb.PrecompiledObject)
+	expectedDefaultPrecompiledObjects[pb.Sdk_SDK_JAVA] = &preparedPrecompiledObjectJava
+	expectedDefaultPrecompiledObjects[pb.Sdk_SDK_GO] = &preparedPrecompiledObjectGo
+	type args struct {
+		sdkCategories []*pb.Categories
+	}
+	tests := []struct {
+		name string
+		args args
+		want map[pb.Sdk]*pb.PrecompiledObject
+	}{
+		{
+			// Test case with getting default Precompiled Objects from the precompiled objects catalog
+			// As a result, want to receive an expected map of default Precompiled Objects.
+			name: "get default precompiled objects",
+			args: args{sdkCategories: sdkCategories},
+			want: expectedDefaultPrecompiledObjects,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := GetDefaultPrecompiledObjects(tt.args.sdkCategories); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("GetDefaultPrecompiledObjects() = %v, want %v", got, tt.want)
 			}
 		})
 	}

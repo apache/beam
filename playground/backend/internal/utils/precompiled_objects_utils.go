@@ -43,6 +43,7 @@ func PutPrecompiledObjectsToCategory(categoryName string, precompiledObjects *cl
 			Type:            object.Type,
 			PipelineOptions: object.PipelineOptions,
 			Link:            object.Link,
+			DefaultExample:  object.DefaultExample,
 		})
 	}
 	sdkCategory.Categories = append(sdkCategory.Categories, &category)
@@ -80,4 +81,23 @@ func GetPrecompiledObjectsCatalogFromStorage(ctx context.Context, sdk pb.Sdk, ca
 		sdkCategories = append(sdkCategories, &sdkCategory)
 	}
 	return sdkCategories, nil
+}
+
+// GetDefaultPrecompiledObjects returns the default precompiled objects from the precompiled objects catalog
+func GetDefaultPrecompiledObjects(sdkCategories []*pb.Categories) map[pb.Sdk]*pb.PrecompiledObject {
+	defaultPrecompiledObjects := make(map[pb.Sdk]*pb.PrecompiledObject)
+	for _, categories := range sdkCategories {
+		for _, category := range categories.Categories {
+			for _, precompiledObject := range category.PrecompiledObjects {
+				if precompiledObject.DefaultExample {
+					defaultPrecompiledObjects[categories.Sdk] = precompiledObject
+					break
+				}
+			}
+			if _, ok := defaultPrecompiledObjects[categories.Sdk]; ok {
+				break
+			}
+		}
+	}
+	return defaultPrecompiledObjects
 }

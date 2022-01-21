@@ -58,6 +58,9 @@ const (
 
 	// ExamplesCatalog is catalog of examples available in Playground
 	ExamplesCatalog SubKey = "EXAMPLES_CATALOG"
+
+	// DefaultPrecompiledObjects is used to keep default precompiled objects for each SDK
+	DefaultPrecompiledObjects SubKey = "DEFAULT_PRECOMPILED_OBJECTS"
 )
 
 // Cache is used to store states and outputs for Apache Beam pipelines that running in Playground

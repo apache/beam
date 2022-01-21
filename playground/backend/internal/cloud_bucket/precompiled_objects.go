@@ -32,7 +32,7 @@ import (
 )
 
 const (
-	BucketName       = "playground-precompiled-objects"
+	BucketName       = "playground-examples228"
 	OutputExtension  = "output"
 	LogsExtension    = "log"
 	MetaInfoName     = "meta.info"
@@ -50,8 +50,9 @@ type ObjectInfo struct {
 	Description     string                   `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
 	Type            pb.PrecompiledObjectType `protobuf:"varint,4,opt,name=type,proto3,enum=api.v1.PrecompiledObjectType" json:"type,omitempty"`
 	Categories      []string                 `json:"categories,omitempty"`
-	PipelineOptions string                   `protobuf:"bytes,3,opt,name=pipeline_options,proto3" json:"pipeline_options,omitempty"`
-	Link            string                   `protobuf:"bytes,3,opt,name=link,proto3" json:"link,omitempty"`
+	PipelineOptions string                   `protobuf:"bytes,5,opt,name=pipeline_options,proto3" json:"pipeline_options,omitempty"`
+	Link            string                   `protobuf:"bytes,6,opt,name=link,proto3" json:"link,omitempty"`
+	DefaultExample  bool                     `protobuf:"varint,7,opt,name=default_example,json=defaultExample,proto3" json:"default_example,omitempty"`
 }
 
 type PrecompiledObjects []ObjectInfo
@@ -174,26 +175,6 @@ func (cd *CloudStorage) GetPrecompiledObjects(ctx context.Context, targetSdk pb.
 	return &precompiledObjects, nil
 }
 
-// GetDefaultPrecompiledObject returns the default precompiled object for the sdk
-func (cd *CloudStorage) GetDefaultPrecompiledObject(ctx context.Context, defaultExamplePath string) (*ObjectInfo, error) {
-	infoPath := filepath.Join(defaultExamplePath, MetaInfoName)
-	metaInfo, err := cd.getFileFromBucket(ctx, infoPath, "")
-	if err != nil {
-		return nil, err
-	}
-
-	precompiledObject := ObjectInfo{}
-	err = json.Unmarshal(metaInfo, &precompiledObject)
-	if err != nil {
-		logger.Errorf("json.Unmarshal: %v", err.Error())
-		return nil, err
-	}
-
-	precompiledObject.CloudPath = filepath.Dir(infoPath)
-
-	return &precompiledObject, nil
-}
-
 // getPrecompiledObjectsDirs finds directories with precompiled objects
 // Since there is no notion of directory at cloud storage, then
 // to avoid duplicates of a base path (directory) need to store it in a set/map.
@@ -288,9 +269,6 @@ func getFileExtensionBySdk(precompiledObjectPath string) (string, error) {
 
 // getFullFilePath get full path to the precompiled object file
 func getFullFilePath(objectDir string, extension string) string {
-	if extension == "" {
-		return objectDir
-	}
 	precompiledObjectName := filepath.Base(objectDir) //the base of the object's directory matches the name of the file
 	fileName := strings.Join([]string{precompiledObjectName, extension}, ".")
 	filePath := filepath.Join(objectDir, fileName)

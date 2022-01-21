@@ -12,6 +12,5 @@
   "test_args": [
     "test",
     "-v"
-  ],
-  "default_example": "SDK_GO/MinimalWordCount"
+  ]
 }

@@ -16,6 +16,5 @@
     "-cp",
     "bin:",
     "org.junit.runner.JUnitCore"
-  ],
-  "default_example": "SDK_JAVA/MinimalWordCount"
+  ]
 }

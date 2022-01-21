@@ -308,13 +308,12 @@ func (controller *playgroundController) GetDefaultPrecompiledObject(ctx context.
 		return nil, errors.InvalidArgumentError("Error during preparing", "Sdk is not implemented yet: %s", info.Sdk.String())
 	}
 
-	bucket := cloud_bucket.New()
-	precompiledObject, err := bucket.GetDefaultPrecompiledObject(ctx, controller.env.BeamSdkEnvs.DefaultExamplePath())
+	defaultPrecompiledObjects, err := controller.cacheService.GetValue(ctx, uuid.Nil, cache.DefaultPrecompiledObjects)
 	if err != nil {
-		logger.Errorf("GetDefaultPrecompiledObject(): cloud storage error: %s", err.Error())
-		return nil, errors.InternalError("Error during getting default Precompiled Object", "Error with cloud connection")
+		logger.Errorf("GetDefaultPrecompiledObject(): cache.GetValue: %s\n", err.Error())
+		return nil, errors.InvalidArgumentError("Error during getting default Precompiled Objects from cache", "Error during getting default Precompiled Objects")
 	}
-
+	precompiledObject := defaultPrecompiledObjects.(map[pb.Sdk]*pb.PrecompiledObject)[info.Sdk]
 	response := pb.GetDefaultPrecompiledObjectResponse{PrecompiledObject: &pb.PrecompiledObject{
 		CloudPath:       precompiledObject.CloudPath,
 		Name:            precompiledObject.Name,
@@ -322,6 +321,7 @@ func (controller *playgroundController) GetDefaultPrecompiledObject(ctx context.
 		Type:            precompiledObject.Type,
 		PipelineOptions: precompiledObject.PipelineOptions,
 		Link:            precompiledObject.Link,
+		DefaultExample:  precompiledObject.DefaultExample,
 	}}
 	return &response, nil
 }

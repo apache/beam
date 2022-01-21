@@ -4,6 +4,5 @@
   "test_cmd": "pytest",
   "compile_args": [],
   "run_args": [],
-  "test_args": [],
-  "default_example": "SDK_PYTHON/WordCountWithMetrics"
+  "test_args": []
 }

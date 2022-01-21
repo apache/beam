@@ -153,6 +153,7 @@ message PrecompiledObject{
   string pipeline_options = 5;
   // Link to the example in the Beam repository
   string link = 6;
+  bool default_example = 7;
 }
 
 // Categories represent the array of messages with sdk and categories at this sdk

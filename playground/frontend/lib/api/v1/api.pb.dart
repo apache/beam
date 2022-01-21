@@ -895,6 +895,7 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     ..e<PrecompiledObjectType>(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'type', $pb.PbFieldType.OE, defaultOrMaker: PrecompiledObjectType.PRECOMPILED_OBJECT_TYPE_UNSPECIFIED, valueOf: PrecompiledObjectType.valueOf, enumValues: PrecompiledObjectType.values)
     ..aOS(5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'pipelineOptions')
     ..aOS(6, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'link')
+    ..aOB(7, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'defaultExample')
     ..hasRequiredFields = false
   ;
 
@@ -906,6 +907,7 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     PrecompiledObjectType? type,
     $core.String? pipelineOptions,
     $core.String? link,
+    $core.bool? defaultExample,
   }) {
     final _result = create();
     if (cloudPath != null) {
@@ -925,6 +927,9 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     }
     if (link != null) {
       _result.link = link;
+    }
+    if (defaultExample != null) {
+      _result.defaultExample = defaultExample;
     }
     return _result;
   }
@@ -1002,6 +1007,15 @@ class PrecompiledObject extends $pb.GeneratedMessage {
   $core.bool hasLink() => $_has(5);
   @$pb.TagNumber(6)
   void clearLink() => clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.bool get defaultExample => $_getBF(6);
+  @$pb.TagNumber(7)
+  set defaultExample($core.bool v) { $_setBool(6, v); }
+  @$pb.TagNumber(7)
+  $core.bool hasDefaultExample() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearDefaultExample() => clearField(7);
 }
 
 class Categories_Category extends $pb.GeneratedMessage {

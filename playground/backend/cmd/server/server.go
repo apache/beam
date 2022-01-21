@@ -125,7 +125,12 @@ func setupExamplesCatalog(ctx context.Context, cacheService cache.Cache) error {
 	if err != nil {
 		return err
 	}
+	defaultPrecompiledObjects := utils.GetDefaultPrecompiledObjects(sdkCategories)
+
 	if err = utils.SetToCache(ctx, cacheService, uuid.Nil, cache.ExamplesCatalog, sdkCategories); err != nil {
+		return err
+	}
+	if err = utils.SetToCache(ctx, cacheService, uuid.Nil, cache.DefaultPrecompiledObjects, defaultPrecompiledObjects); err != nil {
 		return err
 	}
 	return nil
