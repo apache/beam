@@ -129,7 +129,7 @@ repositories {
 1. Add the following task in `build.gradle` to allow you to execute pipelines with Gradle:
 {{< highlight >}}
 task execute (type:JavaExec) {
-    main = System.getProperty("mainClass")
+    mainClass = System.getProperty("mainClass")
     classpath = sourceSets.main.runtimeClasspath
     systemProperties System.getProperties()
     args System.getProperty("exec.args", "").split()

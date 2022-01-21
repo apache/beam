@@ -75,6 +75,8 @@ task validatesRunnerBatch(type: Test) {
     testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
     useJUnit {
         includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+        // Should be run only in a properly configured SDK harness environment
+        excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
         excludeCategories "org.apache.beam.sdk.testing.LargeKeys\$Above100MB"
         excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
         excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'

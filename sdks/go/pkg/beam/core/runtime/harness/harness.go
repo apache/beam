@@ -507,7 +507,7 @@ func (c *control) getPlanOrResponse(ctx context.Context, kind string, instID, re
 	c.mu.Lock()
 	plan, ok := c.active[ref]
 	err := c.failed[ref]
-	store, _ := c.metStore[ref]
+	store := c.metStore[ref]
 	defer c.mu.Unlock()
 
 	if err != nil {

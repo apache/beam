@@ -14,6 +14,15 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
+# beam-playground:
+#   name: Partition
+#   description: Task from katas that splits a PCollection of numbers into two PCollections. The first PCollection
+#     contains numbers greater than 100, and the second PCollection contains the remaining numbers.
+#   multifile: false
+#   pipeline_options:
+#   categories:
+#     - Multiple Outputs
+
 import apache_beam as beam
 
 from log_elements import LogElements

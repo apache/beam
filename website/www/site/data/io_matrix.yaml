@@ -280,7 +280,7 @@ categories:
             name: github.com/apache/beam/sdks/go/pkg/beam/io/bigqueryio
             url: https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/io/bigqueryio
       - transform: BigTableIO
-        description: Read from and write to [Google Cloud Bigtable](https://cloud.google.com/bigtable/).
+        description: Read from (only for Java SDK) and write to [Google Cloud Bigtable](https://cloud.google.com/bigtable/).
         implementations:
           - language: java
             name: org.apache.beam.sdk.io.gcp.bigtable.BigtableIO

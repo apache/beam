@@ -28,7 +28,9 @@ import java.util.Collection;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TimeZone;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.schemas.Schema;
@@ -169,6 +171,13 @@ class JdbcUtil {
         };
       case LOGICAL_TYPE:
         {
+          if (Objects.equals(
+              fieldType.getLogicalType(), LogicalTypes.JDBC_UUID_TYPE.getLogicalType())) {
+            return (element, ps, i, fieldWithIndex) ->
+                ps.setObject(
+                    i + 1, element.getLogicalTypeValue(fieldWithIndex.getIndex(), UUID.class));
+          }
+
           String logicalTypeName = fieldType.getLogicalType().getIdentifier();
           JDBCType jdbcType = JDBCType.valueOf(logicalTypeName);
           switch (jdbcType) {
@@ -206,6 +215,10 @@ class JdbcUtil {
                   ps.setTimestamp(i + 1, new Timestamp(calendar.getTime().getTime()), calendar);
                 }
               };
+            case OTHER:
+              return (element, ps, i, fieldWithIndex) ->
+                  ps.setObject(
+                      i + 1, element.getValue(fieldWithIndex.getIndex()), java.sql.Types.OTHER);
             default:
               return getPreparedStatementSetCaller(fieldType.getLogicalType().getBaseType());
           }

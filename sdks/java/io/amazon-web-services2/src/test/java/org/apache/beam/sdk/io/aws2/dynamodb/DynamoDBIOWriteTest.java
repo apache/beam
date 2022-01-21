@@ -21,6 +21,7 @@ import static java.util.stream.Collectors.toList;
 import static java.util.stream.IntStream.range;
 import static java.util.stream.IntStream.rangeClosed;
 import static org.apache.beam.sdk.io.aws2.dynamodb.DynamoDBIO.Write.WriteFn.RETRY_ERROR_LOG;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps.filterKeys;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps.transformValues;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -111,7 +112,8 @@ public class DynamoDBIOWriteTest {
   public void testWritePutItemsWithDuplicates() {
     List<Item> items = Item.range(0, 100);
 
-    Supplier<List<Item>> capturePuts = captureBatchWrites(client, req -> req.putRequest().item());
+    Supplier<List<List<Item>>> captureRequests =
+        captureBatchWriteRequests(client, req -> req.putRequest().item());
 
     pipeline
         .apply(Create.of(items))
@@ -124,15 +126,21 @@ public class DynamoDBIOWriteTest {
 
     pipeline.run().waitUntilFinish();
 
-    assertThat(capturePuts.get()).hasSize(100);
-    assertThat(capturePuts.get()).containsExactlyInAnyOrderElementsOf(items);
+    List<List<Item>> requests = captureRequests.get();
+    for (List<Item> reqItems : requests) {
+      assertThat(reqItems).doesNotHaveDuplicates(); // each request is free of duplicates
+    }
+
+    assertThat(requests.stream().flatMap(List::stream)).containsAll(items);
   }
 
   @Test
   public void testWritePutItemsWithDuplicatesByKey() {
+    ImmutableList<String> keys = ImmutableList.of("id");
     List<Item> items = Item.range(0, 100);
 
-    Supplier<List<Item>> capturePuts = captureBatchWrites(client, req -> req.putRequest().item());
+    Supplier<List<List<Item>>> captureRequests =
+        captureBatchWriteRequests(client, req -> req.putRequest().item());
 
     pipeline
         .apply(Create.of(items))
@@ -142,12 +150,20 @@ public class DynamoDBIOWriteTest {
             DynamoDBIO.<Item>write()
                 .withWriteRequestMapperFn(putRequestMapper)
                 .withDynamoDbClientProvider(StaticDynamoDBClientProvider.of(client))
-                .withDeduplicateKeys(ImmutableList.of("id")));
+                .withDeduplicateKeys(keys));
 
     pipeline.run().waitUntilFinish();
 
-    assertThat(capturePuts.get()).hasSize(100);
-    assertThat(capturePuts.get()).containsExactlyInAnyOrderElementsOf(items);
+    List<List<Item>> requests = captureRequests.get();
+    for (List<Item> reqItems : requests) {
+      List<Item> keysOnly =
+          reqItems.stream()
+              .map(item -> new Item(filterKeys(item.entries, keys::contains)))
+              .collect(toList());
+      assertThat(keysOnly).doesNotHaveDuplicates(); // each request is free of duplicates
+    }
+
+    assertThat(requests.stream().flatMap(List::stream)).containsAll(items);
   }
 
   @Test
@@ -176,8 +192,8 @@ public class DynamoDBIOWriteTest {
   public void testWriteDeleteItemsWithDuplicates() {
     List<Item> items = Item.range(0, 100);
 
-    Supplier<List<Item>> captureDeletes =
-        captureBatchWrites(client, req -> req.deleteRequest().key());
+    Supplier<List<List<Item>>> captureRequests =
+        captureBatchWriteRequests(client, req -> req.deleteRequest().key());
 
     pipeline
         .apply(Create.of(items))
@@ -190,8 +206,12 @@ public class DynamoDBIOWriteTest {
 
     pipeline.run().waitUntilFinish();
 
-    assertThat(captureDeletes.get()).hasSize(100);
-    assertThat(captureDeletes.get()).containsExactlyInAnyOrderElementsOf(items);
+    List<List<Item>> requests = captureRequests.get();
+    for (List<Item> reqItems : requests) {
+      assertThat(reqItems).doesNotHaveDuplicates(); // each request is free of duplicates
+    }
+
+    assertThat(requests.stream().flatMap(List::stream)).containsAll(items);
   }
 
   @Test
@@ -324,7 +344,7 @@ public class DynamoDBIOWriteTest {
     }
   }
 
-  private Supplier<List<Item>> captureBatchWrites(
+  private Supplier<List<List<Item>>> captureBatchWriteRequests(
       DynamoDbClient mock, Function<WriteRequest, Map<String, AttributeValue>> extractor) {
     ArgumentCaptor<BatchWriteItemRequest> reqCaptor =
         ArgumentCaptor.forClass(BatchWriteItemRequest.class);
@@ -334,10 +354,14 @@ public class DynamoDBIOWriteTest {
     return () ->
         reqCaptor.getAllValues().stream()
             .flatMap(req -> req.requestItems().values().stream())
-            .flatMap(writes -> writes.stream())
-            .map(extractor)
-            .map(Item::of)
+            .map(writes -> writes.stream().map(extractor).map(Item::of).collect(toList()))
             .collect(toList());
+  }
+
+  private Supplier<List<Item>> captureBatchWrites(
+      DynamoDbClient mock, Function<WriteRequest, Map<String, AttributeValue>> extractor) {
+    Supplier<List<List<Item>>> requests = captureBatchWriteRequests(mock, extractor);
+    return () -> requests.get().stream().flatMap(reqs -> reqs.stream()).collect(toList());
   }
 
   private static ArgumentMatcher<BatchWriteItemRequest> matchWritesUnordered(

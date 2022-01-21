@@ -680,65 +680,6 @@ public class PCollectionViews {
       public ListIterator<T> listIterator() {
         return super.listIterator();
       }
-
-      /** A {@link ListIterator} over {@link MultimapView} adapter. */
-      private class ListIteratorOverMultimapView implements ListIterator<T> {
-        private int position;
-
-        @Override
-        public boolean hasNext() {
-          return position < size();
-        }
-
-        @Override
-        public T next() {
-          if (!hasNext()) {
-            throw new NoSuchElementException();
-          }
-          T rval = get(position);
-          position += 1;
-          return rval;
-        }
-
-        @Override
-        public boolean hasPrevious() {
-          return position > 0;
-        }
-
-        @Override
-        public T previous() {
-          if (!hasPrevious()) {
-            throw new NoSuchElementException();
-          }
-          position -= 1;
-          return get(position);
-        }
-
-        @Override
-        public int nextIndex() {
-          return position;
-        }
-
-        @Override
-        public int previousIndex() {
-          return position - 1;
-        }
-
-        @Override
-        public void remove() {
-          throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void set(T e) {
-          throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void add(T e) {
-          throw new UnsupportedOperationException();
-        }
-      }
     }
   }
 

@@ -51,6 +51,9 @@ class StreamingCacheTest(unittest.TestCase):
     cache.write([TestStreamFileRecord()], 'my_label')
     self.assertTrue(cache.exists('my_label'))
 
+    # '' shouldn't be treated as a wildcard to match everything.
+    self.assertFalse(cache.exists(''))
+
   def test_empty(self):
     CACHED_PCOLLECTION_KEY = repr(CacheKey('arbitrary_key', '', '', ''))
 

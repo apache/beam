@@ -31,7 +31,7 @@ dependencies {
 }
 
 task runTestKafkaService (type: JavaExec) {
-  main = "org.apache.beam.sdk.testing.kafka.LocalKafka"
+  mainClass = "org.apache.beam.sdk.testing.kafka.LocalKafka"
   classpath = sourceSets.test.runtimeClasspath
   args = [
     project.findProperty("kafka.port") ?: "9092",
@@ -40,7 +40,7 @@ task runTestKafkaService (type: JavaExec) {
 }
 
 task buildTestKafkaServiceJar(type: ShadowJar) {
-  appendix = "testKafkaService"
+  archiveAppendix = "testKafkaService"
   // Use zip64 mode to avoid "Archive contains more than 65535 entries".
   zip64 = true
   mergeServiceFiles()

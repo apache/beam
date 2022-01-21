@@ -17,6 +17,14 @@
  */
 package org.apache.beam.sdk.testing;
 
+// beam-playground:
+//   name: TestStreamTest
+//   description: Unit-test for the TestStream example.
+//   multifile: false
+//   pipeline_options:
+//   categories:
+//     - Streaming
+
 import static org.apache.beam.sdk.transforms.windowing.Window.into;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;

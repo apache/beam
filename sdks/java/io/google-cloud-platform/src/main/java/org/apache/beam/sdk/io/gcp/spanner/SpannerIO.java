@@ -1610,6 +1610,7 @@ public class SpannerIO {
 
     // Fluent Backoff is not serializable so create at runtime in setup().
     private transient FluentBackoff bundleWriteBackoff;
+    private transient String projectId;
 
     WriteToSpannerFn(
         SpannerConfig spannerConfig, FailureMode failureMode, TupleTag<MutationGroup> failedTag) {
@@ -1625,6 +1626,11 @@ public class SpannerIO {
           FluentBackoff.DEFAULT
               .withMaxCumulativeBackoff(spannerConfig.getMaxCumulativeBackoff().get())
               .withInitialBackoff(spannerConfig.getMaxCumulativeBackoff().get().dividedBy(60));
+
+      projectId =
+          this.spannerConfig.getProjectId() == null
+              ? SpannerOptions.getDefaultProjectId()
+              : this.spannerConfig.getProjectId().get();
     }
 
     @Teardown
@@ -1680,14 +1686,20 @@ public class SpannerIO {
       for (int retry = 1; ; retry++) {
         ServiceCallMetric serviceCallMetric =
             createServiceCallMetric(
-                this.spannerConfig.getProjectId().toString(),
-                this.spannerConfig.getDatabaseId().toString(),
-                this.spannerConfig.getInstanceId().toString(),
+                projectId,
+                this.spannerConfig.getDatabaseId().get(),
+                this.spannerConfig.getInstanceId().get(),
                 "Write");
         try {
-          spannerAccessor
-              .getDatabaseClient()
-              .writeAtLeastOnceWithOptions(batch, Options.priority(spannerConfig.getRpcPriority()));
+          if (spannerConfig.getRpcPriority() != null
+              && spannerConfig.getRpcPriority().get() != null) {
+            spannerAccessor
+                .getDatabaseClient()
+                .writeAtLeastOnceWithOptions(
+                    batch, Options.priority(spannerConfig.getRpcPriority().get()));
+          } else {
+            spannerAccessor.getDatabaseClient().writeAtLeastOnce(batch);
+          }
           serviceCallMetric.call("ok");
           return;
         } catch (AbortedException e) {

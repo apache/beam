@@ -18,6 +18,15 @@
 
 package org.apache.beam.learning.katas.windowing.fixedwindow;
 
+// beam-playground:
+//   name: FixedTimeWindow
+//   description: Task from katas to count the number of events that happened based on fixed window with 1-day duration.
+//   multifile: false
+//   pipeline_options:
+//   categories:
+//     - Combiners
+//     - Streaming
+
 import org.apache.beam.learning.katas.util.Log;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;

@@ -32,8 +32,7 @@ dependencies {
   implementation library.java.vendored_guava_26_0_jre
   testImplementation project(":sdks:java:extensions:kryo")
   testImplementation library.java.slf4j_api
-  testImplementation library.java.hamcrest_core
-  testImplementation library.java.hamcrest_library
+  testImplementation library.java.hamcrest
   testImplementation library.java.mockito_core
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")

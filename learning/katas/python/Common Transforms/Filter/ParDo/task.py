@@ -14,6 +14,14 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
+# beam-playground:
+#   name: FilterParDo
+#   description: Task from katas to implement a filter function that filters out the even numbers.
+#   multifile: false
+#   pipeline_options:
+#   categories:
+#     - Filtering
+
 import apache_beam as beam
 
 from log_elements import LogElements

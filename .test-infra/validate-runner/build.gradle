@@ -27,15 +27,11 @@ repositories {
         url "https://repo.jenkins-ci.org/releases/"
     }
     maven {
-        url "https://jcenter.bintray.com/"
-    }
-    maven {
         url "https://packages.confluent.io/maven/"
     }
 }
 
 dependencies {
-    implementation group: 'com.cdancy', name: 'jenkins-rest', version: '0.0.22'
     implementation 'com.offbytwo.jenkins:jenkins-client:0.3.8'
     implementation library.java.jackson_databind
     implementation group: 'org.jenkins-ci.plugins', name: 'junit', version: '1.49'
@@ -47,7 +43,6 @@ dependencies {
     implementation project(path: ":sdks:java:core", configuration: "shadowTest")
     implementation project(path: ":runners:spark:3")
     implementation project(path: ":runners:flink:${latestFlinkVersion}")
-    implementation project(path: ":runners:core-java")
     implementation project(path: ":runners:core-java", configuration: "testRuntimeMigration")
 }
 
@@ -62,6 +57,6 @@ if (project.hasProperty("args")) {
 
 task runner(type: JavaExec) {
     classpath = sourceSets.main.runtimeClasspath
-    main = "org.apache.beam.validate.runner.Main"
+    mainClass = "org.apache.beam.validate.runner.Main"
     args cmdargs.split()
 }

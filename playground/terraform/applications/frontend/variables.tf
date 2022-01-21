@@ -34,3 +34,7 @@ variable "docker_image_tag" {
   description = "Docker Image Tag To Be Deployed"
   default = "latest"
 }
+
+variable "service_name" {
+  default = "frontend"
+}

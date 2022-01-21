@@ -1,0 +1,158 @@
+{
+  "lightMode": "Light Mode",
+  "@lightMode": {
+    "description": "Title for a theme switch"
+  },
+  "darkMode": "Dark Mode",
+  "@darkMode": {
+    "description": "Title for a theme switch"
+  },
+  "newExample": "New Example",
+  "@newExample": {
+    "description": "Title for the New Example button"
+  },
+  "reset": "Reset",
+  "@reset": {
+    "description": "Title for the reset button"
+  },
+  "run": "Run",
+  "@run": {
+    "description": "Title for the run button"
+  },
+  "cancel": "Cancel",
+  "@cancel": {
+    "description": "Title for the cancel button"
+  },
+  "cancelExecution": "Cancel Execution",
+  "@cancelExecution": {
+    "description": "Title for the cancel execution notification"
+  },
+  "unknownExample": "Unknown Example",
+  "@unknownExample": {
+    "description": "Unknown example text part"
+  },
+  "log": "Log",
+  "@log": {
+    "description": "Title for the log section"
+  },
+  "graph": "Graph",
+  "@graph": {
+    "description": "Title for the graph section"
+  },
+  "output": "Output",
+  "@output": {
+    "description": "Title for the output section"
+  },
+  "shortcuts": "Shortcuts",
+  "@shortcuts": {
+    "description": "Title for the Shortcuts menu item"
+  },
+  "beamPlaygroundOnGithub": "Beam Playground on Github",
+  "@beamPlaygroundOnGithub": {
+    "description": "Title for the Beam Playground on Github menu item"
+  },
+  "apacheBeamOnGithub": "Apache Beam on Github",
+  "@apacheBeamOnGithub": {
+    "description": "Title for the Apache Beam on Github menu item"
+  },
+  "scioOnGithub": "SCIO on Github",
+  "@scioOnGithub": {
+    "description": "Title for the SCIO on Github menu item"
+  },
+  "toApacheBeamWebsite": "To Apache Beam Website",
+  "@toApacheBeamWebsite": {
+    "description": "Title for the To Apache Beam Website menu item"
+  },
+  "aboutApacheBeam": "About Apache Beam",
+  "@aboutApacheBeam": {
+    "description": "Title for the About Apache Beam menu item"
+  },
+  "sendFeedback": "Send feedback",
+  "@sendFeedback": {
+    "description": "Title of the send feedback button"
+  },
+  "privacyPolicy": "Privacy Policy",
+  "@privacyPolicy": {
+    "description": "Title for the privacy policy button"
+  },
+  "copyright": "© The Apache Software Foundation",
+  "@copyright": {
+    "description": "Copyright text for the footer"
+  },
+  "search": "Search",
+  "@search": {
+    "description": "Hint text for a search field"
+  },
+  "all": "All",
+  "@all": {
+    "description": "Title for the category bubble, that sort categories to show all types of examples"
+  },
+  "examples": "Examples",
+  "@example": {
+    "description": "Title for the category bubble, that sort categories to show only Examples"
+  },
+  "katas": "Katas",
+  "@katas": {
+    "description": "Title for the category bubble, that sort categories to show only Katas"
+  },
+  "unitTests": "Unit tests",
+  "@unitTests": {
+    "description": "Title for the category bubble, that sort categories to show only Unit tests"
+  },
+  "pipelineOptions": "Pipeline Options",
+  "@pipelineOptions": {
+    "description": "Title for the pipeline options field"
+  },
+  "pipelineOptionsPlaceholder": "Add Pipeline Options here in the format --key1 value1 --key2 value2",
+  "@pipelineOptionsPlaceholder": {
+    "description": "Pipeline options hint text"
+  },
+  "outputPlacementSemantic": "Change Output Area Placement",
+  "@outputPlacementSemantic": {
+    "description": "Text for the output placement semantics"
+  },
+  "selectSdkDropdown": "Select SDK Dropdown",
+  "@outputPlacementSemantic": {
+    "description": "Text label for SDK Dropdown semantics"
+  },
+  "close": "CLOSE",
+  "@close": {
+    "description": "Title for close buttons"
+  },
+  "tryInPlayground": "Try in Playground",
+  "@tryInPlayground": {
+    "description": "Title for the try button in the embedded version of Playground"
+  },
+  "runCode": "Run Code",
+  "@runCode": {
+    "description": "Title for the run code notification"
+  },
+  "enjoyingPlayground": "Enjoying Playground?",
+  "@enjoyingPlayground": {
+    "description": "Title for the Enjoying Playground button"
+  },
+  "reportIssue": "Report issue in Jira",
+  "@reportIssue": {
+    "description": "Title for the Report issue in Jira button"
+  },
+  "codeTextArea": "Code Text Area",
+  "@codeTextArea": {
+    "description": "Title for the Code text area semantics"
+  },
+  "bottom": "Bottom",
+  "@bottom": {
+    "description": "Part of the output placements semantics label"
+  },
+  "right": "Right",
+  "@right": {
+    "description": "Part of the output placements semantics label"
+  },
+  "left": "Left",
+  "@left": {
+    "description": "Part of the output placements semantics label"
+  },
+  "clearOutput": "Clear Output",
+  "@clearOutput": {
+    "description": "Title for the Clear Output shortcut row"
+  }
+}
