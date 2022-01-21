@@ -1880,8 +1880,6 @@ public class BigQueryIO {
 
       abstract Builder<T> setJsonTimePartitioning(ValueProvider<String> jsonTimePartitioning);
 
-      abstract Builder<T> setJsonClustering(ValueProvider<String> jsonClustering);
-
       abstract Builder<T> setClustering(Clustering clustering);
 
       abstract Builder<T> setCreateDisposition(CreateDisposition createDisposition);
