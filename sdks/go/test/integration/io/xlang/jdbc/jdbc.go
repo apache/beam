@@ -27,46 +27,43 @@ import (
 )
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*JdbcWriteTestRow)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*JdbcTestRow)(nil)).Elem())
 }
 
-// posts=> CREATE TABLE roles(
-// 	role_id serial PRIMARY KEY,
-// 	role_name VARCHAR (255) UNIQUE
-//  );
-
-type JdbcWriteTestRow struct {
-	Role_id int8 `beam:"role_id"`
+// JdbcTestRow is the sample schema for read and write transform test.
+type JdbcTestRow struct {
+	Role_id int32 `beam:"role_id"`
 }
 
-func writeRows(s beam.Scope, expansionAddr, tableName, driverClassName, jdbcUrl, username, password string) {
+func writeRows(s beam.Scope, expansionAddr, tableName, driverClassName, jdbcUrl, username, password string, input beam.PCollection) {
 	s = s.Scope("jdbc_test.WriteToJdbc")
-	rows := []JdbcWriteTestRow{{int8(1)}, {int8(2)}}
-
-	input := beam.CreateList(s, rows)
-	jdbcio.Write(s, expansionAddr, tableName, driverClassName, jdbcUrl, username, password, input) //, statement)
+	jdbcio.Write(s, expansionAddr, tableName, driverClassName, jdbcUrl, username, password, input)
 }
 
+// WritePipeline creates a pipeline for JDBC IO Write transform.
 func WritePipeline(expansionAddr, tableName, driverClassName, jdbcUrl, username, password string) *beam.Pipeline {
 	beam.Init()
 	p, s := beam.NewPipelineWithRoot()
 
-	writeRows(s, expansionAddr, tableName, driverClassName, jdbcUrl, username, password)
+	rows := []JdbcTestRow{{1}, {2}}
+	input := beam.CreateList(s, rows)
+	writeRows(s, expansionAddr, tableName, driverClassName, jdbcUrl, username, password, input)
 	return p
 }
 
-type ReadRow struct {
-	Id int8
+func readRows(s beam.Scope, expansionAddr, tableName, driverClassName, jdbcUrl, username, password string) beam.PCollection {
+	s = s.Scope("jdbc_test.ReadFromJdbc")
+	j := JdbcTestRow{}
+	res := jdbcio.Read(s, expansionAddr, tableName, driverClassName, jdbcUrl, username, password, j)
+	return res
 }
 
+// ReadPipeline creates a pipeline for JDBC IO Read transform.
 func ReadPipeline(t *testing.T, expansionAddr, tableName, driverClassName, jdbcUrl, username, password string) *beam.Pipeline {
 	beam.Init()
 	p, s := beam.NewPipelineWithRoot()
-	s = s.Scope("jdbc_test.ReadFromJdbc")
-	j := JdbcWriteTestRow{}
-	res := jdbcio.Read(s, expansionAddr, tableName, driverClassName, jdbcUrl, username, password, j)
-
-	want := beam.CreateList(s, []JdbcWriteTestRow{{Role_id: 11}})
+	res := readRows(s, expansionAddr, tableName, driverClassName, jdbcUrl, username, password)
+	want := beam.CreateList(s, []JdbcTestRow{{1}, {2}})
 	passert.Equals(s, res, want)
 	return p
 }

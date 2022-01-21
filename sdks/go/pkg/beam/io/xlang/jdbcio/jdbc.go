@@ -15,6 +15,25 @@
 
 // Package jdbcio contains cross-language functionality for reading and writing data to JDBC.
 // These transforms only work on runners that support cross-language transforms.
+//
+// Setup
+//
+// Transforms specified here are cross-language transforms implemented in a
+// different SDK (listed below). During pipeline construction, the Go SDK will
+// need to connect to an expansion service containing information on these
+// transforms in their native SDK.
+//
+// To use an expansion service, it must be run as a separate process accessible
+// during pipeline construction. The address of that process must be passed to
+// the transforms in this package.
+//
+// The version of the expansion service should match the version of the Beam SDK
+// being used. For numbered releases of Beam, these expansions services are
+// released to the Maven repository as modules. For development versions of
+// Beam, it is recommended to build and run it from source using Gradle.
+//
+// Run expansion service: ./gradlew :sdks:java:extensions:schemaio-expansion-service:build
+// java -jar <location_of_jar_file_generated_from_above> port
 
 package jdbcio
 
@@ -29,8 +48,8 @@ import (
 )
 
 func init() {
-	beam.RegisterType(reflect.TypeOf((*JdbcConfigSchema)(nil)).Elem())
-	beam.RegisterType(reflect.TypeOf((*Config)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*jdbcConfigSchema)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*config)(nil)).Elem())
 }
 
 const (
@@ -38,13 +57,17 @@ const (
 	writeURN = "beam:transform:org.apache.beam:schemaio_jdbc_write:v1"
 )
 
-type JdbcConfigSchema struct {
+// jdbcConfigSchema is the config schema as per the expected corss language payload
+// for JDBC IO read and write transform.
+type jdbcConfigSchema struct {
 	Location   string  `beam:"location"`
 	Config     []byte  `beam:"config"`
 	DataSchema *[]byte `beam:"dataSchema"`
 }
 
-type Config struct {
+// config is used to set the config field of jdbcConfigSchema. It contains the
+// details required to make a connection to the JDBC database.
+type config struct {
 	DriverClassName       string    `beam:"driverClassName"`
 	JDBCUrl               string    `beam:"jdbcUrl"`
 	Username              string    `beam:"username"`
@@ -71,12 +94,25 @@ func toRow(pl interface{}) []byte {
 	return buf.Bytes()
 }
 
-type writeOption func(*Config)
+// Write is a cross-language PTransform which writes Rows to the specified database via JDBC.
+// Write requires the address for an expansion service. tableName is a required paramater,
+// and by default, the writeStatement is generated from it. The generated write_statement
+// can be overridden by passing in a write_statment.
+//
+// The default write statement is: "INSERT INTO tableName(column1, ...) INTO VALUES(value1, ...)"
+// Example:
 
+// expansionAddr := "localhost:9000"
+// tableName := "roles"
+// driverClassName := "org.postgresql.Driver"
+// username := "root"
+// password := "root123"
+// jdbcUrl := "jdbc:postgresql://localhost:5432/dbname"
+// jdbcio.Write(s, expansionAddr, tableName, driverClassName, jdbcurl, username, password)
 func Write(s beam.Scope, addr, tableName, driverClassName, jdbcUrl, username, password string, col beam.PCollection, opts ...writeOption) {
 	s = s.Scope("jdbcio.Write")
 
-	wpl := Config{
+	wpl := config{
 		DriverClassName: driverClassName,
 		JDBCUrl:         jdbcUrl,
 		Username:        username,
@@ -85,7 +121,7 @@ func Write(s beam.Scope, addr, tableName, driverClassName, jdbcUrl, username, pa
 	for _, opt := range opts {
 		opt(&wpl)
 	}
-	jcs := JdbcConfigSchema{
+	jcs := jdbcConfigSchema{
 		Location: tableName,
 		Config:   toRow(wpl),
 	}
@@ -93,30 +129,54 @@ func Write(s beam.Scope, addr, tableName, driverClassName, jdbcUrl, username, pa
 	beam.CrossLanguage(s, writeURN, pl, addr, beam.UnnamedInput(col), nil)
 }
 
+type writeOption func(*config)
+
+// WriteStatement option overrides the default write statement of
+// "INSERT INTO tableName(column1, ...) INTO VALUES(value1, ...)".
 func WriteStatement(statement string) writeOption {
-	return func(pl *Config) {
+	return func(pl *config) {
 		pl.WriteStatement = &statement
 	}
 }
 
+// WriteConnectionProperties properties of the jdbc connection passed as string
+// with format [propertyName=property;].
 func WriteConnectionProperties(properties string) writeOption {
-	return func(pl *Config) {
+	return func(pl *config) {
 		pl.ConnectionProperties = &properties
 	}
 }
 
+// ConnectionInitSQLs required only for MySql and MariaDB. passed as list of strings.
 func ConnectionInitSQLs(initStatements []string) writeOption {
-	return func(pl *Config) {
+	return func(pl *config) {
 		pl.ConnectionInitSQLs = &initStatements
 	}
 }
 
-type readOption func(*Config)
-
+// Read is a cross-language PTransform which read Rows from the specified database via JDBC.
+// Read requires the address for an expansion service for JDBC Read transforms,
+// tableName is a required paramater, and by default, the readQuery is generated from it.
+// The generated readQuery can be overridden by passing in a readQuery.
+//
+// The default read query is "SELECT * FROM tableName;"
+//
+// Read also accepts optional parameters as readOptions. All optional parameters
+// are predefined in this package as functions that return readOption. To set
+// an optional parameter, call the function within Read's function signature.
+//
+// Example:
+// expansionAddr := "localhost:9000"
+// tableName := "roles"
+// driverClassName := "org.postgresql.Driver"
+// username := "root"
+// password := "root123"
+// jdbcUrl := "jdbc:postgresql://localhost:5432/dbname"
+// jdbcio.Read(s, expansionAddr, tableName, driverClassName, jdbcurl, username, password)
 func Read(s beam.Scope, addr, tableName, driverClassName, jdbcUrl, username, password string, j interface{}, opts ...readOption) beam.PCollection {
 	s = s.Scope("jdbcio.Read")
 
-	rpl := Config{
+	rpl := config{
 		DriverClassName: driverClassName,
 		JDBCUrl:         jdbcUrl,
 		Username:        username,
@@ -125,45 +185,51 @@ func Read(s beam.Scope, addr, tableName, driverClassName, jdbcUrl, username, pas
 	for _, opt := range opts {
 		opt(&rpl)
 	}
-	jcs := JdbcConfigSchema{
+	jcs := jdbcConfigSchema{
 		Location: tableName,
 		Config:   toRow(rpl),
 	}
-	pl := beam.CrossLanguagePayload(jcs)
-	// rows := sql.Rows{}
-	result := beam.CrossLanguage(s, readURN, pl, addr, nil, beam.UnnamedOutput(typex.New(reflect.TypeOf(j))))
-	// result := beam.CrossLanguage(s, readURN, pl, addr, nil, nil)
 
-	// res := beam.DropKey(s, result[beam.UnnamedOutputTag()])
+	pl := beam.CrossLanguagePayload(jcs)
+	result := beam.CrossLanguage(s, readURN, pl, addr, nil, beam.UnnamedOutput(typex.New(reflect.TypeOf(j))))
 	return result[beam.UnnamedOutputTag()]
 }
 
+type readOption func(*config)
+
+// ReadQuery overrides the default read query "SELECT * FROM tableName;"
 func ReadQuery(query string) readOption {
-	return func(pl *Config) {
+	return func(pl *config) {
 		pl.ReadQuery = &query
 	}
 }
 
+// OutputParallelization  specifies if output parallelization on.
 func OutputParallelization(status bool) readOption {
-	return func(pl *Config) {
+	return func(pl *config) {
 		pl.OutputParallelization = &status
 	}
 }
 
+// FetchSize specifies how many rows to fetch.
 func FetchSize(size int16) readOption {
-	return func(pl *Config) {
+	return func(pl *config) {
 		pl.FetchSize = &size
 	}
 }
 
+// ReadConnectionProperties specifies properties of the jdbc connection passed
+// as string with format [propertyName=property;]*
 func ReadConnectionProperties(properties string) readOption {
-	return func(pl *Config) {
+	return func(pl *config) {
 		pl.ConnectionProperties = &properties
 	}
 }
 
+// ReadConnectionInitSQLs required only for MySql and MariaDB.
+// passed as list of strings.
 func ReadConnectionInitSQLs(initStatements []string) readOption {
-	return func(pl *Config) {
+	return func(pl *config) {
 		pl.ConnectionInitSQLs = &initStatements
 	}
 }

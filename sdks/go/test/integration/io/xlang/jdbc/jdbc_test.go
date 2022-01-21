@@ -40,13 +40,8 @@ func checkFlags(t *testing.T) {
 	}
 }
 
-// TestJDBCIO_BasicReadWrite tests basic read and write transform from JDBC.
-func TestJDBCIO_BasicReadWrite(t *testing.T) {
-	integration.CheckFilters(t)
-	checkFlags(t)
-	dbname := "postjdbc"
-	username := "newuser"
-	password := "password"
+func setupTestContainer(t *testing.T, dbname, username, password string) int {
+	t.Helper()
 
 	var env = map[string]string{
 		"POSTGRES_PASSWORD": password,
@@ -85,21 +80,31 @@ func TestJDBCIO_BasicReadWrite(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to establish database connection: %s", err)
 	}
+	defer db.Close()
+
 	_, err = db.ExecContext(ctx, "CREATE TABLE roles(role_id bigint PRIMARY KEY);")
 	if err != nil {
 		t.Fatalf("can't create table, check command and access level")
 	}
+	return p
+}
 
+// TestJDBCIO_BasicReadWrite tests basic read and write transform from JDBC.
+func TestJDBCIO_BasicReadWrite(t *testing.T) {
+	integration.CheckFilters(t)
+	checkFlags(t)
+
+	dbname := "postjdbc"
+	username := "newuser"
+	password := "password"
+	port := setupTestContainer(t, dbname, username, password)
 	tableName := "roles"
 	host := "localhost"
-	jdbcUrl := fmt.Sprintf("jdbc:postgresql://%s:%d/%s", host, p, dbname)
+	jdbcUrl := fmt.Sprintf("jdbc:postgresql://%s:%d/%s", host, port, dbname)
 
 	write := WritePipeline(*integration.IoExpansionAddr, tableName, "org.postgresql.Driver", jdbcUrl, username, password)
 	ptest.RunAndValidate(t, write)
-	_, err = db.ExecContext(ctx, fmt.Sprintf("INSERT INTO roles(role_id) VALUES(%d);", int8(11)))
-	if err != nil {
-		t.Fatal(err)
-	}
+
 	read := ReadPipeline(t, *integration.IoExpansionAddr, tableName, "org.postgresql.Driver", jdbcUrl, username, password)
 	ptest.RunAndValidate(t, read)
 }
