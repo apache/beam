@@ -1423,14 +1423,14 @@ public class JdbcIO {
   /* The maximum number of elements that will be included in a batch. */
 
   static <T> PCollection<Iterable<T>> batchElements(
-      PCollection<T> input, Boolean withAutoSharding) {
+      PCollection<T> input, Boolean withAutoSharding, long batchSize) {
     PCollection<Iterable<T>> iterables;
     if (input.isBounded() == IsBounded.UNBOUNDED && withAutoSharding != null && withAutoSharding) {
       iterables =
           input
               .apply(WithKeys.<String, T>of(""))
               .apply(
-                  GroupIntoBatches.<String, T>ofSize(getBatchSize())
+                  GroupIntoBatches.<String, T>ofSize(batchSize)
                       .withMaxBufferingDuration(Duration.millis(200))
                       .withShardedKey())
               .apply(Values.create());
@@ -1447,7 +1447,7 @@ public class JdbcIO {
                         outputList = new ArrayList<>();
                       }
                       outputList.add(c.element());
-                      if (outputList.size() > getBatchSize()) {
+                      if (outputList.size() > batchSize) {
                         c.output(outputList);
                         outputList = null;
                       }
@@ -1455,7 +1455,9 @@ public class JdbcIO {
 
                     @FinishBundle
                     public void finish(FinishBundleContext c) {
-                      c.output(outputList, Instant.now(), GlobalWindow.INSTANCE);
+                      if (outputList != null && outputList.size() > 0) {
+                        c.output(outputList, Instant.now(), GlobalWindow.INSTANCE);
+                      }
                       outputList = null;
                     }
                   }));
@@ -1619,7 +1621,8 @@ public class JdbcIO {
           "Autosharding is only supported for streaming pipelines.");
       ;
 
-      PCollection<Iterable<T>> iterables = JdbcIO.<T>batchElements(input, getAutoSharding());
+      PCollection<Iterable<T>> iterables =
+          JdbcIO.<T>batchElements(input, getAutoSharding(), DEFAULT_BATCH_SIZE);
       return iterables.apply(
           ParDo.of(
               new WriteFn<T, V>(
@@ -1788,7 +1791,8 @@ public class JdbcIO {
             spec.getPreparedStatementSetter() != null, "withPreparedStatementSetter() is required");
       }
 
-      PCollection<Iterable<T>> iterables = JdbcIO.<T>batchElements(input, getAutoSharding());
+      PCollection<Iterable<T>> iterables =
+          JdbcIO.<T>batchElements(input, getAutoSharding(), getBatchSize());
 
       return iterables
           .apply(
