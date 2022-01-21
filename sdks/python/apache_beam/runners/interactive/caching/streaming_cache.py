@@ -235,6 +235,7 @@ class StreamingCacheSource:
         yield e
 
 
+# TODO(victorhc): Add support for cache_dir locations that are on GCS
 class StreamingCache(CacheManager):
   """Abstraction that holds the logic for reading and writing to cache.
   """

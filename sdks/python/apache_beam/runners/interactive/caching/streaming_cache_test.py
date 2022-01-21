@@ -24,6 +24,7 @@ from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileHeader
 from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileRecord
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
+from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive.cache_manager import SafeFastPrimitivesCoder
 from apache_beam.runners.interactive.caching.cacheable import CacheKey
 from apache_beam.runners.interactive.caching.streaming_cache import StreamingCache
@@ -448,6 +449,58 @@ class StreamingCacheTest(unittest.TestCase):
   def test_streaming_cache_does_not_write_non_record_or_header_types(self):
     cache = StreamingCache(cache_dir=None)
     self.assertRaises(TypeError, cache.write, 'some value', 'a key')
+
+  def test_streaming_cache_uses_gcs_ib_cache_root(self):
+    """
+    Checks that StreamingCache._cache_dir is set to the
+    cache_root set under Interactive Beam for a GCS directory.
+    """
+    # Set Interactive Beam specified cache dir to cloud storage
+    ib.options.cache_root = "gs://"
+    cache_manager_with_ib_option = StreamingCache(
+        cache_dir=ib.options.cache_root)
+
+    self.assertEqual(
+        ib.options.cache_root, cache_manager_with_ib_option._cache_dir)
+
+    # Reset Interactive Beam setting
+    ib.options.cache_root = None
+
+  def test_streaming_cache_uses_local_ib_cache_root(self):
+    """
+    Checks that StreamingCache._cache_dir is set to the
+    cache_root set under Interactive Beam for a local directory
+    and that the cached values are the same as the values of a
+    cache using default settings.
+    """
+    CACHED_PCOLLECTION_KEY = repr(CacheKey('arbitrary_key', '', '', ''))
+    values = (FileRecordsBuilder(CACHED_PCOLLECTION_KEY)
+                  .advance_processing_time(1)
+                  .advance_watermark(watermark_secs=0)
+                  .add_element(element=1, event_time_secs=0)
+                  .build()) # yapf: disable
+
+    local_cache = StreamingCache(cache_dir=None)
+    local_cache.write(values, CACHED_PCOLLECTION_KEY)
+    reader_one, _ = local_cache.read(CACHED_PCOLLECTION_KEY)
+    pcoll_list_one = list(reader_one)
+
+    # Set Interactive Beam specified cache dir to cloud storage
+    ib.options.cache_root = "/tmp/it-test/"
+    cache_manager_with_ib_option = StreamingCache(
+        cache_dir=ib.options.cache_root)
+
+    self.assertEqual(
+        ib.options.cache_root, cache_manager_with_ib_option._cache_dir)
+
+    cache_manager_with_ib_option.write(values, CACHED_PCOLLECTION_KEY)
+    reader_two, _ = cache_manager_with_ib_option.read(CACHED_PCOLLECTION_KEY)
+    pcoll_list_two = list(reader_two)
+
+    self.assertEqual(pcoll_list_one, pcoll_list_two)
+
+    # Reset Interactive Beam setting
+    ib.options.cache_root = None
 
 
 if __name__ == '__main__':
