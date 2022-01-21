@@ -216,7 +216,7 @@ class MetricsReader(object):
           'InfluxDB')
     self.filters = filters
 
-  def publish_metrics(self, result, extra_metrics: dict):
+  def publish_metrics(self, result, extra_metrics: Optional[dict] = None):
     metric_id = uuid.uuid4().hex
     metrics = result.metrics().query(self.filters)
 
@@ -232,7 +232,7 @@ class MetricsReader(object):
       for publisher in self.publishers:
         publisher.publish(insert_dicts)
 
-  def _prepare_extra_metrics(self, extra_metrics: dict, metric_id: str):
+  def _prepare_extra_metrics(self, extra_metrics: Optional[dict], metric_id: str):
     ts = time.time()
     return [
         Metric(ts, metric_id, v, label=k).as_dict() for k,
