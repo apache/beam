@@ -13,33 +13,61 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package preparators
+package preparers
 
 import (
-	"beam.apache.org/playground/backend/internal/validators"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"sync"
 )
 
 const (
 	goName  = "go"
 	fmtArgs = "fmt"
-	mvCmd   = "mv"
 	sep     = "."
 )
 
-// GetGoPreparators returns reparation methods that should be applied to Go code
-func GetGoPreparators(filePath string) *[]Preparator {
-	preparatorArgs := make([]interface{}, 1)
-	preparatorArgs[0] = filePath
-	formatCodePreparator := Preparator{Prepare: formatCode, Args: preparatorArgs}
-	changeNamePreparator := Preparator{Prepare: changeGoTestFileName, Args: preparatorArgs}
-	return &[]Preparator{formatCodePreparator, changeNamePreparator}
+//GoPreparersBuilder facet of PreparersBuilder
+type GoPreparersBuilder struct {
+	PreparersBuilder
+}
+
+//GoPreparers chains to type *PreparersBuilder and returns a *GoPreparersBuilder
+func (builder *PreparersBuilder) GoPreparers() *GoPreparersBuilder {
+	return &GoPreparersBuilder{*builder}
+}
+
+//WithCodeFormatter adds code formatter preparer
+func (builder *GoPreparersBuilder) WithCodeFormatter() *GoPreparersBuilder {
+	formatCodePreparer := Preparer{
+		Prepare: formatCode,
+		Args:    []interface{}{builder.filePath},
+	}
+	builder.AddPreparer(formatCodePreparer)
+	return builder
+}
+
+//WithFileNameChanger adds preparer to change file name
+func (builder *GoPreparersBuilder) WithFileNameChanger() *GoPreparersBuilder {
+	changeTestFileName := Preparer{
+		Prepare: changeGoTestFileName,
+		Args:    []interface{}{builder.filePath},
+	}
+	builder.AddPreparer(changeTestFileName)
+	return builder
+}
+
+// GetGoPreparers returns reparation methods that should be applied to Go code
+func GetGoPreparers(builder *PreparersBuilder, isUnitTest bool) {
+	builder.
+		GoPreparers().
+		WithCodeFormatter()
+	if isUnitTest {
+		builder.GoPreparers().WithFileNameChanger()
+	}
 }
 
 // formatCode formats go code
@@ -56,14 +84,10 @@ func formatCode(args ...interface{}) error {
 
 func changeGoTestFileName(args ...interface{}) error {
 	filePath := args[0].(string)
-	validationResults := args[1].(*sync.Map)
-	isUnitTest, ok := validationResults.Load(validators.UnitTestValidatorName)
-	if ok && isUnitTest.(bool) {
-		testFileName := fmt.Sprintf("%s_test.%s", strings.Split(filePath, sep)[0], goName)
-		err := os.Rename(filePath, testFileName)
-		if err != nil {
-			return err
-		}
+	testFileName := fmt.Sprintf("%s_test.%s", strings.Split(filePath, sep)[0], goName)
+	err := os.Rename(filePath, testFileName)
+	if err != nil {
+		return err
 	}
 	return nil
 }

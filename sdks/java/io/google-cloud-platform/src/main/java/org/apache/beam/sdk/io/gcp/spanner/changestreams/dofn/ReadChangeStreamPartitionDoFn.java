@@ -120,7 +120,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
    * closed-open.
    *
    * <p>In this function we also update the partition state to {@link
-   * org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State#RUNNING}.
+   * PartitionMetadata.State#RUNNING}.
    *
    * @param partition the partition to be queried
    * @return the offset range from the partition start timestamp to the partition end timestamp + 1
@@ -196,8 +196,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
    *
    * @param partition the partition to be queried
    * @param tracker an instance of {@link ReadChangeStreamPartitionRangeTracker}
-   * @param receiver a {@link DataChangeRecord} {@link
-   *     org.apache.beam.sdk.transforms.DoFn.OutputReceiver}
+   * @param receiver a {@link DataChangeRecord} {@link OutputReceiver}
    * @param watermarkEstimator a {@link ManualWatermarkEstimator} of {@link Instant}
    * @param bundleFinalizer the bundle finalizer
    * @return a {@link ProcessContinuation#stop()} if a record timestamp could not be claimed or if

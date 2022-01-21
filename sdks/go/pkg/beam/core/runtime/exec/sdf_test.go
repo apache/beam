@@ -17,6 +17,7 @@ package exec
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -940,9 +941,12 @@ func TestMultiWindowProcessing(t *testing.T) {
 	// while processing is blocked (to validate processing) and a second time
 	// it's done (to validate final outputs).
 	done := make(chan struct{})
+	errchan := make(chan string, 1)
 	go func() {
+		defer close(errchan)
 		if err := p.Execute(context.Background(), "1", DataContext{}); err != nil {
-			t.Fatalf("execute failed: %v", err)
+			errchan <- fmt.Sprintf("execute failed: %v", err)
+			return
 		}
 		done <- struct{}{}
 	}()
@@ -980,6 +984,10 @@ func TestMultiWindowProcessing(t *testing.T) {
 	node.SU <- su
 	wsdf.block <- struct{}{}
 	<-done
+
+	for msg := range errchan {
+		t.Fatal(msg)
+	}
 
 	gotOut := capt.Elements
 	wantOut := []FullValue{{ // Only 3 windows, 4th should be gone after split.

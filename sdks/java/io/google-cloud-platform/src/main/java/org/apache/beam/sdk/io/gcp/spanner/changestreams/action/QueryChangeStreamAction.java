@@ -88,12 +88,9 @@ public class QueryChangeStreamAction {
    *     Connector's domain models
    * @param partitionMetadataMapper mapper class to transform partition metadata rows into the
    *     Connector's domain models
-   * @param dataChangeRecordAction action class to process {@link
-   *     org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord}s
-   * @param heartbeatRecordAction action class to process {@link
-   *     org.apache.beam.sdk.io.gcp.spanner.changestreams.model.HeartbeatRecord}s
-   * @param childPartitionsRecordAction action class to process {@link
-   *     org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRecord}s
+   * @param dataChangeRecordAction action class to process {@link DataChangeRecord}s
+   * @param heartbeatRecordAction action class to process {@link HeartbeatRecord}s
+   * @param childPartitionsRecordAction action class to process {@link ChildPartitionsRecord}s
    */
   QueryChangeStreamAction(
       ChangeStreamDao changeStreamDao,

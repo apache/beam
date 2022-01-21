@@ -257,6 +257,21 @@ public class SpannerIOWriteTest implements Serializable {
   }
 
   @Test
+  public void singleMutationPipelineNoProjectId() throws Exception {
+    Mutation mutation = m(2L);
+    PCollection<Mutation> mutations = pipeline.apply(Create.of(mutation));
+
+    mutations.apply(
+        SpannerIO.write()
+            .withInstanceId("test-instance")
+            .withDatabaseId("test-database")
+            .withServiceFactory(serviceFactory));
+    pipeline.run();
+
+    verifyBatches(batch(m(2L)));
+  }
+
+  @Test
   public void singleMutationGroupPipeline() throws Exception {
     PCollection<MutationGroup> mutations =
         pipeline.apply(Create.<MutationGroup>of(g(m(1L), m(2L), m(3L))));
@@ -358,7 +373,7 @@ public class SpannerIOWriteTest implements Serializable {
             .withHighPriority();
     pipeline.apply(testStream).apply(write);
     pipeline.run();
-    assertEquals(RpcPriority.HIGH, write.getSpannerConfig().getRpcPriority());
+    assertEquals(RpcPriority.HIGH, write.getSpannerConfig().getRpcPriority().get());
     verifyBatches(batch(m(1L), m(2L)), batch(m(3L), m(4L)), batch(m(5L), m(6L)));
   }
 
@@ -406,7 +421,7 @@ public class SpannerIOWriteTest implements Serializable {
             .withLowPriority();
     pipeline.apply(testStream).apply(write);
     pipeline.run();
-    assertEquals(RpcPriority.LOW, write.getSpannerConfig().getRpcPriority());
+    assertEquals(RpcPriority.LOW, write.getSpannerConfig().getRpcPriority().get());
 
     // Output should be batches of sorted mutations.
     verifyBatches(batch(m(1L), m(2L)), batch(m(3L), m(4L)), batch(m(5L), m(6L)));

@@ -1581,6 +1581,12 @@ message StandardProtocols {
     // https://s.apache.org/beam-fn-api-control-data-embedding
     CONTROL_REQUEST_ELEMENTS_EMBEDDING = 6
         [(beam_urn) = "beam:protocol:control_request_elements_embedding:v1"];
+
+    // Indicates that this SDK can cache user state and side inputs across
+    // bundle boundaries. This is a hint to runners that runners can rely on the
+    // SDKs ability to store the data in memory reducing the amount of memory
+    // used overall.
+    STATE_CACHING = 7 [(beam_urn) = "beam:protocol:state_caching:v1"];
   }
 }
 

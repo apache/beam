@@ -54,17 +54,25 @@ configurations.testRuntimeClasspath {
   exclude group: "org.slf4j", module: "log4j-over-slf4j"
 }
 
+// Force use the old version of JAMM that cassandra relies on
+configurations.all {
+  resolutionStrategy {
+    exclude group: "io.github.stephankoelle", module: "jamm"
+  }
+}
+
+
 dependencies {
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation library.java.vendored_guava_26_0_jre
   implementation library.java.slf4j_api
   implementation project(":sdks:java:io:hadoop-common")
   implementation library.java.joda_time
-  compileOnly library.java.hadoop_common
-  compileOnly library.java.hadoop_hdfs
+  provided library.java.hadoop_common
+  provided library.java.hadoop_hdfs
   permitUnusedDeclared library.java.hadoop_hdfs
-  compileOnly library.java.hadoop_hdfs_client
-  compileOnly library.java.hadoop_mapreduce_client_core
+  provided library.java.hadoop_hdfs_client
+  provided library.java.hadoop_mapreduce_client_core
   // Ensure that the older version of JAMM that cassandra relies on appears
   // on the classpath before the one provided by :sdks:java:core shadowTest.
   testImplementation "com.github.jbellis:jamm:0.3.0"
@@ -96,9 +104,6 @@ dependencies {
   testImplementation library.java.cassandra_driver_core
   testImplementation library.java.cassandra_driver_mapping
   testImplementation "org.apache.cassandra:cassandra-all:3.11.8"
-  testImplementation library.java.hadoop_common
-  testImplementation library.java.hadoop_hdfs
-  testImplementation library.java.hadoop_mapreduce_client_core
   testImplementation library.java.postgres
   testImplementation library.java.junit
   testImplementation library.java.hamcrest
