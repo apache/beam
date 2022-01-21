@@ -289,8 +289,10 @@ class StreamingCache(CacheManager):
     return self._capture_keys
 
   def exists(self, *labels):
-    path = os.path.join(self._cache_dir, *labels)
-    return os.path.exists(path)
+    if labels and any(labels):
+      path = os.path.join(self._cache_dir, *labels)
+      return os.path.exists(path)
+    return False
 
   # TODO(srohde): Modify this to return the correct version.
   def read(self, *labels, **args):

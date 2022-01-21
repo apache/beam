@@ -36,4 +36,5 @@ dependencies {
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation library.java.joda_time
   testImplementation library.java.junit
+  testImplementation library.java.hamcrest
 }

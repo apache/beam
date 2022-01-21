@@ -22,6 +22,13 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+# beam-playground:
+#   name: SideInput
+#   description: Task from katas to enrich each Person with the country based on the city he/she lives in.
+#   multifile: false
+#   categories:
+#     - Side Input
+
 import apache_beam as beam
 
 from log_elements import LogElements

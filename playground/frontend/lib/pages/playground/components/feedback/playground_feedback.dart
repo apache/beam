@@ -17,33 +17,52 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground/constants/assets.dart';
 import 'package:playground/constants/font_weight.dart';
+import 'package:playground/modules/analytics/analytics_service.dart';
 import 'package:playground/pages/playground/components/feedback/feedback_dropdown_icon_button.dart';
-
-const kFeedbackText = 'Enjoying Playground?';
+import 'package:playground/pages/playground/states/feedback_state.dart';
+import 'package:provider/provider.dart';
 
 class PlaygroundFeedback extends StatelessWidget {
   const PlaygroundFeedback({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    final isEnjoying = _getFeedbackState(context, true).isEnjoying;
     return Row(
       mainAxisSize: MainAxisSize.min,
-      children: const [
+      children: [
         Text(
-          kFeedbackText,
-          style: TextStyle(fontWeight: kBoldWeight),
+          AppLocalizations.of(context)!.enjoyingPlayground,
+          style: const TextStyle(fontWeight: kBoldWeight),
         ),
         FeedbackDropdownIconButton(
           iconAsset: kThumbUpIconAsset,
-          isEnjoying: true,
+          filledIconAsset: kThumbUpIconAssetFilled,
+          onClick: _setEnjoying(context, true),
+          isSelected: isEnjoying != null && isEnjoying,
         ),
         FeedbackDropdownIconButton(
           iconAsset: kThumbDownIconAsset,
-          isEnjoying: false,
+          filledIconAsset: kThumbDownIconAssetFilled,
+          onClick: _setEnjoying(context, false),
+          isSelected: isEnjoying != null && !isEnjoying,
         ),
       ],
     );
+  }
+
+  _setEnjoying(BuildContext context, bool isEnjoying) {
+    return () {
+      _getFeedbackState(context, false).setEnjoying(isEnjoying);
+      AnalyticsService.get(context)
+          .trackClickEnjoyPlayground(isEnjoying);
+    };
+  }
+
+  FeedbackState _getFeedbackState(BuildContext context, bool listen) {
+    return Provider.of<FeedbackState>(context, listen: listen);
   }
 }

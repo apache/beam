@@ -204,11 +204,11 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
                   notification -> {
                     WrappedSdkHarnessClient client = notification.getValue();
                     final int refCount;
+                    // We need to use a lock here to ensure we are not causing the environment to
+                    // be removed if beforehand a StageBundleFactory has retrieved it but not yet
+                    // issued ref() on it.
+                    refLock.lock();
                     try {
-                      // We need to use a lock here to ensure we are not causing the environment to
-                      // be removed if beforehand a StageBundleFactory has retrieved it but not yet
-                      // issued ref() on it.
-                      refLock.lock();
                       refCount = client.unref();
                     } finally {
                       refLock.unlock();
@@ -474,8 +474,8 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
         currentCache = availableCaches.take();
         // Lock because the environment expiration can remove the ref for the client
         // which would close the underlying environment before we can ref it.
+        currentCache.lock.lock();
         try {
-          currentCache.lock.lock();
           client = currentCache.cache.getUnchecked(executableStage.getEnvironment());
           client.ref();
         } finally {
@@ -494,8 +494,8 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
         currentCache = environmentCaches.get(environmentIndex);
         // Lock because the environment expiration can remove the ref for the client which would
         // close the underlying environment before we can ref it.
+        currentCache.lock.lock();
         try {
-          currentCache.lock.lock();
           client = currentCache.cache.getUnchecked(executableStage.getEnvironment());
           client.ref();
         } finally {

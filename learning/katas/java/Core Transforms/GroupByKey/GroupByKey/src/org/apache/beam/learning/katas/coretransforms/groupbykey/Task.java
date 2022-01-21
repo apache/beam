@@ -18,6 +18,14 @@
 
 package org.apache.beam.learning.katas.coretransforms.groupbykey;
 
+// beam-playground:
+//   name: GroupByKey
+//   description: Task from katas that groups words by its first letter.
+//   multifile: false
+//   categories:
+//     - Combiners
+//     - Core Transforms
+
 import static org.apache.beam.sdk.values.TypeDescriptors.kvs;
 import static org.apache.beam.sdk.values.TypeDescriptors.strings;
 

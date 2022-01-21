@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners" // common runner flag.
 
 	// ptest uses the direct runner to execute pipelines by default.
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/direct"
@@ -63,9 +64,17 @@ func CreateList2(a, b interface{}) (*beam.Pipeline, beam.Scope, beam.PCollection
 // The test file must have a TestMain that calls Main or MainWithDefault
 // to function.
 var (
-	Runner        = flag.String("runner", "", "Pipeline runner.")
+	Runner        = runners.Runner
 	defaultRunner = "direct"
 )
+
+func getRunner() string {
+	r := *Runner
+	if r == "" {
+		r = defaultRunner
+	}
+	return r
+}
 
 func DefaultRunner() string {
 	return defaultRunner
@@ -74,20 +83,14 @@ func DefaultRunner() string {
 // Run runs a pipeline for testing. The semantics of the pipeline is expected
 // to be verified through passert.
 func Run(p *beam.Pipeline) error {
-	if *Runner == "" {
-		*Runner = defaultRunner
-	}
-	_, err := beam.Run(context.Background(), *Runner, p)
+	_, err := beam.Run(context.Background(), getRunner(), p)
 	return err
 }
 
 // RunWithMetrics runs a pipeline for testing with that returns metrics.Results
 // in the form of Pipeline Result
 func RunWithMetrics(p *beam.Pipeline) (beam.PipelineResult, error) {
-	if *Runner == "" {
-		*Runner = defaultRunner
-	}
-	return beam.Run(context.Background(), *Runner, p)
+	return beam.Run(context.Background(), getRunner(), p)
 }
 
 // RunAndValidate runs a pipeline for testing and validates the result, failing

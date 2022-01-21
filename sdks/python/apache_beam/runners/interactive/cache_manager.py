@@ -194,7 +194,9 @@ class FileBasedCacheManager(CacheManager):
     return 0
 
   def exists(self, *labels):
-    return bool(self._match(*labels))
+    if labels and any(labels[1:]):
+      return bool(self._match(*labels))
+    return False
 
   def _latest_version(self, *labels):
     timestamp = 0

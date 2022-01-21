@@ -39,7 +39,7 @@ func TestProtoPackingInvertibility(t *testing.T) {
 	}
 
 	if !proto.Equal(&res, &buf) {
-		t.Errorf("Got %v, wanted %v", res, buf)
+		t.Errorf("Got %v, wanted %v", &res, &buf)
 	}
 
 }
@@ -60,7 +60,7 @@ func TestProto64PackingInvertibility(t *testing.T) {
 	}
 
 	if !proto.Equal(&res, &buf) {
-		t.Errorf("Got %v, wanted %v", res, buf)
+		t.Errorf("Got %v, wanted %v", &res, &buf)
 	}
 }
 

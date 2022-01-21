@@ -14,6 +14,13 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
+# beam-playground:
+#   name: AggregationMean
+#   description: Task from katas to count mean value of the given pipeline with numbers.
+#   multifile: false
+#   categories:
+#     - Combiners
+
 import apache_beam as beam
 
 from log_elements import LogElements

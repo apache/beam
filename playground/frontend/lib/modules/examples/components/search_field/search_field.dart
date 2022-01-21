@@ -17,6 +17,7 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground/config/theme.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/pages/playground/states/example_selector_state.dart';
@@ -25,7 +26,6 @@ import 'package:provider/provider.dart';
 const double kContainerWidth = 376.0;
 const int kMinLines = 1;
 const int kMaxLines = 1;
-const String kHintText = 'Search';
 
 class SearchField extends StatelessWidget {
   final TextEditingController controller;
@@ -69,7 +69,7 @@ class SearchField extends StatelessWidget {
               enabledBorder: border,
               filled: false,
               isDense: true,
-              hintText: kHintText,
+              hintText: AppLocalizations.of(context)!.search,
               contentPadding: const EdgeInsets.only(left: kLgSpacing),
             ),
             cursorColor: ThemeColors.of(context).lightGreyColor,

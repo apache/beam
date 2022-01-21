@@ -44,7 +44,7 @@ func Partition(s Scope, n int, fn interface{}, col PCollection) []PCollection {
 	s = s.Scope(fmt.Sprintf("Partition(%v)", n))
 
 	if n < 1 {
-		panic(fmt.Sprintf("n must be > 0"))
+		panic("n must be > 0")
 	}
 	var emit reflect.Type
 	var in []reflect.Type

@@ -30,4 +30,6 @@ abstract class ExampleClient {
   Future<GetExampleResponse> getExample(GetExampleRequestWrapper request);
 
   Future<OutputResponse> getExampleOutput(GetExampleRequestWrapper request);
+
+  Future<OutputResponse> getExampleLogs(GetExampleRequestWrapper request);
 }

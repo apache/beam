@@ -21,7 +21,6 @@ import 'package:playground/constants/sizes.dart';
 import 'package:playground/pages/embedded_playground/components/embedded_actions.dart';
 import 'package:playground/pages/embedded_playground/components/embedded_editor.dart';
 
-const kPlaygroundText = 'Try in Playground';
 const kActionsWidth = 300.0;
 const kActionsHeight = 40.0;
 

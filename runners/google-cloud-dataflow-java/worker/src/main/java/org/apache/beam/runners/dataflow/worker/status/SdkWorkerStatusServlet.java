@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.status;
 
-import com.google.common.base.Strings;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
@@ -30,6 +29,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.beam.runners.dataflow.worker.status.DebugCapture.Capturable;
 import org.apache.beam.runners.fnexecution.status.BeamWorkerStatusGrpcService;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 
 /**
  * Servlet dedicated to provide live status info retrieved from SDK Harness. Note this is different

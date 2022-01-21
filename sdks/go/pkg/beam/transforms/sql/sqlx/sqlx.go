@@ -48,5 +48,5 @@ type Option struct {
 type ExpansionPayload struct {
 	Query   string   `beam:"query"`
 	Dialect string   `beam:"dialect"`
-	Options []Option `beam:"options"`
+	options []Option `beam:"options"`
 }

@@ -335,7 +335,8 @@ class UpdateDestinationSchema(beam.DoFn):
 
   This transform emits (destination, job_reference) pairs where the
   job_reference refers to a submitted load job for performing the schema
-  modification. Note that the input and output job references are not the same.
+  modification in JSON format. Note that the input and output job references
+  are not the same.
 
   Experimental; no backwards compatibility guarantees.
   """
@@ -345,13 +346,11 @@ class UpdateDestinationSchema(beam.DoFn):
       test_client=None,
       additional_bq_parameters=None,
       step_name=None,
-      source_format=None,
       load_job_project_id=None):
     self._test_client = test_client
     self._write_disposition = write_disposition
     self._additional_bq_parameters = additional_bq_parameters or {}
     self._step_name = step_name
-    self._source_format = source_format
     self._load_job_project_id = load_job_project_id
 
   def setup(self):
@@ -362,7 +361,6 @@ class UpdateDestinationSchema(beam.DoFn):
     return {
         'write_disposition': str(self._write_disposition),
         'additional_bq_params': str(self._additional_bq_parameters),
-        'source_format': str(self._source_format),
     }
 
   def process(self, element, schema_mod_job_name_prefix):
@@ -441,7 +439,9 @@ class UpdateDestinationSchema(beam.DoFn):
         create_disposition='CREATE_NEVER',
         additional_load_parameters=additional_parameters,
         job_labels=self._bq_io_metadata.add_additional_bq_job_labels(),
-        source_format=self._source_format,
+        # JSON format is hardcoded because zero rows load(unlike AVRO) and
+        # a nested schema(unlike CSV, which a default one) is permitted.
+        source_format="NEWLINE_DELIMITED_JSON",
         load_job_project_id=self._load_job_project_id)
     yield (destination, schema_update_job_reference)
 
@@ -1043,7 +1043,6 @@ class BigQueryBatchFileLoads(beam.PTransform):
                 test_client=self.test_client,
                 additional_bq_parameters=self.additional_bq_parameters,
                 step_name=step_name,
-                source_format=self._temp_file_format,
                 load_job_project_id=self.load_job_project_id),
             schema_mod_job_name_pcv))
 

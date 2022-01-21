@@ -48,6 +48,8 @@ from apache_beam.coders.coder_impl import create_OutputStream
 from apache_beam.metrics import metric
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricResult
+from apache_beam.metrics.execution import MetricsContainer
+from apache_beam.metrics.metricbase import MetricName
 from apache_beam.options import pipeline_options
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.portability import common_urns
@@ -90,6 +92,8 @@ BundleProcessResult = Tuple[beam_fn_api_pb2.InstructionResponse,
 
 
 class FnApiRunner(runner.PipelineRunner):
+
+  NUM_FUSED_STAGES_COUNTER = "__num_fused_stages"
 
   def __init__(
       self,
@@ -352,6 +356,10 @@ class FnApiRunner(runner.PipelineRunner):
     """
     worker_handler_manager = WorkerHandlerManager(
         stage_context.components.environments, self._provision_info)
+    pipeline_metrics = MetricsContainer('')
+    pipeline_metrics.get_counter(
+        MetricName(str(type(self)),
+                   self.NUM_FUSED_STAGES_COUNTER)).update(len(stages))
     monitoring_infos_by_stage = {}
 
     runner_execution_context = execution.FnApiRunnerExecutionContext(
@@ -398,7 +406,10 @@ class FnApiRunner(runner.PipelineRunner):
           )
 
           monitoring_infos_by_stage[stage.name] = (
-              stage_results.process_bundle.monitoring_infos)
+              list(stage_results.process_bundle.monitoring_infos))
+
+      monitoring_infos_by_stage[''] = list(
+          pipeline_metrics.to_runner_api_monitoring_infos('').values())
     finally:
       worker_handler_manager.close_all()
     return RunnerResult(runner.PipelineState.DONE, monitoring_infos_by_stage)

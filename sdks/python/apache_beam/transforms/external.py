@@ -44,7 +44,8 @@ from apache_beam.portability.api.external_transforms_pb2 import JavaClassLookupP
 from apache_beam.runners import pipeline_context
 from apache_beam.runners.portability import artifact_service
 from apache_beam.transforms import ptransform
-from apache_beam.typehints.native_type_compatibility import convert_to_typing_type
+from apache_beam.typehints import native_type_compatibility
+from apache_beam.typehints import row_type
 from apache_beam.typehints.schemas import named_fields_to_schema
 from apache_beam.typehints.schemas import named_tuple_from_schema
 from apache_beam.typehints.schemas import named_tuple_to_schema
@@ -54,6 +55,13 @@ from apache_beam.typehints.typehints import UnionConstraint
 from apache_beam.utils import subprocess_server
 
 DEFAULT_EXPANSION_SERVICE = 'localhost:8097'
+
+
+def convert_to_typing_type(type_):
+  if isinstance(type_, row_type.RowTypeConstraint):
+    return named_tuple_from_schema(named_fields_to_schema(type_._fields))
+  else:
+    return native_type_compatibility.convert_to_typing_type(type_)
 
 
 def _is_optional_or_none(typehint):

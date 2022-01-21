@@ -45,6 +45,10 @@ type PlaygroundServiceClient interface {
 	GetLogs(ctx context.Context, in *GetLogsRequest, opts ...grpc.CallOption) (*GetLogsResponse, error)
 	// Get the error of pipeline execution.
 	GetRunError(ctx context.Context, in *GetRunErrorRequest, opts ...grpc.CallOption) (*GetRunErrorResponse, error)
+	// Get the result of pipeline validation.
+	GetValidationOutput(ctx context.Context, in *GetValidationOutputRequest, opts ...grpc.CallOption) (*GetValidationOutputResponse, error)
+	// Get the result of pipeline preparation.
+	GetPreparationOutput(ctx context.Context, in *GetPreparationOutputRequest, opts ...grpc.CallOption) (*GetPreparationOutputResponse, error)
 	// Get the result of pipeline compilation.
 	GetCompileOutput(ctx context.Context, in *GetCompileOutputRequest, opts ...grpc.CallOption) (*GetCompileOutputResponse, error)
 	// Cancel code processing
@@ -106,6 +110,24 @@ func (c *playgroundServiceClient) GetLogs(ctx context.Context, in *GetLogsReques
 func (c *playgroundServiceClient) GetRunError(ctx context.Context, in *GetRunErrorRequest, opts ...grpc.CallOption) (*GetRunErrorResponse, error) {
 	out := new(GetRunErrorResponse)
 	err := c.cc.Invoke(ctx, "/api.v1.PlaygroundService/GetRunError", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *playgroundServiceClient) GetValidationOutput(ctx context.Context, in *GetValidationOutputRequest, opts ...grpc.CallOption) (*GetValidationOutputResponse, error) {
+	out := new(GetValidationOutputResponse)
+	err := c.cc.Invoke(ctx, "/api.v1.PlaygroundService/GetValidationOutput", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *playgroundServiceClient) GetPreparationOutput(ctx context.Context, in *GetPreparationOutputRequest, opts ...grpc.CallOption) (*GetPreparationOutputResponse, error) {
+	out := new(GetPreparationOutputResponse)
+	err := c.cc.Invoke(ctx, "/api.v1.PlaygroundService/GetPreparationOutput", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -180,6 +202,10 @@ type PlaygroundServiceServer interface {
 	GetLogs(context.Context, *GetLogsRequest) (*GetLogsResponse, error)
 	// Get the error of pipeline execution.
 	GetRunError(context.Context, *GetRunErrorRequest) (*GetRunErrorResponse, error)
+	// Get the result of pipeline validation.
+	GetValidationOutput(context.Context, *GetValidationOutputRequest) (*GetValidationOutputResponse, error)
+	// Get the result of pipeline preparation.
+	GetPreparationOutput(context.Context, *GetPreparationOutputRequest) (*GetPreparationOutputResponse, error)
 	// Get the result of pipeline compilation.
 	GetCompileOutput(context.Context, *GetCompileOutputRequest) (*GetCompileOutputResponse, error)
 	// Cancel code processing
@@ -212,6 +238,12 @@ func (UnimplementedPlaygroundServiceServer) GetLogs(context.Context, *GetLogsReq
 }
 func (UnimplementedPlaygroundServiceServer) GetRunError(context.Context, *GetRunErrorRequest) (*GetRunErrorResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetRunError not implemented")
+}
+func (UnimplementedPlaygroundServiceServer) GetValidationOutput(context.Context, *GetValidationOutputRequest) (*GetValidationOutputResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetValidationOutput not implemented")
+}
+func (UnimplementedPlaygroundServiceServer) GetPreparationOutput(context.Context, *GetPreparationOutputRequest) (*GetPreparationOutputResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetPreparationOutput not implemented")
 }
 func (UnimplementedPlaygroundServiceServer) GetCompileOutput(context.Context, *GetCompileOutputRequest) (*GetCompileOutputResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetCompileOutput not implemented")
@@ -329,6 +361,42 @@ func _PlaygroundService_GetRunError_Handler(srv interface{}, ctx context.Context
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(PlaygroundServiceServer).GetRunError(ctx, req.(*GetRunErrorRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PlaygroundService_GetValidationOutput_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetValidationOutputRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PlaygroundServiceServer).GetValidationOutput(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.v1.PlaygroundService/GetValidationOutput",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PlaygroundServiceServer).GetValidationOutput(ctx, req.(*GetValidationOutputRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PlaygroundService_GetPreparationOutput_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPreparationOutputRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PlaygroundServiceServer).GetPreparationOutput(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.v1.PlaygroundService/GetPreparationOutput",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PlaygroundServiceServer).GetPreparationOutput(ctx, req.(*GetPreparationOutputRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -467,6 +535,14 @@ var PlaygroundService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetRunError",
 			Handler:    _PlaygroundService_GetRunError_Handler,
+		},
+		{
+			MethodName: "GetValidationOutput",
+			Handler:    _PlaygroundService_GetValidationOutput_Handler,
+		},
+		{
+			MethodName: "GetPreparationOutput",
+			Handler:    _PlaygroundService_GetPreparationOutput_Handler,
 		},
 		{
 			MethodName: "GetCompileOutput",

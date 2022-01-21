@@ -15,6 +15,14 @@
 
 package filter_test
 
+// beam-playground:
+//   name: DistinctTest
+//   description: Unit-test for the Distinct example.
+//   multifile: false
+//   categories:
+//     - Filtering
+//     - Core Transforms
+
 import (
 	"testing"
 
