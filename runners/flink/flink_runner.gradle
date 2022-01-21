@@ -136,7 +136,7 @@ dependencies {
   implementation project(":runners:java-fn-execution")
   implementation project(":runners:java-job-service")
   implementation project(":sdks:java:extensions:google-cloud-platform-core")
-  implementation library.java.vendored_grpc_1_36_0
+  implementation library.java.vendored_grpc_1_43_2
   implementation library.java.slf4j_api
   implementation library.java.joda_time
   implementation library.java.args4j
@@ -150,8 +150,7 @@ dependencies {
   implementation "org.apache.flink:flink-runtime_2.11:$flink_version"
   implementation "org.apache.flink:flink-streaming-java_2.11:$flink_version"
   // RocksDB state backend (included in the Flink distribution)
-  compileOnly "org.apache.flink:flink-statebackend-rocksdb_2.11:$flink_version"
-  testImplementation "org.apache.flink:flink-statebackend-rocksdb_2.11:$flink_version"
+  provided "org.apache.flink:flink-statebackend-rocksdb_2.11:$flink_version"
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   // FlinkStateInternalsTest extends abstract StateInternalsTest
   testImplementation project(path: ":runners:core-java", configuration: "testRuntimeMigration")

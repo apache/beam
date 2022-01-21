@@ -67,7 +67,7 @@ dependencies {
   shadowTest library.java.powermock_mockito
   implementation library.java.joda_time
   implementation library.java.slf4j_api
-  implementation library.java.vendored_grpc_1_36_0
+  implementation library.java.vendored_grpc_1_43_2
   implementation library.java.jamm
   testImplementation library.java.junit
   testImplementation library.java.mockito_core
@@ -75,7 +75,7 @@ dependencies {
   testImplementation project(":runners:core-construction-java")
   testImplementation project(path: ":sdks:java:fn-execution", configuration: "testRuntimeMigration")
   shadowTestRuntimeClasspath library.java.slf4j_jdk14
-  jmhImplementation project(path: ":sdks:java:harness", configuration: "shadowTest")
+  jmhImplementation project(path: ":sdks:java:harness", configuration: "shadow")
   jmhImplementation project(":runners:java-fn-execution")
   jmhRuntimeOnly library.java.slf4j_jdk14
 }

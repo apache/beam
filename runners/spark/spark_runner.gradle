@@ -162,7 +162,7 @@ dependencies {
   implementation project(path: ":model:fn-execution", configuration: "shadow")
   implementation project(path: ":model:job-management", configuration: "shadow")
   implementation project(":sdks:java:fn-execution")
-  implementation library.java.vendored_grpc_1_36_0
+  implementation library.java.vendored_grpc_1_43_2
   implementation library.java.vendored_guava_26_0_jre
   implementation "com.codahale.metrics:metrics-core:3.0.1"
   implementation "org.apache.spark:spark-core_$spark_scala_version:$spark_version"
@@ -183,14 +183,10 @@ dependencies {
   }
   // Force paranamer 2.8 to avoid issues when using Scala 2.12
   runtimeOnly "com.thoughtworks.paranamer:paranamer:2.8"
-  compileOnly library.java.hadoop_common
-  compileOnly library.java.commons_io
-  compileOnly library.java.hamcrest
-  compileOnly "com.esotericsoftware:kryo-shaded:4.0.2"
-  testImplementation library.java.hadoop_common
-  testImplementation library.java.commons_io
-  testImplementation library.java.hamcrest
-  testImplementation "com.esotericsoftware.kryo:kryo:2.21"
+  provided library.java.hadoop_common
+  provided library.java.commons_io
+  provided library.java.hamcrest
+  provided "com.esotericsoftware:kryo-shaded:4.0.2"
   testImplementation project(":sdks:java:io:kafka")
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   // SparkStateInternalsTest extends abstract StateInternalsTest
