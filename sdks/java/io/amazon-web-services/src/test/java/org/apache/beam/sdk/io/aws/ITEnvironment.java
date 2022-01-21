@@ -55,7 +55,7 @@ import org.testcontainers.utility.DockerImageName;
  */
 public class ITEnvironment<OptionsT extends ITEnvironment.ITOptions> extends ExternalResource {
   private static final String LOCALSTACK = "localstack/localstack";
-  private static final String LOCALSTACK_VERSION = "0.12.18";
+  private static final String LOCALSTACK_VERSION = "0.13.1";
 
   public interface ITOptions extends AwsOptions, TestPipelineOptions {
     @Description("Number of rows to write and read by the test")

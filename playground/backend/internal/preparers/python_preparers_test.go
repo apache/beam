@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package preparators
+package preparers
 
 import (
 	"os"
@@ -21,7 +21,7 @@ import (
 	"testing"
 )
 
-func TestGetPythonPreparators(t *testing.T) {
+func TestGetPythonPreparers(t *testing.T) {
 	type args struct {
 		filePath string
 	}
@@ -31,17 +31,19 @@ func TestGetPythonPreparators(t *testing.T) {
 		want int
 	}{
 		{
-			// Test case with calling GetPythonPreparators method.
-			// As a result, want to receive slice of preparators with len = 1
-			name: "get python preparators",
+			// Test case with calling GetPythonPreparers method.
+			// As a result, want to receive slice of preparers with len = 1
+			name: "get python preparers",
 			args: args{"MOCK_FILEPATH"},
 			want: 1,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := GetPythonPreparators(tt.args.filePath); len(*got) != tt.want {
-				t.Errorf("GetPythonPreparators() returns %v Preparators, want %v", len(*got), tt.want)
+			builder := NewPreparersBuilder(tt.args.filePath)
+			GetPythonPreparers(builder)
+			if got := builder.Build().GetPreparers(); len(*got) != tt.want {
+				t.Errorf("GetPythonPreparers() returns %v Preparers, want %v", len(*got), tt.want)
 			}
 		})
 	}

@@ -13,11 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package preparators
+package preparers
 
 import (
 	"beam.apache.org/playground/backend/internal/logger"
-	"beam.apache.org/playground/backend/internal/validators"
 	"bufio"
 	"fmt"
 	"io"
@@ -26,7 +25,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"sync"
 )
 
 const (
@@ -40,47 +38,73 @@ const (
 	publicClassNamePattern            = "public class (.*?) [{|implements(.*)]"
 )
 
-// GetJavaPreparators returns preparation methods that should be applied to Java code
-func GetJavaPreparators(filePath string) *[]Preparator {
-	removePublicClassPreparator := Preparator{
+//JavaPreparersBuilder facet of PreparersBuilder
+type JavaPreparersBuilder struct {
+	PreparersBuilder
+}
+
+//JavaPreparers chains to type *PreparersBuilder and returns a *JavaPreparersBuilder
+func (builder *PreparersBuilder) JavaPreparers() *JavaPreparersBuilder {
+	return &JavaPreparersBuilder{*builder}
+}
+
+//WithPublicClassRemover adds preparer to remove public class
+func (builder *JavaPreparersBuilder) WithPublicClassRemover() *JavaPreparersBuilder {
+	removePublicClassPreparer := Preparer{
 		Prepare: removePublicClassModifier,
-		Args:    []interface{}{filePath, classWithPublicModifierPattern, classWithoutPublicModifierPattern},
+		Args:    []interface{}{builder.filePath, classWithPublicModifierPattern, classWithoutPublicModifierPattern},
 	}
-	changePackagePreparator := Preparator{
-		Prepare: changePackage,
-		Args:    []interface{}{filePath, packagePattern, importStringPattern},
+	builder.AddPreparer(removePublicClassPreparer)
+	return builder
+}
+
+//WithPackageChanger adds preparer to change package
+func (builder *JavaPreparersBuilder) WithPackageChanger() *JavaPreparersBuilder {
+	changePackagePreparer := Preparer{
+		Prepare: replace,
+		Args:    []interface{}{builder.filePath, packagePattern, importStringPattern},
 	}
-	removePackagePreparator := Preparator{
-		Prepare: removePackage,
-		Args:    []interface{}{filePath, packagePattern, newLinePattern},
+	builder.AddPreparer(changePackagePreparer)
+	return builder
+}
+
+//WithPackageRemover adds preparer to remove package
+func (builder *JavaPreparersBuilder) WithPackageRemover() *JavaPreparersBuilder {
+	removePackagePreparer := Preparer{
+		Prepare: replace,
+		Args:    []interface{}{builder.filePath, packagePattern, newLinePattern},
 	}
-	unitTestFileNameChanger := Preparator{
+	builder.AddPreparer(removePackagePreparer)
+	return builder
+}
+
+//WithFileNameChanger adds preparer to remove package
+func (builder *JavaPreparersBuilder) WithFileNameChanger() *JavaPreparersBuilder {
+	unitTestFileNameChanger := Preparer{
 		Prepare: changeJavaTestFileName,
-		Args:    []interface{}{filePath},
+		Args:    []interface{}{builder.filePath},
 	}
-	return &[]Preparator{removePublicClassPreparator, changePackagePreparator, removePackagePreparator, unitTestFileNameChanger}
+	builder.AddPreparer(unitTestFileNameChanger)
+	return builder
 }
 
-//changePackage changes the 'package' to 'import' and the last directory in the package value to '*'
-func changePackage(args ...interface{}) error {
-	validationResults := args[3].(*sync.Map)
-	isKata, ok := validationResults.Load(validators.KatasValidatorName)
-	if ok && isKata.(bool) {
-		return nil
+// GetJavaPreparers returns preparation methods that should be applied to Java code
+func GetJavaPreparers(builder *PreparersBuilder, isUnitTest bool, isKata bool) {
+	if !isUnitTest && !isKata {
+		builder.JavaPreparers().
+			WithPublicClassRemover().
+			WithPackageChanger()
 	}
-	err := replace(args...)
-	return err
-}
-
-//removePackage remove the package line in the katas.
-func removePackage(args ...interface{}) error {
-	validationResults := args[3].(*sync.Map)
-	isKata, ok := validationResults.Load(validators.KatasValidatorName)
-	if ok && isKata.(bool) {
-		err := replace(args...)
-		return err
+	if isUnitTest {
+		builder.JavaPreparers().
+			WithPackageChanger().
+			WithFileNameChanger()
 	}
-	return nil
+	if isKata {
+		builder.JavaPreparers().
+			WithPublicClassRemover().
+			WithPackageRemover()
+	}
 }
 
 // replace processes file by filePath and replaces all patterns to newPattern
@@ -119,11 +143,6 @@ func replace(args ...interface{}) error {
 }
 
 func removePublicClassModifier(args ...interface{}) error {
-	validationResults := args[3].(*sync.Map)
-	isUnitTest, ok := validationResults.Load(validators.UnitTestValidatorName)
-	if ok && isUnitTest.(bool) {
-		return nil
-	}
 	err := replace(args...)
 	return err
 }
@@ -185,17 +204,13 @@ func addNewLine(newLine bool, file *os.File) error {
 
 func changeJavaTestFileName(args ...interface{}) error {
 	filePath := args[0].(string)
-	validationResults := args[1].(*sync.Map)
-	isUnitTest, ok := validationResults.Load(validators.UnitTestValidatorName)
-	if ok && isUnitTest.(bool) {
-		className, err := getPublicClassName(filePath)
-		if err != nil {
-			return err
-		}
-		err = renameJavaFile(filePath, className)
-		if err != nil {
-			return err
-		}
+	className, err := getPublicClassName(filePath)
+	if err != nil {
+		return err
+	}
+	err = renameJavaFile(filePath, className)
+	if err != nil {
+		return err
 	}
 	return nil
 }
@@ -210,7 +225,7 @@ func renameJavaFile(filePath string, className string) error {
 func getPublicClassName(filePath string) (string, error) {
 	code, err := ioutil.ReadFile(filePath)
 	if err != nil {
-		logger.Errorf("Preparator: Error during open file: %s, err: %s\n", filePath, err.Error())
+		logger.Errorf("Preparer: Error during open file: %s, err: %s\n", filePath, err.Error())
 		return "", err
 	}
 	re := regexp.MustCompile(publicClassNamePattern)

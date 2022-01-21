@@ -42,11 +42,12 @@ package main
 //   description: An example that counts words in King Lear,
 //     by William Shakespeare.
 //   multifile: false
-//   pipeline_options:
+//   default_example: true
 //   categories:
 //     - IO
 //     - Combiners
 //     - Core Transforms
+//     - Quickstart
 
 import (
 	"context"

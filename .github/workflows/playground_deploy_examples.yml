@@ -18,6 +18,7 @@ name: Collect And Deploy Playground Examples
 on:
   push:
     tags: 'v*'
+    branch: 'beta-version'
   workflow_dispatch:
 
 jobs:
@@ -28,7 +29,6 @@ jobs:
       BEAM_ROOT_DIR: ../../
       BEAM_EXAMPLE_CATEGORIES: ../categories.yaml
       BEAM_VERSION: 2.33.0
-      SERVER_ADDRESS: backend-python-dot-datatokenization.uc.r.appspot.com
       K8S_NAMESPACE: playground-backend
       HELM_APP_NAME: playground-backend
     steps:
@@ -56,24 +56,34 @@ jobs:
       - name: install deps
         run: pip install -r requirements.txt
         working-directory: playground/infrastructure
+      - name: Remove default github maven configuration
+        # This step is a workaround to avoid a decryption issue
+        run: rm ~/.m2/settings.xml
       - name: Setup GCP account
         run: |
-             echo "${{ secrets.GCP_ACCESS_KEY }}" | base64 -d > /tmp/gcp_access.json
-             gcloud auth activate-service-account --project=datatokenization --key-file=/tmp/gcp_access.json
+             echo "${{ secrets.PLAYGROUND_GCP_ACCESS_KEY }}" | base64 -d > /tmp/gcp_access.json
+             which gcloud
+             gcloud auth activate-service-account --project=apache-beam-testing --key-file=/tmp/gcp_access.json
+      - name: Set Docker Tag
+        run: echo "DOCKERTAG=${GITHUB_SHA}" >> $GITHUB_ENV
+      - name: Set Docker Tag If Github Tag was trigger
+        run: echo "DOCKERTAG=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+        if: startsWith(github.ref, 'refs/tags/')
       - name: Get K8s Config
         run: gcloud container clusters get-credentials --region     us-central1-a playground-examples
       - name: Login to Docker Registry
-        run: cat /tmp/gcp_access.json | docker login -u _json_key --password-stdin https://${{ secrets.REGISTRY_NAME }}
+        run: cat /tmp/gcp_access.json | docker login -u _json_key --password-stdin https://${{ secrets.PLAYGROUND_REGISTRY_NAME }}
       - name: Build And Push Java Backend
-        run: ./gradlew playground:backend:containers:java:dockerTagPush -Pdocker-repository-root='${{ secrets.REGISTRY_NAME}}/${{ secrets.PROJECT_ID }}/playground-repository' -Pbase-image='apache/beam_java8_sdk:${{ env.BEAM_VERSION }}' -Pdocker-tag="$GITHUB_SHA"
+        run: |
+             ./gradlew playground:backend:containers:java:dockerTagPush -Pdocker-repository-root='${{ secrets.PLAYGROUND_REGISTRY_NAME}}/${{ secrets.PLAYGROUND_PROJECT_ID }}/playground-repository' -Pbase-image='apache/beam_java8_sdk:${{ env.BEAM_VERSION }}' -Pdocker-tag=${{ env.DOCKERTAG }} 
       - name: Build And Push Go Backend
-        run: ./gradlew playground:backend:containers:go:dockerTagPush -Pdocker-repository-root='${{ secrets.REGISTRY_NAME}}/${{ secrets.PROJECT_ID }}/playground-repository' -Pdocker-tag="$GITHUB_SHA"
+        run: ./gradlew playground:backend:containers:go:dockerTagPush -Pdocker-repository-root='${{ secrets.PLAYGROUND_REGISTRY_NAME}}/${{ secrets.PLAYGROUND_PROJECT_ID }}/playground-repository' -Pdocker-tag=${{ env.DOCKERTAG }}
       - name: Build And Push Python Backend
-        run: ./gradlew playground:backend:containers:python:dockerTagPush -Pdocker-repository-root='${{ secrets.REGISTRY_NAME}}/${{ secrets.PROJECT_ID }}/playground-repository' -Pdocker-tag="$GITHUB_SHA"
+        run: ./gradlew playground:backend:containers:python:dockerTagPush -Pdocker-repository-root='${{ secrets.PLAYGROUND_REGISTRY_NAME}}/${{ secrets.PLAYGROUND_PROJECT_ID }}/playground-repository' -Pdocker-tag=${{ env.DOCKERTAG }}
       - name: Install helm chart
         run: |
              kubectl create namespace $K8S_NAMESPACE --dry-run=client -o yaml | kubectl apply -f - &&\
-             helm install  --namespace $K8S_NAMESPACE $HELM_APP_NAME . --set global.registry="${{ secrets.REGISTRY_NAME }}/${{ secrets.PROJECT_ID }}/playground-repository" --set global.tag="$GITHUB_SHA" &&\
+             helm install  --namespace $K8S_NAMESPACE $HELM_APP_NAME . --set global.registry="${{ secrets.PLAYGROUND_REGISTRY_NAME }}/${{ secrets.PLAYGROUND_PROJECT_ID }}/playground-repository" --set global.tag=${{ env.DOCKERTAG }} &&\
              sleep 120
         working-directory: playground/infrastructure/helm
       - name: Run Python Examples CI
@@ -81,6 +91,7 @@ jobs:
              K8S_SERVER_ADDRESS=$(kubectl get svc -n $K8S_NAMESPACE -l "app=service-python" -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')
              BEAM_ROOT_DIR="../../"
              BEAM_EXAMPLE_CATEGORIES="../../playground/categories.yaml"
+             echo $K8S_SERVER_ADDRESS
              export SERVER_ADDRESS="$K8S_SERVER_ADDRESS:8081" && python3 ci_cd.py --step CI --sdk SDK_PYTHON
         working-directory: playground/infrastructure
       - name: Run Python Examples CD

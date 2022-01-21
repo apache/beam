@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package preparators
+package preparers
 
 import (
 	"beam.apache.org/playground/backend/internal/logger"
@@ -26,13 +26,31 @@ const (
 	addLogHandlerCode = "import logging\nlogging.basicConfig(\n    level=logging.DEBUG,\n    format=\"%(asctime)s [%(levelname)s] %(message)s\",\n    handlers=[\n        logging.FileHandler(\"logs.log\"),\n    ]\n)\n"
 )
 
-// GetPythonPreparators returns preparation methods that should be applied to Python code
-func GetPythonPreparators(filePath string) *[]Preparator {
-	addLogHandler := Preparator{
+// GetPythonPreparers returns preparation methods that should be applied to Python code
+func GetPythonPreparers(builder *PreparersBuilder) {
+	builder.
+		PythonPreparers().
+		WithLogHandler()
+}
+
+//PythonPreparersBuilder facet of PreparersBuilder
+type PythonPreparersBuilder struct {
+	PreparersBuilder
+}
+
+//PythonPreparers chains to type *PreparersBuilder and returns a *GoPreparersBuilder
+func (builder *PreparersBuilder) PythonPreparers() *PythonPreparersBuilder {
+	return &PythonPreparersBuilder{*builder}
+}
+
+//WithLogHandler adds code for logging
+func (builder *PythonPreparersBuilder) WithLogHandler() *PythonPreparersBuilder {
+	addLogHandler := Preparer{
 		Prepare: addCodeToFile,
-		Args:    []interface{}{filePath, addLogHandlerCode},
+		Args:    []interface{}{builder.filePath, addLogHandlerCode},
 	}
-	return &[]Preparator{addLogHandler}
+	builder.AddPreparer(addLogHandler)
+	return builder
 }
 
 // addCodeToFile processes file by filePath and adds additional code

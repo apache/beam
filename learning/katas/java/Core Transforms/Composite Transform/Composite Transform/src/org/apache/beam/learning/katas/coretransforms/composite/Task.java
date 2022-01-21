@@ -23,7 +23,6 @@ package org.apache.beam.learning.katas.coretransforms.composite;
 //   description: Task from katas to implement a composite transform "ExtractAndMultiplyNumbers"
 //     that extracts numbers from comma separated line and then multiplies each number by 10.
 //   multifile: false
-//   pipeline_options:
 //   categories:
 //     - Combiners
 //     - Flatten
