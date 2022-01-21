@@ -82,5 +82,12 @@ class MockExampleClient extends _i1.Mock implements _i5.ExampleClient {
                   Future<_i4.OutputResponse>.value(_FakeOutputResponse_2()))
           as _i6.Future<_i4.OutputResponse>);
   @override
+  _i6.Future<_i4.OutputResponse> getExampleLogs(
+          _i8.GetExampleRequestWrapper? request) =>
+      (super.noSuchMethod(Invocation.method(#getExampleLogs, [request]),
+              returnValue:
+                  Future<_i4.OutputResponse>.value(_FakeOutputResponse_2()))
+          as _i6.Future<_i4.OutputResponse>);
+  @override
   String toString() => super.toString();
 }

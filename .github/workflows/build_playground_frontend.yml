@@ -65,18 +65,27 @@ jobs:
         with:
             terraform_version: ${{ env.TERRAFORM_VERSION }}
         if: startsWith(github.ref, 'ref/tags/')
+      - name: Set Docker Tag
+        run: echo "DOCKERTAG=${GITHUB_SHA}" >> $GITHUB_ENV
+      - name: Set Docker Tag If Github Tag was trigger
+        run: echo "DOCKERTAG=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+        if: startsWith(github.ref, 'refs/tags/')
       - name: Setup GCP account
-        run: echo ${{ secrets.GCP_ACCESS_KEY }} | base64 -d > /tmp/gcp_access.json
+        run: |
+             echo "${{ secrets.PLAYGROUND_GCP_ACCESS_KEY }}" | base64 -d > /tmp/gcp_access.json
         if: startsWith(github.ref, 'ref/tags/')
       - name: Login to Docker Registry
-        run: cat /tmp/gcp_access.json | docker login -u _json_key --password-stdin https://${{ secrets.REGISTRY_NAME }}
+        run: cat /tmp/gcp_access.json | docker login -u _json_key --password-stdin https://${{ secrets.PLAYGROUND_REGISTRY_NAME }}
         if: startsWith(github.ref, 'ref/tags/')
+      - name: Create config
+        run: ./gradlew playground:frontend:createConfig -PplaygroundBackendJavaRouteUrl="https://backend-java-beta-dot-apache-beam-testing.appspot.com/" -PplaygroundBackendGoRouteUrl="https://backend-go-beta-dot-apache-beam-testing.appspot.com/" -PplaygroundBackendPythonRouteUrl="${https://backend-python-beta-dot-apache-beam-testing.appspot.com/}" -PplaygroundBackendUrl="https://backend-router-beta-dot-apache-beam-testing.appspot.com/"
+        if: startsWith(github.ref, 'refs/tags/')
       - name: Preapre Build
-        run: ./gradlew --debug playground:frontend:dockerPush -Pdocker-repository-root='${{ secrets.REGISTRY_NAME}}/${{ secrets.PROJECT_ID }}/playground-repository'
-        if: startsWith(github.ref, 'ref/tags/')
+        run: ./gradlew playground:frontend:dockerTagPush -Pdocker-repository-root='${{ secrets.PLAYGROUND_REGISTRY_NAME}}/${{ secrets.PLAYGROUND_PROJECT_ID }}/playground-repository' -Pdocker-tag=${{env.DOCKERTAG}}
+        if: startsWith(github.ref, 'refs/tags/')
       - name: Deploy Backend Application
         env:
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp_access.json
-        run: terraform init && terraform apply -auto-approve -var="project_id=${{ secrets.PROJECT_ID }}" -var="docker_registry_address=${{ secrets.REGISTRY_NAME}}/${{ secrets.PROJECT_ID }}/playground-repository"
-        working-directory: playground/terraform/applications/backend
-        if: startsWith(github.ref, 'ref/tags/')
+        run: terraform init && terraform apply -auto-approve -var="project_id=${{ secrets.PLAYGROUND_PROJECT_ID }}" -var="docker_registry_address=${{ secrets.PLAYGROUND_REGISTRY_NAME}}/${{ secrets.PLAYGROUND_PROJECT_ID }}/playground-repository" -var="docker_image_tag=${{ env.DOCKERTAG }}"
+        working-directory: playground/terraform/applications/frontend
+        if: startsWith(github.ref, 'refs/tags/')

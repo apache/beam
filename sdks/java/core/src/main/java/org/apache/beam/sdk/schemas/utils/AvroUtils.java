@@ -658,11 +658,13 @@ public class AvroUtils {
     @Override
     public List<FieldValueTypeInformation> get(Class<?> clazz, Schema schema) {
       Map<String, String> mapping = getMapping(schema);
+      List<Method> methods = ReflectUtils.getMethods(clazz);
       List<FieldValueTypeInformation> types = Lists.newArrayList();
-      for (Method method : ReflectUtils.getMethods(clazz)) {
+      for (int i = 0; i < methods.size(); ++i) {
+        Method method = methods.get(i);
         if (ReflectUtils.isGetter(method)) {
           FieldValueTypeInformation fieldValueTypeInformation =
-              FieldValueTypeInformation.forGetter(method);
+              FieldValueTypeInformation.forGetter(method, i);
           String name = mapping.get(fieldValueTypeInformation.getName());
           if (name != null) {
             types.add(fieldValueTypeInformation.withName(name));
@@ -706,10 +708,12 @@ public class AvroUtils {
   private static final class AvroPojoFieldValueTypeSupplier implements FieldValueTypeSupplier {
     @Override
     public List<FieldValueTypeInformation> get(Class<?> clazz) {
+      List<java.lang.reflect.Field> classFields = ReflectUtils.getFields(clazz);
       Map<String, FieldValueTypeInformation> types = Maps.newHashMap();
-      for (java.lang.reflect.Field f : ReflectUtils.getFields(clazz)) {
+      for (int i = 0; i < classFields.size(); ++i) {
+        java.lang.reflect.Field f = classFields.get(i);
         if (!f.isAnnotationPresent(AvroIgnore.class)) {
-          FieldValueTypeInformation typeInformation = FieldValueTypeInformation.forField(f);
+          FieldValueTypeInformation typeInformation = FieldValueTypeInformation.forField(f, i);
           AvroName avroname = f.getAnnotation(AvroName.class);
           if (avroname != null) {
             typeInformation = typeInformation.withName(avroname.value());
