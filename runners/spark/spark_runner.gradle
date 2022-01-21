@@ -183,14 +183,10 @@ dependencies {
   }
   // Force paranamer 2.8 to avoid issues when using Scala 2.12
   runtimeOnly "com.thoughtworks.paranamer:paranamer:2.8"
-  compileOnly library.java.hadoop_common
-  compileOnly library.java.commons_io
-  compileOnly library.java.hamcrest
-  compileOnly "com.esotericsoftware:kryo-shaded:4.0.2"
-  testImplementation library.java.hadoop_common
-  testImplementation library.java.commons_io
-  testImplementation library.java.hamcrest
-  testImplementation "com.esotericsoftware.kryo:kryo:2.21"
+  provided library.java.hadoop_common
+  provided library.java.commons_io
+  provided library.java.hamcrest
+  provided "com.esotericsoftware:kryo-shaded:4.0.2"
   testImplementation project(":sdks:java:io:kafka")
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   // SparkStateInternalsTest extends abstract StateInternalsTest
