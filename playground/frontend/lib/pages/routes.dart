@@ -17,13 +17,12 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/pages/embedded_playground/embedded_playground_page.dart';
+import 'package:playground/pages/embedded_playground/embedded_page_providers.dart';
 import 'package:playground/pages/playground/playground_page.dart';
 
 class Routes {
   static const String playground = '/';
-  static const String embeddedEditable = '/embedded_editable';
-  static const String embeddedNotEditable = '/embedded_not_editable';
+  static const String embedded = '/embedded';
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
     final name = settings.name ?? '';
@@ -33,14 +32,8 @@ class Routes {
     switch (routePath) {
       case Routes.playground:
         return Routes.renderRoute(const PlaygroundPage());
-      case Routes.embeddedEditable:
-        return Routes.renderRoute(const EmbeddedPlaygroundPage(
-          isEditable: true,
-        ));
-      case Routes.embeddedNotEditable:
-        return Routes.renderRoute(const EmbeddedPlaygroundPage(
-          isEditable: false,
-        ));
+      case Routes.embedded:
+        return Routes.renderRoute(const EmbeddedPageProviders());
       default:
         return Routes.renderRoute(const PlaygroundPage());
     }

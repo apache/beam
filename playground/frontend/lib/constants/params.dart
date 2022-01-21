@@ -17,3 +17,4 @@
  */
 
 const kExampleParam = 'example';
+const kIsEditable = 'editable';

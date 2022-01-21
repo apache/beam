@@ -19,7 +19,7 @@
 import 'package:flutter/material.dart';
 import 'package:playground/constants/colors.dart';
 
-const defaultRatio = 0.7;
+const defaultRatio = 0.65;
 const kContainerTopBorder = Border(
   top: BorderSide(
     width: 0.5,
