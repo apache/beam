@@ -200,6 +200,7 @@ class Stager(object):
     setup_options = options.view_as(SetupOptions)
     use_default_container_image = (
         setup_options.view_as(WorkerOptions).sdk_container_image is None)
+    stage_requirements_cache = setup_options.populate_requirements_cache
 
     # We can skip boot dependencies: apache beam sdk, python packages from
     # requirements.txt, python packages from extra_packages and workflow tarball
@@ -223,19 +224,22 @@ class Stager(object):
             Stager._create_file_stage_to_artifact(
                 setup_options.requirements_file, REQUIREMENTS_FILE))
         # Populate cache with packages from the requirement file option and
-        # stage the files in the cache.
+        # stage the files in the cache
         if not use_default_container_image:
           _LOGGER.warning(
               'When using a custom container image, prefer installing'
               ' additional PyPI dependencies directly into the image,'
               ' instead of specifying them via runtime options, '
               'such as --requirements_file. ')
-        (
-            populate_requirements_cache if populate_requirements_cache else
-            Stager._populate_requirements_cache)(
-                setup_options.requirements_file,
-                requirements_cache_path,
-                fetch_binary=use_default_container_image)
+        if stage_requirements_cache != 'skip':
+          (
+              populate_requirements_cache if populate_requirements_cache else
+              Stager._populate_requirements_cache)(
+                  setup_options.requirements_file,
+                  requirements_cache_path,
+                  fetch_binary=(
+                      use_default_container_image and
+                      stage_requirements_cache == 'prefer_binaries'))
 
       if pypi_requirements:
         tf = tempfile.NamedTemporaryFile(mode='w', delete=False)
@@ -244,12 +248,15 @@ class Stager(object):
         resources.append(Stager._create_file_pip_requirements_artifact(tf.name))
         # Populate cache with packages from PyPI requirements and stage
         # the files in the cache.
-        (
-            populate_requirements_cache if populate_requirements_cache else
-            Stager._populate_requirements_cache)(
-                tf.name,
-                requirements_cache_path,
-                fetch_binary=use_default_container_image)
+        if stage_requirements_cache != 'skip':
+          (
+              populate_requirements_cache if populate_requirements_cache else
+              Stager._populate_requirements_cache)(
+                  tf.name,
+                  requirements_cache_path,
+                  fetch_binary=(
+                      use_default_container_image and
+                      stage_requirements_cache == 'prefer_binaries'))
 
       if setup_options.requirements_file is not None or pypi_requirements:
         for pkg in glob.glob(os.path.join(requirements_cache_path, '*')):
@@ -676,23 +683,25 @@ class Stager(object):
   @staticmethod
   @retry.with_exponential_backoff(
       num_retries=4, retry_filter=retry_on_non_zero_exit)
-  def _populate_requirements_cache(requirements_file, # type: str
-                                   cache_dir, # type: str
-                                   fetch_binary=False):
-    """
-    The 'pip download' command will not download again if it finds
-    the tarball with the proper version already present.
-    It will get the packages downloaded in the order they are presented in
-    the requirements file and will download package dependencies
-    to the cache_dir.
 
-    Args:
-      requirements_file: A file with PyPI dependencies.
-      cache_dir: Cache to download deps
-      fetch_binary: Download whls if this flag is enabled.
-                    Supported for 'linux_x86_64' architecture.
+  def _populate_requirements_cache(requirements_file,  # type: str
+                                   cache_dir,  # type: str
+                                   fetch_binary=True, # type: bool
+                                  ):
     """
+        This will populate cache_dir with dependencies specified in
+        requirements_file using pip download.
+        The 'pip download' command will not download again if it finds
+        the tarball with the proper version already present.
+        It will get the packages downloaded in the order they are presented in
+        the requirements file and will download package dependencies
+        to the cache_dir.
 
+        Args:
+          requirements_file: A file with PyPI dependencies.
+          cache_dir: Cache to download deps
+          legacy_staging: Stage sources
+        """
     #  The apache-beam dependency is excluded from requirements cache population
     #  because we stage the SDK separately.
     with tempfile.TemporaryDirectory() as temp_directory:
@@ -702,35 +711,7 @@ class Stager(object):
           dependency_to_remove='apache-beam',
           temp_directory_path=temp_directory)
       )
-      if not fetch_binary:
-        # download only sources.
-        # if no source found for a package, this fails.
-        extra_flags = ['--no-binary', ':all:']
-      else:
-        # generate a new requirements.txt using the user
-        # provided requirements file
-        cmd_args_pip_compile = ['pip-compile', tmp_requirements_filepath]
-        try:
-          processes.check_output(cmd_args_pip_compile, stderr=processes.STDOUT)
-        except processes.CalledProcessError as e:
-          raise RuntimeError(repr(e))
-        language_implementation_tag = 'cp'
-        # python_version = '%d%d' % (sys.version_info[0], sys.version_info[1])
-        abi_suffix = 'm' if sys.version_info < (3, 8) else ''
-        abi_tag = 'cp%d%d%s' % (
-            sys.version_info[0], sys.version_info[1], abi_suffix)
-        platform_tag = Stager._get_manylinux_distribution()
-        extra_flags = [
-            '--no-deps',
-            # omiting python version, we don't need this in the first place
-            # but liniking issue here,https://github.com/pypa/pip/issues/6121
-            '--implementation',
-            language_implementation_tag,
-            '--abi',
-            abi_tag,
-            '--platform',
-            platform_tag
-        ]
+
       cmd_args = [
           Stager._get_python_executable(),
           '-m',
@@ -743,9 +724,48 @@ class Stager(object):
           '--exists-action',
           'i',
       ]
-      cmd_args.extend(extra_flags)
-      _LOGGER.info('Executing command: %s', cmd_args)
-      processes.check_output(cmd_args, stderr=processes.STDOUT)
+
+      # Download only sdists to support backward compatibility
+      if not fetch_binary:
+        cmd_args.extend(['--no-binary', ':all:'])
+        _LOGGER.info('Executing command: %s', cmd_args)
+        processes.check_output(cmd_args, stderr=processes.STDOUT)
+      else:
+        try:
+          pip_compile_cmd = [
+              Stager._get_python_executable(),
+              '-m',
+              'piptools',
+              'compile',
+              requirements_file
+          ]
+          processes.check_output(pip_compile_cmd, stderr=processes.STDOUT)
+        except:  # pylint:disable=bare-except
+          # If pip-compile fails, fallback to download of packages with
+          # --no-deps and let worker take care of the transitive deps
+          # of those packagespip-co.
+          _LOGGER.warning(
+              'pip-compile failed. Staging packages from requirements.txt'
+              ' with --no-deps flag')
+
+        language_implementation_tag = 'cp'
+        abi_suffix = 'm' if sys.version_info < (3, 8) else ''
+        abi_tag = 'cp%d%d%s' % (
+            sys.version_info[0], sys.version_info[1], abi_suffix)
+        platform_tag = Stager._get_manylinux_distribution()
+        extra_flags = [
+            '--no-deps',
+            '--implementation',
+            language_implementation_tag,
+            '--abi',
+            abi_tag,
+            '--platform',
+            platform_tag
+        ]
+
+        cmd_args.extend(extra_flags)
+        _LOGGER.info('Executing command: %s', cmd_args)
+        processes.check_output(cmd_args, stderr=processes.STDOUT)
 
   @staticmethod
   def _build_setup_package(setup_file,  # type: str

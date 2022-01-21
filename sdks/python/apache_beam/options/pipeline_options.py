@@ -1055,6 +1055,19 @@ class SetupOptions(PipelineOptions):
             'Path to a folder to cache the packages specified in '
             'the requirements file using the --requirements_file option.'))
     parser.add_argument(
+        '--populate_requirements_cache',
+        default='prefer_binaries',
+        choices=['prefer_binaries', 'prefer_sources', 'skip'],
+        help=(
+            'Ignore this flag if you are using custom containers'
+            '(--sdk_container_image)'
+            'If a --requirements_file is specified, this flag controls'
+            'how to populate requirements cache with dependencies '
+            'specified in the --requirements_file. Set this flag to skip,'
+            'to skip the requirements cache.Set this flag to prefer_binaries '
+            'to populate requirements cache with whls/binary distribution. '
+            'Set this flag to prefer_sources to download source distribution.'))
+    parser.add_argument(
         '--setup_file',
         default=None,
         help=(

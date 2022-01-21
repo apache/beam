@@ -710,6 +710,9 @@ class StagerTest(unittest.TestCase):
     self.assertEqual(['apache_beam\n', 'avro-python3\n', 'numpy\n'],
                      sorted(lines))
 
+  def test_map_dependency_versions(self):
+    pass
+
 
 class TestStager(stager.Stager):
   def stage_artifact(self, local_path_to_artifact, artifact_name, sha256):
