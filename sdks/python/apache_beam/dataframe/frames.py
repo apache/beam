@@ -638,10 +638,13 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     order-sensitive. It cannot be specified.
 
     If ``limit`` is specified this operation is not parallelizable."""
+    from pandas._libs import lib
     if method is not None and not isinstance(to_replace,
-                                             dict) and value is None:
+                                             dict) and value is lib.no_default:
       # pandas only relies on method if to_replace is not a dictionary, and
-      # value is None
+      # value is the <no_default> value. This is different than
+      # if ``None`` is explicitly passed for ``value``. In this case, it will be
+      # respected
       raise frame_base.WontImplementError(
           f"replace(method={method!r}) is not supported because it is "
           "order sensitive. Only replace(method=None) is supported.",
@@ -1317,6 +1320,9 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       base=pd.DataFrame,
       requires_partition_by=partitionings.Arbitrary(),
       preserves_partition_by=partitionings.Singleton())
+
+  info = frame_base.wont_implement_method(
+      pd.Series, 'info', reason="non-deferred-result")
 
   def _idxmaxmin_helper(self, op, **kwargs):
     if op == 'idxmax':
@@ -4735,6 +4741,8 @@ ELEMENTWISE_STRING_METHODS = [
             'match',
             'pad',
             'partition',
+            'removeprefix',
+            'removesuffix',
             'replace',
             'rpartition',
             'rstrip',

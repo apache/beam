@@ -65,7 +65,7 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.replace': [
                 "s.replace([1, 2], method='bfill')",
                 # Relies on method='pad'
-                "s.replace('a', None)",
+                "s.replace('a')",
                 # Implicitly uses method='pad', but output doesn't rely on that
                 # behavior. Verified indepently in
                 # frames_test.py::DeferredFrameTest::test_replace
@@ -96,6 +96,7 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.infer_objects': ['*'],
             'pandas.core.generic.NDFrame.ewm': ['*'],
             'pandas.core.generic.NDFrame.expanding': ['*'],
+            'pandas.core.generic.NDFrame.get': ['*'],
         },
         not_implemented_ok={
             'pandas.core.generic.NDFrame.asof': ['*'],
@@ -121,6 +122,7 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.convert_dtypes': ['*'],
             'pandas.core.generic.NDFrame.copy': ['*'],
             'pandas.core.generic.NDFrame.droplevel': ['*'],
+            'pandas.core.generic.NDFrame.get': ['*'],
             'pandas.core.generic.NDFrame.rank': [
                 # Modified dataframe
                 'df'
@@ -191,7 +193,7 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.replace': [
                 "s.replace([1, 2], method='bfill')",
                 # Relies on method='pad'
-                "s.replace('a', None)",
+                "s.replace('a')",
                 # Implicitly uses method='pad', but output doesn't rely on that
                 # behavior. Verified indepently in
                 # frames_test.py::DeferredFrameTest::test_replace
@@ -421,6 +423,7 @@ class DoctestTest(unittest.TestCase):
                 'df.fillna(method="ffill")',
                 'df.fillna(value=values, limit=1)',
             ],
+            'pandas.core.series.Series.info': ['*'],
             'pandas.core.series.Series.items': ['*'],
             'pandas.core.series.Series.iteritems': ['*'],
             # default keep is 'first'
@@ -453,7 +456,7 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.replace': [
                 "s.replace([1, 2], method='bfill')",
                 # Relies on method='pad'
-                "s.replace('a', None)",
+                "s.replace('a')",
                 # Implicitly uses method='pad', but output doesn't rely on that
                 # behavior. Verified indepently in
                 # frames_test.py::DeferredFrameTest::test_replace
