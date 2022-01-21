@@ -189,16 +189,13 @@ dependencies {
     // runners/google-cloud-dataflow-java/worker/build.gradle using the rules provided
     // there.
     sdk_provided_dependencies.each {
-        compileOnly(it)
-        testImplementation(it)
+        provided(it)
     }
     sdk_provided_shaded_project_dependencies.each {
-        compileOnly project(path: it, configuration: "shadow")
-        testImplementation project(path: it, configuration: "shadow")
+        provided project(path: it, configuration: "shadow")
     }
     sdk_provided_project_dependencies.each {
-        compileOnly project(path: it)
-        testImplementation project(path: it)
+        provided project(path: it)
     }
 
     implementation project(path: ":model:fn-execution", configuration: "shadow")
