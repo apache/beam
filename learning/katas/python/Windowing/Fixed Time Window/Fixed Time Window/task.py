@@ -18,7 +18,6 @@
 #   name: WindowingFixedTime
 #   description: Task from katas to count the number of events that happened based on fixed window with 1-day duration.
 #   multifile: false
-#   pipeline_options:
 #   categories:
 #     - Windowing
 #     - Combiners
