@@ -23,6 +23,7 @@ import (
 	"github.com/google/uuid"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -167,6 +168,88 @@ func Test_changeJavaTestFileName(t *testing.T) {
 			}
 			if filepath.Base(files[0]) != "Class.java" {
 				t.Errorf("changeJavaTestFileName() expected name = %v, got %v", tt.wantName, filepath.Base(files[0]))
+			}
+		})
+	}
+}
+
+func Test_findPipelineObjectName(t *testing.T) {
+	code := "package org.apache.beam.examples;\n\n/*\n * Licensed to the Apache Software Foundation (ASF) under one\n * or more contributor license agreements.  See the NOTICE file\n * distributed with this work for additional information\n * regarding copyright ownership.  The ASF licenses this file\n * to you under the Apache License, Version 2.0 (the\n * \"License\"); you may not use this file except in compliance\n * with the License.  You may obtain a copy of the License at\n *\n *     http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\n// beam-playground:\n//   name: Branching\n//   description: Task from katas to branch out the numbers to two different transforms, one transform\n//     is multiplying each number by 5 and the other transform is multiplying each number by 10.\n//   multifile: false\n//   categories:\n//     - Branching\n//     - Core Transforms\n\nimport static org.apache.beam.sdk.values.TypeDescriptors.integers;\n\nimport org.apache.beam.sdk.Pipeline;\nimport org.apache.beam.sdk.options.PipelineOptions;\nimport org.apache.beam.sdk.options.PipelineOptionsFactory;\nimport org.apache.beam.sdk.transforms.Create;\nimport org.apache.beam.sdk.transforms.MapElements;\nimport org.apache.beam.sdk.values.PCollection;\nimport org.apache.beam.runners.core.construction.renderer.PipelineDotRenderer;\n\npublic class Task {\n\n\n\n  public static void main(String[] args) {\n    PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();\n    Pipeline pipeline = Pipeline.create(options);\n\n    PCollection<Integer> numbers =\n        pipeline.apply(Create.of(1, 2, 3, 4, 5));\n\n    PCollection<Integer> mult5Results = applyMultiply5Transform(numbers);\n    PCollection<Integer> mult10Results = applyMultiply10Transform(numbers);\n\n    mult5Results.apply(\"Log multiply 5\", Log.ofElements(\"Multiplied by 5: \"));\n    mult10Results.apply(\"Log multiply 10\", Log.ofElements(\"Multiplied by 10: \"));\n\n    String dotString = PipelineDotRenderer.toDotString(pipeline);\n    System.out.println(dotString);\n    pipeline.run();\n\n  }\n\n  static PCollection<Integer> applyMultiply5Transform(PCollection<Integer> input) {\n    return input.apply(\"Multiply by 5\", MapElements.into(integers()).via(num -> num * 5));\n  }\n\n  static PCollection<Integer> applyMultiply10Transform(PCollection<Integer> input) {\n    return input.apply(\"Multiply by 10\", MapElements.into(integers()).via(num -> num * 10));\n  }\n\n}\n"
+	lc := createTempFileWithCode(code)
+	codeWithoutPipeline := "package org.apache.beam.examples;\n\n/*\n * Licensed to the Apache Software Foundation (ASF) under one\n * or more contributor license agreements.  See the NOTICE file\n * distributed with this work for additional information\n * regarding copyright ownership.  The ASF licenses this file\n * to you under the Apache License, Version 2.0 (the\n * \"License\"); you may not use this file except in compliance\n * with the License.  You may obtain a copy of the License at\n *\n *     http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\n// beam-playground:\n//   name: Branching\n//   description: Task from katas to branch out the numbers to two different transforms, one transform\n//     is multiplying each number by 5 and the other transform is multiplying each number by 10.\n//   multifile: false\n//   categories:\n//     - Branching\n//     - Core Transforms\n\nimport static org.apache.beam.sdk.values.TypeDescriptors.integers;\n\nimport org.apache.beam.sdk.Pipeline;\nimport org.apache.beam.sdk.options.PipelineOptions;\nimport org.apache.beam.sdk.options.PipelineOptionsFactory;\nimport org.apache.beam.sdk.transforms.Create;\nimport org.apache.beam.sdk.transforms.MapElements;\nimport org.apache.beam.sdk.values.PCollection;\nimport org.apache.beam.runners.core.construction.renderer.PipelineDotRenderer;\n\npublic class Task {\n\n\n\n  public static void main(String[] args) {\n    PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();\n     PCollection<Integer> numbers =\n        pipeline.apply(Create.of(1, 2, 3, 4, 5));\n\n    PCollection<Integer> mult5Results = applyMultiply5Transform(numbers);\n    PCollection<Integer> mult10Results = applyMultiply10Transform(numbers);\n\n    mult5Results.apply(\"Log multiply 5\", Log.ofElements(\"Multiplied by 5: \"));\n    mult10Results.apply(\"Log multiply 10\", Log.ofElements(\"Multiplied by 10: \"));\n\n    String dotString = PipelineDotRenderer.toDotString(pipeline);\n    System.out.println(dotString);\n    pipeline.run();\n\n  }\n\n  static PCollection<Integer> applyMultiply5Transform(PCollection<Integer> input) {\n    return input.apply(\"Multiply by 5\", MapElements.into(integers()).via(num -> num * 5));\n  }\n\n  static PCollection<Integer> applyMultiply10Transform(PCollection<Integer> input) {\n    return input.apply(\"Multiply by 10\", MapElements.into(integers()).via(num -> num * 10));\n  }\n\n}\n"
+	lcWithoutPipeline := createTempFileWithCode(codeWithoutPipeline)
+	path, _ := os.Getwd()
+	defer os.RemoveAll(filepath.Join(path, "temp"))
+
+	type args struct {
+		filepath string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		wantErr bool
+	}{
+		{name: "pipeline name found", args: args{filepath: lc.AbsoluteSourceFilePath}, wantErr: false, want: "pipeline"},
+		{name: "pipeline name not found", args: args{filepath: lcWithoutPipeline.AbsoluteSourceFilePath}, wantErr: false, want: ""},
+		{name: "file not found", args: args{filepath: "someFile"}, wantErr: true, want: ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := findPipelineObjectName(tt.args.filepath)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("findPipelineObjectName() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("findPipelineObjectName() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func createTempFileWithCode(code string) fs_tool.LifeCyclePaths {
+	path, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
+	lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, uuid.New(), filepath.Join(path, "temp"))
+	_ = lc.CreateFolders()
+
+	_ = lc.CreateSourceCodeFile(code)
+	return lc.Paths
+}
+
+func Test_findImports(t *testing.T) {
+	code := "package org.apache.beam.examples;\n\n/*\n * Licensed to the Apache Software Foundation (ASF) under one\n * or more contributor license agreements.  See the NOTICE file\n * distributed with this work for additional information\n * regarding copyright ownership.  The ASF licenses this file\n * to you under the Apache License, Version 2.0 (the\n * \"License\"); you may not use this file except in compliance\n * with the License.  You may obtain a copy of the License at\n *\n *     http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\n// beam-playground:\n//   name: Branching\n//   description: Task from katas to branch out the numbers to two different transforms, one transform\n//     is multiplying each number by 5 and the other transform is multiplying each number by 10.\n//   multifile: false\n//   categories:\n//     - Branching\n//     - Core Transforms\n\nimport static org.apache.beam.sdk.values.TypeDescriptors.integers;\n\nimport org.apache.beam.sdk.Pipeline;\nimport org.apache.beam.sdk.options.PipelineOptions;\nimport org.apache.beam.sdk.options.PipelineOptionsFactory;\nimport org.apache.beam.sdk.transforms.Create;\nimport org.apache.beam.sdk.transforms.MapElements;\nimport org.apache.beam.sdk.values.PCollection;\nimport org.apache.beam.runners.core.construction.renderer.PipelineDotRenderer;\n\npublic class Task {\n\n\n\n  public static void main(String[] args) {\n    PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();\n    Pipeline pipeline = Pipeline.create(options);\n\n    PCollection<Integer> numbers =\n        pipeline.apply(Create.of(1, 2, 3, 4, 5));\n\n    PCollection<Integer> mult5Results = applyMultiply5Transform(numbers);\n    PCollection<Integer> mult10Results = applyMultiply10Transform(numbers);\n\n    mult5Results.apply(\"Log multiply 5\", Log.ofElements(\"Multiplied by 5: \"));\n    mult10Results.apply(\"Log multiply 10\", Log.ofElements(\"Multiplied by 10: \"));\n\n    String dotString = PipelineDotRenderer.toDotString(pipeline);\n    System.out.println(dotString);\n    pipeline.run();\n\n  }\n\n  static PCollection<Integer> applyMultiply5Transform(PCollection<Integer> input) {\n    return input.apply(\"Multiply by 5\", MapElements.into(integers()).via(num -> num * 5));\n  }\n\n  static PCollection<Integer> applyMultiply10Transform(PCollection<Integer> input) {\n    return input.apply(\"Multiply by 10\", MapElements.into(integers()).via(num -> num * 10));\n  }\n\n}\n"
+	lc := createTempFileWithCode(code)
+	codeWithoutImports := "package org.apache.beam.examples;\n\n/*\n * Licensed to the Apache Software Foundation (ASF) under one\n * or more contributor license agreements.  See the NOTICE file\n * distributed with this work for additional information\n * regarding copyright ownership.  The ASF licenses this file\n * to you under the Apache License, Version 2.0 (the\n * \"License\"); you may not use this file except in compliance\n * with the License.  You may obtain a copy of the License at\n *\n *     http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\n// beam-playground:\n//   name: Branching\n//   description: Task from katas to branch out the numbers to two different transforms, one transform\n//     is multiplying each number by 5 and the other transform is multiplying each number by 10.\n//   multifile: false\n//   categories:\n//     - Branching\n//     - Core Transforms\n\nn    return input.apply(\"Multiply by 10\", MapElements.into(integers()).via(num -> num * 10));\n  }\n\n}\n"
+	lcWithoutImports := createTempFileWithCode(codeWithoutImports)
+	path, _ := os.Getwd()
+	defer os.RemoveAll(filepath.Join(path, "temp"))
+	imports := []string{"import static org.apache.beam.sdk.values.TypeDescriptors.integers;", "import org.apache.beam.sdk.Pipeline;", "import org.apache.beam.sdk.options.PipelineOptions;", "import org.apache.beam.sdk.options.PipelineOptionsFactory;", "import org.apache.beam.sdk.transforms.Create;", "import org.apache.beam.sdk.transforms.MapElements;", "import org.apache.beam.sdk.values.PCollection;", "import org.apache.beam.runners.core.construction.renderer.PipelineDotRenderer;"}
+	type args struct {
+		filepath string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    []string
+		wantErr bool
+	}{
+		{name: "imports found", args: args{filepath: lc.AbsoluteSourceFilePath}, want: imports, wantErr: false},
+		{name: "file not found", args: args{filepath: "some file"}, wantErr: true, want: nil},
+		{name: "imports not found", args: args{filepath: lcWithoutImports.AbsoluteSourceFilePath}, wantErr: false, want: nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := findImports(tt.args.filepath)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("findImports() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("findImports() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
