@@ -252,7 +252,8 @@ def _load_main_session(semi_persistent_directory):
     else:
       _LOGGER.warning(
           'No session file found: %s. Functions defined in __main__ '
-          '(interactive session) may fail.',
+          '(interactive session) may fail. Ignore this warning'
+          'if pickle_library is cloudpickle',
           session_file)
   else:
     _LOGGER.warning(
