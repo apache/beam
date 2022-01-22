@@ -2350,6 +2350,7 @@ class BeamModulePlugin implements Plugin<Project> {
             "python${project.ext.pythonVersion}",
             "-m",
             "venv",
+            "--clear",
             "${project.ext.envdir}",
           ]
           project.exec { commandLine virtualenvCmd }
