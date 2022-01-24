@@ -88,7 +88,7 @@ def create_harness(environment, dry_run=False):
   _LOGGER.info('semi_persistent_directory: %s', semi_persistent_directory)
   _worker_id = environment.get('WORKER_ID', None)
 
-  if pickle_library != 'cloudpickle':
+  if pickle_library != pickler.USE_CLOUDPICKLE:
     try:
       _load_main_session(semi_persistent_directory)
     except CorruptMainSessionException:
