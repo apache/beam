@@ -52,9 +52,9 @@ import software.amazon.awssdk.awscore.AwsResponseMetadata;
 import software.amazon.awssdk.http.SdkHttpResponse;
 import software.amazon.awssdk.services.sns.SnsAsyncClient;
 import software.amazon.awssdk.services.sns.SnsClient;
-import software.amazon.awssdk.services.sns.model.GetTopicAttributesRequest;
-import software.amazon.awssdk.services.sns.model.GetTopicAttributesResponse;
 import software.amazon.awssdk.services.sns.model.InternalErrorException;
+import software.amazon.awssdk.services.sns.model.InvalidParameterException;
+import software.amazon.awssdk.services.sns.model.NotFoundException;
 import software.amazon.awssdk.services.sns.model.PublishRequest;
 import software.amazon.awssdk.services.sns.model.PublishResponse;
 
@@ -69,21 +69,17 @@ import software.amazon.awssdk.services.sns.model.PublishResponse;
  * PCollection<String> data = ...;
  *
  * data.apply(SnsIO.<String>write()
- *     .withPublishRequestFn(m -> PublishRequest.builder().topicArn("topicArn").message(m).build())
  *     .withTopicArn("topicArn")
- *     .withRetryConfiguration(
- *        SnsIO.RetryConfiguration.create(
- *          4, org.joda.time.Duration.standardSeconds(10)))
- *     .withSnsClientProvider(new BasicSnsClientProvider(awsCredentialsProvider, region));
+ *     .withPublishRequestBuilder(m -> PublishRequest.builder().message(m))
+ *     .withSnsClientProvider(awsCredentialsProvider, region));
  * }</pre>
  *
  * <p>As a client, you need to provide at least the following things:
  *
  * <ul>
- *   <li>SNS topic arn you're going to publish to
- *   <li>Retry Configuration
- *   <li>AwsCredentialsProvider, which you can pass on to BasicSnsClientProvider
- *   <li>publishRequestFn, a function to convert your message into PublishRequest
+ *   <li>SNS topic ARN you're going to publish to (optional, but required for most use cases)
+ *   <li>Builder function to create SNS publish requests from your input
+ *   <li>AWS credentials provider and region for the SNS client provider
  * </ul>
  *
  * <p>By default, the output {@link PublishResponse} contains only the SNS messageId, all other
@@ -231,7 +227,7 @@ public final class SnsIO {
 
     abstract @Nullable String getTopicArn();
 
-    abstract @Nullable SerializableFunction<T, PublishRequest> getPublishRequestFn();
+    abstract @Nullable SerializableFunction<T, PublishRequest.Builder> getPublishRequestBuilder();
 
     abstract @Nullable SnsClientProvider getSnsClientProvider();
 
@@ -246,8 +242,8 @@ public final class SnsIO {
 
       abstract Builder<T> setTopicArn(String topicArn);
 
-      abstract Builder<T> setPublishRequestFn(
-          SerializableFunction<T, PublishRequest> publishRequestFn);
+      abstract Builder<T> setPublishRequestBuilder(
+          SerializableFunction<T, PublishRequest.Builder> requestBuilder);
 
       abstract Builder<T> setSnsClientProvider(SnsClientProvider snsClientProvider);
 
@@ -259,22 +255,34 @@ public final class SnsIO {
     }
 
     /**
-     * Specify the SNS topic which will be used for writing, this name is mandatory.
+     * SNS topic ARN used for publishing to SNS.
      *
-     * @param topicArn topicArn
+     * <p>The topic ARN is optional. If set, its existence will be validated and the SNS publish
+     * request will be configured accordingly.
      */
     public Write<T> withTopicArn(String topicArn) {
       return builder().setTopicArn(topicArn).build();
     }
 
     /**
-     * Specify a function for converting a message into PublishRequest object, this function is
-     * mandatory.
+     * Function to convert a message into a {@link PublishRequest.Builder} (mandatory).
      *
-     * @param publishRequestFn publishRequestFn
+     * <p>If an SNS topic arn is set, it will be automatically set on the {@link
+     * PublishRequest.Builder}.
      */
+    public Write<T> withPublishRequestBuilder(
+        SerializableFunction<T, PublishRequest.Builder> requestBuilder) {
+      return builder().setPublishRequestBuilder(requestBuilder).build();
+    }
+
+    /**
+     * Specify a function for converting a message into PublishRequest object.
+     *
+     * @deprecated Use {@link #withPublishRequestBuilder(SerializableFunction)} instead.
+     */
+    @Deprecated
     public Write<T> withPublishRequestFn(SerializableFunction<T, PublishRequest> publishRequestFn) {
-      return builder().setPublishRequestFn(publishRequestFn).build();
+      return builder().setPublishRequestBuilder(m -> publishRequestFn.apply(m).toBuilder()).build();
     }
 
     /**
@@ -334,19 +342,6 @@ public final class SnsIO {
       return builder().setRetryConfiguration(retryConfiguration).build();
     }
 
-    private static boolean isTopicExists(SnsClient client, String topicArn) {
-      try {
-        GetTopicAttributesRequest getTopicAttributesRequest =
-            GetTopicAttributesRequest.builder().topicArn(topicArn).build();
-        GetTopicAttributesResponse topicAttributesResponse =
-            client.getTopicAttributes(getTopicAttributesRequest);
-        return topicAttributesResponse != null
-            && topicAttributesResponse.sdkHttpResponse().statusCode() == 200;
-      } catch (Exception e) {
-        throw e;
-      }
-    }
-
     /**
      * Encode the full {@code PublishResult} object, including sdkResponseMetadata and
      * sdkHttpMetadata with the HTTP response headers.
@@ -370,19 +365,28 @@ public final class SnsIO {
 
     @Override
     public PCollection<PublishResponse> expand(PCollection<T> input) {
-      checkArgument(getTopicArn() != null, "withTopicArn() is required");
-      checkArgument(getPublishRequestFn() != null, "withPublishRequestFn() is required");
+      checkArgument(getPublishRequestBuilder() != null, "withPublishRequestBuilder() is required");
       checkArgument(getSnsClientProvider() != null, "withSnsClientProvider() is required");
-      checkArgument(
-          isTopicExists(getSnsClientProvider().getSnsClient(), getTopicArn()),
-          "Topic arn %s does not exist",
-          getTopicArn());
+      if (getTopicArn() != null) {
+        checkArgument(checkTopicExists(), "Topic arn %s does not exist", getTopicArn());
+      }
 
       PCollection<PublishResponse> result = input.apply(ParDo.of(new SnsWriterFn<>(this)));
       if (getCoder() != null) {
         result.setCoder(getCoder());
       }
       return result;
+    }
+
+    private boolean checkTopicExists() {
+      try (SnsClient client = getSnsClientProvider().getSnsClient()) {
+        client.getTopicAttributes(b -> b.topicArn(getTopicArn()));
+        return true;
+      } catch (NotFoundException | InvalidParameterException e) {
+        LoggerFactory.getLogger(Write.class)
+            .warn("Configured topic ARN '" + getTopicArn() + "' does not exist.", e);
+        return false;
+      }
     }
 
     static class SnsWriterFn<T> extends DoFn<T, PublishResponse> {
@@ -394,10 +398,10 @@ public final class SnsIO {
       private static final Counter SNS_WRITE_FAILURES =
           Metrics.counter(SnsWriterFn.class, "SNS_Write_Failures");
 
-      private final Write spec;
+      private final Write<T> spec;
       private transient SnsClient producer;
 
-      SnsWriterFn(Write spec) {
+      SnsWriterFn(Write<T> spec) {
         this.spec = spec;
       }
 
@@ -418,8 +422,14 @@ public final class SnsIO {
 
       @ProcessElement
       public void processElement(ProcessContext context) throws Exception {
-        PublishRequest request =
-            (PublishRequest) spec.getPublishRequestFn().apply(context.element());
+        PublishRequest.Builder reqBuilder =
+            spec.getPublishRequestBuilder().apply(context.element());
+
+        if (spec.getTopicArn() != null) {
+          reqBuilder.topicArn(spec.getTopicArn());
+        }
+
+        PublishRequest request = reqBuilder.build();
 
         Sleeper sleeper = Sleeper.DEFAULT;
         BackOff backoff = retryBackoff.backoff();

@@ -17,23 +17,19 @@
  */
 package org.apache.beam.sdk.io.aws2.sqs;
 
+import org.apache.beam.sdk.io.aws2.StaticSupplier;
 import software.amazon.awssdk.services.sqs.SqsClient;
 
-/** Mocking AwsClientProvider. */
-public class SqsClientProviderMock implements SqsClientProvider {
+/** Client provider supporting unserializable clients such as mock instances for unit tests. */
+public class StaticSqsClientProvider extends StaticSupplier<SqsClient, StaticSqsClientProvider>
+    implements SqsClientProvider {
 
-  private static SqsClientProviderMock instance = new SqsClientProviderMock();
-  private static SqsClient sqsClient;
-
-  private SqsClientProviderMock() {}
-
-  public static SqsClientProviderMock of(SqsClient sqs) {
-    sqsClient = sqs;
-    return instance;
+  public static StaticSqsClientProvider of(SqsClient sqs) {
+    return new StaticSqsClientProvider().withObject(sqs);
   }
 
   @Override
   public SqsClient getSqsClient() {
-    return sqsClient;
+    return get();
   }
 }

@@ -15,21 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.aws2.dynamodb;
+package org.apache.beam.sdk.io.aws2.sns;
 
 import org.apache.beam.sdk.io.aws2.StaticSupplier;
-import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+import software.amazon.awssdk.services.sns.SnsClient;
 
 /** Client provider supporting unserializable clients such as mock instances for unit tests. */
-class StaticDynamoDBClientProvider
-    extends StaticSupplier<DynamoDbClient, StaticDynamoDBClientProvider>
-    implements DynamoDbClientProvider {
-  static DynamoDbClientProvider of(DynamoDbClient client) {
-    return new StaticDynamoDBClientProvider().withObject(client);
+class StaticSnsClientProvider extends StaticSupplier<SnsClient, StaticSnsClientProvider>
+    implements SnsClientProvider {
+  static SnsClientProvider of(SnsClient client) {
+    return new StaticSnsClientProvider().withObject(client);
   }
 
   @Override
-  public DynamoDbClient getDynamoDbClient() {
+  public SnsClient getSnsClient() {
     return get();
   }
 }
