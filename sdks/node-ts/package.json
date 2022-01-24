@@ -1,4 +1,6 @@
 {
+  "name": "apache_beam",
+  "version": "0.37.0.dev",
   "devDependencies": {
     "@types/mocha": "^9.0.0",
     "js-yaml": "^4.1.0",
