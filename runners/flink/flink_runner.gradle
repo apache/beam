@@ -184,12 +184,12 @@ dependencies {
     compile "org.apache.flink:flink-connector-kafka_2.11:1.13-lyft20210804"
     compile "com.amazonaws:aws-java-sdk-s3:1.10.6"
     compile "org.apache.hadoop:hadoop-aws:2.8.3"
-    compile "com.lyft:streamingplatform-kinesis:2.2-SNAPSHOT"
-    compile("com.lyft:streamingplatform-kafka:2.2-SNAPSHOT") {
+    compile "com.lyft:streamingplatform-kinesis:2.2.1-SNAPSHOT"
+    compile("com.lyft:streamingplatform-kafka:2.2.1-SNAPSHOT") {
       exclude group: "org.apache.flink", module: "flink-connector-kafka-0.11_2.11"
       exclude group: "org.apache.flink", module: "flink-streaming-java_2.11"
     }
-    compile("com.lyft:streamingplatform-events-source:2.2-SNAPSHOT") {
+    compile("com.lyft:streamingplatform-events-source:2.2.1-SNAPSHOT") {
       exclude group: "com.lyft", module: "streamingplatform-kinesis"
       exclude group: "com.google.guava", module: "guava"
       exclude group: "com.google.protobuf", module: "protobuf-java"
@@ -207,17 +207,18 @@ dependencies {
       exclude group: "org.datanucleus", module: "datanucleus-api-jdo"
       exclude group: "org.datanucleus", module: "datanucleus-core"
       exclude group: "org.datanucleus", module: "datanucleus-rdbms"
+      exclude group: "org.apache.logging.log4j", module: "log4j-core"
     }
   } else if (flink_version.startsWith('1.10')) {
     compile "org.apache.flink:flink-connector-kafka-0.11_2.11:1.10-lyft20200508"
     compile "com.amazonaws:aws-java-sdk-s3:1.10.6"
     compile "org.apache.hadoop:hadoop-aws:2.8.3"
-    compile "com.lyft:streamingplatform-kinesis:2.1-SNAPSHOT"
-    compile("com.lyft:streamingplatform-kafka:2.1-SNAPSHOT") {
+    compile "com.lyft:streamingplatform-kinesis:2.1.1-SNAPSHOT"
+    compile("com.lyft:streamingplatform-kafka:2.1.1-SNAPSHOT") {
       exclude group: "org.apache.flink", module: "flink-connector-kafka-0.11_2.11"
       exclude group: "org.apache.flink", module: "flink-streaming-java_2.11"
     }
-    compile("com.lyft:streamingplatform-events-source:2.1-dryft-SNAPSHOT") {
+    compile("com.lyft:streamingplatform-events-source:2.1.3-dryft-SNAPSHOT") {
       exclude group: "com.lyft", module: "streamingplatform-kinesis"
       exclude group: "com.google.guava", module: "guava"
       exclude group: "com.google.protobuf", module: "protobuf-java"
@@ -235,6 +236,7 @@ dependencies {
       exclude group: "org.datanucleus", module: "datanucleus-api-jdo"
       exclude group: "org.datanucleus", module: "datanucleus-core"
       exclude group: "org.datanucleus", module: "datanucleus-rdbms"
+      exclude group: "org.apache.logging.log4j", module: "log4j-core"
     }
   } else {
     compile "org.apache.flink:flink-connector-kafka-0.11_2.11:1.8-lyft20190924"
