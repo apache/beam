@@ -6548,7 +6548,7 @@ This section provides comprehensive documentation of multi-language pipelines. T
 * [Python multi-language pipelines quickstart](/documentation/sdks/python-multi-language-pipelines)
 * [Java multi-language pipelines quickstart](/documentation/sdks/java-multi-language-pipelines)
 
-Beam lets you combine transforms written in any supported SDK language (currently, Java and Python) and use them in one multi-language pipeline. This capability makes it easy to provide new functionality simultaneously in different Apache Beam SDKs through a single cross-language transform. For example, the [Apache Kafka connector](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/kafka.py) and [SQL transform](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/sql.py) from the Java SDK can be used in Python streaming pipelines.
+Beam lets you combine transforms written in any supported SDK language (currently, Java and Python) and use them in one multi-language pipeline. This capability makes it easy to provide new functionality simultaneously in different Apache Beam SDKs through a single cross-language transform. For example, the [Apache Kafka connector](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/kafka.py) and [SQL transform](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/sql.py) from the Java SDK can be used in Python pipelines.
 
 Pipelines that use transforms from more than one SDK-language are known as *multi-language pipelines*.
 
@@ -6571,7 +6571,7 @@ There are two ways to make Java transforms available to other SDKs.
 * Option 1: In some cases, you can use existing Java transforms from other SDKs without writing any additional Java code.
 * Option 2: You can use arbitrary Java transforms from other SDKs by adding a few Java classes.
 
-##### 13.1.1.1 Using existing Java transforms
+##### 13.1.1.1 Using existing Java transforms without writing more Java code
 
 Starting with Beam 2.34.0, Python SDK users can use some Java transforms without writing additional Java code. This can be useful in many cases. For example:
 * A developer not familiar with Java may need to use an existing Java transform from a Python pipeline.
@@ -6617,7 +6617,7 @@ To use a Java class that conforms to the above requirements from a Python SDK pi
 
 1. Create a _yaml_ allowlist that describes the Java transform classes and methods that will be directly accessed from Python.
 2. Start an expansion service, using the `javaClassLookupAllowlistFile` option to pass the path to the allowlist.
-3. Use the Python [JavaExternalTransform](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/external.py) API to      directly access Java transforms defined in the allowlist from the Python side.
+3. Use the Python [JavaExternalTransform](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/external.py) API to directly access Java transforms defined in the allowlist from the Python side.
 
 Starting with Beam 2.35.0, steps 1 and 2 can be skipped, as described in the corresponding sections below.
 
@@ -6626,7 +6626,7 @@ Starting with Beam 2.35.0, steps 1 and 2 can be skipped, as described in the cor
 To use an eligible Java transform from Python, define a _yaml_ allowlist. This allowlist lists the class names,
 constructor methods, and builder methods that are directly available to be used from the Python side.
 
-Starting with Beam 2.35.0, you have the option to pass `*` to the `javaClassLookupAllowlistFile` option instead of defining an actual allowlist. The `*` specifies that all supported transforms in the classpath of the expansion service can be accessed through the API.
+Starting with Beam 2.35.0, you have the option to pass `*` to the `javaClassLookupAllowlistFile` option instead of defining an actual allowlist. The `*` specifies that all supported transforms in the classpath of the expansion service can be accessed through the API. We encourage using an actual allowlist for production, because allowing clients to access arbitrary Java classes can pose a security risk.
 
 {{< highlight >}}
 version: v1
@@ -6647,7 +6647,7 @@ as a local Java process using the following command:
 java -jar <jar file> <port> --javaClassLookupAllowlistFile=<path to the allowlist file>
 {{< /highlight >}}
 
-Starting with Beam 2.35.0, the `JavaExternalTransform` API will automatically start up an expansion service with a given set of `jar` file dependencies if an expansion service address was not provided.
+Starting with Beam 2.35.0, the `JavaExternalTransform` API will automatically start up an expansion service with a given `jar` file dependency if an expansion service address was not provided.
 
 **Step 3**
 
@@ -6671,7 +6671,7 @@ java_transform = JavaExternalTransform(
 
 You can use this transform in a Python pipeline along with other Python transforms. For a complete example, see [javadatagenerator.py](https://github.com/apache/beam/blob/master/examples/multi-language/python/javadatagenerator.py).
 
-##### 13.1.1.2 Making existing Java transforms available to other SDKs
+##### 13.1.1.2 Using the API to make existing Java transforms available to other SDKs
 
 To make your Beam Java SDK transform portable across SDK languages, you must implement two interfaces: [ExternalTransformBuilder](https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/transforms/ExternalTransformBuilder.java) and [ExternalTransformRegistrar](https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/expansion/ExternalTransformRegistrar.java). The `ExternalTransformBuilder` interface constructs the cross-language transform using configuration values passed in from the pipeline, and the `ExternalTransformRegistrar` interface registers the cross-language transform for use with the expansion service.
 
