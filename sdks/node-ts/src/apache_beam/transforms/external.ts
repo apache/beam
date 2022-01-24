@@ -23,6 +23,7 @@ import * as base from "../base";
 import * as coders from "../coders/standard_coders";
 import { RowCoder } from "../coders/row_coder";
 import * as artifacts from "../runners/artifacts";
+import * as service from "../utils/service";
 
 export class RawExternalTransform<
   InputT extends base.PValue<any>,
@@ -34,11 +35,12 @@ export class RawExternalTransform<
   }
 
   private payload?: Uint8Array;
+  private serviceProvider: () => Promise<service.Service>;
 
   constructor(
     private urn: string,
     payload: Uint8Array | { [key: string]: any },
-    private address: string,
+    serviceProviderOrAddress: string | (() => Promise<service.Service>),
     private inferPValueType: boolean = true
   ) {
     super("External(" + urn + ")");
@@ -49,6 +51,13 @@ export class RawExternalTransform<
     } else {
       this.payload = encodeSchemaPayload(payload);
     }
+
+    if (typeof serviceProviderOrAddress == "string") {
+      this.serviceProvider = async () =>
+        new service.ExternalService(serviceProviderOrAddress);
+    } else {
+      this.serviceProvider = serviceProviderOrAddress;
+    }
   }
 
   async asyncExpandInternal(
@@ -56,13 +65,6 @@ export class RawExternalTransform<
     transformProto: runnerApi.PTransform,
     input: InputT
   ): Promise<OutputT> {
-    const client = new ExpansionServiceClient(
-      new GrpcTransport({
-        host: this.address,
-        channelCredentials: ChannelCredentials.createInsecure(),
-      })
-    );
-
     const pipelineComponents = pipeline.getProto().components!;
     const namespace = RawExternalTransform.freshNamespace();
 
@@ -101,19 +103,32 @@ export class RawExternalTransform<
       pipelineComponents.environments
     );
 
-    console.log("Calling Expand function with");
-    console.dir(request, { depth: null });
-    ExpansionRequest.toBinary(request);
+    const service = await this.serviceProvider();
+    const address = await service.start();
 
-    const response = await client.expand(request).response;
+    const client = new ExpansionServiceClient(
+      new GrpcTransport({
+        host: address,
+        channelCredentials: ChannelCredentials.createInsecure(),
+      })
+    );
 
-    if (response.error) {
-      throw new Error(response.error);
+    try {
+      const response = await client.expand(request).response;
+
+      if (response.error) {
+        throw new Error(response.error);
+      }
+
+      response.components = await this.resolveArtifacts(
+        response.components!,
+        address
+      );
+
+      return this.splice(pipeline, transformProto, response, namespace);
+    } finally {
+      await service.stop();
     }
-
-    response.components = await this.resolveArtifacts(response.components!);
-
-    return this.splice(pipeline, transformProto, response, namespace);
   }
 
   /**
@@ -124,7 +139,8 @@ export class RawExternalTransform<
    * these artifacts to the choice of runner.
    */
   async resolveArtifacts(
-    components: runnerApi.Components
+    components: runnerApi.Components,
+    address: string
   ): Promise<runnerApi.Components> {
     // Don't even bother creating a connection if there are no dependencies.
     if (
@@ -139,7 +155,7 @@ export class RawExternalTransform<
     // aslo vend an artifact retrieval service as that same port.
     const artifactClient = new ArtifactRetrievalServiceClient(
       new GrpcTransport({
-        host: this.address,
+        host: address,
         channelCredentials: ChannelCredentials.createInsecure(),
       })
     );

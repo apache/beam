@@ -3,7 +3,7 @@
     "module": "commonjs",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    "target": "es2020",
+    "target": "es2021",
     "strictNullChecks": true,
     "moduleResolution": "node",
     "sourceMap": true,
