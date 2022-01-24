@@ -142,7 +142,7 @@ message GetGraphRequest {
 
 // GetGraphResponse represents the graph of the executed code.
 message GetGraphResponse {
-  bytes graph = 1;
+  string graph = 1;
 }
 
 // CancelRequest request to cancel code processing

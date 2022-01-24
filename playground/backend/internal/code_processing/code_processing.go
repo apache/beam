@@ -334,18 +334,18 @@ func GetLastIndex(ctx context.Context, cacheService cache.Cache, key uuid.UUID, 
 // GetGraph gets graph from cache by key.
 // In case key doesn't exist in cache - returns an errors.NotFoundError.
 // In case value from cache by key couldn't be converted to []byte - returns an errors.InternalError.
-func GetGraph(ctx context.Context, cacheService cache.Cache, key uuid.UUID, errorTitle string) ([]byte, error) {
+func GetGraph(ctx context.Context, cacheService cache.Cache, key uuid.UUID, errorTitle string) (string, error) {
 	value, err := cacheService.GetValue(ctx, key, cache.Graph)
 	if err != nil {
 		logger.Errorf("%s: GetGraph(): cache.GetValue: error: %s", key, err.Error())
-		return nil, errors.NotFoundError(errorTitle, "Error during getting graph")
+		return "", errors.NotFoundError(errorTitle, "Error during getting graph")
 	}
-	convertedValue, converted := value.([]byte)
+	stringValue, converted := value.(string)
 	if !converted {
-		logger.Errorf("%s: couldn't convert value to []byte. value: %s type %s", key, value, reflect.TypeOf(value))
-		return nil, errors.InternalError(errorTitle, "Error during getting graph")
+		logger.Errorf("%s: couldn't convert value to string. value: %s type %s", key, value, reflect.TypeOf(value))
+		return "", errors.InternalError(errorTitle, "Error during getting graph")
 	}
-	return convertedValue, nil
+	return stringValue, nil
 }
 
 // runCmdWithOutput runs command with keeping stdOut and stdErr

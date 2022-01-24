@@ -98,20 +98,11 @@ func (rc *Cache) SetExpTime(ctx context.Context, pipelineId uuid.UUID, expTime t
 
 // unmarshalBySubKey unmarshal value by subKey
 func unmarshalBySubKey(subKey cache.SubKey, value string) (interface{}, error) {
-	if subKey == cache.Graph {
-		var result []byte
-		err := json.Unmarshal([]byte(value), &result)
-		if err != nil {
-			logger.Errorf("Redis Cache: get value: error during unmarshal value, err: %s\n", err.Error())
-		}
-		return result, err
-	}
-
 	var result interface{}
 	switch subKey {
 	case cache.Status:
 		result = new(pb.Status)
-	case cache.RunOutput, cache.RunError, cache.ValidationOutput, cache.PreparationOutput, cache.CompileOutput, cache.Logs:
+	case cache.RunOutput, cache.RunError, cache.ValidationOutput, cache.PreparationOutput, cache.CompileOutput, cache.Logs, cache.Graph:
 		result = ""
 	case cache.Canceled:
 		result = false

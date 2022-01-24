@@ -290,13 +290,13 @@ final $typed_data.Uint8List getGraphRequestDescriptor = $convert.base64Decode(
 const GetGraphResponse$json = const {
   '1': 'GetGraphResponse',
   '2': const [
-    const {'1': 'graph', '3': 1, '4': 1, '5': 12, '10': 'graph'},
+    const {'1': 'graph', '3': 1, '4': 1, '5': 9, '10': 'graph'},
   ],
 };
 
 /// Descriptor for `GetGraphResponse`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List getGraphResponseDescriptor = $convert
-    .base64Decode('ChBHZXRHcmFwaFJlc3BvbnNlEhQKBWdyYXBoGAEgASgMUgVncmFwaA==');
+    .base64Decode('ChBHZXRHcmFwaFJlc3BvbnNlEhQKBWdyYXBoGAEgASgJUgVncmFwaA==');
 @$core.Deprecated('Use cancelRequestDescriptor instead')
 const CancelRequest$json = const {
   '1': 'CancelRequest',
@@ -314,7 +314,8 @@ const CancelResponse$json = const {
 };
 
 /// Descriptor for `CancelResponse`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List cancelResponseDescriptor = $convert.base64Decode('Cg5DYW5jZWxSZXNwb25zZQ==');
+final $typed_data.Uint8List cancelResponseDescriptor =
+    $convert.base64Decode('Cg5DYW5jZWxSZXNwb25zZQ==');
 @$core.Deprecated('Use precompiledObjectDescriptor instead')
 const PrecompiledObject$json = const {
   '1': 'PrecompiledObject',
@@ -413,7 +414,9 @@ const GetPrecompiledObjectCodeRequest$json = const {
 };
 
 /// Descriptor for `GetPrecompiledObjectCodeRequest`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List getPrecompiledObjectCodeRequestDescriptor = $convert.base64Decode('Ch9HZXRQcmVjb21waWxlZE9iamVjdENvZGVSZXF1ZXN0Eh0KCmNsb3VkX3BhdGgYASABKAlSCWNsb3VkUGF0aA==');
+final $typed_data.Uint8List getPrecompiledObjectCodeRequestDescriptor =
+    $convert.base64Decode(
+        'Ch9HZXRQcmVjb21waWxlZE9iamVjdENvZGVSZXF1ZXN0Eh0KCmNsb3VkX3BhdGgYASABKAlSCWNsb3VkUGF0aA==');
 @$core.Deprecated('Use getPrecompiledObjectOutputRequestDescriptor instead')
 const GetPrecompiledObjectOutputRequest$json = const {
   '1': 'GetPrecompiledObjectOutputRequest',

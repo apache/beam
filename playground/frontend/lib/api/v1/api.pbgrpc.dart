@@ -408,31 +408,22 @@ abstract class PlaygroundServiceBase extends $grpc.Service {
 
   $async.Future<$0.RunCodeResponse> runCode(
       $grpc.ServiceCall call, $0.RunCodeRequest request);
-
   $async.Future<$0.CheckStatusResponse> checkStatus(
       $grpc.ServiceCall call, $0.CheckStatusRequest request);
-
   $async.Future<$0.GetRunOutputResponse> getRunOutput(
       $grpc.ServiceCall call, $0.GetRunOutputRequest request);
-
   $async.Future<$0.GetLogsResponse> getLogs(
       $grpc.ServiceCall call, $0.GetLogsRequest request);
-
   $async.Future<$0.GetGraphResponse> getGraph(
       $grpc.ServiceCall call, $0.GetGraphRequest request);
-
   $async.Future<$0.GetRunErrorResponse> getRunError(
       $grpc.ServiceCall call, $0.GetRunErrorRequest request);
-
   $async.Future<$0.GetValidationOutputResponse> getValidationOutput(
       $grpc.ServiceCall call, $0.GetValidationOutputRequest request);
-
   $async.Future<$0.GetPreparationOutputResponse> getPreparationOutput(
       $grpc.ServiceCall call, $0.GetPreparationOutputRequest request);
-
   $async.Future<$0.GetCompileOutputResponse> getCompileOutput(
       $grpc.ServiceCall call, $0.GetCompileOutputRequest request);
-
   $async.Future<$0.CancelResponse> cancel(
       $grpc.ServiceCall call, $0.CancelRequest request);
   $async.Future<$0.GetPrecompiledObjectsResponse> getPrecompiledObjects(
