@@ -284,7 +284,8 @@ const CancelRequest$json = const {
 };
 
 /// Descriptor for `CancelRequest`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List cancelRequestDescriptor = $convert.base64Decode('Cg1DYW5jZWxSZXF1ZXN0EiMKDXBpcGVsaW5lX3V1aWQYASABKAlSDHBpcGVsaW5lVXVpZA==');
+final $typed_data.Uint8List cancelRequestDescriptor = $convert.base64Decode(
+    'Cg1DYW5jZWxSZXF1ZXN0EiMKDXBpcGVsaW5lX3V1aWQYASABKAlSDHBpcGVsaW5lVXVpZA==');
 @$core.Deprecated('Use cancelResponseDescriptor instead')
 const CancelResponse$json = const {
   '1': 'CancelResponse',
@@ -315,12 +316,13 @@ const PrecompiledObject$json = const {
       '10': 'pipelineOptions'
     },
     const {'1': 'link', '3': 6, '4': 1, '5': 9, '10': 'link'},
+    const {'1': 'graph', '3': 7, '4': 1, '5': 9, '10': 'graph'},
   ],
 };
 
 /// Descriptor for `PrecompiledObject`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List precompiledObjectDescriptor = $convert.base64Decode(
-    'ChFQcmVjb21waWxlZE9iamVjdBIdCgpjbG91ZF9wYXRoGAEgASgJUgljbG91ZFBhdGgSEgoEbmFtZRgCIAEoCVIEbmFtZRIgCgtkZXNjcmlwdGlvbhgDIAEoCVILZGVzY3JpcHRpb24SMQoEdHlwZRgEIAEoDjIdLmFwaS52MS5QcmVjb21waWxlZE9iamVjdFR5cGVSBHR5cGUSKQoQcGlwZWxpbmVfb3B0aW9ucxgFIAEoCVIPcGlwZWxpbmVPcHRpb25zEhIKBGxpbmsYBiABKAlSBGxpbms=');
+    'ChFQcmVjb21waWxlZE9iamVjdBIdCgpjbG91ZF9wYXRoGAEgASgJUgljbG91ZFBhdGgSEgoEbmFtZRgCIAEoCVIEbmFtZRIgCgtkZXNjcmlwdGlvbhgDIAEoCVILZGVzY3JpcHRpb24SMQoEdHlwZRgEIAEoDjIdLmFwaS52MS5QcmVjb21waWxlZE9iamVjdFR5cGVSBHR5cGUSKQoQcGlwZWxpbmVfb3B0aW9ucxgFIAEoCVIPcGlwZWxpbmVPcHRpb25zEhIKBGxpbmsYBiABKAlSBGxpbmsSFAoFZ3JhcGgYByABKAlSBWdyYXBo');
 @$core.Deprecated('Use categoriesDescriptor instead')
 const Categories$json = const {
   '1': 'Categories',
@@ -400,7 +402,9 @@ const GetPrecompiledObjectOutputRequest$json = const {
 };
 
 /// Descriptor for `GetPrecompiledObjectOutputRequest`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List getPrecompiledObjectOutputRequestDescriptor = $convert.base64Decode('CiFHZXRQcmVjb21waWxlZE9iamVjdE91dHB1dFJlcXVlc3QSHQoKY2xvdWRfcGF0aBgBIAEoCVIJY2xvdWRQYXRo');
+final $typed_data.Uint8List getPrecompiledObjectOutputRequestDescriptor =
+    $convert.base64Decode(
+        'CiFHZXRQcmVjb21waWxlZE9iamVjdE91dHB1dFJlcXVlc3QSHQoKY2xvdWRfcGF0aBgBIAEoCVIJY2xvdWRQYXRo');
 @$core.Deprecated('Use getPrecompiledObjectLogsRequestDescriptor instead')
 const GetPrecompiledObjectLogsRequest$json = const {
   '1': 'GetPrecompiledObjectLogsRequest',

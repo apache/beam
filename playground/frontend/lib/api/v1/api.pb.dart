@@ -1076,6 +1076,11 @@ class PrecompiledObject extends $pb.GeneratedMessage {
         const $core.bool.fromEnvironment('protobuf.omit_field_names')
             ? ''
             : 'link')
+    ..aOS(
+        7,
+        const $core.bool.fromEnvironment('protobuf.omit_field_names')
+            ? ''
+            : 'graph')
     ..hasRequiredFields = false;
 
   PrecompiledObject._() : super();
@@ -1087,6 +1092,7 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     PrecompiledObjectType? type,
     $core.String? pipelineOptions,
     $core.String? link,
+    $core.String? graph,
   }) {
     final _result = create();
     if (cloudPath != null) {
@@ -1106,6 +1112,9 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     }
     if (link != null) {
       _result.link = link;
+    }
+    if (graph != null) {
+      _result.graph = graph;
     }
     return _result;
   }
@@ -1197,8 +1206,23 @@ class PrecompiledObject extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(6)
   $core.bool hasLink() => $_has(5);
+
   @$pb.TagNumber(6)
   void clearLink() => clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.String get graph => $_getSZ(6);
+
+  @$pb.TagNumber(7)
+  set graph($core.String v) {
+    $_setString(6, v);
+  }
+
+  @$pb.TagNumber(7)
+  $core.bool hasGraph() => $_has(6);
+
+  @$pb.TagNumber(7)
+  void clearGraph() => clearField(7);
 }
 
 class Categories_Category extends $pb.GeneratedMessage {

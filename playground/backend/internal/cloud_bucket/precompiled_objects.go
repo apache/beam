@@ -52,6 +52,7 @@ type ObjectInfo struct {
 	Categories      []string                 `json:"categories,omitempty"`
 	PipelineOptions string                   `protobuf:"bytes,3,opt,name=pipeline_options,proto3" json:"pipeline_options,omitempty"`
 	Link            string                   `protobuf:"bytes,3,opt,name=link,proto3" json:"link,omitempty"`
+	Graph           string                   `protobuf:"bytes,7,opt,name=graph,proto3" json:"graph,omitempty"`
 }
 
 type PrecompiledObjects []ObjectInfo
