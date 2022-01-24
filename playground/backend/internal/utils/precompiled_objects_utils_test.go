@@ -78,9 +78,50 @@ func TestPutPrecompiledObjectsToCategory(t *testing.T) {
 	}
 }
 
-func TestGetPrecompiledObjectsCatalogFromCache(t *testing.T) {
-	ctx := context.Background()
-	sdkCategories := []*pb.Categories{
+func TestFilterPrecompiledObjects(t *testing.T) {
+	catalog := []*pb.Categories{
+		{
+			Sdk: pb.Sdk_SDK_JAVA,
+			Categories: []*pb.Categories_Category{
+				{
+					CategoryName: "TestCategory", PrecompiledObjects: []*pb.PrecompiledObject{
+						{
+							CloudPath:   "SDK_JAVA/TestCategory/TestName.java",
+							Name:        "TestName",
+							Description: "TestDescription",
+							Type:        pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+						},
+					},
+				},
+				{
+					CategoryName: "AnotherTestCategory", PrecompiledObjects: []*pb.PrecompiledObject{
+						{
+							CloudPath:   "SDK_JAVA/AnotherTestCategory/TestName.java",
+							Name:        "TestName",
+							Description: "TestDescription",
+							Type:        pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+						},
+					},
+				},
+			},
+		},
+		{
+			Sdk: pb.Sdk_SDK_PYTHON,
+			Categories: []*pb.Categories_Category{
+				{
+					CategoryName: "TestCategory", PrecompiledObjects: []*pb.PrecompiledObject{
+						{
+							CloudPath:   "SDK_PYTHON/TestCategory/TestName.java",
+							Name:        "TestName",
+							Description: "TestDescription",
+							Type:        pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+						},
+					},
+				},
+			},
+		},
+	}
+	catalogWithSpecificCategory := []*pb.Categories{
 		{
 			Sdk: pb.Sdk_SDK_JAVA,
 			Categories: []*pb.Categories_Category{
@@ -95,63 +136,74 @@ func TestGetPrecompiledObjectsCatalogFromCache(t *testing.T) {
 					},
 				},
 			},
-		}}
-	type args struct {
-		ctx          context.Context
-		cacheService cache.Cache
-	}
-	tests := []struct {
-		name     string
-		args     args
-		prepFunc func(cacheService cache.Cache) error
-		want     []*pb.Categories
-		wantErr  bool
-	}{
-		{
-			// Test case with getting Precompiled Objects Catalog from cache when it exists.
-			// As a result, want to receive an expected catalog from cache.
-			name: "get existing catalog",
-			args: args{
-				ctx:          ctx,
-				cacheService: local.New(ctx),
-			},
-			prepFunc: func(cacheService cache.Cache) error {
-				err := cacheService.SetValue(ctx, uuid.Nil, cache.ExamplesCatalog, sdkCategories)
-				if err != nil {
-					return err
-				}
-				return nil
-			},
-			want:    sdkCategories,
-			wantErr: false,
 		},
 		{
-			// Test case with getting Precompiled Objects Catalog from cache when it doesn't exist.
-			// As a result, want to receive an error.
-			name: "get missing catalog",
+			Sdk: pb.Sdk_SDK_PYTHON,
+			Categories: []*pb.Categories_Category{
+				{
+					CategoryName: "TestCategory", PrecompiledObjects: []*pb.PrecompiledObject{
+						{
+							CloudPath:   "SDK_PYTHON/TestCategory/TestName.java",
+							Name:        "TestName",
+							Description: "TestDescription",
+							Type:        pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+						},
+					},
+				},
+			},
+		},
+	}
+	type args struct {
+		catalog      []*pb.Categories
+		sdk          pb.Sdk
+		categoryName string
+	}
+	tests := []struct {
+		name string
+		args args
+		want []*pb.Categories
+	}{
+		{
+			name: "All catalog",
 			args: args{
-				ctx:          ctx,
-				cacheService: local.New(ctx),
+				catalog:      catalog,
+				sdk:          pb.Sdk_SDK_UNSPECIFIED,
+				categoryName: "",
 			},
-			prepFunc: func(cacheService cache.Cache) error {
-				return nil
+			want: catalog,
+		},
+		{
+			name: "Specific SDK",
+			args: args{
+				catalog:      catalog,
+				sdk:          pb.Sdk_SDK_JAVA,
+				categoryName: "",
 			},
-			want:    nil,
-			wantErr: true,
+			want: catalog[:1],
+		},
+		{
+			name: "Specific Category",
+			args: args{
+				catalog:      catalog,
+				sdk:          pb.Sdk_SDK_UNSPECIFIED,
+				categoryName: "TestCategory",
+			},
+			want: catalogWithSpecificCategory,
+		},
+		{
+			name: "Specific SDK and Category",
+			args: args{
+				catalog:      catalog,
+				sdk:          pb.Sdk_SDK_JAVA,
+				categoryName: "TestCategory",
+			},
+			want: catalogWithSpecificCategory[:1],
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := tt.prepFunc(tt.args.cacheService); err != nil {
-				t.Errorf("prepFunc() error = %v, wantErr %v", err, tt.wantErr)
-			}
-			got, err := GetPrecompiledObjectsCatalogFromCache(tt.args.ctx, tt.args.cacheService)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GetPrecompiledObjectsCatalogFromCache() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GetPrecompiledObjectsCatalogFromCache() got = %v, want %v", got, tt.want)
+			if got := FilterCatalog(tt.args.catalog, tt.args.sdk, tt.args.categoryName); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("FilterCatalog() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -178,26 +230,26 @@ func TestGetDefaultPrecompiledObjects(t *testing.T) {
 			Categories: []*pb.Categories_Category{
 				{
 					CategoryName: "TestCategory1", PrecompiledObjects: []*pb.PrecompiledObject{
-						{
-							CloudPath:      "SDK_JAVA/TestCategory/TestName.java",
-							Name:           "TestName",
-							Description:    "TestDescription",
-							Type:           pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
-							DefaultExample: false,
-						},
+					{
+						CloudPath:      "SDK_JAVA/TestCategory/TestName.java",
+						Name:           "TestName",
+						Description:    "TestDescription",
+						Type:           pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+						DefaultExample: false,
 					},
+				},
 				},
 				{
 					CategoryName: "TestCategory2", PrecompiledObjects: []*pb.PrecompiledObject{
-						&preparedPrecompiledObjectJava,
-						{
-							CloudPath:      "SDK_JAVA/TestCategory/TestName2.java",
-							Name:           "TestName2",
-							Description:    "TestDescription",
-							Type:           pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
-							DefaultExample: false,
-						},
+					&preparedPrecompiledObjectJava,
+					{
+						CloudPath:      "SDK_JAVA/TestCategory/TestName2.java",
+						Name:           "TestName2",
+						Description:    "TestDescription",
+						Type:           pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+						DefaultExample: false,
 					},
+				},
 				},
 			},
 		},
@@ -206,8 +258,8 @@ func TestGetDefaultPrecompiledObjects(t *testing.T) {
 			Categories: []*pb.Categories_Category{
 				{
 					CategoryName: "TestCategory", PrecompiledObjects: []*pb.PrecompiledObject{
-						&preparedPrecompiledObjectGo,
-					},
+					&preparedPrecompiledObjectGo,
+				},
 				},
 			},
 		},
@@ -239,3 +291,4 @@ func TestGetDefaultPrecompiledObjects(t *testing.T) {
 		})
 	}
 }
+

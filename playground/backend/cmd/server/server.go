@@ -121,17 +121,12 @@ func setupCache(ctx context.Context, appEnv environment.ApplicationEnvs) (cache.
 
 // setupExamplesCatalog saves precompiled objects catalog from storage to cache
 func setupExamplesCatalog(ctx context.Context, cacheService cache.Cache) error {
-	sdkCategories, err := utils.GetPrecompiledObjectsCatalogFromStorage(ctx, pb.Sdk_SDK_UNSPECIFIED, "")
+	catalog, err := utils.GetCatalogFromStorage(ctx)
 	if err != nil {
 		return err
 	}
-	defaultPrecompiledObjects := utils.GetDefaultPrecompiledObjects(sdkCategories)
-
-	if err = utils.SetToCache(ctx, cacheService, uuid.Nil, cache.ExamplesCatalog, sdkCategories); err != nil {
-		return err
-	}
-	if err = utils.SetToCache(ctx, cacheService, uuid.Nil, cache.DefaultPrecompiledObjects, defaultPrecompiledObjects); err != nil {
-		return err
+	if err = cacheService.SetCatalog(ctx, catalog); err != nil {
+		logger.Errorf("GetPrecompiledObjects(): cache error: %s", err.Error())
 	}
 	return nil
 }

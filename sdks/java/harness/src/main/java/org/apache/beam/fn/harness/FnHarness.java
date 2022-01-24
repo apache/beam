@@ -287,7 +287,8 @@ public class FnHarness {
                 statusApiServiceDescriptor,
                 channelFactory::forDescriptor,
                 processBundleHandler.getBundleProcessorCache(),
-                options);
+                options,
+                processWideCache);
       }
 
       // TODO(BEAM-9729): Remove once runners no longer send this instruction.
