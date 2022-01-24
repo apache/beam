@@ -252,7 +252,6 @@ func (controller *playgroundController) GetPrecompiledObjects(ctx context.Contex
 		if err = controller.cacheService.SetCatalog(ctx, catalog); err != nil {
 			logger.Errorf("GetPrecompiledObjects(): cache error: %s", err.Error())
 		}
-		response.SdkCategories = append(response.SdkCategories, &sdkCategory)
 	}
 	return &pb.GetPrecompiledObjectsResponse{
 		SdkCategories: utils.FilterCatalog(catalog, info.Sdk, info.Category),
@@ -302,13 +301,19 @@ func (controller *playgroundController) GetDefaultPrecompiledObject(ctx context.
 		logger.Errorf("GetDefaultPrecompiledObject(): unimplemented sdk: %s\n", info.Sdk)
 		return nil, errors.InvalidArgumentError("Error during preparing", "Sdk is not implemented yet: %s", info.Sdk.String())
 	}
-
-	defaultPrecompiledObjects, err := controller.cacheService.GetValue(ctx, uuid.Nil, cache.DefaultPrecompiledObjects)
+	catalog, err := controller.cacheService.GetCatalog(ctx)
 	if err != nil {
-		logger.Errorf("GetDefaultPrecompiledObject(): cache.GetValue: %s\n", err.Error())
-		return nil, errors.InvalidArgumentError("Error during getting default Precompiled Objects from cache", "Error during getting default Precompiled Objects")
+		logger.Errorf("GetDefaultPrecompiledObject(): cache error: %s", err.Error())
+		catalog, err = utils.GetCatalogFromStorage(ctx)
+		if err != nil {
+			return nil, errors.InternalError("Error during getting Precompiled Objects", "Error with cloud connection")
+		}
+		if err = controller.cacheService.SetCatalog(ctx, catalog); err != nil {
+			logger.Errorf("GetDefaultPrecompiledObject(): cache error: %s", err.Error())
+		}
 	}
-	precompiledObject := defaultPrecompiledObjects.(map[pb.Sdk]*pb.PrecompiledObject)[info.Sdk]
+
+	precompiledObject := utils.GetDefaultPrecompiledObject(catalog, info.Sdk)
 	response := pb.GetDefaultPrecompiledObjectResponse{PrecompiledObject: &pb.PrecompiledObject{
 		CloudPath:       precompiledObject.CloudPath,
 		Name:            precompiledObject.Name,

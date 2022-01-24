@@ -178,8 +178,6 @@ func ConfigureBeamEnvs(workDir string) (*BeamEnvs, error) {
 			sdk = pb.Sdk_SDK_PYTHON
 		case pb.Sdk_SDK_SCIO.String():
 			sdk = pb.Sdk_SDK_SCIO
-		default:
-			return nil, errors.New("incorrect value of sdk in the environment")
 		}
 	}
 	if sdk == pb.Sdk_SDK_UNSPECIFIED {

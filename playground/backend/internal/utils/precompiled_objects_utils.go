@@ -93,21 +93,18 @@ func FilterCatalog(catalog []*pb.Categories, sdk pb.Sdk, categoryName string) []
 	return result
 }
 
-// GetDefaultPrecompiledObjects returns the default precompiled objects from the precompiled objects catalog
-func GetDefaultPrecompiledObjects(sdkCategories []*pb.Categories) map[pb.Sdk]*pb.PrecompiledObject {
-	defaultPrecompiledObjects := make(map[pb.Sdk]*pb.PrecompiledObject)
-	for _, categories := range sdkCategories {
-		for _, category := range categories.Categories {
-			for _, precompiledObject := range category.PrecompiledObjects {
-				if precompiledObject.DefaultExample {
-					defaultPrecompiledObjects[categories.Sdk] = precompiledObject
-					break
+// GetDefaultPrecompiledObject returns the default precompiled objects from the precompiled objects catalog for sdk
+func GetDefaultPrecompiledObject(catalog []*pb.Categories, sdk pb.Sdk) *pb.PrecompiledObject {
+	for _, categoriesSdk := range catalog {
+		if categoriesSdk.Sdk == sdk {
+			for _, category := range categoriesSdk.Categories {
+				for _, precompiledObject := range category.PrecompiledObjects {
+					if precompiledObject.DefaultExample {
+						return precompiledObject
+					}
 				}
-			}
-			if _, ok := defaultPrecompiledObjects[categories.Sdk]; ok {
-				break
 			}
 		}
 	}
-	return defaultPrecompiledObjects
+	return nil
 }
