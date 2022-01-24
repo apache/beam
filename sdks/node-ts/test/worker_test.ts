@@ -41,7 +41,7 @@ class Create implements operators.IOperator {
 
   process(wvalue: WindowedValue<any>) {}
 
-  startBundle() {
+  async startBundle() {
     const this_ = this;
     this_.data.forEach(function (datum) {
       this_.receivers.map((receiver) =>
@@ -55,7 +55,7 @@ class Create implements operators.IOperator {
     });
   }
 
-  finishBundle() {}
+  async finishBundle() {}
 }
 
 operators.registerOperator(CREATE_URN, Create);
@@ -78,7 +78,7 @@ class Recording implements operators.IOperator {
     this.receivers = Object.values(transform.outputs).map(context.getReceiver);
   }
 
-  startBundle() {
+  async startBundle() {
     Recording.log.push(this.transformId + ".startBundle()");
   }
 
@@ -87,7 +87,7 @@ class Recording implements operators.IOperator {
     this.receivers.map((receiver) => receiver.receive(wvalue));
   }
 
-  finishBundle() {
+  async finishBundle() {
     Recording.log.push(this.transformId + ".finishBundle()");
   }
 }
@@ -115,8 +115,8 @@ class Partition implements operators.IOperator {
     }
   }
 
-  startBundle() {}
-  finishBundle() {}
+  async startBundle() {}
+  async finishBundle() {}
 }
 
 operators.registerOperator(PARTITION_URN, Partition);

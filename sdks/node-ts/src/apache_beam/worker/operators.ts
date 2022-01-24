@@ -12,9 +12,9 @@ import { BoundedWindow, Instant, PaneInfo, WindowedValue } from "../values";
 import { DoFn, ParamProvider } from "../transforms/pardo";
 
 export interface IOperator {
-  startBundle: () => void;
+  startBundle: () => Promise<void>;
   process: (wv: WindowedValue<any>) => void;
-  finishBundle: () => void;
+  finishBundle: () => Promise<void>;
 }
 
 export class Receiver {
@@ -94,8 +94,7 @@ class DataSourceOperator implements IOperator {
   multiplexingDataChannel: MultiplexingDataChannel;
   receiver: Receiver;
   coder: Coder<any>;
-  done: boolean;
-  error?: Error;
+  endOfData: Promise<void>;
 
   constructor(
     transformId: string,
@@ -114,56 +113,48 @@ class DataSourceOperator implements IOperator {
     this.coder = context.pipelineContext.getCoder(readPort.coderId);
   }
 
-  startBundle() {
-    this.done = false;
+  async startBundle() {
     const this_ = this;
-    this.multiplexingDataChannel.registerConsumer(
-      this.getBundleId(),
-      this.transformId,
-      {
-        sendData: function (data: Uint8Array) {
-          console.log("Got", data);
-          const reader = new protobufjs.Reader(data);
-          while (reader.pos < reader.len) {
-            this_.receiver.receive(
-              this_.coder.decode(reader, CoderContext.needsDelimiters)
-            );
-          }
-        },
-        sendTimers: function (timerFamilyId: string, timers: Uint8Array) {
-          throw Error("Not expecting timers.");
-        },
-        close: function () {
-          this_.done = true;
-        },
-        onError: function (error: Error) {
-          this_.done = true;
-          this_.error = error;
-        },
-      }
-    );
+    this.endOfData = new Promise((resolve, reject) => {
+      this_.multiplexingDataChannel.registerConsumer(
+        this_.getBundleId(),
+        this_.transformId,
+        {
+          sendData: function (data: Uint8Array) {
+            console.log("Got", data);
+            const reader = new protobufjs.Reader(data);
+            while (reader.pos < reader.len) {
+              this_.receiver.receive(
+                this_.coder.decode(reader, CoderContext.needsDelimiters)
+              );
+            }
+          },
+          sendTimers: function (timerFamilyId: string, timers: Uint8Array) {
+            throw Error("Not expecting timers.");
+          },
+          close: function () {
+            resolve();
+          },
+          onError: function (error: Error) {
+            reject(error);
+          },
+        }
+      );
+    });
   }
 
   process(wvalue: WindowedValue<any>) {
     throw Error("Data should not come in via process.");
   }
 
-  finishBundle() {
-    // TODO: Await this condition.
-    //         console.log("Waiting for all data.")
-    //         await new Promise((resolve) => {
-    //             setTimeout(resolve, 3000);
-    //         });
-    //         if (!this.done) {
-    //             throw Error("Not done!");
-    //         }
-    //         console.log("Done waiting for all data.")
-    this.multiplexingDataChannel.unregisterConsumer(
-      this.getBundleId(),
-      this.transformId
-    );
-    if (this.error) {
-      throw this.error;
+  async finishBundle() {
+    try {
+      await this.endOfData;
+    } finally {
+      this.multiplexingDataChannel.unregisterConsumer(
+        this.getBundleId(),
+        this.transformId
+      );
     }
   }
 }
@@ -192,7 +183,7 @@ class DataSinkOperator implements IOperator {
     this.coder = context.pipelineContext.getCoder(writePort.coderId);
   }
 
-  startBundle() {
+  async startBundle() {
     this.channel = this.multiplexingDataChannel.getSendChannel(
       this.getBundleId(),
       this.transformId
@@ -207,7 +198,7 @@ class DataSinkOperator implements IOperator {
     }
   }
 
-  finishBundle() {
+  async finishBundle() {
     this.flush();
     this.channel.close();
   }
@@ -235,13 +226,13 @@ class FlattenOperator implements IOperator {
     );
   }
 
-  startBundle() {}
+  async startBundle() {}
 
   process(wvalue: WindowedValue<any>) {
     this.receiver.receive(wvalue);
   }
 
-  finishBundle() {}
+  async finishBundle() {}
 }
 
 registerOperator("beam:transform:flatten:v1", FlattenOperator);
@@ -261,7 +252,7 @@ class GenericParDoOperator implements IOperator {
     this.originalContext = payload.context;
   }
 
-  startBundle() {
+  async startBundle() {
     this.doFn.startBundle();
     this.paramProvider = new ParamProviderImpl();
     this.augmentedContext = this.paramProvider.augmentContext(
@@ -299,7 +290,7 @@ class GenericParDoOperator implements IOperator {
     this.paramProvider.update(undefined);
   }
 
-  finishBundle() {
+  async finishBundle() {
     const finishBundleOutput = this.doFn.finishBundle();
     if (!finishBundleOutput) {
       return;
@@ -361,13 +352,13 @@ class ParamProviderImpl implements ParamProvider {
 class IdentityParDoOperator implements IOperator {
   constructor(private receiver: Receiver) {}
 
-  startBundle() {}
+  async startBundle() {}
 
   process(wvalue: WindowedValue<any>) {
     this.receiver.receive(wvalue);
   }
 
-  finishBundle() {}
+  async finishBundle() {}
 }
 
 class SplittingDoFnOperator implements IOperator {
@@ -376,7 +367,7 @@ class SplittingDoFnOperator implements IOperator {
     private receivers: { [key: string]: Receiver }
   ) {}
 
-  startBundle() {}
+  async startBundle() {}
 
   process(wvalue: WindowedValue<any>) {
     const tag = this.splitter(wvalue.value);
@@ -396,7 +387,7 @@ class SplittingDoFnOperator implements IOperator {
     }
   }
 
-  finishBundle() {}
+  async finishBundle() {}
 }
 
 class AssignWindowsParDoOperator implements IOperator {
@@ -405,7 +396,7 @@ class AssignWindowsParDoOperator implements IOperator {
     private windowFn: base.WindowFn<any>
   ) {}
 
-  startBundle() {}
+  async startBundle() {}
 
   process(wvalue: WindowedValue<any>) {
     const newWindowsOnce = this.windowFn.assignWindows(wvalue.timestamp);
@@ -424,7 +415,7 @@ class AssignWindowsParDoOperator implements IOperator {
     }
   }
 
-  finishBundle() {}
+  async finishBundle() {}
 }
 
 class AssignTimestampsParDoOperator implements IOperator {
@@ -433,7 +424,7 @@ class AssignTimestampsParDoOperator implements IOperator {
     private func: (any, Instant) => typeof Instant
   ) {}
 
-  startBundle() {}
+  async startBundle() {}
 
   process(wvalue: WindowedValue<any>) {
     this.receiver.receive({
@@ -445,7 +436,7 @@ class AssignTimestampsParDoOperator implements IOperator {
     });
   }
 
-  finishBundle() {}
+  async finishBundle() {}
 }
 
 registerOperatorConstructor(
@@ -507,7 +498,7 @@ class PassThroughOperator implements IOperator {
     this.receivers = Object.values(transform.outputs).map(context.getReceiver);
   }
 
-  startBundle() {}
+  async startBundle() {}
 
   process(wvalue) {
     console.log(
@@ -520,7 +511,7 @@ class PassThroughOperator implements IOperator {
     this.receivers.map((receiver: Receiver) => receiver.receive(wvalue));
   }
 
-  finishBundle() {}
+  async finishBundle() {}
 }
 
 function onlyElement<Type>(arg: Type[]): Type {

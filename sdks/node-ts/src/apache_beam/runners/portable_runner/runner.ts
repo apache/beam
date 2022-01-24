@@ -15,7 +15,6 @@ import { ExternalWorkerPool } from "../../worker/external_worker_service";
 import * as environments from "../../internal/environments";
 import * as artifacts from "../artifacts";
 
-
 const TERMINAL_STATES = [
   JobState_Enum.DONE,
   JobState_Enum.FAILED,
@@ -104,7 +103,6 @@ export class PortableRunner extends Runner {
     jobName: string,
     options?: PipelineOptions
   ) {
-
     // TODO: Choose a free port.
     const externalWorkerServiceAddress = "localhost:5555";
     const workers = new ExternalWorkerPool(externalWorkerServiceAddress);

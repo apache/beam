@@ -59,7 +59,7 @@ class DirectImpulseOperator implements operators.IOperator {
 
   process(wvalue: WindowedValue<any>) {}
 
-  startBundle() {
+  async startBundle() {
     this.receiver.receive({
       value: new Uint8Array(),
       windows: [new GlobalWindow()],
@@ -68,7 +68,7 @@ class DirectImpulseOperator implements operators.IOperator {
     });
   }
 
-  finishBundle() {}
+  async finishBundle() {}
 }
 
 operators.registerOperator(Impulse.urn, DirectImpulseOperator);
@@ -125,11 +125,11 @@ class DirectGbkOperator implements operators.IOperator {
     }
   }
 
-  startBundle() {
+  async startBundle() {
     this.groups = new Map();
   }
 
-  finishBundle() {
+  async finishBundle() {
     const this_ = this;
     this.groups.forEach((values, wkey, _) => {
       const [encodedWindow, encodedKey] = wkey.split(" ");
