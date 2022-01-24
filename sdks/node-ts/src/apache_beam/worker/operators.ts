@@ -11,18 +11,46 @@ import { Coder, Context as CoderContext } from "../coders/coders";
 import { BoundedWindow, Instant, PaneInfo, WindowedValue } from "../values";
 import { DoFn, ParamProvider } from "../transforms/pardo";
 
+// Trying to get some of https://github.com/microsoft/TypeScript/issues/8240
+export class NonPromiseClass {
+  static INSTANCE = new NonPromiseClass();
+  private constructor() {}
+}
+export const NonPromise = NonPromiseClass.INSTANCE;
+
+export type ProcessResult = NonPromiseClass | Promise<void>;
+
+
 export interface IOperator {
   startBundle: () => Promise<void>;
-  process: (wv: WindowedValue<any>) => void;
+  // As this is called at every operator at every element, and the vast majority
+  // of the time Promises are not needed, we wish to avoid the overhead of
+  // creating promisses and await as much as possible.
+  process: (wv: WindowedValue<any>) => ProcessResult;
   finishBundle: () => Promise<void>;
 }
 
 export class Receiver {
   constructor(private operators: IOperator[]) {}
 
-  receive(wvalue: WindowedValue<any>) {
-    for (const operator of this.operators) {
-      operator.process(wvalue);
+  receive(wvalue: WindowedValue<any>): ProcessResult {
+    if (this.operators.length == 1) {
+      return this.operators[0].process(wvalue);
+    } else {
+      const promises: Promise<void>[] = [];
+      for (const operator of this.operators) {
+        const maybePromise = operator.process(wvalue);
+        if (maybePromise != NonPromise) {
+          promises.push(maybePromise as Promise<void>);
+        }
+      }
+      if (promises.length == 0) {
+        return NonPromise;
+      } else if (promises.length == 1) {
+        return promises[0];
+      } else {
+        return Promise.all(promises).then(() => null);
+      }
     }
   }
 }
@@ -115,35 +143,42 @@ class DataSourceOperator implements IOperator {
 
   async startBundle() {
     const this_ = this;
-    this.endOfData = new Promise((resolve, reject) => {
-      this_.multiplexingDataChannel.registerConsumer(
-        this_.getBundleId(),
-        this_.transformId,
-        {
-          sendData: function (data: Uint8Array) {
-            console.log("Got", data);
-            const reader = new protobufjs.Reader(data);
-            while (reader.pos < reader.len) {
-              this_.receiver.receive(
-                this_.coder.decode(reader, CoderContext.needsDelimiters)
-              );
-            }
-          },
-          sendTimers: function (timerFamilyId: string, timers: Uint8Array) {
-            throw Error("Not expecting timers.");
-          },
-          close: function () {
-            resolve();
-          },
-          onError: function (error: Error) {
-            reject(error);
-          },
-        }
-      );
+    var endOfDataResolve, endOfDataReject;
+    this.endOfData = new Promise(async (resolve, reject) => {
+      endOfDataResolve = resolve;
+      endOfDataReject = reject;
     });
+
+    await this_.multiplexingDataChannel.registerConsumer(
+      this_.getBundleId(),
+      this_.transformId,
+      {
+        sendData: async function (data: Uint8Array) {
+          console.log("Got", data);
+          const reader = new protobufjs.Reader(data);
+          while (reader.pos < reader.len) {
+            const maybePromise = this_.receiver.receive(
+              this_.coder.decode(reader, CoderContext.needsDelimiters)
+            );
+            if (maybePromise != NonPromise) {
+              await maybePromise;
+            }
+          }
+        },
+        sendTimers: async function (timerFamilyId: string, timers: Uint8Array) {
+          throw Error("Not expecting timers.");
+        },
+        close: function () {
+          endOfDataResolve();
+        },
+        onError: function (error: Error) {
+          endOfDataReject(error);
+        },
+      }
+    );
   }
 
-  process(wvalue: WindowedValue<any>) {
+  process(wvalue: WindowedValue<any>) : ProcessResult {
     throw Error("Data should not come in via process.");
   }
 
@@ -194,18 +229,19 @@ class DataSinkOperator implements IOperator {
   process(wvalue: WindowedValue<any>) {
     this.coder.encode(wvalue, this.buffer, CoderContext.needsDelimiters);
     if (this.buffer.len > 1e6) {
-      this.flush();
+      return this.flush();
     }
+    return NonPromise;
   }
 
   async finishBundle() {
-    this.flush();
+    await this.flush();
     this.channel.close();
   }
 
-  flush() {
+  async flush() {
     if (this.buffer.len > 0) {
-      this.channel.sendData(this.buffer.finish());
+      await this.channel.sendData(this.buffer.finish());
       this.buffer = new protobufjs.Writer();
     }
   }
@@ -229,7 +265,7 @@ class FlattenOperator implements IOperator {
   async startBundle() {}
 
   process(wvalue: WindowedValue<any>) {
-    this.receiver.receive(wvalue);
+    return this.receiver.receive(wvalue);
   }
 
   async finishBundle() {}
@@ -263,31 +299,52 @@ class GenericParDoOperator implements IOperator {
   process(wvalue: WindowedValue<any>) {
     if (this.augmentedContext && wvalue.windows.length != 1) {
       // We need to process each window separately.
+      const promises: Promise<void>[] = [];
       for (const window of wvalue.windows) {
-        this.process({
+        const maybePromise = this.process({
           value: wvalue.value,
           windows: [window],
           pane: wvalue.pane,
           timestamp: wvalue.timestamp,
         });
+        if (maybePromise != NonPromise) {
+          promises.push(maybePromise as Promise<void>);
+        }
       }
-      return;
+      if (promises.length == 0) {
+        return NonPromise;
+      } else if (promises.length == 1) {
+        return promises[0];
+      } else {
+        return Promise.all(promises).then(() => null);
+      }
     }
 
     this.paramProvider.update(wvalue);
     const doFnOutput = this.doFn.process(wvalue.value, this.augmentedContext);
     if (!doFnOutput) {
-      return;
+      return NonPromise;
     }
+    const promises: Promise<void>[] = [];
     for (const element of doFnOutput) {
-      this.receiver.receive({
+      const maybePromise = this.receiver.receive({
         value: element,
         windows: wvalue.windows,
         pane: wvalue.pane,
         timestamp: wvalue.timestamp,
       });
+      if (maybePromise != NonPromise) {
+        promises.push(maybePromise as Promise<void>);
+      }
     }
     this.paramProvider.update(undefined);
+    if (promises.length == 0) {
+      return NonPromise;
+    } else if (promises.length == 1) {
+      return promises[0];
+    } else {
+      return Promise.all(promises).then(() => null);
+    }
   }
 
   async finishBundle() {
@@ -299,7 +356,10 @@ class GenericParDoOperator implements IOperator {
     // return Generator<OutputT> without windowing information because a single bundle may contain
     // elements from different windows, so each element must specify its window.
     for (const element of finishBundleOutput) {
-      this.receiver.receive(element);
+      const maybePromise = this.receiver.receive(element);
+      if (maybePromise != NonPromise) {
+        await maybePromise;
+      }
     }
   }
 }
@@ -355,7 +415,7 @@ class IdentityParDoOperator implements IOperator {
   async startBundle() {}
 
   process(wvalue: WindowedValue<any>) {
-    this.receiver.receive(wvalue);
+    return this.receiver.receive(wvalue);
   }
 
   async finishBundle() {}
@@ -373,7 +433,7 @@ class SplittingDoFnOperator implements IOperator {
     const tag = this.splitter(wvalue.value);
     const receiver = this.receivers[tag];
     if (receiver) {
-      receiver.receive(wvalue);
+      return receiver.receive(wvalue);
     } else {
       // TODO: Make this configurable.
       throw new Error(
@@ -405,13 +465,16 @@ class AssignWindowsParDoOperator implements IOperator {
       for (var i = 0; i < wvalue.windows.length; i++) {
         newWindows.push(...newWindowsOnce);
       }
-      this.receiver.receive({
+      return this.receiver.receive({
         value: wvalue.value,
         windows: newWindows,
         // TODO: Verify it falls in window and doesn't cause late data.
         timestamp: wvalue.timestamp,
         pane: wvalue.pane,
       });
+    }
+    else {
+      return NonPromise;
     }
   }
 
@@ -427,7 +490,7 @@ class AssignTimestampsParDoOperator implements IOperator {
   async startBundle() {}
 
   process(wvalue: WindowedValue<any>) {
-    this.receiver.receive({
+    return this.receiver.receive({
       value: wvalue.value,
       windows: wvalue.windows,
       // TODO: Verify it falls in window and doesn't cause late data.
@@ -509,6 +572,8 @@ class PassThroughOperator implements IOperator {
       this.transformUrn
     );
     this.receivers.map((receiver: Receiver) => receiver.receive(wvalue));
+    // TODO: Delete PassThroughOperator.
+    return NonPromise;
   }
 
   async finishBundle() {}

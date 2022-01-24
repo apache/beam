@@ -57,7 +57,9 @@ class DirectImpulseOperator implements operators.IOperator {
     );
   }
 
-  process(wvalue: WindowedValue<any>) {}
+  process(wvalue: WindowedValue<any>) {
+    return operators.NonPromise;
+  }
 
   async startBundle() {
     this.receiver.receive({
@@ -123,6 +125,7 @@ class DirectGbkOperator implements operators.IOperator {
       }
       this.groups.get(wkey)!.push(wvalue.value.value);
     }
+    return operators.NonPromise;
   }
 
   async startBundle() {
@@ -131,10 +134,10 @@ class DirectGbkOperator implements operators.IOperator {
 
   async finishBundle() {
     const this_ = this;
-    this.groups.forEach((values, wkey, _) => {
+    for (const [wkey, values] of this.groups) {
       const [encodedWindow, encodedKey] = wkey.split(" ");
       const window = decodeFromBase64(encodedWindow, this.windowCoder);
-      this_.receiver.receive({
+      const maybePromise = this_.receiver.receive({
         value: {
           key: decodeFromBase64(encodedKey, this.keyCoder),
           value: values,
@@ -143,7 +146,10 @@ class DirectGbkOperator implements operators.IOperator {
         timestamp: window.maxTimestamp(),
         pane: PaneInfoCoder.ONE_AND_ONLY_FIRING,
       });
-    });
+      if (maybePromise != operators.NonPromise) {
+        await maybePromise;
+      }
+    }
     this.groups = null!;
   }
 }
