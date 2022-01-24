@@ -61,7 +61,7 @@ public class SqsIOTest {
 
     pipeline
         .apply(Create.of(messages))
-        .apply(SqsIO.write().withSqsClientProvider(SqsClientProviderMock.of(client)));
+        .apply(SqsIO.write().withSqsClientProvider(StaticSqsClientProvider.of(client)));
     pipeline.run().waitUntilFinish();
 
     List<String> received = new ArrayList<>();

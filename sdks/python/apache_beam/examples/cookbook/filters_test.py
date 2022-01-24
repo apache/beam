@@ -23,7 +23,6 @@
 #   name: FiltersTest
 #   description: Unit-test for the Filters example.
 #   multifile: false
-#   pipeline_options:
 #   categories:
 #     - Filtering
 

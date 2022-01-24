@@ -73,7 +73,7 @@ func StageViaPortableApi(ctx context.Context, cc *grpc.ClientConn, binary, st st
 		case *jobpb.ArtifactRequestWrapper_ResolveArtifact:
 			err = stream.Send(&jobpb.ArtifactResponseWrapper{
 				Response: &jobpb.ArtifactResponseWrapper_ResolveArtifactResponse{
-					&jobpb.ResolveArtifactsResponse{
+					ResolveArtifactResponse: &jobpb.ResolveArtifactsResponse{
 						Replacements: request.ResolveArtifact.Artifacts,
 					},
 				}})
@@ -118,7 +118,7 @@ func StageFile(filename string, stream jobpb.ArtifactStagingService_ReverseArtif
 		if n > 0 {
 			sendErr := stream.Send(&jobpb.ArtifactResponseWrapper{
 				Response: &jobpb.ArtifactResponseWrapper_GetArtifactResponse{
-					&jobpb.GetArtifactResponse{
+					GetArtifactResponse: &jobpb.GetArtifactResponse{
 						Data: data[:n],
 					},
 				}})
@@ -132,7 +132,7 @@ func StageFile(filename string, stream jobpb.ArtifactStagingService_ReverseArtif
 			sendErr := stream.Send(&jobpb.ArtifactResponseWrapper{
 				IsLast: true,
 				Response: &jobpb.ArtifactResponseWrapper_GetArtifactResponse{
-					&jobpb.GetArtifactResponse{},
+					GetArtifactResponse: &jobpb.GetArtifactResponse{},
 				}})
 			return sendErr
 		}
