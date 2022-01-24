@@ -18,8 +18,11 @@ package utils
 import (
 	"beam.apache.org/playground/backend/internal/cache"
 	"beam.apache.org/playground/backend/internal/logger"
+	"beam.apache.org/playground/backend/internal/preparers"
 	"context"
 	"github.com/google/uuid"
+	"io/ioutil"
+	"path/filepath"
 )
 
 // SetToCache puts value to cache by key and subKey.
@@ -31,4 +34,16 @@ func SetToCache(ctx context.Context, cacheService cache.Cache, key uuid.UUID, su
 		// TODO send email to fix error with writing to cache
 	}
 	return err
+}
+
+// ReadAndSetToCacheGraph read graph from file and writes it to the cache.
+func ReadAndSetToCacheGraph(ctx context.Context, cacheService cache.Cache, pipelineId uuid.UUID, graphFolder string) error {
+	graphPath := filepath.Join(graphFolder, preparers.GraphFileName)
+	graph, err := ioutil.ReadFile(graphPath)
+	if err != nil {
+		logger.Errorf("%s: ReadAndSetToCacheGraph(): error during read from graph file: %s", pipelineId, err.Error())
+		return err
+	}
+	_ = SetToCache(ctx, cacheService, pipelineId, cache.Graph, string(graph))
+	return nil
 }

@@ -156,7 +156,7 @@ func runStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeC
 		return
 	}
 	// Run step is finished and code is executed
-	_ = processRunSuccess(pipelineLifeCycleCtx, pipelineId, cacheService, stopReadLogsChannel, finishReadLogsChannel)
+	_ = processRunSuccess(pipelineLifeCycleCtx, pipelineId, cacheService, stopReadLogsChannel, finishReadLogsChannel, paths.AbsoluteBaseFolderPath)
 }
 
 func compileStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeCyclePaths, pipelineId uuid.UUID, sdkEnv *environment.BeamEnvs, isUnitTest bool, pipelineLifeCycleCtx context.Context, cancelChannel chan bool) *executors.Executor {
@@ -535,11 +535,13 @@ func processCompileSuccess(ctx context.Context, output []byte, pipelineId uuid.U
 // This method sets value to channel to stop goroutine which writes logs.
 //	After receiving a signal that goroutine was finished (read value from finishReadLogsChannel) this method
 //	sets corresponding status to the cache.
-func processRunSuccess(ctx context.Context, pipelineId uuid.UUID, cacheService cache.Cache, stopReadLogsChannel, finishReadLogsChannel chan bool) error {
+func processRunSuccess(ctx context.Context, pipelineId uuid.UUID, cacheService cache.Cache, stopReadLogsChannel, finishReadLogsChannel chan bool, graphFolder string) error {
 	logger.Infof("%s: Run() finish\n", pipelineId)
 
 	stopReadLogsChannel <- true
 	<-finishReadLogsChannel
+
+	utils.ReadAndSetToCacheGraph(ctx, cacheService, pipelineId, graphFolder)
 
 	return utils.SetToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_FINISHED)
 }
