@@ -240,10 +240,10 @@ func (controller *playgroundController) Cancel(ctx context.Context, info *pb.Can
 	return &pb.CancelResponse{}, nil
 }
 
-// GetPrecompiledObjects returns the list of examples
-// - If SDK and category are unspecified in the request, gets the whole catalog from the cache
-//	- If there is no catalog in the cache, gets the catalog from the Storage and saves it to the cache
-// - If SDK or category is specified in the request, gets the specific catalog from the Storage
+// GetPrecompiledObjects returns the catalog with examples
+// Tries to get the whole catalog from the cache
+// - If there is no catalog in the cache, gets the catalog from the Storage and saves it to the cache
+// - If SDK or category is specified in the request, gets the catalog from the cache and filters it by SDK and category
 func (controller *playgroundController) GetPrecompiledObjects(ctx context.Context, info *pb.GetPrecompiledObjectsRequest) (*pb.GetPrecompiledObjectsResponse, error) {
 	catalog, err := controller.cacheService.GetCatalog(ctx)
 	if err != nil {
