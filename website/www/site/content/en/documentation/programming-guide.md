@@ -6619,7 +6619,7 @@ To use a Java class that conforms to the above requirements from a Python SDK pi
 2. Start an expansion service, using the `javaClassLookupAllowlistFile` option to pass the path to the allowlist.
 3. Use the Python [JavaExternalTransform](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/external.py) API to directly access Java transforms defined in the allowlist from the Python side.
 
-Starting with Beam 2.35.0, steps 1 and 2 can be skipped, as described in the corresponding sections below.
+Starting with Beam 2.36.0, steps 1 and 2 can be skipped, as described in the corresponding sections below.
 
 **Step 1**
 
