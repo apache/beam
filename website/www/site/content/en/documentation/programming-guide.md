@@ -6647,7 +6647,7 @@ as a local Java process using the following command:
 java -jar <jar file> <port> --javaClassLookupAllowlistFile=<path to the allowlist file>
 {{< /highlight >}}
 
-Starting with Beam 2.35.0, the `JavaExternalTransform` API will automatically start up an expansion service with a given `jar` file dependency if an expansion service address was not provided.
+Starting with Beam 2.36.0, the `JavaExternalTransform` API will automatically start up an expansion service with a given `jar` file dependency if an expansion service address was not provided.
 
 **Step 3**
 
