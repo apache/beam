@@ -88,7 +88,7 @@ func addCodeToFile(args ...interface{}) error {
 	}
 	defer file.Close()
 
-	tmp, err := createTempFile(filePath)
+	tmp, err := utils.CreateTempFile(filePath)
 	if err != nil {
 		logger.Errorf("Preparation: Error during create new temporary file, err: %s\n", err.Error())
 		return err

@@ -13,39 +13,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package utils
+package preparers
 
 import "testing"
 
-func TestSpacesToEqualsOption(t *testing.T) {
+func TestGetScioPreparers(t *testing.T) {
 	type args struct {
-		pipelineOptions string
+		filePath string
 	}
 	tests := []struct {
 		name string
 		args args
-		want string
+		want int
 	}{
 		{
-			name: "args is empty string",
-			args: args{pipelineOptions: ""},
-			want: "",
-		},
-		{
-			name: "args with one option",
-			args: args{pipelineOptions: "--opt1 valOpt"},
-			want: "--opt1=valOpt",
-		},
-		{
-			name: "args with some options",
-			args: args{pipelineOptions: "--opt1 valOpt --opt2 valOpt --opt3 valOpt"},
-			want: "--opt1=valOpt --opt2=valOpt --opt3=valOpt",
+			// Test case with calling GetScioPreparers method.
+			// As a result, want to receive slice of preparers with len = 3
+			name: "get scio preparers",
+			args: args{"MOCK_FILEPATH"},
+			want: 3,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := ReplaceSpacesWithEquals(tt.args.pipelineOptions); got != tt.want {
-				t.Errorf("ReplaceSpacesWithEquals() = %v, want %v", got, tt.want)
+			builder := NewPreparersBuilder(tt.args.filePath)
+			GetScioPreparers(builder)
+			if got := builder.Build().GetPreparers(); len(*got) != tt.want {
+				t.Errorf("GetScioPreparers() returns %v Preparers, want %v", len(*got), tt.want)
 			}
 		})
 	}
