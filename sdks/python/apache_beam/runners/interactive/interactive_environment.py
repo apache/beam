@@ -359,10 +359,17 @@ class InteractiveEnvironment(object):
     manager for the pipeline."""
     cache_manager = self._cache_managers.get(str(id(pipeline)), None)
     if not cache_manager and create_if_absent:
-      cache_dir = tempfile.mkdtemp(
-          suffix=str(id(pipeline)),
-          prefix='it-',
-          dir=os.environ.get('TEST_TMPDIR', None))
+      from apache_beam.runners.interactive import interactive_beam as ib
+      if ib.options.cache_root:
+        #TODO(victorhc): Handle the case when the path starts with "gs://"
+        if ib.options.cache_root.startswith("gs://"):
+          raise ValueError("GCS paths are not currently supported.")
+        cache_dir = tempfile.mkdtemp(dir=ib.options.cache_root)
+      else:
+        cache_dir = tempfile.mkdtemp(
+            suffix=str(id(pipeline)),
+            prefix='it-',
+            dir=os.environ.get('TEST_TMPDIR', None))
       cache_manager = cache.FileBasedCacheManager(cache_dir)
       self._cache_managers[str(id(pipeline))] = cache_manager
     return cache_manager

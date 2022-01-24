@@ -23,11 +23,13 @@
 #   name: WordCountWithMetrics
 #   description: A word-counting workflow with metrics.
 #   multifile: false
+#   default_example: true
 #   pipeline_options: --output output.txt
 #   categories:
 #     - Combiners
 #     - Options
 #     - Metrics
+#     - Quickstart
 
 import argparse
 import logging

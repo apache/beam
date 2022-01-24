@@ -21,7 +21,6 @@ package org.apache.beam.sdk.transforms;
 //   name: FilterTest
 //   description: Unit-test for the Filter example.
 //   multifile: false
-//   pipeline_options:
 //   categories:
 //     - Filtering
 //     - Core Transforms

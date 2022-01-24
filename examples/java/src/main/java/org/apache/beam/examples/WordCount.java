@@ -25,6 +25,7 @@ package org.apache.beam.examples;
 //   categories:
 //     - Combiners
 //     - Options
+//     - Quickstart
 
 import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.sdk.Pipeline;

@@ -21,12 +21,13 @@ package org.apache.beam.examples;
 //   name: MinimalWordCount
 //   description: An example that counts words in Shakespeare's works.
 //   multifile: false
-//   pipeline_options:
+//   default_example: true
 //   categories:
 //     - Combiners
 //     - Filtering
 //     - IO
 //     - Core Transforms
+//     - Quickstart
 
 import java.util.Arrays;
 import org.apache.beam.sdk.Pipeline;
