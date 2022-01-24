@@ -130,6 +130,21 @@ class GRPCClient:
     response = await self._stub.GetCompileOutput(request)
     return response.output
 
+  async def get_graph(self, pipeline_uuid: str) -> str:
+    """
+    Get the graph of pipeline execution.
+
+    Args:
+        pipeline_uuid: uuid of the pipeline
+
+    Returns:
+        graph: contain the graph of pipeline execution as a string
+    """
+    self._verify_pipeline_uuid(pipeline_uuid)
+    request = api_pb2.GetGraphRequest(pipeline_uuid=pipeline_uuid)
+    response = await self._stub.GetGraph(request)
+    return response.graph
+
   def _verify_pipeline_uuid(self, pipeline_uuid):
     """
     Verify the received pipeline_uuid format

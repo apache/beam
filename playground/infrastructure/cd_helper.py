@@ -74,11 +74,17 @@ class CDHelper:
     tasks = [client.get_log(example.pipeline_id) for example in examples]
     logs = await asyncio.gather(*tasks)
 
+    tasks = [client.get_graph(example.pipeline_id) for example in examples]
+    graphs = await asyncio.gather(*tasks)
+
     for output, example in zip(outputs, examples):
       example.output = output
 
     for log, example in zip(logs, examples):
       example.logs = log
+
+    for graph, example in zip(graphs, examples):
+      example.graph = graph
 
   def _save_to_cloud_storage(self, examples: List[Example]):
     """
@@ -137,6 +143,7 @@ class CDHelper:
     file_names[output_path] = example.output
     meta = example.tag._asdict()
     meta["type"] = example.type
+    meta["graph"] = example.graph
     file_names[meta_path] = json.dumps(meta)
     file_names[log_path] = example.logs
     for file_name, file_content in file_names.items():
