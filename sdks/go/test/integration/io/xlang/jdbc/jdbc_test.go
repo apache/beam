@@ -18,7 +18,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
 	"testing"
 	"time"
 
@@ -41,22 +40,18 @@ func checkFlags(t *testing.T) {
 	}
 }
 
-// TestJDBCIO_BasicReadWrite tests basic writes and reads from JDBC.
-func TestJDBCIO_BasicReadWrite(t *testing.T) {
-	// integration.CheckFilters(t)
-	// checkFlags(t)
-	dbname := "test"
-	username := "test"
-	password := "test"
-	ctx := context.Background()
+func setupTestContainer(t *testing.T, dbname, username, password string) int {
+	t.Helper()
+
 	var env = map[string]string{
 		"POSTGRES_PASSWORD": password,
 		"POSTGRES_USER":     username,
 		"POSTGRES_DB":       dbname,
 	}
+
 	var port = "5432/tcp"
 	dbURL := func(port nat.Port) string {
-		return fmt.Sprintf("postgres://test:test@localhost:%s/%s?sslmode=disable", port.Port(), dbname)
+		return fmt.Sprintf("postgres://%s:%s@localhost:%s/%s?sslmode=disable", username, password, port.Port(), dbname)
 	}
 
 	req := testcontainers.GenericContainerRequest{
@@ -68,6 +63,7 @@ func TestJDBCIO_BasicReadWrite(t *testing.T) {
 		},
 		Started: true,
 	}
+	ctx := context.Background()
 	container, err := testcontainers.GenericContainer(ctx, req)
 	if err != nil {
 		t.Errorf("failed to start container: %s", err)
@@ -77,28 +73,40 @@ func TestJDBCIO_BasicReadWrite(t *testing.T) {
 	if err != nil {
 		t.Errorf("failed to get container external port: %s", err)
 	}
+	p := mappedPort.Int()
 
-	log.Println("postgres container ready and running at port: ", mappedPort)
-
-	url := fmt.Sprintf("postgres://test:test@localhost:%s/%s?sslmode=disable", mappedPort.Port(), dbname)
+	url := fmt.Sprintf("postgres://%s:%s@localhost:%s/%s?sslmode=disable", username, password, mappedPort.Port(), dbname)
 	db, err := sql.Open("postgres", url)
 	if err != nil {
-		t.Errorf("failed to establish database connection: %s", err)
+		t.Fatalf("failed to establish database connection: %s", err)
 	}
 	defer db.Close()
-	defer container.Terminate(ctx)
-	table_name := "jdbc_external_test_write"
-	_, err = db.ExecContext(ctx, fmt.Sprintf("CREATE TABLE %s(f_id INTEGER, f_real REAL, f_string VARCHAR)", table_name))
+
+	_, err = db.ExecContext(ctx, "CREATE TABLE roles(role_id bigint PRIMARY KEY);")
 	if err != nil {
-		t.Errorf("table not created: %v", err)
+		t.Fatalf("can't create table, check command and access level")
 	}
-	hostname, err := container.ContainerIP(ctx)
-	if err != nil {
-		t.Fatalf("can't get hostname")
-	}
-	jdbcUrl := fmt.Sprintf("jdbc:postgresql://%s:%s/%s", hostname, mappedPort.Port(), table_name)
-	write := WritePipeline(*integration.IoExpansionAddr, table_name, "org.postgresql.Driver", jdbcUrl, username, password)
+	return p
+}
+
+// TestJDBCIO_BasicReadWrite tests basic read and write transform from JDBC.
+func TestJDBCIO_BasicReadWrite(t *testing.T) {
+	integration.CheckFilters(t)
+	checkFlags(t)
+
+	dbname := "postjdbc"
+	username := "newuser"
+	password := "password"
+	port := setupTestContainer(t, dbname, username, password)
+	tableName := "roles"
+	host := "localhost"
+	jdbcUrl := fmt.Sprintf("jdbc:postgresql://%s:%d/%s", host, port, dbname)
+
+	write := WritePipeline(*integration.IoExpansionAddr, tableName, "org.postgresql.Driver", jdbcUrl, username, password)
 	ptest.RunAndValidate(t, write)
+
+	read := ReadPipeline(*integration.IoExpansionAddr, tableName, "org.postgresql.Driver", jdbcUrl, username, password)
+	ptest.RunAndValidate(t, read)
 }
 
 func TestMain(m *testing.M) {
