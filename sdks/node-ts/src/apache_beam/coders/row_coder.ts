@@ -1,3 +1,5 @@
+const uuid = require("uuid")
+
 import * as runnerApi from "../proto/beam_runner_api";
 
 import { Writer, Reader } from "protobufjs";
@@ -150,7 +152,7 @@ export class RowCoder implements Coder<any> {
       )
     );
     return {
-      id: (Math.random() + 1).toString(36).substring(7),
+      id: uuid.v4(),
       fields: fields,
       options: [],
       encodingPositionsSet: false,
@@ -216,8 +218,12 @@ export class RowCoder implements Coder<any> {
     return new RowCoder(RowCoder.InferSchemaOfJSON(obj));
   }
 
-  constructor(schema: Schema) {
-    this.schema = schema;
+  constructor(rawSchema: Schema | Uint8Array) {
+    const schema: Schema =
+      rawSchema instanceof Uint8Array
+        ? Schema.fromBinary(rawSchema as Uint8Array)
+        : (rawSchema as Schema);
+    this.schema = schema as Schema;
     this.nFields = this.schema.fields.length;
     this.fieldNames = this.schema.fields.map((f: Field) => f.name);
     this.fieldNullable = this.schema.fields.map((f: Field) => f.type?.nullable);
@@ -371,7 +377,7 @@ export class RowCoder implements Coder<any> {
     return {
       spec: {
         urn: RowCoder.URN,
-        payload: new Uint8Array(),
+        payload: Schema.toBinary(this.schema),
       },
       componentCoderIds: [],
     };

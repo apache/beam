@@ -107,9 +107,6 @@ on a portable runner) but the following big-ticket items remain.
   already be started and its address provided.  We would like to automatically
   start it as we do in Python.
 
-  * Artifacts are not currently supported, which will be essential for using
-  Java transforms. (All tests use Python.)
-
 * API
 
   * Side inputs are not yet supported.
