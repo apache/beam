@@ -1,4 +1,6 @@
 import { ChannelCredentials } from "@grpc/grpc-js";
+import { GrpcTransport } from "@protobuf-ts/grpc-transport";
+import { Writer } from "protobufjs";
 
 import {
   ExpansionRequest,
@@ -7,18 +9,21 @@ import {
 import {
   ExpansionServiceClient,
   IExpansionServiceClient,
-} from "../proto/beam_expansion_api.grpc-client";
+} from "../proto/beam_expansion_api.client";
+import {
+  ArtifactRetrievalServiceClient,
+  IArtifactRetrievalServiceClient,
+} from "../proto/beam_artifact_api.client";
+import * as runnerApi from "../proto/beam_runner_api";
 import { ExternalConfigurationPayload } from "../proto/external_transforms";
-import { AtomicType, Schema } from "../proto/schema";
-import { Writer } from "protobufjs";
+
+import { Schema } from "../proto/schema";
 
 import * as base from "../base";
-import * as runnerApi from "../proto/beam_runner_api";
-// import { Context as CoderContext } from '../coders/coders'
 import * as coders from "../coders/standard_coders";
 import { RowCoder } from "../coders/row_coder";
+import * as artifacts from "../runners/artifacts";
 
-//import { BytesCoder, KVCoder } from "../coders/standard_coders";
 
 export class RawExternalTransform<
   InputT extends base.PValue<any>,
@@ -53,8 +58,10 @@ export class RawExternalTransform<
     input: InputT
   ): Promise<OutputT> {
     const client = new ExpansionServiceClient(
-      this.address,
-      ChannelCredentials.createInsecure()
+      new GrpcTransport({
+        host: this.address,
+        channelCredentials: ChannelCredentials.createInsecure(),
+      })
     );
 
     const pipelineComponents = pipeline.getProto().components!;
@@ -98,25 +105,57 @@ export class RawExternalTransform<
     console.log("Calling Expand function with");
     console.dir(request, { depth: null });
     ExpansionRequest.toBinary(request);
-    const this_ = this;
-    return new Promise<OutputT>((resolve, reject) => {
-      client.expand(request, (err, response) => {
-        if (response) {
-          console.log("got response message: ");
-          console.dir(response, { depth: null });
-          if (response.error) {
-            reject(new Error(response.error));
-          } else {
-            resolve(
-              this_.splice(pipeline, transformProto, response, namespace)
-            );
-          }
-        } else {
-          console.log("got err: ", err);
-          reject(err);
-        }
-      });
-    });
+
+    const response = await client.expand(request).response;
+
+    if (response.error) {
+      throw new Error(response.error);
+    }
+
+    response.components = await this.resolveArtifacts(response.components!);
+
+    return this.splice(pipeline, transformProto, response, namespace);
+  }
+
+  /**
+   * The returned pipeline fragment may have dependencies (referenced in its)
+   * environments) that are needed for execution. This function fetches (as
+   * required) these artifacts from the expansion service (which may be
+   * be transient) and stores them in files such that it may then forward
+   * these artifacts to the choice of runner.
+   */
+  async resolveArtifacts(
+    components: runnerApi.Components
+  ): Promise<runnerApi.Components> {
+    // Don't even bother creating a connection if there are no dependencies.
+    if (
+      Object.values(components.environments).every(
+        (env) => env.dependencies.length == 0
+      )
+    ) {
+      return components;
+    }
+
+    // An expansion service that returns environments with dependencies must
+    // aslo vend an artifact retrieval service as that same port.
+    const artifactClient = new ArtifactRetrievalServiceClient(
+      new GrpcTransport({
+        host: this.address,
+        channelCredentials: ChannelCredentials.createInsecure(),
+      })
+    );
+
+    // For each new environment, convert (if needed) all dependencies into
+    // a more permanent form.
+    for (const env of Object.values(components.environments)) {
+      if (env.dependencies.length > 0) {
+        env.dependencies = Array.from(
+          await artifacts.resolveArtifacts(artifactClient, env.dependencies)
+        );
+      }
+    }
+
+    return components;
   }
 
   splice(
@@ -178,7 +217,7 @@ export class RawExternalTransform<
       );
     }
 
-    // Copy the proto.
+    // Copy the proto contents.
     Object.assign(transformProto, response.transform);
 
     // Now copy everything over.
@@ -212,8 +251,6 @@ export class RawExternalTransform<
     // actually cross the boundary.
     for (const pcId of Object.values(response.transform!.outputs)) {
       const pcProto = pipelineComponents!.pcollections[pcId];
-      console.log(pcId, pcProto.coderId);
-      console.log("  -> ", pipeline.context.getCoder(pcProto.coderId));
       pipeline.context.getCoder(pcProto.coderId);
     }
 

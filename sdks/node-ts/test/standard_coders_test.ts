@@ -182,7 +182,7 @@ function coderCase<T>(
     // The encoding here is not deterministic, but the test case works
     // fine.
     let typedIterable: Iterable<any> = (function* it() {
-      for(let elm in obj) {
+      for (let elm in obj) {
         yield obj[elm];
       }
     })();

@@ -1,18 +1,20 @@
 import { ChannelCredentials } from "@grpc/grpc-js";
 import { GrpcTransport } from "@protobuf-ts/grpc-transport";
 
+import * as runnerApiProto from "../../proto/beam_runner_api";
 import { PrepareJobRequest } from "../../proto/beam_job_api";
-// TODO: standardize on .client or .grpc-client.
 import { JobServiceClient } from "../../proto/beam_job_api.client";
+import { ArtifactStagingServiceClient } from "../../proto/beam_artifact_api.client";
 
 import { Pipeline } from "../../base";
 import { PipelineResult, Runner } from "../runner";
 import { PipelineOptions } from "../../options/pipeline_options";
-import * as runnerApiProto from "../../proto/beam_runner_api";
 import { JobState_Enum } from "../../proto/beam_job_api";
 
 import { ExternalWorkerPool } from "../../worker/external_worker_service";
 import * as environments from "../../internal/environments";
+import * as artifacts from "../artifacts";
+
 
 const TERMINAL_STATES = [
   JobState_Enum.DONE,
@@ -102,12 +104,13 @@ export class PortableRunner extends Runner {
     jobName: string,
     options?: PipelineOptions
   ) {
-    // Replace the default environment according to the pipeline options.
+
     // TODO: Choose a free port.
     const externalWorkerServiceAddress = "localhost:5555";
     const workers = new ExternalWorkerPool(externalWorkerServiceAddress);
     workers.start();
 
+    // Replace the default environment according to the pipeline options.
     pipeline = runnerApiProto.Pipeline.clone(pipeline);
     for (const [envId, env] of Object.entries(
       pipeline.components!.environments
@@ -118,15 +121,37 @@ export class PortableRunner extends Runner {
       }
     }
 
+    // Inform the runner that we'd like to execute this pipeline.
     let message: PrepareJobRequest = { pipeline, jobName };
     if (options) {
       message.pipelineOptions = options;
     }
-    const prepareCall = this.client.prepare(message);
-    const { preparationId } = await prepareCall.response;
+    const prepareResponse = await this.client.prepare(message).response;
 
-    const runCall = this.client.run({ preparationId, retrievalToken: "" });
+    // Allow the runner to fetch any artifacts it can't interpret.
+    if (prepareResponse.artifactStagingEndpoint) {
+      await artifacts.offerArtifacts(
+        new ArtifactStagingServiceClient(
+          new GrpcTransport({
+            host: prepareResponse.artifactStagingEndpoint.url,
+            channelCredentials: ChannelCredentials.createInsecure(),
+          })
+        ),
+        prepareResponse.stagingSessionToken
+      );
+    }
+
+    // Actually kick off the job.
+    const runCall = this.client.run({
+      preparationId: prepareResponse.preparationId,
+      retrievalToken: "",
+    });
     const { jobId } = await runCall.response;
+
+    // Return a handle the user can use to monitor the job as it's running.
+    // If desired, the user can use this handle to await job completion, but
+    // this function returns as soon as the job is successfully started, not
+    // once the job has completed.
     return new PortableRunnerPipelineResult(this, jobId, workers);
   }
 
