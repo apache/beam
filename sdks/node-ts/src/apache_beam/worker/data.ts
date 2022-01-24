@@ -26,12 +26,12 @@ export class MultiplexingDataChannel {
       {}
     );
     this.dataChannel = this.dataClient.data(metadata);
-    this.dataChannel.on("data", (elements) => {
+    this.dataChannel.on("data", async (elements) => {
       console.log("data", elements);
       for (const data of elements.data) {
         const consumer = this.getConsumer(data.instructionId, data.transformId);
         try {
-          consumer.sendData(data.data);
+          await consumer.sendData(data.data);
           if (data.isLast) {
             consumer.close();
           }
@@ -45,7 +45,7 @@ export class MultiplexingDataChannel {
           timers.transformId
         );
         try {
-          consumer.sendTimers(timers.timerFamilyId, timers.timers);
+          await consumer.sendTimers(timers.timerFamilyId, timers.timers);
           if (timers.isLast) {
             consumer.close();
           }
@@ -56,7 +56,7 @@ export class MultiplexingDataChannel {
     });
   }
 
-  registerConsumer(
+  async registerConsumer(
     bundleId: string,
     transformId: string,
     consumer: IDataChannel
@@ -66,7 +66,7 @@ export class MultiplexingDataChannel {
       this.consumers.set(bundleId, new Map());
     }
     if (this.consumers.get(bundleId)!.has(transformId)) {
-      (
+      await (
         this.consumers.get(bundleId)!.get(transformId) as BufferingDataChannel
       ).flush(consumer);
     }
@@ -105,6 +105,7 @@ export class MultiplexingDataChannel {
           ],
           timers: [],
         });
+        return Promise.resolve();
       },
       sendTimers: function (timerFamilyId: string, timers: Uint8Array) {
         throw Error("Timers not yet supported.");
@@ -131,8 +132,8 @@ export class MultiplexingDataChannel {
 
 export interface IDataChannel {
   // TODO: onData?
-  sendData: (data: Uint8Array) => void;
-  sendTimers: (timerFamilyId: string, timers: Uint8Array) => void;
+  sendData: (data: Uint8Array) => Promise<void>;
+  sendTimers: (timerFamilyId: string, timers: Uint8Array) => Promise<void>;
   close: () => void;
   onError: (Error) => void;
 }
@@ -145,10 +146,12 @@ class BufferingDataChannel implements IDataChannel {
 
   sendData(data: Uint8Array) {
     this.data.push(data);
+    return Promise.resolve();
   }
 
   sendTimers(timerFamilyId: string, timers: Uint8Array) {
     this.timers.push([timerFamilyId, timers]);
+    return Promise.resolve();
   }
 
   close() {
@@ -160,11 +163,13 @@ class BufferingDataChannel implements IDataChannel {
     this.error = error;
   }
 
-  flush(channel: IDataChannel) {
-    this.data.forEach(channel.sendData.bind(channel));
-    this.timers.forEach(([timerFamilyId, timers]) =>
-      channel.sendTimers(timerFamilyId, timers)
-    );
+  async flush(channel: IDataChannel) {
+    for (const datum of this.data) {
+      await channel.sendData(datum);
+    }
+    for (const [timerFamilyId, timers] of this.timers) {
+      await channel.sendTimers(timerFamilyId, timers);
+    }
     if (this.error) {
       channel.onError(this.error);
     }
@@ -180,15 +185,17 @@ class TruncateOnErrorDataChannel implements IDataChannel {
   constructor(private underlying: IDataChannel) {}
 
   sendData(data: Uint8Array) {
-    if (!this.seenError) {
-      this.underlying.sendData(data);
+    if (this.seenError) {
+      return Promise.resolve();
     }
+    return this.underlying.sendData(data);
   }
 
   sendTimers(timerFamilyId: string, timers: Uint8Array) {
-    if (!this.seenError) {
-      this.underlying.sendTimers(timerFamilyId, timers);
+    if (this.seenError) {
+      return Promise.resolve();
     }
+    return this.underlying.sendTimers(timerFamilyId, timers);
   }
 
   close() {
