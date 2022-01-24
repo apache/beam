@@ -186,7 +186,12 @@ message GetPrecompiledObjectLogsRequest{
   string cloud_path = 1;
 }
 
-// GetListOfPrecompiledObjectsResponse represent the map between sdk and categories for the sdk.
+// GetDefaultPrecompiledObjectRequest contains information of the needed PrecompiledObject sdk.
+message GetDefaultPrecompiledObjectRequest {
+  Sdk sdk = 1;
+}
+
+// GetPrecompiledObjectsResponse represent the map between sdk and categories for the sdk.
 message GetPrecompiledObjectsResponse{
   repeated Categories sdk_categories = 1;
 }
@@ -204,6 +209,11 @@ message GetPrecompiledObjectOutputResponse {
 // GetPrecompiledObjectLogsResponse represents the result of the executed code.
 message GetPrecompiledObjectLogsResponse {
   string output = 1;
+}
+
+// GetDefaultPrecompiledObjectResponse represents the default PrecompiledObject and his category for the sdk.
+message GetDefaultPrecompiledObjectResponse {
+  PrecompiledObject precompiled_object = 1;
 }
 
 service PlaygroundService {
@@ -246,4 +256,7 @@ service PlaygroundService {
 
   // Get the logs of an PrecompiledObject.
   rpc GetPrecompiledObjectLogs(GetPrecompiledObjectLogsRequest) returns (GetPrecompiledObjectLogsResponse);
+
+  // Get the default precompile object for the sdk.
+  rpc GetDefaultPrecompiledObject(GetDefaultPrecompiledObjectRequest) returns (GetDefaultPrecompiledObjectResponse);
 }
