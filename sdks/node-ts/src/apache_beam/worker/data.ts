@@ -32,7 +32,7 @@ export class MultiplexingDataChannel {
         const consumer = this.getConsumer(data.instructionId, data.transformId);
         try {
           consumer.sendData(data.data);
-          if (data.is_last) {
+          if (data.isLast) {
             consumer.close();
           }
         } catch (error) {
@@ -46,7 +46,7 @@ export class MultiplexingDataChannel {
         );
         try {
           consumer.sendTimers(timers.timerFamilyId, timers.timers);
-          if (timers.is_last) {
+          if (timers.isLast) {
             consumer.close();
           }
         } catch (error) {
@@ -180,11 +180,15 @@ class TruncateOnErrorDataChannel implements IDataChannel {
   constructor(private underlying: IDataChannel) {}
 
   sendData(data: Uint8Array) {
-    this.underlying.sendData(data);
+    if (!this.seenError) {
+      this.underlying.sendData(data);
+    }
   }
 
   sendTimers(timerFamilyId: string, timers: Uint8Array) {
-    this.underlying.sendTimers(timerFamilyId, timers);
+    if (!this.seenError) {
+      this.underlying.sendTimers(timerFamilyId, timers);
+    }
   }
 
   close() {

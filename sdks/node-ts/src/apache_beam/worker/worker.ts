@@ -251,20 +251,17 @@ export class BundleProcessor {
   async process(instructionId: string, delay_ms = 600) {
     console.log("Processing ", this.descriptor.id, "for", instructionId);
     this.currentBundleId = instructionId;
-    this.topologicallyOrderedOperators
-      .slice()
-      .reverse()
-      .forEach((o) => o.startBundle());
-
-    if (delay_ms > 0) {
-      console.log("Waiting...");
-      await new Promise((resolve) => {
-        setTimeout(resolve, delay_ms);
-      });
-      console.log("Done waiting.");
+    // We must await these in reverse topological order.
+    for (const o of this.topologicallyOrderedOperators.slice().reverse()) {
+      await o.startBundle();
     }
-
-    this.topologicallyOrderedOperators.forEach((o) => o.finishBundle());
+    // Now finish bundles all the bundles.
+    // Note that process is not directly called on any operator here.
+    // Instead, process is triggered by elements coming over the
+    // data stream and/or operator start/finishBundle methods.
+    for (const o of this.topologicallyOrderedOperators) {
+      await o.finishBundle();
+    }
     this.currentBundleId = undefined;
   }
 }

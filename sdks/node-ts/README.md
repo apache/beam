@@ -130,8 +130,6 @@ on a portable runner) but the following big-ticket items remain.
   * Though Dataflow Runner v2 supports portability, submission is still done
   via v1beta3 and interaction with GCS rather than the job submission API.
 
-  * Properly wait for bundle completion.
-
 There is probably more; there are many TODOs littered throughout the code.
 
 This code has also not yet been fully peer reviewed (it was the result of a

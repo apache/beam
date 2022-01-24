@@ -24,7 +24,6 @@ import * as coders from "../coders/standard_coders";
 import { RowCoder } from "../coders/row_coder";
 import * as artifacts from "../runners/artifacts";
 
-
 export class RawExternalTransform<
   InputT extends base.PValue<any>,
   OutputT extends base.PValue<any>
