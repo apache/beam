@@ -17,16 +17,9 @@ package utils
 
 import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
-	"beam.apache.org/playground/backend/internal/cache"
 	"beam.apache.org/playground/backend/internal/cloud_bucket"
-	"beam.apache.org/playground/backend/internal/errors"
 	"beam.apache.org/playground/backend/internal/logger"
 	"context"
-	"github.com/google/uuid"
-)
-
-var (
-	ExamplesDataPipelineId = uuid.Nil
 )
 
 // PutPrecompiledObjectsToCategory adds categories with precompiled objects to protobuf object
@@ -48,25 +41,10 @@ func PutPrecompiledObjectsToCategory(categoryName string, precompiledObjects *cl
 	sdkCategory.Categories = append(sdkCategory.Categories, &category)
 }
 
-// GetPrecompiledObjectsCatalogFromCache returns the precompiled objects catalog from the cache
-func GetPrecompiledObjectsCatalogFromCache(ctx context.Context, cacheService cache.Cache) ([]*pb.Categories, error) {
-	value, err := cacheService.GetValue(ctx, ExamplesDataPipelineId, cache.ExamplesCatalog)
-	if err != nil {
-		logger.Errorf("%s: cache.GetValue: %s\n", ExamplesDataPipelineId, err.Error())
-		return nil, err
-	}
-	catalog, converted := value.([]*pb.Categories)
-	if !converted {
-		logger.Errorf("%s: couldn't convert value to catalog: %s", cache.ExamplesCatalog, value)
-		return nil, errors.InternalError("Error during getting the catalog from cache", "Error during getting catalog")
-	}
-	return catalog, nil
-}
-
-// GetPrecompiledObjectsCatalogFromStorage returns the precompiled objects catalog from the cloud storage
-func GetPrecompiledObjectsCatalogFromStorage(ctx context.Context, sdk pb.Sdk, category string) ([]*pb.Categories, error) {
+// GetCatalogFromStorage returns the precompiled objects catalog from the cloud storage
+func GetCatalogFromStorage(ctx context.Context) ([]*pb.Categories, error) {
 	bucket := cloud_bucket.New()
-	sdkToCategories, err := bucket.GetPrecompiledObjects(ctx, sdk, category)
+	sdkToCategories, err := bucket.GetPrecompiledObjects(ctx, pb.Sdk_SDK_UNSPECIFIED, "")
 	if err != nil {
 		logger.Errorf("GetPrecompiledObjects(): cloud storage error: %s", err.Error())
 		return nil, err
@@ -80,4 +58,36 @@ func GetPrecompiledObjectsCatalogFromStorage(ctx context.Context, sdk pb.Sdk, ca
 		sdkCategories = append(sdkCategories, &sdkCategory)
 	}
 	return sdkCategories, nil
+}
+
+// FilterCatalog returns the catalog filtered by sdk and categoryName
+func FilterCatalog(catalog []*pb.Categories, sdk pb.Sdk, categoryName string) []*pb.Categories {
+	var result []*pb.Categories
+	if sdk == pb.Sdk_SDK_UNSPECIFIED {
+		result = catalog
+	} else {
+		for _, categoriesSdk := range catalog {
+			if categoriesSdk.Sdk == sdk {
+				result = append(result, categoriesSdk)
+				break
+			}
+		}
+	}
+	if categoryName == "" {
+		return result
+	}
+	for _, categoriesSdk := range result {
+		foundCategory := false
+		for _, category := range categoriesSdk.Categories {
+			if category.CategoryName == categoryName {
+				categoriesSdk.Categories = []*pb.Categories_Category{category}
+				foundCategory = true
+				break
+			}
+		}
+		if !foundCategory {
+			categoriesSdk.Categories = []*pb.Categories_Category{}
+		}
+	}
+	return result
 }
