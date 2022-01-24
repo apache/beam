@@ -337,6 +337,8 @@ public class ElasticsearchIO {
 
     public abstract boolean isTrustSelfSignedCerts();
 
+    public abstract @Nullable SSLContext getSslContext();
+
     abstract Builder builder();
 
     @AutoValue.Builder
@@ -364,6 +366,8 @@ public class ElasticsearchIO {
       abstract Builder setConnectTimeout(Integer connectTimeout);
 
       abstract Builder setTrustSelfSignedCerts(boolean trustSelfSignedCerts);
+
+      abstract Builder setSslContext(SSLContext sslContext);
 
       abstract ConnectionConfiguration build();
     }
