@@ -47,6 +47,7 @@ import io.opencensus.trace.Tracer;
 import io.opencensus.trace.Tracing;
 import io.opencensus.trace.config.TraceConfig;
 import io.opencensus.trace.config.TraceParams;
+import io.opencensus.trace.samplers.Samplers;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -78,7 +79,6 @@ import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.ValueProvider;
-import org.apache.beam.sdk.options.ValueProvider.Deserializer;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -1353,11 +1353,9 @@ public class SpannerIO {
 
     abstract @Nullable Timestamp getInclusiveEndAt();
 
-    abstract @Nullable Deserializer getDeserializer();
-
     abstract @Nullable RpcPriority getRpcPriority();
 
-    abstract @Nullable Sampler getTraceSampler();
+    abstract @Nullable Double getTraceSampleProbability();
 
     abstract Builder toBuilder();
 
@@ -1376,11 +1374,9 @@ public class SpannerIO {
 
       abstract Builder setInclusiveEndAt(Timestamp inclusiveEndAt);
 
-      abstract Builder setDeserializer(Deserializer deserializer);
-
       abstract Builder setRpcPriority(RpcPriority rpcPriority);
 
-      abstract Builder setTraceSampler(Sampler traceSampler);
+      abstract Builder setTraceSampleProbability(Double probability);
 
       abstract ReadChangeStream build();
     }
@@ -1448,20 +1444,14 @@ public class SpannerIO {
       return toBuilder().setInclusiveEndAt(timestamp).build();
     }
 
-    /**
-     * Specifies the class to be used to transform the data records read from the change stream into
-     * Java objects or other serial formats.
-     */
-    public ReadChangeStream withDeserializer(Deserializer deserializer) {
-      return toBuilder().setDeserializer(deserializer).build();
-    }
-
+    /** Specifies the priority of the change stream queries. */
     public ReadChangeStream withRpcPriority(RpcPriority rpcPriority) {
       return toBuilder().setRpcPriority(rpcPriority).build();
     }
 
-    public ReadChangeStream withTraceSampler(Sampler traceSampler) {
-      return toBuilder().setTraceSampler(traceSampler).build();
+    /** Specifies the sample probability of tracing requests. */
+    public ReadChangeStream withTraceSampleProbability(Double probability) {
+      return toBuilder().setTraceSampleProbability(probability).build();
     }
 
     @Override
@@ -1509,10 +1499,11 @@ public class SpannerIO {
       final String partitionMetadataTableName =
           generatePartitionMetadataTableName(partitionMetadataDatabaseId);
 
-      if (getTraceSampler() != null) {
+      if (getTraceSampleProbability() != null) {
         TraceConfig globalTraceConfig = Tracing.getTraceConfig();
+        final Sampler sampler = Samplers.probabilitySampler(getTraceSampleProbability());
         globalTraceConfig.updateActiveTraceParams(
-            TraceParams.DEFAULT.toBuilder().setSampler(getTraceSampler()).build());
+            TraceParams.DEFAULT.toBuilder().setSampler(sampler).build());
       }
       Tracer tracer = Tracing.getTracer();
       try (Scope scope =
