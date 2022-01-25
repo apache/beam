@@ -238,24 +238,20 @@ class StagerTest(unittest.TestCase):
         os.path.isfile(
             os.path.join(staging_dir, names.PICKLED_MAIN_SESSION_FILE)))
 
+  @pytest.mark.no_xdist
+  @unittest.skipIf(
+      sys.platform == "win32" and sys.version_info < (3, 8),
+      'BEAM-10987: pytest on Windows pulls in a zipimporter, unpicklable '
+      'before py3.8')
   def test_main_session_with_pickle(self):
     staging_dir = self.make_temp_dir()
     options = PipelineOptions()
 
     options.view_as(SetupOptions).save_main_session = True
-    self.update_options(options)
-
-    options.view_as(SetupOptions).pickle_library = pickler.USE_DILL
-    self.assertEqual([names.PICKLED_MAIN_SESSION_FILE],
-                     self.stager.create_and_stage_job_resources(
-                         options, staging_location=staging_dir)[1])
-    self.assertTrue(
-        os.path.isfile(
-            os.path.join(staging_dir, names.PICKLED_MAIN_SESSION_FILE)))
-
     # even if the save main session is on, no pickle file for main
     # session is saved when pickle_library==cloudpickle.
     options.view_as(SetupOptions).pickle_library = pickler.USE_CLOUDPICKLE
+    self.update_options(options)
     self.assertEqual([],
                      self.stager.create_and_stage_job_resources(
                          options, staging_location=staging_dir)[1])
