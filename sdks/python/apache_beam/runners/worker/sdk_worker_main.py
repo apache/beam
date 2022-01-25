@@ -76,8 +76,8 @@ def create_harness(environment, dry_run=False):
   # These are used for dataflow templates.
   RuntimeValueProvider.set_runtime_options(pipeline_options_dict)
   sdk_pipeline_options = PipelineOptions.from_dictionary(pipeline_options_dict)
-  pickle_library = sdk_pipeline_options.view_as(SetupOptions).pickle_library
   filesystems.FileSystems.set_options(sdk_pipeline_options)
+  pickle_library = sdk_pipeline_options.view_as(SetupOptions).pickle_library
   pickler.set_library(pickle_library)
 
   if 'SEMI_PERSISTENT_DIRECTORY' in environment:
