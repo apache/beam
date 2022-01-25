@@ -55,7 +55,7 @@ public class SqsUnboundedReaderTest {
         new SqsUnboundedSource(
             SqsIO.read()
                 .withQueueUrl(queueUrl)
-                .withSqsClientProvider(SqsClientProviderMock.of(client))
+                .withSqsClientProvider(StaticSqsClientProvider.of(client))
                 .withMaxNumRecords(1));
   }
 
@@ -70,7 +70,7 @@ public class SqsUnboundedReaderTest {
         new SqsUnboundedSource(
             SqsIO.read()
                 .withQueueUrl(queueUrl)
-                .withSqsClientProvider(SqsClientProviderMock.of(client))
+                .withSqsClientProvider(StaticSqsClientProvider.of(client))
                 .withMaxNumRecords(messages.size()));
   }
 

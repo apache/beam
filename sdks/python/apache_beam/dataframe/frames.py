@@ -4151,8 +4151,8 @@ class DeferredGroupBy(frame_base.DeferredFrame):
 
   first = frame_base.not_implemented_method('first', base_type=DataFrameGroupBy)
   last = frame_base.not_implemented_method('last', base_type=DataFrameGroupBy)
-  nth = frame_base.wont_implement_method(
-      DataFrameGroupBy, 'nth', reason='order-sensitive')
+  nth = property(frame_base.wont_implement_method(
+      DataFrameGroupBy, 'nth', reason='order-sensitive'))
   cumcount = frame_base.wont_implement_method(
       DataFrameGroupBy, 'cumcount', reason='order-sensitive')
   cummax = frame_base.wont_implement_method(
