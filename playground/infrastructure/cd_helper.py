@@ -134,6 +134,11 @@ class CDHelper:
         base_folder_name=example.tag.name,
         file_name=example.tag.name,
         extension=PrecompiledExample.LOG_EXTENSION)
+    graph_path = self._get_gcs_object_name(
+        sdk=example.sdk,
+        base_folder_name=example.tag.name,
+        file_name=example.tag.name,
+        extension=PrecompiledExample.GRAPH_EXTENSION)
     meta_path = self._get_gcs_object_name(
         sdk=example.sdk,
         base_folder_name=example.tag.name,
@@ -143,9 +148,9 @@ class CDHelper:
     file_names[output_path] = example.output
     meta = example.tag._asdict()
     meta["type"] = example.type
-    meta["graph"] = example.graph
     file_names[meta_path] = json.dumps(meta)
     file_names[log_path] = example.logs
+    file_names[graph_path] = example.graph
     for file_name, file_content in file_names.items():
       local_file_path = os.path.join(
           Config.TEMP_FOLDER, example.pipeline_id, file_name)
