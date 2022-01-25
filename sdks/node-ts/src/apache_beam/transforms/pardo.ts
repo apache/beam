@@ -171,6 +171,46 @@ export class Split<T> extends PTransform<
   }
 }
 
+// TODO: Is it possible to type that this takes PCollection<{a: T, b: U, ...}>
+// to {a: PCollection<T>, b: PCollection<U>, ...}
+export class Split2<T> extends PTransform<
+  PCollection<{ [key: string]: T | undefined }>,
+  { [key: string]: PCollection<T> }
+> {
+  private tags: string[];
+  constructor(...tags: string[]) {
+    super("Split2(" + tags + ")");
+    this.tags = tags;
+  }
+  expandInternal(
+    pipeline: Pipeline,
+    transformProto: runnerApi.PTransform,
+    input: PCollection<{ [key: string]: T | undefined }>
+  ) {
+    transformProto.spec = runnerApi.FunctionSpec.create({
+      urn: ParDo.urn,
+      payload: runnerApi.ParDoPayload.toBinary(
+        runnerApi.ParDoPayload.create({
+          doFn: runnerApi.FunctionSpec.create({
+            urn: urns.SPLITTING2_JS_DOFN_URN,
+            payload: new Uint8Array(),
+          }),
+        })
+      ),
+    });
+
+    const this_ = this;
+    return Object.fromEntries(
+      this_.tags.map((tag) => [
+        tag,
+        pipeline.createPCollectionInternal<T>(
+          pipeline.context.getPCollectionCoderId(input)
+        ),
+      ])
+    );
+  }
+}
+
 /*
  * This is the root class of special parameters that can be provided in the
  * context of a map or DoFn.process method.  At runtime, one can invoke the

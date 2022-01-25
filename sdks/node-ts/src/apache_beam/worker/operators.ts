@@ -447,6 +447,44 @@ class SplittingDoFnOperator implements IOperator {
   async finishBundle() {}
 }
 
+class Splitting2DoFnOperator implements IOperator {
+  constructor(private receivers: { [key: string]: Receiver }) {}
+
+  async startBundle() {}
+
+  process(wvalue: WindowedValue<any>) {
+    const result = new ProcessResultBuilder();
+    // TODO: Should I exactly one instead of allowing a union?
+    for (const tag of Object.keys(wvalue.value)) {
+      const receiver = this.receivers[tag];
+      if (receiver) {
+        result.add(
+          receiver.receive({
+            value: wvalue.value[tag],
+            windows: wvalue.windows,
+            // TODO: Verify it falls in window and doesn't cause late data.
+            timestamp: wvalue.timestamp,
+            pane: wvalue.pane,
+          })
+        );
+      } else {
+        // TODO: Make this configurable.
+        throw new Error(
+          "Unexpected tag '" +
+            tag +
+            "' for " +
+            wvalue.value +
+            " not in " +
+            [...Object.keys(this.receivers)]
+        );
+      }
+    }
+    return result.build();
+  }
+
+  async finishBundle() {}
+}
+
 class AssignWindowsParDoOperator implements IOperator {
   constructor(
     private receiver: Receiver,
@@ -532,6 +570,15 @@ registerOperatorConstructor(
     } else if (spec.doFn?.urn == urns.SPLITTING_JS_DOFN_URN) {
       return new SplittingDoFnOperator(
         base.fakeDeserialize(spec.doFn.payload!).splitter,
+        Object.fromEntries(
+          Object.entries(transform.outputs).map(([tag, pcId]) => [
+            tag,
+            context.getReceiver(pcId),
+          ])
+        )
+      );
+    } else if (spec.doFn?.urn == urns.SPLITTING2_JS_DOFN_URN) {
+      return new Splitting2DoFnOperator(
         Object.fromEntries(
           Object.entries(transform.outputs).map(([tag, pcId]) => [
             tag,

@@ -21,8 +21,25 @@ import * as windowings from "../src/apache_beam/transforms/windowings";
 import * as pardo from "../src/apache_beam/transforms/pardo";
 
 describe("primitives module", function () {
+  describe("runs basic transforms", function () {
+    it("runs a map", async function () {
+      await new DirectRunner().run((root) => {
+        const pcolls = root
+          .apply(new beam.Create([1, 2, 3]))
+          .map((x) => x * x)
+          .apply(new testing.AssertDeepEqual([1, 4, 9]));
+      });
+    });
 
-  describe("runs a basic transforms", function () {
+    it("runs a flatmap", async function () {
+      await new DirectRunner().run((root) => {
+        const pcolls = root
+          .apply(new beam.Create(['a b', 'c']))
+          .flatMap((s) => s.split(/ +/))
+          .apply(new testing.AssertDeepEqual(['a', 'b', 'c']));
+      });
+    });
+
     it("runs a Splitter", async function () {
       await new DirectRunner().run((root) => {
         const pcolls = root
@@ -30,6 +47,16 @@ describe("primitives module", function () {
           .apply(new beam.Split((e) => e[0], "a", "b"));
         pcolls.a.apply(new testing.AssertDeepEqual(["apple", "apricot"]));
         pcolls.b.apply(new testing.AssertDeepEqual(["banana"]));
+      });
+    });
+
+    it("runs a Splitter2", async function () {
+      await new DirectRunner().run((root) => {
+        const pcolls = root
+          .apply(new beam.Create([{ a: 1 }, { b: 10 }, { a: 2, b: 20 }]))
+          .apply(new beam.Split2("a", "b"));
+        pcolls.a.apply(new testing.AssertDeepEqual([1, 2]));
+        pcolls.b.apply(new testing.AssertDeepEqual([10, 20]));
       });
     });
 
@@ -177,5 +204,4 @@ describe("primitives module", function () {
       );
     });
   });
-
 });
