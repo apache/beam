@@ -18,12 +18,11 @@
 
 ///
 import 'dart:async' as $async;
+
 import 'dart:core' as $core;
 
 import 'package:grpc/service_api.dart' as $grpc;
-
 import 'api.pb.dart' as $0;
-
 export 'api.pb.dart';
 
 class PlaygroundServiceClient extends $grpc.Client {
