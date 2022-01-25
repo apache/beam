@@ -505,7 +505,10 @@ func (c *liftingCache) lookup(value *FullValue, w typex.Window) (uint64, *FullVa
 	return key, &ce.fv, notfirst, nil
 }
 
-func (c *liftingCache) compact(ctx context.Context, key uint64, ProcessElement func(ctx context.Context, elm *FullValue, values ...ReStream) error) error {
+// compact reduces the liftingCache down to it's cap, emitting values
+// downstream. Accepts the current working key to avoid evicting the
+// most recent key.
+func (c *liftingCache) compact(ctx context.Context, currentKey uint64, ProcessElement func(ctx context.Context, elm *FullValue, values ...ReStream) error) error {
 	if len(c.cache) <= c.cap {
 		return nil
 	}
@@ -516,7 +519,7 @@ func (c *liftingCache) compact(ctx context.Context, key uint64, ProcessElement f
 		// We've already combined this contribution with the
 		// accumulator and we'd be repeating the contributions
 		// of older elements.
-		if k == key {
+		if k == currentKey {
 			continue
 		}
 		if err := c.emit(ctx, ce, ProcessElement); err != nil {
@@ -533,7 +536,7 @@ func (c *liftingCache) compact(ctx context.Context, key uint64, ProcessElement f
 	return nil
 }
 
-// emit the value, and it's related overflows downstream, then delete it from the cache.
+// emit the value, and it's related overflows downstream.
 func (*liftingCache) emit(ctx context.Context, ce *cacheVal, ProcessElement func(ctx context.Context, elm *FullValue, values ...ReStream) error) error {
 	for ce.overflow != nil {
 		if err := ProcessElement(ctx, &ce.fv); err != nil {
@@ -547,6 +550,7 @@ func (*liftingCache) emit(ctx context.Context, ce *cacheVal, ProcessElement func
 	return nil
 }
 
+// emitAll values in the cache, and nil the map.
 func (c *liftingCache) emitAll(ctx context.Context, ProcessElement func(ctx context.Context, elm *FullValue, values ...ReStream) error) error {
 	for _, a := range c.cache {
 		if err := c.emit(ctx, a, ProcessElement); err != nil {
