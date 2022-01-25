@@ -16,6 +16,7 @@
 package exec
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -324,8 +325,7 @@ type LiftedCombine struct {
 	KeyCoder    *coder.Coder
 	WindowCoder *coder.WindowCoder
 
-	keyHash elementHasher
-	cache   map[uint64]FullValue
+	cache *liftingCache
 }
 
 func (n *LiftedCombine) String() string {
@@ -337,7 +337,11 @@ func (n *LiftedCombine) Up(ctx context.Context) error {
 	if err := n.Combine.Up(ctx); err != nil {
 		return err
 	}
-	n.keyHash = makeElementHasher(n.KeyCoder, n.WindowCoder)
+	// TODO(BEAM-4468): replace with some better implementation
+	// once adding dependencies is easier.
+	// Arbitrary limit until a broader improvement can be demonstrated.
+	const cacheMax = 2000
+	n.cache = newLiftingCache(cacheMax, n.KeyCoder, n.WindowCoder)
 	return nil
 }
 
@@ -346,7 +350,7 @@ func (n *LiftedCombine) StartBundle(ctx context.Context, id string, data DataCon
 	if err := n.Combine.StartBundle(ctx, id, data); err != nil {
 		return err
 	}
-	n.cache = make(map[uint64]FullValue)
+	n.cache.start()
 	return nil
 }
 
@@ -371,15 +375,11 @@ func (n *LiftedCombine) ProcessElement(ctx context.Context, value *FullValue, va
 }
 
 func (n *LiftedCombine) processElementPerWindow(ctx context.Context, value *FullValue, w typex.Window) error {
-	// In lifted combines, the window is always observed, so it's included in the hash key.
-	key, err := n.keyHash.Hash(value.Elm, w)
+	key, afv, notfirst, err := n.cache.lookup(value, w)
 	if err != nil {
 		return n.fail(err)
 	}
-	// Value is a KV so Elm & Elm2 are populated.
-	// Check the cache for an already present accumulator
 
-	afv, notfirst := n.cache[key]
 	var a interface{}
 	if notfirst {
 		a = afv.Elm2
@@ -395,37 +395,12 @@ func (n *LiftedCombine) processElementPerWindow(ctx context.Context, value *Full
 	if err != nil {
 		return n.fail(err)
 	}
-
-	// TODO(BEAM-4468): replace with some better implementation
-	// once adding dependencies is easier.
-	// Arbitrary limit until a broader improvement can be demonstrated.
-	const cacheMax = 2000
-	if len(n.cache) > cacheMax {
-		// Use Go's random map iteration to have a basic
-		// random eviction policy.
-		for k, a := range n.cache {
-			// Never evict and send out the current working key.
-			// We've already combined this contribution with the
-			// accumulator and we'd be repeating the contributions
-			// of older elements.
-			if k == key {
-				continue
-			}
-			if err := n.Out.ProcessElement(n.Combine.ctx, &a); err != nil {
-				return err
-			}
-			delete(n.cache, k)
-			// Having the check be on strict greater than and
-			// strict less than allows at least 2 keys to be
-			// processed before evicting again.
-			if len(n.cache) < cacheMax {
-				break
-			}
-		}
+	if err := n.cache.compact(n.Combine.ctx, key, n.Out.ProcessElement); err != nil {
+		// Downstream failures are marked failed in their Node, no need to do so here.
+		return err
 	}
-
-	// Cache the accumulator with the key
-	n.cache[key] = FullValue{Windows: []typex.Window{w}, Elm: value.Elm, Elm2: a, Timestamp: value.Timestamp}
+	// Update the cached value for subsequent lookups or emits.
+	*afv = FullValue{Windows: []typex.Window{w}, Elm: value.Elm, Elm2: a, Timestamp: value.Timestamp}
 
 	return nil
 }
@@ -436,15 +411,9 @@ func (n *LiftedCombine) FinishBundle(ctx context.Context) error {
 	n.Combine.states.Set(n.Combine.ctx, metrics.FinishBundle)
 	// Need to run n.Out.ProcessElement for all the cached precombined KVs, and
 	// then finally Finish bundle as normal.
-	for _, a := range n.cache {
-		if err := n.Out.ProcessElement(n.Combine.ctx, &a); err != nil {
-			return err
-		}
+	if err := n.cache.emitAll(n.Combine.ctx, n.Out.ProcessElement); err != nil {
+		return err
 	}
-	// Clear the cache now since all elements have been output.
-	// Down isn't guaranteed to be called.
-	n.cache = nil
-
 	return n.Combine.FinishBundle(n.Combine.ctx)
 }
 
@@ -453,7 +422,142 @@ func (n *LiftedCombine) Down(ctx context.Context) error {
 	if err := n.Combine.Down(ctx); err != nil {
 		return err
 	}
-	n.cache = nil
+	n.cache.down()
+	return nil
+}
+
+type cacheVal struct {
+	fv       FullValue
+	overflow *cacheVal
+}
+
+// liftingCache is a convenience type for the cache behavior,
+// making it easier to test and benchmark independently.
+type liftingCache struct {
+	cap      int
+	cache    map[uint64]*cacheVal
+	bufNew   bytes.Buffer
+	bufEntry bytes.Buffer
+	fv       FullValue
+
+	keyHash  elementHasher
+	keyCoder ElementEncoder
+	winCoder WindowEncoder
+}
+
+func newLiftingCache(max int, kc *coder.Coder, wc *coder.WindowCoder) *liftingCache {
+	return &liftingCache{
+		cap:      max,
+		keyHash:  makeElementHasher(kc, wc),
+		keyCoder: MakeElementEncoder(kc),
+		winCoder: MakeWindowEncoder(wc),
+	}
+}
+
+func (c *liftingCache) start() {
+	c.cache = make(map[uint64]*cacheVal)
+}
+
+func (c *liftingCache) down() {
+	c.cache = nil
+}
+
+// lookup extracts the value from the cache, looking into overflow buckets as necessary,
+// returning the current hash key, a pre-inserted FullValue to be written to, and whether
+// the value is initialized, and an error if needed.
+func (c *liftingCache) lookup(value *FullValue, w typex.Window) (uint64, *FullValue, bool, error) {
+	key, err := c.keyHash.Hash(value.Elm, w)
+	if err != nil {
+		return 0, nil, false, err
+	}
+	// Value is a KV so Elm & Elm2 are populated.
+	// Check the cache for an already present accumulator
+
+	ce, notfirst := c.cache[key]
+	// If this is not the first one, lets be sure about it.
+	if notfirst {
+		// Encode the test value & window.
+		codeit := func(fv *FullValue, w typex.Window, buf *bytes.Buffer) {
+			buf.Reset()
+			c.fv.Elm = fv.Elm
+			c.keyCoder.Encode(&c.fv, buf)
+			c.winCoder.EncodeSingle(w, buf)
+		}
+		codeit(value, w, &c.bufNew)
+		codeit(&ce.fv, ce.fv.Windows[0], &c.bufEntry)
+		for !bytes.Equal(c.bufNew.Bytes(), c.bufEntry.Bytes()) {
+			if ce.overflow == nil {
+				// We haven't found anything that matches, so we overflow.
+				ce.overflow = &cacheVal{}
+				notfirst = false
+				ce = ce.overflow
+				break
+			}
+			ce = ce.overflow
+			codeit(&ce.fv, ce.fv.Windows[0], &c.bufEntry)
+		}
+		// This means we have a valid value!
+	} else {
+		// Ensure we have a valid cacheVal in the cache for later...
+		ce = &cacheVal{}
+		c.cache[key] = ce
+	}
+	return key, &ce.fv, notfirst, nil
+}
+
+// compact reduces the liftingCache down to it's cap, emitting values
+// downstream. Accepts the current working key to avoid evicting the
+// most recent key.
+func (c *liftingCache) compact(ctx context.Context, currentKey uint64, ProcessElement func(ctx context.Context, elm *FullValue, values ...ReStream) error) error {
+	if len(c.cache) <= c.cap {
+		return nil
+	}
+	// Use Go's random map iteration to have a basic
+	// random eviction policy.
+	for k, ce := range c.cache {
+		// Never evict and send out the current working key.
+		// We've already combined this contribution with the
+		// accumulator and we'd be repeating the contributions
+		// of older elements.
+		if k == currentKey {
+			continue
+		}
+		if err := c.emit(ctx, ce, ProcessElement); err != nil {
+			return err
+		}
+		delete(c.cache, k)
+		// Having the check be on strict greater than and
+		// strict less than allows at least 2 keys to be
+		// processed before evicting again.
+		if len(c.cache) < c.cap {
+			break
+		}
+	}
+	return nil
+}
+
+// emit the value, and it's related overflows downstream.
+func (*liftingCache) emit(ctx context.Context, ce *cacheVal, ProcessElement func(ctx context.Context, elm *FullValue, values ...ReStream) error) error {
+	for ce.overflow != nil {
+		if err := ProcessElement(ctx, &ce.fv); err != nil {
+			return err
+		}
+		ce = ce.overflow
+	}
+	if err := ProcessElement(ctx, &ce.fv); err != nil {
+		return err
+	}
+	return nil
+}
+
+// emitAll values in the cache, and nil the map.
+func (c *liftingCache) emitAll(ctx context.Context, ProcessElement func(ctx context.Context, elm *FullValue, values ...ReStream) error) error {
+	for _, a := range c.cache {
+		if err := c.emit(ctx, a, ProcessElement); err != nil {
+			return err
+		}
+	}
+	c.cache = nil
 	return nil
 }
 
