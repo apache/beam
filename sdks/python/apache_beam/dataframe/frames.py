@@ -4197,6 +4197,22 @@ class DeferredGroupBy(frame_base.DeferredFrame):
         )
     )
 
+  @frame_base.with_docs_from(DataFrameGroupBy)
+  def value_counts(self, subset=None, sort=False, normalize=False,
+                    ascending=False, dropna=True):
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'value_counts',
+            lambda df: df.value_counts(
+              subset=subset,
+              sort=sort,
+              normalize=normalize,
+              ascending=ascending,
+              dropna=True), [self._expr],
+            preserves_partition_by=partitionings.Arbitrary(),
+            requires_partition_by=partitionings.Arbitrary())
+    )
+
   fillna = frame_base.wont_implement_method(
       DataFrameGroupBy, 'fillna', explanation=(
           "df.fillna() should be used instead. Only method=None is supported "

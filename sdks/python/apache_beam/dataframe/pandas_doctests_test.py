@@ -127,7 +127,7 @@ class DoctestTest(unittest.TestCase):
                 # Modified dataframe
                 'df'
             ],
-            'pandas.core.generic.NDFrame.rename': [
+            'pandas.core.generic.NDFrame._rename': [
                 # Seems to be an upstream bug. The actual error has a different
                 # message:
                 #   TypeError: Index(...) must be called with a collection of
@@ -752,6 +752,12 @@ class DoctestTest(unittest.TestCase):
             # Skipped idxmax/idxmin due an issue with the test framework
             'pandas.core.groupby.generic.SeriesGroupBy.idxmin': ['s.idxmin()'],
             'pandas.core.groupby.generic.SeriesGroupBy.idxmax': ['s.idxmax()'],
+            # Uses as_index, which is currently not_implemented
+            'pandas.core.groupby.generic.DataFrameGroupBy.value_counts': [
+                "df.groupby('gender', as_index=False).value_counts()",
+                # pylint: disable=line-too-long
+                "df.groupby('gender', as_index=False).value_counts(normalize=True)",
+            ],
         })
     self.assertEqual(result.failed, 0)
 
