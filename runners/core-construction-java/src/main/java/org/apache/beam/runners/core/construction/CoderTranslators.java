@@ -23,7 +23,9 @@ import java.util.Collections;
 import java.util.List;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
-import org.apache.beam.model.pipeline.v1.SchemaApi.SchemaCoderPayload;
+import org.apache.beam.model.pipeline.v1.SchemaApi.AtomicType;
+import org.apache.beam.model.pipeline.v1.SchemaApi.AtomicTypeValue;
+import org.apache.beam.model.pipeline.v1.SchemaApi.FieldValue;
 import org.apache.beam.runners.core.construction.CoderTranslation.TranslationContext;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -156,7 +158,7 @@ class CoderTranslators {
     };
   }
 
-  static CoderTranslator<RowCoder> rowV1() {
+  static CoderTranslator<RowCoder> row() {
     return new CoderTranslator<RowCoder>() {
       @Override
       public List<? extends Coder<?>> getComponents(RowCoder from) {
@@ -184,42 +186,9 @@ class CoderTranslators {
     };
   }
 
-  static CoderTranslator<RowCoder> row() {
-    return new CoderTranslator<RowCoder>() {
-      @Override
-      public List<? extends Coder<?>> getComponents(RowCoder from) {
-        return ImmutableList.of();
-      }
-
-      @Override
-      public byte[] getPayload(RowCoder from) {
-        SchemaApi.SchemaCoderPayload.Builder coderBuilder =
-            SchemaApi.SchemaCoderPayload.newBuilder();
-        coderBuilder.setSchema(SchemaTranslation.schemaToProto(from.getSchema(), true));
-        return coderBuilder.build().toByteArray();
-      }
-
-      @Override
-      public RowCoder fromComponents(
-          List<Coder<?>> components, byte[] payload, TranslationContext context) {
-        checkArgument(
-            components.isEmpty(), "Expected empty component list, but received: " + components);
-        Schema schema;
-        try {
-          schema =
-              SchemaTranslation.schemaFromProto(
-                  SchemaApi.SchemaCoderPayload.parseFrom(payload).getSchema());
-        } catch (InvalidProtocolBufferException e) {
-          throw new RuntimeException("Unable to parse schema for RowCoder: ", e);
-        }
-        return RowCoder.of(schema);
-      }
-    };
-  }
-
-  private static final String TYPE_DESCRIPTOR = "typeDescriptor";
-  private static final String FROM_ROW_FUNCTION = "fromRow";
-  private static final String TO_ROW_FUNCTION = "toRow";
+  private static final String TYPE_DESCRIPTOR = "JavaTypeDescriptor";
+  private static final String FROM_ROW_FUNCTION = "JavaFromRow";
+  private static final String TO_ROW_FUNCTION = "JavaToRow";
 
   public static boolean isSchemaCoder(RunnerApi.Coder coder) {
     return isSchemaCoder(coder.getSpec().getUrn(), coder.getSpec().getPayload().toByteArray());
@@ -230,8 +199,13 @@ class CoderTranslators {
       return false;
     }
     try {
-      SchemaCoderPayload parsedPayload = SchemaApi.SchemaCoderPayload.parseFrom(payload);
-      return parsedPayload.getSdkInformationMap().containsKey(TYPE_DESCRIPTOR);
+      SchemaApi.Schema parsedSchema = SchemaApi.Schema.parseFrom(payload);
+      for (SchemaApi.Option option : parsedSchema.getSdkOptionsList()) {
+        if (option.getName().equals(TYPE_DESCRIPTOR)) {
+          return true;
+        }
+      }
+      return false;
     } catch (InvalidProtocolBufferException e) {
       throw new RuntimeException("Unable to parse schema for RowCoder: ", e);
     }
@@ -246,21 +220,45 @@ class CoderTranslators {
 
       @Override
       public byte[] getPayload(SchemaCoder<T> from) {
-        SchemaApi.SchemaCoderPayload.Builder coderBuilder =
-            SchemaApi.SchemaCoderPayload.newBuilder();
-        coderBuilder.setSchema(SchemaTranslation.schemaToProto(from.getSchema(), true));
-        coderBuilder.putSdkInformation(
-            TYPE_DESCRIPTOR,
-            ByteString.copyFrom(
-                SerializableUtils.serializeToByteArray(from.getEncodedTypeDescriptor())));
-        coderBuilder.putSdkInformation(
-            FROM_ROW_FUNCTION,
-            ByteString.copyFrom(SerializableUtils.serializeToByteArray(from.getFromRowFunction())));
-        coderBuilder.putSdkInformation(
-            TO_ROW_FUNCTION,
-            ByteString.copyFrom(SerializableUtils.serializeToByteArray(from.getToRowFunction())));
-
-        return coderBuilder.build().toByteArray();
+        SchemaApi.Schema.Builder schema =
+            SchemaTranslation.schemaToProto(from.getSchema(), true).toBuilder();
+        schema.addSdkOptions(
+            SchemaApi.Option.newBuilder()
+                .setName(TYPE_DESCRIPTOR)
+                .setType(SchemaApi.FieldType.newBuilder().setAtomicType(AtomicType.BYTES))
+                .setValue(
+                    FieldValue.newBuilder()
+                        .setAtomicValue(
+                            AtomicTypeValue.newBuilder()
+                                .setBytes(
+                                    ByteString.copyFrom(
+                                        SerializableUtils.serializeToByteArray(
+                                            from.getEncodedTypeDescriptor()))))));
+        schema.addSdkOptions(
+            SchemaApi.Option.newBuilder()
+                .setName(FROM_ROW_FUNCTION)
+                .setType(SchemaApi.FieldType.newBuilder().setAtomicType(AtomicType.BYTES))
+                .setValue(
+                    FieldValue.newBuilder()
+                        .setAtomicValue(
+                            AtomicTypeValue.newBuilder()
+                                .setBytes(
+                                    ByteString.copyFrom(
+                                        SerializableUtils.serializeToByteArray(
+                                            from.getFromRowFunction()))))));
+        schema.addSdkOptions(
+            SchemaApi.Option.newBuilder()
+                .setName(TO_ROW_FUNCTION)
+                .setType(SchemaApi.FieldType.newBuilder().setAtomicType(AtomicType.BYTES))
+                .setValue(
+                    FieldValue.newBuilder()
+                        .setAtomicValue(
+                            AtomicTypeValue.newBuilder()
+                                .setBytes(
+                                    ByteString.copyFrom(
+                                        SerializableUtils.serializeToByteArray(
+                                            from.getToRowFunction()))))));
+        return schema.build().toByteArray();
       }
 
       @Override
@@ -269,10 +267,19 @@ class CoderTranslators {
         checkArgument(
             components.isEmpty(), "Expected empty component list, but received: " + components);
         try {
-          SchemaCoderPayload parsedPayload = SchemaApi.SchemaCoderPayload.parseFrom(payload);
-          Schema schema = SchemaTranslation.schemaFromProto(parsedPayload.getSchema());
-          ByteString typeDescriptorBytes =
-              parsedPayload.getSdkInformationMap().get(TYPE_DESCRIPTOR);
+          SchemaApi.Schema parsedPayload = SchemaApi.Schema.parseFrom(payload);
+          ByteString typeDescriptorBytes = null;
+          ByteString toRowBytes = null;
+          ByteString fromRowBytes = null;
+          for (SchemaApi.Option option : parsedPayload.getSdkOptionsList()) {
+            if (option.getName().equals(TYPE_DESCRIPTOR)) {
+              typeDescriptorBytes = option.getValue().getAtomicValue().getBytes();
+            } else if (option.getName().equals(TO_ROW_FUNCTION)) {
+              toRowBytes = option.getValue().getAtomicValue().getBytes();
+            } else if (option.getName().equals(FROM_ROW_FUNCTION)) {
+              fromRowBytes = option.getValue().getAtomicValue().getBytes();
+            }
+          }
           if (typeDescriptorBytes == null) {
             throw new IllegalArgumentException(
                 "Expected SchemaCoder payload to have a " + TYPE_DESCRIPTOR + " parameter.");
@@ -282,7 +289,6 @@ class CoderTranslators {
                   SerializableUtils.deserializeFromByteArray(
                       typeDescriptorBytes.toByteArray(), "typeDescriptor");
 
-          ByteString toRowBytes = parsedPayload.getSdkInformationMap().get(TO_ROW_FUNCTION);
           if (toRowBytes == null) {
             throw new IllegalArgumentException(
                 "Expected SchemaCoder payload to have a " + TO_ROW_FUNCTION + " parameter.");
@@ -292,7 +298,6 @@ class CoderTranslators {
                   SerializableUtils.deserializeFromByteArray(
                       toRowBytes.toByteArray(), "toRowFunction");
 
-          ByteString fromRowBytes = parsedPayload.getSdkInformationMap().get(FROM_ROW_FUNCTION);
           if (fromRowBytes == null) {
             throw new IllegalArgumentException(
                 "Expected SchemaCoder payload to have a " + FROM_ROW_FUNCTION + " parameter.");
@@ -302,7 +307,11 @@ class CoderTranslators {
                   SerializableUtils.deserializeFromByteArray(
                       fromRowBytes.toByteArray(), "fromRowFunction");
 
-          return SchemaCoder.of(schema, typeDescriptor, toRowFunction, fromRowFunction);
+          return SchemaCoder.of(
+              SchemaTranslation.schemaFromProto(parsedPayload),
+              typeDescriptor,
+              toRowFunction,
+              fromRowFunction);
         } catch (InvalidProtocolBufferException e) {
           throw new RuntimeException("Unable to parse schema for SchemaCoder: ", e);
         }

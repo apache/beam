@@ -123,9 +123,7 @@ public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
                  * during pipeline construction.
                  */
                 ImmutableSet.of(
-                    ModelCoders.STATE_BACKED_ITERABLE_CODER_URN,
-                    ModelCoders.ROW_V1_CODER_URN,
-                    ModelCoders.ROW_CODER_URN))
+                    ModelCoders.STATE_BACKED_ITERABLE_CODER_URN, ModelCoders.ROW_CODER_URN))
             .equals(BEAM_MODEL_CODER_URNS.values()),
         "All Model %ss should have an associated java %s",
         Coder.class.getSimpleName(),

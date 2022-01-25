@@ -185,8 +185,6 @@ public class CoderTranslation {
           CoderTranslators.isSchemaCoder(coder)
               ? CoderTranslators.schema()
               : CoderTranslators.row();
-    } else if (coderUrn.equals(ModelCoders.ROW_V1_CODER_URN)) {
-      translator = CoderTranslators.rowV1();
     } else {
       Class<? extends Coder> coderType = KNOWN_CODER_URNS.inverse().get(coderUrn);
       translator = KNOWN_TRANSLATORS.get(coderType);
