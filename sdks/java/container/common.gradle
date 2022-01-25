@@ -46,12 +46,14 @@ dependencies {
 
 task copyDockerfileDependencies(type: Copy) {
     from configurations.dockerDependency
-    rename "slf4j-api.*", "slf4j-api.jar"
-    rename "slf4j-jdk14.*", "slf4j-jdk14.jar"
+    rename 'slf4j-api.*', 'slf4j-api.jar'
+    rename 'slf4j-jdk14.*', 'slf4j-jdk14.jar'
     rename 'beam-sdks-java-harness-.*.jar', 'beam-sdks-java-harness.jar'
     rename 'beam-sdks-java-io-kafka.*.jar', 'beam-sdks-java-io-kafka.jar'
     rename 'kafka-clients.*.jar', 'kafka-clients.jar'
-    rename "jamm.*.jar", "jamm.jar"
+    rename 'jamm.*.jar', 'jamm.jar'
+
+    setDuplicatesStrategy(DuplicatesStrategy.INCLUDE)
     into "build/target"
 }
 

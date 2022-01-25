@@ -27,12 +27,12 @@ from apache_beam.transforms.external import ImplicitSchemaPayloadBuilder
 from apache_beam.transforms.external import JavaExternalTransform
 from apache_beam.options.pipeline_options import PipelineOptions
 
-"""A Python multi-language pipeline that produces a set of strings with that were generated from Java.
+"""A Python multi-language pipeline that produces a set of strings generated from Java.
 
-This example uses the 'JavaExternalTransform' API hence the corresponding Java transform does not
+This example uses the `JavaExternalTransform` API, hence the corresponding Java transform does not
 have to be specifically registered with an expansion service.
 
-Example commands for executing the program.
+Example commands for executing the program:
 
 DirectRunner:
 $ python javadatagenerator.py --runner DirectRunner --environment_type=DOCKER --output output --expansion_service_port <PORT>

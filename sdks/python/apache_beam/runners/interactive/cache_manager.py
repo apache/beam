@@ -160,6 +160,7 @@ class FileBasedCacheManager(CacheManager):
       'tfrecord': (tfrecordio.ReadFromTFRecord, tfrecordio.WriteToTFRecord)
   }
 
+  # TODO(victorhc): Add support for cache_dir locations that are on GCS
   def __init__(self, cache_dir=None, cache_format='text'):
     if cache_dir:
       self._cache_dir = cache_dir

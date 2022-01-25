@@ -41,6 +41,7 @@ const double kXlBorderRadius = 28.0;
 const double kElevation = 2;
 
 // icon sizes
+const double kIconSizeXs = 8.0;
 const double kIconSizeSm = 16.0;
 const double kIconSizeMd = 24.0;
 const double kIconSizeLg = 32.0;
@@ -54,6 +55,7 @@ const double kContainerHeight = 40.0;
 const double kCodeFontSize = 14.0;
 const double kLabelFontSize = 16.0;
 const double kHintFontSize = 16.0;
+const double kTitleFontSize = 18.0;
 
 //divider size
 const double kDividerHeight = 1.0;
