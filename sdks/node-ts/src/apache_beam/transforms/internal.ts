@@ -11,6 +11,14 @@ import { GeneralObjectCoder } from "../coders/js_coders";
 import { KV } from "../values";
 import { CombineFn } from "./group_and_combine";
 
+/**
+ * `Impulse` is the basic *source* primitive `PTransform`. It receives a Beam
+ * Root as input, and returns a `PCollection` of `Uint8Array` with a single
+ * element with length=0 (i.e. the empty byte array: `new Uint8Array("")`).
+ *
+ * `Impulse` is used to start the execution of a pipeline with a single element
+ * that can trigger execution of a source or SDF.
+ */
 export class Impulse extends PTransform<Root, PCollection<Uint8Array>> {
   // static urn: string = runnerApi.StandardPTransforms_Primitives.IMPULSE.urn;
   // TODO: use above line, not below line.
@@ -63,7 +71,17 @@ export class WithCoderInternal<T> extends PTransform<
   }
 }
 
-// Users should use GroupBy.
+/**
+ * **Note**: Users should not be using `GroupByKey` transforms directly. Use instead
+ * `GroupBy`, and `Combine` transforms.
+ *
+ * `GroupByKey` is the primitive transform in Beam to force *shuffling* of data,
+ * which helps us group data of the same key together. It's a necessary primitive
+ * for any Beam SDK.
+ *
+ * `GroupByKey` operations are used under the hood to execute combines,
+ * streaming triggers, stateful transforms, etc.
+ */
 export class GroupByKey<K, V> extends PTransform<
   PCollection<KV<K, V>>,
   PCollection<KV<K, Iterable<V>>>
@@ -109,6 +127,19 @@ export class GroupByKey<K, V> extends PTransform<
   }
 }
 
+/**
+ * This transform is used to perform aggregations over groups of elements.
+ *
+ * It receives a `CombineFn`, which defines functions to create an intermediate
+ * aggregator, add elements to it, and transform the aggregator into the expected
+ * output.
+ *
+ * Combines are a valuable transform because they allow for optimizations that
+ * can reduce the amount of data being exchanged between workers
+ * (a.k.a. "shuffled"). They do this by performing partial aggregations
+ * before a `GroupByKey` and after the `GroupByKey`. The partial aggregations
+ * help reduce the original data into a single aggregator per key per worker.
+ */
 export class CombinePerKey<K, InputT, AccT, OutputT> extends PTransform<
   PCollection<KV<K, InputT>>,
   PCollection<KV<K, OutputT>>
