@@ -54,6 +54,16 @@ class PlaygroundServiceStub(object):
                 request_serializer=api__pb2.GetRunErrorRequest.SerializeToString,
                 response_deserializer=api__pb2.GetRunErrorResponse.FromString,
                 )
+        self.GetValidationOutput = channel.unary_unary(
+                '/api.v1.PlaygroundService/GetValidationOutput',
+                request_serializer=api__pb2.GetValidationOutputRequest.SerializeToString,
+                response_deserializer=api__pb2.GetValidationOutputResponse.FromString,
+                )
+        self.GetPreparationOutput = channel.unary_unary(
+                '/api.v1.PlaygroundService/GetPreparationOutput',
+                request_serializer=api__pb2.GetPreparationOutputRequest.SerializeToString,
+                response_deserializer=api__pb2.GetPreparationOutputResponse.FromString,
+                )
         self.GetCompileOutput = channel.unary_unary(
                 '/api.v1.PlaygroundService/GetCompileOutput',
                 request_serializer=api__pb2.GetCompileOutputRequest.SerializeToString,
@@ -71,13 +81,23 @@ class PlaygroundServiceStub(object):
                 )
         self.GetPrecompiledObjectCode = channel.unary_unary(
                 '/api.v1.PlaygroundService/GetPrecompiledObjectCode',
-                request_serializer=api__pb2.GetPrecompiledObjectRequest.SerializeToString,
+                request_serializer=api__pb2.GetPrecompiledObjectCodeRequest.SerializeToString,
                 response_deserializer=api__pb2.GetPrecompiledObjectCodeResponse.FromString,
                 )
         self.GetPrecompiledObjectOutput = channel.unary_unary(
                 '/api.v1.PlaygroundService/GetPrecompiledObjectOutput',
-                request_serializer=api__pb2.GetPrecompiledObjectRequest.SerializeToString,
-                response_deserializer=api__pb2.GetRunOutputResponse.FromString,
+                request_serializer=api__pb2.GetPrecompiledObjectOutputRequest.SerializeToString,
+                response_deserializer=api__pb2.GetPrecompiledObjectOutputResponse.FromString,
+                )
+        self.GetPrecompiledObjectLogs = channel.unary_unary(
+                '/api.v1.PlaygroundService/GetPrecompiledObjectLogs',
+                request_serializer=api__pb2.GetPrecompiledObjectLogsRequest.SerializeToString,
+                response_deserializer=api__pb2.GetPrecompiledObjectLogsResponse.FromString,
+                )
+        self.GetDefaultPrecompiledObject = channel.unary_unary(
+                '/api.v1.PlaygroundService/GetDefaultPrecompiledObject',
+                request_serializer=api__pb2.GetDefaultPrecompiledObjectRequest.SerializeToString,
+                response_deserializer=api__pb2.GetDefaultPrecompiledObjectResponse.FromString,
                 )
 
 
@@ -119,6 +139,20 @@ class PlaygroundServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GetValidationOutput(self, request, context):
+        """Get the result of pipeline validation.
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetPreparationOutput(self, request, context):
+        """Get the result of pipeline preparation.
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def GetCompileOutput(self, request, context):
         """Get the result of pipeline compilation.
         """
@@ -154,6 +188,20 @@ class PlaygroundServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GetPrecompiledObjectLogs(self, request, context):
+        """Get the logs of an PrecompiledObject.
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetDefaultPrecompiledObject(self, request, context):
+        """Get the default precompile object for the sdk.
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_PlaygroundServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -182,6 +230,16 @@ def add_PlaygroundServiceServicer_to_server(servicer, server):
                     request_deserializer=api__pb2.GetRunErrorRequest.FromString,
                     response_serializer=api__pb2.GetRunErrorResponse.SerializeToString,
             ),
+            'GetValidationOutput': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetValidationOutput,
+                    request_deserializer=api__pb2.GetValidationOutputRequest.FromString,
+                    response_serializer=api__pb2.GetValidationOutputResponse.SerializeToString,
+            ),
+            'GetPreparationOutput': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetPreparationOutput,
+                    request_deserializer=api__pb2.GetPreparationOutputRequest.FromString,
+                    response_serializer=api__pb2.GetPreparationOutputResponse.SerializeToString,
+            ),
             'GetCompileOutput': grpc.unary_unary_rpc_method_handler(
                     servicer.GetCompileOutput,
                     request_deserializer=api__pb2.GetCompileOutputRequest.FromString,
@@ -199,13 +257,23 @@ def add_PlaygroundServiceServicer_to_server(servicer, server):
             ),
             'GetPrecompiledObjectCode': grpc.unary_unary_rpc_method_handler(
                     servicer.GetPrecompiledObjectCode,
-                    request_deserializer=api__pb2.GetPrecompiledObjectRequest.FromString,
+                    request_deserializer=api__pb2.GetPrecompiledObjectCodeRequest.FromString,
                     response_serializer=api__pb2.GetPrecompiledObjectCodeResponse.SerializeToString,
             ),
             'GetPrecompiledObjectOutput': grpc.unary_unary_rpc_method_handler(
                     servicer.GetPrecompiledObjectOutput,
-                    request_deserializer=api__pb2.GetPrecompiledObjectRequest.FromString,
-                    response_serializer=api__pb2.GetRunOutputResponse.SerializeToString,
+                    request_deserializer=api__pb2.GetPrecompiledObjectOutputRequest.FromString,
+                    response_serializer=api__pb2.GetPrecompiledObjectOutputResponse.SerializeToString,
+            ),
+            'GetPrecompiledObjectLogs': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetPrecompiledObjectLogs,
+                    request_deserializer=api__pb2.GetPrecompiledObjectLogsRequest.FromString,
+                    response_serializer=api__pb2.GetPrecompiledObjectLogsResponse.SerializeToString,
+            ),
+            'GetDefaultPrecompiledObject': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetDefaultPrecompiledObject,
+                    request_deserializer=api__pb2.GetDefaultPrecompiledObjectRequest.FromString,
+                    response_serializer=api__pb2.GetDefaultPrecompiledObjectResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -303,6 +371,40 @@ class PlaygroundService(object):
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
+    def GetValidationOutput(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/api.v1.PlaygroundService/GetValidationOutput',
+            api__pb2.GetValidationOutputRequest.SerializeToString,
+            api__pb2.GetValidationOutputResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def GetPreparationOutput(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/api.v1.PlaygroundService/GetPreparationOutput',
+            api__pb2.GetPreparationOutputRequest.SerializeToString,
+            api__pb2.GetPreparationOutputResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
     def GetCompileOutput(request,
             target,
             options=(),
@@ -365,7 +467,7 @@ class PlaygroundService(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/api.v1.PlaygroundService/GetPrecompiledObjectCode',
-            api__pb2.GetPrecompiledObjectRequest.SerializeToString,
+            api__pb2.GetPrecompiledObjectCodeRequest.SerializeToString,
             api__pb2.GetPrecompiledObjectCodeResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
@@ -382,7 +484,41 @@ class PlaygroundService(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/api.v1.PlaygroundService/GetPrecompiledObjectOutput',
-            api__pb2.GetPrecompiledObjectRequest.SerializeToString,
-            api__pb2.GetRunOutputResponse.FromString,
+            api__pb2.GetPrecompiledObjectOutputRequest.SerializeToString,
+            api__pb2.GetPrecompiledObjectOutputResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def GetPrecompiledObjectLogs(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/api.v1.PlaygroundService/GetPrecompiledObjectLogs',
+            api__pb2.GetPrecompiledObjectLogsRequest.SerializeToString,
+            api__pb2.GetPrecompiledObjectLogsResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def GetDefaultPrecompiledObject(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/api.v1.PlaygroundService/GetDefaultPrecompiledObject',
+            api__pb2.GetDefaultPrecompiledObjectRequest.SerializeToString,
+            api__pb2.GetDefaultPrecompiledObjectResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
