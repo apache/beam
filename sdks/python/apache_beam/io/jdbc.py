@@ -93,9 +93,10 @@ __all__ = [
 ]
 
 
-def default_io_expansion_service():
+def default_io_expansion_service(classpath=None):
   return BeamJarExpansionService(
-      ':sdks:java:extensions:schemaio-expansion-service:shadowJar')
+      ':sdks:java:extensions:schemaio-expansion-service:shadowJar',
+      classpath=classpath)
 
 
 JdbcConfigSchema = typing.NamedTuple(
@@ -118,6 +119,8 @@ Config = typing.NamedTuple(
         ('output_parallelization', typing.Optional[bool]),
     ],
 )
+
+DEFAULT_JDBC_CLASSPATH = ['org.postgresql:postgresql:42.2.16']
 
 
 class WriteToJdbc(ExternalTransform):
@@ -166,6 +169,7 @@ class WriteToJdbc(ExternalTransform):
       connection_properties=None,
       connection_init_sqls=None,
       expansion_service=None,
+      classpath=DEFAULT_JDBC_CLASSPATH,
   ):
     """
     Initializes a write operation to Jdbc.
@@ -181,6 +185,15 @@ class WriteToJdbc(ExternalTransform):
     :param connection_init_sqls: required only for MySql and MariaDB.
                                  passed as list of strings
     :param expansion_service: The address (host:port) of the ExpansionService.
+    :param classpath: A list of JARs or Java packages to include in the
+                      classpath for the expansion service. This option is
+                      usually needed for `jdbc` to include extra JDBC driver
+                      packages.
+                      The packages can be in these three formats:
+                        - A local file
+                        - A URL
+                        - A gradle-style identifier of a Maven package (e.g.
+                          "org.postgresql:postgresql:42.3.1")
     """
 
     super().__init__(
@@ -203,7 +216,7 @@ class WriteToJdbc(ExternalTransform):
                             output_parallelization=None,
                         ))),
         ),
-        expansion_service or default_io_expansion_service(),
+        expansion_service or default_io_expansion_service(classpath),
     )
 
 
@@ -251,6 +264,7 @@ class ReadFromJdbc(ExternalTransform):
       connection_properties=None,
       connection_init_sqls=None,
       expansion_service=None,
+      classpath=DEFAULT_JDBC_CLASSPATH,
   ):
     """
     Initializes a read operation from Jdbc.
@@ -268,6 +282,15 @@ class ReadFromJdbc(ExternalTransform):
     :param connection_init_sqls: required only for MySql and MariaDB.
                                  passed as list of strings
     :param expansion_service: The address (host:port) of the ExpansionService.
+    :param classpath: A list of JARs or Java packages to include in the
+                      classpath for the expansion service. This option is
+                      usually needed for `jdbc` to include extra JDBC driver
+                      packages.
+                      The packages can be in these three formats:
+                        - A local file
+                        - A URL
+                        - A gradle-style identifier of a Maven package (e.g.
+                          "org.postgresql:postgresql:42.3.1")
     """
     super().__init__(
         self.URN,
@@ -289,5 +312,5 @@ class ReadFromJdbc(ExternalTransform):
                             output_parallelization=output_parallelization,
                         ))),
         ),
-        expansion_service or default_io_expansion_service(),
+        expansion_service or default_io_expansion_service(classpath),
     )

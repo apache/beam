@@ -697,9 +697,23 @@ class JavaJarExpansionService(object):
     self._classpath = classpath
     self._service_count = 0
 
+  @staticmethod
+  def _expand_jars(jar):
+    if glob.glob(jar):
+      return glob.glob(jar)
+    elif isinstance(jar, str) and (jar.startswith('http://') or
+                                   jar.startswith('https://')):
+      return [jar]
+    else:
+      group_id, artifact_id, version = jar.split(':')
+      path = subprocess_server.JavaJarServer.path_to_maven_jar(
+          artifact_id, group_id, version)
+      return [path]
+
   def _default_args(self):
-    to_stage = ','.join([self._path_to_jar] + sum(
-        (glob.glob(path) or [path] for path in self._classpath or []), []))
+    to_stage = ','.join([self._path_to_jar] + sum((
+        JavaJarExpansionService._expand_jars(jar)
+        for jar in self._classpath or []), []))
     return ['{{PORT}}', f'--filesToStage={to_stage}']
 
   def __enter__(self):
