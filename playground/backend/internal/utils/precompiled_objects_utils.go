@@ -17,6 +17,7 @@ package utils
 
 import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"beam.apache.org/playground/backend/internal/cache"
 	"beam.apache.org/playground/backend/internal/cloud_bucket"
 	"beam.apache.org/playground/backend/internal/logger"
 	"context"
@@ -107,4 +108,21 @@ func GetDefaultPrecompiledObject(catalog []*pb.Categories, sdk pb.Sdk) *pb.Preco
 		}
 	}
 	return nil
+}
+
+// GetCatalogFromCacheOrStorage returns the precompiled objects catalog from cache
+// - If there is no catalog in the cache, gets the catalog from the Storage and saves it to the cache
+func GetCatalogFromCacheOrStorage(ctx context.Context, cacheService cache.Cache) ([]*pb.Categories, error) {
+	catalog, err := cacheService.GetCatalog(ctx)
+	if err != nil {
+		logger.Errorf("GetCatalog(): cache error: %s", err.Error())
+		catalog, err = GetCatalogFromStorage(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if err = cacheService.SetCatalog(ctx, catalog); err != nil {
+			logger.Errorf("SetCatalog(): cache error: %s", err.Error())
+		}
+	}
+	return catalog, nil
 }
