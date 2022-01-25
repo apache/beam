@@ -50,15 +50,12 @@ class EmbeddedPageProviders extends StatelessWidget {
                 sdk: playground.sdk,
                 selectedExample: null,
               );
-              if (example != null) {
-                exampleState
-                    .loadExampleInfo(
-                      example,
-                      playground.sdk,
-                    )
-                    .then((exampleWithInfo) =>
-                        newPlayground.setExample(exampleWithInfo));
-              }
+              _loadExampleData(
+                example,
+                exampleState,
+                playground,
+                newPlayground,
+              );
               return newPlayground;
             }
             return playground;
@@ -84,9 +81,32 @@ class EmbeddedPageProviders extends StatelessWidget {
 
     return ExampleModel(
       name: 'Embedded_Example',
-      path: examplePath!,
+      path: examplePath ?? '',
       description: '',
       type: ExampleType.example,
     );
+  }
+
+  _loadExampleData(
+    ExampleModel? example,
+    ExampleState exampleState,
+    PlaygroundState playground,
+    PlaygroundState newPlayground,
+  ) {
+    if (example != null) {
+      if (example.path.isEmpty) {
+        String source = Uri.base.queryParameters[kSourceCode] ?? '';
+        example.setSource(source);
+        newPlayground.setExample(example);
+      } else {
+        exampleState
+            .loadExampleInfo(
+              example,
+              playground.sdk,
+            )
+            .then(
+                (exampleWithInfo) => newPlayground.setExample(exampleWithInfo));
+      }
+    }
   }
 }

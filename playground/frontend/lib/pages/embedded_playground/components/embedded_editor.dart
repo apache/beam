@@ -35,6 +35,7 @@ class EmbeddedEditor extends StatelessWidget {
       sdk: state.sdk,
       example: state.selectedExample,
       onSourceChange: state.setSource,
+      isEmbedded: true,
       isEditable: isEditable,
     );
   }

@@ -17,4 +17,5 @@
  */
 
 const kExampleParam = 'example';
-const kIsEditable = 'editable';
+const kIsEditable = 'enabled';
+const kSourceCode = 'code';

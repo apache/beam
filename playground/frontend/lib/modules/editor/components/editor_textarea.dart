@@ -45,6 +45,7 @@ class EditorTextArea extends StatefulWidget {
   final ExampleModel? example;
   final bool enabled;
   final void Function(String)? onSourceChange;
+  final bool isEmbedded;
   final bool isEditable;
 
   const EditorTextArea({
@@ -54,6 +55,7 @@ class EditorTextArea extends StatefulWidget {
     this.onSourceChange,
     required this.enabled,
     required this.isEditable,
+    this.isEmbedded = false,
   }) : super(key: key);
 
   @override
@@ -84,7 +86,9 @@ class _EditorTextAreaState extends State<EditorTextArea> {
       webSpaceFix: false,
     );
 
-    _setTextScrolling();
+    if (!widget.isEmbedded) {
+      _setTextScrolling();
+    }
 
     super.didChangeDependencies();
   }
