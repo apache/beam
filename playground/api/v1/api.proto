@@ -186,7 +186,7 @@ message GetPrecompiledObjectLogsRequest{
   string cloud_path = 1;
 }
 
-// GetPrecompiledObjectGraphRequest contains information of the PrecompiledObject uuid.
+// GetPrecompiledObjectGraphRequest contains information of the PrecompiledObject cloud path.
 message GetPrecompiledObjectGraphRequest{
   string cloud_path = 1;
 }
@@ -216,7 +216,7 @@ message GetPrecompiledObjectLogsResponse {
   string output = 1;
 }
 
-// GetPrecompiledObjectGraphResponse represents the graph of the executed code.
+// GetPrecompiledObjectGraphResponse represents the string representation of the executed code graph in DOT format.
 message GetPrecompiledObjectGraphResponse {
   string graph = 1;
 }

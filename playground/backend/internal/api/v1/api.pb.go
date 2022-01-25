@@ -1440,7 +1440,7 @@ func (x *GetPrecompiledObjectLogsRequest) GetCloudPath() string {
 	return ""
 }
 
-// GetPrecompiledObjectGraphRequest contains information of the PrecompiledObject uuid.
+// GetPrecompiledObjectGraphRequest contains information of the PrecompiledObject cloud path.
 type GetPrecompiledObjectGraphRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -1728,7 +1728,7 @@ func (x *GetPrecompiledObjectLogsResponse) GetOutput() string {
 	return ""
 }
 
-// GetPrecompiledObjectGraphResponse represents the graph of the executed code.
+// GetPrecompiledObjectGraphResponse represents the string representation of the executed code graph in DOT format.
 type GetPrecompiledObjectGraphResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
