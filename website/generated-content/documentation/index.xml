@@ -11581,78 +11581,71 @@ use case.&lt;/p>
 &lt;/div>
 &lt;/div>
 &lt;h2 id="multi-language-pipelines">13. Multi-language pipelines&lt;/h2>
-&lt;p>This section provides comprehensive documentation of multi-language pipelines. For a short overview of the topic, see:&lt;/p>
+&lt;p>This section provides comprehensive documentation of multi-language pipelines. To get started creating a multi-language pipeline, see:&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/sdks/python-multi-language-pipelines">Python multi-language pipelines quickstart&lt;/a>&lt;/li>
+&lt;li>&lt;a href="/documentation/sdks/java-multi-language-pipelines">Java multi-language pipelines quickstart&lt;/a>&lt;/li>
 &lt;/ul>
-&lt;p>Beam allows you to combine transforms written in any supported SDK language (currently, Java and Python) and use them in one multi-language pipeline. This capability makes it easy to provide new functionality simultaneously in different Apache Beam SDKs through a single cross-language transform. For example, the &lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/kafka.py">Apache Kafka connector&lt;/a> and &lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/sql.py">SQL transform&lt;/a> from the Java SDK can be used in Python streaming pipelines.&lt;/p>
+&lt;p>Beam lets you combine transforms written in any supported SDK language (currently, Java and Python) and use them in one multi-language pipeline. This capability makes it easy to provide new functionality simultaneously in different Apache Beam SDKs through a single cross-language transform. For example, the &lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/kafka.py">Apache Kafka connector&lt;/a> and &lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/sql.py">SQL transform&lt;/a> from the Java SDK can be used in Python pipelines.&lt;/p>
 &lt;p>Pipelines that use transforms from more than one SDK-language are known as &lt;em>multi-language pipelines&lt;/em>.&lt;/p>
 &lt;h3 id="create-x-lang-transforms">13.1. Creating cross-language transforms&lt;/h3>
-&lt;p>To make transforms written in one language available to pipelines written in another language, an &lt;em>expansion service&lt;/em> for transforms written in the same language is used to create and inject the appropriate language-specific pipeline fragments into your pipeline.&lt;/p>
-&lt;p>In the following example, a Python pipeline written the Apache Beam SDK for Python starts up a local Java expansion service on your computer to create and inject the appropriate Java pipeline fragments for executing the Java Kafka cross-language transform into your Python pipeline. The SDK then downloads and stages the necessary Java dependencies needed to execute these transforms.&lt;/p>
+&lt;p>To make transforms written in one language available to pipelines written in another language, Beam uses an &lt;em>expansion service&lt;/em>, which creates and injects the appropriate language-specific pipeline fragments into the pipeline.&lt;/p>
+&lt;p>In the following example, a Beam Python pipeline starts up a local Java expansion service to create and inject the appropriate Java pipeline fragments for executing the Java Kafka cross-language transform into the Python pipeline. The SDK then downloads and stages the necessary Java dependencies needed to execute these transforms.&lt;/p>
 &lt;p>&lt;img src="/images/multi-language-pipelines-diagram.svg" alt="Diagram of multi-language pipeline execution flow.">&lt;/p>
-&lt;p>At runtime, the Beam runner will execute both Python and Java transforms to execute your pipeline.&lt;/p>
+&lt;p>At runtime, the Beam runner will execute both Python and Java transforms to run the pipeline.&lt;/p>
 &lt;p>In this section, we will use &lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/kafka/KafkaIO.Read.html">KafkaIO.Read&lt;/a> to illustrate how to create a cross-language transform for Java and a test example for Python.&lt;/p>
 &lt;h4 id="1311-creating-cross-language-java-transforms">13.1.1. Creating cross-language Java transforms&lt;/h4>
 &lt;p>There are two ways to make Java transforms available to other SDKs.&lt;/p>
 &lt;ul>
 &lt;li>Option 1: In some cases, you can use existing Java transforms from other SDKs without writing any additional Java code.&lt;/li>
-&lt;li>Option 2: You can use arbitrary Java Transforms from other SDKs by adding a few Java classes.&lt;/li>
+&lt;li>Option 2: You can use arbitrary Java transforms from other SDKs by adding a few Java classes.&lt;/li>
 &lt;/ul>
-&lt;h5 id="13111-using-existing-java-transforms-from-other-sdks-without-writing-more-java-code">13.1.1.1 Using Existing Java Transforms from Other SDKs Without Writing more Java Code&lt;/h5>
-&lt;p>Starting with Beam 2.34.0, Python SDK users can use some Java transforms without writing additional Java code. This can be useful in many cases. For example,&lt;/p>
+&lt;h5 id="13111-using-existing-java-transforms-without-writing-more-java-code">13.1.1.1 Using existing Java transforms without writing more Java code&lt;/h5>
+&lt;p>Starting with Beam 2.34.0, Python SDK users can use some Java transforms without writing additional Java code. This can be useful in many cases. For example:&lt;/p>
 &lt;ul>
-&lt;li>A developer not familiar with Java may need to use an existing Java transform from a Python pipeline&lt;/li>
-&lt;li>A developer may need to make an existing Java transform available to a Python pipeline without writing/releasing more Java code&lt;/li>
+&lt;li>A developer not familiar with Java may need to use an existing Java transform from a Python pipeline.&lt;/li>
+&lt;li>A developer may need to make an existing Java transform available to a Python pipeline without writing/releasing more Java code.&lt;/li>
 &lt;/ul>
 &lt;blockquote>
 &lt;p>&lt;strong>Note:&lt;/strong> This feature is currently only available when using Java transforms from a Python pipeline.&lt;/p>
 &lt;/blockquote>
-&lt;p>To be eligible for direct usage, the API of the Java transform has to follow the following pattern.&lt;/p>
-&lt;ul>
-&lt;li>Requirement 1: The Java transform can be constructed using an available public constructor or a public static method (a constructor method) in the same Java class.&lt;/li>
-&lt;li>Requirement 2: The Java transform can be configured using one or more builder methods. Each builder method should be public and should return an instance of the Java transform.&lt;/li>
-&lt;/ul>
-&lt;p>See below for the structure of an example Java class that can be directly used from the Python API.&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre>&lt;code>public class JavaDataGenerator extends PTransform&amp;lt;PBegin, PCollection&amp;lt;String&amp;gt;&amp;gt; {
-. . .
-// Following method satisfies the Requirement 1.
-// Note that you may also use a class constructor instead of a static method.
-public static JavaDataGenerator create(Integer size) {
-return new JavaDataGenerator(size);
-}
-static class JavaDataGeneratorConfig implements Serializable {
-public String prefix;
-public long length;
-public String suffix;
-. . .
-}
-// Following method conforms to the Requirement 2
-public JavaDataGenerator withJavaDataGeneratorConfig(JavaDataGeneratorConfig dataConfig) {
-return new JavaDataGenerator(this.size, javaDataGeneratorConfig);
-}
-. . .
-}&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;p>To use a Java class that conforms to the above requirement from a Python SDK pipeline you may do the following.&lt;/p>
-&lt;ul>
-&lt;li>Step 1: create an allowlist file in the &lt;em>yaml&lt;/em> format that describes the Java transform classes and methods that will be directly accessed from Python.&lt;/li>
-&lt;li>Step 2: start an Expansion Service with the &lt;code>javaClassLookupAllowlistFile&lt;/code> option passing path to the allowlist defined in Step 1 as the value.&lt;/li>
-&lt;li>Step 3: Use the Python &lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/external.py">JavaExternalTransform&lt;/a> API to directly
-access Java transforms defined in the allowlist from the Python side.&lt;/li>
-&lt;/ul>
-&lt;p>Starting with Beam 2.35.0, Step 1 and 2 may be skipped as described in corresponding sections below.&lt;/p>
-&lt;h5 id="step-1">Step 1&lt;/h5>
-&lt;p>To use this Java transform from Python, you may define an allowlist file in the &lt;em>yaml&lt;/em> format. This allowlist lists the class names,
+&lt;p>To be eligible for direct usage, the API of the Java transform has to meet the following requirements:&lt;/p>
+&lt;ol>
+&lt;li>The Java transform can be constructed using an available public constructor or a public static method (a constructor method) in the same Java class.&lt;/li>
+&lt;li>The Java transform can be configured using one or more builder methods. Each builder method should be public and should return an instance of the Java transform.&lt;/li>
+&lt;/ol>
+&lt;p>Here&amp;rsquo;s an example Java class that can be directly used from the Python API.&lt;/p>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="kd">public&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">JavaDataGenerator&lt;/span> &lt;span class="kd">extends&lt;/span> &lt;span class="n">PTransform&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">PBegin&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="o">.&lt;/span> &lt;span class="o">.&lt;/span> &lt;span class="o">.&lt;/span>
+&lt;span class="c1">// The following method satisfies requirement 1.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// Note that you could use a class constructor instead of a static method.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="n">JavaDataGenerator&lt;/span> &lt;span class="nf">create&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Integer&lt;/span> &lt;span class="n">size&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">JavaDataGenerator&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">size&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;span class="o">}&lt;/span>
+&lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">JavaDataGeneratorConfig&lt;/span> &lt;span class="kd">implements&lt;/span> &lt;span class="n">Serializable&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="kd">public&lt;/span> &lt;span class="n">String&lt;/span> &lt;span class="n">prefix&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kd">public&lt;/span> &lt;span class="kt">long&lt;/span> &lt;span class="n">length&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kd">public&lt;/span> &lt;span class="n">String&lt;/span> &lt;span class="n">suffix&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="o">.&lt;/span> &lt;span class="o">.&lt;/span> &lt;span class="o">.&lt;/span>
+&lt;span class="o">}&lt;/span>
+&lt;span class="c1">// The following method conforms to requirement 2.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="kd">public&lt;/span> &lt;span class="n">JavaDataGenerator&lt;/span> &lt;span class="nf">withJavaDataGeneratorConfig&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">JavaDataGeneratorConfig&lt;/span> &lt;span class="n">dataConfig&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">JavaDataGenerator&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">this&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">size&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">javaDataGeneratorConfig&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;span class="o">}&lt;/span>
+&lt;span class="o">.&lt;/span> &lt;span class="o">.&lt;/span> &lt;span class="o">.&lt;/span>
+&lt;span class="o">}&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>For a complete example, see &lt;a href="https://github.com/apache/beam/blob/master/examples/multi-language/src/main/java/org/apache/beam/examples/multilanguage/JavaDataGenerator.java">JavaDataGenerator&lt;/a>.&lt;/p>
+&lt;p>To use a Java class that conforms to the above requirements from a Python SDK pipeline, follow these steps:&lt;/p>
+&lt;ol>
+&lt;li>Create a &lt;em>yaml&lt;/em> allowlist that describes the Java transform classes and methods that will be directly accessed from Python.&lt;/li>
+&lt;li>Start an expansion service, using the &lt;code>javaClassLookupAllowlistFile&lt;/code> option to pass the path to the allowlist.&lt;/li>
+&lt;li>Use the Python &lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/external.py">JavaExternalTransform&lt;/a> API to directly access Java transforms defined in the allowlist from the Python side.&lt;/li>
+&lt;/ol>
+&lt;p>Starting with Beam 2.36.0, steps 1 and 2 can be skipped, as described in the corresponding sections below.&lt;/p>
+&lt;p>&lt;strong>Step 1&lt;/strong>&lt;/p>
+&lt;p>To use an eligible Java transform from Python, define a &lt;em>yaml&lt;/em> allowlist. This allowlist lists the class names,
 constructor methods, and builder methods that are directly available to be used from the Python side.&lt;/p>
-&lt;p>Starting with Beam 2.35.0, you have the option to specify &lt;code>*&lt;/code> to the &lt;code>javaClassLookupAllowlistFile&lt;/code> option instead of defining an actual allowlist which
-denotes that all supported transforms in the classpath of the expansion service may be accessed through the API.&lt;/p>
+&lt;p>Starting with Beam 2.35.0, you have the option to pass &lt;code>*&lt;/code> to the &lt;code>javaClassLookupAllowlistFile&lt;/code> option instead of defining an actual allowlist. The &lt;code>*&lt;/code> specifies that all supported transforms in the classpath of the expansion service can be accessed through the API. We encourage using an actual allowlist for production, because allowing clients to access arbitrary Java classes can pose a security risk.&lt;/p>
 &lt;div class="snippet">
 &lt;div class="notebook-skip code-snippet without_switcher">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -11667,9 +11660,9 @@ allowedBuilderMethods:
 - withJavaDataGeneratorConfig&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;h5 id="step-2">Step 2&lt;/h5>
-&lt;p>The allowlist is provided as an argument when starting up the Java expansion service. For example, the expansion service can be started
-as a local Java process using the following command.&lt;/p>
+&lt;p>&lt;strong>Step 2&lt;/strong>&lt;/p>
+&lt;p>Provide the allowlist as an argument when starting up the Java expansion service. For example, you can start the expansion service
+as a local Java process using the following command:&lt;/p>
 &lt;div class="snippet">
 &lt;div class="notebook-skip code-snippet without_switcher">
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -11678,62 +11671,46 @@ as a local Java process using the following command.&lt;/p>
 &lt;pre>&lt;code>java -jar &amp;lt;jar file&amp;gt; &amp;lt;port&amp;gt; --javaClassLookupAllowlistFile=&amp;lt;path to the allowlist file&amp;gt;&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;p>Starting with Beam 2.35.0, Beam ``JavaExternalTransform&lt;code>API will automatically startup an expansion service with a given set of&lt;/code>jar` file dependencies
-if an expansion service address was not provided.&lt;/p>
-&lt;h5 id="step-3">Step 3&lt;/h5>
-&lt;p>You can directly use the Java class from your Python pipeline using a stub transform created using the &lt;code>JavaExternalTransform&lt;/code> API. This API allows you to construct the transform
-using the Java class name and allows you to invoke builder methods to configure the class.&lt;/p>
-&lt;p>Constructor and method parameter types are mapped between Python and Java using a Beam Schema. The Schema is auto-generated using the object types
-provided on the Python side. If the Java class constructor method or builder method accepts any complex object types, make sure that the Beam Schema
+&lt;p>Starting with Beam 2.36.0, the &lt;code>JavaExternalTransform&lt;/code> API will automatically start up an expansion service with a given &lt;code>jar&lt;/code> file dependency if an expansion service address was not provided.&lt;/p>
+&lt;p>&lt;strong>Step 3&lt;/strong>&lt;/p>
+&lt;p>You can use the Java class directly from your Python pipeline using a stub transform created from the &lt;code>JavaExternalTransform&lt;/code> API. This API allows you to construct the transform using the Java class name and allows you to invoke builder methods to configure the class.&lt;/p>
+&lt;p>Constructor and method parameter types are mapped between Python and Java using a Beam schema. The schema is auto-generated using the object types
+provided on the Python side. If the Java class constructor method or builder method accepts any complex object types, make sure that the Beam schema
 for these objects is registered and available for the Java expansion service. If a schema has not been registered, the Java expansion service will
-try to register a schema using &lt;a href="https://beam.apache.org/documentation/programming-guide/#creating-schemas">JavaFieldSchema&lt;/a>. In Python arbitrary objects
-can be represented using &lt;code>NamedTuple&lt;/code>s which will be represented as Beam Rows in the Schema. See below for a Python stub transform that represents the above
-mentioned Java transform.&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre>&lt;code>JavaDataGeneratorConfig = typing.NamedTuple(
-&amp;#39;JavaDataGeneratorConfig&amp;#39;, [(&amp;#39;prefix&amp;#39;, str), (&amp;#39;length&amp;#39;, int), (&amp;#39;suffix&amp;#39;, str)])
-data_config = JavaDataGeneratorConfig(prefix=&amp;#39;start&amp;#39;, length=20, suffix=&amp;#39;end&amp;#39;)
-java_transform = JavaExternalTransform(
-&amp;#39;my.beam.transforms.JavaDataGenerator&amp;#39;, expansion_service=&amp;#39;localhost:&amp;lt;port&amp;gt;&amp;#39;).create(numpy.int32(100)).withJavaDataGeneratorConfig(data_config)&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;p>This transform can be used in a Python pipeline along with other Python transforms.&lt;/p>
-&lt;h5 id="13112-full-api-for-making-existing-java-transforms-available-to-other-sdks">13.1.1.2 Full API for Making Existing Java Transforms Available to Other SDKs&lt;/h5>
-&lt;p>To make your Apache Beam Java SDK transform portable across SDK languages, you must implement two interfaces: &lt;a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/transforms/ExternalTransformBuilder.java">ExternalTransformBuilder&lt;/a> and &lt;a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/expansion/ExternalTransformRegistrar.java">ExternalTransformRegistrar&lt;/a>. The &lt;code>ExternalTransformBuilder&lt;/code> interface constructs the cross-language transform using configuration values passed in from the pipeline and the &lt;code>ExternalTransformRegistrar&lt;/code> interface registers the cross-language transform for use with the expansion service.&lt;/p>
+try to register a schema using &lt;a href="https://beam.apache.org/documentation/programming-guide/#creating-schemas">JavaFieldSchema&lt;/a>. In Python, arbitrary objects
+can be represented using &lt;code>NamedTuple&lt;/code>s, which will be represented as Beam rows in the schema. Here is a Python stub transform that represents the above
+mentioned Java transform:&lt;/p>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">JavaDataGeneratorConfig&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">typing&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">NamedTuple&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="s1">&amp;#39;JavaDataGeneratorConfig&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="p">[(&lt;/span>&lt;span class="s1">&amp;#39;prefix&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">str&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;length&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">int&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;suffix&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">str&lt;/span>&lt;span class="p">)])&lt;/span>
+&lt;span class="n">data_config&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">JavaDataGeneratorConfig&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">prefix&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;start&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">length&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">20&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">suffix&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;end&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="n">java_transform&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">JavaExternalTransform&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="s1">&amp;#39;my.beam.transforms.JavaDataGenerator&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">expansion_service&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;localhost:&amp;lt;port&amp;gt;&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">create&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">numpy&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">int32&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">100&lt;/span>&lt;span class="p">))&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">withJavaDataGeneratorConfig&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">data_config&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>You can use this transform in a Python pipeline along with other Python transforms. For a complete example, see &lt;a href="https://github.com/apache/beam/blob/master/examples/multi-language/python/javadatagenerator.py">javadatagenerator.py&lt;/a>.&lt;/p>
+&lt;h5 id="13112-using-the-api-to-make-existing-java-transforms-available-to-other-sdks">13.1.1.2 Using the API to make existing Java transforms available to other SDKs&lt;/h5>
+&lt;p>To make your Beam Java SDK transform portable across SDK languages, you must implement two interfaces: &lt;a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/transforms/ExternalTransformBuilder.java">ExternalTransformBuilder&lt;/a> and &lt;a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/expansion/ExternalTransformRegistrar.java">ExternalTransformRegistrar&lt;/a>. The &lt;code>ExternalTransformBuilder&lt;/code> interface constructs the cross-language transform using configuration values passed in from the pipeline, and the &lt;code>ExternalTransformRegistrar&lt;/code> interface registers the cross-language transform for use with the expansion service.&lt;/p>
 &lt;p>&lt;strong>Implementing the interfaces&lt;/strong>&lt;/p>
 &lt;ol>
 &lt;li>
-&lt;p>Define a Builder class for your transform that implements the &lt;code>ExternalTransformBuilder&lt;/code> interface and overrides the &lt;code>buildExternal&lt;/code> method that will be used to build your transform object. Initial configuration values for your transform should be defined in the &lt;code>buildExternal&lt;/code> method. In most cases, it is convenient to make the Java transform builder class implement &lt;code>ExternalTransformBuilder&lt;/code>.&lt;/p>
+&lt;p>Define a Builder class for your transform that implements the &lt;code>ExternalTransformBuilder&lt;/code> interface and overrides the &lt;code>buildExternal&lt;/code> method that will be used to build your transform object. Initial configuration values for your transform should be defined in the &lt;code>buildExternal&lt;/code> method. In most cases, it&amp;rsquo;s convenient to make the Java transform builder class implement &lt;code>ExternalTransformBuilder&lt;/code>.&lt;/p>
 &lt;blockquote>
 &lt;p>&lt;strong>Note:&lt;/strong> &lt;code>ExternalTransformBuilder&lt;/code> requires you to define a configuration object (a simple POJO) to capture a set of parameters sent by external SDKs to initiate the Java transform. Usually these parameters directly map to constructor parameters of the Java transform.&lt;/p>
 &lt;/blockquote>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre>&lt;code>@AutoValue.Builder
-abstract static class Builder&amp;lt;K, V&amp;gt;
-implements ExternalTransformBuilder&amp;lt;External.Configuration, PBegin, PCollection&amp;lt;KV&amp;lt;K, V&amp;gt;&amp;gt;&amp;gt; {
-abstract Builder&amp;lt;K, V&amp;gt; setConsumerConfig(Map&amp;lt;String, Object&amp;gt; config);
-abstract Builder&amp;lt;K, V&amp;gt; setTopics(List&amp;lt;String&amp;gt; topics);
-/** Remaining property declarations omitted for clarity. */
-abstract Read&amp;lt;K, V&amp;gt; build();
-@Override
-public PTransform&amp;lt;PBegin, PCollection&amp;lt;KV&amp;lt;K, V&amp;gt;&amp;gt;&amp;gt; buildExternal(
-External.Configuration config) {
-setTopics(ImmutableList.copyOf(config.topics));
-/** Remaining property defaults omitted for clarity. */
-}
-}
-&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;p>Note that &lt;code>buildExternal&lt;/code> method may choose to perform additional operations before setting properties received from external SDKs in the transform. For example, &lt;code>buildExternal&lt;/code> method may validates properties available in the configuration object before setting them in the transform.&lt;/p>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="nd">@AutoValue.Builder&lt;/span>
+&lt;span class="kd">abstract&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">Builder&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">K&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">V&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>
+&lt;span class="kd">implements&lt;/span> &lt;span class="n">ExternalTransformBuilder&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">External&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">Configuration&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">PBegin&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">KV&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">K&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">V&lt;/span>&lt;span class="o">&amp;gt;&amp;gt;&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="kd">abstract&lt;/span> &lt;span class="n">Builder&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">K&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">V&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="nf">setConsumerConfig&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Object&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">config&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;span class="kd">abstract&lt;/span> &lt;span class="n">Builder&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">K&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">V&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="nf">setTopics&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">List&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">topics&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;span class="cm">/** Remaining property declarations omitted for clarity. */&lt;/span>
+&lt;span class="kd">abstract&lt;/span> &lt;span class="n">Read&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">K&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">V&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="nf">build&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;span class="nd">@Override&lt;/span>
+&lt;span class="kd">public&lt;/span> &lt;span class="n">PTransform&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">PBegin&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">KV&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">K&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">V&lt;/span>&lt;span class="o">&amp;gt;&amp;gt;&amp;gt;&lt;/span> &lt;span class="nf">buildExternal&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="n">External&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">Configuration&lt;/span> &lt;span class="n">config&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="n">setTopics&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">ImmutableList&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">copyOf&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">topics&lt;/span>&lt;span class="o">));&lt;/span>
+&lt;span class="cm">/** Remaining property defaults omitted for clarity. */&lt;/span>
+&lt;span class="o">}&lt;/span>
+&lt;span class="o">}&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>For complete examples, see &lt;a href="https://github.com/apache/beam/blob/master/examples/multi-language/src/main/java/org/apache/beam/examples/multilanguage/JavaCountBuilder.java">JavaCountBuilder&lt;/a> and &lt;a href="https://github.com/apache/beam/blob/master/examples/multi-language/src/main/java/org/apache/beam/examples/multilanguage/JavaPrefixBuilder.java">JavaPrefixBuilder&lt;/a>.&lt;/p>
+&lt;p>Note that the &lt;code>buildExternal&lt;/code> method can perform additional operations before setting properties received from external SDKs in the transform. For example, &lt;code>buildExternal&lt;/code> can validate properties available in the configuration object before setting them in the transform.&lt;/p>
 &lt;/li>
 &lt;li>
 &lt;p>Register the transform as an external cross-language transform by defining a class that implements &lt;code>ExternalTransformRegistrar&lt;/code>. You must annotate your class with the &lt;code>AutoService&lt;/code> annotation to ensure that your transform is registered and instantiated properly by the expansion service.&lt;/p>
@@ -11744,42 +11721,35 @@ setTopics(ImmutableList.copyOf(config.topics));
 &lt;li>
 &lt;p>From within your registrar class, define a configuration class for the parameters used during the initialization of your transform by the external SDK.&lt;/p>
 &lt;p>The following example from the KafkaIO transform shows how to implement steps two through four:&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre>&lt;code>@AutoService(ExternalTransformRegistrar.class)
-public static class External implements ExternalTransformRegistrar {
-public static final String URN = &amp;#34;beam:external:java:kafka:read:v1&amp;#34;;
-@Override
-public Map&amp;lt;String, Class&amp;lt;? extends ExternalTransformBuilder&amp;lt;?, ?, ?&amp;gt;&amp;gt;&amp;gt; knownBuilders() {
-return ImmutableMap.of(
-URN,
-(Class&amp;lt;? extends ExternalTransformBuilder&amp;lt;?, ?, ?&amp;gt;&amp;gt;)
-(Class&amp;lt;?&amp;gt;) AutoValue_KafkaIO_Read.Builder.class);
-}
-/** Parameters class to expose the Read transform to an external SDK. */
-public static class Configuration {
-private Map&amp;lt;String, String&amp;gt; consumerConfig;
-private List&amp;lt;String&amp;gt; topics;
-public void setConsumerConfig(Map&amp;lt;String, String&amp;gt; consumerConfig) {
-this.consumerConfig = consumerConfig;
-}
-public void setTopics(List&amp;lt;String&amp;gt; topics) {
-this.topics = topics;
-}
-/** Remaining properties omitted for clarity. */
-}
-}
-&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="nd">@AutoService&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">ExternalTransformRegistrar&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">External&lt;/span> &lt;span class="kd">implements&lt;/span> &lt;span class="n">ExternalTransformRegistrar&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">final&lt;/span> &lt;span class="n">String&lt;/span> &lt;span class="n">URN&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s">&amp;#34;beam:external:java:kafka:read:v1&amp;#34;&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="nd">@Override&lt;/span>
+&lt;span class="kd">public&lt;/span> &lt;span class="n">Map&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Class&lt;/span>&lt;span class="o">&amp;lt;?&lt;/span> &lt;span class="kd">extends&lt;/span> &lt;span class="n">ExternalTransformBuilder&lt;/span>&lt;span class="o">&amp;lt;?,&lt;/span> &lt;span class="o">?,&lt;/span> &lt;span class="o">?&amp;gt;&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">knownBuilders&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="n">ImmutableMap&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="n">URN&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="o">(&lt;/span>&lt;span class="n">Class&lt;/span>&lt;span class="o">&amp;lt;?&lt;/span> &lt;span class="kd">extends&lt;/span> &lt;span class="n">ExternalTransformBuilder&lt;/span>&lt;span class="o">&amp;lt;?,&lt;/span> &lt;span class="o">?,&lt;/span> &lt;span class="o">?&amp;gt;&amp;gt;)&lt;/span>
+&lt;span class="o">(&lt;/span>&lt;span class="n">Class&lt;/span>&lt;span class="o">&amp;lt;?&amp;gt;)&lt;/span> &lt;span class="n">AutoValue_KafkaIO_Read&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">Builder&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;span class="o">}&lt;/span>
+&lt;span class="cm">/** Parameters class to expose the Read transform to an external SDK. */&lt;/span>
+&lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">Configuration&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="kd">private&lt;/span> &lt;span class="n">Map&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">consumerConfig&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kd">private&lt;/span> &lt;span class="n">List&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">topics&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kd">public&lt;/span> &lt;span class="kt">void&lt;/span> &lt;span class="nf">setConsumerConfig&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">consumerConfig&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="k">this&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">consumerConfig&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">consumerConfig&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="o">}&lt;/span>
+&lt;span class="kd">public&lt;/span> &lt;span class="kt">void&lt;/span> &lt;span class="nf">setTopics&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">List&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">topics&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="k">this&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">topics&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">topics&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="o">}&lt;/span>
+&lt;span class="cm">/** Remaining properties omitted for clarity. */&lt;/span>
+&lt;span class="o">}&lt;/span>
+&lt;span class="o">}&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>For additional examples, see &lt;a href="https://github.com/apache/beam/blob/master/examples/multi-language/src/main/java/org/apache/beam/examples/multilanguage/JavaCountRegistrar.java">JavaCountRegistrar&lt;/a> and &lt;a href="https://github.com/apache/beam/blob/master/examples/multi-language/src/main/java/org/apache/beam/examples/multilanguage/JavaPrefixRegistrar.java">JavaPrefixRegistrar&lt;/a>.&lt;/p>
 &lt;/li>
 &lt;/ol>
 &lt;p>After you have implemented the &lt;code>ExternalTransformBuilder&lt;/code> and &lt;code>ExternalTransformRegistrar&lt;/code> interfaces, your transform can be registered and created successfully by the default Java expansion service.&lt;/p>
 &lt;p>&lt;strong>Starting the expansion service&lt;/strong>&lt;/p>
-&lt;p>An expansion service can be used with multiple transforms in the same pipeline. Java has a default expansion service included and available in the Apache Beam Java SDK for you to use with your Java transforms. You can write your own expansion service, but that is generally not needed, so it is not covered in this section.&lt;/p>
+&lt;p>You can use an expansion service with multiple transforms in the same pipeline. The Beam Java SDK provides a default expansion service for Java transforms. You can also write your own expansion service, but that&amp;rsquo;s generally not needed, so it&amp;rsquo;s not covered in this section.&lt;/p>
 &lt;p>Perform the following to start up a Java expansion service directly:&lt;/p>
 &lt;div class="snippet">
 &lt;div class="notebook-skip code-snippet without_switcher">
@@ -11792,53 +11762,37 @@ $ jar -jar /path/to/expansion_service.jar &amp;lt;PORT_NUMBER&amp;gt;&lt;/code>&
 &lt;/div>
 &lt;/div>
 &lt;p>The expansion service is now ready to serve transforms on the specified port.&lt;/p>
-&lt;p>When creating SDK-specific wrappers for your transform, SDKs may provide utilities that are readily available for easily starting up an expansion service. For example, the Python SDK provides the utilities &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.JavaJarExpansionService">&lt;code>JavaJarExpansionService&lt;/code>&lt;/a> and &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.BeamJarExpansionService">&lt;code>BeamJarExpansionService&lt;/code>&lt;/a> for starting up a Java expansion service using a JAR file.&lt;/p>
+&lt;p>When creating SDK-specific wrappers for your transform, you may be able to use SDK-provided utilities to start up an expansion service. For example, the Python SDK provides the utilities &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.JavaJarExpansionService">&lt;code>JavaJarExpansionService&lt;/code>&lt;/a> and &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.BeamJarExpansionService">&lt;code>BeamJarExpansionService&lt;/code>&lt;/a> for starting up a Java expansion service using a JAR file.&lt;/p>
 &lt;p>&lt;strong>Including dependencies&lt;/strong>&lt;/p>
 &lt;p>If your transform requires external libraries, you can include them by adding them to the classpath of the expansion service. After they are included in the classpath, they will be staged when your transform is expanded by the expansion service.&lt;/p>
 &lt;p>&lt;strong>Writing SDK-specific wrappers&lt;/strong>&lt;/p>
-&lt;p>Your cross-language Java transform can be called through the lower-level &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.ExternalTransform">&lt;code>ExternalTransform&lt;/code>&lt;/a> class in a multi-language pipeline (as described in the next section); however, if possible, you should create a SDK-specific wrapper written in the programming language of the pipeline (such as Python) to access the transform instead. This higher-level abstraction will make it easier for pipeline authors to use your transform.&lt;/p>
+&lt;p>Your cross-language Java transform can be called through the lower-level &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.ExternalTransform">&lt;code>ExternalTransform&lt;/code>&lt;/a> class in a multi-language pipeline (as described in the next section); however, if possible, you should write an SDK-specific wrapper in the language of the pipeline (such as Python) to access the transform instead. This higher-level abstraction will make it easier for pipeline authors to use your transform.&lt;/p>
 &lt;p>To create an SDK wrapper for use in a Python pipeline, do the following:&lt;/p>
 &lt;ol>
 &lt;li>
 &lt;p>Create a Python module for your cross-language transform(s).&lt;/p>
 &lt;/li>
 &lt;li>
-&lt;p>In the module, build the payload that should be used to initiate the cross-language transform expansion request using one of the available &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.PayloadBuilder">&lt;code>PayloadBuilder&lt;/code>&lt;/a> classes.&lt;/p>
+&lt;p>In the module, use one of the &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.PayloadBuilder">&lt;code>PayloadBuilder&lt;/code>&lt;/a> classes to build the payload for the initial cross-language transform expansion request.&lt;/p>
 &lt;p>The parameter names and types of the payload should map to parameter names and types of the configuration POJO provided to the Java &lt;code>ExternalTransformBuilder&lt;/code>. Parameter types are mapped across SDKs using a &lt;a href="https://github.com/apache/beam/blob/master/model/pipeline/src/main/proto/schema.proto">Beam schema&lt;/a>. Parameter names are mapped by simply converting Python underscore-separated variable names to camel-case (Java standard).&lt;/p>
-&lt;p>In the following example, &lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/kafka.py">kafka.py&lt;/a> uses &lt;code>NamedTupleBasedPayloadBuilder&lt;/code> to build the payload. The parameters map to the Java &lt;a href="https://github.com/apache/beam/blob/master/sdks/java/io/kafka/src/main/java/org/apache/beam/sdk/io/kafka/KafkaIO.java">KafkaIO.External.Configuration&lt;/a> config object defined previously in the &lt;strong>Implementing the interfaces&lt;/strong> section.&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre>&lt;code>class ReadFromKafkaSchema(typing.NamedTuple):
-consumer_config: typing.Mapping[str, str]
-topics: typing.List[str]
-# Other properties omitted for clarity.
-payload = NamedTupleBasedPayloadBuilder(ReadFromKafkaSchema(...))
-&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/li>
+&lt;p>In the following example, &lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/kafka.py">kafka.py&lt;/a> uses &lt;code>NamedTupleBasedPayloadBuilder&lt;/code> to build the payload. The parameters map to the Java &lt;a href="https://github.com/apache/beam/blob/master/sdks/java/io/kafka/src/main/java/org/apache/beam/sdk/io/kafka/KafkaIO.java">KafkaIO.External.Configuration&lt;/a> config object defined in the previous section.&lt;/p>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">class&lt;/span> &lt;span class="nc">ReadFromKafkaSchema&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">typing&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">NamedTuple&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="n">consumer_config&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">typing&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Mapping&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="nb">str&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">str&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;span class="n">topics&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">typing&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">List&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="nb">str&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;span class="c1"># Other properties omitted for clarity.&lt;/span>
+&lt;span class="n">payload&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">NamedTupleBasedPayloadBuilder&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">ReadFromKafkaSchema&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="o">...&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
 &lt;li>
-&lt;p>Start an expansion service unless one is specified by the pipeline creator. The Apache Beam Python SDK provides utilities &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.JavaJarExpansionService">&lt;code>JavaJarExpansionService&lt;/code>&lt;/a> and &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.BeamJarExpansionService">&lt;code>BeamJarExpansionService&lt;/code>&lt;/a> for easily starting up an expansion service using a JAR file.. &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.JavaJarExpansionService">&lt;code>JavaJarExpansionService&lt;/code>&lt;/a> can be used to startup an expansion service using path (a local path or a URL) to a given JAR file. &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.BeamJarExpansionService">&lt;code>BeamJarExpansionService&lt;/code>&lt;/a> can be used for easily starting an expansion service based on a JAR released with Beam.&lt;/p>
-&lt;p>For transforms released with Beam do the following:&lt;/p>
+&lt;p>Start an expansion service, unless one is specified by the pipeline creator. The Beam Python SDK provides the utilities &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.JavaJarExpansionService">&lt;code>JavaJarExpansionService&lt;/code>&lt;/a> and &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.BeamJarExpansionService">&lt;code>BeamJarExpansionService&lt;/code>&lt;/a> for starting up an expansion service using a JAR file. &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.JavaJarExpansionService">&lt;code>JavaJarExpansionService&lt;/code>&lt;/a> can be used to start up an expansion service using the path (a local path or a URL) to a given JAR file. &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.BeamJarExpansionService">&lt;code>BeamJarExpansionService&lt;/code>&lt;/a> can be used to start an expansion service from a JAR released with Beam.&lt;/p>
+&lt;p>For transforms released with Beam, do the following:&lt;/p>
 &lt;ol>
 &lt;li>
-&lt;p>Add a Gradle target to Beam that can be used to build a shaded expansion service JAR for the target Java transform. This target should produce a Beam JAR that contains all dependencies needed for expanding the Java transform and the JAR should be released with Beam. Note that you might be able to use one of the existing Gradle target that offer an aggregated version of an expansion service jar (for example, for all GCP IO).&lt;/p>
+&lt;p>Add a Gradle target to Beam that can be used to build a shaded expansion service JAR for the target Java transform. This target should produce a Beam JAR that contains all dependencies needed for expanding the Java transform, and the JAR should be released with Beam. You might be able to use an existing Gradle target that offers an aggregated version of an expansion service JAR (for example, for all GCP IO).&lt;/p>
 &lt;/li>
 &lt;li>
 &lt;p>In your Python module, instantiate &lt;code>BeamJarExpansionService&lt;/code> with the Gradle target.&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre>&lt;code> expansion_service = BeamJarExpansionService(&amp;#39;sdks:java:io:expansion-service:shadowJar&amp;#39;)
-&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/li>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">expansion_service&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">BeamJarExpansionService&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;sdks:java:io:expansion-service:shadowJar&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
 &lt;/ol>
 &lt;/li>
 &lt;li>
@@ -11851,75 +11805,35 @@ payload = NamedTupleBasedPayloadBuilder(ReadFromKafkaSchema(...))
 &lt;ol>
 &lt;li>
 &lt;p>Define a Uniform Resource Name (URN) for your transform. The URN must be a unique string that identifies your transform with the expansion service.&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre>&lt;code>TEST_COMPK_URN = &amp;#34;beam:transforms:xlang:test:compk&amp;#34;
-&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/li>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">TEST_COMPK_URN&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s2">&amp;#34;beam:transforms:xlang:test:compk&amp;#34;&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
 &lt;li>
 &lt;p>For an existing Python transform, create a new class to register the URN with the Python expansion service.&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre>&lt;code>@ptransform.PTransform.register_urn(TEST_COMPK_URN, None)
-class CombinePerKeyTransform(ptransform.PTransform):
-&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/li>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="nd">@ptransform.PTransform.register_urn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">TEST_COMPK_URN&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="bp">None&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="k">class&lt;/span> &lt;span class="nc">CombinePerKeyTransform&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">ptransform&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">PTransform&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
 &lt;li>
 &lt;p>From within the class, define an expand method that takes an input PCollection, runs the Python transform, and then returns the output PCollection.&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre>&lt;code>def expand(self, pcoll):
-return pcoll \
-| beam.CombinePerKey(sum).with_output_types(
-typing.Tuple[unicode, int])
-&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/li>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">def&lt;/span> &lt;span class="nf">expand&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">pcoll&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="n">pcoll&lt;/span> \
+&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">CombinePerKey&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">sum&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">with_output_types&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="n">typing&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tuple&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="nb">unicode&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">int&lt;/span>&lt;span class="p">])&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
 &lt;li>
 &lt;p>As with other Python transforms, define a &lt;code>to_runner_api_parameter&lt;/code> method that returns the URN.&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre>&lt;code>def to_runner_api_parameter(self, unused_context):
-return TEST_COMPK_URN, None
-&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/li>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">def&lt;/span> &lt;span class="nf">to_runner_api_parameter&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">unused_context&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="n">TEST_COMPK_URN&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="bp">None&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
 &lt;li>
 &lt;p>Define a static &lt;code>from_runner_api_parameter&lt;/code> method that returns an instantiation of the cross-language Python transform.&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre>&lt;code>@staticmethod
-def from_runner_api_parameter(
-unused_ptransform, unused_parameter, unused_context):
-return CombinePerKeyTransform()
-&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/li>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="nd">@staticmethod&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="nf">from_runner_api_parameter&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="n">unused_ptransform&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">unused_parameter&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">unused_context&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="n">CombinePerKeyTransform&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
 &lt;/ol>
 &lt;p>&lt;strong>Starting the expansion service&lt;/strong>&lt;/p>
-&lt;p>An expansion service can be used with multiple transforms in the same pipeline. Python has a default expansion service included and available in the Apache Beam Python SDK for you to use with your Python transforms. You are free to write your own expansion service, but that is generally not needed, so it is not covered in this section.&lt;/p>
+&lt;p>An expansion service can be used with multiple transforms in the same pipeline. The Beam Python SDK provides a default expansion service for you to use with your Python transforms. You are free to write your own expansion service, but that is generally not needed, so it is not covered in this section.&lt;/p>
 &lt;p>Perform the following steps to start up the default Python expansion service directly:&lt;/p>
 &lt;ol>
 &lt;li>
@@ -11950,25 +11864,25 @@ return CombinePerKeyTransform()
 &lt;/div>
 &lt;/li>
 &lt;li>
-&lt;p>This expansion service is not ready to serve up transforms on the address &lt;code>localhost:$PORT_FOR_EXPANSION_SERVICE&lt;/code>.&lt;/p>
+&lt;p>This expansion service is now ready to serve up transforms on the address &lt;code>localhost:$PORT_FOR_EXPANSION_SERVICE&lt;/code>.&lt;/p>
 &lt;/li>
 &lt;/ol>
 &lt;p>&lt;strong>Including dependencies&lt;/strong>&lt;/p>
-&lt;p>Currently Python external transforms are limited to dependencies available in core Beam SDK Harness.&lt;/p>
+&lt;p>Currently Python external transforms are limited to dependencies available in the core Beam SDK harness.&lt;/p>
 &lt;h4 id="1313-creating-cross-language-go-transforms">13.1.3. Creating cross-language Go transforms&lt;/h4>
 &lt;p>Go currently does not support creating cross-language transforms, only using cross-language
 transforms from other languages; see more at &lt;a href="https://issues.apache.org/jira/browse/BEAM-9923">BEAM-9923&lt;/a>.&lt;/p>
-&lt;h4 id="1314-selecting-a-urn-for-cross-language-transforms">13.1.4. Selecting a URN for Cross-language Transforms&lt;/h4>
+&lt;h4 id="1314-defining-a-urn">13.1.4. Defining a URN&lt;/h4>
 &lt;p>Developing a cross-language transform involves defining a URN for registering the transform with an expansion service. In this section
 we provide a convention for defining such URNs. Following this convention is optional but it will ensure that your transform
 will not run into conflicts when registering in an expansion service along with transforms developed by other developers.&lt;/p>
-&lt;h5 id="schema">Schema&lt;/h5>
+&lt;h5 id="13141-schema">13.1.4.1. Schema&lt;/h5>
 &lt;p>A URN should consist of the following components:&lt;/p>
 &lt;ul>
-&lt;li>ns-id: A namespace identifier. Default recommendation is &lt;code>beam:transform&lt;/code>.&lt;/li>
-&lt;li>org-identifier: Identifies the organization where the transform was defined. Transforms defined in Apache Beam use &lt;code>org.apache.beam&lt;/code> for this.&lt;/li>
-&lt;li>functionality-identifier - Identifies the functionality of the cross-language transform.&lt;/li>
-&lt;li>version - a version number for the transform&lt;/li>
+&lt;li>&lt;strong>ns-id&lt;/strong>: A namespace identifier. Default recommendation is &lt;code>beam:transform&lt;/code>.&lt;/li>
+&lt;li>&lt;strong>org-identifier&lt;/strong>: Identifies the organization where the transform was defined. Transforms defined in Apache Beam use &lt;code>org.apache.beam&lt;/code> for this.&lt;/li>
+&lt;li>&lt;strong>functionality-identifier&lt;/strong>: Identifies the functionality of the cross-language transform.&lt;/li>
+&lt;li>&lt;strong>version&lt;/strong>: a version number for the transform.&lt;/li>
 &lt;/ul>
 &lt;p>We provide the schema from the URN convention in &lt;a href="https://en.wikipedia.org/wiki/Augmented_Backus%E2%80%93Naur_form">augmented Backus–Naur&lt;/a> form.
 Keywords in upper case are from the &lt;a href="https://datatracker.ietf.org/doc/html/rfc8141">URN spec&lt;/a>.&lt;/p>
@@ -11985,7 +11899,7 @@ functionality-identifier = 1*id-char
 version = “v” 1*(DIGIT / “.”) ; For example, ‘v1.2’&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
-&lt;h5 id="examples">Examples&lt;/h5>
+&lt;h5 id="13142-examples">13.1.4.2. Examples&lt;/h5>
 &lt;p>Below we’ve given some example transform classes and corresponding URNs to be used.&lt;/p>
 &lt;ul>
 &lt;li>A transform offered with Apache Beam that writes Parquet files.
@@ -12011,7 +11925,7 @@ version = “v” 1*(DIGIT / “.”) ; For example, ‘v1.2’&lt;/code>&lt;/pr
 &lt;p>&lt;strong>Using the External class&lt;/strong>&lt;/p>
 &lt;ol>
 &lt;li>
-&lt;p>Make sure you have any runtime environment dependencies (like JRE) installed on your local machine (either directly on the local machine or available through a container). See the expansion service section for more details.&lt;/p>
+&lt;p>Make sure you have any runtime environment dependencies (like the JRE) installed on your local machine (either directly on the local machine or available through a container). See the expansion service section for more details.&lt;/p>
 &lt;blockquote>
 &lt;p>&lt;strong>Note:&lt;/strong> When including Python transforms from within a Java pipeline, all Python dependencies have to be included in the SDK harness container.&lt;/p>
 &lt;/blockquote>
@@ -12028,64 +11942,49 @@ version = “v” 1*(DIGIT / “.”) ; For example, ‘v1.2’&lt;/code>&lt;/pr
 &lt;/li>
 &lt;/ol>
 &lt;h4 id="1322-using-cross-language-transforms-in-a-python-pipeline">13.2.2. Using cross-language transforms in a Python pipeline&lt;/h4>
-&lt;p>If a Python-specific wrapper for a cross-language transform is available, use that; otherwise, you have to use the lower-level &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.ExternalTransform">&lt;code>ExternalTransform&lt;/code>&lt;/a> class to access the transform.&lt;/p>
+&lt;p>If a Python-specific wrapper for a cross-language transform is available, use that. Otherwise, you have to use the lower-level &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.ExternalTransform">&lt;code>ExternalTransform&lt;/code>&lt;/a> class to access the transform.&lt;/p>
 &lt;p>&lt;strong>Using an SDK wrapper&lt;/strong>&lt;/p>
-&lt;p>To use a cross-language transform through an SDK wrapper, import the module for the SDK wrapper and call it from your pipeline as shown in the example:&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre>&lt;code>from apache_beam.io.kafka import ReadFromKafka
-kafka_records = (
-pipeline
-| &amp;#39;ReadFromKafka&amp;#39; &amp;gt;&amp;gt; ReadFromKafka(
-consumer_config={
-&amp;#39;bootstrap.servers&amp;#39;: self.bootstrap_servers,
-&amp;#39;auto.offset.reset&amp;#39;: &amp;#39;earliest&amp;#39;
-},
-topics=[self.topic],
-max_num_records=max_num_records,
-expansion_service=&amp;lt;Address of expansion service&amp;gt;))
-&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;p>&lt;strong>Using the ExternalTransform class&lt;/strong>&lt;/p>
+&lt;p>To use a cross-language transform through an SDK wrapper, import the module for the SDK wrapper and call it from your pipeline, as shown in the example:&lt;/p>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.io.kafka&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">ReadFromKafka&lt;/span>
+&lt;span class="n">kafka_records&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;span class="n">pipeline&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;ReadFromKafka&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">ReadFromKafka&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="n">consumer_config&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="p">{&lt;/span>
+&lt;span class="s1">&amp;#39;bootstrap.servers&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">bootstrap_servers&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="s1">&amp;#39;auto.offset.reset&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s1">&amp;#39;earliest&amp;#39;&lt;/span>
+&lt;span class="p">},&lt;/span>
+&lt;span class="n">topics&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">topic&lt;/span>&lt;span class="p">],&lt;/span>
+&lt;span class="n">max_num_records&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">max_num_records&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">expansion_service&lt;/span>&lt;span class="o">=&amp;lt;&lt;/span>&lt;span class="n">Address&lt;/span> &lt;span class="n">of&lt;/span> &lt;span class="n">expansion&lt;/span> &lt;span class="n">service&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;strong>Using the ExternalTransform class&lt;/strong>&lt;/p>
 &lt;p>When an SDK-specific wrapper isn&amp;rsquo;t available, you will have to access the cross-language transform through the &lt;code>ExternalTransform&lt;/code> class.&lt;/p>
 &lt;ol>
 &lt;li>
-&lt;p>Make sure you have any runtime environment dependencies (like JRE) installed on your local machine. See the expansion service section for more details.&lt;/p>
+&lt;p>Make sure you have any runtime environment dependencies (like the JRE) installed on your local machine. See the expansion service section for more details.&lt;/p>
 &lt;/li>
 &lt;li>
 &lt;p>Start up the expansion service for the SDK that is in the language of the transform you&amp;rsquo;re trying to consume, if not available.&lt;/p>
 &lt;p>Make sure the transform you&amp;rsquo;re trying to use is available and can be used by the expansion service. For Java, make sure the builder and registrar for the transform are available in the classpath of the expansion service.&lt;/p>
 &lt;/li>
 &lt;li>
-&lt;p>Include &lt;code>ExternalTransform&lt;/code> when instantiating your pipeline. Reference the URN, Payload, and expansion service. You can use one of the available &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.PayloadBuilder">&lt;code>PayloadBuilder&lt;/code>&lt;/a> classes to build the payload for &lt;code>ExternalTransform&lt;/code>.&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre>&lt;code>with pipeline as p:
-res = (
-p
-| beam.Create([&amp;#39;a&amp;#39;, &amp;#39;b&amp;#39;]).with_output_types(unicode)
-| beam.ExternalTransform(
-TEST_PREFIX_URN,
-ImplicitSchemaPayloadBuilder({&amp;#39;data&amp;#39;: u&amp;#39;0&amp;#39;}),
-&amp;lt;Address of expansion service&amp;gt;))
-assert_that(res, equal_to([&amp;#39;0a&amp;#39;, &amp;#39;0b&amp;#39;]))
-&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
+&lt;p>Include &lt;code>ExternalTransform&lt;/code> when instantiating your pipeline. Reference the URN, payload, and expansion service. You can use one of the available &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.external.html#apache_beam.transforms.external.PayloadBuilder">&lt;code>PayloadBuilder&lt;/code>&lt;/a> classes to build the payload for &lt;code>ExternalTransform&lt;/code>.&lt;/p>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">with&lt;/span> &lt;span class="n">pipeline&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="n">res&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;span class="n">p&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="s1">&amp;#39;a&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;b&amp;#39;&lt;/span>&lt;span class="p">])&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">with_output_types&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">unicode&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ExternalTransform&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="n">TEST_PREFIX_URN&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">ImplicitSchemaPayloadBuilder&lt;/span>&lt;span class="p">({&lt;/span>&lt;span class="s1">&amp;#39;data&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="sa">u&lt;/span>&lt;span class="s1">&amp;#39;0&amp;#39;&lt;/span>&lt;span class="p">}),&lt;/span>
+&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Address&lt;/span> &lt;span class="n">of&lt;/span> &lt;span class="n">expansion&lt;/span> &lt;span class="n">service&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;span class="n">assert_that&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">res&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">equal_to&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="s1">&amp;#39;0a&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;0b&amp;#39;&lt;/span>&lt;span class="p">]))&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>For additional examples, see &lt;a href="https://github.com/apache/beam/blob/master/examples/multi-language/python/addprefix.py">addprefix.py&lt;/a> and &lt;a href="https://github.com/apache/beam/blob/master/examples/multi-language/python/javacount.py">javacount.py&lt;/a>.&lt;/p>
 &lt;/li>
 &lt;li>
-&lt;p>After the job has been submitted to the Beam runner, shutdown the expansion service by terminating the expansion service process.&lt;/p>
+&lt;p>After the job has been submitted to the Beam runner, shut down the expansion service by terminating the expansion service process.&lt;/p>
 &lt;/li>
 &lt;/ol>
 &lt;h4 id="1323-using-cross-language-transforms-in-a-go-pipeline">13.2.3. Using cross-language transforms in a Go pipeline&lt;/h4>
-&lt;p>If a Go-specific wrapper for a cross-language is available, use that; otherwise, you have to use the
+&lt;p>If a Go-specific wrapper for a cross-language is available, use that. Otherwise, you have to use the
 lower-level &lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam#CrossLanguage">CrossLanguage&lt;/a>
 function to access the transform.&lt;/p>
 &lt;p>&lt;strong>Expansion Services&lt;/strong>&lt;/p>
@@ -12096,25 +11995,18 @@ machine and ensure they are accessible to your code during pipeline construction
 &lt;p>&lt;strong>Using an SDK wrapper&lt;/strong>&lt;/p>
 &lt;p>To use a cross-language transform through an SDK wrapper, import the package for the SDK wrapper
 and call it from your pipeline as shown in the example:&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre>&lt;code>import (
-&amp;#34;github.com/apache/beam/sdks/v2/go/pkg/beam/io/xlang/kafkaio&amp;#34;
-)
-// Kafka Read using previously defined values.
-kafkaRecords := kafkaio.Read(
-s,
-expansionAddr, // Address of expansion service.
-bootstrapAddr,
-[]string{topicName},
-kafkaio.MaxNumRecords(numRecords),
-kafkaio.ConsumerConfigs(map[string]string{&amp;#34;auto.offset.reset&amp;#34;: &amp;#34;earliest&amp;#34;}))&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;p>&lt;strong>Using the CrossLanguage function&lt;/strong>&lt;/p>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="kn">import&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;span class="s">&amp;#34;github.com/apache/beam/sdks/v2/go/pkg/beam/io/xlang/kafkaio&amp;#34;&lt;/span>
+&lt;span class="p">)&lt;/span>
+&lt;span class="c1">// Kafka Read using previously defined values.
+&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="nx">kafkaRecords&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">kafkaio&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Read&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="nx">expansionAddr&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="c1">// Address of expansion service.
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nx">bootstrapAddr&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="p">[]&lt;/span>&lt;span class="kt">string&lt;/span>&lt;span class="p">{&lt;/span>&lt;span class="nx">topicName&lt;/span>&lt;span class="p">},&lt;/span>
+&lt;span class="nx">kafkaio&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">MaxNumRecords&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">numRecords&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="nx">kafkaio&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">ConsumerConfigs&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="kd">map&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="kt">string&lt;/span>&lt;span class="p">]&lt;/span>&lt;span class="kt">string&lt;/span>&lt;span class="p">{&lt;/span>&lt;span class="s">&amp;#34;auto.offset.reset&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s">&amp;#34;earliest&amp;#34;&lt;/span>&lt;span class="p">}))&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;strong>Using the CrossLanguage function&lt;/strong>&lt;/p>
 &lt;p>When an SDK-specific wrapper isn&amp;rsquo;t available, you will have to access the cross-language transform through the &lt;code>beam.CrossLanguage&lt;/code> function.&lt;/p>
 &lt;ol>
 &lt;li>
@@ -12125,38 +12017,30 @@ kafkaio.ConsumerConfigs(map[string]string{&amp;#34;auto.offset.reset&amp;#34;: &
 Refer to &lt;a href="#create-x-lang-transforms">Creating cross-language transforms&lt;/a> for details.&lt;/p>
 &lt;/li>
 &lt;li>
-&lt;p>Use the &lt;code>beam.CrossLanguage&lt;/code> function in your pipeline as appropriate. Reference the URN, Payload,
+&lt;p>Use the &lt;code>beam.CrossLanguage&lt;/code> function in your pipeline as appropriate. Reference the URN, payload,
 expansion service address, and define inputs and outputs. You can use the
 &lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam#CrossLanguagePayload">beam.CrossLanguagePayload&lt;/a>
 function as a helper for encoding a payload. You can use the
 &lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam#UnnamedInput">beam.UnnamedInput&lt;/a> and
 &lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/go/pkg/beam#UnnamedOutput">beam.UnnamedOutput&lt;/a>
 functions as shortcuts for single, unnamed inputs/outputs or define a map for named ones.&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre>&lt;code>type prefixPayload struct {
-Data string `beam:&amp;#34;data&amp;#34;`
-}
-urn := &amp;#34;beam:transforms:xlang:test:prefix&amp;#34;
-payload := beam.CrossLanguagePayload(prefixPayload{Data: prefix})
-expansionAddr := &amp;#34;localhost:8097&amp;#34;
-outT := beam.UnnamedOutput(typex.New(reflectx.String))
-res := beam.CrossLanguage(s, urn, payload, expansionAddr, beam.UnnamedInput(inputPCol), outT)
-&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/li>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="kd">type&lt;/span> &lt;span class="nx">prefixPayload&lt;/span> &lt;span class="kd">struct&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="nx">Data&lt;/span> &lt;span class="kt">string&lt;/span> &lt;span class="s">`beam:&amp;#34;data&amp;#34;`&lt;/span>
+&lt;span class="p">}&lt;/span>
+&lt;span class="nx">urn&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="s">&amp;#34;beam:transforms:xlang:test:prefix&amp;#34;&lt;/span>
+&lt;span class="nx">payload&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">CrossLanguagePayload&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">prefixPayload&lt;/span>&lt;span class="p">{&lt;/span>&lt;span class="nx">Data&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nx">prefix&lt;/span>&lt;span class="p">})&lt;/span>
+&lt;span class="nx">expansionAddr&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="s">&amp;#34;localhost:8097&amp;#34;&lt;/span>
+&lt;span class="nx">outT&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">UnnamedOutput&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">typex&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">New&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">reflectx&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">String&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;span class="nx">res&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">CrossLanguage&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">s&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">urn&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">payload&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">expansionAddr&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">beam&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">UnnamedInput&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">inputPCol&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="nx">outT&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
 &lt;li>
 &lt;p>After the job has been submitted to the Beam runner, shutdown the expansion service by
 terminating the expansion service process.&lt;/p>
 &lt;/li>
 &lt;/ol>
 &lt;h3 id="x-lang-transform-runner-support">13.3. Runner Support&lt;/h3>
-&lt;p>Currently, portable runners such as Flink, Spark, and the Direct runner can be used with multi-language pipelines.&lt;/p>
-&lt;p>Google Cloud Dataflow supports multi-language pipelines through the Dataflow Runner v2 backend architecture.&lt;/p></description></item><item><title>Documentation: BigQuery ML integration</title><link>/documentation/patterns/bqml/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/patterns/bqml/</guid><description>
+&lt;p>Currently, portable runners such as Flink, Spark, and the direct runner can be used with multi-language pipelines.&lt;/p>
+&lt;p>Dataflow supports multi-language pipelines through the Dataflow Runner v2 backend architecture.&lt;/p></description></item><item><title>Documentation: BigQuery ML integration</title><link>/documentation/patterns/bqml/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/patterns/bqml/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
