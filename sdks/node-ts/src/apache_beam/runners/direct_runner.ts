@@ -12,6 +12,7 @@ import { Pipeline, Root, Impulse, GroupByKey } from "../base";
 import { Runner, PipelineResult } from "./runner";
 import * as worker from "../worker/worker";
 import * as operators from "../worker/operators";
+import { createStateKey } from "../worker/pardo_context";
 import * as state from "../worker/state";
 import { ParDo } from "../transforms/pardo";
 import {
@@ -352,7 +353,7 @@ class CollectSideOperator implements operators.IOperator {
       );
       const encodedElement = writer.finish();
       this.stateProvider.appendState(
-        operators.createStateKey(
+        createStateKey(
           this.parDoTransformId,
           this.accessPattern,
           this.sideInputId,

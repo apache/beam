@@ -10,20 +10,14 @@ import { StateProvider } from "./state";
 import * as base from "../base";
 import * as urns from "../internal/urns";
 import { Coder, Context as CoderContext } from "../coders/coders";
-import { GlobalWindowCoder } from "../coders/required_coders";
+import { BoundedWindow, Instant, PaneInfo, WindowedValue } from "../values";
+import { DoFn, ParDoParam } from "../transforms/pardo";
+
 import {
-  BoundedWindow,
-  Instant,
-  PaneInfo,
-  GlobalWindow,
-  WindowedValue,
-} from "../values";
-import {
-  DoFn,
-  ParDoParam,
-  ParamProvider,
-  SideInputParam,
-} from "../transforms/pardo";
+  ParamProviderImpl,
+  SideInputInfo,
+  createSideInputInfo,
+} from "./pardo_context";
 
 // Trying to get some of https://github.com/microsoft/TypeScript/issues/8240
 // TODO: Is there a more idiomatic way to get a singleton?
@@ -35,7 +29,7 @@ export const NonPromise = NonPromiseClass.INSTANCE;
 
 export type ProcessResult = NonPromiseClass | Promise<void>;
 
-class ProcessResultBuilder {
+export class ProcessResultBuilder {
   promises: Promise<void>[] = [];
   add(result: ProcessResult) {
     if (result != NonPromise) {
@@ -100,11 +94,7 @@ export function createOperator(
   Object.values(transform.outputs).map(context.getReceiver);
   let operatorConstructor = operatorsByUrn.get(transform.spec!.urn!);
   if (operatorConstructor == undefined) {
-    console.log("Unknown transform type:", transform.spec?.urn);
-    // TODO: For testing only...
-    operatorConstructor = (transformId, transformProto, context) => {
-      return new PassThroughOperator(transformId, transformProto, context);
-    };
+    throw new Error("Unknown transform type:" + transform.spec?.urn);
   }
   return operatorConstructor(transformId, transform, context);
 }
@@ -297,19 +287,13 @@ class FlattenOperator implements IOperator {
 
 registerOperator("beam:transform:flatten:v1", FlattenOperator);
 
-interface SideInputInfo {
-  elementCoder: Coder<any>;
-  windowCoder: Coder<BoundedWindow>;
-  windowMappingFn: (window: BoundedWindow) => BoundedWindow;
-}
-
 class GenericParDoOperator implements IOperator {
   private doFn: base.DoFn<any, any, any>;
+  private getStateProvider: () => StateProvider;
+  private sideInputInfo: Map<string, SideInputInfo> = new Map();
   private originalContext: object | undefined;
   private augmentedContext: object | undefined;
   private paramProvider: ParamProviderImpl;
-  private getStateProvider: () => StateProvider;
-  private sideInputInfo: Map<string, SideInputInfo> = new Map();
 
   constructor(
     private transformId: string,
@@ -322,39 +306,11 @@ class GenericParDoOperator implements IOperator {
     this.doFn = payload.doFn;
     this.originalContext = payload.context;
     this.getStateProvider = operatorContext.getStateProvider;
-    const globalWindow = new GlobalWindow();
-    for (const [sideInputId, sideInput] of Object.entries(spec.sideInputs)) {
-      let windowMappingFn: (window: BoundedWindow) => BoundedWindow;
-      switch (sideInput.windowMappingFn!.urn) {
-        case urns.GLOBAL_WINDOW_MAPPING_FN_URN:
-          windowMappingFn = (window) => globalWindow;
-          break;
-        case urns.IDENTITY_WINDOW_MAPPING_FN_URN:
-          windowMappingFn = (window) => window;
-          break;
-        default:
-          throw new Error(
-            "Unsupported window mapping fn: " + sideInput.windowMappingFn!.urn
-          );
-      }
-      const sidePColl =
-        operatorContext.descriptor.pcollections[
-          transformProto.inputs[sideInputId]
-        ];
-      const windowingStrategy =
-        operatorContext.pipelineContext.getWindowingStrategy(
-          sidePColl.windowingStrategyId
-        );
-      this.sideInputInfo.set(sideInputId, {
-        elementCoder: operatorContext.pipelineContext.getCoder(
-          sidePColl.coderId
-        ),
-        windowCoder: operatorContext.pipelineContext.getCoder(
-          windowingStrategy.windowCoderId
-        ),
-        windowMappingFn: windowMappingFn,
-      });
-    }
+    this.sideInputInfo = createSideInputInfo(
+      transformProto,
+      spec,
+      operatorContext
+    );
   }
 
   async startBundle() {
@@ -372,6 +328,8 @@ class GenericParDoOperator implements IOperator {
   process(wvalue: WindowedValue<any>) {
     if (this.augmentedContext && wvalue.windows.length != 1) {
       // We need to process each window separately.
+      // TODO: We could inspect the context more deeply and allow some cases
+      // to go through.
       const result = new ProcessResultBuilder();
       for (const window of wvalue.windows) {
         result.add(
@@ -385,8 +343,6 @@ class GenericParDoOperator implements IOperator {
       }
       return result.build();
     }
-
-    const updateResult = this.paramProvider.update(wvalue);
 
     const this_ = this;
     function reallyProcess(): ProcessResult {
@@ -412,16 +368,21 @@ class GenericParDoOperator implements IOperator {
       return result.build();
     }
 
-    if (updateResult == NonPromise) {
+    // Update the context with any information specific to this window.
+    const updateContextResult = this.paramProvider.update(wvalue);
+
+    // If we were able to do so without any deferred actions, process the
+    // element immediately.
+    if (updateContextResult == NonPromise) {
       return reallyProcess();
     } else {
+      // Otherwise return a promise that first waits for all the deferred
+      // actions to complete and then process the element.
       return (async () => {
-        await updateResult;
-        const updateResult2 = this.paramProvider.update(wvalue);
-        if (updateResult2 != NonPromise) {
-          throw new Error(
-            "Expected all required promises to be resolved: " + updateResult2
-          );
+        await updateContextResult;
+        const update2 = this.paramProvider.update(wvalue);
+        if (update2 != NonPromise) {
+          throw new Error("Expected all promises to be resolved: " + update2);
         }
         await reallyProcess();
       })();
@@ -441,155 +402,6 @@ class GenericParDoOperator implements IOperator {
       if (maybePromise != NonPromise) {
         await maybePromise;
       }
-    }
-  }
-}
-
-export function createStateKey(
-  transformId: string,
-  accessPattern: string,
-  sideInputId: string,
-  window: BoundedWindow,
-  windowCoder: Coder<BoundedWindow>
-): fnApi.StateKey {
-  const writer = new protobufjs.Writer();
-  windowCoder.encode(window, writer, CoderContext.needsDelimiters);
-  const encodedWindow = writer.finish();
-
-  switch (accessPattern) {
-    case "beam:side_input:iterable:v1":
-      return {
-        type: {
-          oneofKind: "iterableSideInput",
-          iterableSideInput: {
-            transformId: transformId,
-            sideInputId: sideInputId,
-            // TODO: Map and encode. This is the global window.
-            window: encodedWindow,
-          },
-        },
-      };
-
-    default:
-      throw new Error("Unimplemented access pattern: " + accessPattern);
-  }
-}
-
-class ParamProviderImpl implements ParamProvider {
-  wvalue: WindowedValue<any> | undefined = undefined;
-  prefetchCallbacks: ((window: BoundedWindow) => ProcessResult)[];
-  sideInputValues: Map<string, any> = new Map();
-
-  constructor(
-    private transformId: string,
-    private sideInputInfo: Map<string, SideInputInfo>,
-    private getStateProvider: () => StateProvider
-  ) {}
-
-  // Avoid modifying the original object, as that could have surprising results
-  // if they are widely shared.
-  augmentContext(context: any) {
-    this.prefetchCallbacks = [];
-    if (typeof context != "object") {
-      return context;
-    }
-
-    const result = Object.create(context);
-    for (const [name, value] of Object.entries(context)) {
-      // Is this the best way to check post serialization?
-      if (
-        typeof value == "object" &&
-        value != null &&
-        value["parDoParamName"] != undefined
-      ) {
-        result[name] = Object.create(value);
-        result[name].provider = this;
-        if ((value as ParDoParam<any>).parDoParamName == "sideInput") {
-          this.prefetchCallbacks.push(
-            this.prefetchSideInput(value as SideInputParam<any, any, any>)
-          );
-        }
-      }
-    }
-    return result;
-  }
-
-  prefetchSideInput(
-    param: SideInputParam<any, any, any>
-  ): (window: BoundedWindow) => ProcessResult {
-    const this_ = this;
-    const stateProvider = this.getStateProvider();
-    const { windowCoder, elementCoder, windowMappingFn } =
-      this.sideInputInfo.get(param.sideInputId)!;
-    const isGlobal = windowCoder instanceof GlobalWindowCoder;
-    const decode = (encodedElements: Uint8Array) => {
-      return param.accessor.toValue(
-        (function* () {
-          const reader = new protobufjs.Reader(encodedElements);
-          while (reader.pos < reader.len) {
-            yield elementCoder.decode(reader, CoderContext.needsDelimiters);
-          }
-        })()
-      );
-    };
-    return (window: BoundedWindow) => {
-      if (isGlobal && this_.sideInputValues.has(param.sideInputId)) {
-        return NonPromise;
-      }
-      const stateKey = createStateKey(
-        this_.transformId,
-        param.accessor.accessPattern,
-        param.sideInputId,
-        window,
-        windowCoder
-      );
-      const lookupResult = stateProvider.getState(stateKey, decode);
-      if (lookupResult.type == "value") {
-        this_.sideInputValues.set(param.sideInputId, lookupResult.value);
-        return NonPromise;
-      } else {
-        return lookupResult.promise.then((value) => {
-          this_.sideInputValues.set(param.sideInputId, value);
-        });
-      }
-    };
-  }
-
-  update(wvalue: WindowedValue<any> | undefined): ProcessResult {
-    this.wvalue = wvalue;
-    if (wvalue == undefined) {
-      return NonPromise;
-    }
-    // We have to prefetch all the side inputs.
-    // TODO: Let the user's process() await them.
-    if (this.prefetchCallbacks.length == 0) {
-      return NonPromise;
-    } else {
-      const result = new ProcessResultBuilder();
-      for (const cb of this.prefetchCallbacks) {
-        result.add(cb(wvalue!.windows[0]));
-      }
-      return result.build();
-    }
-  }
-
-  provide(param) {
-    if (this.wvalue == undefined) {
-      throw new Error(
-        param.parDoParamName + " not defined outside of a process() call."
-      );
-    }
-
-    switch (param.parDoParamName) {
-      case "window":
-        // If we're here and there was more than one window, we have exploded.
-        return this.wvalue.windows[0];
-
-      case "sideInput":
-        return this.sideInputValues.get(param.sideInputId);
-
-      default:
-        throw new Error("Unknown context parameter: " + param.parDoParamName);
     }
   }
 }
@@ -732,39 +544,6 @@ registerOperatorConstructor(
     }
   }
 );
-
-class PassThroughOperator implements IOperator {
-  transformId: string;
-  transformUrn: string;
-  receivers: Receiver[];
-
-  constructor(
-    transformId: string,
-    transform: PTransform,
-    context: OperatorContext
-  ) {
-    this.transformId = transformId;
-    this.transformUrn = transform.spec!.urn;
-    this.receivers = Object.values(transform.outputs).map(context.getReceiver);
-  }
-
-  async startBundle() {}
-
-  process(wvalue) {
-    console.log(
-      "forwarding",
-      wvalue.value,
-      "for",
-      this.transformId,
-      this.transformUrn
-    );
-    this.receivers.map((receiver: Receiver) => receiver.receive(wvalue));
-    // TODO: Delete PassThroughOperator.
-    return NonPromise;
-  }
-
-  async finishBundle() {}
-}
 
 function onlyElement<Type>(arg: Type[]): Type {
   if (arg.length > 1) {
