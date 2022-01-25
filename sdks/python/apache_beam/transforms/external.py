@@ -25,6 +25,7 @@ import contextlib
 import copy
 import functools
 import glob
+import logging
 import threading
 from collections import OrderedDict
 from typing import Dict
@@ -705,7 +706,12 @@ class JavaJarExpansionService(object):
                                    jar.startswith('https://')):
       return [jar]
     else:
-      group_id, artifact_id, version = jar.split(':')
+      try:
+        group_id, artifact_id, version = jar.split(':')
+      except ValueError:
+        # If we are not able to
+        logging.warning('Unable to parse %s into group:artifact:version.', jar)
+        return [jar]
       path = subprocess_server.JavaJarServer.path_to_maven_jar(
           artifact_id, group_id, version)
       return [path]
@@ -723,6 +729,11 @@ class JavaJarExpansionService(object):
       if self._extra_args is None:
         self._extra_args = self._default_args()
       # Consider memoizing these servers (with some timeout).
+      logging.info(
+          'Starting a JAR-based expansion service from JAR %s and '
+          'with classpath: %s',
+          self._path_to_jar,
+          self._classpath)
       self._service_provider = subprocess_server.JavaJarServer(
           ExpansionAndArtifactRetrievalStub,
           self._path_to_jar,

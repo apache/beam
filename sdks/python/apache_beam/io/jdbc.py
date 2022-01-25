@@ -169,7 +169,7 @@ class WriteToJdbc(ExternalTransform):
       connection_properties=None,
       connection_init_sqls=None,
       expansion_service=None,
-      classpath=DEFAULT_JDBC_CLASSPATH,
+      classpath=None,
   ):
     """
     Initializes a write operation to Jdbc.
@@ -189,13 +189,13 @@ class WriteToJdbc(ExternalTransform):
                       classpath for the expansion service. This option is
                       usually needed for `jdbc` to include extra JDBC driver
                       packages.
-                      The packages can be in these three formats:
-                        - A local file
-                        - A URL
-                        - A gradle-style identifier of a Maven package (e.g.
-                          "org.postgresql:postgresql:42.3.1")
+                      The packages can be in these three formats: (1) A local
+                      file, (2) A URL, (3) A gradle-style identifier of a Maven
+                      package (e.g. "org.postgresql:postgresql:42.3.1").
+                      By default, this argument includes a Postgres SQL JDBC
+                      driver.
     """
-
+    classpath = classpath or DEFAULT_JDBC_CLASSPATH
     super().__init__(
         self.URN,
         NamedTupleBasedPayloadBuilder(
@@ -264,7 +264,7 @@ class ReadFromJdbc(ExternalTransform):
       connection_properties=None,
       connection_init_sqls=None,
       expansion_service=None,
-      classpath=DEFAULT_JDBC_CLASSPATH,
+      classpath=None,
   ):
     """
     Initializes a read operation from Jdbc.
@@ -286,12 +286,13 @@ class ReadFromJdbc(ExternalTransform):
                       classpath for the expansion service. This option is
                       usually needed for `jdbc` to include extra JDBC driver
                       packages.
-                      The packages can be in these three formats:
-                        - A local file
-                        - A URL
-                        - A gradle-style identifier of a Maven package (e.g.
-                          "org.postgresql:postgresql:42.3.1")
+                      The packages can be in these three formats: (1) A local
+                      file, (2) A URL, (3) A gradle-style identifier of a Maven
+                      package (e.g. "org.postgresql:postgresql:42.3.1").
+                      By default, this argument includes a Postgres SQL JDBC
+                      driver.
     """
+    classpath = classpath or DEFAULT_JDBC_CLASSPATH
     super().__init__(
         self.URN,
         NamedTupleBasedPayloadBuilder(

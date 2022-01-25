@@ -570,6 +570,31 @@ class JavaJarExpansionServiceTest(unittest.TestCase):
       finally:
         os.chdir(oldwd)
 
+  def test_maven_central_classpath(self):
+    with tempfile.TemporaryDirectory() as temp_dir:
+      try:
+        # Avoid having to prefix everything in our test strings.
+        oldwd = os.getcwd()
+        os.chdir(temp_dir)
+        # Touch some files for globing.
+        with open('a1.jar', 'w') as _:
+          pass
+
+        service = JavaJarExpansionService(
+            'main.jar',
+            classpath=['a*.jar', 'b.jar', 'org.postgresql:postgresql:42.2.16'])
+        self.assertEqual(
+            service._default_args(),
+            [
+                '{{PORT}}',
+                '--filesToStage=main.jar,a1.jar,b.jar,'
+                'https://repo.maven.apache.org/maven2/org/'
+                'postgresql/postgresql/42.2.16/postgresql-42.2.16.jar'
+            ])
+
+      finally:
+        os.chdir(oldwd)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
