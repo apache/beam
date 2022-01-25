@@ -4197,7 +4197,7 @@ class DeferredGroupBy(frame_base.DeferredFrame):
         )
     )
 
-  if hasattr(pd.DataFrameGroupBy, 'value_counts'):
+  if hasattr(DataFrameGroupBy, 'value_counts'):
     @frame_base.with_docs_from(DataFrameGroupBy)
     def value_counts(self, subset=None, sort=False, normalize=False,
                       ascending=False, dropna=True):
