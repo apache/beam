@@ -190,14 +190,13 @@ public class DirectGraphVisitorTest implements Serializable {
                     c.output(Integer.toString(c.element().length()));
                   }
                 }));
-    PDone finished =
-        transformed.apply(
-            new PTransform<PInput, PDone>() {
-              @Override
-              public PDone expand(PInput input) {
-                return PDone.in(input.getPipeline());
-              }
-            });
+    transformed.apply(
+        new PTransform<PInput, PDone>() {
+          @Override
+          public PDone expand(PInput input) {
+            return PDone.in(input.getPipeline());
+          }
+        });
 
     p.traverseTopologically(visitor);
     DirectGraph graph = visitor.getGraph();

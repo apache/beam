@@ -24,6 +24,8 @@ import re
 import tempfile
 import unittest
 
+import pytest
+
 from apache_beam.examples.cookbook import multiple_output_pardo
 from apache_beam.testing.util import open_shards
 
@@ -49,6 +51,7 @@ class MultipleOutputParDo(unittest.TestCase):
           results.append((match.group(1), int(match.group(2))))
     return results
 
+  @pytest.mark.examples_postcommit
   def test_multiple_output_pardo(self):
     temp_path = self.create_temp_file(self.SAMPLE_TEXT)
     result_prefix = temp_path + '.result'

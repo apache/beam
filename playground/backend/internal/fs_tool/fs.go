@@ -62,6 +62,8 @@ func NewLifeCycle(sdk pb.Sdk, pipelineId uuid.UUID, workingDir string) (*LifeCyc
 		return newJavaLifeCycle(pipelineId, workingDir), nil
 	case pb.Sdk_SDK_GO:
 		return newGoLifeCycle(pipelineId, workingDir), nil
+	case pb.Sdk_SDK_PYTHON:
+		return newPythonLifeCycle(pipelineId, workingDir), nil
 	default:
 		return nil, fmt.Errorf("%s isn't supported now", sdk)
 	}

@@ -40,24 +40,24 @@ class ExampleState with ChangeNotifier {
     return sdkCategories?[sdk] ?? [];
   }
 
-  Future<String> getExampleOutput(String id) async {
+  Future<String> getExampleOutput(String id, SDK sdk) async {
     String output = await _exampleRepository.getExampleOutput(
-      GetExampleRequestWrapper(id),
+      GetExampleRequestWrapper(id, sdk),
     );
     return output;
   }
 
-  Future<String> getExampleSource(String id) async {
+  Future<String> getExampleSource(String id, SDK sdk) async {
     String source = await _exampleRepository.getExampleSource(
-      GetExampleRequestWrapper(id),
+      GetExampleRequestWrapper(id, sdk),
     );
     return source;
   }
 
-  Future<ExampleModel> loadExampleInfo(ExampleModel example) async {
-    String source = await getExampleSource(example.path);
+  Future<ExampleModel> loadExampleInfo(ExampleModel example, SDK sdk) async {
+    String source = await getExampleSource(example.path, sdk);
     example.setSource(source);
-    final outputs = await getExampleOutput(example.path);
+    final outputs = await getExampleOutput(example.path, sdk);
     example.setOutputs(outputs);
     return example;
   }
@@ -82,7 +82,7 @@ class ExampleState with ChangeNotifier {
       ExampleModel? defaultExample = sdkCategories![sdk]?.first.examples.first;
       if (defaultExample != null) {
         // load source and output async
-        loadExampleInfo(defaultExample);
+        loadExampleInfo(defaultExample, sdk);
         entries.add(MapEntry(sdk, defaultExample));
       }
     }

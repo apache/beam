@@ -68,8 +68,9 @@ public class WorkerStatusClientTest {
   }
 
   @Test
+  @SuppressWarnings("FutureReturnValueIgnored")
   public void testGetWorkerStatusRequestSent() {
-    CompletableFuture<WorkerStatusResponse> workerStatus = client.getWorkerStatus();
+    client.getWorkerStatus();
     verify(mockObserver).onNext(any(WorkerStatusRequest.class));
   }
 

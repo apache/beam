@@ -154,7 +154,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       private @Nullable StreamAppendClient streamAppendClient = null;
       private long currentOffset = 0;
       private List<ByteString> pendingMessages;
-      private @Nullable DatasetService datasetService;
+      private transient @Nullable DatasetService datasetService;
       private final Counter recordsAppended =
           Metrics.counter(WriteRecordsDoFn.class, "recordsAppended");
       private final Counter appendFailures =
@@ -273,7 +273,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
     private Map<DestinationT, DestinationState> destinations = Maps.newHashMap();
     private final TwoLevelMessageConverterCache<DestinationT, ElementT> messageConverters;
-    private @Nullable DatasetService datasetService;
+    private transient @Nullable DatasetService datasetService;
     private int numPendingRecords = 0;
     private int numPendingRecordBytes = 0;
     private static final int FLUSH_THRESHOLD_RECORDS = 100;

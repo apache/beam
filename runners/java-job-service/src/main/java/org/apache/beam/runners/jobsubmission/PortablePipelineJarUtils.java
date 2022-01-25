@@ -31,8 +31,6 @@ import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Message;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.util.JsonFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Contains common code for writing and reading portable pipeline jars.
@@ -74,7 +72,6 @@ public abstract class PortablePipelineJarUtils {
   private static final String PIPELINE_OPTIONS = "pipeline-options.json";
   private static final String PIPELINE_MANIFEST = PIPELINE_FOLDER + "/pipeline-manifest.json";
 
-  private static final Logger LOG = LoggerFactory.getLogger(PortablePipelineJarUtils.class);
   private static final ObjectMapper OBJECT_MAPPER =
       new ObjectMapper(new JsonFactory().configure(Feature.AUTO_CLOSE_TARGET, false));
 

@@ -114,7 +114,10 @@ import org.powermock.reflect.Whitebox;
 
 /** Tests for {@link DoFnOperator}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({"keyfor"})
+@SuppressWarnings({
+  "keyfor",
+  "unused" // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
+})
 public class DoFnOperatorTest {
 
   // views and windows for testing side inputs

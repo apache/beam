@@ -125,7 +125,6 @@ class WindmillStateInternals<K> implements StateInternals {
   }
 
   private static class CachingStateTable<K> extends StateTable {
-    private final @Nullable K key;
     private final String stateFamily;
     private final WindmillStateReader reader;
     private final WindmillStateCache.ForKeyAndFamily cache;
@@ -143,7 +142,6 @@ class WindmillStateInternals<K> implements StateInternals {
         boolean isNewKey,
         Supplier<Closeable> scopedReadStateSupplier,
         StateTable derivedStateTable) {
-      this.key = key;
       this.stateFamily = stateFamily;
       this.reader = reader;
       this.cache = cache;
@@ -851,8 +849,6 @@ class WindmillStateInternals<K> implements StateInternals {
   }
 
   static class WindmillOrderedList<T> extends SimpleWindmillState implements OrderedListState<T> {
-    private final StateNamespace namespace;
-    private final StateTag<OrderedListState<T>> spec;
     private final ByteString stateKey;
     private final String stateFamily;
     private final Coder<T> elemCoder;
@@ -880,8 +876,6 @@ class WindmillStateInternals<K> implements StateInternals {
         String stateFamily,
         Coder<T> elemCoder,
         boolean isNewKey) {
-      this.namespace = namespace;
-      this.spec = spec;
 
       this.stateKey = encodeKey(namespace, spec);
       this.stateFamily = stateFamily;

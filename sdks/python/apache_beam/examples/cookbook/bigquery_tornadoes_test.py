@@ -22,6 +22,8 @@
 import logging
 import unittest
 
+import pytest
+
 import apache_beam as beam
 from apache_beam.examples.cookbook import bigquery_tornadoes
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -30,6 +32,7 @@ from apache_beam.testing.util import equal_to
 
 
 class BigQueryTornadoesTest(unittest.TestCase):
+  @pytest.mark.examples_postcommit
   def test_basics(self):
     with TestPipeline() as p:
       rows = (

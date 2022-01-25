@@ -30,13 +30,11 @@ import org.joda.time.Instant;
  */
 public class DoFnRunnerWithMetrics<InT, OutT> implements DoFnRunner<InT, OutT> {
   private final DoFnRunner<InT, OutT> underlying;
-  private final SamzaMetricsContainer metricsContainer;
   private final FnWithMetricsWrapper metricsWrapper;
 
   private DoFnRunnerWithMetrics(
       DoFnRunner<InT, OutT> underlying, SamzaMetricsContainer metricsContainer, String stepName) {
     this.underlying = underlying;
-    this.metricsContainer = metricsContainer;
     this.metricsWrapper = new FnWithMetricsWrapper(metricsContainer, stepName);
   }
 

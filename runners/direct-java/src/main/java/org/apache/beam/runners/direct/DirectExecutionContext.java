@@ -28,8 +28,6 @@ import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.runners.direct.WatermarkManager.TransformWatermarks;
 import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Execution Context for the {@link DirectRunner}.
@@ -42,7 +40,7 @@ import org.slf4j.LoggerFactory;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 class DirectExecutionContext {
-  private static final Logger LOG = LoggerFactory.getLogger(DirectExecutionContext.class);
+
   private final Clock clock;
   private final StructuralKey<?> key;
   private final CopyOnAccessInMemoryStateInternals existingState;

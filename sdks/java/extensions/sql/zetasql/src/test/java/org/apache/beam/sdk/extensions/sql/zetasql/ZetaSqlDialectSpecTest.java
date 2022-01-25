@@ -346,8 +346,6 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     PCollection<Row> stream = execute(sql);
 
-    final Schema schema = Schema.builder().addNullableField("field1", FieldType.BOOLEAN).build();
-
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(Schema.builder().addBooleanField("f_bool").build())
@@ -361,8 +359,6 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     String sql = "SELECT 'b' IN UNNEST(['a', 'b', 'c'])";
 
     PCollection<Row> stream = execute(sql);
-
-    final Schema schema = Schema.builder().addNullableField("field1", FieldType.BOOLEAN).build();
 
     PAssert.that(stream)
         .containsInAnyOrder(
@@ -1237,7 +1233,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     thrown.expect(RuntimeException.class);
     thrown.expectMessage("Limit requires non-null count and offset");
-    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql, params);
+    zetaSQLQueryPlanner.convertToBeamRel(sql, params);
   }
 
   @Test
@@ -1250,7 +1246,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     thrown.expect(RuntimeException.class);
     thrown.expectMessage("Limit requires non-null count and offset");
-    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql, params);
+    zetaSQLQueryPlanner.convertToBeamRel(sql, params);
   }
 
   @Test
@@ -1889,7 +1885,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     PCollection<Row> stream = execute(sql);
 
-    final Schema schema = Schema.builder().addInt64Field("field").build();
+    Schema.builder().addInt64Field("field").build();
 
     PAssert.that(stream).empty();
 
@@ -2335,7 +2331,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
 
     thrown.expect(UnsupportedOperationException.class);
-    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+    BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
   }
 
   @Test
@@ -2589,7 +2585,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     thrown.expect(UnsupportedOperationException.class);
-    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    zetaSQLQueryPlanner.convertToBeamRel(sql);
   }
 
   @Test
@@ -2602,7 +2598,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     thrown.expect(UnsupportedOperationException.class);
-    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    zetaSQLQueryPlanner.convertToBeamRel(sql);
   }
 
   @Test

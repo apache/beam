@@ -25,6 +25,8 @@ import re
 import tempfile
 import unittest
 
+import pytest
+
 import apache_beam as beam
 from apache_beam.examples.complete import tfidf
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -41,6 +43,7 @@ EXPECTED_RESULTS = set([
 EXPECTED_LINE_RE = r'\(u?\'([a-z]*)\', \(\'.*([0-9]\.txt)\', (.*)\)\)'
 
 
+@pytest.mark.examples_postcommit
 class TfIdfTest(unittest.TestCase):
   def create_file(self, path, contents):
     logging.info('Creating temp file: %s', path)

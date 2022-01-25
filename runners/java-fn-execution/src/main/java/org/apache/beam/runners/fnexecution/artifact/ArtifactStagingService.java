@@ -354,7 +354,7 @@ public class ArtifactStagingService
               pendingGets = new ArrayDeque<>();
               for (RunnerApi.ArtifactInformation artifact :
                   responseWrapper.getResolveArtifactResponse().getReplacementsList()) {
-                Optional<RunnerApi.ArtifactInformation> fetched = getLocal(artifact);
+                Optional<RunnerApi.ArtifactInformation> fetched = getLocal();
                 if (fetched.isPresent()) {
                   stagedFutures
                       .get(currentEnvironment)
@@ -479,8 +479,7 @@ public class ArtifactStagingService
        * Return an alternative artifact if we do not need to get this over the artifact API, or
        * possibly at all.
        */
-      private Optional<RunnerApi.ArtifactInformation> getLocal(
-          RunnerApi.ArtifactInformation artifact) {
+      private Optional<RunnerApi.ArtifactInformation> getLocal() {
         return Optional.empty();
       }
 

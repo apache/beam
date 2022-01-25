@@ -62,7 +62,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.ImmutableN
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.MutableNetwork;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.Network;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.NetworkBuilder;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -89,7 +88,7 @@ public class InsertFetchAndFilterStreamingSideInputNodesTest {
     Pipeline p = Pipeline.create();
     PCollection<String> pc = p.apply(Create.of("a", "b", "c"));
     PCollectionView<List<String>> pcView = pc.apply(View.asList());
-    pc.apply(ParDo.of(new TestDoFn(pcView)).withSideInputs(pcView));
+    pc.apply(ParDo.of(new TestDoFn()).withSideInputs(pcView));
     RunnerApi.Pipeline pipeline = PipelineTranslation.toProto(p);
 
     Node predecessor = createParDoNode("predecessor");
@@ -104,7 +103,6 @@ public class InsertFetchAndFilterStreamingSideInputNodesTest {
     network.addEdge(predecessor, mainInput, DefaultEdge.create());
     network.addEdge(mainInput, sideInputParDo, DefaultEdge.create());
 
-    Network<Node, Edge> inputNetwork = ImmutableNetwork.copyOf(network);
     network = InsertFetchAndFilterStreamingSideInputNodes.with(pipeline).forNetwork(network);
 
     Node mainInputClone = InstructionOutputNode.create(mainInput.getInstructionOutput(), "fakeId");
@@ -136,7 +134,7 @@ public class InsertFetchAndFilterStreamingSideInputNodesTest {
   public void testSdkParDoWithoutSideInput() throws Exception {
     Pipeline p = Pipeline.create();
     PCollection<String> pc = p.apply(Create.of("a", "b", "c"));
-    pc.apply(ParDo.of(new TestDoFn(null)));
+    pc.apply(ParDo.of(new TestDoFn()));
     RunnerApi.Pipeline pipeline = PipelineTranslation.toProto(p);
 
     Node predecessor = createParDoNode("predecessor");
@@ -175,11 +173,8 @@ public class InsertFetchAndFilterStreamingSideInputNodesTest {
   }
 
   private static class TestDoFn extends DoFn<String, Iterable<String>> {
-    private final @Nullable PCollectionView<List<String>> pCollectionView;
 
-    private TestDoFn(@Nullable PCollectionView<List<String>> pCollectionView) {
-      this.pCollectionView = pCollectionView;
-    }
+    private TestDoFn() {}
 
     @ProcessElement
     public void processElement(ProcessContext context) {}

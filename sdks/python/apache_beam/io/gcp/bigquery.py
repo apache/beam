@@ -1489,7 +1489,8 @@ class BigQueryWriteFn(DoFn):
       retry_strategy=None,
       additional_bq_parameters=None,
       ignore_insert_ids=False,
-      with_batched_input=False):
+      with_batched_input=False,
+      ignore_unknown_columns=False):
     """Initialize a WriteToBigQuery transform.
 
     Args:
@@ -1533,6 +1534,11 @@ class BigQueryWriteFn(DoFn):
       with_batched_input: Whether the input has already been batched per
         destination. If not, perform best-effort batching per destination within
         a bundle.
+      ignore_unknown_columns: Accept rows that contain values that do not match
+        the schema. The unknown values are ignored. Default is False,
+        which treats unknown values as errors. See reference:
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/tabledata/insertAll
+
     """
     self.schema = schema
     self.test_client = test_client
@@ -1568,6 +1574,7 @@ class BigQueryWriteFn(DoFn):
     self.bigquery_wrapper = None
     self.streaming_api_logging_frequency_sec = (
         BigQueryWriteFn.STREAMING_API_LOGGING_FREQUENCY_SEC)
+    self.ignore_unknown_columns = ignore_unknown_columns
 
   def display_data(self):
     return {
@@ -1577,7 +1584,8 @@ class BigQueryWriteFn(DoFn):
         'create_disposition': str(self.create_disposition),
         'write_disposition': str(self.write_disposition),
         'additional_bq_parameters': str(self.additional_bq_parameters),
-        'ignore_insert_ids': str(self.ignore_insert_ids)
+        'ignore_insert_ids': str(self.ignore_insert_ids),
+        'ignore_unknown_columns': str(self.ignore_unknown_columns)
     }
 
   def _reset_rows_buffer(self):
@@ -1725,7 +1733,8 @@ class BigQueryWriteFn(DoFn):
           table_id=table_reference.tableId,
           rows=rows,
           insert_ids=insert_ids,
-          skip_invalid_rows=True)
+          skip_invalid_rows=True,
+          ignore_unknown_values=self.ignore_unknown_columns)
       self.batch_latency_metric.update((time.time() - start) * 1000)
 
       failed_rows = [rows[entry['index']] for entry in errors]
@@ -1916,7 +1925,8 @@ class WriteToBigQuery(PTransform):
       temp_file_format=None,
       ignore_insert_ids=False,
       # TODO(BEAM-11857): Switch the default when the feature is mature.
-      with_auto_sharding=False):
+      with_auto_sharding=False,
+      ignore_unknown_columns=False):
     """Initialize a WriteToBigQuery transform.
 
     Args:
@@ -2043,6 +2053,11 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         determined number of shards to write to BigQuery. This can be used for
         both FILE_LOADS and STREAMING_INSERTS. Only applicable to unbounded
         input.
+      ignore_unknown_columns: Accept rows that contain values that do not match
+        the schema. The unknown values are ignored. Default is False,
+        which treats unknown values as errors. This option is only valid for
+        method=STREAMING_INSERTS. See reference:
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/tabledata/insertAll
     """
     self._table = table
     self._dataset = dataset
@@ -2076,6 +2091,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     self.table_side_inputs = table_side_inputs or ()
     self.schema_side_inputs = schema_side_inputs or ()
     self._ignore_insert_ids = ignore_insert_ids
+    self._ignore_unknown_columns = ignore_unknown_columns
 
   # Dict/schema methods were moved to bigquery_tools, but keep references
   # here for backward compatibility.

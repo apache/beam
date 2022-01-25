@@ -129,8 +129,6 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Tests for {@link IsmSideInputReader}.
@@ -141,12 +139,12 @@ import org.slf4j.LoggerFactory;
 @RunWith(JUnit4.class)
 @SuppressWarnings({"keyfor"})
 public class IsmSideInputReaderTest {
-  private static final Logger LOG = LoggerFactory.getLogger(IsmSideInputReaderTest.class);
+
   private static final long BLOOM_FILTER_SIZE_LIMIT = 10_000;
   private static final int NUM_THREADS = 16;
   private static final DataflowPipelineOptions pipelineOptions =
       PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-  private static final Pipeline pipeline = Pipeline.create(pipelineOptions);
+
   private static final CounterSet counterFactory = new CounterSet();
   private static final BatchModeExecutionContext executionContext =
       BatchModeExecutionContext.forTesting(

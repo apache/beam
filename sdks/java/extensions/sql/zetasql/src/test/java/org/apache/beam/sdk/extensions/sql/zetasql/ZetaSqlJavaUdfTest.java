@@ -307,7 +307,7 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     thrown.expect(SqlException.class);
     thrown.expectMessage("Non-SQL functions must specify a return type");
-    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    zetaSQLQueryPlanner.convertToBeamRel(sql);
   }
 
   @Test
@@ -422,7 +422,7 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
                 "message",
                 containsString("No implementation of aggregate function nonexistent found"))));
 
-    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    zetaSQLQueryPlanner.convertToBeamRel(sql);
   }
 
   @Test

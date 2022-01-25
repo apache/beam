@@ -31,6 +31,7 @@ cachetools==4.2.4
 certifi==2021.10.8
 charset-normalizer==2.0.7
 click==8.0.3
+cloudpickle==2.0.0
 crcmod==1.7
 Cython==0.29.24
 deprecation==2.1.0

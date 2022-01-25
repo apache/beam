@@ -31,8 +31,6 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A JSON renderer for BEAM {@link Pipeline} DAG. This can help us with visualization of the Beam
@@ -58,7 +56,6 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
     SamzaIOInfo getSamzaIO();
   }
 
-  private static final Logger LOG = LoggerFactory.getLogger(PipelineJsonRenderer.class);
   private static final String OUTERMOST_NODE = "OuterMostNode";
   @Nullable private static final SamzaIOInfo SAMZA_IO_INFO = loadSamzaIOInfo();
 

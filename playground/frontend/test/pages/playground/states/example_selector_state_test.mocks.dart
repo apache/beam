@@ -23,17 +23,17 @@ import 'dart:async' as _i6;
 
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:playground/modules/editor/repository/code_repository/code_client/output_response.dart'
-    as _i4;
+as _i4;
 import 'package:playground/modules/examples/repositories/example_client/example_client.dart'
-    as _i5;
+as _i5;
 import 'package:playground/modules/examples/repositories/models/get_example_request.dart'
-    as _i8;
+as _i8;
 import 'package:playground/modules/examples/repositories/models/get_example_response.dart'
-    as _i3;
+as _i3;
 import 'package:playground/modules/examples/repositories/models/get_list_of_examples_request.dart'
-    as _i7;
+as _i7;
 import 'package:playground/modules/examples/repositories/models/get_list_of_examples_response.dart'
-    as _i2;
+as _i2;
 
 // ignore_for_file: avoid_redundant_argument_values
 // ignore_for_file: avoid_setters_without_getters
@@ -61,28 +61,25 @@ class MockExampleClient extends _i1.Mock implements _i5.ExampleClient {
   }
 
   @override
-  _i6.Future<_i2.GetListOfExampleResponse> getListOfExamples(
-          _i7.GetListOfExamplesRequestWrapper? request) =>
+  _i6.Future<_i2.GetListOfExampleResponse> getListOfExamples(_i7.GetListOfExamplesRequestWrapper? request) =>
       (super.noSuchMethod(Invocation.method(#getListOfExamples, [request]),
-              returnValue: Future<_i2.GetListOfExampleResponse>.value(
-                  _FakeGetListOfExampleResponse_0()))
-          as _i6.Future<_i2.GetListOfExampleResponse>);
+          returnValue: Future<_i2.GetListOfExampleResponse>.value(
+              _FakeGetListOfExampleResponse_0()))
+      as _i6.Future<_i2.GetListOfExampleResponse>);
 
   @override
-  _i6.Future<_i3.GetExampleResponse> getExample(
-          _i8.GetExampleRequestWrapper? request) =>
+  _i6.Future<_i3.GetExampleResponse> getExample(_i8.GetExampleRequestWrapper? request) =>
       (super.noSuchMethod(Invocation.method(#getExample, [request]),
-              returnValue: Future<_i3.GetExampleResponse>.value(
-                  _FakeGetExampleResponse_1()))
-          as _i6.Future<_i3.GetExampleResponse>);
+          returnValue: Future<_i3.GetExampleResponse>.value(
+              _FakeGetExampleResponse_1()))
+      as _i6.Future<_i3.GetExampleResponse>);
 
   @override
-  _i6.Future<_i4.OutputResponse> getExampleOutput(
-          _i8.GetExampleRequestWrapper? request) =>
+  _i6.Future<_i4.OutputResponse> getExampleOutput(_i8.GetExampleRequestWrapper? request) =>
       (super.noSuchMethod(Invocation.method(#getExampleOutput, [request]),
-              returnValue:
-                  Future<_i4.OutputResponse>.value(_FakeOutputResponse_2()))
-          as _i6.Future<_i4.OutputResponse>);
+          returnValue:
+          Future<_i4.OutputResponse>.value(_FakeOutputResponse_2()))
+      as _i6.Future<_i4.OutputResponse>);
 
   @override
   String toString() => super.toString();

@@ -43,6 +43,12 @@ const (
 
 	// RunOutputIndex is the index of the start of the run step's output
 	RunOutputIndex SubKey = "RUN_OUTPUT_INDEX"
+
+	// Logs is used to keep logs value
+	Logs SubKey = "LOGS"
+
+	// LogsIndex is the index of the start of the log
+	LogsIndex SubKey = "LOGS_INDEX"
 )
 
 // Cache is used to store states and outputs for Apache Beam pipelines that running in Playground

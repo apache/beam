@@ -22,7 +22,6 @@ import (
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/executors"
 	"beam.apache.org/playground/backend/internal/fs_tool"
-	"beam.apache.org/playground/backend/internal/validators"
 	"context"
 	"fmt"
 	"github.com/google/uuid"
@@ -37,6 +36,7 @@ import (
 )
 
 const javaConfig = "{\n  \"compile_cmd\": \"javac\",\n  \"run_cmd\": \"java\",\n  \"compile_args\": [\"-d\", \"bin\", \"-classpath\"],\n  \"run_args\": [\"-cp\", \"bin:\"]\n}"
+const fileName = "fakeFileName"
 
 var opt goleak.Option
 var cacheService cache.Cache
@@ -81,6 +81,10 @@ func teardown() {
 		panic(fmt.Errorf("error during test teardown: %s", err.Error()))
 	}
 	os.Clearenv()
+}
+
+func fakeExecutableName(uuid.UUID, string) (string, error) {
+	return fileName, nil
 }
 
 func Test_Process(t *testing.T) {
@@ -222,18 +226,6 @@ func Test_Process(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, tt.args.pipelineId, os.Getenv("APP_WORK_DIR"))
-			filePath := lc.GetAbsoluteSourceFilePath()
-			workingDir := lc.GetAbsoluteBaseFolderPath()
-
-			exec := executors.NewExecutorBuilder().
-				WithValidator().
-				WithSdkValidators(validators.GetJavaValidators(filePath)).
-				WithCompiler().
-				WithCommand(sdkEnv.ExecutorConfig.CompileCmd).
-				WithArgs(sdkEnv.ExecutorConfig.CompileArgs).
-				WithFileName(filePath).
-				WithWorkingDir(workingDir)
-
 			err := lc.CreateFolders()
 			if err != nil {
 				t.Fatalf("error during prepare folders: %s", err.Error())
@@ -249,7 +241,7 @@ func Test_Process(t *testing.T) {
 					cacheService.SetValue(ctx, pipelineId, cache.Canceled, true)
 				}(tt.args.ctx, tt.args.pipelineId)
 			}
-			Process(tt.args.ctx, cacheService, lc, exec, tt.args.pipelineId, tt.args.appEnv, tt.args.sdkEnv)
+			Process(tt.args.ctx, cacheService, lc, tt.args.pipelineId, tt.args.appEnv, tt.args.sdkEnv)
 
 			status, _ := cacheService.GetValue(tt.args.ctx, tt.args.pipelineId, cache.Status)
 			if !reflect.DeepEqual(status, tt.expectedStatus) {
@@ -446,7 +438,7 @@ func TestGetProcessingStatus(t *testing.T) {
 	}
 }
 
-func TestGetRunOutputLastIndex(t *testing.T) {
+func TestGetLastIndex(t *testing.T) {
 	defer goleak.VerifyNone(t, opt)
 	pipelineId := uuid.New()
 	incorrectConvertPipelineId := uuid.New()
@@ -463,6 +455,7 @@ func TestGetRunOutputLastIndex(t *testing.T) {
 		ctx          context.Context
 		cacheService cache.Cache
 		key          uuid.UUID
+		subKey       cache.SubKey
 		errorTitle   string
 	}
 	tests := []struct {
@@ -472,39 +465,42 @@ func TestGetRunOutputLastIndex(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			// Test case with calling GetRunOutputLastIndex with pipelineId which doesn't contain status.
+			// Test case with calling GetLastIndex with pipelineId which doesn't contain status.
 			// As a result, want to receive an error.
 			name: "get last index with incorrect pipelineId",
 			args: args{
 				ctx:          context.Background(),
 				cacheService: cacheService,
 				key:          uuid.New(),
+				subKey:       cache.RunOutputIndex,
 				errorTitle:   "",
 			},
 			want:    0,
 			wantErr: true,
 		},
 		{
-			// Test case with calling GetRunOutputLastIndex with pipelineId which contains incorrect status value in cache.
+			// Test case with calling GetLastIndex with pipelineId which contains incorrect status value in cache.
 			// As a result, want to receive an error.
 			name: "get last index with incorrect cache value",
 			args: args{
 				ctx:          context.Background(),
 				cacheService: cacheService,
 				key:          incorrectConvertPipelineId,
+				subKey:       cache.RunOutputIndex,
 				errorTitle:   "",
 			},
 			want:    0,
 			wantErr: true,
 		},
 		{
-			// Test case with calling GetRunOutputLastIndex with pipelineId which contains status.
+			// Test case with calling GetLastIndex with pipelineId which contains status.
 			// As a result, want to receive an expected last index.
 			name: "get last index with correct pipelineId",
 			args: args{
 				ctx:          context.Background(),
 				cacheService: cacheService,
 				key:          pipelineId,
+				subKey:       cache.RunOutputIndex,
 				errorTitle:   "",
 			},
 			want:    2,
@@ -513,13 +509,54 @@ func TestGetRunOutputLastIndex(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetRunOutputLastIndex(tt.args.ctx, tt.args.cacheService, tt.args.key, tt.args.errorTitle)
+			got, err := GetLastIndex(tt.args.ctx, tt.args.cacheService, tt.args.key, tt.args.subKey, tt.args.errorTitle)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("GetRunOutputLastIndex() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("GetLastIndex() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("GetRunOutputLastIndex() got = %v, want %v", got, tt.want)
+				t.Errorf("GetLastIndex() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_setJavaExecutableFile(t *testing.T) {
+	pipelineId := uuid.New()
+	lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, pipelineId, os.Getenv("APP_WORK_DIR"))
+	lc.ExecutableName = fakeExecutableName
+	executorBuilder := executors.NewExecutorBuilder().WithRunner().WithCommand("fake cmd").ExecutorBuilder
+	type args struct {
+		lc              *fs_tool.LifeCycle
+		id              uuid.UUID
+		service         cache.Cache
+		ctx             context.Context
+		executorBuilder *executors.ExecutorBuilder
+		dir             string
+	}
+	tests := []struct {
+		name string
+		args args
+		want executors.Executor
+	}{
+		{
+			name: "set executable name to runner",
+			args: args{
+				lc:              lc,
+				id:              pipelineId,
+				service:         cacheService,
+				ctx:             context.Background(),
+				executorBuilder: &executorBuilder,
+				dir:             "",
+			},
+			want: executors.NewExecutorBuilder().WithRunner().WithCommand("fake cmd").WithExecutableFileName(fileName).Build(),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := setJavaExecutableFile(tt.args.lc, tt.args.id, tt.args.service, tt.args.ctx, tt.args.executorBuilder, tt.args.dir)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("setJavaExecutableFile() = %v, want %v", got, tt.want)
 			}
 		})
 	}
