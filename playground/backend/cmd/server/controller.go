@@ -294,3 +294,15 @@ func (controller *playgroundController) GetPrecompiledObjectLogs(ctx context.Con
 	response := pb.GetPrecompiledObjectLogsResponse{Output: logs}
 	return &response, nil
 }
+
+// GetPrecompiledObjectGraph returns the graph of the compiled and run example
+func (controller *playgroundController) GetPrecompiledObjectGraph(ctx context.Context, info *pb.GetPrecompiledObjectGraphRequest) (*pb.GetPrecompiledObjectGraphResponse, error) {
+	cd := cloud_bucket.New()
+	logs, err := cd.GetPrecompiledObjectGraph(ctx, info.GetCloudPath())
+	if err != nil {
+		logger.Errorf("GetPrecompiledObjectGraph(): cloud storage error: %s", err.Error())
+		return nil, errors.InternalError("Error during getting Precompiled Object's graph", "Error with cloud connection")
+	}
+	response := pb.GetPrecompiledObjectGraphResponse{Graph: logs}
+	return &response, nil
+}
