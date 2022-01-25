@@ -182,6 +182,7 @@ abstract class BatchSpannerRead
 
     private transient SpannerAccessor spannerAccessor;
     private transient String projectId;
+    private transient ServiceCallMetric serviceCallMetric;
 
     public ReadFromPartitionFn(
         SpannerConfig config, PCollectionView<? extends Transaction> txView) {
@@ -203,11 +204,15 @@ abstract class BatchSpannerRead
       spannerAccessor.close();
     }
 
-    @ProcessElement
-    public void processElement(ProcessContext c) throws Exception {
-      ServiceCallMetric serviceCallMetric =
+    @StartBundle
+    public void startBundle() throws Exception {
+      serviceCallMetric =
           createServiceCallMetric(
               projectId, this.config.getDatabaseId().get(), this.config.getInstanceId().get());
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext c) throws Exception {
       Transaction tx = c.sideInput(txView);
 
       BatchReadOnlyTransaction batchTx =
