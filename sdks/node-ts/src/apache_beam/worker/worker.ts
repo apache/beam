@@ -30,6 +30,12 @@ import {
 
 import { MultiplexingDataChannel, IDataChannel } from "./data";
 import {
+  MultiplexingStateChannel,
+  CachingStateProvider,
+  GrpcStateProvider,
+  StateProvider,
+} from "./state";
+import {
   IOperator,
   Receiver,
   createOperator,
@@ -46,6 +52,7 @@ export class Worker {
   processBundleDescriptors: Map<string, ProcessBundleDescriptor> = new Map();
   bundleProcessors: Map<string, BundleProcessor[]> = new Map();
   dataChannels: Map<string, MultiplexingDataChannel> = new Map();
+  stateChannels: Map<string, MultiplexingStateChannel> = new Map();
 
   constructor(private id: string, private endpoints: StartWorkerRequest) {
     if (endpoints?.controlEndpoint?.url == undefined) {
@@ -66,6 +73,15 @@ export class Worker {
         await this.process(request);
       } else {
         console.log("Unknown instruction type: ", request);
+      }
+    });
+    this.controlChannel.on("end", () => {
+      console.log("Control channel closed.");
+      for (const dataChannel of this.dataChannels.values()) {
+        dataChannel.close();
+      }
+      for (const stateChannel of this.stateChannels.values()) {
+        stateChannel.close();
       }
     });
   }
@@ -143,7 +159,8 @@ export class Worker {
     } else {
       return new BundleProcessor(
         this.processBundleDescriptors.get(descriptorId)!,
-        this.getDataChannel.bind(this)
+        this.getDataChannel.bind(this),
+        this.getStateChannel.bind(this)
       );
     }
   }
@@ -153,6 +170,7 @@ export class Worker {
   }
 
   getDataChannel(endpoint: string): MultiplexingDataChannel {
+    // TODO: Is there a javascript equivalent of Python's defaultdict?
     if (!this.dataChannels.has(endpoint)) {
       this.dataChannels.set(
         endpoint,
@@ -160,6 +178,16 @@ export class Worker {
       );
     }
     return this.dataChannels.get(endpoint)!;
+  }
+
+  getStateChannel(endpoint: string): MultiplexingStateChannel {
+    if (!this.stateChannels.has(endpoint)) {
+      this.stateChannels.set(
+        endpoint,
+        new MultiplexingStateChannel(endpoint, this.id)
+      );
+    }
+    return this.stateChannels.get(endpoint)!;
   }
 
   stop() {
@@ -175,15 +203,20 @@ export class BundleProcessor {
   receivers: Map<string, Receiver> = new Map();
 
   getDataChannel: (string) => MultiplexingDataChannel;
+  getStateChannel: ((string) => MultiplexingStateChannel) | StateProvider;
   currentBundleId?: string;
+  stateProvider?: StateProvider;
 
   constructor(
     descriptor: ProcessBundleDescriptor,
     getDataChannel: (string) => MultiplexingDataChannel,
+    getStateChannel: ((string) => MultiplexingStateChannel) | StateProvider,
     root_urns = ["beam:runner:source:v1"]
   ) {
+    console.log(descriptor);
     this.descriptor = descriptor;
     this.getDataChannel = getDataChannel;
+    this.getStateChannel = getStateChannel;
 
     // TODO: Consider defering this possibly expensive deserialization lazily to the worker thread.
     const this_ = this;
@@ -224,6 +257,7 @@ export class BundleProcessor {
               descriptor,
               getReceiver,
               this_.getDataChannel,
+              this_.getStateProvider.bind(this_),
               this_.getBundleId.bind(this_)
             )
           )
@@ -243,7 +277,28 @@ export class BundleProcessor {
     this.topologicallyOrderedOperators = creationOrderedOperators.reverse();
   }
 
+  getStateProvider() {
+    if (this.stateProvider == undefined) {
+      if (typeof this.getStateChannel == "function") {
+        this.stateProvider = new CachingStateProvider(
+          new GrpcStateProvider(
+            this.getStateChannel(
+              this.descriptor.stateApiServiceDescriptor!.url
+            ),
+            this.getBundleId()
+          )
+        );
+      } else {
+        this.stateProvider = this.getStateChannel;
+      }
+    }
+    return this.stateProvider;
+  }
+
   getBundleId() {
+    if (this.currentBundleId == undefined) {
+      throw new Error("Not currently processing a bundle.");
+    }
     return this.currentBundleId!;
   }
 
@@ -263,6 +318,7 @@ export class BundleProcessor {
       await o.finishBundle();
     }
     this.currentBundleId = undefined;
+    this.stateProvider = undefined;
   }
 }
 

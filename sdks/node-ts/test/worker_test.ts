@@ -87,7 +87,7 @@ class Recording implements operators.IOperator {
   process(wvalue: WindowedValue<any>) {
     Recording.log.push(this.transformId + ".process(" + wvalue.value + ")");
     const results = this.receivers.map((receiver) => receiver.receive(wvalue));
-    if (!results.every((r) => (r == operators.NonPromise))) {
+    if (!results.every((r) => r == operators.NonPromise)) {
       throw new Error("Unexpected non-promise: " + results);
     }
     return operators.NonPromise;
@@ -119,7 +119,8 @@ class Partition implements operators.IOperator {
     if (a != operators.NonPromise) throw new Error("Unexpected promise: " + a);
     if (wvalue.value.length > 3) {
       const b = this.big.receive(wvalue);
-      if (b != operators.NonPromise) throw new Error("Unexpected promise: " + b);
+      if (b != operators.NonPromise)
+        throw new Error("Unexpected promise: " + b);
     }
     return operators.NonPromise;
   }
@@ -171,7 +172,7 @@ describe("worker module", function () {
       environments: {},
     };
     Recording.reset();
-    const processor = new worker.BundleProcessor(descriptor, null!, [
+    const processor = new worker.BundleProcessor(descriptor, null!, null!, [
       CREATE_URN,
     ]);
     await processor.process("bundle_id", 0);
@@ -213,7 +214,7 @@ describe("worker module", function () {
       environments: {},
     };
     Recording.reset();
-    const processor = new worker.BundleProcessor(descriptor, null!, [
+    const processor = new worker.BundleProcessor(descriptor, null!, null!, [
       CREATE_URN,
     ]);
     await processor.process("bundle_id", 0);

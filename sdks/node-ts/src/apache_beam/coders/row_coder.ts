@@ -1,4 +1,4 @@
-const uuid = require("uuid")
+const uuid = require("uuid");
 
 import * as runnerApi from "../proto/beam_runner_api";
 

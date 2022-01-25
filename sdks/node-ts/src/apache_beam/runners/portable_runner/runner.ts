@@ -61,12 +61,15 @@ class PortableRunnerPipelineResult implements PipelineResult {
   async waitUntilFinish(duration?: number) {
     let { state } = await this.getState();
     const start = Date.now();
+    let pollMillis = 10;
     while (!PortableRunnerPipelineResult.isTerminal(state)) {
       const now = Date.now();
       if (duration !== undefined && now - start > duration) {
         return state;
       }
 
+      pollMillis = Math.min(10000, pollMillis * 1.2);
+      await new Promise((r) => setTimeout(r, pollMillis));
       state = (await this.getState()).state;
     }
     return state;

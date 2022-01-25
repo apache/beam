@@ -56,6 +56,10 @@ export class MultiplexingDataChannel {
     });
   }
 
+  close() {
+    this.dataChannel.end();
+  }
+
   async registerConsumer(
     bundleId: string,
     transformId: string,
@@ -108,6 +112,7 @@ export class MultiplexingDataChannel {
         return Promise.resolve();
       },
       sendTimers: function (timerFamilyId: string, timers: Uint8Array) {
+        // Should never get here if we never send timers.
         throw Error("Timers not yet supported.");
       },
       close: function () {

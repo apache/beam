@@ -7,10 +7,15 @@ import {
   IterableCoder,
   KVCoder,
 } from "../src/apache_beam/coders/standard_coders";
-import { GroupBy } from "../src/apache_beam/transforms/group_and_combine";
+import {
+  GroupBy,
+  GroupGlobally,
+} from "../src/apache_beam/transforms/group_and_combine";
+import { SumFn } from "../src/apache_beam/transforms/combiners";
 import { GeneralObjectCoder } from "../src/apache_beam/coders/js_coders";
 
 import { DirectRunner } from "../src/apache_beam/runners/direct_runner";
+import { PortableRunner } from "../src/apache_beam/runners/portable_runner/runner";
 import * as testing from "../src/apache_beam/testing/assert";
 import * as windowings from "../src/apache_beam/transforms/windowings";
 import * as pardo from "../src/apache_beam/transforms/pardo";
@@ -71,6 +76,7 @@ describe("primitives module", function () {
         pcolls.b.apply(new testing.AssertDeepEqual(["banana"]));
       });
     });
+
     it("runs a map with context", async function () {
       await new DirectRunner().run((root) => {
         root
@@ -79,6 +85,35 @@ describe("primitives module", function () {
           .apply(new testing.AssertDeepEqual([101, 102, 103]));
       });
     });
+
+    it("runs a map with singleton side input", async function () {
+      //             await new PortableRunner("localhost:3333").run((root) => {
+      await new DirectRunner().run((root) => {
+        const input = root.apply(new beam.Create([1, 2, 1]));
+        const sideInput = root.apply(new beam.Create([4]));
+        input
+          .map((e, context) => e / context.side.lookup(), {
+            side: new pardo.SingletonSideInput(sideInput),
+          })
+          .apply(new testing.AssertDeepEqual([0.25, 0.5, 0.25]));
+      });
+    });
+
+    it("runs a map with a side input sharing input root", async function () {
+      await new DirectRunner().run((root) => {
+        const input = root.apply(new beam.Create([1, 2, 1]));
+        // TODO: Can this type be inferred?
+        const sideInput: beam.PCollection<{ sum: number }> = input.apply(
+          new GroupGlobally().combining((e) => e, new SumFn(), "sum")
+        );
+        input
+          .map((e, context) => e / context.side.lookup().sum, {
+            side: new pardo.SingletonSideInput(sideInput),
+          })
+          .apply(new testing.AssertDeepEqual([0.25, 0.5, 0.25]));
+      });
+    });
+
     it("runs a map with window-sensitive context", async function () {
       await new DirectRunner().run((root) => {
         root
@@ -108,6 +143,7 @@ describe("primitives module", function () {
           );
       });
     });
+
     it("runs a WindowInto", async function () {
       await new DirectRunner().run((root) => {
         root
@@ -122,6 +158,7 @@ describe("primitives module", function () {
           );
       });
     });
+
     it("runs a WindowInto IntervalWindow", async function () {
       await new DirectRunner().run((root) => {
         root
