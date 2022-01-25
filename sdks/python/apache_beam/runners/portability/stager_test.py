@@ -229,6 +229,7 @@ class StagerTest(unittest.TestCase):
     options = PipelineOptions()
 
     options.view_as(SetupOptions).save_main_session = True
+    options.view_as(SetupOptions).pickle_library = pickler.USE_DILL
     self.update_options(options)
 
     self.assertEqual([names.PICKLED_MAIN_SESSION_FILE],
