@@ -18,7 +18,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"net"
 	"testing"
 	"time"
 
@@ -39,15 +38,6 @@ func checkFlags(t *testing.T) {
 	if *integration.IoExpansionAddr == "" {
 		t.Skip("No IO expansion address provided.")
 	}
-}
-
-func findOpenPort() (int, error) {
-	listener, err := net.Listen("tcp", ":0")
-	if err != nil {
-		return 0, err
-	}
-	defer listener.Close()
-	return listener.Addr().(*net.TCPAddr).Port, nil
 }
 
 func setupTestContainer(t *testing.T, dbname, username, password string) int {
