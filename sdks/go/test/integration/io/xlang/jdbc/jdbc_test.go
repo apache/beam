@@ -18,6 +18,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net"
 	"testing"
 	"time"
 
@@ -38,6 +39,15 @@ func checkFlags(t *testing.T) {
 	if *integration.IoExpansionAddr == "" {
 		t.Skip("No IO expansion address provided.")
 	}
+}
+
+func findOpenPort() (int, error) {
+	listener, err := net.Listen("tcp", ":0")
+	if err != nil {
+		return 0, err
+	}
+	defer listener.Close()
+	return listener.Addr().(*net.TCPAddr).Port, nil
 }
 
 func setupTestContainer(t *testing.T, dbname, username, password string) int {
@@ -66,14 +76,13 @@ func setupTestContainer(t *testing.T, dbname, username, password string) int {
 	ctx := context.Background()
 	container, err := testcontainers.GenericContainer(ctx, req)
 	if err != nil {
-		t.Errorf("failed to start container: %s", err)
+		t.Fatalf("failed to start container: %s", err)
 	}
 
 	mappedPort, err := container.MappedPort(ctx, nat.Port(port))
 	if err != nil {
-		t.Errorf("failed to get container external port: %s", err)
+		t.Fatalf("failed to get container external port: %s", err)
 	}
-	p := mappedPort.Int()
 
 	url := fmt.Sprintf("postgres://%s:%s@localhost:%s/%s?sslmode=disable", username, password, mappedPort.Port(), dbname)
 	db, err := sql.Open("postgres", url)
@@ -86,7 +95,7 @@ func setupTestContainer(t *testing.T, dbname, username, password string) int {
 	if err != nil {
 		t.Fatalf("can't create table, check command and access level")
 	}
-	return p
+	return mappedPort.Int()
 }
 
 // TestJDBCIO_BasicReadWrite tests basic read and write transform from JDBC.
@@ -105,7 +114,7 @@ func TestJDBCIO_BasicReadWrite(t *testing.T) {
 	write := WritePipeline(*integration.IoExpansionAddr, tableName, "org.postgresql.Driver", jdbcUrl, username, password)
 	ptest.RunAndValidate(t, write)
 
-	read := ReadPipeline(t, *integration.IoExpansionAddr, tableName, "org.postgresql.Driver", jdbcUrl, username, password)
+	read := ReadPipeline(*integration.IoExpansionAddr, tableName, "org.postgresql.Driver", jdbcUrl, username, password)
 	ptest.RunAndValidate(t, read)
 }
 

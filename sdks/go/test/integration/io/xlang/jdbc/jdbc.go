@@ -19,7 +19,6 @@ package jdbc
 
 import (
 	"reflect"
-	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/xlang/jdbcio"
@@ -59,7 +58,7 @@ func readRows(s beam.Scope, expansionAddr, tableName, driverClassName, jdbcUrl, 
 }
 
 // ReadPipeline creates a pipeline for JDBC IO Read transform.
-func ReadPipeline(t *testing.T, expansionAddr, tableName, driverClassName, jdbcUrl, username, password string) *beam.Pipeline {
+func ReadPipeline(expansionAddr, tableName, driverClassName, jdbcUrl, username, password string) *beam.Pipeline {
 	beam.Init()
 	p, s := beam.NewPipelineWithRoot()
 	res := readRows(s, expansionAddr, tableName, driverClassName, jdbcUrl, username, password)

@@ -204,7 +204,7 @@ func ReadQuery(query string) readOption {
 	}
 }
 
-// OutputParallelization  specifies if output parallelization on.
+// OutputParallelization specifies if output parallelization is on.
 func OutputParallelization(status bool) readOption {
 	return func(pl *config) {
 		pl.OutputParallelization = &status

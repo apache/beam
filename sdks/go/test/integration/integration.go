@@ -116,6 +116,8 @@ var sparkFilters = []string{
 }
 
 var dataflowFilters = []string{
+	// The Dataflow runner doesn't work with tests using testcontainers locally.
+	"TestJDBCIO_BasicReadWrite",
 	// TODO(BEAM-11576): TestFlattenDup failing on this runner.
 	"TestFlattenDup",
 	// The Dataflow runner does not support the TestStream primitive

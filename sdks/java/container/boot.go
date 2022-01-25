@@ -138,7 +138,6 @@ func main() {
 		filepath.Join(jarsDir, "beam-sdks-java-harness.jar"),
 		filepath.Join(jarsDir, "beam-sdks-java-io-kafka.jar"),
 		filepath.Join(jarsDir, "kafka-clients.jar"),
-		filepath.Join(jarsDir, "postgresql.jar"),
 	}
 
 	var hasWorkerExperiment = strings.Contains(options, "use_staged_dataflow_worker_jar")
@@ -190,9 +189,9 @@ func main() {
 
 	disableJammAgent := strings.Contains(options, disableJammAgentOption)
 	if disableJammAgent {
-	  log.Printf("Disabling Jamm agent. Measuring object size will be inaccurate.")
+		log.Printf("Disabling Jamm agent. Measuring object size will be inaccurate.")
 	} else {
-	  args = append(args, jammAgentArgs)
+		args = append(args, jammAgentArgs)
 	}
 
 	args = append(args, "org.apache.beam.fn.harness.FnHarness")
