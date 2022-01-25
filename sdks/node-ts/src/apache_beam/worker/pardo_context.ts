@@ -11,7 +11,7 @@ import * as urns from "../internal/urns";
 import { Coder, Context as CoderContext } from "../coders/coders";
 import { GlobalWindowCoder } from "../coders/required_coders";
 import {
-  BoundedWindow,
+  Window,
   Instant,
   PaneInfo,
   GlobalWindow,
@@ -40,7 +40,7 @@ import {
 
 export class ParamProviderImpl implements ParamProvider {
   wvalue: WindowedValue<any> | undefined = undefined;
-  prefetchCallbacks: ((window: BoundedWindow) => ProcessResult)[];
+  prefetchCallbacks: ((window: Window) => ProcessResult)[];
   sideInputValues: Map<string, any> = new Map();
 
   constructor(
@@ -79,7 +79,7 @@ export class ParamProviderImpl implements ParamProvider {
 
   prefetchSideInput(
     param: SideInputParam<any, any, any>
-  ): (window: BoundedWindow) => ProcessResult {
+  ): (window: Window) => ProcessResult {
     const this_ = this;
     const stateProvider = this.getStateProvider();
     const { windowCoder, elementCoder, windowMappingFn } =
@@ -95,7 +95,7 @@ export class ParamProviderImpl implements ParamProvider {
         })()
       );
     };
-    return (window: BoundedWindow) => {
+    return (window: Window) => {
       if (isGlobal && this_.sideInputValues.has(param.sideInputId)) {
         return NonPromise;
       }
@@ -159,8 +159,8 @@ export class ParamProviderImpl implements ParamProvider {
 
 export interface SideInputInfo {
   elementCoder: Coder<any>;
-  windowCoder: Coder<BoundedWindow>;
-  windowMappingFn: (window: BoundedWindow) => BoundedWindow;
+  windowCoder: Coder<Window>;
+  windowMappingFn: (window: Window) => Window;
 }
 
 export function createSideInputInfo(
@@ -171,7 +171,7 @@ export function createSideInputInfo(
   const globalWindow = new GlobalWindow();
   const sideInputInfo: Map<string, SideInputInfo> = new Map();
   for (const [sideInputId, sideInput] of Object.entries(spec.sideInputs)) {
-    let windowMappingFn: (window: BoundedWindow) => BoundedWindow;
+    let windowMappingFn: (window: Window) => Window;
     switch (sideInput.windowMappingFn!.urn) {
       case urns.GLOBAL_WINDOW_MAPPING_FN_URN:
         windowMappingFn = (window) => globalWindow;
@@ -207,8 +207,8 @@ export function createStateKey(
   transformId: string,
   accessPattern: string,
   sideInputId: string,
-  window: BoundedWindow,
-  windowCoder: Coder<BoundedWindow>
+  window: Window,
+  windowCoder: Coder<Window>
 ): fnApi.StateKey {
   const writer = new protobufjs.Writer();
   windowCoder.encode(window, writer, CoderContext.needsDelimiters);

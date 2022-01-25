@@ -10,7 +10,7 @@ import { StateProvider } from "./state";
 import * as base from "../base";
 import * as urns from "../internal/urns";
 import { Coder, Context as CoderContext } from "../coders/coders";
-import { BoundedWindow, Instant, PaneInfo, WindowedValue } from "../values";
+import { Window, Instant, PaneInfo, WindowedValue } from "../values";
 import { DoFn, ParDoParam } from "../transforms/pardo";
 
 import {
@@ -458,7 +458,7 @@ class AssignWindowsParDoOperator implements IOperator {
   process(wvalue: WindowedValue<any>) {
     const newWindowsOnce = this.windowFn.assignWindows(wvalue.timestamp);
     if (newWindowsOnce.length > 0) {
-      const newWindows: BoundedWindow[] = [];
+      const newWindows: Window[] = [];
       for (var i = 0; i < wvalue.windows.length; i++) {
         newWindows.push(...newWindowsOnce);
       }

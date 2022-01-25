@@ -8,7 +8,7 @@ import { BytesCoder, IterableCoder, KVCoder } from "./coders/standard_coders";
 import { GeneralObjectCoder } from "./coders/js_coders";
 
 import { PipelineOptions } from "./options/pipeline_options";
-import { KV, BoundedWindow } from "./values";
+import { KV, Window } from "./values";
 import { WindowedValue } from ".";
 
 import { Root, PCollection, PValue, flattenPValue } from "./pvalue";

@@ -11,7 +11,7 @@ import {
 import { PipelineContext } from "../base";
 import Long from "long";
 import {
-  BoundedWindow,
+  Window,
   GlobalWindow,
   Instant,
   IntervalWindow,
@@ -360,7 +360,7 @@ globalRegistry().register(LengthPrefixedCoder.URN, LengthPrefixedCoder);
 
 ////////// Windowing-related coders. //////////
 
-export class FullWindowedValueCoder<T, W extends BoundedWindow>
+export class FullWindowedValueCoder<T, W extends Window>
   implements Coder<WindowedValue<T>>
 {
   static URN: string = "beam:coder:windowed_value:v1";
@@ -415,7 +415,7 @@ export class FullWindowedValueCoder<T, W extends BoundedWindow>
     const value = this.elementCoder.decode(reader, context);
     return {
       value: value,
-      windows: <Array<BoundedWindow>>windows,
+      windows: <Array<Window>>windows,
       pane: pane,
       timestamp: timestamp,
     };

@@ -16,7 +16,7 @@ import { createStateKey } from "../worker/pardo_context";
 import * as state from "../worker/state";
 import { ParDo } from "../transforms/pardo";
 import {
-  BoundedWindow,
+  Window,
   GlobalWindow,
   Instant,
   PaneInfo,
@@ -310,7 +310,7 @@ class CollectSideOperator implements operators.IOperator {
   sideInputId: string;
 
   receiver: operators.Receiver;
-  windowCoder: Coder<BoundedWindow>;
+  windowCoder: Coder<Window>;
   elementCoder: Coder<any>;
 
   constructor(
