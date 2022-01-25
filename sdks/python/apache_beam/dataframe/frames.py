@@ -43,6 +43,7 @@ from typing import Optional
 
 import numpy as np
 import pandas as pd
+from pandas._libs import lib
 from pandas.core.groupby.generic import DataFrameGroupBy
 
 from apache_beam.dataframe import expressions
@@ -638,7 +639,6 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     order-sensitive. It cannot be specified.
 
     If ``limit`` is specified this operation is not parallelizable."""
-    from pandas._libs import lib
     if method is not None and not isinstance(to_replace,
                                              dict) and value is lib.no_default:
       # pandas only relies on method if to_replace is not a dictionary, and
