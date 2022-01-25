@@ -11,7 +11,13 @@ import * as base from "../base";
 import * as urns from "../internal/urns";
 import { Coder, Context as CoderContext } from "../coders/coders";
 import { GlobalWindowCoder } from "../coders/required_coders";
-import { BoundedWindow, Instant, PaneInfo, WindowedValue } from "../values";
+import {
+  BoundedWindow,
+  Instant,
+  PaneInfo,
+  GlobalWindow,
+  WindowedValue,
+} from "../values";
 import {
   DoFn,
   ParDoParam,
@@ -20,13 +26,32 @@ import {
 } from "../transforms/pardo";
 
 // Trying to get some of https://github.com/microsoft/TypeScript/issues/8240
-export class NonPromiseClass {
+// TODO: Is there a more idiomatic way to get a singleton?
+class NonPromiseClass {
   static INSTANCE = new NonPromiseClass();
   private constructor() {}
 }
 export const NonPromise = NonPromiseClass.INSTANCE;
 
 export type ProcessResult = NonPromiseClass | Promise<void>;
+
+class ProcessResultBuilder {
+  promises: Promise<void>[] = [];
+  add(result: ProcessResult) {
+    if (result != NonPromise) {
+      this.promises.push(result as Promise<void>);
+    }
+  }
+  build(): ProcessResult {
+    if (this.promises.length == 0) {
+      return NonPromise;
+    } else if (this.promises.length == 1) {
+      return this.promises[0];
+    } else {
+      return Promise.all(this.promises).then(() => null);
+    }
+  }
+}
 
 export interface IOperator {
   startBundle: () => Promise<void>;
@@ -44,20 +69,11 @@ export class Receiver {
     if (this.operators.length == 1) {
       return this.operators[0].process(wvalue);
     } else {
-      const promises: Promise<void>[] = [];
+      const result = new ProcessResultBuilder();
       for (const operator of this.operators) {
-        const maybePromise = operator.process(wvalue);
-        if (maybePromise != NonPromise) {
-          promises.push(maybePromise as Promise<void>);
-        }
+        result.add(operator.process(wvalue));
       }
-      if (promises.length == 0) {
-        return NonPromise;
-      } else if (promises.length == 1) {
-        return promises[0];
-      } else {
-        return Promise.all(promises).then(() => null);
-      }
+      return result.build();
     }
   }
 }
@@ -306,7 +322,21 @@ class GenericParDoOperator implements IOperator {
     this.doFn = payload.doFn;
     this.originalContext = payload.context;
     this.getStateProvider = operatorContext.getStateProvider;
+    const globalWindow = new GlobalWindow();
     for (const [sideInputId, sideInput] of Object.entries(spec.sideInputs)) {
+      let windowMappingFn: (window: BoundedWindow) => BoundedWindow;
+      switch (sideInput.windowMappingFn!.urn) {
+        case urns.GLOBAL_WINDOW_MAPPING_FN_URN:
+          windowMappingFn = (window) => globalWindow;
+          break;
+        case urns.IDENTITY_WINDOW_MAPPING_FN_URN:
+          windowMappingFn = (window) => window;
+          break;
+        default:
+          throw new Error(
+            "Unsupported window mapping fn: " + sideInput.windowMappingFn!.urn
+          );
+      }
       const sidePColl =
         operatorContext.descriptor.pcollections[
           transformProto.inputs[sideInputId]
@@ -322,7 +352,7 @@ class GenericParDoOperator implements IOperator {
         windowCoder: operatorContext.pipelineContext.getCoder(
           windowingStrategy.windowCoderId
         ),
-        windowMappingFn: (window) => window,
+        windowMappingFn: windowMappingFn,
       });
     }
   }
@@ -342,25 +372,18 @@ class GenericParDoOperator implements IOperator {
   process(wvalue: WindowedValue<any>) {
     if (this.augmentedContext && wvalue.windows.length != 1) {
       // We need to process each window separately.
-      const promises: Promise<void>[] = [];
+      const result = new ProcessResultBuilder();
       for (const window of wvalue.windows) {
-        const maybePromise = this.process({
-          value: wvalue.value,
-          windows: [window],
-          pane: wvalue.pane,
-          timestamp: wvalue.timestamp,
-        });
-        if (maybePromise != NonPromise) {
-          promises.push(maybePromise as Promise<void>);
-        }
+        result.add(
+          this.process({
+            value: wvalue.value,
+            windows: [window],
+            pane: wvalue.pane,
+            timestamp: wvalue.timestamp,
+          })
+        );
       }
-      if (promises.length == 0) {
-        return NonPromise;
-      } else if (promises.length == 1) {
-        return promises[0];
-      } else {
-        return Promise.all(promises).then(() => null);
-      }
+      return result.build();
     }
 
     const updateResult = this.paramProvider.update(wvalue);
@@ -374,28 +397,19 @@ class GenericParDoOperator implements IOperator {
       if (!doFnOutput) {
         return NonPromise;
       }
-      // promises logic inlined as it's performance critical
-      // TODO: Actually benchmark.
-      const promises: Promise<void>[] = [];
+      const result = new ProcessResultBuilder();
       for (const element of doFnOutput) {
-        const maybePromise = this_.receiver.receive({
-          value: element,
-          windows: wvalue.windows,
-          pane: wvalue.pane,
-          timestamp: wvalue.timestamp,
-        });
-        if (maybePromise != NonPromise) {
-          promises.push(maybePromise as Promise<void>);
-        }
+        result.add(
+          this_.receiver.receive({
+            value: element,
+            windows: wvalue.windows,
+            pane: wvalue.pane,
+            timestamp: wvalue.timestamp,
+          })
+        );
       }
       this_.paramProvider.update(undefined);
-      if (promises.length == 0) {
-        return NonPromise;
-      } else if (promises.length == 1) {
-        return promises[0];
-      } else {
-        return Promise.all(promises).then(() => null);
-      }
+      return result.build();
     }
 
     if (updateResult == NonPromise) {
@@ -551,20 +565,11 @@ class ParamProviderImpl implements ParamProvider {
     if (this.prefetchCallbacks.length == 0) {
       return NonPromise;
     } else {
-      const promises: Promise<void>[] = [];
+      const result = new ProcessResultBuilder();
       for (const cb of this.prefetchCallbacks) {
-        const result = cb(wvalue!.windows[0]);
-        if (result != NonPromise) {
-          promises.push(result as Promise<void>);
-        }
+        result.add(cb(wvalue!.windows[0]));
       }
-      if (promises.length == 0) {
-        return NonPromise;
-      } else if (promises.length == 1) {
-        return promises[0];
-      } else {
-        return Promise.all(promises).then(() => null);
-      }
+      return result.build();
     }
   }
 

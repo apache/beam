@@ -32,7 +32,7 @@ export class DirectRunner extends Runner {
   static inMemoryStatesRefs: Map<string, InMemoryStateProvider> = new Map();
 
   async runPipeline(p): Promise<PipelineResult> {
-    console.dir(p.proto, { depth: null });
+    // console.dir(p.proto, { depth: null });
 
     const stateProvider = new InMemoryStateProvider();
     const stateCacheRef = uuid.v4();
@@ -413,7 +413,6 @@ class InMemoryStateProvider implements state.StateProvider {
     stateKey: fnApi.StateKey,
     decode: (data: Uint8Array) => T
   ): state.MaybePromise<T> {
-    console.log("get");
     return {
       type: "value",
       value: decode(state.Uint8ArrayConcat(this.getStateEntry(stateKey))),
@@ -421,7 +420,6 @@ class InMemoryStateProvider implements state.StateProvider {
   }
 
   appendState(stateKey: fnApi.StateKey, encodedData: Uint8Array) {
-    console.log("append");
     this.getStateEntry(stateKey).push(encodedData);
   }
 
@@ -432,7 +430,6 @@ class InMemoryStateProvider implements state.StateProvider {
     if (!this.chunks.has(cacheKey)) {
       this.chunks.set(cacheKey, []);
     }
-    console.log("getStateEntry", cacheKey, stateKey, this.chunks);
     return this.chunks.get(cacheKey)!;
   }
 }

@@ -109,8 +109,6 @@ on a portable runner) but the following big-ticket items remain.
 
 * API
 
-  * Side inputs are not yet supported.
-
   * There are several TODOs of minor features or design decisions to finalize.
 
   * Advanced features like metrics, state, timers, and SDF.

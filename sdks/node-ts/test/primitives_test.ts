@@ -21,51 +21,7 @@ import * as windowings from "../src/apache_beam/transforms/windowings";
 import * as pardo from "../src/apache_beam/transforms/pardo";
 
 describe("primitives module", function () {
-  describe("applies basic transforms", function () {
-    // TODO: test output with direct runner.
-    it("runs a basic Impulse expansion", function () {
-      var p = new beam.Pipeline();
-      var res = new beam.Root(p).apply(new beam.Impulse());
 
-      assert.equal(res.type, "pcollection");
-      assert.deepEqual(p.context.getPCollectionCoder(res), new BytesCoder());
-    });
-    it("runs a ParDo expansion", function () {
-      var p = new beam.Pipeline();
-      var res = new beam.Root(p)
-        .apply(new beam.Impulse())
-        .map(function (v: any) {
-          return v * 2;
-        })
-        .map(function (v: number) {
-          return v * 4;
-        });
-
-      assert.deepEqual(
-        p.context.getPCollectionCoder(res),
-        new GeneralObjectCoder()
-      );
-      assert.equal(res.type, "pcollection");
-    });
-    // why doesn't map need types here?
-    it("runs a GroupBy expansion", function () {
-      var p = new beam.Pipeline();
-      var res = new beam.Root(p)
-        .apply(new beam.Impulse())
-        .map(function (v) {
-          return { name: "pablo", lastName: "wat" };
-        })
-        .apply(new GroupBy("lastName"));
-
-      assert.deepEqual(
-        p.context.getPCollectionCoder(res),
-        new KVCoder(
-          new GeneralObjectCoder(),
-          new IterableCoder(new GeneralObjectCoder())
-        )
-      );
-    });
-  });
   describe("runs a basic transforms", function () {
     it("runs a Splitter", async function () {
       await new DirectRunner().run((root) => {
@@ -175,4 +131,51 @@ describe("primitives module", function () {
       });
     });
   });
+
+  describe("applies basic transforms", function () {
+    // TODO: test output with direct runner.
+    it("runs a basic Impulse expansion", function () {
+      var p = new beam.Pipeline();
+      var res = new beam.Root(p).apply(new beam.Impulse());
+
+      assert.equal(res.type, "pcollection");
+      assert.deepEqual(p.context.getPCollectionCoder(res), new BytesCoder());
+    });
+    it("runs a ParDo expansion", function () {
+      var p = new beam.Pipeline();
+      var res = new beam.Root(p)
+        .apply(new beam.Impulse())
+        .map(function (v: any) {
+          return v * 2;
+        })
+        .map(function (v: number) {
+          return v * 4;
+        });
+
+      assert.deepEqual(
+        p.context.getPCollectionCoder(res),
+        new GeneralObjectCoder()
+      );
+      assert.equal(res.type, "pcollection");
+    });
+    // why doesn't map need types here?
+    it("runs a GroupBy expansion", function () {
+      var p = new beam.Pipeline();
+      var res = new beam.Root(p)
+        .apply(new beam.Impulse())
+        .map(function (v) {
+          return { name: "pablo", lastName: "wat" };
+        })
+        .apply(new GroupBy("lastName"));
+
+      assert.deepEqual(
+        p.context.getPCollectionCoder(res),
+        new KVCoder(
+          new GeneralObjectCoder(),
+          new IterableCoder(new GeneralObjectCoder())
+        )
+      );
+    });
+  });
+
 });

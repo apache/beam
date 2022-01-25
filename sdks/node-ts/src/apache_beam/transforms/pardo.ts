@@ -50,29 +50,42 @@ export class ParDo<InputT, OutputT, ContextT = undefined> extends PTransform<
     transformProto: runnerApi.PTransform,
     input: PCollection<InputT>
   ) {
-    // Extract side inputs.
+    // Extract and populate side inputs from the context.
     var context;
     const sideInputs = {};
     if (typeof this.context == "object") {
       context = Object.create(this.context as Object);
+      const components = pipeline.context.components;
       for (const [name, value] of Object.entries(this.context)) {
         if (value instanceof SideInputParam) {
           const inputName = "side." + name;
           transformProto.inputs[inputName] = value.pcoll.getId();
           context[name] = copySideInputWithId(value, inputName);
+          const mainWindowingStrategyId =
+            components.pcollections[input.getId()].windowingStrategyId;
+          const sideWindowingStrategyId =
+            components.pcollections[transformProto.inputs[inputName]]
+              .windowingStrategyId;
+          const sideWindowingStrategy =
+            components.windowingStrategies[sideWindowingStrategyId];
+          const isGlobalSide =
+            sideWindowingStrategy.windowFn!.urn ==
+            "beam:window_fn:global_windows:v1";
           sideInputs[inputName] = {
             accessPattern: {
               urn: value.accessor.accessPattern,
               payload: new Uint8Array(),
             },
-            // TODO: The viewFn is stored in the side input object. Unclear what benefit there is to putting it here.
+            // TODO: The viewFn is stored in the side input object.
+            // Unclear what benefit there is to putting it here.
             viewFn: { urn: "unused", payload: new Uint8Array() },
             // TODO: Possibly place this in the accessor.
-            // Default should be mapping of endpoint to window according to the
-            // windowFn of the side input PCollection.
-            // TODO: In the short term, at least check that they agree.
             windowMappingFn: {
-              urn: "beam:window_mapping_fn:identity:v1",
+              urn: isGlobalSide
+                ? urns.GLOBAL_WINDOW_MAPPING_FN_URN
+                : mainWindowingStrategyId == sideWindowingStrategyId
+                ? urns.IDENTITY_WINDOW_MAPPING_FN_URN
+                : urns.ASSIGN_MAX_TIMESTAMP_WINDOW_MAPPING_FN_URN,
               value: new Uint8Array(),
             },
           };
@@ -84,6 +97,7 @@ export class ParDo<InputT, OutputT, ContextT = undefined> extends PTransform<
       context = this.context;
     }
 
+    // Now finally construct the proto.
     transformProto.spec = runnerApi.FunctionSpec.create({
       urn: ParDo.urn,
       payload: runnerApi.ParDoPayload.toBinary(
@@ -102,6 +116,7 @@ export class ParDo<InputT, OutputT, ContextT = undefined> extends PTransform<
 
     // For the ParDo output coder, we use a GeneralObjectCoder, which is a Javascript-specific
     // coder to encode the various types that exist in JS.
+    // TODO: Should there be a way to specify, or better yet infer, this?
     return pipeline.createPCollectionInternal<OutputT>(
       new GeneralObjectCoder()
     );
@@ -156,10 +171,12 @@ export class Split<T> extends PTransform<
   }
 }
 
-export interface ParamProvider {
-  provide<T>(param: ParDoParam<T>): T;
-}
-
+/*
+ * This is the root class of special parameters that can be provided in the
+ * context of a map or DoFn.process method.  At runtime, one can invoke the
+ * special `lookup` method to retrieve the relevant value associated with the
+ * currently-being-processed element.
+ */
 export abstract class ParDoParam<T> {
   readonly parDoParamName: string;
 
@@ -177,6 +194,20 @@ export abstract class ParDoParam<T> {
     }
 
     return this.provider.provide(this);
+  }
+}
+
+/**
+ * This is the magic class that wires up the ParDoParams to their values
+ * at runtime.
+ */
+export interface ParamProvider {
+  provide<T>(param: ParDoParam<T>): T;
+}
+
+export class WindowParam extends ParDoParam<BoundedWindow> {
+  constructor() {
+    super("window");
   }
 }
 
@@ -210,7 +241,7 @@ export class SideInputParam<
     this.accessor = accessor;
   }
 
-  // Internal.
+  // Internal. Should match the id of the side input in the proto.
   // TODO: Consistency between name and id.
   sideInputId: string;
 }
@@ -256,12 +287,7 @@ export class SingletonSideInput<T> extends SideInputParam<T, Iterable<T>, T> {
   }
 }
 
-export class WindowParam extends ParDoParam<BoundedWindow> {
-  constructor() {
-    super("window");
-  }
-}
+// TODO: Map side inputs.
 
 // TODO: Add providers for timestamp, paneinfo, state, timers,
 // restriction trackers, counters, etc.
-// TODO: Put side inputs here too.

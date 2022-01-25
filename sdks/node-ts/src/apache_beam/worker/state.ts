@@ -43,12 +43,6 @@ export class CachingStateProvider implements StateProvider {
     const cacheKey = Buffer.from(fnApi.StateKey.toBinary(stateKey)).toString(
       "base64"
     );
-    console.log(
-      "Cached get",
-      cacheKey,
-      this.cache.has(cacheKey),
-      this.cache.get(cacheKey)
-    );
     if (this.cache.has(cacheKey)) {
       return this.cache.get(cacheKey)!;
     } else {
@@ -58,7 +52,6 @@ export class CachingStateProvider implements StateProvider {
         result = {
           type: "promise",
           promise: result.promise.then((value) => {
-            console.log("replacing", cacheKey, value);
             this_.cache.set(cacheKey, { type: "value", value });
             return value;
           }),

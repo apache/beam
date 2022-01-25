@@ -213,7 +213,6 @@ export class BundleProcessor {
     getStateChannel: ((string) => MultiplexingStateChannel) | StateProvider,
     root_urns = ["beam:runner:source:v1"]
   ) {
-    console.log(descriptor);
     this.descriptor = descriptor;
     this.getDataChannel = getDataChannel;
     this.getStateChannel = getStateChannel;
