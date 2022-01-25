@@ -5,7 +5,7 @@ import { GeneralObjectCoder } from "../coders/js_coders";
 import { PCollection } from "../pvalue";
 import { Pipeline, fakeSeralize } from "../base";
 import { PTransform } from "./transform";
-import { BoundedWindow, WindowedValue } from "../values";
+import { Window, WindowedValue } from "../values";
 
 export class DoFn<InputT, OutputT, ContextT = undefined> {
   *process(element: InputT, context: ContextT): Iterable<OutputT> | void {
@@ -205,7 +205,7 @@ export interface ParamProvider {
   provide<T>(param: ParDoParam<T>): T;
 }
 
-export class WindowParam extends ParDoParam<BoundedWindow> {
+export class WindowParam extends ParDoParam<Window> {
   constructor() {
     super("window");
   }

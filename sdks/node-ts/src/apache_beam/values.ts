@@ -7,17 +7,17 @@ export type KV<K, V> = {
 
 export type Instant = Long;
 
-export interface BoundedWindow {
+export interface Window {
   maxTimestamp(): Instant;
 }
 
-export class GlobalWindow implements BoundedWindow {
+export class GlobalWindow implements Window {
   maxTimestamp(): Instant {
     return Long.fromValue("9223371950454775"); // TODO: Pull constant out of proto, or at least as a constant elsewhere.
   }
 }
 
-export class IntervalWindow implements BoundedWindow {
+export class IntervalWindow implements Window {
   constructor(public start: Instant, public end: Instant) {}
 
   maxTimestamp() {
@@ -27,7 +27,7 @@ export class IntervalWindow implements BoundedWindow {
 
 export interface WindowedValue<T> {
   value: T;
-  windows: Array<BoundedWindow>;
+  windows: Array<Window>;
   pane: PaneInfo;
   timestamp: Instant;
 }

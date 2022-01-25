@@ -6,7 +6,7 @@ import { BytesCoder, InstantCoder } from "./required_coders";
 import { PipelineContext } from "../base";
 import Long from "long";
 import {
-  BoundedWindow,
+  Window,
   Instant,
   IntervalWindow,
   KV,

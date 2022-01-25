@@ -3,13 +3,13 @@ import * as urns from "../internal/urns";
 
 import { PTransform } from "./transform";
 import { Coder } from "../coders/coders";
-import { BoundedWindow } from "../values";
+import { Window } from "../values";
 import { PCollection } from "../pvalue";
 import { Pipeline } from "../internal/pipeline";
 import { ParDo } from "./pardo";
 import { fakeSeralize } from "../base";
 
-export interface WindowFn<W extends BoundedWindow> {
+export interface WindowFn<W extends Window> {
   assignWindows: (Instant) => W[];
   windowCoder: () => Coder<W>;
   toProto: () => runnerApi.FunctionSpec;
@@ -17,7 +17,7 @@ export interface WindowFn<W extends BoundedWindow> {
   assignsToOneWindow: () => boolean;
 }
 
-export class WindowInto<T, W extends BoundedWindow> extends PTransform<
+export class WindowInto<T, W extends Window> extends PTransform<
   PCollection<T>,
   PCollection<T>
 > {
