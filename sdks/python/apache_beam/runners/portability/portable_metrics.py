@@ -63,9 +63,5 @@ def from_monitoring_infos(monitoring_info_list, user_metrics_only=False):
 
 def _create_metric_key(monitoring_info):
   step_name = monitoring_infos.get_step_name(monitoring_info)
-  if not step_name:
-    raise ValueError(
-        'Failed to deduce step_name from MonitoringInfo: {}'.format(
-            monitoring_info))
   namespace, name = monitoring_infos.parse_namespace_and_name(monitoring_info)
   return MetricKey(step_name, MetricName(namespace, name))

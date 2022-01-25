@@ -37,6 +37,7 @@ dependencies {
   implementation library.java.aws_java_sdk2_dynamodb
   implementation library.java.aws_java_sdk2_kinesis
   implementation library.java.aws_java_sdk2_sdk_core
+  implementation library.java.aws_java_sdk2_aws_core
   implementation library.java.aws_java_sdk2_sns
   implementation library.java.aws_java_sdk2_sqs
   implementation library.java.aws_java_sdk2_s3
@@ -61,7 +62,7 @@ dependencies {
   testImplementation library.java.mockito_core
   testImplementation library.java.guava_testlib
   testImplementation library.java.junit
-  testImplementation 'org.elasticmq:elasticmq-rest-sqs_2.12:0.15.6'
+  testImplementation 'org.elasticmq:elasticmq-rest-sqs_2.12:0.15.6' // later versions conflict with s3mock
   testImplementation library.java.hamcrest
   testImplementation library.java.powermock
   testImplementation library.java.powermock_mockito

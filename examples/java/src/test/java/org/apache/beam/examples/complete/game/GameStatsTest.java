@@ -17,6 +17,14 @@
  */
 package org.apache.beam.examples.complete.game;
 
+// beam-playground:
+//   name: GameStatsTest
+//   description: Unit-test for the GameStats example.
+//   multifile: false
+//   categories:
+//     - Testing
+//     - Filtering
+
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;

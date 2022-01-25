@@ -40,12 +40,12 @@ import (
 )
 
 const (
-	javaConfig     = "{\n  \"compile_cmd\": \"javac\",\n  \"run_cmd\": \"java\",\n  \"test_cmd\": \"java\",\n  \"compile_args\": [\n    \"-d\",\n    \"bin\",\n    \"-classpath\"\n  ],\n  \"run_args\": [\n    \"-cp\",\n    \"bin:\"\n  ],\n  \"test_args\": [\n    \"-cp\",\n    \"bin:\",\n    \"JUnit\"\n  ]\n}"
-	pythonConfig   = "{\n  \"compile_cmd\": \"\",\n  \"run_cmd\": \"python3\",\n  \"compile_args\": [],\n  \"run_args\": []\n}"
-	goConfig       = "{\n  \"compile_cmd\": \"go\",\n  \"run_cmd\": \"\",\n  \"compile_args\": [\n    \"build\",\n    \"-o\",\n    \"bin\"\n  ],\n  \"run_args\": [\n  ]\n}"
-	fileName       = "fakeFileName"
-	baseFileFolder = "executable_files"
-	configFolder   = "configs"
+	javaConfig      = "{\n  \"compile_cmd\": \"javac\",\n  \"run_cmd\": \"java\",\n  \"test_cmd\": \"java\",\n  \"compile_args\": [\n    \"-d\",\n    \"bin\",\n    \"-classpath\"\n  ],\n  \"run_args\": [\n    \"-cp\",\n    \"bin:\"\n  ],\n  \"test_args\": [\n    \"-cp\",\n    \"bin:\",\n    \"JUnit\"\n  ]\n}"
+	pythonConfig    = "{\n  \"compile_cmd\": \"\",\n  \"run_cmd\": \"python3\",\n  \"compile_args\": [],\n  \"run_args\": []\n}"
+	goConfig        = "{\n  \"compile_cmd\": \"go\",\n  \"run_cmd\": \"\",\n  \"compile_args\": [\n    \"build\",\n    \"-o\",\n    \"bin\"\n  ],\n  \"run_args\": [\n  ]\n}"
+	fileName        = "fakeFileName"
+	pipelinesFolder = "executable_files"
+	configFolder    = "configs"
 )
 
 var opt goleak.Option
@@ -86,15 +86,11 @@ func teardown() {
 	if err != nil {
 		panic(fmt.Errorf("error during test teardown: %s", err.Error()))
 	}
-	err = os.RemoveAll(baseFileFolder)
+	err = os.RemoveAll(pipelinesFolder)
 	if err != nil {
 		panic(fmt.Errorf("error during test teardown: %s", err.Error()))
 	}
 	os.Clearenv()
-}
-
-func fakeExecutableName(uuid.UUID, string) (string, error) {
-	return fileName, nil
 }
 
 func Test_Process(t *testing.T) {
@@ -172,7 +168,7 @@ func Test_Process(t *testing.T) {
 			code:                  "MOCK_CODE",
 			cancelFunc:            false,
 			expectedStatus:        pb.Status_STATUS_COMPILE_ERROR,
-			expectedCompileOutput: "error: exit status 1, output: %s:1: error: reached end of file while parsing\nMOCK_CODE\n^\n1 error\n",
+			expectedCompileOutput: "error: exit status 1\noutput: %s:1: error: reached end of file while parsing\nMOCK_CODE\n^\n1 error\n",
 			expectedRunOutput:     nil,
 			expectedRunError:      nil,
 			args: args{
@@ -193,7 +189,7 @@ func Test_Process(t *testing.T) {
 			expectedStatus:        pb.Status_STATUS_RUN_ERROR,
 			expectedCompileOutput: "",
 			expectedRunOutput:     "",
-			expectedRunError:      "error: exit status 1, output: Exception in thread \"main\" java.lang.ArithmeticException: / by zero\n\tat HelloWorld.main(%s.java:3)\n",
+			expectedRunError:      "error: exit status 1\noutput: Exception in thread \"main\" java.lang.ArithmeticException: / by zero\n\tat HelloWorld.main(%s.java:3)\n",
 			args: args{
 				ctx:             context.Background(),
 				appEnv:          appEnvs,
@@ -242,13 +238,13 @@ func Test_Process(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, tt.args.pipelineId, os.Getenv("APP_WORK_DIR"))
+			lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, tt.args.pipelineId, filepath.Join(os.Getenv("APP_WORK_DIR"), pipelinesFolder))
 			err := lc.CreateFolders()
 			if err != nil {
 				t.Fatalf("error during prepare folders: %s", err.Error())
 			}
 			if tt.createExecFile {
-				_, _ = lc.CreateSourceCodeFile(tt.code)
+				_ = lc.CreateSourceCodeFile(tt.code)
 			}
 			if err = utils.SetToCache(tt.args.ctx, cacheService, tt.args.pipelineId, cache.Canceled, false); err != nil {
 				t.Fatal("error during set cancel flag to cache")
@@ -269,7 +265,7 @@ func Test_Process(t *testing.T) {
 
 			compileOutput, _ := cacheService.GetValue(tt.args.ctx, tt.args.pipelineId, cache.CompileOutput)
 			if tt.expectedCompileOutput != nil && strings.Contains(tt.expectedCompileOutput.(string), "%s") {
-				tt.expectedCompileOutput = fmt.Sprintf(tt.expectedCompileOutput.(string), lc.GetAbsoluteSourceFilePath())
+				tt.expectedCompileOutput = fmt.Sprintf(tt.expectedCompileOutput.(string), lc.Paths.AbsoluteSourceFilePath)
 			}
 			if !reflect.DeepEqual(compileOutput, tt.expectedCompileOutput) {
 				t.Errorf("processCode() set compileOutput: %s, but expectes: %s", compileOutput, tt.expectedCompileOutput)
@@ -532,64 +528,7 @@ func TestGetLastIndex(t *testing.T) {
 	}
 }
 
-func Test_setJavaExecutableFile(t *testing.T) {
-	pipelineId := uuid.New()
-	lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, pipelineId, os.Getenv("APP_WORK_DIR"))
-	lc.ExecutableName = fakeExecutableName
-	executorBuilder := executors.NewExecutorBuilder().WithRunner().WithCommand("fake cmd").ExecutorBuilder
-	type args struct {
-		lc              *fs_tool.LifeCycle
-		id              uuid.UUID
-		service         cache.Cache
-		ctx             context.Context
-		executorBuilder *executors.ExecutorBuilder
-		dir             string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    executors.Executor
-		wantErr bool
-	}{
-		{
-			name: "set executable name to runner",
-			args: args{
-				lc:              lc,
-				id:              pipelineId,
-				service:         cacheService,
-				ctx:             context.Background(),
-				executorBuilder: &executorBuilder,
-				dir:             "",
-			},
-			want: executors.NewExecutorBuilder().
-				WithExecutableFileName(fileName).
-				WithRunner().
-				WithCommand("fake cmd").
-				WithTestRunner().
-				Build(),
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := setJavaExecutableFile(tt.args.lc, tt.args.id, tt.args.service, tt.args.ctx, tt.args.executorBuilder, tt.args.dir)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("setJavaExecutableFile() error = %v, wantErr %v", err, tt.wantErr)
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("setJavaExecutableFile() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func Test_getRunOrTestCmd(t *testing.T) {
-	unitTests := sync.Map{}
-	unitTests.Store(validators.UnitTestValidatorName, true)
-
-	notUnitTests := sync.Map{}
-	notUnitTests.Store(validators.UnitTestValidatorName, false)
-
 	runEx := executors.NewExecutorBuilder().
 		WithRunner().
 		WithCommand("runCommand").
@@ -607,7 +546,7 @@ func Test_getRunOrTestCmd(t *testing.T) {
 	wantTestExec := exec.CommandContext(context.Background(), "testCommand", "arg1", "")
 
 	type args struct {
-		valResult      *sync.Map
+		isUnitTest     bool
 		executor       *executors.Executor
 		ctxWithTimeout context.Context
 	}
@@ -621,7 +560,7 @@ func Test_getRunOrTestCmd(t *testing.T) {
 			//Get cmd objects with set run executor
 			name: "get run cmd",
 			args: args{
-				valResult:      &notUnitTests,
+				isUnitTest:     false,
 				executor:       &runEx,
 				ctxWithTimeout: context.Background(),
 			},
@@ -631,7 +570,7 @@ func Test_getRunOrTestCmd(t *testing.T) {
 			//Get cmd objects with set test executor
 			name: "get test cmd",
 			args: args{
-				valResult:      &unitTests,
+				isUnitTest:     true,
 				executor:       &testEx,
 				ctxWithTimeout: context.Background(),
 			},
@@ -640,7 +579,7 @@ func Test_getRunOrTestCmd(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := getExecuteCmd(tt.args.valResult, tt.args.executor, tt.args.ctxWithTimeout); !reflect.DeepEqual(got, tt.want) {
+			if got := getExecuteCmd(tt.args.isUnitTest, tt.args.executor, tt.args.ctxWithTimeout); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("getExecuteCmd() = %v, want %v", got, tt.want)
 			}
 		})
@@ -677,14 +616,14 @@ func teardownBenchmarks() {
 	if err != nil {
 		panic(fmt.Errorf("error during test teardown: %s", err.Error()))
 	}
-	err = os.RemoveAll(baseFileFolder)
+	err = os.RemoveAll(pipelinesFolder)
 	if err != nil {
 		panic(fmt.Errorf("error during test teardown: %s", err.Error()))
 	}
 }
 
 func prepareFiles(b *testing.B, pipelineId uuid.UUID, code string, sdk pb.Sdk) *fs_tool.LifeCycle {
-	lc, err := fs_tool.NewLifeCycle(sdk, pipelineId, "")
+	lc, err := fs_tool.NewLifeCycle(sdk, pipelineId, pipelinesFolder)
 	if err != nil {
 		b.Fatalf("error during initializse lc: %s", err.Error())
 	}
@@ -692,7 +631,7 @@ func prepareFiles(b *testing.B, pipelineId uuid.UUID, code string, sdk pb.Sdk) *
 	if err != nil {
 		b.Fatalf("error during prepare folders: %s", err.Error())
 	}
-	_, err = lc.CreateSourceCodeFile(code)
+	err = lc.CreateSourceCodeFile(code)
 	if err != nil {
 		b.Fatalf("error during prepare source code file: %s", err.Error())
 	}
@@ -835,4 +774,233 @@ func Benchmark_GetLastIndex(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_, _ = GetLastIndex(ctx, cacheService, pipelineId, subKey, "")
 	}
+}
+
+func Test_validateStep(t *testing.T) {
+	appEnvs, err := environment.GetApplicationEnvsFromOsEnvs()
+	if err != nil {
+		panic(err)
+	}
+	sdkEnv, err := environment.ConfigureBeamEnvs(appEnvs.WorkingDir())
+	if err != nil {
+		panic(err)
+	}
+	type args struct {
+		ctx                  context.Context
+		cacheService         cache.Cache
+		pipelineId           uuid.UUID
+		sdkEnv               *environment.BeamEnvs
+		pipelineLifeCycleCtx context.Context
+		validationResults    *sync.Map
+		cancelChannel        chan bool
+	}
+	tests := []struct {
+		name string
+		args args
+		want int
+		code string
+	}{
+		{
+			name: "Test validation step by checking number of validators",
+			args: args{
+				ctx:                  context.Background(),
+				cacheService:         cacheService,
+				pipelineId:           uuid.New(),
+				sdkEnv:               sdkEnv,
+				pipelineLifeCycleCtx: context.Background(),
+				validationResults:    &sync.Map{},
+				cancelChannel:        make(chan bool, 1),
+			},
+			want: 3,
+			code: "class HelloWorld {\n    public static void main(String[] args) {\n        System.out.println(\"Hello world!\");\n    }\n}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, tt.args.pipelineId, filepath.Join(os.Getenv("APP_WORK_DIR"), pipelinesFolder))
+			err := lc.CreateFolders()
+			if err != nil {
+				t.Fatalf("error during prepare folders: %s", err.Error())
+			}
+			_ = lc.CreateSourceCodeFile(tt.code)
+			executor := validateStep(tt.args.ctx, tt.args.cacheService, &lc.Paths, tt.args.pipelineId, tt.args.sdkEnv, tt.args.pipelineLifeCycleCtx, tt.args.validationResults, tt.args.cancelChannel)
+			got := syncMapLen(tt.args.validationResults)
+			if executor != nil && !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("validateStep() = %d, want %d", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_prepareStep(t *testing.T) {
+	appEnvs, err := environment.GetApplicationEnvsFromOsEnvs()
+	if err != nil {
+		panic(err)
+	}
+	sdkEnv, err := environment.ConfigureBeamEnvs(appEnvs.WorkingDir())
+	if err != nil {
+		panic(err)
+	}
+	validationResults := sync.Map{}
+	validationResults.Store(validators.UnitTestValidatorName, false)
+	validationResults.Store(validators.KatasValidatorName, false)
+	type args struct {
+		ctx                  context.Context
+		cacheService         cache.Cache
+		pipelineId           uuid.UUID
+		sdkEnv               *environment.BeamEnvs
+		pipelineLifeCycleCtx context.Context
+		validationResults    *sync.Map
+		cancelChannel        chan bool
+	}
+	tests := []struct {
+		name string
+		args args
+		want *executors.Executor
+		code string
+	}{
+		{
+			name: "Test preparer step working without an error",
+			args: args{
+				ctx:                  context.Background(),
+				cacheService:         cacheService,
+				pipelineId:           uuid.New(),
+				sdkEnv:               sdkEnv,
+				pipelineLifeCycleCtx: context.Background(),
+				validationResults:    &validationResults,
+				cancelChannel:        make(chan bool, 1),
+			},
+			code: "class HelloWorld {\n    public static void main(String[] args) {\n        System.out.println(\"Hello world!\");\n    }\n}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, tt.args.pipelineId, filepath.Join(os.Getenv("APP_WORK_DIR"), pipelinesFolder))
+			err := lc.CreateFolders()
+			if err != nil {
+				t.Fatalf("error during prepare folders: %s", err.Error())
+			}
+			_ = lc.CreateSourceCodeFile(tt.code)
+			if got := prepareStep(tt.args.ctx, tt.args.cacheService, &lc.Paths, tt.args.pipelineId, tt.args.sdkEnv, tt.args.pipelineLifeCycleCtx, tt.args.validationResults, tt.args.cancelChannel); got == nil {
+				t.Errorf("prepareStep(): got nil instead of preparer executor")
+			}
+		})
+	}
+}
+
+func Test_compileStep(t *testing.T) {
+	appEnvs, err := environment.GetApplicationEnvsFromOsEnvs()
+	if err != nil {
+		panic(err)
+	}
+	sdkEnv, err := environment.ConfigureBeamEnvs(appEnvs.WorkingDir())
+	if err != nil {
+		panic(err)
+	}
+	type args struct {
+		ctx                  context.Context
+		cacheService         cache.Cache
+		paths                *fs_tool.LifeCyclePaths
+		pipelineId           uuid.UUID
+		sdkEnv               *environment.BeamEnvs
+		isUnitTest           bool
+		pipelineLifeCycleCtx context.Context
+		cancelChannel        chan bool
+	}
+	tests := []struct {
+		name string
+		args args
+		want *executors.Executor
+		code string
+	}{
+		{
+			name: "Test compilation step working without an error",
+			args: args{
+				ctx:                  context.Background(),
+				cacheService:         cacheService,
+				pipelineId:           uuid.New(),
+				sdkEnv:               sdkEnv,
+				isUnitTest:           false,
+				pipelineLifeCycleCtx: context.Background(),
+				cancelChannel:        make(chan bool, 1),
+			},
+			want: nil,
+			code: "class HelloWorld {\n    public static void main(String[] args) {\n        System.out.println(\"Hello world!\");\n    }\n}",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, tt.args.pipelineId, filepath.Join(os.Getenv("APP_WORK_DIR"), pipelinesFolder))
+			err := lc.CreateFolders()
+			if err != nil {
+				t.Fatalf("error during prepare folders: %s", err.Error())
+			}
+			_ = lc.CreateSourceCodeFile(tt.code)
+			if got := compileStep(tt.args.ctx, tt.args.cacheService, &lc.Paths, tt.args.pipelineId, tt.args.sdkEnv, tt.args.isUnitTest, tt.args.pipelineLifeCycleCtx, tt.args.cancelChannel); got == nil {
+				t.Errorf("compileStep: got nil instead of compiler executor")
+			}
+		})
+	}
+}
+
+func Test_runStep(t *testing.T) {
+	appEnvs, err := environment.GetApplicationEnvsFromOsEnvs()
+	if err != nil {
+		panic(err)
+	}
+	sdkEnv, err := environment.ConfigureBeamEnvs(appEnvs.WorkingDir())
+	if err != nil {
+		panic(err)
+	}
+	sdkEnv.ApacheBeamSdk = pb.Sdk_SDK_PYTHON
+	type args struct {
+		ctx                  context.Context
+		cacheService         cache.Cache
+		pipelineId           uuid.UUID
+		isUnitTest           bool
+		sdkEnv               *environment.BeamEnvs
+		pipelineOptions      string
+		pipelineLifeCycleCtx context.Context
+		cancelChannel        chan bool
+	}
+	tests := []struct {
+		name string
+		args args
+		code string
+	}{
+		{
+			name: "Test run step working without an error",
+			args: args{
+				ctx:                  context.Background(),
+				cacheService:         cacheService,
+				pipelineId:           uuid.UUID{},
+				isUnitTest:           false,
+				sdkEnv:               sdkEnv,
+				pipelineOptions:      "",
+				pipelineLifeCycleCtx: context.Background(),
+				cancelChannel:        make(chan bool, 1),
+			},
+			code: "if __name__ == \"__main__\":\n    print(\"Hello world!\")\n",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_PYTHON, tt.args.pipelineId, filepath.Join(os.Getenv("APP_WORK_DIR"), pipelinesFolder))
+			err := lc.CreateFolders()
+			if err != nil {
+				t.Fatalf("error during prepare folders: %s", err.Error())
+			}
+			_ = lc.CreateSourceCodeFile(tt.code)
+			runStep(tt.args.ctx, tt.args.cacheService, &lc.Paths, tt.args.pipelineId, tt.args.isUnitTest, tt.args.sdkEnv, tt.args.pipelineOptions, tt.args.pipelineLifeCycleCtx, tt.args.cancelChannel)
+		})
+	}
+}
+
+func syncMapLen(syncMap *sync.Map) int {
+	length := 0
+	syncMap.Range(func(_, _ interface{}) bool {
+		length++
+		return true
+	})
+	return length
 }

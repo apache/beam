@@ -17,13 +17,14 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground/modules/output/components/output_result.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:provider/provider.dart';
 
 class OutputArea extends StatelessWidget {
-  const OutputArea({Key? key}) : super(key: key);
+  final TabController tabController;
+
+  const OutputArea({Key? key, required this.tabController}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -32,11 +33,19 @@ class OutputArea extends StatelessWidget {
       child: Consumer<PlaygroundState>(
         builder: (context, state, child) {
           return TabBarView(
+            controller: tabController,
             physics: const NeverScrollableScrollPhysics(),
             children: <Widget>[
-              OutputResult(text: state.result?.output ?? ''),
-              OutputResult(text: state.result?.log ?? ''),
-              Center(child: Text(AppLocalizations.of(context)!.graph)),
+              OutputResult(
+                text: state.result?.output ?? '',
+                isSelected: tabController.index == 0,
+              ),
+              OutputResult(
+                text: state.result?.log ?? '',
+                isSelected: tabController.index == 1,
+              ),
+              // Not supported yet
+              // Center(child: Text(AppLocalizations.of(context)!.graph)),
             ],
           );
         },

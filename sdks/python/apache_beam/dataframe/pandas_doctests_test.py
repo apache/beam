@@ -659,9 +659,7 @@ class DoctestTest(unittest.TestCase):
         not_implemented_ok={
             'pandas.core.groupby.groupby.GroupBy.ngroup': ['*'],
             'pandas.core.groupby.groupby.GroupBy.sample': ['*'],
-            'pandas.core.groupby.groupby.BaseGroupBy.pipe': ['*'],
-            # pipe tests are in a different location in pandas 1.1.x
-            'pandas.core.groupby.groupby._GroupBy.pipe': ['*'],
+            'pandas.core.groupby.groupby.GroupBy.rank': ['*'],
             'pandas.core.groupby.groupby.GroupBy.nth': [
                 "df.groupby('A', as_index=False).nth(1)",
             ],
@@ -672,6 +670,8 @@ class DoctestTest(unittest.TestCase):
                 'df.iloc[2, 0] = 5',
                 'df',
             ],
+            # df is reassigned
+            'pandas.core.groupby.groupby.GroupBy.rank': ['df'],
             # TODO: Raise wont implement for list passed as a grouping column
             # Currently raises unhashable type: list
             'pandas.core.groupby.groupby.GroupBy.ngroup': [
@@ -717,6 +717,7 @@ class DoctestTest(unittest.TestCase):
         not_implemented_ok={
             'pandas.core.groupby.generic.DataFrameGroupBy.idxmax': ['*'],
             'pandas.core.groupby.generic.DataFrameGroupBy.idxmin': ['*'],
+            'pandas.core.groupby.generic.DataFrameGroupBy.value_counts': ['*'],
             'pandas.core.groupby.generic.SeriesGroupBy.transform': ['*'],
             'pandas.core.groupby.generic.SeriesGroupBy.idxmax': ['*'],
             'pandas.core.groupby.generic.SeriesGroupBy.idxmin': ['*'],

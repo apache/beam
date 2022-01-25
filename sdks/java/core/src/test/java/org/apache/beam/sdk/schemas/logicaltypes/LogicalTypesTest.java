@@ -22,6 +22,7 @@ import static org.junit.Assert.assertEquals;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
+import java.util.UUID;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -96,5 +97,20 @@ public class LogicalTypesTest {
     Row row = Row.withSchema(schema).addValues(duration).build();
     assertEquals(duration, row.getLogicalTypeValue(0, NanosDuration.class));
     assertEquals(durationAsRow, row.getBaseValue(0, Row.class));
+  }
+
+  @Test
+  public void testUuid() {
+    Schema rowSchema = new UuidLogicalType().getBaseType().getRowSchema();
+    UUID uuid = UUID.randomUUID();
+    Row uuidAsRow =
+        Row.withSchema(rowSchema)
+            .addValues(uuid.getMostSignificantBits(), uuid.getLeastSignificantBits())
+            .build();
+
+    Schema schema = Schema.builder().addLogicalTypeField("uuid", new UuidLogicalType()).build();
+    Row row = Row.withSchema(schema).addValues(uuid).build();
+    assertEquals(uuid, row.getLogicalTypeValue(0, UUID.class));
+    assertEquals(uuidAsRow, row.getBaseValue(0, Row.class));
   }
 }

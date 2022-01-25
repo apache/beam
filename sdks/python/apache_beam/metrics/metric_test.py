@@ -17,6 +17,13 @@
 
 # pytype: skip-file
 
+# beam-playground:
+#   name: MetricTest
+#   description: Unit-test for the Metric example.
+#   multifile: false
+#   categories:
+#   - Metrics
+
 import unittest
 
 import hamcrest as hc

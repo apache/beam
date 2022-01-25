@@ -108,7 +108,6 @@ func Transform(s beam.Scope, query string, opts ...Option) beam.PCollection {
 	payload := beam.CrossLanguagePayload(&sqlx.ExpansionPayload{
 		Query:   query,
 		Dialect: o.dialect,
-		Options: o.customs,
 	})
 
 	expansionAddr := sqlx.DefaultExpansionAddr
