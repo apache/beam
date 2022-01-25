@@ -115,8 +115,6 @@ public class IsmReaderTest {
           WeightedValue<NavigableMap<RandomAccessData, WindowedValue<IsmRecord<byte[]>>>>>
       cache;
   private DataflowExecutionContext executionContext;
-  private DataflowOperationContext operationContext;
-  private SideInputReadCounter sideInputReadCounter;
   private Closeable stateCloseable;
 
   @Before
@@ -136,10 +134,7 @@ public class IsmReaderTest {
             .getExecutionStateRegistry()
             .getState(
                 NameContextsForTests.nameContextForTest(), "test", null, NoopProfileScope.NOOP);
-    operationContext =
-        executionContext.createOperationContext(NameContextsForTests.nameContextForTest());
     stateCloseable = executionContext.getExecutionStateTracker().enterState(state);
-    sideInputReadCounter = new DataflowSideInputReadCounter(executionContext, operationContext, 1);
   }
 
   @After

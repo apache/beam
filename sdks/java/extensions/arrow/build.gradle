@@ -17,7 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(suppressUnusedVariable: true, automaticModuleName: 'org.apache.beam.sdk.extensions.arrow')
+applyJavaNature( automaticModuleName: 'org.apache.beam.sdk.extensions.arrow')
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Arrow"
 

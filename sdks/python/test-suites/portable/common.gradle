@@ -185,6 +185,67 @@ project.task("postCommitPy${pythonVersionSuffix}") {
                'portableWordCountSparkRunnerBatch']
 }
 
+project.task("flinkExamples") {
+  dependsOn = [
+          'setupVirtualenv',
+          'installGcpTest',
+          ":runners:flink:${latestFlinkVersion}:job-server:shadowJar"
+  ]
+  doLast {
+    def testOpts = [
+            "--log-cli-level=INFO",
+    ]
+    def pipelineOpts = [
+            "--runner=FlinkRunner",
+            "--project=apache-beam-testing",
+            "--environment_type=LOOPBACK",
+            "--temp_location=gs://temp-storage-for-end-to-end-tests/temp-it",
+            "--flink_job_server_jar=${project(":runners:flink:${latestFlinkVersion}:job-server").shadowJar.archivePath}",
+    ]
+    def cmdArgs = mapToArgString([
+            "test_opts": testOpts,
+            "suite": "postCommitExamples-flink-py${pythonVersionSuffix}",
+            "pipeline_opts": pipelineOpts.join(" "),
+            "collect": "examples_postcommit"
+    ])
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ${pythonRootDir}/scripts/run_integration_test.sh $cmdArgs"
+    }
+  }
+}
+
+project.task("sparkExamples") {
+  dependsOn = [
+          'setupVirtualenv',
+          'installGcpTest',
+          ':runners:spark:2:job-server:shadowJar'
+  ]
+  doLast {
+    def testOpts = [
+            "--log-cli-level=INFO",
+    ]
+    def jobServerJar = "${rootDir}/runners/spark/2/job-server/build/libs/beam-runners-spark-job-server-${version}.jar"
+    def pipelineOpts = [
+            "--runner=SparkRunner",
+            "--project=apache-beam-testing",
+            "--environment_type=LOOPBACK",
+            "--temp_location=gs://temp-storage-for-end-to-end-tests/temp-it",
+            "--spark_job_server_jar=${jobServerJar}",
+    ]
+    def cmdArgs = mapToArgString([
+            "test_opts": testOpts,
+            "suite": "postCommitExamples-spark-py${pythonVersionSuffix}",
+            "pipeline_opts": pipelineOpts.join(" "),
+            "collect": "examples_postcommit"
+    ])
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ${pythonRootDir}/scripts/run_integration_test.sh $cmdArgs"
+    }
+  }
+}
+
 project.task("postCommitPy${pythonVersionSuffix}IT") {
   dependsOn = [
           'setupVirtualenv',

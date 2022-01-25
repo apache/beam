@@ -310,7 +310,7 @@ func Test_unmarshalBySubKey(t *testing.T) {
 				subKey: cache.Status,
 				value:  string(statusValue),
 			},
-			want:    &status,
+			want:    status,
 			wantErr: false,
 		},
 		{

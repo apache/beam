@@ -62,7 +62,6 @@ public class CustomHttpErrorsTest {
   public void testMatchesCode() throws IOException {
     HttpRequestWrapper request = createHttpRequest(BQ_TABLES_LIST_URL);
     HttpResponseWrapper response = createHttpResponse(403);
-    HttpCallCustomError mockCustomError = mock(HttpCallCustomError.class);
 
     CustomHttpErrors.Builder builder = new CustomHttpErrors.Builder();
     builder.addErrorForCode(403, "Custom Error Msg");
@@ -76,7 +75,6 @@ public class CustomHttpErrorsTest {
   public void testNotMatchesCode() throws IOException {
     HttpRequestWrapper request = createHttpRequest(BQ_TABLES_LIST_URL);
     HttpResponseWrapper response = createHttpResponse(404);
-    HttpCallCustomError mockCustomError = mock(HttpCallCustomError.class);
 
     CustomHttpErrors.Builder builder = new CustomHttpErrors.Builder();
     builder.addErrorForCode(403, "Custom Error Msg");
@@ -91,7 +89,6 @@ public class CustomHttpErrorsTest {
   public void testMatchesCodeAndUrlContains() throws IOException {
     HttpRequestWrapper request = createHttpRequest(BQ_TABLES_LIST_URL);
     HttpResponseWrapper response = createHttpResponse(403);
-    HttpCallCustomError mockCustomError = mock(HttpCallCustomError.class);
 
     CustomHttpErrors.Builder builder = new CustomHttpErrors.Builder();
     builder.addErrorForCodeAndUrlContains(403, "/tables?", "Custom Error Msg");
@@ -105,7 +102,6 @@ public class CustomHttpErrorsTest {
   public void testNotMatchesCodeAndUrlContains() throws IOException {
     HttpRequestWrapper request = createHttpRequest(BQ_TABLES_LIST_URL);
     HttpResponseWrapper response = createHttpResponse(404);
-    HttpCallCustomError mockCustomError = mock(HttpCallCustomError.class);
 
     CustomHttpErrors.Builder builder = new CustomHttpErrors.Builder();
     builder.addErrorForCodeAndUrlContains(403, "/doesnotmatch?", "Custom Error Msg");

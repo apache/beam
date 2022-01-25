@@ -74,13 +74,11 @@ class FlattenPCollectionsTranslator<T> implements TransformTranslator<Flatten.PC
       PipelineNode.PTransformNode transform,
       QueryablePipeline pipeline,
       PortableTranslationContext ctx) {
-    doTranslatePortable(transform, pipeline, ctx);
+    doTranslatePortable(transform, ctx);
   }
 
   private static <T> void doTranslatePortable(
-      PipelineNode.PTransformNode transform,
-      QueryablePipeline pipeline,
-      PortableTranslationContext ctx) {
+      PipelineNode.PTransformNode transform, PortableTranslationContext ctx) {
     final List<MessageStream<OpMessage<T>>> inputStreams = ctx.getAllInputMessageStreams(transform);
     final String outputId = ctx.getOutputId(transform);
 

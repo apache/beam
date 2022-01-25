@@ -51,10 +51,7 @@ public class ExternalSorterBenchmark {
               UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8),
               UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8)));
     }
-    int i = 0;
-    for (KV<byte[], byte[]> ignored : sorter.sort()) {
-      i++;
-    }
+    for (KV<byte[], byte[]> ignored : sorter.sort()) {}
     long end = System.currentTimeMillis();
     System.out.println(
         String.format("%s: %fs", sorter.getClass().getSimpleName(), (end - start) / 1000.0));

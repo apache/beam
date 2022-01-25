@@ -27,7 +27,6 @@ import com.google.api.client.util.NanoClock;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.JobMessage;
-import com.google.api.services.dataflow.model.MetricUpdate;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.util.List;
@@ -86,9 +85,6 @@ public class DataflowPipelineJob implements PipelineResult {
   private @Nullable DataflowPipelineJob replacedByJob = null;
 
   protected BiMap<AppliedPTransform<?, ?, ?>, String> transformStepNames;
-
-  /** The Metric Updates retrieved after the job was in a terminal state. */
-  private List<MetricUpdate> terminalMetricUpdates;
 
   /** The latest timestamp up to which job messages have been retrieved. */
   private long lastTimestamp = Long.MIN_VALUE;

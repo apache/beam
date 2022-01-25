@@ -429,7 +429,7 @@ class MultiStepCombine<
     @Override
     public <InputT> TransformEvaluator<InputT> forApplication(
         AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle) throws Exception {
-      return createEvaluator((AppliedPTransform) application, (CommittedBundle) inputBundle);
+      return createEvaluator((AppliedPTransform) application);
     }
 
     private <K, AccumT, OutputT> TransformEvaluator<KV<K, Iterable<AccumT>>> createEvaluator(
@@ -437,8 +437,7 @@ class MultiStepCombine<
                 PCollection<KV<K, Iterable<AccumT>>>,
                 PCollection<KV<K, OutputT>>,
                 MergeAndExtractAccumulatorOutput<K, AccumT, OutputT>>
-            application,
-        CommittedBundle<KV<K, Iterable<AccumT>>> inputBundle) {
+            application) {
       return new MergeAccumulatorsAndExtractOutputEvaluator<>(ctxt, application);
     }
 

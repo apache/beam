@@ -39,7 +39,6 @@ import org.apache.beam.runners.core.UnsupportedSideInputReader;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.SdkComponents;
-import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.construction.TriggerTranslation;
 import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
@@ -65,8 +64,7 @@ public class GroupByWindowFunction<K, V, W extends BoundedWindow>
   private transient WindowingStrategy<?, W> windowingStrategy;
   private SystemReduceFn<K, V, Iterable<V>, Iterable<V>, W> reduceFn;
   // Options are kept as null this should be fixed when possible
-  private transient PipelineOptions options;
-  private String serializedOptions;
+
   private transient boolean isInitialized = false;
 
   private transient RunnerApi.MessageWithComponents windowStrategyProto;
@@ -75,7 +73,6 @@ public class GroupByWindowFunction<K, V, W extends BoundedWindow>
   public GroupByWindowFunction() {
     // non arg constructor needed for kryo
     this.isInitialized = false;
-    this.options = null;
   }
 
   public GroupByWindowFunction(
@@ -83,8 +80,6 @@ public class GroupByWindowFunction<K, V, W extends BoundedWindow>
       SystemReduceFn<K, V, Iterable<V>, Iterable<V>, W> reduceFn,
       PipelineOptions options) {
     this.windowingStrategy = windowingStrategy;
-    this.options = options;
-    this.serializedOptions = new SerializablePipelineOptions(options).toString();
     SdkComponents components = SdkComponents.create();
     components.registerEnvironment(
         Environments.createOrGetDefaultEnvironment(options.as(PortablePipelineOptions.class)));
@@ -215,10 +210,8 @@ public class GroupByWindowFunction<K, V, W extends BoundedWindow>
     }
 
     SdkComponents components = SdkComponents.create();
-    options = new SerializablePipelineOptions(serializedOptions).get();
 
     try {
-      options = null;
       windowStrategyProto = RunnerApi.MessageWithComponents.parseFrom(windowBytes);
       windowingStrategy =
           (WindowingStrategy<?, W>)

@@ -57,6 +57,25 @@ task postCommitIT {
   }
 }
 
+task examples {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+
+  doLast {
+    def testOpts = basicTestOpts
+    def argMap = ["runner": "TestDirectRunner",
+                  "test_opts": testOpts,
+                  "suite": "postCommitExamples-direct-py${pythonVersionSuffix}",
+                  "collect": "examples_postcommit"
+    ]
+    def batchCmdArgs = mapToArgString(argMap)
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $batchCmdArgs"
+    }
+  }
+}
+
 
 task mongodbioIT {
   dependsOn 'setupVirtualenv'

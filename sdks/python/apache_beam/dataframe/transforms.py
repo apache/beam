@@ -44,6 +44,7 @@ if TYPE_CHECKING:
 T = TypeVar('T')
 
 TARGET_PARTITION_SIZE = 1 << 23  # 8M
+MIN_PARTITION_SIZE = 1 << 19  # 0.5M
 MAX_PARTITIONS = 1000
 DEFAULT_PARTITIONS = 100
 MIN_PARTITIONS = 10
@@ -452,8 +453,10 @@ def _total_memory_usage(frame):
 
 
 class _PreBatch(beam.DoFn):
-  def __init__(self, target_size=TARGET_PARTITION_SIZE):
+  def __init__(
+      self, target_size=TARGET_PARTITION_SIZE, min_size=MIN_PARTITION_SIZE):
     self._target_size = target_size
+    self._min_size = min_size
 
   def start_bundle(self):
     self._parts = collections.defaultdict(list)
@@ -465,7 +468,7 @@ class _PreBatch(beam.DoFn):
       window=beam.DoFn.WindowParam,
       timestamp=beam.DoFn.TimestampParam):
     part_size = _total_memory_usage(part)
-    if part_size >= self._target_size:
+    if part_size >= self._min_size:
       yield part
     else:
       self._running_size += part_size
@@ -475,8 +478,7 @@ class _PreBatch(beam.DoFn):
 
   def finish_bundle(self):
     for (window, timestamp), parts in self._parts.items():
-      yield windowed_value.WindowedValue(
-          pd.concat(parts), timestamp, (window, ))
+      yield windowed_value.WindowedValue(_concat(parts), timestamp, (window, ))
     self.start_bundle()
 
 
@@ -486,8 +488,10 @@ class _ReBatch(beam.DoFn):
   Also groups across partitions, up to a given data size, to recover some
   efficiency in the face of over-partitioning.
   """
-  def __init__(self, target_size=TARGET_PARTITION_SIZE):
+  def __init__(
+      self, target_size=TARGET_PARTITION_SIZE, min_size=MIN_PARTITION_SIZE):
     self._target_size = target_size
+    self._min_size = min_size
 
   def start_bundle(self):
     self._parts = collections.defaultdict(lambda: collections.defaultdict(list))
@@ -510,7 +514,7 @@ class _ReBatch(beam.DoFn):
     for (window, timestamp), tagged_parts in self._parts.items():
       yield windowed_value.WindowedValue(  # yapf break
       {
-          tag: pd.concat(parts) if parts else None
+          tag: _concat(parts) if parts else None
           for (tag, parts) in tagged_parts.items()
       },
       timestamp, (window, ))
@@ -534,6 +538,13 @@ def _dict_union(dicts):
   for d in dicts:
     result.update(d)
   return result
+
+
+def _concat(parts):
+  if len(parts) == 1:
+    return parts[0]
+  else:
+    return pd.concat(parts)
 
 
 def _flatten(

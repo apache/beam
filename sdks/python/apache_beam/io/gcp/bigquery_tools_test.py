@@ -959,8 +959,9 @@ class TestBigQueryWriter(unittest.TestCase):
         '%s.%s.%s' % ('project', 'dataset', 'table'),
         json_rows=[sample_row],
         row_ids=['_1'],
-        skip_invalid_rows=True,
-        timeout=120)
+        skip_invalid_rows=False,
+        timeout=120,
+        ignore_unknown_values=False)
 
   def test_table_schema_without_project(self):
     # Writer should pick executing project by default.

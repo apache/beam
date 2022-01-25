@@ -80,7 +80,7 @@ except ImportError:
 try:
   # Import dill from the pickler module to make sure our monkey-patching of dill
   # occurs.
-  from apache_beam.internal.pickler import dill
+  from apache_beam.internal.dill_pickler import dill
 except ImportError:
   # We fall back to using the stock dill library in tests that don't use the
   # full Python SDK.

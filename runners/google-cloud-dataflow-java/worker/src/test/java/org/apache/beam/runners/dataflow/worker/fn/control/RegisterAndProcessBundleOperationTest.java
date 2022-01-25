@@ -367,7 +367,6 @@ public class RegisterAndProcessBundleOperationTest {
   @Test
   public void testProcessingBundleHandlesUserStateRequests() throws Exception {
     IdGenerator idGenerator = makeIdGeneratorStartingFrom(777L);
-    ExecutorService executorService = Executors.newCachedThreadPool();
 
     InMemoryStateInternals<ByteString> stateInternals =
         InMemoryStateInternals.forKey(ByteString.EMPTY);
@@ -473,7 +472,6 @@ public class RegisterAndProcessBundleOperationTest {
   @Test
   public void testProcessingBundleHandlesMultimapSideInputRequests() throws Exception {
     IdGenerator idGenerator = makeIdGeneratorStartingFrom(777L);
-    ExecutorService executorService = Executors.newCachedThreadPool();
 
     DataflowStepContext mockStepContext = mock(DataflowStepContext.class);
     DataflowStepContext mockUserStepContext = mock(DataflowStepContext.class);

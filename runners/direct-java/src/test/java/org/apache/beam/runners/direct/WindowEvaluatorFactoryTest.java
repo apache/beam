@@ -111,7 +111,7 @@ public class WindowEvaluatorFactoryTest {
 
     CommittedBundle<Long> inputBundle = createInputBundle();
 
-    UncommittedBundle<Long> outputBundle = createOutputBundle(windowed, inputBundle);
+    UncommittedBundle<Long> outputBundle = createOutputBundle(windowed);
 
     BoundedWindow firstSecondWindow = new IntervalWindow(EPOCH, EPOCH.plus(windowDuration));
     BoundedWindow thirdWindow = new IntervalWindow(EPOCH.minus(windowDuration), EPOCH);
@@ -147,7 +147,7 @@ public class WindowEvaluatorFactoryTest {
     PCollection<Long> windowed = input.apply(transform);
 
     CommittedBundle<Long> inputBundle = createInputBundle();
-    UncommittedBundle<Long> outputBundle = createOutputBundle(windowed, inputBundle);
+    UncommittedBundle<Long> outputBundle = createOutputBundle(windowed);
 
     TransformResult<Long> result = runEvaluator(windowed, inputBundle);
 
@@ -202,7 +202,7 @@ public class WindowEvaluatorFactoryTest {
     PCollection<Long> windowed = input.apply(transform);
 
     CommittedBundle<Long> inputBundle = createInputBundle();
-    UncommittedBundle<Long> outputBundle = createOutputBundle(windowed, inputBundle);
+    UncommittedBundle<Long> outputBundle = createOutputBundle(windowed);
 
     TransformResult<Long> result = runEvaluator(windowed, inputBundle);
 
@@ -259,8 +259,7 @@ public class WindowEvaluatorFactoryTest {
     return inputBundle;
   }
 
-  private UncommittedBundle<Long> createOutputBundle(
-      PCollection<Long> output, CommittedBundle<Long> inputBundle) {
+  private UncommittedBundle<Long> createOutputBundle(PCollection<Long> output) {
     UncommittedBundle<Long> outputBundle = bundleFactory.createBundle(output);
     when(evaluationContext.createBundle(output)).thenReturn(outputBundle);
     return outputBundle;

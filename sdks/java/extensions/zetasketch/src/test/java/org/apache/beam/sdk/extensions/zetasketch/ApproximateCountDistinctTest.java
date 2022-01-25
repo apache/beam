@@ -29,7 +29,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Rule;
 import org.junit.Test;
@@ -93,7 +92,6 @@ public class ApproximateCountDistinctTest {
 
     byte[] byteArray = new byte[] {'A'};
     PCollection<byte[]> bytes = p.apply(Create.of(byteArray));
-    TypeDescriptor<byte[]> a = bytes.getCoder().getEncodedTypeDescriptor();
     HllCount.Init.Builder<byte[]> builder =
         ApproximateCountDistinct.<byte[]>builderForType(
             bytes.getCoder().getEncodedTypeDescriptor());

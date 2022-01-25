@@ -42,7 +42,12 @@ understand an important set of core concepts:
    them to a runner.
  * [_Runner_](#runner) - A runner runs a Beam pipeline using the capabilities of
    your chosen data processing engine.
- * [_Splittable DoFn_](#splittable-dofn) - Splittable DoFns let you process
+ * [_Trigger_](#trigger) - A trigger determines when to aggregate the results of
+   each window.
+ * [_State and timers_](#state-and-timers) - Per-key state and timer callbacks
+   are lower level primitives that give you full control over aggregating input
+   collections that grow over time.
+* [_Splittable DoFn_](#splittable-dofn) - Splittable DoFns let you process
    elements in a non-monolithic way. You can checkpoint the processing of an
    element, and the runner can split the remaining work to yield additional
    parallelism.
@@ -364,6 +369,120 @@ For more information about runners, see the following pages:
 
  * [Choosing a Runner](/documentation/#choosing-a-runner)
  * [Beam Capability Matrix](/documentation/runners/capability-matrix/)
+
+### Trigger
+
+When collecting and grouping data into windows, Beam uses _triggers_ to
+determine when to emit the aggregated results of each window (referred to as a
+_pane_). If you use Beam’s default windowing configuration and default trigger,
+Beam outputs the aggregated result when it estimates all data has arrived, and
+discards all subsequent data for that window.
+
+At a high level, triggers provide two additional capabilities compared to
+outputting at the end of a window:
+
+ 1. Triggers allow Beam to emit early results, before all the data in a given
+    window has arrived. For example, emitting after a certain amount of time
+    elapses, or after a certain number of elements arrives.
+ 2. Triggers allow processing of late data by triggering after the event time
+    watermark passes the end of the window.
+
+These capabilities allow you to control the flow of your data and also balance
+between data completeness, latency, and cost.
+
+Beam provides a number of pre-built triggers that you can set:
+
+ * **Event time triggers**: These triggers operate on the event time, as
+   indicated by the timestamp on each data element. Beam’s default trigger is
+   event time-based.
+ * **Processing time triggers**: These triggers operate on the processing time,
+   which is the time when the data element is processed at any given stage in
+   the pipeline.
+ * **Data-driven triggers**: These triggers operate by examining the data as it
+   arrives in each window, and firing when that data meets a certain property.
+   Currently, data-driven triggers only support firing after a certain number of
+   data elements.
+ * **Composite triggers**: These triggers combine multiple triggers in various
+   ways. For example, you might want one trigger for early data and a different
+   trigger for late data.
+
+For more information about triggers, see the following page:
+
+ * [Beam Programming Guide: Triggers](/documentation/programming-guide/#triggers)
+
+### State and timers
+
+Beam’s windowing and triggers provide an abstraction for grouping and
+aggregating unbounded input data based on timestamps. However, there are
+aggregation use cases that might require an even higher degree of control. State
+and timers are two important concepts that help with these uses cases. Like
+other aggregations, state and timers are processed per window.
+
+**State**:
+
+Beam provides the State API for manually managing per-key state, allowing for
+fine-grained control over aggregations. The State API lets you augment
+element-wise operations (for example, `ParDo` or `Map`) with mutable state. Like
+other aggregations, state is processed per window.
+
+The State API models state per key. To use the state API, you start out with a
+keyed `PCollection`. A `ParDo` that processes this `PCollection` can declare
+persistent state variables. When you process each element inside the `ParDo`,
+you can use the state variables to write or update state for the current key or
+to read previous state written for that key. State is always fully scoped only
+to the current processing key.
+
+Beam provides several types of state, though different runners might support a
+different subset of these states.
+
+ * **ValueState**: ValueState is a scalar state value. For each key in the
+   input, a ValueState stores a typed value that can be read and modified inside
+   the `DoFn`.
+ * A common use case for state is to accumulate multiple elements into a group:
+   * **BagState**: BagState allows you to accumulate elements in an unordered
+     bag. This lets you add elements to a collection without needing to read any
+     of the previously accumulated elements.
+   * **MapState**: MapState allows you to accumulate elements in a map.
+   * **SetState**: SetState allows you to accumulate elements in a set.
+   * **OrderedListState**: OrderedListState allows you to accumulate elements in
+     a timestamp-sorted list.
+ * **CombiningState**: CombiningState allows you to create a state object that
+   is updated using a Beam combiner. Like BagState, you can add elements to an
+   aggregation without needing to read the current value, and the accumulator
+   can be compacted using a combiner.
+
+You can use the State API together with the Timer API to create processing tasks
+that give you fine-grained control over the workflow.
+
+**Timers**:
+
+Beam provides a per-key timer callback API that enables delayed processing of
+data stored using the State API. The Timer API lets you set timers to call back
+at either an event-time or a processing-time timestamp. For more advanced use
+cases, your timer callback can set another timer. Like other aggregations,
+timers are processed per window. You can use the timer API together with the
+State API to create processing tasks that give you fine-grained control over the
+workflow.
+
+The following timers are available:
+
+ * **Event-time timers**: Event-time timers fire when the input watermark for
+   the `DoFn` passes the time at which the timer is set, meaning that the runner
+   believes that there are no more elements to be processed with timestamps
+   before the timer timestamp. This allows for event-time aggregations.
+ * **Processing-time timers**: Processing-time timers fire when the real wall-clock
+   time passes. This is often used to create larger batches of data before
+   processing. It can also be used to schedule events that should occur at a
+   specific time.
+ * **Dynamic timer tags**: Beam also supports dynamically setting a timer tag. This
+   allows you to set multiple different timers in a `DoFn` and dynamically
+   choose timer tags (for example, based on data in the input elements).
+
+For more information about state and timers, see the following pages:
+
+ * [Beam Programming Guide: State and Timers](/documentation/programming-guide/#state-and-timers)
+ * [Stateful processing with Apache Beam](/blog/stateful-processing/)
+ * [Timely (and Stateful) Processing with Apache Beam](/blog/timely-processing/)
 
 ### Splittable DoFn
 

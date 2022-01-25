@@ -217,8 +217,7 @@ class FnApiWindowMappingFn<TargetWindowT extends BoundedWindow>
       TargetWindowT rval =
           (TargetWindowT)
               sideInputMappingCache.get(
-                  CacheKey.create(windowMappingFn, mainWindow),
-                  () -> loadIfNeeded(windowMappingFn, mainWindow));
+                  CacheKey.create(windowMappingFn, mainWindow), () -> loadIfNeeded(mainWindow));
       return rval;
     } catch (ExecutionException e) {
       throw new IllegalStateException(
@@ -226,7 +225,7 @@ class FnApiWindowMappingFn<TargetWindowT extends BoundedWindow>
     }
   }
 
-  private TargetWindowT loadIfNeeded(FunctionSpec windowMappingFn, BoundedWindow mainWindow) {
+  private TargetWindowT loadIfNeeded(BoundedWindow mainWindow) {
     try {
       String processRequestInstructionId = idGenerator.getId();
       InstructionRequest processRequest =

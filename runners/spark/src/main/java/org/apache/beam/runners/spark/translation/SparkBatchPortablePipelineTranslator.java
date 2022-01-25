@@ -69,8 +69,6 @@ import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.storage.StorageLevel;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 
 /** Translates a bounded portable pipeline into a Spark job. */
@@ -81,8 +79,6 @@ import scala.Tuple2;
 public class SparkBatchPortablePipelineTranslator
     implements SparkPortablePipelineTranslator<SparkTranslationContext> {
 
-  private static final Logger LOG =
-      LoggerFactory.getLogger(SparkBatchPortablePipelineTranslator.class);
 
   private final ImmutableMap<String, PTransformTranslator> urnToTransformTranslator;
 

@@ -28,7 +28,6 @@ import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.ImmutableList;
@@ -76,7 +75,6 @@ import org.junit.Test;
  * medium)) instead of Join(small, Join(medium,large).
  */
 public class JoinReorderingTest {
-  private final PipelineOptions defaultPipelineOptions = PipelineOptionsFactory.create();
 
   @Test
   public void testTableSizes() {

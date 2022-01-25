@@ -79,6 +79,6 @@ public class BeamJavaUdfCalcRuleTest extends ZetaSqlTestBase {
     thrown.expect(SqlConversionException.class);
     thrown.expectCause(isA(RelOptPlanner.CannotPlanException.class));
 
-    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    zetaSQLQueryPlanner.convertToBeamRel(sql);
   }
 }

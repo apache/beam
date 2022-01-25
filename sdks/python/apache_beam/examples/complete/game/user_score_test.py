@@ -22,6 +22,8 @@
 import logging
 import unittest
 
+import pytest
+
 import apache_beam as beam
 from apache_beam.examples.complete.game import user_score
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -40,6 +42,7 @@ class UserScoreTest(unittest.TestCase):
       'user1_team1,team1,14,1447697463000,2015-11-16 18:11:03.955',
   ]
 
+  @pytest.mark.examples_postcommit
   def test_user_score(self):
     with TestPipeline() as p:
       result = (

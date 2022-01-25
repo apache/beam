@@ -113,10 +113,9 @@ public class PipelineTranslationTest {
                         .withLateFirings(AfterPane.elementCountAtLeast(19)))
                 .accumulatingFiredPanes()
                 .withAllowedLateness(Duration.standardMinutes(3L)));
-    final WindowingStrategy<?, ?> windowedStrategy = windowed.getWindowingStrategy();
+    windowed.getWindowingStrategy();
     PCollection<KV<String, Long>> keyed = windowed.apply(WithKeys.of("foo"));
-    PCollection<KV<String, Iterable<Long>>> grouped = keyed.apply(GroupByKey.create());
-
+    keyed.apply(GroupByKey.create());
     return ImmutableList.of(trivialPipeline, sideInputPipeline, complexPipeline);
   }
 
@@ -212,7 +211,6 @@ public class PipelineTranslationTest {
               "Unexpected type of ParDo " + node.getTransform().getClass());
         }
         final DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
-        final String restrictionCoderId;
         if (signature.processElement().isSplittable()) {
           DoFnInvoker<?, ?> doFnInvoker = DoFnInvokers.invokerFor(doFn);
           final Coder<?> restrictionAndWatermarkStateCoder =

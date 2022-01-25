@@ -157,7 +157,6 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
                 combineFn,
                 namespace,
                 accumCoder,
-                FlinkBroadcastStateInternals.this,
                 CombineContextFactory.createFromStateContext(context));
           }
 
@@ -560,7 +559,6 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
     private final StateNamespace namespace;
     private final StateTag<CombiningState<InputT, AccumT, OutputT>> address;
     private final Combine.CombineFn<InputT, AccumT, OutputT> combineFn;
-    private final FlinkBroadcastStateInternals<K2> flinkStateInternals;
 
     FlinkKeyedCombiningState(
         OperatorStateBackend flinkStateBackend,
@@ -575,7 +573,6 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
       this.namespace = namespace;
       this.address = address;
       this.combineFn = combineFn;
-      this.flinkStateInternals = flinkStateInternals;
     }
 
     @Override
@@ -693,7 +690,6 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
     private final StateNamespace namespace;
     private final StateTag<CombiningState<InputT, AccumT, OutputT>> address;
     private final CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT> combineFn;
-    private final FlinkBroadcastStateInternals<K2> flinkStateInternals;
     private final CombineWithContext.Context context;
 
     FlinkCombiningStateWithContext(
@@ -702,14 +698,12 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
         CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT> combineFn,
         StateNamespace namespace,
         Coder<AccumT> accumCoder,
-        FlinkBroadcastStateInternals<K2> flinkStateInternals,
         CombineWithContext.Context context) {
       super(flinkStateBackend, address.getId(), namespace, accumCoder, pipelineOptions.get());
 
       this.namespace = namespace;
       this.address = address;
       this.combineFn = combineFn;
-      this.flinkStateInternals = flinkStateInternals;
       this.context = context;
     }
 

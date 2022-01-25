@@ -44,7 +44,6 @@ public class PipelineDotRenderer implements Pipeline.PipelineVisitor {
   }
 
   private final StringBuilder dotBuilder = new StringBuilder();
-  private final Map<TransformHierarchy.Node, Integer> nodeToId = new HashMap<>();
   private final Map<PValue, Integer> valueToProducerNodeId = new HashMap<>();
 
   private int indent;

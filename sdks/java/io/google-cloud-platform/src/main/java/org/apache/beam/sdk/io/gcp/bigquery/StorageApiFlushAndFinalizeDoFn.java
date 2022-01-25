@@ -49,7 +49,7 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
   private static final Logger LOG = LoggerFactory.getLogger(StorageApiFlushAndFinalizeDoFn.class);
 
   private final BigQueryServices bqServices;
-  @Nullable private DatasetService datasetService = null;
+  private transient @Nullable DatasetService datasetService = null;
   private final Counter flushOperationsSent =
       Metrics.counter(StorageApiFlushAndFinalizeDoFn.class, "flushOperationsSent");
   private final Counter flushOperationsSucceeded =

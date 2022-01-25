@@ -34,3 +34,15 @@ variable "docker_image_tag" {
   description = "Docker Image Tag To Be Deployed"
   default = "latest"
 }
+
+variable "memory_size" {
+  description = "RAM in GB. The requested memory for the application"
+  type = number
+  default = 2
+}
+
+variable "volume_size" {
+  description = "Size of the in memory file system to be used by the application, in GB"
+  type = number
+  default = 1
+}

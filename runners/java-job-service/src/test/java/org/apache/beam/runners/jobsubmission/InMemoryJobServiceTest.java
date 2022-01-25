@@ -68,8 +68,6 @@ public class InMemoryJobServiceTest {
           .setPipelineOptions(TEST_OPTIONS)
           .build();
 
-  private final int maxInvocationHistory = 3;
-
   Endpoints.ApiServiceDescriptor stagingServiceDescriptor;
   @Mock JobInvoker invoker;
   @Mock JobInvocation invocation;

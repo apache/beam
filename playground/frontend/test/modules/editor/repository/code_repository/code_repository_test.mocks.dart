@@ -23,15 +23,15 @@ import 'dart:async' as _i6;
 
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:playground/modules/editor/repository/code_repository/code_client/check_status_response.dart'
-    as _i3;
+as _i3;
 import 'package:playground/modules/editor/repository/code_repository/code_client/code_client.dart'
-    as _i5;
+as _i5;
 import 'package:playground/modules/editor/repository/code_repository/code_client/output_response.dart'
-    as _i4;
+as _i4;
 import 'package:playground/modules/editor/repository/code_repository/code_client/run_code_response.dart'
-    as _i2;
+as _i2;
 import 'package:playground/modules/editor/repository/code_repository/run_code_request.dart'
-    as _i7;
+as _i7;
 
 // ignore_for_file: avoid_redundant_argument_values
 // ignore_for_file: avoid_setters_without_getters
@@ -60,35 +60,41 @@ class MockCodeClient extends _i1.Mock implements _i5.CodeClient {
   @override
   _i6.Future<_i2.RunCodeResponse> runCode(_i7.RunCodeRequestWrapper? request) =>
       (super.noSuchMethod(Invocation.method(#runCode, [request]),
-              returnValue:
-                  Future<_i2.RunCodeResponse>.value(_FakeRunCodeResponse_0()))
-          as _i6.Future<_i2.RunCodeResponse>);
-  @override
-  _i6.Future<_i3.CheckStatusResponse> checkStatus(String? pipelineUuid) =>
-      (super.noSuchMethod(Invocation.method(#checkStatus, [pipelineUuid]),
-              returnValue: Future<_i3.CheckStatusResponse>.value(
-                  _FakeCheckStatusResponse_1()))
-          as _i6.Future<_i3.CheckStatusResponse>);
-  @override
-  _i6.Future<_i4.OutputResponse> getCompileOutput(String? pipelineUuid) =>
-      (super.noSuchMethod(Invocation.method(#getCompileOutput, [pipelineUuid]),
-              returnValue:
-                  Future<_i4.OutputResponse>.value(_FakeOutputResponse_2()))
-          as _i6.Future<_i4.OutputResponse>);
+          returnValue:
+          Future<_i2.RunCodeResponse>.value(_FakeRunCodeResponse_0()))
+      as _i6.Future<_i2.RunCodeResponse>);
 
   @override
-  _i6.Future<_i4.OutputResponse> getRunOutput(String? pipelineUuid) =>
-      (super.noSuchMethod(Invocation.method(#getRunOutput, [pipelineUuid]),
-              returnValue:
-                  Future<_i4.OutputResponse>.value(_FakeOutputResponse_2()))
-          as _i6.Future<_i4.OutputResponse>);
+  _i6.Future<_i3.CheckStatusResponse> checkStatus(String? pipelineUuid, _i7.RunCodeRequestWrapper? request) =>
+      (super.noSuchMethod(
+          Invocation.method(#checkStatus, [pipelineUuid, request]),
+          returnValue: Future<_i3.CheckStatusResponse>.value(
+              _FakeCheckStatusResponse_1()))
+      as _i6.Future<_i3.CheckStatusResponse>);
 
   @override
-  _i6.Future<_i4.OutputResponse> getRunErrorOutput(String? pipelineUuid) =>
-      (super.noSuchMethod(Invocation.method(#getRunErrorOutput, [pipelineUuid]),
-              returnValue:
-                  Future<_i4.OutputResponse>.value(_FakeOutputResponse_2()))
-          as _i6.Future<_i4.OutputResponse>);
+  _i6.Future<_i4.OutputResponse> getCompileOutput(String? pipelineUuid, _i7.RunCodeRequestWrapper? request) =>
+      (super.noSuchMethod(
+          Invocation.method(#getCompileOutput, [pipelineUuid, request]),
+          returnValue:
+          Future<_i4.OutputResponse>.value(_FakeOutputResponse_2()))
+      as _i6.Future<_i4.OutputResponse>);
+
+  @override
+  _i6.Future<_i4.OutputResponse> getRunOutput(String? pipelineUuid, _i7.RunCodeRequestWrapper? request) =>
+      (super.noSuchMethod(
+          Invocation.method(#getRunOutput, [pipelineUuid, request]),
+          returnValue:
+          Future<_i4.OutputResponse>.value(_FakeOutputResponse_2()))
+      as _i6.Future<_i4.OutputResponse>);
+
+  @override
+  _i6.Future<_i4.OutputResponse> getRunErrorOutput(String? pipelineUuid, _i7.RunCodeRequestWrapper? request) =>
+      (super.noSuchMethod(
+          Invocation.method(#getRunErrorOutput, [pipelineUuid, request]),
+          returnValue:
+          Future<_i4.OutputResponse>.value(_FakeOutputResponse_2()))
+      as _i6.Future<_i4.OutputResponse>);
 
   @override
   String toString() => super.toString();
