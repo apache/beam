@@ -59,6 +59,8 @@ func ShallowClonePTransform(t *pipepb.PTransform) *pipepb.PTransform {
 }
 
 // ShallowCloneParDoPayload makes a shallow copy of the given ParDoPayload.
+//
+// Deprecated: Shallow copies of protocol buffers are not recommended. This function will be removed in a later release.
 func ShallowCloneParDoPayload(p *pipepb.ParDoPayload) *pipepb.ParDoPayload {
 	if p == nil {
 		return nil
@@ -75,6 +77,8 @@ func ShallowCloneParDoPayload(p *pipepb.ParDoPayload) *pipepb.ParDoPayload {
 }
 
 // ShallowCloneSideInput makes a shallow copy of the given SideInput.
+//
+// Deprecated: Shallow copies of protocol buffers are not recommended. This function will be removed in a later release.
 func ShallowCloneSideInput(p *pipepb.SideInput) *pipepb.SideInput {
 	if p == nil {
 		return nil
@@ -85,6 +89,8 @@ func ShallowCloneSideInput(p *pipepb.SideInput) *pipepb.SideInput {
 }
 
 // ShallowCloneFunctionSpec makes a shallow copy of the given FunctionSpec.
+//
+// Deprecated: Shallow copies of protocol buffers are not recommended. This function will be removed in a later release.
 func ShallowCloneFunctionSpec(p *pipepb.FunctionSpec) *pipepb.FunctionSpec {
 	if p == nil {
 		return nil
