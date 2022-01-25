@@ -26,7 +26,7 @@ resource "google_service_account" "account" {
 }
 
 
-output "playground_service_accoun_id" {
+output "playground_service_account_id" {
   value = "${google_service_account.account.account_id}"
 }
 
