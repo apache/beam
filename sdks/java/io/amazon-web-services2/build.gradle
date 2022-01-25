@@ -62,7 +62,7 @@ dependencies {
   testImplementation library.java.mockito_core
   testImplementation library.java.guava_testlib
   testImplementation library.java.junit
-  testImplementation 'org.elasticmq:elasticmq-rest-sqs_2.12:0.15.6'
+  testImplementation 'org.elasticmq:elasticmq-rest-sqs_2.12:0.15.6' // later versions conflict with s3mock
   testImplementation library.java.hamcrest
   testImplementation library.java.powermock
   testImplementation library.java.powermock_mockito
