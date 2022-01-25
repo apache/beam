@@ -1056,7 +1056,7 @@ func (x *GetGraphRequest) GetPipelineUuid() string {
 	return ""
 }
 
-// GetGraphResponse represents the string representation of pipeline execution graph.
+// GetGraphResponse represents the string representation of pipeline execution graph in DOT format.
 type GetGraphResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache

@@ -43,7 +43,7 @@ type PlaygroundServiceClient interface {
 	GetRunOutput(ctx context.Context, in *GetRunOutputRequest, opts ...grpc.CallOption) (*GetRunOutputResponse, error)
 	// Get the logs of pipeline execution.
 	GetLogs(ctx context.Context, in *GetLogsRequest, opts ...grpc.CallOption) (*GetLogsResponse, error)
-	// Get the string representation of the pipeline execution graph.
+	// Get the string representation of the pipeline execution graph in DOT format.
 	GetGraph(ctx context.Context, in *GetGraphRequest, opts ...grpc.CallOption) (*GetGraphResponse, error)
 	// Get the error of pipeline execution.
 	GetRunError(ctx context.Context, in *GetRunErrorRequest, opts ...grpc.CallOption) (*GetRunErrorResponse, error)
@@ -211,7 +211,7 @@ type PlaygroundServiceServer interface {
 	GetRunOutput(context.Context, *GetRunOutputRequest) (*GetRunOutputResponse, error)
 	// Get the logs of pipeline execution.
 	GetLogs(context.Context, *GetLogsRequest) (*GetLogsResponse, error)
-	// Get the string representation of the pipeline execution graph.
+	// Get the string representation of the pipeline execution graph in DOT format.
 	GetGraph(context.Context, *GetGraphRequest) (*GetGraphResponse, error)
 	// Get the error of pipeline execution.
 	GetRunError(context.Context, *GetRunErrorRequest) (*GetRunErrorResponse, error)
