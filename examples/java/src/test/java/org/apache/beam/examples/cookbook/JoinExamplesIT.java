@@ -33,33 +33,15 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * An end-to-end test for {@link org.apache.beam.examples.cookbook.DistinctExample}.
- *
- * <p>This tests uses as input text of King Lear, by William Shakespeare as plaintext files, and
- * will remove any duplicate lines from this file. (The output does not preserve any input order).
- *
- * <p>Running instructions:
- *
- * <pre>
- *  ./gradlew integrationTest -p examples/java/ -DintegrationTestPipelineOptions='[
- *  "--tempLocation=gs://apache-beam-testing-developers/"]'
- *  --tests org.apache.beam.examples.cookbook.DistinctExampleIT
- *  -DintegrationTestRunner=direct
- * </pre>
- *
- * <p>Check {@link org.apache.beam.examples.cookbook.DistinctExample} form more configuration
- * options via PipelineOptions.
- */
+/** An end-to-end test for {@link org.apache.beam.examples.cookbook.JoinExamples}. */
 @RunWith(JUnit4.class)
-public class DistinctExampleIT {
-
-  private static final String EXPECTED_OUTPUT_CHECKSUM = "474c8925d94dce3b8147e6ec88c551c9066effd0";
+public class JoinExamplesIT {
+  private static final String EXPECTED_OUTPUT_CHECKSUM = "22394366a77255b6941ec747794df4f51f73c07d";
   private static final Pattern DEFAULT_SHARD_TEMPLATE =
       Pattern.compile("(?x) \\S* (?<shardnum> \\d+) -of- (?<numshards> \\d+)");
 
-  /** Options for the DistinctExample Integration Test. */
-  public interface DistinctExampleOptions extends TestPipelineOptions, DistinctExample.Options {}
+  /** Options for the JoinExamples Integration Test. */
+  public interface JoinExamplesOptions extends TestPipelineOptions, JoinExamples.Options {}
 
   @BeforeClass
   public static void setUp() {
@@ -67,18 +49,18 @@ public class DistinctExampleIT {
   }
 
   @Test
-  public void testE2EDistinctExample() throws Exception {
-    DistinctExampleOptions options =
-        TestPipeline.testingPipelineOptions().as(DistinctExampleOptions.class);
+  public void testE2EJoinExamples() throws Exception {
+    JoinExamplesIT.JoinExamplesOptions options =
+        TestPipeline.testingPipelineOptions().as(JoinExamplesIT.JoinExamplesOptions.class);
     options.setOutput(
         FileSystems.matchNewResource(options.getTempRoot(), true)
             .resolve(
-                String.format("DistinctExample-%tF-%<tH-%<tM-%<tS-%<tL", new Date()),
+                String.format("JoinExamples-%tF-%<tH-%<tM-%<tS-%<tL", new Date()),
                 ResolveOptions.StandardResolveOptions.RESOLVE_DIRECTORY)
             .resolve("output", ResolveOptions.StandardResolveOptions.RESOLVE_DIRECTORY)
             .resolve("results", ResolveOptions.StandardResolveOptions.RESOLVE_FILE)
             .toString());
-    DistinctExample.runDistinctExample(options);
+    JoinExamples.runJoinExamples(options);
 
     assertThat(
         new NumberedShardedFile(options.getOutput() + "*-of-*", DEFAULT_SHARD_TEMPLATE),
