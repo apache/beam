@@ -364,7 +364,7 @@ class TransformContext(object):
       value.urn for (key, value) in common_urns.coders.__dict__.items()
       if not key.startswith('_')
       # Length prefix Rows rather than re-coding them.
-  ) - set([common_urns.coders.ROW_V1.urn])
+  ) - set([common_urns.coders.ROW.urn])
 
   _REQUIRED_CODER_URNS = set([
       common_urns.coders.WINDOWED_VALUE.urn,
