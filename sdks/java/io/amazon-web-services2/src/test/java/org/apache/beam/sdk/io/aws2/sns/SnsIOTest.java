@@ -47,6 +47,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
+import org.slf4j.helpers.MessageFormatter;
 import software.amazon.awssdk.services.sns.SnsClient;
 import software.amazon.awssdk.services.sns.model.InternalErrorException;
 import software.amazon.awssdk.services.sns.model.InvalidParameterException;
@@ -159,9 +160,12 @@ public class SnsIOTest implements Serializable {
         .hasMessageContaining("Error writing to SNS after 4 attempt(s). No more attempts allowed");
 
     // check 3 retries were initiated by inspecting the log before passing on the exception
-    snsWriterFnLogs.verifyWarn(String.format(SnsIO.Write.SnsWriterFn.RETRY_ATTEMPT_LOG, 1));
-    snsWriterFnLogs.verifyWarn(String.format(SnsIO.Write.SnsWriterFn.RETRY_ATTEMPT_LOG, 2));
-    snsWriterFnLogs.verifyWarn(String.format(SnsIO.Write.SnsWriterFn.RETRY_ATTEMPT_LOG, 3));
+    snsWriterFnLogs.verifyWarn(
+        MessageFormatter.format(SnsIO.Write.SnsWriterFn.RETRY_ATTEMPT_LOG, 1).getMessage());
+    snsWriterFnLogs.verifyWarn(
+        MessageFormatter.format(SnsIO.Write.SnsWriterFn.RETRY_ATTEMPT_LOG, 2).getMessage());
+    snsWriterFnLogs.verifyWarn(
+        MessageFormatter.format(SnsIO.Write.SnsWriterFn.RETRY_ATTEMPT_LOG, 3).getMessage());
   }
 
   @Test
