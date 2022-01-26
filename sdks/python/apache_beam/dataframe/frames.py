@@ -639,8 +639,9 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     order-sensitive. It cannot be specified.
 
     If ``limit`` is specified this operation is not parallelizable."""
+    value_compare = None if PD_VERSION < (1, 4) else lib.no_default
     if method is not None and not isinstance(to_replace,
-                                             dict) and value is lib.no_default:
+                                             dict) and value is value_compare:
       # pandas only relies on method if to_replace is not a dictionary, and
       # value is the <no_default> value. This is different than
       # if ``None`` is explicitly passed for ``value``. In this case, it will be

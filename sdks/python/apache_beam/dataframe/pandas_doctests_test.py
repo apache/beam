@@ -66,6 +66,9 @@ class DoctestTest(unittest.TestCase):
                 "s.replace([1, 2], method='bfill')",
                 # Relies on method='pad'
                 "s.replace('a')",
+                # Relies on method='pad'
+                # value=None is not valid for pandas < 1.4
+                "s.replace('a', None)",
                 # Implicitly uses method='pad', but output doesn't rely on that
                 # behavior. Verified indepently in
                 # frames_test.py::DeferredFrameTest::test_replace
@@ -127,6 +130,15 @@ class DoctestTest(unittest.TestCase):
                 # Modified dataframe
                 'df'
             ],
+            'pandas.core.generic.NDFrame.rename': [
+                # Seems to be an upstream bug. The actual error has a different
+                # message:
+                #   TypeError: Index(...) must be called with a collection of
+                #   some kind, 2 was passed
+                # pandas doctests only verify the type of exception
+                'df.rename(2)'
+            ],
+            # For pandas >= 1.4, rename is changed to _rename
             'pandas.core.generic.NDFrame._rename': [
                 # Seems to be an upstream bug. The actual error has a different
                 # message:
@@ -194,6 +206,9 @@ class DoctestTest(unittest.TestCase):
                 "s.replace([1, 2], method='bfill')",
                 # Relies on method='pad'
                 "s.replace('a')",
+                # Relies on method='pad'
+                # value=None is not valid for pandas < 1.4
+                "s.replace('a', None)",
                 # Implicitly uses method='pad', but output doesn't rely on that
                 # behavior. Verified indepently in
                 # frames_test.py::DeferredFrameTest::test_replace
@@ -457,6 +472,9 @@ class DoctestTest(unittest.TestCase):
                 "s.replace([1, 2], method='bfill')",
                 # Relies on method='pad'
                 "s.replace('a')",
+                # Relies on method='pad'
+                # value=None is not valid for pandas < 1.4
+                "s.replace('a', None)",
                 # Implicitly uses method='pad', but output doesn't rely on that
                 # behavior. Verified indepently in
                 # frames_test.py::DeferredFrameTest::test_replace
