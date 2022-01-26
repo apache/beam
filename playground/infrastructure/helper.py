@@ -246,6 +246,7 @@ def _get_example(filepath: str, filename: str, tag: ExampleTag) -> Example:
   with open(filepath, encoding="utf-8") as parsed_file:
     content = parsed_file.read()
   content = content.replace(tag.tag_as_string, "")
+  tag.tag_as_dict[TagFields.context_line] -= tag.tag_as_string.count("\n")
   root_dir = os.getenv("BEAM_ROOT_DIR", "")
   link = "{}{}".format(Config.LINK_PREFIX, (filepath.replace(root_dir, "", 1)))
 
