@@ -983,7 +983,7 @@ public class Regex {
     public Split(Pattern pattern, boolean outputEmpty) {
       this.pattern = pattern;
       this.outputEmpty = outputEmpty;
-      // Use split with limit=0 iff this.outputEmpty is true, since it implicitly drops trailing
+      // Use split with limit=0 iff this.outputEmpty is false, since it implicitly drops trailing
       // empty strings
       this.splitLimit = this.outputEmpty ? -1 : 0;
     }
