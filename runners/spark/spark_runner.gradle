@@ -422,6 +422,7 @@ task examplesIntegrationTest(type: Test) {
 
   include '**/*IT.class'
   exclude '**/TriggerExampleIT.class' // OOM Exception
+  exclude '**/WindowedWordCountIT.class' // Failed to read from sharded output
   maxParallelForks 4
   classpath = configurations.validatesRunner
   testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)

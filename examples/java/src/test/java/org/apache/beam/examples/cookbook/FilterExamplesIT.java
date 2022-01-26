@@ -23,7 +23,6 @@ import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.bigquery.model.QueryResponse;
-import org.apache.beam.examples.complete.TrafficRoutes;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
@@ -54,7 +53,7 @@ public class FilterExamplesIT {
 
   @Before
   public void setupTestEnvironment() throws Exception {
-    PipelineOptionsFactory.register(TrafficRoutes.TrafficRoutesOptions.class);
+    PipelineOptionsFactory.register(FilterExamplesOptions.class);
     this.options =
         TestPipeline.testingPipelineOptions().as(FilterExamplesIT.FilterExamplesOptions.class);
     this.projectId = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
