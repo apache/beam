@@ -239,12 +239,7 @@ class StagerTest(unittest.TestCase):
         os.path.isfile(
             os.path.join(staging_dir, names.PICKLED_MAIN_SESSION_FILE)))
 
-  @pytest.mark.no_xdist
-  @unittest.skipIf(
-      sys.platform == "win32" and sys.version_info < (3, 8),
-      'BEAM-10987: pytest on Windows pulls in a zipimporter, unpicklable '
-      'before py3.8')
-  def test_main_session_with_pickle(self):
+  def test_main_session_not_staged_when_using_cloudpickle(self):
     staging_dir = self.make_temp_dir()
     options = PipelineOptions()
 
