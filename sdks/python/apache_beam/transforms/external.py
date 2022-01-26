@@ -695,7 +695,7 @@ class JavaJarExpansionService(object):
   def __init__(self, path_to_jar, extra_args=None, classpath=None):
     self._path_to_jar = path_to_jar
     self._extra_args = extra_args
-    self._classpath = classpath
+    self._classpath = classpath or []
     self._service_count = 0
 
   @staticmethod
@@ -734,11 +734,16 @@ class JavaJarExpansionService(object):
           'with classpath: %s',
           self._path_to_jar,
           self._classpath)
+      classpath_urls = [
+          subprocess_server.JavaJarServer.local_jar(path)
+          for jar in self._classpath
+          for path in JavaJarExpansionService._expand_jars(jar)
+      ]
       self._service_provider = subprocess_server.JavaJarServer(
           ExpansionAndArtifactRetrievalStub,
           self._path_to_jar,
           self._extra_args,
-          classpath=self._classpath)
+          classpath=classpath_urls)
       self._service = self._service_provider.__enter__()
     self._service_count += 1
     return self._service
