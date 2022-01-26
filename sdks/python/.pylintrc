@@ -138,6 +138,8 @@ disable =
   stop-iteration-return,
   super-init-not-called,
   try-except-raise,
+  undefined-variable,
+  unexpected-keyword-arg,
   unidiomatic-typecheck,
   unnecessary-comprehension,
   unnecessary-lambda,
