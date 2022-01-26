@@ -31,6 +31,7 @@ from typing import List
 import mock
 import pytest
 
+from apache_beam.internal import pickler
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import DebugOptions
@@ -228,6 +229,7 @@ class StagerTest(unittest.TestCase):
     options = PipelineOptions()
 
     options.view_as(SetupOptions).save_main_session = True
+    options.view_as(SetupOptions).pickle_library = pickler.USE_DILL
     self.update_options(options)
 
     self.assertEqual([names.PICKLED_MAIN_SESSION_FILE],
@@ -236,6 +238,19 @@ class StagerTest(unittest.TestCase):
     self.assertTrue(
         os.path.isfile(
             os.path.join(staging_dir, names.PICKLED_MAIN_SESSION_FILE)))
+
+  def test_main_session_not_staged_when_using_cloudpickle(self):
+    staging_dir = self.make_temp_dir()
+    options = PipelineOptions()
+
+    options.view_as(SetupOptions).save_main_session = True
+    # even if the save main session is on, no pickle file for main
+    # session is saved when pickle_library==cloudpickle.
+    options.view_as(SetupOptions).pickle_library = pickler.USE_CLOUDPICKLE
+    self.update_options(options)
+    self.assertEqual([],
+                     self.stager.create_and_stage_job_resources(
+                         options, staging_location=staging_dir)[1])
 
   def test_default_resources(self):
     staging_dir = self.make_temp_dir()
