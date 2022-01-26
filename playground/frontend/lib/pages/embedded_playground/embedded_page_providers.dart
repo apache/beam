@@ -93,20 +93,21 @@ class EmbeddedPageProviders extends StatelessWidget {
     PlaygroundState playground,
     PlaygroundState newPlayground,
   ) {
-    if (example != null) {
-      if (example.path.isEmpty) {
-        String source = Uri.base.queryParameters[kSourceCode] ?? '';
-        example.setSource(source);
-        newPlayground.setExample(example);
-      } else {
-        exampleState
-            .loadExampleInfo(
-              example,
-              playground.sdk,
-            )
-            .then(
-                (exampleWithInfo) => newPlayground.setExample(exampleWithInfo));
-      }
+    if (example == null) {
+      return;
+    }
+
+    if (example.path.isEmpty) {
+      String source = Uri.base.queryParameters[kSourceCode] ?? '';
+      example.setSource(source);
+      newPlayground.setExample(example);
+    } else {
+      exampleState
+          .loadExampleInfo(
+            example,
+            playground.sdk,
+          )
+          .then((exampleWithInfo) => newPlayground.setExample(exampleWithInfo));
     }
   }
 }
