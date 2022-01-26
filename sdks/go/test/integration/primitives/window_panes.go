@@ -16,33 +16,38 @@
 package primitives
 
 import (
-	"context"
-	"fmt"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window/trigger"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/teststream"
 )
 
 func init() {
 	beam.RegisterFunction(IncrementFn)
 }
 
-func IncrementFn(w beam.Window, value int, emit func(int)) {
-	inv := (w.(window.IntervalWindow))
-	fmt.Print(inv)
-	emit(value + 1)
+func IncrementFn(pn typex.PaneInfo, value float64, emit func(int)) {
+	// fmt.Print(inv)
+	emit(int(pn.Timing))
 }
 
-func main() {
-	beam.Init()
+func Increment(s beam.Scope) {
+	s.Scope("increment")
+	con := teststream.NewConfig()
+	con.AddElements(1000, 1.0, 2.0, 3.0)
+	con.AdvanceWatermark(11000)
+	col := teststream.Create(s, con)
+	windowSize := 10 * time.Second
 
-	p := beam.NewPipeline()
-	s := p.Root()
-	input := beam.CreateList(s, []int{10, 20, 30})
-	beam.ParDo(s, IncrementFn, input)
-
-	if err := beamx.Run(context.Background(), p); err != nil {
-		fmt.Print(err)
-	}
+	windowed := beam.WindowInto(s, window.NewFixedWindows(windowSize), col, []beam.WindowIntoOption{
+		beam.Trigger(trigger.Always()),
+	}...)
+	// expected := []float64{1.0, 2.0, 3.0}
+	sums := beam.ParDo(s, IncrementFn, windowed)
+	sums = beam.WindowInto(s, window.NewGlobalWindows(), sums)
+	passert.Empty(s, sums)
 }
