@@ -35,13 +35,14 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /**
- * {@link PipelineVisitor} to convert projection pushdown targets from PCollections to TupleTags.
+ * {@link PipelineVisitor} to convert projection pushdown targets from {@link PCollection} to {@link
+ * TupleTag}.
  *
- * <p>For example, if we can do pushdown on PTransform T's output PCollection P by rewriting T, we
- * need to get T's output tag for P. This is necessary because PCollection objects are not
- * instantiated until pipeline construction, but output tags are constants that are known before
- * pipeline construction, so transform authors can identify them in {@link
- * ProjectionProducer#actuateProjectionPushdown(Map)}.
+ * <p>For example, if we can do pushdown on {@link PTransform} {@code T}'s output {@link
+ * PCollection} {@code P} by rewriting {@code T}, we need to get {@code T}'s output tag for {@code
+ * P}. This is necessary because {@link PCollection} objects are not instantiated until pipeline
+ * construction, but output tags are constants that are known before pipeline construction, so
+ * transform authors can identify them in {@link ProjectionProducer#actuateProjectionPushdown(Map)}.
  */
 class PCollectionOutputTagVisitor extends PipelineVisitor.Defaults {
   private final Map<

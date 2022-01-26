@@ -44,10 +44,12 @@ public class ProjectionPushdownOptimizer {
   /**
    * Performs all known projection pushdown optimizations in-place on a Pipeline.
    *
-   * <p>A pushdown optimization will be made wherever there is a {@link ProjectionProducer} that
+   * <p>A pushdown optimization is possible wherever there is a {@link ProjectionProducer} that
    * produces a {@link PCollection} that is consumed by one or more PTransforms with an annotated
    * {@link FieldAccessDescriptor}, where the number of fields consumed is less than the number of
-   * fields produced.
+   * fields produced. The optimizer replaces the {@link ProjectionProducer} with the result of
+   * calling {@link ProjectionProducer#actuateProjectionPushdown(Map)} on that producer with those
+   * PCollections/fields.
    *
    * <p>Currently only supports pushdown on {@link ProjectionProducer} instances that are applied
    * directly to {@link PBegin} (https://issues.apache.org/jira/browse/BEAM-13658).

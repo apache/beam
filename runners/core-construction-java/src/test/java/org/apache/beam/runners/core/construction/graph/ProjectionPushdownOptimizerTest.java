@@ -50,7 +50,8 @@ public class ProjectionPushdownOptimizerTest {
   @Test
   public void testSourceDoesNotImplementPushdownProjector() {
     Pipeline p = Pipeline.create();
-    SimpleSource source = new SimpleSource(FieldAccessDescriptor.withAllFields());
+    SimpleSource source =
+        new SimpleSource(FieldAccessDescriptor.withFieldNames("foo", "bar", "baz"));
     p.apply(source)
         .apply(new FieldAccessTransform(FieldAccessDescriptor.withFieldNames("foo", "bar")));
 
@@ -62,7 +63,7 @@ public class ProjectionPushdownOptimizerTest {
   public void testSimpleProjectionPushdown() {
     Pipeline p = Pipeline.create();
     SimpleSourceWithPushdown originalSource =
-        new SimpleSourceWithPushdown(FieldAccessDescriptor.withAllFields());
+        new SimpleSourceWithPushdown(FieldAccessDescriptor.withFieldNames("foo", "bar", "baz"));
     FieldAccessDescriptor downstreamFieldAccess =
         FieldAccessDescriptor.withFieldNames("foo", "bar");
     p.apply(originalSource).apply(new FieldAccessTransform(downstreamFieldAccess));
@@ -78,7 +79,7 @@ public class ProjectionPushdownOptimizerTest {
   public void testBranchedProjectionPushdown() {
     Pipeline p = Pipeline.create();
     SimpleSourceWithPushdown originalSource =
-        new SimpleSourceWithPushdown(FieldAccessDescriptor.withAllFields());
+        new SimpleSourceWithPushdown(FieldAccessDescriptor.withFieldNames("foo", "bar", "baz"));
     PCollection<Row> input = p.apply(originalSource);
     input.apply(new FieldAccessTransform(FieldAccessDescriptor.withFieldNames("foo")));
     input.apply(new FieldAccessTransform(FieldAccessDescriptor.withFieldNames("bar")));
@@ -94,9 +95,11 @@ public class ProjectionPushdownOptimizerTest {
   @Test
   public void testIntermediateProducer() {
     Pipeline p = Pipeline.create();
-    SimpleSource source = new SimpleSource(FieldAccessDescriptor.withAllFields());
+    SimpleSource source =
+        new SimpleSource(FieldAccessDescriptor.withFieldNames("foo", "bar", "baz"));
     IntermediateTransformWithPushdown originalT =
-        new IntermediateTransformWithPushdown(FieldAccessDescriptor.withAllFields());
+        new IntermediateTransformWithPushdown(
+            FieldAccessDescriptor.withFieldNames("foo", "bar", "baz"));
     FieldAccessDescriptor downstreamFieldAccess =
         FieldAccessDescriptor.withFieldNames("foo", "bar");
     p.apply(source).apply(originalT).apply(new FieldAccessTransform(downstreamFieldAccess));
@@ -112,7 +115,8 @@ public class ProjectionPushdownOptimizerTest {
     Pipeline p = Pipeline.create();
     MultipleOutputSourceWithPushdown originalSource =
         new MultipleOutputSourceWithPushdown(
-            FieldAccessDescriptor.withAllFields(), FieldAccessDescriptor.withAllFields());
+            FieldAccessDescriptor.withFieldNames("foo", "bar", "baz"),
+            FieldAccessDescriptor.withFieldNames("qux", "quux", "quuz"));
     PCollectionTuple inputs = p.apply(originalSource);
     inputs
         .get(originalSource.tag1)
@@ -122,15 +126,15 @@ public class ProjectionPushdownOptimizerTest {
         .apply(new FieldAccessTransform(FieldAccessDescriptor.withFieldNames("bar")));
     inputs
         .get(originalSource.tag2)
-        .apply(new FieldAccessTransform(FieldAccessDescriptor.withFieldNames("baz")));
+        .apply(new FieldAccessTransform(FieldAccessDescriptor.withFieldNames("qux")));
     inputs
         .get(originalSource.tag2)
-        .apply(new FieldAccessTransform(FieldAccessDescriptor.withFieldNames("qux")));
+        .apply(new FieldAccessTransform(FieldAccessDescriptor.withFieldNames("quux")));
 
     MultipleOutputSourceWithPushdown expectedSource =
         new MultipleOutputSourceWithPushdown(
             FieldAccessDescriptor.withFieldNames("foo", "bar"),
-            FieldAccessDescriptor.withFieldNames("baz", "qux"));
+            FieldAccessDescriptor.withFieldNames("qux", "quux"));
 
     ProjectionPushdownOptimizer.optimize(p);
     Assert.assertTrue(pipelineHasTransform(p, expectedSource));
@@ -191,9 +195,6 @@ public class ProjectionPushdownOptimizerTest {
   }
 
   private static Schema createStringSchema(FieldAccessDescriptor fieldAccessDescriptor) {
-    if (fieldAccessDescriptor.getAllFields()) {
-      return createStringSchema(FieldAccessDescriptor.withFieldNames("foo", "bar", "baz", "qux"));
-    }
     Schema.Builder schemaBuilder = Schema.builder();
     for (FieldDescriptor field : fieldAccessDescriptor.getFieldsAccessed()) {
       schemaBuilder.addStringField(field.getFieldName());
@@ -201,12 +202,12 @@ public class ProjectionPushdownOptimizerTest {
     return schemaBuilder.build();
   }
 
-  private abstract static class SchemaTransform<InputT extends PInput>
+  private abstract static class SchemaSourceTransform<InputT extends PInput>
       extends PTransform<InputT, PCollection<Row>> {
     private final FieldAccessDescriptor fieldAccessDescriptor;
     protected final Schema schema;
 
-    SchemaTransform(FieldAccessDescriptor fieldAccessDescriptor) {
+    SchemaSourceTransform(FieldAccessDescriptor fieldAccessDescriptor) {
       this.fieldAccessDescriptor = fieldAccessDescriptor;
       this.schema = createStringSchema(fieldAccessDescriptor);
     }
@@ -219,7 +220,7 @@ public class ProjectionPushdownOptimizerTest {
       if (o == null || getClass() != o.getClass()) {
         return false;
       }
-      SchemaTransform<?> that = (SchemaTransform<?>) o;
+      SchemaSourceTransform<?> that = (SchemaSourceTransform<?>) o;
       return Objects.equals(
           fieldAccessDescriptor.fieldNamesAccessed(),
           that.fieldAccessDescriptor.fieldNamesAccessed());
@@ -231,7 +232,7 @@ public class ProjectionPushdownOptimizerTest {
     }
   }
 
-  private static class SimpleSource extends SchemaTransform<PBegin> {
+  private static class SimpleSource extends SchemaSourceTransform<PBegin> {
 
     SimpleSource(FieldAccessDescriptor fieldAccessDescriptor) {
       super(fieldAccessDescriptor);
@@ -263,7 +264,8 @@ public class ProjectionPushdownOptimizerTest {
     }
   }
 
-  private static class IntermediateTransformWithPushdown extends SchemaTransform<PCollection<Row>>
+  private static class IntermediateTransformWithPushdown
+      extends SchemaSourceTransform<PCollection<Row>>
       implements ProjectionProducer<PTransform<PCollection<Row>, PCollection<Row>>> {
 
     IntermediateTransformWithPushdown(FieldAccessDescriptor fieldAccessDescriptor) {
