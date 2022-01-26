@@ -51,6 +51,13 @@
   that to expand transforms. Currently Jdbc transforms use the
   'beam-sdks-java-io-expansion-service' jar for this purpose.
 
+  The transforms in this file support an extra `classpath` argument, where one
+  can specify any extra JARs to be included in the classpath for the expansion
+  service. Users will need to specify this option to include the JDBC driver
+  for the database that you're trying to use. **By default, a Postgres JDBC
+  driver** is included (i.e. the Java package
+  `"org.postgresql:postgresql:42.2.16"`).
+
   *Option 2: specify a custom expansion service*
 
   In this option, you startup your own expansion service and provide that as
