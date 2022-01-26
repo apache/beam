@@ -135,8 +135,7 @@ func (cd *CloudStorage) GetPrecompiledObjectGraph(ctx context.Context, precompil
 	if err != nil {
 		return "", err
 	}
-	result := string(data)
-	return result, nil
+	return string(data), nil
 }
 
 // GetPrecompiledObjects returns stored at the cloud storage bucket precompiled objects for the target category
