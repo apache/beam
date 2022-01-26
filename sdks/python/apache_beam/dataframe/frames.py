@@ -4625,9 +4625,30 @@ class _DeferredStringMethods(frame_base.DeferredBase):
       raise TypeError("str.repeat(repeats=) value must be an int or a "
                       f"DeferredSeries (encountered {type(repeats)}).")
 
-  get_dummies = frame_base.wont_implement_method(
-      pd.core.strings.StringMethods, 'get_dummies',
-      reason='non-deferred-columns')
+  @frame_base.with_docs_from(pd.core.strings.StringMethods)
+  @frame_base.args_to_kwargs(pd.core.strings.StringMethods)
+  def get_dummies(self, **kwargs):
+    dummies = expressions.ComputedExpression(
+        'get_dummies',
+        lambda s: s.str.get_dummies(**kwargs),
+        [self._expr],
+        requires_partition_by=partitionings.Arbitrary(),
+        preserves_partition_by=partitionings.Singleton())
+
+    def concat_dummies(*args):
+      return pd.concat([arg for arg in args]).fillna(
+        value=0, method=None).astype(int)
+
+    # proxy = pd.DataFrame(columns=columns)
+    with expressions.allow_non_parallel_operations(True):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'concat_dummies',
+              concat_dummies, [dummies],
+              requires_partition_by=partitionings.Singleton(),
+              preserves_partition_by=partitionings.Singleton(),
+              # proxy=proxy
+              ))
 
   split = frame_base.wont_implement_method(
       pd.core.strings.StringMethods, 'split',

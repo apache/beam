@@ -17,6 +17,7 @@
 import typing
 import unittest
 
+import numpy as np
 import pandas as pd
 
 import apache_beam as beam
@@ -333,6 +334,13 @@ class TransformTest(unittest.TestCase):
         'repeats': [3, 1, 4, 5, 2],
     })
     self.run_scenario(df, lambda df: df.strings.str.repeat(df.repeats))
+
+  def test_get_dummies(self):
+    s = pd.Series(['a|b', np.nan, 'a|c'])
+    self.run_scenario(s, lambda s: s.str.get_dummies())
+
+    s = pd.Series(['a|b', 'a', 'a|c'])
+    self.run_scenario(s, lambda s: s.str.get_dummies())
 
   def test_rename(self):
     df = pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
