@@ -54,7 +54,7 @@ public class TriggerExampleIT {
 
   @Before
   public void setupTestEnvironment() throws Exception {
-    PipelineOptionsFactory.register(TriggerExample.TrafficFlowOptions.class);
+    PipelineOptionsFactory.register(TriggerExamplesOptions.class);
     this.options =
         TestPipeline.testingPipelineOptions().as(TriggerExampleIT.TriggerExamplesOptions.class);
     this.projectId = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();

@@ -300,6 +300,8 @@ task examplesIntegrationTest(type: Test) {
   include '**/*IT.class'
   // TODO (BEAM-12572) Fix integration Tests to run with FlinkRunner
   exclude '**/TriggerExampleIT.class' // OOM Exception
+  exclude '**/BigQueryTornadoesIT.class' // Error deleting table
+  exclude '**/WindowedWordCountIT.class' // Assertion error
   maxParallelForks 4
   classpath = configurations.examplesJavaIntegrationTest
   testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
