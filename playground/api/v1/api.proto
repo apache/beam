@@ -135,6 +135,16 @@ message GetLogsResponse {
   string output = 1;
 }
 
+// GetGraphRequest contains information of the pipeline uuid.
+message GetGraphRequest {
+  string pipeline_uuid = 1;
+}
+
+// GetGraphResponse represents the string representation of pipeline execution graph in DOT format.
+message GetGraphResponse {
+  string graph = 1;
+}
+
 // CancelRequest request to cancel code processing
 message CancelRequest {
   string pipeline_uuid = 1;
@@ -229,6 +239,9 @@ service PlaygroundService {
 
   // Get the logs of pipeline execution.
   rpc GetLogs(GetLogsRequest) returns (GetLogsResponse);
+
+  // Get the string representation of the pipeline execution graph in DOT format.
+  rpc GetGraph(GetGraphRequest) returns (GetGraphResponse);
 
   // Get the error of pipeline execution.
   rpc GetRunError(GetRunErrorRequest) returns (GetRunErrorResponse);
