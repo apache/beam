@@ -18,7 +18,7 @@
 #   name: AggregationCount
 #   description: Task from katas to count the number of elements.
 #   multifile: false
-#   context_line: 25
+#   context_line: 29
 #   categories:
 #     - Combiners
 

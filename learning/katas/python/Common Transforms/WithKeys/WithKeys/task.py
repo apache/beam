@@ -18,7 +18,7 @@
 #   name: WithKeys
 #   description: Task from katas to convert each fruit name into a KV of its first letter and itself.
 #   multifile: false
-#   context_line: 25
+#   context_line: 29
 #   categories:
 #     - Combiners
 

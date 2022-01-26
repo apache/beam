@@ -88,7 +88,7 @@ examples catalog.
 - `multifile` - boolean field. Specifies if the given example consists of multiple files or not.
 - `pipeline_options` - string field (optional). Contains information about pipeline options of the Beam example/test/kata.
 - `default_example` - boolean field (optional). Specifies if the given example is default or not.
-- `context_line` - integer field. The line where the interesting part of the Beam example/test/kata begins.
+- `context_line` - integer field. The line where the main part of the Beam example/test/kata begins.
 - `categories` - list type field.
 Lists categories this example is included into. Available categories are listed in
 [playground/categories.yaml](https://github.com/apache/beam/blob/master/playground/categories.yaml).

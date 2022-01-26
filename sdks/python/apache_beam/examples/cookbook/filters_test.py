@@ -23,7 +23,7 @@
 #   name: FiltersTest
 #   description: Unit-test for the Filters example.
 #   multifile: false
-#   context_line: 30
+#   context_line: 42
 #   categories:
 #     - Filtering
 

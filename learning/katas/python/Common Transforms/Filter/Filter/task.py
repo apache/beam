@@ -18,7 +18,7 @@
 #   name: Filter
 #   description: Task from katas to implement a filter function that filters out odd numbers.
 #   multifile: false
-#   context_line: 25
+#   context_line: 29
 #   categories:
 #     - Filtering
 
