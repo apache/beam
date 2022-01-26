@@ -72,7 +72,6 @@ class DataflowDistributionCounter(object):
     distribution(1,2,5 bucketing). Max bucket_index is 58( sys.maxint as input).
     is_cythonized: mark whether DataflowDistributionCounter cythonized.
   """
-
   # Assume the max input is sys.maxint, then the possible max bucket size is 59
   MAX_BUCKET_SIZE = 59
 

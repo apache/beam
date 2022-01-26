@@ -83,7 +83,6 @@ class CountAccumulator(object):
 
 
 class SumInt64Accumulator(object):
-
   def __init__(self):
     self.value = 0
 
@@ -107,7 +106,6 @@ class SumInt64Accumulator(object):
 
 
 class MinInt64Accumulator(object):
-
   def __init__(self):
     self.value = INT64_MAX
 
@@ -128,7 +126,6 @@ class MinInt64Accumulator(object):
 
 
 class MaxInt64Accumulator(object):
-
   def __init__(self):
     self.value = INT64_MIN
 
@@ -149,7 +146,6 @@ class MaxInt64Accumulator(object):
 
 
 class MeanInt64Accumulator(object):
-
   def __init__(self):
     self.sum = 0
     self.count = 0
@@ -175,7 +171,6 @@ class MeanInt64Accumulator(object):
 
 
 class DistributionInt64Accumulator(object):
-
   def __init__(self):
     self.sum = 0
     self.count = 0
