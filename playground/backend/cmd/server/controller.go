@@ -226,6 +226,21 @@ func (controller *playgroundController) GetCompileOutput(ctx context.Context, in
 	return &pb.GetCompileOutputResponse{Output: compileOutput}, nil
 }
 
+//GetGraph is returning graph of execution for specific pipeline by PipelineUuid
+func (controller *playgroundController) GetGraph(ctx context.Context, info *pb.GetGraphRequest) (*pb.GetGraphResponse, error) {
+	pipelineId, err := uuid.Parse(info.PipelineUuid)
+	errorMessage := "Error during getting graph output"
+	if err != nil {
+		logger.Errorf("%s: GetGraph(): pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid, err.Error())
+		return nil, errors.InvalidArgumentError(errorMessage, "pipelineId has incorrect value and couldn't be parsed as uuid value: %s", info.PipelineUuid)
+	}
+	graph, err := code_processing.GetGraph(ctx, controller.cacheService, pipelineId, errorMessage)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.GetGraphResponse{Graph: graph}, nil
+}
+
 // Cancel is setting cancel flag to stop code processing
 func (controller *playgroundController) Cancel(ctx context.Context, info *pb.CancelRequest) (*pb.CancelResponse, error) {
 	pipelineId, err := uuid.Parse(info.PipelineUuid)

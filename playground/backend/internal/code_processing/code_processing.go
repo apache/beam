@@ -94,7 +94,7 @@ func runStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeC
 	stopReadLogsChannel := make(chan bool, 1)
 	finishReadLogsChannel := make(chan bool, 1)
 
-	executorBuilder := executors.NewExecutorBuilder()
+	var executorBuilder *executors.ExecutorBuilder
 	err := error(nil)
 	if isUnitTest {
 		executorBuilder, err = builder.TestRunner(paths, sdkEnv)
@@ -331,6 +331,23 @@ func GetLastIndex(ctx context.Context, cacheService cache.Cache, key uuid.UUID, 
 	return int(convertedValue), nil
 }
 
+// GetGraph gets graph from cache by key.
+// In case key doesn't exist in cache - returns an errors.NotFoundError.
+// In case value from cache by key couldn't be converted to []byte - returns an errors.InternalError.
+func GetGraph(ctx context.Context, cacheService cache.Cache, key uuid.UUID, errorTitle string) (string, error) {
+	value, err := cacheService.GetValue(ctx, key, cache.Graph)
+	if err != nil {
+		logger.Errorf("%s: GetGraph(): cache.GetValue: error: %s", key, err.Error())
+		return "", errors.NotFoundError(errorTitle, "Error during getting graph")
+	}
+	stringValue, converted := value.(string)
+	if !converted {
+		logger.Errorf("%s: couldn't convert value to string. value: %s type %s", key, value, reflect.TypeOf(value))
+		return "", errors.InternalError(errorTitle, "Error during getting graph")
+	}
+	return stringValue, nil
+}
+
 // runCmdWithOutput runs command with keeping stdOut and stdErr
 func runCmdWithOutput(cmd *exec.Cmd, stdOutput io.Writer, stdError io.Writer, successChannel chan bool, errorChannel chan error) {
 	cmd.Stdout = stdOutput
@@ -503,6 +520,9 @@ func processCompileSuccess(ctx context.Context, output []byte, pipelineId uuid.U
 		return err
 	}
 	if err := utils.SetToCache(ctx, cacheService, pipelineId, cache.RunOutput, ""); err != nil {
+		return err
+	}
+	if err := utils.SetToCache(ctx, cacheService, pipelineId, cache.RunError, ""); err != nil {
 		return err
 	}
 	if err := utils.SetToCache(ctx, cacheService, pipelineId, cache.Logs, ""); err != nil {

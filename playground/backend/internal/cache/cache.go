@@ -57,6 +57,9 @@ const (
 	// LogsIndex is the index of the start of the log
 	LogsIndex SubKey = "LOGS_INDEX"
 
+	// Graph is used to keep graph of the execution
+	Graph SubKey = "GRAPH"
+
 	// ExamplesCatalog is catalog of examples available in Playground
 	ExamplesCatalog string = "EXAMPLES_CATALOG"
 )

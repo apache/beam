@@ -15,22 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.aws2.sqs;
+package org.apache.beam.sdk.io.aws2.sns;
 
-import static org.mockito.Mockito.mock;
+import org.apache.beam.sdk.io.aws2.StaticSupplier;
+import software.amazon.awssdk.services.sns.SnsClient;
 
-import org.apache.beam.sdk.testing.CoderProperties;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+/** Client provider supporting unserializable clients such as mock instances for unit tests. */
+class StaticSnsClientProvider extends StaticSupplier<SnsClient, StaticSnsClientProvider>
+    implements SnsClientProvider {
+  static SnsClientProvider of(SnsClient client) {
+    return new StaticSnsClientProvider().withObject(client);
+  }
 
-/** Tests on {@link SqsUnboundedSource}. */
-@RunWith(JUnit4.class)
-public class SqsUnboundedSourceTest {
-
-  @Test
-  public void testCheckpointCoderIsSane() {
-    SqsUnboundedSource source = new SqsUnboundedSource(mock(SqsIO.Read.class));
-    CoderProperties.coderSerializable(source.getCheckpointMarkCoder());
+  @Override
+  public SnsClient getSnsClient() {
+    return get();
   }
 }
