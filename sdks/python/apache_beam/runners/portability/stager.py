@@ -198,6 +198,8 @@ class Stager(object):
 
     setup_options = options.view_as(SetupOptions)
 
+    pickler.set_library(setup_options.pickle_library)
+
     # We can skip boot dependencies: apache beam sdk, python packages from
     # requirements.txt, python packages from extra_packages and workflow tarball
     # if we know we are using a dependency pre-installed sdk container image.
@@ -341,9 +343,11 @@ class Stager(object):
       pickled_session_file = os.path.join(
           temp_dir, names.PICKLED_MAIN_SESSION_FILE)
       pickler.dump_session(pickled_session_file)
-      resources.append(
-          Stager._create_file_stage_to_artifact(
-              pickled_session_file, names.PICKLED_MAIN_SESSION_FILE))
+      # for pickle_library: cloudpickle, dump_session is no op
+      if os.path.exists(pickled_session_file):
+        resources.append(
+            Stager._create_file_stage_to_artifact(
+                pickled_session_file, names.PICKLED_MAIN_SESSION_FILE))
 
     worker_options = options.view_as(WorkerOptions)
     dataflow_worker_jar = getattr(worker_options, 'dataflow_worker_jar', None)
