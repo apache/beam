@@ -807,6 +807,12 @@ class BeamModulePlugin implements Plugin<Project> {
         testRuntimeMigration.extendsFrom(testRuntimeOnly)
       }
 
+      // Provided configuration to match Maven provided scope
+      project.configurations {
+        provided
+        implementation.extendsFrom(provided)
+      }
+
       // Configure the Java compiler source language and target compatibility levels. Also ensure that
       // we configure the Java compiler to use UTF-8.
       project.sourceCompatibility = project.javaVersion
@@ -1544,7 +1550,7 @@ class BeamModulePlugin implements Plugin<Project> {
                 // which forces all our consumers to declare what they consume?
                 generateDependenciesFromConfiguration(
                     configuration: (configuration.shadowClosure ? 'shadow' : 'implementation'), scope: 'compile')
-                generateDependenciesFromConfiguration(configuration: 'compileOnly', scope: 'provided')
+                generateDependenciesFromConfiguration(configuration: 'provided', scope: 'provided')
 
                 if (!boms.isEmpty()) {
                   def dependencyManagementNode = root.appendNode('dependencyManagement')
@@ -2344,6 +2350,7 @@ class BeamModulePlugin implements Plugin<Project> {
             "python${project.ext.pythonVersion}",
             "-m",
             "venv",
+            "--clear",
             "${project.ext.envdir}",
           ]
           project.exec { commandLine virtualenvCmd }

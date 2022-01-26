@@ -17,6 +17,7 @@ package exec
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
@@ -123,6 +124,7 @@ func BenchmarkParDo_EmitSumFn(b *testing.B) {
 	}
 
 	process := make(chan MainInput, 1)
+	errchan := make(chan string, 1)
 	out := &CaptureNode{UID: 1}
 	pardo := &ParDo{UID: 3, Fn: edge.DoFn, Inbound: edge.Input, Out: []Node{out}}
 	n := &BenchRoot{UID: 4, Elements: process, Out: pardo}
@@ -131,11 +133,14 @@ func BenchmarkParDo_EmitSumFn(b *testing.B) {
 		b.Fatalf("failed to construct plan: %v", err)
 	}
 	go func() {
+		defer close(errchan)
 		if err := p.Execute(context.Background(), "1", DataContext{}); err != nil {
-			b.Fatalf("execute failed: %v", err)
+			errchan <- fmt.Sprintf("execute failed: %v", err)
+			return
 		}
 		if err := p.Down(context.Background()); err != nil {
-			b.Fatalf("down failed: %v", err)
+			errchan <- fmt.Sprintf("down failed: %v", err)
+			return
 		}
 	}()
 	b.ResetTimer()
@@ -147,4 +152,7 @@ func BenchmarkParDo_EmitSumFn(b *testing.B) {
 		}}
 	}
 	close(process)
+	for msg := range errchan {
+		b.Fatal(msg)
+	}
 }

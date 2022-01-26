@@ -99,6 +99,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -408,7 +409,28 @@ public class BigQueryIOWriteTest implements Serializable {
     if (autoSharding) {
       write = write.withAutoSharding();
     }
-    users.apply("WriteBigQuery", write);
+    WriteResult results = users.apply("WriteBigQuery", write);
+
+    if (!useStreaming && !useStorageApi) {
+      PCollection<TableDestination> successfulBatchInserts = results.getSuccessfulTableLoads();
+      TableDestination[] expectedTables =
+          userList.stream()
+              .map(
+                  user -> {
+                    Matcher matcher = userPattern.matcher(user);
+                    checkState(matcher.matches());
+                    String userId = matcher.group(2);
+                    return new TableDestination(
+                        String.format("project-id:dataset-id.userid-%s$20171127", userId),
+                        String.format("table for userid %s", userId));
+                  })
+              .distinct()
+              .toArray(TableDestination[]::new);
+
+      PAssert.that(successfulBatchInserts.apply(Distinct.create()))
+          .containsInAnyOrder(expectedTables);
+    }
+
     p.run();
 
     Map<Long, List<TableRow>> expectedTableRows = Maps.newHashMap();
@@ -941,6 +963,72 @@ public class BigQueryIOWriteTest implements Serializable {
                                 new TableFieldSchema().setName("number").setType("INTEGER"))))
                 .withTestServices(fakeBqServices)
                 .withoutValidation());
+    p.run();
+  }
+
+  @Test
+  public void testWriteWithSuccessfulBatchInserts() throws Exception {
+    if (useStreaming || useStorageApi) {
+      return;
+    }
+
+    WriteResult result =
+        p.apply(
+                Create.of(
+                        new TableRow().set("name", "a").set("number", 1),
+                        new TableRow().set("name", "b").set("number", 2),
+                        new TableRow().set("name", "c").set("number", 3))
+                    .withCoder(TableRowJsonCoder.of()))
+            .apply(
+                BigQueryIO.writeTableRows()
+                    .to("dataset-id.table-id")
+                    .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                    .withSchema(
+                        new TableSchema()
+                            .setFields(
+                                ImmutableList.of(
+                                    new TableFieldSchema().setName("name").setType("STRING"),
+                                    new TableFieldSchema().setName("number").setType("INTEGER"))))
+                    .withTestServices(fakeBqServices)
+                    .withoutValidation());
+
+    PAssert.that(result.getSuccessfulTableLoads())
+        .containsInAnyOrder(new TableDestination("project-id:dataset-id.table-id", null));
+
+    p.run();
+  }
+
+  @Test
+  public void testWriteWithSuccessfulBatchInsertsAndWriteRename() throws Exception {
+    if (useStreaming || useStorageApi) {
+      return;
+    }
+
+    WriteResult result =
+        p.apply(
+                Create.of(
+                        new TableRow().set("name", "a").set("number", 1),
+                        new TableRow().set("name", "b").set("number", 2),
+                        new TableRow().set("name", "c").set("number", 3))
+                    .withCoder(TableRowJsonCoder.of()))
+            .apply(
+                BigQueryIO.writeTableRows()
+                    .to("dataset-id.table-id")
+                    .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                    .withSchema(
+                        new TableSchema()
+                            .setFields(
+                                ImmutableList.of(
+                                    new TableFieldSchema().setName("name").setType("STRING"),
+                                    new TableFieldSchema().setName("number").setType("INTEGER"))))
+                    .withMaxFileSize(1)
+                    .withMaxFilesPerPartition(1)
+                    .withTestServices(fakeBqServices)
+                    .withoutValidation());
+
+    PAssert.that(result.getSuccessfulTableLoads())
+        .containsInAnyOrder(new TableDestination("project-id:dataset-id.table-id", null));
+
     p.run();
   }
 
@@ -2088,7 +2176,7 @@ public class BigQueryIOWriteTest implements Serializable {
     for (int i = 0; i < numFinalTables; ++i) {
       String tableName = "project-id:dataset-id.table_" + i;
       TableDestination tableDestination = new TableDestination(tableName, "table_" + i + "_desc");
-      for (int j = 0; i < numTempTablesPerFinalTable; ++i) {
+      for (int j = 0; j < numTempTablesPerFinalTable; ++j) {
         TableReference tempTable =
             new TableReference()
                 .setProjectId("project-id")
@@ -2122,7 +2210,7 @@ public class BigQueryIOWriteTest implements Serializable {
             "kms_key",
             null);
 
-    DoFnTester<Iterable<KV<TableDestination, WriteTables.Result>>, Void> tester =
+    DoFnTester<Iterable<KV<TableDestination, WriteTables.Result>>, TableDestination> tester =
         DoFnTester.of(writeRename);
     tester.setSideInput(jobIdTokenView, GlobalWindow.INSTANCE, jobIdToken);
     tester.processElement(tempTablesElement);

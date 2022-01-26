@@ -226,12 +226,16 @@ public class Select {
             .withNullable(fieldType.getNullable())
             .withMetadata(fieldType.getAllMetadata());
       case ARRAY:
-        return FieldType.array(uniquifyNames(fieldType.getCollectionElementType()));
+        return FieldType.array(uniquifyNames(fieldType.getCollectionElementType()))
+            .withNullable(fieldType.getNullable());
       case ITERABLE:
-        return FieldType.iterable(uniquifyNames(fieldType.getCollectionElementType()));
+        return FieldType.iterable(uniquifyNames(fieldType.getCollectionElementType()))
+            .withNullable(fieldType.getNullable());
       case MAP:
         return FieldType.map(
-            uniquifyNames(fieldType.getMapKeyType()), uniquifyNames(fieldType.getMapValueType()));
+                uniquifyNames(fieldType.getMapKeyType()),
+                uniquifyNames(fieldType.getMapValueType()))
+            .withNullable(fieldType.getNullable());
       default:
         return fieldType;
     }
