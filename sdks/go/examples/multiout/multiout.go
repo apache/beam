@@ -24,6 +24,7 @@ package main
 //     -- small - for big words.
 //   multifile: false
 //   pipeline_options: --small sOutput.txt --big bOutput.txt
+//   context_line: 18
 //   categories:
 //     - IO
 //     - Options

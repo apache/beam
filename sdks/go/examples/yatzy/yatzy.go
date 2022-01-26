@@ -23,6 +23,7 @@ package main
 //   description: An examples shows that pipeline construction is normal Go code.
 //     It can even be non-deterministic and produce different pipelines on each invocation.
 //   multifile: false
+//   context_line: 19
 //   categories:
 //     - IO
 //     - Side Input

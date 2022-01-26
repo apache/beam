@@ -60,6 +60,7 @@ package main
 //   description: An example that counts words in Shakespeare's works.
 //   multifile: false
 //   pipeline_options: --output output.txt
+//   context_line: 56
 //   categories:
 //     - Combiners
 //     - Options

@@ -23,6 +23,7 @@
 #   name: WordCountMinimalTest
 #   description: Unit-test for the minimal WordCount example.
 #   multifile: false
+#   context_line: 31
 #   categories:
 #     - IO
 #     - Combiners

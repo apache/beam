@@ -21,6 +21,7 @@ package org.apache.beam.sdk.transforms;
 //   name: CombineFnsTest
 //   description: Unit-test for the CombineFn example.
 //   multifile: false
+//   context_line: 18
 //   categories:
 //     - Combiners
 //     - Core Transforms

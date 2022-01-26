@@ -21,6 +21,7 @@
 #   name: MetricTest
 #   description: Unit-test for the Metric example.
 #   multifile: false
+#   context_line: 28
 #   categories:
 #   - Metrics
 
