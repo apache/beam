@@ -52,6 +52,7 @@ class Config:
   CI_STEP_NAME = "CI"
   CD_STEP_NAME = "CD"
   CI_CD_LITERAL = Literal["CI", "CD"]
+  LINK_PREFIX = "https://github.com/apache/beam/blob/master"
 
 
 @dataclass(frozen=True)

@@ -149,6 +149,7 @@ class CDHelper:
     file_names[output_path] = example.output
     meta = example.tag._asdict()
     meta["type"] = example.type
+    meta["link"] = example.link
     file_names[meta_path] = json.dumps(meta)
     file_names[log_path] = example.logs
     if example.sdk == SDK_PYTHON or example.sdk == SDK_JAVA:

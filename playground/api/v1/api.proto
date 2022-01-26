@@ -140,7 +140,7 @@ message GetGraphRequest {
   string pipeline_uuid = 1;
 }
 
-// GetGraphResponse represents the graph of the executed code.
+// GetGraphResponse represents the string representation of pipeline execution graph in DOT format.
 message GetGraphResponse {
   string graph = 1;
 }
@@ -240,7 +240,7 @@ service PlaygroundService {
   // Get the logs of pipeline execution.
   rpc GetLogs(GetLogsRequest) returns (GetLogsResponse);
 
-  // Get the graph of pipeline execution.
+  // Get the string representation of the pipeline execution graph in DOT format.
   rpc GetGraph(GetGraphRequest) returns (GetGraphResponse);
 
   // Get the error of pipeline execution.
