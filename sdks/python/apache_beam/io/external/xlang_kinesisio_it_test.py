@@ -290,7 +290,10 @@ class KinesisHelper:
       time.sleep(2)
       if i == retries - 1:
         logging.error('Could not initialize kinesis stream')
-        raise RuntimeError()
+        raise RuntimeError(
+            "Unable to initialize Kinesis Stream %s. Status: %s",
+            stream['StreamDescription']['StreamName'],
+            stream['StreamDescription']['StreamStatus'])
       stream = self.kinesis_client.describe_stream(StreamName=stream_name)
 
     return stream['StreamDescription']['Shards'][0]['ShardId']
