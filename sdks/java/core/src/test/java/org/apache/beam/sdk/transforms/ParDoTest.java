@@ -3149,7 +3149,7 @@ public class ParDoTest implements Serializable {
               .apply("CreateSideInput1", Create.of(2))
               .apply("ViewSideInput1", View.asSingleton());
 
-      TestSimpleStatefulDoFn fn = new TestSimpleStatefulDoFn(sideInput);
+      TestSimpleStatefulDoFn fn = new TestSimpleStatefulDoFn();
       pipeline
           .apply(Create.of(KV.of(1, 2)))
           .apply(ParDo.of(fn).withSideInput(sideInputTag1, sideInput));
@@ -3167,8 +3167,6 @@ public class ParDoTest implements Serializable {
 
       @StateId(stateId)
       private final StateSpec<BagState<MyInteger>> bufferState = StateSpecs.bag();
-
-      private TestSimpleStatefulDoFn(PCollectionView<Integer> view) {}
 
       @ProcessElement
       public void processElem(

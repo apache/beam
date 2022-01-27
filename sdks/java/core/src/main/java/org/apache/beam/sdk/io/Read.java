@@ -108,6 +108,7 @@ public class Read {
   public static class Builder {
     private final String name;
 
+    @SuppressWarnings("unused")
     private Builder(String name) {
       this.name = name;
     }

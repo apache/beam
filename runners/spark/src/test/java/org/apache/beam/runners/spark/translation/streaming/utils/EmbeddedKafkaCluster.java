@@ -49,10 +49,6 @@ public class EmbeddedKafkaCluster {
   private final List<KafkaServerStartable> brokers;
   private final List<File> logDirs;
 
-  private EmbeddedKafkaCluster(String zkConnection) {
-    this(zkConnection, new Properties());
-  }
-
   public EmbeddedKafkaCluster(String zkConnection, Properties baseProperties) {
     this(zkConnection, baseProperties, Collections.singletonList(-1));
   }

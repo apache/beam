@@ -295,33 +295,6 @@ public class TransformHierarchy {
     }
 
     /**
-     * Creates a new {@link Node} with the given parent and transform, where inputs and outputs are
-     * already known.
-     *
-     * <p>EnclosingNode and transform may both be null for a root-level node, which holds all other
-     * nodes.
-     *
-     * @param enclosingNode the composite node containing this node
-     * @param transform the PTransform tracked by this node
-     * @param fullName the fully qualified name of the transform
-     * @param inputs the expanded inputs to the transform
-     * @param outputs the expanded outputs of the transform
-     */
-    private Node(
-        @Nullable Node enclosingNode,
-        @Nullable PTransform<?, ?> transform,
-        String fullName,
-        @Nullable Map<TupleTag<?>, PCollection<?>> inputs,
-        @Nullable Map<TupleTag<?>, PCollection<?>> outputs) {
-      this.enclosingNode = enclosingNode;
-      this.transform = transform;
-      this.fullName = fullName;
-      this.inputs = inputs == null ? Collections.emptyMap() : inputs;
-      this.outputs = outputs == null ? Collections.emptyMap() : outputs;
-      this.resourceHints = transform.getResourceHints().mergeWithOuter(enclosingNode.resourceHints);
-    }
-
-    /**
      * Returns the transform associated with this transform node.
      *
      * @return {@code null} if and only if this is the root node of the graph, which has no
