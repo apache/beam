@@ -81,6 +81,11 @@ func TestNew(t *testing.T) {
 			Param: []FnParamKind{FnValue, FnMultiMap},
 		},
 		{
+			Name:  "good7",
+			Fn:    func(typex.PaneInfo, typex.Window, typex.EventTime, reflect.Type, []byte) {},
+			Param: []FnParamKind{FnPane, FnWindow, FnEventTime, FnType, FnValue},
+		},
+		{
 			Name:  "good-method",
 			Fn:    foo{1}.Do,
 			Param: []FnParamKind{FnContext, FnValue, FnValue},
@@ -121,6 +126,11 @@ func TestNew(t *testing.T) {
 			Name: "errContextParam: multiple context",
 			Fn:   func(context.Context, context.Context, int) {},
 			Err:  errContextParam,
+		},
+		{
+			Name: "errPaneParam: after Window",
+			Fn:   func(typex.Window, typex.PaneInfo, int) {},
+			Err:  errPaneParamPrecedence,
 		},
 		{
 			Name: "errWindowParamPrecedence: after EventTime",
