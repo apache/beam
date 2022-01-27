@@ -214,6 +214,7 @@ task examplesIntegrationTest(type: Test) {
   exclude '**/TriggerExampleIT.class' // OOM Exception
   exclude '**/WindowedWordCountIT.class' // Timeouts
   exclude '**/TopWikipediaSessionsIT.class' // OOM Exception
+  exclude '**/TfIdfIT.class' // OOM Exception
   maxParallelForks 4
   classpath = configurations.examplesJavaIntegrationTest
   testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
