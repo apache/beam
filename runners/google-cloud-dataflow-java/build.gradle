@@ -139,9 +139,11 @@ def dataflowLegacyWorkerJar = project.findProperty('dataflowWorkerJar') ?: proje
 def dataflowKmsKey = project.findProperty('dataflowKmsKey') ?: "projects/apache-beam-testing/locations/global/keyRings/beam-it/cryptoKeys/test"
 
 def dockerImageRoot = project.findProperty('dockerImageRoot') ?: "us.gcr.io/${dataflowProject}/java-postcommit-it"
-def dockerImageContainer = "${dockerImageRoot}/java"
+def dockerJavaImageContainer = "${dockerImageRoot}/java"
+def dockerPythonImageContainer = "${dockerImageRoot}/python"
 def dockerTag = new Date().format('yyyyMMddHHmmss')
-ext.dockerImageName = "${dockerImageContainer}:${dockerTag}"
+ext.dockerJavaImageName = "${dockerJavaImageContainer}:${dockerTag}"
+ext.dockerPythonImageName = "${dockerPythonImageContainer}:${dockerTag}"
 
 def legacyPipelineOptions = [
   "--runner=TestDataflowRunner",
@@ -157,7 +159,7 @@ def runnerV2PipelineOptions = [
   "--project=${dataflowProject}",
   "--region=${dataflowRegion}",
   "--tempRoot=${dataflowValidatesTempRoot}",
-  "--sdkContainerImage=${dockerImageContainer}:${dockerTag}",
+  "--sdkContainerImage=${dockerJavaImageContainer}:${dockerTag}",
   // TODO(BEAM-11779) remove shuffle_mode=appliance with runner v2 once issue is resolved.
   "--experiments=use_unified_worker,use_runner_v2,shuffle_mode=appliance",
 ]
@@ -231,7 +233,7 @@ def createRunnerV2ValidatesRunnerTest = { Map args ->
   def excludedCategories = args.excludedCategories ?: []
 
   return tasks.create(name: name, type: Test, group: "Verification") {
-    dependsOn buildAndPushDockerContainer
+    dependsOn buildAndPushDockerJavaContainer
     systemProperty "beamTestPipelineOptions", JsonOutput.toJson(pipelineOptions)
 
     // Increase test parallelism up to the number of Gradle workers. By default this is equal
@@ -259,9 +261,9 @@ def createRunnerV2ValidatesRunnerTest = { Map args ->
 
 // Push docker images to a container registry for use within tests.
 // NB: Tasks which consume docker images from the registry should depend on this
-// task directly ('dependsOn buildAndPushDockerContainer'). This ensures the correct
+// task directly ('dependsOn buildAndPushDockerJavaContainer'). This ensures the correct
 // task ordering such that the registry doesn't get cleaned up prior to task completion.
-task buildAndPushDockerContainer() {
+task buildAndPushDockerJavaContainer() {
   def javaVer = project.hasProperty('compileAndRunTestsWithJava11') ? "java11" : "java8"
   dependsOn ":sdks:java:container:${javaVer}:docker"
   def defaultDockerImageName = containerImageName(
@@ -270,25 +272,62 @@ task buildAndPushDockerContainer() {
           tag: project.sdk_version)
   doLast {
     exec {
-      commandLine "docker", "tag", "${defaultDockerImageName}", "${dockerImageName}"
+      commandLine "docker", "tag", "${defaultDockerImageName}", "${dockerJavaImageName}"
     }
     exec {
-      commandLine "gcloud", "docker", "--", "push", "${dockerImageName}"
+      commandLine "gcloud", "docker", "--", "push", "${dockerJavaImageName}"
     }
   }
 }
 
-// Clean up built images
-task cleanUpDockerImages() {
+// Clean up built Java images
+task cleanUpDockerJavaImages() {
   doLast {
     exec {
-      commandLine "docker", "rmi", "--force", "${dockerImageName}"
+      commandLine "docker", "rmi", "--force", "${dockerJavaImageName}"
     }
     exec {
-      commandLine "gcloud", "--quiet", "container", "images", "untag", "${dockerImageName}"
+      commandLine "gcloud", "--quiet", "container", "images", "untag", "${dockerJavaImageName}"
     }
     exec {
-      commandLine "./scripts/cleanup_untagged_gcr_images.sh", "${dockerImageContainer}"
+      commandLine "./scripts/cleanup_untagged_gcr_images.sh", "${dockerJavaImageContainer}"
+    }
+  }
+}
+
+// Push docker images to a container registry for use within tests.
+// NB: Tasks which consume docker images from the registry should depend on this
+// task directly ('dependsOn buildAndPushDockerPythonContainer'). This ensures the correct
+// task ordering such that the registry doesn't get cleaned up prior to task completion.
+task buildAndPushDockerPythonContainer() {
+  project.evaluationDependsOn(":sdks:python")
+  def pythonVer = project.project(':sdks:python').pythonVersion
+  dependsOn ":sdks:python:container:py"+pythonVer.replace('.', '')+":docker"
+  def defaultDockerImageName = containerImageName(
+          name: "${project.docker_image_default_repo_prefix}python${pythonVer}_sdk",
+          root: "apache",
+          tag: project.sdk_version)
+  doLast {
+    exec {
+      commandLine "docker", "tag", "${defaultDockerImageName}", "${dockerPythonImageName}"
+    }
+    exec {
+      commandLine "gcloud", "docker", "--", "push", "${dockerPythonImageName}"
+    }
+  }
+}
+
+// Clean up built Python images
+task cleanUpDockerPythonImages() {
+  doLast {
+    exec {
+      commandLine "docker", "rmi", "--force", "${dockerPythonImageName}"
+    }
+    exec {
+      commandLine "gcloud", "--quiet", "container", "images", "untag", "${dockerPythonImageName}"
+    }
+    exec {
+      commandLine "./scripts/cleanup_untagged_gcr_images.sh", "${dockerPythonImageContainer}"
     }
   }
 }
@@ -296,20 +335,23 @@ task cleanUpDockerImages() {
 afterEvaluate {
   // Ensure all tasks which use published docker images run before they are cleaned up
   tasks.each { t ->
-    if (t.dependsOn.contains(buildAndPushDockerContainer) && !t.name.equalsIgnoreCase('printRunnerV2PipelineOptions')) {
-      t.finalizedBy cleanUpDockerImages
+    if (t.dependsOn.contains(buildAndPushDockerJavaContainer) && !t.name.equalsIgnoreCase('printRunnerV2PipelineOptions')) {
+      t.finalizedBy cleanUpDockerJavaImages
+    }
+    if (t.dependsOn.contains(buildAndPushDockerPythonContainer)) {
+      t.finalizedBy cleanUpDockerPythonImages
     }
   }
 }
 
 task printRunnerV2PipelineOptions {
-  dependsOn buildAndPushDockerContainer
+  dependsOn buildAndPushDockerJavaContainer
 
   doLast {
     println "To run a Dataflow job with runner V2, add the following pipeline options to your command-line:"
     println runnerV2PipelineOptions.join(' ')
     println "Please delete your image upon completion with the following command:"
-    println "docker rmi ${dockerImageName}; gcloud container images delete --force-delete-tags ${dockerImageName}"
+    println "docker rmi ${dockerJavaImageName}; gcloud container images delete --force-delete-tags ${dockerJavaImageName}"
   }
 }
 
@@ -335,13 +377,18 @@ task validatesRunnerStreaming {
 }
 
 task setupXVR {
-  dependsOn buildAndPushDockerContainer
-  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
+  dependsOn buildAndPushDockerJavaContainer
+  dependsOn buildAndPushDockerPythonContainer
+}
+
+task cleanupXVR {
+  finalizedBy cleanUpDockerJavaImages
+  finalizedBy cleanUpDockerPythonImages
 }
 
 createCrossLanguageValidatesRunnerTask(
   startJobServer: setupXVR,
-  cleanupJobServer: cleanUpDockerImages,
+  cleanupJobServer: cleanupXVR,
   classpath: configurations.validatesRunner,
   numParallelTests: Integer.MAX_VALUE,
   needsSdkLocation: true,
@@ -349,7 +396,7 @@ createCrossLanguageValidatesRunnerTask(
     "--runner=TestDataflowRunner",
     "--project=${dataflowProject}",
     "--region=${dataflowRegion}",
-    "--sdk_harness_container_image_overrides=.*java.*,${dockerImageContainer}:${dockerTag}",
+    "--sdk_harness_container_image_overrides=.*java.*,${dockerJavaImageContainer}:${dockerTag}",
     "--experiments=use_runner_v2",
     // TODO(BEAM-11779) remove shuffle_mode=appliance with runner v2 once issue is resolved
     "--experiments=shuffle_mode=appliance",
@@ -359,7 +406,8 @@ createCrossLanguageValidatesRunnerTask(
     "--project=${dataflowProject}",
     "--region=${dataflowRegion}",
     "--tempRoot=${dataflowValidatesTempRoot}",
-    "--sdkHarnessContainerImageOverrides=.*java.*,${dockerImageContainer}:${dockerTag}",
+    "--sdkContainerImage=${dockerJavaImageContainer}:${dockerTag}",
+    "--sdkHarnessContainerImageOverrides=.*python.*,${dockerPythonImageContainer}:${dockerTag}",
     // TODO(BEAM-11779) remove shuffle_mode=appliance with runner v2 once issue is resolved.
     "--experiments=use_runner_v2,shuffle_mode=appliance",
   ],
@@ -375,7 +423,7 @@ createCrossLanguageValidatesRunnerTask(
     "--dataflow_project ${dataflowProject}",
     "--region ${dataflowRegion}",
     "--tests \"./test/integration/xlang\"",
-    "--sdk_overrides \".*java.*,${dockerImageContainer}:${dockerTag}\"",
+    "--sdk_overrides \".*java.*,${dockerJavaImageContainer}:${dockerTag}\"",
   ],
 )
 
@@ -557,7 +605,7 @@ task googleCloudPlatformLegacyWorkerKmsIntegrationTest(type: Test) {
 
 task googleCloudPlatformRunnerV2IntegrationTest(type: Test) {
   group = "Verification"
-  dependsOn buildAndPushDockerContainer
+  dependsOn buildAndPushDockerJavaContainer
 
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2PipelineOptions)
 
@@ -603,7 +651,7 @@ task examplesJavaLegacyWorkerIntegrationTest(type: Test) {
 
 task examplesJavaRunnerV2IntegrationTest(type: Test) {
   group = "Verification"
-  dependsOn buildAndPushDockerContainer
+  dependsOn buildAndPushDockerJavaContainer
 
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2PipelineOptions)
 
@@ -647,7 +695,7 @@ task coreSDKJavaLegacyWorkerIntegrationTest(type: Test) {
 
 task coreSDKJavaRunnerV2IntegrationTest(type: Test) {
   group = "Verification"
-  dependsOn buildAndPushDockerContainer
+  dependsOn buildAndPushDockerJavaContainer
 
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2PipelineOptions)
 
