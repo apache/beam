@@ -60,7 +60,8 @@ dependencies {
   implementation "com.alibaba:fastjson:1.2.69"
   implementation library.java.vendored_guava_26_0_jre
   implementation library.java.vendored_calcite_1_28_0
-
+  permitUnusedDeclared library.java.vendored_calcite_1_28_0
+  
   // Needed for HCatalogTableProvider tests,
   // they use HCat* types
   testImplementation "io.netty:netty-all:$netty_version"
