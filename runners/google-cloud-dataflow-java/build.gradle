@@ -300,6 +300,10 @@ task cleanUpDockerJavaImages() {
 // task directly ('dependsOn buildAndPushDockerPythonContainer'). This ensures the correct
 // task ordering such that the registry doesn't get cleaned up prior to task completion.
 task buildAndPushDockerPythonContainer() {
+  if (!project.project(":sdks:python").buildFile.exists()) {
+    System.err.println 'Python build file not found. Skipping buildAndPushDockerPythonContainer task.'
+    return
+  }
   project.evaluationDependsOn(":sdks:python")
   def pythonVer = project.project(':sdks:python').pythonVersion
   dependsOn ":sdks:python:container:py"+pythonVer.replace('.', '')+":docker"

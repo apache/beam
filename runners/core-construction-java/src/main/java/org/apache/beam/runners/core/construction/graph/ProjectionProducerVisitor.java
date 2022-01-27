@@ -56,6 +56,12 @@ class ProjectionProducerVisitor extends PipelineVisitor.Defaults {
   @Override
   public CompositeBehavior enterCompositeTransform(Node node) {
     PTransform<?, ?> transform = node.getTransform();
+
+    // TODO(BEAM-13658) Support inputs other than PBegin.
+    if (!node.getInputs().isEmpty()) {
+      return CompositeBehavior.DO_NOT_ENTER_TRANSFORM;
+    }
+
     if (!(transform instanceof ProjectionProducer)) {
       return CompositeBehavior.ENTER_TRANSFORM;
     }
