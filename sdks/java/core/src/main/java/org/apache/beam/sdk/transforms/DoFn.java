@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms;
 
 import com.google.auto.value.AutoValue;
+import com.google.errorprone.annotations.Keep;
 import java.io.Serializable;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -391,6 +392,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Retention(RetentionPolicy.RUNTIME)
   @Target({ElementType.FIELD, ElementType.PARAMETER})
   @Experimental(Kind.STATE)
+  @Keep
   public @interface StateId {
     /** The state ID. */
     String value();
@@ -472,6 +474,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Retention(RetentionPolicy.RUNTIME)
   @Target({ElementType.FIELD, ElementType.PARAMETER})
   @Experimental(Kind.TIMERS)
+  @Keep
   public @interface TimerId {
     /** The timer ID. */
     String value() default "";
@@ -482,6 +485,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Retention(RetentionPolicy.RUNTIME)
   @Target({ElementType.FIELD, ElementType.PARAMETER})
   @Experimental(Kind.TIMERS)
+  @Keep
   public @interface TimerFamily {
     /** The TimerMap tag ID. */
     String value();
@@ -494,6 +498,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.PARAMETER)
+  @Keep
   public @interface Key {}
 
   /** Annotation for specifying specific fields that are accessed in a Schema PCollection. */
@@ -518,6 +523,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
   @Experimental(Kind.TIMERS)
+  @Keep
   public @interface OnTimer {
     /** The timer ID. */
     String value();
@@ -537,6 +543,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
   @Experimental(Kind.TIMERS)
+  @Keep
   public @interface OnTimerFamily {
     /** The timer ID. */
     String value();
@@ -566,6 +573,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
   @Experimental(Kind.STATE)
+  @Keep
   public @interface OnWindowExpiration {}
 
   /**
@@ -590,6 +598,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
+  @Keep
   public @interface Setup {}
 
   /**
@@ -744,6 +753,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
+  @Keep
   public @interface ProcessElement {}
 
   /**
@@ -861,6 +871,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
+  @Keep
   public @interface FinishBundle {}
 
   /**
@@ -905,6 +916,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
+  @Keep
   public @interface Teardown {}
 
   /**
@@ -941,6 +953,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
+  @Keep
   public @interface GetInitialRestriction {}
 
   /**
@@ -996,6 +1009,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
+  @Keep
   public @interface GetSize {}
 
   /**
@@ -1012,6 +1026,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
+  @Keep
   public @interface GetRestrictionCoder {}
 
   /**
@@ -1057,6 +1072,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
+  @Keep
   public @interface SplitRestriction {}
 
   /**
@@ -1109,6 +1125,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
+  @Keep
   public @interface TruncateRestriction {}
 
   /**
@@ -1146,6 +1163,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
+  @Keep
   public @interface NewTracker {}
 
   /**
@@ -1186,6 +1204,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
+  @Keep
   public @interface GetInitialWatermarkEstimatorState {}
 
   /**
@@ -1202,6 +1221,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
+  @Keep
   public @interface GetWatermarkEstimatorStateCoder {}
 
   /**
@@ -1246,6 +1266,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
+  @Keep
   public @interface NewWatermarkEstimator {}
 
   /**
