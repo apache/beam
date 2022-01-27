@@ -44,7 +44,7 @@ public class MaxPerKeyExamplesIT {
   private final String timestamp = Long.toString(System.currentTimeMillis());
   private final String outputDatasetId = "max_per_key_examples" + timestamp;
   private final String outputTable = "max_per_key_examples_table";
-  private final Long DEFAULT_EXPIRATION = 1000L * 60 * 60;
+  private final Long defaultExpiration = 1000L * 60 * 60;
   private String projectId;
   private BigqueryClient bqClient;
 
@@ -60,7 +60,7 @@ public class MaxPerKeyExamplesIT {
             .as(MaxPerKeyExamplesIT.MaxPerKeyExamplesOptions.class);
     this.projectId = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
     this.bqClient = new BigqueryClient("MaxPerKeyExamplesIT");
-    this.bqClient.createNewDataset(this.projectId, this.outputDatasetId, DEFAULT_EXPIRATION);
+    this.bqClient.createNewDataset(this.projectId, this.outputDatasetId, defaultExpiration);
   }
 
   @After

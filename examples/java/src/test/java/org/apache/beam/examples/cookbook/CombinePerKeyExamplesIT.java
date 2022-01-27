@@ -31,7 +31,9 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.joda.time.Duration;
-import org.junit.*;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -42,7 +44,7 @@ public class CombinePerKeyExamplesIT {
   private final String timestamp = Long.toString(System.currentTimeMillis());
   private final String outputDatasetId = "combine_per_key_examples" + timestamp;
   private final String outputTable = "combine_per_key_examples_table";
-  private final Long DEFAULT_EXPIRATION = 1000L * 60 * 60;
+  private final Long defaultExpiration = 1000L * 60 * 60;
   private String projectId;
   private BigqueryClient bqClient;
 
@@ -56,7 +58,7 @@ public class CombinePerKeyExamplesIT {
     this.options = TestPipeline.testingPipelineOptions().as(CombinePerKeyExamplesOptions.class);
     this.projectId = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
     this.bqClient = new BigqueryClient("CombinePerKeyExamplesIT");
-    this.bqClient.createNewDataset(this.projectId, this.outputDatasetId, DEFAULT_EXPIRATION);
+    this.bqClient.createNewDataset(this.projectId, this.outputDatasetId, defaultExpiration);
   }
 
   @After

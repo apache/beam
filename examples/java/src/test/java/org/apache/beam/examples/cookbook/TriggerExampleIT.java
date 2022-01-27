@@ -44,7 +44,7 @@ public class TriggerExampleIT {
   private final String timestamp = Long.toString(System.currentTimeMillis());
   private final String outputDatasetId = "trigger_examples" + timestamp;
   private final String outputTable = "trigger_examples_table";
-  private final Long DEFAULT_EXPIRATION = 1000L * 60 * 60;
+  private final Long defaultExpiration = 1000L * 60 * 60;
   private String projectId;
   private BigqueryClient bqClient;
 
@@ -59,7 +59,7 @@ public class TriggerExampleIT {
         TestPipeline.testingPipelineOptions().as(TriggerExampleIT.TriggerExamplesOptions.class);
     this.projectId = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
     this.bqClient = new BigqueryClient("TriggerExamplesIT");
-    this.bqClient.createNewDataset(this.projectId, this.outputDatasetId, DEFAULT_EXPIRATION);
+    this.bqClient.createNewDataset(this.projectId, this.outputDatasetId, defaultExpiration);
   }
 
   @After
