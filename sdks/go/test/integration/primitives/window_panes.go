@@ -27,14 +27,14 @@ import (
 )
 
 func init() {
-	beam.RegisterFunction(IncrementFn)
+	beam.RegisterFunction(PanesFn)
 }
 
-func IncrementFn(pn typex.PaneInfo, value float64, emit func(int)) {
+func PanesFn(pn typex.PaneInfo, value float64, emit func(int)) {
 	emit(int(pn.Timing))
 }
 
-func Increment(s beam.Scope) {
+func Panes(s beam.Scope) {
 	s.Scope("increment")
 	con := teststream.NewConfig()
 	con.AddElements(1000, 1.0, 2.0, 3.0)
@@ -45,7 +45,7 @@ func Increment(s beam.Scope) {
 	windowed := beam.WindowInto(s, window.NewFixedWindows(windowSize), col, []beam.WindowIntoOption{
 		beam.Trigger(trigger.Always()),
 	}...)
-	sums := beam.ParDo(s, IncrementFn, windowed)
+	sums := beam.ParDo(s, PanesFn, windowed)
 	sums = beam.WindowInto(s, window.NewGlobalWindows(), sums)
 	passert.Count(s, sums, "number of firings", 3)
 }

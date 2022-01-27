@@ -23,9 +23,9 @@ import (
 	"github.com/apache/beam/sdks/v2/go/test/integration"
 )
 
-func TestIncrement(t *testing.T) {
+func TestPanes(t *testing.T) {
 	integration.CheckFilters(t)
 	p, s := beam.NewPipelineWithRoot()
-	Increment(s)
+	Panes(s)
 	ptest.RunAndValidate(t, p)
 }
