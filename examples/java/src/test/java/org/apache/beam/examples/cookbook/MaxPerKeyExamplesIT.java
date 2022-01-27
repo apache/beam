@@ -54,7 +54,7 @@ public class MaxPerKeyExamplesIT {
 
   @Before
   public void setupTestEnvironment() throws Exception {
-    PipelineOptionsFactory.register(MaxPerKeyExamplesOptions.class);
+    PipelineOptionsFactory.register(TestPipelineOptions.class);
     this.options =
         TestPipeline.testingPipelineOptions()
             .as(MaxPerKeyExamplesIT.MaxPerKeyExamplesOptions.class);

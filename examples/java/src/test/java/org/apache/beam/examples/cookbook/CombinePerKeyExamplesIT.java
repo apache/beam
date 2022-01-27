@@ -52,7 +52,7 @@ public class CombinePerKeyExamplesIT {
 
   @Before
   public void setupTestEnvironment() throws Exception {
-    PipelineOptionsFactory.register(CombinePerKeyExamplesOptions.class);
+    PipelineOptionsFactory.register(TestPipelineOptions.class);
     this.options = TestPipeline.testingPipelineOptions().as(CombinePerKeyExamplesOptions.class);
     this.projectId = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
     this.bqClient = new BigqueryClient("CombinePerKeyExamplesIT");
