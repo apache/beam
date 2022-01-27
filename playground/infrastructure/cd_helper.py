@@ -74,7 +74,7 @@ class CDHelper:
     tasks = [client.get_log(example.pipeline_id) for example in examples]
     logs = await asyncio.gather(*tasks)
 
-    if examples[0].sdk == SDK_PYTHON or examples[0].sdk == SDK_JAVA:
+    if len(examples) > 0 and (examples[0].sdk is SDK_PYTHON or examples[0].sdk is SDK_JAVA):
       tasks = [client.get_graph(example.pipeline_id) for example in examples]
       graphs = await asyncio.gather(*tasks)
 
