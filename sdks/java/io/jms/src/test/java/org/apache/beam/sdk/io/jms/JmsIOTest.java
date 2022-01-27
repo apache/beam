@@ -30,6 +30,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -253,6 +254,44 @@ public class JmsIOTest {
       count++;
     }
     assertEquals(100, count);
+  }
+
+  @Test
+  public void testWriteDynamicMessage() throws Exception {
+
+    Connection connection = connectionFactory.createConnection(USERNAME, PASSWORD);
+    connection.start();
+    Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+    MessageConsumer consumerOne = session.createConsumer(session.createTopic("Topic_One"));
+    MessageConsumer consumerTwo = session.createConsumer(session.createTopic("Topic_Two"));
+    ArrayList<TestEvent> data = new ArrayList<>();
+    for (int i = 0; i < 100; i++) {
+      data.add(new TestEvent("Topic_One", "Message One " + i));
+    }
+    for (int i = 0; i < 100; i++) {
+      data.add(new TestEvent("Topic_Two", "Message Two " + i));
+    }
+    pipeline
+        .apply(Create.of(data))
+        .apply(
+            JmsIO.<TestEvent>writeDynamic()
+                .withConnectionFactory(connectionFactory)
+                .withUsername(USERNAME)
+                .withPassword(PASSWORD)
+                .via(e -> e.getTopicName(), e -> e.getValue()));
+
+    pipeline.run();
+
+    int count = 0;
+    while (consumerOne.receive(1000) != null) {
+      count++;
+    }
+    assertEquals(100, count);
+
+    while (consumerTwo.receive(1000) != null) {
+      count++;
+    }
+    assertEquals(200, count);
   }
 
   @Test
@@ -554,5 +593,23 @@ public class JmsIOTest {
               }
               return result;
             });
+  }
+
+  private static class TestEvent implements Serializable {
+    private final String topicName;
+    private final String value;
+
+    private TestEvent(String topicName, String value) {
+      this.topicName = topicName;
+      this.value = value;
+    }
+
+    private String getTopicName() {
+      return this.topicName;
+    }
+
+    private String getValue() {
+      return this.value;
+    }
   }
 }

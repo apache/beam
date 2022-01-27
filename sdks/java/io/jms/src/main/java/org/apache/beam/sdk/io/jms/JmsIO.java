@@ -157,8 +157,15 @@ public class JmsIO {
     return new AutoValue_JmsIO_Read.Builder<T>().setMaxNumRecords(Long.MAX_VALUE).build();
   }
 
-  public static Write write() {
-    return new AutoValue_JmsIO_Write.Builder().build();
+  public static Write<String> write() {
+    return new AutoValue_JmsIO_Write.Builder<String>()
+        .setDynamic(false)
+        .setValueMapper(s -> s)
+        .build();
+  }
+
+  public static <EventT> Write<EventT> writeDynamic() {
+    return new AutoValue_JmsIO_Write.Builder<EventT>().setDynamic(true).build();
   }
 
   /**
@@ -604,7 +611,9 @@ public class JmsIO {
    * and configuration.
    */
   @AutoValue
-  public abstract static class Write extends PTransform<PCollection<String>, PDone> {
+  public abstract static class Write<EventT> extends PTransform<PCollection<EventT>, PDone> {
+
+    abstract boolean getDynamic();
 
     abstract @Nullable ConnectionFactory getConnectionFactory();
 
@@ -616,21 +625,31 @@ public class JmsIO {
 
     abstract @Nullable String getPassword();
 
-    abstract Builder builder();
+    abstract @Nullable SerializableMapper<EventT> getValueMapper();
+
+    abstract @Nullable SerializableMapper<EventT> getTopicNameMapper();
+
+    abstract Builder<EventT> builder();
 
     @AutoValue.Builder
-    abstract static class Builder {
-      abstract Builder setConnectionFactory(ConnectionFactory connectionFactory);
+    abstract static class Builder<EventT> {
+      abstract Builder<EventT> setConnectionFactory(ConnectionFactory connectionFactory);
 
-      abstract Builder setQueue(String queue);
+      abstract Builder<EventT> setQueue(String queue);
 
-      abstract Builder setTopic(String topic);
+      abstract Builder<EventT> setTopic(String topic);
 
-      abstract Builder setUsername(String username);
+      abstract Builder<EventT> setUsername(String username);
 
-      abstract Builder setPassword(String password);
+      abstract Builder<EventT> setPassword(String password);
 
-      abstract Write build();
+      abstract Builder<EventT> setDynamic(boolean dynamic);
+
+      abstract Builder<EventT> setValueMapper(SerializableMapper<EventT> valueMapper);
+
+      abstract Builder<EventT> setTopicNameMapper(SerializableMapper<EventT> topicNameMapper);
+
+      abstract Write<EventT> build();
     }
 
     /**
@@ -646,7 +665,7 @@ public class JmsIO {
      * @param connectionFactory The JMS {@link ConnectionFactory}.
      * @return The corresponding {@link JmsIO.Read}.
      */
-    public Write withConnectionFactory(ConnectionFactory connectionFactory) {
+    public Write<EventT> withConnectionFactory(ConnectionFactory connectionFactory) {
       checkArgument(connectionFactory != null, "connectionFactory can not be null");
       return builder().setConnectionFactory(connectionFactory).build();
     }
@@ -668,7 +687,7 @@ public class JmsIO {
      * @param queue The JMS queue name where to send messages to.
      * @return The corresponding {@link JmsIO.Read}.
      */
-    public Write withQueue(String queue) {
+    public Write<EventT> withQueue(String queue) {
       checkArgument(queue != null, "queue can not be null");
       return builder().setQueue(queue).build();
     }
@@ -690,46 +709,54 @@ public class JmsIO {
      * @param topic The JMS topic name.
      * @return The corresponding {@link JmsIO.Read}.
      */
-    public Write withTopic(String topic) {
+    public Write<EventT> withTopic(String topic) {
       checkArgument(topic != null, "topic can not be null");
       return builder().setTopic(topic).build();
     }
 
     /** Define the username to connect to the JMS broker (authenticated). */
-    public Write withUsername(String username) {
+    public Write<EventT> withUsername(String username) {
       checkArgument(username != null, "username can not be null");
       return builder().setUsername(username).build();
     }
 
     /** Define the password to connect to the JMS broker (authenticated). */
-    public Write withPassword(String password) {
+    public Write<EventT> withPassword(String password) {
       checkArgument(password != null, "password can not be null");
       return builder().setPassword(password).build();
     }
 
+    public <OutputT> Write<EventT> via(
+        SerializableMapper<EventT> topicNameMapper, SerializableMapper<EventT> valueMapper) {
+      checkArgument(topicNameMapper != null, "topicNameMapper can not be null");
+      checkArgument(valueMapper != null, "valueMapper can not be null");
+      return builder().setTopicNameMapper(topicNameMapper).setValueMapper(valueMapper).build();
+    }
+
     @Override
-    public PDone expand(PCollection<String> input) {
+    public PDone expand(PCollection<EventT> input) {
       checkArgument(getConnectionFactory() != null, "withConnectionFactory() is required");
       checkArgument(
-          getQueue() != null || getTopic() != null,
+          getDynamic() || getQueue() != null || getTopic() != null,
           "Either withQueue(queue) or withTopic(topic) is required");
       checkArgument(
           getQueue() == null || getTopic() == null,
           "withQueue(queue) and withTopic(topic) are exclusive");
 
-      input.apply(ParDo.of(new WriterFn(this)));
+      input.apply(ParDo.of(new WriterFn<EventT>(this)));
       return PDone.in(input.getPipeline());
     }
 
-    private static class WriterFn extends DoFn<String, Void> {
+    private static class WriterFn<EventT> extends DoFn<EventT, Void> {
 
-      private Write spec;
+      private Write<EventT> spec;
 
       private Connection connection;
       private Session session;
       private MessageProducer producer;
+      private Destination destination;
 
-      public WriterFn(Write spec) {
+      public WriterFn(Write<EventT> spec) {
         this.spec = spec;
       }
 
@@ -746,21 +773,29 @@ public class JmsIO {
           this.connection.start();
           // false means we don't use JMS transaction.
           this.session = this.connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
-          Destination destination;
+
           if (spec.getQueue() != null) {
-            destination = session.createQueue(spec.getQueue());
-          } else {
-            destination = session.createTopic(spec.getTopic());
+            this.destination = session.createQueue(spec.getQueue());
+          } else if (spec.getTopic() != null) {
+            this.destination = session.createTopic(spec.getTopic());
           }
-          this.producer = this.session.createProducer(destination);
+
+          this.producer = this.session.createProducer(null);
         }
       }
 
       @ProcessElement
       public void processElement(ProcessContext ctx) throws Exception {
-        String value = ctx.element();
+        String value = spec.getValueMapper().apply(ctx.element());
         TextMessage message = session.createTextMessage(value);
-        producer.send(message);
+        if (spec.getDynamic()) {
+          Destination dynamicDestination =
+              session.createTopic(spec.getTopicNameMapper().apply(ctx.element()));
+          producer.send(dynamicDestination, message);
+
+        } else {
+          producer.send(destination, message);
+        }
       }
 
       @Teardown
