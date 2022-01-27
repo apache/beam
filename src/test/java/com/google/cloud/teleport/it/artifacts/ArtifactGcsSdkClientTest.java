@@ -1,0 +1,318 @@
+/*
+ * Copyright (C) 2022 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+package com.google.cloud.teleport.it.artifacts;
+
+import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyIterable;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import com.google.api.gax.paging.Page;
+import com.google.cloud.storage.Blob;
+import com.google.cloud.storage.BlobId;
+import com.google.cloud.storage.BlobInfo;
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.Storage.BlobListOption;
+import com.google.cloud.storage.Storage.BucketListOption;
+import com.google.common.collect.ImmutableList;
+import com.google.common.io.Resources;
+import com.google.re2j.Pattern;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.List;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
+
+/** Unit tests for {@link ArtifactGcsSdkClient}. */
+@RunWith(JUnit4.class)
+public final class ArtifactGcsSdkClientTest {
+  @Rule public final MockitoRule mockito = MockitoJUnit.rule();
+
+  @Mock private Storage client;
+  @Mock private Blob blob;
+
+  private static final String LOCAL_PATH;
+  private static final byte[] TEST_ARTIFACT_CONTENTS;
+
+  static {
+    LOCAL_PATH = Resources.getResource("test-artifact.txt").getPath();
+    try {
+      TEST_ARTIFACT_CONTENTS = Files.readAllBytes(Paths.get(LOCAL_PATH));
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  private static final String BUCKET = "test-bucket";
+  private static final String DIR_PATH = "some/dir/path";
+
+  @Captor private ArgumentCaptor<String> bucketCaptor;
+  @Captor private ArgumentCaptor<BlobInfo> blobInfoCaptor;
+  @Captor private ArgumentCaptor<byte[]> contentsCaptor;
+  @Captor private ArgumentCaptor<BlobListOption> listOptionsCaptor;
+  @Captor private ArgumentCaptor<Iterable<BlobId>> blobIdCaptor;
+
+  @Test
+  public void testUploadArtifact() throws IOException {
+    when(client.create(any(BlobInfo.class), any(byte[].class))).thenReturn(blob);
+
+    Blob actual = new ArtifactGcsSdkClient(client).uploadArtifact(BUCKET, DIR_PATH, LOCAL_PATH);
+
+    verify(client).create(blobInfoCaptor.capture(), contentsCaptor.capture());
+
+    BlobInfo actualInfo = blobInfoCaptor.getValue();
+    byte[] actualContents = contentsCaptor.getValue();
+
+    assertThat(actual).isSameInstanceAs(blob);
+    assertThat(actualInfo.getBucket()).isEqualTo(BUCKET);
+    assertThat(actualInfo.getName()).isEqualTo(DIR_PATH);
+    assertThat(actualContents).isEqualTo(TEST_ARTIFACT_CONTENTS);
+  }
+
+  @Test
+  public void testUploadArtifactInvalidLocalPath() {
+    when(client.create(any(BlobInfo.class), any())).thenReturn(blob);
+    assertThrows(
+        IOException.class,
+        () ->
+            new ArtifactGcsSdkClient(client)
+                .uploadArtifact(
+                    BUCKET, DIR_PATH, "/some/invalid/path/please/do/not/make/this/file/valid"));
+  }
+
+  @Test
+  public void testListArtifactsSinglePage() {
+    // Arrange
+    String name1 = DIR_PATH + "/blob1";
+    String name2 = DIR_PATH + "/blob2";
+    String name3 = DIR_PATH + "/blob3";
+    ImmutableList<Blob> page1 =
+        ImmutableList.of(mock(Blob.class), mock(Blob.class), mock(Blob.class));
+    when(page1.get(0).getName()).thenReturn(name1);
+    when(page1.get(1).getName()).thenReturn(name2);
+    when(page1.get(2).getName()).thenReturn(name3);
+
+    TestBlobPage allPages = createPages(page1);
+    when(client.list(anyString(), any(BlobListOption.class))).thenReturn(allPages);
+
+    Pattern pattern = Pattern.compile(".*blob[13].*");
+
+    // Act
+    List<Blob> actual = new ArtifactGcsSdkClient(client).listArtifacts(BUCKET, DIR_PATH, pattern);
+
+    // Assert
+    verify(client).list(bucketCaptor.capture(), listOptionsCaptor.capture());
+
+    String actualBucket = bucketCaptor.getValue();
+    BlobListOption actualOptions = listOptionsCaptor.getValue();
+
+    assertThat(actual).hasSize(2);
+    assertThat(actual.get(0).getName()).isEqualTo(name1);
+    assertThat(actual.get(1).getName()).isEqualTo(name3);
+    assertThat(actualBucket).isEqualTo(BUCKET);
+    assertThat(actualOptions).isEqualTo(BucketListOption.prefix(DIR_PATH));
+  }
+
+  @Test
+  public void testListArtifactsMultiplePages() {
+    // Arrange
+    String name1 = DIR_PATH + "/blob1";
+    String name2 = DIR_PATH + "/blob2";
+    String name3 = DIR_PATH + "/blob3";
+    ImmutableList<Blob> page1 = ImmutableList.of(mock(Blob.class), mock(Blob.class));
+    ImmutableList<Blob> page2 = ImmutableList.of(mock(Blob.class));
+    when(page1.get(0).getName()).thenReturn(name1);
+    when(page1.get(1).getName()).thenReturn(name2);
+    when(page2.get(0).getName()).thenReturn(name3);
+
+    TestBlobPage allPages = createPages(page1, page2);
+    when(client.list(anyString(), any(BlobListOption.class))).thenReturn(allPages);
+
+    Pattern pattern = Pattern.compile(".*blob[13].*");
+
+    // Act
+    List<Blob> actual = new ArtifactGcsSdkClient(client).listArtifacts(BUCKET, DIR_PATH, pattern);
+
+    // Assert
+    verify(client).list(bucketCaptor.capture(), listOptionsCaptor.capture());
+
+    String actualBucket = bucketCaptor.getValue();
+    BlobListOption actualOptions = listOptionsCaptor.getValue();
+
+    assertThat(actual).hasSize(2);
+    assertThat(actual.get(0).getName()).isEqualTo(name1);
+    assertThat(actual.get(1).getName()).isEqualTo(name3);
+    assertThat(actualBucket).isEqualTo(BUCKET);
+    assertThat(actualOptions).isEqualTo(BucketListOption.prefix(DIR_PATH));
+  }
+
+  @Test
+  public void testListArtifactsNoArtifacts() {
+    TestBlobPage allPages = createPages(ImmutableList.of());
+    when(client.list(anyString(), any(BlobListOption.class))).thenReturn(allPages);
+    Pattern pattern = Pattern.compile(".*blob[13].*");
+
+    List<Blob> actual = new ArtifactGcsSdkClient(client).listArtifacts(BUCKET, DIR_PATH, pattern);
+
+    verify(client).list(anyString(), any(BlobListOption.class));
+    assertThat(actual).isEmpty();
+  }
+
+  @Test
+  public void testDeleteArtifactsSinglePage() {
+    // Arrange
+    BlobId id1 = BlobId.of(BUCKET, DIR_PATH + "/blob1");
+    BlobId id2 = BlobId.of(BUCKET, DIR_PATH + "/blob2");
+    BlobId id3 = BlobId.of(BUCKET, DIR_PATH + "/blob3");
+    ImmutableList<Blob> page1 =
+        ImmutableList.of(mock(Blob.class), mock(Blob.class), mock(Blob.class));
+    when(page1.get(0).getBlobId()).thenReturn(id1);
+    when(page1.get(1).getBlobId()).thenReturn(id2);
+    when(page1.get(2).getBlobId()).thenReturn(id3);
+
+    TestBlobPage allPages = createPages(page1);
+    when(client.list(anyString(), any(BlobListOption.class))).thenReturn(allPages);
+
+    when(client.delete(anyIterable())).thenReturn(ImmutableList.of(true, false, true));
+
+    // Act
+    new ArtifactGcsSdkClient(client).deleteTestDir(BUCKET, DIR_PATH);
+
+    // Assert
+    verify(client).list(bucketCaptor.capture(), listOptionsCaptor.capture());
+    verify(client).delete(blobIdCaptor.capture());
+
+    String actualBucket = bucketCaptor.getValue();
+    BlobListOption actualOption = listOptionsCaptor.getValue();
+    Iterable<BlobId> actualIds = blobIdCaptor.getValue();
+
+    assertThat(actualBucket).isEqualTo(BUCKET);
+    assertThat(actualOption).isEqualTo(BucketListOption.prefix(DIR_PATH));
+    assertThat(actualIds).containsExactly(id1, id2, id3);
+  }
+
+  @Test
+  public void testDeleteArtifactsMultiplePages() {
+    // Arrange
+    BlobId id1 = BlobId.of(BUCKET, DIR_PATH + "/blob1");
+    BlobId id2 = BlobId.of(BUCKET, DIR_PATH + "/blob2");
+    BlobId id3 = BlobId.of(BUCKET, DIR_PATH + "/blob3");
+    ImmutableList<Blob> page1 = ImmutableList.of(mock(Blob.class), mock(Blob.class));
+    ImmutableList<Blob> page2 = ImmutableList.of(mock(Blob.class));
+    when(page1.get(0).getBlobId()).thenReturn(id1);
+    when(page1.get(1).getBlobId()).thenReturn(id2);
+    when(page2.get(0).getBlobId()).thenReturn(id3);
+
+    TestBlobPage allPages = createPages(page1, page2);
+    when(client.list(anyString(), any(BlobListOption.class))).thenReturn(allPages);
+
+    // Technically, the second value is not realistic for the second call to delete, but it
+    // shouldn't mess anything up
+    when(client.delete(anyIterable())).thenReturn(ImmutableList.of(true, false));
+
+    // Act
+    new ArtifactGcsSdkClient(client).deleteTestDir(BUCKET, DIR_PATH);
+
+    // Assert
+    verify(client).list(bucketCaptor.capture(), listOptionsCaptor.capture());
+    verify(client, times(2)).delete(blobIdCaptor.capture());
+
+    String actualBucket = bucketCaptor.getValue();
+    BlobListOption actualOption = listOptionsCaptor.getValue();
+    List<Iterable<BlobId>> actualBlobIds = blobIdCaptor.getAllValues();
+
+    assertThat(actualBucket).isEqualTo(BUCKET);
+    assertThat(actualOption).isEqualTo(BucketListOption.prefix(DIR_PATH));
+    assertThat(actualBlobIds.get(0)).containsExactly(id1, id2);
+    assertThat(actualBlobIds.get(1)).containsExactly(id3);
+  }
+
+  @Test
+  public void testDeleteArtifactsNoArtifacts() {
+    TestBlobPage allPages = createPages(ImmutableList.of());
+    when(client.list(anyString(), any(BlobListOption.class))).thenReturn(allPages);
+
+    new ArtifactGcsSdkClient(client).deleteTestDir(BUCKET, DIR_PATH);
+
+    verify(client, never()).delete(anyIterable());
+  }
+
+  private static TestBlobPage createPages(ImmutableList<Blob>... pageContents) {
+    if (pageContents.length == 0) {
+      return new TestBlobPage(ImmutableList.of());
+    }
+    TestBlobPage first = new TestBlobPage(pageContents[0]);
+    TestBlobPage current = first;
+    for (int i = 1; i < pageContents.length; ++i) {
+      current.setNext(pageContents[i]);
+      current = current.next;
+    }
+    return first;
+  }
+
+  private static final class TestBlobPage implements Page<Blob> {
+    private TestBlobPage next;
+    private final ImmutableList<Blob> contents;
+
+    public TestBlobPage(ImmutableList<Blob> contents) {
+      this.contents = contents;
+      this.next = null;
+    }
+
+    public void setNext(ImmutableList<Blob> contents) {
+      next = new TestBlobPage(contents);
+    }
+
+    @Override
+    public boolean hasNextPage() {
+      return next != null;
+    }
+
+    @Override
+    public String getNextPageToken() {
+      return "token";
+    }
+
+    @Override
+    public Page<Blob> getNextPage() {
+      return next;
+    }
+
+    @Override
+    public Iterable<Blob> iterateAll() {
+      return contents;
+    }
+
+    @Override
+    public Iterable<Blob> getValues() {
+      return contents;
+    }
+  }
+}

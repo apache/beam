@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  ~ Copyright (C) 2022 Google Inc.
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License"); you may not
+  ~ use this file except in compliance with the License. You may obtain a copy of
+  ~ the License at
+  ~
+  ~ http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+  ~ WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+  ~ License for the specific language governing permissions and limitations under
+  ~ the License.
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <groupId>com.google.cloud.teleport</groupId>
+  <artifactId>it</artifactId>
+  <version>1.0-SNAPSHOT</version>
+  <modelVersion>4.0.0</modelVersion>
+
+  <properties>
+    <autovalue.version>1.8.2</autovalue.version>
+    <beam.version>2.34.0</beam.version>
+    <cloud-bom.version>24.2.0</cloud-bom.version>
+    <java.version>1.8</java.version>
+    <junit.version>4.13.2</junit.version>
+    <guava.version>31.0.1-jre</guava.version>
+    <maven-checkstyle-plugin.version>3.0.0</maven-checkstyle-plugin.version>
+    <maven-compiler-plugin.version>3.6.2</maven-compiler-plugin.version>
+    <mockito.version>3.7.7</mockito.version>
+    <puppycrawl.version>8.7</puppycrawl.version>
+    <re2j.version>1.5</re2j.version>
+    <slf4j.version>1.7.25</slf4j.version>
+    <spotless-maven-plugin.version>2.12.1</spotless-maven-plugin.version>
+    <surefire.version>2.21.0</surefire.version>
+    <truth.version>1.0.1</truth.version>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>com.google.cloud</groupId>
+        <artifactId>libraries-bom</artifactId>
+        <version>${cloud-bom.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <dependencies>
+    <!-- Beam. Try to minimize Beam dependencies, since this is about testing
+      pipelines, not writing them. -->
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
+      <version>${beam.version}</version>
+    </dependency>
+
+    <!-- Google Cloud -->
+    <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-storage</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.auto.value</groupId>
+      <artifactId>auto-value</artifactId>
+      <version>${autovalue.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.google.auto.value</groupId>
+      <artifactId>auto-value-annotations</artifactId>
+      <version>${autovalue.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>${guava.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.re2j</groupId>
+      <artifactId>re2j</artifactId>
+      <version>${re2j.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-simple</artifactId>
+      <version>${slf4j.version}</version>
+    </dependency>
+
+    <!-- Testing -->
+    <dependency>
+      <groupId>com.google.truth</groupId>
+      <artifactId>truth</artifactId>
+      <version>${truth.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>${junit.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <version>${mockito.version}</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <!-- Core Maven plugins. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>${maven-compiler-plugin.version}</version>
+        <configuration>
+          <source>${java.version}</source>
+          <target>${java.version}</target>
+          <!-- <compilerArgument>-parameters</compilerArgument> -->
+          <parameters>true</parameters>
+          <testCompilerArgument>-parameters</testCompilerArgument>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>${surefire.version}</version>
+      </plugin>
+      
+      <!-- Formatting -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+        <version>${maven-checkstyle-plugin.version}</version>
+        <dependencies>
+          <dependency>
+            <groupId>com.puppycrawl.tools</groupId>
+            <artifactId>checkstyle</artifactId>
+            <version>${puppycrawl.version}</version>
+          </dependency>
+        </dependencies>
+        <configuration>
+          <configLocation>checkstyle/checkstyle.xml</configLocation>
+          <suppressionsLocation>checkstyle/suppressions.xml</suppressionsLocation>
+          <consoleOutput>true</consoleOutput>
+          <failOnViolation>true</failOnViolation>
+          <includeResources>false</includeResources>
+          <includeTestSourceDirectory>true</includeTestSourceDirectory>
+        </configuration>
+        <executions>
+          <!--
+            Execute checkstyle after compilation but before tests.
+            This ensures that any parsing or type checking errors are from
+            javac, so they look as expected. Beyond that, we want to
+            fail as early as possible.
+          -->
+          <execution>
+            <phase>test-compile</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>com.diffplug.spotless</groupId>
+        <artifactId>spotless-maven-plugin</artifactId>
+        <version>${spotless-maven-plugin.version}</version>
+        <configuration>
+          <formats>
+            <!-- Avoid trailing whitespace and require ending newline. -->
+            <format>
+              <includes>
+                <!-- .gitignore does not need to be included here. -->
+                <include>*.md</include>
+              </includes>
+              <trimTrailingWhitespace/>
+              <endWithNewline/>
+            </format>
+          </formats>
+          <java>
+            <toggleOffOn />
+            <googleJavaFormat>
+              <version>1.8</version>
+              <style>GOOGLE</style>
+            </googleJavaFormat>
+            <licenseHeader>
+              <file>JAVA_LICENSE_HEADER</file>
+            </licenseHeader>
+          </java>
+        </configuration>
+        <!-- Bind to verify. -->
+        <executions>
+          <execution>
+            <goals>
+              <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>
