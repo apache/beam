@@ -77,7 +77,7 @@ const (
 	// Example:
 	//				"func(string) func (*int) bool"
 	FnMultiMap FnParamKind = 0x200
-	// FnPane indicates a function input parameter that implements typex.PaneInfo
+	// FnPane indicates a function input parameter that is a PaneInfo
 	FnPane FnParamKind = 0x400
 )
 
@@ -248,7 +248,7 @@ func (u *Fn) Window() (pos int, exists bool) {
 	return -1, false
 }
 
-// Pane returns (index, true) iff the function expects a pane.
+// Pane returns (index, true) iff the function expects a PaneInfo.
 func (u *Fn) Pane() (pos int, exists bool) {
 	for i, p := range u.Param {
 		if p.Kind == FnPane {
