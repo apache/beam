@@ -1551,6 +1551,8 @@ public class IsmSideInputReaderTest {
     }
   }
 
+  // TODO(BEAM-13460): Add assertions on contains() calls
+  @SuppressWarnings("ReturnValueIgnored")
   private static <T> void verifyMap(
       Map<byte[], T> expectedMap, Map<byte[], T> mapView, Comparator<T> valueComparator) {
     List<Entry<byte[], T>> expectedElements = new ArrayList<>(expectedMap.entrySet());
@@ -1576,7 +1578,7 @@ public class IsmSideInputReaderTest {
     Collections.shuffle(expectedElements, random);
     Set<byte[]> mapViewKeySet = mapView.keySet();
     for (Entry<byte[], T> expected : expectedElements) {
-      mapViewKeySet.contains(expected.getKey());
+      assertTrue(mapViewKeySet.contains(expected.getKey()));
     }
 
     // Verify key set iterator

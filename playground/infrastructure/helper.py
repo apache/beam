@@ -33,7 +33,7 @@ from api.v1.api_pb2 import SDK_UNSPECIFIED, STATUS_UNSPECIFIED, Sdk, \
   STATUS_COMPILING, STATUS_EXECUTING, PRECOMPILED_OBJECT_TYPE_UNIT_TEST, \
   PRECOMPILED_OBJECT_TYPE_KATA, PRECOMPILED_OBJECT_TYPE_UNSPECIFIED, \
   PRECOMPILED_OBJECT_TYPE_EXAMPLE, PrecompiledObjectType
-from config import Config, TagFields, PrecompiledExampleType
+from config import Config, TagFields, PrecompiledExampleType, OptionalTagFields
 from grpc_client import GRPCClient
 
 Tag = namedtuple(
@@ -43,8 +43,9 @@ Tag = namedtuple(
         TagFields.description,
         TagFields.multifile,
         TagFields.categories,
-        TagFields.pipeline_options
-    ])
+        TagFields.pipeline_options,
+        TagFields.default_example
+    ], defaults=(None, None, False, None, None, False))
 
 
 @dataclass
@@ -58,6 +59,7 @@ class Example:
   code: str
   status: STATUS_UNSPECIFIED
   tag: Tag
+  link: str
   logs: str = ""
   type: PrecompiledObjectType = PRECOMPILED_OBJECT_TYPE_UNSPECIFIED
   pipeline_id: str = ""
@@ -83,10 +85,11 @@ def find_examples(work_dir: str, supported_categories: List[str],
       name: NameOfExample
       description: Description of NameOfExample.
       multifile: false
+      default_example: false
       categories:
           - category-1
           - category-2
-      pipeline_options: --inputFile=your_file --outputFile=your_output_file
+      pipeline_options: --inputFile your_file --outputFile your_output_file
   If some example contain beam tag with incorrect format raise an error.
 
   Args:
@@ -241,6 +244,8 @@ def _get_example(filepath: str, filename: str, tag: ExampleTag) -> Example:
   with open(filepath, encoding="utf-8") as parsed_file:
     content = parsed_file.read()
   content = content.replace(tag.tag_as_string, "")
+  root_dir = os.getenv("BEAM_ROOT_DIR", "")
+  link = "{}{}".format(Config.LINK_PREFIX, (filepath.replace(root_dir, "", 1)))
 
   return Example(
       name=name,
@@ -249,7 +254,8 @@ def _get_example(filepath: str, filename: str, tag: ExampleTag) -> Example:
       code=content,
       status=STATUS_UNSPECIFIED,
       tag=Tag(**tag.tag_as_dict),
-      type=object_type)
+      type=object_type,
+      link=link)
 
 
 def _validate(tag: dict, supported_categories: List[str]) -> bool:
@@ -268,25 +274,28 @@ def _validate(tag: dict, supported_categories: List[str]) -> bool:
       In case tag is not valid, False
   """
   valid = True
+  required_tag_fields = {f.default for f in fields(TagFields)
+                if f.default not in
+                {o_f.default for o_f in fields(OptionalTagFields)}}
   # check that all fields exist and they have no empty value
-  for field in fields(TagFields):
-    if field.default not in tag:
+  for field in required_tag_fields:
+    if field not in tag:
       logging.error(
           "tag doesn't contain %s field: %s \n"
           "Please, check that this field exists in the beam playground tag."
           "If you are sure that this field exists in the tag"
           " check the format of indenting.",
-          field.default,
-          tag.__str__())
+          field,
+          tag)
       valid = False
     if valid is True:
-      value = tag.get(field.default)
+      value = tag.get(field)
       if (value == "" or
-          value is None) and field.default != TagFields.pipeline_options:
+          value is None) and field != TagFields.pipeline_options:
         logging.error(
             "tag's value is incorrect: %s\n%s field can not be empty.",
-            tag.__str__(),
-            field.default.__str__())
+            tag,
+            field)
         valid = False
 
   if valid is False:
@@ -298,8 +307,8 @@ def _validate(tag: dict, supported_categories: List[str]) -> bool:
     logging.error(
         "tag's field multifile is incorrect: %s \n"
         "multifile variable should be boolean format, but tag contains: %s",
-        tag.__str__(),
-        str(multifile))
+        tag,
+        multifile)
     valid = False
 
   # check that categories' value is a list of supported categories
@@ -308,8 +317,8 @@ def _validate(tag: dict, supported_categories: List[str]) -> bool:
     logging.error(
         "tag's field categories is incorrect: %s \n"
         "categories variable should be list format, but tag contains: %s",
-        tag.__str__(),
-        str(type(categories)))
+        tag,
+        type(categories))
     valid = False
   else:
     for category in categories:

@@ -15,25 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.aws2.sqs;
 
-import software.amazon.awssdk.services.sqs.SqsClient;
+/** Action processors for each of the types of Change Stream records received. */
+@Experimental
+package org.apache.beam.sdk.io.gcp.spanner.changestreams.action;
 
-/** Mocking AwsClientProvider. */
-public class SqsClientProviderMock implements SqsClientProvider {
-
-  private static SqsClientProviderMock instance = new SqsClientProviderMock();
-  private static SqsClient sqsClient;
-
-  private SqsClientProviderMock() {}
-
-  public static SqsClientProviderMock of(SqsClient sqs) {
-    sqsClient = sqs;
-    return instance;
-  }
-
-  @Override
-  public SqsClient getSqsClient() {
-    return sqsClient;
-  }
-}
+import org.apache.beam.sdk.annotations.Experimental;

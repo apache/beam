@@ -33,7 +33,7 @@ class _OutputState extends State<Output> with SingleTickerProviderStateMixin {
 
   @override
   void initState() {
-    tabController = TabController(vsync: this, length: 3);
+    tabController = TabController(vsync: this, length: 2);
     tabController.addListener(onTabChange);
     super.initState();
   }
