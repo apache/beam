@@ -384,7 +384,7 @@ public class BigqueryClient {
     createNewDataset(projectId, datasetId, null);
   }
 
-  /** Creates a new dataset with defaultTableExpiration */
+  /** Creates a new dataset with defaultTableExpiration. */
   public void createNewDataset(
       String projectId, String datasetId, @Nullable Long defaultTableExpiration)
       throws IOException, InterruptedException {
