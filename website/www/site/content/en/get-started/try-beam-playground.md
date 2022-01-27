@@ -87,7 +87,9 @@ examples catalog.
 - `description` - string field. Description of the Beam example/test/kata that will be displayed in Beam Playground.
 - `multifile` - boolean field. Specifies if the given example consists of multiple files or not.
 - `pipeline_options` - string field (optional). Contains information about pipeline options of the Beam example/test/kata.
-- `default_example` - boolean field (optional). Specifies if the given example is default or not.
+- `default_example` - boolean field (optional). Specifies if the given example is default or not. If some example is tagged
+  as default it means that this example is shown when its SDK is chosen in Beam Playground.
+  Only one example can be set as a default for each SDK.
 - `context_line` - integer field. The line where the main part of the Beam example/test/kata begins.
 - `categories` - list type field.
 Lists categories this example is included into. Available categories are listed in
