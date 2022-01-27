@@ -22,9 +22,26 @@ import 'package:playground/constants/font_weight.dart';
 import 'package:playground/constants/fonts.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+const kThemeMode = 'theme_mode';
+const kDarkModeString = 'ThemeMode.dark';
 
 class ThemeProvider extends ChangeNotifier {
+  late SharedPreferences _preferences;
   ThemeMode themeMode = ThemeMode.light;
+
+  init() {
+    _setPreferences();
+  }
+
+  _setPreferences() async {
+    _preferences = await SharedPreferences.getInstance();
+    themeMode = _preferences.getString(kThemeMode) == kDarkModeString
+        ? ThemeMode.dark
+        : ThemeMode.light;
+    notifyListeners();
+  }
 
   bool get isDarkMode {
     return themeMode == ThemeMode.dark;
@@ -32,6 +49,7 @@ class ThemeProvider extends ChangeNotifier {
 
   void toggleTheme() {
     themeMode = themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+    _preferences.setString(kThemeMode, themeMode.toString());
     notifyListeners();
   }
 }
