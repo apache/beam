@@ -113,7 +113,6 @@ import org.slf4j.LoggerFactory;
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
   "keyfor",
   "nullness",
-  "unused" // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
 }) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class BeamCalcRel extends AbstractBeamCalcRel {
 

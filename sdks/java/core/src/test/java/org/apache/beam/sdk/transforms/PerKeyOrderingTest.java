@@ -45,8 +45,6 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-@SuppressWarnings(
-    "unused") // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
 @RunWith(JUnit4.class)
 public class PerKeyOrderingTest implements Serializable {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();

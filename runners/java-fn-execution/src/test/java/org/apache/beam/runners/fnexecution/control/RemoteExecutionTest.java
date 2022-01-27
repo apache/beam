@@ -162,7 +162,6 @@ import org.junit.runners.JUnit4;
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
   "keyfor",
-  "unused" // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
 })
 public class RemoteExecutionTest implements Serializable {
 
