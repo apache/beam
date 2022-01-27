@@ -19,13 +19,17 @@ package org.apache.beam.runners.dataflow.options;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
 import static org.powermock.api.mockito.PowerMockito.when;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.List;
+import java.util.concurrent.TimeoutException;
 import org.apache.beam.sdk.extensions.gcp.storage.NoopPathValidator;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -38,6 +42,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.Answers;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
@@ -209,7 +214,8 @@ public class DataflowPipelineOptionsTest {
   @PrepareForTest(DefaultGcpRegionFactory.class)
   public static class DefaultGcpRegionFactoryTest {
     @Test
-    public void testDefaultGcpRegionUnset() throws IOException, InterruptedException {
+    public void testDefaultGcpRegionUnset()
+        throws IOException, InterruptedException, TimeoutException {
       mockStatic(DefaultGcpRegionFactory.class);
       when(DefaultGcpRegionFactory.getRegionFromEnvironment()).thenReturn(null);
       when(DefaultGcpRegionFactory.getRegionFromGcloudCli()).thenReturn("");
@@ -219,7 +225,7 @@ public class DataflowPipelineOptionsTest {
 
     @Test
     public void testDefaultGcpRegionUnsetIgnoresGcloudException()
-        throws IOException, InterruptedException {
+        throws IOException, InterruptedException, TimeoutException {
       mockStatic(DefaultGcpRegionFactory.class);
       when(DefaultGcpRegionFactory.getRegionFromEnvironment()).thenReturn(null);
       when(DefaultGcpRegionFactory.getRegionFromGcloudCli()).thenThrow(new IOException());
@@ -236,12 +242,80 @@ public class DataflowPipelineOptionsTest {
     }
 
     @Test
-    public void testDefaultGcpRegionFromGcloud() throws IOException, InterruptedException {
+    public void testDefaultGcpRegionFromGcloud()
+        throws IOException, InterruptedException, TimeoutException {
       mockStatic(DefaultGcpRegionFactory.class);
       when(DefaultGcpRegionFactory.getRegionFromEnvironment()).thenReturn(null);
       when(DefaultGcpRegionFactory.getRegionFromGcloudCli()).thenReturn("us-west1");
       DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
       assertEquals("us-west1", options.getRegion());
+    }
+
+    /**
+     * If gcloud gets stuck, test that {@link DefaultGcpRegionFactory#getRegionFromGcloudCli()}
+     * times out instead of blocking forever.
+     */
+    @Test(timeout = 10000L)
+    public void testGetRegionFromGcloudCliTimeout()
+        throws IOException, InterruptedException, TimeoutException {
+      mockStatic(DefaultGcpRegionFactory.class, Answers.CALLS_REAL_METHODS);
+      when(DefaultGcpRegionFactory.startGcloud())
+          .thenReturn(
+              new Process() {
+                @Override
+                public OutputStream getOutputStream() {
+                  return new OutputStream() {
+                    @Override
+                    public void write(int b) throws IOException {
+                      // Do nothing.
+                    }
+                  };
+                }
+
+                @Override
+                public InputStream getInputStream() {
+                  return new InputStream() {
+                    @Override
+                    public int read() throws IOException {
+                      // Return EOF immediately.
+                      return -1;
+                    }
+                  };
+                }
+
+                @Override
+                public InputStream getErrorStream() {
+                  return new InputStream() {
+                    @Override
+                    public int read() throws IOException {
+                      // Never return EOF to create an infinite loop.
+                      try {
+                        Thread.sleep(1000);
+                      } catch (InterruptedException e) {
+                        // Ignore.
+                      }
+                      return 0;
+                    }
+                  };
+                }
+
+                @Override
+                public int waitFor() throws InterruptedException {
+                  // Unused.
+                  return 0;
+                }
+
+                @Override
+                public int exitValue() {
+                  throw new IllegalThreadStateException("This mock process never terminates.");
+                }
+
+                @Override
+                public void destroy() {
+                  // Do nothing.
+                }
+              });
+      assertThrows(TimeoutException.class, DefaultGcpRegionFactory::getRegionFromGcloudCli);
     }
   }
 }
