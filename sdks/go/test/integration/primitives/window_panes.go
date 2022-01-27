@@ -31,7 +31,6 @@ func init() {
 }
 
 func IncrementFn(pn typex.PaneInfo, value float64, emit func(int)) {
-	// fmt.Print(inv)
 	emit(int(pn.Timing))
 }
 
@@ -46,8 +45,7 @@ func Increment(s beam.Scope) {
 	windowed := beam.WindowInto(s, window.NewFixedWindows(windowSize), col, []beam.WindowIntoOption{
 		beam.Trigger(trigger.Always()),
 	}...)
-	// expected := []float64{1.0, 2.0, 3.0}
 	sums := beam.ParDo(s, IncrementFn, windowed)
 	sums = beam.WindowInto(s, window.NewGlobalWindows(), sums)
-	passert.Empty(s, sums)
+	passert.Count(s, sums, "number of firings", 3)
 }
