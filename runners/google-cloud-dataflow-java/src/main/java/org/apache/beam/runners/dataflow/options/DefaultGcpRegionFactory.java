@@ -23,6 +23,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -69,10 +70,9 @@ public class DefaultGcpRegionFactory implements DefaultValueFactory<String> {
   }
 
   @VisibleForTesting
-  static String getRegionFromGcloudCli() throws IOException, InterruptedException {
-    ProcessBuilder pb =
-        new ProcessBuilder(Arrays.asList("gcloud", "config", "get-value", "compute/region"));
-    Process process = pb.start();
+  static String getRegionFromGcloudCli()
+      throws IOException, InterruptedException, TimeoutException {
+    Process process = startGcloud();
     try (BufferedReader reader =
             new BufferedReader(
                 new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8));
@@ -81,6 +81,8 @@ public class DefaultGcpRegionFactory implements DefaultValueFactory<String> {
                 new InputStreamReader(process.getErrorStream(), StandardCharsets.UTF_8))) {
       if (process.waitFor(2, TimeUnit.SECONDS) && process.exitValue() == 0) {
         return reader.lines().collect(Collectors.joining());
+      } else if (process.isAlive()) {
+        throw new TimeoutException("gcloud subprocess is still running. Giving up.");
       } else {
         String stderr = errorReader.lines().collect(Collectors.joining("\n"));
         throw new RuntimeException(
@@ -88,5 +90,12 @@ public class DefaultGcpRegionFactory implements DefaultValueFactory<String> {
                 "gcloud exited with exit value %d. Stderr:%n%s", process.exitValue(), stderr));
       }
     }
+  }
+
+  @VisibleForTesting
+  static Process startGcloud() throws IOException {
+    ProcessBuilder pb =
+        new ProcessBuilder(Arrays.asList("gcloud", "config", "get-value", "compute/region"));
+    return pb.start();
   }
 }
