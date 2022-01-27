@@ -450,7 +450,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def cassandra_driver_version = "3.10.2"
     def checkerframework_version = "3.10.0"
     def classgraph_version = "4.8.104"
-    def errorprone_version = "2.10.0"
+    def errorprone_version = "2.11.0"
     def google_clients_version = "1.32.1"
     def google_cloud_bigdataoss_version = "2.2.4"
     def google_code_gson_version = "2.8.9"
@@ -1136,7 +1136,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
       project.dependencies {
         errorprone("com.google.errorprone:error_prone_core:$errorprone_version")
-        errorprone("jp.skypencil.errorprone.slf4j:errorprone-slf4j:0.1.2")
+        errorprone("jp.skypencil.errorprone.slf4j:errorprone-slf4j:0.1.4")
         // At least JDk 9 compiler is required, however JDK 8 still can be used but with additional errorproneJavac
         // configuration. For more details please see https://github.com/tbroyer/gradle-errorprone-plugin#jdk-8-support
         errorproneJavac("com.google.errorprone:javac:9+181-r4173-1")
@@ -1179,6 +1179,7 @@ class BeamModulePlugin implements Plugin<Project> {
         options.errorprone.errorproneArgs.add("-Xep:MutablePublicArray:OFF")
         options.errorprone.errorproneArgs.add("-Xep:NonCanonicalType:OFF")
         options.errorprone.errorproneArgs.add("-Xep:ProtectedMembersInFinalClass:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:Slf4jDoNotLogMessageOfExceptionExplicitly:OFF")
         options.errorprone.errorproneArgs.add("-Xep:Slf4jFormatShouldBeConst:OFF")
         options.errorprone.errorproneArgs.add("-Xep:Slf4jSignOnlyFormat:OFF")
         options.errorprone.errorproneArgs.add("-Xep:StaticAssignmentInConstructor:OFF")
@@ -1192,6 +1193,9 @@ class BeamModulePlugin implements Plugin<Project> {
         options.errorprone.errorproneArgs.add("-Xep:UnrecognisedJavadocTag:OFF")
         options.errorprone.errorproneArgs.add("-Xep:UnsafeReflectiveConstructionCast:OFF")
         options.errorprone.errorproneArgs.add("-Xep:UseCorrectAssertInTests:OFF")
+
+        // Check fails due to breaking change in error-prone (MethodMatcher.withParameter)
+        options.errorprone.errorproneArgs.add("-Xep:Slf4jIllegalPassedClass:OFF")
 
         // Sometimes a static logger is preferred, which is the convention
         // currently used in beam. See docs:
