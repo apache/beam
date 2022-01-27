@@ -44,7 +44,7 @@ public class FilterExamplesIT {
   private final String timestamp = Long.toString(System.currentTimeMillis());
   private final String outputDatasetId = "filter_examples" + timestamp;
   private final String outputTable = "filter_examples_table";
-  private final Long DEFAULT_EXPIRATION = 1000L * 60 * 60;
+  private final Long defaultExpiration = 1000L * 60 * 60;
   private String projectId;
   private BigqueryClient bqClient;
 
@@ -58,7 +58,7 @@ public class FilterExamplesIT {
         TestPipeline.testingPipelineOptions().as(FilterExamplesIT.FilterExamplesOptions.class);
     this.projectId = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
     this.bqClient = new BigqueryClient("FilterExamplesIT");
-    this.bqClient.createNewDataset(this.projectId, this.outputDatasetId, DEFAULT_EXPIRATION);
+    this.bqClient.createNewDataset(this.projectId, this.outputDatasetId, defaultExpiration);
   }
 
   @After
