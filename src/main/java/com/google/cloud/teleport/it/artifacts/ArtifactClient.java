@@ -15,39 +15,72 @@
  */
 package com.google.cloud.teleport.it.artifacts;
 
-import com.google.cloud.storage.Blob;
 import com.google.re2j.Pattern;
 import java.io.IOException;
 import java.util.List;
 
-/** Interface for working with test artifacts. */
+/**
+ * Interface for working with test artifacts.
+ *
+ * <p>It is the responsibility of implementations to make sure that artifacts are kept separate from
+ * each other. Using a GCS path, this isolation would create a path like the following: {@code
+ * gs://test-class-name/run-id/test-method-name}. Each directory means:
+ *
+ * <ul>
+ *   <li>test-class-name: A name given to the directory for a test class. This does not need to be
+ *       identical to the class name, but it should clearly identify the class from other test
+ *       classes. This is intended for long-lived artifacts that have value beyond a specific run of
+ *       a test, such as a result file.
+ *   <li>run-id: An id assigned to a run of that test class. This will be handled by implementations
+ *       of this client. It is intended for artifacts that may be referenced by multiple methods in
+ *       a test class.
+ *   <li>test-method-name: A name given to the directory for a method within the test class. This
+ *       does not need to be identical to the method name, but it should clearly identify the method
+ *       from other test methods within the same test class. This is intended for input and output
+ *       artifacts specific to the test method.
+ * </ul>
+ *
+ * <p>Separate input/output directories are optional and the responsibility of the test writer to
+ * maintain.
+ */
 public interface ArtifactClient {
-  /**
-   * Uploads a local file to GCS.
-   *
-   * @param bucket the GCS bucket to upload to
-   * @param gcsPath the path from the bucket root to upload to
-   * @param localPath the path to the local file
-   * @return the {@link Blob} that was created
-   * @throws IOException if the local file cannot be read
-   */
-  Blob uploadArtifact(String bucket, String gcsPath, String localPath) throws IOException;
+
+  /** Returns the id associated with the particular run of the test class. */
+  String runId();
 
   /**
-   * Lists all artifacts in the given directory that match a given regex.
+   * Creates a new artifact in whatever service is being used to store them.
    *
-   * @param bucket the bucket the artifacts are in
-   * @param testDirPath the directory in the bucket that the artifacts are in
-   * @param regex the regex to use for matching artifacts
-   * @return all the {@link Blob}s that match the regex
+   * @param artifactName the name of the artifact. If this is supposed to go under an input/output
+   *     directory, then it should include that (example: input/artifact.txt)
+   * @param contents the contents of the artifact
+   * @return a representation of the created artifact
    */
-  List<Blob> listArtifacts(String bucket, String testDirPath, Pattern regex);
+  Artifact createArtifact(String artifactName, byte[] contents);
 
   /**
-   * Removes the directory from the bucket.
+   * Uploads a local file to the service being used for storing artifacts.
    *
-   * @param bucket the bucket with the directory to remove
-   * @param testDirPath the directory to remove
+   * @param artifactName the name of the artifact. If this is supposed to go under an input/output
+   *     directory, then it should include that (example: input/artifact.txt)
+   * @param localPath the local path to the file to upload
+   * @return a representation of the uploaded artifact
+   * @throws IOException if there is an issue reading the local file
    */
-  void deleteTestDir(String bucket, String testDirPath);
+  Artifact uploadArtifact(String artifactName, String localPath) throws IOException;
+
+  // TODO(zhoufek): Add equivalents for the above for uploading artifacts of a test method
+
+  /**
+   * Lists all artifacts under test-class-name/run-id/{@code prefix}.
+   *
+   * @param prefix the prefix to use along with the fixed values method above. This must include the
+   *     test-method-name value, but it can include other directories or files under it.
+   * @param regex a regex to use for filtering out unwanted artifacts
+   * @return all the artifacts whose name matches regex
+   */
+  List<Artifact> listArtifacts(String prefix, Pattern regex);
+
+  /** Deletes all the files located under test-class-name/run-id. */
+  void cleanupRun();
 }

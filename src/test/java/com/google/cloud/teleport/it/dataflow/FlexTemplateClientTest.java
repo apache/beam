@@ -34,7 +34,7 @@ import com.google.api.services.dataflow.model.LaunchFlexTemplateResponse;
 import com.google.auth.Credentials;
 import com.google.cloud.teleport.it.dataflow.DataflowTemplateClient.JobInfo;
 import com.google.cloud.teleport.it.dataflow.DataflowTemplateClient.JobState;
-import com.google.cloud.teleport.it.dataflow.DataflowTemplateClient.LaunchOptions;
+import com.google.cloud.teleport.it.dataflow.DataflowTemplateClient.LaunchConfig;
 import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import org.junit.Rule;
@@ -86,8 +86,8 @@ public final class FlexTemplateClientTest {
     Job getJob = new Job().setId(JOB_ID).setCurrentState(JobState.QUEUED.toString());
     LaunchFlexTemplateResponse response = new LaunchFlexTemplateResponse().setJob(launchJob);
 
-    LaunchOptions options =
-        LaunchOptions.builder(JOB_NAME, SPEC_PATH).addParameter(PARAM_KEY, PARAM_VALUE).build();
+    LaunchConfig options =
+        LaunchConfig.builder(JOB_NAME, SPEC_PATH).addParameter(PARAM_KEY, PARAM_VALUE).build();
 
     when(getFlexTemplates(client).launch(any(), any(), any())).thenReturn(launch);
     when(getLocationJobs(client).get(any(), any(), any())).thenReturn(get);
@@ -130,7 +130,7 @@ public final class FlexTemplateClientTest {
         () ->
             FlexTemplateClient.withDataflowClient(client)
                 .launchTemplate(
-                    PROJECT, REGION, LaunchOptions.builder(JOB_NAME, SPEC_PATH).build()));
+                    PROJECT, REGION, LaunchConfig.builder(JOB_NAME, SPEC_PATH).build()));
   }
 
   private static Locations.Jobs getLocationJobs(Dataflow client) {

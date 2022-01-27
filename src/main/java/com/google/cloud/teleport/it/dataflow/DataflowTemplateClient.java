@@ -76,13 +76,13 @@ public interface DataflowTemplateClient {
     }
   }
 
-  /** LaunchOptions for starting a Dataflow job. */
-  class LaunchOptions {
+  /** Config for starting a Dataflow job. */
+  class LaunchConfig {
     private final String jobName;
     private final ImmutableMap<String, String> parameters;
     private final String specPath;
 
-    private LaunchOptions(Builder builder) {
+    private LaunchConfig(Builder builder) {
       this.jobName = builder.jobName;
       this.parameters = ImmutableMap.copyOf(builder.parameters);
       this.specPath = builder.specPath;
@@ -104,7 +104,7 @@ public interface DataflowTemplateClient {
       return new Builder(jobName, specPath);
     }
 
-    /** Builder for the {@link LaunchOptions}. */
+    /** Builder for the {@link LaunchConfig}. */
     public static final class Builder {
       private final String jobName;
       private final Map<String, String> parameters;
@@ -134,8 +134,8 @@ public interface DataflowTemplateClient {
         return specPath;
       }
 
-      public LaunchOptions build() {
-        return new LaunchOptions(this);
+      public LaunchConfig build() {
+        return new LaunchConfig(this);
       }
     }
   }
@@ -171,7 +171,7 @@ public interface DataflowTemplateClient {
    * @return info about the request to launch a new job
    * @throws IOException if there is an issue sending the request
    */
-  JobInfo launchTemplate(String project, String region, LaunchOptions options) throws IOException;
+  JobInfo launchTemplate(String project, String region, LaunchConfig options) throws IOException;
 
   /**
    * Gets the current status of a job.

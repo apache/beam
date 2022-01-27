@@ -26,17 +26,13 @@ import org.junit.runners.JUnit4;
 /** Unit tests for {@link TestProperties}. */
 @RunWith(JUnit4.class)
 public final class TestPropertiesTest {
-  private static final String ACCESS_TOKEN = "some-token";
   private static final String ARTIFACT_BUCKET = "test-bucket";
   private static final String PROJECT = "test-project";
   private static final String REGION = "us-east1";
   private static final String SPEC_PATH = "gs://test-bucket/some/spec/path";
 
-  private final TestProperties properties = new TestProperties();
-
   @After
   public void tearDown() {
-    System.clearProperty(TestProperties.ACCESS_TOKEN_KEY);
     System.clearProperty(TestProperties.ARTIFACT_BUCKET_KEY);
     System.clearProperty(TestProperties.PROJECT_KEY);
     System.clearProperty(TestProperties.REGION_KEY);
@@ -45,66 +41,50 @@ public final class TestPropertiesTest {
 
   @Test
   public void testAllPropertiesSet() {
-    System.setProperty(TestProperties.ACCESS_TOKEN_KEY, ACCESS_TOKEN);
     System.setProperty(TestProperties.ARTIFACT_BUCKET_KEY, ARTIFACT_BUCKET);
     System.setProperty(TestProperties.PROJECT_KEY, PROJECT);
     System.setProperty(TestProperties.REGION_KEY, REGION);
     System.setProperty(TestProperties.SPEC_PATH_KEY, SPEC_PATH);
 
-    assertThat(properties.accessToken()).isEqualTo(ACCESS_TOKEN);
-    assertThat(properties.artifactBucket()).isEqualTo(ARTIFACT_BUCKET);
-    assertThat(properties.project()).isEqualTo(PROJECT);
-    assertThat(properties.region()).isEqualTo(REGION);
-    assertThat(properties.specPath()).isEqualTo(SPEC_PATH);
-  }
-
-  @Test
-  public void testAccessTokenNotSet() {
-    System.setProperty(TestProperties.ARTIFACT_BUCKET_KEY, ARTIFACT_BUCKET);
-    System.setProperty(TestProperties.PROJECT_KEY, PROJECT);
-    System.setProperty(TestProperties.REGION_KEY, REGION);
-    System.setProperty(TestProperties.SPEC_PATH_KEY, SPEC_PATH);
-
-    assertThrows(IllegalStateException.class, properties::accessToken);
+    assertThat(TestProperties.artifactBucket()).isEqualTo(ARTIFACT_BUCKET);
+    assertThat(TestProperties.project()).isEqualTo(PROJECT);
+    assertThat(TestProperties.region()).isEqualTo(REGION);
+    assertThat(TestProperties.specPath()).isEqualTo(SPEC_PATH);
   }
 
   @Test
   public void testArtifactBucketNotSet() {
-    System.setProperty(TestProperties.ACCESS_TOKEN_KEY, ACCESS_TOKEN);
     System.setProperty(TestProperties.PROJECT_KEY, PROJECT);
     System.setProperty(TestProperties.REGION_KEY, REGION);
     System.setProperty(TestProperties.SPEC_PATH_KEY, SPEC_PATH);
 
-    assertThrows(IllegalStateException.class, properties::artifactBucket);
+    assertThrows(IllegalStateException.class, TestProperties::artifactBucket);
   }
 
   @Test
   public void testProjectNotSet() {
-    System.setProperty(TestProperties.ACCESS_TOKEN_KEY, ACCESS_TOKEN);
     System.setProperty(TestProperties.ARTIFACT_BUCKET_KEY, ARTIFACT_BUCKET);
     System.setProperty(TestProperties.REGION_KEY, REGION);
     System.setProperty(TestProperties.SPEC_PATH_KEY, SPEC_PATH);
 
-    assertThrows(IllegalStateException.class, properties::project);
+    assertThrows(IllegalStateException.class, TestProperties::project);
   }
 
   @Test
   public void testRegionNotSet() {
-    System.setProperty(TestProperties.ACCESS_TOKEN_KEY, ACCESS_TOKEN);
     System.setProperty(TestProperties.ARTIFACT_BUCKET_KEY, ARTIFACT_BUCKET);
     System.setProperty(TestProperties.PROJECT_KEY, PROJECT);
     System.setProperty(TestProperties.SPEC_PATH_KEY, SPEC_PATH);
 
-    assertThat(properties.region()).isEqualTo(TestProperties.DEFAULT_REGION);
+    assertThat(TestProperties.region()).isEqualTo(TestProperties.DEFAULT_REGION);
   }
 
   @Test
   public void testSpecPathNotSet() {
-    System.setProperty(TestProperties.ACCESS_TOKEN_KEY, ACCESS_TOKEN);
     System.setProperty(TestProperties.ARTIFACT_BUCKET_KEY, ARTIFACT_BUCKET);
     System.setProperty(TestProperties.PROJECT_KEY, PROJECT);
     System.setProperty(TestProperties.REGION_KEY, REGION);
 
-    assertThrows(IllegalStateException.class, properties::specPath);
+    assertThrows(IllegalStateException.class, TestProperties::specPath);
   }
 }

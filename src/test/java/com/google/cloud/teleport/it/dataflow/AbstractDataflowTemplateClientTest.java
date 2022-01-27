@@ -123,7 +123,7 @@ public final class AbstractDataflowTemplateClientTest {
     }
 
     @Override
-    public JobInfo launchTemplate(String project, String region, LaunchOptions options)
+    public JobInfo launchTemplate(String project, String region, LaunchConfig options)
         throws IOException {
       throw new UnsupportedOperationException();
     }

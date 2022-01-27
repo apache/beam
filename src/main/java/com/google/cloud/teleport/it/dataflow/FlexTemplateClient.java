@@ -54,7 +54,7 @@ public final class FlexTemplateClient extends AbstractDataflowTemplateClient {
   }
 
   @Override
-  public JobInfo launchTemplate(String project, String region, LaunchOptions options)
+  public JobInfo launchTemplate(String project, String region, LaunchConfig options)
       throws IOException {
     LOG.info("Getting ready to launch {} in {} under {}", options.jobName(), region, project);
     LOG.info("Using the spec at {}", options.specPath());

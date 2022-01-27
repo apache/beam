@@ -16,8 +16,8 @@
 package com.google.cloud.teleport.it.artifacts;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.assertThrows;
 
-import com.google.common.truth.Truth;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -33,29 +33,36 @@ public final class ArtifactUtilsTest {
 
   @Test
   public void testCreateTestDirName() {
-    Truth.assertThat(ArtifactUtils.createTestDirName()).matches(TEST_DIR_REGEX);
+    assertThat(ArtifactUtils.createRunId()).matches(TEST_DIR_REGEX);
   }
 
   @Test
-  public void testCreateTestSuiteDirPath() {
-    String suiteName = "some-test-class";
-    String path = ArtifactUtils.createTestSuiteDirPath(suiteName);
-    assertThat(path).matches(String.format("%s/%s", suiteName, TEST_DIR_REGEX));
+  public void testGetFullGcsPath() {
+    assertThat(ArtifactUtils.getFullGcsPath("bucket", "dir1", "dir2", "file"))
+        .isEqualTo("gs://bucket/dir1/dir2/file");
   }
 
   @Test
-  public void testCreateTestPath() {
-    String suiteDirPath = "some/test/suite/dir";
-    String testName = "some-test";
-
-    String path = ArtifactUtils.createTestPath(suiteDirPath, testName);
-
-    assertThat(path).matches(String.format("%s/%s", suiteDirPath, testName));
+  public void testGetFullGcsPathOnlyBucket() {
+    assertThat(ArtifactUtils.getFullGcsPath("bucket")).isEqualTo("gs://bucket");
   }
 
   @Test
-  public void testCreateClientWithNullCredentials() {
-    ArtifactUtils.createGcsClient(null);
-    // Just making sure that no exceptions are thrown
+  public void testGetFullGcsPathEmpty() {
+    assertThrows(IllegalArgumentException.class, ArtifactUtils::getFullGcsPath);
+  }
+
+  @Test
+  public void testGetFullGcsPathOneNullValue() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> ArtifactUtils.getFullGcsPath("bucket", null, "dir2", "file"));
+  }
+
+  @Test
+  public void testGetFullGcsPathOneEmptyValue() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> ArtifactUtils.getFullGcsPath("bucket", "", "dir2", "file"));
   }
 }
