@@ -764,8 +764,7 @@ public class DisplayData implements Serializable {
           if (className == null) {
             className = namespace.getName();
           }
-          namespace =
-              Class.forName(className.replaceFirst("\\$\\$Lambda.*", ""));
+          namespace = Class.forName(className.replaceFirst("\\$\\$Lambda.*", ""));
         } catch (Exception e) {
           throw new PopulateDisplayDataException(
               "Failed to get the enclosing class of lambda " + subComponent, e);

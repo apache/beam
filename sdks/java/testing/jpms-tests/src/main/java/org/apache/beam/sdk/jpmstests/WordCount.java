@@ -37,8 +37,7 @@ import org.apache.beam.sdk.values.PCollection;
 /** Duplicated from beam-examples-java to avoid dependency. */
 public class WordCount {
 
-  public WordCount() {
-  }
+  public WordCount() {}
 
   /**
    * Concept #2: You can make your pipeline code less verbose by defining your DoFns statically out-
@@ -70,8 +69,7 @@ public class WordCount {
   /** A SimpleFunction that converts a Word and Count into a printable string. */
   public static class FormatAsTextFn extends SimpleFunction<KV<String, Long>, String> {
 
-    public FormatAsTextFn() {
-    }
+    public FormatAsTextFn() {}
 
     @Override
     public String apply(KV<String, Long> input) {
@@ -90,8 +88,7 @@ public class WordCount {
   public static class CountWords
       extends PTransform<PCollection<String>, PCollection<KV<String, Long>>> {
 
-    public CountWords() {
-    }
+    public CountWords() {}
 
     @Override
     public PCollection<KV<String, Long>> expand(PCollection<String> lines) {
