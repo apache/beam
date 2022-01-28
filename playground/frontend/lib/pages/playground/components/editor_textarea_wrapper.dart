@@ -21,7 +21,6 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/analytics/analytics_service.dart';
 import 'package:playground/modules/editor/components/editor_textarea.dart';
-import 'package:playground/modules/editor/components/pipeline_options_text_field.dart';
 import 'package:playground/modules/editor/components/run_button.dart';
 import 'package:playground/modules/examples/components/description_popover/description_popover_button.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
@@ -63,7 +62,7 @@ class CodeTextAreaWrapper extends StatelessWidget {
                 Positioned(
                   right: kXlSpacing,
                   top: kXlSpacing,
-                  height: kRunButtonHeight,
+                  height: kButtonHeight,
                   child: Row(
                     children: [
                       if (state.selectedExample != null)
@@ -103,10 +102,6 @@ class CodeTextAreaWrapper extends StatelessWidget {
                 ),
               ],
             ),
-          ),
-          PipelineOptionsTextField(
-            pipelineOptions: state.pipelineOptions,
-            onChange: state.setPipelineOptions,
           ),
         ],
       );
