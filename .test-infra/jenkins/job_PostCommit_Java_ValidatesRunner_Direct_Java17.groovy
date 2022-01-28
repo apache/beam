@@ -23,33 +23,33 @@ import PostcommitJobBuilder
 // This job runs the suite of ValidatesRunner tests using Java 17 against the Direct
 // runner compiled with Java 8.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Direct_Java17',
-        'Run Direct ValidatesRunner Java 17', 'Direct Runner ValidatesRunner Tests for Java 17', this) {
+    'Run Direct ValidatesRunner Java 17', 'Direct Runner ValidatesRunner Tests for Java 17', this) {
 
-    description('Builds the Direct Runner with Java 8 and runs ValidatesRunner test suite in Java 17.')
+      description('Builds the Direct Runner with Java 8 and runs ValidatesRunner test suite in Java 17.')
 
-    commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 180)
+      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 180)
 
-    publishers {
+      publishers {
         archiveJunit('**/build/test-results/**/*.xml')
-    }
+      }
 
-    steps {
+      steps {
         gradle {
-            rootBuildScriptDir(commonJobProperties.checkoutDir)
-            tasks(':runners:direct-java:shadowJar')
-            tasks(':runners:direct-java:shadowTestJar')
-            switches("-Dorg.gradle.java.home=${commonJobProperties.JAVA_8_HOME}")
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':runners:direct-java:shadowJar')
+          tasks(':runners:direct-java:shadowTestJar')
+          switches("-Dorg.gradle.java.home=${commonJobProperties.JAVA_8_HOME}")
         }
 
         gradle {
-            rootBuildScriptDir(commonJobProperties.checkoutDir)
-            tasks(':runners:direct-java:validatesRunner')
-            switches("-Dorg.gradle.java.home=${commonJobProperties.JAVA_17_HOME}")
-            switches('-x shadowJar')
-            switches('-x shadowTestJar')
-            switches('-x compileJava')
-            switches('-x compileTestJava')
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':runners:direct-java:validatesRunner')
+          switches("-Dorg.gradle.java.home=${commonJobProperties.JAVA_17_HOME}")
+          switches('-x shadowJar')
+          switches('-x shadowTestJar')
+          switches('-x compileJava')
+          switches('-x compileTestJava')
         }
-    }
+      }
 
-}
+    }

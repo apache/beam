@@ -29,39 +29,39 @@ import static NexmarkDatabaseProperties.nexmarkBigQueryArgs
 import static NexmarkDatabaseProperties.nexmarkInfluxDBArgs
 
 def final JOB_SPECIFIC_OPTIONS = [
-        'influxTags' : '{\\\"runnerVersion\\\":\\\"V2\\\",\\\"javaVersion\\\":\\\"17\\\"}',
-        'exportSummaryToBigQuery' : false,
-        'region' : 'us-central1',
-        'suite' : 'STRESS',
-        'numWorkers' : 4,
-        'maxNumWorkers' : 4,
-        'autoscalingAlgorithm' : 'NONE',
-        'nexmarkParallel' : 16,
-        'enforceEncodability' : true,
-        'enforceImmutability' : true
+  'influxTags' : '{\\\"runnerVersion\\\":\\\"V2\\\",\\\"javaVersion\\\":\\\"17\\\"}',
+  'exportSummaryToBigQuery' : false,
+  'region' : 'us-central1',
+  'suite' : 'STRESS',
+  'numWorkers' : 4,
+  'maxNumWorkers' : 4,
+  'autoscalingAlgorithm' : 'NONE',
+  'nexmarkParallel' : 16,
+  'enforceEncodability' : true,
+  'enforceImmutability' : true
 ]
 
 def final JOB_SPECIFIC_SWITCHES = [
-        '-Pnexmark.runner.version="V2"'
+  '-Pnexmark.runner.version="V2"'
 ]
 
 // This job runs the suite of Nexmark tests against the Dataflow runner V2.
 NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Dataflow_V2_Java17',
-        'Dataflow Runner V2 Java 17 Nexmark Tests', this) {
-    description('Runs the Nexmark suite on the Dataflow runner V2 on Java 17.')
+    'Dataflow Runner V2 Java 17 Nexmark Tests', this) {
+      description('Runs the Nexmark suite on the Dataflow runner V2 on Java 17.')
 
-    // Set common parameters.
-    commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
+      // Set common parameters.
+      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
 
-    Nexmark.nonQueryLanguageJobs(delegate, Runner.DATAFLOW, SDK.JAVA, JOB_SPECIFIC_OPTIONS, TriggeringContext.POST_COMMIT, JOB_SPECIFIC_SWITCHES, Nexmark.JAVA_17_RUNTIME_VERSION)
-}
+      Nexmark.nonQueryLanguageJobs(delegate, Runner.DATAFLOW, SDK.JAVA, JOB_SPECIFIC_OPTIONS, TriggeringContext.POST_COMMIT, JOB_SPECIFIC_SWITCHES, Nexmark.JAVA_17_RUNTIME_VERSION)
+    }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_DataflowV2_Java17',
-        'Run Dataflow Runner V2 Java 17 Nexmark Tests', 'Dataflow Runner V2 Java 17 Nexmark Tests', this) {
+    'Run Dataflow Runner V2 Java 17 Nexmark Tests', 'Dataflow Runner V2 Java 17 Nexmark Tests', this) {
 
-    description('Runs the Nexmark suite on the Dataflow runner V2 on Java 17 against a Pull Request, on demand.')
+      description('Runs the Nexmark suite on the Dataflow runner V2 on Java 17 against a Pull Request, on demand.')
 
-    commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
+      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
 
-    Nexmark.nonQueryLanguageJobs(delegate, Runner.DATAFLOW, SDK.JAVA, JOB_SPECIFIC_OPTIONS, TriggeringContext.PR, JOB_SPECIFIC_SWITCHES, Nexmark.JAVA_17_RUNTIME_VERSION)
-}
+      Nexmark.nonQueryLanguageJobs(delegate, Runner.DATAFLOW, SDK.JAVA, JOB_SPECIFIC_OPTIONS, TriggeringContext.PR, JOB_SPECIFIC_SWITCHES, Nexmark.JAVA_17_RUNTIME_VERSION)
+    }

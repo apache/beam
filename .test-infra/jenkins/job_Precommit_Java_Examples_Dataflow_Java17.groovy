@@ -20,37 +20,37 @@ import PrecommitJobBuilder
 import CommonJobProperties as properties
 
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
-        scope: this,
-        nameBase: 'Java_Examples_Dataflow_Java17',
-        gradleTask: ':clean',
-        gradleSwitches: [
-                '-PdisableSpotlessCheck=true',
-                '-PskipCheckerFramework' // Gradle itself is running under JDK8 so plugin configures wrong for JDK17
-        ], // spotless checked in separate pre-commit
-        triggerPathPatterns: [
-                '^model/.*$',
-                '^sdks/java/.*$',
-                '^runners/google-cloud-dataflow-java/.*$',
-                '^examples/java/.*$',
-                '^examples/kotlin/.*$',
-                '^release/.*$',
-        ],
-        timeoutMins: 60,
-)
+    scope: this,
+    nameBase: 'Java_Examples_Dataflow_Java17',
+    gradleTask: ':clean',
+    gradleSwitches: [
+      '-PdisableSpotlessCheck=true',
+      '-PskipCheckerFramework' // Gradle itself is running under JDK8 so plugin configures wrong for JDK17
+    ], // spotless checked in separate pre-commit
+    triggerPathPatterns: [
+      '^model/.*$',
+      '^sdks/java/.*$',
+      '^runners/google-cloud-dataflow-java/.*$',
+      '^examples/java/.*$',
+      '^examples/kotlin/.*$',
+      '^release/.*$',
+    ],
+    timeoutMins: 60,
+    )
 builder.build {
-    publishers {
-        archiveJunit('**/build/test-results/**/*.xml')
-    }
+  publishers {
+    archiveJunit('**/build/test-results/**/*.xml')
+  }
 
-    steps {
-        gradle {
-            rootBuildScriptDir(properties.checkoutDir)
-            tasks 'javaExamplesDataflowPreCommit'
-            switches '-PdisableSpotlessCheck=true'
-            switches '-PskipCheckerFramework' // Gradle itself is running under JDK8 so plugin configures wrong for JDK17
-            switches '-PcompileAndRunTestsWithJava17'
-            switches "-Pjava17Home=${properties.JAVA_17_HOME}"
-            properties.setGradleSwitches(delegate, 3 * Runtime.runtime.availableProcessors())
-        }
+  steps {
+    gradle {
+      rootBuildScriptDir(properties.checkoutDir)
+      tasks 'javaExamplesDataflowPreCommit'
+      switches '-PdisableSpotlessCheck=true'
+      switches '-PskipCheckerFramework' // Gradle itself is running under JDK8 so plugin configures wrong for JDK17
+      switches '-PcompileAndRunTestsWithJava17'
+      switches "-Pjava17Home=${properties.JAVA_17_HOME}"
+      properties.setGradleSwitches(delegate, 3 * Runtime.runtime.availableProcessors())
     }
+  }
 }

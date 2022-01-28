@@ -20,31 +20,31 @@ import PostcommitJobBuilder
 import CommonJobProperties as commonJobProperties
 
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Examples_Dataflow_V2_java17',
-        'Run Java 17 Examples on Dataflow Runner V2', 'Google Cloud Dataflow Runner V2 Examples Java 17', this) {
+    'Run Java 17 Examples on Dataflow Runner V2', 'Google Cloud Dataflow Runner V2 Examples Java 17', this) {
 
-    description('Runs the Java Examples suite on Dataflow runner V2 using the Java 17 SDK harness.')
+      description('Runs the Java Examples suite on Dataflow runner V2 using the Java 17 SDK harness.')
 
-    commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 180)
+      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 180)
 
-    publishers {
+      publishers {
         archiveJunit('**/build/test-results/**/*.xml')
-    }
+      }
 
-    steps {
+      steps {
         gradle {
-            rootBuildScriptDir(commonJobProperties.checkoutDir)
-            tasks(':runners:google-cloud-dataflow-java:examplesJavaRunnerV2IntegrationTest')
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':runners:google-cloud-dataflow-java:examplesJavaRunnerV2IntegrationTest')
 
-            // Increase parallel worker threads above processor limit since most time is
-            // spent waiting on Dataflow jobs. ValidatesRunner tests on Dataflow are slow
-            // because each one launches a Dataflow job with about 3 mins of overhead.
-            // 3 x num_cores strikes a good balance between maxing out parallelism without
-            // overloading the machines.
-            commonJobProperties.setGradleSwitches(delegate, 3 * Runtime.runtime.availableProcessors())
-            switches '-PdisableSpotlessCheck=true'
-            switches '-PcompileAndRunTestsWithJava17'
-            switches '-PskipCheckerFramework'
-            switches "-Pjava17Home=${commonJobProperties.JAVA_17_HOME}"
+          // Increase parallel worker threads above processor limit since most time is
+          // spent waiting on Dataflow jobs. ValidatesRunner tests on Dataflow are slow
+          // because each one launches a Dataflow job with about 3 mins of overhead.
+          // 3 x num_cores strikes a good balance between maxing out parallelism without
+          // overloading the machines.
+          commonJobProperties.setGradleSwitches(delegate, 3 * Runtime.runtime.availableProcessors())
+          switches '-PdisableSpotlessCheck=true'
+          switches '-PcompileAndRunTestsWithJava17'
+          switches '-PskipCheckerFramework'
+          switches "-Pjava17Home=${commonJobProperties.JAVA_17_HOME}"
         }
+      }
     }
-}

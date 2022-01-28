@@ -21,37 +21,37 @@ import PostcommitJobBuilder
 
 
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Dataflow_Java17',
-        'Run Dataflow ValidatesRunner Java 17', 'Google Cloud Dataflow Runner ValidatesRunner Tests On Java 17', this) {
+    'Run Dataflow ValidatesRunner Java 17', 'Google Cloud Dataflow Runner ValidatesRunner Tests On Java 17', this) {
 
-    description('Runs the ValidatesRunner suite on the Dataflow runner with Java 17 worker harness.')
+      description('Runs the ValidatesRunner suite on the Dataflow runner with Java 17 worker harness.')
 
-    commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 480)
-    publishers {
+      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 480)
+      publishers {
         archiveJunit('**/build/test-results/**/*.xml')
-    }
+      }
 
-    steps {
+      steps {
         gradle {
-            rootBuildScriptDir(commonJobProperties.checkoutDir)
-            tasks(':runners:google-cloud-dataflow-java:testJar')
-            tasks(':runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar')
-            switches("-Dorg.gradle.java.home=${commonJobProperties.JAVA_8_HOME}")
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':runners:google-cloud-dataflow-java:testJar')
+          tasks(':runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar')
+          switches("-Dorg.gradle.java.home=${commonJobProperties.JAVA_8_HOME}")
         }
 
         gradle {
-            rootBuildScriptDir(commonJobProperties.checkoutDir)
-            tasks(':runners:google-cloud-dataflow-java:validatesRunner')
-            switches('-x shadowJar')
-            switches('-x shadowTestJar')
-            switches('-x compileJava')
-            switches('-x compileTestJava')
-            switches('-x jar')
-            switches('-x testJar')
-            switches('-x classes')
-            switches('-x testClasses')
-            switches("-Dorg.gradle.java.home=${commonJobProperties.JAVA_17_HOME}")
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':runners:google-cloud-dataflow-java:validatesRunner')
+          switches('-x shadowJar')
+          switches('-x shadowTestJar')
+          switches('-x compileJava')
+          switches('-x compileTestJava')
+          switches('-x jar')
+          switches('-x testJar')
+          switches('-x classes')
+          switches('-x testClasses')
+          switches("-Dorg.gradle.java.home=${commonJobProperties.JAVA_17_HOME}")
 
-            commonJobProperties.setGradleSwitches(delegate, 3 * Runtime.runtime.availableProcessors())
+          commonJobProperties.setGradleSwitches(delegate, 3 * Runtime.runtime.availableProcessors())
         }
+      }
     }
-}

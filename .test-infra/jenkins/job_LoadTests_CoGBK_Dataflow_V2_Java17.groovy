@@ -24,25 +24,25 @@ import CronJobBuilder
 import InfluxDBCredentialsHelper
 
 def loadTestConfigurations = { mode, isStreaming ->
+  [
     [
-            [
-                    title          : 'Load test: CoGBK 2GB 100  byte records - single key',
-                    test           : 'org.apache.beam.sdk.loadtests.CoGroupByKeyLoadTest',
-                    runner         : CommonTestProperties.Runner.DATAFLOW,
-                    pipelineOptions: [
-                            project               : 'apache-beam-testing',
-                            region                : 'us-central1',
-                            appName               : "load_tests_Java11_Dataflow_V2_${mode}_CoGBK_1",
-                            tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
-                            influxMeasurement     : "java_${mode}_cogbk_1",
-                            influxTags            : """
+      title          : 'Load test: CoGBK 2GB 100  byte records - single key',
+      test           : 'org.apache.beam.sdk.loadtests.CoGroupByKeyLoadTest',
+      runner         : CommonTestProperties.Runner.DATAFLOW,
+      pipelineOptions: [
+        project               : 'apache-beam-testing',
+        region                : 'us-central1',
+        appName               : "load_tests_Java11_Dataflow_V2_${mode}_CoGBK_1",
+        tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
+        influxMeasurement     : "java_${mode}_cogbk_1",
+        influxTags            : """
                                   {
                                     "runnerVersion": "v2",
                                     "jdk": "java17"
                                   }
                                 """.trim().replaceAll("\\s", ""),
-                            publishToInfluxDB     : true,
-                            sourceOptions         : """
+        publishToInfluxDB     : true,
+        sourceOptions         : """
           {
             "numRecords": 20000000,
             "keySizeBytes": 10,
@@ -50,7 +50,7 @@ def loadTestConfigurations = { mode, isStreaming ->
             "numHotKeys": 1
           }
         """.trim().replaceAll("\\s", ""),
-                            coSourceOptions       : """
+        coSourceOptions       : """
               {
                 "numRecords": 2000000,
                 "keySizeBytes": 10,
@@ -58,30 +58,30 @@ def loadTestConfigurations = { mode, isStreaming ->
                 "numHotKeys": 1000
               }
             """.trim().replaceAll("\\s", ""),
-                            iterations            : 1,
-                            numWorkers            : 5,
-                            autoscalingAlgorithm  : "NONE",
-                            streaming             : isStreaming
-                    ]
-            ],
-            [
-                    title          : 'Load test: CoGBK 2GB 100 byte records - multiple keys',
-                    test           : 'org.apache.beam.sdk.loadtests.CoGroupByKeyLoadTest',
-                    runner         : CommonTestProperties.Runner.DATAFLOW,
-                    pipelineOptions: [
-                            project               : 'apache-beam-testing',
-                            region                : 'us-central1',
-                            appName               : "load_tests_Java17_Dataflow_V2_${mode}_CoGBK_2",
-                            tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
-                            influxMeasurement     : "java_${mode}_cogbk_2",
-                            influxTags            : """
+        iterations            : 1,
+        numWorkers            : 5,
+        autoscalingAlgorithm  : "NONE",
+        streaming             : isStreaming
+      ]
+    ],
+    [
+      title          : 'Load test: CoGBK 2GB 100 byte records - multiple keys',
+      test           : 'org.apache.beam.sdk.loadtests.CoGroupByKeyLoadTest',
+      runner         : CommonTestProperties.Runner.DATAFLOW,
+      pipelineOptions: [
+        project               : 'apache-beam-testing',
+        region                : 'us-central1',
+        appName               : "load_tests_Java17_Dataflow_V2_${mode}_CoGBK_2",
+        tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
+        influxMeasurement     : "java_${mode}_cogbk_2",
+        influxTags            : """
                                   {
                                     "runnerVersion": "v2",
                                     "jdk": "java17"
                                   }
                                 """.trim().replaceAll("\\s", ""),
-                            publishToInfluxDB     : true,
-                            sourceOptions         : """
+        publishToInfluxDB     : true,
+        sourceOptions         : """
                   {
                     "numRecords": 20000000,
                     "keySizeBytes": 10,
@@ -89,7 +89,7 @@ def loadTestConfigurations = { mode, isStreaming ->
                     "numHotKeys": 5
                   }
                 """.trim().replaceAll("\\s", ""),
-                            coSourceOptions       : """
+        coSourceOptions       : """
                           {
                             "numRecords": 2000000,
                             "keySizeBytes": 10,
@@ -97,31 +97,31 @@ def loadTestConfigurations = { mode, isStreaming ->
                             "numHotKeys": 1000
                           }
                         """.trim().replaceAll("\\s", ""),
-                            iterations            : 1,
-                            numWorkers            : 5,
-                            autoscalingAlgorithm  : "NONE",
-                            streaming             : isStreaming
-                    ]
-            ],
-            [
+        iterations            : 1,
+        numWorkers            : 5,
+        autoscalingAlgorithm  : "NONE",
+        streaming             : isStreaming
+      ]
+    ],
+    [
 
-                    title          : 'Load test: CoGBK 2GB reiteration 10kB value',
-                    test           : 'org.apache.beam.sdk.loadtests.CoGroupByKeyLoadTest',
-                    runner         : CommonTestProperties.Runner.DATAFLOW,
-                    pipelineOptions: [
-                            project               : 'apache-beam-testing',
-                            region                : 'us-central1',
-                            appName               : "load_tests_Java17_Dataflow_V2_${mode}_CoGBK_3",
-                            tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
-                            influxMeasurement     : "java_${mode}_cogbk_3",
-                            influxTags            : """
+      title          : 'Load test: CoGBK 2GB reiteration 10kB value',
+      test           : 'org.apache.beam.sdk.loadtests.CoGroupByKeyLoadTest',
+      runner         : CommonTestProperties.Runner.DATAFLOW,
+      pipelineOptions: [
+        project               : 'apache-beam-testing',
+        region                : 'us-central1',
+        appName               : "load_tests_Java17_Dataflow_V2_${mode}_CoGBK_3",
+        tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
+        influxMeasurement     : "java_${mode}_cogbk_3",
+        influxTags            : """
                                   {
                                     "runnerVersion": "v2",
                                     "jdk": "java17"
                                   }
                                 """.trim().replaceAll("\\s", ""),
-                            publishToInfluxDB     : true,
-                            sourceOptions         : """
+        publishToInfluxDB     : true,
+        sourceOptions         : """
                               {
                                 "numRecords": 2000000,
                                 "keySizeBytes": 10,
@@ -129,7 +129,7 @@ def loadTestConfigurations = { mode, isStreaming ->
                                 "numHotKeys": 200000
                               }
                             """.trim().replaceAll("\\s", ""),
-                            coSourceOptions       : """
+        coSourceOptions       : """
                               {
                                 "numRecords": 2000000,
                                 "keySizeBytes": 10,
@@ -137,31 +137,31 @@ def loadTestConfigurations = { mode, isStreaming ->
                                 "numHotKeys": 1000
                               }
                             """.trim().replaceAll("\\s", ""),
-                            iterations            : 4,
-                            numWorkers            : 5,
-                            autoscalingAlgorithm  : "NONE",
-                            streaming             : isStreaming
-                    ]
+        iterations            : 4,
+        numWorkers            : 5,
+        autoscalingAlgorithm  : "NONE",
+        streaming             : isStreaming
+      ]
 
-            ],
-            [
-                    title          : 'Load test: CoGBK 2GB reiteration 2MB value',
-                    test           : 'org.apache.beam.sdk.loadtests.CoGroupByKeyLoadTest',
-                    runner         : CommonTestProperties.Runner.DATAFLOW,
-                    pipelineOptions: [
-                            project               : 'apache-beam-testing',
-                            region                : 'us-central1',
-                            appName               : "load_tests_Java17_Dataflow_V2_${mode}_CoGBK_4",
-                            tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
-                            influxMeasurement     : "java_${mode}_cogbk_4",
-                            influxTags            : """
+    ],
+    [
+      title          : 'Load test: CoGBK 2GB reiteration 2MB value',
+      test           : 'org.apache.beam.sdk.loadtests.CoGroupByKeyLoadTest',
+      runner         : CommonTestProperties.Runner.DATAFLOW,
+      pipelineOptions: [
+        project               : 'apache-beam-testing',
+        region                : 'us-central1',
+        appName               : "load_tests_Java17_Dataflow_V2_${mode}_CoGBK_4",
+        tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
+        influxMeasurement     : "java_${mode}_cogbk_4",
+        influxTags            : """
                                   {
                                     "runnerVersion": "v2",
                                     "jdk": "java17"
                                   }
                                 """.trim().replaceAll("\\s", ""),
-                            publishToInfluxDB     : true,
-                            sourceOptions         : """
+        publishToInfluxDB     : true,
+        sourceOptions         : """
                               {
                                 "numRecords": 2000000,
                                 "keySizeBytes": 10,
@@ -169,7 +169,7 @@ def loadTestConfigurations = { mode, isStreaming ->
                                 "numHotKeys": 1000
                               }
                             """.trim().replaceAll("\\s", ""),
-                            coSourceOptions       : """
+        coSourceOptions       : """
                               {
                                 "numRecords": 2000000,
                                 "keySizeBytes": 10,
@@ -177,70 +177,70 @@ def loadTestConfigurations = { mode, isStreaming ->
                                 "numHotKeys": 1000
                               }
                             """.trim().replaceAll("\\s", ""),
-                            iterations            : 4,
-                            numWorkers            : 5,
-                            autoscalingAlgorithm  : "NONE",
-                            streaming             : isStreaming
-                    ]
-            ]
-    ].each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
+        iterations            : 4,
+        numWorkers            : 5,
+        autoscalingAlgorithm  : "NONE",
+        streaming             : isStreaming
+      ]
+    ]
+  ].each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
 }
 
 def final JOB_SPECIFIC_SWITCHES = [
-        '-Prunner.version="V2"',
-        '-PcompileAndRunTestsWithJava17',
-        "-Pjava17Home=${commonJobProperties.JAVA_17_HOME}"
+  '-Prunner.version="V2"',
+  '-PcompileAndRunTestsWithJava17',
+  "-Pjava17Home=${commonJobProperties.JAVA_17_HOME}"
 ]
 
 def streamingLoadTestJob = { scope, triggeringContext ->
-    scope.description('Runs Java 17 CoGBK load tests on Dataflow runner V2 in streaming mode')
-    commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
+  scope.description('Runs Java 17 CoGBK load tests on Dataflow runner V2 in streaming mode')
+  commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 240)
 
-    for (testConfiguration in loadTestConfigurations('streaming', true)) {
-        testConfiguration.pipelineOptions << [inputWindowDurationSec: 1200, coInputWindowDurationSec: 1200]
-        loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.JAVA,
-                testConfiguration.pipelineOptions, testConfiguration.test, JOB_SPECIFIC_SWITCHES)
-    }
+  for (testConfiguration in loadTestConfigurations('streaming', true)) {
+    testConfiguration.pipelineOptions << [inputWindowDurationSec: 1200, coInputWindowDurationSec: 1200]
+    loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.JAVA,
+        testConfiguration.pipelineOptions, testConfiguration.test, JOB_SPECIFIC_SWITCHES)
+  }
 }
 
 CronJobBuilder.cronJob('beam_LoadTests_Java_CoGBK_Dataflow_V2_Streaming_Java17', 'H 12 * * *', this) {
-    additionalPipelineArgs = [
-            influxDatabase: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-            influxHost: InfluxDBCredentialsHelper.InfluxDBHostUrl,
-    ]
-    streamingLoadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT)
+  additionalPipelineArgs = [
+    influxDatabase: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+    influxHost: InfluxDBCredentialsHelper.InfluxDBHostUrl,
+  ]
+  streamingLoadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT)
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
-        'beam_LoadTests_Java_CoGBK_Dataflow_V2_Streaming_Java17',
-        'Run Load Tests Java 17 CoGBK Dataflow V2 Streaming',
-        'Load Tests Java 17 CoGBK Dataflow V2 Streaming suite',
-        this
-) {
-    additionalPipelineArgs = [:]
-    streamingLoadTestJob(delegate, CommonTestProperties.TriggeringContext.PR)
-}
+    'beam_LoadTests_Java_CoGBK_Dataflow_V2_Streaming_Java17',
+    'Run Load Tests Java 17 CoGBK Dataflow V2 Streaming',
+    'Load Tests Java 17 CoGBK Dataflow V2 Streaming suite',
+    this
+    ) {
+      additionalPipelineArgs = [:]
+      streamingLoadTestJob(delegate, CommonTestProperties.TriggeringContext.PR)
+    }
 
 
 def batchLoadTestJob = { scope, triggeringContext ->
-    loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.JAVA, loadTestConfigurations('batch', false),
-            "CoGBK", "batch", JOB_SPECIFIC_SWITCHES)
+  loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.JAVA, loadTestConfigurations('batch', false),
+      "CoGBK", "batch", JOB_SPECIFIC_SWITCHES)
 }
 
 CronJobBuilder.cronJob('beam_LoadTests_Java_CoGBK_Dataflow_V2_Batch_Java17', 'H 14 * * *', this) {
-    additionalPipelineArgs = [
-            influxDatabase: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-            influxHost: InfluxDBCredentialsHelper.InfluxDBHostUrl,
-    ]
-    batchLoadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT)
+  additionalPipelineArgs = [
+    influxDatabase: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+    influxHost: InfluxDBCredentialsHelper.InfluxDBHostUrl,
+  ]
+  batchLoadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT)
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
-        'beam_LoadTests_Java_CoGBK_Dataflow_V2_Batch_Java17',
-        'Run Load Tests Java 11 CoGBK Dataflow V2 Batch',
-        'Load Tests Java 17 CoGBK Dataflow V2 Batch suite',
-        this
-) {
-    additionalPipelineArgs = [:]
-    batchLoadTestJob(delegate, CommonTestProperties.TriggeringContext.PR)
-}
+    'beam_LoadTests_Java_CoGBK_Dataflow_V2_Batch_Java17',
+    'Run Load Tests Java 11 CoGBK Dataflow V2 Batch',
+    'Load Tests Java 17 CoGBK Dataflow V2 Batch suite',
+    this
+    ) {
+      additionalPipelineArgs = [:]
+      batchLoadTestJob(delegate, CommonTestProperties.TriggeringContext.PR)
+    }

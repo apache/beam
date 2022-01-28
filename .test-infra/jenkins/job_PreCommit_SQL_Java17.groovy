@@ -20,36 +20,36 @@ import PrecommitJobBuilder
 import CommonJobProperties as properties
 
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
-        scope: this,
-        nameBase: 'SQL_Java17',
-        gradleTask: ':sqlPreCommit',
-        gradleSwitches: [
-                '-PdisableSpotlessCheck=true',
-                '-PcompileAndRunTestsWithJava17',
-                '-PskipCheckerFramework',
-                // Gradle itself is running under JDK8 so plugin configures wrong for JDK17
-                "-Pjava17Home=${properties.JAVA_17_HOME}"
-        ], // spotless checked in job_PreCommit_Spotless
-        triggerPathPatterns: [
-                '^sdks/java/extensions/sql.*$',
-        ]
-)
+    scope: this,
+    nameBase: 'SQL_Java17',
+    gradleTask: ':sqlPreCommit',
+    gradleSwitches: [
+      '-PdisableSpotlessCheck=true',
+      '-PcompileAndRunTestsWithJava17',
+      '-PskipCheckerFramework',
+      // Gradle itself is running under JDK8 so plugin configures wrong for JDK17
+      "-Pjava17Home=${properties.JAVA_17_HOME}"
+    ], // spotless checked in job_PreCommit_Spotless
+    triggerPathPatterns: [
+      '^sdks/java/extensions/sql.*$',
+    ]
+    )
 builder.build {
-    publishers {
-        archiveJunit('**/build/test-results/**/*.xml')
-        recordIssues {
-            tools {
-                java()
-                checkStyle {
-                    pattern('**/build/reports/checkstyle/*.xml')
-                }
-                configure { node ->
-                    node / 'spotBugs' << 'io.jenkins.plugins.analysis.warnings.SpotBugs' {
-                        pattern('**/build/reports/spotbugs/*.xml')
-                    }
-                }
-            }
-            enabledForFailure(true)
+  publishers {
+    archiveJunit('**/build/test-results/**/*.xml')
+    recordIssues {
+      tools {
+        java()
+        checkStyle {
+          pattern('**/build/reports/checkstyle/*.xml')
         }
+        configure { node ->
+          node / 'spotBugs' << 'io.jenkins.plugins.analysis.warnings.SpotBugs' {
+            pattern('**/build/reports/spotbugs/*.xml')
+          }
+        }
+      }
+      enabledForFailure(true)
     }
+  }
 }

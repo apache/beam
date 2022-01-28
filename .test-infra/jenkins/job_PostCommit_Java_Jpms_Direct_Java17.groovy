@@ -23,28 +23,28 @@ import PostcommitJobBuilder
 // This job runs the Java postcommit tests, including the suite of integration
 // tests.
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Jpms_Direct_Java1117', 'Run Jpms Direct Java 17 PostCommit',
-        'JPMS Java 17 direct runner  Post Commit Tests', this) {
+    'JPMS Java 17 direct runner  Post Commit Tests', this) {
 
-    description('Runs JPMS tests on the direct runner using the Java 17 SDK.')
+      description('Runs JPMS tests on the direct runner using the Java 17 SDK.')
 
-    // Set common parameters.
-    commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
+      // Set common parameters.
+      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
 
-    // Publish all test results to Jenkins
-    publishers {
+      // Publish all test results to Jenkins
+      publishers {
         archiveJunit('**/build/test-results/**/*.xml')
-    }
+      }
 
-    // Gradle goals for this job.
-    steps {
+      // Gradle goals for this job.
+      steps {
         gradle {
-            rootBuildScriptDir(commonJobProperties.checkoutDir)
-            tasks(':sdks:java:testing:jpms-tests:directRunnerIntegrationTest')
-            commonJobProperties.setGradleSwitches(delegate)
-            switches("-PcompileAndRunTestsWithJava17")
-            switches("-Pjava17Home=${commonJobProperties.JAVA_17_HOME}")
-            // Specify maven home on Jenkins, needed by Maven archetype integration tests.
-            switches('-Pmaven_home=/home/jenkins/tools/maven/apache-maven-3.5.4')
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':sdks:java:testing:jpms-tests:directRunnerIntegrationTest')
+          commonJobProperties.setGradleSwitches(delegate)
+          switches("-PcompileAndRunTestsWithJava17")
+          switches("-Pjava17Home=${commonJobProperties.JAVA_17_HOME}")
+          // Specify maven home on Jenkins, needed by Maven archetype integration tests.
+          switches('-Pmaven_home=/home/jenkins/tools/maven/apache-maven-3.5.4')
         }
+      }
     }
-}
