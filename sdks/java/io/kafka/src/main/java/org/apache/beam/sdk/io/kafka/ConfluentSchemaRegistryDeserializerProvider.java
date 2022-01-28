@@ -91,7 +91,7 @@ public class ConfluentSchemaRegistryDeserializerProvider<T> implements Deseriali
         (SerializableFunction<Void, SchemaRegistryClient>)
             input ->
                 new CachedSchemaRegistryClient(
-                    schemaRegistryUrl, Integer.MAX_VALUE, schemaRegistryConfigs),
+                    schemaRegistryUrl, 1000, schemaRegistryConfigs),
         schemaRegistryUrl,
         subject,
         version);
