@@ -27,7 +27,7 @@ variable "docker_registry_address" {
 
 variable "docker_image_name" {
   description = "Docker Image Name To Be Deployed"
-  default = "beam_playground-frontend"
+  default = "beam_playground-backend-scio"
 }
 
 variable "docker_image_tag" {
@@ -36,5 +36,13 @@ variable "docker_image_tag" {
 }
 
 variable "service_name" {
-  default = "frontend"
+  default = "backend-scio"
+}
+
+variable "cache_type" {
+  default = "remote"
+}
+
+variable "cache_address" {
+  default = ""
 }
