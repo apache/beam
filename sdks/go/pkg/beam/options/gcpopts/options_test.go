@@ -23,38 +23,38 @@ import (
 
 func TestGetProjectFromFlagOrEnvironmentWithNoProjectSet(t *testing.T) {
 	*Project = ""
-	ret := GetProjectFromFlagOrEnvironment(nil)
-	if ret != "" {
-		t.Fatalf("%q returned as project id, should be \"\"", ret)
+	projectId := GetProjectFromFlagOrEnvironment(nil)
+	if projectId != "" {
+		t.Fatalf("%q returned as project id, should be \"\"", projectId)
 	}
 }
 
 func TestGetProjectFromFlagOrEnvironmentWithProjectFlagSet(t *testing.T) {
 	*Project = "test"
-	ret := GetProjectFromFlagOrEnvironment(nil)
-	if ret != "test" {
-		t.Fatalf("%q returned as project id, should be \"test\"", ret)
+	projectId := GetProjectFromFlagOrEnvironment(nil)
+	if projectId != "test" {
+		t.Fatalf("%q returned as project id, should be \"test\"", projectId)
 	}
 }
 
 func TestGetProjectFromFlagOrEnvironmentWithNoProjectFlagSetAndFallbackSet(t *testing.T) {
 	setupFakeCredentialFile(t, "fallback")
 	*Project = ""
-	ret := GetProjectFromFlagOrEnvironment(nil)
-	if ret != "fallback" {
-		t.Fatalf("%q returned as project id, should be \"fallback\"", ret)
+	projectId := GetProjectFromFlagOrEnvironment(nil)
+	if projectId != "fallback" {
+		t.Fatalf("%q returned as project id, should be \"fallback\"", projectId)
 	}
 }
 
 func TestGetProjectFromFlagOrEnvironmentWithProjectFlagSetAndFallbackSet(t *testing.T) {
 	setupFakeCredentialFile(t, "fallback")
 	*Project = "test"
-	ret := GetProjectFromFlagOrEnvironment(nil)
-	if ret == "fallback" {
+	projectId := GetProjectFromFlagOrEnvironment(nil)
+	if projectId == "fallback" {
 		t.Fatalf("fallback returned as project id, should have used the flag setting of test")
 	}
-	if ret != "test" {
-		t.Fatalf("%q returned as project id, should be \"test\"", ret)
+	if projectId != "test" {
+		t.Fatalf("%q returned as project id, should be \"test\"", projectId)
 	}
 }
 
