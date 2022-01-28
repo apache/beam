@@ -21,9 +21,9 @@
 
 import logging
 import os
+import re
 import tempfile
 import unittest
-import re
 
 import pytest
 
