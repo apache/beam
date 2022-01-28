@@ -23,7 +23,7 @@ import (
 )
 
 func TestGetProjectFromFlagOrEnvironmentWithNoProjectSet(t *testing.T) {
-	os.Unsetenv("GOOGLE_APPLICATION_CREDENTIALS")
+	setupFakeCredentialFile(t, "")
 	*Project = ""
 	projectId := GetProjectFromFlagOrEnvironment(nil)
 	if projectId != "" {
@@ -32,7 +32,7 @@ func TestGetProjectFromFlagOrEnvironmentWithNoProjectSet(t *testing.T) {
 }
 
 func TestGetProjectFromFlagOrEnvironmentWithProjectFlagSet(t *testing.T) {
-	os.Unsetenv("GOOGLE_APPLICATION_CREDENTIALS")
+	setupFakeCredentialFile(t, "")
 	*Project = "test"
 	projectId := GetProjectFromFlagOrEnvironment(nil)
 	if projectId != "test" {
