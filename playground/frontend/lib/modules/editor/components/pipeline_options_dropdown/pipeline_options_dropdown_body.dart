@@ -158,7 +158,7 @@ class _PipelineOptionsDropdownBodyState
                     style: Theme.of(context)
                         .textTheme
                         .caption
-                        ?.copyWith(color: kErrorNotificationColor),
+                        !.copyWith(color: kErrorNotificationColor),
                     softWrap: true,
                   ),
                 ),
