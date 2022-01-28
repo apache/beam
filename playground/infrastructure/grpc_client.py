@@ -142,8 +142,12 @@ class GRPCClient:
     """
     self._verify_pipeline_uuid(pipeline_uuid)
     request = api_pb2.GetGraphRequest(pipeline_uuid=pipeline_uuid)
-    response = await self._stub.GetGraph(request)
-    return response.graph
+    try:
+      response = await self._stub.GetGraph(request)
+      return response.graph
+    except grpc.RpcError as e:
+      # Some examples doesn't have graph (katas)
+      return ""
 
   def _verify_pipeline_uuid(self, pipeline_uuid):
     """
