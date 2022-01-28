@@ -198,7 +198,7 @@ class _PipelineOptionsDropdownBodyState
   bool _isPipelineOptionsTextValid() {
     final options = pipelineOptionsController.text;
     final parsedOptions = parsePipelineOptions(options);
-    return options.isEmpty || parsedOptions != null;
+    return options.isEmpty || (parsedOptions != null);
   }
 
   _updateRawValue() {
