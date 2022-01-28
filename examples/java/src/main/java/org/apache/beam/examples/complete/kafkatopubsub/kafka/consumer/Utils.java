@@ -23,6 +23,7 @@ import static org.apache.beam.examples.complete.kafkatopubsub.KafkaPubsubConstan
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -165,9 +166,13 @@ public class Utils {
         || options.getKeyPassword() != null;
   }
 
-  public static Map<String, Object> parseKafkaConsumerConfig(String kafkaConsumerConfig) {
-    return Arrays.stream(kafkaConsumerConfig.split(";"))
-        .map(s -> s.split("="))
-        .collect(Collectors.toMap(kv -> kv[0], kv -> kv[1]));
+  public static Map<String, Object> parseKafkaConsumerConfig(@Nullable String kafkaConsumerConfig) {
+    if (kafkaConsumerConfig == null) {
+      return Collections.emptyMap();
+    } else {
+      return Arrays.stream(kafkaConsumerConfig.split(";"))
+          .map(s -> s.split("="))
+          .collect(Collectors.toMap(kv -> kv[0], kv -> kv[1]));
+    }
   }
 }

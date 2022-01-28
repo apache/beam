@@ -18,11 +18,14 @@
 package org.apache.beam.sdk.io.aws2.sqs;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.sdk.io.aws2.sqs.EmbeddedSqsServer.TestCaseEnv;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -35,19 +38,18 @@ import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 
 /** Tests on {@link SqsIO}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class SqsIOTest {
+
+  @ClassRule public static EmbeddedSqsServer sqsServer = new EmbeddedSqsServer();
+
+  @Rule public TestCaseEnv testCase = new TestCaseEnv(sqsServer);
 
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
-  @Rule public EmbeddedSqsServer embeddedSqsRestServer = new EmbeddedSqsServer();
-
   @Test
   public void testWrite() {
-    final SqsClient client = embeddedSqsRestServer.getClient();
-    final String queueUrl = embeddedSqsRestServer.getQueueUrl();
+    final SqsClient client = testCase.getClient();
+    final String queueUrl = testCase.getQueueUrl();
 
     List<SendMessageRequest> messages = new ArrayList<>();
     for (int i = 0; i < 100; i++) {
@@ -61,7 +63,7 @@ public class SqsIOTest {
 
     pipeline
         .apply(Create.of(messages))
-        .apply(SqsIO.write().withSqsClientProvider(SqsClientProviderMock.of(client)));
+        .apply(SqsIO.write().withSqsClientProvider(StaticSqsClientProvider.of(client)));
     pipeline.run().waitUntilFinish();
 
     List<String> received = new ArrayList<>();
@@ -80,7 +82,7 @@ public class SqsIOTest {
 
     assertEquals(100, received.size());
     for (int i = 0; i < 100; i++) {
-      received.contains("This is a test " + i);
+      assertTrue(received.contains("This is a test " + i));
     }
   }
 }

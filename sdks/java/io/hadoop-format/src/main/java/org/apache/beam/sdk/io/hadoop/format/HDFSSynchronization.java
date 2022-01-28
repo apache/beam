@@ -102,7 +102,6 @@ public class HDFSSynchronization implements ExternalSynchronization {
     } catch (IOException e) {
       String formattedExceptionMessage =
           String.format("Delete of lock directory %s was unsuccessful", path);
-      LOG.warn(formattedExceptionMessage, e);
       throw new IllegalStateException(formattedExceptionMessage, e);
     }
   }
