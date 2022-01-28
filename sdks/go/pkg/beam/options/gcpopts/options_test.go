@@ -16,6 +16,7 @@
 package gcpopts
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -58,7 +59,7 @@ func TestGetProjectFromFlagOrEnvironmentWithProjectFlagSetAndFallbackSet(t *test
 	}
 }
 
-// Set up fake credential file to read project from.
+// Set up fake credential file to read project from with the passed in projectId.
 func setupFakeCredentialFile(t *testing.T, projectId string) {
 	tmpFile, err := ioutil.TempFile(os.TempDir(), "FAKE-GOOGLE-APPLICATION-CREDENTIALS-*.json")
 	if err != nil {
@@ -66,10 +67,10 @@ func setupFakeCredentialFile(t *testing.T, projectId string) {
 	}
 	t.Cleanup(func() { os.Remove(tmpFile.Name()) })
 
-	content := []byte(`{
+	content := []byte(fmt.Sprintf(`{
 		"type": "service_account",
-		"project_id": "fallback"
-	  }`)
+		"project_id": %q
+	  }`, projectId))
 	if _, err := tmpFile.Write(content); err != nil {
 		t.Fatalf("Failed writing to fake credential file")
 	}
