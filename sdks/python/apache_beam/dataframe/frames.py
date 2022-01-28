@@ -4628,27 +4628,49 @@ class _DeferredStringMethods(frame_base.DeferredBase):
   @frame_base.with_docs_from(pd.core.strings.StringMethods)
   @frame_base.args_to_kwargs(pd.core.strings.StringMethods)
   def get_dummies(self, **kwargs):
-    dummies = expressions.ComputedExpression(
-        'get_dummies',
-        lambda s: s.str.get_dummies(**kwargs),
-        [self._expr],
-        requires_partition_by=partitionings.Arbitrary(),
-        preserves_partition_by=partitionings.Singleton())
+    """
+    Series must be categorical type.
+    TODO(remove) Warning: Even if input does not contains NaN,
+    the output may include nan
+    """
+    dtype = self._expr.proxy().dtype
+    if not isinstance(dtype, pd.CategoricalDtype):
+      raise frame_base.WontImplementError(
+          "get_dummies() of non-categorical type is not supported because "
+          "the type of the output column depends on the data. Please use "
+          "pd.CategoricalDtype with explicit categories or pd.bool",
+          reason="non-deferred-columns")
 
-    def concat_dummies(*args):
-      return pd.concat([arg for arg in args]).fillna(
-        value=0, method=None).astype(int)
+    split_cats = [
+      cat.split(sep=kwargs.get('sep', '|')) for cat in dtype.categories
+    ]
 
-    # proxy = pd.DataFrame(columns=columns)
-    with expressions.allow_non_parallel_operations(True):
-      return frame_base.DeferredFrame.wrap(
-          expressions.ComputedExpression(
-              'concat_dummies',
-              concat_dummies, [dummies],
-              requires_partition_by=partitionings.Singleton(),
-              preserves_partition_by=partitionings.Singleton(),
-              # proxy=proxy
-              ))
+    # Adding the nan category because the there could be the case that
+    # the data includes NaNs, which is not valid to be casted as a Category,
+    # but nevertheless would be broadcasted as a column in get_dummies()
+    columns = sorted(set().union(*split_cats)) + ['nan']
+
+    proxy = pd.DataFrame(columns=columns).astype(int)
+
+    def get_dummies(series):
+      df = pd.DataFrame(series.str.get_dummies(**kwargs), columns=columns)
+      # Fill NaNs with 0, and cast to int
+      df = df.fillna(value=0, method=None).astype(int)
+      # Drop cols with all zeros
+      df = df.loc[:, (df != 0).any(axis=0)]
+      return df
+
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'get_dummies',
+            get_dummies,
+            # lambda s: pd.DataFrame(
+            # s.str.get_dummies(**kwargs), columns=columns
+            # ).fillna(value=0, method=None).astype(int),
+            [self._expr],
+            proxy=proxy,
+            requires_partition_by=partitionings.Arbitrary(),
+            preserves_partition_by=partitionings.Arbitrary()))
 
   split = frame_base.wont_implement_method(
       pd.core.strings.StringMethods, 'split',

@@ -336,11 +336,45 @@ class TransformTest(unittest.TestCase):
     self.run_scenario(df, lambda df: df.strings.str.repeat(df.repeats))
 
   def test_get_dummies(self):
-    s = pd.Series(['a|b', np.nan, 'a|c'])
+    # Shouldn't still work even though np.nan is not considered a category
+    s = pd.Series(['a|b', np.nan, 'a|c']).astype('category')
     self.run_scenario(s, lambda s: s.str.get_dummies())
 
-    s = pd.Series(['a|b', 'a', 'a|c'])
+    # Should not work because series is not a categorical type
+    with self.assertRaisesRegex(
+        frame_base.WontImplementError,
+        r"get_dummies\(\) of non-categorical type is not supported"):
+      s = pd.Series(['a|b', np.nan, 'a|c'])
+      self.run_scenario(s, lambda s: s.str.get_dummies())
+
+    # Should work
+    s = pd.Series(['a|b', 'b|c', 'a|c', 'c', 'd'])
+    s = s.astype(pd.CategoricalDtype(categories=['a', 'b', 'c']))
     self.run_scenario(s, lambda s: s.str.get_dummies())
+
+    # Should work
+    # s = pd.Series(['a|b', 'b|c', 'c'])
+    # s = s.astype(pd.CategoricalDtype(categories=['a', 'b', 'c', 'd']))
+    # self.run_scenario(s, lambda s: s.str.get_dummies())
+
+    # Should work
+    # s = pd.Series(['a|b', 'a', 'a|c'])
+    # s = s.astype(pd.CategoricalDtype(categories=['a|b', 'a', 'a|c']))
+    # self.run_scenario(s, lambda s: s.str.get_dummies())
+
+    # Different order
+    # s = pd.Series(['b|a', 'a', 'a|c'])
+    # s = s.astype(pd.CategoricalDtype(categories=['b|a', 'a', 'a|c']))
+    # self.run_scenario(s, lambda s: s.str.get_dummies())
+
+    # Do with different separator
+    # s = pd.Series(['a|b', 'a', 'a|c'])
+    # s = s.astype(pd.CategoricalDtype(categories=['a|b', 'a', 'a|c']))
+    # self.run_scenario(s, lambda s: s.str.get_dummies(','))
+
+    # Bool
+
+    # Both bool and categorical
 
   def test_rename(self):
     df = pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
