@@ -23,7 +23,9 @@ import (
 	"os/exec"
 	"strings"
 
+	"cloud.google.com/go/storage"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"golang.org/x/oauth2/google"
 )
 
 var (
@@ -39,6 +41,18 @@ var (
 func GetProject(ctx context.Context) string {
 	if *Project == "" {
 		log.Exit(ctx, "No Google Cloud project specified. Use --project=<project>")
+	}
+	return *Project
+}
+
+// GetProjectFromFlagOrEnvironment gets the project first via flag then falling back to
+// https://cloud.google.com/docs/authentication/production#auth-cloud-explicit-go
+func GetProjectFromFlagOrEnvironment(ctx context.Context) string {
+	if *Project == "" {
+		credentials, err := google.FindDefaultCredentials(ctx, storage.ScopeReadWrite)
+		if err == nil {
+			return credentials.ProjectID
+		}
 	}
 	return *Project
 }
