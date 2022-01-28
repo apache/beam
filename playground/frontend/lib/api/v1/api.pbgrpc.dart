@@ -18,12 +18,11 @@
 
 ///
 import 'dart:async' as $async;
+
 import 'dart:core' as $core;
 
 import 'package:grpc/service_api.dart' as $grpc;
-
 import 'api.pb.dart' as $0;
-
 export 'api.pb.dart';
 
 class PlaygroundServiceClient extends $grpc.Client {
@@ -51,6 +50,12 @@ class PlaygroundServiceClient extends $grpc.Client {
           ($0.GetLogsRequest value) => value.writeToBuffer(),
           ($core.List<$core.int> value) =>
               $0.GetLogsResponse.fromBuffer(value));
+  static final _$getGraph =
+      $grpc.ClientMethod<$0.GetGraphRequest, $0.GetGraphResponse>(
+          '/api.v1.PlaygroundService/GetGraph',
+          ($0.GetGraphRequest value) => value.writeToBuffer(),
+          ($core.List<$core.int> value) =>
+              $0.GetGraphResponse.fromBuffer(value));
   static final _$getRunError =
       $grpc.ClientMethod<$0.GetRunErrorRequest, $0.GetRunErrorResponse>(
           '/api.v1.PlaygroundService/GetRunError',
@@ -133,6 +138,11 @@ class PlaygroundServiceClient extends $grpc.Client {
   $grpc.ResponseFuture<$0.GetLogsResponse> getLogs($0.GetLogsRequest request,
       {$grpc.CallOptions? options}) {
     return $createUnaryCall(_$getLogs, request, options: options);
+  }
+
+  $grpc.ResponseFuture<$0.GetGraphResponse> getGraph($0.GetGraphRequest request,
+      {$grpc.CallOptions? options}) {
+    return $createUnaryCall(_$getGraph, request, options: options);
   }
 
   $grpc.ResponseFuture<$0.GetRunErrorResponse> getRunError(
@@ -228,6 +238,13 @@ abstract class PlaygroundServiceBase extends $grpc.Service {
         false,
         ($core.List<$core.int> value) => $0.GetLogsRequest.fromBuffer(value),
         ($0.GetLogsResponse value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.GetGraphRequest, $0.GetGraphResponse>(
+        'GetGraph',
+        getGraph_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.GetGraphRequest.fromBuffer(value),
+        ($0.GetGraphResponse value) => value.writeToBuffer()));
     $addMethod(
         $grpc.ServiceMethod<$0.GetRunErrorRequest, $0.GetRunErrorResponse>(
             'GetRunError',
@@ -331,6 +348,11 @@ abstract class PlaygroundServiceBase extends $grpc.Service {
     return getLogs(call, await request);
   }
 
+  $async.Future<$0.GetGraphResponse> getGraph_Pre(
+      $grpc.ServiceCall call, $async.Future<$0.GetGraphRequest> request) async {
+    return getGraph(call, await request);
+  }
+
   $async.Future<$0.GetRunErrorResponse> getRunError_Pre($grpc.ServiceCall call,
       $async.Future<$0.GetRunErrorRequest> request) async {
     return getRunError(call, await request);
@@ -391,6 +413,8 @@ abstract class PlaygroundServiceBase extends $grpc.Service {
       $grpc.ServiceCall call, $0.GetRunOutputRequest request);
   $async.Future<$0.GetLogsResponse> getLogs(
       $grpc.ServiceCall call, $0.GetLogsRequest request);
+  $async.Future<$0.GetGraphResponse> getGraph(
+      $grpc.ServiceCall call, $0.GetGraphRequest request);
   $async.Future<$0.GetRunErrorResponse> getRunError(
       $grpc.ServiceCall call, $0.GetRunErrorRequest request);
   $async.Future<$0.GetValidationOutputResponse> getValidationOutput(

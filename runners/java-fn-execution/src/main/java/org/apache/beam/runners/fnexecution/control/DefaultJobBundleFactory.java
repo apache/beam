@@ -437,7 +437,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
 
     private final ExecutableStage executableStage;
     private final int environmentIndex;
-    private final Map<WrappedSdkHarnessClient, PreparedClient> preparedClients =
+    private final IdentityHashMap<WrappedSdkHarnessClient, PreparedClient> preparedClients =
         new IdentityHashMap<>();
     private volatile PreparedClient currentClient;
 

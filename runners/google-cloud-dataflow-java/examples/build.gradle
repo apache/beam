@@ -38,7 +38,7 @@ dependencies {
 def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
 def gcpRegion = project.findProperty('gcpRegion') ?: 'us-central1'
 def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
-def dockerImageName = project(':runners:google-cloud-dataflow-java').ext.dockerImageName
+def dockerJavaImageName = project(':runners:google-cloud-dataflow-java').ext.dockerJavaImageName
 // If -PuseExecutableStage is set, the use_executable_stage_bundle_execution wil be enabled.
 def fnapiExperiments = project.hasProperty('useExecutableStage') ? 'beam_fn_api_use_deprecated_read,use_executable_stage_bundle_execution' : "beam_fn_api,beam_fn_api_use_deprecated_read"
 
@@ -73,7 +73,7 @@ task verifyFnApiWorker(type: Test) {
   dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
   dependsOn ":runners:google-cloud-dataflow-java:buildAndPushDockerContainer"
   def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
-  with commonConfig(dataflowWorkerJar, dockerImageName, ["--experiments=${fnapiExperiments}"])
+  with commonConfig(dataflowWorkerJar, dockerJavaImageName, ["--experiments=${fnapiExperiments}"])
   useJUnit {
     excludeCategories 'org.apache.beam.sdk.testing.StreamingIT'
   }

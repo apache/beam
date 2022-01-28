@@ -59,6 +59,7 @@ var (
 	numWorkers           = flag.Int64("num_workers", 0, "Number of workers (optional).")
 	maxNumWorkers        = flag.Int64("max_num_workers", 0, "Maximum number of workers during scaling (optional).")
 	diskSizeGb           = flag.Int64("disk_size_gb", 0, "Size of root disk for VMs, in GB (optional).")
+	diskType             = flag.String("disk_type", "", "Type of root disk for VMs (optional).")
 	autoscalingAlgorithm = flag.String("autoscaling_algorithm", "", "Autoscaling mode to use (optional).")
 	zone                 = flag.String("zone", "", "GCP zone (optional)")
 	network              = flag.String("network", "", "GCP network (optional)")
@@ -95,6 +96,7 @@ var flagFilter = map[string]bool{
 	"num_workers":                    true,
 	"max_num_workers":                true,
 	"disk_size_gb":                   true,
+	"disk_type":                      true,
 	"autoscaling_algorithm":          true,
 	"zone":                           true,
 	"network":                        true,
@@ -230,6 +232,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 		NumWorkers:          *numWorkers,
 		MaxNumWorkers:       *maxNumWorkers,
 		DiskSizeGb:          *diskSizeGb,
+		DiskType:            *diskType,
 		Algorithm:           *autoscalingAlgorithm,
 		MachineType:         *machineType,
 		Labels:              jobLabels,

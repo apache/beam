@@ -55,6 +55,9 @@ const (
 
 	// LogsIndex is the index of the start of the log
 	LogsIndex SubKey = "LOGS_INDEX"
+
+	// Graph is used to keep graph of the execution
+	Graph SubKey = "GRAPH"
 )
 
 // Cache is used to store states and outputs for Apache Beam pipelines that running in Playground

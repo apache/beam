@@ -81,7 +81,8 @@ async def test_get_statuses(mock_update_example_status, mock_grpc_client):
       code="code",
       output="output",
       status=STATUS_UNSPECIFIED,
-      tag={"name": "Name"})
+      tag={"name": "Name"},
+      link="link")
   client = None
 
   mock_grpc_client.return_value = client
@@ -121,7 +122,8 @@ def test__check_file_with_correct_tag(
       filepath="/root/filename.java",
       code="data",
       status=STATUS_UNSPECIFIED,
-      tag=Tag("Name", "Description", False, [], '--option option'))
+      tag=Tag("Name", "Description", False, [], '--option option'),
+      link="link")
   examples = []
 
   mock_get_tag.return_value = tag
@@ -187,7 +189,8 @@ def test__get_example(mock_get_name):
       filepath="/root/filepath.java",
       code="data",
       status=STATUS_UNSPECIFIED,
-      tag=Tag("Name", "Description", "False", [""], "--option option"))
+      tag=Tag("Name", "Description", "False", [""], "--option option"),
+      link="https://github.com/apache/beam/blob/master/root/filepath.java")
   mock_get_name.assert_called_once_with("filepath.java")
 
 
@@ -266,7 +269,8 @@ async def test__update_example_status(
       code="code",
       output="output",
       status=STATUS_UNSPECIFIED,
-      tag={"pipeline_options": "--key value"})
+      tag={"pipeline_options": "--key value"},
+      link="link")
 
   mock_grpc_client_run_code.return_value = "pipeline_id"
   mock_grpc_client_check_status.side_effect = [

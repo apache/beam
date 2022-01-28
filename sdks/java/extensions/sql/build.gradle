@@ -67,7 +67,7 @@ dependencies {
   implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
 
   // TODO(BEAM-13179): Determine how to build without this dependency
-  compileOnly "org.immutables:value:2.8.8"
+  provided "org.immutables:value:2.8.8"
   permitUnusedDeclared "org.immutables:value:2.8.8"
   javacc "net.java.dev.javacc:javacc:4.0"
   fmppTask "com.googlecode.fmpp-maven-plugin:fmpp-maven-plugin:1.0"
@@ -91,7 +91,7 @@ dependencies {
   implementation library.java.slf4j_api
   implementation library.java.joda_time
   implementation library.java.vendored_guava_26_0_jre
-  compileOnly project(":sdks:java:io:kafka")
+  provided project(":sdks:java:io:kafka")
   implementation project(":sdks:java:extensions:google-cloud-platform-core")
   permitUnusedDeclared project(":sdks:java:extensions:google-cloud-platform-core")
   implementation project(":sdks:java:io:google-cloud-platform")
@@ -104,12 +104,12 @@ dependencies {
   implementation library.java.avro
   implementation library.java.protobuf_java
   implementation library.java.protobuf_java_util
-  compileOnly project(":sdks:java:io:parquet")
-  compileOnly library.java.jackson_dataformat_xml
+  provided project(":sdks:java:io:parquet")
+  provided library.java.jackson_dataformat_xml
   permitUnusedDeclared library.java.jackson_dataformat_xml
-  compileOnly library.java.hadoop_client
+  provided library.java.hadoop_client
   permitUnusedDeclared library.java.hadoop_client
-  compileOnly library.java.kafka_clients
+  provided library.java.kafka_clients
   testImplementation library.java.vendored_calcite_1_28_0
   testImplementation library.java.vendored_guava_26_0_jre
   testImplementation library.java.junit
@@ -120,10 +120,6 @@ dependencies {
   testImplementation library.java.proto_google_cloud_bigtable_admin_v2
   testImplementation library.java.proto_google_cloud_datastore_v1
   testImplementation library.java.google_cloud_datastore_v1_proto_client
-  testImplementation library.java.hadoop_client
-  testImplementation library.java.kafka_clients
-  testImplementation project(":sdks:java:io:kafka")
-  testImplementation project(":sdks:java:io:parquet")
   testImplementation project(path: ":sdks:java:io:mongodb", configuration: "testRuntimeMigration")
   testImplementation project(path: ":sdks:java:io:thrift", configuration: "testRuntimeMigration")
   testImplementation project(path: ":sdks:java:extensions:protobuf", configuration: "testRuntimeMigration")

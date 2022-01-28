@@ -38,13 +38,15 @@ on:
 
 
 jobs:
-  setup-go:
-    runs-on: [ubuntu-latest, macos-latest, windows-latest]
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-go@v2
-        with:
-          go-version: '1.16.12'
+# Commenting out setup-go as it is misconfigured, and blocking java builds
+# See BEAM-13740 and BEAM-12830
+#  setup-go:
+#    runs-on: [ubuntu-latest, macos-latest, windows-latest]
+#    steps:
+#      - uses: actions/checkout@v2
+#      - uses: actions/setup-go@v2
+#        with:
+#          go-version: '1.16.12'
 
   check_gcp_variables:
     timeout-minutes: 5
@@ -115,7 +117,7 @@ jobs:
           path: runners/core-java/build/reports/tests/test
 
   java_wordcount_direct_runner:
-    needs: setup-go
+#    needs: setup-go
     name: 'Java Wordcount Direct Runner'
     runs-on: ${{ matrix.os }}
     strategy:
@@ -145,7 +147,7 @@ jobs:
     name: 'Java Wordcount Dataflow'
     needs:
       - check_gcp_variables
-      - setup-go
+#      - setup-go
     runs-on: ${{ matrix.os }}
     if: |
       needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && (

@@ -24,7 +24,6 @@
 #   description: Unit-test for the transforms that use
 #     the SQL Expansion service.
 #   multifile: false
-#   pipeline_options:
 #   categories:
 #     - Beam SQL
 
