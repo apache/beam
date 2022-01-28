@@ -52,9 +52,8 @@ func TestGetProjectFromFlagOrEnvironmentWithProjectFlagSetAndFallbackSet(t *test
 	*Project = "test"
 	projectId := GetProjectFromFlagOrEnvironment(nil)
 	if projectId == "fallback" {
-		t.Fatalf("fallback returned as project id, should have used the flag setting of test")
-	}
-	if projectId != "test" {
+		t.Fatalf("fallback returned as project id, should have used the flag setting of \"test\"")
+	} else if projectId != "test" {
 		t.Fatalf("%q returned as project id, should be \"test\"", projectId)
 	}
 }
