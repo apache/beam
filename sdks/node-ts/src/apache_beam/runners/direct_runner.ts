@@ -91,7 +91,7 @@ class DirectImpulseOperator implements operators.IOperator {
       value: new Uint8Array(),
       windows: [new GlobalWindow()],
       pane: PaneInfoCoder.ONE_AND_ONLY_FIRING,
-      timestamp: Long.fromValue("-9223372036854775"), // TODO: Pull constant out of proto, or at least as a constant elsewhere.
+      timestamp: Long.fromValue("-9223372036854775"), // TODO: (Cleanup) Pull constant out of proto, or at least as a constant elsewhere.
     });
   }
 
@@ -101,7 +101,7 @@ class DirectImpulseOperator implements operators.IOperator {
 operators.registerOperator(Impulse.urn, DirectImpulseOperator);
 
 // Only to be used in direct runner, as this will only group within a single bundle.
-// TODO: This could be used as a base for the PGBKOperation operator,
+// TODO: (Extension) This could be used as a base for the PGBKOperation operator,
 // and then this class could simply invoke that with an unbounded size and the
 // concat-to-list CombineFn.
 class DirectGbkOperator implements operators.IOperator {
@@ -127,7 +127,7 @@ class DirectGbkOperator implements operators.IOperator {
     );
     const windowingStrategy =
       context.descriptor.windowingStrategies[inputPc.windowingStrategyId];
-    // TODO: Check or implement triggers, etc.
+    // TODO: (Cleanup) Check or implement triggers, etc.
     if (
       windowingStrategy.mergeStatus != runnerApi.MergeStatus_Enum.NON_MERGING
     ) {
@@ -139,7 +139,7 @@ class DirectGbkOperator implements operators.IOperator {
   }
 
   process(wvalue: WindowedValue<any>) {
-    // TODO: Assert non-merging, EOW timestamp, etc.
+    // TODO: (Cleanup) Assert non-merging, EOW timestamp, etc.
     for (const window of wvalue.windows) {
       const wkey =
         encodeToBase64(window, this.windowCoder) +
@@ -242,7 +242,7 @@ function rewriteSideInputs(p: runnerApi.Pipeline, pipelineStateRef: string) {
       const spec = runnerApi.ParDoPayload.fromBinary(transform.spec!.payload);
 
       // Figure out which input is the main input.
-      // TODO: Is there a clean way to do a set difference?
+      // TODO: (Typescript) Is there a clean way to do a set difference?
       let mainPCollTag: string = undefined!;
       for (const tag of Object.keys(transform.inputs)) {
         if (!spec.sideInputs[tag]) {

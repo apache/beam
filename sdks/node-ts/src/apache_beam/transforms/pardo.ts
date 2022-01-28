@@ -5,22 +5,23 @@ import { GeneralObjectCoder } from "../coders/js_coders";
 import { PCollection } from "../pvalue";
 import { Pipeline, fakeSeralize } from "../base";
 import { PTransform } from "./transform";
-import { Window, WindowedValue } from "../values";
+import { PaneInfo, Instant, Window, WindowedValue } from "../values";
 
 export class DoFn<InputT, OutputT, ContextT = undefined> {
   *process(element: InputT, context: ContextT): Iterable<OutputT> | void {
     throw new Error("Method process has not been implemented!");
   }
 
-  // TODO: Should these get context as well?
+  // TODO: (API) Should these get context as well?
   startBundle() {}
 
-  // TODO: Re-consider this API.
+  // TODO: (API) Re-consider this API.
   *finishBundle(): Generator<WindowedValue<OutputT>> | void {}
 }
 
-// TODO: Do we need an AsyncDoFn (and async[Flat]Map) to be able to call async
-// functions in the body of the fns. Or can they always be Async?
+// TODO: (API) Do we need an AsyncDoFn (and async[Flat]Map) to be able to call
+// async functions in the body of the fns. Or can they always be Async?
+// The latter seems to have perf issues.
 // (For PTransforms, it's a major usability issue, but maybe we can always
 // await when calling user code.  OTOH, I don't know what the performance
 // impact would be for creating promises for every element of every operation
@@ -33,9 +34,9 @@ export class ParDo<InputT, OutputT, ContextT = undefined> extends PTransform<
   private doFn: DoFn<InputT, OutputT, ContextT>;
   private context: ContextT;
   // static urn: string = runnerApi.StandardPTransforms_Primitives.PAR_DO.urn;
-  // TODO: use above line, not below line.
+  // TODO: (Cleanup) use above line, not below line.
   static urn: string = "beam:transform:pardo:v1";
-  // TODO: Can the arg be optional iff ContextT is undefined?
+  // TODO: (Typescript) Can the arg be optional iff ContextT is undefined?
   constructor(
     doFn: DoFn<InputT, OutputT, ContextT>,
     context: ContextT = undefined!
@@ -76,10 +77,10 @@ export class ParDo<InputT, OutputT, ContextT = undefined> extends PTransform<
               urn: value.accessor.accessPattern,
               payload: new Uint8Array(),
             },
-            // TODO: The viewFn is stored in the side input object.
+            // TODO: (Cleanup) The viewFn is stored in the side input object.
             // Unclear what benefit there is to putting it here.
             viewFn: { urn: "unused", payload: new Uint8Array() },
-            // TODO: Possibly place this in the accessor.
+            // TODO: (Extension) Possibly place this in the accessor.
             windowMappingFn: {
               urn: isGlobalSide
                 ? urns.GLOBAL_WINDOW_MAPPING_FN_URN
@@ -116,23 +117,24 @@ export class ParDo<InputT, OutputT, ContextT = undefined> extends PTransform<
 
     // For the ParDo output coder, we use a GeneralObjectCoder, which is a Javascript-specific
     // coder to encode the various types that exist in JS.
-    // TODO: Should there be a way to specify, or better yet infer, this?
+    // TODO: (Types) Should there be a way to specify, or better yet infer, the coder to use?
     return pipeline.createPCollectionInternal<OutputT>(
       new GeneralObjectCoder()
     );
   }
 }
 
-// TODO: Consider as top-level method.
+// TODO: (API) Consider as top-level method.
 // TODO: Naming.
 // TODO: Allow default?  Technically splitter can be implemented/wrapped to produce such.
 // TODO: Can we enforce splitter's output with the typing system to lie in targets?
 // TODO: (Optionally?) delete the switched-on field.
-// TODO: Consider doing
+// TODO: (API) Consider doing
 //     [{a: aValue}, {g: bValue}, ...] => a: [aValue, ...], b: [bValue, ...]
 // instead of
 //     [{key: 'a', aValueFields}, {key: 'b', bValueFields}, ...] =>
 //          a: [{key: 'a', aValueFields}, ...], b: [{key: 'b', aValueFields}, ...],
+// (implemented below as Split2).
 export class Split<T> extends PTransform<
   PCollection<T>,
   { [key: string]: PCollection<T> }
@@ -171,8 +173,8 @@ export class Split<T> extends PTransform<
   }
 }
 
-// TODO: Is it possible to type that this takes PCollection<{a: T, b: U, ...}>
-// to {a: PCollection<T>, b: PCollection<U>, ...}
+// TODO: (Typescript) Is it possible to type that this takes
+// PCollection<{a: T, b: U, ...}> to {a: PCollection<T>, b: PCollection<U>, ...}
 export class Split2<T> extends PTransform<
   PCollection<{ [key: string]: T | undefined }>,
   { [key: string]: PCollection<T> }
@@ -227,7 +229,7 @@ export abstract class ParDoParam<T> {
     this.parDoParamName = parDoParamName;
   }
 
-  // TODO: Name? "get" seems to be special.
+  // TODO: Nameing "get" seems to be special.
   lookup(): T {
     if (this.provider == undefined) {
       throw new Error("Cannot be called outside of a DoFn's process method.");
@@ -251,6 +253,19 @@ export class WindowParam extends ParDoParam<Window> {
   }
 }
 
+export class TimestampParam extends ParDoParam<Instant> {
+  constructor() {
+    super("timestamp");
+  }
+}
+
+// TODO: Naming. Should this be PaneParam?
+export class PaneInfoParam extends ParDoParam<PaneInfo> {
+  constructor() {
+    super("paneinfo");
+  }
+}
+
 interface SideInputAccessor<PCollT, AccessorT, ValueT> {
   // This should be a value of runnerApi.StandardSideInputTypes, and specifies
   // the relationship between PCollT (the type fo the PCollection's elements)
@@ -260,8 +275,8 @@ interface SideInputAccessor<PCollT, AccessorT, ValueT> {
   toValue: (AccessorT) => ValueT;
 }
 
-// TODO: Support side inputs that are composites of multiple more primitive
-// side inputs.
+// TODO: (Extension) Support side inputs that are composites of multiple more
+// primitive side inputs.
 export class SideInputParam<
   PCollT,
   AccessorT,
@@ -282,7 +297,7 @@ export class SideInputParam<
   }
 
   // Internal. Should match the id of the side input in the proto.
-  // TODO: Consistency between name and id.
+  // TODO: (Cleanup) Rename to tag for consistency?
   sideInputId: string;
 }
 
@@ -327,7 +342,7 @@ export class SingletonSideInput<T> extends SideInputParam<T, Iterable<T>, T> {
   }
 }
 
-// TODO: Map side inputs.
+// TODO: (Extension) Map side inputs.
 
-// TODO: Add providers for timestamp, paneinfo, state, timers,
+// TODO: (Extension) Add providers for state, timers,
 // restriction trackers, counters, etc.

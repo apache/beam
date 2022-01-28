@@ -20,7 +20,7 @@ import {
 } from "./pardo_context";
 
 // Trying to get some of https://github.com/microsoft/TypeScript/issues/8240
-// TODO: Is there a more idiomatic way to get a singleton?
+// TODO: (Typescript) Is there a more idiomatic way to get a singleton?
 class NonPromiseClass {
   static INSTANCE = new NonPromiseClass();
   private constructor() {}
@@ -99,7 +99,7 @@ export function createOperator(
   return operatorConstructor(transformId, transform, context);
 }
 
-// TODO: Is there a good way to get the construtor as a function to avoid this new operator hacking?
+// TODO: (Typescript) Is there a good way to get the construtor as a function to avoid this new operator hacking?
 type OperatorConstructor = (
   transformId: string,
   transformProto: PTransform,
@@ -328,8 +328,8 @@ class GenericParDoOperator implements IOperator {
   process(wvalue: WindowedValue<any>) {
     if (this.augmentedContext && wvalue.windows.length != 1) {
       // We need to process each window separately.
-      // TODO: We could inspect the context more deeply and allow some cases
-      // to go through.
+      // TODO: (Perf) We could inspect the context more deeply and allow some
+      // cases to go through.
       const result = new ProcessResultBuilder();
       for (const window of wvalue.windows) {
         result.add(
@@ -432,7 +432,7 @@ class SplittingDoFnOperator implements IOperator {
     if (receiver) {
       return receiver.receive(wvalue);
     } else {
-      // TODO: Make this configurable.
+      // TODO: (API) Make this configurable.
       throw new Error(
         "Unexpected tag '" +
           tag +
@@ -454,7 +454,7 @@ class Splitting2DoFnOperator implements IOperator {
 
   process(wvalue: WindowedValue<any>) {
     const result = new ProcessResultBuilder();
-    // TODO: Should I exactly one instead of allowing a union?
+    // TODO: (API) Should I exactly one instead of allowing a union?
     for (const tag of Object.keys(wvalue.value)) {
       const receiver = this.receivers[tag];
       if (receiver) {
@@ -462,13 +462,12 @@ class Splitting2DoFnOperator implements IOperator {
           receiver.receive({
             value: wvalue.value[tag],
             windows: wvalue.windows,
-            // TODO: Verify it falls in window and doesn't cause late data.
             timestamp: wvalue.timestamp,
             pane: wvalue.pane,
           })
         );
       } else {
-        // TODO: Make this configurable.
+        // TODO: (API) Make this configurable.
         throw new Error(
           "Unexpected tag '" +
             tag +
@@ -503,7 +502,6 @@ class AssignWindowsParDoOperator implements IOperator {
       return this.receiver.receive({
         value: wvalue.value,
         windows: newWindows,
-        // TODO: Verify it falls in window and doesn't cause late data.
         timestamp: wvalue.timestamp,
         pane: wvalue.pane,
       });
@@ -543,7 +541,7 @@ registerOperatorConstructor(
       onlyElement(Object.values(transform.outputs))
     );
     const spec = runnerApi.ParDoPayload.fromBinary(transform.spec!.payload);
-    // TODO: Ideally we could branch on the urn itself, but some runners have a closed set of known URNs.
+    // TODO: (Cleanup) Ideally we could branch on the urn itself, but some runners have a closed set of known URNs.
     if (spec.doFn?.urn == urns.SERIALIZED_JS_DOFN_INFO) {
       return new GenericParDoOperator(
         transformId,

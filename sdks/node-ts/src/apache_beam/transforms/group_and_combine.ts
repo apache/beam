@@ -4,7 +4,7 @@ import { PCollection } from "../pvalue";
 import { GroupByKey, CombinePerKey } from "./internal";
 import { CountFn } from "./combiners";
 
-// TODO: Consider groupBy as a top-level method on PCollections.
+// TODO: (API) Consider groupBy as a top-level method on PCollections.
 // TBD how to best express the combiners.
 //     - Idea 1: We could allow these as extra arguments to groupBy
 //     - Idea 2: We could return a special GroupedPCollection that has a nice,
@@ -18,7 +18,7 @@ export interface CombineFn<I, A, O> {
   extractOutput: (A) => O;
 }
 
-// TODO: When typing this as ((a: I, b: I) => I), types are not inferred well.
+// TODO: (Typescript) When typing this as ((a: I, b: I) => I), types are not inferred well.
 type Combiner<I> = CombineFn<I, any, any> | ((a: any, b: any) => any);
 
 /**
@@ -122,11 +122,11 @@ class GroupByAndCombine<T, O> extends PTransform<
     this.combiners = combiners;
   }
 
-  // TODO: or name this combine?
+  // TODO: (Naming) Name this combine?
   combining<I, O>(
     expr: string | ((element: T) => I),
     combiner: Combiner<I>,
-    resultName: string // TODO: Optionally derive from expr and combineFn?
+    resultName: string // TODO: (Unique names) Optionally derive from expr and combineFn?
   ) {
     return new GroupByAndCombine(
       this.keyFn,
@@ -174,7 +174,7 @@ class GroupByAndCombine<T, O> extends PTransform<
   }
 }
 
-// TODO: Does this carry its weight as a top-level built-in function?
+// TODO: (API) Does this carry its weight as a top-level built-in function?
 // Cons: It's just a combine. Pros: It's kind of a non-obvious one.
 // NOTE: The encoded form of the elements will be used for equality checking.
 export class CountPerElement<T> extends PTransform<
@@ -239,7 +239,7 @@ class BinaryCombineFn<I> implements CombineFn<I, I | undefined, I> {
 
 class MultiCombineFn implements CombineFn<any[], any[], any[]> {
   batchSize: number = 100;
-  // TODO: Is there a way to indicate type parameters match the above?
+  // TODO: (Typescript) Is there a way to indicate type parameters match the above?
   constructor(private combineFns: CombineFn<any, any, any>[]) {}
 
   createAccumulator() {
@@ -247,7 +247,7 @@ class MultiCombineFn implements CombineFn<any[], any[], any[]> {
   }
 
   addInput(accumulators: any[], inputs: any[]) {
-    // TODO: zip?
+    // TODO: (Cleanup) Does javascript have a clean zip?
     let result: any[] = [];
     for (let i = 0; i < this.combineFns.length; i++) {
       result.push(this.combineFns[i].addInput(accumulators[i], inputs[i]));
@@ -275,7 +275,7 @@ class MultiCombineFn implements CombineFn<any[], any[], any[]> {
   }
 
   extractOutput(accumulators: any[]) {
-    // TODO: zip?
+    // TODO: (Cleanup) Does javascript have a clean zip?
     let result: any[] = [];
     for (let i = 0; i < this.combineFns.length; i++) {
       result.push(this.combineFns[i].extractOutput(accumulators[i]));
@@ -284,8 +284,8 @@ class MultiCombineFn implements CombineFn<any[], any[], any[]> {
   }
 }
 
-// TODO: Can I type T as "something that has this key" and/or, even better,
-// ensure it has the correct type?
+// TODO: (Typescript) Can I type T as "something that has this key" and/or,
+// even better, ensure it has the correct type?
 function extractFnAndName<T, K>(
   extractor: string | string[] | ((T) => K),
   defaultName: string

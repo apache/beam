@@ -21,11 +21,11 @@ import { CombineFn } from "./group_and_combine";
  */
 export class Impulse extends PTransform<Root, PCollection<Uint8Array>> {
   // static urn: string = runnerApi.StandardPTransforms_Primitives.IMPULSE.urn;
-  // TODO: use above line, not below line.
+  // TODO: (Cleanup) use above line, not below line.
   static urn: string = "beam:transform:impulse:v1";
 
   constructor() {
-    super("Impulse"); // TODO: pass null/nothing and get from reflection
+    super("Impulse"); // TODO: (Unique names) pass null/nothing and get from reflection
   }
 
   expandInternal(
@@ -41,6 +41,7 @@ export class Impulse extends PTransform<Root, PCollection<Uint8Array>> {
   }
 }
 
+// TODO: (API) Should we offer a method on PCollection to do this?
 export class WithCoderInternal<T> extends PTransform<
   PCollection<T>,
   PCollection<T>
@@ -66,7 +67,6 @@ export class WithCoderInternal<T> extends PTransform<
       ),
     };
 
-    // TODO: Consider deriving the key and value coder from the input coder.
     return pipeline.createPCollectionInternal<T>(this.coder);
   }
 }
@@ -87,7 +87,7 @@ export class GroupByKey<K, V> extends PTransform<
   PCollection<KV<K, Iterable<V>>>
 > {
   // static urn: string = runnerApi.StandardPTransforms_Primitives.GROUP_BY_KEY.urn;
-  // TODO: use above line, not below line.
+  // TODO: (Cleanup) use above line, not below line.
   static urn: string = "beam:transform:group_by_key:v1";
 
   expandInternal(
@@ -95,7 +95,6 @@ export class GroupByKey<K, V> extends PTransform<
     transformProto: runnerApi.PTransform,
     input: PCollection<KV<K, V>>
   ) {
-    // TODO: Use context.
     const pipelineComponents: runnerApi.Components =
       pipeline.getProto().components!;
     const inputCoderProto =
@@ -118,7 +117,7 @@ export class GroupByKey<K, V> extends PTransform<
       payload: undefined!,
     });
 
-    // TODO: warn about BsonObjectCoder and (non)deterministic key ordering?
+    // TODO: (Cleanup) warn about BsonObjectCoder and (non)deterministic key ordering?
     const keyCoder = pipeline.getCoder(inputCoderProto.componentCoderIds[0]);
     const valueCoder = pipeline.getCoder(inputCoderProto.componentCoderIds[1]);
     const iterableValueCoder = new IterableCoder(valueCoder);

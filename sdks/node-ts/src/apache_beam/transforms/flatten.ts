@@ -6,7 +6,7 @@ import { GeneralObjectCoder } from "../coders/js_coders";
 
 export class Flatten<T> extends PTransform<PCollection<T>[], PCollection<T>> {
   // static urn: string = runnerApi.StandardPTransforms_Primitives.GROUP_BY_KEY.urn;
-  // TODO: use above line, not below line.
+  // TODO: (Cleanup) use above line, not below line.
   static urn: string = "beam:transform:flatten:v1";
 
   expandInternal(

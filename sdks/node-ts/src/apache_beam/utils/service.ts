@@ -5,7 +5,7 @@ const net = require("net");
 const path = require("path");
 const childProcess = require("child_process");
 
-// TODO: Why can't the var above be used as a namespace?
+// TODO: (Typescript) Why can't the var above be used as a namespace?
 import { ChildProcess } from "child_process";
 
 import { version as beamVersion } from "../version";
@@ -36,7 +36,7 @@ export class SubprocessService {
   }
 
   async start() {
-    // TODO: Choose a free port.
+    // TODO: (Cleanup) Choose a free port.
     const host = "localhost";
     const port = "7777";
     console.log(this.args.map((arg) => arg.replace("{{PORT}}", port)));
@@ -113,7 +113,7 @@ export class JavaJarService extends SubprocessService {
 
   constructor(jar: string, args: string[] | undefined = undefined) {
     if (args == undefined) {
-      // TODO: Should filesToStage be set at some higher level?
+      // TODO: (Extension) Should filesToStage be set at some higher level?
       args = ["{{PORT}}", "--filesToStage=" + jar];
     }
     super("java", ["-jar", jar].concat(args));
@@ -132,7 +132,7 @@ export class JavaJarService extends SubprocessService {
       if (fs.existsSync(dest)) {
         return dest;
       }
-      // TODO: Use true temporary file.
+      // TODO: (Cleanup) Use true temporary file.
       const tmp = dest + ".tmp" + Math.random();
       return new Promise((resolve, reject) => {
         const fout = fs.createWriteStream(tmp);

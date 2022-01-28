@@ -55,7 +55,7 @@ export async function resolveArtifacts(
           rolePayload: artifact.rolePayload,
         };
       }
-      // TODO: Hardlink if same filesystem and correct hash?
+      // TODO: (Perf) Hardlink if same filesystem and correct hash?
     }
 
     fs.mkdirSync(localDir, { recursive: true });
@@ -88,7 +88,7 @@ export async function resolveArtifacts(
       artifact.typeUrn == "beam:artifact:type:url:v1" ||
       artifact.typeUrn == "beam:artifact:type:embedded:v1"
     ) {
-      // TODO: Yield from asycn?
+      // TODO: (Typescript) Yield from asycn?
       result.push(Promise.resolve(artifact));
     } else {
       result.push(storeArtifact(artifact));

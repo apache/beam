@@ -16,7 +16,7 @@ import { AsyncPTransform, PTransform } from "./transforms/transform";
 import { DoFn, ParDo } from "./transforms/pardo";
 import { Pipeline } from "./internal/pipeline";
 
-// TODO: fix imports and remove
+// TODO: Cleanup. fix imports and remove
 export * from "./pvalue";
 export * from "./transforms/transform";
 export * from "./transforms/create";
@@ -29,7 +29,7 @@ export * from "./internal/pipeline";
 
 type Components = runnerApi.Components | fnApi.ProcessBundleDescriptor;
 
-// TODO: Where to put this.
+// TODO: Cleanup. Where to put this.
 export class PipelineContext {
   components: Components;
   counter: number = 0;

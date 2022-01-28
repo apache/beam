@@ -13,7 +13,7 @@ export interface Window {
 
 export class GlobalWindow implements Window {
   maxTimestamp(): Instant {
-    return Long.fromValue("9223371950454775"); // TODO: Pull constant out of proto, or at least as a constant elsewhere.
+    return Long.fromValue("9223371950454775"); // TODO: (Cleanup) Pull constant out of proto, or at least as a constant elsewhere.
   }
 }
 
@@ -34,8 +34,8 @@ export interface WindowedValue<T> {
 
 export interface PaneInfo {
   timing: Timing;
-  index: number; // TODO: should be a long
-  onTimeIndex: number; // TODO should be a long
+  index: number; // TODO: (Cleanup) should be a long, is overflow plausible?
+  onTimeIndex: number; // TODO: (Cleanup) should be a long, is overflow plausible?
   isFirst: boolean;
   isLast: boolean;
 }

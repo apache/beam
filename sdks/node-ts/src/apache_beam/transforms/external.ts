@@ -25,6 +25,9 @@ import { RowCoder } from "../coders/row_coder";
 import * as artifacts from "../runners/artifacts";
 import * as service from "../utils/service";
 
+// TODO: (API) (Types) This class expects PCollections to already have the
+// correct Coders. It would be great if we could infer coders, or at least have
+// a cleaner way to specify them than using internal.WithCoderInternal.
 export class RawExternalTransform<
   InputT extends base.PValue<any>,
   OutputT extends base.PValue<any>
@@ -270,7 +273,7 @@ export class RawExternalTransform<
     }
 
     // Construct and return the resulting object.
-    // TODO: Can I get the concrete OutputT?
+    // TODO: (Typescipt) Can I get the concrete OutputT at runtime?
     if (this.inferPValueType) {
       const outputKeys = [...Object.keys(response.transform!.outputs)];
       if (outputKeys.length == 0) {
@@ -305,59 +308,3 @@ function encodeSchemaPayload(
     payload: encoded.finish(),
   });
 }
-
-// import * as beam from "../../apache_beam";
-// import { PortableRunner } from "../runners/portable_runner/runner";
-// import { RemoteJobServiceClient } from "../runners/portable_runner/client";
-
-// async function main() {
-// //     const kvCoder = new coders.KVCoder(new coders.VarIntCoder(), new coders.VarIntCoder());
-// //     const root = new base.Root(new base.Pipeline());
-// //     const input = root.apply(new core.Create([{ key: 1, value: 3 }])).apply(new base.WithCoderInternal(kvCoder));
-// //     //     const input2 = root.apply(new core.Create([{key: 1, value: 4}])).apply(new base.WithCoderInternal(kvCoder));
-// //     // await input.asyncApply(new RawExternalTransform<base.PValue<any>, base.PValue<any>>(base.GroupByKey.urn, undefined!, 'localhost:4444'));
-// //     await input.asyncApply(new RawExternalTransform<base.PValue<any>, base.PValue<any>>(
-// //         'beam:transforms:python:fully_qualified_named',
-// //         {
-// //             constructor: 'apache_beam.transforms.GroupByKey',
-// //         },
-// //         'localhost:4444'));
-// //     console.log('-------------------------------------------');
-// //     console.dir(input.pipeline.getProto(), { depth: null });
-// //
-//
-//     const kvCoder = new coders.KVCoder(new coders.StrUtf8Coder(), new coders.StrUtf8Coder());
-//     await new PortableRunner(new RemoteJobServiceClient('localhost:3333')).run(
-// //         await new DirectRunner().run(
-//             async (root) => {
-// //                 const lines = root.apply(new beam.Create([
-// //                     "In the beginning God created the heaven and the earth.",
-// //                     "And the earth was without form, and void; and darkness was upon the face of the deep.",
-// //                     "And the Spirit of God moved upon the face of the waters.",
-// //                     "And God said, Let there be light: and there was light.",
-// //                 ]));
-//
-// //                     const result = root.apply(new beam.Create([1, 2, 3]))
-//
-//                  const result = await root.asyncApply(new RawExternalTransform<base.PValue<any>, base.PCollection<any>>(
-//                     'beam:transforms:python:fully_qualified_named',
-//                     {
-//                         constructor: 'apache_beam.MyTest',
-// //                         args: {'a0': [1, 2, 3]}
-// //                         constructor: 'apache_beam.io.ReadFromText',
-// //                         args: {'a0': '/Users/robertwb/Work/beam/incubator-beam/sdks/node-ts/tsconfig.json'}
-//                     },
-//                     'localhost:4444'));
-//
-//
-//                 //lines.apply(wordCount)
-//                 result.map(console.log)
-//
-//                 console.dir(root.pipeline.getProto(), { depth: null });
-//                 runnerApi.Pipeline.toBinary(root.pipeline.getProto());
-//
-//             })
-//
-// }
-//
-// main().catch(e => console.error(e)).finally(() => process.exit());

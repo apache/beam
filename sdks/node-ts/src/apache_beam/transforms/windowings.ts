@@ -35,9 +35,9 @@ export class GlobalWindows implements WindowFn<GlobalWindow> {
 
 export class FixedWindows implements WindowFn<IntervalWindow> {
   size: Long;
-  offset: Instant; // TODO: Or should this be a long as well?
+  offset: Instant; // TODO: (Cleanup) Or should this be a long as well?
 
-  // TODO: Use a time library?
+  // TODO: (Cleanup) Use a time library?
   constructor(
     sizeSeconds: number | Long,
     offsetSeconds: Instant = Long.fromValue(0)

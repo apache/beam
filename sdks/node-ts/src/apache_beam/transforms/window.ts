@@ -91,7 +91,7 @@ export class WindowInto<T, W extends Window> extends PTransform<
   }
 }
 
-// TODO: Add restrictions on moving backwards?
+// TODO: (Cleanup) Add restrictions on moving backwards?
 export class AssignTimestamps<T> extends PTransform<
   PCollection<T>,
   PCollection<T>
