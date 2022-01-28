@@ -23,6 +23,7 @@ import logging
 import os
 import tempfile
 import unittest
+import re
 
 import pytest
 
@@ -35,16 +36,51 @@ from apache_beam.testing.util import equal_to
 from apache_beam.testing.util import open_shards
 
 
+def format_output_file(output_string):
+  def extract_prefix_topk_words_tuples(line):
+    match = re.match(r'(.*): \[(.*)\]', line)
+    prefix = match.group(1)
+    topK_words_string = extract_top_k_words_tuples(match.group(2))
+    return prefix, topK_words_string
+
+  def extract_top_k_words_tuples(top_k_words_string):
+    top_k_list = top_k_words_string.split("), (")
+    return tuple(
+        map(
+            lambda top_k_string: tuple(format_top_k_tuples(top_k_string)),
+            top_k_list))
+
+  def format_top_k_tuples(top_k_string):
+    (frequency, words) = top_k_string.replace('(', '').replace(')', '').replace(
+        '\"', '').replace('\'', '').replace(' ', '').split(',')
+    return int(frequency), words
+
+  return list(
+      map(
+          lambda line: extract_prefix_topk_words_tuples(line),
+          output_string.split('\n')))
+
+
+def create_content_input_file(path, contents):
+  logging.info('Creating temp file: %s', path)
+  with open(path, 'w') as f:
+    f.write(contents)
+
+
 class AutocompleteTest(unittest.TestCase):
 
   WORDS = ['this', 'this', 'that', 'to', 'to', 'to']
   KINGLEAR_HASH_SUM = 268011785062540
   KINGLEAR_INPUT = 'gs://dataflow-samples/shakespeare/kinglear.txt'
-
-  def create_file(self, path, contents):
-    logging.info('Creating temp file: %s', path)
-    with open(path, 'w') as f:
-      f.write(contents)
+  EXPECTED_PREFIXES = [
+      ('t', ((3, 'to'), (2, 'this'), (1, 'that'))),
+      ('to', ((3, 'to'), )),
+      ('th', ((2, 'this'), (1, 'that'))),
+      ('thi', ((2, 'this'), )),
+      ('this', ((2, 'this'), )),
+      ('tha', ((1, 'that'), )),
+      ('that', ((1, 'that'), )),
+  ]
 
   def test_top_prefixes(self):
     with TestPipeline() as p:
@@ -52,17 +88,7 @@ class AutocompleteTest(unittest.TestCase):
       result = words | autocomplete.TopPerPrefix(5)
       # values must be hashable for now
       result = result | beam.Map(lambda k_vs: (k_vs[0], tuple(k_vs[1])))
-      assert_that(
-          result,
-          equal_to([
-              ('t', ((3, 'to'), (2, 'this'), (1, 'that'))),
-              ('to', ((3, 'to'), )),
-              ('th', ((2, 'this'), (1, 'that'))),
-              ('thi', ((2, 'this'), )),
-              ('this', ((2, 'this'), )),
-              ('tha', ((1, 'that'), )),
-              ('that', ((1, 'that'), )),
-          ]))
+      assert_that(result, equal_to(self.EXPECTED_PREFIXES))
 
   @pytest.mark.it_postcommit
   def test_autocomplete_it(self):
@@ -81,17 +107,9 @@ class AutocompleteTest(unittest.TestCase):
 
   @pytest.mark.examples_postcommit
   def test_autocomplete_output_files_on_small_input(self):
-    EXPECTED_PREFIXES = "t: [(3, 'to'), (2, 'this'), (1, 'that')]\n" \
-                          "th: [(2, 'this'), (1, 'that')]\n" \
-                          "thi: [(2, 'this')]\n" \
-                          "this: [(2, 'this')]\n" \
-                          "tha: [(1, 'that')]\n" \
-                          "that: [(1, 'that')]\n" \
-                          "to: [(3, 'to')]"
-
     # Setup the files with expected content.
     temp_folder = tempfile.mkdtemp()
-    self.create_file(
+    create_content_input_file(
         os.path.join(temp_folder, 'input.txt'), ' '.join(self.WORDS))
     autocomplete.run([
         '--input=%s/input.txt' % temp_folder,
@@ -103,7 +121,8 @@ class AutocompleteTest(unittest.TestCase):
     with open_shards(os.path.join(temp_folder, 'result-*-of-*')) as result_file:
       result = result_file.read().strip()
 
-    self.assertEqual(result, EXPECTED_PREFIXES)
+    self.assertEqual(
+        sorted(self.EXPECTED_PREFIXES), sorted(format_output_file(result)))
 
 
 if __name__ == '__main__':
