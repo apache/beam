@@ -124,7 +124,7 @@ export class ParamProviderImpl implements ParamProvider {
       return NonPromise;
     }
     // We have to prefetch all the side inputs.
-    // TODO: Let the user's process() await them.
+    // TODO: (API) Let the user's process() await them.
     if (this.prefetchCallbacks.length == 0) {
       return NonPromise;
     } else {
@@ -147,6 +147,12 @@ export class ParamProviderImpl implements ParamProvider {
       case "window":
         // If we're here and there was more than one window, we have exploded.
         return this.wvalue.windows[0];
+
+      case "timestamp":
+        return this.wvalue.timestamp;
+
+      case "paneinfo":
+        return this.wvalue.pane;
 
       case "sideInput":
         return this.sideInputValues.get(param.sideInputId);
@@ -222,7 +228,6 @@ export function createStateKey(
           iterableSideInput: {
             transformId: transformId,
             sideInputId: sideInputId,
-            // TODO: Map and encode. This is the global window.
             window: encodedWindow,
           },
         },

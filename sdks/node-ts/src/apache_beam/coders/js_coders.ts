@@ -103,7 +103,7 @@ export class GeneralObjectCoder<T> implements Coder<T> {
       writer.string("Z");
     } else {
       const type = typeof element;
-      // TODO: Write a single byte (no need for the length prefix).
+      // TODO: Perf. Write a single byte (no need for the length prefix).
       writer.string(this.typeMarkers[type]);
       this.codersByType[type].encode(element, writer, context);
     }

@@ -134,7 +134,7 @@ export class Pipeline {
           runnerApi.IsBounded_Enum.BOUNDED
         );
       }
-      // TODO: Handle the case of equivalent strategies.
+      // TODO: (Cleanup) Handle the case of equivalent strategies.
       if (!pcProto.windowingStrategyId) {
         pcProto.windowingStrategyId = onlyValueOr(
           inputWindowings,
@@ -192,7 +192,7 @@ export class Pipeline {
       );
     }
     this.proto!.components!.pcollections[pcollId] = {
-      uniqueName: pcollId, // TODO: name according to producing transform?
+      uniqueName: pcollId, // TODO: (Named Transforms) name according to producing transform?
       coderId: coderId,
       isBounded: isBounded!,
       windowingStrategyId: windowingStrategyId,

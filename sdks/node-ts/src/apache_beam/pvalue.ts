@@ -233,7 +233,7 @@ class AsyncPTransformFromCallable<
   }
 }
 
-// TODO: If this is exported, should probably move out of this module.
+// If this is exported, should probably move out of this module.
 class MapDoFn<InputT, OutputT, ContextT> extends DoFn<
   InputT,
   OutputT,
@@ -253,7 +253,7 @@ class MapDoFn<InputT, OutputT, ContextT> extends DoFn<
   }
 }
 
-// TODO: If this is exported, should probably move out of this module.
+// If this is exported, should probably move out of this module.
 class FlatMapDoFn<InputT, OutputT, ContextT> extends DoFn<
   InputT,
   OutputT,

@@ -94,7 +94,8 @@ export class MultiplexingDataChannel {
   }
 
   getSendChannel(bundleId: string, transformId: string): IDataChannel {
-    // TODO: Buffer and consilidate send requests?
+    // TODO: (Perf) Buffer and consilidate send requests?
+    // Or perhaps document that consumers of this API should so so.
     const this_ = this;
     return {
       sendData: function (data: Uint8Array) {
@@ -136,7 +137,7 @@ export class MultiplexingDataChannel {
 }
 
 export interface IDataChannel {
-  // TODO: onData?
+  // TODO: (Naming) onData?
   sendData: (data: Uint8Array) => Promise<void>;
   sendTimers: (timerFamilyId: string, timers: Uint8Array) => Promise<void>;
   close: () => void;

@@ -3,7 +3,7 @@ import * as grpc from "@grpc/grpc-js";
 import * as fnApi from "../proto/beam_fn_api";
 import { BeamFnStateClient } from "../proto/beam_fn_api.grpc-client";
 
-// TODO: Lazy iteration via continuation tokens.
+// TODO: (Extension) Lazy iteration via continuation tokens.
 // This will likely require promises all the way up to the consumer.
 
 interface PromiseWrapper<T> {
@@ -37,7 +37,7 @@ export class CachingStateProvider implements StateProvider {
   }
 
   getState<T>(stateKey: fnApi.StateKey, decode: (data: Uint8Array) => T) {
-    // TODO: Consider caching on something ligher-weight than the full
+    // TODO: (Perf) Consider caching on something ligher-weight than the full
     // serialized key, only constructing this proto when interacting with
     // the runner.
     const cacheKey = Buffer.from(fnApi.StateKey.toBinary(stateKey)).toString(
@@ -57,7 +57,7 @@ export class CachingStateProvider implements StateProvider {
           }),
         };
       }
-      // TODO: Cache eviction.
+      // TODO: (Perf) Cache eviction.
       this.cache.set(cacheKey, result);
       return result;
     }

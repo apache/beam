@@ -22,7 +22,7 @@ export class Create<T> extends PTransform<Root, PCollection<T>> {
 
   expand(root: Root) {
     const this_ = this;
-    // TODO: Store encoded values and conditionally shuffle.
+    // TODO: (Cleanup) Store encoded values and conditionally shuffle.
     return root.apply(new Impulse()).flatMap(function* (_) {
       yield* this_.elements;
     });

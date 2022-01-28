@@ -170,7 +170,8 @@ export class Worker {
   }
 
   getDataChannel(endpoint: string): MultiplexingDataChannel {
-    // TODO: Is there a javascript equivalent of Python's defaultdict?
+    // TODO: (Typescript) Is there a javascript equivalent of Python's defaultdict?
+    // This would be handy in several other places as well.
     if (!this.dataChannels.has(endpoint)) {
       this.dataChannels.set(
         endpoint,
@@ -217,7 +218,7 @@ export class BundleProcessor {
     this.getDataChannel = getDataChannel;
     this.getStateChannel = getStateChannel;
 
-    // TODO: Consider defering this possibly expensive deserialization lazily to the worker thread.
+    // TODO: (Perf) Consider defering this possibly expensive deserialization lazily to the worker thread.
     const this_ = this;
     const creationOrderedOperators: IOperator[] = [];
 
@@ -226,7 +227,7 @@ export class BundleProcessor {
       ([transformId, transform]) => {
         if (isPrimitive(transform)) {
           Object.values(transform.inputs).forEach((pcollectionId: string) => {
-            // TODO: is there a javascript defaultdict?
+            // TODO: (Typescript) is there a javascript defaultdict?
             if (!consumers.has(pcollectionId)) {
               consumers.set(pcollectionId, []);
             }

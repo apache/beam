@@ -3,7 +3,7 @@ import { GlobalWindows } from "../../apache_beam/transforms/windowings";
 
 import * as assert from "assert";
 
-// TODO: naming
+// TODO: (Naming)
 export class AssertDeepEqual extends beam.PTransform<
   beam.PCollection<any>,
   void

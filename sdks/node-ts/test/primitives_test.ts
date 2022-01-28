@@ -34,9 +34,9 @@ describe("primitives module", function () {
     it("runs a flatmap", async function () {
       await new DirectRunner().run((root) => {
         const pcolls = root
-          .apply(new beam.Create(['a b', 'c']))
+          .apply(new beam.Create(["a b", "c"]))
           .flatMap((s) => s.split(/ +/))
-          .apply(new testing.AssertDeepEqual(['a', 'b', 'c']));
+          .apply(new testing.AssertDeepEqual(["a", "b", "c"]));
       });
     });
 

@@ -106,7 +106,7 @@ export class PortableRunner extends Runner {
     jobName: string,
     options?: PipelineOptions
   ) {
-    // TODO: Choose a free port.
+    // TODO: (Cleanup) Choose a free port.
     const externalWorkerServiceAddress = "localhost:5555";
     const workers = new ExternalWorkerPool(externalWorkerServiceAddress);
     workers.start();

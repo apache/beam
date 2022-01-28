@@ -3,7 +3,7 @@ import * as runnerApi from "../proto/beam_runner_api";
 export const PYTHON_DEFAULT_ENVIRONMENT_URN = "js_default";
 
 function javascriptCapabilities(): string[] {
-  return []; // TODO: Actually populate.
+  return []; // TODO: Cleanup. Actually populate.
 }
 
 export function defaultJsEnvironment() {
@@ -24,7 +24,7 @@ export function jsEnvironment(
     payload: payload,
     resourceHints: resourceHints,
     dependencies: artifacts,
-    capabilities: [], // TODO: Fill in.
+    capabilities: javascriptCapabilities(),
     displayData: null!,
   };
 }
