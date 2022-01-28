@@ -38,22 +38,8 @@ func TestGetProjectFromFlagOrEnvironmentWithProjectFlagSet(t *testing.T) {
 }
 
 func TestGetProjectFromFlagOrEnvironmentWithNoProjectFlagSetAndFallbackSet(t *testing.T) {
+	setupFakeCredentialFile(t, "fallback")
 	*Project = ""
-	tmpFile, err := ioutil.TempFile(os.TempDir(), "FAKE-GOOGLE-APPLICATION-CREDENTIALS-*.json")
-	if err != nil {
-		t.Fatalf("Failed creating fake credential file")
-	}
-	t.Cleanup(func() { os.Remove(tmpFile.Name()) })
-
-	content := []byte(`{
-		"type": "service_account",
-		"project_id": "fallback"
-	  }`)
-	if _, err := tmpFile.Write(content); err != nil {
-		t.Fatalf("Failed writing to fake credential file")
-	}
-	os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", tmpFile.Name())
-
 	ret := GetProjectFromFlagOrEnvironment(nil)
 	if ret != "fallback" {
 		t.Fatalf("%q returned as project id, should be \"fallback\"", ret)
@@ -61,7 +47,19 @@ func TestGetProjectFromFlagOrEnvironmentWithNoProjectFlagSetAndFallbackSet(t *te
 }
 
 func TestGetProjectFromFlagOrEnvironmentWithProjectFlagSetAndFallbackSet(t *testing.T) {
+	setupFakeCredentialFile(t, "fallback")
 	*Project = "test"
+	ret := GetProjectFromFlagOrEnvironment(nil)
+	if ret == "fallback" {
+		t.Fatalf("fallback returned as project id, should have used the flag setting of test")
+	}
+	if ret != "test" {
+		t.Fatalf("%q returned as project id, should be \"test\"", ret)
+	}
+}
+
+// Set up fake credential file to read project from.
+func setupFakeCredentialFile(t *testing.T, projectId string) {
 	tmpFile, err := ioutil.TempFile(os.TempDir(), "FAKE-GOOGLE-APPLICATION-CREDENTIALS-*.json")
 	if err != nil {
 		t.Fatalf("Failed creating fake credential file")
@@ -76,12 +74,4 @@ func TestGetProjectFromFlagOrEnvironmentWithProjectFlagSetAndFallbackSet(t *test
 		t.Fatalf("Failed writing to fake credential file")
 	}
 	os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", tmpFile.Name())
-
-	ret := GetProjectFromFlagOrEnvironment(nil)
-	if ret == "fallback" {
-		t.Fatalf("fallback returned as project id, should have used the flag setting of test")
-	}
-	if ret != "test" {
-		t.Fatalf("%q returned as project id, should be \"test\"", ret)
-	}
 }
