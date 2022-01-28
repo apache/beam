@@ -43,6 +43,7 @@ import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Answers;
+import org.mockito.ArgumentMatchers;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
@@ -218,7 +219,8 @@ public class DataflowPipelineOptionsTest {
         throws IOException, InterruptedException, TimeoutException {
       mockStatic(DefaultGcpRegionFactory.class);
       when(DefaultGcpRegionFactory.getRegionFromEnvironment()).thenReturn(null);
-      when(DefaultGcpRegionFactory.getRegionFromGcloudCli()).thenReturn("");
+      when(DefaultGcpRegionFactory.getRegionFromGcloudCli(ArgumentMatchers.anyLong()))
+          .thenReturn("");
       DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
       assertEquals("", options.getRegion());
     }
@@ -228,7 +230,8 @@ public class DataflowPipelineOptionsTest {
         throws IOException, InterruptedException, TimeoutException {
       mockStatic(DefaultGcpRegionFactory.class);
       when(DefaultGcpRegionFactory.getRegionFromEnvironment()).thenReturn(null);
-      when(DefaultGcpRegionFactory.getRegionFromGcloudCli()).thenThrow(new IOException());
+      when(DefaultGcpRegionFactory.getRegionFromGcloudCli(ArgumentMatchers.anyLong()))
+          .thenThrow(new IOException());
       DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
       assertEquals("", options.getRegion());
     }
@@ -246,13 +249,14 @@ public class DataflowPipelineOptionsTest {
         throws IOException, InterruptedException, TimeoutException {
       mockStatic(DefaultGcpRegionFactory.class);
       when(DefaultGcpRegionFactory.getRegionFromEnvironment()).thenReturn(null);
-      when(DefaultGcpRegionFactory.getRegionFromGcloudCli()).thenReturn("us-west1");
+      when(DefaultGcpRegionFactory.getRegionFromGcloudCli(ArgumentMatchers.anyLong()))
+          .thenReturn("us-west1");
       DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
       assertEquals("us-west1", options.getRegion());
     }
 
     /**
-     * If gcloud gets stuck, test that {@link DefaultGcpRegionFactory#getRegionFromGcloudCli()}
+     * If gcloud gets stuck, test that {@link DefaultGcpRegionFactory#getRegionFromGcloudCli(long)}
      * times out instead of blocking forever.
      */
     @Test(timeout = 10000L)
@@ -315,7 +319,8 @@ public class DataflowPipelineOptionsTest {
                   // Do nothing.
                 }
               });
-      assertThrows(TimeoutException.class, DefaultGcpRegionFactory::getRegionFromGcloudCli);
+      assertThrows(
+          TimeoutException.class, () -> DefaultGcpRegionFactory.getRegionFromGcloudCli(1L));
     }
   }
 }
