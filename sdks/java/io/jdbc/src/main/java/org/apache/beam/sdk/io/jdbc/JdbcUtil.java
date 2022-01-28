@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
-import avro.shaded.com.google.common.collect.Lists;
 import java.sql.Date;
 import java.sql.JDBCType;
 import java.sql.PreparedStatement;
@@ -42,6 +41,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.joda.time.ReadableDateTime;
@@ -372,9 +372,18 @@ class JdbcUtil {
             @Override
             public Iterable<KV<String, String>> calculateRanges(
                 String lowerBound, String upperBound, Integer partitions) {
-              // TODO(pabloem): Write this method.
-              throw new RuntimeException(
-                  "Automatic String range partitioning is not yet supported!");
+              List<KV<String, String>> ranges = new ArrayList<>();
+              // For now, we create ranges based on the very first letter of each string
+              // TODO(pabloem): How do we sort the empty string?
+              int dif = upperBound.charAt(0) - lowerBound.charAt(0);
+              int stride = dif / partitions;
+              String currentLowerBound = String.valueOf(lowerBound.charAt(0));
+              while (currentLowerBound.charAt(0) < upperBound.charAt(0)) {
+                char currentUpperBound = Character.toChars(currentLowerBound.charAt(0) + stride)[0];
+                ranges.add(KV.of(currentLowerBound, String.valueOf(currentUpperBound)));
+                currentLowerBound = String.valueOf(currentUpperBound);
+              }
+              return ranges;
             }
 
             @Override

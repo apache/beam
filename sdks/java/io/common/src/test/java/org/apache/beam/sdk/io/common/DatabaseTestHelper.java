@@ -40,7 +40,8 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
 /** This class contains helper methods to ease database usage in tests. */
 public class DatabaseTestHelper {
 
-  public static ResultSet performQuery(JdbcDatabaseContainer<?> container, String sql) throws SQLException {
+  public static ResultSet performQuery(JdbcDatabaseContainer<?> container, String sql)
+      throws SQLException {
     DataSource ds = getDataSourceForContainer(container);
     Statement statement = ds.getConnection().createStatement();
     statement.execute(sql);
@@ -72,9 +73,13 @@ public class DatabaseTestHelper {
     return dataSource;
   }
 
-  public static void createTable(DataSource dataSource, String tableName, List<KV<String, String>> fieldsAndTypes) throws SQLException {
-    String fieldsList = fieldsAndTypes.stream().map(kv -> kv.getKey() + " " + kv.getValue()).collect(
-        Collectors.joining(", "));
+  public static void createTable(
+      DataSource dataSource, String tableName, List<KV<String, String>> fieldsAndTypes)
+      throws SQLException {
+    String fieldsList =
+        fieldsAndTypes.stream()
+            .map(kv -> kv.getKey() + " " + kv.getValue())
+            .collect(Collectors.joining(", "));
     try (Connection connection = dataSource.getConnection()) {
       try (Statement statement = connection.createStatement()) {
         statement.execute(String.format("create table %s (%s)", tableName, fieldsList));
@@ -83,7 +88,10 @@ public class DatabaseTestHelper {
   }
 
   public static void createTable(DataSource dataSource, String tableName) throws SQLException {
-    createTable(dataSource, tableName, Lists.newArrayList(KV.of("id", "INT"), KV.of("name", "VARCHAR(500)")));
+    createTable(
+        dataSource,
+        tableName,
+        Lists.newArrayList(KV.of("id", "INT"), KV.of("name", "VARCHAR(500)")));
   }
 
   public static void deleteTable(DataSource dataSource, String tableName) throws SQLException {

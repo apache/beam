@@ -158,4 +158,23 @@ public class JdbcIOAutoPartitioningIT {
     PAssert.that(databaseData.apply(Count.globally())).containsInAnyOrder(NUM_ROWS.longValue());
     pipelineRead.run().waitUntilFinish();
   }
+
+  @Test
+  public void testAutomaticStringPartitioningMySQL() throws SQLException {
+    PCollection<RowData> databaseData =
+        pipelineRead.apply(
+            JdbcIO.<RowData, String>readWithPartitions(TypeDescriptors.strings())
+                .withPartitionColumn("name")
+                .withDataSourceProviderFn(
+                    voide -> DatabaseTestHelper.getDataSourceForContainer(mysql))
+                .withTable("baseTable")
+                // TODO(pabloem): do min/max inference
+                .withLowerBound("00000")
+                .withUpperBound("999999")
+                .withNumPartitions(5)
+                .withRowMapper(new RowDataMapper()));
+
+    PAssert.that(databaseData.apply(Count.globally())).containsInAnyOrder(NUM_ROWS.longValue());
+    pipelineRead.run().waitUntilFinish();
+  }
 }
