@@ -294,6 +294,7 @@ public class DataflowPipelineOptionsTest {
                     public int read() throws IOException {
                       // Never return EOF to create an infinite loop.
                       try {
+                        // Sleep so we don't buffer too many bytes and run out of memory.
                         Thread.sleep(1000);
                       } catch (InterruptedException e) {
                         // Ignore.
