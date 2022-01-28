@@ -52,7 +52,7 @@ public class DefaultGcpRegionFactory implements DefaultValueFactory<String> {
       return environmentRegion;
     }
     try {
-      String gcloudRegion = getRegionFromGcloudCli();
+      String gcloudRegion = getRegionFromGcloudCli(2000L);
       if (!gcloudRegion.isEmpty()) {
         LOG.info("Using default GCP region {} from gcloud CLI", gcloudRegion);
         return gcloudRegion;
@@ -70,7 +70,7 @@ public class DefaultGcpRegionFactory implements DefaultValueFactory<String> {
   }
 
   @VisibleForTesting
-  static String getRegionFromGcloudCli()
+  static String getRegionFromGcloudCli(long waitMs)
       throws IOException, InterruptedException, TimeoutException {
     Process process = startGcloud();
     try (BufferedReader reader =
@@ -79,7 +79,7 @@ public class DefaultGcpRegionFactory implements DefaultValueFactory<String> {
         BufferedReader errorReader =
             new BufferedReader(
                 new InputStreamReader(process.getErrorStream(), StandardCharsets.UTF_8))) {
-      if (process.waitFor(2, TimeUnit.SECONDS) && process.exitValue() == 0) {
+      if (process.waitFor(waitMs, TimeUnit.MILLISECONDS) && process.exitValue() == 0) {
         return reader.lines().collect(Collectors.joining());
       } else if (process.isAlive()) {
         throw new TimeoutException("gcloud subprocess is still running. Giving up.");
