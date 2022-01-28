@@ -26,6 +26,7 @@ import com.google.auto.value.AutoValue;
 import com.google.cloud.ServiceFactory;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.AbortedException;
+import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Mutation;
@@ -333,6 +334,7 @@ import org.slf4j.LoggerFactory;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class SpannerIO {
+
   private static final Logger LOG = LoggerFactory.getLogger(SpannerIO.class);
 
   private static final long DEFAULT_BATCH_SIZE_BYTES = 1024L * 1024L; // 1 MB
@@ -413,6 +415,7 @@ public class SpannerIO {
 
     @AutoValue.Builder
     abstract static class Builder {
+
       abstract Builder setSpannerConfig(SpannerConfig spannerConfig);
 
       abstract Builder setTransaction(PCollectionView<Transaction> transaction);
@@ -747,6 +750,7 @@ public class SpannerIO {
   }
 
   static class ReadRows extends PTransform<PBegin, PCollection<Row>> {
+
     Read read;
     Schema schema;
 
@@ -915,6 +919,8 @@ public class SpannerIO {
 
     abstract OptionalInt getGroupingFactor();
 
+    abstract @Nullable PCollectionView<Dialect> getDialectView();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -933,6 +939,8 @@ public class SpannerIO {
       abstract Builder setSchemaReadySignal(PCollection<?> schemaReadySignal);
 
       abstract Builder setGroupingFactor(int groupingFactor);
+
+      abstract Builder setDialectView(PCollectionView<Dialect> dialect);
 
       abstract Write build();
     }
@@ -994,6 +1002,10 @@ public class SpannerIO {
 
     public Write withEmulatorHost(String emulatorHost) {
       return withEmulatorHost(ValueProvider.StaticValueProvider.of(emulatorHost));
+    }
+
+    public Write withDialectView(PCollectionView<Dialect> dialect) {
+      return toBuilder().setDialectView(dialect).build();
     }
 
     /**
@@ -1130,6 +1142,7 @@ public class SpannerIO {
   }
 
   static class WriteRows extends PTransform<PCollection<Row>, PDone> {
+
     private final Write write;
     private final Mutation.Op operation;
     private final String table;
@@ -1158,6 +1171,7 @@ public class SpannerIO {
   /** Same as {@link Write} but supports grouped mutations. */
   public static class WriteGrouped
       extends PTransform<PCollection<MutationGroup>, SpannerWriteResult> {
+
     private final Write spec;
     private static final TupleTag<MutationGroup> BATCHABLE_MUTATIONS_TAG =
         new TupleTag<MutationGroup>("batchableMutations") {};
@@ -1183,6 +1197,15 @@ public class SpannerIO {
     @Override
     public SpannerWriteResult expand(PCollection<MutationGroup> input) {
       PCollection<Iterable<MutationGroup>> batches;
+      PCollectionView<Dialect> dialectView = spec.getDialectView();
+
+      if (dialectView == null) {
+        dialectView =
+            input
+                .getPipeline()
+                .apply("CreateSingleton", Create.of(Dialect.GOOGLE_STANDARD_SQL))
+                .apply("As PCollectionView", View.asSingleton());
+      }
 
       if (spec.getBatchSizeBytes() <= 1
           || spec.getMaxNumMutations() <= 1
@@ -1204,7 +1227,8 @@ public class SpannerIO {
             schemaSeed
                 .apply(
                     "Read information schema",
-                    ParDo.of(new ReadSpannerSchema(spec.getSpannerConfig())))
+                    ParDo.of(new ReadSpannerSchema(spec.getSpannerConfig(), dialectView))
+                        .withSideInputs(dialectView))
                 .apply("Schema View", View.asSingleton());
 
         // Split the mutations into batchable and unbatchable mutations.
@@ -1295,6 +1319,7 @@ public class SpannerIO {
   }
 
   private static class ToMutationGroupFn extends DoFn<Mutation, MutationGroup> {
+
     @ProcessElement
     public void processElement(ProcessContext c) {
       Mutation value = c.element();
