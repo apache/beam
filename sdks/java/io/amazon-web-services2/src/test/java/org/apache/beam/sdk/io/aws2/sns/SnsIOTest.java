@@ -19,13 +19,20 @@ package org.apache.beam.sdk.io.aws2.sns;
 
 import static org.apache.beam.sdk.io.aws2.sns.PublishResponseCoders.defaultPublishResponse;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.joda.time.Duration.millis;
 import static org.joda.time.Duration.standardSeconds;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.io.Serializable;
-import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.Coder;
+import java.util.List;
+import java.util.function.Consumer;
+import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.DelegateCoder;
 import org.apache.beam.sdk.coders.DelegateCoder.CodingFunction;
 import org.apache.beam.sdk.testing.ExpectedLogs;
@@ -37,98 +44,150 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnitRunner;
+import software.amazon.awssdk.services.sns.SnsClient;
+import software.amazon.awssdk.services.sns.model.InternalErrorException;
+import software.amazon.awssdk.services.sns.model.InvalidParameterException;
 import software.amazon.awssdk.services.sns.model.PublishRequest;
 import software.amazon.awssdk.services.sns.model.PublishResponse;
 
 /** Tests to verify writes to Sns. */
-@RunWith(JUnit4.class)
+@RunWith(MockitoJUnitRunner.class)
 public class SnsIOTest implements Serializable {
 
   private static final String topicArn = "arn:aws:sns:us-west-2:5880:topic-FMFEHJ47NRFO";
 
   @Rule public TestPipeline p = TestPipeline.create();
+  @Mock public SnsClient sns;
 
   @Rule
   public final transient ExpectedLogs snsWriterFnLogs =
       ExpectedLogs.none(SnsIO.Write.SnsWriterFn.class);
 
-  private static PublishRequest createSampleMessage(String message) {
-    return PublishRequest.builder().topicArn(topicArn).message(message).build();
+  @Test
+  public void testFailOnTopicValidation() {
+    when(sns.getTopicAttributes(any(Consumer.class)))
+        .thenThrow(InvalidParameterException.builder().message("Topic does not exist").build());
+
+    SnsIO.Write<String> snsWrite =
+        SnsIO.<String>write()
+            .withTopicArn(topicArn)
+            .withPublishRequestBuilder(msg -> requestBuilder(msg, "ignore"))
+            .withSnsClientProvider(StaticSnsClientProvider.of(sns));
+
+    assertThatThrownBy(() -> snsWrite.expand(mock(PCollection.class)))
+        .hasMessage("Topic arn " + topicArn + " does not exist");
   }
 
   @Test
-  public void testDataWritesToSNS() {
-    ImmutableList<String> input = ImmutableList.of("message1", "message2");
+  public void testSkipTopicValidation() {
+    SnsIO.Write<String> snsWrite =
+        SnsIO.<String>write()
+            .withPublishRequestBuilder(msg -> requestBuilder(msg, topicArn))
+            .withSnsClientProvider(StaticSnsClientProvider.of(sns));
 
-    final PCollection<PublishResponse> results =
-        p.apply(Create.of(input))
-            .apply(
-                SnsIO.<String>write()
-                    .withPublishRequestFn(SnsIOTest::createSampleMessage)
-                    .withTopicArn(topicArn)
-                    .withSnsClientProvider(SnsClientMockSuccess::new));
-
-    final PCollection<Long> publishedResultsSize = results.apply(Count.globally());
-    PAssert.that(publishedResultsSize).containsInAnyOrder(ImmutableList.of(2L));
-    p.run().waitUntilFinish();
+    snsWrite.expand(mock(PCollection.class));
+    verify(sns, times(0)).getTopicAttributes(any(Consumer.class));
   }
 
-  @Rule public ExpectedException thrown = ExpectedException.none();
-
   @Test
-  public void testRetries() throws Throwable {
-    thrown.expect(IOException.class);
-    thrown.expectMessage("Error writing to SNS");
-    thrown.expectMessage("No more attempts allowed");
+  public void testWriteWithTopicArn() {
+    List<String> input = ImmutableList.of("message1", "message2");
 
-    ImmutableList<String> input = ImmutableList.of("message1", "message2");
+    when(sns.publish(any(PublishRequest.class)))
+        .thenReturn(PublishResponse.builder().messageId("id").build());
 
-    p.apply(Create.of(input))
-        .apply(
-            SnsIO.<String>write()
-                .withPublishRequestFn(SnsIOTest::createSampleMessage)
-                .withTopicArn(topicArn)
-                .withRetryConfiguration(
-                    SnsIO.RetryConfiguration.create(4, standardSeconds(10), millis(1)))
-                .withSnsClientProvider(SnsClientMockErrors::new));
+    SnsIO.Write<String> snsWrite =
+        SnsIO.<String>write()
+            .withTopicArn(topicArn)
+            .withPublishRequestBuilder(msg -> requestBuilder(msg, "ignore"))
+            .withSnsClientProvider(StaticSnsClientProvider.of(sns));
 
-    try {
-      p.run();
-    } catch (final Pipeline.PipelineExecutionException e) {
-      // check 3 retries were initiated by inspecting the log before passing on the exception
-      snsWriterFnLogs.verifyWarn(String.format(SnsIO.Write.SnsWriterFn.RETRY_ATTEMPT_LOG, 1));
-      snsWriterFnLogs.verifyWarn(String.format(SnsIO.Write.SnsWriterFn.RETRY_ATTEMPT_LOG, 2));
-      snsWriterFnLogs.verifyWarn(String.format(SnsIO.Write.SnsWriterFn.RETRY_ATTEMPT_LOG, 3));
-      throw e.getCause();
+    PCollection<PublishResponse> results = p.apply(Create.of(input)).apply(snsWrite);
+    PAssert.that(results.apply(Count.globally())).containsInAnyOrder(2L);
+    p.run();
+
+    verify(sns).getTopicAttributes(any(Consumer.class));
+    for (String msg : input) {
+      verify(sns).publish(requestBuilder(msg, topicArn).build());
     }
   }
 
   @Test
-  public void testCustomCoder() throws Exception {
-    ImmutableList<String> input = ImmutableList.of("message1");
+  public void testWriteWithoutTopicArn() {
+    List<String> input = ImmutableList.of("message1", "message2");
+
+    when(sns.publish(any(PublishRequest.class)))
+        .thenReturn(PublishResponse.builder().messageId("id").build());
+
+    SnsIO.Write<String> snsWrite =
+        SnsIO.<String>write()
+            .withPublishRequestBuilder(msg -> requestBuilder(msg, topicArn))
+            .withSnsClientProvider(StaticSnsClientProvider.of(sns));
+
+    PCollection<PublishResponse> results = p.apply(Create.of(input)).apply(snsWrite);
+    PAssert.that(results.apply(Count.globally())).containsInAnyOrder(2L);
+    p.run();
+
+    verify(sns, times(0)).getTopicAttributes(any(Consumer.class));
+    for (String msg : input) {
+      verify(sns).publish(requestBuilder(msg, topicArn).build());
+    }
+  }
+
+  @Test
+  public void testWriteWithRetries() {
+    List<String> input = ImmutableList.of("message1", "message2");
+
+    when(sns.publish(any(PublishRequest.class)))
+        .thenThrow(InternalErrorException.builder().message("Service unavailable").build());
+
+    SnsIO.Write<String> snsWrite =
+        SnsIO.<String>write()
+            .withPublishRequestBuilder(msg -> requestBuilder(msg, topicArn))
+            .withSnsClientProvider(StaticSnsClientProvider.of(sns))
+            .withRetryConfiguration(
+                SnsIO.RetryConfiguration.create(4, standardSeconds(10), millis(1)));
+
+    p.apply(Create.of(input)).apply(snsWrite);
+
+    assertThatThrownBy(() -> p.run())
+        .isInstanceOf(PipelineExecutionException.class)
+        .hasCauseInstanceOf(IOException.class)
+        .hasMessageContaining("Error writing to SNS after 4 attempt(s). No more attempts allowed");
+
+    // check 3 retries were initiated by inspecting the log before passing on the exception
+    snsWriterFnLogs.verifyWarn(String.format(SnsIO.Write.SnsWriterFn.RETRY_ATTEMPT_LOG, 1));
+    snsWriterFnLogs.verifyWarn(String.format(SnsIO.Write.SnsWriterFn.RETRY_ATTEMPT_LOG, 2));
+    snsWriterFnLogs.verifyWarn(String.format(SnsIO.Write.SnsWriterFn.RETRY_ATTEMPT_LOG, 3));
+  }
+
+  @Test
+  public void testWriteWithCustomCoder() {
+    List<String> input = ImmutableList.of("message1");
+
+    when(sns.publish(any(PublishRequest.class)))
+        .thenReturn(PublishResponse.builder().messageId("id").build());
 
     // Mockito mocks cause NotSerializableException even with withSettings().serializable()
     final CountingFn<PublishResponse> countingFn = new CountingFn<>();
-    final Coder<PublishResponse> coder =
-        DelegateCoder.of(defaultPublishResponse(), countingFn, x -> x);
 
-    final PCollection<PublishResponse> results =
-        p.apply(Create.of(input))
-            .apply(
-                SnsIO.<String>write()
-                    .withPublishRequestFn(SnsIOTest::createSampleMessage)
-                    .withTopicArn(topicArn)
-                    .withSnsClientProvider(SnsClientMockSuccess::new)
-                    .withCoder(coder));
+    SnsIO.Write<String> snsWrite =
+        SnsIO.<String>write()
+            .withPublishRequestBuilder(msg -> requestBuilder(msg, topicArn))
+            .withSnsClientProvider(StaticSnsClientProvider.of(sns))
+            .withCoder(DelegateCoder.of(defaultPublishResponse(), countingFn, x -> x));
 
-    final PCollection<Long> publishedResultsSize = results.apply(Count.globally());
-    PAssert.that(publishedResultsSize).containsInAnyOrder(ImmutableList.of(1L));
-    p.run().waitUntilFinish();
+    PCollection<PublishResponse> results = p.apply(Create.of(input)).apply(snsWrite);
+    PAssert.that(results.apply(Count.globally())).containsInAnyOrder(1L);
+    p.run();
 
     assertThat(countingFn.count).isGreaterThan(0);
+    for (String msg : input) {
+      verify(sns).publish(requestBuilder(msg, topicArn).build());
+    }
   }
 
   private static class CountingFn<T> implements CodingFunction<T, T> {
@@ -139,5 +198,9 @@ public class SnsIOTest implements Serializable {
       count++;
       return input;
     }
+  }
+
+  private static PublishRequest.Builder requestBuilder(String msg, String topic) {
+    return PublishRequest.builder().message(msg).topicArn(topic);
   }
 }

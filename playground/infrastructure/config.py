@@ -52,6 +52,7 @@ class Config:
   CI_STEP_NAME = "CI"
   CD_STEP_NAME = "CD"
   CI_CD_LITERAL = Literal["CI", "CD"]
+  LINK_PREFIX = "https://github.com/apache/beam/blob/master"
 
 
 @dataclass(frozen=True)
@@ -61,6 +62,7 @@ class TagFields:
   multifile: str = "multifile"
   categories: str = "categories"
   pipeline_options: str = "pipeline_options"
+  default_example: str = "default_example"
 
 
 @dataclass(frozen=True)
@@ -76,3 +78,8 @@ class PrecompiledExampleType:
   examples = "examples"
   katas = "katas"
   test_ends = ("test", "it")
+
+@dataclass(frozen=True)
+class OptionalTagFields:
+  pipeline_options: str = "pipeline_options"
+  default_example: str = "default_example"
