@@ -106,12 +106,6 @@ def run(argv=None, save_main_session=True):
   parser = argparse.ArgumentParser()
   parser.add_argument(
       '--output', required=True, help='Output file to write results to.')
-  parser.add_argument(
-      '--tries',
-      "--integer",
-      type=int,
-      default=100000,
-      help='Number of tries per work item')
   known_args, pipeline_args = parser.parse_known_args(argv)
   # We use the save_main_session option because one or more DoFn's in this
   # workflow rely on global context (e.g., a module imported at module level).
@@ -121,7 +115,7 @@ def run(argv=None, save_main_session=True):
 
     (  # pylint: disable=expression-not-assigned
         p
-        | EstimatePiTransform(known_args.tries)
+        | EstimatePiTransform()
         | WriteToText(known_args.output, coder=JsonCoder()))
 
 

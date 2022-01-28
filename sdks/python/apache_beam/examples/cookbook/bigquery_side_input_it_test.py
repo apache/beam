@@ -59,6 +59,8 @@ class BigQuerySideInputIT(unittest.TestCase):
 
     # Get pipeline options from command argument: --test-pipeline-options,
     # and start pipeline job by calling pipeline main function.
+    # save_main_session=False is needed for testing only,
+    # to run the example we should pass True
     bigquery_side_input.run(
         self.test_pipeline.get_full_options_as_args(**extra_opts),
         save_main_session=False)

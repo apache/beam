@@ -37,7 +37,7 @@ from apache_beam.testing.util import open_shards
 class CustomCountTest(unittest.TestCase):
   WORDS = ['CAT', 'DOG', 'CAT', 'CAT', 'DOG']
 
-  def create_file(self, path, contents):
+  def create_content_input_file(self, path, contents):
     logging.info('Creating temp file: %s', path)
     with open(path, 'w') as f:
       f.write(contents)
@@ -65,7 +65,7 @@ class CustomCountTest(unittest.TestCase):
 
     # Setup the files with expected content.
     temp_folder = tempfile.mkdtemp()
-    self.create_file(
+    self.create_content_input_file(
         os.path.join(temp_folder, 'input.txt'), ' '.join(self.WORDS))
     custom_ptransform.run([
         '--input=%s/input.txt' % temp_folder,

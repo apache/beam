@@ -74,7 +74,7 @@ class ComputeTopSessionsTest(unittest.TestCase):
       'user3 : [3024.0, 6624.0) : 1 : [0.0, 2592000.0)',
   ]
 
-  def create_file(self, path, contents):
+  def create_content_input_file(self, path, contents):
     logging.info('Creating temp file: %s', path)
     with open(path, 'w') as f:
       f.write(contents)
@@ -90,8 +90,10 @@ class ComputeTopSessionsTest(unittest.TestCase):
   def test_top_wikipedia_sessions_output_files_on_small_input(self):
     # Setup the files with expected content.
     temp_folder = tempfile.mkdtemp()
-    self.create_file(
+    self.create_content_input_file(
         os.path.join(temp_folder, 'input.txt'), '\n'.join(self.EDITS))
+    # save_main_session=False is needed for testing only,
+    # to run the example we should pass True
     top_wikipedia_sessions.run([
         '--input=%s/input.txt' % temp_folder,
         '--output',

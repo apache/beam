@@ -87,7 +87,7 @@ class UserScoreIT(unittest.TestCase):
 
   @pytest.mark.examples_postcommit
   def test_userscore_output_checksum_on_small_input(self):
-    # Small dataset to prevent OOM when running in local runners
+    # Small dataset to prevent Out of Memory when running in local runners
     INPUT_FILE = 'gs://apache-beam-samples/game/small/gaming_data.csv'
     EXPECTED_CHECKSUM = '5b1bc0e8080e3c0f162809ac4c0f49acab23854e'
     state_verifier = PipelineStateMatcher(PipelineState.DONE)
@@ -107,6 +107,8 @@ class UserScoreIT(unittest.TestCase):
 
     # Get pipeline options from command argument: --test-pipeline-options,
     # and start pipeline job by calling pipeline main function.
+    # save_main_session=False is needed for testing only,
+    # to run the example we should pass True
     user_score.run(
         self.test_pipeline.get_full_options_as_args(**extra_opts),
         save_main_session=False)

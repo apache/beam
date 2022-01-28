@@ -45,7 +45,7 @@ class CodersTest(unittest.TestCase):
       'host': ['Brasil', 1], 'guest': ['Italy', 0]
   }]
 
-  def create_file(self, path, contents):
+  def create_content_input_file(self, path, contents):
     logging.info('Creating temp file: %s', path)
     with open(path, 'w') as f:
       f.write(contents)
@@ -68,9 +68,11 @@ class CodersTest(unittest.TestCase):
 
     # Setup the files with expected content.
     temp_folder = tempfile.mkdtemp()
-    self.create_file(
+    self.create_content_input_file(
         os.path.join(temp_folder, 'input.txt'),
         '\n'.join(map(json.dumps, self.SAMPLE_RECORDS)))
+    # save_main_session=False is needed for testing only,
+    # to run the example we should pass True
     coders.run([
         '--input=%s/input.txt' % temp_folder,
         '--output',

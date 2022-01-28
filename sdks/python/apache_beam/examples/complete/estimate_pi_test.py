@@ -57,16 +57,17 @@ class EstimatePiTest(unittest.TestCase):
   @pytest.mark.examples_postcommit
   def test_estimate_pi_output_file(self):
     temp_folder = tempfile.mkdtemp()
-    estimate_pi.run(
-        ['--output', os.path.join(temp_folder, 'result'), '--tries', '5000'],
-        save_main_session=False)
+    # save_main_session=False is needed for testing only,
+    # to run the example we should pass True
+    estimate_pi.run(['--output', os.path.join(temp_folder, 'result')],
+                    save_main_session=False)
     # Load result file and compare.
     with open_shards(os.path.join(temp_folder, 'result-*-of-*')) as result_file:
-      result = json.loads(result_file.read().strip())[2]
+      [_, _, estimated_pi] = json.loads(result_file.read().strip())
     # Note: Probabilistically speaking this test can fail with a probability
-    # that is very small (VERY) given that we run at least 500 thousand
+    # that is very small (VERY) given that we run at least 100 thousand
     # trials.
-    self.assertTrue(3.125 <= result <= 3.155)
+    self.assertTrue(3.125 <= estimated_pi <= 3.155)
 
 
 if __name__ == '__main__':
