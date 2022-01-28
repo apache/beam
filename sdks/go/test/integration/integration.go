@@ -85,6 +85,7 @@ var flinkFilters = []string{
 	"TestXLang_Combine.*",
 	// TODO(BEAM-12815): Test fails: "Insufficient number of network buffers".
 	"TestXLang_Multi",
+	"TestDebeziumIO_BasicRead",
 	// TODO(BEAM-12753): Flink test stream fails for non-string/byte slice inputs
 	"TestTestStream.*Sequence.*",
 	// Triggers are not yet supported
@@ -123,6 +124,8 @@ var dataflowFilters = []string{
 	"TestTrigger.*",
 	// There is no infrastructure for running KafkaIO tests with Dataflow.
 	"TestKafkaIO.*",
+	// TestContainers won't work against dataflow.
+	"TestDebeziumIO_BasicRead",
 }
 
 // CheckFilters checks if an integration test is filtered to be skipped, either
