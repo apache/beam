@@ -39,10 +39,11 @@ var (
 // GetProject returns the project, if non empty and exits otherwise.
 // Convenience function.
 func GetProject(ctx context.Context) string {
-	if *Project == "" {
+	project := GetProjectFromFlagOrEnvironment(ctx)
+	if project == "" {
 		log.Exit(ctx, "No Google Cloud project specified. Use --project=<project>")
 	}
-	return *Project
+	return project
 }
 
 // GetProjectFromFlagOrEnvironment gets the project first via flag then falling back to
