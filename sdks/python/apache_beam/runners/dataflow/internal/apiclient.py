@@ -424,12 +424,14 @@ class Job(object):
     app_user_name = 'beamapp-{}'.format(user_name)
     # append 8 random alphanumeric characters to avoid collisions.
     random_component = ''.join(
-      random.choices(str(uuid.uuid4()).replace('-', ''), k=8))
+        random.choices(str(uuid.uuid4()).replace('-', ''), k=8))
     job_name = '{}-{}-{}'.format(
-      app_user_name, date_component, random_component)
+        app_user_name, date_component, random_component)
     if len(job_name) > 63:
-      job_name = '{}-{}-{}'.format(app_user_name[:-(len(job_name) - 63)],
-          date_component, random_component)
+      job_name = '{}-{}-{}'.format(
+          app_user_name[:-(len(job_name) - 63)],
+          date_component,
+          random_component)
     return job_name
 
   @staticmethod
