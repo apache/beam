@@ -30,7 +30,7 @@ import json
 import logging
 import os
 import random
-import uuid
+import string
 
 import pkg_resources
 import re
@@ -424,7 +424,7 @@ class Job(object):
     app_user_name = 'beamapp-{}'.format(user_name)
     # append 8 random alphanumeric characters to avoid collisions.
     random_component = ''.join(
-        random.choices(str(uuid.uuid4()).replace('-', ''), k=8))
+        random.choices(string.ascii_lowercase + string.digits, k=8))
     job_name = '{}-{}-{}'.format(
         app_user_name, date_component, random_component)
     if len(job_name) > 63:
