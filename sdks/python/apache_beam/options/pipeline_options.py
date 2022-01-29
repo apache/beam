@@ -1055,7 +1055,7 @@ class SetupOptions(PipelineOptions):
             'Path to a folder to cache the packages specified in '
             'the requirements file using the --requirements_file option.'
             'If you want to skip populating requirements cache, please '
-            'specify --requirements_cache skip. This would install all'
+            'specify --requirements_cache="skip". This would install all'
             'the packages from requirements file on the worker.'))
     parser.add_argument(
         '--requirements_cache_only_sources',
