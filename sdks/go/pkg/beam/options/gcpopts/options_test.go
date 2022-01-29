@@ -22,46 +22,49 @@ import (
 	"testing"
 )
 
-func TestGetProjectFromFlagOrEnvironmentWithNoProjectSet(t *testing.T) {
+func TestGetProjectFromFlagOrEnvironment_Unset(t *testing.T) {
 	setupFakeCredentialFile(t, "")
 	*Project = ""
-	projectId := GetProjectFromFlagOrEnvironment(nil)
-	if projectId != "" {
-		t.Fatalf("%q returned as project id, should be \"\"", projectId)
+	if got, want := GetProjectFromFlagOrEnvironment(nil), ""; got != want {
+		t.Fatalf("GetProjectFromFlagOrEnvironment() = %q, want %q", got, want)
 	}
 }
 
-func TestGetProjectFromFlagOrEnvironmentWithProjectFlagSet(t *testing.T) {
+func TestGetProjectFromFlagOrEnvironment_FlagSet(t *testing.T) {
 	setupFakeCredentialFile(t, "")
 	*Project = "test"
-	projectId := GetProjectFromFlagOrEnvironment(nil)
-	if projectId != "test" {
-		t.Fatalf("%q returned as project id, should be \"test\"", projectId)
+	if got, want := GetProjectFromFlagOrEnvironment(nil), "test"; got != want {
+		t.Fatalf("GetProjectFromFlagOrEnvironment() = %q, want %q", got, want)
 	}
 }
 
-func TestGetProjectFromFlagOrEnvironmentWithNoProjectFlagSetAndFallbackSet(t *testing.T) {
+func TestGetProjectFromFlagOrEnvironment_EnvironmentSet(t *testing.T) {
 	setupFakeCredentialFile(t, "fallback")
 	*Project = ""
-	projectId := GetProjectFromFlagOrEnvironment(nil)
-	if projectId != "fallback" {
-		t.Fatalf("%q returned as project id, should be \"fallback\"", projectId)
+	if got, want := GetProjectFromFlagOrEnvironment(nil), "fallback"; got != want {
+		t.Fatalf("GetProjectFromFlagOrEnvironment() = %q, want %q", got, want)
 	}
 }
 
-func TestGetProjectFromFlagOrEnvironmentWithProjectFlagSetAndFallbackSet(t *testing.T) {
+func TestGetProjectFromFlagOrEnvironment_BothSet(t *testing.T) {
 	setupFakeCredentialFile(t, "fallback")
 	*Project = "test"
-	projectId := GetProjectFromFlagOrEnvironment(nil)
-	if projectId == "fallback" {
-		t.Fatalf("fallback returned as project id, should have used the flag setting of \"test\"")
-	} else if projectId != "test" {
-		t.Fatalf("%q returned as project id, should be \"test\"", projectId)
+	if got, want := GetProjectFromFlagOrEnvironment(nil), "test"; got != want {
+		t.Fatalf("GetProjectFromFlagOrEnvironment() = %q, want %q", got, want)
+	}
+}
+
+func TestGetProject_FlagSet(t *testing.T) {
+	setupFakeCredentialFile(t, "")
+	*Project = "test"
+	if got, want := GetProject(nil), "test"; got != want {
+		t.Fatalf("GetProjectFromFlagOrEnvironment() = %q, want %q", got, want)
 	}
 }
 
 // Set up fake credential file to read project from with the passed in projectId.
 func setupFakeCredentialFile(t *testing.T, projectId string) {
+	t.Helper()
 	tmpFile, err := ioutil.TempFile(os.TempDir(), "FAKE-GOOGLE-APPLICATION-CREDENTIALS-*.json")
 	if err != nil {
 		t.Fatalf("Failed creating fake credential file")
