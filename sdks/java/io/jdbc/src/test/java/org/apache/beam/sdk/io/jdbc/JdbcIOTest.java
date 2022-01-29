@@ -21,6 +21,7 @@ import static java.sql.JDBCType.NULL;
 import static java.sql.JDBCType.NUMERIC;
 import static org.apache.beam.sdk.io.common.DatabaseTestHelper.assertRowCount;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.closeTo;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
@@ -1277,7 +1278,20 @@ public class JdbcIOTest implements Serializable {
             .apply(Create.of(KV.of(10, KV.of(new DateTime(0), DateTime.now()))))
             .apply(ParDo.of(new PartitioningFn<>(TypeDescriptor.of(DateTime.class))));
 
-    PAssert.that(ranges.apply(Count.globally())).containsInAnyOrder(10L);
+    PAssert.that(ranges.apply(Count.globally()))
+        .satisfies(
+            new SerializableFunction<Iterable<Long>, Void>() {
+              @Override
+              public Void apply(Iterable<Long> input) {
+                // We must have exactly least one element
+                Long count = input.iterator().next();
+                // The implementation for range partitioning relies on millis from epoch.
+                // We allow off-by-one differences because we can have slight differences
+                // in integers when computing strides, and advancing through timestamps.
+                assertThat(Double.valueOf(count), closeTo(10, 1));
+                return null;
+              }
+            });
     pipeline.run().waitUntilFinish();
   }
 
@@ -1289,6 +1303,29 @@ public class JdbcIOTest implements Serializable {
             .apply(ParDo.of(new PartitioningFn<>(TypeDescriptors.longs())));
 
     PAssert.that(ranges.apply(Count.globally())).containsInAnyOrder(10L);
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testPartitioningStrings() {
+    PCollection<KV<String, String>> ranges =
+        pipeline
+            .apply(Create.of(KV.of(10, KV.of("", "zardana"))))
+            .apply(ParDo.of(new PartitioningFn<>(TypeDescriptors.strings())));
+
+    PAssert.that(ranges.apply(Count.globally()))
+        .satisfies(
+            new SerializableFunction<Iterable<Long>, Void>() {
+              @Override
+              public Void apply(Iterable<Long> input) {
+                // We must have exactly least one element
+                Long count = input.iterator().next();
+                // The implementation for string range partitioning relies on the first character
+                // in the string (e.g. "z"). Becasue this space may be short, we allow more ranges.
+                assertThat(Double.valueOf(count), closeTo(10, 2));
+                return null;
+              }
+            });
     pipeline.run().waitUntilFinish();
   }
 }

@@ -57,8 +57,13 @@ public class OtherJdbcTypesIT {
 
   @BeforeClass
   public static void setup() throws Exception {
-    PostgresIOTestPipelineOptions options =
-        readIOTestPipelineOptions(PostgresIOTestPipelineOptions.class);
+    PostgresIOTestPipelineOptions options;
+    try {
+      options = readIOTestPipelineOptions(PostgresIOTestPipelineOptions.class);
+    } catch (IllegalArgumentException e) {
+      options = null;
+    }
+    org.junit.Assume.assumeNotNull(options);
 
     dataSource = DatabaseTestHelper.getPostgresDataSource(options);
     tableName = DatabaseTestHelper.getTestTableName("IT");

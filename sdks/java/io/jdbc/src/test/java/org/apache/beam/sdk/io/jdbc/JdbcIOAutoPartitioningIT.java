@@ -21,9 +21,12 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Random;
 import javax.sql.DataSource;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.common.DatabaseTestHelper;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.RowMapper;
+import org.apache.beam.sdk.metrics.Distribution;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
@@ -46,11 +49,14 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.MySQLContainer;
 
 /** A test of {@link org.apache.beam.sdk.io.jdbc.JdbcIO} on test containers. */
 @RunWith(JUnit4.class)
 public class JdbcIOAutoPartitioningIT {
+  private static final Logger LOG = LoggerFactory.getLogger(JdbcIOAutoPartitioningIT.class);
 
   public static final Integer NUM_ROWS = 1_000;
   public static final String TABLE_NAME = "baseTable";
@@ -83,7 +89,28 @@ public class JdbcIOAutoPartitioningIT {
                 .withTable(TABLE_NAME)
                 .withDataSourceProviderFn(
                     voide -> DatabaseTestHelper.getDataSourceForContainer(mysql)));
-    pipelineWrite.run().waitUntilFinish();
+    PipelineResult res = pipelineWrite.run();
+    res.metrics()
+        .allMetrics()
+        .getDistributions()
+        .forEach(
+            dist -> {
+              if (dist.getName().getName().contains("intsDistribution")) {
+                LOG.info(
+                    "Metric: {} | Min: {} | Max: {}",
+                    dist.getName().getName(),
+                    dist.getCommitted().getMin(),
+                    dist.getCommitted().getMax());
+              } else if (dist.getName().getName().contains("intsDistribution")) {
+                LOG.info(
+                    "Metric: {} | Min: {} | Max: {}",
+                    dist.getName().getName(),
+                    new DateTime(Instant.EPOCH.plus(Duration.millis(dist.getCommitted().getMin()))),
+                    new DateTime(
+                        Instant.EPOCH.plus(Duration.millis(dist.getCommitted().getMax()))));
+              }
+            });
+    res.waitUntilFinish();
   }
 
   @DefaultSchema(JavaFieldSchema.class)
@@ -101,13 +128,21 @@ public class JdbcIOAutoPartitioningIT {
   }
 
   static class MapRowDataFn extends SimpleFunction<Long, RowData> {
+    private static final Distribution intDist =
+        Metrics.distribution(MapRowDataFn.class, "intsDistribution");
+    private static final Distribution millisDist =
+        Metrics.distribution(MapRowDataFn.class, "millisDistribution");
+
     @Override
     public RowData apply(Long input) {
       Random rnd = new Random(input);
       int millisOffset = rnd.nextInt();
       millisOffset = millisOffset < 0 ? -millisOffset : millisOffset;
+      int id = rnd.nextInt();
+      MapRowDataFn.intDist.update(id);
+      MapRowDataFn.millisDist.update(millisOffset);
       return new RowData(
-          rnd.nextInt(),
+          id,
           String.valueOf(rnd.nextDouble()),
           new DateTime(Instant.EPOCH.plus(Duration.millis(millisOffset))));
     }
@@ -130,7 +165,6 @@ public class JdbcIOAutoPartitioningIT {
                 .withDataSourceProviderFn(
                     voide -> DatabaseTestHelper.getDataSourceForContainer(mysql))
                 .withTable("baseTable")
-                // TODO(pabloem): do min/max inference
                 .withLowerBound(new DateTime(0))
                 .withUpperBound(DateTime.now())
                 .withNumPartitions(10)
@@ -149,7 +183,6 @@ public class JdbcIOAutoPartitioningIT {
                 .withDataSourceProviderFn(
                     voide -> DatabaseTestHelper.getDataSourceForContainer(mysql))
                 .withTable("baseTable")
-                // TODO(pabloem): do min/max inference
                 .withLowerBound(Long.MIN_VALUE)
                 .withUpperBound(Long.MAX_VALUE)
                 .withNumPartitions(10)
@@ -168,9 +201,56 @@ public class JdbcIOAutoPartitioningIT {
                 .withDataSourceProviderFn(
                     voide -> DatabaseTestHelper.getDataSourceForContainer(mysql))
                 .withTable("baseTable")
-                // TODO(pabloem): do min/max inference
-                .withLowerBound("00000")
+                .withLowerBound("")
                 .withUpperBound("999999")
+                .withNumPartitions(5)
+                .withRowMapper(new RowDataMapper()));
+
+    PAssert.that(databaseData.apply(Count.globally())).containsInAnyOrder(NUM_ROWS.longValue());
+    pipelineRead.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testAutomaticDateTimePartitioningAutomaticRangeManagementMySQL() throws SQLException {
+    PCollection<RowData> databaseData =
+        pipelineRead.apply(
+            JdbcIO.<RowData, DateTime>readWithPartitions(TypeDescriptor.of(DateTime.class))
+                .withPartitionColumn("specialDate")
+                .withDataSourceProviderFn(
+                    voide -> DatabaseTestHelper.getDataSourceForContainer(mysql))
+                .withTable("baseTable")
+                .withNumPartitions(10)
+                .withRowMapper(new RowDataMapper()));
+
+    PAssert.that(databaseData.apply(Count.globally())).containsInAnyOrder(NUM_ROWS.longValue());
+    pipelineRead.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testAutomaticLongPartitioningAutomaticRangeManagementMySQL() throws SQLException {
+    PCollection<RowData> databaseData =
+        pipelineRead.apply(
+            JdbcIO.<RowData, Long>readWithPartitions(TypeDescriptors.longs())
+                .withPartitionColumn("id")
+                .withDataSourceProviderFn(
+                    voide -> DatabaseTestHelper.getDataSourceForContainer(mysql))
+                .withTable("baseTable")
+                .withNumPartitions(10)
+                .withRowMapper(new RowDataMapper()));
+
+    PAssert.that(databaseData.apply(Count.globally())).containsInAnyOrder(NUM_ROWS.longValue());
+    pipelineRead.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testAutomaticStringPartitioningAutomaticRangeManagementMySQL() throws SQLException {
+    PCollection<RowData> databaseData =
+        pipelineRead.apply(
+            JdbcIO.<RowData, String>readWithPartitions(TypeDescriptors.strings())
+                .withPartitionColumn("name")
+                .withDataSourceProviderFn(
+                    voide -> DatabaseTestHelper.getDataSourceForContainer(mysql))
+                .withTable("baseTable")
                 .withNumPartitions(5)
                 .withRowMapper(new RowDataMapper()));
 

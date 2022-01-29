@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.jdbc;
 import java.sql.Date;
 import java.sql.JDBCType;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
@@ -34,7 +35,7 @@ import java.util.TimeZone;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import org.apache.beam.sdk.io.jdbc.JdbcIO.PreparedStatementSetter;
+import org.apache.beam.sdk.io.jdbc.JdbcIO.ReadWithPartitions.JdbcReadWithPartitionsHelper;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
@@ -341,7 +342,6 @@ class JdbcUtil {
   }
 
   /** Create partitions on a table. */
-  // static class PartitioningFn<T extends Comparable<T>>
   static class PartitioningFn<T> extends DoFn<KV<Integer, KV<T, T>>, KV<T, T>> {
     private static final Logger LOG = LoggerFactory.getLogger(PartitioningFn.class);
     final TypeDescriptor<T> partitioningColumnType;
@@ -375,11 +375,30 @@ class JdbcUtil {
               List<KV<String, String>> ranges = new ArrayList<>();
               // For now, we create ranges based on the very first letter of each string
               // TODO(pabloem): How do we sort the empty string?
+              if (lowerBound.length() == 0) {
+                lowerBound = String.valueOf(Character.toChars(0)[0]);
+                ranges.add(KV.of("", lowerBound));
+              }
               int dif = upperBound.charAt(0) - lowerBound.charAt(0);
-              int stride = dif / partitions;
+              int stride = dif / partitions != 0 ? dif / partitions : 1;
               String currentLowerBound = String.valueOf(lowerBound.charAt(0));
               while (currentLowerBound.charAt(0) < upperBound.charAt(0)) {
-                char currentUpperBound = Character.toChars(currentLowerBound.charAt(0) + stride)[0];
+                int upperBoundCharPoint = currentLowerBound.charAt(0) + stride;
+                upperBoundCharPoint =
+                    upperBoundCharPoint > upperBound.charAt(0)
+                        ? Character.toChars(upperBound.charAt(0) + 1)[0]
+                        : upperBoundCharPoint;
+                char currentUpperBound = Character.toChars(upperBoundCharPoint)[0];
+                if (currentUpperBound >= upperBound.charAt(0)) {
+                  // This means that we have rached the end, and that we want to use our upper bound
+                  // as our final upper bound.
+                  int finalChar = upperBound.charAt(upperBound.length() - 1) + 1;
+                  upperBound =
+                      upperBound.substring(0, upperBound.length() - 1)
+                          + Character.toChars(finalChar)[0];
+                  ranges.add(KV.of(currentLowerBound, upperBound));
+                  return ranges;
+                }
                 ranges.add(KV.of(currentLowerBound, String.valueOf(currentUpperBound)));
                 currentLowerBound = String.valueOf(currentUpperBound);
               }
@@ -396,6 +415,11 @@ class JdbcUtil {
                 throw new RuntimeException(e);
               }
             }
+
+            @Override
+            public KV<String, String> mapRow(ResultSet resultSet) throws Exception {
+              return KV.of(resultSet.getString(1), resultSet.getString(2));
+            }
           },
           Long.class,
           new JdbcReadWithPartitionsHelper<Long>() {
@@ -407,11 +431,13 @@ class JdbcUtil {
               // If we substract first, then we may end up with Long.MAX - Long.MIN, which is 2*MAX,
               // and we'd have trouble with the pipeline.
               long stride = (upperBound / partitions - lowerBound / partitions) + 1;
+              long highest = lowerBound;
               for (long i = lowerBound; i < upperBound - stride; i += stride) {
                 ranges.add(KV.of(i, i + stride));
+                highest = i + stride;
               }
               if (upperBound - lowerBound > stride * (partitions - 1)) {
-                long indexFrom = (partitions - 1) * stride;
+                long indexFrom = highest;
                 long indexTo = upperBound + 1;
                 ranges.add(KV.of(indexFrom, indexTo));
               }
@@ -427,6 +453,11 @@ class JdbcUtil {
                 throw new RuntimeException(e);
               }
             }
+
+            @Override
+            public KV<Long, Long> mapRow(ResultSet resultSet) throws Exception {
+              return KV.of(resultSet.getLong(1), resultSet.getLong(2));
+            }
           },
           DateTime.class,
           new JdbcReadWithPartitionsHelper<DateTime>() {
@@ -438,13 +469,19 @@ class JdbcUtil {
               final long intervalMillis = upperBound.getMillis() - lowerBound.getMillis();
               final long strideMillis = intervalMillis / partitions;
               // Add the first advancement
-              DateTime currentUpperBound = lowerBound.plus(Duration.millis(strideMillis));
+              DateTime currentLowerBound = lowerBound;
               // Zero output in a comparison means that elements are equal
-              while (currentUpperBound.compareTo(upperBound) <= 0) {
-                result.add(
-                    KV.of(
-                        currentUpperBound.minus(Duration.millis(strideMillis)), currentUpperBound));
-                currentUpperBound = currentUpperBound.plus(Duration.millis(strideMillis));
+              while (currentLowerBound.compareTo(upperBound) < 0) {
+                DateTime currentUpper = currentLowerBound.plus(Duration.millis(strideMillis));
+                if (currentUpper.compareTo(upperBound) >= 0) {
+                  // If we hit the upper bound directly, then we want to be just-above it, so that
+                  // it will be captured by the less-than query.
+                  currentUpper = upperBound.plusMillis(1);
+                  result.add(KV.of(currentLowerBound, currentUpper));
+                  return result;
+                }
+                result.add(KV.of(currentLowerBound, currentUpper));
+                currentLowerBound = currentLowerBound.plus(Duration.millis(strideMillis));
               }
               return result;
             }
@@ -459,14 +496,11 @@ class JdbcUtil {
                 throw new RuntimeException(e);
               }
             }
+
+            @Override
+            public KV<DateTime, DateTime> mapRow(ResultSet resultSet) throws Exception {
+              return KV.of(
+                  new DateTime(resultSet.getTimestamp(1)), new DateTime(resultSet.getTimestamp(2)));
+            }
           });
-
-  public interface JdbcReadWithPartitionsHelper<PartitionT>
-      extends PreparedStatementSetter<KV<PartitionT, PartitionT>> {
-    Iterable<KV<PartitionT, PartitionT>> calculateRanges(
-        PartitionT lowerBound, PartitionT upperBound, Integer partitions);
-
-    @Override
-    void setParameters(KV<PartitionT, PartitionT> element, PreparedStatement preparedStatement);
-  }
 }

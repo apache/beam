@@ -52,7 +52,6 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.WriteFn.WriteFnSpec;
-import org.apache.beam.sdk.io.jdbc.JdbcUtil.JdbcReadWithPartitionsHelper;
 import org.apache.beam.sdk.io.jdbc.JdbcUtil.PartitioningFn;
 import org.apache.beam.sdk.io.jdbc.SchemaUtil.FieldWithIndex;
 import org.apache.beam.sdk.metrics.Distribution;
@@ -66,11 +65,13 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.Wait;
@@ -324,7 +325,6 @@ public class JdbcIO {
    *
    * @param <T> Type of the data to be read.
    */
-  // public static <T, PartitionColumnT extends Comparable<PartitionColumnT>>
   public static <T, PartitionColumnT> ReadWithPartitions<T, PartitionColumnT> readWithPartitions(
       TypeDescriptor<PartitionColumnT> partitioningColumnType) {
     return new AutoValue_JdbcIO_ReadWithPartitions.Builder<T, PartitionColumnT>()
@@ -334,9 +334,7 @@ public class JdbcIO {
   }
 
   public static <T> ReadWithPartitions<T, Long> readWithPartitions() {
-    return JdbcIO.<T, Long>readWithPartitions(TypeDescriptors.longs())
-        .withLowerBound(DEFAULT_LOWER_BOUND)
-        .withUpperBound(DEFAULT_UPPER_BOUND);
+    return JdbcIO.<T, Long>readWithPartitions(TypeDescriptors.longs());
   }
 
   private static final long DEFAULT_BATCH_SIZE = 1000L;
@@ -344,9 +342,7 @@ public class JdbcIO {
   // Default values used from fluent backoff.
   private static final Duration DEFAULT_INITIAL_BACKOFF = Duration.standardSeconds(1);
   private static final Duration DEFAULT_MAX_CUMULATIVE_BACKOFF = Duration.standardDays(1000);
-  // Default values used for partitioning a table
-  private static final long DEFAULT_LOWER_BOUND = 0;
-  private static final long DEFAULT_UPPER_BOUND = Integer.MAX_VALUE;
+  // Default value used for partitioning a table
   private static final int DEFAULT_NUM_PARTITIONS = 200;
 
   /**
@@ -1019,9 +1015,7 @@ public class JdbcIO {
 
   /** Implementation of {@link #readWithPartitions}. */
   @AutoValue
-  public abstract static class ReadWithPartitions<
-          // T, PartitionColumnT extends Comparable<PartitionColumnT>>
-          T, PartitionColumnT>
+  public abstract static class ReadWithPartitions<T, PartitionColumnT>
       extends PTransform<PBegin, PCollection<T>> {
 
     abstract @Nullable SerializableFunction<Void, DataSource> getDataSourceProviderFn();
@@ -1044,8 +1038,25 @@ public class JdbcIO {
 
     abstract Builder<T, PartitionColumnT> toBuilder();
 
+    /**
+     * A helper for {@link ReadWithPartitions} that handles range calculations.
+     *
+     * @param <PartitionT>
+     */
+    public interface JdbcReadWithPartitionsHelper<PartitionT>
+        extends PreparedStatementSetter<KV<PartitionT, PartitionT>>,
+            RowMapper<KV<PartitionT, PartitionT>> {
+      Iterable<KV<PartitionT, PartitionT>> calculateRanges(
+          PartitionT lowerBound, PartitionT upperBound, Integer partitions);
+
+      @Override
+      void setParameters(KV<PartitionT, PartitionT> element, PreparedStatement preparedStatement);
+
+      @Override
+      KV<PartitionT, PartitionT> mapRow(ResultSet resultSet) throws Exception;
+    }
+
     @AutoValue.Builder
-    // abstract static class Builder<T, PartitionColumnT extends Comparable<PartitionColumnT>> {
     abstract static class Builder<T, PartitionColumnT> {
 
       abstract Builder<T, PartitionColumnT> setDataSourceProviderFn(
@@ -1135,14 +1146,8 @@ public class JdbcIO {
           getDataSourceProviderFn(),
           "withDataSourceConfiguration() or withDataSourceProviderFn() is required");
       checkNotNull(getPartitionColumn(), "withPartitionColumn() is required");
-      checkArgument(
-          getUpperBound() != null && getLowerBound() != null,
-          "Upper and lower bounds are mandatory parameters for JdbcIO.readWithPartitions");
       checkNotNull(getTable(), "withTable() is required");
-      checkArgument(
-          getLowerBound() != null && getUpperBound() != null,
-          "lowerBound and higherBound are required properties. Please provide both.");
-      if (getLowerBound() instanceof Comparable<?>) {
+      if (getLowerBound() != null && getLowerBound() instanceof Comparable<?>) {
         // Not all partition types are comparable. For example, LocalDateTime, which is a valid
         // partitioning type, is not Comparable, so we can't enforce this for all sorts of
         // partitioning.
@@ -1155,9 +1160,43 @@ public class JdbcIO {
           "readWithPartitions only supports the following types: %s",
           JdbcUtil.PRESET_HELPERS.keySet());
 
-      PCollection<KV<Integer, KV<PartitionColumnT, PartitionColumnT>>> params =
-          input.apply(
-              Create.of(KV.of(getNumPartitions(), KV.of(getLowerBound(), getUpperBound()))));
+      PCollection<KV<Integer, KV<PartitionColumnT, PartitionColumnT>>> params;
+
+      if (getLowerBound() == null && getUpperBound() == null) {
+        params =
+            input
+                .apply(
+                    JdbcIO.<KV<PartitionColumnT, PartitionColumnT>>read()
+                        .withQuery(
+                            String.format(
+                                "SELECT min(%s), max(%s) FROM %s",
+                                getPartitionColumn(), getPartitionColumn(), getTable()))
+                        .withDataSourceProviderFn(getDataSourceProviderFn())
+                        .withRowMapper(
+                            (JdbcReadWithPartitionsHelper<PartitionColumnT>)
+                                JdbcUtil.PRESET_HELPERS.get(getPartitionColumnType().getRawType())))
+                .apply(
+                    MapElements.via(
+                        new SimpleFunction<
+                            KV<PartitionColumnT, PartitionColumnT>,
+                            KV<Integer, KV<PartitionColumnT, PartitionColumnT>>>() {
+                          @Override
+                          public KV<Integer, KV<PartitionColumnT, PartitionColumnT>> apply(
+                              KV<PartitionColumnT, PartitionColumnT> input) {
+                            LOG.info(
+                                "Inferred min: {} - max: {} - numPartitions: {}",
+                                input.getKey(),
+                                input.getValue(),
+                                getNumPartitions());
+                            return KV.of(getNumPartitions(), input);
+                          }
+                        }));
+      } else {
+        params =
+            input.apply(
+                Create.of(KV.of(getNumPartitions(), KV.of(getLowerBound(), getUpperBound()))));
+      }
+
       PCollection<KV<PartitionColumnT, PartitionColumnT>> ranges =
           params
               .apply("Partitioning", ParDo.of(new PartitioningFn<>(getPartitionColumnType())))
@@ -1197,8 +1236,12 @@ public class JdbcIO {
       builder.add(DisplayData.item("partitionColumn", getPartitionColumn()));
       builder.add(DisplayData.item("table", getTable()));
       builder.add(DisplayData.item("numPartitions", getNumPartitions()));
-      builder.add(DisplayData.item("lowerBound", getLowerBound().toString()));
-      builder.add(DisplayData.item("upperBound", getUpperBound().toString()));
+      builder.add(
+          DisplayData.item(
+              "lowerBound", getLowerBound() == null ? "auto-infer" : getLowerBound().toString()));
+      builder.add(
+          DisplayData.item(
+              "upperBound", getUpperBound() == null ? "auto-infer" : getUpperBound().toString()));
       if (getDataSourceProviderFn() instanceof HasDisplayData) {
         ((HasDisplayData) getDataSourceProviderFn()).populateDisplayData(builder);
       }
