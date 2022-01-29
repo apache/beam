@@ -120,7 +120,7 @@ task sparkValidatesRunner {
 // The ULR can exhibit strange behavior when containers are built with outdated
 // vendored directories. For best results use the clean task, like so:
 //   ./gradlew clean :sdks:go:test:ulrValidatesRunner
-task ulrValidatesRunner {
+tasks.register("ulrValidatesRunner") {
   group = "Verification"
 
   dependsOn ":sdks:go:test:goBuild"
@@ -150,7 +150,7 @@ task ulrValidatesRunner {
 // A method for configuring a cross-language validates runner test task,
 // intended to be used in calls to createCrossLanguageValidatesRunnerTask.
 ext.goIoValidatesRunnerTask = { proj, name, scriptOpts ->
-  return proj.tasks.create(name: name) {
+  return proj.tasks.register(name) {
     group = "Verification"
 
     dependsOn ":sdks:go:test:goBuild"

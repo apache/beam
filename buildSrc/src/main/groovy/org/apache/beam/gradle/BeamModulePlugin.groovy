@@ -37,6 +37,7 @@ import org.gradle.api.tasks.Copy
 import org.gradle.api.tasks.Delete
 import org.gradle.api.tasks.Exec
 import org.gradle.api.tasks.JavaExec
+import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.bundling.Jar
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.javadoc.Javadoc
@@ -341,9 +342,9 @@ class BeamModulePlugin implements Plugin<Project> {
     // Additional pytest options
     List<String> pytestOptions = []
     // Job server startup task.
-    Task startJobServer
+    TaskProvider startJobServer
     // Job server cleanup task.
-    Task cleanupJobServer
+    TaskProvider cleanupJobServer
     // Number of parallel test runs.
     Integer numParallelTests = 1
     // Whether the pipeline needs --sdk_location option
@@ -1697,7 +1698,7 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
     }
-    def cleanUpTask = project.task('cleanUp') {
+    def cleanUpTask = project.tasks.register('cleanUp') {
       dependsOn ':runners:google-cloud-dataflow-java:cleanUpDockerImages'
     }
 
@@ -1852,7 +1853,7 @@ class BeamModulePlugin implements Plugin<Project> {
       // completion, and avoid this GOBIN substitution.
       project.ext.goCmd = "${goRootDir}/run_with_go_version.sh --gocmd GOBIN/${project.ext.goVersion}"
 
-      project.tasks.create(name: "goPrepare") {
+      def goPrepare = project.tasks.register("goPrepare") {
         description "Prepare ${project.ext.goVersion} for builds and tests."
         project.exec {
           executable 'sh'
@@ -1860,8 +1861,8 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
 
-      project.tasks.create(name: "goBuild") {
-        dependsOn ":sdks:go:goPrepare"
+      def goBuild = project.tasks.register("goBuild") {
+        dependsOn goPrepare
         ext.goTargets = './...'
         ext.outputLocation = './build/bin/${GOOS}_${GOARCH}/'
         doLast {
@@ -1878,8 +1879,8 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
 
-      project.tasks.create(name: "goTest") {
-        dependsOn project.goBuild
+      project.tasks.register("goTest") {
+        dependsOn goBuild
         doLast {
           project.exec {
             executable 'sh'
@@ -2166,7 +2167,7 @@ class BeamModulePlugin implements Plugin<Project> {
         beamTestPipelineOptions.add("--jobServerConfig=${config.jobServerConfig}")
       }
       config.systemProperties.put("beamTestPipelineOptions", JsonOutput.toJson(beamTestPipelineOptions))
-      project.tasks.create(name: name, type: Test) {
+      project.tasks.register(name, Test) {
         group = "Verification"
         description = "Validates the PortableRunner with JobServer ${config.jobServerDriver}"
         systemProperties config.systemProperties
@@ -2229,7 +2230,7 @@ class BeamModulePlugin implements Plugin<Project> {
       } else {
         throw new GradleException("unsupported java version.")
       }
-      def setupTask = project.tasks.create(name: config.name+"Setup", type: Exec) {
+      def setupTask = project.tasks.register(config.name+"Setup", Exec) {
         dependsOn ':sdks:java:container:'+javaContainerSuffix+':docker'
         dependsOn ':sdks:python:container:py'+pythonContainerSuffix+':docker'
         dependsOn ':sdks:java:testing:expansion-service:buildTestExpansionServiceJar'
@@ -2239,22 +2240,22 @@ class BeamModulePlugin implements Plugin<Project> {
         args '-c', "$pythonDir/scripts/run_expansion_services.sh stop --group_id ${project.name} && $pythonDir/scripts/run_expansion_services.sh start $serviceArgs"
       }
 
-      def mainTask = project.tasks.create(name: config.name) {
+      def mainTask = project.tasks.register(config.name) {
         group = "Verification"
         description = "Validates cross-language capability of runner"
       }
 
-      def cleanupTask = project.tasks.create(name: config.name+'Cleanup', type: Exec) {
+      def cleanupTask = project.tasks.register(config.name+'Cleanup', Exec) {
         // teardown test env
         executable 'sh'
         args '-c', "$pythonDir/scripts/run_expansion_services.sh stop --group_id ${project.name}"
       }
-      setupTask.finalizedBy cleanupTask
-      config.startJobServer.finalizedBy config.cleanupJobServer
+      setupTask.configure {finalizedBy cleanupTask}
+      config.startJobServer.configure {finalizedBy config.cleanupJobServer}
 
       def sdkLocationOpt = []
       if (config.needsSdkLocation) {
-        setupTask.dependsOn ':sdks:python:sdist'
+        setupTask.configure {dependsOn ':sdks:python:sdist'}
         sdkLocationOpt = [
           "--sdk_location=${pythonDir}/build/apache-beam.tar.gz"
         ]
@@ -2262,7 +2263,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
       ['Java': javaPort, 'Python': pythonPort].each { sdk, port ->
         // Task for running testcases in Java SDK
-        def javaTask = project.tasks.create(name: config.name+"JavaUsing"+sdk, type: Test) {
+        def javaTask = project.tasks.register(config.name+"JavaUsing"+sdk, Test) {
           group = "Verification"
           description = "Validates runner for cross-language capability of using ${sdk} transforms from Java SDK"
           systemProperty "beamTestPipelineOptions", JsonOutput.toJson(config.javaPipelineOptions)
@@ -2278,9 +2279,9 @@ class BeamModulePlugin implements Plugin<Project> {
           dependsOn setupTask
           dependsOn config.startJobServer
         }
-        mainTask.dependsOn javaTask
-        cleanupTask.mustRunAfter javaTask
-        config.cleanupJobServer.mustRunAfter javaTask
+        mainTask.configure {dependsOn javaTask}
+        cleanupTask.configure {mustRunAfter javaTask}
+        config.cleanupJobServer.configure {mustRunAfter javaTask}
 
         // Task for running testcases in Python SDK
         def beamPythonTestPipelineOptions = [
@@ -2290,7 +2291,7 @@ class BeamModulePlugin implements Plugin<Project> {
           "collect": config.pythonTestAttr
         ]
         def cmdArgs = project.project(':sdks:python').mapToArgString(beamPythonTestPipelineOptions)
-        def pythonTask = project.tasks.create(name: config.name+"PythonUsing"+sdk, type: Exec) {
+        def pythonTask = project.tasks.register(config.name+"PythonUsing"+sdk, Exec) {
           group = "Verification"
           description = "Validates runner for cross-language capability of using ${sdk} transforms from Python SDK"
           environment "EXPANSION_JAR", expansionJar
@@ -2301,13 +2302,13 @@ class BeamModulePlugin implements Plugin<Project> {
           dependsOn setupTask
           dependsOn config.startJobServer
         }
-        mainTask.dependsOn pythonTask
-        cleanupTask.mustRunAfter pythonTask
-        config.cleanupJobServer.mustRunAfter pythonTask
+        mainTask.configure{dependsOn pythonTask}
+        cleanupTask.configure{mustRunAfter pythonTask}
+        config.cleanupJobServer.configure{mustRunAfter pythonTask}
       }
 
       // Task for running Python-only testcases in Java SDK
-      def javaUsingPythonOnlyTask = project.tasks.create(name: config.name+"JavaUsingPythonOnly", type: Test) {
+      def javaUsingPythonOnlyTask = project.tasks.register(config.name+"JavaUsingPythonOnly", Test) {
         group = "Verification"
         description = "Validates runner for cross-language capability of using Python-only transforms from Java SDK"
         systemProperty "beamTestPipelineOptions", JsonOutput.toJson(config.javaPipelineOptions)
@@ -2325,9 +2326,9 @@ class BeamModulePlugin implements Plugin<Project> {
         dependsOn setupTask
         dependsOn config.startJobServer
       }
-      mainTask.dependsOn javaUsingPythonOnlyTask
-      cleanupTask.mustRunAfter javaUsingPythonOnlyTask
-      config.cleanupJobServer.mustRunAfter javaUsingPythonOnlyTask
+      mainTask.configure{dependsOn javaUsingPythonOnlyTask}
+      cleanupTask.configure{mustRunAfter javaUsingPythonOnlyTask}
+      config.cleanupJobServer.configure{mustRunAfter javaUsingPythonOnlyTask}
 
       // Task for running SQL testcases in Python SDK
       def beamPythonTestPipelineOptions = [
@@ -2337,7 +2338,7 @@ class BeamModulePlugin implements Plugin<Project> {
         "collect": "xlang_sql_expansion_service"
       ]
       def cmdArgs = project.project(':sdks:python').mapToArgString(beamPythonTestPipelineOptions)
-      def pythonSqlTask = project.tasks.create(name: config.name+"PythonUsingSql", type: Exec) {
+      def pythonSqlTask = project.tasks.register(config.name+"PythonUsingSql", Exec) {
         group = "Verification"
         description = "Validates runner for cross-language capability of using Java's SqlTransform from Python SDK"
         executable 'sh'
@@ -2346,9 +2347,9 @@ class BeamModulePlugin implements Plugin<Project> {
         dependsOn config.startJobServer
         dependsOn ':sdks:java:extensions:sql:expansion-service:shadowJar'
       }
-      mainTask.dependsOn pythonSqlTask
-      cleanupTask.mustRunAfter pythonSqlTask
-      config.cleanupJobServer.mustRunAfter pythonSqlTask
+      mainTask.configure{dependsOn pythonSqlTask}
+      cleanupTask.configure{mustRunAfter pythonSqlTask}
+      config.cleanupJobServer.configure{mustRunAfter pythonSqlTask}
 
       // Task for running Java testcases in Go SDK.
       def scriptOptions = [
@@ -2356,12 +2357,14 @@ class BeamModulePlugin implements Plugin<Project> {
       ]
       scriptOptions.addAll(config.goScriptOptions)
       def goTask = project.project(":sdks:go:test:").goIoValidatesRunnerTask(project, config.name+"GoUsingJava", scriptOptions)
-      goTask.description = "Validates runner for cross-language capability of using Java transforms from Go SDK"
-      goTask.dependsOn setupTask
-      goTask.dependsOn config.startJobServer
-      mainTask.dependsOn goTask
-      cleanupTask.mustRunAfter goTask
-      config.cleanupJobServer.mustRunAfter goTask
+      goTask.configure {
+        description = "Validates runner for cross-language capability of using Java transforms from Go SDK"
+        dependsOn setupTask
+        dependsOn config.startJobServer
+      }
+      mainTask.configure{dependsOn goTask}
+      cleanupTask.configure{mustRunAfter goTask}
+      config.cleanupJobServer.configure{mustRunAfter goTask}
     }
 
     /** ***********************************************************************************************/
@@ -2393,7 +2396,7 @@ class BeamModulePlugin implements Plugin<Project> {
       project.ext.pythonVersion = project.hasProperty('pythonVersion') ?
           project.pythonVersion : '3.8'
 
-      project.task('setupVirtualenv')  {
+      def setupVirtualenv = project.tasks.register('setupVirtualenv')  {
         doLast {
           def virtualenvCmd = [
             "python${project.ext.pythonVersion}",
@@ -2440,8 +2443,8 @@ class BeamModulePlugin implements Plugin<Project> {
       // distribution tarball generated by :sdks:python:sdist.
       project.configurations { distTarBall }
 
-      project.task('installGcpTest')  {
-        dependsOn 'setupVirtualenv'
+      def installGcpTest = project.tasks.register('installGcpTest')  {
+        dependsOn setupVirtualenv
         dependsOn ':sdks:python:sdist'
         doLast {
           def distTarBall = "${pythonRootDir}/build/apache-beam.tar.gz"
@@ -2452,7 +2455,7 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
 
-      project.task('cleanPython') {
+      def cleanPython = project.tasks.register('cleanPython') {
         doLast {
           def activate = "${project.ext.envdir}/bin/activate"
           project.exec {
@@ -2466,7 +2469,7 @@ class BeamModulePlugin implements Plugin<Project> {
           project.delete "$project.projectDir/target"   // tox work directory
         }
       }
-      project.clean.dependsOn project.cleanPython
+      project.clean.dependsOn cleanPython
       // Force this subproject's clean to run before the main :clean, to avoid
       // racing on deletes.
       project.rootProject.clean.dependsOn project.clean
@@ -2490,8 +2493,8 @@ class BeamModulePlugin implements Plugin<Project> {
       }
 
       project.ext.toxTask = { name, tox_env, posargs='' ->
-        project.tasks.create(name) {
-          dependsOn 'setupVirtualenv'
+        project.tasks.register(name) {
+          dependsOn setupVirtualenv
           dependsOn ':sdks:python:sdist'
 
           doLast {
@@ -2520,7 +2523,7 @@ class BeamModulePlugin implements Plugin<Project> {
         def config = it ? it as PythonPerformanceTestConfiguration : new PythonPerformanceTestConfiguration()
 
         project.task('integrationTest') {
-          dependsOn 'installGcpTest'
+          dependsOn installGcpTest
           dependsOn ':sdks:python:sdist'
 
           doLast {
@@ -2556,7 +2559,7 @@ class BeamModulePlugin implements Plugin<Project> {
         def taskName = 'portableWordCount' + runner + (isStreaming ? 'Streaming' : 'Batch')
         def flinkJobServerProject = ":runners:flink:${project.ext.latestFlinkVersion}:job-server"
         project.task(taskName) {
-          dependsOn = ['installGcpTest']
+          dependsOn = [installGcpTest]
           mustRunAfter = [
             ":runners:flink:${project.ext.latestFlinkVersion}:job-server:shadowJar",
             ':runners:spark:2:job-server:shadowJar',
