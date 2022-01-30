@@ -73,17 +73,18 @@ public class ConfluentSchemaRegistryDeserializerProvider<T> implements Deseriali
   }
 
   public static <T> ConfluentSchemaRegistryDeserializerProvider<T> of(
-      String schemaRegistryUrl, String subject) {
-    return of(schemaRegistryUrl, subject, null, null);
+      String schemaRegistryUrl, Integer schemaRegistryCacheCapacity, String subject) {
+    return of(schemaRegistryUrl, schemaRegistryCacheCapacity, subject, null, null);
   }
 
   public static <T> ConfluentSchemaRegistryDeserializerProvider<T> of(
-      String schemaRegistryUrl, String subject, @Nullable Integer version) {
-    return of(schemaRegistryUrl, subject, version, null);
+      String schemaRegistryUrl, Integer schemaRegistryCacheCapacity, String subject, @Nullable Integer version) {
+    return of(schemaRegistryUrl, schemaRegistryCacheCapacity, subject, version, null);
   }
 
   public static <T> ConfluentSchemaRegistryDeserializerProvider<T> of(
       String schemaRegistryUrl,
+      Integer schemaRegistryCacheCapacity,
       String subject,
       @Nullable Integer version,
       @Nullable Map<String, ?> schemaRegistryConfigs) {
@@ -91,7 +92,7 @@ public class ConfluentSchemaRegistryDeserializerProvider<T> implements Deseriali
         (SerializableFunction<Void, SchemaRegistryClient>)
             input ->
                 new CachedSchemaRegistryClient(
-                    schemaRegistryUrl, 1000, schemaRegistryConfigs),
+                    schemaRegistryUrl, schemaRegistryCacheCapacity, schemaRegistryConfigs),
         schemaRegistryUrl,
         subject,
         version);
