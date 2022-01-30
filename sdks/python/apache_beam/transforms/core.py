@@ -64,6 +64,7 @@ from apache_beam.typehints.decorators import with_input_types
 from apache_beam.typehints.decorators import with_output_types
 from apache_beam.typehints.trivial_inference import element_type
 from apache_beam.typehints.typehints import is_consistent_with
+from apache_beam.typehints.typehints import visit_inner_types
 from apache_beam.utils import urns
 from apache_beam.utils.timestamp import Duration
 
@@ -682,17 +683,8 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   def infer_output_type(self, input_type):
     # TODO(BEAM-8247): Side inputs types.
     # TODO(robertwb): Assert compatibility with input type hint?
-    return self._strip_output_annotations(
+    return _strip_output_annotations(
         trivial_inference.infer_return_type(self.process, [input_type]))
-
-  def _strip_output_annotations(self, type_hint):
-    annotations = (TimestampedValue, WindowedValue, pvalue.TaggedOutput)
-    # TODO(robertwb): These should be parameterized types that the
-    # type inferencer understands.
-    if (type_hint in annotations or
-        trivial_inference.element_type(type_hint) in annotations):
-      return typehints.Any
-    return type_hint
 
   def _process_argspec_fn(self):
     """Returns the Python callable that will eventually be invoked.
@@ -766,7 +758,7 @@ class CallableWrapperDoFn(DoFn):
     return type_hints
 
   def infer_output_type(self, input_type):
-    return self._strip_output_annotations(
+    return _strip_output_annotations(
         trivial_inference.infer_return_type(self._fn, [input_type]))
 
   def _process_argspec_fn(self):
@@ -1051,12 +1043,13 @@ class CallableWrapperCombineFn(CombineFn):
     return self._fn(accumulator, *args, **kwargs)
 
   def default_type_hints(self):
-    fn_hints = get_type_hints(self._fn)
-    if fn_hints.input_types is None:
-      return fn_hints
+    fn_type_hints = typehints.decorators.IOTypeHints.from_callable(self._fn)
+    type_hints = get_type_hints(self._fn).with_defaults(fn_type_hints)
+    if type_hints.input_types is None:
+      return type_hints
     else:
       # fn(Iterable[V]) -> V becomes CombineFn(V) -> V
-      input_args, input_kwargs = fn_hints.input_types
+      input_args, input_kwargs = type_hints.input_types
       if not input_args:
         if len(input_kwargs) == 1:
           input_args, input_kwargs = tuple(input_kwargs.values()), {}
@@ -1071,7 +1064,11 @@ class CallableWrapperCombineFn(CombineFn):
             input_args[0])
       input_args = (element_type(input_args[0]), ) + input_args[1:]
       # TODO(robertwb): Assert output type is consistent with input type?
-      return fn_hints.with_input_types(*input_args, **input_kwargs)
+      return type_hints.with_input_types(*input_args, **input_kwargs)
+
+  def infer_output_type(self, input_type):
+    return _strip_output_annotations(
+        trivial_inference.infer_return_type(self._fn, [input_type]))
 
   def for_input_type(self, input_type):
     # Avoid circular imports.
@@ -1653,7 +1650,9 @@ def Map(fn, *args, **kwargs):  # pylint: disable=invalid-name
             wrapper)
   output_hint = type_hints.simple_output_type(label)
   if output_hint:
-    wrapper = with_output_types(typehints.Iterable[output_hint])(wrapper)
+    wrapper = with_output_types(
+        typehints.Iterable[_strip_output_annotations(output_hint)])(
+            wrapper)
   # pylint: disable=protected-access
   wrapper._argspec_fn = fn
   # pylint: enable=protected-access
@@ -1714,14 +1713,20 @@ def MapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
 
   # Proxy the type-hint information from the original function to this new
   # wrapped function.
-  type_hints = get_type_hints(fn)
+  type_hints = get_type_hints(fn).with_defaults(
+      typehints.decorators.IOTypeHints.from_callable(fn))
   if type_hints.input_types is not None:
-    wrapper = with_input_types(
-        *type_hints.input_types[0], **type_hints.input_types[1])(
-            wrapper)
+    # FIXME(feyu): ignore input hints, as we do not have enough
+    # information to infer the input type hint of the wrapper function.
+    # for example if we need to distinguish between
+    #  - MapTuple(fn(a: int, b: int, *args))
+    #  - MapTuple(fn(a: int, b: int, c: Tuple[Any, ...]))
+    pass
   output_hint = type_hints.simple_output_type(label)
   if output_hint:
-    wrapper = with_output_types(typehints.Iterable[output_hint])(wrapper)
+    wrapper = with_output_types(
+        typehints.Iterable[_strip_output_annotations(output_hint)])(
+            wrapper)
 
   # Replace the first (args) component.
   modified_arg_names = ['tuple_element'] + arg_names[-num_defaults:]
@@ -1789,14 +1794,18 @@ def FlatMapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
 
   # Proxy the type-hint information from the original function to this new
   # wrapped function.
-  type_hints = get_type_hints(fn)
+  type_hints = get_type_hints(fn).with_defaults(
+      typehints.decorators.IOTypeHints.from_callable(fn))
   if type_hints.input_types is not None:
-    wrapper = with_input_types(
-        *type_hints.input_types[0], **type_hints.input_types[1])(
-            wrapper)
+    # FIXME(feyu): ignore input hints, as we do not have enough
+    # information to infer the input type hint of the wrapper function.
+    # for example if we need to distinguish between
+    #  - FlatMapTuple(fn(a: int, b: int, *args))
+    #  - FlatMapTuple(fn(a: int, b: int, c: Tuple[Any, ...]))
+    pass
   output_hint = type_hints.simple_output_type(label)
   if output_hint:
-    wrapper = with_output_types(output_hint)(wrapper)
+    wrapper = with_output_types(_strip_output_annotations(output_hint))(wrapper)
 
   # Replace the first (args) component.
   modified_arg_names = ['tuple_element'] + arg_names[-num_defaults:]
@@ -2041,7 +2050,9 @@ def Filter(fn, *args, **kwargs):  # pylint: disable=invalid-name
       get_type_hints(wrapper).input_types[0]):
     output_hint = get_type_hints(wrapper).input_types[0][0]
   if output_hint:
-    wrapper = with_output_types(typehints.Iterable[output_hint])(wrapper)
+    wrapper = with_output_types(
+        typehints.Iterable[_strip_output_annotations(output_hint)])(
+            wrapper)
   # pylint: disable=protected-access
   wrapper._argspec_fn = fn
   # pylint: enable=protected-access
@@ -3275,3 +3286,26 @@ class Impulse(PTransform):
   def from_runner_api_parameter(
       unused_ptransform, unused_parameter, unused_context):
     return Impulse()
+
+
+def _strip_output_annotations(type_hint):
+  # TODO(robertwb): These should be parameterized types that the
+  # type inferencer understands.
+  # Then we can replace them with the correct element types instead of
+  # using Any. Refer to typehints.WindowedValue when doing this.
+  annotations = (TimestampedValue, WindowedValue, pvalue.TaggedOutput)
+
+  contains_annotation = False
+
+  def visitor(t, unused_args):
+    if t in annotations:
+      raise StopIteration
+
+  try:
+    visit_inner_types(type_hint, visitor, [])
+  except StopIteration:
+    contains_annotation = True
+
+  if contains_annotation:
+    return typehints.Any
+  return type_hint
