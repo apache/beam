@@ -54,6 +54,7 @@ import os
 import shutil
 import sys
 import tempfile
+from distutils.version import StrictVersion
 from typing import Callable
 from typing import List
 from typing import Optional
@@ -211,8 +212,7 @@ class Stager(object):
     if not skip_prestaged_dependencies:
       requirements_cache_path = (
           os.path.join(tempfile.gettempdir(), 'dataflow-requirements-cache') if
-          (setup_options.requirements_cache is None) and
-          (setup_options.requirements_cache != SKIP_REQUIREMENTS_CACHE) else
+          (setup_options.requirements_cache is None) else
           setup_options.requirements_cache)
       if not os.path.exists(requirements_cache_path):
         os.makedirs(requirements_cache_path)
@@ -684,11 +684,21 @@ class Stager(object):
     return tmp_requirements_filename
 
   @staticmethod
-  def _get_manylinux_distribution():
+  def _get_platform_for_default_sdk_container():
+    """
+    Get the platform for apache beam SDK container based on Pip version.
+
+    Note: pip is still expected to download compatible wheel of a package
+    with platform tag manylinux1 if the package on PyPI doesn't
+    have (manylinux2014) or (manylinux2010) wheels.
+    Reference: https://www.python.org/dev/peps/pep-0599/#id21
+    """
+
     # TODO(anandinguva): When https://github.com/pypa/pip/issues/10760 is
-    # addressed download wheel based on glib version in Beam's Python Base image
+    # addressed, download wheel based on glibc version in Beam's Python
+    # Base image
     pip_version = pkg_resources.get_distribution('pip').version
-    if float(pip_version[0:4]) >= 19.3:
+    if StrictVersion(pip_version) >= StrictVersion('19.3'):
       return 'manylinux2014_x86_64'
     else:
       return 'manylinux2010_x86_64'
@@ -732,7 +742,7 @@ class Stager(object):
         abi_suffix = 'm' if sys.version_info < (3, 8) else ''
         abi_tag = 'cp%d%d%s' % (
             sys.version_info[0], sys.version_info[1], abi_suffix)
-        platform_tag = Stager._get_manylinux_distribution()
+        platform_tag = Stager._get_platform_for_default_sdk_container()
         cmd_args.extend([
             '--implementation',
             language_implementation_tag,

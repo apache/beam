@@ -343,7 +343,7 @@ class StagerTest(unittest.TestCase):
     self.assertTrue(os.path.isfile(os.path.join(staging_dir, 'abc.txt')))
     self.assertTrue(os.path.isfile(os.path.join(staging_dir, 'def.txt')))
 
-  def test_with_requirements_file_skipping_cache(self):
+  def test_requirements_cache_not_populated_when_cache_disabled(self):
     staging_dir = self.make_temp_dir()
     source_dir = self.make_temp_dir()
 
@@ -355,15 +355,17 @@ class StagerTest(unittest.TestCase):
         SetupOptions).requirements_cache = stager.SKIP_REQUIREMENTS_CACHE
     self.create_temp_file(
         os.path.join(source_dir, stager.REQUIREMENTS_FILE), 'nothing')
-
-    resources = self.stager.create_and_stage_job_resources(
-        options,
-        populate_requirements_cache=self.populate_requirements_cache,
-        staging_location=staging_dir)[1]
-
-    self.assertEqual([stager.REQUIREMENTS_FILE], resources)
-    self.assertTrue(not os.path.isfile(os.path.join(staging_dir, 'abc.txt')))
-    self.assertTrue(not os.path.isfile(os.path.join(staging_dir, 'def.txt')))
+    with mock.patch(
+        'apache_beam.runners.portability.stager_test.StagerTest.'
+        'populate_requirements_cache') as (populate_requirements_cache):
+      resources = self.stager.create_and_stage_job_resources(
+          options,
+          populate_requirements_cache=self.populate_requirements_cache,
+          staging_location=staging_dir)[1]
+      assert not populate_requirements_cache.called
+      self.assertEqual([stager.REQUIREMENTS_FILE], resources)
+      self.assertTrue(not os.path.isfile(os.path.join(staging_dir, 'abc.txt')))
+      self.assertTrue(not os.path.isfile(os.path.join(staging_dir, 'def.txt')))
 
   def test_with_pypi_requirements_skipping_cache(self):
     staging_dir = self.make_temp_dir()
@@ -765,7 +767,7 @@ class StagerTest(unittest.TestCase):
     self.assertEqual(['apache_beam\n', 'avro-python3\n', 'numpy\n'],
                      sorted(lines))
 
-  def _create_file(
+  def __populate_requitements_cache_fake(
       self, requirements_file, temp_dir, populate_cache_with_sdists):
     if not populate_cache_with_sdists:
       self.create_temp_file(os.path.join(temp_dir, 'nothing.whl'), 'Fake whl')
@@ -775,7 +777,9 @@ class StagerTest(unittest.TestCase):
       self.create_temp_file(
           os.path.join(temp_dir, 'nothing.tar.gz'), 'Fake tarball')
 
-  def test_populate_requirements_cache_with_sdist(self):
+  # requirements cache will popultated with bdist/whl if present
+  # else source would be downloaded.
+  def test_populate_requirements_cache_with_bdist(self):
     staging_dir = self.make_temp_dir()
     requirements_cache_dir = self.make_temp_dir()
     source_dir = self.make_temp_dir()
@@ -791,7 +795,7 @@ class StagerTest(unittest.TestCase):
     # for default container image, the sdk_container_image option would be none
     with mock.patch('apache_beam.runners.portability.stager_test'
                     '.stager.Stager._populate_requirements_cache',
-                    staticmethod(self._create_file)):
+                    staticmethod(self.__populate_requitements_cache_fake)):
       options.view_as(SetupOptions).requirements_cache_only_sources = False
       resources = self.stager.create_and_stage_job_resources(
           options, staging_location=staging_dir)[1]
@@ -799,7 +803,8 @@ class StagerTest(unittest.TestCase):
         if f != stager.REQUIREMENTS_FILE:
           self.assertTrue(('.tar.gz' in f) or ('.whl' in f))
 
-  def test_populate_requirements_cache_with_bdist(self):
+  # requirements cache will populated only with sdists/sources
+  def test_populate_requirements_cache_with_sdist(self):
     staging_dir = self.make_temp_dir()
     requirements_cache_dir = self.make_temp_dir()
     source_dir = self.make_temp_dir()
@@ -814,7 +819,7 @@ class StagerTest(unittest.TestCase):
         os.path.join(source_dir, stager.REQUIREMENTS_FILE), 'nothing')
     with mock.patch('apache_beam.runners.portability.stager_test'
                     '.stager.Stager._populate_requirements_cache',
-                    staticmethod(self._create_file)):
+                    staticmethod(self.__populate_requitements_cache_fake)):
       options.view_as(SetupOptions).requirements_cache_only_sources = True
       resources = self.stager.create_and_stage_job_resources(
           options, staging_location=staging_dir)[1]
