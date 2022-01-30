@@ -331,6 +331,15 @@ func Test_unmarshalBySubKey(t *testing.T) {
 			want:    output,
 			wantErr: false,
 		},
+		{
+			name: "graph subKey",
+			args: args{
+				subKey: cache.Graph,
+				value:  string(outputValue),
+			},
+			want:    output,
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
