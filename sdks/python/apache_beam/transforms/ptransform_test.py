@@ -1477,7 +1477,6 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
             int).with_output_types(bool))
 
   def test_pardo_like_inheriting_output_types_from_annotation(self):
-
     def fn1(x: str) -> int:
       return 1
 
@@ -1503,8 +1502,9 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     def add(a: typing.Iterable[int]) -> int:
       return sum(a)
 
-    self.assertCompatible(typing.Tuple[typing.TypeVar('K'), int],
-                          output_hints(beam.CombinePerKey(sum)))
+    self.assertCompatible(
+        typing.Tuple[typing.TypeVar('K'), int],
+        output_hints(beam.CombinePerKey(sum)))
 
   def test_group_by_key_only_output_type_deduction(self):
     d = (

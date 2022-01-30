@@ -203,6 +203,7 @@ def visit_inner_types(type_constraint, visitor, visitor_arg):
     return type_constraint.visit(visitor, visitor_arg)
   return visitor(type_constraint, visitor_arg)
 
+
 def match_type_variables(type_constraint, concrete_type):
   if isinstance(type_constraint, TypeConstraint):
     return type_constraint.match_type_variables(concrete_type)
