@@ -30,6 +30,7 @@ dependencies {
   testImplementation project(path: ":sdks:java:core", configuration: "shadow")
   testImplementation project(":sdks:java:io:parquet")
   testImplementation project(":sdks:java:expansion-service")
+  testImplementation project(":sdks:java:extensions:schemaio-expansion-service")
   testRuntimeOnly library.java.hadoop_client
 }
 
