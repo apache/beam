@@ -554,6 +554,8 @@ class DoctestTest(unittest.TestCase):
                 's.str.repeat(repeats=[1, 2, 3])'
             ],
             f'{module_name}.str_repeat': ['s.str.repeat(repeats=[1, 2, 3])'],
+            # get_dummies examples are not casted to Categorical type
+            # Must be Categorical or Bool to work in Beam
             f'{module_name}.StringMethods.get_dummies': ['*'],
             f'{module_name}.str_get_dummies': ['*'],
             f'{module_name}.StringMethods': ['s.str.split("_")'],

@@ -4648,25 +4648,17 @@ class _DeferredStringMethods(frame_base.DeferredBase):
     # Adding the nan category because the there could be the case that
     # the data includes NaNs, which is not valid to be casted as a Category,
     # but nevertheless would be broadcasted as a column in get_dummies()
-    columns = sorted(set().union(*split_cats)) + ['nan']
+    columns = sorted(set().union(*split_cats))
+    columns = columns.append('nan') if 'nan' not in columns else columns
 
     proxy = pd.DataFrame(columns=columns).astype(int)
-
-    def get_dummies(series):
-      df = pd.DataFrame(series.str.get_dummies(**kwargs), columns=columns)
-      # Fill NaNs with 0, and cast to int
-      df = df.fillna(value=0, method=None).astype(int)
-      # Drop cols with all zeros
-      df = df.loc[:, (df != 0).any(axis=0)]
-      return df
 
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'get_dummies',
-            get_dummies,
-            # lambda s: pd.DataFrame(
-            # s.str.get_dummies(**kwargs), columns=columns
-            # ).fillna(value=0, method=None).astype(int),
+            lambda series: proxy.combine_first(
+              series.str.get_dummies(**kwargs)
+            ).fillna(value=0, method=None).astype(int),
             [self._expr],
             proxy=proxy,
             requires_partition_by=partitionings.Arbitrary(),
