@@ -20,10 +20,12 @@ import (
 )
 
 const (
-	pythonExecutableFileExtension = ".py"
+	scioExecutableFileExtension = ".scala"
 )
 
-// newPythonLifeCycle creates LifeCycle with python SDK environment.
-func newPythonLifeCycle(pipelineId uuid.UUID, pipelinesFolder string) *LifeCycle {
-	return newInterpretedLifeCycle(pipelineId, pipelinesFolder, pythonExecutableFileExtension)
+// newScioLifeCycle creates LifeCycle with scala SDK environment.
+func newScioLifeCycle(pipelineId uuid.UUID, pipelinesFolder string) *LifeCycle {
+	lc := newInterpretedLifeCycle(pipelineId, pipelinesFolder, scioExecutableFileExtension)
+	lc.Paths.ExecutableName = executableName
+	return lc
 }
