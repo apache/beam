@@ -1504,7 +1504,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
     self.assertCompatible(
         typing.Tuple[typing.TypeVar('K'), int],
-        output_hints(beam.CombinePerKey(sum)))
+        output_hints(beam.CombinePerKey(add)))
 
   def test_group_by_key_only_output_type_deduction(self):
     d = (
