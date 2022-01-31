@@ -40,6 +40,7 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.sql.Array;
 import java.sql.Connection;
 import java.sql.Date;
@@ -55,6 +56,7 @@ import java.util.Calendar;
 import java.util.Collections;
 import java.util.List;
 import java.util.TimeZone;
+import java.util.UUID;
 import java.util.logging.LogRecord;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
@@ -719,7 +721,16 @@ public class JdbcIOTest implements Serializable {
         Schema.Field.of("column_timestamptz", LogicalTypes.JDBC_TIMESTAMP_WITH_TIMEZONE_TYPE));
     schemaBuilder.addField(Schema.Field.of("column_timestamp", Schema.FieldType.DATETIME));
     schemaBuilder.addField(Schema.Field.of("column_short", Schema.FieldType.INT16));
+    schemaBuilder.addField(Schema.Field.of("column_blob", FieldType.BYTES));
+    schemaBuilder.addField(Schema.Field.of("column_clob", FieldType.STRING));
+    schemaBuilder.addField(Schema.Field.of("column_uuid", LogicalTypes.JDBC_UUID_TYPE));
     Schema schema = schemaBuilder.build();
+
+    try (Connection connection = DATA_SOURCE.getConnection()) {
+      try (Statement statement = connection.createStatement()) {
+        statement.execute("CREATE TYPE UUID EXTERNAL NAME 'java.util.UUID' LANGUAGE JAVA");
+      }
+    }
 
     String tableName = DatabaseTestHelper.getTestTableName("UT_WRITE_PS");
     StringBuilder stmt = new StringBuilder("CREATE TABLE ");
@@ -736,7 +747,10 @@ public class JdbcIOTest implements Serializable {
     stmt.append("column_time          TIME,"); // Time
     stmt.append("column_timestamptz   TIMESTAMP,"); // Timestamp
     stmt.append("column_timestamp     TIMESTAMP,"); // Timestamp
-    stmt.append("column_short         SMALLINT"); // short
+    stmt.append("column_short         SMALLINT,"); // short
+    stmt.append("column_blob          BLOB,"); // blob
+    stmt.append("column_clob          CLOB,"); // clob
+    stmt.append("column_uuid          UUID"); // uuid
     stmt.append(" )");
     DatabaseTestHelper.createTableWithStatement(DATA_SOURCE, stmt.toString());
     try {
@@ -989,6 +1003,8 @@ public class JdbcIOTest implements Serializable {
             .addField(
                 "logical_fixed_length_string_nullable_col",
                 fixedLengthStringType.withNullable(true))
+            .addField("logical_uuid_col", LogicalTypes.JDBC_UUID_TYPE)
+            .addField("logical_other_col", LogicalTypes.OTHER_AS_STRING_TYPE)
             .build();
 
     long epochMilli = 1558719710000L;
@@ -1000,7 +1016,14 @@ public class JdbcIOTest implements Serializable {
 
     Row row =
         Row.withSchema(schema)
-            .addValues(dateTime.withTimeAtStartOfDay(), time, dateTime, "Test", null)
+            .addValues(
+                dateTime.withTimeAtStartOfDay(),
+                time,
+                dateTime,
+                "Test",
+                null,
+                UUID.randomUUID(),
+                "{}")
             .build();
 
     PreparedStatement psMocked = mock(PreparedStatement.class);
@@ -1015,6 +1038,10 @@ public class JdbcIOTest implements Serializable {
         .set(row, psMocked, 3, SchemaUtil.FieldWithIndex.of(schema.getField(3), 3));
     JdbcUtil.getPreparedStatementSetCaller(fixedLengthStringType.withNullable(true))
         .set(row, psMocked, 4, SchemaUtil.FieldWithIndex.of(schema.getField(4), 4));
+    JdbcUtil.getPreparedStatementSetCaller(LogicalTypes.JDBC_UUID_TYPE)
+        .set(row, psMocked, 5, SchemaUtil.FieldWithIndex.of(schema.getField(5), 5));
+    JdbcUtil.getPreparedStatementSetCaller(LogicalTypes.OTHER_AS_STRING_TYPE)
+        .set(row, psMocked, 6, SchemaUtil.FieldWithIndex.of(schema.getField(6), 6));
 
     verify(psMocked, times(1)).setDate(1, new Date(row.getDateTime(0).getMillis()));
     verify(psMocked, times(1)).setTime(2, new Time(row.getDateTime(1).getMillis()));
@@ -1025,6 +1052,8 @@ public class JdbcIOTest implements Serializable {
     verify(psMocked, times(1)).setTimestamp(3, new Timestamp(cal.getTime().getTime()), cal);
     verify(psMocked, times(1)).setString(4, row.getString(3));
     verify(psMocked, times(1)).setString(5, row.getString(4));
+    verify(psMocked, times(1)).setObject(6, row.getLogicalTypeValue(5, UUID.class));
+    verify(psMocked, times(1)).setObject(7, row.getString(6), java.sql.Types.OTHER);
   }
 
   @Test
@@ -1101,6 +1130,10 @@ public class JdbcIOTest implements Serializable {
       return new DateTime(epochMilli, ISOChronology.getInstanceUTC());
     } else if (fieldType.equals(Schema.FieldType.DATETIME)) {
       return new DateTime(epochMilli, ISOChronology.getInstanceUTC());
+    } else if (fieldType.equals(FieldType.BYTES)) {
+      return "bytes".getBytes(StandardCharsets.UTF_8);
+    } else if (fieldType.equals(LogicalTypes.JDBC_UUID_TYPE)) {
+      return UUID.randomUUID();
     } else {
       return null;
     }

@@ -20,9 +20,11 @@ package org.apache.beam.sdk.io.gcp.spanner;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.spanner.BatchReadOnlyTransaction;
 import com.google.cloud.spanner.Options;
+import com.google.cloud.spanner.Options.RpcPriority;
 import com.google.cloud.spanner.Partition;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.SpannerException;
+import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.TimestampBound;
 import java.util.HashMap;
@@ -120,10 +122,38 @@ abstract class BatchSpannerRead
     }
 
     private List<Partition> execute(ReadOperation op, BatchReadOnlyTransaction tx) {
+      if (config.getRpcPriority() != null && config.getRpcPriority().get() != null) {
+        return executeWithPriority(op, tx, config.getRpcPriority().get());
+      } else {
+        return executeWithoutPriority(op, tx);
+      }
+    }
+
+    private List<Partition> executeWithoutPriority(ReadOperation op, BatchReadOnlyTransaction tx) {
+      // Query was selected.
+      if (op.getQuery() != null) {
+        return tx.partitionQuery(op.getPartitionOptions(), op.getQuery());
+      }
+      // Read with index was selected.
+      if (op.getIndex() != null) {
+        return tx.partitionReadUsingIndex(
+            op.getPartitionOptions(),
+            op.getTable(),
+            op.getIndex(),
+            op.getKeySet(),
+            op.getColumns());
+      }
+      // Read from table was selected.
+      return tx.partitionRead(
+          op.getPartitionOptions(), op.getTable(), op.getKeySet(), op.getColumns());
+    }
+
+    private List<Partition> executeWithPriority(
+        ReadOperation op, BatchReadOnlyTransaction tx, RpcPriority rpcPriority) {
       // Query was selected.
       if (op.getQuery() != null) {
         return tx.partitionQuery(
-            op.getPartitionOptions(), op.getQuery(), Options.priority(config.getRpcPriority()));
+            op.getPartitionOptions(), op.getQuery(), Options.priority(rpcPriority));
       }
       // Read with index was selected.
       if (op.getIndex() != null) {
@@ -133,7 +163,7 @@ abstract class BatchSpannerRead
             op.getIndex(),
             op.getKeySet(),
             op.getColumns(),
-            Options.priority(config.getRpcPriority()));
+            Options.priority(rpcPriority));
       }
       // Read from table was selected.
       return tx.partitionRead(
@@ -141,7 +171,7 @@ abstract class BatchSpannerRead
           op.getTable(),
           op.getKeySet(),
           op.getColumns(),
-          Options.priority(config.getRpcPriority()));
+          Options.priority(rpcPriority));
     }
   }
 
@@ -151,6 +181,8 @@ abstract class BatchSpannerRead
     private final PCollectionView<? extends Transaction> txView;
 
     private transient SpannerAccessor spannerAccessor;
+    private transient String projectId;
+    private transient ServiceCallMetric serviceCallMetric;
 
     public ReadFromPartitionFn(
         SpannerConfig config, PCollectionView<? extends Transaction> txView) {
@@ -161,6 +193,10 @@ abstract class BatchSpannerRead
     @Setup
     public void setup() throws Exception {
       spannerAccessor = SpannerAccessor.getOrCreate(config);
+      projectId =
+          this.config.getProjectId() == null
+              ? SpannerOptions.getDefaultProjectId()
+              : this.config.getProjectId().get();
     }
 
     @Teardown
@@ -168,13 +204,15 @@ abstract class BatchSpannerRead
       spannerAccessor.close();
     }
 
+    @StartBundle
+    public void startBundle() throws Exception {
+      serviceCallMetric =
+          createServiceCallMetric(
+              projectId, this.config.getDatabaseId().get(), this.config.getInstanceId().get());
+    }
+
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
-      ServiceCallMetric serviceCallMetric =
-          createServiceCallMetric(
-              this.config.getProjectId().toString(),
-              this.config.getDatabaseId().toString(),
-              this.config.getInstanceId().toString());
       Transaction tx = c.sideInput(txView);
 
       BatchReadOnlyTransaction batchTx =

@@ -31,11 +31,22 @@ import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 import 'package:provider/provider.dart';
 
+const kNumberOfStringsToSkip = 16;
+const kJavaRegExp = r'import\s[A-z.0-9]*\;\n\n[(\/\*\*)|(public)|(class)]';
+const kPythonRegExp = r'[^\S\r\n](import|as)[^\S\r\n][A-z]*\n\n';
+const kGoRegExp = r'[^\S\r\n]+\'
+    r'"'
+    r'.*'
+    r'"'
+    r'\n\)\n\n';
+
 class EditorTextArea extends StatefulWidget {
   final SDK sdk;
   final ExampleModel? example;
   final bool enabled;
   final void Function(String)? onSourceChange;
+  final bool isEditable;
+  final bool enableScrolling;
 
   const EditorTextArea({
     Key? key,
@@ -43,6 +54,8 @@ class EditorTextArea extends StatefulWidget {
     this.example,
     this.onSourceChange,
     required this.enabled,
+    required this.isEditable,
+    this.enableScrolling = true,
   }) : super(key: key);
 
   @override
@@ -51,6 +64,7 @@ class EditorTextArea extends StatefulWidget {
 
 class _EditorTextAreaState extends State<EditorTextArea> {
   CodeController? _codeController;
+  var focusNode = FocusNode();
 
   @override
   void initState() {
@@ -71,6 +85,11 @@ class _EditorTextAreaState extends State<EditorTextArea> {
       },
       webSpaceFix: false,
     );
+
+    if (widget.enableScrolling) {
+      _setTextScrolling();
+    }
+
     super.didChangeDependencies();
   }
 
@@ -78,6 +97,7 @@ class _EditorTextAreaState extends State<EditorTextArea> {
   void dispose() {
     super.dispose();
     _codeController?.dispose();
+    focusNode.dispose();
   }
 
   @override
@@ -89,20 +109,68 @@ class _EditorTextAreaState extends State<EditorTextArea> {
       enabled: widget.enabled,
       readOnly: widget.enabled,
       label: AppLocalizations.of(context)!.codeTextArea,
-      child: CodeField(
-        enabled: widget.enabled,
-        controller: _codeController!,
-        textStyle: getCodeFontStyle(
-          textStyle: const TextStyle(fontSize: kCodeFontSize),
-        ),
-        expands: true,
-        lineNumberStyle: LineNumberStyle(
-          textStyle: TextStyle(
-            color: ThemeColors.of(context).grey1Color,
+      child: FocusScope(
+        node: FocusScopeNode(canRequestFocus: widget.isEditable),
+        child: CodeField(
+          focusNode: focusNode,
+          enabled: widget.enabled,
+          controller: _codeController!,
+          textStyle: getCodeFontStyle(
+            textStyle: const TextStyle(fontSize: kCodeFontSize),
+          ),
+          expands: true,
+          lineNumberStyle: LineNumberStyle(
+            textStyle: TextStyle(
+              color: ThemeColors.of(context).grey1Color,
+            ),
           ),
         ),
       ),
     );
+  }
+
+  _setTextScrolling() {
+    focusNode.requestFocus();
+    if (_codeController!.text.isNotEmpty) {
+      _codeController!.selection = TextSelection.fromPosition(
+        TextPosition(offset: _findOffset()),
+      );
+    }
+  }
+
+  _findOffset() {
+    return _codeController!.text.indexOf(
+      _skipStrings(kNumberOfStringsToSkip),
+      _getPositionAfterImportsAndLicenses(widget.sdk),
+    );
+  }
+
+  String _skipStrings(int qntOfStrings) {
+    List<String> strings = _codeController!.text
+        .substring(_getPositionAfterImportsAndLicenses(widget.sdk))
+        .split('\n');
+    String result =
+        strings.length > qntOfStrings ? strings[qntOfStrings] : strings.last;
+    if (result == '') {
+      return _skipStrings(qntOfStrings - 1);
+    } else {
+      return result;
+    }
+  }
+
+  int _getPositionAfterImportsAndLicenses(SDK sdk) {
+    switch (sdk) {
+      case SDK.java:
+        return _codeController!.text.lastIndexOf(RegExp(kJavaRegExp));
+      case SDK.python:
+        return _codeController!.text.lastIndexOf(RegExp(kPythonRegExp));
+      case SDK.go:
+        return _codeController!.text.lastIndexOf(RegExp(kGoRegExp));
+      case SDK.scio:
+        return _codeController!.text.indexOf(
+          _codeController!.text.split('\n')[0],
+        );
+    }
   }
 
   _getLanguageFromSdk() {
