@@ -4653,7 +4653,7 @@ class _DeferredStringMethods(frame_base.DeferredBase):
     # the data includes NaNs, which is not valid to be casted as a Category,
     # but nevertheless would be broadcasted as a column in get_dummies()
     columns = sorted(set().union(*split_cats))
-    columns = columns.append('nan') if 'nan' not in columns else columns
+    columns = columns + ['nan'] if 'nan' not in columns else columns
 
     proxy = pd.DataFrame(columns=columns).astype(int)
 
