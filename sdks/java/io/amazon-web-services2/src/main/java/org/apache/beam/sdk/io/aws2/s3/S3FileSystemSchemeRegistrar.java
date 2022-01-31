@@ -17,40 +17,34 @@
  */
 package org.apache.beam.sdk.io.aws2.s3;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
-
 import com.google.auto.service.AutoService;
-import java.util.Map;
 import java.util.ServiceLoader;
-import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.FileSystem;
 import org.apache.beam.sdk.io.FileSystemRegistrar;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.common.ReflectHelpers;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Streams;
 
 /**
- * {@link AutoService} registrar for the {@link S3FileSystem}.
+ * A registrar that creates {@link S3FileSystemConfiguration} instances from {@link
+ * PipelineOptions}.
  *
- * <p>Creates instances of {@link S3FileSystem} for each scheme registered with a {@link
- * S3FileSystemSchemeRegistrar}.
+ * <p>Users of storage systems that use the S3 protocol have the ability to register a URI scheme by
+ * creating a {@link ServiceLoader} entry and a concrete implementation of this interface.
+ *
+ * <p>It is optional but recommended to use one of the many build time tools such as {@link
+ * AutoService} to generate the necessary META-INF files automatically.
  */
-@AutoService(FileSystemRegistrar.class)
 @Experimental(Kind.FILESYSTEM)
-public class S3FileSystemRegistrar implements FileSystemRegistrar {
-
-  @Override
-  public Iterable<FileSystem<?>> fromOptions(@Nonnull PipelineOptions options) {
-    checkNotNull(options, "Expect the runner have called FileSystems.setDefaultPipelineOptions().");
-    Map<String, FileSystem<?>> fileSystems =
-        Streams.stream(
-                ServiceLoader.load(
-                    S3FileSystemSchemeRegistrar.class, ReflectHelpers.findClassLoader()))
-            .flatMap(r -> Streams.stream(r.fromOptions(options)))
-            .collect(Collectors.toMap(S3FileSystemConfiguration::getScheme, S3FileSystem::new));
-    return fileSystems.values();
-  }
+public interface S3FileSystemSchemeRegistrar {
+  /**
+   * Create zero or more {@link S3FileSystemConfiguration} instances from the given {@link
+   * PipelineOptions}.
+   *
+   * <p>Each {@link S3FileSystemConfiguration#getScheme() scheme} is required to be unique among all
+   * schemes registered by all {@link S3FileSystemSchemeRegistrar}s, as well as among all {@link
+   * FileSystem}s registered by all {@link FileSystemRegistrar}s.
+   */
+  Iterable<S3FileSystemConfiguration> fromOptions(@Nonnull PipelineOptions options);
 }
