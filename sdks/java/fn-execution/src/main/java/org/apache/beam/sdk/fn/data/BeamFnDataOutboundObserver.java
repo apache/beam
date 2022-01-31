@@ -41,19 +41,20 @@ import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.StreamObserver;
 public class BeamFnDataOutboundObserver<T> implements CloseableFnDataReceiver<T> {
 
   private boolean closed;
-  private final LogicalEndpoint outputLocation;
   private final BeamFnDataOutboundAggregator aggregator;
+  private final FnDataReceiver<T> dataReceiver;
 
   public BeamFnDataOutboundObserver(
       LogicalEndpoint outputLocation,
       Coder<T> coder,
       StreamObserver<Elements> outboundObserver,
       PipelineOptions options) {
-    this.outputLocation = outputLocation;
     this.aggregator =
         new BeamFnDataOutboundAggregator(
             options, outputLocation::getInstructionId, outboundObserver);
-    this.aggregator.registerOutputLocation(outputLocation, (Coder<Object>) coder);
+    this.dataReceiver =
+        (FnDataReceiver<T>)
+            this.aggregator.registerOutputLocation(outputLocation, (Coder<Object>) coder);
     this.closed = false;
   }
 
@@ -71,6 +72,6 @@ public class BeamFnDataOutboundObserver<T> implements CloseableFnDataReceiver<T>
     if (closed) {
       throw new IllegalStateException("Already closed.");
     }
-    aggregator.accept(outputLocation, t);
+    dataReceiver.accept(t);
   }
 }

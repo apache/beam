@@ -55,7 +55,6 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.hamcrest.collection.IsMapContaining;
 import org.junit.Before;
 import org.junit.Test;
@@ -119,9 +118,7 @@ public class BeamFnDataWriteRunnerTest {
           public void onNext(Elements elements) {
             for (Data data : elements.getDataList()) {
               try {
-                output
-                    .get(data.getInstructionId())
-                    .add(WIRE_CODER.decode(data.getData().newInput()));
+                output.get(bundleId.get()).add(WIRE_CODER.decode(data.getData().newInput()));
               } catch (IOException e) {
                 throw new RuntimeException("Failed to decode output.");
               }
@@ -165,7 +162,6 @@ public class BeamFnDataWriteRunnerTest {
 
     new BeamFnDataWriteRunner.Factory<String>().createRunnerForPTransform(context);
 
-    Iterables.getOnlyElement(context.getStartBundleFunctions()).run();
     assertThat(context.getPCollectionConsumers().keySet(), containsInAnyOrder(localInputId));
 
     FnDataReceiver<Object> pCollectionConsumer = context.getPCollectionConsumer(localInputId);
@@ -178,7 +174,6 @@ public class BeamFnDataWriteRunnerTest {
 
     // Process for bundle id 1
     bundleId.set("1");
-    Iterables.getOnlyElement(context.getStartBundleFunctions()).run();
 
     pCollectionConsumer.accept(valueInGlobalWindow("GHI"));
     pCollectionConsumer.accept(valueInGlobalWindow("JKL"));

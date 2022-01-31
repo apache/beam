@@ -272,8 +272,7 @@ public abstract class PTransformRunnerFactoryTestContext
   public <T> FnDataReceiver<T> addOutgoingDataEndpoint(
       ApiServiceDescriptor apiServiceDescriptor, Coder<T> coder) {
     BeamFnDataOutboundAggregator aggregator = getOutboundAggregators().get(apiServiceDescriptor);
-    aggregator.registerOutputDataLocation(getPTransformId(), coder);
-    FnDataReceiver<T> receiver = data -> aggregator.acceptData(getPTransformId(), data);
+    FnDataReceiver<T> receiver = aggregator.registerOutputDataLocation(getPTransformId(), coder);
     getOutgoingDataEndpoints()
         .computeIfAbsent(apiServiceDescriptor, (unused) -> new ArrayList<>())
         .add(DataEndpoint.create(getPTransformId(), coder, receiver));
@@ -296,9 +295,8 @@ public abstract class PTransformRunnerFactoryTestContext
       String timerFamilyId, Coder<Timer<T>> coder) {
     BeamFnDataOutboundAggregator aggregator =
         getOutboundAggregators().get(getTimerApiServiceDescriptor());
-    aggregator.registerOutputTimersLocation(getPTransformId(), timerFamilyId, coder);
     FnDataReceiver<Timer<T>> receiver =
-        data -> aggregator.acceptTimers(getPTransformId(), timerFamilyId, data);
+        aggregator.registerOutputTimersLocation(getPTransformId(), timerFamilyId, coder);
     getOutgoingTimersEndpoints()
         .add(TimerEndpoint.create(getPTransformId(), timerFamilyId, coder, receiver));
     return receiver;

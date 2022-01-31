@@ -858,24 +858,13 @@ public class FnApiDoFnRunnerTest implements Serializable {
     private class TestBeamFnDataOutboundAggregator extends BeamFnDataOutboundAggregator {
       private Map<LogicalEndpoint, List<org.apache.beam.runners.core.construction.Timer<?>>> timers;
       private Map<LogicalEndpoint, List<WindowedValue<String>>> dataOutput;
+      private Supplier<String> processBundleRequestIdSupplier;
 
       public TestBeamFnDataOutboundAggregator(Supplier<String> bundleIdSupplier) {
         super(PipelineOptionsFactory.create(), bundleIdSupplier, null);
         this.timers = new HashMap<>();
         this.dataOutput = new HashMap<>();
-      }
-
-      @Override
-      public <T> void accept(LogicalEndpoint endpoint, T data) throws Exception {
-        if (endpoint.isTimer()) {
-          timers
-              .computeIfAbsent(endpoint, e -> new ArrayList<>())
-              .add((org.apache.beam.runners.core.construction.Timer<?>) data);
-        } else {
-          dataOutput
-              .computeIfAbsent(endpoint, e -> new ArrayList<>())
-              .add((WindowedValue<String>) data);
-        }
+        this.processBundleRequestIdSupplier = bundleIdSupplier;
       }
 
       public Map<LogicalEndpoint, List<org.apache.beam.runners.core.construction.Timer<?>>>
@@ -885,6 +874,28 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
       public Map<LogicalEndpoint, List<WindowedValue<String>>> getOutputData() {
         return dataOutput;
+      }
+
+      @Override
+      public <T> FnDataReceiver<T> registerOutputDataLocation(String pTransformId, Coder<T> coder) {
+        return data ->
+            dataOutput
+                .computeIfAbsent(
+                    LogicalEndpoint.data(processBundleRequestIdSupplier.get(), pTransformId),
+                    e -> new ArrayList<>())
+                .add((WindowedValue<String>) data);
+      }
+
+      @Override
+      public <T> FnDataReceiver<T> registerOutputTimersLocation(
+          String pTransformId, String timerFamilyId, Coder<T> coder) {
+        return data ->
+            timers
+                .computeIfAbsent(
+                    LogicalEndpoint.timer(
+                        processBundleRequestIdSupplier.get(), pTransformId, timerFamilyId),
+                    e -> new ArrayList<>())
+                .add((org.apache.beam.runners.core.construction.Timer<?>) data);
       }
     }
 

@@ -362,30 +362,28 @@ public class ProcessBundleHandler {
                               asd ->
                                   queueingClient.createOutboundAggregator(
                                       asd, processBundleInstructionId));
-                      aggregator.registerOutputDataLocation(pTransformId, coder);
-                      return data -> aggregator.acceptData(pTransformId, data);
+                      return aggregator.registerOutputDataLocation(pTransformId, coder);
                     }
 
                     @Override
                     public <T> FnDataReceiver<Timer<T>> addOutgoingTimersEndpoint(
                         String timerFamilyId, org.apache.beam.sdk.coders.Coder<Timer<T>> coder) {
                       BeamFnDataOutboundAggregator aggregator;
-                      if (processBundleDescriptor.hasTimerApiServiceDescriptor()) {
-                        aggregator =
-                            outboundAggregatorMap.computeIfAbsent(
-                                processBundleDescriptor.getTimerApiServiceDescriptor(),
-                                asd ->
-                                    queueingClient.createOutboundAggregator(
-                                        asd, processBundleInstructionId));
-                        aggregator.registerOutputTimersLocation(pTransformId, timerFamilyId, coder);
-                        return timers ->
-                            aggregator.acceptTimers(pTransformId, timerFamilyId, timers);
+                      if (!processBundleDescriptor.hasTimerApiServiceDescriptor()) {
+                        throw new IllegalStateException(
+                            String.format(
+                                "Timers are unsupported because the "
+                                    + "ProcessBundleRequest %s does not provide a timer ApiServiceDescriptor.",
+                                processBundleInstructionId.get()));
                       }
-                      throw new IllegalStateException(
-                          String.format(
-                              "Timers are unsupported because the "
-                                  + "ProcessBundleRequest %s does not provide a timer ApiServiceDescriptor.",
-                              processBundleInstructionId.get()));
+                      aggregator =
+                          outboundAggregatorMap.computeIfAbsent(
+                              processBundleDescriptor.getTimerApiServiceDescriptor(),
+                              asd ->
+                                  queueingClient.createOutboundAggregator(
+                                      asd, processBundleInstructionId));
+                      return aggregator.registerOutputTimersLocation(
+                          pTransformId, timerFamilyId, coder);
                     }
 
                     @Override

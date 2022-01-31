@@ -32,7 +32,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortWrite;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
@@ -91,27 +90,12 @@ public class BeamFnDataWriteRunner<InputT> {
                       return context.getProcessBundleInstructionIdSupplier();
                     }
                   });
-      BeamFnDataWriteRunner<InputT> runner = new BeamFnDataWriteRunner<>();
-      context.addStartBundleFunction(
-          () ->
-              runner.setDataReceiver(
-                  context.addOutgoingDataEndpoint(port.getApiServiceDescriptor(), coder)));
       context.addPCollectionConsumer(
           getOnlyElement(context.getPTransform().getInputsMap().values()),
-          runner::consume,
+          context.addOutgoingDataEndpoint(port.getApiServiceDescriptor(), coder),
           ((WindowedValueCoder<InputT>) coder).getValueCoder());
 
       return new BeamFnDataWriteRunner();
     }
-  }
-
-  private FnDataReceiver<WindowedValue<InputT>> dataReceiver;
-
-  public void consume(WindowedValue<InputT> data) throws Exception {
-    dataReceiver.accept(data);
-  }
-
-  public void setDataReceiver(FnDataReceiver<WindowedValue<InputT>> dataReceiver) {
-    this.dataReceiver = dataReceiver;
   }
 }

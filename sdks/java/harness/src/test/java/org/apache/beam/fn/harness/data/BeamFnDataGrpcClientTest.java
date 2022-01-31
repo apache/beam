@@ -42,6 +42,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.BeamFnDataInboundObserver2;
 import org.apache.beam.sdk.fn.data.BeamFnDataOutboundAggregator;
 import org.apache.beam.sdk.fn.data.DataEndpoint;
+import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.fn.test.TestStreams;
@@ -321,10 +322,11 @@ public class BeamFnDataGrpcClientTest {
               OutboundObserverFactory.trivial());
       BeamFnDataOutboundAggregator aggregator =
           clientFactory.createOutboundAggregator(apiServiceDescriptor, () -> INSTRUCTION_ID_A);
-      aggregator.registerOutputDataLocation(TRANSFORM_ID_A, CODER);
-      aggregator.acceptData(TRANSFORM_ID_A, valueInGlobalWindow("ABC"));
-      aggregator.acceptData(TRANSFORM_ID_A, valueInGlobalWindow("DEF"));
-      aggregator.acceptData(TRANSFORM_ID_A, valueInGlobalWindow("GHI"));
+      FnDataReceiver<WindowedValue<String>> fnDataReceiver =
+          aggregator.registerOutputDataLocation(TRANSFORM_ID_A, CODER);
+      fnDataReceiver.accept(valueInGlobalWindow("ABC"));
+      fnDataReceiver.accept(valueInGlobalWindow("DEF"));
+      fnDataReceiver.accept(valueInGlobalWindow("GHI"));
       aggregator.sendBufferedDataAndFinishOutboundStreams();
       waitForInboundServerValuesCompletion.await();
 

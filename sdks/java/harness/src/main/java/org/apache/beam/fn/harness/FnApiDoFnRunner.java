@@ -225,8 +225,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private final WindowingStrategy<InputT, ?> windowingStrategy;
   private final Map<TupleTag<?>, SideInputSpec> tagToSideInputSpecMap;
   private final Map<TupleTag<?>, Coder<?>> outputCoders;
-  private final BiFunction<String, Coder<Timer<Object>>, FnDataReceiver<Timer<Object>>>
-      getOutgoingTimersConsumer;
   private final Map<String, KV<TimeDomain, Coder<Timer<Object>>>> timerFamilyInfos;
   private final ParDoPayload parDoPayload;
   private final ListMultimap<String, FnDataReceiver<WindowedValue<?>>> localNameToConsumer;
@@ -357,7 +355,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     this.pipelineOptions = pipelineOptions;
     this.pTransformId = pTransformId;
     this.pTransform = pTransform;
-    this.getOutgoingTimersConsumer = getOutgoingTimersConsumer;
     ImmutableMap.Builder<TupleTag<?>, SideInputSpec> tagToSideInputSpecMapBuilder =
         ImmutableMap.builder();
     try {
@@ -730,6 +727,15 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             windowCoder,
             this::getCurrentKey,
             () -> currentWindow);
+
+    // Register as a consumer for each timer.
+    outboundTimerReceivers = new HashMap<>();
+    for (Map.Entry<String, KV<TimeDomain, Coder<Timer<Object>>>> timerFamilyInfo :
+        timerFamilyInfos.entrySet()) {
+      String localName = timerFamilyInfo.getKey();
+      Coder<Timer<Object>> timerCoder = timerFamilyInfo.getValue().getValue();
+      outboundTimerReceivers.put(localName, getOutgoingTimersConsumer.apply(localName, timerCoder));
+    }
   }
 
   private Object getCurrentKey() {
@@ -750,18 +756,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   }
 
   private void startBundle() {
-    // Register as a consumer for each timer.
-    outboundTimerReceivers = new HashMap<>();
     timerBundleTracker =
         new FnApiTimerBundleTracker(
             keyCoder, windowCoder, this::getCurrentKey, () -> currentWindow);
-    for (Map.Entry<String, KV<TimeDomain, Coder<Timer<Object>>>> timerFamilyInfo :
-        timerFamilyInfos.entrySet()) {
-      String localName = timerFamilyInfo.getKey();
-      Coder<Timer<Object>> timerCoder = timerFamilyInfo.getValue().getValue();
-      outboundTimerReceivers.put(localName, getOutgoingTimersConsumer.apply(localName, timerCoder));
-    }
-
     doFnInvoker.invokeStartBundle(startBundleArgumentProvider);
   }
 
