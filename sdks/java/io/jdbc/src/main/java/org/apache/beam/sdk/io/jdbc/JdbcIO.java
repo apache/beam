@@ -1045,7 +1045,7 @@ public class JdbcIO {
      */
     public interface JdbcReadWithPartitionsHelper<PartitionT>
         extends PreparedStatementSetter<KV<PartitionT, PartitionT>>,
-            RowMapper<KV<PartitionT, PartitionT>> {
+            RowMapper<KV<Integer, KV<PartitionT, PartitionT>>> {
       Iterable<KV<PartitionT, PartitionT>> calculateRanges(
           PartitionT lowerBound, PartitionT upperBound, Integer partitions);
 
@@ -1053,7 +1053,7 @@ public class JdbcIO {
       void setParameters(KV<PartitionT, PartitionT> element, PreparedStatement preparedStatement);
 
       @Override
-      KV<PartitionT, PartitionT> mapRow(ResultSet resultSet) throws Exception;
+      KV<Integer, KV<PartitionT, PartitionT>> mapRow(ResultSet resultSet) throws Exception;
     }
 
     @AutoValue.Builder
@@ -1163,14 +1163,21 @@ public class JdbcIO {
       PCollection<KV<Integer, KV<PartitionColumnT, PartitionColumnT>>> params;
 
       if (getLowerBound() == null && getUpperBound() == null) {
+        String query =
+            String.format(
+                "SELECT min(%s), max(%s) FROM %s",
+                getPartitionColumn(), getPartitionColumn(), getTable());
+        if (getNumPartitions() == null) {
+          query =
+              String.format(
+                  "SELECT min(%s), max(%s), count(*) FROM %s",
+                  getPartitionColumn(), getPartitionColumn(), getTable());
+        }
         params =
             input
                 .apply(
-                    JdbcIO.<KV<PartitionColumnT, PartitionColumnT>>read()
-                        .withQuery(
-                            String.format(
-                                "SELECT min(%s), max(%s) FROM %s",
-                                getPartitionColumn(), getPartitionColumn(), getTable()))
+                    JdbcIO.<KV<Integer, KV<PartitionColumnT, PartitionColumnT>>>read()
+                        .withQuery(query)
                         .withDataSourceProviderFn(getDataSourceProviderFn())
                         .withRowMapper(
                             (JdbcReadWithPartitionsHelper<PartitionColumnT>)
@@ -1178,17 +1185,35 @@ public class JdbcIO {
                 .apply(
                     MapElements.via(
                         new SimpleFunction<
-                            KV<PartitionColumnT, PartitionColumnT>,
+                            KV<Integer, KV<PartitionColumnT, PartitionColumnT>>,
                             KV<Integer, KV<PartitionColumnT, PartitionColumnT>>>() {
                           @Override
                           public KV<Integer, KV<PartitionColumnT, PartitionColumnT>> apply(
-                              KV<PartitionColumnT, PartitionColumnT> input) {
+                              KV<Integer, KV<PartitionColumnT, PartitionColumnT>> input) {
+                            KV<Integer, KV<PartitionColumnT, PartitionColumnT>> result;
+                            if (getNumPartitions() == null) {
+                              // In this case, we use the table row count to infer a number of
+                              // partitions.
+                              // We take the square root of the number of rows, and divide it by 5
+                              // to keep a relatively low number of partitions, given that an RDBMS
+                              // cannot usually accept a very large number of connections.
+                              Integer numPartitions =
+                                  Long.valueOf(
+                                          Math.round(Math.floor(Math.sqrt(input.getKey()) / 5)))
+                                      .intValue();
+                              if (numPartitions == 0) {
+                                numPartitions = 1;
+                              }
+                              result = KV.of(numPartitions, input.getValue());
+                            } else {
+                              result = KV.of(getNumPartitions(), input.getValue());
+                            }
                             LOG.info(
                                 "Inferred min: {} - max: {} - numPartitions: {}",
-                                input.getKey(),
-                                input.getValue(),
-                                getNumPartitions());
-                            return KV.of(getNumPartitions(), input);
+                                result.getValue().getKey(),
+                                result.getValue().getValue(),
+                                result.getKey());
+                            return result;
                           }
                         }));
       } else {
@@ -1235,7 +1260,10 @@ public class JdbcIO {
       }
       builder.add(DisplayData.item("partitionColumn", getPartitionColumn()));
       builder.add(DisplayData.item("table", getTable()));
-      builder.add(DisplayData.item("numPartitions", getNumPartitions()));
+      builder.add(
+          DisplayData.item(
+              "numPartitions",
+              getNumPartitions() == null ? "auto-infer" : getNumPartitions().toString()));
       builder.add(
           DisplayData.item(
               "lowerBound", getLowerBound() == null ? "auto-infer" : getLowerBound().toString()));

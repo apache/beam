@@ -373,8 +373,9 @@ class JdbcUtil {
             public Iterable<KV<String, String>> calculateRanges(
                 String lowerBound, String upperBound, Integer partitions) {
               List<KV<String, String>> ranges = new ArrayList<>();
-              // For now, we create ranges based on the very first letter of each string
-              // TODO(pabloem): How do we sort the empty string?
+              // For now, we create ranges based on the very first letter of each string.
+              // For cases where we have empty strings, we use that as the bottom of one range,
+              // and generate other ranges from that point.
               if (lowerBound.length() == 0) {
                 lowerBound = String.valueOf(Character.toChars(0)[0]);
                 ranges.add(KV.of("", lowerBound));
@@ -417,8 +418,13 @@ class JdbcUtil {
             }
 
             @Override
-            public KV<String, String> mapRow(ResultSet resultSet) throws Exception {
-              return KV.of(resultSet.getString(1), resultSet.getString(2));
+            public KV<Integer, KV<String, String>> mapRow(ResultSet resultSet) throws Exception {
+              if (resultSet.getMetaData().getColumnCount() == 3) {
+                return KV.of(
+                    resultSet.getInt(3), KV.of(resultSet.getString(1), resultSet.getString(2)));
+              } else {
+                return KV.of(0, KV.of(resultSet.getString(1), resultSet.getString(2)));
+              }
             }
           },
           Long.class,
@@ -455,8 +461,13 @@ class JdbcUtil {
             }
 
             @Override
-            public KV<Long, Long> mapRow(ResultSet resultSet) throws Exception {
-              return KV.of(resultSet.getLong(1), resultSet.getLong(2));
+            public KV<Integer, KV<Long, Long>> mapRow(ResultSet resultSet) throws Exception {
+              if (resultSet.getMetaData().getColumnCount() == 3) {
+                return KV.of(
+                    resultSet.getInt(3), KV.of(resultSet.getLong(1), resultSet.getLong(2)));
+              } else {
+                return KV.of(0, KV.of(resultSet.getLong(1), resultSet.getLong(2)));
+              }
             }
           },
           DateTime.class,
@@ -498,9 +509,21 @@ class JdbcUtil {
             }
 
             @Override
-            public KV<DateTime, DateTime> mapRow(ResultSet resultSet) throws Exception {
-              return KV.of(
-                  new DateTime(resultSet.getTimestamp(1)), new DateTime(resultSet.getTimestamp(2)));
+            public KV<Integer, KV<DateTime, DateTime>> mapRow(ResultSet resultSet)
+                throws Exception {
+              if (resultSet.getMetaData().getColumnCount() == 3) {
+                return KV.of(
+                    resultSet.getInt(3),
+                    KV.of(
+                        new DateTime(resultSet.getTimestamp(1)),
+                        new DateTime(resultSet.getTimestamp(2))));
+              } else {
+                return KV.of(
+                    0,
+                    KV.of(
+                        new DateTime(resultSet.getTimestamp(1)),
+                        new DateTime(resultSet.getTimestamp(2))));
+              }
             }
           });
 }

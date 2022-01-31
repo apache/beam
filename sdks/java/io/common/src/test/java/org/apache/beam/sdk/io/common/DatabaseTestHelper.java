@@ -39,6 +39,7 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
 
 /** This class contains helper methods to ease database usage in tests. */
 public class DatabaseTestHelper {
+  private static DataSource hikariSource = null;
 
   public static ResultSet performQuery(JdbcDatabaseContainer<?> container, String sql)
       throws SQLException {
@@ -52,6 +53,9 @@ public class DatabaseTestHelper {
   }
 
   public static DataSource getDataSourceForContainer(JdbcDatabaseContainer<?> container) {
+    if (hikariSource != null) {
+      return hikariSource;
+    }
     HikariConfig hikariConfig = new HikariConfig();
     // Keeping a small connection pool to a testContainer to avoid overwhelming it.
     hikariConfig.setMaximumPoolSize(2);
@@ -59,7 +63,8 @@ public class DatabaseTestHelper {
     hikariConfig.setUsername(container.getUsername());
     hikariConfig.setPassword(container.getPassword());
     hikariConfig.setDriverClassName(container.getDriverClassName());
-    return new HikariDataSource(hikariConfig);
+    hikariSource = new HikariDataSource(hikariConfig);
+    return hikariSource;
   }
 
   public static PGSimpleDataSource getPostgresDataSource(PostgresIOTestPipelineOptions options) {

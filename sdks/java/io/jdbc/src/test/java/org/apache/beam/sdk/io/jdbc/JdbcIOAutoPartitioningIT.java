@@ -51,6 +51,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.containers.MySQLContainer;
 
 /** A test of {@link org.apache.beam.sdk.io.jdbc.JdbcIO} on test containers. */
@@ -64,15 +65,15 @@ public class JdbcIOAutoPartitioningIT {
   @ClassRule public static TestPipeline pipelineWrite = TestPipeline.create();
   @Rule public TestPipeline pipelineRead = TestPipeline.create();
 
-  @ClassRule public static MySQLContainer<?> mysql = new MySQLContainer<>("mysql");
+  public static JdbcDatabaseContainer<?> getDb() {
+    return db;
+  }
 
-  // @ClassRule
-  // public static PostgreSQLContainer<?> postgres =
-  //     new PostgreSQLContainer<>("postgres");
+  @ClassRule public static JdbcDatabaseContainer<?> db = new MySQLContainer<>("mysql");
 
   @BeforeClass
   public static void prepareDatabase() throws SQLException {
-    DataSource mysqlDs = DatabaseTestHelper.getDataSourceForContainer(mysql);
+    DataSource mysqlDs = DatabaseTestHelper.getDataSourceForContainer(getDb());
     DatabaseTestHelper.createTable(
         mysqlDs,
         TABLE_NAME,
@@ -88,7 +89,7 @@ public class JdbcIOAutoPartitioningIT {
             JdbcIO.<RowData>write()
                 .withTable(TABLE_NAME)
                 .withDataSourceProviderFn(
-                    voide -> DatabaseTestHelper.getDataSourceForContainer(mysql)));
+                    voide -> DatabaseTestHelper.getDataSourceForContainer(getDb())));
     PipelineResult res = pipelineWrite.run();
     res.metrics()
         .allMetrics()
@@ -157,13 +158,13 @@ public class JdbcIOAutoPartitioningIT {
   }
 
   @Test
-  public void testAutomaticDateTimePartitioningMySQL() throws SQLException {
+  public void testAutomaticDateTimePartitioning() throws SQLException {
     PCollection<RowData> databaseData =
         pipelineRead.apply(
             JdbcIO.<RowData, DateTime>readWithPartitions(TypeDescriptor.of(DateTime.class))
                 .withPartitionColumn("specialDate")
                 .withDataSourceProviderFn(
-                    voide -> DatabaseTestHelper.getDataSourceForContainer(mysql))
+                    voide -> DatabaseTestHelper.getDataSourceForContainer(getDb()))
                 .withTable("baseTable")
                 .withLowerBound(new DateTime(0))
                 .withUpperBound(DateTime.now())
@@ -175,13 +176,13 @@ public class JdbcIOAutoPartitioningIT {
   }
 
   @Test
-  public void testAutomaticLongPartitioningMySQL() throws SQLException {
+  public void testAutomaticLongPartitioning() throws SQLException {
     PCollection<RowData> databaseData =
         pipelineRead.apply(
             JdbcIO.<RowData, Long>readWithPartitions(TypeDescriptors.longs())
                 .withPartitionColumn("id")
                 .withDataSourceProviderFn(
-                    voide -> DatabaseTestHelper.getDataSourceForContainer(mysql))
+                    voide -> DatabaseTestHelper.getDataSourceForContainer(getDb()))
                 .withTable("baseTable")
                 .withLowerBound(Long.MIN_VALUE)
                 .withUpperBound(Long.MAX_VALUE)
@@ -193,13 +194,13 @@ public class JdbcIOAutoPartitioningIT {
   }
 
   @Test
-  public void testAutomaticStringPartitioningMySQL() throws SQLException {
+  public void testAutomaticStringPartitioning() throws SQLException {
     PCollection<RowData> databaseData =
         pipelineRead.apply(
             JdbcIO.<RowData, String>readWithPartitions(TypeDescriptors.strings())
                 .withPartitionColumn("name")
                 .withDataSourceProviderFn(
-                    voide -> DatabaseTestHelper.getDataSourceForContainer(mysql))
+                    voide -> DatabaseTestHelper.getDataSourceForContainer(getDb()))
                 .withTable("baseTable")
                 .withLowerBound("")
                 .withUpperBound("999999")
@@ -211,13 +212,13 @@ public class JdbcIOAutoPartitioningIT {
   }
 
   @Test
-  public void testAutomaticDateTimePartitioningAutomaticRangeManagementMySQL() throws SQLException {
+  public void testAutomaticDateTimePartitioningAutomaticRangeManagement() throws SQLException {
     PCollection<RowData> databaseData =
         pipelineRead.apply(
             JdbcIO.<RowData, DateTime>readWithPartitions(TypeDescriptor.of(DateTime.class))
                 .withPartitionColumn("specialDate")
                 .withDataSourceProviderFn(
-                    voide -> DatabaseTestHelper.getDataSourceForContainer(mysql))
+                    voide -> DatabaseTestHelper.getDataSourceForContainer(getDb()))
                 .withTable("baseTable")
                 .withNumPartitions(10)
                 .withRowMapper(new RowDataMapper()));
@@ -227,13 +228,13 @@ public class JdbcIOAutoPartitioningIT {
   }
 
   @Test
-  public void testAutomaticLongPartitioningAutomaticRangeManagementMySQL() throws SQLException {
+  public void testAutomaticLongPartitioningAutomaticRangeManagement() throws SQLException {
     PCollection<RowData> databaseData =
         pipelineRead.apply(
             JdbcIO.<RowData, Long>readWithPartitions(TypeDescriptors.longs())
                 .withPartitionColumn("id")
                 .withDataSourceProviderFn(
-                    voide -> DatabaseTestHelper.getDataSourceForContainer(mysql))
+                    voide -> DatabaseTestHelper.getDataSourceForContainer(getDb()))
                 .withTable("baseTable")
                 .withNumPartitions(10)
                 .withRowMapper(new RowDataMapper()));
@@ -243,15 +244,60 @@ public class JdbcIOAutoPartitioningIT {
   }
 
   @Test
-  public void testAutomaticStringPartitioningAutomaticRangeManagementMySQL() throws SQLException {
+  public void testAutomaticStringPartitioningAutomaticRangeManagement() throws SQLException {
     PCollection<RowData> databaseData =
         pipelineRead.apply(
             JdbcIO.<RowData, String>readWithPartitions(TypeDescriptors.strings())
                 .withPartitionColumn("name")
                 .withDataSourceProviderFn(
-                    voide -> DatabaseTestHelper.getDataSourceForContainer(mysql))
+                    voide -> DatabaseTestHelper.getDataSourceForContainer(getDb()))
                 .withTable("baseTable")
                 .withNumPartitions(5)
+                .withRowMapper(new RowDataMapper()));
+
+    PAssert.that(databaseData.apply(Count.globally())).containsInAnyOrder(NUM_ROWS.longValue());
+    pipelineRead.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testAutomaticLongPartitioningAutomaticPartitionManagement() throws SQLException {
+    PCollection<RowData> databaseData =
+        pipelineRead.apply(
+            JdbcIO.<RowData>readWithPartitions()
+                .withPartitionColumn("id")
+                .withDataSourceProviderFn(
+                    voide -> DatabaseTestHelper.getDataSourceForContainer(getDb()))
+                .withTable("baseTable")
+                .withRowMapper(new RowDataMapper()));
+
+    PAssert.that(databaseData.apply(Count.globally())).containsInAnyOrder(NUM_ROWS.longValue());
+    pipelineRead.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testAutomaticStringPartitioningAutomaticPartitionManagement() throws SQLException {
+    PCollection<RowData> databaseData =
+        pipelineRead.apply(
+            JdbcIO.<RowData, String>readWithPartitions(TypeDescriptors.strings())
+                .withPartitionColumn("name")
+                .withDataSourceProviderFn(
+                    voide -> DatabaseTestHelper.getDataSourceForContainer(getDb()))
+                .withTable("baseTable")
+                .withRowMapper(new RowDataMapper()));
+
+    PAssert.that(databaseData.apply(Count.globally())).containsInAnyOrder(NUM_ROWS.longValue());
+    pipelineRead.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testAutomaticDateTimePartitioningAutomaticPartitionManagement() throws SQLException {
+    PCollection<RowData> databaseData =
+        pipelineRead.apply(
+            JdbcIO.<RowData, DateTime>readWithPartitions(TypeDescriptor.of(DateTime.class))
+                .withPartitionColumn("specialDate")
+                .withDataSourceProviderFn(
+                    voide -> DatabaseTestHelper.getDataSourceForContainer(getDb()))
+                .withTable("baseTable")
                 .withRowMapper(new RowDataMapper()));
 
     PAssert.that(databaseData.apply(Count.globally())).containsInAnyOrder(NUM_ROWS.longValue());
