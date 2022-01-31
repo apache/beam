@@ -84,7 +84,7 @@ func TestDebeziumIO_BasicRead(t *testing.T) {
 		"database.include.list=inventory",
 		"include.schema.changes=false",
 	}
-	read := ReadPipeline(*integration.IoExpansionAddr, username, password, dbname, host, port, debeziumio.POSTGRESQL, 1, connectionProperties)
+	read := ReadPipeline(*integration.IoExpansionAddr, username, password, dbname, host, port, debeziumio.PostgreSQL, 1, connectionProperties)
 	ptest.RunAndValidate(t, read)
 }
 

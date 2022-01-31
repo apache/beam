@@ -44,7 +44,6 @@ require (
 	github.com/testcontainers/testcontainers-go v0.12.0
 	golang.org/x/net v0.0.0-20211108170745-6635138e15ea
 	golang.org/x/oauth2 v0.0.0-20210628180205-a41e5a781914
-	golang.org/x/sys v0.0.0-20211109184856-51b60fd695b3 // indirect
 	golang.org/x/sys v0.0.0-20211109184856-51b60fd695b3
 	golang.org/x/text v0.3.6
 	google.golang.org/api v0.45.0

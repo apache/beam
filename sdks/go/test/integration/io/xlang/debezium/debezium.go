@@ -25,7 +25,9 @@ import (
 // ReadPipeline creates a pipeline for debeziumio.Read PTransform and validates the result.
 func ReadPipeline(addr, username, password, dbname, host, port string, connectorClass debeziumio.DriverClassName, maxrecords int64, connectionProperties []string) *beam.Pipeline {
 	p, s := beam.NewPipelineWithRoot()
-	result := debeziumio.Read(s.Scope("Read from debezium"), addr, username, password, host, port, connectorClass, reflectx.String, debeziumio.MaxRecord(maxrecords), debeziumio.ConnectionProperties(connectionProperties))
+	result := debeziumio.Read(s.Scope("Read from debezium"), username, password, host, port,
+		connectorClass, reflectx.String, debeziumio.MaxRecord(maxrecords),
+		debeziumio.ConnectionProperties(connectionProperties), debeziumio.ExpansionService(addr))
 	expectedJson := `{"metadata":{"connector":"postgresql","version":"1.3.1.Final","name":"dbserver1","database":"inventory","schema":"inventory","table":"customers"},"before":null,"after":{"fields":{"last_name":"Thomas","id":1001,"first_name":"Sally","email":"sally.thomas@acme.com"}}}`
 	expected := beam.Create(s, expectedJson)
 	passert.Equals(s, result, expected)

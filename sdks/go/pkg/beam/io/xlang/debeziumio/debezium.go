@@ -38,7 +38,7 @@
 // 	  - Vendored Module: beam-sdks-java-io-debezium-expansion-service
 // 	  - Run via Gradle: ./gradlew :sdks:java:io:debezium:expansion-service:shadowJar
 //						 java -jar <path-to-debezium-jar> <port>
-
+//    - Reference Class: org.apache.beam.io.debezium.DebeziumIO
 package debeziumio
 
 import (
@@ -52,14 +52,10 @@ import (
 type DriverClassName string
 
 const (
-	// MYSQL connector for Debezium
-	MYSQL DriverClassName = "MySQL"
-	// POSTGRESQL connector for Debezium
-	POSTGRESQL = "PostgreSQL"
-	// ORACLE connector for Debezium
-	ORACLE = "Oracle"
-	// DB2 connector for Debezium
-	DB2 = "Db2"
+	// MySQL connector for Debezium
+	MySQL DriverClassName = "MySQL"
+	// PostgreSQL connector for Debezium
+	PostgreSQL = "PostgreSQL"
 )
 
 const readURN = "beam:transform:org.apache.beam:debezium_read:v1"
@@ -76,22 +72,27 @@ type readFromDebeziumSchema struct {
 	ConnectionProperties []string
 }
 
+type debeziumConfig struct {
+	expansionService string
+	readSchema       *readFromDebeziumSchema
+}
+
 // readOption facilitates additional parameters to debeziumio.Read() Ptransform.
-type readOption func(*readFromDebeziumSchema)
+type readOption func(*debeziumConfig)
 
 // Read is an external PTransform which reads from Debezium and returns a
 // JSON string. It requires the address of an expansion service for Debezium IO.
 //
 // Example:
-// expansionAddr := "localhost:9000"
-// username := "debezium"
-// password := "dbz"
-// host := "localhost"
-// port := "5432"
-// connectorClass := debeziumIO.POSTGRESQL
-// maxrecords := 1
-// debeziumio.Read(s.Scope("Read from debezium"), expansionAddr, username, password, host, port, connectorClass, reflectx.String, debeziumio.MaxRecord(maxrecords))
-func Read(s beam.Scope, addr, username, password, host, port string, connectorClass DriverClassName, t reflect.Type, opts ...readOption) beam.PCollection {
+// 	 username := "debezium"
+//   password := "dbz"
+//   host := "localhost"
+//   port := "5432"
+//   connectorClass := debeziumIO.POSTGRESQL
+//   maxrecords := 1
+//   debeziumio.Read(s.Scope("Read from debezium"), expansionAddr, username, password, host, port, connectorClass,
+//                   reflectx.String, debeziumio.MaxRecord(maxrecords), debeziumio.ExpansionService("localhost:9000"))
+func Read(s beam.Scope, username, password, host, port string, connectorClass DriverClassName, t reflect.Type, opts ...readOption) beam.PCollection {
 	rfds := readFromDebeziumSchema{
 		ConnectorClass: string(connectorClass),
 		Username:       username,
@@ -99,26 +100,34 @@ func Read(s beam.Scope, addr, username, password, host, port string, connectorCl
 		Host:           host,
 		Port:           port,
 	}
+	dc := debeziumConfig{readSchema: &rfds}
 	for _, opt := range opts {
-		opt(&rfds)
+		opt(&dc)
 	}
 	pl := beam.CrossLanguagePayload(rfds)
 	outT := beam.UnnamedOutput(typex.New(t))
-	out := beam.CrossLanguage(s, readURN, pl, addr, nil, outT)
+	out := beam.CrossLanguage(s, readURN, pl, dc.expansionService, nil, outT)
 	return out[beam.UnnamedOutputTag()]
 }
 
 // MaxRecord specifies maximum number of records to be fetched before stop.
 func MaxRecord(r int64) readOption {
-	return func(cfg *readFromDebeziumSchema) {
-		cfg.MaxNumberOfRecords = &r
+	return func(cfg *debeziumConfig) {
+		cfg.readSchema.MaxNumberOfRecords = &r
 	}
 }
 
 // ConnectionProperties specifies properties of the debezium connection passed as
 // a string with format [propertyName=property;]*
 func ConnectionProperties(cp []string) readOption {
-	return func(cfg *readFromDebeziumSchema) {
-		cfg.ConnectionProperties = cp
+	return func(cfg *debeziumConfig) {
+		cfg.readSchema.ConnectionProperties = cp
+	}
+}
+
+// ExpansionService sets the expansion service address to use for DebeziumIO cross-langauage transform.
+func ExpansionService(expansionService string) readOption {
+	return func(cfg *debeziumConfig) {
+		cfg.expansionService = expansionService
 	}
 }
