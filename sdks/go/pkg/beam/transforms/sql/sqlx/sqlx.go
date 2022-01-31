@@ -26,9 +26,8 @@ const (
 	Urn = "beam:external:java:sql:v1"
 
 	// DefaultExpansionAddr is the default expansion service address for SQL.
-	// TODO: Change this to the Beam Java expansion address once Beam SQL
-	// is implemented in Beam Go.
-	DefaultExpansionAddr = "undefined"
+	// Defaults to starting up an automated expansion service.
+	DefaultExpansionAddr = "auto"
 )
 
 // Options is the interface for adding SQL transform options.

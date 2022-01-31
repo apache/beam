@@ -22,11 +22,14 @@
 package sql
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/xlangx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/xlangx/expansionx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/sql/sqlx"
 )
@@ -79,6 +82,8 @@ func ExpansionAddr(addr string) Option {
 	}
 }
 
+const serviceGradleTarget = ":sdks:java:io:expansion-service:runExpansionService"
+
 // Transform creates a SQL-based transform over zero or more PCollections
 // and/or named data sources.
 //
@@ -113,6 +118,22 @@ func Transform(s beam.Scope, query string, opts ...Option) beam.PCollection {
 	expansionAddr := sqlx.DefaultExpansionAddr
 	if o.expansionAddr != "" {
 		expansionAddr = xlangx.Require(o.expansionAddr)
+	}
+	if expansionAddr == sqlx.DefaultExpansionAddr {
+		jarPath, err := expansionx.GetBeamJar(serviceGradleTarget, core.SdkVersion)
+		if err != nil {
+			panic(fmt.Sprintf("failed to get expansion service JAR, got %v", err))
+		}
+		serviceRunner, err := expansionx.NewExpansionServiceRunner(jarPath, "")
+		if err != nil {
+			panic(fmt.Sprintf("failed to make new expansion service runner, got %v", err))
+		}
+		err = serviceRunner.StartService()
+		if err != nil {
+			panic(fmt.Sprintf("failed to start expansion service JAR, got %v", err))
+		}
+		defer serviceRunner.StopService()
+		expansionAddr = "auto:" + serviceRunner.Endpoint()
 	}
 
 	out := beam.CrossLanguage(s, sqlx.Urn, payload, expansionAddr, o.inputs, beam.UnnamedOutput(o.outType))
