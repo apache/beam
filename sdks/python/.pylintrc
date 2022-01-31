@@ -103,7 +103,6 @@ disable =
   inconsistent-return-statements,
   invalid-overridden-method,
   invalid-name,
-  invalid-unary-operand-type,
   keyword-arg-before-vararg,
   len-as-condition,
   locally-disabled,
