@@ -17,7 +17,10 @@
 import typing
 import unittest
 
+import numpy as np
 import pandas as pd
+# TODO: Add for pandas 1.4.0
+# import re
 
 import apache_beam as beam
 from apache_beam import coders
@@ -52,6 +55,7 @@ def check_correct(expected, actual):
 
 
 def concat(parts):
+  # import pdb; pdb.set_trace()
   if len(parts) > 1:
     return pd.concat(parts)
   elif len(parts) == 1:
@@ -81,7 +85,7 @@ class TransformTest(unittest.TestCase):
     input_deferred = frame_base.DeferredFrame.wrap(input_placeholder)
     actual_deferred = func(input_deferred)._expr.evaluate_at(
         expressions.Session({input_placeholder: input}))
-
+    # import pdb; pdb.set_trace()
     check_correct(expected, actual_deferred)
 
     with beam.Pipeline() as p:
@@ -348,6 +352,53 @@ class TransformTest(unittest.TestCase):
               columns={'B': 'C'}, index={
                   0: 2, 2: 0
               }, errors='raise'))
+
+  def test_split(self):
+    s = pd.Series([
+        "this is a regular sentence",
+        "https://docs.python.org/3/tutorial/index.html",
+        np.nan
+    ])
+    self.run_scenario(s, lambda s: s.str.split())
+    self.run_scenario(s, lambda s: s.str.rsplit())
+    self.run_scenario(s, lambda s: s.str.split(n=2))
+    self.run_scenario(s, lambda s: s.str.rsplit(n=2))
+    self.run_scenario(s, lambda s: s.str.split(pat="/"))
+
+    # When expand=True, there is exception because series is not categorical
+    with self.assertRaisesRegex(
+        frame_base.WontImplementError,
+        r"split\(\) of non-categorical type is not supported"):
+      self.run_scenario(s, lambda s: s.str.split(expand=True))
+    with self.assertRaisesRegex(
+        frame_base.WontImplementError,
+        r"rsplit\(\) of non-categorical type is not supported"):
+      self.run_scenario(s, lambda s: s.str.rsplit(expand=True))
+
+    # When expand=True, and series is categorical type
+    s = s.astype('category')
+    self.run_scenario(s, lambda s: s.str.split(expand=True))
+    self.run_scenario(s, lambda s: s.str.rsplit("/", n=1, expand=True))
+
+    # TODO: Remote this example for pandas 1.4.0
+    s = pd.Series(["1+1=2"]).astype('category')
+    self.run_scenario(s, lambda s: s.str.rsplit(r"\+|=", expand=True))
+
+    # TODO: Test below examples for pandas 1.4.0
+    # When expand=True and testing regex
+    # s = pd.Series(["foo and bar plus baz"]).astype('category')
+    # self.run_scenario(s, lambda s: s.str.split(r"and|plus", expand=True))
+
+    # s = pd.Series(['foojpgbar.jpg']).astype('category')
+    # self.run_scenario(s, lambda s: s.str.split(r".", expand=True))
+    # self.run_scenario(s, lambda s: s.str.split(r".", expand=True))
+
+    # self.run_scenario(s,
+    # lambda s: s.str.split(r"\.jpg", regex=True, expand=True))
+    # self.run_scenario(s,
+    # lambda s: s.str.split(re.compile(r"\.jpg"), expand=True))
+    # self.run_scenario(s,
+    # lambda s: s.str.split(r"\.jpg", regex=False, expand=True))
 
 
 class FusionTest(unittest.TestCase):

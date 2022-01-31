@@ -584,8 +584,16 @@ class DoctestTest(unittest.TestCase):
             f'{module_name}.StringMethods.get_dummies': ['*'],
             f'{module_name}.str_get_dummies': ['*'],
             f'{module_name}.StringMethods': ['s.str.split("_")'],
-            f'{module_name}.StringMethods.rsplit': ['*'],
-            f'{module_name}.StringMethods.split': ['*'],
+            f'{module_name}.StringMethods.rsplit': [
+                "s.str.split(expand=True)",
+                """s.str.split(r"\\+|=", expand=True)""",
+                """s.str.rsplit("/", n=1, expand=True)""",
+            ],
+            f'{module_name}.StringMethods.split': [
+                "s.str.split(expand=True)",
+                """s.str.split(r"\\+|=", expand=True)""",
+                """s.str.rsplit("/", n=1, expand=True)"""
+            ],
         },
         skip={
             # count() on Series with a NaN produces mismatched type if we
