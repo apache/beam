@@ -42,6 +42,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 /**
  * This class is responsible for transforming a {@link Struct} to a {@link List} of {@link
  * ChangeStreamRecord} models.
+ *
+ * <p>The change stream full specification can be seen in the internal documentation
+ * https://docs.google.com/document/d/1nLlMGvQLIeUSDNmtoLT9vaQo0hVGl4CIf6iCSOkdIbA/edit#bookmark=id.fxgtygh8eony
  */
 public class ChangeStreamRecordMapper {
 
