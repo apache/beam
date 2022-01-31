@@ -54,6 +54,7 @@ public class ConfluentSchemaRegistryDeserializerProvider<T> implements Deseriali
   private final String schemaRegistryUrl;
   private final String subject;
   private final @Nullable Integer version;
+  static final int DEFAULT_CACHE_CAPACITY = 1000;
 
   @VisibleForTesting
   ConfluentSchemaRegistryDeserializerProvider(
@@ -73,13 +74,31 @@ public class ConfluentSchemaRegistryDeserializerProvider<T> implements Deseriali
   }
 
   public static <T> ConfluentSchemaRegistryDeserializerProvider<T> of(
-      String schemaRegistryUrl, Integer schemaRegistryCacheCapacity, String subject) {
+      String schemaRegistryUrl, String subject) {
+    return of(schemaRegistryUrl, DEFAULT_CACHE_CAPACITY, subject, null, null);
+  }
+
+  public static <T> ConfluentSchemaRegistryDeserializerProvider<T> of(
+      String schemaRegistryUrl, String subject, @Nullable Integer version) {
+    return of(schemaRegistryUrl, DEFAULT_CACHE_CAPACITY, subject, version, null);
+  }
+
+  public static <T> ConfluentSchemaRegistryDeserializerProvider<T> of(
+      String schemaRegistryUrl,
+      String subject,
+      @Nullable Integer version,
+      @Nullable Map<String, ?> schemaRegistryConfigs) {
+    return of(schemaRegistryUrl, DEFAULT_CACHE_CAPACITY, subject, version, schemaRegistryConfigs);
+  }
+
+  public static <T> ConfluentSchemaRegistryDeserializerProvider<T> of(
+      String schemaRegistryUrl, int schemaRegistryCacheCapacity, String subject) {
     return of(schemaRegistryUrl, schemaRegistryCacheCapacity, subject, null, null);
   }
 
   public static <T> ConfluentSchemaRegistryDeserializerProvider<T> of(
       String schemaRegistryUrl,
-      Integer schemaRegistryCacheCapacity,
+      int schemaRegistryCacheCapacity,
       String subject,
       @Nullable Integer version) {
     return of(schemaRegistryUrl, schemaRegistryCacheCapacity, subject, version, null);
@@ -87,7 +106,7 @@ public class ConfluentSchemaRegistryDeserializerProvider<T> implements Deseriali
 
   public static <T> ConfluentSchemaRegistryDeserializerProvider<T> of(
       String schemaRegistryUrl,
-      Integer schemaRegistryCacheCapacity,
+      int schemaRegistryCacheCapacity,
       String subject,
       @Nullable Integer version,
       @Nullable Map<String, ?> schemaRegistryConfigs) {
