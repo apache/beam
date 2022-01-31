@@ -1545,7 +1545,7 @@ public class SpannerIO {
         final InitializeDoFn initializeDoFn =
             new InitializeDoFn(daoFactory, mapperFactory, startTimestamp, endTimestamp);
         final DetectNewPartitionsDoFn detectNewPartitionsDoFn =
-            new DetectNewPartitionsDoFn(daoFactory, mapperFactory, metrics);
+            new DetectNewPartitionsDoFn(daoFactory, mapperFactory, actionFactory, metrics);
         final ReadChangeStreamPartitionDoFn readChangeStreamPartitionDoFn =
             new ReadChangeStreamPartitionDoFn(daoFactory, mapperFactory, actionFactory, metrics);
         final PostProcessingMetricsDoFn postProcessingMetricsDoFn =
@@ -1553,6 +1553,10 @@ public class SpannerIO {
 
         LOG.info("Partition metadata table that will be used is " + partitionMetadataTableName);
 
+        // TODO: fix the watermark of these functions and enable them
+        // impulseOut
+        //     .apply(Wait.on(results))
+        //     .apply(ParDo.of(new CleanUpReadChangeStreamDoFn(daoFactory)));
         return input
             .apply(Impulse.create())
             .apply("Initialize the connector", ParDo.of(initializeDoFn))
