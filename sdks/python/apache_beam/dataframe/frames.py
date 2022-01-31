@@ -4629,16 +4629,20 @@ class _DeferredStringMethods(frame_base.DeferredBase):
   @frame_base.args_to_kwargs(pd.core.strings.StringMethods)
   def get_dummies(self, **kwargs):
     """
-    Series must be categorical type.
-    TODO(remove) Warning: Even if input does not contains NaN,
-    the output may include nan
+    Series must be categorical type. Either cast to ``category`` to
+    infer categories, or preferred, cast to ``CategoricalDtype``
+    to ensure correct categories.
+
+    Booleans are not supported because entries must be a string type.
+    First cast to ``string`` and then to ``category`` if data contains
+    booleans.
     """
     dtype = self._expr.proxy().dtype
     if not isinstance(dtype, pd.CategoricalDtype):
       raise frame_base.WontImplementError(
           "get_dummies() of non-categorical type is not supported because "
           "the type of the output column depends on the data. Please use "
-          "pd.CategoricalDtype with explicit categories or pd.bool",
+          "pd.CategoricalDtype with explicit categories.",
           reason="non-deferred-columns")
 
     split_cats = [
