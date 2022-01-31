@@ -133,7 +133,7 @@ func Transform(s beam.Scope, query string, opts ...Option) beam.PCollection {
 			panic(fmt.Sprintf("failed to start expansion service JAR, got %v", err))
 		}
 		defer serviceRunner.StopService()
-		expansionAddr = "auto:" + serviceRunner.Endpoint()
+		expansionAddr = xlangx.AutoNamespace + xlangx.Separator + serviceRunner.Endpoint()
 	}
 
 	out := beam.CrossLanguage(s, sqlx.Urn, payload, expansionAddr, o.inputs, beam.UnnamedOutput(o.outType))
