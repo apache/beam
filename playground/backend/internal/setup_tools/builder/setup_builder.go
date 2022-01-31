@@ -74,9 +74,10 @@ func Compiler(paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs) *exec
 
 	switch sdk {
 	case pb.Sdk_SDK_JAVA:
-		builder.
+		builder = builder.
 			WithCompiler().
-			WithFileName(GetFirstFileFromFolder(paths.AbsoluteSourceFileFolderPath))
+			WithFileName(GetFirstFileFromFolder(paths.AbsoluteSourceFileFolderPath)).
+			ExecutorBuilder
 	}
 	return &builder
 }
