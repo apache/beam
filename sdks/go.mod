@@ -28,6 +28,7 @@ require (
 	cloud.google.com/go/pubsub v1.11.0-beta.schemas
 	cloud.google.com/go/storage v1.15.0
 	github.com/docker/go-connections v0.4.0
+	github.com/go-sql-driver/mysql v1.6.0
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2 // TODO(danoliveira): Fully replace this with google.golang.org/protobuf
 	github.com/golang/snappy v0.0.4 // indirect
@@ -44,6 +45,7 @@ require (
 	golang.org/x/net v0.0.0-20211108170745-6635138e15ea
 	golang.org/x/oauth2 v0.0.0-20210628180205-a41e5a781914
 	golang.org/x/sys v0.0.0-20211109184856-51b60fd695b3 // indirect
+	golang.org/x/sys v0.0.0-20211109184856-51b60fd695b3
 	golang.org/x/text v0.3.6
 	google.golang.org/api v0.45.0
 	google.golang.org/genproto v0.0.0-20210728212813-7823e685a01f
