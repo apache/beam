@@ -17,7 +17,7 @@
 # paths that are modified in the pull request.
 
 name: LabelPrs
-on: [pull_request]
+on: [pull_request_target]
 
 jobs:
   label:
