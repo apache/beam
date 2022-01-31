@@ -341,8 +341,8 @@ public class KafkaIOExternalTest {
         RunnerApi.ParDoPayload.parseFrom(writeParDo.getSpec().getPayload());
     DoFn kafkaWriter = ParDoTranslation.getDoFn(parDoPayload);
     assertThat(kafkaWriter, Matchers.instanceOf(KafkaWriter.class));
-    KafkaIO.WriteRecords spec =
-        (KafkaIO.WriteRecords) Whitebox.getInternalState(kafkaWriter, "spec");
+    KafkaIO.WriteRecordsWithOutput spec =
+        (KafkaIO.WriteRecordsWithOutput) Whitebox.getInternalState(kafkaWriter, "spec");
 
     assertThat(spec.getProducerConfig(), Matchers.is(producerConfig));
     assertThat(spec.getTopic(), Matchers.is(topic));

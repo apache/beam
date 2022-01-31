@@ -602,7 +602,7 @@ public class KafkaIO {
         .build();
   }
 
-  public static <K, V> WriteRecordsWithOutput<K, V> writeRecordWithOutput() {
+  public static <K, V> WriteRecordsWithOutput<K, V> writeRecordsWithOutput() {
     return new AutoValue_KafkaIO_WriteRecordsWithOutput.Builder<K, V>()
         .setProducerConfig(WriteRecordsWithOutput.DEFAULT_PRODUCER_PROPERTIES)
         .setEOS(false)
@@ -2309,9 +2309,10 @@ public class KafkaIO {
     // we shouldn't have to duplicate the same API for similar transforms like {@link Write} and
     // {@link WriteRecords}. See example at {@link PubsubIO.Write}.
 
+    /*
     abstract @Nullable String getTopic();
 
-    abstract Map<String, Object> getProducerConfig();
+    abstract @Nullable Map<String, Object> getProducerConfig();
 
     abstract @Nullable SerializableFunction<Map<String, Object>, Producer<K, V>>
         getProducerFactoryFn();
@@ -2332,6 +2333,7 @@ public class KafkaIO {
 
     abstract @Nullable SerializableFunction<Map<String, Object>, ? extends Consumer<?, ?>>
         getConsumerFactoryFn();
+    */
 
     abstract Builder<K, V> toBuilder();
 
@@ -2339,6 +2341,7 @@ public class KafkaIO {
 
     @AutoValue.Builder
     abstract static class Builder<K, V> {
+      /*
       abstract Builder<K, V> setTopic(String topic);
 
       abstract Builder<K, V> setProducerConfig(Map<String, Object> producerConfig);
@@ -2353,6 +2356,9 @@ public class KafkaIO {
       abstract Builder<K, V> setPublishTimestampFunction(
           KafkaPublishTimestampFunction<ProducerRecord<K, V>> timestampFunction);
 
+      // remove setEOS
+      // and any other that are now stored in inner
+      // change the test to
       abstract Builder<K, V> setEOS(boolean eosEnabled);
 
       abstract Builder<K, V> setSinkGroupId(String sinkGroupId);
@@ -2361,6 +2367,7 @@ public class KafkaIO {
 
       abstract Builder<K, V> setConsumerFactoryFn(
           SerializableFunction<Map<String, Object>, ? extends Consumer<?, ?>> fn);
+      */
 
       abstract Builder<K, V> setInner(WriteRecordsWithOutput<K, V> inner);
 
@@ -2377,10 +2384,12 @@ public class KafkaIO {
      */
     public WriteRecords<K, V> withBootstrapServers(String bootstrapServers) {
       // inner = inner.toBuilder().withBootstrapServers(bootstrapServers).build();
-      this.toBuilder().setInner(this.getInner().withBootstrapServers(bootstrapServers)).build();
+
+      // this.toBuilder().setInner(this.getInner().withBootstrapServers(bootstrapServers)).build();
+      return toBuilder().setInner(getInner().withBootstrapServers(bootstrapServers)).build();
       // inner = inner.withBootstrapServers(bootstrapServers);
       // this.toBuilder().setInner().
-      return this;
+      // return this;
     }
 
     /**
@@ -2388,8 +2397,9 @@ public class KafkaIO {
      * published record.
      */
     public WriteRecords<K, V> withTopic(String topic) {
-      this.toBuilder().setInner(this.getInner().withTopic(topic)).build();
-      return this;
+      return toBuilder().setInner(getInner().withTopic(topic)).build();
+      // this.toBuilder().setInner(this.getInner().withTopic(topic)).build();
+      // return this;
     }
 
     /**
@@ -2399,14 +2409,16 @@ public class KafkaIO {
      * determine partition in Kafka (see {@link ProducerRecord} for more details).
      */
     public WriteRecords<K, V> withKeySerializer(Class<? extends Serializer<K>> keySerializer) {
-      this.toBuilder().setInner(this.getInner().withKeySerializer(keySerializer)).build();
-      return this;
+      return toBuilder().setInner(getInner().withKeySerializer(keySerializer)).build();
+      // this.toBuilder().setInner(this.getInner().withKeySerializer(keySerializer)).build();
+      // return this;
     }
 
     /** Sets a {@link Serializer} for serializing value to bytes. */
     public WriteRecords<K, V> withValueSerializer(Class<? extends Serializer<V>> valueSerializer) {
-      this.toBuilder().setInner(this.getInner().withValueSerializer(valueSerializer)).build();
-      return this;
+      return toBuilder().setInner(getInner().withValueSerializer(valueSerializer)).build();
+      // this.toBuilder().setInner(this.getInner().withValueSerializer(valueSerializer)).build();
+      // return this;
     }
 
     /**
@@ -2416,8 +2428,9 @@ public class KafkaIO {
      */
     @Deprecated
     public WriteRecords<K, V> updateProducerProperties(Map<String, Object> configUpdates) {
-      this.toBuilder().setInner(this.getInner().updateProducerProperties(configUpdates)).build();
-      return this;
+      return toBuilder().setInner(getInner().updateProducerProperties(configUpdates)).build();
+      // this.toBuilder().setInner(this.getInner().updateProducerProperties(configUpdates)).build();
+      // return this;
     }
 
     /**
@@ -2427,8 +2440,9 @@ public class KafkaIO {
      * <p>By default, the producer uses the configuration from {@link #DEFAULT_PRODUCER_PROPERTIES}.
      */
     public WriteRecords<K, V> withProducerConfigUpdates(Map<String, Object> configUpdates) {
-      this.toBuilder().setInner(this.getInner().withProducerConfigUpdates(configUpdates)).build();
-      return this;
+      return toBuilder().setInner(getInner().withProducerConfigUpdates(configUpdates)).build();
+      // this.toBuilder().setInner(this.getInner().withProducerConfigUpdates(configUpdates)).build();
+      // return this;
     }
 
     /**
@@ -2437,8 +2451,9 @@ public class KafkaIO {
      */
     public WriteRecords<K, V> withProducerFactoryFn(
         SerializableFunction<Map<String, Object>, Producer<K, V>> producerFactoryFn) {
-      this.toBuilder().setInner(this.getInner().withProducerFactoryFn(producerFactoryFn)).build();
-      return this;
+      return toBuilder().setInner(getInner().withProducerFactoryFn(producerFactoryFn)).build();
+      // this.toBuilder().setInner(this.getInner().withProducerFactoryFn(producerFactoryFn)).build();
+      // return this;
     }
 
     /**
@@ -2449,8 +2464,9 @@ public class KafkaIO {
      * published if the timestamps are older than Kafka cluster's {@code log.retention.hours}.
      */
     public WriteRecords<K, V> withInputTimestamp() {
-      this.toBuilder().setInner(this.getInner().withInputTimestamp()).build();
-      return this;
+      return toBuilder().setInner(getInner().withInputTimestamp()).build();
+      // this.toBuilder().setInner(this.getInner().withInputTimestamp()).build();
+      // return this;
     }
 
     /**
@@ -2464,10 +2480,13 @@ public class KafkaIO {
     @Deprecated
     public WriteRecords<K, V> withPublishTimestampFunction(
         KafkaPublishTimestampFunction<ProducerRecord<K, V>> timestampFunction) {
-      this.toBuilder()
-          .setInner(this.getInner().withPublishTimestampFunction(timestampFunction))
+      return toBuilder()
+          .setInner(getInner().withPublishTimestampFunction(timestampFunction))
           .build();
-      return this;
+      // this.toBuilder()
+      //    .setInner(this.getInner().withPublishTimestampFunction(timestampFunction))
+      //    .build();
+      // return this;
     }
 
     /**
@@ -2506,8 +2525,9 @@ public class KafkaIO {
      *     written by the same job.
      */
     public WriteRecords<K, V> withEOS(int numShards, String sinkGroupId) {
-      this.toBuilder().setInner(this.getInner().withEOS(numShards, sinkGroupId)).build();
-      return this;
+      return toBuilder().setInner(getInner().withEOS(numShards, sinkGroupId)).build();
+      // this.toBuilder().setInner(this.getInner().withEOS(numShards, sinkGroupId)).build();
+      // return this;
     }
 
     /**
@@ -2518,8 +2538,9 @@ public class KafkaIO {
      */
     public WriteRecords<K, V> withConsumerFactoryFn(
         SerializableFunction<Map<String, Object>, ? extends Consumer<?, ?>> consumerFactoryFn) {
-      this.toBuilder().setInner(this.getInner().withConsumerFactoryFn(consumerFactoryFn)).build();
-      return this;
+      return toBuilder().setInner(getInner().withConsumerFactoryFn(consumerFactoryFn)).build();
+      // this.toBuilder().setInner(this.getInner().withConsumerFactoryFn(consumerFactoryFn)).build();
+      // return this;
     }
 
     @Override
@@ -2906,6 +2927,12 @@ public class KafkaIO {
         Map<String, Object> producerConfig = new HashMap<>(configuration.producerConfig);
         Class keySerializer = resolveClass(configuration.keySerializer);
         Class valSerializer = resolveClass(configuration.valueSerializer);
+
+        // TODO:
+        // The parameters aren't being passed in
+        // Need to Update this so that it build a WriteRecordsWithOutput
+        // Can we? Will it change anything
+        // need to change the set with EOS should change innter not outer
 
         WriteRecords<K, V> writeRecords =
             KafkaIO.<K, V>writeRecords()
