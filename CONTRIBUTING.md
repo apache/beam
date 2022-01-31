@@ -19,8 +19,8 @@
 
 ## Contributing to Beam
 
-*Before opening a pull request*, review the 
-[Beam contribution guide](https://beam.apache.org/contribute/). 
+*Before opening a pull request*, review the
+[Beam contribution guide](https://beam.apache.org/contribute/).
 It lists steps that are required before creating a PR. In particular, consider
 
 - Have you searched for existing, related JIRAs and pull requests?
