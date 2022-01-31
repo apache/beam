@@ -52,6 +52,7 @@ class StagerTest(unittest.TestCase):
     if self._temp_dir:
       shutil.rmtree(self._temp_dir)
     self.stager = None
+    pickler.set_library('default')
 
   def make_temp_dir(self):
     if self._temp_dir is None:
