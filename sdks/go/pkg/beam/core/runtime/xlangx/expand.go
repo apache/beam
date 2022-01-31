@@ -140,3 +140,45 @@ func QueryExpansionService(ctx context.Context, p *HandlerParams) (*jobpb.Expans
 	}
 	return res, nil
 }
+
+// QueryAutomatedExpansionService submits an external transform to be expanded by the
+// expansion service and then eagerly materializes the artifacts for staging. The given
+// transform should be the external transform, and the componenets are any additional
+// components necessary for the pipeline snippet.
+//
+// The address to be queried is determined by the Config field of the HandlerParams after
+// the prefix tag indicating the automated service is in use.
+func QueryAutomatedExpansionService(ctx context.Context, p *HandlerParams) (*jobpb.ExpansionResponse, error) {
+	// Strip auto: tag for query.
+	tag, addr := parseAddr(p.Config)
+
+	p.Config = addr
+
+	res, err := QueryExpansionService(ctx, p)
+	if err != nil {
+		return nil, err
+	}
+
+	exp := &graph.ExpandedTransform{
+		Components:   res.GetComponents(),
+		Transform:    res.GetTransform(),
+		Requirements: res.GetRequirements(),
+	}
+
+	p.ext.Expanded = exp
+	// Strip auto: tag in representation for call
+	p.edge.External.ExpansionAddr = addr
+
+	_, err = ResolveArtifactsWithConfig(ctx, []*graph.MultiEdge{p.edge}, ResolveConfig{})
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Restore tag so we know the artifacts have been materialized eagerly down the road.
+	p.edge.External.ExpansionAddr = tag + Separator + p.Config
+
+	// Can return the original response because all of our proto modification afterwards has
+	// been via pointer.
+	return res, nil
+}

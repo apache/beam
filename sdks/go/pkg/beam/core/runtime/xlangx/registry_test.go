@@ -73,4 +73,8 @@ func TestRegistry(t *testing.T) {
 	required := "http://localhost:6375309"
 	// Check Require works, ignoring the previous urn overrides.
 	checkLookup(t, urn, Require(required), required, QueryExpansionService, "QueryExpansionService")
+
+	// Check that the automated expansion service check is correct.
+	auto := autoNamespace + Separator + "localhost:8095"
+	checkLookup(t, urn, auto, auto, QueryAutomatedExpansionService, "QueryAutomatedExpansionService")
 }
