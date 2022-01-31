@@ -249,7 +249,7 @@ const (
 	Separator             = ":"
 	hardOverrideNamespace = "hardoverride"
 	// AutoNamespace is the canonical tag for the automated expansion service address.
-	AutoNamespace         = "auto"
+	AutoNamespace = "auto"
 )
 
 // Require takes an expansionAddr and requires cross language expansion

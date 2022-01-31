@@ -75,6 +75,6 @@ func TestRegistry(t *testing.T) {
 	checkLookup(t, urn, Require(required), required, QueryExpansionService, "QueryExpansionService")
 
 	// Check that the automated expansion service check is correct.
-	auto := autoNamespace + Separator + "localhost:8095"
+	auto := AutoNamespace + Separator + "localhost:8095"
 	checkLookup(t, urn, auto, auto, QueryAutomatedExpansionService, "QueryAutomatedExpansionService")
 }
