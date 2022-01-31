@@ -59,6 +59,7 @@ def mock_get_compile_output(mocker):
 
 
 class TestGRPCClient:
+
   @pytest.mark.asyncio
   async def test_run_code(self, mock_run_code):
     result = await GRPCClient().run_code("", api_pb2.SDK_GO, "")

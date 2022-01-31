@@ -179,7 +179,7 @@ public class SpannerIOReadTest implements Serializable {
             ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(2, 6)));
 
     PAssert.that(one).containsInAnyOrder(FAKE_ROWS);
-    assertEquals(RpcPriority.HIGH, read.getSpannerConfig().getRpcPriority());
+    assertEquals(RpcPriority.HIGH, read.getSpannerConfig().getRpcPriority().get());
     pipeline.run();
   }
 
@@ -192,11 +192,22 @@ public class SpannerIOReadTest implements Serializable {
   }
 
   @Test
-  public void runRead() throws Exception {
+  public void runReadTestWithProjectId() throws Exception {
+    runReadTest(getSpannerConfig());
+  }
+
+  @Test
+  public void runReadTestWithDefaultProject() throws Exception {
+    runReadTest(
+        SpannerConfig.create()
+            .withInstanceId("123")
+            .withDatabaseId("aaa")
+            .withServiceFactory(serviceFactory));
+  }
+
+  private void runReadTest(SpannerConfig spannerConfig) throws Exception {
     Timestamp timestamp = Timestamp.ofTimeMicroseconds(12345);
     TimestampBound timestampBound = TimestampBound.ofReadTimestamp(timestamp);
-
-    SpannerConfig spannerConfig = getSpannerConfig();
 
     PCollection<Struct> one =
         pipeline.apply(
@@ -277,7 +288,7 @@ public class SpannerIOReadTest implements Serializable {
             ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(4, 6)));
 
     PAssert.that(one).containsInAnyOrder(FAKE_ROWS);
-    assertEquals(RpcPriority.LOW, read.getSpannerConfig().getRpcPriority());
+    assertEquals(RpcPriority.LOW, read.getSpannerConfig().getRpcPriority().get());
     pipeline.run();
   }
 

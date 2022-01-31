@@ -15,13 +15,13 @@
 # limitations under the License.
 #
 
-"""A multi-language pipeline that adds prefixes to a given set of strings.
+"""A Python multi-language pipeline that adds prefixes to a given set of strings.
 
 This pipeline reads an input text file and adds two prefixes to every line read from the file.
 * Prefix 'java'. This is added by a multi-language Java transform named 'JavaPrefix'.
 * Prefix 'python'. This is added by a Python transform.
 
-Example commands for executing the program.
+Example commands for executing the program:
 
 DirectRunner:
 $ python addprefix.py --runner DirectRunner --environment_type=DOCKER --input <INPUT FILE> --output output --expansion_service_port <PORT>

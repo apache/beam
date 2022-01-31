@@ -50,9 +50,9 @@ func Test_newJavaLifeCycle(t *testing.T) {
 			want: &LifeCycle{
 				folderGlobs: []string{baseFileFolder, srcFileFolder, binFileFolder},
 				Paths: LifeCyclePaths{
-					SourceFileName:                   pipelineId.String() + javaSourceFileExtension,
+					SourceFileName:                   pipelineId.String() + JavaSourceFileExtension,
 					AbsoluteSourceFileFolderPath:     srcFileFolder,
-					AbsoluteSourceFilePath:           filepath.Join(srcFileFolder, pipelineId.String()+javaSourceFileExtension),
+					AbsoluteSourceFilePath:           filepath.Join(srcFileFolder, pipelineId.String()+JavaSourceFileExtension),
 					ExecutableFileName:               pipelineId.String() + javaCompiledFileExtension,
 					AbsoluteExecutableFileFolderPath: binFileFolder,
 					AbsoluteExecutableFilePath:       filepath.Join(binFileFolder, pipelineId.String()+javaCompiledFileExtension),
@@ -85,8 +85,7 @@ func Test_executableName(t *testing.T) {
 	defer os.RemoveAll(workDir)
 
 	type args struct {
-		pipelineId      uuid.UUID
-		pipelinesFolder string
+		executableFolder string
 	}
 	tests := []struct {
 		name    string
@@ -108,19 +107,18 @@ func Test_executableName(t *testing.T) {
 				}
 			},
 			args: args{
-				pipelineId:      pipelineId,
-				pipelinesFolder: preparedPipelinesFolder,
+				executableFolder: filepath.Join(workDir, pipelinesFolder, pipelineId.String(), "bin"),
 			},
 			want:    "temp",
 			wantErr: false,
 		},
 		{
-			// Test case with calling sourceFileName method with correct pipelineId and workingDir.
+			// Test case with calling sourceFileName method with wrong directory.
 			// As a result, want to receive an error.
 			name:    "directory doesn't exist",
 			prepare: func() {},
 			args: args{
-				pipelineId: uuid.New(),
+				executableFolder: filepath.Join(workDir, pipelineId.String()),
 			},
 			want:    "",
 			wantErr: true,
@@ -129,7 +127,7 @@ func Test_executableName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.prepare()
-			got, err := executableName(tt.args.pipelineId, tt.args.pipelinesFolder)
+			got, err := executableName(tt.args.executableFolder)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("sourceFileName() error = %v, wantErr %v", err, tt.wantErr)
 				return

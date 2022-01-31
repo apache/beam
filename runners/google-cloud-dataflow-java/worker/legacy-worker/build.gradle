@@ -52,7 +52,7 @@ def sdk_provided_dependencies = [
         library.java.jackson_databind,
         library.java.joda_time,
         library.java.slf4j_api,
-        library.java.vendored_grpc_1_36_0,
+        library.java.vendored_grpc_1_43_2,
 ]
 
 def sdk_provided_shaded_project_dependencies = [
@@ -189,16 +189,13 @@ dependencies {
     // runners/google-cloud-dataflow-java/worker/build.gradle using the rules provided
     // there.
     sdk_provided_dependencies.each {
-        compileOnly(it)
-        testImplementation(it)
+        provided(it)
     }
     sdk_provided_shaded_project_dependencies.each {
-        compileOnly project(path: it, configuration: "shadow")
-        testImplementation project(path: it, configuration: "shadow")
+        provided project(path: it, configuration: "shadow")
     }
     sdk_provided_project_dependencies.each {
-        compileOnly project(path: it)
-        testImplementation project(path: it)
+        provided project(path: it)
     }
 
     implementation project(path: ":model:fn-execution", configuration: "shadow")
@@ -229,7 +226,7 @@ dependencies {
     implementation library.java.joda_time
     implementation library.java.slf4j_api
     implementation "io.opencensus:opencensus-api:0.28.0"
-    implementation library.java.vendored_grpc_1_36_0
+    implementation library.java.vendored_grpc_1_43_2
     implementation library.java.error_prone_annotations
     permitUnusedDeclared library.java.error_prone_annotations
     runtimeOnly library.java.slf4j_jdk14

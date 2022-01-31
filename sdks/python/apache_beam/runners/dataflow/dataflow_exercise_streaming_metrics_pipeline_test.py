@@ -23,7 +23,6 @@
 #   name: DataflowExerciseStreamingMetricsTest
 #   description: Unit-test for the word-counting workflow.
 #   multifile: false
-#   pipeline_options:
 #   categories:
 #     - Streaming
 #     - Metrics

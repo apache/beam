@@ -23,7 +23,6 @@
 #   name: WordCountMinimalTest
 #   description: Unit-test for the minimal WordCount example.
 #   multifile: false
-#   pipeline_options:
 #   categories:
 #     - IO
 #     - Combiners

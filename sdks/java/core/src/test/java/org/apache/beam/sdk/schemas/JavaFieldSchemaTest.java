@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.schemas;
 
 import static org.apache.beam.sdk.schemas.utils.SchemaTestUtils.equivalentTo;
+import static org.apache.beam.sdk.schemas.utils.TestPOJOs.ANNOTATED_SIMPLE_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.CASE_FORMAT_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.ENUMERATION;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_ARRAYS_POJO_SCHEMA;
@@ -145,6 +146,24 @@ public class JavaFieldSchemaTest {
             name,
             (byte) 1,
             (short) 2,
+            3,
+            4L,
+            true,
+            DATE,
+            INSTANT,
+            BYTE_ARRAY,
+            BYTE_BUFFER.array(),
+            BigDecimal.ONE,
+            new StringBuilder(name).append("builder").toString())
+        .build();
+  }
+
+  private Row createAnnotatedRow(String name) {
+    return Row.withSchema(ANNOTATED_SIMPLE_POJO_SCHEMA)
+        .addValues(
+            name,
+            (short) 2,
+            (byte) 1,
             3,
             4L,
             true,
@@ -512,9 +531,9 @@ public class JavaFieldSchemaTest {
   public void testAnnotations() throws NoSuchSchemaException {
     SchemaRegistry registry = SchemaRegistry.createDefault();
     Schema schema = registry.getSchema(AnnotatedSimplePojo.class);
-    SchemaTestUtils.assertSchemaEquivalent(SIMPLE_POJO_SCHEMA, schema);
+    SchemaTestUtils.assertSchemaEquivalent(ANNOTATED_SIMPLE_POJO_SCHEMA, schema);
 
-    Row simpleRow = createSimpleRow("string");
+    Row simpleRow = createAnnotatedRow("string");
     AnnotatedSimplePojo pojo = createAnnotated("string");
     assertEquals(simpleRow, registry.getToRowFunction(AnnotatedSimplePojo.class).apply(pojo));
 

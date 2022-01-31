@@ -58,9 +58,11 @@ def test__get_gcs_object_name():
 
 def test__write_to_local_fs(delete_temp_folder):
   """
-  Test writing code of an example, output and meta info to the filesystem (in temp folder)
+  Test writing code of an example, output and meta info to
+  the filesystem (in temp folder)
   Args:
-      delete_temp_folder: python fixture to clean up temp folder after method execution
+      delete_temp_folder: python fixture to clean up temp folder
+      after method execution
   """
   object_meta = {
       "name": "name",
@@ -77,7 +79,8 @@ def test__write_to_local_fs(delete_temp_folder):
       code="code_of_example",
       output="output_of_example",
       status=STATUS_UNSPECIFIED,
-      tag=Tag(**object_meta))
+      tag=Tag(**object_meta),
+      link="link")
   expected_result = {
       "SDK_JAVA/name/name.java": "temp/pipeline_id/SDK_JAVA/name/name.java",
       "SDK_JAVA/name/name.output": "temp/pipeline_id/SDK_JAVA/name/name.output",
@@ -105,7 +108,8 @@ def test__save_to_cloud_storage(mocker):
       code="code_of_example",
       output="output_of_example",
       status=STATUS_UNSPECIFIED,
-      tag=None)
+      tag=None,
+      link="link")
 
   CDHelper()._save_to_cloud_storage([example])
   write_to_os_mock.assert_called_with(example)
