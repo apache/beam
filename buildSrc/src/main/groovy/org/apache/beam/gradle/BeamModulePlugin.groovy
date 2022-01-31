@@ -1178,13 +1178,6 @@ class BeamModulePlugin implements Plugin<Project> {
         options.errorprone.errorproneArgs.add("-Xep:UnsafeReflectiveConstructionCast:OFF")
         options.errorprone.errorproneArgs.add("-Xep:UseCorrectAssertInTests:OFF")
 
-        // These checks raise NoSuchMethodError for some projects that have
-        // a transitive dependency on older guava
-        // See https://github.com/google/error-prone/issues/2745
-        options.errorprone.errorproneArgs.add("-Xep:ArgumentSelectionDefectChecker:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:AssertEqualsArgumentOrderChecker:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:AutoValueConstructorOrderChecker:OFF")
-
         // Sometimes a static logger is preferred, which is the convention
         // currently used in beam. See docs:
         // https://github.com/KengoTODA/findbugs-slf4j#slf4j_logger_should_be_non_static
