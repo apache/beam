@@ -56,8 +56,10 @@ class EstimatePiTest(unittest.TestCase):
 
   @pytest.mark.examples_postcommit
   def test_estimate_pi_output_file(self):
+    test_pipeline = TestPipeline(is_integration_test=True)
     temp_folder = tempfile.mkdtemp()
-    estimate_pi.run(['--output', os.path.join(temp_folder, 'result')])
+    extra_opts = {'output': os.path.join(temp_folder, 'result')}
+    estimate_pi.run(test_pipeline.get_full_options_as_args(**extra_opts))
     # Load result file and compare.
     with open_shards(os.path.join(temp_folder, 'result-*-of-*')) as result_file:
       [_, _, estimated_pi] = json.loads(result_file.read().strip())

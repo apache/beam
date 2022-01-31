@@ -62,6 +62,7 @@ class CodersTest(unittest.TestCase):
 
   @pytest.mark.examples_postcommit
   def test_coders_output_files_on_small_input(self):
+    test_pipeline = TestPipeline(is_integration_test=True)
     EXPECTED_RESULT = '["Germany", 3]\n'\
                         '["Italy", 0]\n'\
                         '["Brasil", 6]'
@@ -71,11 +72,11 @@ class CodersTest(unittest.TestCase):
     self.create_content_input_file(
         os.path.join(temp_folder, 'input.txt'),
         '\n'.join(map(json.dumps, self.SAMPLE_RECORDS)))
-    coders.run([
-        '--input=%s/input.txt' % temp_folder,
-        '--output',
-        os.path.join(temp_folder, 'result')
-    ])
+    extra_opts = {
+        'input': '%s/input.txt' % temp_folder,
+        'output': os.path.join(temp_folder, 'result')
+    }
+    coders.run(test_pipeline.get_full_options_as_args(**extra_opts))
 
     # Load result file and compare.
     with open_shards(os.path.join(temp_folder, 'result-*-of-*')) as result_file:
