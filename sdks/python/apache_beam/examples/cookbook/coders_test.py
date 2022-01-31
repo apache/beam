@@ -71,14 +71,11 @@ class CodersTest(unittest.TestCase):
     self.create_content_input_file(
         os.path.join(temp_folder, 'input.txt'),
         '\n'.join(map(json.dumps, self.SAMPLE_RECORDS)))
-    # save_main_session=False is needed for testing only,
-    # to run the example we should pass True
     coders.run([
         '--input=%s/input.txt' % temp_folder,
         '--output',
         os.path.join(temp_folder, 'result')
-    ],
-               save_main_session=False)
+    ])
 
     # Load result file and compare.
     with open_shards(os.path.join(temp_folder, 'result-*-of-*')) as result_file:

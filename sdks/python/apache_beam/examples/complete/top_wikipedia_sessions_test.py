@@ -88,20 +88,18 @@ class ComputeTopSessionsTest(unittest.TestCase):
 
   @pytest.mark.examples_postcommit
   def test_top_wikipedia_sessions_output_files_on_small_input(self):
+    test_pipeline = TestPipeline(is_integration_test=True)
     # Setup the files with expected content.
     temp_folder = tempfile.mkdtemp()
     self.create_content_input_file(
         os.path.join(temp_folder, 'input.txt'), '\n'.join(self.EDITS))
-    # save_main_session=False is needed for testing only,
-    # to run the example we should pass True
-    top_wikipedia_sessions.run([
-        '--input=%s/input.txt' % temp_folder,
-        '--output',
-        os.path.join(temp_folder, 'result'),
-        '--sampling_threshold',
-        '1.0'
-    ],
-                               save_main_session=False)
+    extra_opts = {
+        'input': '%s/input.txt' % temp_folder,
+        'output': os.path.join(temp_folder, 'result'),
+        'sampling_threshold': '1.0'
+    }
+    top_wikipedia_sessions.run(
+        test_pipeline.get_full_options_as_args(**extra_opts))
 
     # Load result file and compare.
     with open_shards(os.path.join(temp_folder, 'result-*-of-*')) as result_file:

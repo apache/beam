@@ -82,7 +82,7 @@ task examples {
   dependsOn ':sdks:python:sdist'
 
   doLast {
-    def testOpts = basicTestOpts
+    def testOpts = ["--log-cli-level=INFO"]
     def argMap = ["runner": "TestDirectRunner",
                   "test_opts": testOpts,
                   "suite": "postCommitExamples-direct-py${pythonVersionSuffix}",
