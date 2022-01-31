@@ -82,7 +82,7 @@ func ExpansionAddr(addr string) Option {
 	}
 }
 
-const serviceGradleTarget = ":sdks:java:io:expansion-service:runExpansionService"
+const serviceGradleTarget = ":sdks:java:extensions:sql:expansion-service:shadowJar"
 
 // Transform creates a SQL-based transform over zero or more PCollections
 // and/or named data sources.
