@@ -12,7 +12,7 @@ a differentiating feature of Beam and Dataflow.
 
 To accomplish this, we lean heavily on the portability framework.
 For example, we make heavy use of cross-language transforms,
-in particular for IOs (as a full SDF implementation may not fit into the week).
+in particular for IOs.
 In addition, the direct runner is simply an extension of the worker suitable
 for running on portable runners such as the ULR, which will directly transfer
 to running on production runners such as Dataflow and Flink.
@@ -101,6 +101,8 @@ on a portable runner) but the following big-ticket items remain.
   * Finish the work in building a full SDK container image that starts
   the worker.
 
+  * Actually use worker threads for multiple bundles.
+
 * External transforms
 
   * Using external transforms requires that the external expansion service
@@ -110,6 +112,16 @@ on a portable runner) but the following big-ticket items remain.
 * API
 
   * There are several TODOs of minor features or design decisions to finalize.
+
+    * Consider using (or supporting) 2-arrays rather than {key, value} objects
+      for KVs.
+
+    * Consider renaming map/flatMap to doMap/doFlatMap to avoid confusion with
+    Array.map that takes a key as a second callback argument.
+    Also add a [do]Filter, and possibly a [do]Reduce?
+
+    * Move away from using classes.
+
 
   * Advanced features like metrics, state, timers, and SDF.
   Possibly some of these can wait.
@@ -127,6 +139,14 @@ on a portable runner) but the following big-ticket items remain.
 
   * Though Dataflow Runner v2 supports portability, submission is still done
   via v1beta3 and interaction with GCS rather than the job submission API.
+
+  * Cleanup uses of var, this. Arrow functions. `===` vs `==`.
+
+  * Avoid any return types (and re-enable check in compiler).
+
+  * Relative vs. absoute imports.  Remove imports from base.ts.
+
+  * More/better tests, including tests of illegal/unsupported use.
 
 There is probably more; there are many TODOs littered throughout the code.
 
