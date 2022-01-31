@@ -19,17 +19,11 @@ package org.apache.beam.sdk.io.aws2.options;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static software.amazon.awssdk.core.SdkSystemSetting.AWS_REGION;
-import static software.amazon.awssdk.http.SdkHttpConfigurationOption.CONNECTION_ACQUIRE_TIMEOUT;
-import static software.amazon.awssdk.http.SdkHttpConfigurationOption.CONNECTION_MAX_IDLE_TIMEOUT;
-import static software.amazon.awssdk.http.SdkHttpConfigurationOption.CONNECTION_TIMEOUT;
-import static software.amazon.awssdk.http.SdkHttpConfigurationOption.CONNECTION_TIME_TO_LIVE;
-import static software.amazon.awssdk.http.SdkHttpConfigurationOption.MAX_CONNECTIONS;
-import static software.amazon.awssdk.http.SdkHttpConfigurationOption.READ_TIMEOUT;
 
 import java.net.URI;
-import java.time.Duration;
 import java.util.function.Supplier;
 import org.apache.beam.repackaged.direct_java.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.sdk.io.aws2.common.HttpClientConfiguration;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.junit.Test;
@@ -38,7 +32,7 @@ import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.http.apache.ProxyConfiguration;
-import software.amazon.awssdk.utils.AttributeMap;
+import software.amazon.awssdk.regions.Region;
 
 public class AwsOptionsTest {
   private AwsOptions serializeDeserialize(AwsOptions opts) {
@@ -55,8 +49,8 @@ public class AwsOptionsTest {
     AwsOptions options = create();
 
     // trigger factories
-    assertThat(withRegionProperty("us-west-1", () -> options.getAwsRegion()))
-        .isEqualTo("us-west-1");
+    assertThat(withRegionProperty(Region.US_WEST_1, () -> options.getAwsRegion()))
+        .isEqualTo(Region.US_WEST_1);
     assertThat(options.getAwsCredentialsProvider())
         .isEqualTo(DefaultCredentialsProvider.create()); // by instance
 
@@ -71,15 +65,15 @@ public class AwsOptionsTest {
     assertThat(copy.getProxyConfiguration()).isNull();
     assertThat(options.getProxyConfiguration()).isNull();
 
-    assertThat(copy.getAttributeMap()).isNull();
-    assertThat(options.getAttributeMap()).isNull();
+    assertThat(copy.getHttpClientConfiguration()).isNull();
+    assertThat(options.getHttpClientConfiguration()).isNull();
   }
 
   @Test
   public void testSetAwsRegion() {
     AwsOptions options = create("--awsRegion=us-west-1");
-    assertThat(options.getAwsRegion()).isEqualTo("us-west-1");
-    assertThat(serializeDeserialize(options).getAwsRegion()).isEqualTo("us-west-1");
+    assertThat(options.getAwsRegion()).isEqualTo(Region.US_WEST_1);
+    assertThat(serializeDeserialize(options).getAwsRegion()).isEqualTo(Region.US_WEST_1);
   }
 
   @Test
@@ -98,8 +92,9 @@ public class AwsOptionsTest {
   @Test
   public void testSetEndpoint() {
     AwsOptions options = create("--endpoint=https://localhost:8080");
-    assertThat(options.getEndpoint()).isEqualTo("https://localhost:8080");
-    assertThat(serializeDeserialize(options).getEndpoint()).isEqualTo("https://localhost:8080");
+    assertThat(options.getEndpoint()).isEqualTo(URI.create("https://localhost:8080"));
+    assertThat(serializeDeserialize(options).getEndpoint())
+        .isEqualTo(URI.create("https://localhost:8080"));
   }
 
   @Test
@@ -120,34 +115,38 @@ public class AwsOptionsTest {
   }
 
   @Test
-  public void testSetAttributeMap() {
+  public void testSetHttpClientConfiguration() {
     AwsOptions options =
         create(
-            "--attributeMap={"
-                + "\"connectionAcquisitionTimeout\":\"PT1000S\","
-                + "\"connectionMaxIdleTime\":\"PT3000S\","
-                + "\"connectionTimeout\":\"PT10000S\","
-                + "\"connectionTimeToLive\":\"PT10000S\","
-                + "\"maxConnections\":\"10\","
-                + "\"socketTimeout\":\"PT5000S\"}");
+            "--httpClientConfiguration={"
+                + "\"connectionAcquisitionTimeout\":100,"
+                + "\"connectionMaxIdleTime\":200,"
+                + "\"connectionTimeout\":300,"
+                + "\"connectionTimeToLive\":400,"
+                + "\"socketTimeout\":500,"
+                + "\"readTimeout\":600,"
+                + "\"writeTimeout\":700,"
+                + "\"maxConnections\":10}");
 
-    AttributeMap expected =
-        AttributeMap.builder()
-            .put(CONNECTION_ACQUIRE_TIMEOUT, Duration.parse("PT1000S"))
-            .put(CONNECTION_MAX_IDLE_TIMEOUT, Duration.parse("PT3000S"))
-            .put(CONNECTION_TIMEOUT, Duration.parse("PT10000S"))
-            .put(CONNECTION_TIME_TO_LIVE, Duration.parse("PT10000S"))
-            .put(MAX_CONNECTIONS, 10)
-            .put(READ_TIMEOUT, Duration.parse("PT5000S"))
+    HttpClientConfiguration expected =
+        HttpClientConfiguration.builder()
+            .connectionAcquisitionTimeout(100)
+            .connectionMaxIdleTime(200)
+            .connectionTimeout(300)
+            .connectionTimeToLive(400)
+            .socketTimeout(500)
+            .readTimeout(600)
+            .writeTimeout(700)
+            .maxConnections(10)
             .build();
 
-    assertThat(options.getAttributeMap()).isEqualTo(expected);
-    assertThat(serializeDeserialize(options).getAttributeMap()).isEqualTo(expected);
+    assertThat(options.getHttpClientConfiguration()).isEqualTo(expected);
+    assertThat(serializeDeserialize(options).getHttpClientConfiguration()).isEqualTo(expected);
   }
 
-  private <T> T withRegionProperty(String region, Supplier<T> fun) {
+  private <T> T withRegionProperty(Region region, Supplier<T> fun) {
     String oldRegion = System.getProperty(AWS_REGION.property());
-    System.setProperty(AWS_REGION.property(), region);
+    System.setProperty(AWS_REGION.property(), region.id());
     try {
       return fun.get();
     } finally {
