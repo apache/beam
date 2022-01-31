@@ -47,7 +47,7 @@ import org.joda.time.Duration;
 class RetryManager<ResultT, ContextT extends Context<ResultT>> {
   private Queue<Operation<ResultT, ContextT>> operations;
   private final BackOff backoff;
-  private final ExecutorService executor;
+  private static final ExecutorService EXECUTOR = Executors.newCachedThreadPool();
 
   // Enum returned by onError indicating whether errors should be retried.
   enum RetryType {
@@ -78,7 +78,6 @@ class RetryManager<ResultT, ContextT extends Context<ResultT>> {
             .withMaxBackoff(maxBackoff)
             .withMaxRetries(maxRetries)
             .backoff();
-    this.executor = Executors.newCachedThreadPool();
   }
 
   static class Operation<ResultT, ContextT extends Context<ResultT>> {
@@ -236,13 +235,13 @@ class RetryManager<ResultT, ContextT extends Context<ResultT>> {
   }
 
   void addAndRunOperation(Operation<ResultT, ContextT> operation) {
-    operation.run(executor);
+    operation.run(EXECUTOR);
     operations.add(operation);
   }
 
   void run(boolean await) throws Exception {
     for (Operation<ResultT, ContextT> operation : operations) {
-      operation.run(executor);
+      operation.run(EXECUTOR);
     }
     if (await) {
       await();
