@@ -84,6 +84,31 @@ func ExpansionAddr(addr string) Option {
 
 const serviceGradleTarget = ":sdks:java:extensions:sql:expansion-service:shadowJar"
 
+// StartAutomatedExpansionService pulls a JAR from Maven containing
+// a Beam expansion service that handles the SQL transform URN,
+// creates a runner type to manage the service, starts the service,
+// and arranges the endpoint with the appropriate namespace tag.
+//
+// Returns the StopService() function for the runner (should be
+// deferred so the service is stopped before the program exits,)
+// the tagged expansion address, and an error.
+func StartAutomatedExpansionService() (func() error, string, error) {
+	jarPath, err := expansionx.GetBeamJar(serviceGradleTarget, core.SdkVersion)
+        if err != nil {
+		return nil, "", err
+        }
+        serviceRunner, err := expansionx.NewExpansionServiceRunner(jarPath, "")
+        if err != nil {
+		return nil, "", err
+        }
+        err = serviceRunner.StartService()
+        if err != nil {
+		return nil, "", err
+        }
+	expansionAddr := xlangx.AutoNamespace + xlangx.Separator + serviceRunner.Endpoint()
+	return serviceRunner.StopService, expansionAddr, nil
+}
+
 // Transform creates a SQL-based transform over zero or more PCollections
 // and/or named data sources.
 //
@@ -120,20 +145,14 @@ func Transform(s beam.Scope, query string, opts ...Option) beam.PCollection {
 		expansionAddr = xlangx.Require(o.expansionAddr)
 	}
 	if expansionAddr == sqlx.DefaultExpansionAddr {
-		jarPath, err := expansionx.GetBeamJar(serviceGradleTarget, core.SdkVersion)
+		stopFunc, taggedEndpoint, err := StartAutomatedExpansionService()
 		if err != nil {
-			panic(fmt.Sprintf("failed to get expansion service JAR, got %v", err))
+			panic(fmt.Sprintf("failed to start automated expansion service, got %v", err))
 		}
-		serviceRunner, err := expansionx.NewExpansionServiceRunner(jarPath, "")
-		if err != nil {
-			panic(fmt.Sprintf("failed to make new expansion service runner, got %v", err))
-		}
-		err = serviceRunner.StartService()
-		if err != nil {
-			panic(fmt.Sprintf("failed to start expansion service JAR, got %v", err))
-		}
-		defer serviceRunner.StopService()
-		expansionAddr = xlangx.AutoNamespace + xlangx.Separator + serviceRunner.Endpoint()
+		// Defer the stop function so the service doesn't leak resources.
+		defer stopFunc()
+		// Update the passed expansion address to have the tagged endpoint of the service
+		expansionAddr = taggedEndpoint
 	}
 
 	out := beam.CrossLanguage(s, sqlx.Urn, payload, expansionAddr, o.inputs, beam.UnnamedOutput(o.outType))
