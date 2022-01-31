@@ -20,16 +20,24 @@ package org.apache.beam.sdk.io.aws2.s3;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.service.AutoService;
+import java.util.Map;
+import java.util.ServiceLoader;
+import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.FileSystem;
 import org.apache.beam.sdk.io.FileSystemRegistrar;
-import org.apache.beam.sdk.io.aws2.options.S3Options;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Streams;
 
-/** {@link AutoService} registrar for the {@link S3FileSystem}. */
+/**
+ * {@link AutoService} registrar for the {@link S3FileSystem}.
+ *
+ * <p>Creates instances of {@link S3FileSystem} for each scheme registered with a {@link
+ * S3FileSystemSchemeRegistrar}.
+ */
 @AutoService(FileSystemRegistrar.class)
 @Experimental(Kind.FILESYSTEM)
 public class S3FileSystemRegistrar implements FileSystemRegistrar {
@@ -37,6 +45,12 @@ public class S3FileSystemRegistrar implements FileSystemRegistrar {
   @Override
   public Iterable<FileSystem<?>> fromOptions(@Nonnull PipelineOptions options) {
     checkNotNull(options, "Expect the runner have called FileSystems.setDefaultPipelineOptions().");
-    return ImmutableList.of(new S3FileSystem(options.as(S3Options.class)));
+    Map<String, FileSystem<?>> fileSystems =
+        Streams.stream(
+                ServiceLoader.load(
+                    S3FileSystemSchemeRegistrar.class, ReflectHelpers.findClassLoader()))
+            .flatMap(r -> Streams.stream(r.fromOptions(options)))
+            .collect(Collectors.toMap(S3FileSystemConfiguration::getScheme, S3FileSystem::new));
+    return fileSystems.values();
   }
 }

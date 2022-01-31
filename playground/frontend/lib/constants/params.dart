@@ -17,3 +17,5 @@
  */
 
 const kExampleParam = 'example';
+const kIsEditable = 'enabled';
+const kSourceCode = 'code';

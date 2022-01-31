@@ -189,9 +189,9 @@ func main() {
 
 	disableJammAgent := strings.Contains(options, disableJammAgentOption)
 	if disableJammAgent {
-	  log.Printf("Disabling Jamm agent. Measuring object size will be inaccurate.")
+		log.Printf("Disabling Jamm agent. Measuring object size will be inaccurate.")
 	} else {
-	  args = append(args, jammAgentArgs)
+		args = append(args, jammAgentArgs)
 	}
 
 	args = append(args, "org.apache.beam.fn.harness.FnHarness")
