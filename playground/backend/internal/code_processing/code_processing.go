@@ -163,7 +163,7 @@ func compileStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.L
 	errorChannel, successChannel := createStatusChannels()
 	var executor = executors.Executor{}
 	// This condition is used for cases when the playground doesn't compile source files. For the Python code and the Go Unit Tests
-	if sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_PYTHON || (sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_GO && isUnitTest) {
+	if sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_PYTHON || sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_SCIO || (sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_GO && isUnitTest) {
 		if err := processCompileSuccess(pipelineLifeCycleCtx, []byte(""), pipelineId, cacheService); err != nil {
 			return nil
 		}
