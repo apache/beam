@@ -1,4 +1,3 @@
-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,22 +18,23 @@
 #
 
 
-resource "google_container_cluster" "playground-gke" {
-  name               = "playground-examples"
-  project            = "${var.project_id}"
-  location           = "us-central1-a"
-  initial_node_count = "${var.node_count}"
-  node_config {
-    machine_type     = "${var.machine_type}"
-    service_account  = "${var.service_account}"
 
-    oauth_scopes    = [
+resource "google_container_cluster" "playground-gke" {
+  name               = var.name
+  project            = var.project_id
+  location           = var.localtion
+  initial_node_count = var.node_count
+  node_config {
+    machine_type    = var.machine_type
+    service_account = var.service_account
+
+    oauth_scopes = [
       "https://www.googleapis.com/auth/cloud-platform"
     ]
-    labels = {
-      component      = "beam-playground"
+    labels       = {
+      component = "beam-playground"
     }
-    tags             = ["beam-playground"]
+    tags         = ["beam-playground"]
 
   }
 }

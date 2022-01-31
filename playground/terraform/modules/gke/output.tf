@@ -1,4 +1,3 @@
-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,5 +18,5 @@
 #
 
 output "gke_name" {
-  value = "${google_container_cluster.playground-gke.name}"
+  value = google_container_cluster.playground-gke.name
 }

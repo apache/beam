@@ -1,4 +1,3 @@
-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,8 +18,8 @@
 #
 
 resource "google_compute_network" "playground_vpc" {
-  project                 = "${var.project_id}"
-  name                    = "${var.vpc_name}"
-  auto_create_subnetworks = "${var.create_subnets}"
-  mtu                     = "${var.mtu}"
+  project                 = var.project_id
+  name                    = var.vpc_name
+  auto_create_subnetworks = var.create_subnets
+  mtu                     = var.mtu
 }

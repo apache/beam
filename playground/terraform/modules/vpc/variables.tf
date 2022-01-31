@@ -1,4 +1,3 @@
-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -29,7 +28,7 @@ variable "vpc_name" {
 
 variable "create_subnets" {
   description = "Auto Create Subnets Inside VPC"
-  default = true
+  default     = true
 }
 
 variable "mtu" {

@@ -38,5 +38,5 @@ variable "repository_id" {
 
 variable "service_account" {
   description = "Service account email"
-  default = "service-account-playground"
+  default     = "service-account-playground"
 }

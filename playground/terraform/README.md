@@ -29,13 +29,13 @@ You'll also need to make sure that you're currently logged into your GCP account
 ```bash
 $ gcloud auth login
 ```
-In other case you'll need an environment variable `GOOGLE_APPLICATION_CREDENTIALS` set to JSON key for service account that will be used to deploy resources
+
+In other case you'll need an environment variable `GOOGLE_APPLICATION_CREDENTIALS` set to JSON key for service account
+that will be used to deploy resources
 
 ## Installation
 
 You can install Terraform using the instructions [here](https://www.terraform.io/intro/getting-started/install.html).
-
-
 
 ## Creating GCP resources using Terraform
 
@@ -62,11 +62,13 @@ Do you want to perform these actions?
   Enter a value:
 ```
 
-Type `yes` and hit **Enter**. Applying the configuration could take several minutes. When it's finished, you should see `Apply complete!` along with some other information, including the number of resources created.
+Type `yes` and hit **Enter**. Applying the configuration could take several minutes. When it's finished, you should
+see `Apply complete!` along with some other information, including the number of resources created.
 
 ### Applying a non-default configuration
 
-You can apply a non-default Terraform configuration by changing the values in the `terraform.tfvars` file. The following variables are available:
+You can apply a non-default Terraform configuration by changing the values in the `terraform.tfvars` file. The following
+variables are available:
 
 Variable name | Description | Default
 :-------------|:------------|:-------
@@ -92,9 +94,9 @@ After applying terraform following resources will be created:
 
 * GCP [Artifact Registry](https://cloud.google.com/artifact-registry) used to store application docker files:
 * VPC to run GCP App Engine VM's ([VPC](https://cloud.google.com/vpc))
-* 2 buckets to store Examples for Playground Application and Terraform states [buckets](https://cloud.google.com/storage/docs/key-terms#buckets)
+* 2 buckets to store Examples for Playground Application and Terraform
+  states [buckets](https://cloud.google.com/storage/docs/key-terms#buckets)
 * 2 GCP [App Engine](https://cloud.google.com/appengine) services for backend and frontend applications
-
 
 ### Destroying your cluster
 

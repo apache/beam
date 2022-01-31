@@ -20,24 +20,24 @@
 
 data "terraform_remote_state" "remote_state_vpc" {
   backend = "gcs"
-  config = {
-    bucket  = "${var.beam_playground_terraform}"
+  config  = {
+    bucket = var.beam_playground_terraform
   }
 }
 
 
 resource "google_redis_instance" "cache" {
-  provider           = google-beta
-  project            = "${var.project_id}"
-#  region             = "${data.terraform_remote_state.remote_state_vpc.outputs.subnet_region}"
-  region              = "us-central1"
-  name               = "playground-backend-cache"
-  tier               = "BASIC"
-  memory_size_gb     = 16
+  provider       = google-beta
+  project        = var.project_id
+  #  region             = "${data.terraform_remote_state.remote_state_vpc.outputs.subnet_region}"
+  region         = "us-central1"
+  name           = "playground-backend-cache"
+  tier           = "BASIC"
+  memory_size_gb = 16
 
-#  authorized_network = "${data.terraform_remote_state.remote_state_vpc.outputs.vpc_id}"
+  #  authorized_network = "${data.terraform_remote_state.remote_state_vpc.outputs.vpc_id}"
 
-  redis_version      = "${var.redis_version}"
-  display_name       = "Playground Cache"
+  redis_version = var.redis_version
+  display_name  = "Playground Cache"
 
 }
