@@ -122,9 +122,13 @@ on a portable runner) but the following big-ticket items remain.
 
     * Move away from using classes.
 
+  * Add the ability to set good PTransform names, and ideally infer good
+  defaults.
 
   * Advanced features like metrics, state, timers, and SDF.
   Possibly some of these can wait.
+
+  * PipelineOptions should be a Javascript Object, not a proto Struct.
 
 * Infrastructure
 
@@ -147,6 +151,9 @@ on a portable runner) but the following big-ticket items remain.
   * Relative vs. absoute imports.  Remove imports from base.ts.
 
   * More/better tests, including tests of illegal/unsupported use.
+
+  * Set channel options like `grpc.max_{send,receive}_message_length` as we
+  do in other SDKs.
 
 There is probably more; there are many TODOs littered throughout the code.
 
