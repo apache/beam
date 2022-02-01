@@ -27,12 +27,12 @@ variable "docker_registry_address" {
 
 variable "docker_image_name" {
   description = "Docker Image Name To Be Deployed"
-  default = "beam_playground-backend-scio"
+  default     = "beam_playground-backend-scio"
 }
 
 variable "docker_image_tag" {
   description = "Docker Image Tag To Be Deployed"
-  default = "latest"
+  default     = "latest"
 }
 
 variable "service_name" {
@@ -45,4 +45,10 @@ variable "cache_type" {
 
 variable "cache_address" {
   default = ""
+}
+
+variable "volume_size" {
+  description = "Size of the in memory file system to be used by the application, in GB"
+  type        = number
+  default     = 1
 }
