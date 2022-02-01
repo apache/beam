@@ -48,7 +48,10 @@ dependencies {
   implementation library.java.flogger_system_backend // Avoids conflicts with bigdataoss_util (BEAM-11010)
   permitUnusedDeclared library.java.flogger_system_backend // BEAM-11010
   implementation library.java.gax
-  implementation library.java.gax_grpc
+  implementation(library.java.gax_grpc) {
+    // BEAM-13781: gax-grpc's gRPC version was older than Beam declared
+    exclude group: 'io.grpc', module: 'grpc-netty-shaded'
+  }
   implementation library.java.gax_httpjson
   permitUnusedDeclared library.java.gax_httpjson // BEAM-8755
   implementation library.java.google_api_client

@@ -22,6 +22,7 @@ import (
 	"beam.apache.org/playground/backend/internal/cache/redis"
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/logger"
+	"beam.apache.org/playground/backend/internal/utils"
 	"context"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"google.golang.org/grpc"
@@ -49,6 +50,14 @@ func runServer() error {
 		env:          envService,
 		cacheService: cacheService,
 	})
+
+	// Examples catalog should be retrieved and saved to cache only if the server doesn't suppose to run code, i.e. SDK is unspecified
+	if envService.BeamSdkEnvs.ApacheBeamSdk == pb.Sdk_SDK_UNSPECIFIED {
+		err = setupExamplesCatalog(ctx, cacheService)
+		if err != nil {
+			return err
+		}
+	}
 
 	errChan := make(chan error)
 
@@ -107,6 +116,18 @@ func setupCache(ctx context.Context, appEnv environment.ApplicationEnvs) (cache.
 	default:
 		return local.New(ctx), nil
 	}
+}
+
+// setupExamplesCatalog saves precompiled objects catalog from storage to cache
+func setupExamplesCatalog(ctx context.Context, cacheService cache.Cache) error {
+	catalog, err := utils.GetCatalogFromStorage(ctx)
+	if err != nil {
+		return err
+	}
+	if err = cacheService.SetCatalog(ctx, catalog); err != nil {
+		logger.Errorf("GetPrecompiledObjects(): cache error: %s", err.Error())
+	}
+	return nil
 }
 
 func main() {
