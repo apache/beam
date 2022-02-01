@@ -7049,4 +7049,4 @@ Dataflow supports multi-language pipelines through the Dataflow Runner v2 backen
 
 ### 13.4 Tips and Troubleshooting
 
-For tips related to multi-language pipelines and troubleshooting information, please see [here](https://cwiki.apache.org/confluence/display/BEAM/Multi-language+Pipelines+Tips).
+For additional tips and troubleshooting information, see [here](https://cwiki.apache.org/confluence/display/BEAM/Multi-language+Pipelines+Tips).
