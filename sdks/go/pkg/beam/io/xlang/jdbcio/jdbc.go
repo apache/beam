@@ -35,7 +35,7 @@
 // Current supported SDKs, including expansion service modules and reference
 // documentation:
 // * Java
-//    - Vendored Module: beam-sdks-java-io-expansion-service
+//    - Vendored Module: beam-sdks-java-extensions-schemaio-expansion-service
 //    - Run via Gradle: ./gradlew :sdks:java:extensions:schemaio-expansion-service:build
 // 						java -jar <location_of_jar_file_generated_from_above> <port>
 //    - Reference Class: org.apache.beam.sdk.io.jdbc.JdbcIO
@@ -113,12 +113,12 @@ func toRow(pl interface{}) []byte {
 //
 // The default write statement is: "INSERT INTO tableName(column1, ...) INTO VALUES(value1, ...)"
 // Example:
-// 	  tableName := "roles"
-//	  driverClassName := "org.postgresql.Driver"
-// 	  username := "root"
-// 	  password := "root123"
-// 	  jdbcUrl := "jdbc:postgresql://localhost:5432/dbname"
-//	  jdbcio.Write(s, tableName, driverClassName, jdbcurl, username, password, jdbcio.ExpansionServiceWrite("localhost:9000"))
+//   tableName := "roles"
+//	 driverClassName := "org.postgresql.Driver"
+// 	 username := "root"
+// 	 password := "root123"
+// 	 jdbcUrl := "jdbc:postgresql://localhost:5432/dbname"
+//	 jdbcio.Write(s, tableName, driverClassName, jdbcurl, username, password, jdbcio.ExpansionServiceWrite("localhost:9000"))
 func Write(s beam.Scope, tableName, driverClassName, jdbcUrl, username, password string, col beam.PCollection, opts ...writeOption) {
 	s = s.Scope("jdbcio.Write")
 
@@ -145,23 +145,23 @@ type writeOption func(*jdbcConfig)
 // WriteStatement option overrides the default write statement of
 // "INSERT INTO tableName(column1, ...) INTO VALUES(value1, ...)".
 func WriteStatement(statement string) writeOption {
-	return func(pl *jdbcConfig) {
-		pl.config.WriteStatement = &statement
+	return func(jc *jdbcConfig) {
+		jc.config.WriteStatement = &statement
 	}
 }
 
 // WriteConnectionProperties properties of the jdbc connection passed as string
 // with format [propertyName=property;].
 func WriteConnectionProperties(properties string) writeOption {
-	return func(pl *jdbcConfig) {
-		pl.config.ConnectionProperties = &properties
+	return func(jc *jdbcConfig) {
+		jc.config.ConnectionProperties = &properties
 	}
 }
 
 // ConnectionInitSQLs required only for MySql and MariaDB. passed as list of strings.
 func ConnectionInitSQLs(initStatements []string) writeOption {
-	return func(pl *jdbcConfig) {
-		pl.config.ConnectionInitSQLs = &initStatements
+	return func(jc *jdbcConfig) {
+		jc.config.ConnectionInitSQLs = &initStatements
 	}
 }
 
@@ -218,38 +218,38 @@ type readOption func(*jdbcConfig)
 
 // ReadQuery overrides the default read query "SELECT * FROM tableName;"
 func ReadQuery(query string) readOption {
-	return func(pl *jdbcConfig) {
-		pl.config.ReadQuery = &query
+	return func(jc *jdbcConfig) {
+		jc.config.ReadQuery = &query
 	}
 }
 
 // OutputParallelization specifies if output parallelization is on.
 func OutputParallelization(status bool) readOption {
-	return func(pl *jdbcConfig) {
-		pl.config.OutputParallelization = &status
+	return func(jc *jdbcConfig) {
+		jc.config.OutputParallelization = &status
 	}
 }
 
 // FetchSize specifies how many rows to fetch.
 func FetchSize(size int16) readOption {
-	return func(pl *jdbcConfig) {
-		pl.config.FetchSize = &size
+	return func(jc *jdbcConfig) {
+		jc.config.FetchSize = &size
 	}
 }
 
 // ReadConnectionProperties specifies properties of the jdbc connection passed
 // as string with format [propertyName=property;]*
 func ReadConnectionProperties(properties string) readOption {
-	return func(pl *jdbcConfig) {
-		pl.config.ConnectionProperties = &properties
+	return func(jc *jdbcConfig) {
+		jc.config.ConnectionProperties = &properties
 	}
 }
 
 // ReadConnectionInitSQLs required only for MySql and MariaDB.
 // passed as list of strings.
 func ReadConnectionInitSQLs(initStatements []string) readOption {
-	return func(pl *jdbcConfig) {
-		pl.config.ConnectionInitSQLs = &initStatements
+	return func(jc *jdbcConfig) {
+		jc.config.ConnectionInitSQLs = &initStatements
 	}
 }
 
