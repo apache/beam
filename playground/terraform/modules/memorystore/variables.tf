@@ -29,3 +29,24 @@ variable "redis_version" {
 variable "beam_playground_terraform" {
   default = "beam_playground_terraform"
 }
+
+variable "region" {
+  description = "Region of Redis"
+  default     = "us-central1"
+}
+variable "name" {
+  description = "Name of Redis"
+  default     = "playground-backend-cache"
+}
+variable "tier" {
+  description = "Tier of Redis"
+  default     = "STANDARD_HA"
+}
+variable "replica_count" {
+  description = "Redis's replica count"
+  default     = 1
+}
+variable "memory_size_gb" {
+  description = "Size of Redis memory"
+  default     = 4
+}

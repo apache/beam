@@ -26,16 +26,16 @@ data "terraform_remote_state" "remote_state_vpc" {
 }
 
 
+# Redis for storing state of Playground application.
+# In this cache Playground instances stores pipeline's statuses, outputs and pipeline's graph
 resource "google_redis_instance" "cache" {
   provider       = google-beta
   project        = var.project_id
-  #  region             = "${data.terraform_remote_state.remote_state_vpc.outputs.subnet_region}"
-  region         = "us-central1"
-  name           = "playground-backend-cache"
-  tier           = "BASIC"
-  memory_size_gb = 16
-
-  #  authorized_network = "${data.terraform_remote_state.remote_state_vpc.outputs.vpc_id}"
+  region         = var.region
+  name           = var.name
+  tier           = var.tier
+  memory_size_gb = var.memory_size_gb
+  replica_count  = var.replica_count
 
   redis_version = var.redis_version
   display_name  = "Playground Cache"
