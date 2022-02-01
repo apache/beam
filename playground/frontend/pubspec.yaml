@@ -66,6 +66,7 @@ dev_dependencies:
   build_runner: ^2.1.4
   google_fonts: ^2.1.0
   usage: ^4.0.2
+  collection: ^1.15.0
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is

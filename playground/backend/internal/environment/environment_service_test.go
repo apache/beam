@@ -119,9 +119,9 @@ func Test_getSdkEnvsFromOsEnvs(t *testing.T) {
 	}{
 		{
 			name:      "not specified beam sdk key in os envs",
-			want:      nil,
+			want:      NewBeamEnvs(playground.Sdk_SDK_UNSPECIFIED, nil, preparedModDir, defaultNumOfParallelJobs),
 			envsToSet: map[string]string{},
-			wantErr:   true,
+			wantErr:   false,
 		},
 		{
 			name:      "default beam envs",
@@ -137,9 +137,9 @@ func Test_getSdkEnvsFromOsEnvs(t *testing.T) {
 		},
 		{
 			name:      "wrong sdk key in os envs",
-			want:      nil,
+			want:      NewBeamEnvs(playground.Sdk_SDK_UNSPECIFIED, nil, preparedModDir, defaultNumOfParallelJobs),
 			envsToSet: map[string]string{beamSdkKey: "SDK_J"},
-			wantErr:   true,
+			wantErr:   false,
 		},
 	}
 	for _, tt := range tests {

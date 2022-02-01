@@ -49,6 +49,11 @@ class PlaygroundServiceStub(object):
                 request_serializer=api__pb2.GetLogsRequest.SerializeToString,
                 response_deserializer=api__pb2.GetLogsResponse.FromString,
                 )
+        self.GetGraph = channel.unary_unary(
+                '/api.v1.PlaygroundService/GetGraph',
+                request_serializer=api__pb2.GetGraphRequest.SerializeToString,
+                response_deserializer=api__pb2.GetGraphResponse.FromString,
+                )
         self.GetRunError = channel.unary_unary(
                 '/api.v1.PlaygroundService/GetRunError',
                 request_serializer=api__pb2.GetRunErrorRequest.SerializeToString,
@@ -127,6 +132,13 @@ class PlaygroundServiceServicer(object):
 
     def GetLogs(self, request, context):
         """Get the logs of pipeline execution.
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetGraph(self, request, context):
+        """Get the string representation of the pipeline execution graph in DOT format.
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -224,6 +236,11 @@ def add_PlaygroundServiceServicer_to_server(servicer, server):
                     servicer.GetLogs,
                     request_deserializer=api__pb2.GetLogsRequest.FromString,
                     response_serializer=api__pb2.GetLogsResponse.SerializeToString,
+            ),
+            'GetGraph': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetGraph,
+                    request_deserializer=api__pb2.GetGraphRequest.FromString,
+                    response_serializer=api__pb2.GetGraphResponse.SerializeToString,
             ),
             'GetRunError': grpc.unary_unary_rpc_method_handler(
                     servicer.GetRunError,
@@ -350,6 +367,23 @@ class PlaygroundService(object):
         return grpc.experimental.unary_unary(request, target, '/api.v1.PlaygroundService/GetLogs',
             api__pb2.GetLogsRequest.SerializeToString,
             api__pb2.GetLogsResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def GetGraph(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/api.v1.PlaygroundService/GetGraph',
+            api__pb2.GetGraphRequest.SerializeToString,
+            api__pb2.GetGraphResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 

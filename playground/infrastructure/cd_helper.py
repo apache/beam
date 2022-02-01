@@ -29,7 +29,7 @@ from typing import List
 from tqdm import tqdm
 from google.cloud import storage
 
-from api.v1.api_pb2 import Sdk
+from api.v1.api_pb2 import Sdk, SDK_PYTHON, SDK_JAVA
 from config import Config, PrecompiledExample
 from grpc_client import GRPCClient
 from helper import Example, get_statuses
@@ -73,6 +73,13 @@ class CDHelper:
 
     tasks = [client.get_log(example.pipeline_id) for example in examples]
     logs = await asyncio.gather(*tasks)
+
+    if len(examples) > 0 and (examples[0].sdk is SDK_PYTHON or examples[0].sdk is SDK_JAVA):
+      tasks = [client.get_graph(example.pipeline_id) for example in examples]
+      graphs = await asyncio.gather(*tasks)
+
+      for graph, example in zip(graphs, examples):
+          example.graph = graph
 
     for output, example in zip(outputs, examples):
       example.output = output
@@ -128,6 +135,11 @@ class CDHelper:
         base_folder_name=example.tag.name,
         file_name=example.tag.name,
         extension=PrecompiledExample.LOG_EXTENSION)
+    graph_path = self._get_gcs_object_name(
+        sdk=example.sdk,
+        base_folder_name=example.tag.name,
+        file_name=example.tag.name,
+        extension=PrecompiledExample.GRAPH_EXTENSION)
     meta_path = self._get_gcs_object_name(
         sdk=example.sdk,
         base_folder_name=example.tag.name,
@@ -140,6 +152,8 @@ class CDHelper:
     meta["link"] = example.link
     file_names[meta_path] = json.dumps(meta)
     file_names[log_path] = example.logs
+    if example.sdk == SDK_PYTHON or example.sdk == SDK_JAVA:
+      file_names[graph_path] = example.graph
     for file_name, file_content in file_names.items():
       local_file_path = os.path.join(
           Config.TEMP_FOLDER, example.pipeline_id, file_name)

@@ -50,7 +50,7 @@ public class ElemToBytesFunction<V> implements MapFunc<byte[], WindowedValue<V>>
   }
 
   @Override
-  public @Nullable byte[] map(WindowedValue<V> input) {
+  public byte @Nullable [] map(WindowedValue<V> input) {
     try {
       return CoderUtils.encodeToByteArray(wvCoder, input);
     } catch (CoderException e) {
