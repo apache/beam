@@ -213,6 +213,15 @@ class ElasticsearchIOTestCommon implements Serializable {
     assertThat("Wrong estimated size", estimatedSize, greaterThan(AVERAGE_DOC_SIZE * numDocs));
   }
 
+  void testValidSslConfiguration() throws Exception {
+   ConnectionConfiguration configWithSsl = connectionConfiguration.withSslConfiguration(
+           ElasticsearchIO.SslConfiguration.create("jks", "/fake/path")
+   );
+
+    pipeline.apply(ElasticsearchIO.read().withConnectionConfiguration(configWithSsl));
+    pipeline.run();
+  }
+
   void testRead() throws Exception {
     if (!useAsITests) {
       ElasticsearchIOTestUtils.insertTestDocuments(connectionConfiguration, numDocs, restClient);

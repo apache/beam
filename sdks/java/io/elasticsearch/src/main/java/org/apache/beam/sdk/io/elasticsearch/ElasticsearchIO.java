@@ -309,6 +309,71 @@ public class ElasticsearchIO {
     return responses;
   }
 
+  @AutoValue
+  public abstract static class SslConfiguration implements Serializable {
+    public abstract @Nullable String getKeystoreType();
+
+    public abstract @Nullable String getKeystorePath();
+
+    public abstract @Nullable String getKeystorePassword();
+
+    public abstract @Nullable TrustStrategy getTrustStrategy();
+
+    abstract Builder builder();
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setKeystoreType(String type);
+
+      abstract Builder setKeystorePath(String path);
+
+      abstract Builder setKeystorePassword(String password);
+
+      abstract Builder setTrustStrategy(TrustStrategy trustStrategy);
+
+      abstract SslConfiguration build();
+    }
+
+    public SSLContext getSSLContext() throws IOException {
+      if (getKeystorePath() != null && !getKeystorePath().isEmpty()) {
+        try {
+          KeyStore keyStore = KeyStore.getInstance(getKeystoreType());
+
+          try (InputStream is = new FileInputStream(getKeystorePath())) {
+            String keystorePassword = getKeystorePassword();
+            keyStore.load(is, (keystorePassword == null) ? null : keystorePassword.toCharArray());
+          }
+
+          final TrustStrategy trustStrategy = getTrustStrategy();
+
+          return SSLContexts.custom().loadTrustMaterial(keyStore, trustStrategy).build();
+        } catch (Exception e) {
+          throw new IOException("Can't create SSLContext", e);
+        }
+      }
+
+      return SSLContexts.createSystemDefault();
+    }
+
+    public static SslConfiguration create(String keystoreType, String keystorePath) {
+      // TODO: add checks?
+      return new AutoValue_ElasticsearchIO_SslConfiguration.Builder()
+          .setKeystoreType(keystoreType)
+          .setKeystorePath(keystorePath)
+          .build();
+    }
+
+    public SslConfiguration withKeystorePassword(String keystorePassword) {
+      // TODO: add checks?
+      return builder().setKeystorePassword(keystorePassword).build();
+    }
+
+    public SslConfiguration withTrustStrategy(TrustStrategy trustStrategy) {
+      // TODO: add checks?
+      return builder().setTrustStrategy(trustStrategy).build();
+    }
+  }
+
   /** A POJO describing a connection configuration to Elasticsearch. */
   @AutoValue
   public abstract static class ConnectionConfiguration implements Serializable {
@@ -337,7 +402,7 @@ public class ElasticsearchIO {
 
     public abstract boolean isTrustSelfSignedCerts();
 
-    public abstract @Nullable SSLContext getSslContext();
+    public abstract @Nullable SslConfiguration getSslConfiguration();
 
     abstract Builder builder();
 
@@ -367,7 +432,7 @@ public class ElasticsearchIO {
 
       abstract Builder setTrustSelfSignedCerts(boolean trustSelfSignedCerts);
 
-      abstract Builder setSslContext(SSLContext sslContext);
+      abstract Builder setSslConfiguration(SslConfiguration sslConfiguration);
 
       abstract ConnectionConfiguration build();
     }
@@ -484,6 +549,10 @@ public class ElasticsearchIO {
       checkArgument(password != null, "password can not be null");
       checkArgument(!password.isEmpty(), "password can not be empty");
       return builder().setPassword(password).build();
+    }
+
+    public ConnectionConfiguration withSslConfiguration(SslConfiguration sslConfiguration) {
+      return builder().setSslConfiguration(sslConfiguration).build();
     }
 
     /**
@@ -613,7 +682,15 @@ public class ElasticsearchIO {
         restClientBuilder.setDefaultHeaders(
             new Header[] {new BasicHeader("Authorization", "Bearer " + getBearerToken())});
       }
-      if (getKeystorePath() != null && !getKeystorePath().isEmpty()) {
+
+      if (getSslConfiguration() != null) {
+        SSLContext sslContext = getSslConfiguration().getSSLContext();
+        final SSLIOSessionStrategy sessionStrategy = new SSLIOSessionStrategy(sslContext);
+        restClientBuilder.setHttpClientConfigCallback(
+                httpClientBuilder ->
+                        httpClientBuilder.setSSLContext(sslContext).setSSLStrategy(sessionStrategy));
+
+      } else if (getKeystorePath() != null && !getKeystorePath().isEmpty()) {
         try {
           KeyStore keyStore = KeyStore.getInstance("jks");
           try (InputStream is = new FileInputStream(new File(getKeystorePath()))) {
@@ -621,17 +698,18 @@ public class ElasticsearchIO {
             keyStore.load(is, (keystorePassword == null) ? null : keystorePassword.toCharArray());
           }
           final TrustStrategy trustStrategy =
-              isTrustSelfSignedCerts() ? new TrustSelfSignedStrategy() : null;
+                  isTrustSelfSignedCerts() ? new TrustSelfSignedStrategy() : null;
           final SSLContext sslContext =
-              SSLContexts.custom().loadTrustMaterial(keyStore, trustStrategy).build();
+                  SSLContexts.custom().loadTrustMaterial(keyStore, trustStrategy).build();
           final SSLIOSessionStrategy sessionStrategy = new SSLIOSessionStrategy(sslContext);
           restClientBuilder.setHttpClientConfigCallback(
-              httpClientBuilder ->
-                  httpClientBuilder.setSSLContext(sslContext).setSSLStrategy(sessionStrategy));
+                  httpClientBuilder ->
+                          httpClientBuilder.setSSLContext(sslContext).setSSLStrategy(sessionStrategy));
         } catch (Exception e) {
           throw new IOException("Can't load the client certificate from the keystore", e);
         }
       }
+
       restClientBuilder.setRequestConfigCallback(
           new RestClientBuilder.RequestConfigCallback() {
             @Override

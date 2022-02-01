@@ -84,6 +84,12 @@ public class ElasticsearchIOTest implements Serializable {
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
   @Test
+  public void testSslConfiguration() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testValidSslConfiguration();
+  }
+
+  @Test
   public void testSizes() throws Exception {
     // need to create the index using the helper method (not create it at first insertion)
     // for the indexSettings() to be run
