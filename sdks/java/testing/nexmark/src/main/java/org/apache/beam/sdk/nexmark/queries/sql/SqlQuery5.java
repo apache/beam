@@ -21,7 +21,6 @@ import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.nexmark.model.AuctionCount;
 import org.apache.beam.sdk.nexmark.model.Event;
-import org.apache.beam.sdk.nexmark.model.Event.Type;
 import org.apache.beam.sdk.nexmark.model.sql.SelectEvent;
 import org.apache.beam.sdk.nexmark.queries.NexmarkQueryTransform;
 import org.apache.beam.sdk.nexmark.queries.NexmarkQueryUtil;
@@ -100,7 +99,7 @@ public class SqlQuery5 extends NexmarkQueryTransform<AuctionCount> {
     PCollection<Row> bids =
         allEvents
             .apply(Filter.by(NexmarkQueryUtil.IS_BID))
-            .apply(getName() + ".SelectEvent", new SelectEvent(Type.BID));
+            .apply(getName() + ".SelectEvent", new SelectEvent(Event.Type.BID));
 
     return PCollectionTuple.of(new TupleTag<>("Bid"), bids)
         .apply(query)

@@ -51,6 +51,12 @@ class GrpcCodeClient implements CodeClient {
   }
 
   @override
+  Future<void> cancelExecution(String pipelineUuid) {
+    return _runSafely(() => _defaultClient
+        .cancel(grpc.CancelRequest(pipelineUuid: pipelineUuid)));
+  }
+
+  @override
   Future<CheckStatusResponse> checkStatus(
     String pipelineUuid,
     RunCodeRequestWrapper request,
@@ -109,6 +115,28 @@ class GrpcCodeClient implements CodeClient {
   ) {
     return _runSafely(() => _defaultClient
         .getRunError(grpc.GetRunErrorRequest(pipelineUuid: pipelineUuid))
+        .then((response) => _toOutputResponse(response.output)));
+  }
+
+  @override
+  Future<OutputResponse> getValidationErrorOutput(
+    String pipelineUuid,
+    RunCodeRequestWrapper request,
+  ) {
+    return _runSafely(() => _defaultClient
+        .getValidationOutput(
+            grpc.GetValidationOutputRequest(pipelineUuid: pipelineUuid))
+        .then((response) => _toOutputResponse(response.output)));
+  }
+
+  @override
+  Future<OutputResponse> getPreparationErrorOutput(
+    String pipelineUuid,
+    RunCodeRequestWrapper request,
+  ) {
+    return _runSafely(() => _defaultClient
+        .getPreparationOutput(
+            grpc.GetPreparationOutputRequest(pipelineUuid: pipelineUuid))
         .then((response) => _toOutputResponse(response.output)));
   }
 
@@ -176,9 +204,11 @@ class GrpcCodeClient implements CodeClient {
         return RunCodeStatus.timeout;
       case grpc.Status.STATUS_RUN_ERROR:
         return RunCodeStatus.runError;
-      case grpc.Status.STATUS_ERROR:
       case grpc.Status.STATUS_VALIDATION_ERROR:
+        return RunCodeStatus.validationError;
       case grpc.Status.STATUS_PREPARATION_ERROR:
+        return RunCodeStatus.preparationError;
+      case grpc.Status.STATUS_ERROR:
         return RunCodeStatus.unknownError;
     }
     return RunCodeStatus.unspecified;

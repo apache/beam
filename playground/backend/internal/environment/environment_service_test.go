@@ -93,7 +93,7 @@ func TestNewEnvironment(t *testing.T) {
 		{name: "create env service with default envs", want: &Environment{
 			NetworkEnvs:     *NewNetworkEnvs(defaultIp, defaultPort, defaultProtocol),
 			BeamSdkEnvs:     *NewBeamEnvs(defaultSdk, executorConfig, preparedModDir, 0),
-			ApplicationEnvs: *NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout),
+			ApplicationEnvs: *NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout),
 		}},
 	}
 	for _, tt := range tests {
@@ -101,7 +101,7 @@ func TestNewEnvironment(t *testing.T) {
 			if got := NewEnvironment(
 				*NewNetworkEnvs(defaultIp, defaultPort, defaultProtocol),
 				*NewBeamEnvs(defaultSdk, executorConfig, preparedModDir, 0),
-				*NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout)); !reflect.DeepEqual(got, tt.want) {
+				*NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout)); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewEnvironment() = %v, want %v", got, tt.want)
 			}
 		})
@@ -119,9 +119,9 @@ func Test_getSdkEnvsFromOsEnvs(t *testing.T) {
 	}{
 		{
 			name:      "not specified beam sdk key in os envs",
-			want:      nil,
+			want:      NewBeamEnvs(playground.Sdk_SDK_UNSPECIFIED, nil, preparedModDir, defaultNumOfParallelJobs),
 			envsToSet: map[string]string{},
-			wantErr:   true,
+			wantErr:   false,
 		},
 		{
 			name:      "default beam envs",
@@ -137,9 +137,9 @@ func Test_getSdkEnvsFromOsEnvs(t *testing.T) {
 		},
 		{
 			name:      "wrong sdk key in os envs",
-			want:      nil,
+			want:      NewBeamEnvs(playground.Sdk_SDK_UNSPECIFIED, nil, preparedModDir, defaultNumOfParallelJobs),
 			envsToSet: map[string]string{beamSdkKey: "SDK_J"},
-			wantErr:   true,
+			wantErr:   false,
 		},
 	}
 	for _, tt := range tests {
@@ -210,7 +210,7 @@ func Test_getApplicationEnvsFromOsEnvs(t *testing.T) {
 	}{
 		{
 			name:      "working dir is provided",
-			want:      NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout),
+			want:      NewApplicationEnvs("/app", defaultLaunchSite, defaultProjectId, defaultPipelinesFolder, &CacheEnvs{defaultCacheType, defaultCacheAddress, defaultCacheKeyExpirationTime}, defaultPipelineExecuteTimeout),
 			wantErr:   false,
 			envsToSet: map[string]string{workingDirKey: "/app", launchSiteKey: defaultLaunchSite, projectIdKey: defaultProjectId},
 		},

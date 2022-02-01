@@ -19,7 +19,6 @@
 #   description: Task from katas is a ParDo that maps each input sentence into
 #     words splitter by whitespace (" ").
 #   multifile: false
-#   pipeline_options:
 #   categories:
 #     - Core Transforms
 

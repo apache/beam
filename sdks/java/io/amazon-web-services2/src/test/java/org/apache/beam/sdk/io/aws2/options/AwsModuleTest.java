@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import org.apache.beam.sdk.io.aws2.s3.SSECustomerKey;
 import org.apache.beam.sdk.util.ThrowingSupplier;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.hamcrest.MatcherAssert;
@@ -187,6 +188,16 @@ public class AwsModuleTest {
         deserializedAttributeMap.get(SdkHttpConfigurationOption.CONNECTION_TIME_TO_LIVE));
     assertEquals(
         (Integer) 15, deserializedAttributeMap.get(SdkHttpConfigurationOption.MAX_CONNECTIONS));
+  }
+
+  @Test
+  public void testSSECustomerKeySerializationDeserialization() throws Exception {
+    // default key created by S3Options.SSECustomerKeyFactory
+    SSECustomerKey emptyKey = SSECustomerKey.builder().build();
+    assertThat(serializeAndDeserialize(emptyKey)).isEqualToComparingFieldByField(emptyKey);
+
+    SSECustomerKey key = SSECustomerKey.builder().key("key").algorithm("algo").md5("md5").build();
+    assertThat(serializeAndDeserialize(key)).isEqualToComparingFieldByField(key);
   }
 
   private <T> T withSystemPropertyOverrides(Properties overrides, ThrowingSupplier<T> fun)

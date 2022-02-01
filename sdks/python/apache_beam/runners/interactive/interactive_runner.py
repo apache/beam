@@ -250,7 +250,7 @@ class PipelineResult(beam.runners.runner.PipelineResult):
     key = self._pipeline_instrument.cache_key(pcoll)
     cache_manager = ie.current_env().get_cache_manager(
         self._pipeline_instrument.user_pipeline)
-    if cache_manager.exists('full', key):
+    if key and cache_manager.exists('full', key):
       coder = cache_manager.load_pcoder('full', key)
       reader, _ = cache_manager.read('full', key)
       return to_element_list(reader, coder, include_window_info)

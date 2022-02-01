@@ -78,6 +78,6 @@ public class AmqpMessageCoderTest {
 
     Message clone = CoderUtils.clone(coder, message);
 
-    clone.getBody().toString().equals(message.getBody().toString());
+    assertEquals(message.getBody().toString(), clone.getBody().toString());
   }
 }

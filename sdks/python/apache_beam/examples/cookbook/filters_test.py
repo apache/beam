@@ -19,6 +19,13 @@
 
 # pytype: skip-file
 
+# beam-playground:
+#   name: FiltersTest
+#   description: Unit-test for the Filters example.
+#   multifile: false
+#   categories:
+#     - Filtering
+
 import logging
 import unittest
 

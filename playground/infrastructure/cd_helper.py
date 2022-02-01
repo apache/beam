@@ -26,9 +26,10 @@ import shutil
 from pathlib import Path
 from typing import List
 
+from tqdm import tqdm
 from google.cloud import storage
 
-from api.v1.api_pb2 import Sdk
+from api.v1.api_pb2 import Sdk, SDK_PYTHON, SDK_JAVA
 from config import Config, PrecompiledExample
 from grpc_client import GRPCClient
 from helper import Example, get_statuses
@@ -40,12 +41,18 @@ class CDHelper:
 
   It is used to save beam examples/katas/tests and their output on the GCS.
   """
+
   def store_examples(self, examples: List[Example]):
     """
     Store beam examples and their output in the Google Cloud.
     """
+    logging.info("Start of executing Playground examples ...")
     asyncio.run(self._get_outputs(examples))
+    logging.info("Finish of executing Playground examples")
+
+    logging.info("Start of sending Playground examples to the bucket ...")
     self._save_to_cloud_storage(examples)
+    logging.info("Finish of sending Playground examples to the bucket")
     self._clear_temp_folder()
 
   async def _get_outputs(self, examples: List[Example]):
@@ -67,11 +74,18 @@ class CDHelper:
     tasks = [client.get_log(example.pipeline_id) for example in examples]
     logs = await asyncio.gather(*tasks)
 
+    if len(examples) > 0 and (examples[0].sdk is SDK_PYTHON or examples[0].sdk is SDK_JAVA):
+      tasks = [client.get_graph(example.pipeline_id) for example in examples]
+      graphs = await asyncio.gather(*tasks)
+
+      for graph, example in zip(graphs, examples):
+          example.graph = graph
+
     for output, example in zip(outputs, examples):
       example.output = output
 
     for log, example in zip(logs, examples):
-        example.logs = log
+      example.logs = log
 
   def _save_to_cloud_storage(self, examples: List[Example]):
     """
@@ -82,7 +96,7 @@ class CDHelper:
     """
     self._storage_client = storage.Client()
     self._bucket = self._storage_client.bucket(Config.BUCKET_NAME)
-    for example in examples:
+    for example in tqdm(examples):
       file_names = self._write_to_local_fs(example)
       for cloud_file_name, local_file_name in file_names.items():
         self._upload_blob(
@@ -117,10 +131,15 @@ class CDHelper:
         file_name=example.tag.name,
         extension=PrecompiledExample.OUTPUT_EXTENSION)
     log_path = self._get_gcs_object_name(
-      sdk=example.sdk,
-      base_folder_name=example.tag.name,
-      file_name=example.tag.name,
-      extension=PrecompiledExample.LOG_EXTENSION)
+        sdk=example.sdk,
+        base_folder_name=example.tag.name,
+        file_name=example.tag.name,
+        extension=PrecompiledExample.LOG_EXTENSION)
+    graph_path = self._get_gcs_object_name(
+        sdk=example.sdk,
+        base_folder_name=example.tag.name,
+        file_name=example.tag.name,
+        extension=PrecompiledExample.GRAPH_EXTENSION)
     meta_path = self._get_gcs_object_name(
         sdk=example.sdk,
         base_folder_name=example.tag.name,
@@ -130,8 +149,11 @@ class CDHelper:
     file_names[output_path] = example.output
     meta = example.tag._asdict()
     meta["type"] = example.type
+    meta["link"] = example.link
     file_names[meta_path] = json.dumps(meta)
     file_names[log_path] = example.logs
+    if example.sdk == SDK_PYTHON or example.sdk == SDK_JAVA:
+      file_names[graph_path] = example.graph
     for file_name, file_content in file_names.items():
       local_file_path = os.path.join(
           Config.TEMP_FOLDER, example.pipeline_id, file_name)

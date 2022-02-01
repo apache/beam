@@ -73,7 +73,7 @@ func (j *jarGetter) getJar(gradleTarget, version string) (string, error) {
 	}
 
 	if strings.Contains(version, ".dev") {
-		return "", fmt.Errorf("Cannot pull dev versions of JARs, please run \"gradlew %v\" to start your expansion service",
+		return "", fmt.Errorf("cannot pull dev versions of JARs, please run \"gradlew %v\" to start your expansion service",
 			gradleTarget)
 	}
 
@@ -84,7 +84,7 @@ func (j *jarGetter) getJar(gradleTarget, version string) (string, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return "", fmt.Errorf("Received non 200 response code, got %v", resp.StatusCode)
+		return "", fmt.Errorf("received non 200 response code, got %v", resp.StatusCode)
 	}
 
 	file, err := os.Create(jarPath)

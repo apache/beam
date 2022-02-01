@@ -42,7 +42,7 @@ import org.apache.beam.sdk.fn.stream.PrefetchableIterable;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterables;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterator;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
 /**
@@ -63,7 +63,7 @@ public class MultimapUserState<K, V> {
   private final Coder<V> valueCoder;
   private final StateRequest keysStateRequest;
   private final StateRequest userStateRequest;
-  private CachingStateIterable<K> persistedKeys;
+  private final CachingStateIterable<K> persistedKeys;
 
   private boolean isClosed;
   private boolean isCleared;

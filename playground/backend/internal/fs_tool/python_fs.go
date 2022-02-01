@@ -23,7 +23,7 @@ const (
 	pythonExecutableFileExtension = ".py"
 )
 
-// newPythonLifeCycle creates LifeCycle with go SDK environment.
-func newPythonLifeCycle(pipelineId uuid.UUID, workingDir string) *LifeCycle {
-	return newInterpretedLifeCycle(pipelineId, workingDir, pythonExecutableFileExtension)
+// newPythonLifeCycle creates LifeCycle with python SDK environment.
+func newPythonLifeCycle(pipelineId uuid.UUID, pipelinesFolder string) *LifeCycle {
+	return newInterpretedLifeCycle(pipelineId, pipelinesFolder, pythonExecutableFileExtension)
 }

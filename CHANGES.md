@@ -56,6 +56,7 @@
 ## I/Os
 
 * Support for stopReadTime on KafkaIO SDF (Java).([BEAM-13171](https://issues.apache.org/jira/browse/BEAM-13171)).
+* Added ability to register URI schemes to use the S3 protocol via FileIO using amazon-web-services2 (amazon-web-services already had this ability). ([BEAM-12435](https://issues.apache.org/jira/brows/BEAM-12435), [BEAM-13245](https://issues.apache.org/jira/brows/BEAM-13245)).
 
 ## New Features / Improvements
 
@@ -64,6 +65,9 @@
 * Added option to enable caching uploaded artifacts across job runs for Python Dataflow jobs ([BEAM-13459](https://issues.apache.org/jira/browse/BEAM-13459)).  To enable, set pipeline option: --enable_artifact_caching, this will be enabled by default in a future release.
 
 ## Breaking Changes
+
+* Updated the jedis from 3.x to 4.x to Java RedisIO. If you are using RedisIO and using jedis directly, please refer to [this page](https://github.com/redis/jedis/blob/v4.0.0/docs/3to4.md) to update it. ([BEAM-12092](https://issues.apache.org/jira/browse/BEAM-12092)).
+* Datatype of timestamp fields in `SqsMessage` for AWS IOs for SDK v2 was changed from `String` to `long`, visibility of all fields was fixed from `package private` to `public` [BEAM-13638](https://issues.apache.org/jira/browse/BEAM-13638).
 
 ## Deprecations
 
