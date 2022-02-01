@@ -143,7 +143,7 @@ func QueryExpansionService(ctx context.Context, p *HandlerParams) (*jobpb.Expans
 
 // QueryAutomatedExpansionService submits an external transform to be expanded by the
 // expansion service and then eagerly materializes the artifacts for staging. The given
-// transform should be the external transform, and the componenets are any additional
+// transform should be the external transform, and the components are any additional
 // components necessary for the pipeline snippet.
 //
 // The address to be queried is determined by the Config field of the HandlerParams after
