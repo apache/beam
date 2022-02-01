@@ -54,8 +54,8 @@ module "memorystore" {
 module "gke" {
   source          = "./gke"
   project_id      = var.project_id
-  service_account = google_service_account.account.account_id
-  depends_on      = [module.artifact_registry, module.memorystore, google_service_account.account]
+  service_account = var.service_account
+  depends_on      = [module.artifact_registry, module.memorystore]
 }
 
 
