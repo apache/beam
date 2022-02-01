@@ -306,7 +306,6 @@ func TestPane(t *testing.T) {
 		Name   string
 		Params []FnParamKind
 		Pos    int
-		Num    int
 		Exists bool
 	}{
 		{
@@ -342,6 +341,51 @@ func TestPane(t *testing.T) {
 			}
 			if pos != test.Pos {
 				t.Errorf("Pane(%v) - pos: got %v, want %v", params, pos, test.Pos)
+			}
+		})
+	}
+}
+
+func TestWindow(t *testing.T) {
+	tests := []struct {
+		Name   string
+		Params []FnParamKind
+		Pos    int
+		Exists bool
+	}{
+		{
+			Name:   "window input",
+			Params: []FnParamKind{FnContext, FnWindow},
+			Pos:    1,
+			Exists: true,
+		},
+		{
+			Name:   "no window input",
+			Params: []FnParamKind{FnContext, FnEventTime},
+			Pos:    -1,
+			Exists: false,
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.Name, func(t *testing.T) {
+			// Create a Fn with a filled params list.
+			params := make([]FnParam, len(test.Params))
+			for i, kind := range test.Params {
+				params[i].Kind = kind
+				params[i].T = nil
+			}
+			fn := new(Fn)
+			fn.Param = params
+
+			// Validate we get expected results for pane function.
+			pos, exists := fn.Window()
+			if exists != test.Exists {
+				t.Errorf("Window(%v) - exists: got %v, want %v", params, exists, test.Exists)
+			}
+			if pos != test.Pos {
+				t.Errorf("Window(%v) - pos: got %v, want %v", params, pos, test.Pos)
 			}
 		})
 	}
