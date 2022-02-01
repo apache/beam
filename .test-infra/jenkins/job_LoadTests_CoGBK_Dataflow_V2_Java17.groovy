@@ -237,7 +237,7 @@ CronJobBuilder.cronJob('beam_LoadTests_Java_CoGBK_Dataflow_V2_Batch_Java17', 'H 
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
     'beam_LoadTests_Java_CoGBK_Dataflow_V2_Batch_Java17',
-    'Run Load Tests Java 11 CoGBK Dataflow V2 Batch',
+    'Run Load Tests Java 17 CoGBK Dataflow V2 Batch',
     'Load Tests Java 17 CoGBK Dataflow V2 Batch suite',
     this
     ) {
