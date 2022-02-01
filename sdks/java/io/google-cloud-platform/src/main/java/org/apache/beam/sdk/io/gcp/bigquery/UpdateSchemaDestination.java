@@ -90,7 +90,7 @@ public class UpdateSchemaDestination
       BigQueryIO.Write.CreateDisposition createDisposition,
       int maxRetryJobs,
       boolean ignoreUnknownValues,
-      String kmsKey,
+      @Nullable String kmsKey,
       String sourceFormat,
       boolean useAvroLogicalTypes,
       Set<BigQueryIO.Write.SchemaUpdateOption> schemaUpdateOptions,

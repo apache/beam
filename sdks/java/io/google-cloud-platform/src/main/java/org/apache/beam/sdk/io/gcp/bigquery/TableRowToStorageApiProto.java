@@ -51,7 +51,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
-import javax.annotation.Nullable;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -59,6 +59,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Days;
 
 /**
@@ -350,9 +351,7 @@ public class TableRowToStorageApiProto {
     descriptorBuilder.addField(fieldDescriptorBuilder.build());
   }
 
-  @Nullable
-  @SuppressWarnings({"nullness"})
-  private static Object messageValueFromFieldValue(
+  private static @Nullable Object messageValueFromFieldValue(
       SchemaInformation schemaInformation,
       FieldDescriptor fieldDescriptor,
       @Nullable Object bqValue,
@@ -370,7 +369,7 @@ public class TableRowToStorageApiProto {
     }
     if (fieldDescriptor.isRepeated()) {
       List<Object> listValue = (List<Object>) bqValue;
-      List<Object> protoList = Lists.newArrayListWithCapacity(listValue.size());
+      List<@Nullable Object> protoList = Lists.newArrayListWithCapacity(listValue.size());
       for (@Nullable Object o : listValue) {
         if (o != null) { // repeated field cannot contain null.
           protoList.add(
@@ -385,11 +384,10 @@ public class TableRowToStorageApiProto {
   }
 
   @VisibleForTesting
-  @Nullable
-  static Object singularFieldToProtoValue(
+  static @Nullable Object singularFieldToProtoValue(
       SchemaInformation schemaInformation,
       FieldDescriptor fieldDescriptor,
-      Object value,
+      @Nullable Object value,
       boolean ignoreUnknownValues)
       throws SchemaConversionException {
     switch (schemaInformation.getType()) {
@@ -510,7 +508,7 @@ public class TableRowToStorageApiProto {
       case "STRING":
       case "JSON":
       case "GEOGRAPHY":
-        return value.toString();
+        return Preconditions.checkArgumentNotNull(value).toString();
       case "STRUCT":
       case "RECORD":
         if (value instanceof TableRow) {
@@ -530,7 +528,7 @@ public class TableRowToStorageApiProto {
         "Unexpected value :"
             + value
             + ", type: "
-            + value.getClass()
+            + (value == null ? "null" : value.getClass())
             + ". Table field name: "
             + schemaInformation.getFullName()
             + ", type: "

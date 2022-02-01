@@ -66,6 +66,7 @@ import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
@@ -84,7 +85,7 @@ import org.joda.time.format.DateTimeFormatterBuilder;
 
 /** Utility methods for BigQuery related operations. */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10608)
 })
 public class BigQueryUtils {
 
@@ -226,8 +227,8 @@ public class BigQueryUtils {
           .put(TypeName.BYTES, StandardSQLTypeName.BYTES)
           .build();
 
-  private static final Map<TypeName, Function<String, Object>> JSON_VALUE_PARSERS =
-      ImmutableMap.<TypeName, Function<String, Object>>builder()
+  private static final Map<TypeName, Function<String, @Nullable Object>> JSON_VALUE_PARSERS =
+      ImmutableMap.<TypeName, Function<String, @Nullable Object>>builder()
           .put(TypeName.BYTE, Byte::valueOf)
           .put(TypeName.INT16, Short::valueOf)
           .put(TypeName.INT32, Integer::valueOf)
@@ -275,11 +276,13 @@ public class BigQueryUtils {
   static StandardSQLTypeName toStandardSQLTypeName(FieldType fieldType) {
     StandardSQLTypeName ret;
     if (fieldType.getTypeName().isLogicalType()) {
-      ret = BEAM_TO_BIGQUERY_LOGICAL_MAPPING.get(fieldType.getLogicalType().getIdentifier());
+      Schema.LogicalType<?, ?> logicalType =
+          Preconditions.checkArgumentNotNull(fieldType.getLogicalType());
+      ret = BEAM_TO_BIGQUERY_LOGICAL_MAPPING.get(logicalType.getIdentifier());
       if (ret == null) {
         throw new IllegalArgumentException(
             "Cannot convert Beam logical type: "
-                + fieldType.getLogicalType().getIdentifier()
+                + logicalType.getIdentifier()
                 + " to BigQuery type.");
       }
     } else {
@@ -390,21 +393,23 @@ public class BigQueryUtils {
         field.setMode(Mode.REQUIRED.toString());
       }
       if (type.getTypeName().isCollectionType()) {
-        type = type.getCollectionElementType();
+        type = Preconditions.checkArgumentNotNull(type.getCollectionElementType());
         if (type.getTypeName().isCollectionType() || type.getTypeName().isMapType()) {
           throw new IllegalArgumentException("Array of collection is not supported in BigQuery.");
         }
         field.setMode(Mode.REPEATED.toString());
       }
       if (TypeName.ROW == type.getTypeName()) {
-        Schema subType = type.getRowSchema();
+        Schema subType = Preconditions.checkArgumentNotNull(type.getRowSchema());
         field.setFields(toTableFieldSchema(subType));
       }
       if (TypeName.MAP == type.getTypeName()) {
+        FieldType mapKeyType = Preconditions.checkArgumentNotNull(type.getMapKeyType());
+        FieldType mapValueType = Preconditions.checkArgumentNotNull(type.getMapValueType());
         Schema mapSchema =
             Schema.builder()
-                .addField(BIGQUERY_MAP_KEY_FIELD_NAME, type.getMapKeyType())
-                .addField(BIGQUERY_MAP_VALUE_FIELD_NAME, type.getMapValueType())
+                .addField(BIGQUERY_MAP_KEY_FIELD_NAME, mapKeyType)
+                .addField(BIGQUERY_MAP_VALUE_FIELD_NAME, mapValueType)
                 .build();
         type = FieldType.row(mapSchema);
         field.setFields(toTableFieldSchema(mapSchema));
@@ -667,7 +672,7 @@ public class BigQueryUtils {
         .collect(toRow(rowSchema));
   }
 
-  private static Object toBeamValue(FieldType fieldType, Object jsonBQValue) {
+  private static @Nullable Object toBeamValue(FieldType fieldType, Object jsonBQValue) {
     if (jsonBQValue instanceof String
         || jsonBQValue instanceof Number
         || jsonBQValue instanceof Boolean) {
@@ -974,8 +979,8 @@ public class BigQueryUtils {
     return null;
   }
 
-  private static ServiceCallMetric callMetricForMethod(
-      TableReference tableReference, String method) {
+  private static @Nullable ServiceCallMetric callMetricForMethod(
+      @Nullable TableReference tableReference, String method) {
     if (tableReference != null) {
       // TODO(ajamato): Add Ptransform label. Populate it as empty for now to prevent the
       // SpecMonitoringInfoValidator from dropping the MonitoringInfo.
@@ -1006,7 +1011,8 @@ public class BigQueryUtils {
    *     elements directly from BigQuery in a process-wide metric. Such as: calls to readRows,
    *     splitReadStream, createReadSession.
    */
-  public static ServiceCallMetric readCallMetric(TableReference tableReference) {
+  public static @Nullable ServiceCallMetric readCallMetric(
+      @Nullable TableReference tableReference) {
     return callMetricForMethod(tableReference, "BigQueryBatchRead");
   }
 
