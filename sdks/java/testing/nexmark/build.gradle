@@ -132,7 +132,7 @@ def getNexmarkArgs = {
   if (isDataflowRunner) {
     if (isDataflowRunnerV2) {
       nexmarkArgsList.add("--experiments=beam_fn_api,use_unified_worker,use_runner_v2,shuffle_mode=service")
-      def sdkContainerImage = project.findProperty('sdkContainerImage') ?: project(":runners:google-cloud-dataflow-java").dockerImageName
+      def sdkContainerImage = project.findProperty('sdkContainerImage') ?: project(":runners:google-cloud-dataflow-java").dockerJavaImageName
       nexmarkArgsList.add("--sdkContainerImage=${sdkContainerImage}")
 
       // TODO(BEAM-12295) enable all queries once issues with runner V2 is fixed.
@@ -171,8 +171,8 @@ task run(type: JavaExec) {
   def nexmarkArgsList = getNexmarkArgs()
   if (isDataflowRunner) {
     if (isDataflowRunnerV2) {
-      dependsOn ":runners:google-cloud-dataflow-java:buildAndPushDockerContainer"
-      finalizedBy ":runners:google-cloud-dataflow-java:cleanUpDockerImages"
+      dependsOn ":runners:google-cloud-dataflow-java:buildAndPushDockerJavaContainer"
+      finalizedBy ":runners:google-cloud-dataflow-java:cleanUpDockerJavaImages"
     } else {
       dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
     }
