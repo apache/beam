@@ -55,9 +55,6 @@ import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// To run this test, run the following command:
-// ./gradlew :sdks:java:io:google-cloud-platform:integrationTest -PgcpSpannerInstance=changestream
-// --tests=SpannerChangeStreamOrderedWithinKeyIT
 /** End-to-end test of Cloud Spanner Change Streams Transactions Ordered Within Key. */
 @RunWith(JUnit4.class)
 public class SpannerChangeStreamOrderedWithinKeyIT {
@@ -101,9 +98,6 @@ public class SpannerChangeStreamOrderedWithinKeyIT {
     // Get the timestamp of the last committed transaction to get the end timestamp.
     final Timestamp endTimestamp = writeTransactionsToDatabase();
 
-    // Get the window size that would contain all committed transactions.
-    long numSecondsInWindow = endTimestamp.getSeconds() - startTimestamp.getSeconds() + 1;
-
     final PCollection<String> tokens =
         pipeline
             .apply(
@@ -116,7 +110,7 @@ public class SpannerChangeStreamOrderedWithinKeyIT {
             .apply(ParDo.of(new BreakRecordByModFn()))
             .apply(ParDo.of(new KeyByIdFn()))
             .apply(ParDo.of(new KeyValueByCommitTimestampAndRecordSequenceFn<>()))
-            .apply(Window.into(FixedWindows.of(Duration.standardSeconds(numSecondsInWindow))))
+            .apply(Window.into(FixedWindows.of(Duration.standardMinutes(2))))
             .apply(GroupByKey.create())
             .apply(ParDo.of(new ToStringFn()));
 

@@ -60,9 +60,6 @@ import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// To run this test, run the following command:
-// ./gradlew :sdks:java:io:google-cloud-platform:integrationTest -PgcpSpannerInstance=changestream
-// --tests=SpannerChangeStreamTransactionBoundariesIT --info
 /** End-to-end test of Cloud Spanner Change Streams Transaction Boundaries. */
 @RunWith(JUnit4.class)
 public class SpannerChangeStreamTransactionBoundariesIT {
@@ -90,8 +87,6 @@ public class SpannerChangeStreamTransactionBoundariesIT {
     databaseClient = ENV.getDatabaseClient();
   }
 
-  // ./gradlew :sdks:java:io:google-cloud-platform:integrationTest -PgcpSpannerInstance=changestream
-  // --tests=SpannerChangeStreamTransactionBoundariesIT.testTransactionBoundaries --info
   @Test
   public void testTransactionBoundaries() {
     final SpannerConfig spannerConfig =
@@ -153,9 +148,6 @@ public class SpannerChangeStreamTransactionBoundariesIT {
     pipelineResult.waitUntilFinish();
   }
 
-  // To run this test, run the following command:
-  // ./gradlew :sdks:java:io:google-cloud-platform:integrationTest -PgcpSpannerInstance=changestream
-  // --tests=SpannerChangeStreamTransactionBoundariesIT.testOrderedTransactions --info
   @Test
   public void testOrderedTransactions() {
     final SpannerConfig spannerConfig =
@@ -172,9 +164,6 @@ public class SpannerChangeStreamTransactionBoundariesIT {
     // Get the timestamp of the last committed transaction to get the end timestamp.
     final Timestamp endTimestamp = writeTransactionsToDatabase();
 
-    // Get the window size that would contain all committed transactions.
-    long numSecondsInWindow = endTimestamp.getSeconds() - startTimestamp.getSeconds() + 1;
-
     final PCollection<String> tokens =
         pipeline
             .apply(
@@ -187,7 +176,7 @@ public class SpannerChangeStreamTransactionBoundariesIT {
             .apply(ParDo.of(new SpannerChangeStreamTransactionBoundariesIT.KeyByTransactionIdFn()))
             .apply(ParDo.of(new SpannerChangeStreamTransactionBoundariesIT.TransactionBoundaryFn()))
             .apply(ParDo.of(new SpannerChangeStreamTransactionBoundariesIT.CreateArtificialKeyFn()))
-            .apply(Window.into(FixedWindows.of(Duration.standardSeconds(numSecondsInWindow))))
+            .apply(Window.into(FixedWindows.of(Duration.standardMinutes(2))))
             .apply(GroupByKey.create())
             .apply(ParDo.of(new SpannerChangeStreamTransactionBoundariesIT.ToStringFnSorted()));
 
