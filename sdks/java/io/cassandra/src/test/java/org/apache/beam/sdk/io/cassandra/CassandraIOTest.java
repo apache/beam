@@ -404,9 +404,9 @@ public class CassandraIOTest implements Serializable {
                 map.put(element.getKey(), element.getValue());
               }
               assertEquals(3, map.size()); // do we have all three departments
-              assertEquals((long) map.get("phys"), 10L);
-              assertEquals((long) map.get("math"), 4L);
-              assertEquals((long) map.get("logic"), 2L);
+              assertEquals(10L, (long) map.get("phys"));
+              assertEquals(4L, (long) map.get("math"));
+              assertEquals(2L, (long) map.get("logic"));
               return null;
             });
 

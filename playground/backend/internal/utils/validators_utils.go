@@ -31,6 +31,8 @@ func GetValidators(sdk pb.Sdk, filepath string) (*[]validators.Validator, error)
 		val = validators.GetGoValidators(filepath)
 	case pb.Sdk_SDK_PYTHON:
 		val = validators.GetPyValidators(filepath)
+	case pb.Sdk_SDK_SCIO:
+		val = validators.GetScioValidators(filepath)
 	default:
 		return nil, fmt.Errorf("incorrect sdk: %s", sdk)
 	}
