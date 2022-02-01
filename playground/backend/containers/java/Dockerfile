@@ -92,12 +92,12 @@ COPY proxy.sh /
 RUN chmod +x /proxy.sh
 RUN /proxy.sh
 
-# Create a user group userGroup
-RUN groupadd --gid 20000 appuser \
-  && useradd --uid 20000 --gid appuser --shell /bin/bash --create-home appuser
+# Create a user group `appgroup` and a user `appuser`
+RUN groupadd --gid 20000 appgroup \
+  && useradd --uid 20000 --gid appgroup --shell /bin/bash --create-home appuser
 # Chown all the files to the app user.
-RUN chown -R appuser:appuser /opt/playground/backend/
-RUN chown -R appuser:appuser /opt/apache/beam/jars/
+RUN chown -R appuser:appgroup /opt/playground/backend/
+RUN chown -R appuser:appgroup /opt/apache/beam/jars/
 RUN chmod +x /entrypoint.sh
 
 # Switch to appuser
