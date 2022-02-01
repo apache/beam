@@ -28,7 +28,9 @@ import java.sql.Statement;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import javax.sql.DataSource;
@@ -39,7 +41,7 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
 
 /** This class contains helper methods to ease database usage in tests. */
 public class DatabaseTestHelper {
-  private static DataSource hikariSource = null;
+  private static Map<String, DataSource> hikariSources = new HashMap<>();
 
   public static ResultSet performQuery(JdbcDatabaseContainer<?> container, String sql)
       throws SQLException {
@@ -53,8 +55,8 @@ public class DatabaseTestHelper {
   }
 
   public static DataSource getDataSourceForContainer(JdbcDatabaseContainer<?> container) {
-    if (hikariSource != null) {
-      return hikariSource;
+    if (hikariSources.get(container.getJdbcUrl()) != null) {
+      return hikariSources.get(container.getJdbcUrl());
     }
     HikariConfig hikariConfig = new HikariConfig();
     // Keeping a small connection pool to a testContainer to avoid overwhelming it.
@@ -63,8 +65,7 @@ public class DatabaseTestHelper {
     hikariConfig.setUsername(container.getUsername());
     hikariConfig.setPassword(container.getPassword());
     hikariConfig.setDriverClassName(container.getDriverClassName());
-    hikariSource = new HikariDataSource(hikariConfig);
-    return hikariSource;
+    return hikariSources.put(container.getJdbcUrl(), new HikariDataSource(hikariConfig));
   }
 
   public static PGSimpleDataSource getPostgresDataSource(PostgresIOTestPipelineOptions options) {

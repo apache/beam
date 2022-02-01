@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.jdbc;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Objects;
 import java.util.Random;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.PipelineResult;
@@ -40,22 +41,27 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.jetbrains.annotations.NotNull;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.junit.BeforeClass;
+import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestRule;
+import org.junit.runner.Description;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+import org.junit.runners.Parameterized;
+import org.junit.runners.model.Statement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.containers.MySQLContainer;
+import org.testcontainers.containers.PostgreSQLContainer;
 
 /** A test of {@link org.apache.beam.sdk.io.jdbc.JdbcIO} on test containers. */
-@RunWith(JUnit4.class)
+@RunWith(Parameterized.class)
 public class JdbcIOAutoPartitioningIT {
   private static final Logger LOG = LoggerFactory.getLogger(JdbcIOAutoPartitioningIT.class);
 
@@ -65,23 +71,81 @@ public class JdbcIOAutoPartitioningIT {
   @ClassRule public static TestPipeline pipelineWrite = TestPipeline.create();
   @Rule public TestPipeline pipelineRead = TestPipeline.create();
 
-  public static JdbcDatabaseContainer<?> getDb() {
-    return db;
+  @Parameterized.Parameters(name = "{0}")
+  public static Iterable<String> params() {
+    return Lists.newArrayList("mysql", "postgres");
   }
 
-  @ClassRule public static JdbcDatabaseContainer<?> db = new MySQLContainer<>("mysql");
+  @Parameterized.Parameter(0)
+  public String dbms;
 
-  @BeforeClass
-  public static void prepareDatabase() throws SQLException {
-    DataSource mysqlDs = DatabaseTestHelper.getDataSourceForContainer(getDb());
-    DatabaseTestHelper.createTable(
-        mysqlDs,
-        TABLE_NAME,
-        Lists.newArrayList(
-            KV.of("id", "INTEGER"),
-            KV.of("name", "VARCHAR(50)"),
-            KV.of("specialDate", "TIMESTAMP")));
+  public static JdbcDatabaseContainer<?> getDb(String dbName) {
+    LOG.info("DB NAME IS {}", dbName);
+    if (dbName.equals("mysql")) {
+      return mysql;
+    } else {
+      return postgres;
+    }
+  }
 
+  // We need to implement this retrying rule because we're running ~18 pipelines that connect to
+  // two databases in a few seconds. This may cause the databases to be overwhelmed, and reject
+  // connections or error out. By using this rule, we ensure that each pipeline is trued twice so
+  // that flakiness from databases being overwhelmed can be managed.
+  @Rule
+  public TestRule retryRule =
+      new TestRule() {
+        // We establish max number of retries at 2.
+        public final int maxRetries = 2;
+
+        @NotNull
+        @Override
+        public Statement apply(@NotNull Statement base, @NotNull Description description) {
+          return new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+              Throwable caughtThrowable = null;
+              // implement retry logic here
+              for (int i = 0; i < maxRetries; i++) {
+                try {
+                  pipelineRead.apply(base, description);
+                  // base.evaluate();
+                  return;
+                } catch (Throwable t) {
+                  caughtThrowable = t;
+                  System.err.println(
+                      description.getDisplayName() + ": run " + (i + 1) + " failed.");
+                }
+              }
+              System.err.println(
+                  description.getDisplayName() + ": Giving up after " + maxRetries + " failures.");
+              throw Objects.requireNonNull(caughtThrowable);
+            }
+          };
+        }
+      };
+
+  @ClassRule public static JdbcDatabaseContainer<?> mysql = new MySQLContainer<>("mysql");
+
+  @ClassRule
+  public static JdbcDatabaseContainer<?> postgres = new PostgreSQLContainer<>("postgres");
+
+  @Before
+  public void prepareDatabase() throws SQLException {
+    DataSource dbDs = DatabaseTestHelper.getDataSourceForContainer(getDb(dbms));
+    try {
+      DatabaseTestHelper.createTable(
+          dbDs,
+          TABLE_NAME,
+          Lists.newArrayList(
+              KV.of("id", "INTEGER"),
+              KV.of("name", "VARCHAR(50)"),
+              KV.of("specialDate", "TIMESTAMP")));
+    } catch (Exception e) {
+      return;
+    }
+
+    final String dbmsLocal = dbms;
     pipelineWrite
         .apply(GenerateSequence.from(0).to(NUM_ROWS))
         .apply(MapElements.via(new MapRowDataFn()))
@@ -89,7 +153,7 @@ public class JdbcIOAutoPartitioningIT {
             JdbcIO.<RowData>write()
                 .withTable(TABLE_NAME)
                 .withDataSourceProviderFn(
-                    voide -> DatabaseTestHelper.getDataSourceForContainer(getDb())));
+                    voide -> DatabaseTestHelper.getDataSourceForContainer(getDb(dbmsLocal))));
     PipelineResult res = pipelineWrite.run();
     res.metrics()
         .allMetrics()
@@ -159,12 +223,13 @@ public class JdbcIOAutoPartitioningIT {
 
   @Test
   public void testAutomaticDateTimePartitioning() throws SQLException {
+    final String dbmsLocal = dbms;
     PCollection<RowData> databaseData =
         pipelineRead.apply(
             JdbcIO.<RowData, DateTime>readWithPartitions(TypeDescriptor.of(DateTime.class))
                 .withPartitionColumn("specialDate")
                 .withDataSourceProviderFn(
-                    voide -> DatabaseTestHelper.getDataSourceForContainer(getDb()))
+                    voide -> DatabaseTestHelper.getDataSourceForContainer(getDb(dbmsLocal)))
                 .withTable("baseTable")
                 .withLowerBound(new DateTime(0))
                 .withUpperBound(DateTime.now())
@@ -177,12 +242,13 @@ public class JdbcIOAutoPartitioningIT {
 
   @Test
   public void testAutomaticLongPartitioning() throws SQLException {
+    final String dbmsLocal = dbms;
     PCollection<RowData> databaseData =
         pipelineRead.apply(
             JdbcIO.<RowData, Long>readWithPartitions(TypeDescriptors.longs())
                 .withPartitionColumn("id")
                 .withDataSourceProviderFn(
-                    voide -> DatabaseTestHelper.getDataSourceForContainer(getDb()))
+                    voide -> DatabaseTestHelper.getDataSourceForContainer(getDb(dbmsLocal)))
                 .withTable("baseTable")
                 .withLowerBound(Long.MIN_VALUE)
                 .withUpperBound(Long.MAX_VALUE)
@@ -195,12 +261,13 @@ public class JdbcIOAutoPartitioningIT {
 
   @Test
   public void testAutomaticStringPartitioning() throws SQLException {
+    final String dbmsLocal = dbms;
     PCollection<RowData> databaseData =
         pipelineRead.apply(
             JdbcIO.<RowData, String>readWithPartitions(TypeDescriptors.strings())
                 .withPartitionColumn("name")
                 .withDataSourceProviderFn(
-                    voide -> DatabaseTestHelper.getDataSourceForContainer(getDb()))
+                    voide -> DatabaseTestHelper.getDataSourceForContainer(getDb(dbmsLocal)))
                 .withTable("baseTable")
                 .withLowerBound("")
                 .withUpperBound("999999")
@@ -213,12 +280,13 @@ public class JdbcIOAutoPartitioningIT {
 
   @Test
   public void testAutomaticDateTimePartitioningAutomaticRangeManagement() throws SQLException {
+    final String dbmsLocal = dbms;
     PCollection<RowData> databaseData =
         pipelineRead.apply(
             JdbcIO.<RowData, DateTime>readWithPartitions(TypeDescriptor.of(DateTime.class))
                 .withPartitionColumn("specialDate")
                 .withDataSourceProviderFn(
-                    voide -> DatabaseTestHelper.getDataSourceForContainer(getDb()))
+                    voide -> DatabaseTestHelper.getDataSourceForContainer(getDb(dbmsLocal)))
                 .withTable("baseTable")
                 .withNumPartitions(10)
                 .withRowMapper(new RowDataMapper()));
@@ -229,12 +297,13 @@ public class JdbcIOAutoPartitioningIT {
 
   @Test
   public void testAutomaticLongPartitioningAutomaticRangeManagement() throws SQLException {
+    final String dbmsLocal = dbms;
     PCollection<RowData> databaseData =
         pipelineRead.apply(
             JdbcIO.<RowData, Long>readWithPartitions(TypeDescriptors.longs())
                 .withPartitionColumn("id")
                 .withDataSourceProviderFn(
-                    voide -> DatabaseTestHelper.getDataSourceForContainer(getDb()))
+                    voide -> DatabaseTestHelper.getDataSourceForContainer(getDb(dbmsLocal)))
                 .withTable("baseTable")
                 .withNumPartitions(10)
                 .withRowMapper(new RowDataMapper()));
@@ -245,12 +314,13 @@ public class JdbcIOAutoPartitioningIT {
 
   @Test
   public void testAutomaticStringPartitioningAutomaticRangeManagement() throws SQLException {
+    final String dbmsLocal = dbms;
     PCollection<RowData> databaseData =
         pipelineRead.apply(
             JdbcIO.<RowData, String>readWithPartitions(TypeDescriptors.strings())
                 .withPartitionColumn("name")
                 .withDataSourceProviderFn(
-                    voide -> DatabaseTestHelper.getDataSourceForContainer(getDb()))
+                    voide -> DatabaseTestHelper.getDataSourceForContainer(getDb(dbmsLocal)))
                 .withTable("baseTable")
                 .withNumPartitions(5)
                 .withRowMapper(new RowDataMapper()));
@@ -261,12 +331,13 @@ public class JdbcIOAutoPartitioningIT {
 
   @Test
   public void testAutomaticLongPartitioningAutomaticPartitionManagement() throws SQLException {
+    final String dbmsLocal = dbms;
     PCollection<RowData> databaseData =
         pipelineRead.apply(
             JdbcIO.<RowData>readWithPartitions()
                 .withPartitionColumn("id")
                 .withDataSourceProviderFn(
-                    voide -> DatabaseTestHelper.getDataSourceForContainer(getDb()))
+                    voide -> DatabaseTestHelper.getDataSourceForContainer(getDb(dbmsLocal)))
                 .withTable("baseTable")
                 .withRowMapper(new RowDataMapper()));
 
@@ -276,12 +347,13 @@ public class JdbcIOAutoPartitioningIT {
 
   @Test
   public void testAutomaticStringPartitioningAutomaticPartitionManagement() throws SQLException {
+    final String dbmsLocal = dbms;
     PCollection<RowData> databaseData =
         pipelineRead.apply(
             JdbcIO.<RowData, String>readWithPartitions(TypeDescriptors.strings())
                 .withPartitionColumn("name")
                 .withDataSourceProviderFn(
-                    voide -> DatabaseTestHelper.getDataSourceForContainer(getDb()))
+                    voide -> DatabaseTestHelper.getDataSourceForContainer(getDb(dbmsLocal)))
                 .withTable("baseTable")
                 .withRowMapper(new RowDataMapper()));
 
@@ -291,12 +363,13 @@ public class JdbcIOAutoPartitioningIT {
 
   @Test
   public void testAutomaticDateTimePartitioningAutomaticPartitionManagement() throws SQLException {
+    final String dbmsLocal = dbms;
     PCollection<RowData> databaseData =
         pipelineRead.apply(
             JdbcIO.<RowData, DateTime>readWithPartitions(TypeDescriptor.of(DateTime.class))
                 .withPartitionColumn("specialDate")
                 .withDataSourceProviderFn(
-                    voide -> DatabaseTestHelper.getDataSourceForContainer(getDb()))
+                    voide -> DatabaseTestHelper.getDataSourceForContainer(getDb(dbmsLocal)))
                 .withTable("baseTable")
                 .withRowMapper(new RowDataMapper()));
 

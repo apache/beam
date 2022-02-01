@@ -377,7 +377,7 @@ class JdbcUtil {
               // For cases where we have empty strings, we use that as the bottom of one range,
               // and generate other ranges from that point.
               if (lowerBound.length() == 0) {
-                lowerBound = String.valueOf(Character.toChars(0)[0]);
+                lowerBound = String.valueOf(Character.toChars(1)[0]);
                 ranges.add(KV.of("", lowerBound));
               }
               int dif = upperBound.charAt(0) - lowerBound.charAt(0);
