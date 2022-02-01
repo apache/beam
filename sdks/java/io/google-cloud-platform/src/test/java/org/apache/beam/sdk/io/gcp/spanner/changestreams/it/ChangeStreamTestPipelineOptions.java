@@ -37,7 +37,7 @@ public interface ChangeStreamTestPipelineOptions extends IOTestPipelineOptions, 
   void setInstanceId(String value);
 
   @Description("Database ID prefix to write to in Spanner")
-  @Default.String("beam-testdb")
+  @Default.String("changestream")
   String getDatabaseId();
 
   void setDatabaseId(String value);
