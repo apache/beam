@@ -36,7 +36,7 @@ type JdbcTestRow struct {
 
 func writeRows(s beam.Scope, expansionAddr, tableName, driverClassName, jdbcUrl, username, password string, input beam.PCollection) {
 	s = s.Scope("jdbc_test.WriteToJdbc")
-	jdbcio.Write(s, expansionAddr, tableName, driverClassName, jdbcUrl, username, password, input)
+	jdbcio.Write(s, tableName, driverClassName, jdbcUrl, username, password, input, jdbcio.ExpansionServiceWrite(expansionAddr))
 }
 
 // WritePipeline creates a pipeline for JDBC IO Write transform.
@@ -52,8 +52,8 @@ func WritePipeline(expansionAddr, tableName, driverClassName, jdbcUrl, username,
 
 func readRows(s beam.Scope, expansionAddr, tableName, driverClassName, jdbcUrl, username, password string) beam.PCollection {
 	s = s.Scope("jdbc_test.ReadFromJdbc")
-	j := JdbcTestRow{}
-	res := jdbcio.Read(s, expansionAddr, tableName, driverClassName, jdbcUrl, username, password, j)
+	outT := reflect.TypeOf((*JdbcTestRow)(nil)).Elem()
+	res := jdbcio.Read(s, tableName, driverClassName, jdbcUrl, username, password, outT, jdbcio.ExpansionServiceRead(expansionAddr))
 	return res
 }
 
