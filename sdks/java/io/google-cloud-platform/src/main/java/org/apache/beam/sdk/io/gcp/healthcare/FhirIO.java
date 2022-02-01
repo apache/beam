@@ -27,6 +27,9 @@ import com.google.api.services.healthcare.v1.model.Operation;
 import com.google.auto.value.AutoValue;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
@@ -1394,9 +1397,15 @@ public class FhirIO {
       private static final Counter EXECUTE_BUNDLE_ERRORS =
           Metrics.counter(
               ExecuteBundlesFn.class, BASE_METRIC_PREFIX + "execute_bundle_error_count");
+      private static final Counter EXECUTE_BUNDLE_RESOURCE_ERRORS =
+          Metrics.counter(
+              ExecuteBundlesFn.class, BASE_METRIC_PREFIX + "execute_bundle_resource_error_count");
       private static final Counter EXECUTE_BUNDLE_SUCCESS =
           Metrics.counter(
               ExecuteBundlesFn.class, BASE_METRIC_PREFIX + "execute_bundle_success_count");
+      private static final Counter EXECUTE_BUNDLE_RESOURCE_SUCCESS =
+          Metrics.counter(
+              ExecuteBundlesFn.class, BASE_METRIC_PREFIX + "execute_bundle_resource_success_count");
       private static final Distribution EXECUTE_BUNDLE_LATENCY_MS =
           Metrics.distribution(
               ExecuteBundlesFn.class, BASE_METRIC_PREFIX + "execute_bundle_latency_ms");
@@ -1405,6 +1414,13 @@ public class FhirIO {
       private final ObjectMapper mapper = new ObjectMapper();
       /** The Fhir store. */
       private final ValueProvider<String> fhirStore;
+
+      private static final String BUNDLE_TYPE_FIELD = "type";
+      private static final String BUNDLE_RESPONSE_TYPE_BATCH = "batch-response";
+      private static final String BUNDLE_RESPONSE_TYPE_TRANSACTION = "transaction-response";
+      private static final String BUNDLE_ENTRY_FIELD = "entry";
+      private static final String BUNDLE_ENTRY_RESPONSE_FIELD = "response";
+      private static final String BUNDLE_ENTRY_RESPONSE_STATUS_FIELD = "status";
 
       /**
        * Instantiates a new Write Fhir fn.
@@ -1427,19 +1443,76 @@ public class FhirIO {
 
       @ProcessElement
       public void executeBundles(ProcessContext context) {
-        String body = context.element();
+        String inputBody = context.element();
         try {
           long startTime = Instant.now().toEpochMilli();
           // Validate that data was set to valid JSON.
-          mapper.readTree(body);
-          client.executeFhirBundle(fhirStore.get(), body);
+          mapper.readTree(inputBody);
+          HttpBody resp = client.executeFhirBundle(fhirStore.get(), inputBody);
           EXECUTE_BUNDLE_LATENCY_MS.update(Instant.now().toEpochMilli() - startTime);
-          EXECUTE_BUNDLE_SUCCESS.inc();
-          context.output(Write.SUCCESSFUL_BODY, body);
+
+          parseResponse(context, inputBody, resp);
         } catch (IOException | HealthcareHttpException e) {
           EXECUTE_BUNDLE_ERRORS.inc();
-          context.output(Write.FAILED_BODY, HealthcareIOError.of(body, e));
+          context.output(Write.FAILED_BODY, HealthcareIOError.of(inputBody, e));
         }
+      }
+
+      private void parseResponse(ProcessContext context, String inputBody, HttpBody resp)
+          throws JsonProcessingException {
+        JsonObject bundle = JsonParser.parseString(resp.getData()).getAsJsonObject();
+        String bundleType = bundle.getAsJsonPrimitive(BUNDLE_TYPE_FIELD).getAsString();
+        JsonArray entries = bundle.getAsJsonArray(BUNDLE_ENTRY_FIELD).getAsJsonArray();
+        if (entries == null) {
+          return;
+        }
+        // A BATCH bundle returns a success response even if entries have failures, as entries are
+        // executed separately. However, TRANSACTION bundles fail if any entry fails, and this would
+        // have thrown an exception on `client.executeFhirBundle`.
+        // Therefore, for BATCH bundles we need to parse the error and success counters.
+        if (bundleType.equals(BUNDLE_RESPONSE_TYPE_BATCH)) {
+          int success = 0;
+          int fail = 0;
+
+          for (JsonElement entry : entries) {
+            JsonObject response =
+                entry.getAsJsonObject().get(BUNDLE_ENTRY_RESPONSE_FIELD).getAsJsonObject();
+            if (response == null) {
+              continue;
+            }
+            String status = response.get(BUNDLE_ENTRY_RESPONSE_STATUS_FIELD).getAsString();
+            int statusCode = parseBundleStatus(status);
+            // 20X's are successes, otherwise failure.
+            if (statusCode / 100 == 2) {
+              success++;
+              context.output(Write.SUCCESSFUL_BODY, entry.toString());
+            } else {
+              fail++;
+              context.output(
+                  Write.FAILED_BODY,
+                  HealthcareIOError.of(
+                      inputBody, HealthcareHttpException.of(statusCode, entry.toString())));
+            }
+          }
+          EXECUTE_BUNDLE_RESOURCE_SUCCESS.inc(success);
+          EXECUTE_BUNDLE_RESOURCE_ERRORS.inc(fail);
+        } else if (bundleType.equals(BUNDLE_RESPONSE_TYPE_TRANSACTION)) {
+          EXECUTE_BUNDLE_RESOURCE_SUCCESS.inc(entries.size());
+          context.output(Write.SUCCESSFUL_BODY, bundle.toString());
+        }
+        EXECUTE_BUNDLE_SUCCESS.inc();
+        return;
+      }
+
+      // parseBundleStatus parses out the status code from a Bundle.entry.response.status string,
+      // which are the first 3 digits of the string.
+      private int parseBundleStatus(String status) {
+        int statusCode = 404;
+        try {
+          statusCode = Integer.parseInt(status.substring(0, 3));
+        } catch (IndexOutOfBoundsException | NumberFormatException ignored) {
+        }
+        return statusCode;
       }
     }
   }
