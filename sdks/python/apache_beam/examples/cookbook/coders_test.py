@@ -45,10 +45,25 @@ class CodersTest(unittest.TestCase):
       'host': ['Brasil', 1], 'guest': ['Italy', 0]
   }]
 
+  EXPECTED_RESULT = [('Italy', 0), ('Brasil', 6), ('Germany', 3)]
+
   def create_content_input_file(self, path, contents):
     logging.info('Creating temp file: %s', path)
     with open(path, 'w') as f:
       f.write(contents)
+
+  def format_result(self, result_string):
+    def format_tuple(result_elem_list):
+      [country, counter] = result_elem_list
+      return country, int(counter.strip())
+
+    result_list = list(
+        map(
+            lambda result_elem: format_tuple(result_elem.split(',')),
+            result_string.replace('\'',
+                                  '').replace('[', '').replace(']', '').replace(
+                                      '\"', '').split('\n')))
+    return result_list
 
   def test_compute_points(self):
     with TestPipeline() as p:
@@ -57,15 +72,11 @@ class CodersTest(unittest.TestCase):
           records
           | 'points' >> beam.FlatMap(coders.compute_points)
           | beam.CombinePerKey(sum))
-      assert_that(
-          result, equal_to([('Italy', 0), ('Brasil', 6), ('Germany', 3)]))
+      assert_that(result, equal_to(self.EXPECTED_RESULT))
 
   @pytest.mark.examples_postcommit
   def test_coders_output_files_on_small_input(self):
     test_pipeline = TestPipeline(is_integration_test=True)
-    EXPECTED_RESULT = '["Germany", 3]\n'\
-                        '["Italy", 0]\n'\
-                        '["Brasil", 6]'
 
     # Setup the files with expected content.
     temp_folder = tempfile.mkdtemp()
@@ -82,7 +93,8 @@ class CodersTest(unittest.TestCase):
     with open_shards(os.path.join(temp_folder, 'result-*-of-*')) as result_file:
       result = result_file.read().strip()
 
-    self.assertEqual(result, EXPECTED_RESULT)
+    self.assertEqual(
+        sorted(self.EXPECTED_RESULT), sorted(self.format_result(result)))
 
 
 if __name__ == '__main__':
