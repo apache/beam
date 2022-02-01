@@ -16,6 +16,7 @@
 package local
 
 import (
+	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/cache"
 	"context"
 	"github.com/google/uuid"
@@ -223,6 +224,176 @@ func TestLocalCache_SetExpTime(t *testing.T) {
 			expTime, found := lc.pipelinesExpiration[tt.args.pipelineId]
 			if expTime.Round(time.Second) != time.Now().Add(tt.args.expTime).Round(time.Second) || !found {
 				t.Errorf("Expiration time of the pipeline: %s not set in cache.", tt.args.pipelineId)
+			}
+		})
+	}
+}
+
+func TestCache_SetCatalog(t *testing.T) {
+	catalog := []*pb.Categories{
+		{
+			Sdk: pb.Sdk_SDK_JAVA,
+			Categories: []*pb.Categories_Category{
+				{
+					CategoryName: "TestCategory", PrecompiledObjects: []*pb.PrecompiledObject{
+						{
+							CloudPath:   "SDK_JAVA/TestCategory/TestName.java",
+							Name:        "TestName",
+							Description: "TestDescription",
+							Type:        pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+						},
+					},
+				},
+				{
+					CategoryName: "AnotherTestCategory", PrecompiledObjects: []*pb.PrecompiledObject{
+						{
+							CloudPath:   "SDK_JAVA/AnotherTestCategory/TestName.java",
+							Name:        "TestName",
+							Description: "TestDescription",
+							Type:        pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+						},
+					},
+				},
+			},
+		},
+		{
+			Sdk: pb.Sdk_SDK_PYTHON,
+			Categories: []*pb.Categories_Category{
+				{
+					CategoryName: "TestCategory", PrecompiledObjects: []*pb.PrecompiledObject{
+						{
+							CloudPath:   "SDK_PYTHON/TestCategory/TestName.java",
+							Name:        "TestName",
+							Description: "TestDescription",
+							Type:        pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+						},
+					},
+				},
+			},
+		},
+	}
+	type fields struct {
+		catalog []*pb.Categories
+	}
+	type args struct {
+		ctx     context.Context
+		catalog []*pb.Categories
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "Set catalog",
+			fields: fields{
+				catalog: catalog,
+			},
+			args: args{
+				ctx:     context.Background(),
+				catalog: catalog,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			lc := &Cache{
+				catalog: tt.fields.catalog,
+			}
+			if err := lc.SetCatalog(tt.args.ctx, tt.args.catalog); (err != nil) != tt.wantErr {
+				t.Errorf("SetCatalog() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if !reflect.DeepEqual(lc.catalog, tt.args.catalog) {
+				t.Errorf("SetCatalog() got = %v, want %v", lc.catalog, tt.args.catalog)
+			}
+		})
+	}
+}
+
+func TestCache_GetCatalog(t *testing.T) {
+	catalog := []*pb.Categories{
+		{
+			Sdk: pb.Sdk_SDK_JAVA,
+			Categories: []*pb.Categories_Category{
+				{
+					CategoryName: "TestCategory", PrecompiledObjects: []*pb.PrecompiledObject{
+						{
+							CloudPath:   "SDK_JAVA/TestCategory/TestName.java",
+							Name:        "TestName",
+							Description: "TestDescription",
+							Type:        pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+						},
+					},
+				},
+				{
+					CategoryName: "AnotherTestCategory", PrecompiledObjects: []*pb.PrecompiledObject{
+						{
+							CloudPath:   "SDK_JAVA/AnotherTestCategory/TestName.java",
+							Name:        "TestName",
+							Description: "TestDescription",
+							Type:        pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+						},
+					},
+				},
+			},
+		},
+		{
+			Sdk: pb.Sdk_SDK_PYTHON,
+			Categories: []*pb.Categories_Category{
+				{
+					CategoryName: "TestCategory", PrecompiledObjects: []*pb.PrecompiledObject{
+						{
+							CloudPath:   "SDK_PYTHON/TestCategory/TestName.java",
+							Name:        "TestName",
+							Description: "TestDescription",
+							Type:        pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+						},
+					},
+				},
+			},
+		},
+	}
+	type fields struct {
+		catalog []*pb.Categories
+	}
+	type args struct {
+		ctx context.Context
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    []*pb.Categories
+		wantErr bool
+	}{
+		{
+			name:    "Get existing catalog",
+			fields:  fields{catalog},
+			args:    args{context.Background()},
+			want:    catalog,
+			wantErr: false,
+		},
+		{
+			name:    "Get non existing catalog",
+			fields:  fields{nil},
+			args:    args{context.Background()},
+			want:    nil,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			lc := &Cache{
+				catalog: tt.fields.catalog,
+			}
+			got, err := lc.GetCatalog(tt.args.ctx)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetCatalog() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("GetCatalog() got = %v, want %v", got, tt.want)
 			}
 		})
 	}

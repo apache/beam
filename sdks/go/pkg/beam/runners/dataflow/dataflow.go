@@ -157,7 +157,7 @@ var unique int32
 func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error) {
 	// (1) Gather job options
 
-	project := *gcpopts.Project
+	project := gcpopts.GetProjectFromFlagOrEnvironment(ctx)
 	if project == "" {
 		return nil, errors.New("no Google Cloud project specified. Use --project=<project>")
 	}

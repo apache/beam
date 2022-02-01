@@ -35,7 +35,7 @@ const (
 	newLinePattern                    = "\n"
 	pathSeparatorPattern              = os.PathSeparator
 	tmpFileSuffix                     = "tmp"
-	publicClassNamePattern            = "public class (.*?) [{|implements(.*)]"
+	javaPublicClassNamePattern        = "public class (.*?) [{|implements(.*)]"
 )
 
 //JavaPreparersBuilder facet of PreparersBuilder
@@ -204,31 +204,31 @@ func addNewLine(newLine bool, file *os.File) error {
 
 func changeJavaTestFileName(args ...interface{}) error {
 	filePath := args[0].(string)
-	className, err := getPublicClassName(filePath)
+	className, err := getPublicClassName(filePath, javaPublicClassNamePattern)
 	if err != nil {
 		return err
 	}
-	err = renameJavaFile(filePath, className)
+	err = renameSourceCodeFile(filePath, className)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func renameJavaFile(filePath string, className string) error {
+func renameSourceCodeFile(filePath string, className string) error {
 	currentFileName := filepath.Base(filePath)
 	newFilePath := strings.Replace(filePath, currentFileName, fmt.Sprintf("%s%s", className, filepath.Ext(currentFileName)), 1)
 	err := os.Rename(filePath, newFilePath)
 	return err
 }
 
-func getPublicClassName(filePath string) (string, error) {
+func getPublicClassName(filePath, pattern string) (string, error) {
 	code, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		logger.Errorf("Preparer: Error during open file: %s, err: %s\n", filePath, err.Error())
 		return "", err
 	}
-	re := regexp.MustCompile(publicClassNamePattern)
+	re := regexp.MustCompile(pattern)
 	className := re.FindStringSubmatch(string(code))[1]
 	return className, err
 }
