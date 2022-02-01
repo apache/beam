@@ -44,9 +44,14 @@ import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -86,42 +91,23 @@ public class SpannerChangeStreamTransactionBoundariesIT {
     databaseClient = ENV.getDatabaseClient();
   }
 
+  // ./gradlew :sdks:java:io:google-cloud-platform:integrationTest -PgcpSpannerInstance=changestream
+  // --tests=SpannerChangeStreamTransactionBoundariesIT.testTransactionBoundaries --info
   @Test
-  public void testReadSpannerChangeStream() {
+  public void testTransactionBoundaries() {
     final SpannerConfig spannerConfig =
         SpannerConfig.create()
             .withProjectId(projectId)
             .withInstanceId(instanceId)
             .withDatabaseId(databaseId);
-    final Timestamp now = Timestamp.now();
-
+    // Commit a initial transaction to get the timestamp to start reading from.
     List<Mutation> mutations = new ArrayList<>();
-    // Insert historical mutations into the data table to be returned by the Change Stream
-    // Connector.
+    mutations.add(insertRecordMutation(0, "FirstName0", "LastName0"));
+    final Timestamp startTimestamp = databaseClient.write(mutations);
 
-    // 1. Commit a transaction to insert Singer 1 and Singer 2 into the table.
-    mutations.add(insertRecordMutation(1, "FirstName1", "LastName2"));
-    mutations.add(insertRecordMutation(2, "FirstName2", "LastName2"));
-    Timestamp t1 = databaseClient.write(mutations);
-    LOG.debug("The first transaction committed with timestamp: " + t1.toString());
-    mutations.clear();
+    // Get the timestamp of the last committed transaction to get the end timestamp.
+    final Timestamp endTimestamp = writeTransactionsToDatabase();
 
-    // 2. Commmit a transaction to insert Singer 3 and remove Singer 1 from the table.
-    mutations.add(insertRecordMutation(3, "FirstName3", "LastName3"));
-    mutations.add(deleteRecordMutation(1));
-    Timestamp t2 = databaseClient.write(mutations);
-    LOG.debug("The second transaction committed with timestamp: " + t2.toString());
-    mutations.clear();
-
-    // 3. Commit a transaction to insert Singer 4 and Singer 5 and Singer 6 into the table.
-    mutations.add(insertRecordMutation(4, "FirstName4", "LastName4"));
-    mutations.add(insertRecordMutation(5, "FirstName5", "LastName5"));
-    mutations.add(insertRecordMutation(6, "FirstName6", "LastName6"));
-    Timestamp t3 = databaseClient.write(mutations);
-    LOG.debug("The third transaction committed with timestamp: " + t3.toString());
-    mutations.clear();
-
-    LOG.debug("Reading Spanner Change Stream from: " + now);
     final PCollection<String> tokens =
         pipeline
             .apply(
@@ -129,7 +115,8 @@ public class SpannerChangeStreamTransactionBoundariesIT {
                     .withSpannerConfig(spannerConfig)
                     .withChangeStreamName(changeStreamName)
                     .withMetadataDatabase(databaseId)
-                    .withInclusiveStartAt(now))
+                    .withInclusiveStartAt(startTimestamp)
+                    .withInclusiveEndAt(endTimestamp))
             .apply(ParDo.of(new SpannerChangeStreamTransactionBoundariesIT.KeyByTransactionIdFn()))
             .apply(ParDo.of(new SpannerChangeStreamTransactionBoundariesIT.TransactionBoundaryFn()))
             .apply(ParDo.of(new SpannerChangeStreamTransactionBoundariesIT.ToStringFn()));
@@ -138,6 +125,9 @@ public class SpannerChangeStreamTransactionBoundariesIT {
     // and that each transaction contains, in order, the list of mutations added.
     PAssert.that(tokens)
         .containsInAnyOrder(
+            // Insert Singer 0 into the table.
+            "{\"SingerId\":\"0\"},INSERT\n",
+
             // Insert Singer 1 and 2 into the table,
             "{\"SingerId\":\"1\"}{\"SingerId\":\"2\"},INSERT\n",
 
@@ -154,68 +144,86 @@ public class SpannerChangeStreamTransactionBoundariesIT {
             "{\"SingerId\":\"4\"}{\"SingerId\":\"5\"},UPDATE\n",
 
             // Delete Singers 3, 4, 5 from the table.
-            "{\"SingerId\":\"3\"}{\"SingerId\":\"4\"}{\"SingerId\":\"5\"},DELETE\n");
+            "{\"SingerId\":\"3\"}{\"SingerId\":\"4\"}{\"SingerId\":\"5\"},DELETE\n",
+
+            // Delete Singers 0, 2, 6, 7;
+            "{\"SingerId\":\"0\"}{\"SingerId\":\"2\"}{\"SingerId\":\"6\"}" +
+                "{\"SingerId\":\"7\"},DELETE\n");
 
     final PipelineResult pipelineResult = pipeline.run();
-
-    // Insert  live mutations after the pipeline already started running.
-
-    // 4. Commit a transaction to insert Singer 7 and update Singer 6 in the table.
-    mutations.add(insertRecordMutation(7, "FirstName7", "LastName7"));
-    mutations.add(updateRecordMutation(6, "FirstName5", "LastName5"));
-    Timestamp t4 = databaseClient.write(mutations);
-    LOG.debug("The fourth transaction committed with timestamp: " + t4.toString());
-    mutations.clear();
-
-    // 5. Commit a transaction to update Singer 4 and Singer 5 in the table.
-    mutations.add(updateRecordMutation(4, "FirstName9", "LastName9"));
-    mutations.add(updateRecordMutation(5, "FirstName9", "LastName9"));
-    Timestamp t5 = databaseClient.write(mutations);
-    LOG.debug("The fifth transaction committed with timestamp: " + t5.toString());
-    mutations.clear();
-
-    // 6. Commit a transaction to delete Singers 3, 4, 5.
-    mutations.add(deleteRecordMutation(3));
-    mutations.add(deleteRecordMutation(4));
-    mutations.add(deleteRecordMutation(5));
-    Timestamp t6 = databaseClient.write(mutations);
-    LOG.debug("The sixth transaction committed with timestamp: " + t6.toString());
-
-    try {
-      pipelineResult.waitUntilFinish(org.joda.time.Duration.standardSeconds(30));
-      pipelineResult.cancel();
-    } catch (IOException e) {
-      LOG.debug("IOException while cancelling job");
-    }
+    pipelineResult.waitUntilFinish();
   }
 
-  // Create an update mutation.
-  private static Mutation updateRecordMutation(long singerId, String firstName, String lastName) {
-    return Mutation.newUpdateBuilder(tableName)
-        .set("SingerId")
-        .to(singerId)
-        .set("FirstName")
-        .to(firstName)
-        .set("LastName")
-        .to(lastName)
-        .build();
-  }
+  // To run this test, run the following command:
+  // ./gradlew :sdks:java:io:google-cloud-platform:integrationTest -PgcpSpannerInstance=changestream
+  // --tests=SpannerChangeStreamTransactionBoundariesIT.testOrderedTransactions --info
+  @Test
+  public void testOrderedTransactions() {
+    final SpannerConfig spannerConfig =
+        SpannerConfig.create()
+            .withProjectId(projectId)
+            .withInstanceId(instanceId)
+            .withDatabaseId(databaseId);
 
-  // Create an insert mutation.
-  private static Mutation insertRecordMutation(long singerId, String firstName, String lastName) {
-    return Mutation.newInsertBuilder(tableName)
-        .set("SingerId")
-        .to(singerId)
-        .set("FirstName")
-        .to(firstName)
-        .set("LastName")
-        .to(lastName)
-        .build();
-  }
+    // Commit a initial transaction to get the timestamp to start reading from.
+    List<Mutation> mutations = new ArrayList<>();
+    mutations.add(insertRecordMutation(0, "FirstName0", "LastName0"));
+    final Timestamp startTimestamp = databaseClient.write(mutations);
 
-  // Create a delete mutation.
-  private static Mutation deleteRecordMutation(long singerId) {
-    return Mutation.delete(tableName, KeySet.newBuilder().addKey(Key.of(singerId)).build());
+    // Get the timestamp of the last committed transaction to get the end timestamp.
+    final Timestamp endTimestamp = writeTransactionsToDatabase();
+
+    // Get the window size that would contain all committed transactions.
+    long numSecondsInWindow = endTimestamp.getSeconds() - startTimestamp.getSeconds() + 1;
+
+    final PCollection<String> tokens =
+        pipeline
+            .apply(
+                SpannerIO.readChangeStream()
+                    .withSpannerConfig(spannerConfig)
+                    .withChangeStreamName(changeStreamName)
+                    .withMetadataDatabase(databaseId)
+                    .withInclusiveStartAt(startTimestamp)
+                    .withInclusiveEndAt(endTimestamp))
+            .apply(ParDo.of(new SpannerChangeStreamTransactionBoundariesIT.KeyByTransactionIdFn()))
+            .apply(ParDo.of(new SpannerChangeStreamTransactionBoundariesIT.TransactionBoundaryFn()))
+            .apply(ParDo.of(new SpannerChangeStreamTransactionBoundariesIT.CreateArtificialKeyFn()))
+            .apply(Window.into(FixedWindows.of(Duration.standardSeconds(numSecondsInWindow))))
+            .apply(GroupByKey.create())
+            .apply(ParDo.of(new SpannerChangeStreamTransactionBoundariesIT.ToStringFnSorted()));
+
+    // Assert that the returned PCollection contains one element with all six transactions
+    // in commit timestamp order, and that each transaction contains, in order, the list of
+    // mutations added.
+    PAssert.that(tokens)
+        .containsInAnyOrder(
+            // Insert Singer 0 into the table.
+            "{\"SingerId\":\"0\"},INSERT\n" +
+
+            // Insert Singer 1 and 2 into the table,
+            "{\"SingerId\":\"1\"}{\"SingerId\":\"2\"},INSERT\n" +
+
+            // Delete Singer 1 and Insert Singer 3 into the table.
+            "{\"SingerId\":\"1\"},DELETE\n" + "{\"SingerId\":\"3\"},INSERT\n" +
+
+            // Insert Singers 4, 5, 6 into the table.
+            "{\"SingerId\":\"4\"}{\"SingerId\":\"5\"}{\"SingerId\":\"6\"},INSERT\n" +
+
+            // Update Singer 6 and Insert Singer 7
+            "{\"SingerId\":\"6\"},UPDATE\n" + "{\"SingerId\":\"7\"},INSERT\n" +
+
+            // Update Singers 4 and 5 in the table.
+            "{\"SingerId\":\"4\"}{\"SingerId\":\"5\"},UPDATE\n" +
+
+            // Delete Singers 3, 4, 5 from the table.
+            "{\"SingerId\":\"3\"}{\"SingerId\":\"4\"}{\"SingerId\":\"5\"},DELETE\n" +
+
+            // Delete Singers 0, 2, 6, 7;
+            "{\"SingerId\":\"0\"}{\"SingerId\":\"2\"}{\"SingerId\":\"6\"}" +
+                "{\"SingerId\":\"7\"},DELETE\n");
+
+    final PipelineResult pipelineResult = pipeline.run();
+    pipelineResult.waitUntilFinish();
   }
 
   // KeyByTransactionIdFn takes in a DataChangeRecord and outputs a key-value pair of
@@ -272,15 +280,31 @@ public class SpannerChangeStreamTransactionBoundariesIT {
             StreamSupport.stream(buffer.read().spliterator(), false)
                 .sorted(Comparator.comparing(DataChangeRecord::getRecordSequence))
                 .collect(Collectors.toList());
-        context.output(
+
+        final Instant commitInstant = new Instant(
+            sortedRecords.get(0).getCommitTimestamp().toSqlTimestamp().getTime());
+        context.outputWithTimestamp(
             KV.of(
                 new SpannerChangeStreamTransactionBoundariesIT.SortKey(
                     sortedRecords.get(0).getCommitTimestamp(),
                     sortedRecords.get(0).getServerTransactionId()),
-                sortedRecords));
+                sortedRecords),
+            commitInstant);
         buffer.clear();
         countState.clear();
       }
+    }
+  }
+
+  private static class CreateArtificialKeyFn extends DoFn<KV<SortKey, Iterable<DataChangeRecord>>,
+      KV<byte[], KV<SortKey, Iterable<DataChangeRecord>>>> {
+    private static final long serialVersionUID = -3363057370822294686L;
+    @ProcessElement
+    public void processElement(
+        @Element KV<SortKey, Iterable<DataChangeRecord>> element,
+        OutputReceiver<KV<byte[], KV<SortKey, Iterable<DataChangeRecord>>>> outputReceiver
+    ) {
+      outputReceiver.output(KV.of(new byte[0], element));
     }
   }
 
@@ -312,6 +336,45 @@ public class SpannerChangeStreamTransactionBoundariesIT {
             builder.append(String.join(",", modString, record.getModType().toString()));
             builder.append("\n");
           });
+      outputReceiver.output(builder.toString());
+    }
+  }
+
+  private static class ToStringFnSorted
+      extends DoFn<
+      KV<byte[], Iterable<KV<SpannerChangeStreamTransactionBoundariesIT.SortKey, Iterable<DataChangeRecord>>>>,
+      String> {
+
+    private static final long serialVersionUID = 2307936669684679038L;
+
+    @ProcessElement
+    public void processElement(
+        @Element KV<byte[], Iterable<KV<SpannerChangeStreamTransactionBoundariesIT.SortKey, Iterable<DataChangeRecord>>>> element,
+        OutputReceiver<String> outputReceiver) {
+      final StringBuilder builder = new StringBuilder();
+
+      // Now, the records should be sorted by commit timestamp
+      final List<KV<SpannerChangeStreamTransactionBoundariesIT.SortKey, Iterable<DataChangeRecord>>> sortedRecordsInWindow =
+          StreamSupport.stream(element.getValue().spliterator(), false)
+              .sorted((kv1, kv2) ->
+                  kv1.getKey().compareTo(kv2.getKey()))
+              .collect(Collectors.toList());
+
+
+      for (KV<SpannerChangeStreamTransactionBoundariesIT.SortKey, Iterable<DataChangeRecord>> sortedRecords :
+          sortedRecordsInWindow) {
+         sortedRecords.getValue().forEach(
+            record -> {
+              // Output the string representation of the mods and the mod type for each data change
+              // record.
+              String modString = "";
+              for (Mod mod : record.getMods()) {
+                modString += mod.getKeysJson();
+              }
+              builder.append(String.join(",", modString, record.getModType().toString()));
+              builder.append("\n");
+            });
+      }
       outputReceiver.output(builder.toString());
     }
   }
@@ -372,10 +435,99 @@ public class SpannerChangeStreamTransactionBoundariesIT {
 
     @Override
     public int compareTo(SpannerChangeStreamTransactionBoundariesIT.SortKey other) {
-      return Comparator.<SpannerChangeStreamTransactionBoundariesIT.SortKey>comparingLong(
-              sortKey -> sortKey.getCommitTimestamp().getSeconds())
+      return Comparator
+          .<SpannerChangeStreamTransactionBoundariesIT.SortKey>
+              comparingDouble(sortKey -> sortKey.getCommitTimestamp().getSeconds() +
+              sortKey.getCommitTimestamp().getNanos() / 1000000000.0)
           .thenComparing(sortKey -> sortKey.getTransactionId())
           .compare(this, other);
     }
+  }
+
+  private Timestamp writeTransactionsToDatabase() {
+    List<Mutation> mutations = new ArrayList<>();
+
+    // 1. Commit a transaction to insert Singer 1 and Singer 2 into the table.
+    mutations.add(insertRecordMutation(1, "FirstName1", "LastName2"));
+    mutations.add(insertRecordMutation(2, "FirstName2", "LastName2"));
+    Timestamp t1 = databaseClient.write(mutations);
+    LOG.debug("The first transaction committed with timestamp: " + t1.toString());
+    mutations.clear();
+
+    // 2. Commmit a transaction to insert Singer 3 and remove Singer 1 from the table.
+    mutations.add(insertRecordMutation(3, "FirstName3", "LastName3"));
+    mutations.add(deleteRecordMutation(1));
+    Timestamp t2 = databaseClient.write(mutations);
+    LOG.debug("The second transaction committed with timestamp: " + t2.toString());
+    mutations.clear();
+
+    // 3. Commit a transaction to insert Singer 4 and Singer 5 and Singer 6 into the table.
+    mutations.add(insertRecordMutation(4, "FirstName4", "LastName4"));
+    mutations.add(insertRecordMutation(5, "FirstName5", "LastName5"));
+    mutations.add(insertRecordMutation(6, "FirstName6", "LastName6"));
+    Timestamp t3 = databaseClient.write(mutations);
+    LOG.debug("The third transaction committed with timestamp: " + t3.toString());
+    mutations.clear();
+
+    // 4. Commit a transaction to insert Singer 7 and update Singer 6 in the table.
+    mutations.add(insertRecordMutation(7, "FirstName7", "LastName7"));
+    mutations.add(updateRecordMutation(6, "FirstName5", "LastName5"));
+    Timestamp t4 = databaseClient.write(mutations);
+    LOG.debug("The fourth transaction committed with timestamp: " + t4.toString());
+    mutations.clear();
+
+    // 5. Commit a transaction to update Singer 4 and Singer 5 in the table.
+    mutations.add(updateRecordMutation(4, "FirstName9", "LastName9"));
+    mutations.add(updateRecordMutation(5, "FirstName9", "LastName9"));
+    Timestamp t5 = databaseClient.write(mutations);
+    LOG.debug("The fifth transaction committed with timestamp: " + t5.toString());
+    mutations.clear();
+
+    // 6. Commit a transaction to delete Singers 3, 4, 5.
+    mutations.add(deleteRecordMutation(3));
+    mutations.add(deleteRecordMutation(4));
+    mutations.add(deleteRecordMutation(5));
+    Timestamp t6 = databaseClient.write(mutations);
+    mutations.clear();
+    LOG.debug("The sixth transaction committed with timestamp: " + t6.toString());
+
+    // 7. Commit a transaction to delete Singers 0, 2, 6, 7.
+    mutations.add(deleteRecordMutation(0));
+    mutations.add(deleteRecordMutation(2));
+    mutations.add(deleteRecordMutation(6));
+    mutations.add(deleteRecordMutation(7));
+    Timestamp t7 = databaseClient.write(mutations);
+    LOG.debug("The seventh transaction committed with timestamp: " + t7.toString());
+
+    return t7;
+  }
+
+  // Create an update mutation.
+  private static Mutation updateRecordMutation(long singerId, String firstName, String lastName) {
+    return Mutation.newUpdateBuilder(tableName)
+        .set("SingerId")
+        .to(singerId)
+        .set("FirstName")
+        .to(firstName)
+        .set("LastName")
+        .to(lastName)
+        .build();
+  }
+
+  // Create an insert mutation.
+  private static Mutation insertRecordMutation(long singerId, String firstName, String lastName) {
+    return Mutation.newInsertBuilder(tableName)
+        .set("SingerId")
+        .to(singerId)
+        .set("FirstName")
+        .to(firstName)
+        .set("LastName")
+        .to(lastName)
+        .build();
+  }
+
+  // Create a delete mutation.
+  private static Mutation deleteRecordMutation(long singerId) {
+    return Mutation.delete(tableName, KeySet.newBuilder().addKey(Key.of(singerId)).build());
   }
 }
