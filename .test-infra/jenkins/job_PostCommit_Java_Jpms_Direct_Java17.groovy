@@ -22,7 +22,7 @@ import PostcommitJobBuilder
 
 // This job runs the Java postcommit tests, including the suite of integration
 // tests.
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Jpms_Direct_Java1117', 'Run Jpms Direct Java 17 PostCommit',
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Jpms_Direct_Java17', 'Run Jpms Direct Java 17 PostCommit',
     'JPMS Java 17 direct runner  Post Commit Tests', this) {
 
       description('Runs JPMS tests on the direct runner using the Java 17 SDK.')
@@ -41,6 +41,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Jpms_Direct_Java1117', 
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(':sdks:java:testing:jpms-tests:directRunnerIntegrationTest')
           commonJobProperties.setGradleSwitches(delegate)
+          switches("-PskipCheckerFramework")
           switches("-PcompileAndRunTestsWithJava17")
           switches("-Pjava17Home=${commonJobProperties.JAVA_17_HOME}")
           // Specify maven home on Jenkins, needed by Maven archetype integration tests.
