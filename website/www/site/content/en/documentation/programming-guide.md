@@ -7046,3 +7046,7 @@ When an SDK-specific wrapper isn't available, you will have to access the cross-
 Currently, portable runners such as Flink, Spark, and the direct runner can be used with multi-language pipelines.
 
 Dataflow supports multi-language pipelines through the Dataflow Runner v2 backend architecture.
+
+### 13.4 Tips and Troubleshooting {#x-lang-transform-tips-troubleshooting}
+
+For additional tips and troubleshooting information, see [here](https://cwiki.apache.org/confluence/display/BEAM/Multi-language+Pipelines+Tips).

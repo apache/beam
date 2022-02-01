@@ -86,8 +86,7 @@ public class DetectNewPartitionsAction {
    * </ol>
    *
    * @param tracker an instance of {@link OffsetRangeTracker}
-   * @param receiver a {@link PartitionMetadata} {@link
-   *     org.apache.beam.sdk.transforms.DoFn.OutputReceiver}
+   * @param receiver a {@link PartitionMetadata} {@link OutputReceiver}
    * @param watermarkEstimator a {@link ManualWatermarkEstimator} of {@link Instant}
    * @return a {@link ProcessContinuation#stop()} if there are no more partitions to process or
    *     {@link ProcessContinuation#resume()} to re-schedule the function after the configured
