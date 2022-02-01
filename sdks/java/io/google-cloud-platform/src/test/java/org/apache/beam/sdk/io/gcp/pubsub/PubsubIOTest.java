@@ -342,7 +342,7 @@ public class PubsubIOTest {
         return false;
       }
       GenericClass o = (GenericClass) other;
-      return intField == o.intField
+      return Objects.equals(intField, o.intField)
           && Objects.equals(stringField, o.stringField)
           && Objects.equals(timestamp, o.timestamp);
     }

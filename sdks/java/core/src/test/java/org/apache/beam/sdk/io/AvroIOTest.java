@@ -224,7 +224,7 @@ public class AvroIOTest implements Serializable {
           return false;
         }
         GenericClass o = (GenericClass) other;
-        return intField == o.intField && Objects.equals(stringField, o.stringField);
+        return Objects.equals(intField, o.intField) && Objects.equals(stringField, o.stringField);
       }
     }
 
@@ -803,7 +803,7 @@ public class AvroIOTest implements Serializable {
           return false;
         }
         GenericClassV2 o = (GenericClassV2) other;
-        return intField == o.intField
+        return Objects.equals(intField, o.intField)
             && Objects.equals(stringField, o.stringField)
             && Objects.equals(nullableField, o.nullableField);
       }

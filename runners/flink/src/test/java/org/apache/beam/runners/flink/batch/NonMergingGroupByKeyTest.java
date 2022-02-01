@@ -37,7 +37,6 @@ public class NonMergingGroupByKeyTest extends AbstractTestBase {
   private static class ReiterateDoFn<K, V> extends DoFn<KV<K, Iterable<V>>, Void> {
 
     @ProcessElement
-    @SuppressWarnings("ReturnValueIgnored")
     public void processElement(@Element KV<K, Iterable<V>> el) {
       el.getValue().iterator();
       // this should throw an exception

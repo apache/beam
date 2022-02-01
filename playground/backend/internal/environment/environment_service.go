@@ -181,7 +181,7 @@ func ConfigureBeamEnvs(workDir string) (*BeamEnvs, error) {
 		}
 	}
 	if sdk == pb.Sdk_SDK_UNSPECIFIED {
-		return NewBeamEnvs(sdk, nil, preparedModDir, numOfParallelJobs), nil
+		return nil, errors.New("env BEAM_SDK must be specified in the environment variables")
 	}
 	configPath := filepath.Join(workDir, configFolderName, sdk.String()+jsonExt)
 	executorConfig, err := createExecutorConfig(sdk, configPath)

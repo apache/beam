@@ -669,7 +669,7 @@ public class ProxyInvocationHandlerTest {
     public boolean equals(@Nullable Object obj) {
       return obj != null
           && getClass().equals(obj.getClass())
-          && doubleField == ((InnerType) obj).doubleField;
+          && Objects.equals(doubleField, ((InnerType) obj).doubleField);
     }
   }
 

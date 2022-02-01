@@ -30,7 +30,6 @@ import json
 import logging
 import os
 import random
-import string
 
 import pkg_resources
 import re
@@ -422,16 +421,10 @@ class Job(object):
     user_name = re.sub('[^-a-z0-9]', '', user_name.lower())
     date_component = datetime.utcnow().strftime('%m%d%H%M%S-%f')
     app_user_name = 'beamapp-{}'.format(user_name)
-    # append 8 random alphanumeric characters to avoid collisions.
-    random_component = ''.join(
-        random.choices(string.ascii_lowercase + string.digits, k=8))
-    job_name = '{}-{}-{}'.format(
-        app_user_name, date_component, random_component)
+    job_name = '{}-{}'.format(app_user_name, date_component)
     if len(job_name) > 63:
-      job_name = '{}-{}-{}'.format(
-          app_user_name[:-(len(job_name) - 63)],
-          date_component,
-          random_component)
+      job_name = '{}-{}'.format(
+          app_user_name[:-(len(job_name) - 63)], date_component)
     return job_name
 
   @staticmethod

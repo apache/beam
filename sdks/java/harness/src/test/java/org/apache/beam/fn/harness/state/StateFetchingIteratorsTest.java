@@ -29,7 +29,6 @@ import static org.junit.Assert.assertTrue;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -144,7 +143,7 @@ public class StateFetchingIteratorsTest {
       // Test on a partially accessed iterable
       iterable = create(5, expected);
       iterable.append(Ints.asList(42, 43));
-      Boolean ignored = iterable.iterator().hasNext();
+      iterable.iterator().hasNext();
       // The append is dropped since the entire iterable isn't in memory so next time we iterate we
       // expect to be given what the runner tells us is there.
       verifyFetch(iterable.iterator(), expected);
@@ -175,7 +174,7 @@ public class StateFetchingIteratorsTest {
       // Test on a partially accessed iterable
       iterable = create(5, expected);
       iterable.remove(toRemove);
-      Boolean ignored = iterable.iterator().hasNext();
+      iterable.iterator().hasNext();
       // The remove is dropped since the entire iterable isn't in memory so next time we iterate we
       // expect to be given what the runner tells us is there.
       verifyFetch(iterable.iterator(), expected);
@@ -315,7 +314,7 @@ public class StateFetchingIteratorsTest {
           new CachingStateIterable<>(
               Caches.eternal(), fakeStateClient, requestForFirstChunk, BigEndianIntegerCoder.of());
 
-      Iterator<?> ignored = iterable.iterator();
+      iterable.iterator();
       assertEquals(0, fakeStateClient.getCallCount()); // Ensure it's fully lazy.
       return iterable;
     }
@@ -351,7 +350,7 @@ public class StateFetchingIteratorsTest {
 
       // Verify an iterable that was partially accessed
       iterable = create(chunkSize, expected);
-      Boolean ignored = iterable.iterator().hasNext();
+      iterable.iterator().hasNext();
       iterable.clearAndAppend(Ints.asList(42, 43));
       assertTrue(iterable.iterator().isReady());
       verifyFetch(iterable.iterator(), 42, 43);

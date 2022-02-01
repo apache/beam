@@ -61,6 +61,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** PTransform to perform batched streaming BigQuery write. */
 @SuppressWarnings({
@@ -70,6 +72,7 @@ class BatchedStreamingWrite<ErrorT, ElementT>
     extends PTransform<PCollection<KV<String, TableRowInfo<ElementT>>>, PCollectionTuple> {
   private static final TupleTag<Void> mainOutputTag = new TupleTag<>("mainOutput");
   static final TupleTag<TableRow> SUCCESSFUL_ROWS_TAG = new TupleTag<>("successfulRows");
+  private static final Logger LOG = LoggerFactory.getLogger(BatchedStreamingWrite.class);
 
   private final BigQueryServices bqServices;
   private final InsertRetryPolicy retryPolicy;
@@ -335,9 +338,13 @@ class BatchedStreamingWrite<ErrorT, ElementT>
                             @Element
                                 KV<ShardedKey<String>, Iterable<TableRowInfo<ElementT>>> element) {
                           String key = element.getKey().getKey();
+                          int count = 0;
                           for (TableRowInfo<ElementT> value : element.getValue()) {
                             context.output(KV.of(key, value));
+                            count = count + 1;
                           }
+                          LOG.info(
+                              "Writing to BigQuery using Auto-sharding. Flushing {} rows.", count);
                         }
                       }))
               .setCoder(KvCoder.of(StringUtf8Coder.of(), valueCoder))

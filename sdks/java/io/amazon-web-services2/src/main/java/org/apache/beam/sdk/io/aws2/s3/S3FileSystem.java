@@ -42,10 +42,12 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.io.FileSystem;
+import org.apache.beam.sdk.io.aws2.options.S3ClientBuilderFactory;
 import org.apache.beam.sdk.io.aws2.options.S3Options;
 import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MoveOptions;
+import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.util.MoreFutures;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
@@ -64,6 +66,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.core.exception.SdkServiceException;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.S3ClientBuilder;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.CompletedMultipartUpload;
@@ -84,11 +87,7 @@ import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.S3Object;
 import software.amazon.awssdk.services.s3.model.UploadPartCopyRequest;
 
-/**
- * {@link FileSystem} implementation for storage systems that use the S3 protocol.
- *
- * @see S3FileSystemSchemeRegistrar
- */
+/** {@link FileSystem} implementation for Amazon S3. */
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
@@ -108,29 +107,30 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
 
   // Non-final for testing.
   private Supplier<S3Client> s3Client;
-  private final S3FileSystemConfiguration config;
+  private final S3Options options;
   private final ListeningExecutorService executorService;
 
   S3FileSystem(S3Options options) {
-    this(S3FileSystemConfiguration.fromS3Options(options));
-  }
-
-  S3FileSystem(S3FileSystemConfiguration config) {
-    this.config = checkNotNull(config, "config");
+    this.options = checkNotNull(options, "options");
+    S3ClientBuilder builder =
+        InstanceBuilder.ofType(S3ClientBuilderFactory.class)
+            .fromClass(options.getS3ClientFactoryClass())
+            .build()
+            .createBuilder(options);
     // The Supplier is to make sure we don't call .build() unless we are actually using S3.
-    s3Client = Suppliers.memoize(config.getS3ClientBuilder()::build);
+    s3Client = Suppliers.memoize(builder::build);
 
-    checkNotNull(config.getS3StorageClass(), "storageClass");
-    checkArgument(config.getS3ThreadPoolSize() > 0, "threadPoolSize");
+    checkNotNull(options.getS3StorageClass(), "storageClass");
+    checkArgument(options.getS3ThreadPoolSize() > 0, "threadPoolSize");
     executorService =
         MoreExecutors.listeningDecorator(
             Executors.newFixedThreadPool(
-                config.getS3ThreadPoolSize(), new ThreadFactoryBuilder().setDaemon(true).build()));
+                options.getS3ThreadPoolSize(), new ThreadFactoryBuilder().setDaemon(true).build()));
   }
 
   @Override
   protected String getScheme() {
-    return config.getScheme();
+    return S3ResourceId.SCHEME;
   }
 
   @VisibleForTesting
@@ -333,7 +333,7 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
           .forEach(
               s3Object -> {
                 S3ResourceId expandedPath =
-                    S3ResourceId.fromComponents(glob.getScheme(), glob.getBucket(), s3Object.key())
+                    S3ResourceId.fromComponents(glob.getBucket(), s3Object.key())
                         .withSize(s3Object.size())
                         .withLastModified(Date.from(s3Object.lastModified()));
                 LOG.debug("Expanded S3 object path {}", expandedPath);
@@ -366,8 +366,8 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
         HeadObjectRequest.builder()
             .bucket(s3ResourceId.getBucket())
             .key(s3ResourceId.getKey())
-            .sseCustomerKey(config.getSSECustomerKey().getKey())
-            .sseCustomerAlgorithm(config.getSSECustomerKey().getAlgorithm())
+            .sseCustomerKey(options.getSSECustomerKey().getKey())
+            .sseCustomerAlgorithm(options.getSSECustomerKey().getAlgorithm())
             .build();
     return s3Client.get().headObject(request);
   }
@@ -415,12 +415,12 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
   @Override
   protected WritableByteChannel create(S3ResourceId resourceId, CreateOptions createOptions)
       throws IOException {
-    return new S3WritableByteChannel(s3Client.get(), resourceId, createOptions.mimeType(), config);
+    return new S3WritableByteChannel(s3Client.get(), resourceId, createOptions.mimeType(), options);
   }
 
   @Override
   protected ReadableByteChannel open(S3ResourceId resourceId) throws IOException {
-    return new S3ReadableSeekableByteChannel(s3Client.get(), resourceId, config);
+    return new S3ReadableSeekableByteChannel(s3Client.get(), resourceId, options);
   }
 
   @Override
@@ -472,15 +472,15 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
             .destinationBucket(destinationPath.getBucket())
             .destinationKey(destinationPath.getKey())
             .metadata(objectHead.metadata())
-            .storageClass(config.getS3StorageClass())
-            .serverSideEncryption(config.getSSEAlgorithm())
-            .ssekmsKeyId(config.getSSEKMSKeyId())
-            .sseCustomerKey(config.getSSECustomerKey().getKey())
-            .sseCustomerAlgorithm(config.getSSECustomerKey().getAlgorithm())
-            .copySourceSSECustomerKey(config.getSSECustomerKey().getKey())
-            .copySourceSSECustomerAlgorithm(config.getSSECustomerKey().getAlgorithm())
-            .sseCustomerKeyMD5(config.getSSECustomerKey().getMD5())
-            .copySourceSSECustomerKeyMD5(config.getSSECustomerKey().getMD5())
+            .storageClass(options.getS3StorageClass())
+            .serverSideEncryption(options.getSSEAlgorithm())
+            .ssekmsKeyId(options.getSSEKMSKeyId())
+            .sseCustomerKey(options.getSSECustomerKey().getKey())
+            .sseCustomerAlgorithm(options.getSSECustomerKey().getAlgorithm())
+            .copySourceSSECustomerKey(options.getSSECustomerKey().getKey())
+            .copySourceSSECustomerAlgorithm(options.getSSECustomerKey().getAlgorithm())
+            .sseCustomerKeyMD5(options.getSSECustomerKey().getMD5())
+            .copySourceSSECustomerKeyMD5(options.getSSECustomerKey().getMD5())
             .build();
     return s3Client.get().copyObject(copyObjectRequest);
   }
@@ -493,12 +493,12 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
         CreateMultipartUploadRequest.builder()
             .bucket(destinationPath.getBucket())
             .key(destinationPath.getKey())
-            .storageClass(config.getS3StorageClass())
+            .storageClass(options.getS3StorageClass())
             .metadata(sourceObjectHead.metadata())
-            .serverSideEncryption(config.getSSEAlgorithm())
-            .ssekmsKeyId(config.getSSEKMSKeyId())
-            .sseCustomerKey(config.getSSECustomerKey().getKey())
-            .sseCustomerAlgorithm(config.getSSECustomerKey().getAlgorithm())
+            .serverSideEncryption(options.getSSEAlgorithm())
+            .ssekmsKeyId(options.getSSEKMSKeyId())
+            .sseCustomerKey(options.getSSECustomerKey().getKey())
+            .sseCustomerAlgorithm(options.getSSECustomerKey().getAlgorithm())
             .build();
 
     CreateMultipartUploadResponse createMultipartUploadResponse =
@@ -520,10 +520,10 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
               .copySource(sourcePath.getBucket() + "/" + sourcePath.getKey())
               .uploadId(uploadId)
               .partNumber(1)
-              .sseCustomerKey(config.getSSECustomerKey().getKey())
-              .sseCustomerAlgorithm(config.getSSECustomerKey().getAlgorithm())
-              .copySourceSSECustomerKey(config.getSSECustomerKey().getKey())
-              .copySourceSSECustomerAlgorithm(config.getSSECustomerKey().getAlgorithm())
+              .sseCustomerKey(options.getSSECustomerKey().getKey())
+              .sseCustomerAlgorithm(options.getSSECustomerKey().getAlgorithm())
+              .copySourceSSECustomerKey(options.getSSECustomerKey().getKey())
+              .copySourceSSECustomerAlgorithm(options.getSSECustomerKey().getAlgorithm())
               .build();
 
       copyPartResult = s3Client.get().uploadPartCopy(uploadPartCopyRequest).copyPartResult();
@@ -531,7 +531,7 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
       completedParts.add(completedPart);
     } else {
       long bytePosition = 0;
-      Integer uploadBufferSizeBytes = config.getS3UploadBufferSizeBytes();
+      Integer uploadBufferSizeBytes = options.getS3UploadBufferSizeBytes();
       // Amazon parts are 1-indexed, not zero-indexed.
       for (int partNumber = 1; bytePosition < objectSize; partNumber++) {
         final UploadPartCopyRequest uploadPartCopyRequest =
@@ -546,10 +546,10 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
                         "bytes=%s-%s",
                         bytePosition,
                         Math.min(objectSize - 1, bytePosition + uploadBufferSizeBytes - 1)))
-                .sseCustomerKey(config.getSSECustomerKey().getKey())
-                .sseCustomerAlgorithm(config.getSSECustomerKey().getAlgorithm())
-                .copySourceSSECustomerKey(config.getSSECustomerKey().getKey())
-                .copySourceSSECustomerAlgorithm(config.getSSECustomerKey().getAlgorithm())
+                .sseCustomerKey(options.getSSECustomerKey().getKey())
+                .sseCustomerAlgorithm(options.getSSECustomerKey().getAlgorithm())
+                .copySourceSSECustomerKey(options.getSSECustomerKey().getKey())
+                .copySourceSSECustomerAlgorithm(options.getSSECustomerKey().getAlgorithm())
                 .build();
 
         copyPartResult = s3Client.get().uploadPartCopy(uploadPartCopyRequest).copyPartResult();

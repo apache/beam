@@ -45,8 +45,6 @@ class EditorTextArea extends StatefulWidget {
   final ExampleModel? example;
   final bool enabled;
   final void Function(String)? onSourceChange;
-  final bool isEditable;
-  final bool enableScrolling;
 
   const EditorTextArea({
     Key? key,
@@ -54,8 +52,6 @@ class EditorTextArea extends StatefulWidget {
     this.example,
     this.onSourceChange,
     required this.enabled,
-    required this.isEditable,
-    this.enableScrolling = true,
   }) : super(key: key);
 
   @override
@@ -86,9 +82,7 @@ class _EditorTextAreaState extends State<EditorTextArea> {
       webSpaceFix: false,
     );
 
-    if (widget.enableScrolling) {
-      _setTextScrolling();
-    }
+    _setTextScrolling();
 
     super.didChangeDependencies();
   }
@@ -109,20 +103,17 @@ class _EditorTextAreaState extends State<EditorTextArea> {
       enabled: widget.enabled,
       readOnly: widget.enabled,
       label: AppLocalizations.of(context)!.codeTextArea,
-      child: FocusScope(
-        node: FocusScopeNode(canRequestFocus: widget.isEditable),
-        child: CodeField(
-          focusNode: focusNode,
-          enabled: widget.enabled,
-          controller: _codeController!,
-          textStyle: getCodeFontStyle(
-            textStyle: const TextStyle(fontSize: kCodeFontSize),
-          ),
-          expands: true,
-          lineNumberStyle: LineNumberStyle(
-            textStyle: TextStyle(
-              color: ThemeColors.of(context).grey1Color,
-            ),
+      child: CodeField(
+        focusNode: focusNode,
+        enabled: widget.enabled,
+        controller: _codeController!,
+        textStyle: getCodeFontStyle(
+          textStyle: const TextStyle(fontSize: kCodeFontSize),
+        ),
+        expands: true,
+        lineNumberStyle: LineNumberStyle(
+          textStyle: TextStyle(
+            color: ThemeColors.of(context).grey1Color,
           ),
         ),
       ),

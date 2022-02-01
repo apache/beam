@@ -22,6 +22,7 @@ import static org.joda.time.Duration.millis;
 import static org.joda.time.Duration.standardSeconds;
 
 import com.amazonaws.http.SdkHttpMetadata;
+import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
 import com.amazonaws.services.sns.AmazonSNS;
 import com.amazonaws.services.sns.model.GetTopicAttributesResult;
 import com.amazonaws.services.sns.model.InternalErrorException;
@@ -53,7 +54,6 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
-import org.slf4j.helpers.MessageFormatter;
 
 /** Tests to verify writes to Sns. */
 @RunWith(JUnit4.class)
@@ -77,6 +77,11 @@ public class SnsIOTest implements Serializable {
 
     public Provider(AmazonSNS pub) {
       publisher = pub;
+    }
+
+    @Override
+    public AmazonCloudWatch getCloudWatchClient() {
+      return Mockito.mock(AmazonCloudWatch.class);
     }
 
     @Override
@@ -133,12 +138,9 @@ public class SnsIOTest implements Serializable {
       p.run();
     } catch (final Pipeline.PipelineExecutionException e) {
       // check 3 retries were initiated by inspecting the log before passing on the exception
-      snsWriterFnLogs.verifyWarn(
-          MessageFormatter.format(SnsIO.Write.SnsWriterFn.RETRY_ATTEMPT_LOG, 1).getMessage());
-      snsWriterFnLogs.verifyWarn(
-          MessageFormatter.format(SnsIO.Write.SnsWriterFn.RETRY_ATTEMPT_LOG, 2).getMessage());
-      snsWriterFnLogs.verifyWarn(
-          MessageFormatter.format(SnsIO.Write.SnsWriterFn.RETRY_ATTEMPT_LOG, 3).getMessage());
+      snsWriterFnLogs.verifyWarn(String.format(SnsIO.Write.SnsWriterFn.RETRY_ATTEMPT_LOG, 1));
+      snsWriterFnLogs.verifyWarn(String.format(SnsIO.Write.SnsWriterFn.RETRY_ATTEMPT_LOG, 2));
+      snsWriterFnLogs.verifyWarn(String.format(SnsIO.Write.SnsWriterFn.RETRY_ATTEMPT_LOG, 3));
       throw e.getCause();
     }
   }

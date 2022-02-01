@@ -209,7 +209,6 @@ public class AvroCoderTest {
    * Tests that {@link AvroCoder} works around issues in Avro where cache classes might be from the
    * wrong ClassLoader, causing confusing "Cannot cast X to X" error messages.
    */
-  @SuppressWarnings("ReturnValueIgnored")
   @Test
   public void testTwoClassLoaders() throws Exception {
     ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();

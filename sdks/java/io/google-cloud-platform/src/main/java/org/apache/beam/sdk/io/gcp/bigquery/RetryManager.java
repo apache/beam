@@ -37,7 +37,6 @@ import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Queues;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Duration;
 
 /**
@@ -48,9 +47,7 @@ import org.joda.time.Duration;
 class RetryManager<ResultT, ContextT extends Context<ResultT>> {
   private Queue<Operation<ResultT, ContextT>> operations;
   private final BackOff backoff;
-  private static final ExecutorService executor =
-      Executors.newCachedThreadPool(
-          new ThreadFactoryBuilder().setNameFormat("BeamBQRetryManager-%d").build());
+  private final ExecutorService executor;
 
   // Enum returned by onError indicating whether errors should be retried.
   enum RetryType {
@@ -81,6 +78,7 @@ class RetryManager<ResultT, ContextT extends Context<ResultT>> {
             .withMaxBackoff(maxBackoff)
             .withMaxRetries(maxRetries)
             .backoff();
+    this.executor = Executors.newCachedThreadPool();
   }
 
   static class Operation<ResultT, ContextT extends Context<ResultT>> {

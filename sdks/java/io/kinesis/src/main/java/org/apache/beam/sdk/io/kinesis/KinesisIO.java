@@ -1043,10 +1043,11 @@ public final class KinesisIO {
             }
           }
 
-          LOG.error(
-              "After [{}] retries, number of failed records [{}] is still greater than 0",
-              spec.getRetries(),
-              numFailedRecords);
+          message =
+              String.format(
+                  "After [%d] retries, number of failed records [%d] is still greater than 0",
+                  spec.getRetries(), numFailedRecords);
+          LOG.error(message);
         }
 
         checkForFailures(message);

@@ -21,7 +21,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import java.io.ObjectStreamException;
 import java.util.Date;
 import java.util.Objects;
 import java.util.regex.Matcher;
@@ -38,9 +37,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 })
 class S3ResourceId implements ResourceId {
 
-  private static final long serialVersionUID = 859142691936154236L;
-
-  static final String DEFAULT_SCHEME = "s3";
+  static final String SCHEME = "s3";
 
   private static final Pattern S3_URI =
       Pattern.compile("(?<SCHEME>[^:]+)://(?<BUCKET>[^/]+)(/(?<KEY>.*))?");
@@ -52,44 +49,34 @@ class S3ResourceId implements ResourceId {
   private final String key;
   private final @Nullable Long size;
   private final @Nullable Date lastModified;
-  private final String scheme;
 
   private S3ResourceId(
-      String scheme, String bucket, String key, @Nullable Long size, @Nullable Date lastModified) {
-    checkArgument(!Strings.isNullOrEmpty(scheme), "scheme");
+      String bucket, String key, @Nullable Long size, @Nullable Date lastModified) {
     checkArgument(!Strings.isNullOrEmpty(bucket), "bucket");
     checkArgument(!bucket.contains("/"), "bucket must not contain '/': [%s]", bucket);
-    this.scheme = scheme;
     this.bucket = bucket;
     this.key = checkNotNull(key, "key");
     this.size = size;
     this.lastModified = lastModified;
   }
 
-  private Object readResolve() throws ObjectStreamException {
-    if (scheme == null) {
-      return new S3ResourceId(DEFAULT_SCHEME, bucket, key, size, lastModified);
-    }
-    return this;
-  }
-
-  static S3ResourceId fromComponents(String scheme, String bucket, String key) {
+  static S3ResourceId fromComponents(String bucket, String key) {
     if (!key.startsWith("/")) {
       key = "/" + key;
     }
-    return new S3ResourceId(scheme, bucket, key, null, null);
+    return new S3ResourceId(bucket, key, null, null);
   }
 
   static S3ResourceId fromUri(String uri) {
     Matcher m = S3_URI.matcher(uri);
     checkArgument(m.matches(), "Invalid S3 URI: [%s]", uri);
-    String scheme = m.group("SCHEME");
+    checkArgument(m.group("SCHEME").equalsIgnoreCase(SCHEME), "Invalid S3 URI scheme: [%s]", uri);
     String bucket = m.group("BUCKET");
     String key = Strings.nullToEmpty(m.group("KEY"));
     if (!key.startsWith("/")) {
       key = "/" + key;
     }
-    return fromComponents(scheme, bucket, key);
+    return fromComponents(bucket, key);
   }
 
   String getBucket() {
@@ -106,7 +93,7 @@ class S3ResourceId implements ResourceId {
   }
 
   S3ResourceId withSize(long size) {
-    return new S3ResourceId(scheme, bucket, key, size, lastModified);
+    return new S3ResourceId(bucket, key, size, lastModified);
   }
 
   Optional<Date> getLastModified() {
@@ -114,7 +101,7 @@ class S3ResourceId implements ResourceId {
   }
 
   S3ResourceId withLastModified(Date lastModified) {
-    return new S3ResourceId(scheme, bucket, key, size, lastModified);
+    return new S3ResourceId(bucket, key, size, lastModified);
   }
 
   @Override
@@ -127,7 +114,7 @@ class S3ResourceId implements ResourceId {
           return this;
         }
         int parentStopsAt = key.substring(0, key.length() - 1).lastIndexOf('/');
-        return fromComponents(scheme, bucket, key.substring(0, parentStopsAt + 1));
+        return fromComponents(bucket, key.substring(0, parentStopsAt + 1));
       }
 
       if ("".equals(other)) {
@@ -138,9 +125,9 @@ class S3ResourceId implements ResourceId {
         other += "/";
       }
       if (S3_URI.matcher(other).matches()) {
-        return resolveFromUri(other);
+        return fromUri(other);
       }
-      return fromComponents(scheme, bucket, key + other);
+      return fromComponents(bucket, key + other);
     }
 
     if (resolveOptions == ResolveOptions.StandardResolveOptions.RESOLVE_FILE) {
@@ -148,23 +135,13 @@ class S3ResourceId implements ResourceId {
           !other.endsWith("/"), "Cannot resolve a file with a directory path: [%s]", other);
       checkArgument(!"..".equals(other), "Cannot resolve parent as file: [%s]", other);
       if (S3_URI.matcher(other).matches()) {
-        return resolveFromUri(other);
+        return fromUri(other);
       }
-      return fromComponents(scheme, bucket, key + other);
+      return fromComponents(bucket, key + other);
     }
 
     throw new UnsupportedOperationException(
         String.format("Unexpected StandardResolveOptions [%s]", resolveOptions));
-  }
-
-  private S3ResourceId resolveFromUri(String uri) {
-    S3ResourceId id = fromUri(uri);
-    checkArgument(
-        id.getScheme().equals(scheme),
-        "Cannot resolve a URI as a child resource unless its scheme is [%s]; instead it was [%s]",
-        scheme,
-        id.getScheme());
-    return id;
   }
 
   @Override
@@ -172,12 +149,12 @@ class S3ResourceId implements ResourceId {
     if (isDirectory()) {
       return this;
     }
-    return fromComponents(scheme, getBucket(), key.substring(0, key.lastIndexOf('/') + 1));
+    return fromComponents(getBucket(), key.substring(0, key.lastIndexOf('/') + 1));
   }
 
   @Override
   public String getScheme() {
-    return scheme;
+    return SCHEME;
   }
 
   @Override
@@ -209,7 +186,7 @@ class S3ResourceId implements ResourceId {
 
   @Override
   public String toString() {
-    return String.format("%s://%s%s", scheme, bucket, key);
+    return String.format("%s://%s%s", SCHEME, bucket, key);
   }
 
   @Override
@@ -217,13 +194,12 @@ class S3ResourceId implements ResourceId {
     if (!(obj instanceof S3ResourceId)) {
       return false;
     }
-    S3ResourceId o = (S3ResourceId) obj;
 
-    return scheme.equals(o.scheme) && bucket.equals(o.bucket) && key.equals(o.key);
+    return bucket.equals(((S3ResourceId) obj).bucket) && key.equals(((S3ResourceId) obj).key);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(scheme, bucket, key);
+    return Objects.hash(bucket, key);
   }
 }

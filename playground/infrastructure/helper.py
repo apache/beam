@@ -59,12 +59,10 @@ class Example:
   code: str
   status: STATUS_UNSPECIFIED
   tag: Tag
-  link: str
   logs: str = ""
   type: PrecompiledObjectType = PRECOMPILED_OBJECT_TYPE_UNSPECIFIED
   pipeline_id: str = ""
   output: str = ""
-  graph: str = ""
 
 
 @dataclass
@@ -245,8 +243,6 @@ def _get_example(filepath: str, filename: str, tag: ExampleTag) -> Example:
   with open(filepath, encoding="utf-8") as parsed_file:
     content = parsed_file.read()
   content = content.replace(tag.tag_as_string, "")
-  root_dir = os.getenv("BEAM_ROOT_DIR", "")
-  link = "{}{}".format(Config.LINK_PREFIX, (filepath.replace(root_dir, "", 1)))
 
   return Example(
       name=name,
@@ -255,8 +251,7 @@ def _get_example(filepath: str, filename: str, tag: ExampleTag) -> Example:
       code=content,
       status=STATUS_UNSPECIFIED,
       tag=Tag(**tag.tag_as_dict),
-      type=object_type,
-      link=link)
+      type=object_type)
 
 
 def _validate(tag: dict, supported_categories: List[str]) -> bool:

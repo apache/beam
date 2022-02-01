@@ -52,7 +52,6 @@ class Config:
   CI_STEP_NAME = "CI"
   CD_STEP_NAME = "CD"
   CI_CD_LITERAL = Literal["CI", "CD"]
-  LINK_PREFIX = "https://github.com/apache/beam/blob/master"
 
 
 @dataclass(frozen=True)
@@ -69,7 +68,6 @@ class TagFields:
 class PrecompiledExample:
   OUTPUT_EXTENSION = "output"
   LOG_EXTENSION = "log"
-  GRAPH_EXTENSION = "graph"
   META_NAME = "meta"
   META_EXTENSION = "info"
 

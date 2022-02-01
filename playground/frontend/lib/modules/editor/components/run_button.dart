@@ -44,7 +44,7 @@ class RunButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: kRunButtonWidth,
-      height: kButtonHeight,
+      height: kRunButtonHeight,
       child: ShortcutTooltip(
         shortcut: kRunShortcut,
         child: ElevatedButton.icon(

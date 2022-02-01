@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.aws.dynamodb;
 
 import static java.util.Collections.synchronizedMap;
 
+import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import java.util.HashMap;
 import java.util.Map;
@@ -39,6 +40,11 @@ class StaticAwsClientsProvider implements AwsClientsProvider {
     StaticAwsClientsProvider provider = new StaticAwsClientsProvider(client);
     clients.put(provider.id, client);
     return provider;
+  }
+
+  @Override
+  public AmazonCloudWatch getCloudWatchClient() {
+    return null; // never used
   }
 
   @Override

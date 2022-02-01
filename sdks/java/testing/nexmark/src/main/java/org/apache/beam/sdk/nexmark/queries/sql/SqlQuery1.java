@@ -20,6 +20,7 @@ package org.apache.beam.sdk.nexmark.queries.sql;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
+import org.apache.beam.sdk.nexmark.model.Event.Type;
 import org.apache.beam.sdk.nexmark.model.sql.SelectEvent;
 import org.apache.beam.sdk.nexmark.queries.NexmarkQueryTransform;
 import org.apache.beam.sdk.nexmark.queries.NexmarkQueryUtil;
@@ -65,7 +66,7 @@ public class SqlQuery1 extends NexmarkQueryTransform<Bid> {
   public PCollection<Bid> expand(PCollection<Event> allEvents) {
     return allEvents
         .apply(Filter.by(NexmarkQueryUtil.IS_BID))
-        .apply(getName() + ".SelectEvent", new SelectEvent(Event.Type.BID))
+        .apply(getName() + ".SelectEvent", new SelectEvent(Type.BID))
         .apply(QUERY)
         .apply(Convert.fromRows(Bid.class));
   }

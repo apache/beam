@@ -505,7 +505,7 @@ class PipelineOptionsTest(unittest.TestCase):
       def _add_argparse_args(cls, parser):
         parser.add_argument('--redefined_flag', action='store_true')
 
-    class TestRedefinedOptions(PipelineOptions):  # pylint: disable=function-redefined
+    class TestRedefinedOptions(PipelineOptions):
       @classmethod
       def _add_argparse_args(cls, parser):
         parser.add_argument('--redefined_flag', action='store_true')

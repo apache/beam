@@ -63,7 +63,6 @@ import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.slf4j.helpers.MessageFormatter;
 
 /** Tests for {@link HadoopFileSystem}. */
 @RunWith(JUnit4.class)
@@ -406,11 +405,9 @@ public class HadoopFileSystemTest {
         ImmutableList.of(testPath("pathB/testFileA"), testPath("pathB/pathC/pathD/testFileB")));
 
     // ensure the directories were created and the files can be read
+    expectedLogs.verifyDebug(String.format(HadoopFileSystem.LOG_CREATE_DIRECTORY, "/pathB"));
     expectedLogs.verifyDebug(
-        MessageFormatter.format(HadoopFileSystem.LOG_CREATE_DIRECTORY, "/pathB").getMessage());
-    expectedLogs.verifyDebug(
-        MessageFormatter.format(HadoopFileSystem.LOG_CREATE_DIRECTORY, "/pathB/pathC/pathD")
-            .getMessage());
+        String.format(HadoopFileSystem.LOG_CREATE_DIRECTORY, "/pathB/pathC/pathD"));
     assertArrayEquals("testDataA".getBytes(StandardCharsets.UTF_8), read("pathB/testFileA", 0));
     assertArrayEquals(
         "testDataB".getBytes(StandardCharsets.UTF_8), read("pathB/pathC/pathD/testFileB", 0));
@@ -436,8 +433,7 @@ public class HadoopFileSystemTest {
         ImmutableList.of(testPath("testFileA")), ImmutableList.of(testPath("testFileB")));
 
     expectedLogs.verifyDebug(
-        MessageFormatter.format(HadoopFileSystem.LOG_DELETING_EXISTING_FILE, "/testFileB")
-            .getMessage());
+        String.format(HadoopFileSystem.LOG_DELETING_EXISTING_FILE, "/testFileB"));
     assertArrayEquals("testDataA".getBytes(StandardCharsets.UTF_8), read("testFileB", 0));
   }
 

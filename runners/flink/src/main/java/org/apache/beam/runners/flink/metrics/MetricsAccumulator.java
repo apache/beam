@@ -51,7 +51,6 @@ public class MetricsAccumulator implements SimpleAccumulator<MetricsContainerSte
   }
 
   @Override
-  @SuppressWarnings("ReturnValueIgnored")
   public Accumulator<MetricsContainerStepMap, MetricsContainerStepMap> clone() {
     try {
       super.clone();

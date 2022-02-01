@@ -86,7 +86,7 @@ public class AuctionPrice implements KnownSize, Serializable {
     }
 
     AuctionPrice other = (AuctionPrice) otherObject;
-    return auction == other.auction && price == other.price;
+    return Objects.equals(auction, other.auction) && Objects.equals(price, other.price);
   }
 
   @Override

@@ -47,6 +47,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link WindmillKeyedWorkItem}. */
@@ -72,6 +73,8 @@ public class WindmillKeyedWorkItemTest {
       new IntervalWindow(new Instant(10), new Instant(20));
   private static final StateNamespace STATE_NAMESPACE_2 =
       StateNamespaces.window(WINDOW_CODER, WINDOW_2);
+
+  @Mock private StreamingModeExecutionContext mockContext;
 
   @Before
   public void setUp() {

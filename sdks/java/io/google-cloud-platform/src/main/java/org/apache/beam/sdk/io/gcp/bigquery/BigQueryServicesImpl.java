@@ -1197,7 +1197,7 @@ class BigQueryServicesImpl implements BigQueryServices {
       StreamWriter streamWriter =
           StreamWriter.newBuilder(streamName)
               .setWriterSchema(protoSchema)
-              .setTraceId("Dataflow:" + options.getJobName())
+              .setTraceId("Dataflow")
               .build();
       return new StreamAppendClient() {
         private int pins = 0;

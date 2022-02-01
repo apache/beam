@@ -48,9 +48,11 @@ class Exec(unittest.TestCase):
     processes.subprocess.check_call.assert_called_once_with(
         ['subprocess', 'check_call'], shell=False, other_arg=True)
 
-    processes.check_output(['subprocess', 'check_output'], shell=False)
+    processes.check_output(['subprocess', 'check_output'],
+                           shell=False,
+                           other_arg=True)
     processes.subprocess.check_output.assert_called_once_with(
-        ['subprocess', 'check_output'], shell=False)
+        ['subprocess', 'check_output'], shell=False, other_arg=True)
 
     processes.Popen(['subprocess', 'Popen'], shell=False, other_arg=True)
     processes.subprocess.Popen.assert_called_once_with(['subprocess', 'Popen'],
@@ -74,9 +76,11 @@ class Exec(unittest.TestCase):
     processes.subprocess.check_call.assert_called_once_with(
         ['subprocess', 'check_call'], shell=True, other_arg=True)
 
-    processes.check_output(['subprocess', 'check_output'], shell=False)
+    processes.check_output(['subprocess', 'check_output'],
+                           shell=False,
+                           other_arg=True)
     processes.subprocess.check_output.assert_called_once_with(
-        ['subprocess', 'check_output'], shell=True)
+        ['subprocess', 'check_output'], shell=True, other_arg=True)
 
     processes.Popen(['subprocess', 'Popen'], shell=False, other_arg=True)
     processes.subprocess.Popen.assert_called_once_with(['subprocess', 'Popen'],

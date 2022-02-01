@@ -18,6 +18,7 @@
 package org.apache.beam.runners.direct;
 
 import java.util.IdentityHashMap;
+import java.util.Map;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -106,7 +107,7 @@ class ImmutabilityEnforcementFactory implements ModelEnforcementFactory {
 
   private static class ImmutabilityCheckingEnforcement<T> extends AbstractModelEnforcement<T> {
     private final AppliedPTransform<?, ?, ?> transform;
-    private final IdentityHashMap<WindowedValue<T>, MutationDetector> mutationElements;
+    private final Map<WindowedValue<T>, MutationDetector> mutationElements;
     private final Coder<T> coder;
 
     private ImmutabilityCheckingEnforcement(

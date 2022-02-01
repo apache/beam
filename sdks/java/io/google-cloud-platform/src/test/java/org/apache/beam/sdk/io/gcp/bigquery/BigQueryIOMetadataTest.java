@@ -29,7 +29,6 @@ import org.junit.runners.JUnit4;
 public class BigQueryIOMetadataTest {
 
   @Test
-  @SuppressWarnings("LoopOverCharArray")
   public void testIsValidCloudLabel() {
     // A dataflow job ID.
     // Lowercase letters, numbers, underscores and hyphens are allowed.

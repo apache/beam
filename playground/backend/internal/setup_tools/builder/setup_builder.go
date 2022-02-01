@@ -74,10 +74,9 @@ func Compiler(paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs) *exec
 
 	switch sdk {
 	case pb.Sdk_SDK_JAVA:
-		builder = builder.
+		builder.
 			WithCompiler().
-			WithFileName(GetFirstFileFromFolder(paths.AbsoluteSourceFileFolderPath)).
-			ExecutorBuilder
+			WithFileName(GetFirstFileFromFolder(paths.AbsoluteSourceFileFolderPath))
 	}
 	return &builder
 }
@@ -160,10 +159,6 @@ func TestRunner(paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs) (*e
 			WithExecutableFileName(className).
 			WithWorkingDir(paths.AbsoluteBaseFolderPath).
 			ExecutorBuilder //change directory for unit test
-	case pb.Sdk_SDK_GO:
-		builder = builder.WithTestRunner().
-			WithExecutableFileName(paths.AbsoluteSourceFileFolderPath). // run all tests in folder
-			ExecutorBuilder
 	}
 	return &builder, nil
 }

@@ -81,6 +81,8 @@ public class DataflowOperationContextTest {
 
     private DataflowExecutionStateRegistry stateRegistry = new BatchModeExecutionStateRegistry();
 
+    @Mock private ScopedProfiler scopedProfiler;
+
     @Mock private ProfileScope emptyScope;
     @Mock private ProfileScope profileScope;
 

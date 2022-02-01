@@ -24,7 +24,6 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.IdentityHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -185,7 +184,7 @@ public class Networks {
   public static <N, E> String toDot(Network<N, E> network) {
     StringBuilder builder = new StringBuilder();
     builder.append("digraph network {\n");
-    IdentityHashMap<N, String> nodeName = Maps.newIdentityHashMap();
+    Map<N, String> nodeName = Maps.newIdentityHashMap();
     network.nodes().forEach(node -> nodeName.put(node, "n" + nodeName.size()));
     for (Entry<N, String> nodeEntry : nodeName.entrySet()) {
       builder.append(

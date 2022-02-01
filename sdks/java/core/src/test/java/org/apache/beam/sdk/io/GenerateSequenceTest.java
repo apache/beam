@@ -174,7 +174,6 @@ public class GenerateSequenceTest {
 
   @Test
   public void testBuildExternal() {
-    @SuppressWarnings("NonCanonicalType")
     GenerateSequence.External.ExternalConfiguration externalConfig =
         new AutoValue_GenerateSequence.External.ExternalConfiguration();
     externalConfig.setStart(42L);

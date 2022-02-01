@@ -82,7 +82,7 @@ public class CoGbkResultTest {
     assertThat(values.maxPos(), equalTo(0));
     Iterable<?> tag0iterable = result.getAll("tag0");
     assertThat(values.maxPos(), equalTo(0));
-    Iterator<?> ignored = tag0iterable.iterator();
+    tag0iterable.iterator();
     assertThat(values.maxPos(), equalTo(0));
 
     // Iterating reads (nearly) the minimal number of values.
@@ -234,7 +234,7 @@ public class CoGbkResultTest {
         }
         actual.get(call).add(iters.get(call).next());
         if (random.nextDouble() < 0.5 / numIterations) {
-          Boolean ignored = iters.get(call).hasNext();
+          iters.get(call).hasNext();
         }
       }
 

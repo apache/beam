@@ -79,8 +79,7 @@ def test__write_to_local_fs(delete_temp_folder):
       code="code_of_example",
       output="output_of_example",
       status=STATUS_UNSPECIFIED,
-      tag=Tag(**object_meta),
-      link="link")
+      tag=Tag(**object_meta))
   expected_result = {
       "SDK_JAVA/name/name.java": "temp/pipeline_id/SDK_JAVA/name/name.java",
       "SDK_JAVA/name/name.output": "temp/pipeline_id/SDK_JAVA/name/name.output",
@@ -108,8 +107,7 @@ def test__save_to_cloud_storage(mocker):
       code="code_of_example",
       output="output_of_example",
       status=STATUS_UNSPECIFIED,
-      tag=None,
-      link="link")
+      tag=None)
 
   CDHelper()._save_to_cloud_storage([example])
   write_to_os_mock.assert_called_with(example)

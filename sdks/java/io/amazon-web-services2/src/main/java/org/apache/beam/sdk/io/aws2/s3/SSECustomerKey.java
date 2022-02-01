@@ -71,17 +71,17 @@ public class SSECustomerKey {
 
     private Builder() {}
 
-    public Builder key(@Nullable String key) {
+    public Builder key(String key) {
       this.key = key;
       return this;
     }
 
-    public Builder algorithm(@Nullable String algorithm) {
+    public Builder algorithm(String algorithm) {
       this.algorithm = algorithm;
       return this;
     }
 
-    public Builder md5(@Nullable String md5) {
+    public Builder md5(String md5) {
       this.md5 = md5;
       return this;
     }

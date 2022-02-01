@@ -898,9 +898,10 @@ public class ParquetIO {
           OutputReceiver<T> outputReceiver)
           throws Exception {
         LOG.debug(
-            "start {} to {}",
-            tracker.currentRestriction().getFrom(),
-            tracker.currentRestriction().getTo());
+            "start "
+                + tracker.currentRestriction().getFrom()
+                + " to "
+                + tracker.currentRestriction().getTo());
         Configuration conf = getConfWithModelClass();
         GenericData model = null;
         if (modelClass != null) {

@@ -378,12 +378,12 @@ class TypeHintsTest(unittest.TestCase):
       # [START type_hints_do_fn_annotations]
       from typing import Iterable
 
-      class TypedFilterEvensDoFn(beam.DoFn):
+      class FilterEvensDoFn(beam.DoFn):
         def process(self, element: int) -> Iterable[int]:
           if element % 2 == 0:
             yield element
 
-      evens = numbers | 'filter_evens' >> beam.ParDo(TypedFilterEvensDoFn())
+      evens = numbers | 'filter_evens' >> beam.ParDo(FilterEvensDoFn())
       # [END type_hints_do_fn_annotations]
 
     # Another example, using a list output type. Notice that the output

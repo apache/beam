@@ -17,7 +17,7 @@
  */
 
 const kReportIssueLink = 'https://issues.apache.org/jira/projects/BEAM/issues/';
-const kBeamPrivacyPolicyLink = 'https://beam.apache.org/privacy_policy/';
+const kGooglePrivacyPolicyLink = 'https://policies.google.com/privacy';
 const kBeamPlaygroundGithubLink =
     'https://github.com/apache/beam/tree/master/playground';
 const kApacheBeamGithubLink = 'https://github.com/apache/beam';

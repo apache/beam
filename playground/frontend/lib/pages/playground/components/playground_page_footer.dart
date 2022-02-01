@@ -24,6 +24,7 @@ import 'package:playground/constants/links.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/analytics/analytics_service.dart';
 import 'package:playground/pages/playground/components/feedback/playground_feedback.dart';
+import 'package:playground/pages/playground/components/playground_privacy_policy.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class PlaygroundPageFooter extends StatelessWidget {
@@ -61,9 +62,11 @@ class PlaygroundPageFooter extends StatelessWidget {
                 textStyle: const TextStyle(fontWeight: kNormalWeight),
               ),
               onPressed: () {
-                AnalyticsService.get(context)
-                    .trackOpenLink(kBeamPrivacyPolicyLink);
-                launch(kBeamPrivacyPolicyLink);
+                showDialog<void>(
+                  context: context,
+                  builder: (BuildContext context) =>
+                      const PlaygroundPrivacyPolicy(),
+                );
               },
               child: Text(appLocale.privacyPolicy),
             ),
