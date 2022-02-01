@@ -212,53 +212,41 @@ public class SpannerChangeStreamOrderedWithinKeyIT {
   }
 
   private static class KeyValueByCommitTimestampAndRecordSequenceFn<K>
-      extends DoFn<
-          KV<K, DataChangeRecord>,
-          KV<K, KV<SortKey, DataChangeRecord>>> {
+      extends DoFn<KV<K, DataChangeRecord>, KV<K, KV<SortKey, DataChangeRecord>>> {
     private static final long serialVersionUID = -4059137464869088056L;
 
     @ProcessElement
     public void processElement(
         @Element KV<K, DataChangeRecord> recordByKey,
-        OutputReceiver<KV<K, KV<SortKey, DataChangeRecord>>>
-            outputReceiver) {
+        OutputReceiver<KV<K, KV<SortKey, DataChangeRecord>>> outputReceiver) {
       final K key = recordByKey.getKey();
       final DataChangeRecord record = recordByKey.getValue();
       outputReceiver.output(
           KV.of(
               key,
               KV.of(
-                  new SortKey(
-                      record.getCommitTimestamp(), record.getServerTransactionId()),
+                  new SortKey(record.getCommitTimestamp(), record.getServerTransactionId()),
                   record)));
     }
   }
 
   private static class ToStringFn
-      extends DoFn<
-          KV<String, Iterable<KV<SortKey, DataChangeRecord>>>,
-          String> {
+      extends DoFn<KV<String, Iterable<KV<SortKey, DataChangeRecord>>>, String> {
     private static final long serialVersionUID = -2573561902102768101L;
 
     @ProcessElement
     public void processElement(
-        @Element
-            KV<
-                    String,
-                    Iterable<KV<SortKey, DataChangeRecord>>>
-                recordsByKey,
+        @Element KV<String, Iterable<KV<SortKey, DataChangeRecord>>> recordsByKey,
         OutputReceiver<String> outputReceiver) {
-      final List<KV<SortKey, DataChangeRecord>>
-          sortedRecords =
-              StreamSupport.stream(recordsByKey.getValue().spliterator(), false)
-                  .sorted((kv1, kv2) -> kv1.getKey().compareTo(kv2.getKey()))
-                  .collect(Collectors.toList());
+      final List<KV<SortKey, DataChangeRecord>> sortedRecords =
+          StreamSupport.stream(recordsByKey.getValue().spliterator(), false)
+              .sorted((kv1, kv2) -> kv1.getKey().compareTo(kv2.getKey()))
+              .collect(Collectors.toList());
 
       final StringBuilder builder = new StringBuilder();
       builder.append(recordsByKey.getKey());
       builder.append("\n");
-      for (KV<SortKey, DataChangeRecord> record :
-          sortedRecords) {
+      for (KV<SortKey, DataChangeRecord> record : sortedRecords) {
         builder.append(
             record.getValue().getMods().get(0).getNewValuesJson().isEmpty()
                 ? "Deleted record;"
@@ -305,8 +293,7 @@ public class SpannerChangeStreamOrderedWithinKeyIT {
       if (o == null || getClass() != o.getClass()) {
         return false;
       }
-      SortKey sortKey =
-          (SortKey) o;
+      SortKey sortKey = (SortKey) o;
       return Objects.equals(commitTimestamp, sortKey.commitTimestamp)
           && Objects.equals(transactionId, sortKey.transactionId);
     }
