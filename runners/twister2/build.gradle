@@ -93,6 +93,9 @@ task validatesRunnerBatch(type: Test) {
         excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
         excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
         excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
+        // Feature unsupported by this runner
+        excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderedDelivery'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderInBundle'
     }
 
     maxHeapSize = '6g'

@@ -56,6 +56,7 @@
 ## I/Os
 
 * Support for stopReadTime on KafkaIO SDF (Java).([BEAM-13171](https://issues.apache.org/jira/browse/BEAM-13171)).
+* Added ability to register URI schemes to use the S3 protocol via FileIO using amazon-web-services2 (amazon-web-services already had this ability). ([BEAM-12435](https://issues.apache.org/jira/brows/BEAM-12435), [BEAM-13245](https://issues.apache.org/jira/brows/BEAM-13245)).
 
 ## New Features / Improvements
 
