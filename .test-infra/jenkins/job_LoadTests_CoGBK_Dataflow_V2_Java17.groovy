@@ -32,7 +32,7 @@ def loadTestConfigurations = { mode, isStreaming ->
       pipelineOptions: [
         project               : 'apache-beam-testing',
         region                : 'us-central1',
-        appName               : "load_tests_Java11_Dataflow_V2_${mode}_CoGBK_1",
+        appName               : "load_tests_Java17_Dataflow_V2_${mode}_CoGBK_1",
         tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
         influxMeasurement     : "java_${mode}_cogbk_1",
         influxTags            : """
