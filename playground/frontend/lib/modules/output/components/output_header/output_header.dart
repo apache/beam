@@ -24,10 +24,12 @@ import 'output_tabs.dart';
 
 class OutputHeader extends StatelessWidget {
   final TabController tabController;
+  final bool showOutputPlacements;
 
   const OutputHeader({
     Key? key,
     required this.tabController,
+    this.showOutputPlacements = true,
   }) : super(key: key);
 
   @override
@@ -43,7 +45,7 @@ class OutputHeader extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             OutputTabs(tabController: tabController),
-            const OutputPlacements(),
+            showOutputPlacements ? const OutputPlacements() : const SizedBox(),
           ],
         ),
       ),

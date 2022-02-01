@@ -18,10 +18,13 @@
 package org.apache.beam.sdk.io.aws2.s3;
 
 import static org.apache.beam.sdk.io.aws2.s3.S3TestUtils.buildMockedS3FileSystem;
-import static org.apache.beam.sdk.io.aws2.s3.S3TestUtils.getSSECustomerKeyMd5;
+import static org.apache.beam.sdk.io.aws2.s3.S3TestUtils.s3Config;
+import static org.apache.beam.sdk.io.aws2.s3.S3TestUtils.s3ConfigWithPathStyleAccessEnabled;
+import static org.apache.beam.sdk.io.aws2.s3.S3TestUtils.s3ConfigWithSSECustomerKey;
 import static org.apache.beam.sdk.io.aws2.s3.S3TestUtils.s3Options;
 import static org.apache.beam.sdk.io.aws2.s3.S3TestUtils.s3OptionsWithPathStyleAccessEnabled;
 import static org.apache.beam.sdk.io.aws2.s3.S3TestUtils.s3OptionsWithSSECustomerKey;
+import static org.apache.beam.sdk.io.aws2.s3.S3TestUtils.toMd5;
 import static org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions.builder;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -116,12 +119,32 @@ public class S3FileSystemTest {
 
   @Test
   public void testGetScheme() {
+    S3FileSystem s3FileSystem = new S3FileSystem(s3Config("s3"));
+    assertEquals("s3", s3FileSystem.getScheme());
+
+    s3FileSystem = new S3FileSystem(s3Config("other"));
+    assertEquals("other", s3FileSystem.getScheme());
+  }
+
+  @Test
+  public void testGetSchemeWithS3Options() {
     S3FileSystem s3FileSystem = new S3FileSystem(s3Options());
     assertEquals("s3", s3FileSystem.getScheme());
   }
 
   @Test
   public void testGetPathStyleAccessEnabled() throws URISyntaxException {
+    S3FileSystem s3FileSystem = new S3FileSystem(s3ConfigWithPathStyleAccessEnabled("s3"));
+    URL s3Url =
+        s3FileSystem
+            .getS3Client()
+            .utilities()
+            .getUrl(GetUrlRequest.builder().bucket("bucket").key("file").build());
+    assertEquals("https://s3.us-west-1.amazonaws.com/bucket/file", s3Url.toURI().toString());
+  }
+
+  @Test
+  public void testGetPathStyleAccessEnabledWithS3Options() throws URISyntaxException {
     S3FileSystem s3FileSystem = new S3FileSystem(s3OptionsWithPathStyleAccessEnabled());
     URL s3Url =
         s3FileSystem
@@ -133,45 +156,64 @@ public class S3FileSystemTest {
 
   @Test
   public void testCopy() throws IOException {
+    testCopy(s3Config("s3"));
+    testCopy(s3Config("other"));
+    testCopy(s3ConfigWithSSECustomerKey("s3"));
+    testCopy(s3ConfigWithSSECustomerKey("other"));
+  }
+
+  @Test
+  public void testCopyWithS3Options() throws IOException {
     testCopy(s3Options());
     testCopy(s3OptionsWithSSECustomerKey());
   }
 
-  private HeadObjectRequest createObjectHeadRequest(S3ResourceId path, S3Options options) {
+  private HeadObjectRequest createObjectHeadRequest(
+      S3ResourceId path, SSECustomerKey sseCustomerKey) {
     return HeadObjectRequest.builder()
         .bucket(path.getBucket())
         .key(path.getKey())
-        .sseCustomerKey(options.getSSECustomerKey().getKey())
-        .sseCustomerAlgorithm(options.getSSECustomerKey().getAlgorithm())
+        .sseCustomerKey(sseCustomerKey.getKey())
+        .sseCustomerAlgorithm(sseCustomerKey.getAlgorithm())
         .build();
   }
 
   private void assertGetObjectHead(
       S3FileSystem s3FileSystem,
       HeadObjectRequest request,
-      S3Options options,
+      String sseCustomerKeyMd5,
       HeadObjectResponse objectMetadata) {
     when(s3FileSystem.getS3Client().headObject(argThat(new GetHeadObjectRequestMatcher(request))))
         .thenReturn(objectMetadata);
     assertEquals(
-        getSSECustomerKeyMd5(options),
-        s3FileSystem.getS3Client().headObject(request).sseCustomerKeyMD5());
+        sseCustomerKeyMd5, s3FileSystem.getS3Client().headObject(request).sseCustomerKeyMD5());
+  }
+
+  private void testCopy(S3FileSystemConfiguration config) throws IOException {
+    testCopy(buildMockedS3FileSystem(config), config.getSSECustomerKey());
   }
 
   private void testCopy(S3Options options) throws IOException {
-    S3FileSystem s3FileSystem = buildMockedS3FileSystem(s3Options());
+    testCopy(buildMockedS3FileSystem(options), options.getSSECustomerKey());
+  }
 
-    S3ResourceId sourcePath = S3ResourceId.fromUri("s3://bucket/from");
-    S3ResourceId destinationPath = S3ResourceId.fromUri("s3://bucket/to");
+  private void testCopy(S3FileSystem s3FileSystem, SSECustomerKey sseCustomerKey)
+      throws IOException {
+    S3ResourceId sourcePath = S3ResourceId.fromUri(s3FileSystem.getScheme() + "://bucket/from");
+    S3ResourceId destinationPath = S3ResourceId.fromUri(s3FileSystem.getScheme() + "://bucket/to");
 
     HeadObjectResponse.Builder builder = HeadObjectResponse.builder().contentLength(0L);
 
-    if (getSSECustomerKeyMd5(options) != null) {
-      builder.sseCustomerKeyMD5(getSSECustomerKeyMd5(options));
+    String sseCustomerKeyMd5 = toMd5(sseCustomerKey);
+    if (sseCustomerKeyMd5 != null) {
+      builder.sseCustomerKeyMD5(sseCustomerKeyMd5);
     }
     HeadObjectResponse headObjectResponse = builder.build();
     assertGetObjectHead(
-        s3FileSystem, createObjectHeadRequest(sourcePath, options), options, headObjectResponse);
+        s3FileSystem,
+        createObjectHeadRequest(sourcePath, sseCustomerKey),
+        sseCustomerKeyMd5,
+        headObjectResponse);
 
     s3FileSystem.copy(sourcePath, destinationPath);
 
@@ -181,7 +223,10 @@ public class S3FileSystemTest {
     HeadObjectResponse bigHeadObjectResponse =
         headObjectResponse.toBuilder().contentLength(5_368_709_120L).build();
     assertGetObjectHead(
-        s3FileSystem, createObjectHeadRequest(sourcePath, options), options, bigHeadObjectResponse);
+        s3FileSystem,
+        createObjectHeadRequest(sourcePath, sseCustomerKey),
+        sseCustomerKeyMd5,
+        bigHeadObjectResponse);
 
     try {
       s3FileSystem.copy(sourcePath, destinationPath);
@@ -193,20 +238,36 @@ public class S3FileSystemTest {
   }
 
   @Test
-  public void testAtomicCopy() {
+  public void testAtomicCopy() throws IOException {
+    testAtomicCopy(s3Config("s3"));
+    testAtomicCopy(s3Config("other"));
+    testAtomicCopy(s3ConfigWithSSECustomerKey("s3"));
+    testAtomicCopy(s3ConfigWithSSECustomerKey("other"));
+  }
+
+  @Test
+  public void testAtomicCopyWithS3Options() throws IOException {
     testAtomicCopy(s3Options());
     testAtomicCopy(s3OptionsWithSSECustomerKey());
   }
 
-  private void testAtomicCopy(S3Options options) {
-    S3FileSystem s3FileSystem = buildMockedS3FileSystem(options);
+  private void testAtomicCopy(S3FileSystemConfiguration config) throws IOException {
+    testAtomicCopy(buildMockedS3FileSystem(config), config.getSSECustomerKey());
+  }
 
-    S3ResourceId sourcePath = S3ResourceId.fromUri("s3://bucket/from");
-    S3ResourceId destinationPath = S3ResourceId.fromUri("s3://bucket/to");
+  private void testAtomicCopy(S3Options options) throws IOException {
+    testAtomicCopy(buildMockedS3FileSystem(options), options.getSSECustomerKey());
+  }
+
+  private void testAtomicCopy(S3FileSystem s3FileSystem, SSECustomerKey sseCustomerKey)
+      throws IOException {
+    S3ResourceId sourcePath = S3ResourceId.fromUri(s3FileSystem.getScheme() + "://bucket/from");
+    S3ResourceId destinationPath = S3ResourceId.fromUri(s3FileSystem.getScheme() + "://bucket/to");
 
     CopyObjectResponse.Builder builder = CopyObjectResponse.builder();
-    if (getSSECustomerKeyMd5(options) != null) {
-      builder.sseCustomerKeyMD5(getSSECustomerKeyMd5(options));
+    String sseCustomerKeyMd5 = toMd5(sseCustomerKey);
+    if (sseCustomerKeyMd5 != null) {
+      builder.sseCustomerKeyMD5(sseCustomerKeyMd5);
     }
     CopyObjectResponse copyObjectResponse = builder.build();
     CopyObjectRequest copyObjectRequest =
@@ -214,13 +275,13 @@ public class S3FileSystemTest {
             .copySource(sourcePath.getBucket() + "/" + sourcePath.getKey())
             .destinationBucket(destinationPath.getBucket())
             .destinationBucket(destinationPath.getKey())
-            .sseCustomerKey(options.getSSECustomerKey().getKey())
-            .copySourceSSECustomerAlgorithm(options.getSSECustomerKey().getAlgorithm())
+            .sseCustomerKey(sseCustomerKey.getKey())
+            .copySourceSSECustomerAlgorithm(sseCustomerKey.getAlgorithm())
             .build();
     when(s3FileSystem.getS3Client().copyObject(any(CopyObjectRequest.class)))
         .thenReturn(copyObjectResponse);
     assertEquals(
-        getSSECustomerKeyMd5(options),
+        sseCustomerKeyMd5,
         s3FileSystem.getS3Client().copyObject(copyObjectRequest).sseCustomerKeyMD5());
 
     HeadObjectResponse headObjectResponse = HeadObjectResponse.builder().build();
@@ -230,27 +291,50 @@ public class S3FileSystemTest {
   }
 
   @Test
-  public void testMultipartCopy() {
+  public void testMultipartCopy() throws IOException {
+    testMultipartCopy(s3Config("s3"));
+    testMultipartCopy(s3Config("other"));
+    testMultipartCopy(s3ConfigWithSSECustomerKey("s3"));
+    testMultipartCopy(s3ConfigWithSSECustomerKey("other"));
+  }
+
+  @Test
+  public void testMultipartCopyWithS3Options() throws IOException {
     testMultipartCopy(s3Options());
     testMultipartCopy(s3OptionsWithSSECustomerKey());
   }
 
-  private void testMultipartCopy(S3Options options) {
-    S3FileSystem s3FileSystem = buildMockedS3FileSystem(options);
+  private void testMultipartCopy(S3FileSystemConfiguration config) throws IOException {
+    testMultipartCopy(
+        buildMockedS3FileSystem(config),
+        config.getSSECustomerKey(),
+        config.getS3UploadBufferSizeBytes());
+  }
 
-    S3ResourceId sourcePath = S3ResourceId.fromUri("s3://bucket/from");
-    S3ResourceId destinationPath = S3ResourceId.fromUri("s3://bucket/to");
+  private void testMultipartCopy(S3Options options) throws IOException {
+    testMultipartCopy(
+        buildMockedS3FileSystem(options),
+        options.getSSECustomerKey(),
+        options.getS3UploadBufferSizeBytes());
+  }
+
+  private void testMultipartCopy(
+      S3FileSystem s3FileSystem, SSECustomerKey sseCustomerKey, long s3UploadBufferSizeBytes)
+      throws IOException {
+    S3ResourceId sourcePath = S3ResourceId.fromUri(s3FileSystem.getScheme() + "://bucket/from");
+    S3ResourceId destinationPath = S3ResourceId.fromUri(s3FileSystem.getScheme() + "://bucket/to");
 
     CreateMultipartUploadResponse.Builder builder =
         CreateMultipartUploadResponse.builder().uploadId("upload-id");
-    if (getSSECustomerKeyMd5(options) != null) {
-      builder.sseCustomerKeyMD5(getSSECustomerKeyMd5(options));
+    String sseCustomerKeyMd5 = toMd5(sseCustomerKey);
+    if (sseCustomerKeyMd5 != null) {
+      builder.sseCustomerKeyMD5(sseCustomerKeyMd5);
     }
     CreateMultipartUploadResponse createMultipartUploadResponse = builder.build();
     when(s3FileSystem.getS3Client().createMultipartUpload(any(CreateMultipartUploadRequest.class)))
         .thenReturn(createMultipartUploadResponse);
     assertEquals(
-        getSSECustomerKeyMd5(options),
+        sseCustomerKeyMd5,
         s3FileSystem
             .getS3Client()
             .createMultipartUpload(
@@ -262,14 +346,17 @@ public class S3FileSystemTest {
 
     HeadObjectResponse.Builder headObjectResponseBuilder =
         HeadObjectResponse.builder()
-            .contentLength((long) (options.getS3UploadBufferSizeBytes() * 1.5))
+            .contentLength((long) (s3UploadBufferSizeBytes * 1.5))
             .contentEncoding("read-seek-efficient");
-    if (getSSECustomerKeyMd5(options) != null) {
-      headObjectResponseBuilder.sseCustomerKeyMD5(getSSECustomerKeyMd5(options));
+    if (sseCustomerKeyMd5 != null) {
+      headObjectResponseBuilder.sseCustomerKeyMD5(sseCustomerKeyMd5);
     }
     HeadObjectResponse headObjectResponse = headObjectResponseBuilder.build();
     assertGetObjectHead(
-        s3FileSystem, createObjectHeadRequest(sourcePath, options), options, headObjectResponse);
+        s3FileSystem,
+        createObjectHeadRequest(sourcePath, sseCustomerKey),
+        sseCustomerKeyMd5,
+        headObjectResponse);
 
     CopyPartResult copyPartResult1 = CopyPartResult.builder().eTag("etag-1").build();
     CopyPartResult copyPartResult2 = CopyPartResult.builder().eTag("etag-2").build();
@@ -277,21 +364,19 @@ public class S3FileSystemTest {
         UploadPartCopyResponse.builder().copyPartResult(copyPartResult1);
     UploadPartCopyResponse.Builder uploadPartCopyResponseBuilder2 =
         UploadPartCopyResponse.builder().copyPartResult(copyPartResult2);
-    if (getSSECustomerKeyMd5(options) != null) {
-      uploadPartCopyResponseBuilder1.sseCustomerKeyMD5(getSSECustomerKeyMd5(options));
-      uploadPartCopyResponseBuilder2.sseCustomerKeyMD5(getSSECustomerKeyMd5(options));
+    if (sseCustomerKeyMd5 != null) {
+      uploadPartCopyResponseBuilder1.sseCustomerKeyMD5(sseCustomerKeyMd5);
+      uploadPartCopyResponseBuilder2.sseCustomerKeyMD5(sseCustomerKeyMd5);
     }
     UploadPartCopyResponse uploadPartCopyResponse1 = uploadPartCopyResponseBuilder1.build();
     UploadPartCopyResponse uploadPartCopyResponse2 = uploadPartCopyResponseBuilder2.build();
     UploadPartCopyRequest uploadPartCopyRequest =
-        UploadPartCopyRequest.builder()
-            .sseCustomerKey(options.getSSECustomerKey().getKey())
-            .build();
+        UploadPartCopyRequest.builder().sseCustomerKey(sseCustomerKey.getKey()).build();
     when(s3FileSystem.getS3Client().uploadPartCopy(any(UploadPartCopyRequest.class)))
         .thenReturn(uploadPartCopyResponse1)
         .thenReturn(uploadPartCopyResponse2);
     assertEquals(
-        getSSECustomerKeyMd5(options),
+        sseCustomerKeyMd5,
         s3FileSystem.getS3Client().uploadPartCopy(uploadPartCopyRequest).sseCustomerKeyMD5());
 
     s3FileSystem.multipartCopy(sourcePath, destinationPath, headObjectResponse);
@@ -302,6 +387,28 @@ public class S3FileSystemTest {
 
   @Test
   public void deleteThousandsOfObjectsInMultipleBuckets() throws IOException {
+    S3FileSystem s3FileSystem = buildMockedS3FileSystem(s3Config("s3"));
+
+    List<String> buckets = ImmutableList.of("bucket1", "bucket2");
+    List<String> keys = new ArrayList<>();
+    for (int i = 0; i < 2500; i++) {
+      keys.add(String.format("key-%d", i));
+    }
+    List<S3ResourceId> paths = new ArrayList<>();
+    for (String bucket : buckets) {
+      for (String key : keys) {
+        paths.add(S3ResourceId.fromComponents("s3", bucket, key));
+      }
+    }
+
+    s3FileSystem.delete(paths);
+
+    // Should require 6 calls to delete 2500 objects in each of 2 buckets.
+    verify(s3FileSystem.getS3Client(), times(6)).deleteObjects(any(DeleteObjectsRequest.class));
+  }
+
+  @Test
+  public void deleteThousandsOfObjectsInMultipleBucketsWithS3Options() throws IOException {
     S3FileSystem s3FileSystem = buildMockedS3FileSystem(s3Options());
 
     List<String> buckets = ImmutableList.of("bucket1", "bucket2");
@@ -312,7 +419,7 @@ public class S3FileSystemTest {
     List<S3ResourceId> paths = new ArrayList<>();
     for (String bucket : buckets) {
       for (String key : keys) {
-        paths.add(S3ResourceId.fromComponents(bucket, key));
+        paths.add(S3ResourceId.fromComponents("s3", bucket, key));
       }
     }
 
@@ -324,6 +431,42 @@ public class S3FileSystemTest {
 
   @Test
   public void matchNonGlob() {
+    S3FileSystem s3FileSystem = buildMockedS3FileSystem(s3Config("mys3"));
+
+    S3ResourceId path = S3ResourceId.fromUri("mys3://testbucket/testdirectory/filethatexists");
+    long lastModifiedMillis = 1540000000000L;
+    HeadObjectResponse headObjectResponse =
+        HeadObjectResponse.builder()
+            .contentLength(100L)
+            .contentEncoding("read-seek-efficient")
+            .lastModified(Instant.ofEpochMilli(lastModifiedMillis))
+            .build();
+    when(s3FileSystem
+            .getS3Client()
+            .headObject(
+                argThat(
+                    new GetHeadObjectRequestMatcher(
+                        HeadObjectRequest.builder()
+                            .bucket(path.getBucket())
+                            .key(path.getKey())
+                            .build()))))
+        .thenReturn(headObjectResponse);
+
+    MatchResult result = s3FileSystem.matchNonGlobPath(path);
+    assertThat(
+        result,
+        MatchResultMatcher.create(
+            ImmutableList.of(
+                MatchResult.Metadata.builder()
+                    .setSizeBytes(100)
+                    .setLastModifiedMillis(lastModifiedMillis)
+                    .setResourceId(path)
+                    .setIsReadSeekEfficient(true)
+                    .build())));
+  }
+
+  @Test
+  public void matchNonGlobWithS3Options() {
     S3FileSystem s3FileSystem = buildMockedS3FileSystem(s3Options());
 
     S3ResourceId path = S3ResourceId.fromUri("s3://testbucket/testdirectory/filethatexists");
@@ -360,6 +503,42 @@ public class S3FileSystemTest {
 
   @Test
   public void matchNonGlobNotReadSeekEfficient() {
+    S3FileSystem s3FileSystem = buildMockedS3FileSystem(s3Config("s3"));
+
+    S3ResourceId path = S3ResourceId.fromUri("s3://testbucket/testdirectory/filethatexists");
+    long lastModifiedMillis = 1540000000000L;
+    HeadObjectResponse headObjectResponse =
+        HeadObjectResponse.builder()
+            .contentLength(100L)
+            .lastModified(Instant.ofEpochMilli(lastModifiedMillis))
+            .contentEncoding("gzip")
+            .build();
+    when(s3FileSystem
+            .getS3Client()
+            .headObject(
+                argThat(
+                    new GetHeadObjectRequestMatcher(
+                        HeadObjectRequest.builder()
+                            .bucket(path.getBucket())
+                            .key(path.getKey())
+                            .build()))))
+        .thenReturn(headObjectResponse);
+
+    MatchResult result = s3FileSystem.matchNonGlobPath(path);
+    assertThat(
+        result,
+        MatchResultMatcher.create(
+            ImmutableList.of(
+                MatchResult.Metadata.builder()
+                    .setSizeBytes(100)
+                    .setLastModifiedMillis(lastModifiedMillis)
+                    .setResourceId(path)
+                    .setIsReadSeekEfficient(false)
+                    .build())));
+  }
+
+  @Test
+  public void matchNonGlobNotReadSeekEfficientWithS3Options() {
     S3FileSystem s3FileSystem = buildMockedS3FileSystem(s3Options());
 
     S3ResourceId path = S3ResourceId.fromUri("s3://testbucket/testdirectory/filethatexists");
@@ -396,6 +575,42 @@ public class S3FileSystemTest {
 
   @Test
   public void matchNonGlobNullContentEncoding() {
+    S3FileSystem s3FileSystem = buildMockedS3FileSystem(s3Config("s3"));
+
+    S3ResourceId path = S3ResourceId.fromUri("s3://testbucket/testdirectory/filethatexists");
+    long lastModifiedMillis = 1540000000000L;
+    HeadObjectResponse headObjectResponse =
+        HeadObjectResponse.builder()
+            .contentLength(100L)
+            .lastModified(Instant.ofEpochMilli(lastModifiedMillis))
+            .contentEncoding(null)
+            .build();
+    when(s3FileSystem
+            .getS3Client()
+            .headObject(
+                argThat(
+                    new GetHeadObjectRequestMatcher(
+                        HeadObjectRequest.builder()
+                            .bucket(path.getBucket())
+                            .key(path.getKey())
+                            .build()))))
+        .thenReturn(headObjectResponse);
+
+    MatchResult result = s3FileSystem.matchNonGlobPath(path);
+    assertThat(
+        result,
+        MatchResultMatcher.create(
+            ImmutableList.of(
+                MatchResult.Metadata.builder()
+                    .setSizeBytes(100)
+                    .setLastModifiedMillis(lastModifiedMillis)
+                    .setResourceId(path)
+                    .setIsReadSeekEfficient(true)
+                    .build())));
+  }
+
+  @Test
+  public void matchNonGlobNullContentEncodingWithOptions() {
     S3FileSystem s3FileSystem = buildMockedS3FileSystem(s3Options());
 
     S3ResourceId path = S3ResourceId.fromUri("s3://testbucket/testdirectory/filethatexists");
@@ -432,6 +647,30 @@ public class S3FileSystemTest {
 
   @Test
   public void matchNonGlobNotFound() {
+    S3FileSystem s3FileSystem = buildMockedS3FileSystem(s3Config("s3"));
+
+    S3ResourceId path = S3ResourceId.fromUri("s3://testbucket/testdirectory/nonexistentfile");
+    SdkServiceException exception =
+        S3Exception.builder().message("mock exception").statusCode(404).build();
+    when(s3FileSystem
+            .getS3Client()
+            .headObject(
+                argThat(
+                    new GetHeadObjectRequestMatcher(
+                        HeadObjectRequest.builder()
+                            .bucket(path.getBucket())
+                            .key(path.getKey())
+                            .build()))))
+        .thenThrow(exception);
+
+    MatchResult result = s3FileSystem.matchNonGlobPath(path);
+    assertThat(
+        result,
+        MatchResultMatcher.create(MatchResult.Status.NOT_FOUND, new FileNotFoundException()));
+  }
+
+  @Test
+  public void matchNonGlobNotFoundWithS3Options() {
     S3FileSystem s3FileSystem = buildMockedS3FileSystem(s3Options());
 
     S3ResourceId path = S3ResourceId.fromUri("s3://testbucket/testdirectory/nonexistentfile");
@@ -456,6 +695,29 @@ public class S3FileSystemTest {
 
   @Test
   public void matchNonGlobForbidden() {
+    S3FileSystem s3FileSystem = buildMockedS3FileSystem(s3Config("s3"));
+
+    SdkServiceException exception =
+        S3Exception.builder().message("mock exception").statusCode(403).build();
+    S3ResourceId path = S3ResourceId.fromUri("s3://testbucket/testdirectory/keyname");
+    when(s3FileSystem
+            .getS3Client()
+            .headObject(
+                argThat(
+                    new GetHeadObjectRequestMatcher(
+                        HeadObjectRequest.builder()
+                            .bucket(path.getBucket())
+                            .key(path.getKey())
+                            .build()))))
+        .thenThrow(exception);
+
+    assertThat(
+        s3FileSystem.matchNonGlobPath(path),
+        MatchResultMatcher.create(MatchResult.Status.ERROR, new IOException(exception)));
+  }
+
+  @Test
+  public void matchNonGlobForbiddenWithS3Options() {
     S3FileSystem s3FileSystem = buildMockedS3FileSystem(s3Options());
 
     SdkServiceException exception =
@@ -501,9 +763,9 @@ public class S3FileSystemTest {
 
   @Test
   public void matchGlob() throws IOException {
-    S3FileSystem s3FileSystem = buildMockedS3FileSystem(s3Options());
+    S3FileSystem s3FileSystem = buildMockedS3FileSystem(s3Config("mys3"));
 
-    S3ResourceId path = S3ResourceId.fromUri("s3://testbucket/foo/bar*baz");
+    S3ResourceId path = S3ResourceId.fromUri("mys3://testbucket/foo/bar*baz");
 
     ListObjectsV2Request firstRequest =
         ListObjectsV2Request.builder()
@@ -575,13 +837,15 @@ public class S3FileSystemTest {
             ImmutableList.of(
                 MatchResult.Metadata.builder()
                     .setIsReadSeekEfficient(true)
-                    .setResourceId(S3ResourceId.fromComponents(path.getBucket(), firstMatch.key()))
+                    .setResourceId(
+                        S3ResourceId.fromComponents("mys3", path.getBucket(), firstMatch.key()))
                     .setSizeBytes(firstMatch.size())
                     .setLastModifiedMillis(firstMatch.lastModified().toEpochMilli())
                     .build(),
                 MatchResult.Metadata.builder()
                     .setIsReadSeekEfficient(true)
-                    .setResourceId(S3ResourceId.fromComponents(path.getBucket(), thirdMatch.key()))
+                    .setResourceId(
+                        S3ResourceId.fromComponents("mys3", path.getBucket(), thirdMatch.key()))
                     .setSizeBytes(thirdMatch.size())
                     .setLastModifiedMillis(thirdMatch.lastModified().toEpochMilli())
                     .build())));
@@ -589,9 +853,9 @@ public class S3FileSystemTest {
 
   @Test
   public void matchGlobWithSlashes() throws IOException {
-    S3FileSystem s3FileSystem = buildMockedS3FileSystem(s3Options());
+    S3FileSystem s3FileSystem = buildMockedS3FileSystem(s3Config("mys3"));
 
-    S3ResourceId path = S3ResourceId.fromUri("s3://testbucket/foo/bar\\baz*");
+    S3ResourceId path = S3ResourceId.fromUri("mys3://testbucket/foo/bar\\baz*");
 
     ListObjectsV2Request request =
         ListObjectsV2Request.builder()
@@ -636,7 +900,8 @@ public class S3FileSystemTest {
             ImmutableList.of(
                 MatchResult.Metadata.builder()
                     .setIsReadSeekEfficient(true)
-                    .setResourceId(S3ResourceId.fromComponents(path.getBucket(), firstMatch.key()))
+                    .setResourceId(
+                        S3ResourceId.fromComponents("mys3", path.getBucket(), firstMatch.key()))
                     .setSizeBytes(firstMatch.size())
                     .setLastModifiedMillis(firstMatch.lastModified().toEpochMilli())
                     .build())));
@@ -644,11 +909,11 @@ public class S3FileSystemTest {
 
   @Test
   public void matchVariousInvokeThreadPool() throws IOException {
-    S3FileSystem s3FileSystem = buildMockedS3FileSystem(s3Options());
+    S3FileSystem s3FileSystem = buildMockedS3FileSystem(s3Config("mys3"));
     SdkServiceException notFoundException =
         S3Exception.builder().message("mock exception").statusCode(404).build();
     S3ResourceId pathNotExist =
-        S3ResourceId.fromUri("s3://testbucket/testdirectory/nonexistentfile");
+        S3ResourceId.fromUri("mys3://testbucket/testdirectory/nonexistentfile");
     HeadObjectRequest headObjectRequestNotExist =
         HeadObjectRequest.builder()
             .bucket(pathNotExist.getBucket())
@@ -662,7 +927,7 @@ public class S3FileSystemTest {
     SdkServiceException forbiddenException =
         SdkServiceException.builder().message("mock exception").statusCode(403).build();
     S3ResourceId pathForbidden =
-        S3ResourceId.fromUri("s3://testbucket/testdirectory/forbiddenfile");
+        S3ResourceId.fromUri("mys3://testbucket/testdirectory/forbiddenfile");
     HeadObjectRequest headObjectRequestForbidden =
         HeadObjectRequest.builder()
             .bucket(pathForbidden.getBucket())
@@ -673,7 +938,7 @@ public class S3FileSystemTest {
             .headObject(argThat(new GetHeadObjectRequestMatcher(headObjectRequestForbidden))))
         .thenThrow(forbiddenException);
 
-    S3ResourceId pathExist = S3ResourceId.fromUri("s3://testbucket/testdirectory/filethatexists");
+    S3ResourceId pathExist = S3ResourceId.fromUri("mys3://testbucket/testdirectory/filethatexists");
     HeadObjectRequest headObjectRequestExist =
         HeadObjectRequest.builder().bucket(pathExist.getBucket()).key(pathExist.getKey()).build();
     HeadObjectResponse s3ObjectMetadata =
@@ -687,7 +952,7 @@ public class S3FileSystemTest {
             .headObject(argThat(new GetHeadObjectRequestMatcher(headObjectRequestExist))))
         .thenReturn(s3ObjectMetadata);
 
-    S3ResourceId pathGlob = S3ResourceId.fromUri("s3://testbucket/path/part*");
+    S3ResourceId pathGlob = S3ResourceId.fromUri("mys3://testbucket/path/part*");
 
     S3Object foundListObject =
         S3Object.builder()
@@ -729,13 +994,13 @@ public class S3FileSystemTest {
             MatchResultMatcher.create(
                 200,
                 1541000000000L,
-                S3ResourceId.fromComponents(pathGlob.getBucket(), foundListObject.key()),
+                S3ResourceId.fromComponents("mys3", pathGlob.getBucket(), foundListObject.key()),
                 true)));
   }
 
   @Test
   public void testWriteAndRead() throws IOException {
-    S3FileSystem s3FileSystem = buildMockedS3FileSystem(s3Options(), client);
+    S3FileSystem s3FileSystem = buildMockedS3FileSystem(s3Config("mys3"), client);
 
     client.createBucket(CreateBucketRequest.builder().bucket("testbucket").build());
 
@@ -744,7 +1009,7 @@ public class S3FileSystemTest {
     bb.put(writtenArray);
 
     // First create an object and write data to it
-    S3ResourceId path = S3ResourceId.fromUri("s3://testbucket/foo/bar.txt");
+    S3ResourceId path = S3ResourceId.fromUri("mys3://testbucket/foo/bar.txt");
     WritableByteChannel writableByteChannel =
         s3FileSystem.create(
             path,

@@ -77,7 +77,8 @@ def create_harness(environment, dry_run=False):
   RuntimeValueProvider.set_runtime_options(pipeline_options_dict)
   sdk_pipeline_options = PipelineOptions.from_dictionary(pipeline_options_dict)
   filesystems.FileSystems.set_options(sdk_pipeline_options)
-  pickler.set_library(sdk_pipeline_options.view_as(SetupOptions).pickle_library)
+  pickle_library = sdk_pipeline_options.view_as(SetupOptions).pickle_library
+  pickler.set_library(pickle_library)
 
   if 'SEMI_PERSISTENT_DIRECTORY' in environment:
     semi_persistent_directory = environment['SEMI_PERSISTENT_DIRECTORY']
@@ -87,17 +88,18 @@ def create_harness(environment, dry_run=False):
   _LOGGER.info('semi_persistent_directory: %s', semi_persistent_directory)
   _worker_id = environment.get('WORKER_ID', None)
 
-  try:
-    _load_main_session(semi_persistent_directory)
-  except CorruptMainSessionException:
-    exception_details = traceback.format_exc()
-    _LOGGER.error(
-        'Could not load main session: %s', exception_details, exc_info=True)
-    raise
-  except Exception:  # pylint: disable=broad-except
-    exception_details = traceback.format_exc()
-    _LOGGER.error(
-        'Could not load main session: %s', exception_details, exc_info=True)
+  if pickle_library != pickler.USE_CLOUDPICKLE:
+    try:
+      _load_main_session(semi_persistent_directory)
+    except CorruptMainSessionException:
+      exception_details = traceback.format_exc()
+      _LOGGER.error(
+          'Could not load main session: %s', exception_details, exc_info=True)
+      raise
+    except Exception:  # pylint: disable=broad-except
+      exception_details = traceback.format_exc()
+      _LOGGER.error(
+          'Could not load main session: %s', exception_details, exc_info=True)
 
   _LOGGER.info(
       'Pipeline_options: %s',

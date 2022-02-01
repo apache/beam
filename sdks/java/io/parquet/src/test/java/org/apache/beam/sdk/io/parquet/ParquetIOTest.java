@@ -29,6 +29,7 @@ import static org.mockito.Mockito.when;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.Serializable;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.avro.Schema;
@@ -640,7 +641,11 @@ public class ParquetIOTest implements Serializable {
       } catch (IOException ioException) {
         throw new RuntimeException("error converting record to JSON", ioException);
       }
-      return baos.toString();
+      try {
+        return baos.toString("UTF-8");
+      } catch (UnsupportedEncodingException e) {
+        throw new RuntimeException(e);
+      }
     }
   }
 }

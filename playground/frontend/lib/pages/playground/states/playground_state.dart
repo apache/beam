@@ -120,6 +120,7 @@ class PlaygroundState with ChangeNotifier {
 
   setPipelineOptions(String options) {
     _pipelineOptions = options;
+    notifyListeners();
   }
 
   void runCode({Function? onFinish}) {

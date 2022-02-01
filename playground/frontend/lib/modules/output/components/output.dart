@@ -21,7 +21,9 @@ import 'package:playground/modules/output/components/output_area.dart';
 import 'package:playground/modules/output/components/output_header/output_header.dart';
 
 class Output extends StatefulWidget {
-  const Output({Key? key}) : super(key: key);
+  final bool isEmbedded;
+
+  const Output({Key? key, required this.isEmbedded}) : super(key: key);
 
   @override
   State<Output> createState() => _OutputState();
@@ -55,7 +57,10 @@ class _OutputState extends State<Output> with SingleTickerProviderStateMixin {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        OutputHeader(tabController: tabController),
+        OutputHeader(
+          tabController: tabController,
+          showOutputPlacements: widget.isEmbedded,
+        ),
         Expanded(child: OutputArea(tabController: tabController)),
       ],
     );
