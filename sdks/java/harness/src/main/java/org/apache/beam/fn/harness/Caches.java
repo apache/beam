@@ -60,7 +60,15 @@ public final class Caches {
     if (o == null) {
       return 8;
     }
-    return MEMORY_METER.measureDeep(o);
+    try {
+      return MEMORY_METER.measureDeep(o);
+    } catch (RuntimeException e) {
+      // Checking for RuntimeException since java.lang.reflect.InaccessibleObjectException is only
+      // available starting Java 9
+      // TODO(BEAM-13695) Provide more accurate memory measurements for Java 17
+      LOG.warn("JVM prevents jamm from accessing subgraph - cache sizes may be underestimated", e);
+      return MEMORY_METER.measure(o);
+    }
   }
 
   /** An eviction listener that reduces the size of entries that are {@link Shrinkable}. */
