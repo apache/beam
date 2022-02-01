@@ -220,7 +220,7 @@ func (r *registry) getHandlerFunc(urn, expansionAddr string) (HandlerFunc, strin
 	// By the time this is called, we want *some* kind of HandlerFunc at all,
 	// So first we check for the hard override.
 	ns, config := parseAddr(expansionAddr)
-	if ns == AutoNamespace {
+	if ns == autoNamespace {
 		// Leave expansionAddr unmodified so the autoNamespace keyword sticks.
 		// We strip it manually in the HandlerFunc.
 		return QueryAutomatedExpansionService, expansionAddr
@@ -248,8 +248,7 @@ const (
 	// Separator is the canonical separator between a namespace and optional configuration.
 	Separator             = ":"
 	hardOverrideNamespace = "hardoverride"
-	// AutoNamespace is the canonical tag for the automated expansion service address.
-	AutoNamespace = "auto"
+	autoNamespace         = "auto"
 )
 
 // Require takes an expansionAddr and requires cross language expansion
@@ -263,10 +262,21 @@ func Require(expansionAddr string) string {
 	return hardOverrideNamespace + Separator + expansionAddr
 }
 
+// UseAutomatedExpansionService takes a gradle target and creates a
+// tagged string to indicate that it should be used to start up an
+// automated expansion service for a gross-language expansion.
+//
+// Intended for use by cross language wrappers to permit spinning
+// up an expansion service for a user if no expansion service address
+// is provided.
+func UseAutomatedExpansionService(gradleTarget string) string {
+	return autoNamespace + Separator + gradleTarget
+}
+
 // restricted namespaces to prevent some awkward edge cases.
 var restricted = map[string]struct{}{
 	hardOverrideNamespace: {}, // Special handler for overriding.
-	AutoNamespace:         {}, // Special handler for automated expansion services.
+	autoNamespace:         {}, // Special handler for automated expansion services.
 	"localhost":           {},
 	"http":                {},
 	"https":               {},
