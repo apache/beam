@@ -23,6 +23,7 @@ import (
 	"beam.apache.org/playground/backend/internal/executors"
 	"beam.apache.org/playground/backend/internal/fs_tool"
 	"beam.apache.org/playground/backend/internal/logger"
+	"beam.apache.org/playground/backend/internal/preparers"
 	"beam.apache.org/playground/backend/internal/setup_tools/builder"
 	"beam.apache.org/playground/backend/internal/streaming"
 	"beam.apache.org/playground/backend/internal/utils"
@@ -34,6 +35,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"reflect"
 	"sync"
 	"time"
@@ -112,6 +114,7 @@ func runStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeC
 	var runError bytes.Buffer
 	runOutput := streaming.RunOutputWriter{Ctx: pipelineLifeCycleCtx, CacheService: cacheService, PipelineId: pipelineId}
 	go readLogFile(pipelineLifeCycleCtx, ctx, cacheService, paths.AbsoluteLogFilePath, pipelineId, stopReadLogsChannel, finishReadLogsChannel)
+	go readGraphFile(pipelineLifeCycleCtx, ctx, cacheService, filepath.Join(paths.AbsoluteBaseFolderPath, preparers.GraphFileName), pipelineId)
 
 	if sdkEnv.ApacheBeamSdk == pb.Sdk_SDK_GO {
 		// For go SDK all logs are placed to stdErr.
@@ -156,7 +159,7 @@ func runStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeC
 		return
 	}
 	// Run step is finished and code is executed
-	_ = processRunSuccess(pipelineLifeCycleCtx, pipelineId, cacheService, stopReadLogsChannel, finishReadLogsChannel, paths.AbsoluteBaseFolderPath)
+	_ = processRunSuccess(pipelineLifeCycleCtx, pipelineId, cacheService, stopReadLogsChannel, finishReadLogsChannel)
 }
 
 func compileStep(ctx context.Context, cacheService cache.Cache, paths *fs_tool.LifeCyclePaths, pipelineId uuid.UUID, sdkEnv *environment.BeamEnvs, isUnitTest bool, pipelineLifeCycleCtx context.Context, cancelChannel chan bool) *executors.Executor {
@@ -406,6 +409,32 @@ func cancelCheck(ctx context.Context, pipelineId uuid.UUID, cancelChannel chan b
 	}
 }
 
+// readGraphFile reads graph from the log file and keeps it to the cache.
+// If context is done it means that the code processing was finished (successfully/with error/timeout). Write no graph to the cache.
+// If <-startReadGraphChannel it means that the graph written to the file and can be read.
+// In other case each pauseDuration checks that graph file exists or not.
+func readGraphFile(pipelineLifeCycleCtx, backgroundCtx context.Context, cacheService cache.Cache, graphFilePath string, pipelineId uuid.UUID) {
+	startReadGraphChannel := make(chan bool, 1)
+	ticker := time.NewTicker(pauseDuration)
+	for {
+		select {
+		// in case of timeout or cancel
+		case <-pipelineLifeCycleCtx.Done():
+			ticker.Stop()
+			return
+		// in case of graph file exists and can be read
+		case <-startReadGraphChannel:
+			utils.ReadAndSetToCacheGraph(backgroundCtx, cacheService, pipelineId, graphFilePath)
+			return
+		// waiting when graph file appears
+		case <-ticker.C:
+			if _, err := os.Stat(graphFilePath); err == nil {
+				startReadGraphChannel <- true
+			}
+		}
+	}
+}
+
 // readLogFile reads logs from the log file and keeps it to the cache.
 // If context is done it means that the code processing was finished (successfully/with error/timeout). Write last logs to the cache.
 // If <-stopReadLogsChannel it means that the code processing was finished (canceled/timeout)
@@ -535,13 +564,11 @@ func processCompileSuccess(ctx context.Context, output []byte, pipelineId uuid.U
 // This method sets value to channel to stop goroutine which writes logs.
 //	After receiving a signal that goroutine was finished (read value from finishReadLogsChannel) this method
 //	sets corresponding status to the cache.
-func processRunSuccess(ctx context.Context, pipelineId uuid.UUID, cacheService cache.Cache, stopReadLogsChannel, finishReadLogsChannel chan bool, graphFolder string) error {
+func processRunSuccess(ctx context.Context, pipelineId uuid.UUID, cacheService cache.Cache, stopReadLogsChannel, finishReadLogsChannel chan bool) error {
 	logger.Infof("%s: Run() finish\n", pipelineId)
 
 	stopReadLogsChannel <- true
 	<-finishReadLogsChannel
-
-	utils.ReadAndSetToCacheGraph(ctx, cacheService, pipelineId, graphFolder)
 
 	return utils.SetToCache(ctx, cacheService, pipelineId, cache.Status, pb.Status_STATUS_FINISHED)
 }
