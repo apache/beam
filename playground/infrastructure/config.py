@@ -70,6 +70,7 @@ class TagFields:
 class PrecompiledExample:
   OUTPUT_EXTENSION = "output"
   LOG_EXTENSION = "log"
+  GRAPH_EXTENSION = "graph"
   META_NAME = "meta"
   META_EXTENSION = "info"
 

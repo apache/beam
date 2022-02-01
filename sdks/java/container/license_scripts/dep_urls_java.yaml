@@ -60,3 +60,7 @@ junit-dep:
   '4.11':
     license: "https://opensource.org/licenses/cpl1.0.txt"
     type: "Common Public License Version 1.0"
+org.eclipse.jgit:
+  '4.4.1.201607150455-r':
+    license: "https://www.eclipse.org/org/documents/edl-v10.html"
+    type: "Eclipse Distribution License - v1.0"

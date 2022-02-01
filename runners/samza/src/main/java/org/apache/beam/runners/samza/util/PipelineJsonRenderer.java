@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.samza.util;
 
+import com.google.errorprone.annotations.DoNotCall;
 import com.google.errorprone.annotations.FormatMethod;
 import com.google.errorprone.annotations.FormatString;
 import java.util.HashMap;
@@ -77,6 +78,7 @@ public class PipelineJsonRenderer implements Pipeline.PipelineVisitor {
    * @param pipeline The beam portable pipeline
    * @return JSON string representation of the pipeline
    */
+  @DoNotCall("JSON DAG for portable pipeline is not supported yet.")
   public static String toJsonString(RunnerApi.Pipeline pipeline) {
     throw new UnsupportedOperationException("JSON DAG for portable pipeline is not supported yet.");
   }

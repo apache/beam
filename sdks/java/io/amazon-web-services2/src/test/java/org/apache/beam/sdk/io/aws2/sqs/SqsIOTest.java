@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.aws2.sqs;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -81,7 +82,7 @@ public class SqsIOTest {
 
     assertEquals(100, received.size());
     for (int i = 0; i < 100; i++) {
-      received.contains("This is a test " + i);
+      assertTrue(received.contains("This is a test " + i));
     }
   }
 }

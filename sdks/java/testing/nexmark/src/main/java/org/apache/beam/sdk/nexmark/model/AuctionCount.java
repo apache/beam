@@ -86,7 +86,7 @@ public class AuctionCount implements KnownSize, Serializable {
     }
 
     AuctionCount other = (AuctionCount) otherObject;
-    return Objects.equals(auction, other.auction) && Objects.equals(num, other.num);
+    return auction == other.auction && num == other.num;
   }
 
   @Override
