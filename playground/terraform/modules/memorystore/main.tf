@@ -38,6 +38,6 @@ resource "google_redis_instance" "cache" {
   replica_count  = var.replica_count
 
   redis_version = var.redis_version
-  display_name  = "Playground Cache"
+  display_name  = var.display_name
 
 }
