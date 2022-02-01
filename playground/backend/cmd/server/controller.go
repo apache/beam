@@ -260,16 +260,10 @@ func (controller *playgroundController) Cancel(ctx context.Context, info *pb.Can
 // - If there is no catalog in the cache, gets the catalog from the Storage and saves it to the cache
 // - If SDK or category is specified in the request, gets the catalog from the cache and filters it by SDK and category
 func (controller *playgroundController) GetPrecompiledObjects(ctx context.Context, info *pb.GetPrecompiledObjectsRequest) (*pb.GetPrecompiledObjectsResponse, error) {
-	catalog, err := controller.cacheService.GetCatalog(ctx)
+	catalog, err := utils.GetCatalogFromCacheOrStorage(ctx, controller.cacheService)
 	if err != nil {
-		logger.Errorf("GetPrecompiledObjects(): cache error: %s", err.Error())
-		catalog, err = utils.GetCatalogFromStorage(ctx)
-		if err != nil {
-			return nil, errors.InternalError("Error during getting Precompiled Objects", "Error with cloud connection")
-		}
-		if err = controller.cacheService.SetCatalog(ctx, catalog); err != nil {
-			logger.Errorf("GetPrecompiledObjects(): cache error: %s", err.Error())
-		}
+		logger.Errorf("GetPrecompiledObjects(): error during getting catalog: %s", err.Error())
+		return nil, errors.InternalError("Error during getting Precompiled Objects", "Error with cloud connection")
 	}
 	return &pb.GetPrecompiledObjectsResponse{
 		SdkCategories: utils.FilterCatalog(catalog, info.Sdk, info.Category),
