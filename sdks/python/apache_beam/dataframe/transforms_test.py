@@ -88,8 +88,12 @@ class TransformTest(unittest.TestCase):
     contained in that of the Beam implementation.
     """
     expected = func(input)
-    expected_proxy = expected.iloc[:0]
-    compare_columns = expected_proxy.columns.to_list()
+    expected_proxy = expected.iloc[:0] if isinstance(
+        expected, pd.core.generic.NDFrame) else None
+    if hasattr(expected_proxy, 'columns'):
+      compare_columns = expected_proxy.columns
+    else:
+      check_subset = False
 
     empty = input.iloc[0:0]
     input_placeholder = expressions.PlaceholderExpression(empty)
