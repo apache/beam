@@ -21,19 +21,17 @@ import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.StreamingOptions;
-import org.apache.beam.sdk.options.Validation;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public interface ChangeStreamTestPipelineOptions extends IOTestPipelineOptions, StreamingOptions {
   @Description("Project that hosts Spanner instance")
   @Nullable
-  @Default.String("span-cloud-testing")
   String getProjectId();
 
   void setProjectId(String value);
 
   @Description("Instance ID to write to in Spanner")
-  @Default.String("changestream")
+  @Default.String("beam-test")
   String getInstanceId();
 
   void setInstanceId(String value);
@@ -43,11 +41,4 @@ public interface ChangeStreamTestPipelineOptions extends IOTestPipelineOptions, 
   String getDatabaseId();
 
   void setDatabaseId(String value);
-
-  @Description("Time to wait for the events to be processed by the read pipeline (in seconds)")
-  @Default.Integer(300)
-  @Validation.Required
-  Integer getReadTimeout();
-
-  void setReadTimeout(Integer readTimeout);
 }

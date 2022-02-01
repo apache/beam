@@ -22,40 +22,27 @@ import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.Key;
 import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Mutation;
-import java.io.IOException;
 import java.io.Serializable;
-import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
-import java.lang.Thread;
-import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChangeStreamRecordMetadata;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.Mod;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerConfig;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO;
-import org.apache.beam.sdk.state.BagState;
-import org.apache.beam.sdk.state.StateSpec;
-import org.apache.beam.sdk.state.StateSpecs;
-import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChangeStreamRecordMetadata;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.transforms.windowing.AfterPane;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
-import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
@@ -141,40 +128,39 @@ public class SpannerChangeStreamOrderedWithinKeyIT {
     // change records for that key.
     PAssert.that(tokens)
         .containsInAnyOrder(
-            "{\"SingerId\":\"0\"}\n" +
-                "{\"FirstName\":\"Inserting mutation 0\",\"LastName\":null,\"SingerInfo\":null};" +
-                "Deleted record;",
-            "{\"SingerId\":\"1\"}\n" +
-                "{\"FirstName\":\"Inserting mutation 1\",\"LastName\":null,\"SingerInfo\":null};" +
-                "{\"FirstName\":\"Updating mutation 1\"};" +
-                "Deleted record;" +
-                "{\"FirstName\":\"Inserting mutation 1\",\"LastName\":null,\"SingerInfo\":null};" +
-                "Deleted record;",
-            "{\"SingerId\":\"2\"}\n" +
-                "{\"FirstName\":\"Inserting mutation 2\",\"LastName\":null,\"SingerInfo\":null};" +
-                "{\"FirstName\":\"Updating mutation 2\"};" +
-                "Deleted record;",
-            "{\"SingerId\":\"3\"}\n" +
-                "{\"FirstName\":\"Inserting mutation 3\",\"LastName\":null,\"SingerInfo\":null};" +
-                "{\"FirstName\":\"Updating mutation 3\"};" +
-                "Deleted record;",
-            "{\"SingerId\":\"4\"}\n" +
-                "{\"FirstName\":\"Inserting mutation 4\",\"LastName\":null,\"SingerInfo\":null};" +
-                "Deleted record;",
-            "{\"SingerId\":\"5\"}\n" +
-                "{\"FirstName\":\"Updating mutation 5\",\"LastName\":null,\"SingerInfo\":null};" +
-                "{\"FirstName\":\"Updating mutation 5\"};" +
-                "Deleted record;");
+            "{\"SingerId\":\"0\"}\n"
+                + "{\"FirstName\":\"Inserting mutation 0\",\"LastName\":null,\"SingerInfo\":null};"
+                + "Deleted record;",
+            "{\"SingerId\":\"1\"}\n"
+                + "{\"FirstName\":\"Inserting mutation 1\",\"LastName\":null,\"SingerInfo\":null};"
+                + "{\"FirstName\":\"Updating mutation 1\"};"
+                + "Deleted record;"
+                + "{\"FirstName\":\"Inserting mutation 1\",\"LastName\":null,\"SingerInfo\":null};"
+                + "Deleted record;",
+            "{\"SingerId\":\"2\"}\n"
+                + "{\"FirstName\":\"Inserting mutation 2\",\"LastName\":null,\"SingerInfo\":null};"
+                + "{\"FirstName\":\"Updating mutation 2\"};"
+                + "Deleted record;",
+            "{\"SingerId\":\"3\"}\n"
+                + "{\"FirstName\":\"Inserting mutation 3\",\"LastName\":null,\"SingerInfo\":null};"
+                + "{\"FirstName\":\"Updating mutation 3\"};"
+                + "Deleted record;",
+            "{\"SingerId\":\"4\"}\n"
+                + "{\"FirstName\":\"Inserting mutation 4\",\"LastName\":null,\"SingerInfo\":null};"
+                + "Deleted record;",
+            "{\"SingerId\":\"5\"}\n"
+                + "{\"FirstName\":\"Updating mutation 5\",\"LastName\":null,\"SingerInfo\":null};"
+                + "{\"FirstName\":\"Updating mutation 5\"};"
+                + "Deleted record;");
     pipeline.run().waitUntilFinish();
-
   }
 
   private static class BreakRecordByModFn extends DoFn<DataChangeRecord, DataChangeRecord> {
     private static final long serialVersionUID = 543765692722095666L;
+
     @ProcessElement
     public void processElement(
-        @Element DataChangeRecord record,
-        OutputReceiver<DataChangeRecord> outputReceiver) {
+        @Element DataChangeRecord record, OutputReceiver<DataChangeRecord> outputReceiver) {
       final ChangeStreamRecordMetadata fakeChangeStreamMetadata =
           ChangeStreamRecordMetadata.newBuilder()
               .withPartitionToken("1")
@@ -191,87 +177,91 @@ public class SpannerChangeStreamOrderedWithinKeyIT {
               .withTotalStreamTimeMillis(12L)
               .withNumberOfRecordsRead(13L)
               .build();
-      record
-          .getMods()
-          .stream()
-          .map(mod -> new DataChangeRecord(
-              record.getPartitionToken(),
-              record.getCommitTimestamp(),
-              record.getServerTransactionId(),
-              record.isLastRecordInTransactionInPartition(),
-              record.getRecordSequence(),
-              record.getTableName(),
-              record.getRowType(),
-              Collections.singletonList(mod),
-              record.getModType(),
-              record.getValueCaptureType(),
-              record.getNumberOfRecordsInTransaction(),
-              record.getNumberOfPartitionsInTransaction(),
-              fakeChangeStreamMetadata
-          ))
+      record.getMods().stream()
+          .map(
+              mod ->
+                  new DataChangeRecord(
+                      record.getPartitionToken(),
+                      record.getCommitTimestamp(),
+                      record.getServerTransactionId(),
+                      record.isLastRecordInTransactionInPartition(),
+                      record.getRecordSequence(),
+                      record.getTableName(),
+                      record.getRowType(),
+                      Collections.singletonList(mod),
+                      record.getModType(),
+                      record.getValueCaptureType(),
+                      record.getNumberOfRecordsInTransaction(),
+                      record.getNumberOfPartitionsInTransaction(),
+                      fakeChangeStreamMetadata))
           .forEach(outputReceiver::output);
     }
   }
 
   private static class KeyByIdFn extends DoFn<DataChangeRecord, KV<String, DataChangeRecord>> {
     private static final long serialVersionUID = 5121794565566403405L;
+
     @ProcessElement
     public void processElement(
         @DoFn.Timestamp org.joda.time.Instant elementTimestamp,
         @Element DataChangeRecord record,
         OutputReceiver<KV<String, DataChangeRecord>> outputReceiver) {
-      outputReceiver.output(KV.of(
-          record.getMods().get(0).getKeysJson(), record
-      ));
+      outputReceiver.output(KV.of(record.getMods().get(0).getKeysJson(), record));
     }
   }
 
-  private static class KeyValueByCommitTimestampAndRecordSequenceFn<K> extends
-      DoFn<KV<K, DataChangeRecord>,
+  private static class KeyValueByCommitTimestampAndRecordSequenceFn<K>
+      extends DoFn<
+          KV<K, DataChangeRecord>,
           KV<K, KV<SpannerChangeStreamOrderedWithinKeyIT.SortKey, DataChangeRecord>>> {
     private static final long serialVersionUID = -4059137464869088056L;
+
     @ProcessElement
     public void processElement(
         @Element KV<K, DataChangeRecord> recordByKey,
-        OutputReceiver<KV<K, KV<SpannerChangeStreamOrderedWithinKeyIT.SortKey,
-            DataChangeRecord>>> outputReceiver
-    ) {
+        OutputReceiver<KV<K, KV<SpannerChangeStreamOrderedWithinKeyIT.SortKey, DataChangeRecord>>>
+            outputReceiver) {
       final K key = recordByKey.getKey();
       final DataChangeRecord record = recordByKey.getValue();
-      outputReceiver.output(KV.of(
-          key,
+      outputReceiver.output(
           KV.of(
-              new SpannerChangeStreamOrderedWithinKeyIT.SortKey(record.getCommitTimestamp(),
-                  record.getServerTransactionId()),
-              record
-          )
-      ));
+              key,
+              KV.of(
+                  new SpannerChangeStreamOrderedWithinKeyIT.SortKey(
+                      record.getCommitTimestamp(), record.getServerTransactionId()),
+                  record)));
     }
   }
 
-  private static class ToStringFn extends DoFn<KV<String,
-      Iterable<KV<SpannerChangeStreamOrderedWithinKeyIT.SortKey, DataChangeRecord>>>, String> {
+  private static class ToStringFn
+      extends DoFn<
+          KV<String, Iterable<KV<SpannerChangeStreamOrderedWithinKeyIT.SortKey, DataChangeRecord>>>,
+          String> {
     private static final long serialVersionUID = -2573561902102768101L;
+
     @ProcessElement
     public void processElement(
-        @Element KV<String, Iterable<KV<SpannerChangeStreamOrderedWithinKeyIT.SortKey,
-            DataChangeRecord>>> recordsByKey,
-        OutputReceiver<String> outputReceiver
-    ) {
-      final List<KV<SpannerChangeStreamOrderedWithinKeyIT.SortKey,
-          DataChangeRecord>> sortedRecords =
-          StreamSupport.stream(recordsByKey.getValue().spliterator(), false)
-              .sorted((kv1, kv2) ->
-                  kv1.getKey().compareTo(kv2.getKey()))
-              .collect(Collectors.toList());
+        @Element
+            KV<
+                    String,
+                    Iterable<KV<SpannerChangeStreamOrderedWithinKeyIT.SortKey, DataChangeRecord>>>
+                recordsByKey,
+        OutputReceiver<String> outputReceiver) {
+      final List<KV<SpannerChangeStreamOrderedWithinKeyIT.SortKey, DataChangeRecord>>
+          sortedRecords =
+              StreamSupport.stream(recordsByKey.getValue().spliterator(), false)
+                  .sorted((kv1, kv2) -> kv1.getKey().compareTo(kv2.getKey()))
+                  .collect(Collectors.toList());
 
       final StringBuilder builder = new StringBuilder();
       builder.append(recordsByKey.getKey());
       builder.append("\n");
       for (KV<SpannerChangeStreamOrderedWithinKeyIT.SortKey, DataChangeRecord> record :
           sortedRecords) {
-        builder.append(record.getValue().getMods().get(0).getNewValuesJson().isEmpty() ?
-            "Deleted record;" : record.getValue().getMods().get(0).getNewValuesJson() + ";");
+        builder.append(
+            record.getValue().getMods().get(0).getNewValuesJson().isEmpty()
+                ? "Deleted record;"
+                : record.getValue().getMods().get(0).getNewValuesJson() + ";");
       }
 
       outputReceiver.output(builder.toString());
@@ -282,20 +272,26 @@ public class SpannerChangeStreamOrderedWithinKeyIT {
     private static final long serialVersionUID = 6923689796764239980L;
     private Timestamp commitTimestamp;
     private String transactionId;
+
     public SortKey() {}
+
     public SortKey(Timestamp commitTimestamp, String transactionId) {
       this.commitTimestamp = commitTimestamp;
       this.transactionId = transactionId;
     }
+
     public Timestamp getCommitTimestamp() {
       return commitTimestamp;
     }
+
     public void setCommitTimestamp(Timestamp commitTimestamp) {
       this.commitTimestamp = commitTimestamp;
     }
+
     public String getTransactionId() {
       return transactionId;
     }
+
     public void setTransactionId(String transactionId) {
       this.transactionId = transactionId;
     }
@@ -321,10 +317,10 @@ public class SpannerChangeStreamOrderedWithinKeyIT {
 
     @Override
     public int compareTo(SortKey other) {
-      return Comparator
-          .<SpannerChangeStreamOrderedWithinKeyIT.SortKey>
-              comparingDouble(sortKey -> sortKey.getCommitTimestamp().getSeconds() +
-              sortKey.getCommitTimestamp().getNanos() / 1000000000.0)
+      return Comparator.<SpannerChangeStreamOrderedWithinKeyIT.SortKey>comparingDouble(
+              sortKey ->
+                  sortKey.getCommitTimestamp().getSeconds()
+                      + sortKey.getCommitTimestamp().getNanos() / 1000000000.0)
           .thenComparing(sortKey -> sortKey.getTransactionId())
           .compare(this, other);
     }
@@ -415,6 +411,4 @@ public class SpannerChangeStreamOrderedWithinKeyIT {
   private static Mutation deleteRecordMutation(long singerId) {
     return Mutation.delete(tableName, KeySet.newBuilder().addKey(Key.of(singerId)).build());
   }
-
 }
-

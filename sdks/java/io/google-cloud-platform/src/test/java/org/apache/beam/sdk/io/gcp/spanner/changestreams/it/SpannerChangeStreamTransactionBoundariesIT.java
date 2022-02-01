@@ -22,7 +22,6 @@ import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.Key;
 import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Mutation;
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -147,8 +146,8 @@ public class SpannerChangeStreamTransactionBoundariesIT {
             "{\"SingerId\":\"3\"}{\"SingerId\":\"4\"}{\"SingerId\":\"5\"},DELETE\n",
 
             // Delete Singers 0, 2, 6, 7;
-            "{\"SingerId\":\"0\"}{\"SingerId\":\"2\"}{\"SingerId\":\"6\"}" +
-                "{\"SingerId\":\"7\"},DELETE\n");
+            "{\"SingerId\":\"0\"}{\"SingerId\":\"2\"}{\"SingerId\":\"6\"}"
+                + "{\"SingerId\":\"7\"},DELETE\n");
 
     final PipelineResult pipelineResult = pipeline.run();
     pipelineResult.waitUntilFinish();
@@ -198,29 +197,38 @@ public class SpannerChangeStreamTransactionBoundariesIT {
     PAssert.that(tokens)
         .containsInAnyOrder(
             // Insert Singer 0 into the table.
-            "{\"SingerId\":\"0\"},INSERT\n" +
+            "{\"SingerId\":\"0\"},INSERT\n"
+                +
 
-            // Insert Singer 1 and 2 into the table,
-            "{\"SingerId\":\"1\"}{\"SingerId\":\"2\"},INSERT\n" +
+                // Insert Singer 1 and 2 into the table,
+                "{\"SingerId\":\"1\"}{\"SingerId\":\"2\"},INSERT\n"
+                +
 
-            // Delete Singer 1 and Insert Singer 3 into the table.
-            "{\"SingerId\":\"1\"},DELETE\n" + "{\"SingerId\":\"3\"},INSERT\n" +
+                // Delete Singer 1 and Insert Singer 3 into the table.
+                "{\"SingerId\":\"1\"},DELETE\n"
+                + "{\"SingerId\":\"3\"},INSERT\n"
+                +
 
-            // Insert Singers 4, 5, 6 into the table.
-            "{\"SingerId\":\"4\"}{\"SingerId\":\"5\"}{\"SingerId\":\"6\"},INSERT\n" +
+                // Insert Singers 4, 5, 6 into the table.
+                "{\"SingerId\":\"4\"}{\"SingerId\":\"5\"}{\"SingerId\":\"6\"},INSERT\n"
+                +
 
-            // Update Singer 6 and Insert Singer 7
-            "{\"SingerId\":\"6\"},UPDATE\n" + "{\"SingerId\":\"7\"},INSERT\n" +
+                // Update Singer 6 and Insert Singer 7
+                "{\"SingerId\":\"6\"},UPDATE\n"
+                + "{\"SingerId\":\"7\"},INSERT\n"
+                +
 
-            // Update Singers 4 and 5 in the table.
-            "{\"SingerId\":\"4\"}{\"SingerId\":\"5\"},UPDATE\n" +
+                // Update Singers 4 and 5 in the table.
+                "{\"SingerId\":\"4\"}{\"SingerId\":\"5\"},UPDATE\n"
+                +
 
-            // Delete Singers 3, 4, 5 from the table.
-            "{\"SingerId\":\"3\"}{\"SingerId\":\"4\"}{\"SingerId\":\"5\"},DELETE\n" +
+                // Delete Singers 3, 4, 5 from the table.
+                "{\"SingerId\":\"3\"}{\"SingerId\":\"4\"}{\"SingerId\":\"5\"},DELETE\n"
+                +
 
-            // Delete Singers 0, 2, 6, 7;
-            "{\"SingerId\":\"0\"}{\"SingerId\":\"2\"}{\"SingerId\":\"6\"}" +
-                "{\"SingerId\":\"7\"},DELETE\n");
+                // Delete Singers 0, 2, 6, 7;
+                "{\"SingerId\":\"0\"}{\"SingerId\":\"2\"}{\"SingerId\":\"6\"}"
+                + "{\"SingerId\":\"7\"},DELETE\n");
 
     final PipelineResult pipelineResult = pipeline.run();
     pipelineResult.waitUntilFinish();
@@ -281,8 +289,8 @@ public class SpannerChangeStreamTransactionBoundariesIT {
                 .sorted(Comparator.comparing(DataChangeRecord::getRecordSequence))
                 .collect(Collectors.toList());
 
-        final Instant commitInstant = new Instant(
-            sortedRecords.get(0).getCommitTimestamp().toSqlTimestamp().getTime());
+        final Instant commitInstant =
+            new Instant(sortedRecords.get(0).getCommitTimestamp().toSqlTimestamp().getTime());
         context.outputWithTimestamp(
             KV.of(
                 new SpannerChangeStreamTransactionBoundariesIT.SortKey(
@@ -296,14 +304,16 @@ public class SpannerChangeStreamTransactionBoundariesIT {
     }
   }
 
-  private static class CreateArtificialKeyFn extends DoFn<KV<SortKey, Iterable<DataChangeRecord>>,
-      KV<byte[], KV<SortKey, Iterable<DataChangeRecord>>>> {
+  private static class CreateArtificialKeyFn
+      extends DoFn<
+          KV<SortKey, Iterable<DataChangeRecord>>,
+          KV<byte[], KV<SortKey, Iterable<DataChangeRecord>>>> {
     private static final long serialVersionUID = -3363057370822294686L;
+
     @ProcessElement
     public void processElement(
         @Element KV<SortKey, Iterable<DataChangeRecord>> element,
-        OutputReceiver<KV<byte[], KV<SortKey, Iterable<DataChangeRecord>>>> outputReceiver
-    ) {
+        OutputReceiver<KV<byte[], KV<SortKey, Iterable<DataChangeRecord>>>> outputReceiver) {
       outputReceiver.output(KV.of(new byte[0], element));
     }
   }
@@ -342,38 +352,52 @@ public class SpannerChangeStreamTransactionBoundariesIT {
 
   private static class ToStringFnSorted
       extends DoFn<
-      KV<byte[], Iterable<KV<SpannerChangeStreamTransactionBoundariesIT.SortKey, Iterable<DataChangeRecord>>>>,
-      String> {
+          KV<
+              byte[],
+              Iterable<
+                  KV<
+                      SpannerChangeStreamTransactionBoundariesIT.SortKey,
+                      Iterable<DataChangeRecord>>>>,
+          String> {
 
     private static final long serialVersionUID = 2307936669684679038L;
 
     @ProcessElement
     public void processElement(
-        @Element KV<byte[], Iterable<KV<SpannerChangeStreamTransactionBoundariesIT.SortKey, Iterable<DataChangeRecord>>>> element,
+        @Element
+            KV<
+                    byte[],
+                    Iterable<
+                        KV<
+                            SpannerChangeStreamTransactionBoundariesIT.SortKey,
+                            Iterable<DataChangeRecord>>>>
+                element,
         OutputReceiver<String> outputReceiver) {
       final StringBuilder builder = new StringBuilder();
 
       // Now, the records should be sorted by commit timestamp
-      final List<KV<SpannerChangeStreamTransactionBoundariesIT.SortKey, Iterable<DataChangeRecord>>> sortedRecordsInWindow =
-          StreamSupport.stream(element.getValue().spliterator(), false)
-              .sorted((kv1, kv2) ->
-                  kv1.getKey().compareTo(kv2.getKey()))
-              .collect(Collectors.toList());
+      final List<KV<SpannerChangeStreamTransactionBoundariesIT.SortKey, Iterable<DataChangeRecord>>>
+          sortedRecordsInWindow =
+              StreamSupport.stream(element.getValue().spliterator(), false)
+                  .sorted((kv1, kv2) -> kv1.getKey().compareTo(kv2.getKey()))
+                  .collect(Collectors.toList());
 
-
-      for (KV<SpannerChangeStreamTransactionBoundariesIT.SortKey, Iterable<DataChangeRecord>> sortedRecords :
-          sortedRecordsInWindow) {
-         sortedRecords.getValue().forEach(
-            record -> {
-              // Output the string representation of the mods and the mod type for each data change
-              // record.
-              String modString = "";
-              for (Mod mod : record.getMods()) {
-                modString += mod.getKeysJson();
-              }
-              builder.append(String.join(",", modString, record.getModType().toString()));
-              builder.append("\n");
-            });
+      for (KV<SpannerChangeStreamTransactionBoundariesIT.SortKey, Iterable<DataChangeRecord>>
+          sortedRecords : sortedRecordsInWindow) {
+        sortedRecords
+            .getValue()
+            .forEach(
+                record -> {
+                  // Output the string representation of the mods and the mod type for each data
+                  // change
+                  // record.
+                  String modString = "";
+                  for (Mod mod : record.getMods()) {
+                    modString += mod.getKeysJson();
+                  }
+                  builder.append(String.join(",", modString, record.getModType().toString()));
+                  builder.append("\n");
+                });
       }
       outputReceiver.output(builder.toString());
     }
@@ -435,10 +459,10 @@ public class SpannerChangeStreamTransactionBoundariesIT {
 
     @Override
     public int compareTo(SpannerChangeStreamTransactionBoundariesIT.SortKey other) {
-      return Comparator
-          .<SpannerChangeStreamTransactionBoundariesIT.SortKey>
-              comparingDouble(sortKey -> sortKey.getCommitTimestamp().getSeconds() +
-              sortKey.getCommitTimestamp().getNanos() / 1000000000.0)
+      return Comparator.<SpannerChangeStreamTransactionBoundariesIT.SortKey>comparingDouble(
+              sortKey ->
+                  sortKey.getCommitTimestamp().getSeconds()
+                      + sortKey.getCommitTimestamp().getNanos() / 1000000000.0)
           .thenComparing(sortKey -> sortKey.getTransactionId())
           .compare(this, other);
     }

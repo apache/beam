@@ -25,6 +25,7 @@ import com.google.cloud.spanner.SpannerOptions;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -42,6 +43,7 @@ public class IntegrationTestEnv extends ExternalResource {
   private static final int TIMEOUT_MINUTES = 10;
   private static final int MAX_TABLE_NAME_LENGTH = 128;
   private static final int MAX_CHANGE_STREAM_NAME_LENGTH = 30;
+  private static final int MAX_DATABASE_NAME_LENGTH = 30;
   private static final String TABLE_NAME_PREFIX = "Singers";
   private static final String CHANGE_STREAM_NAME_PREFIX = "SingersStream";
   private List<String> changeStreams;
@@ -63,9 +65,12 @@ public class IntegrationTestEnv extends ExternalResource {
         Optional.ofNullable(options.getProjectId())
             .orElseGet(() -> options.as(GcpOptions.class).getProject());
     instanceId = options.getInstanceId();
-    databaseId = options.getDatabaseId();
+    databaseId = generateDatabaseName(options.getDatabaseId());
     spanner = SpannerOptions.newBuilder().setProjectId(projectId).build().getService();
     databaseAdminClient = spanner.getDatabaseAdminClient();
+
+    recreateDatabase(databaseAdminClient, instanceId, databaseId);
+
     databaseClient = spanner.getDatabaseClient(DatabaseId.of(projectId, instanceId, databaseId));
 
     changeStreams = new ArrayList<>();
@@ -98,6 +103,13 @@ public class IntegrationTestEnv extends ExternalResource {
         LOG.error("Failed to drop table " + table + ". Skipping...", e);
       }
     }
+
+    try {
+      databaseAdminClient.dropDatabase(instanceId, databaseId);
+    } catch (Exception e) {
+      LOG.error("Failed to drop database " + databaseId + ". Skipping...", e);
+    }
+
     spanner.close();
   }
 
@@ -157,6 +169,17 @@ public class IntegrationTestEnv extends ExternalResource {
     return databaseClient;
   }
 
+  private void recreateDatabase(
+      DatabaseAdminClient databaseAdminClient, String instanceId, String databaseId)
+      throws ExecutionException, InterruptedException, TimeoutException {
+    // Drops the database if it already exists
+    databaseAdminClient.dropDatabase(instanceId, databaseId);
+    LOG.info("Creating database " + databaseId);
+    databaseAdminClient
+        .createDatabase(instanceId, databaseId, Collections.emptyList())
+        .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
+  }
+
   private String generateTableName() {
     return TABLE_NAME_PREFIX
         + "_"
@@ -166,7 +189,15 @@ public class IntegrationTestEnv extends ExternalResource {
 
   private String generateChangeStreamName() {
     return CHANGE_STREAM_NAME_PREFIX
+        + "_"
         + RandomStringUtils.randomAlphanumeric(
             MAX_CHANGE_STREAM_NAME_LENGTH - 1 - CHANGE_STREAM_NAME_PREFIX.length());
+  }
+
+  private String generateDatabaseName(String prefix) {
+    return prefix
+        + "_"
+        + RandomStringUtils.randomAlphanumeric(MAX_DATABASE_NAME_LENGTH - 1 - prefix.length())
+            .toLowerCase(Locale.ROOT);
   }
 }
