@@ -348,7 +348,7 @@ public class ElasticsearchIO {
 
           return SSLContexts.custom().loadTrustMaterial(keyStore, trustStrategy).build();
         } catch (Exception e) {
-          throw new IOException("Can't create SSLContext", e);
+          throw new IOException("Can't load the client certificate from the keystore", e);
         }
       }
 
@@ -590,7 +590,9 @@ public class ElasticsearchIO {
     public ConnectionConfiguration withKeystorePath(String keystorePath) {
       checkArgument(keystorePath != null, "keystorePath can not be null");
       checkArgument(!keystorePath.isEmpty(), "keystorePath can not be empty");
-      return builder().setKeystorePath(keystorePath).build();
+      return builder().setSslConfiguration(
+              getSslConfiguration().builder().setKeystorePath(keystorePath).build()
+      ).build();
     }
 
     /**
@@ -603,7 +605,9 @@ public class ElasticsearchIO {
      */
     public ConnectionConfiguration withKeystorePassword(String keystorePassword) {
       checkArgument(keystorePassword != null, "keystorePassword can not be null");
-      return builder().setKeystorePassword(keystorePassword).build();
+      return builder().setSslConfiguration(
+              getSslConfiguration().builder().setKeystorePassword(keystorePassword).build()
+      ).build();
     }
 
     /**
@@ -615,7 +619,12 @@ public class ElasticsearchIO {
      *     Elasticsearch.
      */
     public ConnectionConfiguration withTrustSelfSignedCerts(boolean trustSelfSignedCerts) {
-      return builder().setTrustSelfSignedCerts(trustSelfSignedCerts).build();
+      final TrustStrategy trustStrategy =
+              isTrustSelfSignedCerts() ? new TrustSelfSignedStrategy() : null;
+
+      return builder().setSslConfiguration(
+              getSslConfiguration().builder().setTrustStrategy(trustStrategy).build()
+      ).build();
     }
 
     /**
@@ -689,25 +698,6 @@ public class ElasticsearchIO {
         restClientBuilder.setHttpClientConfigCallback(
                 httpClientBuilder ->
                         httpClientBuilder.setSSLContext(sslContext).setSSLStrategy(sessionStrategy));
-
-      } else if (getKeystorePath() != null && !getKeystorePath().isEmpty()) {
-        try {
-          KeyStore keyStore = KeyStore.getInstance("jks");
-          try (InputStream is = new FileInputStream(new File(getKeystorePath()))) {
-            String keystorePassword = getKeystorePassword();
-            keyStore.load(is, (keystorePassword == null) ? null : keystorePassword.toCharArray());
-          }
-          final TrustStrategy trustStrategy =
-                  isTrustSelfSignedCerts() ? new TrustSelfSignedStrategy() : null;
-          final SSLContext sslContext =
-                  SSLContexts.custom().loadTrustMaterial(keyStore, trustStrategy).build();
-          final SSLIOSessionStrategy sessionStrategy = new SSLIOSessionStrategy(sslContext);
-          restClientBuilder.setHttpClientConfigCallback(
-                  httpClientBuilder ->
-                          httpClientBuilder.setSSLContext(sslContext).setSSLStrategy(sessionStrategy));
-        } catch (Exception e) {
-          throw new IOException("Can't load the client certificate from the keystore", e);
-        }
       }
 
       restClientBuilder.setRequestConfigCallback(
