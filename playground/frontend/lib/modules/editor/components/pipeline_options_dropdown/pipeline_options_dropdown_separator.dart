@@ -15,25 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.aws2.sqs;
 
-import software.amazon.awssdk.services.sqs.SqsClient;
+import 'package:flutter/material.dart';
+import 'package:playground/config/theme.dart';
+import 'package:playground/constants/sizes.dart';
 
-/** Mocking AwsClientProvider. */
-public class SqsClientProviderMock implements SqsClientProvider {
+class PipelineOptionsDropdownSeparator extends StatelessWidget {
+  const PipelineOptionsDropdownSeparator({Key? key}) : super(key: key);
 
-  private static SqsClientProviderMock instance = new SqsClientProviderMock();
-  private static SqsClient sqsClient;
-
-  private SqsClientProviderMock() {}
-
-  public static SqsClientProviderMock of(SqsClient sqs) {
-    sqsClient = sqs;
-    return instance;
-  }
-
-  @Override
-  public SqsClient getSqsClient() {
-    return sqsClient;
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: kDividerHeight,
+      decoration: BoxDecoration(
+        color: ThemeColors.of(context).lightGreyColor,
+      ),
+    );
   }
 }

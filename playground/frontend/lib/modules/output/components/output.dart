@@ -20,16 +20,49 @@ import 'package:flutter/material.dart';
 import 'package:playground/modules/output/components/output_area.dart';
 import 'package:playground/modules/output/components/output_header/output_header.dart';
 
-class Output extends StatelessWidget {
-  const Output({Key? key}) : super(key: key);
+class Output extends StatefulWidget {
+  final bool isEmbedded;
+
+  const Output({Key? key, required this.isEmbedded}) : super(key: key);
+
+  @override
+  State<Output> createState() => _OutputState();
+}
+
+class _OutputState extends State<Output> with SingleTickerProviderStateMixin {
+  late final TabController tabController;
+  int selectedTab = 0;
+
+  @override
+  void initState() {
+    tabController = TabController(vsync: this, length: 2);
+    tabController.addListener(onTabChange);
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    tabController.removeListener(onTabChange);
+    tabController.dispose();
+    super.dispose();
+  }
+
+  onTabChange() {
+    setState(() {
+      selectedTab = tabController.index;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 3,
-      child: Column(
-        children: const [OutputHeader(), Expanded(child: OutputArea())],
-      ),
+    return Column(
+      children: [
+        OutputHeader(
+          tabController: tabController,
+          showOutputPlacements: widget.isEmbedded,
+        ),
+        Expanded(child: OutputArea(tabController: tabController)),
+      ],
     );
   }
 }

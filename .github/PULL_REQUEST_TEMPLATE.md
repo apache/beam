@@ -156,9 +156,15 @@ See the [Contributor Guide](https://beam.apache.org/contribute) for more tips on
         </a>
       </td>
       <td>
-        <a href="https://ci-beam.apache.org/job/beam_PostCommit_XVR_Dataflow/lastCompletedBuild/">
-          <img alt="Build Status" src="https://ci-beam.apache.org/job/beam_PostCommit_XVR_Dataflow/lastCompletedBuild/badge/icon">
-        </a>
+        <a href="https://ci-beam.apache.org/job/beam_PostCommit_XVR_PythonUsingJava_Dataflow/lastCompletedBuild/">
+          <img alt="Build Status" src="https://ci-beam.apache.org/job/beam_PostCommit_XVR_PythonUsingJava_Dataflow/lastCompletedBuild/badge/icon">
+        </a><br>
+        <a href="https://ci-beam.apache.org/job/beam_PostCommit_XVR_PythonUsingJavaSQL_Dataflow/lastCompletedBuild/">
+          <img alt="Build Status" src="https://ci-beam.apache.org/job/beam_PostCommit_XVR_PythonUsingJavaSQL_Dataflow/lastCompletedBuild/badge/icon">
+        </a><br>
+        <a href="https://ci-beam.apache.org/job/beam_PostCommit_XVR_JavaUsingPython_Dataflow/lastCompletedBuild/">
+          <img alt="Build Status" src="https://ci-beam.apache.org/job/beam_PostCommit_XVR_JavaUsingPython_Dataflow/lastCompletedBuild/badge/icon">
+        </a><br>
       </td>
       <td>
         <a href="https://ci-beam.apache.org/job/beam_PostCommit_XVR_Flink/lastCompletedBuild/">

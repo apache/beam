@@ -444,12 +444,13 @@ class BeamModulePlugin implements Plugin<Project> {
     // Maven artifacts.
     def activemq_version = "5.14.5"
     def autovalue_version = "1.8.2"
+    def autoservice_version = "1.0.1"
     def aws_java_sdk_version = "1.12.135"
     def aws_java_sdk2_version = "2.17.106"
     def cassandra_driver_version = "3.10.2"
     def checkerframework_version = "3.10.0"
     def classgraph_version = "4.8.104"
-    def errorprone_version = "2.3.4"
+    def errorprone_version = "2.10.0"
     def google_clients_version = "1.32.1"
     def google_cloud_bigdataoss_version = "2.2.4"
     def google_code_gson_version = "2.8.9"
@@ -676,9 +677,9 @@ class BeamModulePlugin implements Plugin<Project> {
         testcontainers_postgresql                   : "org.testcontainers:postgresql:$testcontainers_version",
         testcontainers_gcloud                       : "org.testcontainers:gcloud:$testcontainers_version",
         vendored_bytebuddy_1_11_0                   : "org.apache.beam:beam-vendor-bytebuddy-1_11_0:0.1",
-        vendored_grpc_1_36_0                        : "org.apache.beam:beam-vendor-grpc-1_36_0:0.2",
+        vendored_grpc_1_43_2                        : "org.apache.beam:beam-vendor-grpc-1_43_2:0.1",
         vendored_guava_26_0_jre                     : "org.apache.beam:beam-vendor-guava-26_0-jre:0.1",
-        vendored_calcite_1_28_0                     : "org.apache.beam:beam-vendor-calcite-1_28_0:0.1",
+        vendored_calcite_1_28_0                     : "org.apache.beam:beam-vendor-calcite-1_28_0:0.2",
         woodstox_core_asl                           : "org.codehaus.woodstox:woodstox-core-asl:4.4.1",
         zstd_jni                                    : "com.github.luben:zstd-jni:1.4.5-2",
         quickcheck_core                             : "com.pholser:junit-quickcheck-core:$quickcheck_version",
@@ -807,6 +808,12 @@ class BeamModulePlugin implements Plugin<Project> {
         testRuntimeMigration.extendsFrom(testRuntimeOnly)
       }
 
+      // Provided configuration to match Maven provided scope
+      project.configurations {
+        provided
+        implementation.extendsFrom(provided)
+      }
+
       // Configure the Java compiler source language and target compatibility levels. Also ensure that
       // we configure the Java compiler to use UTF-8.
       project.sourceCompatibility = project.javaVersion
@@ -856,6 +863,20 @@ class BeamModulePlugin implements Plugin<Project> {
         project.tasks.withType(Test) {
           useJUnit()
           executable = "${java11Home}/bin/java"
+        }
+      }
+
+      if (project.hasProperty("compileAndRunTestsWithJava17")) {
+        def java17Home = project.findProperty("java17Home")
+        project.tasks.compileTestJava {
+          options.fork = true
+          options.forkOptions.javaHome = java17Home as File
+          options.compilerArgs += ['-Xlint:-path']
+          options.compilerArgs.addAll(['--release', '17'])
+        }
+        project.tasks.withType(Test) {
+          useJUnit()
+          executable = "${java17Home}/bin/java"
         }
       }
 
@@ -963,7 +984,7 @@ class BeamModulePlugin implements Plugin<Project> {
       // configurations because they are never required to be shaded or become a
       // dependency of the output.
       def compileOnlyAnnotationDeps = [
-        "com.google.auto.service:auto-service-annotations:1.0-rc6",
+        "com.google.auto.service:auto-service-annotations:$autoservice_version",
         "com.google.auto.value:auto-value-annotations:$autovalue_version",
         "com.google.code.findbugs:jsr305:$jsr305_version",
         "com.google.j2objc:j2objc-annotations:1.3",
@@ -1003,7 +1024,7 @@ class BeamModulePlugin implements Plugin<Project> {
         // Add common annotation processors to all Java projects
         def annotationProcessorDeps = [
           "com.google.auto.value:auto-value:$autovalue_version",
-          "com.google.auto.service:auto-service:1.0-rc6",
+          "com.google.auto.service:auto-service:$autoservice_version",
         ]
 
         annotationProcessorDeps.each { dep ->
@@ -1125,25 +1146,56 @@ class BeamModulePlugin implements Plugin<Project> {
       project.tasks.withType(JavaCompile) {
         options.errorprone.disableWarningsInGeneratedCode = true
         options.errorprone.excludedPaths = '(.*/)?(build/generated-src|build/generated.*avro-java|build/generated)/.*'
-        options.errorprone.errorproneArgs.add("MutableConstantField:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:Slf4jLoggerShouldBeNonStatic:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:Slf4jFormatShouldBeConst:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:Slf4jSignOnlyFormat:OFF")
+
+        // TODO(BEAM-11936): Enable errorprone checks
         options.errorprone.errorproneArgs.add("-Xep:AutoValueImmutableFields:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:AutoValueSubclassLeaked:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:BadImport:OFF")
         options.errorprone.errorproneArgs.add("-Xep:BadInstanceof:OFF")
         options.errorprone.errorproneArgs.add("-Xep:BigDecimalEquals:OFF")
         options.errorprone.errorproneArgs.add("-Xep:ComparableType:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:DoNotMockAutoValue:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:EmptyBlockTag:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:EmptyCatch:OFF")
         options.errorprone.errorproneArgs.add("-Xep:EqualsGetClass:OFF")
         options.errorprone.errorproneArgs.add("-Xep:EqualsUnsafeCast:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:EscapedEntity:OFF")
         options.errorprone.errorproneArgs.add("-Xep:ExtendsAutoValue:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:InlineFormatString:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:InlineMeSuggester:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:InvalidBlockTag:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:InvalidInlineTag:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:InvalidLink:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:InvalidParam:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:InvalidThrows:OFF")
         options.errorprone.errorproneArgs.add("-Xep:JavaTimeDefaultTimeZone:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:JavaUtilDate:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:JodaConstructors:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:MalformedInlineTag:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:MissingSummary:OFF")
         options.errorprone.errorproneArgs.add("-Xep:MixedMutabilityReturnType:OFF")
         options.errorprone.errorproneArgs.add("-Xep:PreferJavaTimeOverload:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:MutablePublicArray:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:NonCanonicalType:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:ProtectedMembersInFinalClass:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:Slf4jFormatShouldBeConst:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:Slf4jSignOnlyFormat:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:StaticAssignmentInConstructor:OFF")
         options.errorprone.errorproneArgs.add("-Xep:ThreadPriorityCheck:OFF")
         options.errorprone.errorproneArgs.add("-Xep:TimeUnitConversionChecker:OFF")
         options.errorprone.errorproneArgs.add("-Xep:UndefinedEquals:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:UnescapedEntity:OFF")
         options.errorprone.errorproneArgs.add("-Xep:UnnecessaryLambda:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:UnnecessaryMethodReference:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:UnnecessaryParentheses:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:UnrecognisedJavadocTag:OFF")
         options.errorprone.errorproneArgs.add("-Xep:UnsafeReflectiveConstructionCast:OFF")
+        options.errorprone.errorproneArgs.add("-Xep:UseCorrectAssertInTests:OFF")
+
+        // Sometimes a static logger is preferred, which is the convention
+        // currently used in beam. See docs:
+        // https://github.com/KengoTODA/findbugs-slf4j#slf4j_logger_should_be_non_static
+        options.errorprone.errorproneArgs.add("-Xep:Slf4jLoggerShouldBeNonStatic:OFF")
       }
 
       if (configuration.shadowClosure) {
@@ -1544,7 +1596,7 @@ class BeamModulePlugin implements Plugin<Project> {
                 // which forces all our consumers to declare what they consume?
                 generateDependenciesFromConfiguration(
                     configuration: (configuration.shadowClosure ? 'shadow' : 'implementation'), scope: 'compile')
-                generateDependenciesFromConfiguration(configuration: 'compileOnly', scope: 'provided')
+                generateDependenciesFromConfiguration(configuration: 'provided', scope: 'provided')
 
                 if (!boms.isEmpty()) {
                   def dependencyManagementNode = root.appendNode('dependencyManagement')
@@ -1984,10 +2036,10 @@ class BeamModulePlugin implements Plugin<Project> {
           archivesBaseName: configuration.archivesBaseName,
           automaticModuleName: configuration.automaticModuleName,
           shadowJarValidationExcludes: it.shadowJarValidationExcludes,
-          shadowClosure: GrpcVendoring_1_36_0.shadowClosure() << {
+          shadowClosure: GrpcVendoring_1_43_2.shadowClosure() << {
             // We perform all the code relocations but don't include
             // any of the actual dependencies since they will be supplied
-            // by org.apache.beam:beam-vendor-grpc-v1p36p0:0.1
+            // by org.apache.beam:beam-vendor-grpc-v1p43p2
             dependencies {
               include(dependency { return false })
             }
@@ -2004,14 +2056,14 @@ class BeamModulePlugin implements Plugin<Project> {
       project.protobuf {
         protoc {
           // The artifact spec for the Protobuf Compiler
-          artifact = "com.google.protobuf:protoc:${GrpcVendoring_1_36_0.protobuf_version}" }
+          artifact = "com.google.protobuf:protoc:${GrpcVendoring_1_43_2.protobuf_version}" }
 
         // Configure the codegen plugins
         plugins {
           // An artifact spec for a protoc plugin, with "grpc" as
           // the identifier, which can be referred to in the "plugins"
           // container of the "generateProtoTasks" closure.
-          grpc { artifact = "io.grpc:protoc-gen-grpc-java:${GrpcVendoring_1_36_0.grpc_version}" }
+          grpc { artifact = "io.grpc:protoc-gen-grpc-java:${GrpcVendoring_1_43_2.grpc_version}" }
         }
 
         generateProtoTasks {
@@ -2025,7 +2077,7 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
 
-      project.dependencies GrpcVendoring_1_36_0.dependenciesClosure() << { shadow project.ext.library.java.vendored_grpc_1_36_0 }
+      project.dependencies GrpcVendoring_1_43_2.dependenciesClosure() << { shadow project.ext.library.java.vendored_grpc_1_43_2 }
     }
 
     /** ***********************************************************************************************/
@@ -2171,6 +2223,8 @@ class BeamModulePlugin implements Plugin<Project> {
         javaContainerSuffix = 'java8'
       } else if (JavaVersion.current() == JavaVersion.VERSION_11) {
         javaContainerSuffix = 'java11'
+      } else if (JavaVersion.current() == JavaVersion.VERSION_17) {
+        javaContainerSuffix = 'java17'
       } else {
         throw new GradleException("unsupported java version.")
       }
@@ -2344,6 +2398,7 @@ class BeamModulePlugin implements Plugin<Project> {
             "python${project.ext.pythonVersion}",
             "-m",
             "venv",
+            "--clear",
             "${project.ext.envdir}",
           ]
           project.exec { commandLine virtualenvCmd }

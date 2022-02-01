@@ -22,7 +22,6 @@ package org.apache.beam.learning.katas.commontransforms.filter.pardo;
 //   name: FilterParDo
 //   description: Task from katas to implement a filter function that filters out the even numbers by using DoFn.
 //   multifile: false
-//   pipeline_options:
 //   categories:
 //     - Filtering
 

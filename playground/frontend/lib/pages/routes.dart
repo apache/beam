@@ -17,7 +17,7 @@
  */
 
 import 'package:flutter/material.dart';
-import 'package:playground/pages/embedded_playground/embedded_playground_page.dart';
+import 'package:playground/pages/embedded_playground/embedded_page_providers.dart';
 import 'package:playground/pages/playground/playground_page.dart';
 
 class Routes {
@@ -33,7 +33,7 @@ class Routes {
       case Routes.playground:
         return Routes.renderRoute(const PlaygroundPage());
       case Routes.embedded:
-        return Routes.renderRoute(const EmbeddedPlaygroundPage());
+        return Routes.renderRoute(const EmbeddedPageProviders());
       default:
         return Routes.renderRoute(const PlaygroundPage());
     }

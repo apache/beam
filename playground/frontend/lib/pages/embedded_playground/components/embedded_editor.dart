@@ -22,7 +22,9 @@ import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:provider/provider.dart';
 
 class EmbeddedEditor extends StatelessWidget {
-  const EmbeddedEditor({Key? key}) : super(key: key);
+  final bool isEditable;
+
+  const EmbeddedEditor({Key? key, required this.isEditable}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -32,6 +34,9 @@ class EmbeddedEditor extends StatelessWidget {
       enabled: true,
       sdk: state.sdk,
       example: state.selectedExample,
+      onSourceChange: state.setSource,
+      enableScrolling: false,
+      isEditable: isEditable,
     );
   }
 }

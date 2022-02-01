@@ -135,6 +135,16 @@ message GetLogsResponse {
   string output = 1;
 }
 
+// GetGraphRequest contains information of the pipeline uuid.
+message GetGraphRequest {
+  string pipeline_uuid = 1;
+}
+
+// GetGraphResponse represents the string representation of pipeline execution graph in DOT format.
+message GetGraphResponse {
+  string graph = 1;
+}
+
 // CancelRequest request to cancel code processing
 message CancelRequest {
   string pipeline_uuid = 1;
@@ -151,6 +161,8 @@ message PrecompiledObject{
   string description = 3;
   PrecompiledObjectType type = 4;
   string pipeline_options = 5;
+  // Link to the example in the Beam repository
+  string link = 6;
 }
 
 // Categories represent the array of messages with sdk and categories at this sdk
@@ -184,7 +196,12 @@ message GetPrecompiledObjectLogsRequest{
   string cloud_path = 1;
 }
 
-// GetListOfPrecompiledObjectsResponse represent the map between sdk and categories for the sdk.
+// GetDefaultPrecompiledObjectRequest contains information of the needed PrecompiledObject sdk.
+message GetDefaultPrecompiledObjectRequest {
+  Sdk sdk = 1;
+}
+
+// GetPrecompiledObjectsResponse represent the map between sdk and categories for the sdk.
 message GetPrecompiledObjectsResponse{
   repeated Categories sdk_categories = 1;
 }
@@ -204,6 +221,11 @@ message GetPrecompiledObjectLogsResponse {
   string output = 1;
 }
 
+// GetDefaultPrecompiledObjectResponse represents the default PrecompiledObject and his category for the sdk.
+message GetDefaultPrecompiledObjectResponse {
+  PrecompiledObject precompiled_object = 1;
+}
+
 service PlaygroundService {
 
   // Submit the job for an execution and get the pipeline uuid.
@@ -217,6 +239,9 @@ service PlaygroundService {
 
   // Get the logs of pipeline execution.
   rpc GetLogs(GetLogsRequest) returns (GetLogsResponse);
+
+  // Get the string representation of the pipeline execution graph in DOT format.
+  rpc GetGraph(GetGraphRequest) returns (GetGraphResponse);
 
   // Get the error of pipeline execution.
   rpc GetRunError(GetRunErrorRequest) returns (GetRunErrorResponse);
@@ -244,4 +269,7 @@ service PlaygroundService {
 
   // Get the logs of an PrecompiledObject.
   rpc GetPrecompiledObjectLogs(GetPrecompiledObjectLogsRequest) returns (GetPrecompiledObjectLogsResponse);
+
+  // Get the default precompile object for the sdk.
+  rpc GetDefaultPrecompiledObject(GetDefaultPrecompiledObjectRequest) returns (GetDefaultPrecompiledObjectResponse);
 }

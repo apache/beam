@@ -77,7 +77,7 @@ RUN pip3 install distlib==0.3.1 yapf==0.29.0 pytest
 ###
 # Install Go
 ###
-ENV DOWNLOAD_GO_VERSION=1.12.17
+ENV DOWNLOAD_GO_VERSION=1.17.6
 RUN wget https://golang.org/dl/go${DOWNLOAD_GO_VERSION}.linux-amd64.tar.gz && \
     tar -C /usr/local -xzf go${DOWNLOAD_GO_VERSION}.linux-amd64.tar.gz
 ENV GOROOT /usr/local/go
