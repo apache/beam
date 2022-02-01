@@ -78,7 +78,6 @@ RUN /proxy.sh
 RUN groupadd --gid 20000 appuser \
   && useradd --uid 20000 --gid appuser --shell /bin/bash --create-home appuser
 # Chown all the files to the app user.
-RUN chown -R appuser:appuser /opt/playground/
 RUN chown -R appuser:appuser /opt/playground/backend/
 RUN chown -R appuser:appuser /opt/playground/prepared_folder/
 RUN chmod +x /entrypoint.sh
