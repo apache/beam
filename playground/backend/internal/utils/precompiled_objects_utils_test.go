@@ -226,26 +226,26 @@ func TestGetDefaultPrecompiledObjects(t *testing.T) {
 			Categories: []*pb.Categories_Category{
 				{
 					CategoryName: "TestCategory1", PrecompiledObjects: []*pb.PrecompiledObject{
-						{
-							CloudPath:      "SDK_JAVA/TestCategory/TestName.java",
-							Name:           "TestName",
-							Description:    "TestDescription",
-							Type:           pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
-							DefaultExample: false,
-						},
+					{
+						CloudPath:      "SDK_JAVA/TestCategory/TestName.java",
+						Name:           "TestName",
+						Description:    "TestDescription",
+						Type:           pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+						DefaultExample: false,
 					},
+				},
 				},
 				{
 					CategoryName: "TestCategory2", PrecompiledObjects: []*pb.PrecompiledObject{
-						&preparedPrecompiledObjectJava,
-						{
-							CloudPath:      "SDK_JAVA/TestCategory/TestName2.java",
-							Name:           "TestName2",
-							Description:    "TestDescription",
-							Type:           pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
-							DefaultExample: false,
-						},
+					&preparedPrecompiledObjectJava,
+					{
+						CloudPath:      "SDK_JAVA/TestCategory/TestName2.java",
+						Name:           "TestName2",
+						Description:    "TestDescription",
+						Type:           pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+						DefaultExample: false,
 					},
+				},
 				},
 			},
 		},
@@ -254,8 +254,8 @@ func TestGetDefaultPrecompiledObjects(t *testing.T) {
 			Categories: []*pb.Categories_Category{
 				{
 					CategoryName: "TestCategory", PrecompiledObjects: []*pb.PrecompiledObject{
-						&preparedPrecompiledObjectGo,
-					},
+					&preparedPrecompiledObjectGo,
+				},
 				},
 			},
 		},

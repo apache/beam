@@ -324,7 +324,7 @@ public final class SnsIO {
 
     static class SnsWriterFn extends DoFn<PublishRequest, PublishResult> {
       @VisibleForTesting
-      static final String RETRY_ATTEMPT_LOG = "Error writing to SNS. Retry attempt[%d]";
+      static final String RETRY_ATTEMPT_LOG = "Error writing to SNS. Retry attempt[{}]";
 
       private transient FluentBackoff retryBackoff; // defaults to no retries
       private static final Logger LOG = LoggerFactory.getLogger(SnsWriterFn.class);
@@ -386,7 +386,7 @@ public final class SnsIO {
                   ex);
             } else {
               // Note: this used in test cases to verify behavior
-              LOG.warn(String.format(RETRY_ATTEMPT_LOG, attempt), ex);
+              LOG.warn(RETRY_ATTEMPT_LOG, attempt, ex);
             }
           }
         }
