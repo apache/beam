@@ -813,7 +813,6 @@ class BeamModulePlugin implements Plugin<Project> {
         provided
         compileOnly.extendsFrom(provided)
         runtimeOnly.extendsFrom(provided)
-        testCompileOnly.extendsFrom(provided)
       }
 
       // Configure the Java compiler source language and target compatibility levels. Also ensure that
