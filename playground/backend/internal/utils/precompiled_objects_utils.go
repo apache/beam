@@ -18,6 +18,8 @@ package utils
 import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/cloud_bucket"
+	"beam.apache.org/playground/backend/internal/logger"
+	"context"
 )
 
 // PutPrecompiledObjectsToCategory adds categories with precompiled objects to protobuf object
@@ -37,4 +39,55 @@ func PutPrecompiledObjectsToCategory(categoryName string, precompiledObjects *cl
 		})
 	}
 	sdkCategory.Categories = append(sdkCategory.Categories, &category)
+}
+
+// GetCatalogFromStorage returns the precompiled objects catalog from the cloud storage
+func GetCatalogFromStorage(ctx context.Context) ([]*pb.Categories, error) {
+	bucket := cloud_bucket.New()
+	sdkToCategories, err := bucket.GetPrecompiledObjects(ctx, pb.Sdk_SDK_UNSPECIFIED, "")
+	if err != nil {
+		logger.Errorf("GetPrecompiledObjects(): cloud storage error: %s", err.Error())
+		return nil, err
+	}
+	sdkCategories := make([]*pb.Categories, 0)
+	for sdkName, categories := range *sdkToCategories {
+		sdkCategory := pb.Categories{Sdk: pb.Sdk(pb.Sdk_value[sdkName]), Categories: make([]*pb.Categories_Category, 0)}
+		for categoryName, precompiledObjects := range categories {
+			PutPrecompiledObjectsToCategory(categoryName, &precompiledObjects, &sdkCategory)
+		}
+		sdkCategories = append(sdkCategories, &sdkCategory)
+	}
+	return sdkCategories, nil
+}
+
+// FilterCatalog returns the catalog filtered by sdk and categoryName
+func FilterCatalog(catalog []*pb.Categories, sdk pb.Sdk, categoryName string) []*pb.Categories {
+	var result []*pb.Categories
+	if sdk == pb.Sdk_SDK_UNSPECIFIED {
+		result = catalog
+	} else {
+		for _, categoriesSdk := range catalog {
+			if categoriesSdk.Sdk == sdk {
+				result = append(result, categoriesSdk)
+				break
+			}
+		}
+	}
+	if categoryName == "" {
+		return result
+	}
+	for _, categoriesSdk := range result {
+		foundCategory := false
+		for _, category := range categoriesSdk.Categories {
+			if category.CategoryName == categoryName {
+				categoriesSdk.Categories = []*pb.Categories_Category{category}
+				foundCategory = true
+				break
+			}
+		}
+		if !foundCategory {
+			categoriesSdk.Categories = []*pb.Categories_Category{}
+		}
+	}
+	return result
 }

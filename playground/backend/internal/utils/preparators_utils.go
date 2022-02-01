@@ -42,6 +42,8 @@ func GetPreparers(sdk pb.Sdk, filepath string, valResults *sync.Map) (*[]prepare
 		preparers.GetGoPreparers(builder, isUnitTest.(bool))
 	case pb.Sdk_SDK_PYTHON:
 		preparers.GetPythonPreparers(builder)
+	case pb.Sdk_SDK_SCIO:
+		preparers.GetScioPreparers(builder)
 	default:
 		return nil, fmt.Errorf("incorrect sdk: %s", sdk)
 	}

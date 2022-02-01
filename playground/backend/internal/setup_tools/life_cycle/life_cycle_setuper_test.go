@@ -33,7 +33,6 @@ const (
 	javaSourceFileExtension   = ".java"
 	javaCompiledFileExtension = ".class"
 	pipelinesFolder           = "executable_files"
-	logFileName               = "logs.log"
 )
 
 func TestSetup(t *testing.T) {

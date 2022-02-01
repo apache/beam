@@ -239,6 +239,9 @@ class StagerTest(unittest.TestCase):
         os.path.isfile(
             os.path.join(staging_dir, names.PICKLED_MAIN_SESSION_FILE)))
 
+  # (BEAM-13769): Remove the decorator once cloudpickle is default pickle
+  # library
+  @pytest.mark.skip
   def test_main_session_not_staged_when_using_cloudpickle(self):
     staging_dir = self.make_temp_dir()
     options = PipelineOptions()

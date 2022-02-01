@@ -107,7 +107,7 @@ func (ex *Executor) Run(ctx context.Context) *exec.Cmd {
 	if ex.runArgs.fileName != "" {
 		args = append(args, ex.runArgs.fileName)
 	}
-	if ex.runArgs.pipelineOptions[0] != "" {
+	if ex.runArgs.pipelineOptions != nil && ex.runArgs.pipelineOptions[0] != "" {
 		args = append(args, ex.runArgs.pipelineOptions...)
 	}
 	cmd := exec.CommandContext(ctx, ex.runArgs.commandName, args...)

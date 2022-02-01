@@ -1553,10 +1553,6 @@ public class SpannerIO {
 
         LOG.info("Partition metadata table that will be used is " + partitionMetadataTableName);
 
-        // TODO: fix the watermark of these functions and enable them
-        // impulseOut
-        //     .apply(Wait.on(results))
-        //     .apply(ParDo.of(new CleanUpReadChangeStreamDoFn(daoFactory)));
         return input
             .apply(Impulse.create())
             .apply("Initialize the connector", ParDo.of(initializeDoFn))
