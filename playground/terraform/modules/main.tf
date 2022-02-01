@@ -45,10 +45,10 @@ module "artifact_registry" {
 }
 
 module "memorystore" {
-  source                    = "./memorystore"
-  project_id                = var.project_id
-  beam_playground_terraform = var.terraform_bucket_name
-  depends_on                = [module.artifact_registry]
+  source                      = "./memorystore"
+  project_id                  = var.project_id
+  terraform_state_bucket_name = var.terraform_bucket_name
+  depends_on                  = [module.artifact_registry]
 }
 
 module "gke" {

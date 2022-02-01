@@ -26,8 +26,9 @@ variable "redis_version" {
   default     = "REDIS_6_X"
 }
 
-variable "beam_playground_terraform" {
-  default = "beam_playground_terraform"
+variable "terraform_state_bucket_name" {
+  description = "Bucket name for terraform state"
+  default     = "beam_playground_terraform"
 }
 
 variable "region" {

@@ -21,7 +21,7 @@
 data "terraform_remote_state" "remote_state_vpc" {
   backend = "gcs"
   config  = {
-    bucket = var.beam_playground_terraform
+    bucket = var.terraform_state_bucket_name
   }
 }
 
