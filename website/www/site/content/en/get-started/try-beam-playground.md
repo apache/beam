@@ -25,7 +25,7 @@ You can try an Apache Beam examples at
 
 ## Beam Playground WordCount Example
 
-{{< playground "SDK_JAVA/MinimalWordCount" >}}
+{{< playground "true" "SDK_JAVA/MinimalWordCount" "" "700px">}}
 
 ## How To Add New Examples
 
