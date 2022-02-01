@@ -20,7 +20,7 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams;
 import java.util.UUID;
 
 /**
- * This class generates an unique name for the partition metadata table, which is created when the
+ * This class generates a unique name for the partition metadata table, which is created when the
  * Connector is initialized.
  */
 public class NameGenerator {

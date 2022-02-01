@@ -354,7 +354,7 @@ class InterfaceTest(unittest.TestCase):
       # Note that we mistakenly reuse the "on_expiry_1" name; this is valid
       # syntactically in Python.
       @on_timer(EXPIRY_TIMER_2)
-      def on_expiry_1(self, buffer_state=DoFn.StateParam(BUFFER_STATE)):
+      def on_expiry_1(self, buffer_state=DoFn.StateParam(BUFFER_STATE)):  # pylint: disable=function-redefined
         yield 'expired2'
 
       # Use a stable string value for matching.

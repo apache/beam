@@ -129,13 +129,13 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Reading from Cloud Spanner</h3>
  *
- * <p>To read from Cloud Spanner, apply {@link SpannerIO.Read} transformation. It will return a
- * {@link PCollection} of {@link Struct Structs}, where each element represents an individual row
- * returned from the read operation. Both Query and Read APIs are supported. See more information
- * about <a href="https://cloud.google.com/spanner/docs/reads">reading from Cloud Spanner</a>
+ * <p>To read from Cloud Spanner, apply {@link Read} transformation. It will return a {@link
+ * PCollection} of {@link Struct Structs}, where each element represents an individual row returned
+ * from the read operation. Both Query and Read APIs are supported. See more information about <a
+ * href="https://cloud.google.com/spanner/docs/reads">reading from Cloud Spanner</a>
  *
- * <p>To execute a <strong>query</strong>, specify a {@link SpannerIO.Read#withQuery(Statement)} or
- * {@link SpannerIO.Read#withQuery(String)} during the construction of the transform.
+ * <p>To execute a <strong>query</strong>, specify a {@link Read#withQuery(Statement)} or {@link
+ * Read#withQuery(String)} during the construction of the transform.
  *
  * <pre>{@code
  * PCollection<Struct> rows = p.apply(
@@ -145,8 +145,8 @@ import org.slf4j.LoggerFactory;
  *         .withQuery("SELECT id, name, email FROM users"));
  * }</pre>
  *
- * <p>To use the Read API, specify a {@link SpannerIO.Read#withTable(String) table name} and a
- * {@link SpannerIO.Read#withColumns(List) list of columns}.
+ * <p>To use the Read API, specify a {@link Read#withTable(String) table name} and a {@link
+ * Read#withColumns(List) list of columns}.
  *
  * <pre>{@code
  * PCollection<Struct> rows = p.apply(
@@ -157,18 +157,18 @@ import org.slf4j.LoggerFactory;
  *        .withColumns("id", "name", "email"));
  * }</pre>
  *
- * <p>To optimally read using index, specify the index name using {@link SpannerIO.Read#withIndex}.
+ * <p>To optimally read using index, specify the index name using {@link Read#withIndex}.
  *
  * <p>The transform is guaranteed to be executed on a consistent snapshot of data, utilizing the
  * power of read only transactions. Staleness of data can be controlled using {@link
- * SpannerIO.Read#withTimestampBound} or {@link SpannerIO.Read#withTimestamp(Timestamp)} methods. <a
+ * Read#withTimestampBound} or {@link Read#withTimestamp(Timestamp)} methods. <a
  * href="https://cloud.google.com/spanner/docs/transactions">Read more</a> about transactions in
  * Cloud Spanner.
  *
  * <p>It is possible to read several {@link PCollection PCollections} within a single transaction.
  * Apply {@link SpannerIO#createTransaction()} transform, that lazily creates a transaction. The
  * result of this transformation can be passed to read operation using {@link
- * SpannerIO.Read#withTransaction(PCollectionView)}.
+ * Read#withTransaction(PCollectionView)}.
  *
  * <pre>{@code
  * SpannerConfig spannerConfig = ...
@@ -193,9 +193,8 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Writing to Cloud Spanner</h3>
  *
- * <p>The Cloud Spanner {@link SpannerIO.Write} transform writes to Cloud Spanner by executing a
- * collection of input row {@link Mutation Mutations}. The mutations are grouped into batches for
- * efficiency.
+ * <p>The Cloud Spanner {@link Write} transform writes to Cloud Spanner by executing a collection of
+ * input row {@link Mutation Mutations}. The mutations are grouped into batches for efficiency.
  *
  * <p>To configure the write transform, create an instance using {@link #write()} and then specify
  * the destination Cloud Spanner instance ({@link Write#withInstanceId(String)} and destination
@@ -213,10 +212,10 @@ import org.slf4j.LoggerFactory;
  *
  * <p>The {@link SpannerWriteResult SpannerWriteResult} object contains the results of the
  * transform, including a {@link PCollection} of MutationGroups that failed to write, and a {@link
- * PCollection} that can be used in batch pipelines as a completion signal to {@link
- * org.apache.beam.sdk.transforms.Wait Wait.OnSignal} to indicate when all input has been written.
- * Note that in streaming pipelines, this signal will never be triggered as the input is unbounded
- * and this {@link PCollection} is using the {@link GlobalWindow}.
+ * PCollection} that can be used in batch pipelines as a completion signal to {@link Wait
+ * Wait.OnSignal} to indicate when all input has been written. Note that in streaming pipelines,
+ * this signal will never be triggered as the input is unbounded and this {@link PCollection} is
+ * using the {@link GlobalWindow}.
  *
  * <h3>Batching and Grouping</h3>
  *
@@ -347,8 +346,8 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Streaming Support</h3>
  *
- * <p>{@link SpannerIO.Write} can be used as a streaming sink, however as with batch mode note that
- * the write order of individual {@link Mutation}/{@link MutationGroup} objects is not guaranteed.
+ * <p>{@link Write} can be used as a streaming sink, however as with batch mode note that the write
+ * order of individual {@link Mutation}/{@link MutationGroup} objects is not guaranteed.
  */
 @Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
@@ -1175,16 +1174,16 @@ public class SpannerIO {
 
   static class WriteRows extends PTransform<PCollection<Row>, PDone> {
     private final Write write;
-    private final Mutation.Op operation;
+    private final Op operation;
     private final String table;
 
-    private WriteRows(Write write, Mutation.Op operation, String table) {
+    private WriteRows(Write write, Op operation, String table) {
       this.write = write;
       this.operation = operation;
       this.table = table;
     }
 
-    public static WriteRows of(Write write, Mutation.Op operation, String table) {
+    public static WriteRows of(Write write, Op operation, String table) {
       return new WriteRows(write, operation, table);
     }
 
@@ -1812,7 +1811,7 @@ public class SpannerIO {
       this.maxNumRows = maxNumRows;
     }
 
-    @DoFn.ProcessElement
+    @ProcessElement
     public void processElement(ProcessContext c) {
       MutationGroup mg = c.element();
       if (mg.primary().getOperation() == Op.DELETE && !isPointDelete(mg.primary())) {

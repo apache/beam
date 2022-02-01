@@ -66,8 +66,7 @@ public class PostProcessingMetricsDoFn extends DoFn<DataChangeRecord, DataChange
    * After measurement the record is re-emitted to the next stage.
    *
    * @param dataChangeRecord the record to gather metrics for
-   * @param receiver the output receiver of the {@link
-   *     org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.PostProcessingMetricsDoFn} SDF
+   * @param receiver the output receiver of the {@link PostProcessingMetricsDoFn} SDF
    */
   @ProcessElement
   public void processElement(

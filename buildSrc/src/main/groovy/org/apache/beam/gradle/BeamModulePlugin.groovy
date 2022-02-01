@@ -866,6 +866,20 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
 
+      if (project.hasProperty("compileAndRunTestsWithJava17")) {
+        def java17Home = project.findProperty("java17Home")
+        project.tasks.compileTestJava {
+          options.fork = true
+          options.forkOptions.javaHome = java17Home as File
+          options.compilerArgs += ['-Xlint:-path']
+          options.compilerArgs.addAll(['--release', '17'])
+        }
+        project.tasks.withType(Test) {
+          useJUnit()
+          executable = "${java17Home}/bin/java"
+        }
+      }
+
       // Configure the default test tasks set of tests executed
       // to match the equivalent set that is executed by the maven-surefire-plugin.
       // See http://maven.apache.org/components/surefire/maven-surefire-plugin/test-mojo.html
@@ -1177,13 +1191,6 @@ class BeamModulePlugin implements Plugin<Project> {
         options.errorprone.errorproneArgs.add("-Xep:UnrecognisedJavadocTag:OFF")
         options.errorprone.errorproneArgs.add("-Xep:UnsafeReflectiveConstructionCast:OFF")
         options.errorprone.errorproneArgs.add("-Xep:UseCorrectAssertInTests:OFF")
-
-        // These checks raise NoSuchMethodError for some projects that have
-        // a transitive dependency on older guava
-        // See https://github.com/google/error-prone/issues/2745
-        options.errorprone.errorproneArgs.add("-Xep:ArgumentSelectionDefectChecker:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:AssertEqualsArgumentOrderChecker:OFF")
-        options.errorprone.errorproneArgs.add("-Xep:AutoValueConstructorOrderChecker:OFF")
 
         // Sometimes a static logger is preferred, which is the convention
         // currently used in beam. See docs:
@@ -2216,6 +2223,8 @@ class BeamModulePlugin implements Plugin<Project> {
         javaContainerSuffix = 'java8'
       } else if (JavaVersion.current() == JavaVersion.VERSION_11) {
         javaContainerSuffix = 'java11'
+      } else if (JavaVersion.current() == JavaVersion.VERSION_17) {
+        javaContainerSuffix = 'java17'
       } else {
         throw new GradleException("unsupported java version.")
       }
