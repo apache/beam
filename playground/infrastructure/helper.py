@@ -64,6 +64,7 @@ class Example:
   type: PrecompiledObjectType = PRECOMPILED_OBJECT_TYPE_UNSPECIFIED
   pipeline_id: str = ""
   output: str = ""
+  graph: str = ""
 
 
 @dataclass

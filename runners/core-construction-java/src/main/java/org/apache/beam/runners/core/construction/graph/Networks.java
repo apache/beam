@@ -27,6 +27,7 @@ import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -276,7 +277,7 @@ public class Networks {
   public static <NodeT, EdgeT> String toDot(Network<NodeT, EdgeT> network) {
     StringBuilder builder = new StringBuilder();
     builder.append(String.format("digraph network {%n"));
-    Map<NodeT, String> nodeName = Maps.newIdentityHashMap();
+    IdentityHashMap<NodeT, String> nodeName = Maps.newIdentityHashMap();
     network.nodes().forEach(node -> nodeName.put(node, "n" + nodeName.size()));
     for (Entry<NodeT, String> nodeEntry : nodeName.entrySet()) {
       builder.append(

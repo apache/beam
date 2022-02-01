@@ -11,9 +11,9 @@ limitations under the License. See accompanying LICENSE file.
 */}}
 
 <iframe
-    src="https://frontend-beta-dot-apache-beam-testing.appspot.com/embedded?example={{ .Get 0 }}"
+    src="https://frontend-beta-dot-apache-beam-testing.appspot.com/embedded?enabled={{ .Get 0 }}&example={{ .Get 1 }}&code={{ .Get 2 }}"
     width="100%"
-    height="350px"
+    height="{{ .Get 3 }}"
     class="code-snippet playground"
     allow="clipboard-write">
 </iframe>
