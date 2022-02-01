@@ -30,8 +30,6 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Objects;
-import org.apache.beam.sdk.io.aws2.options.S3Options;
-import org.apache.beam.sdk.io.aws2.options.S3Options.S3UploadBufferSizeBytesFactory;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.sync.RequestBody;
@@ -52,7 +50,7 @@ import software.amazon.awssdk.services.s3.model.UploadPartResponse;
 class S3WritableByteChannel implements WritableByteChannel {
 
   private final S3Client s3Client;
-  private final S3Options options;
+  private final S3FileSystemConfiguration config;
   private final S3ResourceId path;
 
   private final String uploadId;
@@ -64,40 +62,41 @@ class S3WritableByteChannel implements WritableByteChannel {
   private final MessageDigest md5 = md5();
   private final ArrayList<CompletedPart> completedParts;
 
-  S3WritableByteChannel(S3Client s3, S3ResourceId path, String contentType, S3Options options)
+  S3WritableByteChannel(
+      S3Client s3, S3ResourceId path, String contentType, S3FileSystemConfiguration config)
       throws IOException {
     this.s3Client = checkNotNull(s3, "s3Client");
-    this.options = checkNotNull(options);
+    this.config = checkNotNull(config);
     this.path = checkNotNull(path, "path");
 
     String awsKms = ServerSideEncryption.AWS_KMS.toString();
     checkArgument(
         atMostOne(
-            options.getSSECustomerKey().getKey() != null,
-            (Objects.equals(options.getSSEAlgorithm(), awsKms) || options.getSSEKMSKeyId() != null),
-            (options.getSSEAlgorithm() != null && !options.getSSEAlgorithm().equals(awsKms))),
+            config.getSSECustomerKey().getKey() != null,
+            (Objects.equals(config.getSSEAlgorithm(), awsKms) || config.getSSEKMSKeyId() != null),
+            (config.getSSEAlgorithm() != null && !config.getSSEAlgorithm().equals(awsKms))),
         "Either SSECustomerKey (SSE-C) or SSEAlgorithm (SSE-S3)"
             + " or SSEAwsKeyManagementParams (SSE-KMS) must not be set at the same time.");
     // Amazon S3 API docs: Each part must be at least 5 MB in size, except the last part.
     checkArgument(
-        options.getS3UploadBufferSizeBytes()
-            >= S3UploadBufferSizeBytesFactory.MINIMUM_UPLOAD_BUFFER_SIZE_BYTES,
+        config.getS3UploadBufferSizeBytes()
+            >= S3FileSystemConfiguration.MINIMUM_UPLOAD_BUFFER_SIZE_BYTES,
         "S3UploadBufferSizeBytes must be at least %s bytes",
-        S3UploadBufferSizeBytesFactory.MINIMUM_UPLOAD_BUFFER_SIZE_BYTES);
-    this.uploadBuffer = ByteBuffer.allocate(options.getS3UploadBufferSizeBytes());
+        S3FileSystemConfiguration.MINIMUM_UPLOAD_BUFFER_SIZE_BYTES);
+    this.uploadBuffer = ByteBuffer.allocate(config.getS3UploadBufferSizeBytes());
 
     completedParts = new ArrayList<>();
     CreateMultipartUploadRequest createMultipartUploadRequest =
         CreateMultipartUploadRequest.builder()
             .bucket(path.getBucket())
             .key(path.getKey())
-            .storageClass(options.getS3StorageClass())
+            .storageClass(config.getS3StorageClass())
             .contentType(contentType)
-            .serverSideEncryption(options.getSSEAlgorithm())
-            .sseCustomerKey(options.getSSECustomerKey().getKey())
-            .sseCustomerAlgorithm(options.getSSECustomerKey().getAlgorithm())
-            .ssekmsKeyId(options.getSSEKMSKeyId())
-            .sseCustomerKeyMD5(options.getSSECustomerKey().getMD5())
+            .serverSideEncryption(config.getSSEAlgorithm())
+            .sseCustomerKey(config.getSSECustomerKey().getKey())
+            .sseCustomerAlgorithm(config.getSSECustomerKey().getAlgorithm())
+            .ssekmsKeyId(config.getSSEKMSKeyId())
+            .sseCustomerKeyMD5(config.getSSECustomerKey().getMD5())
             .build();
     CreateMultipartUploadResponse response;
     try {
@@ -164,9 +163,9 @@ class S3WritableByteChannel implements WritableByteChannel {
             .uploadId(uploadId)
             .partNumber(partNumber++)
             .contentLength((long) uploadBuffer.limit())
-            .sseCustomerKey(options.getSSECustomerKey().getKey())
-            .sseCustomerAlgorithm(options.getSSECustomerKey().getAlgorithm())
-            .sseCustomerKeyMD5(options.getSSECustomerKey().getMD5())
+            .sseCustomerKey(config.getSSECustomerKey().getKey())
+            .sseCustomerAlgorithm(config.getSSECustomerKey().getAlgorithm())
+            .sseCustomerKeyMD5(config.getSSECustomerKey().getMD5())
             .contentMD5(Base64.getEncoder().encodeToString(md5.digest()))
             .build();
 

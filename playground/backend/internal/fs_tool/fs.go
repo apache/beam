@@ -40,6 +40,7 @@ type LifeCyclePaths struct {
 	AbsoluteExecutableFilePath       string // /path/to/workingDir/pipelinesFolder/{pipelineId}/bin/{pipelineId}.{executableFileExtension}
 	AbsoluteBaseFolderPath           string // /path/to/workingDir/pipelinesFolder/{pipelineId}
 	AbsoluteLogFilePath              string // /path/to/workingDir/pipelinesFolder/{pipelineId}/logs.log
+	ProjectDir                       string // /path/to/workingDir/
 	ExecutableName                   func(string) (string, error)
 }
 
@@ -58,6 +59,8 @@ func NewLifeCycle(sdk pb.Sdk, pipelineId uuid.UUID, pipelinesFolder string) (*Li
 		return newGoLifeCycle(pipelineId, pipelinesFolder), nil
 	case pb.Sdk_SDK_PYTHON:
 		return newPythonLifeCycle(pipelineId, pipelinesFolder), nil
+	case pb.Sdk_SDK_SCIO:
+		return newScioLifeCycle(pipelineId, pipelinesFolder), nil
 	default:
 		return nil, fmt.Errorf("%s isn't supported now", sdk)
 	}

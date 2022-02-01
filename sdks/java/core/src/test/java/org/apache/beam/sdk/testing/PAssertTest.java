@@ -250,7 +250,8 @@ public class PAssertTest implements Serializable {
    */
   @SuppressWarnings({
     "deprecation", // test of deprecated function
-    "EqualsIncompatibleType"
+    "EqualsIncompatibleType",
+    "ReturnValueIgnored"
   })
   @Test
   public void testPAssertEqualsSingletonUnsupported() throws Exception {
@@ -267,7 +268,8 @@ public class PAssertTest implements Serializable {
    */
   @SuppressWarnings({
     "deprecation", // test of deprecated function
-    "EqualsIncompatibleType"
+    "EqualsIncompatibleType",
+    "ReturnValueIgnored"
   })
   @Test
   public void testPAssertEqualsIterableUnsupported() throws Exception {
@@ -282,7 +284,10 @@ public class PAssertTest implements Serializable {
    * Test that {@code PAssert.thatSingleton().hashCode()} is unsupported. See {@link
    * #testPAssertEqualsSingletonUnsupported}.
    */
-  @SuppressWarnings("deprecation") // test of deprecated function
+  @SuppressWarnings({
+    "deprecation", // test of deprecated function
+    "ReturnValueIgnored",
+  })
   @Test
   public void testPAssertHashCodeSingletonUnsupported() throws Exception {
     thrown.expect(UnsupportedOperationException.class);
@@ -296,7 +301,10 @@ public class PAssertTest implements Serializable {
    * Test that {@code PAssert.thatIterable().hashCode()} is unsupported. See {@link
    * #testPAssertEqualsIterableUnsupported}.
    */
-  @SuppressWarnings("deprecation") // test of deprecated function
+  @SuppressWarnings({
+    "deprecation", // test of deprecated function
+    "ReturnValueIgnored" // verify exception is thrown
+  })
   @Test
   public void testPAssertHashCodeIterableUnsupported() throws Exception {
     thrown.expect(UnsupportedOperationException.class);
