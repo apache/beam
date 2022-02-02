@@ -2592,7 +2592,7 @@ public class KafkaIO {
   @AutoValue.CopyAnnotations
   @SuppressWarnings({"rawtypes"})
   public abstract static class WriteRecordsWithOutput<K, V>
-      extends PTransform<PCollection<ProducerRecord<K, V>>, PDone> {
+      extends PTransform<PCollection<ProducerRecord<K, V>>, PCollection<ProducerRecord<K, V>>> {
     // TODO (Version 3.0): Create the only one generic {@code Write<T>} transform which will be
     // parameterized depending on type of input collection (KV, ProducerRecords, etc). In such case,
     // we shouldn't have to duplicate the same API for similar transforms like {@link Write} and
@@ -2801,7 +2801,7 @@ public class KafkaIO {
 
     // TODO: Set KafkaWriteREsult
     @Override
-    public PDone expand(PCollection<ProducerRecord<K, V>> input) {
+    public PCollection<ProducerRecord<K, V>> expand(PCollection<ProducerRecord<K, V>> input) {
       checkArgument(
           getProducerConfig().get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG) != null,
           "withBootstrapServers() is required");
@@ -2835,11 +2835,24 @@ public class KafkaIO {
         //       transform initializes while processing the output. It might be better to
         //       check here to catch common mistake.
 
-        input.apply(new KafkaExactlyOnceSink<>(this));
+        // TODO: Correct placeholder
+        return input
+            .apply(new KafkaExactlyOnceSink<>(this))
+            .apply(
+                "PlaceHolder",
+                ParDo.of(
+                    new DoFn<Void, ProducerRecord<K, V>>() {
+                      @ProcessElement
+                      public void processElement(ProcessContext ctx) {
+                        ProducerRecord<K, V> resultRecord =
+                            new ProducerRecord<K, V>("null", (V) "null");
+                        ctx.output(resultRecord);
+                      }
+                    }))
+            .setCoder(input.getCoder());
       } else {
-        input.apply(ParDo.of(new KafkaWriter<>(this)));
+        return input.apply(ParDo.of(new KafkaWriter<>(this)));
       }
-      return PDone.in(input.getPipeline());
     }
 
     @Override

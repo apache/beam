@@ -40,7 +40,7 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
-class KafkaWriter<K, V> extends DoFn<ProducerRecord<K, V>, Void> {
+class KafkaWriter<K, V> extends DoFn<ProducerRecord<K, V>, ProducerRecord<K, V>> {
 
   @Setup
   public void setup() {
@@ -79,6 +79,7 @@ class KafkaWriter<K, V> extends DoFn<ProducerRecord<K, V>, Void> {
         new SendCallback());
 
     elementsWritten.inc();
+    ctx.output(record);
   }
 
   @FinishBundle
