@@ -74,7 +74,6 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableRefToJson;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableSchemaToJsonSchema;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableSpecToTableRef;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TimePartitioningToJson;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.JobType;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
@@ -91,6 +90,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
+import org.apache.beam.sdk.schemas.ProjectionProducer;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -117,6 +118,7 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -730,7 +732,8 @@ public class BigQueryIO {
 
   /** Implementation of {@link BigQueryIO#read(SerializableFunction)}. */
   @AutoValue
-  public abstract static class TypedRead<T> extends PTransform<PBegin, PCollection<T>> {
+  public abstract static class TypedRead<T> extends PTransform<PBegin, PCollection<T>>
+      implements ProjectionProducer<PTransform<PBegin, PCollection<T>>> {
     /** Determines the method used to read data from BigQuery. */
     public enum Method {
       /** The default behavior if no method is explicitly set. Currently {@link #EXPORT}. */
@@ -1618,6 +1621,27 @@ public class BigQueryIO {
 
     public TypedRead<T> useAvroLogicalTypes() {
       return toBuilder().setUseAvroLogicalTypes(true).build();
+    }
+
+    @Override
+    public boolean supportsProjectionPushdown() {
+      return Method.DIRECT_READ.equals(getMethod());
+    }
+
+    @Override
+    public PTransform<PBegin, PCollection<T>> actuateProjectionPushdown(
+        Map<TupleTag<?>, FieldAccessDescriptor> outputFields) {
+      Preconditions.checkArgument(supportsProjectionPushdown());
+      FieldAccessDescriptor fieldAccessDescriptor = outputFields.get(new TupleTag<>("output"));
+      org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull(
+          fieldAccessDescriptor, "Expected pushdown on the main output (tagged 'output')");
+      Preconditions.checkArgument(
+          outputFields.size() == 1,
+          "Expected only to pushdown on the main output (tagged 'output'). Requested tags: %s",
+          outputFields.keySet());
+      ImmutableList<String> fields =
+          ImmutableList.copyOf(fieldAccessDescriptor.fieldNamesAccessed());
+      return withSelectedFields(fields);
     }
   }
 
