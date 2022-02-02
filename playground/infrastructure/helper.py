@@ -246,7 +246,11 @@ def _get_example(filepath: str, filename: str, tag: ExampleTag) -> Example:
     content = parsed_file.read()
   content = content.replace(tag.tag_as_string, "")
   root_dir = os.getenv("BEAM_ROOT_DIR", "")
-  link = "{}{}".format(Config.LINK_PREFIX, (filepath.replace(root_dir, "", 1)))
+  file_path_without_root = filepath.replace(root_dir, "", 1)
+  if file_path_without_root.startswith("/"):
+    link = "{}{}".format(Config.LINK_PREFIX, file_path_without_root)
+  else:
+    link = "{}/{}".format(Config.LINK_PREFIX, file_path_without_root)
 
   return Example(
       name=name,

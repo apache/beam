@@ -41,7 +41,7 @@ const (
 	goExtension      = "go"
 	pyExtension      = "py"
 	scioExtension    = "scala"
-	separatorsNumber = 2
+	separatorsNumber = 3
 )
 
 type ObjectInfo struct {
@@ -63,28 +63,44 @@ type SdkToCategories map[string]CategoryToPrecompiledObjects
 // the bucket where examples are stored would be public,
 // and it has a specific structure of files, namely:
 // SDK_JAVA/
+// ----PRECOMPILED_OBJECT_TYPE_EXAMPLE/
 // --------MinimalWordCount/
 // ----------- MinimalWordCount.java
 // ----------- MinimalWordCount.output
+// ----------- MinimalWordCount.log
+// ----------- MinimalWordCount.graph
 // ----------- meta.info
 // --------JoinExamples/
 // ----------- JoinExamples.java
 // ----------- JoinExamples.output
+// ----------- JoinExamples.log
+// ----------- JoinExamples.graph
 // ----------- meta.info
-// ----  ...
+// ----PRECOMPILED_OBJECT_TYPE_KATA/
+// --------...
+// ----...
 // SDK_GO/
+// ----PRECOMPILED_OBJECT_TYPE_EXAMPLE/
 // --------MinimalWordCount/
 // ----------- MinimalWordCount.go
 // ----------- MinimalWordCount.output
+// ----------- MinimalWordCount.log
+// ----------- MinimalWordCount.graph
 // ----------- meta.info
 // --------PingPong/
-// ----  ...
-// ...
+// ----PRECOMPILED_OBJECT_TYPE_KATA/
+// --------...
+// ----...
 // meta.info is a json file that has the following fields:
 // {
+//  "name": "name of the example",
 //	"description": "Description of an example",
-//	"type": 1, ## 1 - Example, 2 - Kata, 3 - Unit-test
+//  "multifile": false
 //	"categories": ["Common", "IO"]
+//  "pipeline_options": "--key1 value1",
+//  "default_example": false,
+//  "context_line": 1,
+//  "link": "https://github.com/apache/beam/blob/master/path/to/example"
 // }
 //
 type CloudStorage struct {
@@ -164,6 +180,10 @@ func (cd *CloudStorage) GetPrecompiledObjects(ctx context.Context, targetSdk pb.
 			logger.Errorf("json.Unmarshal: %v", err.Error())
 			continue
 		}
+
+		folderName := strings.Split(objectDir, string(os.PathSeparator))[1]
+		precompiledObject.Type = getObjectTypeByFolderName(folderName)
+
 		for _, objectCategory := range precompiledObject.Categories {
 			if targetCategory == "" || targetCategory == objectCategory { //take only requested categories
 				appendPrecompiledObject(precompiledObject, &precompiledObjects, objectDir, objectCategory)
@@ -266,6 +286,20 @@ func getFileExtensionBySdk(precompiledObjectPath string) (string, error) {
 	return extension, nil
 }
 
+// getObjectTypeByFolderName returns pb.PrecompiledObjectType by folder name
+func getObjectTypeByFolderName(folderName string) pb.PrecompiledObjectType {
+	switch folderName {
+	case "PRECOMPILED_OBJECT_TYPE_EXAMPLE":
+		return pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE
+	case "PRECOMPILED_OBJECT_TYPE_KATA":
+		return pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_KATA
+	case "PRECOMPILED_OBJECT_TYPE_UNIT_TEST":
+		return pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_UNIT_TEST
+	default:
+		return pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_UNSPECIFIED
+	}
+}
+
 // getFullFilePath get full path to the precompiled object file
 func getFullFilePath(objectDir string, extension string) string {
 	precompiledObjectName := filepath.Base(objectDir) //the base of the object's directory matches the name of the file
@@ -274,7 +308,7 @@ func getFullFilePath(objectDir string, extension string) string {
 	return filePath
 }
 
-// isPathToPrecompiledObjectFile is it a path where precompiled object is stored (i.e. SDK/ObjectName/ObjectCode.sdkExtension)
+// isPathToPrecompiledObjectFile is it a path where precompiled object is stored (i.e. SDK/ObjectType/ObjectName/ObjectCode.sdkExtension)
 func isPathToPrecompiledObjectFile(path string) bool {
 	return strings.Count(path, string(os.PathSeparator)) == separatorsNumber && !isDir(path)
 }
