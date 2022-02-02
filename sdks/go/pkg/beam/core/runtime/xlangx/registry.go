@@ -220,11 +220,7 @@ func (r *registry) getHandlerFunc(urn, expansionAddr string) (HandlerFunc, strin
 	// By the time this is called, we want *some* kind of HandlerFunc at all,
 	// So first we check for the hard override.
 	ns, config := parseAddr(expansionAddr)
-	if ns == autoJavaNamespace {
-		// Leave expansionAddr unmodified so the autoNamespace keyword sticks.
-		// We strip it manually in the HandlerFunc.
-		return QueryAutomatedExpansionService, expansionAddr
-	} else if ns == hardOverrideNamespace {
+	if ns == hardOverrideNamespace {
 		// We have the override namespace and config we must use, so skip the urn step.
 		expansionAddr = config // The expansionAddr becomes the full config, in case of service.
 		ns, config = parseAddr(config)
@@ -233,6 +229,10 @@ func (r *registry) getHandlerFunc(urn, expansionAddr string) (HandlerFunc, strin
 		// If there is no hard override, check the urn overrides.
 		expansionAddr = addr
 		ns, config = parseAddr(addr)
+	} else if ns == autoJavaNamespace {
+		// Leave expansionAddr unmodified so the autoNamespace keyword sticks.
+		// We strip it manually in the HandlerFunc.
+		return QueryAutomatedExpansionService, expansionAddr
 	}
 
 	// Now that overrides have been handled, we can look up if there's a handler, and return that.
@@ -248,7 +248,7 @@ const (
 	// Separator is the canonical separator between a namespace and optional configuration.
 	Separator             = ":"
 	hardOverrideNamespace = "hardoverride"
-	autoJavaNamespace         = "autojava"
+	autoJavaNamespace     = "autojava"
 )
 
 // Require takes an expansionAddr and requires cross language expansion
@@ -276,7 +276,7 @@ func UseAutomatedJavaExpansionService(gradleTarget string) string {
 // restricted namespaces to prevent some awkward edge cases.
 var restricted = map[string]struct{}{
 	hardOverrideNamespace: {}, // Special handler for overriding.
-	autoJavaNamespace:         {}, // Special handler for automated Java expansion services.
+	autoJavaNamespace:     {}, // Special handler for automated Java expansion services.
 	"localhost":           {},
 	"http":                {},
 	"https":               {},
