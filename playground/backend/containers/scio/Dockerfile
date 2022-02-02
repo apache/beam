@@ -46,6 +46,7 @@ COPY --from=build /go/bin/server_scio_backend /opt/playground/backend/
 COPY --from=build /go/src/playground/backend/configs /opt/playground/backend/configs/
 COPY --from=build /go/src/playground/backend/logging.properties /opt/playground/backend/
 COPY --from=build /go/src/playground/backend/new_scio_project.sh /opt/playground/backend/
+COPY --from=build /go/src/playground/backend/ExampleData.scala /opt/playground/backend/
 
 # Install sbt
 RUN echo "deb https://repo.scala-sbt.org/scalasbt/debian all main" | tee /etc/apt/sources.list.d/sbt.list &&\
@@ -66,4 +67,4 @@ COPY allow_list.py /opt/mitmproxy/
 ENV HTTP_PROXY="http://127.0.0.1:8081"
 ENV HTTPS_PROXY="http://127.0.0.1:8081"
 
-ENTRYPOINT ["/opt/playground/backend/server_scio_backend"]
+ENTRYPOINT ["/entrypoint.sh"]

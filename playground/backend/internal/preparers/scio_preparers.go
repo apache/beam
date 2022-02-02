@@ -17,7 +17,8 @@ package preparers
 
 const (
 	scioPublicClassNamePattern = "object (.*?) [{]"
-	scioPackagePattern         = `^package [\w]+`
+	scioPackagePattern         = `^package .*$`
+	scioExampleImport          = `^import com.spotify.scio.examples.*$`
 )
 
 //ScioPreparersBuilder facet of PreparersBuilder
@@ -40,8 +41,8 @@ func (builder *ScioPreparersBuilder) WithFileNameChanger() *ScioPreparersBuilder
 	return builder
 }
 
-//WithPackageRemover adds preparer to remove package from the code
-func (builder *ScioPreparersBuilder) WithPackageRemover() *ScioPreparersBuilder {
+//WithPackagesRemover adds preparer to remove package from the code
+func (builder *ScioPreparersBuilder) WithPackagesRemover() *ScioPreparersBuilder {
 	removePackagePreparer := Preparer{
 		Prepare: replace,
 		Args:    []interface{}{builder.filePath, scioPackagePattern, ""},
@@ -50,9 +51,22 @@ func (builder *ScioPreparersBuilder) WithPackageRemover() *ScioPreparersBuilder 
 	return builder
 }
 
+//WithImportRemover adds preparer to remove examples import from the code
+func (builder *ScioPreparersBuilder) WithImportRemover() *ScioPreparersBuilder {
+	removeImportPreparer := Preparer{
+		Prepare: replace,
+		Args:    []interface{}{builder.filePath, scioExampleImport, ""},
+	}
+	builder.AddPreparer(removeImportPreparer)
+	return builder
+}
+
 // GetScioPreparers returns preparation methods that should be applied to Scio code
 func GetScioPreparers(builder *PreparersBuilder) {
-	builder.ScioPreparers().WithPackageRemover().WithFileNameChanger()
+	builder.ScioPreparers().
+		WithPackagesRemover().
+		WithImportRemover().
+		WithFileNameChanger()
 }
 
 func changeScioFileName(args ...interface{}) error {

@@ -35,12 +35,13 @@ const (
 	javaLogFilePlaceholder = "{logFilePath}"
 	goModFileName          = "go.mod"
 	goSumFileName          = "go.sum"
-	scioProjectName        = "scioproject"
-	projectPath            = "scioproject/src/main/scala/scioproject"
+	scioProjectName        = "y"
+	projectPath            = scioProjectName + "/src/main/scala/" + scioProjectName
 	logFileName            = "logs.log"
 	defaultExampleInSbt    = "WordCount.scala"
 	shCmd                  = "sh"
 	scioProject            = "new_scio_project.sh"
+	scioCommonConstants    = "ExampleData.scala"
 )
 
 // Setup returns fs_tool.LifeCycle.
@@ -173,6 +174,10 @@ func prepareSbtFiles(lc *fs_tool.LifeCycle, pipelineFolder string, workingDir st
 	executableName := lc.Paths.ExecutableName
 
 	_, err = exec.Command("rm", filepath.Join(absFileFolderPath, defaultExampleInSbt)).Output()
+	if err != nil {
+		return nil, err
+	}
+	_, err = exec.Command("cp", filepath.Join(workingDir, scioCommonConstants), absFileFolderPath).Output()
 	if err != nil {
 		return nil, err
 	}
