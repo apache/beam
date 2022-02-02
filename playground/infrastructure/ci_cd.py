@@ -84,11 +84,9 @@ def _run_ci_cd(step: config.Config.CI_CD_LITERAL, sdk: Sdk):
   logging.info("Number of found Playground examples: %s", len(examples))
 
   if step == config.Config.CI_STEP_NAME:
-    single_file_examples = [example for example in examples
-                            if example.tag.multifile is False]
     logging.info(
         "Start of verification only single_file Playground examples ...")
-    _ci_step(examples=single_file_examples)
+    _ci_step(examples=examples)
     logging.info("Finish of verification single_file Playground examples")
   if step == config.Config.CD_STEP_NAME:
     logging.info("Start of storing Playground examples ...")
