@@ -83,6 +83,8 @@ var portableFilters = []string{
 	"TestTrigger.*",
 	// TODO(BEAM-12797): Python portable runner times out on Kafka reads.
 	"TestKafkaIO.*",
+	// TODO(BEAM-13778) needs a schemaio expansion service address flag
+	"TestJDBCIO_BasicReadWrite",
 }
 
 var flinkFilters = []string{
@@ -94,6 +96,8 @@ var flinkFilters = []string{
 	"TestTestStream.*Sequence.*",
 	// Triggers are not yet supported
 	"TestTrigger.*",
+	// TODO(BEAM-13778) needs a schemaio expansion service address flag
+	"TestJDBCIO_BasicReadWrite",
 }
 
 var samzaFilters = []string{
@@ -106,6 +110,8 @@ var samzaFilters = []string{
 	"TestTrigger.*",
 	// TODO(BEAM-13006): Samza doesn't yet support post job metrics, used by WordCount
 	"TestWordCount.*",
+	// TODO(BEAM-13778) needs a schemaio expansion service address flag
+	"TestJDBCIO_BasicReadWrite",
 }
 
 var sparkFilters = []string{
@@ -117,6 +123,8 @@ var sparkFilters = []string{
 	"TestTestStream.*",
 	// The trigger tests uses TestStream
 	"TestTrigger.*",
+	// TODO(BEAM-13778) needs a schemaio expansion service address flag
+	"TestJDBCIO_BasicReadWrite",
 }
 
 var dataflowFilters = []string{
