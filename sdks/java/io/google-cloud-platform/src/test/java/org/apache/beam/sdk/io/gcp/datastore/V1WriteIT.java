@@ -156,7 +156,7 @@ public class V1WriteIT {
               }
             });
 
-    assertEquals(6, timesCommitted.get());
+    assertEquals(7, timesCommitted.get());
   }
 
   /**
