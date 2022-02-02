@@ -79,7 +79,8 @@ public class BeamFnDataOutboundAggregatorTest {
                 .build());
 
     // Test that nothing is emitted till the default buffer size is surpassed.
-    FnDataReceiver<byte[]> dataReceiver = aggregator.registerOutputLocation(endpoint, CODER);
+    FnDataReceiver<byte[]> dataReceiver = registerOutputLocation(aggregator, endpoint, CODER);
+    aggregator.startFlushThread();
     dataReceiver.accept(new byte[BeamFnDataOutboundAggregator.DEFAULT_BUFFER_LIMIT_BYTES - 50]);
     assertThat(values, empty());
 
@@ -126,7 +127,8 @@ public class BeamFnDataOutboundAggregatorTest {
                 .withOnCompleted(() -> onCompletedWasCalled.set(true))
                 .build());
     // Test that nothing is emitted till the default buffer size is surpassed.
-    FnDataReceiver<byte[]> dataReceiver = aggregator.registerOutputLocation(endpoint, CODER);
+    FnDataReceiver<byte[]> dataReceiver = registerOutputLocation(aggregator, endpoint, CODER);
+    aggregator.startFlushThread();
     dataReceiver.accept(new byte[51]);
     assertThat(values, empty());
 
@@ -178,7 +180,8 @@ public class BeamFnDataOutboundAggregatorTest {
                 .build());
 
     // Test that it emits when time passed the time limit
-    FnDataReceiver<byte[]> dataReceiver = aggregator.registerOutputLocation(endpoint, CODER);
+    FnDataReceiver<byte[]> dataReceiver = registerOutputLocation(aggregator, endpoint, CODER);
+    aggregator.startFlushThread();
     dataReceiver.accept(new byte[1]);
     waitForFlush.await(); // wait the flush thread to flush the buffer
     assertEquals(messageWithData(new byte[1]), values.get(0));
@@ -202,7 +205,8 @@ public class BeamFnDataOutboundAggregatorTest {
                 .build());
 
     // Test that it emits when time passed the time limit
-    FnDataReceiver<byte[]> dataReceiver = aggregator.registerOutputLocation(endpoint, CODER);
+    FnDataReceiver<byte[]> dataReceiver = registerOutputLocation(aggregator, endpoint, CODER);
+    aggregator.startFlushThread();
     dataReceiver.accept(new byte[1]);
     // wait the flush thread to flush the buffer
     while (!aggregator.flushFuture.isDone()) {
@@ -227,7 +231,8 @@ public class BeamFnDataOutboundAggregatorTest {
                           throw new RuntimeException("");
                         })
                 .build());
-    dataReceiver = aggregator.registerOutputLocation(endpoint, CODER);
+    dataReceiver = registerOutputLocation(aggregator, endpoint, CODER);
+    aggregator.startFlushThread();
     dataReceiver.accept(new byte[1]);
     // wait the flush thread to flush the buffer
     while (!aggregator.flushFuture.isDone()) {
@@ -262,9 +267,10 @@ public class BeamFnDataOutboundAggregatorTest {
     LogicalEndpoint additionalEndpoint =
         LogicalEndpoint.data(
             endpoint.getInstructionId(), "additional:" + endpoint.getTransformId());
-    FnDataReceiver<byte[]> dataReceiver = aggregator.registerOutputLocation(endpoint, CODER);
+    FnDataReceiver<byte[]> dataReceiver = registerOutputLocation(aggregator, endpoint, CODER);
     FnDataReceiver<byte[]> additionalDataReceiver =
-        aggregator.registerOutputLocation(additionalEndpoint, CODER);
+        registerOutputLocation(aggregator, additionalEndpoint, CODER);
+    aggregator.startFlushThread();
     dataReceiver.accept(new byte[51]);
     assertThat(values, empty());
 
@@ -350,5 +356,16 @@ public class BeamFnDataOutboundAggregatorTest {
       builder.getDataBuilder(0).setIsLast(true);
     }
     return builder.build();
+  }
+
+  // Convenience method for unit tests.
+  <T> FnDataReceiver<T> registerOutputLocation(
+      BeamFnDataOutboundAggregator aggregator, LogicalEndpoint endpoint, Coder<T> coder) {
+    if (endpoint.isTimer()) {
+      return aggregator.registerOutputTimersLocation(
+          endpoint.getTransformId(), endpoint.getTimerFamilyId(), coder);
+    } else {
+      return aggregator.registerOutputDataLocation(endpoint.getTransformId(), coder);
+    }
   }
 }

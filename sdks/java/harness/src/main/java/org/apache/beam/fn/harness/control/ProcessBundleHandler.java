@@ -472,6 +472,10 @@ public class ProcessBundleHandler {
                 throw new RuntimeException(e);
               }
             });
+    for (BeamFnDataOutboundAggregator aggregator :
+        bundleProcessor.getOutboundAggregators().values()) {
+      aggregator.startFlushThread();
+    }
     try {
       PTransformFunctionRegistry startFunctionRegistry = bundleProcessor.getStartFunctionRegistry();
       PTransformFunctionRegistry finishFunctionRegistry =
