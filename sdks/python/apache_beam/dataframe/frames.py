@@ -3979,7 +3979,7 @@ class DeferredGroupBy(frame_base.DeferredFrame):
     in ``func`` (indicating ``func`` is a transform) and drops the duplicate
     index in the output. To determine this, pandas tests the indexes for
     equality. However, Beam cannot do this since it is sensitive to the input
-    data, instead this implementation tests if the indexes are equivalent
+    data; instead this implementation tests if the indexes are equivalent
     with ``is``. See the `pandas 1.4.0 release notes
     <https://pandas.pydata.org/docs/dev/whatsnew/v1.4.0.html#groupby-apply-consistent-transform-detection>`_
     for a good explanation of the distinction between these approaches. In
@@ -4023,7 +4023,6 @@ class DeferredGroupBy(frame_base.DeferredFrame):
           index_to_arrays(proxy.index),
           names=self._ungrouped.proxy().index.names + proxy.index.names)
 
-
       # Then override do_apply function
       new_index_names = self._ungrouped.proxy().index.names
       if len(new_index_names) > 1:
@@ -4052,12 +4051,17 @@ class DeferredGroupBy(frame_base.DeferredFrame):
     elif isinstance(result, pd.Series):
       if isinstance(fn_input, pd.DataFrame):
         # DataFrameGroupBy
+        # In this case pandas transposes the Series result, s.t. the Series
+        # index values are the columns, and the grouping keys are the new index
+        # values.
         dtype = pd.Series([result]).dtype
         proxy = pd.DataFrame(columns=result.index,
                              dtype=result.dtype,
                              index=self._ungrouped.proxy().index)
       elif isinstance(fn_input, pd.Series):
         # SeriesGroupBy
+        # In this case the output is still a Series, but with an additional
+        # index with the grouping keys.
         proxy = pd.Series(dtype=result.dtype,
                           name=result.name,
                           index=index_to_arrays(self._ungrouped.proxy().index) +
