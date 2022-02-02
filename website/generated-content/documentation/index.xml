@@ -12040,7 +12040,9 @@ terminating the expansion service process.&lt;/p>
 &lt;/ol>
 &lt;h3 id="x-lang-transform-runner-support">13.3. Runner Support&lt;/h3>
 &lt;p>Currently, portable runners such as Flink, Spark, and the direct runner can be used with multi-language pipelines.&lt;/p>
-&lt;p>Dataflow supports multi-language pipelines through the Dataflow Runner v2 backend architecture.&lt;/p></description></item><item><title>Documentation: BigQuery ML integration</title><link>/documentation/patterns/bqml/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/patterns/bqml/</guid><description>
+&lt;p>Dataflow supports multi-language pipelines through the Dataflow Runner v2 backend architecture.&lt;/p>
+&lt;h3 id="x-lang-transform-tips-troubleshooting">13.4 Tips and Troubleshooting&lt;/h3>
+&lt;p>For additional tips and troubleshooting information, see &lt;a href="https://cwiki.apache.org/confluence/display/BEAM/Multi-language+Pipelines+Tips">here&lt;/a>.&lt;/p></description></item><item><title>Documentation: BigQuery ML integration</title><link>/documentation/patterns/bqml/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/patterns/bqml/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

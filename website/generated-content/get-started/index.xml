@@ -191,7 +191,7 @@ looks more like what is depicted by the red squiggly line above the ideal line.&
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">def&lt;/span> &lt;span class="nf">run&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">argv&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="bp">None&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">save_main_session&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="bp">True&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">def&lt;/span> &lt;span class="nf">run&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">argv&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="bp">None&lt;/span>&lt;span class="p">):&lt;/span>
 &lt;span class="s2">&amp;#34;&amp;#34;&amp;#34;Main entry point; defines and runs the user_score pipeline.&amp;#34;&amp;#34;&amp;#34;&lt;/span>
 &lt;span class="n">parser&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">argparse&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ArgumentParser&lt;/span>&lt;span class="p">()&lt;/span>
 &lt;span class="c1"># The default maps to two large Google Cloud Storage files (each ~12GB)&lt;/span>
@@ -207,7 +207,7 @@ looks more like what is depicted by the red squiggly line above the ideal line.&
 &lt;span class="n">options&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">PipelineOptions&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">pipeline_args&lt;/span>&lt;span class="p">)&lt;/span>
 &lt;span class="c1"># We use the save_main_session option because one or more DoFn&amp;#39;s in this&lt;/span>
 &lt;span class="c1"># workflow rely on global context (e.g., a module imported at module level).&lt;/span>
-&lt;span class="n">options&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">view_as&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">SetupOptions&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">save_main_session&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">save_main_session&lt;/span>
+&lt;span class="n">options&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">view_as&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">SetupOptions&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">save_main_session&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">True&lt;/span>
 &lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">options&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">options&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="p">:&lt;/span>
 &lt;span class="k">def&lt;/span> &lt;span class="nf">format_user_score_sums&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">user_score&lt;/span>&lt;span class="p">):&lt;/span>
 &lt;span class="p">(&lt;/span>&lt;span class="n">user&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">score&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">user_score&lt;/span>
@@ -425,7 +425,7 @@ logical windows based on when those scores occurred in event time.&lt;/em>&lt;/p
 &lt;span class="c1"># [END add_timestamp_and_window]&lt;/span>
 &lt;span class="c1"># Extract and sum teamname/score pairs from the event data.&lt;/span>
 &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;ExtractAndSumScore&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">ExtractAndSumScore&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;team&amp;#39;&lt;/span>&lt;span class="p">))&lt;/span>
-&lt;span class="k">def&lt;/span> &lt;span class="nf">run&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">argv&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="bp">None&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">save_main_session&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="bp">True&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="nf">run&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">argv&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="bp">None&lt;/span>&lt;span class="p">):&lt;/span>
 &lt;span class="s2">&amp;#34;&amp;#34;&amp;#34;Main entry point; defines and runs the hourly_team_score pipeline.&amp;#34;&amp;#34;&amp;#34;&lt;/span>
 &lt;span class="n">parser&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">argparse&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ArgumentParser&lt;/span>&lt;span class="p">()&lt;/span>
 &lt;span class="c1"># The default maps to two large Google Cloud Storage files (each ~12GB)&lt;/span>
@@ -477,7 +477,7 @@ logical windows based on when those scores occurred in event time.&lt;/em>&lt;/p
 &lt;span class="n">sys&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">exit&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">)&lt;/span>
 &lt;span class="c1"># We use the save_main_session option because one or more DoFn&amp;#39;s in this&lt;/span>
 &lt;span class="c1"># workflow rely on global context (e.g., a module imported at module level).&lt;/span>
-&lt;span class="n">options&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">view_as&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">SetupOptions&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">save_main_session&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">save_main_session&lt;/span>
+&lt;span class="n">options&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">view_as&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">SetupOptions&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">save_main_session&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">True&lt;/span>
 &lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">options&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">options&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="p">:&lt;/span>
 &lt;span class="p">(&lt;/span> &lt;span class="c1"># pylint: disable=expression-not-assigned&lt;/span>
 &lt;span class="n">p&lt;/span>
