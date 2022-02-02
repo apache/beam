@@ -79,8 +79,6 @@ func ExpansionAddr(addr string) Option {
 	}
 }
 
-const serviceGradleTarget = ":sdks:java:extensions:sql:expansion-service:shadowJar"
-
 // Transform creates a SQL-based transform over zero or more PCollections
 // and/or named data sources.
 //
@@ -96,6 +94,9 @@ const serviceGradleTarget = ":sdks:java:extensions:sql:expansion-service:shadowJ
 //      sql.Input("t", in),
 //      sql.OutputType(reflect.TypeOf(int64(0))))
 //  // `out` is a PCollection<int64> with a single element 3.
+//
+// If an expansion service address is not provided as an option, one will be
+// automatically started for the transform.
 func Transform(s beam.Scope, query string, opts ...Option) beam.PCollection {
 	o := &options{
 		inputs: make(map[string]beam.PCollection),
@@ -115,9 +116,6 @@ func Transform(s beam.Scope, query string, opts ...Option) beam.PCollection {
 	expansionAddr := sqlx.DefaultExpansionAddr
 	if o.expansionAddr != "" {
 		expansionAddr = xlangx.Require(o.expansionAddr)
-	}
-	if expansionAddr == sqlx.DefaultExpansionAddr {
-		expansionAddr = xlangx.UseAutomatedExpansionService(serviceGradleTarget)
 	}
 
 	out := beam.CrossLanguage(s, sqlx.Urn, payload, expansionAddr, o.inputs, beam.UnnamedOutput(o.outType))
