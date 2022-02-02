@@ -45,7 +45,8 @@ Tag = namedtuple(
         TagFields.categories,
         TagFields.pipeline_options,
         TagFields.default_example
-    ], defaults=(None, None, False, None, None, False))
+    ],
+    defaults=(None, None, False, None, None, False))
 
 
 @dataclass
@@ -275,9 +276,12 @@ def _validate(tag: dict, supported_categories: List[str]) -> bool:
       In case tag is not valid, False
   """
   valid = True
-  required_tag_fields = {f.default for f in fields(TagFields)
-                if f.default not in
-                {o_f.default for o_f in fields(OptionalTagFields)}}
+  required_tag_fields = {
+      f.default
+      for f in fields(TagFields)
+      if f.default not in {o_f.default
+                           for o_f in fields(OptionalTagFields)}
+  }
   # check that all fields exist and they have no empty value
   for field in required_tag_fields:
     if field not in tag:
@@ -291,8 +295,7 @@ def _validate(tag: dict, supported_categories: List[str]) -> bool:
       valid = False
     if valid is True:
       value = tag.get(field)
-      if (value == "" or
-          value is None) and field != TagFields.pipeline_options:
+      if (value == "" or value is None) and field != TagFields.pipeline_options:
         logging.error(
             "tag's value is incorrect: %s\n%s field can not be empty.",
             tag,

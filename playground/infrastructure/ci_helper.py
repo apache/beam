@@ -36,6 +36,7 @@ class CIHelper:
 
   It is used to find and verify correctness if beam examples/katas/tests.
   """
+
   async def verify_examples(self, examples: List[Example]):
     """
     Verify correctness of beam examples.
