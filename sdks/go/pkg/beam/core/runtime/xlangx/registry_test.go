@@ -49,8 +49,8 @@ func TestRegistry(t *testing.T) {
 
 	// Check that the automated expansion service check is correct.
 	// Do this before we register URNs later in the test.
-        auto := autoJavaNamespace + Separator + ":sdks:somelanguage:expansion"
-        checkLookup(t, urn, auto, auto, QueryAutomatedExpansionService, "QueryAutomatedExpansionService")
+	auto := autoJavaNamespace + Separator + ":sdks:somelanguage:expansion"
+	checkLookup(t, urn, auto, auto, QueryAutomatedExpansionService, "QueryAutomatedExpansionService")
 
 	// Check registration.
 	addr = "handler"
