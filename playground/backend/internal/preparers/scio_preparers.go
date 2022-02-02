@@ -41,8 +41,8 @@ func (builder *ScioPreparersBuilder) WithFileNameChanger() *ScioPreparersBuilder
 	return builder
 }
 
-//WithPackagesRemover adds preparer to remove package from the code
-func (builder *ScioPreparersBuilder) WithPackagesRemover() *ScioPreparersBuilder {
+//WithPackageRemover adds preparer to remove package from the code
+func (builder *ScioPreparersBuilder) WithPackageRemover() *ScioPreparersBuilder {
 	removePackagePreparer := Preparer{
 		Prepare: replace,
 		Args:    []interface{}{builder.filePath, scioPackagePattern, ""},
@@ -64,7 +64,7 @@ func (builder *ScioPreparersBuilder) WithImportRemover() *ScioPreparersBuilder {
 // GetScioPreparers returns preparation methods that should be applied to Scio code
 func GetScioPreparers(builder *PreparersBuilder) {
 	builder.ScioPreparers().
-		WithPackagesRemover().
+		WithPackageRemover().
 		WithImportRemover().
 		WithFileNameChanger()
 }
