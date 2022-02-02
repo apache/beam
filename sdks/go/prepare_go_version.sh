@@ -40,7 +40,8 @@ fi
 
 # Versions of Go > 1.16 can download arbitrary versions of go.
 # We take advantage of this to avoid changing the user's
-# installation of go ourselves. 
+# installation of go ourselves, and allow for hermetic reproducible
+# builds when relying on Gradle, like Jenkins does.
 MINGOVERSION="go1.16.0"
 
 # Compare the go version by sorting only by the version string, getting the
@@ -49,7 +50,7 @@ MINGOVERSION="go1.16.0"
 if (echo "min version $MINGOVERSION os/arch"; go version) | sort -Vk3 -s |tail -1 | grep -q min;
 then 
   # Outputing the system Go version for debugging purposes.
-  echo "System Go installation at `which go` is `go version`, is older than the minimum required for hermetic Beam builds. Want $MINGOVERSION. See http://go.dev/doc/install for installation instructions."; 
+  echo "System Go installation at `which go` is `go version`, is older than the minimum required for hermetic, reproducible Beam builds. Want $MINGOVERSION. See http://go.dev/doc/install for installation instructions."; 
   exit 1
 fi
 
