@@ -706,10 +706,14 @@ class JavaJarExpansionService(object):
                                    jar.startswith('https://')):
       return [jar]
     else:
+      # If the input JAR is not a local glob, nor an http/https URL, then
+      # we assume that it's a gradle-style Java artifact in Maven Central,
+      # in the form group:artifact:version, so we attempt to parse that way.
       try:
         group_id, artifact_id, version = jar.split(':')
       except ValueError:
-        # If we are not able to
+        # If we are not able to find a JAR, nor a JAR artifact, nor a URL for
+        # a JAR path, we still choose to include it in the path.
         logging.warning('Unable to parse %s into group:artifact:version.', jar)
         return [jar]
       path = subprocess_server.JavaJarServer.path_to_maven_jar(
@@ -730,10 +734,10 @@ class JavaJarExpansionService(object):
         self._extra_args = self._default_args()
       # Consider memoizing these servers (with some timeout).
       logging.info(
-          'Starting a JAR-based expansion service from JAR %s and '
-          'with classpath: %s',
-          self._path_to_jar,
-          self._classpath)
+          'Starting a JAR-based expansion service from JAR %s ' + (
+              'and with classpath: %s' %
+              self._classpath if self._classpath else ''),
+          self._path_to_jar)
       classpath_urls = [
           subprocess_server.JavaJarServer.local_jar(path)
           for jar in self._classpath
