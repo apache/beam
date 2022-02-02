@@ -1,10 +1,13 @@
 ---
 title: "Apache Beam Amplified Ricardo’s Real-time and ML Data Processing for eCommerce Platform"
 name: "Ricardo"
-categories:
-  - Commercial
-  - Enterprise
-icon: /images/logos/powered-by/ricardo.png
+icon: /images/logos/case-study/ricardo.png
+category: study
+cardTitle: "Four Apache Technologies Combined for Fun and Profit"
+cardDescription: "Ricardo, the largest online marketplace in Switzerland, uses Apache Beam to stream-process platform data and enables the Data Intelligence team to provide scalable data integration, analytics, and smart services."
+authorName: "Tobias Kaymak"
+authorPosition: Senior Data Engineer @ Ricardo
+authorImg: /images/tobias_kaymak_photo.png
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +24,7 @@ limitations under the License.
 -->
 <div class="case-study-opinion">
     <div class="case-study-opinion-img">
-        <img src="/images/logos/powered-by/ricardo.png"/>
+        <img src="/images/logos/case-study/ricardo.png"/>
     </div>
     <blockquote class="case-study-quote-block">
       <p class="case-study-quote-text">

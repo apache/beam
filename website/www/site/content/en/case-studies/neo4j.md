@@ -3,8 +3,9 @@ title: "Beam visual pipeline development with Hop"
 categories:
   - Commercial
   - BI & Analytics
-icon: /images/logos/powered-by/neo4j.png
+icon: /images/logos/case-study/neo4j.png
 hasNav: true
+cardDescription: "<span>Neo4j is a graph database management system that leverages data relationships between data records to enable fast queries. They use Apache Beam support in Kettle to do everything and more in project Hop. The various Apache Beam runners are now directly supported as Hop pipeline engines. <a href=\"http://hop.apache.org\" target=\"_blank\">Apache Hop (incubating)</a>:  Hop provides a complete data orchestration (ETL / DI) toolset with visual pipeline development. It supports execution on the main Apache Beam runners.</span>"
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
