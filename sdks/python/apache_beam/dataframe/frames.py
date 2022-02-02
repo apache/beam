@@ -4032,7 +4032,8 @@ class DeferredGroupBy(frame_base.DeferredFrame):
           # a single key
           # key is a tuple with the MultiIndex values for this key
           df.index = pd.MultiIndex.from_arrays(
-              [[key[i]] * len(df) for i in range(len(new_index_names))] + index_to_arrays(df.index),
+              [[key[i]] * len(df) for i in range(len(new_index_names))] +
+              index_to_arrays(df.index),
               names=new_index_names + df.index.names)
           return df
       else:
@@ -4045,12 +4046,16 @@ class DeferredGroupBy(frame_base.DeferredFrame):
           return df
 
 
-      do_apply = lambda gb: pd.concat([add_key_index(k, func(gb.get_group(k), *args, **kwargs)) for k in gb.groups.keys()])
+      do_apply = lambda gb: pd.concat([
+          add_key_index(k, func(gb.get_group(k), *args, **kwargs))
+          for k in gb.groups.keys()])
     elif isinstance(result, pd.Series):
       if isinstance(fn_input, pd.DataFrame):
         # DataFrameGroupBy
         dtype = pd.Series([result]).dtype
-        proxy = pd.DataFrame(columns=result.index, dtype=result.dtype, index=self._ungrouped.proxy().index)
+        proxy = pd.DataFrame(columns=result.index,
+                             dtype=result.dtype,
+                             index=self._ungrouped.proxy().index)
       elif isinstance(fn_input, pd.Series):
         # SeriesGroupBy
         proxy = pd.Series(dtype=result.dtype,
