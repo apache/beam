@@ -173,5 +173,10 @@ func saveGraph(from *os.File, tempFile *os.File) error {
 	if !done && pipelineName != "" {
 		utils.AddGraphToEndOfFile(spaces, err, tempFile, pipelineName)
 	}
+	if spaces == "" {
+		line := ""
+		reg = regexp.MustCompile("^")
+		err = writeLineToFile(addCodeForGraph)(newLine, to, &line, &spaces, &pipelineName, &reg)
+	}
 	return scanner.Err()
 }

@@ -13,13 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package utils
+package preparers_utils
 
 import (
-	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/logger"
-	"beam.apache.org/playground/backend/internal/preparers"
-	"beam.apache.org/playground/backend/internal/validators"
 	"errors"
 	"fmt"
 	"io"
@@ -28,12 +25,11 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"sync"
 )
 
 const (
 	indentationReplacement = "$0"
-	emptyLine              = ""
+	EmptyLine              = ""
 	GraphFileName          = "graph.dot"
 	pythonGraphCodePattern = "$0# Write graph to file\n$0from apache_beam.runners.interactive.display import pipeline_graph\n$0dot = pipeline_graph.PipelineGraph(%s).get_dot()\n$0with open('%s', 'w') as file:\n$0  file.write(dot)\n"
 	newLinePattern         = "\n"
@@ -42,50 +38,18 @@ const (
 type PipelineDefinitionType int
 
 const (
-	RegularDefinition PipelineDefinitionType = 0 // the definition of python pipeline like: "p = beam.Pipeline(some_options)"
-	WithDefinition    PipelineDefinitionType = 1 // the definition of python pipeline like: "with beam.Pipeline(some_options) as p:"
+	RegularDefinition PipelineDefinitionType = 0
+	WithDefinition    PipelineDefinitionType = 1
 )
 
-// GetPreparers returns slice of preparers.Preparer according to sdk
-func GetPreparers(sdk pb.Sdk, filepath string, valResults *sync.Map) (*[]preparers.Preparer, error) {
-	isUnitTest, ok := valResults.Load(validators.UnitTestValidatorName)
-	if !ok {
-		return nil, fmt.Errorf("GetPreparers:: No information about unit test validation result")
-	}
-	builder := preparers.NewPreparersBuilder(filepath)
-	switch sdk {
-	case pb.Sdk_SDK_JAVA:
-		isKata, ok := valResults.Load(validators.KatasValidatorName)
-		if !ok {
-			return nil, fmt.Errorf("GetPreparers:: No information about katas validation result")
-		}
-		preparers.GetJavaPreparers(builder, isUnitTest.(bool), isKata.(bool))
-	case pb.Sdk_SDK_GO:
-		preparers.GetGoPreparers(builder, isUnitTest.(bool))
-	case pb.Sdk_SDK_PYTHON:
-		preparers.GetPythonPreparers(builder, isUnitTest.(bool))
-	case pb.Sdk_SDK_SCIO:
-		preparers.GetScioPreparers(builder)
-	default:
-		return nil, fmt.Errorf("incorrect sdk: %s", sdk)
-	}
-	return builder.Build().GetPreparers(), nil
-}
-
-// ReplaceSpacesWithEquals prepares pipelineOptions by replacing spaces between option and them value to equals.
-func ReplaceSpacesWithEquals(pipelineOptions string) string {
-	re := regexp.MustCompile(`(--[A-z0-9]+)\s([A-z0-9]+)`)
-	return re.ReplaceAllString(pipelineOptions, "$1=$2")
-}
-
-// InitVars creates empty variables
-func InitVars() (string, string, error, bool, PipelineDefinitionType) {
-	return emptyLine, emptyLine, errors.New(emptyLine), false, RegularDefinition
+// DefineVars creates empty variables
+func DefineVars() (string, string, error, bool, PipelineDefinitionType) {
+	return EmptyLine, EmptyLine, errors.New(EmptyLine), false, RegularDefinition
 }
 
 // AddGraphToEndOfFile if no place for graph was found adds graph code to the end of the file
 func AddGraphToEndOfFile(spaces string, err error, tempFile *os.File, pipelineName string) {
-	line := emptyLine
+	line := EmptyLine
 	regs := []*regexp.Regexp{regexp.MustCompile("^")}
 	_, err = Wrap(addGraphCode)(tempFile, &line, &spaces, &pipelineName, &regs)
 }
@@ -99,7 +63,7 @@ func ProcessLine(curLine string, pipelineName *string, spaces *string, regs *[]*
 	definitionType := RegularDefinition
 	if *pipelineName == "" {
 		// Try tempFile find where the beam pipeline name is defined
-		definitionType, err = Wrap(getVarName)(tempFile, &curLine, spaces, pipelineName, regs)
+		definitionType, err = Wrap(getPipelineName)(tempFile, &curLine, spaces, pipelineName, regs)
 	} else {
 		// Try tempFile find where beam pipeline definition is finished and add code tempFile store the graph
 		_, err = Wrap(addGraphCode)(tempFile, &curLine, spaces, pipelineName, regs)
@@ -107,11 +71,11 @@ func ProcessLine(curLine string, pipelineName *string, spaces *string, regs *[]*
 			done = true
 		}
 	}
-	return done, definitionType, err
+	return done, PipelineDefinitionType(definitionType), err
 }
 
-//getVarName looking for a declaration of a beam pipeline and it's name
-func getVarName(line, spaces, pipelineName *string, regs *[]*regexp.Regexp) PipelineDefinitionType {
+//getPipelineName looking for a declaration of a beam pipeline and it's name
+func getPipelineName(line, spaces, pipelineName *string, regs *[]*regexp.Regexp) PipelineDefinitionType {
 	for i, reg := range *regs {
 		found := (*reg).FindAllStringSubmatch(*line, -1)
 		if found != nil {

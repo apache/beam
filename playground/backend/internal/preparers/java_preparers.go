@@ -21,6 +21,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"regexp"
 	"strings"
@@ -36,9 +37,8 @@ const (
 	tmpFileSuffix                     = "tmp"
 	javaPublicClassNamePattern        = "public class (.*?) [{|implements(.*)]"
 	pipelineNamePattern               = `Pipeline\s([A-z|0-9_]*)\s=\sPipeline\.create`
-	findImportsPattern                = `import.*\;`
 	graphSavePattern                  = "String dotString = org.apache.beam.runners.core.construction.renderer.PipelineDotRenderer.toDotString(%s);\n" +
-		"    try (java.io.PrintWriter out = new java.io.PrintWriter(\"Graph.dot\")) {\n      " +
+		"    try (java.io.PrintWriter out = new java.io.PrintWriter(\"%s\")) {\n      " +
 		"		out.println(dotString);\n    " +
 		"	} catch (java.io.FileNotFoundException e) {\n" +
 		"      e.printStackTrace();\n    " +
@@ -96,7 +96,8 @@ func (builder *JavaPreparersBuilder) WithFileNameChanger() *JavaPreparersBuilder
 	return builder
 }
 
-func (builder *JavaPreparersBuilder) WithGraphExtractor() *JavaPreparersBuilder {
+//WithGraphHandler adds code to save the graph
+func (builder *JavaPreparersBuilder) WithGraphHandler() *JavaPreparersBuilder {
 	graphCodeAdder := Preparer{
 		Prepare: addCodeToSaveGraph,
 		Args:    []interface{}{builder.filePath},
@@ -108,12 +109,14 @@ func (builder *JavaPreparersBuilder) WithGraphExtractor() *JavaPreparersBuilder 
 func addCodeToSaveGraph(args ...interface{}) error {
 	filePath := args[0].(string)
 	pipelineObjectName, _ := findPipelineObjectName(filePath)
-	graphSaveCode := fmt.Sprintf(graphSavePattern, pipelineObjectName, pipelineObjectName)
+	graphSaveCode := fmt.Sprintf(graphSavePattern, pipelineObjectName, graphFileName, pipelineObjectName)
 
-	err := replace(filePath, fmt.Sprintf("%s.run", pipelineObjectName), graphSaveCode)
-	if err != nil {
-		logger.Error("Can't add graph extractor. Can't add new import")
-		return err
+	if pipelineObjectName != preparers_utils.EmptyLine {
+		err := replace(filePath, fmt.Sprintf("%s.run", pipelineObjectName), graphSaveCode)
+		if err != nil {
+			logger.Error("Can't add graph extractor. Can't add new import")
+			return err
+		}
 	}
 	return nil
 }
@@ -124,7 +127,7 @@ func GetJavaPreparers(builder *PreparersBuilder, isUnitTest bool, isKata bool) {
 		builder.JavaPreparers().
 			WithPublicClassRemover().
 			WithPackageChanger().
-			WithGraphExtractor()
+			WithGraphHandler()
 	}
 	if isUnitTest {
 		builder.JavaPreparers().
@@ -134,7 +137,8 @@ func GetJavaPreparers(builder *PreparersBuilder, isUnitTest bool, isKata bool) {
 	if isKata {
 		builder.JavaPreparers().
 			WithPublicClassRemover().
-			WithPackageRemover()
+			WithPackageRemover().
+			WithGraphHandler()
 	}
 }
 
@@ -152,17 +156,6 @@ func findPipelineObjectName(filepath string) (string, error) {
 		return "", nil
 	}
 
-}
-
-func findImports(filepath string) ([]string, error) {
-	reg := regexp.MustCompile(findImportsPattern)
-	b, err := ioutil.ReadFile(filepath)
-	if err != nil {
-		return nil, err
-	}
-	imports := reg.FindAllString(string(b), -1)
-
-	return imports, nil
 }
 
 // replace processes file by filePath and replaces all patterns to newPattern

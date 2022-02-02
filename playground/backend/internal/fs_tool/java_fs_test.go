@@ -58,6 +58,7 @@ func Test_newJavaLifeCycle(t *testing.T) {
 					AbsoluteExecutableFilePath:       filepath.Join(binFileFolder, pipelineId.String()+javaCompiledFileExtension),
 					AbsoluteBaseFolderPath:           baseFileFolder,
 					AbsoluteLogFilePath:              filepath.Join(baseFileFolder, logFileName),
+					AbsoluteGraphFilePath:            filepath.Join(baseFileFolder, graphFileName),
 					ExecutableName:                   executableName,
 				},
 			},

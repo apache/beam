@@ -26,8 +26,9 @@ import (
 )
 
 const (
-	fileMode    = 0600
-	logFileName = "logs.log"
+	fileMode      = 0600
+	logFileName   = "logs.log"
+	graphFileName = "graph.dot"
 )
 
 // LifeCyclePaths contains all files/folders paths
@@ -40,6 +41,7 @@ type LifeCyclePaths struct {
 	AbsoluteExecutableFilePath       string // /path/to/workingDir/pipelinesFolder/{pipelineId}/bin/{pipelineId}.{executableFileExtension}
 	AbsoluteBaseFolderPath           string // /path/to/workingDir/pipelinesFolder/{pipelineId}
 	AbsoluteLogFilePath              string // /path/to/workingDir/pipelinesFolder/{pipelineId}/logs.log
+	AbsoluteGraphFilePath            string // /path/to/workingDir/pipelinesFolder/{pipelineId}/graph.dot
 	ProjectDir                       string // /path/to/workingDir/
 	ExecutableName                   func(string) (string, error)
 }

@@ -15,6 +15,8 @@
 
 package preparers
 
+const graphFileName = "graph.dot"
+
 // Preparer is used to make preparations with file with code.
 type Preparer struct {
 	Prepare func(args ...interface{}) error
