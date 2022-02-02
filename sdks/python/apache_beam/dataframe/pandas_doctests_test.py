@@ -738,7 +738,6 @@ class DoctestTest(unittest.TestCase):
         not_implemented_ok={
             'pandas.core.groupby.generic.DataFrameGroupBy.idxmax': ['*'],
             'pandas.core.groupby.generic.DataFrameGroupBy.idxmin': ['*'],
-            'pandas.core.groupby.generic.DataFrameGroupBy.value_counts': ['*'],
             'pandas.core.groupby.generic.SeriesGroupBy.transform': ['*'],
             'pandas.core.groupby.generic.SeriesGroupBy.idxmax': ['*'],
             'pandas.core.groupby.generic.SeriesGroupBy.idxmin': ['*'],

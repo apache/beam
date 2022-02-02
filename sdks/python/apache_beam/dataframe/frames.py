@@ -4200,17 +4200,14 @@ class DeferredGroupBy(frame_base.DeferredFrame):
 
   if hasattr(DataFrameGroupBy, 'value_counts'):
     @frame_base.with_docs_from(DataFrameGroupBy)
-    def value_counts(self, subset=None, sort=False, normalize=False,
-                      ascending=False, dropna=True):
+    def value_counts(self, **kwargs):
+      """
+      DataFrameGroupBy.value_counts() is the same as DataFrame.value_counts()
+      """
       return frame_base.DeferredFrame.wrap(
           expressions.ComputedExpression(
               'value_counts',
-              lambda df: df.value_counts(
-                subset=subset,
-                sort=sort,
-                normalize=normalize,
-                ascending=ascending,
-                dropna=True), [self._expr],
+              lambda df: df.value_counts(**kwargs), [self._expr],
               preserves_partition_by=partitionings.Arbitrary(),
               requires_partition_by=partitionings.Arbitrary())
       )
