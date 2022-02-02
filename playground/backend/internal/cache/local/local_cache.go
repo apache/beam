@@ -16,6 +16,7 @@
 package local
 
 import (
+	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/cache"
 	"context"
 	"fmt"
@@ -33,6 +34,7 @@ type Cache struct {
 	cleanupInterval     time.Duration
 	items               map[uuid.UUID]map[cache.SubKey]interface{}
 	pipelinesExpiration map[uuid.UUID]time.Time
+	catalog             []*pb.Categories
 }
 
 func New(ctx context.Context) *Cache {
@@ -42,6 +44,7 @@ func New(ctx context.Context) *Cache {
 		cleanupInterval:     cleanupInterval,
 		items:               items,
 		pipelinesExpiration: pipelinesExpiration,
+		catalog:             nil,
 	}
 
 	go ls.startGC(ctx)
@@ -103,6 +106,22 @@ func (lc *Cache) SetExpTime(ctx context.Context, pipelineId uuid.UUID, expTime t
 	}
 	lc.pipelinesExpiration[pipelineId] = time.Now().Add(expTime)
 	return nil
+}
+
+func (lc *Cache) SetCatalog(ctx context.Context, catalog []*pb.Categories) error {
+	lc.Lock()
+	defer lc.Unlock()
+	lc.catalog = catalog
+	return nil
+}
+
+func (lc *Cache) GetCatalog(ctx context.Context) ([]*pb.Categories, error) {
+	lc.RLock()
+	defer lc.RUnlock()
+	if lc.catalog == nil {
+		return nil, fmt.Errorf("catalog is not found")
+	}
+	return lc.catalog, nil
 }
 
 func (lc *Cache) startGC(ctx context.Context) {

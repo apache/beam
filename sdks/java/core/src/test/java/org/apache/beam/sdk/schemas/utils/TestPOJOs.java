@@ -58,7 +58,7 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof POJOWithNullables)) {
         return false;
       }
       POJOWithNullables that = (POJOWithNullables) o;

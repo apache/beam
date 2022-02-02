@@ -24,8 +24,6 @@ import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
 import com.amazonaws.regions.Regions;
-import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
-import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -50,19 +48,6 @@ public class BasicDynamoDBProvider implements AwsClientsProvider {
 
   private AWSCredentialsProvider getCredentialsProvider() {
     return new AWSStaticCredentialsProvider(new BasicAWSCredentials(accessKey, secretKey));
-  }
-
-  @Override
-  public AmazonCloudWatch getCloudWatchClient() {
-    AmazonCloudWatchClientBuilder clientBuilder =
-        AmazonCloudWatchClientBuilder.standard().withCredentials(getCredentialsProvider());
-    if (serviceEndpoint == null) {
-      clientBuilder.withRegion(region);
-    } else {
-      clientBuilder.withEndpointConfiguration(
-          new EndpointConfiguration(serviceEndpoint, region.getName()));
-    }
-    return clientBuilder.build();
   }
 
   @Override
