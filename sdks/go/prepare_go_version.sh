@@ -38,6 +38,21 @@ then
     exit 1
 fi
 
+# Versions of Go > 1.16 can download arbitrary versions of go.
+# We take advantage of this to avoid changing the user's
+# installation of go ourselves. 
+MINGOVERSION="go1.16.0"
+
+# Compare the go version by sorting only by the version string, getting the
+# oldest version, and checking if it contains "min". When it doesn't, it's
+# the go print out, and it means the system version is later than the minimum.
+if (echo "min version $MINGOVERSION os/arch"; go version) | sort -Vk3 -s |tail -1 | grep -q min;
+then 
+  # Outputing the system Go version for debugging purposes.
+  echo "System Go installation at `which go` is `go version`, is older than the minimum required for hermetic Beam builds. Want $MINGOVERSION. See http://go.dev/doc/install for installation instructions."; 
+  exit 1
+fi
+
 while [[ $# -gt 0 ]]
 do
 key="$1"
@@ -53,21 +68,6 @@ case $key in
         ;;
 esac
 done
-
-# Versions of Go > 1.16 can download arbitrary versions of go.
-# We take advantage of this to avoid changing the user's
-# installation of go ourselves. 
-MINGOVERSION="go1.16.0"
-
-# Compare the go version by sorting only by the version string, getting the
-# oldest version, and checking if it contains "min". When it doesn't, it's
-# the go print out, and it means the system version is later than the minimum.
-if (echo "min version $MINGOVERSION os/arch"; go version) | sort -Vk3 -s |tail -1 | grep -q min;
-then 
-  # Outputing the system Go version for debugging purposes.
-  echo "System Go installation at `which go` is `go version`, is older than the minimum required for hermetic Beam builds. Want $MINGOVERSION. See http://go.dev/doc/install for installation instructions."; 
-  exit 1
-fi
 
 GOPATH=`go env GOPATH`
 GOBIN=$GOPATH/bin
