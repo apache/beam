@@ -75,7 +75,7 @@ GOBIN=$GOPATH/bin
 GOHOSTOS=`go env GOHOSTOS`
 GOHOSTARCH=`go env GOHOSTARCH`
 
-echo "Preparing to use $GOBIN/$GOVERS"
+echo "System Go installation: `which go` is `go version`; Preparing to use $GOBIN/$GOVERS"
 
 # Ensure it's installed in the GOBIN directory, using the local host platform.
 GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH GOBIN=$GOBIN go install golang.org/dl/$GOVERS@latest
