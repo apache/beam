@@ -38,6 +38,7 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
@@ -369,6 +370,23 @@ public class JdbcIOAutoPartitioningIT {
                     voide -> DatabaseTestHelper.getDataSourceForContainer(getDb(dbmsLocal)))
                 .withTable("baseTable")
                 .withRowMapper(new RowDataMapper()));
+
+    PAssert.that(databaseData.apply(Count.globally())).containsInAnyOrder(NUM_ROWS.longValue());
+    pipelineRead.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testAutomaticDateTimePartitioningAutomaticPartitionManagementAndBeamRows()
+      throws SQLException {
+    final String dbmsLocal = dbms;
+    PCollection<Row> databaseData =
+        pipelineRead.apply(
+            JdbcIO.<Row, DateTime>readWithPartitions(TypeDescriptor.of(DateTime.class))
+                .withPartitionColumn("specialDate")
+                .withDataSourceProviderFn(
+                    voide -> DatabaseTestHelper.getDataSourceForContainer(getDb(dbmsLocal)))
+                .withTable("baseTable")
+                .withRowOutput());
 
     PAssert.that(databaseData.apply(Count.globally())).containsInAnyOrder(NUM_ROWS.longValue());
     pipelineRead.run().waitUntilFinish();

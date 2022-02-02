@@ -1275,7 +1275,7 @@ public class JdbcIOTest implements Serializable {
   public void testPartitioningDateTime() {
     PCollection<KV<DateTime, DateTime>> ranges =
         pipeline
-            .apply(Create.of(KV.of(10, KV.of(new DateTime(0), DateTime.now()))))
+            .apply(Create.of(KV.of(10L, KV.of(new DateTime(0), DateTime.now()))))
             .apply(ParDo.of(new PartitioningFn<>(TypeDescriptor.of(DateTime.class))));
 
     PAssert.that(ranges.apply(Count.globally()))
@@ -1299,7 +1299,7 @@ public class JdbcIOTest implements Serializable {
   public void testPartitioningLongs() {
     PCollection<KV<Long, Long>> ranges =
         pipeline
-            .apply(Create.of(KV.of(10, KV.of(0L, 12346789L))))
+            .apply(Create.of(KV.of(10L, KV.of(0L, 12346789L))))
             .apply(ParDo.of(new PartitioningFn<>(TypeDescriptors.longs())));
 
     PAssert.that(ranges.apply(Count.globally())).containsInAnyOrder(10L);
@@ -1310,7 +1310,7 @@ public class JdbcIOTest implements Serializable {
   public void testPartitioningStrings() {
     PCollection<KV<String, String>> ranges =
         pipeline
-            .apply(Create.of(KV.of(10, KV.of("", "zardana"))))
+            .apply(Create.of(KV.of(10L, KV.of("", "zardana"))))
             .apply(ParDo.of(new PartitioningFn<>(TypeDescriptors.strings())));
 
     PAssert.that(ranges.apply(Count.globally()))

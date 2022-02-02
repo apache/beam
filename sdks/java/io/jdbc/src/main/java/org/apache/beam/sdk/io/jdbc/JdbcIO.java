@@ -52,6 +52,7 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.WriteFn.WriteFnSpec;
+import org.apache.beam.sdk.io.jdbc.JdbcUtil.JdbcReadWithPartitionsHelper;
 import org.apache.beam.sdk.io.jdbc.JdbcUtil.PartitioningFn;
 import org.apache.beam.sdk.io.jdbc.SchemaUtil.FieldWithIndex;
 import org.apache.beam.sdk.metrics.Distribution;
@@ -196,31 +197,60 @@ import org.slf4j.LoggerFactory;
  * );
  * }</code></pre>
  *
- * <p>3. To read all data from a table in parallel with partitioning can be done with {@link
- * ReadWithPartitions}:
+ * <h4>Parallel reading from a JDBC datasource</h4>
+ *
+ * <p>Beam supports partitioned reading of all data from a table. Automatic partitioning is
+ * supported for a few data types: {@link Long}, {@link org.joda.time.DateTime}, {@link String}. To
+ * enable this, use {@link ReadWithPartitions}.
+ *
+ * <p>The partitioning scheme depends on these parameters, which can be user-provided, or
+ * automatically inferred by Beam (for the supported types):
+ *
+ * <ul>
+ *   <li>Upper bound
+ *   <li>Lower bound
+ *   <li>Number of partitions - when auto-inferred, the number of partitions defaults to the square
+ *       root of the number of rows divided by 5 (i.e.: {@code Math.floor(Math.sqrt(numRows) / 5)}).
+ * </ul>
+ *
+ * <p>To trigger auto-inference of these parameters, the user just needs to not provide them. To
+ * infer them automatically, Beam runs either of these statements:
+ *
+ * <ul>
+ *   <li>{@code SELECT min(column), max(column), COUNT(*) from table} when none of the parameters is
+ *       passed to the transform.
+ *   <li>{@code SELECT min(column), max(column) from table} when only number of partitions is
+ *       provided, but not upper or lower bounds.
+ * </ul>
+ *
+ * <p><b>Should I use this transform?</b> Consider using this transform in the following situations:
+ *
+ * <ul>
+ *   <li>The partitioning column is indexed. This will help speed up the range queries
+ *   <li><b>Use auto-inference</b> if the queries for bound and partition inference are efficient to
+ *       execute in your DBMS.
+ * </ul>
+ *
+ * <p>The following example shows usage of <b>auto-inferred ranges, number of partitions, and
+ * schema</b>
  *
  * <pre>{@code
- * pipeline.apply(JdbcIO.<KV<Integer, String>>readWithPartitions()
+ * pipeline.apply(JdbcIO.<Row>readWithPartitions()
  *  .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(
  *         "com.mysql.jdbc.Driver", "jdbc:mysql://hostname:3306/mydb")
  *       .withUsername("username")
  *       .withPassword("password"))
  *  .withTable("Person")
  *  .withPartitionColumn("id")
- *  .withLowerBound(0)
- *  .withUpperBound(1000)
- *  .withNumPartitions(5)
- *  .withRowMapper(new JdbcIO.RowMapper<KV<Integer, String>>() {
- *    public KV<Integer, String> mapRow(ResultSet resultSet) throws Exception {
- *      return KV.of(resultSet.getInt(1), resultSet.getString(2));
- *    }
- *  })
+ *  .withUseBeamSchema()
  * );
  * }</pre>
  *
  * <p>Instead of a full table you could also use a subquery in parentheses. The subquery can be
  * specified using Table option instead and partition columns can be qualified using the subquery
- * alias provided as part of Table.
+ * alias provided as part of Table. <b>Note</b> that a subquery may not perform as well with
+ * auto-inferred ranges and partitions, because it may not rely on indices to speed up the
+ * partitioning.
  *
  * <pre>{@code
  * pipeline.apply(JdbcIO.<KV<Integer, String>>readWithPartitions()
@@ -330,6 +360,7 @@ public class JdbcIO {
     return new AutoValue_JdbcIO_ReadWithPartitions.Builder<T, PartitionColumnT>()
         .setPartitionColumnType(partitioningColumnType)
         .setNumPartitions(DEFAULT_NUM_PARTITIONS)
+        .setUseBeamSchema(false)
         .build();
   }
 
@@ -642,7 +673,7 @@ public class JdbcIO {
           (getDataSourceProviderFn() != null),
           "withDataSourceConfiguration() or withDataSourceProviderFn() is required");
 
-      Schema schema = inferBeamSchema();
+      Schema schema = inferBeamSchema(getDataSourceProviderFn().apply(null), getQuery().get());
       PCollection<Row> rows =
           input.apply(
               JdbcIO.<Row>read()
@@ -659,12 +690,11 @@ public class JdbcIO {
 
     // Spotbugs seems to not understand the multi-statement try-with-resources
     @SuppressFBWarnings("OBL_UNSATISFIED_OBLIGATION")
-    private Schema inferBeamSchema() {
-      DataSource ds = getDataSourceProviderFn().apply(null);
+    private static Schema inferBeamSchema(DataSource ds, String query) {
       try (Connection conn = ds.getConnection();
           PreparedStatement statement =
               conn.prepareStatement(
-                  getQuery().get(), ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
+                  query, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
         return SchemaUtil.toBeamSchema(statement.getMetaData());
       } catch (SQLException e) {
         throw new BeamSchemaInferenceException("Failed to infer Beam schema", e);
@@ -1028,33 +1058,17 @@ public class JdbcIO {
 
     abstract @Nullable String getPartitionColumn();
 
-    abstract @javax.annotation.Nullable @Nullable PartitionColumnT getLowerBound();
+    abstract @Nullable Boolean getUseBeamSchema();
 
-    abstract @javax.annotation.Nullable @Nullable PartitionColumnT getUpperBound();
+    abstract @Nullable PartitionColumnT getLowerBound();
+
+    abstract @Nullable PartitionColumnT getUpperBound();
 
     abstract @Nullable String getTable();
 
     abstract TypeDescriptor<PartitionColumnT> getPartitionColumnType();
 
     abstract Builder<T, PartitionColumnT> toBuilder();
-
-    /**
-     * A helper for {@link ReadWithPartitions} that handles range calculations.
-     *
-     * @param <PartitionT>
-     */
-    public interface JdbcReadWithPartitionsHelper<PartitionT>
-        extends PreparedStatementSetter<KV<PartitionT, PartitionT>>,
-            RowMapper<KV<Integer, KV<PartitionT, PartitionT>>> {
-      Iterable<KV<PartitionT, PartitionT>> calculateRanges(
-          PartitionT lowerBound, PartitionT upperBound, Integer partitions);
-
-      @Override
-      void setParameters(KV<PartitionT, PartitionT> element, PreparedStatement preparedStatement);
-
-      @Override
-      KV<Integer, KV<PartitionT, PartitionT>> mapRow(ResultSet resultSet) throws Exception;
-    }
 
     @AutoValue.Builder
     abstract static class Builder<T, PartitionColumnT> {
@@ -1073,6 +1087,8 @@ public class JdbcIO {
       abstract Builder<T, PartitionColumnT> setLowerBound(PartitionColumnT lowerBound);
 
       abstract Builder<T, PartitionColumnT> setUpperBound(PartitionColumnT upperBound);
+
+      abstract Builder<T, PartitionColumnT> setUseBeamSchema(Boolean useBeamSchema);
 
       abstract Builder<T, PartitionColumnT> setTable(String tableName);
 
@@ -1099,7 +1115,7 @@ public class JdbcIO {
 
     /**
      * @deprecated
-     *     <p>{@link JdbcIO} is able to infer aprppriate coders from other parameters.
+     *     <p>{@link JdbcIO} is able to infer appropriate coders from other parameters.
      */
     @Deprecated
     public ReadWithPartitions<T, PartitionColumnT> withCoder(Coder<T> coder) {
@@ -1121,6 +1137,11 @@ public class JdbcIO {
     public ReadWithPartitions<T, PartitionColumnT> withPartitionColumn(String partitionColumn) {
       checkNotNull(partitionColumn, "partitionColumn can not be null");
       return toBuilder().setPartitionColumn(partitionColumn).build();
+    }
+
+    /** The name of a column of numeric type that will be used for partitioning. */
+    public ReadWithPartitions<T, PartitionColumnT> withRowOutput() {
+      return toBuilder().setUseBeamSchema(true).build();
     }
 
     public ReadWithPartitions<T, PartitionColumnT> withLowerBound(PartitionColumnT lowerBound) {
@@ -1147,6 +1168,11 @@ public class JdbcIO {
           "withDataSourceConfiguration() or withDataSourceProviderFn() is required");
       checkNotNull(getPartitionColumn(), "withPartitionColumn() is required");
       checkNotNull(getTable(), "withTable() is required");
+      checkArgument(
+          // We XOR so that only one of these is true / provided. (^ is an xor operator : ))
+          getUseBeamSchema() ^ getRowMapper() != null,
+          "Provide only withRowOutput() or withRowMapper() arguments for "
+              + "JdbcIO.readWithPartitions). These are mutually exclusive.");
       if (getLowerBound() != null && getLowerBound() instanceof Comparable<?>) {
         // Not all partition types are comparable. For example, LocalDateTime, which is a valid
         // partitioning type, is not Comparable, so we can't enforce this for all sorts of
@@ -1160,7 +1186,7 @@ public class JdbcIO {
           "readWithPartitions only supports the following types: %s",
           JdbcUtil.PRESET_HELPERS.keySet());
 
-      PCollection<KV<Integer, KV<PartitionColumnT, PartitionColumnT>>> params;
+      PCollection<KV<Long, KV<PartitionColumnT, PartitionColumnT>>> params;
 
       if (getLowerBound() == null && getUpperBound() == null) {
         String query =
@@ -1176,7 +1202,7 @@ public class JdbcIO {
         params =
             input
                 .apply(
-                    JdbcIO.<KV<Integer, KV<PartitionColumnT, PartitionColumnT>>>read()
+                    JdbcIO.<KV<Long, KV<PartitionColumnT, PartitionColumnT>>>read()
                         .withQuery(query)
                         .withDataSourceProviderFn(getDataSourceProviderFn())
                         .withRowMapper(
@@ -1185,28 +1211,26 @@ public class JdbcIO {
                 .apply(
                     MapElements.via(
                         new SimpleFunction<
-                            KV<Integer, KV<PartitionColumnT, PartitionColumnT>>,
-                            KV<Integer, KV<PartitionColumnT, PartitionColumnT>>>() {
+                            KV<Long, KV<PartitionColumnT, PartitionColumnT>>,
+                            KV<Long, KV<PartitionColumnT, PartitionColumnT>>>() {
                           @Override
-                          public KV<Integer, KV<PartitionColumnT, PartitionColumnT>> apply(
-                              KV<Integer, KV<PartitionColumnT, PartitionColumnT>> input) {
-                            KV<Integer, KV<PartitionColumnT, PartitionColumnT>> result;
+                          public KV<Long, KV<PartitionColumnT, PartitionColumnT>> apply(
+                              KV<Long, KV<PartitionColumnT, PartitionColumnT>> input) {
+                            KV<Long, KV<PartitionColumnT, PartitionColumnT>> result;
                             if (getNumPartitions() == null) {
                               // In this case, we use the table row count to infer a number of
                               // partitions.
                               // We take the square root of the number of rows, and divide it by 5
                               // to keep a relatively low number of partitions, given that an RDBMS
                               // cannot usually accept a very large number of connections.
-                              Integer numPartitions =
-                                  Long.valueOf(
-                                          Math.round(Math.floor(Math.sqrt(input.getKey()) / 5)))
-                                      .intValue();
+                              long numPartitions =
+                                  Math.round(Math.floor(Math.sqrt(input.getKey()) / 5));
                               if (numPartitions == 0) {
                                 numPartitions = 1;
                               }
                               result = KV.of(numPartitions, input.getValue());
                             } else {
-                              result = KV.of(getNumPartitions(), input.getValue());
+                              result = KV.of(getNumPartitions().longValue(), input.getValue());
                             }
                             LOG.info(
                                 "Inferred min: {} - max: {} - numPartitions: {}",
@@ -1219,7 +1243,20 @@ public class JdbcIO {
       } else {
         params =
             input.apply(
-                Create.of(KV.of(getNumPartitions(), KV.of(getLowerBound(), getUpperBound()))));
+                Create.of(
+                    KV.of(
+                        getNumPartitions().longValue(), KV.of(getLowerBound(), getUpperBound()))));
+      }
+
+      RowMapper<T> rowMapper;
+      if (getUseBeamSchema() != null && getUseBeamSchema()) {
+        Schema schema =
+            ReadRows.inferBeamSchema(
+                getDataSourceProviderFn().apply(null),
+                String.format("SELECT * FROM %S", getTable()));
+        rowMapper = (RowMapper<T>) SchemaUtil.BeamRowMapper.of(schema);
+      } else {
+        rowMapper = getRowMapper();
       }
 
       PCollection<KV<PartitionColumnT, PartitionColumnT>> ranges =
@@ -1234,7 +1271,7 @@ public class JdbcIO {
                   String.format(
                       "select * from %1$s where %2$s >= ? and %2$s < ?",
                       getTable(), getPartitionColumn()))
-              .withRowMapper(getRowMapper())
+              .withRowMapper(rowMapper)
               .withParameterSetter(
                   // This cast is unchecked, thus this is a small type-checking risk. We just need
                   // to make sure that all preset helpers in `JdbcUtil.PRESET_HELPERS` are matched

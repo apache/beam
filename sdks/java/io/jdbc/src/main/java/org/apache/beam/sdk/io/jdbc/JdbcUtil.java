@@ -35,7 +35,9 @@ import java.util.TimeZone;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import org.apache.beam.sdk.io.jdbc.JdbcIO.ReadWithPartitions.JdbcReadWithPartitionsHelper;
+import org.apache.beam.sdk.io.jdbc.JdbcIO.PreparedStatementSetter;
+import org.apache.beam.sdk.io.jdbc.JdbcIO.ReadWithPartitions;
+import org.apache.beam.sdk.io.jdbc.JdbcIO.RowMapper;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
@@ -341,8 +343,26 @@ class JdbcUtil {
     return calendar;
   }
 
+  /**
+   * A helper for {@link ReadWithPartitions} that handles range calculations.
+   *
+   * @param <PartitionT>
+   */
+  interface JdbcReadWithPartitionsHelper<PartitionT>
+      extends PreparedStatementSetter<KV<PartitionT, PartitionT>>,
+          RowMapper<KV<Long, KV<PartitionT, PartitionT>>> {
+    Iterable<KV<PartitionT, PartitionT>> calculateRanges(
+        PartitionT lowerBound, PartitionT upperBound, Long partitions);
+
+    @Override
+    void setParameters(KV<PartitionT, PartitionT> element, PreparedStatement preparedStatement);
+
+    @Override
+    KV<Long, KV<PartitionT, PartitionT>> mapRow(ResultSet resultSet) throws Exception;
+  }
+
   /** Create partitions on a table. */
-  static class PartitioningFn<T> extends DoFn<KV<Integer, KV<T, T>>, KV<T, T>> {
+  static class PartitioningFn<T> extends DoFn<KV<Long, KV<T, T>>, KV<T, T>> {
     private static final Logger LOG = LoggerFactory.getLogger(PartitioningFn.class);
     final TypeDescriptor<T> partitioningColumnType;
 
@@ -371,7 +391,7 @@ class JdbcUtil {
           new JdbcReadWithPartitionsHelper<String>() {
             @Override
             public Iterable<KV<String, String>> calculateRanges(
-                String lowerBound, String upperBound, Integer partitions) {
+                String lowerBound, String upperBound, Long partitions) {
               List<KV<String, String>> ranges = new ArrayList<>();
               // For now, we create ranges based on the very first letter of each string.
               // For cases where we have empty strings, we use that as the bottom of one range,
@@ -381,7 +401,7 @@ class JdbcUtil {
                 ranges.add(KV.of("", lowerBound));
               }
               int dif = upperBound.charAt(0) - lowerBound.charAt(0);
-              int stride = dif / partitions != 0 ? dif / partitions : 1;
+              int stride = dif / partitions != 0 ? Long.valueOf(dif / partitions).intValue() : 1;
               String currentLowerBound = String.valueOf(lowerBound.charAt(0));
               while (currentLowerBound.charAt(0) < upperBound.charAt(0)) {
                 int upperBoundCharPoint = currentLowerBound.charAt(0) + stride;
@@ -418,12 +438,12 @@ class JdbcUtil {
             }
 
             @Override
-            public KV<Integer, KV<String, String>> mapRow(ResultSet resultSet) throws Exception {
+            public KV<Long, KV<String, String>> mapRow(ResultSet resultSet) throws Exception {
               if (resultSet.getMetaData().getColumnCount() == 3) {
                 return KV.of(
-                    resultSet.getInt(3), KV.of(resultSet.getString(1), resultSet.getString(2)));
+                    resultSet.getLong(3), KV.of(resultSet.getString(1), resultSet.getString(2)));
               } else {
-                return KV.of(0, KV.of(resultSet.getString(1), resultSet.getString(2)));
+                return KV.of(0L, KV.of(resultSet.getString(1), resultSet.getString(2)));
               }
             }
           },
@@ -431,7 +451,7 @@ class JdbcUtil {
           new JdbcReadWithPartitionsHelper<Long>() {
             @Override
             public Iterable<KV<Long, Long>> calculateRanges(
-                Long lowerBound, Long upperBound, Integer partitions) {
+                Long lowerBound, Long upperBound, Long partitions) {
               List<KV<Long, Long>> ranges = new ArrayList<>();
               // We divide by partitions FIRST to make sure that we can cover the whole LONG range.
               // If we substract first, then we may end up with Long.MAX - Long.MIN, which is 2*MAX,
@@ -461,12 +481,12 @@ class JdbcUtil {
             }
 
             @Override
-            public KV<Integer, KV<Long, Long>> mapRow(ResultSet resultSet) throws Exception {
+            public KV<Long, KV<Long, Long>> mapRow(ResultSet resultSet) throws Exception {
               if (resultSet.getMetaData().getColumnCount() == 3) {
                 return KV.of(
-                    resultSet.getInt(3), KV.of(resultSet.getLong(1), resultSet.getLong(2)));
+                    resultSet.getLong(3), KV.of(resultSet.getLong(1), resultSet.getLong(2)));
               } else {
-                return KV.of(0, KV.of(resultSet.getLong(1), resultSet.getLong(2)));
+                return KV.of(0L, KV.of(resultSet.getLong(1), resultSet.getLong(2)));
               }
             }
           },
@@ -474,7 +494,7 @@ class JdbcUtil {
           new JdbcReadWithPartitionsHelper<DateTime>() {
             @Override
             public Iterable<KV<DateTime, DateTime>> calculateRanges(
-                DateTime lowerBound, DateTime upperBound, Integer partitions) {
+                DateTime lowerBound, DateTime upperBound, Long partitions) {
               final List<KV<DateTime, DateTime>> result = new ArrayList<>();
 
               final long intervalMillis = upperBound.getMillis() - lowerBound.getMillis();
@@ -509,17 +529,16 @@ class JdbcUtil {
             }
 
             @Override
-            public KV<Integer, KV<DateTime, DateTime>> mapRow(ResultSet resultSet)
-                throws Exception {
+            public KV<Long, KV<DateTime, DateTime>> mapRow(ResultSet resultSet) throws Exception {
               if (resultSet.getMetaData().getColumnCount() == 3) {
                 return KV.of(
-                    resultSet.getInt(3),
+                    resultSet.getLong(3),
                     KV.of(
                         new DateTime(resultSet.getTimestamp(1)),
                         new DateTime(resultSet.getTimestamp(2))));
               } else {
                 return KV.of(
-                    0,
+                    0L,
                     KV.of(
                         new DateTime(resultSet.getTimestamp(1)),
                         new DateTime(resultSet.getTimestamp(2))));
