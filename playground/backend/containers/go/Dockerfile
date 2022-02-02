@@ -71,16 +71,14 @@ ENV HTTPS_PROXY="http://127.0.0.1:8081"
 COPY entrypoint.sh /
 COPY proxy.sh /
 # Run proxy
-RUN chmod +x /proxy.sh
-RUN /proxy.sh
+RUN sh /proxy.sh
 
 # Create a user group `appgroup` and a user `appuser`
 RUN groupadd --gid 20000 appgroup \
   && useradd --uid 20000 --gid appgroup --shell /bin/bash --create-home appuser
 # Chown all the files to the app user.
-RUN chown -R appuser:appgroup /opt/playground/backend/
-RUN chown -R appuser:appgroup /opt/playground/prepared_folder/
-RUN chmod +x /entrypoint.sh
+RUN chown -R appuser:appgroup /opt/playground/backend/ && chown -R appuser:appgroup /opt/playground/prepared_folder/ \
+  && chmod +x /entrypoint.sh
 
 # Switch to appuser
 USER appuser
