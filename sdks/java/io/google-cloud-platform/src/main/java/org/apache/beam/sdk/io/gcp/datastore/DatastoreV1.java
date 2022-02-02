@@ -1463,7 +1463,6 @@ public class DatastoreV1 {
       int size = write.getSerializedSize();
 
       if (!uniqueMutations.add(c.element())) {
-        batchSize.update(mutations.size());
         flushBatch();
       }
 
@@ -1499,6 +1498,8 @@ public class DatastoreV1 {
       LOG.debug("Writing batch of {} mutations", mutations.size());
       Sleeper sleeper = Sleeper.DEFAULT;
       BackOff backoff = BUNDLE_WRITE_BACKOFF.backoff();
+
+      batchSize.update(mutations.size());
 
       while (true) {
         // Batch upsert entities.
