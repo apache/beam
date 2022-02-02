@@ -75,13 +75,13 @@ func TestRegistry(t *testing.T) {
 	checkLookup(t, urn, Require(required), required, QueryExpansionService, "QueryExpansionService")
 
 	// Check that the automated expansion service check is correct.
-	auto := autoNamespace + Separator + ":sdks:somelanguage:expansion"
+	auto := autoJavaNamespace + Separator + ":sdks:somelanguage:expansion"
 	checkLookup(t, urn, auto, auto, QueryAutomatedExpansionService, "QueryAutomatedExpansionService")
 }
 
 func TestUseAutomatedExpansionService(t *testing.T) {
 	target := ":sdks:java:extensions:someservice:shadowJar"
-	if got, want := UseAutomatedExpansionService(target), autoNamespace+Separator+target; got != want {
+	if got, want := UseAutomatedJavaExpansionService(target), autoJavaNamespace+Separator+target; got != want {
 		t.Errorf("got %v, want %v", got, want)
 	}
 }

@@ -143,7 +143,7 @@ func QueryExpansionService(ctx context.Context, p *HandlerParams) (*jobpb.Expans
 	return res, nil
 }
 
-func startAutomatedExpansionService(gradleTarget string) (stopFunc func() error, address string, err error) {
+func startAutomatedJavaExpansionService(gradleTarget string) (stopFunc func() error, address string, err error) {
 	jarPath, err := expansionx.GetBeamJar(gradleTarget, core.SdkVersion)
 	if err != nil {
 		return nil, "", err
@@ -172,7 +172,7 @@ func QueryAutomatedExpansionService(ctx context.Context, p *HandlerParams) (*job
 	// Strip auto: tag to get Gradle target
 	tag, target := parseAddr(p.Config)
 
-	stopFunc, address, err := startAutomatedExpansionService(target)
+	stopFunc, address, err := startAutomatedJavaExpansionService(target)
 	if err != nil {
 		return nil, err
 	}

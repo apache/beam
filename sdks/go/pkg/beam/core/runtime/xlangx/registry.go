@@ -220,7 +220,7 @@ func (r *registry) getHandlerFunc(urn, expansionAddr string) (HandlerFunc, strin
 	// By the time this is called, we want *some* kind of HandlerFunc at all,
 	// So first we check for the hard override.
 	ns, config := parseAddr(expansionAddr)
-	if ns == autoNamespace {
+	if ns == autoJavaNamespace {
 		// Leave expansionAddr unmodified so the autoNamespace keyword sticks.
 		// We strip it manually in the HandlerFunc.
 		return QueryAutomatedExpansionService, expansionAddr
@@ -248,7 +248,7 @@ const (
 	// Separator is the canonical separator between a namespace and optional configuration.
 	Separator             = ":"
 	hardOverrideNamespace = "hardoverride"
-	autoNamespace         = "auto"
+	autoJavaNamespace         = "autojava"
 )
 
 // Require takes an expansionAddr and requires cross language expansion
@@ -262,21 +262,21 @@ func Require(expansionAddr string) string {
 	return hardOverrideNamespace + Separator + expansionAddr
 }
 
-// UseAutomatedExpansionService takes a gradle target and creates a
+// UseAutomatedJavaExpansionService takes a gradle target and creates a
 // tagged string to indicate that it should be used to start up an
 // automated expansion service for a cross-language expansion.
 //
 // Intended for use by cross language wrappers to permit spinning
 // up an expansion service for a user if no expansion service address
 // is provided.
-func UseAutomatedExpansionService(gradleTarget string) string {
-	return autoNamespace + Separator + gradleTarget
+func UseAutomatedJavaExpansionService(gradleTarget string) string {
+	return autoJavaNamespace + Separator + gradleTarget
 }
 
 // restricted namespaces to prevent some awkward edge cases.
 var restricted = map[string]struct{}{
 	hardOverrideNamespace: {}, // Special handler for overriding.
-	autoNamespace:         {}, // Special handler for automated expansion services.
+	autoJavaNamespace:         {}, // Special handler for automated Java expansion services.
 	"localhost":           {},
 	"http":                {},
 	"https":               {},
