@@ -264,7 +264,7 @@ func Require(expansionAddr string) string {
 
 // UseAutomatedExpansionService takes a gradle target and creates a
 // tagged string to indicate that it should be used to start up an
-// automated expansion service for a gross-language expansion.
+// automated expansion service for a cross-language expansion.
 //
 // Intended for use by cross language wrappers to permit spinning
 // up an expansion service for a user if no expansion service address
