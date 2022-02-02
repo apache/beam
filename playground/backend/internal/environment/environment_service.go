@@ -181,7 +181,7 @@ func ConfigureBeamEnvs(workDir string) (*BeamEnvs, error) {
 		}
 	}
 	if sdk == pb.Sdk_SDK_UNSPECIFIED {
-		return nil, errors.New("env BEAM_SDK must be specified in the environment variables")
+		return NewBeamEnvs(sdk, nil, preparedModDir, numOfParallelJobs), nil
 	}
 	configPath := filepath.Join(workDir, configFolderName, sdk.String()+jsonExt)
 	executorConfig, err := createExecutorConfig(sdk, configPath)
@@ -212,7 +212,7 @@ func createExecutorConfig(apacheBeamSdk pb.Sdk, configPath string) (*ExecutorCon
 	case pb.Sdk_SDK_PYTHON:
 		// Python sdk doesn't need any additional arguments from the config file
 	case pb.Sdk_SDK_SCIO:
-		return nil, errors.New("not yet supported")
+		// Scala sdk doesn't need any additional arguments from the config file
 	}
 	return executorConfig, nil
 }

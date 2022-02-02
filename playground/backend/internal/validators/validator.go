@@ -16,8 +16,9 @@
 package validators
 
 const (
-	UnitTestValidatorName = "UnitTest"
-	KatasValidatorName    = "Katas"
+	UnitTestValidatorName    = "UnitTest"
+	KatasValidatorName       = "Katas"
+	PublicClassValidatorName = "ClassName"
 )
 
 type Validator struct {

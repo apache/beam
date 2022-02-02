@@ -42,13 +42,18 @@ SOURCE_CODE_REQUIRED_LICENSES = ['lgpl', 'gpl', 'cddl', 'mpl', 'gnu', 'mozilla p
 RETRY_NUM = 9
 THREADS = 16
 
-
 @retry(reraise=True,
        wait=wait_fixed(5),
        stop=stop_after_attempt(RETRY_NUM))
 def pull_from_url(file_name, url, dep, no_list):
     if url == 'skip':
         return
+
+    # Replace file path with absolute path to manual licenses
+    if url.startswith('file://{}'):
+        url = url.format(manual_license_path)
+        logging.info('Replaced local file URL with {url} for {dep}'.format(url=url, dep=dep))
+
     try:
         url_read = urlopen(url)
         with open(file_name, 'wb') as temp_write:
@@ -234,11 +239,13 @@ if __name__ == "__main__":
     parser.add_argument('--license_index', required=True)
     parser.add_argument('--output_dir', required=True)
     parser.add_argument('--dep_url_yaml', required=True)
+    parser.add_argument('--manual_license_path', required=True)
 
     args = parser.parse_args()
     license_index = args.license_index
     output_dir = args.output_dir
     dep_url_yaml = args.dep_url_yaml
+    manual_license_path = args.manual_license_path
 
     logging.getLogger().setLevel(logging.INFO)
 
