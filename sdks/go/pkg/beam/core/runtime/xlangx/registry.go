@@ -229,7 +229,10 @@ func (r *registry) getHandlerFunc(urn, expansionAddr string) (HandlerFunc, strin
 		// If there is no hard override, check the urn overrides.
 		expansionAddr = addr
 		ns, config = parseAddr(addr)
-	} else if ns == autoJavaNamespace {
+	}
+	// Check this after hardoverrides and URN overrides so those can point to automated expansion
+	// themselves.
+	if ns == autoJavaNamespace {
 		// Leave expansionAddr unmodified so the autoNamespace keyword sticks.
 		// We strip it manually in the HandlerFunc.
 		return QueryAutomatedExpansionService, expansionAddr
