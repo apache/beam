@@ -456,7 +456,7 @@ class StreamingCacheTest(unittest.TestCase):
     cache_root set under Interactive Beam for a GCS directory.
     """
     # Set Interactive Beam specified cache dir to cloud storage
-    ib.options.cache_root = "gs://"
+    ib.options.cache_root = 'gs://'
     cache_manager_with_ib_option = StreamingCache(
         cache_dir=ib.options.cache_root)
 
@@ -486,7 +486,7 @@ class StreamingCacheTest(unittest.TestCase):
     pcoll_list_one = list(reader_one)
 
     # Set Interactive Beam specified cache dir to cloud storage
-    ib.options.cache_root = "/tmp/it-test/"
+    ib.options.cache_root = '/tmp/it-test/'
     cache_manager_with_ib_option = StreamingCache(
         cache_dir=ib.options.cache_root)
 
