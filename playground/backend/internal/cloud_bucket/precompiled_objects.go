@@ -182,7 +182,7 @@ func (cd *CloudStorage) GetPrecompiledObjects(ctx context.Context, targetSdk pb.
 		}
 
 		folderName := strings.Split(objectDir, string(os.PathSeparator))[1]
-		precompiledObject.Type = getObjectTypeByFolderName(folderName)
+		precompiledObject.Type = pb.PrecompiledObjectType(pb.PrecompiledObjectType_value[folderName])
 
 		for _, objectCategory := range precompiledObject.Categories {
 			if targetCategory == "" || targetCategory == objectCategory { //take only requested categories
@@ -284,20 +284,6 @@ func getFileExtensionBySdk(precompiledObjectPath string) (string, error) {
 		return "", fmt.Errorf("")
 	}
 	return extension, nil
-}
-
-// getObjectTypeByFolderName returns pb.PrecompiledObjectType by folder name
-func getObjectTypeByFolderName(folderName string) pb.PrecompiledObjectType {
-	switch folderName {
-	case "PRECOMPILED_OBJECT_TYPE_EXAMPLE":
-		return pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE
-	case "PRECOMPILED_OBJECT_TYPE_KATA":
-		return pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_KATA
-	case "PRECOMPILED_OBJECT_TYPE_UNIT_TEST":
-		return pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_UNIT_TEST
-	default:
-		return pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_UNSPECIFIED
-	}
 }
 
 // getFullFilePath get full path to the precompiled object file

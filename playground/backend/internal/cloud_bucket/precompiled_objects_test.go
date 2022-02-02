@@ -238,45 +238,6 @@ func Test_getFileExtensionBySdk(t *testing.T) {
 	}
 }
 
-func Test_getObjectTypeByFolderName(t *testing.T) {
-	type args struct {
-		folderName string
-	}
-	tests := []struct {
-		name string
-		args args
-		want pb.PrecompiledObjectType
-	}{
-		{
-			name: "PRECOMPILED_OBJECT_TYPE_EXAMPLE",
-			args: args{folderName: "PRECOMPILED_OBJECT_TYPE_EXAMPLE"},
-			want: pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
-		},
-		{
-			name: "PRECOMPILED_OBJECT_TYPE_KATA",
-			args: args{folderName: "PRECOMPILED_OBJECT_TYPE_KATA"},
-			want: pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_KATA,
-		},
-		{
-			name: "PRECOMPILED_OBJECT_TYPE_UNIT_TEST",
-			args: args{folderName: "PRECOMPILED_OBJECT_TYPE_UNIT_TEST"},
-			want: pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_UNIT_TEST,
-		},
-		{
-			name: "default case",
-			args: args{folderName: "_"},
-			want: pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_UNSPECIFIED,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := getObjectTypeByFolderName(tt.args.folderName); got != tt.want {
-				t.Errorf("getObjectTypeByFolderName() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func Benchmark_GetPrecompiledObjects(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_, _ = bucket.GetPrecompiledObjects(ctx, targetSdk, "")
