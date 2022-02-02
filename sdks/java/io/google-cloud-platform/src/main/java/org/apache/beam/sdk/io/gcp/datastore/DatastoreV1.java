@@ -85,7 +85,6 @@ import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
@@ -1411,7 +1410,8 @@ public class DatastoreV1 {
         Metrics.counter(DatastoreWriterFn.class, "datastoreRpcErrors");
     private final Counter rpcSuccesses =
         Metrics.counter(DatastoreWriterFn.class, "datastoreRpcSuccesses");
-    private final Counter duplicateKeys = Metrics.counter(DatastoreWriterFn.class, "duplicateKeys");
+    private final Distribution batchSize =
+        Metrics.distribution(DatastoreWriterFn.class, "batchSize");
     private final Counter entitiesMutated =
         Metrics.counter(DatastoreWriterFn.class, "datastoreEntitiesMutated");
     private final Distribution latencyMsPerMutation =
@@ -1463,7 +1463,7 @@ public class DatastoreV1 {
       int size = write.getSerializedSize();
 
       if (!uniqueMutations.add(c.element())) {
-        duplicateKeys.inc();
+        batchSize.update(mutations.size());
         flushBatch();
       }
 

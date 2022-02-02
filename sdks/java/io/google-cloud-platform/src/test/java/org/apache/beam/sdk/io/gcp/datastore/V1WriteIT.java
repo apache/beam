@@ -27,6 +27,7 @@ import com.google.datastore.v1.Entity;
 import com.google.datastore.v1.Key;
 import com.google.datastore.v1.Mutation;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
@@ -40,6 +41,7 @@ import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
@@ -96,23 +98,21 @@ public class V1WriteIT {
    * found the batch gets flushed.
    */
   @Test
-  public void testDatatoreWriterFnWithDuplicatedEntities() throws Exception {
+  public void testDatastoreWriterFnWithDuplicatedEntities() throws Exception {
 
     List<Mutation> mutations = new ArrayList<>(200);
     V1TestOptions options = TestPipeline.testingPipelineOptions().as(V1TestOptions.class);
     Pipeline pipeline = TestPipeline.create(options);
 
-    for (int i = 1; i <= 180; i++) {
+    for (int i = 1; i <= 200; i++) {
       Key key = makeKey("key" + i, i + 1).build();
 
       mutations.add(makeUpsert(Entity.newBuilder().setKey(key).build()).build());
 
-      if (i % 90 == 0) {
+      if (i % 30 == 0) {
         mutations.add(makeUpsert(Entity.newBuilder().setKey(key).build()).build());
       }
     }
-
-    PCollection<Mutation> input = pipeline.apply(Create.of(mutations));
 
     DatastoreV1.DatastoreWriterFn datastoreWriter =
         new DatastoreV1.DatastoreWriterFn(
@@ -121,7 +121,18 @@ public class V1WriteIT {
     PTransform<PCollection<? extends Mutation>, PCollection<Void>> datastoreWriterTransform =
         ParDo.of(datastoreWriter);
 
-    input.apply(datastoreWriterTransform);
+    /** Following three lines turn the original arrayList into a member of the first PCollection */
+    List<Mutation> newArrayList = new ArrayList<>(mutations);
+    Create.Values<Iterable<Mutation>> mutationIterable =
+        Create.of(Collections.singleton(newArrayList));
+    PCollection<Iterable<Mutation>> input = pipeline.apply(mutationIterable);
+
+    /**
+     * Flatten divides the PCollection into several elements of the same bundle. By doing this we're
+     * forcing the processing of the List of mutation in the same order the mutations were added to
+     * the original List.
+     */
+    input.apply(Flatten.<Mutation>iterables()).apply(datastoreWriterTransform);
 
     PipelineResult pResult = pipeline.run();
 
@@ -131,22 +142,21 @@ public class V1WriteIT {
             .queryMetrics(
                 MetricsFilter.builder()
                     .addNameFilter(
-                        MetricNameFilter.named(
-                            DatastoreV1.DatastoreWriterFn.class, "duplicateKeys"))
+                        MetricNameFilter.named(DatastoreV1.DatastoreWriterFn.class, "batchSize"))
                     .build());
 
-    AtomicLong duplicatedCount = new AtomicLong();
+    AtomicLong timesCommitted = new AtomicLong();
 
     metricResults
-        .getCounters()
+        .getDistributions()
         .forEach(
-            counter -> {
-              if (counter.getName().getName().equals("duplicateKeys")) {
-                duplicatedCount.set(counter.getCommitted());
+            distribution -> {
+              if (distribution.getName().getName().equals("batchSize")) {
+                timesCommitted.set(distribution.getCommitted().getCount());
               }
             });
 
-    assertEquals(1, duplicatedCount.get());
+    assertEquals(6, timesCommitted.get());
   }
 
   /**
