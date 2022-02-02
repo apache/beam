@@ -129,7 +129,11 @@ tasks.rat {
     "**/.gitkeep",
 
     // Ignore Flutter localization .arb files (doesn't support comments)
-    "playground/frontend/lib/l10n/**/*.arb"
+    "playground/frontend/lib/l10n/**/*.arb",
+
+    // Ignore LICENSES copied onto containers
+    "sdks/java/container/license_scripts/manual_licenses",
+    "sdks/python/container/license_scripts/manual_licenses"
   )
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
