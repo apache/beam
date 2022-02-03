@@ -65,8 +65,9 @@ var directFilters = []string{
 	"TestXLang.*",
 	"TestKafkaIO.*",
 	"TestJDBCIO_BasicReadWrite",
-	// Triggers are not yet supported
+	// Triggers, Panes are not yet supported
 	"TestTrigger.*",
+	"TestPanes",
 	// The direct runner does not support the TestStream primitive
 	"TestTestStream.*",
 	// (BEAM-13075): The direct runner does not support windowed side inputs
@@ -79,8 +80,9 @@ var directFilters = []string{
 var portableFilters = []string{
 	// The portable runner does not support the TestStream primitive
 	"TestTestStream.*",
-	// The trigger tests uses TestStream
+	// The trigger and pane tests uses TestStream
 	"TestTrigger.*",
+	"TestPanes",
 	// TODO(BEAM-12797): Python portable runner times out on Kafka reads.
 	"TestKafkaIO.*",
 	// TODO(BEAM-13778) needs a schemaio expansion service address flag
@@ -106,8 +108,9 @@ var samzaFilters = []string{
 	"TestReshuffleKV",
 	// The Samza runner does not support the TestStream primitive
 	"TestTestStream.*",
-	// The trigger tests uses TestStream
+	// The trigger and pane tests uses TestStream
 	"TestTrigger.*",
+	"TestPanes",
 	// TODO(BEAM-13006): Samza doesn't yet support post job metrics, used by WordCount
 	"TestWordCount.*",
 	// TODO(BEAM-13778) needs a schemaio expansion service address flag
@@ -121,8 +124,9 @@ var sparkFilters = []string{
 	"TestParDoKVSideInput",
 	// The Spark runner does not support the TestStream primitive
 	"TestTestStream.*",
-	// The trigger tests uses TestStream
+	// The trigger and pane tests uses TestStream
 	"TestTrigger.*",
+	"TestPanes",
 	// TODO(BEAM-13778) needs a schemaio expansion service address flag
 	"TestJDBCIO_BasicReadWrite",
 }
@@ -134,8 +138,9 @@ var dataflowFilters = []string{
 	"TestFlattenDup",
 	// The Dataflow runner does not support the TestStream primitive
 	"TestTestStream.*",
-	// The trigger tests uses TestStream
+	// The trigger and pane tests uses TestStream
 	"TestTrigger.*",
+	"TestPanes",
 	// There is no infrastructure for running KafkaIO tests with Dataflow.
 	"TestKafkaIO.*",
 	// Dataflow doesn't support any test that requires loopback.
