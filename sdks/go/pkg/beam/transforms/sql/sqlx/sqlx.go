@@ -21,15 +21,18 @@
 // - to break potential circular dependencies: sql -> default expansion service/handler -> sql.
 package sqlx
 
+import (
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/xlangx"
+)
+
 const (
 	// Urn is the URN for SQL transforms.
 	Urn = "beam:external:java:sql:v1"
 
-	// DefaultExpansionAddr is the default expansion service address for SQL.
-	// TODO: Change this to the Beam Java expansion address once Beam SQL
-	// is implemented in Beam Go.
-	DefaultExpansionAddr = "undefined"
+	serviceGradleTarget = ":sdks:java:extensions:sql:expansion-service:shadowJar"
 )
+
+var DefaultExpansionAddr string = xlangx.UseAutomatedJavaExpansionService(serviceGradleTarget)
 
 // Options is the interface for adding SQL transform options.
 type Options interface {
