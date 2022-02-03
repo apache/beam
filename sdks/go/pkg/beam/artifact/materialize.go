@@ -25,6 +25,7 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -43,6 +44,7 @@ import (
 // TODO(lostluck): 2018/05/28 Extract these from their enum descriptors in the pipeline_v1 proto
 const (
 	URNFileArtifact        = "beam:artifact:type:file:v1"
+	URNUrlArtifact         = "beam:artifact:type:url:v1"
 	URNPipRequirementsFile = "beam:artifact:role:pip_requirements_file:v1"
 	URNStagingTo           = "beam:artifact:role:staging_to:v1"
 	NoArtifactsStaged      = "__no_artifacts_staged__"
@@ -94,6 +96,12 @@ func newMaterializeWithClient(ctx context.Context, client jobpb.ArtifactRetrieva
 			typePayload := pipepb.ArtifactFilePayload{}
 			if err := proto.Unmarshal(dep.TypePayload, &typePayload); err != nil {
 				return nil, errors.Wrap(err, "failed to parse artifact file payload")
+			}
+			filePayload.Sha256 = typePayload.Sha256
+		} else if dep.TypeUrn == URNUrlArtifact {
+			typePayload := pipepb.ArtifactUrlPayload{}
+			if err := proto.Unmarshal(dep.TypePayload, &typePayload); err != nil {
+				return nil, errors.Wrap(err, "failed to parse artifact url payload")
 			}
 			filePayload.Sha256 = typePayload.Sha256
 		}
@@ -150,6 +158,12 @@ func extractStagingToPath(artifact *pipepb.ArtifactInformation) (string, error) 
 			return "", err
 		}
 		stagedName = generateId() + "-" + filepath.Base(ty.Path)
+	} else if artifact.TypeUrn == URNUrlArtifact {
+		ty := pipepb.ArtifactUrlPayload{}
+		if err := proto.Unmarshal(artifact.TypePayload, &ty); err != nil {
+			return "", err
+		}
+		stagedName = generateId() + "-" + path.Base(ty.Url)
 	} else {
 		return "", errors.Errorf("failed to extract staging path for artifact type %v role %v", artifact.TypeUrn, artifact.RoleUrn)
 	}
