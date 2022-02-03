@@ -45,7 +45,7 @@ func createExternalEdge(typeUrn string, typePayload []byte) *graph.MultiEdge {
 	}
 }
 
-func TestUpdateArtifactTypeFromFileToUrl(t *testing.T) {
+func TestUpdateFileArtifactWithUrlPath(t *testing.T) {
 	payload, _ := proto.Marshal(&pipepb.ArtifactFilePayload{
 		Path: "gs://dummy"})
 	e := createExternalEdge("beam:artifact:type:file:v1", payload)
@@ -59,12 +59,14 @@ func TestUpdateArtifactTypeFromFileToUrl(t *testing.T) {
 			e.External.Expanded.Components.(*pipepb.Components),
 			expected.External.Expanded.Components.(*pipepb.Components))
 	}
+}
 
-	payload, _ = proto.Marshal(&pipepb.ArtifactFilePayload{
+func TestUpdateFileArtifactWithLocalPath(t *testing.T) {
+	payload, _ := proto.Marshal(&pipepb.ArtifactFilePayload{
 		Path: "/tmp/artifact/dummy"})
-	e = createExternalEdge("beam:artifact:type:file:v1", payload)
+	e := createExternalEdge("beam:artifact:type:file:v1", payload)
 	UpdateArtifactTypeFromFileToUrl([]*graph.MultiEdge{e})
-	expected = createExternalEdge("beam:artifact:type:file:v1", payload)
+	expected := createExternalEdge("beam:artifact:type:file:v1", payload)
 
 	if !proto.Equal(
 		e.External.Expanded.Components.(*pipepb.Components),
