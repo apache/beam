@@ -4886,6 +4886,8 @@ add the &lt;code>beam-playground&lt;/code> tag into the file to be added.
 &lt;/span>&lt;span class="c1">// description: Description of the example/test/kata
 &lt;/span>&lt;span class="c1">// multifile: false
 &lt;/span>&lt;span class="c1">// pipeline_options: --option1 value1 --option2 value2
+&lt;/span>&lt;span class="c1">// default_example: false
+&lt;/span>&lt;span class="c1">// context_line: 10
 &lt;/span>&lt;span class="c1">// categories:
 &lt;/span>&lt;span class="c1">// - category 1
 &lt;/span>&lt;span class="c1">// - category 2
@@ -4904,6 +4906,8 @@ add the &lt;code>beam-playground&lt;/code> tag into the file to be added.
 &lt;span class="c1"># description: Description of the example/test/kata&lt;/span>
 &lt;span class="c1"># multifile: false&lt;/span>
 &lt;span class="c1"># pipeline_options: --option1 value1 --option2 value2&lt;/span>
+&lt;span class="c1"># default_example: false&lt;/span>
+&lt;span class="c1"># context_line: 10&lt;/span>
 &lt;span class="c1"># categories:&lt;/span>
 &lt;span class="c1"># - category 1&lt;/span>
 &lt;span class="c1"># - category 2&lt;/span>
@@ -4921,6 +4925,8 @@ add the &lt;code>beam-playground&lt;/code> tag into the file to be added.
 &lt;/span>&lt;span class="c1">// description: Description of the example/test/kata
 &lt;/span>&lt;span class="c1">// multifile: false
 &lt;/span>&lt;span class="c1">// pipeline_options: --option1 value1 --option2 value2
+&lt;/span>&lt;span class="c1">// default_example: false
+&lt;/span>&lt;span class="c1">// context_line: 10
 &lt;/span>&lt;span class="c1">// categories:
 &lt;/span>&lt;span class="c1">// - category 1
 &lt;/span>&lt;span class="c1">// - category 2
@@ -4937,7 +4943,11 @@ add the &lt;code>beam-playground&lt;/code> tag into the file to be added.
 examples catalog.&lt;/li>
 &lt;li>&lt;code>description&lt;/code> - string field. Description of the Beam example/test/kata that will be displayed in Beam Playground.&lt;/li>
 &lt;li>&lt;code>multifile&lt;/code> - boolean field. Specifies if the given example consists of multiple files or not.&lt;/li>
-&lt;li>&lt;code>pipeline_options&lt;/code> - string field. Contains information about pipeline options of the Beam example/test/kata.&lt;/li>
+&lt;li>&lt;code>pipeline_options&lt;/code> - string field (optional). Contains information about pipeline options of the Beam example/test/kata.&lt;/li>
+&lt;li>&lt;code>default_example&lt;/code> - boolean field (optional). Specifies if the given example is default or not. If some example is tagged
+as default it means that this example is shown when its SDK is chosen in Beam Playground.
+Only one example can be set as a default for each SDK.&lt;/li>
+&lt;li>&lt;code>context_line&lt;/code> - integer field. The line where the main part of the Beam example/test/kata begins.&lt;/li>
 &lt;li>&lt;code>categories&lt;/code> - list type field.
 Lists categories this example is included into. Available categories are listed in
 &lt;a href="https://github.com/apache/beam/blob/master/playground/categories.yaml">playground/categories.yaml&lt;/a>.
