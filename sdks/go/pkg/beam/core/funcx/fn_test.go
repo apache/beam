@@ -283,8 +283,7 @@ func TestEmits(t *testing.T) {
 				params[i].Kind = kind
 				params[i].T = nil
 			}
-			fn := new(Fn)
-			fn.Param = params
+			fn := &Fn{Param: params}
 
 			// Validate we get expected results for Emits function.
 			pos, num, exists := fn.Emits()
@@ -331,8 +330,7 @@ func TestPane(t *testing.T) {
 				params[i].Kind = kind
 				params[i].T = nil
 			}
-			fn := new(Fn)
-			fn.Param = params
+			fn := &Fn{Param: params}
 
 			// Validate we get expected results for pane function.
 			pos, exists := fn.Pane()
@@ -376,8 +374,7 @@ func TestWindow(t *testing.T) {
 				params[i].Kind = kind
 				params[i].T = nil
 			}
-			fn := new(Fn)
-			fn.Param = params
+			fn := &Fn{Param: params}
 
 			// Validate we get expected results for pane function.
 			pos, exists := fn.Window()
@@ -452,8 +449,7 @@ func TestInputs(t *testing.T) {
 				params[i].Kind = kind
 				params[i].T = nil
 			}
-			fn := new(Fn)
-			fn.Param = params
+			fn := &Fn{Param: params}
 
 			// Validate we get expected results for Inputs function.
 			pos, num, exists := fn.Inputs()

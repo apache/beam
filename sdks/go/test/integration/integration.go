@@ -61,7 +61,7 @@ var directFilters = []string{
 	// The direct runner does not yet support cross-language.
 	"TestXLang.*",
 	"TestKafkaIO.*",
-  "TestJDBCIO_BasicReadWrite",
+	"TestJDBCIO_BasicReadWrite",
 	// Triggers, Panes are not yet supported
 	"TestTrigger.*",
 	"TestPanes",
