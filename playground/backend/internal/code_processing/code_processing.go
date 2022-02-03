@@ -409,9 +409,9 @@ func cancelCheck(ctx context.Context, pipelineId uuid.UUID, cancelChannel chan b
 	}
 }
 
-// readGraphFile reads graph from the log file and keeps it to the cache.
+// readGraphFile reads graph from the file and keeps it to the cache.
 // If context is done it means that the code processing was finished (successfully/with error/timeout).
-// Write graph to the cache if this in a file.
+// Write graph to the cache if this in the file.
 // In other case each pauseDuration checks that graph file exists or not and try to save it to the cache.
 func readGraphFile(pipelineLifeCycleCtx, backgroundCtx context.Context, cacheService cache.Cache, graphFilePath string, pipelineId uuid.UUID) {
 	ticker := time.NewTicker(pauseDuration)

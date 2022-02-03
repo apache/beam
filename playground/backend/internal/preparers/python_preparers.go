@@ -134,7 +134,7 @@ func writeToFile(to *os.File, str string) error {
 	return nil
 }
 
-// saveGraph add code to pipeline to save the pipeline's graph to the file graph.dot
+// saveGraph adds code to pipeline to save the pipeline's graph to the file GraphFileName
 func saveGraph(from *os.File, to *os.File) error {
 	newLine := false
 	reg := regexp.MustCompile(findPipelinePattern)
