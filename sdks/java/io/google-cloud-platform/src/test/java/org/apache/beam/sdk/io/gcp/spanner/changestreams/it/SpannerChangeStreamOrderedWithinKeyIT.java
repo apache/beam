@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.it;
 
-import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.Key;
 import com.google.cloud.spanner.KeySet;
@@ -93,10 +92,10 @@ public class SpannerChangeStreamOrderedWithinKeyIT {
     // Commit a initial transaction to get the timestamp to start reading from.
     List<Mutation> mutations = new ArrayList<>();
     mutations.add(insertRecordMutation(0));
-    final Timestamp startTimestamp = databaseClient.write(mutations);
+    final com.google.cloud.Timestamp startTimestamp = databaseClient.write(mutations);
 
     // Get the timestamp of the last committed transaction to get the end timestamp.
-    final Timestamp endTimestamp = writeTransactionsToDatabase();
+    final com.google.cloud.Timestamp endTimestamp = writeTransactionsToDatabase();
 
     final PCollection<String> tokens =
         pipeline
@@ -197,7 +196,6 @@ public class SpannerChangeStreamOrderedWithinKeyIT {
 
     @ProcessElement
     public void processElement(
-        @Timestamp org.joda.time.Instant elementTimestamp,
         @Element DataChangeRecord record,
         OutputReceiver<KV<String, DataChangeRecord>> outputReceiver) {
       outputReceiver.output(KV.of(record.getMods().get(0).getKeysJson(), record));
@@ -233,7 +231,7 @@ public class SpannerChangeStreamOrderedWithinKeyIT {
         OutputReceiver<String> outputReceiver) {
       final List<KV<SortKey, DataChangeRecord>> sortedRecords =
           StreamSupport.stream(recordsByKey.getValue().spliterator(), false)
-              .sorted((kv1, kv2) -> kv1.getKey().compareTo(kv2.getKey()))
+              .sorted(Comparator.comparing(KV::getKey))
               .collect(Collectors.toList());
 
       final StringBuilder builder = new StringBuilder();
@@ -252,21 +250,21 @@ public class SpannerChangeStreamOrderedWithinKeyIT {
 
   public static class SortKey implements Serializable, Comparable<SortKey> {
     private static final long serialVersionUID = 6923689796764239980L;
-    private Timestamp commitTimestamp;
+    private com.google.cloud.Timestamp commitTimestamp;
     private String transactionId;
 
     public SortKey() {}
 
-    public SortKey(Timestamp commitTimestamp, String transactionId) {
+    public SortKey(com.google.cloud.Timestamp commitTimestamp, String transactionId) {
       this.commitTimestamp = commitTimestamp;
       this.transactionId = transactionId;
     }
 
-    public Timestamp getCommitTimestamp() {
+    public com.google.cloud.Timestamp getCommitTimestamp() {
       return commitTimestamp;
     }
 
-    public void setCommitTimestamp(Timestamp commitTimestamp) {
+    public void setCommitTimestamp(com.google.cloud.Timestamp commitTimestamp) {
       this.commitTimestamp = commitTimestamp;
     }
 
@@ -307,20 +305,20 @@ public class SpannerChangeStreamOrderedWithinKeyIT {
     }
   }
 
-  private static Timestamp writeTransactionsToDatabase() {
+  private static com.google.cloud.Timestamp writeTransactionsToDatabase() {
     List<Mutation> mutations = new ArrayList<>();
 
     // 1. Commit a transaction to insert Singer 1 and Singer 2 into the table.
     mutations.add(insertRecordMutation(1));
     mutations.add(insertRecordMutation(2));
-    Timestamp t1 = databaseClient.write(mutations);
+    com.google.cloud.Timestamp t1 = databaseClient.write(mutations);
     LOG.debug("The first transaction committed with timestamp: " + t1.toString());
     mutations.clear();
 
     // 2. Commmit a transaction to insert Singer 4 and remove Singer 1 from the table.
     mutations.add(updateRecordMutation(1));
     mutations.add(insertRecordMutation(4));
-    Timestamp t2 = databaseClient.write(mutations);
+    com.google.cloud.Timestamp t2 = databaseClient.write(mutations);
     LOG.debug("The second transaction committed with timestamp: " + t2.toString());
     mutations.clear();
 
@@ -329,14 +327,14 @@ public class SpannerChangeStreamOrderedWithinKeyIT {
     mutations.add(insertRecordMutation(3));
     mutations.add(insertRecordMutation(5));
     mutations.add(updateRecordMutation(5));
-    Timestamp t3 = databaseClient.write(mutations);
+    com.google.cloud.Timestamp t3 = databaseClient.write(mutations);
     LOG.debug("The third transaction committed with timestamp: " + t3.toString());
     mutations.clear();
 
     // 4. Commit a transaction to update Singer 3 and Singer 2 in the table.
     mutations.add(updateRecordMutation(3));
     mutations.add(updateRecordMutation(2));
-    Timestamp t4 = databaseClient.write(mutations);
+    com.google.cloud.Timestamp t4 = databaseClient.write(mutations);
     LOG.debug("The fourth transaction committed with timestamp: " + t4.toString());
     mutations.clear();
 
@@ -345,7 +343,7 @@ public class SpannerChangeStreamOrderedWithinKeyIT {
     mutations.add(insertRecordMutation(1));
     mutations.add(deleteRecordMutation(3));
     mutations.add(updateRecordMutation(5));
-    Timestamp t5 = databaseClient.write(mutations);
+    com.google.cloud.Timestamp t5 = databaseClient.write(mutations);
 
     LOG.debug("The fifth transaction committed with timestamp: " + t5.toString());
     mutations.clear();
@@ -354,7 +352,7 @@ public class SpannerChangeStreamOrderedWithinKeyIT {
     mutations.add(deleteRecordMutation(5));
     mutations.add(insertRecordMutation(6));
     mutations.add(deleteRecordMutation(6));
-    Timestamp t6 = databaseClient.write(mutations);
+    com.google.cloud.Timestamp t6 = databaseClient.write(mutations);
     LOG.debug("The sixth transaction committed with timestamp: " + t6.toString());
     mutations.clear();
 
@@ -362,7 +360,7 @@ public class SpannerChangeStreamOrderedWithinKeyIT {
     mutations.add(deleteRecordMutation(1));
     mutations.add(deleteRecordMutation(2));
     mutations.add(deleteRecordMutation(0));
-    Timestamp t7 = databaseClient.write(mutations);
+    com.google.cloud.Timestamp t7 = databaseClient.write(mutations);
     LOG.debug("The seventh transaction committed with timestamp: " + t7.toString());
 
     return t7;
