@@ -36,9 +36,9 @@ builder.build {
   // Publish all test results to Jenkins.
   publishers {
     archiveJunit('**/pytest*.xml'){
-        testDataPublishers {
-            publishFlakyTestsReport()
-        }
+      testDataPublishers {
+        publishFlakyTestsReport()
+      }
     }
   }
 }
