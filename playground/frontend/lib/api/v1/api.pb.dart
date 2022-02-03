@@ -990,7 +990,7 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     ..aOS(5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'pipelineOptions')
     ..aOS(6, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'link')
     ..aOB(7, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'multifile')
-    ..a<$core.int>(7, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'contextLine', $pb.PbFieldType.O3)
+    ..a<$core.int>(8, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'contextLine', $pb.PbFieldType.O3)
     ..hasRequiredFields = false
   ;
 
@@ -1117,13 +1117,13 @@ class PrecompiledObject extends $pb.GeneratedMessage {
   void clearMultifile() => clearField(7);
 
   @$pb.TagNumber(8)
-  $core.int get contextLine => $_getIZ(6);
+  $core.int get contextLine => $_getIZ(7);
   @$pb.TagNumber(8)
-  set contextLine($core.int v) { $_setSignedInt32(6, v); }
+  set contextLine($core.int v) { $_setSignedInt32(7, v); }
   @$pb.TagNumber(8)
-  $core.bool hasContextLine() => $_has(6);
+  $core.bool hasContextLine() => $_has(7);
   @$pb.TagNumber(8)
-  void clearContextLine() => clearField(7);
+  void clearContextLine() => clearField(8);
 }
 
 class Categories_Category extends $pb.GeneratedMessage {
