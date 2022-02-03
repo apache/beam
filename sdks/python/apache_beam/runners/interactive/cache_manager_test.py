@@ -222,7 +222,7 @@ class FileBasedCacheManagerTest(object):
     cache_root set under Interactive Beam for a GCS directory.
     """
     # Set Interactive Beam specified cache dir to cloud storage
-    ib.options.cache_root = "gs://"
+    ib.options.cache_root = 'gs://'
 
     cache_manager_with_ib_option = cache.FileBasedCacheManager(
         cache_dir=ib.options.cache_root)
@@ -249,7 +249,7 @@ class FileBasedCacheManagerTest(object):
     pcoll_list_one = list(reader_one)
 
     # Set Interactive Beam specified cache dir to local directory
-    ib.options.cache_root = "/tmp/it-test/"
+    ib.options.cache_root = '/tmp/it-test/'
     cache_manager_with_ib_option = cache.FileBasedCacheManager(
         cache_dir=ib.options.cache_root)
     self.assertEqual(

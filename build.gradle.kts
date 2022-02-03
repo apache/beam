@@ -129,7 +129,11 @@ tasks.rat {
     "**/.gitkeep",
 
     // Ignore Flutter localization .arb files (doesn't support comments)
-    "playground/frontend/lib/l10n/**/*.arb"
+    "playground/frontend/lib/l10n/**/*.arb",
+
+    // Ignore LICENSES copied onto containers
+    "sdks/java/container/license_scripts/manual_licenses",
+    "sdks/python/container/license_scripts/manual_licenses"
   )
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
@@ -444,6 +448,10 @@ if (project.hasProperty("compileAndRunTestsWithJava11")) {
   tasks.getByName("javaPreCommitPortabilityApi").dependsOn(":sdks:java:testing:test-utils:verifyJavaVersion")
   tasks.getByName("javaExamplesDataflowPrecommit").dependsOn(":sdks:java:testing:test-utils:verifyJavaVersion")
   tasks.getByName("sqlPreCommit").dependsOn(":sdks:java:testing:test-utils:verifyJavaVersion")
+} else if (project.hasProperty("compileAndRunTestsWithJava17")) {
+  tasks.getByName("javaPreCommitPortabilityApi").dependsOn(":sdks:java:testing:test-utils:verifyJavaVersion17")
+  tasks.getByName("javaExamplesDataflowPrecommit").dependsOn(":sdks:java:testing:test-utils:verifyJavaVersion17")
+  tasks.getByName("sqlPreCommit").dependsOn(":sdks:java:testing:test-utils:verifyJavaVersion17")
 } else {
   allprojects {
     tasks.withType(Test::class).configureEach {

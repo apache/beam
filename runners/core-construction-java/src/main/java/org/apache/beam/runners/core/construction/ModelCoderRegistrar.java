@@ -22,7 +22,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.auto.service.AutoService;
 import java.util.Collections;
 import java.util.Map;
-import java.util.Set;
 import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -39,7 +38,6 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCod
 import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableBiMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -55,8 +53,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
 
   // The URNs for coders which are shared across languages
-  @VisibleForTesting
-  static final BiMap<Class<? extends Coder>, String> BEAM_MODEL_CODER_URNS =
+  private static final BiMap<Class<? extends Coder>, String> BEAM_MODEL_CODER_URNS =
       ImmutableBiMap.<Class<? extends Coder>, String>builder()
           .put(ByteArrayCoder.class, ModelCoders.BYTES_CODER_URN)
           .put(BooleanCoder.class, ModelCoders.BOOL_CODER_URN)
@@ -78,28 +75,28 @@ public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
           .put(TimestampPrefixingWindowCoder.class, ModelCoders.CUSTOM_WINDOW_CODER_URN)
           .build();
 
-  public static final Set<String> WELL_KNOWN_CODER_URNS = BEAM_MODEL_CODER_URNS.values();
-
-  @VisibleForTesting
-  static final Map<Class<? extends Coder>, CoderTranslator<? extends Coder>> BEAM_MODEL_CODERS =
-      ImmutableMap.<Class<? extends Coder>, CoderTranslator<? extends Coder>>builder()
-          .put(ByteArrayCoder.class, CoderTranslators.atomic(ByteArrayCoder.class))
-          .put(BooleanCoder.class, CoderTranslators.atomic(BooleanCoder.class))
-          .put(StringUtf8Coder.class, CoderTranslators.atomic(StringUtf8Coder.class))
-          .put(VarLongCoder.class, CoderTranslators.atomic(VarLongCoder.class))
-          .put(IntervalWindowCoder.class, CoderTranslators.atomic(IntervalWindowCoder.class))
-          .put(GlobalWindow.Coder.class, CoderTranslators.atomic(GlobalWindow.Coder.class))
-          .put(KvCoder.class, CoderTranslators.kv())
-          .put(IterableCoder.class, CoderTranslators.iterable())
-          .put(Timer.Coder.class, CoderTranslators.timer())
-          .put(LengthPrefixCoder.class, CoderTranslators.lengthPrefix())
-          .put(FullWindowedValueCoder.class, CoderTranslators.fullWindowedValue())
-          .put(WindowedValue.ParamWindowedValueCoder.class, CoderTranslators.paramWindowedValue())
-          .put(DoubleCoder.class, CoderTranslators.atomic(DoubleCoder.class))
-          .put(RowCoder.class, CoderTranslators.row())
-          .put(ShardedKey.Coder.class, CoderTranslators.shardedKey())
-          .put(TimestampPrefixingWindowCoder.class, CoderTranslators.timestampPrefixingWindow())
-          .build();
+  private static final Map<Class<? extends Coder>, CoderTranslator<? extends Coder>>
+      BEAM_MODEL_CODERS =
+          ImmutableMap.<Class<? extends Coder>, CoderTranslator<? extends Coder>>builder()
+              .put(ByteArrayCoder.class, CoderTranslators.atomic(ByteArrayCoder.class))
+              .put(BooleanCoder.class, CoderTranslators.atomic(BooleanCoder.class))
+              .put(StringUtf8Coder.class, CoderTranslators.atomic(StringUtf8Coder.class))
+              .put(VarLongCoder.class, CoderTranslators.atomic(VarLongCoder.class))
+              .put(IntervalWindowCoder.class, CoderTranslators.atomic(IntervalWindowCoder.class))
+              .put(GlobalWindow.Coder.class, CoderTranslators.atomic(GlobalWindow.Coder.class))
+              .put(KvCoder.class, CoderTranslators.kv())
+              .put(IterableCoder.class, CoderTranslators.iterable())
+              .put(Timer.Coder.class, CoderTranslators.timer())
+              .put(LengthPrefixCoder.class, CoderTranslators.lengthPrefix())
+              .put(FullWindowedValueCoder.class, CoderTranslators.fullWindowedValue())
+              .put(
+                  WindowedValue.ParamWindowedValueCoder.class,
+                  CoderTranslators.paramWindowedValue())
+              .put(DoubleCoder.class, CoderTranslators.atomic(DoubleCoder.class))
+              .put(RowCoder.class, CoderTranslators.row())
+              .put(ShardedKey.Coder.class, CoderTranslators.shardedKey())
+              .put(TimestampPrefixingWindowCoder.class, CoderTranslators.timestampPrefixingWindow())
+              .build();
 
   static {
     checkState(
