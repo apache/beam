@@ -87,7 +87,8 @@ class HourlyTeamScoreIT(unittest.TestCase):
     # Get pipeline options from command argument: --test-pipeline-options,
     # and start pipeline job by calling pipeline main function.
     hourly_team_score.run(
-        self.test_pipeline.get_full_options_as_args(**extra_opts))
+        self.test_pipeline.get_full_options_as_args(**extra_opts),
+        save_main_session=False)
 
   @pytest.mark.examples_postcommit
   def test_hourly_team_score_output_checksum_on_small_input(self):
