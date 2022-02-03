@@ -36,7 +36,7 @@ const (
 	OutputExtension  = "output"
 	LogsExtension    = "log"
 	MetaInfoName     = "meta.info"
-	Timeout          = time.Second * 10
+	Timeout          = time.Minute
 	javaExtension    = "java"
 	goExtension      = "go"
 	pyExtension      = "py"
@@ -53,6 +53,7 @@ type ObjectInfo struct {
 	PipelineOptions string                   `protobuf:"bytes,3,opt,name=pipeline_options,proto3" json:"pipeline_options,omitempty"`
 	Link            string                   `protobuf:"bytes,3,opt,name=link,proto3" json:"link,omitempty"`
 	Multifile       bool                     `protobuf:"varint,7,opt,name=multifile,proto3" json:"multifile,omitempty"`
+	ContextLine     int32                    `protobuf:"varint,7,opt,name=context_line,proto3" json:"context_line,omitempty"`
 }
 
 type PrecompiledObjects []ObjectInfo
@@ -147,6 +148,7 @@ func (cd *CloudStorage) GetPrecompiledObjects(ctx context.Context, targetSdk pb.
 	if err != nil {
 		return nil, err
 	}
+	metaFiles := make(map[string][]byte, 0)
 	for objectDir := range dirs {
 		infoPath := filepath.Join(objectDir, MetaInfoName) // helping file with information about this object
 		rc, err := bucket.Object(infoPath).NewReader(ctx)
@@ -154,13 +156,18 @@ func (cd *CloudStorage) GetPrecompiledObjects(ctx context.Context, targetSdk pb.
 			logger.Errorf("Object(%q).NewReader: %v", infoPath, err.Error())
 			continue
 		}
-		data, err := ioutil.ReadAll(rc)
+		metaFile, err := ioutil.ReadAll(rc)
 		if err != nil {
 			logger.Errorf("ioutil.ReadAll: %v", err.Error())
 			continue
 		}
+		metaFiles[objectDir] = metaFile
+		rc.Close()
+	}
+
+	for objectDir, metaFile := range metaFiles {
 		precompiledObject := ObjectInfo{}
-		err = json.Unmarshal(data, &precompiledObject)
+		err = json.Unmarshal(metaFile, &precompiledObject)
 		if err != nil {
 			logger.Errorf("json.Unmarshal: %v", err.Error())
 			continue
@@ -170,7 +177,6 @@ func (cd *CloudStorage) GetPrecompiledObjects(ctx context.Context, targetSdk pb.
 				appendPrecompiledObject(precompiledObject, &precompiledObjects, objectDir, objectCategory)
 			}
 		}
-		rc.Close()
 	}
 	return &precompiledObjects, nil
 }

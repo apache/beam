@@ -37,6 +37,7 @@ func PutPrecompiledObjectsToCategory(categoryName string, precompiledObjects *cl
 			PipelineOptions: object.PipelineOptions,
 			Link:            object.Link,
 			Multifile:       object.Multifile,
+			ContextLine:     object.ContextLine,
 		})
 	}
 	sdkCategory.Categories = append(sdkCategory.Categories, &category)

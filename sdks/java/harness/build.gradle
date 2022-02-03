@@ -48,6 +48,7 @@ applyJavaNature(
       }
       // Include all dependencies and transitive dependencies
       include(dependency(".*:.*"))
+      exclude(dependency(".*:avro:.*"))
     }
   },
 )

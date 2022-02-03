@@ -1545,7 +1545,7 @@ public class SpannerIO {
         final InitializeDoFn initializeDoFn =
             new InitializeDoFn(daoFactory, mapperFactory, startTimestamp, endTimestamp);
         final DetectNewPartitionsDoFn detectNewPartitionsDoFn =
-            new DetectNewPartitionsDoFn(daoFactory, mapperFactory, metrics);
+            new DetectNewPartitionsDoFn(daoFactory, mapperFactory, actionFactory, metrics);
         final ReadChangeStreamPartitionDoFn readChangeStreamPartitionDoFn =
             new ReadChangeStreamPartitionDoFn(daoFactory, mapperFactory, actionFactory, metrics);
         final PostProcessingMetricsDoFn postProcessingMetricsDoFn =

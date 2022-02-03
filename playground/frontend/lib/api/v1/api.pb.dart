@@ -17,6 +17,12 @@
  */
 
 ///
+//  Generated code. Do not modify.
+//  source: api/v1/api.proto
+//
+// @dart = 2.12
+// ignore_for_file: annotate_overrides,camel_case_types,unnecessary_const,non_constant_identifier_names,library_prefixes,unused_import,unused_shown_name,return_of_invalid_type,unnecessary_this,prefer_final_fields
+
 import 'dart:core' as $core;
 
 import 'package:protobuf/protobuf.dart' as $pb;
@@ -984,6 +990,7 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     ..aOS(5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'pipelineOptions')
     ..aOS(6, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'link')
     ..aOB(7, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'multifile')
+    ..a<$core.int>(7, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'contextLine', $pb.PbFieldType.O3)
     ..hasRequiredFields = false
   ;
 
@@ -996,6 +1003,7 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     $core.String? pipelineOptions,
     $core.String? link,
     $core.bool? multifile,
+    $core.int? contextLine,
   }) {
     final _result = create();
     if (cloudPath != null) {
@@ -1018,6 +1026,9 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     }
     if (multifile != null) {
       _result.multifile = multifile;
+    }
+    if (contextLine != null) {
+      _result.contextLine = contextLine;
     }
     return _result;
   }
@@ -1104,6 +1115,15 @@ class PrecompiledObject extends $pb.GeneratedMessage {
   $core.bool hasMultifile() => $_has(6);
   @$pb.TagNumber(7)
   void clearMultifile() => clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.int get contextLine => $_getIZ(6);
+  @$pb.TagNumber(8)
+  set contextLine($core.int v) { $_setSignedInt32(6, v); }
+  @$pb.TagNumber(8)
+  $core.bool hasContextLine() => $_has(6);
+  @$pb.TagNumber(8)
+  void clearContextLine() => clearField(7);
 }
 
 class Categories_Category extends $pb.GeneratedMessage {
