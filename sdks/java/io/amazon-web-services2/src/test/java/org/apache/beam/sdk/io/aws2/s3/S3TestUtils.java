@@ -97,7 +97,11 @@ class S3TestUtils {
   static S3FileSystemConfiguration s3ConfigWithSSEKMSKeyId(String scheme) {
     String ssekmsKeyId =
         "arn:aws:kms:eu-west-1:123456789012:key/dc123456-7890-ABCD-EF01-234567890ABC";
-    return configBuilder(scheme).setSSEAlgorithm("aws:kms").setSSEKMSKeyId(ssekmsKeyId).build();
+    return configBuilder(scheme)
+        .setSSEAlgorithm("aws:kms")
+        .setSSEKMSKeyId(ssekmsKeyId)
+        .setBucketKeyEnabled(true)
+        .build();
   }
 
   static S3Options s3OptionsWithSSEKMSKeyId() {
@@ -106,6 +110,7 @@ class S3TestUtils {
         "arn:aws:kms:eu-west-1:123456789012:key/dc123456-7890-ABCD-EF01-234567890ABC";
     options.setSSEKMSKeyId(ssekmsKeyId);
     options.setSSEAlgorithm("aws:kms");
+    options.setBucketKeyEnabled(true);
     return options;
   }
 
