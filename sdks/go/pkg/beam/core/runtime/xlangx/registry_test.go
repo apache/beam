@@ -47,6 +47,11 @@ func TestRegistry(t *testing.T) {
 	// Check default fallback.
 	checkLookup(t, urn, addr, addr, QueryExpansionService, "QueryExpansionService")
 
+	// Check that the automated expansion service check is correct.
+	// Do this before we register URNs later in the test.
+	auto := autoJavaNamespace + Separator + ":sdks:somelanguage:expansion"
+	checkLookup(t, urn, auto, auto, QueryAutomatedExpansionService, "QueryAutomatedExpansionService")
+
 	// Check registration.
 	addr = "handler"
 	if err := reg.RegisterHandler(addr, handler); err != nil {
@@ -73,4 +78,11 @@ func TestRegistry(t *testing.T) {
 	required := "http://localhost:6375309"
 	// Check Require works, ignoring the previous urn overrides.
 	checkLookup(t, urn, Require(required), required, QueryExpansionService, "QueryExpansionService")
+}
+
+func TestUseAutomatedExpansionService(t *testing.T) {
+	target := ":sdks:java:extensions:someservice:shadowJar"
+	if got, want := UseAutomatedJavaExpansionService(target), autoJavaNamespace+Separator+target; got != want {
+		t.Errorf("got %v, want %v", got, want)
+	}
 }

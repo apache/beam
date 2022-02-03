@@ -91,6 +91,9 @@ func ResolveArtifactsWithConfig(ctx context.Context, edges []*graph.MultiEdge, c
 				if strings.HasPrefix(eid, "go") {
 					continue
 				}
+				if strings.HasPrefix(e.External.ExpansionAddr, autoJavaNamespace) {
+					continue
+				}
 				deps := env.GetDependencies()
 				resolvedArtifacts, err := artifact.Materialize(ctx, e.External.ExpansionAddr, deps, "", tmpPath)
 				if err != nil {
