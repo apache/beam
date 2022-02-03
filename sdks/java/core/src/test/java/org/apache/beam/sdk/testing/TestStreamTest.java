@@ -21,6 +21,7 @@ package org.apache.beam.sdk.testing;
 //   name: TestStreamTest
 //   description: Unit-test for the TestStream example.
 //   multifile: false
+//   context_line: 87
 //   categories:
 //     - Streaming
 

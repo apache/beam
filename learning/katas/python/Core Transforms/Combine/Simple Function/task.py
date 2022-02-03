@@ -18,6 +18,7 @@
 #   name: CombineSimpleFunction
 #   description: Task from katas to implement the summation of numbers.
 #   multifile: false
+#   context_line: 30
 #   categories:
 #     - Combiners
 
