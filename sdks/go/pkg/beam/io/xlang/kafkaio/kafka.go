@@ -84,7 +84,7 @@ const (
 	readURN  = "beam:transform:org.apache.beam:kafka_read_without_metadata:v1"
 	writeURN = "beam:transform:org.apache.beam:kafka_write:v1"
 
-	serviceGradleTarget = ":sdks:java:io:expansion-service:shadowJar"
+	serviceGradleTarget = ":sdks:java:io:expansion-service:runExpansionService"
 )
 
 var autoStartupAddress string = xlangx.UseAutomatedJavaExpansionService(serviceGradleTarget)
