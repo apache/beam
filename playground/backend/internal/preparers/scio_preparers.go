@@ -19,6 +19,7 @@ const (
 	scioPublicClassNamePattern = "object (.*?) [{]"
 	scioPackagePattern         = `^package .*$`
 	scioExampleImport          = `^import com.spotify.scio.examples.*$`
+	emptyStr                   = ""
 )
 
 //ScioPreparersBuilder facet of PreparersBuilder
@@ -55,7 +56,7 @@ func (builder *ScioPreparersBuilder) WithPackageRemover() *ScioPreparersBuilder 
 func (builder *ScioPreparersBuilder) WithImportRemover() *ScioPreparersBuilder {
 	removeImportPreparer := Preparer{
 		Prepare: replace,
-		Args:    []interface{}{builder.filePath, scioExampleImport, ""},
+		Args:    []interface{}{builder.filePath, scioExampleImport, emptyStr},
 	}
 	builder.AddPreparer(removeImportPreparer)
 	return builder
