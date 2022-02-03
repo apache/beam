@@ -21,6 +21,7 @@ package org.apache.beam.examples.complete;
 //   name: TfIdfTest
 //   description: Unit-test for the TfIdf example.
 //   multifile: false
+//   context_line: 45
 //   categories:
 //     - Side Input
 //     - Flatten

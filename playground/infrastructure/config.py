@@ -63,12 +63,14 @@ class TagFields:
   categories: str = "categories"
   pipeline_options: str = "pipeline_options"
   default_example: str = "default_example"
+  context_line: int = "context_line"
 
 
 @dataclass(frozen=True)
 class PrecompiledExample:
   OUTPUT_EXTENSION = "output"
   LOG_EXTENSION = "log"
+  GRAPH_EXTENSION = "graph"
   META_NAME = "meta"
   META_EXTENSION = "info"
 

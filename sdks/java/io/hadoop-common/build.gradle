@@ -40,6 +40,8 @@ dependencies {
   provided library.java.hadoop_common
   provided library.java.hadoop_mapreduce_client_core
   testImplementation library.java.junit
+  testImplementation library.java.hadoop_common
+  testImplementation library.java.hadoop_mapreduce_client_core
   testImplementation library.java.hamcrest
   hadoopVersions.each {kv ->
     "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-client:$kv.value"

@@ -48,6 +48,7 @@ and an output prefix on GCS::
 #     includes regex filter("Flourish|stomach").
 #   multifile: false
 #   pipeline_options: --output output.txt
+#   context_line: 74
 #   categories:
 #     - Flatten
 #     - Debugging

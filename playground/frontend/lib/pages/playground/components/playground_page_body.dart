@@ -22,8 +22,8 @@ import 'package:playground/config/theme.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/output/components/output.dart';
 import 'package:playground/modules/output/models/output_placement.dart';
-import 'package:playground/pages/playground/components/editor_textarea_wrapper.dart';
 import 'package:playground/modules/output/models/output_placement_state.dart';
+import 'package:playground/pages/playground/components/editor_textarea_wrapper.dart';
 import 'package:provider/provider.dart';
 
 class PlaygroundPageBody extends StatelessWidget {
@@ -60,7 +60,7 @@ class PlaygroundPageBody extends StatelessWidget {
 
   Widget get codeTextArea => const CodeTextAreaWrapper();
 
-  Widget get output => const Output();
+  Widget get output => const Output(isEmbedded: false);
 
   Widget getVerticalSeparator(BuildContext context) => Container(
         width: kMdSpacing,

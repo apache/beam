@@ -38,20 +38,6 @@ on:
 
 
 jobs:
-# Commenting out setup-go as it is misconfigured, and blocking java builds
-# See BEAM-13740 and BEAM-12830
-#  setup-go:
-#    name: "Set up Go"
-#    runs-on: ${{ matrix.os }}
-#    strategy:
-#      fail-fast: false
-#      matrix:
-#        os: [ [ self-hosted, ubuntu-20.04 ], macos-latest, windows-latest ]
-#    steps:
-#      - uses: actions/checkout@v2
-#      - uses: actions/setup-go@v2
-#        with:
-#          go-version: '1.16.12'
   check_gcp_variables:
     timeout-minutes: 5
     name: "Check GCP variables set"
@@ -136,7 +122,6 @@ jobs:
           path: runners/core-java/build/reports/tests/test
 
   java_wordcount_direct_runner:
-#    needs: setup-go
     name: 'Java Wordcount Direct Runner'
     runs-on: ${{ matrix.os }}
     strategy:
@@ -162,6 +147,10 @@ jobs:
         # net.linguica.gradle.maven.settings plugin and github's provided maven
         # settings.xml file
         run: rm ~/.m2/settings.xml
+      - name: Install go
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.16.12'
       - name: Run WordCount Unix
         uses: ./.github/actions/gradle-command-action
         with:
@@ -179,7 +168,6 @@ jobs:
     name: 'Java Wordcount Dataflow'
     needs:
       - check_gcp_variables
-#      - setup-go
     runs-on: ${{ matrix.os }}
     if: |
       needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && (
@@ -199,6 +187,10 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
+      - name: Install go
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.16.12'
       - name: Authenticate on GCP
         uses: google-github-actions/setup-gcloud@master
         with:
