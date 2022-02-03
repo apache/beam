@@ -235,7 +235,10 @@ class Options(interactive_options.InteractiveOptions):
     Defaults to None.
 
     Example of local directory usage::
-      interactive_beam.options.cache_root = "/Users/username/my/cache/dir"
+      interactive_beam.options.cache_root = '/Users/username/my/cache/dir'
+
+    Example of GCS directory usage::
+      interactive_beam.options.cache_root = 'gs://my-gcs-bucket/cache/dir'
     """
     _LOGGER.warning(
         'Interactive Beam has detected a set value for the cache_root '

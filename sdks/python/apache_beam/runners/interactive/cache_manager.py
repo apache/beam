@@ -160,7 +160,6 @@ class FileBasedCacheManager(CacheManager):
       'tfrecord': (tfrecordio.ReadFromTFRecord, tfrecordio.WriteToTFRecord)
   }
 
-  # TODO(victorhc): Add support for cache_dir locations that are on GCS
   def __init__(self, cache_dir=None, cache_format='text'):
     if cache_dir:
       self._cache_dir = cache_dir
@@ -265,7 +264,12 @@ class FileBasedCacheManager(CacheManager):
         self._path(*labels), coder=self.load_pcoder(*labels))
 
   def cleanup(self):
-    if filesystems.FileSystems.exists(self._cache_dir):
+    if self._cache_dir.startswith('gs://'):
+      from apache_beam.io.gcp import gcsfilesystem
+      from apache_beam.options.pipeline_options import PipelineOptions
+      fs = gcsfilesystem.GCSFileSystem(PipelineOptions())
+      fs.delete([self._cache_dir + '/full/'])
+    elif filesystems.FileSystems.exists(self._cache_dir):
       filesystems.FileSystems.delete([self._cache_dir])
     self._saved_pcoders = {}
 

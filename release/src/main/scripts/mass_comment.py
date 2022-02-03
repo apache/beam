@@ -59,6 +59,10 @@ COMMENTS_TO_ADD = [
     "Run XVR_Flink PostCommit",
     "Run XVR_Spark PostCommit",
     "Run XVR_Spark3 PostCommit",
+    "Run Python Examples_Direct",
+    "Run Python Examples_Spark",
+    "Run Python Examples_Flink",
+    "Run Python Examples_Dataflow",
 ]
 
 

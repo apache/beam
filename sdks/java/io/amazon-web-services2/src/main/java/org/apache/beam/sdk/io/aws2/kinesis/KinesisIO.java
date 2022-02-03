@@ -494,17 +494,12 @@ public final class KinesisIO {
 
     @Override
     public PCollection<KinesisRecord> expand(PBegin input) {
+      checkArgument(getAWSClientsProvider() != null, "AWSClientsProvider is required");
+      checkArgument(getWatermarkPolicyFactory() != null, "WatermarkPolicyFactory is required");
+      checkArgument(getRateLimitPolicyFactory() != null, "RateLimitPolicyFactory is required");
+
       Unbounded<KinesisRecord> unbounded =
-          org.apache.beam.sdk.io.Read.from(
-              new KinesisSource(
-                  getAWSClientsProvider(),
-                  getStreamName(),
-                  getInitialPosition(),
-                  getUpToDateThreshold(),
-                  getWatermarkPolicyFactory(),
-                  getRateLimitPolicyFactory(),
-                  getRequestRecordsLimit(),
-                  getMaxCapacityPerShard()));
+          org.apache.beam.sdk.io.Read.from(new KinesisSource(this));
 
       PTransform<PBegin, PCollection<KinesisRecord>> transform = unbounded;
 
