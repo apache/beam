@@ -98,6 +98,29 @@ task portableLocalRunnerJuliaSetWithSetupPy {
   }
 }
 
+task portableLocalRunnerJuliaSetWithRequirementsFile {
+  dependsOn 'setupVirtualenv'
+  dependsOn ":sdks:python:container:py${pythonVersionSuffix}:docker"
+
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', """
+          . ${envdir}/bin/activate \\
+          && cd ${pythonRootDir} \\
+          && pip install -e . \\
+          && cd apache_beam/examples/complete/juliaset \\
+          && python juliaset_main.py \\
+              --runner=PortableRunner \\
+              --job_endpoint=embed \\
+              --coordinate_output=/tmp/juliaset \\
+              --grid_size=1 \\
+              --requirements_file=./requirements.txt
+          """
+    }
+  }
+}
+
 task createProcessWorker {
   dependsOn ':sdks:python:container:build'
   dependsOn 'setupVirtualenv'
