@@ -36,7 +36,7 @@ const (
 	goModFileName          = "go.mod"
 	goSumFileName          = "go.sum"
 	scioProjectName        = "y"
-	scioProjectPath            = scioProjectName + "/src/main/scala/" + scioProjectName
+	scioProjectPath        = scioProjectName + "/src/main/scala/" + scioProjectName
 	logFileName            = "logs.log"
 	defaultExampleInSbt    = "WordCount.scala"
 	shCmd                  = "sh"
@@ -165,7 +165,7 @@ func prepareSbtFiles(lc *fs_tool.LifeCycle, pipelineFolder string, workingDir st
 		return nil, err
 	}
 
-	sourceFileFolder := filepath.Join(pipelineFolder, projectPath)
+	sourceFileFolder := filepath.Join(pipelineFolder, scioProjectPath)
 	fileName := lc.Paths.SourceFileName
 	absFileFolderPath, _ := filepath.Abs(sourceFileFolder)
 	absFilePath, _ := filepath.Abs(filepath.Join(absFileFolderPath, fileName))
