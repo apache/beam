@@ -305,6 +305,12 @@ class DoctestTest(unittest.TestCase):
             ],
         },
         skip={
+            # DataFrame construction from a dictionary and
+            # Series requires using the len() function, which
+            # is a non-deferred operation that we do not allow
+            'pandas.core.frame.DataFrame': [
+                'pd.DataFrame(data=d, index=[0, 1, 2, 3])',
+            ],
             # s2 created with reindex
             'pandas.core.frame.DataFrame.dot': [
                 'df.dot(s2)',
