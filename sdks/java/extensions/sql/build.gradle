@@ -120,6 +120,8 @@ dependencies {
   testImplementation library.java.proto_google_cloud_bigtable_admin_v2
   testImplementation library.java.proto_google_cloud_datastore_v1
   testImplementation library.java.google_cloud_datastore_v1_proto_client
+  testImplementation library.java.kafka_clients
+  testImplementation project(":sdks:java:io:kafka")
   testImplementation project(path: ":sdks:java:io:mongodb", configuration: "testRuntimeMigration")
   testImplementation project(path: ":sdks:java:io:thrift", configuration: "testRuntimeMigration")
   testImplementation project(path: ":sdks:java:extensions:protobuf", configuration: "testRuntimeMigration")

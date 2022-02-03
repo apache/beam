@@ -130,7 +130,7 @@ class UserScore(beam.PTransform):
 
 
 # [START main]
-def run(argv=None, save_main_session=True):
+def run(argv=None):
   """Main entry point; defines and runs the user_score pipeline."""
   parser = argparse.ArgumentParser()
 
@@ -150,7 +150,7 @@ def run(argv=None, save_main_session=True):
 
   # We use the save_main_session option because one or more DoFn's in this
   # workflow rely on global context (e.g., a module imported at module level).
-  options.view_as(SetupOptions).save_main_session = save_main_session
+  options.view_as(SetupOptions).save_main_session = True
 
   with beam.Pipeline(options=options) as p:
 

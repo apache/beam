@@ -18,6 +18,7 @@
 #   name: Flatten
 #   description: Task from katas that merges two PCollections of words into a single PCollection.
 #   multifile: false
+#   context_line: 29
 #   categories:
 #     - Flatten
 

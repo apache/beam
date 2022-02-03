@@ -17,6 +17,12 @@
  */
 
 ///
+//  Generated code. Do not modify.
+//  source: api/v1/api.proto
+//
+// @dart = 2.12
+// ignore_for_file: annotate_overrides,camel_case_types,unnecessary_const,non_constant_identifier_names,library_prefixes,unused_import,unused_shown_name,return_of_invalid_type,unnecessary_this,prefer_final_fields
+
 import 'dart:core' as $core;
 
 import 'package:protobuf/protobuf.dart' as $pb;
@@ -983,6 +989,7 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     ..e<PrecompiledObjectType>(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'type', $pb.PbFieldType.OE, defaultOrMaker: PrecompiledObjectType.PRECOMPILED_OBJECT_TYPE_UNSPECIFIED, valueOf: PrecompiledObjectType.valueOf, enumValues: PrecompiledObjectType.values)
     ..aOS(5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'pipelineOptions')
     ..aOS(6, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'link')
+    ..a<$core.int>(7, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'contextLine', $pb.PbFieldType.O3)
     ..hasRequiredFields = false
   ;
 
@@ -994,6 +1001,7 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     PrecompiledObjectType? type,
     $core.String? pipelineOptions,
     $core.String? link,
+    $core.int? contextLine,
   }) {
     final _result = create();
     if (cloudPath != null) {
@@ -1013,6 +1021,9 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     }
     if (link != null) {
       _result.link = link;
+    }
+    if (contextLine != null) {
+      _result.contextLine = contextLine;
     }
     return _result;
   }
@@ -1090,6 +1101,15 @@ class PrecompiledObject extends $pb.GeneratedMessage {
   $core.bool hasLink() => $_has(5);
   @$pb.TagNumber(6)
   void clearLink() => clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.int get contextLine => $_getIZ(6);
+  @$pb.TagNumber(7)
+  set contextLine($core.int v) { $_setSignedInt32(6, v); }
+  @$pb.TagNumber(7)
+  $core.bool hasContextLine() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearContextLine() => clearField(7);
 }
 
 class Categories_Category extends $pb.GeneratedMessage {
