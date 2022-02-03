@@ -65,6 +65,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 	if err != nil {
 		return nil, errors.Wrap(err, "translation failed")
 	}
+	beam.PipelineOptions.LoadOptionsFromFlags(make(map[string]bool))
 	log.Info(ctx, plan)
 
 	if err = plan.Execute(ctx, "", exec.DataContext{}); err != nil {
