@@ -134,7 +134,7 @@ function create_cluster() {
   # Docker init action restarts yarn so we need to start yarn session after this restart happens.
   # This is why flink init action is invoked last.
   #--initialization-actions $DOCKER_INIT,$BEAM_INIT,$FLINK_INIT Older initialization 
-  gcloud dataproc clusters create $CLUSTER_NAME --region=global --num-workers=$num_dataproc_workers  --metadata "${metadata}", --image-version=$image_version --zone=$GCLOUD_ZONE  --optional-components=FLINK,DOCKER --quiet
+  gcloud dataproc clusters create $CLUSTER_NAME --region=global --num-workers=$num_dataproc_workers  --metadata "${metadata}", --image-version=$image_version --zone=$GCLOUD_ZONE  --optional-components=FLINK_INIT,DOCKER_INIT --quiet
 }
 
 # Runs init actions for Docker, Portability framework (Beam) and Flink cluster
