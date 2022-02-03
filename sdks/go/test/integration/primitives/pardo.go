@@ -170,14 +170,13 @@ func ParDoPipelineOptions() *beam.Pipeline {
 
 	p, s := beam.NewPipelineWithRoot()
 
-	in := beam.Create(s, 1)
-	emitted := beam.ParDo(s, emitPipelineOptions, in)
+	emitted := beam.ParDo(s, emitPipelineOptions, beam.Impulse(s))
 	passert.Equals(s, emitted, "A: 123", "B: 456", "C: 789")
 
 	return p
 }
 
-func emitPipelineOptions(c int, emit func(string)) {
+func emitPipelineOptions(_ []byte, emit func(string)) {
 	emit(fmt.Sprintf("%s: %s", "A", beam.PipelineOptions.Get("A")))
 	emit(fmt.Sprintf("%s: %s", "B", beam.PipelineOptions.Get("B")))
 	emit(fmt.Sprintf("%s: %s", "C", beam.PipelineOptions.Get("C")))
