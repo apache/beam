@@ -43,6 +43,7 @@ from typing import Optional
 
 import numpy as np
 import pandas as pd
+from pandas._libs import lib
 from pandas.core.groupby.generic import DataFrameGroupBy
 
 from apache_beam.dataframe import expressions
@@ -638,10 +639,13 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     order-sensitive. It cannot be specified.
 
     If ``limit`` is specified this operation is not parallelizable."""
+    value_compare = None if PD_VERSION < (1, 4) else lib.no_default
     if method is not None and not isinstance(to_replace,
-                                             dict) and value is None:
+                                             dict) and value is value_compare:
       # pandas only relies on method if to_replace is not a dictionary, and
-      # value is None
+      # value is the <no_default> value. This is different than
+      # if ``None`` is explicitly passed for ``value``. In this case, it will be
+      # respected
       raise frame_base.WontImplementError(
           f"replace(method={method!r}) is not supported because it is "
           "order sensitive. Only replace(method=None) is supported.",
@@ -1317,6 +1321,9 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       base=pd.DataFrame,
       requires_partition_by=partitionings.Arbitrary(),
       preserves_partition_by=partitionings.Singleton())
+
+  info = frame_base.wont_implement_method(
+      pd.Series, 'info', reason="non-deferred-result")
 
   def _idxmaxmin_helper(self, op, **kwargs):
     if op == 'idxmax':
@@ -4191,6 +4198,20 @@ class DeferredGroupBy(frame_base.DeferredFrame):
         )
     )
 
+  if hasattr(DataFrameGroupBy, 'value_counts'):
+    @frame_base.with_docs_from(DataFrameGroupBy)
+    def value_counts(self, **kwargs):
+      """
+      DataFrameGroupBy.value_counts() is the same as DataFrame.value_counts()
+      """
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'value_counts',
+              lambda df: df.value_counts(**kwargs), [self._expr],
+              preserves_partition_by=partitionings.Arbitrary(),
+              requires_partition_by=partitionings.Arbitrary())
+      )
+
   fillna = frame_base.wont_implement_method(
       DataFrameGroupBy, 'fillna', explanation=(
           "df.fillna() should be used instead. Only method=None is supported "
@@ -4735,6 +4756,8 @@ ELEMENTWISE_STRING_METHODS = [
             'match',
             'pad',
             'partition',
+            'removeprefix',
+            'removesuffix',
             'replace',
             'rpartition',
             'rstrip',

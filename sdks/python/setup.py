@@ -314,7 +314,7 @@ if __name__ == '__main__':
           'interactive_test': INTERACTIVE_BEAM_TEST,
           'aws': AWS_REQUIREMENTS,
           'azure': AZURE_REQUIREMENTS,
-          'dataframe': ['pandas>=1.0,<1.4']
+          'dataframe': ['pandas>=1.0,<1.5']
       },
       zip_safe=False,
       # PyPI package information.
