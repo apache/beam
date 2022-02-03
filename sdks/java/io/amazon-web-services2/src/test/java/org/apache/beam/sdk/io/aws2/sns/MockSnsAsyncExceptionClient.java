@@ -30,9 +30,9 @@ final class MockSnsAsyncExceptionClient extends MockSnsAsyncBaseClient {
 
   @Override
   public CompletableFuture<PublishResponse> publish(PublishRequest publishRequest) {
-    CompletableFuture<PublishResponse> completableFuture = new CompletableFuture<>();
-    completableFuture.completeExceptionally(
-        new RuntimeException("Error occurred during publish call"));
-    return completableFuture;
+    return CompletableFuture.supplyAsync(
+        () -> {
+          throw new RuntimeException("Error occurred during publish call");
+        });
   }
 }
