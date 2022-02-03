@@ -410,27 +410,26 @@ func cancelCheck(ctx context.Context, pipelineId uuid.UUID, cancelChannel chan b
 }
 
 // readGraphFile reads graph from the log file and keeps it to the cache.
-// If context is done it means that the code processing was finished (successfully/with error/timeout). Write no graph to the cache.
-// If <-startReadGraphChannel it means that the graph written to the file and can be read.
-// In other case each pauseDuration checks that graph file exists or not.
+// If context is done it means that the code processing was finished (successfully/with error/timeout).
+// Write graph to the cache if this in a file.
+// In other case each pauseDuration checks that graph file exists or not and try to save it to the cache.
 func readGraphFile(pipelineLifeCycleCtx, backgroundCtx context.Context, cacheService cache.Cache, graphFilePath string, pipelineId uuid.UUID) {
-	startReadGraphChannel := make(chan bool, 1)
 	ticker := time.NewTicker(pauseDuration)
 	for {
 		select {
-		// in case of timeout or cancel
-		case <-pipelineLifeCycleCtx.Done():
-			ticker.Stop()
-			return
-		// in case of graph file exists and can be read
-		case <-startReadGraphChannel:
-			utils.ReadAndSetToCacheGraph(backgroundCtx, cacheService, pipelineId, graphFilePath)
-			return
 		// waiting when graph file appears
 		case <-ticker.C:
 			if _, err := os.Stat(graphFilePath); err == nil {
-				startReadGraphChannel <- true
+				ticker.Stop()
+				utils.ReadAndSetToCacheGraph(backgroundCtx, cacheService, pipelineId, graphFilePath)
 			}
+		// in case of timeout or cancel
+		case <-pipelineLifeCycleCtx.Done():
+			ticker.Stop()
+			if _, err := os.Stat(graphFilePath); err == nil {
+				utils.ReadAndSetToCacheGraph(backgroundCtx, cacheService, pipelineId, graphFilePath)
+			}
+			return
 		}
 	}
 }
