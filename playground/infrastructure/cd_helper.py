@@ -47,9 +47,8 @@ class CDHelper:
 
     Outputs for multifile examples are left empty.
     """
-    single_file_examples = [
-        example for example in examples if example.tag.multifile is False
-    ]
+    single_file_examples = list(filter(
+      lambda example: example.tag.multifile is False, examples))
     logging.info("Start of executing only single-file Playground examples ...")
     asyncio.run(self._get_outputs(single_file_examples))
     logging.info("Finish of executing single-file Playground examples")

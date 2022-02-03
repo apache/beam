@@ -44,8 +44,8 @@ class CIHelper:
     2. Group code of examples by their SDK.
     3. Run processing for single-file examples to verify examples' code.
     """
-    single_file_examples = [example for example in examples
-                            if example.tag.multifile is False]
+    single_file_examples = list(filter(
+      lambda example: example.tag.multifile is False, examples))
     await get_statuses(single_file_examples)
     await self._verify_examples(single_file_examples)
 
