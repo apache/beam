@@ -55,6 +55,18 @@ PipelineOptionsT = TypeVar('PipelineOptionsT', bound='PipelineOptions')
 
 _LOGGER = logging.getLogger(__name__)
 
+# These options have no dest and store_false in the argparse.
+# When parsing these options in a dict using PipelineOptions,
+# We either ignore/discard if these options are specified.
+# Defining a map with their dest would maintain consistency
+# across PipelineOptions(**dict), PipelineOptions.from_dictionary(dict),
+# and argparse.
+_PARSE_OPTIONS_WITH_PREFIX_NO = {
+    'no_use_public_ips': 'use_public_ips',
+    'no_pipeline_type_check': 'pipeline_type_check',
+    'no_direct_runner_use_stacked_bundle': 'direct_runner_use_stacked_bundle'
+}
+
 
 def _static_value_provider_of(value_type):
   """"Helper function to plug a ValueProvider into argparse.
@@ -219,6 +231,11 @@ class PipelineOptions(HasDisplayData):
         self._all_options[option_name] = getattr(
             self._visible_options, option_name)
 
+    # Override flags dependent on each other
+    for option_name, option_value in _PARSE_OPTIONS_WITH_PREFIX_NO.items():
+      if option_name in self._all_options:
+        self._all_options[option_value] = (not self._all_options[option_name])
+
   @classmethod
   def _add_argparse_args(cls, parser):
     # type: (_BeamArgumentParser) -> None
@@ -236,10 +253,13 @@ class PipelineOptions(HasDisplayData):
       A PipelineOptions object representing the given arguments.
     """
     flags = []
+    params = {}
     for k, v in options.items():
       if isinstance(v, bool):
         if v:
           flags.append('--%s' % k)
+        else:
+          params[k] = v
       elif isinstance(v, list):
         for i in v:
           flags.append('--%s=%s' % (k, i))
@@ -248,7 +268,7 @@ class PipelineOptions(HasDisplayData):
       else:
         flags.append('--%s=%s' % (k, v))
 
-    return cls(flags)
+    return cls(flags, **params)
 
   def get_all_options(
       self,
