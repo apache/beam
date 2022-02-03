@@ -52,7 +52,6 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.WriteFn.WriteFnSpec;
-import org.apache.beam.sdk.io.jdbc.JdbcUtil.JdbcReadWithPartitionsHelper;
 import org.apache.beam.sdk.io.jdbc.JdbcUtil.PartitioningFn;
 import org.apache.beam.sdk.io.jdbc.SchemaUtil.FieldWithIndex;
 import org.apache.beam.sdk.metrics.Distribution;
@@ -201,7 +200,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Beam supports partitioned reading of all data from a table. Automatic partitioning is
  * supported for a few data types: {@link Long}, {@link org.joda.time.DateTime}, {@link String}. To
- * enable this, use {@link ReadWithPartitions}.
+ * enable this, use {@link JdbcIO#readWithPartitions(TypeDescriptor)}.
  *
  * <p>The partitioning scheme depends on these parameters, which can be user-provided, or
  * automatically inferred by Beam (for the supported types):
@@ -229,6 +228,8 @@ import org.slf4j.LoggerFactory;
  *   <li>The partitioning column is indexed. This will help speed up the range queries
  *   <li><b>Use auto-inference</b> if the queries for bound and partition inference are efficient to
  *       execute in your DBMS.
+ *   <li>The distribution of data over the partitioning column is <i>roughly uniform</i>. Uniformity
+ *       is not mandatory, but this transform will work best in that situation.
  * </ul>
  *
  * <p>The following example shows usage of <b>auto-inferred ranges, number of partitions, and
@@ -242,7 +243,7 @@ import org.slf4j.LoggerFactory;
  *       .withPassword("password"))
  *  .withTable("Person")
  *  .withPartitionColumn("id")
- *  .withUseBeamSchema()
+ *  .withRowOutput()
  * );
  * }</pre>
  *
@@ -1058,7 +1059,7 @@ public class JdbcIO {
 
     abstract @Nullable String getPartitionColumn();
 
-    abstract @Nullable Boolean getUseBeamSchema();
+    abstract boolean getUseBeamSchema();
 
     abstract @Nullable PartitionColumnT getLowerBound();
 
@@ -1088,7 +1089,7 @@ public class JdbcIO {
 
       abstract Builder<T, PartitionColumnT> setUpperBound(PartitionColumnT upperBound);
 
-      abstract Builder<T, PartitionColumnT> setUseBeamSchema(Boolean useBeamSchema);
+      abstract Builder<T, PartitionColumnT> setUseBeamSchema(boolean useBeamSchema);
 
       abstract Builder<T, PartitionColumnT> setTable(String tableName);
 
@@ -1139,7 +1140,7 @@ public class JdbcIO {
       return toBuilder().setPartitionColumn(partitionColumn).build();
     }
 
-    /** The name of a column of numeric type that will be used for partitioning. */
+    /** Data output type is {@link Row}, and schema is auto-inferred from the database. */
     public ReadWithPartitions<T, PartitionColumnT> withRowOutput() {
       return toBuilder().setUseBeamSchema(true).build();
     }
@@ -1173,6 +1174,10 @@ public class JdbcIO {
           getUseBeamSchema() ^ getRowMapper() != null,
           "Provide only withRowOutput() or withRowMapper() arguments for "
               + "JdbcIO.readWithPartitions). These are mutually exclusive.");
+      checkArgument(
+          (getUpperBound() != null) == (getLowerBound() != null),
+          "When providing either lower or upper bound, both "
+              + "parameters are mandatory for JdbcIO.readWithPartitions");
       if (getLowerBound() != null && getLowerBound() instanceof Comparable<?>) {
         // Not all partition types are comparable. For example, LocalDateTime, which is a valid
         // partitioning type, is not Comparable, so we can't enforce this for all sorts of
@@ -1181,8 +1186,8 @@ public class JdbcIO {
             ((Comparable<PartitionColumnT>) getLowerBound()).compareTo(getUpperBound()) < EQUAL,
             "The lower bound of partitioning column is larger or equal than the upper bound");
       }
-      checkArgument(
-          JdbcUtil.PRESET_HELPERS.containsKey(getPartitionColumnType().getRawType()),
+      checkNotNull(
+          JdbcUtil.JdbcReadWithPartitionsHelper.getPartitionsHelper(getPartitionColumnType()),
           "readWithPartitions only supports the following types: %s",
           JdbcUtil.PRESET_HELPERS.keySet());
 
@@ -1206,8 +1211,8 @@ public class JdbcIO {
                         .withQuery(query)
                         .withDataSourceProviderFn(getDataSourceProviderFn())
                         .withRowMapper(
-                            (JdbcReadWithPartitionsHelper<PartitionColumnT>)
-                                JdbcUtil.PRESET_HELPERS.get(getPartitionColumnType().getRawType())))
+                            JdbcUtil.JdbcReadWithPartitionsHelper.getPartitionsHelper(
+                                getPartitionColumnType())))
                 .apply(
                     MapElements.via(
                         new SimpleFunction<
@@ -1249,7 +1254,7 @@ public class JdbcIO {
       }
 
       RowMapper<T> rowMapper;
-      if (getUseBeamSchema() != null && getUseBeamSchema()) {
+      if (getUseBeamSchema()) {
         Schema schema =
             ReadRows.inferBeamSchema(
                 getDataSourceProviderFn().apply(null),
@@ -1273,11 +1278,8 @@ public class JdbcIO {
                       getTable(), getPartitionColumn()))
               .withRowMapper(rowMapper)
               .withParameterSetter(
-                  // This cast is unchecked, thus this is a small type-checking risk. We just need
-                  // to make sure that all preset helpers in `JdbcUtil.PRESET_HELPERS` are matched
-                  // in type from their Key and their Value.
-                  ((JdbcReadWithPartitionsHelper<PartitionColumnT>)
-                          JdbcUtil.PRESET_HELPERS.get(getPartitionColumnType().getRawType()))
+                  (JdbcUtil.JdbcReadWithPartitionsHelper.getPartitionsHelper(
+                          getPartitionColumnType()))
                       ::setParameters)
               .withOutputParallelization(false);
 

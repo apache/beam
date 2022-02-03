@@ -351,6 +351,13 @@ class JdbcUtil {
   interface JdbcReadWithPartitionsHelper<PartitionT>
       extends PreparedStatementSetter<KV<PartitionT, PartitionT>>,
           RowMapper<KV<Long, KV<PartitionT, PartitionT>>> {
+    static <T> JdbcReadWithPartitionsHelper<T> getPartitionsHelper(TypeDescriptor<T> type) {
+      // This cast is unchecked, thus this is a small type-checking risk. We just need
+      // to make sure that all preset helpers in `JdbcUtil.PRESET_HELPERS` are matched
+      // in type from their Key and their Value.
+      return (JdbcReadWithPartitionsHelper<T>) PRESET_HELPERS.get(type.getRawType());
+    }
+
     Iterable<KV<PartitionT, PartitionT>> calculateRanges(
         PartitionT lowerBound, PartitionT upperBound, Long partitions);
 
@@ -375,7 +382,7 @@ class JdbcUtil {
       T lowerBound = c.element().getValue().getKey();
       T upperBound = c.element().getValue().getValue();
       JdbcReadWithPartitionsHelper<T> helper =
-          (JdbcReadWithPartitionsHelper<T>) PRESET_HELPERS.get(partitioningColumnType.getRawType());
+          JdbcReadWithPartitionsHelper.getPartitionsHelper(partitioningColumnType);
       List<KV<T, T>> ranges =
           Lists.newArrayList(helper.calculateRanges(lowerBound, upperBound, c.element().getKey()));
       LOG.warn("Total of {} ranges: {}", ranges.size(), ranges);
