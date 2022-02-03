@@ -77,7 +77,7 @@ task validatesRunnerBatch(type: Test) {
         includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
         // Should be run only in a properly configured SDK harness environment
         excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
-        excludeCategories "org.apache.beam.sdk.testing.LargeKeys\$Above100MB"
+        excludeCategories 'org.apache.beam.sdk.testing.LargeValues$KeysAbove100MB'
         excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
         excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
         excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
@@ -126,7 +126,7 @@ task needsRunnerTests(type: Test) {
     testClassesDirs += files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
     useJUnit {
         includeCategories "org.apache.beam.sdk.testing.NeedsRunner"
-        excludeCategories "org.apache.beam.sdk.testing.LargeKeys\$Above100MB"
+        excludeCategories 'org.apache.beam.sdk.testing.LargeValues$KeysAbove100MB'
         excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
     }
 }

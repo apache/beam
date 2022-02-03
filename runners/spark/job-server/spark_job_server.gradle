@@ -103,7 +103,7 @@ def portableValidatesRunnerTask(String name, boolean streaming, boolean docker) 
         // Should be run only in a properly configured SDK harness environment
         excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
         excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
-        excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
+        excludeCategories 'org.apache.beam.sdk.testing.LargeValues$KeysAbove100MB'
         excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
         excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
         excludeCategories 'org.apache.beam.sdk.testing.UsesFailureMessage'
@@ -158,7 +158,7 @@ def portableValidatesRunnerTask(String name, boolean streaming, boolean docker) 
         // Should be run only in a properly configured SDK harness environment
         excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
         excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
-        excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
+        excludeCategories 'org.apache.beam.sdk.testing.LargeValues$KeysAbove100MB'
         excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
         excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
         excludeCategories 'org.apache.beam.sdk.testing.UsesFailureMessage'

@@ -19,21 +19,26 @@ package org.apache.beam.sdk.testing;
 
 import org.apache.beam.sdk.annotations.Internal;
 
-/** Category tags for tests which validate that a Beam runner can handle keys up to a given size. */
+/**
+ * Category tags for tests which validate that a Beam runner can handle values up to a given size.
+ */
 @Internal
-public interface LargeKeys {
+public interface LargeValues {
   /** Tests if a runner supports 10KB keys. */
-  interface Above10KB {}
+  interface KeysAbove10KB {}
 
   /** Tests if a runner supports 100KB keys. */
-  interface Above100KB extends Above10KB {}
+  interface KeysAbove100KB extends KeysAbove10KB {}
 
   /** Tests if a runner supports 1MB keys. */
-  interface Above1MB extends Above100KB {}
+  interface KeysAbove1MB extends KeysAbove100KB {}
 
   /** Tests if a runner supports 10MB keys. */
-  interface Above10MB extends Above1MB {}
+  interface KeysAbove10MB extends KeysAbove1MB {}
 
   /** Tests if a runner supports 100MB keys. */
-  interface Above100MB extends Above10MB {}
+  interface KeysAbove100MB extends KeysAbove10MB {}
+
+  /** Tests if a runner supports iterables over 2GBs. */
+  interface IterablesAbove2GB {}
 }

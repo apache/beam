@@ -102,7 +102,7 @@ task validatesRunner(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
     excludeCategories 'org.apache.beam.sdk.testing.UsesSchema'
-    excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
+    excludeCategories 'org.apache.beam.sdk.testing.LargeValues$KeysAbove100MB'
     excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'

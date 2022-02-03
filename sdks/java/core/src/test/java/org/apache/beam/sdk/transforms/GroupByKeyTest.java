@@ -47,7 +47,12 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.testing.LargeKeys;
+import org.apache.beam.sdk.testing.LargeValues;
+import org.apache.beam.sdk.testing.LargeValues.KeysAbove100KB;
+import org.apache.beam.sdk.testing.LargeValues.KeysAbove100MB;
+import org.apache.beam.sdk.testing.LargeValues.KeysAbove10KB;
+import org.apache.beam.sdk.testing.LargeValues.KeysAbove10MB;
+import org.apache.beam.sdk.testing.LargeValues.KeysAbove1MB;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -73,6 +78,7 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Streams;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matcher;
@@ -454,33 +460,67 @@ public class GroupByKeyTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, LargeKeys.Above10KB.class})
+    @Category({ValidatesRunner.class, KeysAbove10KB.class})
     public void testLargeKeys10KB() throws Exception {
       runLargeKeysTest(p, 10 << 10);
     }
 
     @Test
-    @Category({ValidatesRunner.class, LargeKeys.Above100KB.class})
+    @Category({ValidatesRunner.class, KeysAbove100KB.class})
     public void testLargeKeys100KB() throws Exception {
       runLargeKeysTest(p, 100 << 10);
     }
 
     @Test
-    @Category({ValidatesRunner.class, LargeKeys.Above1MB.class})
+    @Category({ValidatesRunner.class, KeysAbove1MB.class})
     public void testLargeKeys1MB() throws Exception {
       runLargeKeysTest(p, 1 << 20);
     }
 
     @Test
-    @Category({ValidatesRunner.class, LargeKeys.Above10MB.class})
+    @Category({ValidatesRunner.class, KeysAbove10MB.class})
     public void testLargeKeys10MB() throws Exception {
       runLargeKeysTest(p, 10 << 20);
     }
 
     @Test
-    @Category({ValidatesRunner.class, LargeKeys.Above100MB.class})
+    @Category({ValidatesRunner.class, KeysAbove100MB.class})
     public void testLargeKeys100MB() throws Exception {
       runLargeKeysTest(p, 100 << 20);
+    }
+
+    public static class ExpandDoFn extends DoFn<Integer, KV<Integer, byte[]>> {
+      @ProcessElement
+      public void process(ProcessContext c) {
+        byte[] bytes = new byte[1024 * 1024];
+        c.output(KV.of(c.element(), bytes));
+      }
+    }
+
+    public static class CountDoFn extends DoFn<KV<Integer, Iterable<byte[]>>, Integer> {
+      @ProcessElement
+      public void process(ProcessContext c) {
+        c.output(Iterables.size(c.element().getValue()));
+      }
+    }
+
+    @Test
+    @Category({ValidatesRunner.class, LargeValues.IterablesAbove2GB.class})
+    public void testLargeIterables() {
+      List<Integer> inputs = new ArrayList<>();
+      for (int i = 0; i < 2100; i++) {
+        inputs.add(0);
+      }
+
+      PCollection<Integer> output =
+          p.apply(Create.of(inputs))
+              .apply(Reshuffle.viaRandomKey())
+              .apply(ParDo.of(new ExpandDoFn()))
+              .apply(GroupByKey.create())
+              .apply(ParDo.of(new CountDoFn()));
+
+      PAssert.that(output).containsInAnyOrder(2100);
+      p.run();
     }
   }
 

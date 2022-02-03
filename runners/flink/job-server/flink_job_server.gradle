@@ -163,7 +163,7 @@ def portableValidatesRunnerTask(String name, boolean streaming, boolean checkpoi
         excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
         excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
         // Larger keys are possible, but they require more memory.
-        excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above10MB'
+        excludeCategories 'org.apache.beam.sdk.testing.LargeValues$KeysAbove10MB'
         excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
         excludeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
         excludeCategories 'org.apache.beam.sdk.testing.UsesPythonExpansionService'
