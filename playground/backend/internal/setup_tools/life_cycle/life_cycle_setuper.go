@@ -36,7 +36,7 @@ const (
 	goModFileName          = "go.mod"
 	goSumFileName          = "go.sum"
 	scioProjectName        = "y"
-	projectPath            = scioProjectName + "/src/main/scala/" + scioProjectName
+	scioProjectPath            = scioProjectName + "/src/main/scala/" + scioProjectName
 	logFileName            = "logs.log"
 	defaultExampleInSbt    = "WordCount.scala"
 	shCmd                  = "sh"
