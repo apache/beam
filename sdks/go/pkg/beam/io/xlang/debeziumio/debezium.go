@@ -104,6 +104,11 @@ func Read(s beam.Scope, username, password, host, port string, connectorClass Dr
 	for _, opt := range opts {
 		opt(&dc)
 	}
+
+	// TODO: update to use default auto-expansion-service
+	if dc.expansionService == "" {
+		panic("no expansion service address provided.")
+	}
 	pl := beam.CrossLanguagePayload(rfds)
 	outT := beam.UnnamedOutput(typex.New(t))
 	out := beam.CrossLanguage(s, readURN, pl, dc.expansionService, nil, outT)
