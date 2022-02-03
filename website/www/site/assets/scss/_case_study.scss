@@ -54,7 +54,10 @@
   }
 
   .case-study-used-by-card-description {
-    display: none;
+    display: flex;
+    opacity: 0;
+    width: 0;
+    overflow-y: scroll;
   }
 
   //.case-study-used-by-card-description::-webkit-scrollbar {
@@ -69,12 +72,12 @@
 
   &:hover {
     .case-study-used-by-card-description {
-      display: flex;
       font-size: 14px;
       line-height: 1.63;
-      overflow-y: scroll;
       max-height: 100%;
       width: 100%;
+      opacity: 1;
+      transition: opacity .3s ease-out;
     }
 
     .case-study-used-by-card-img {
