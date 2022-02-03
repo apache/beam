@@ -19,6 +19,7 @@ package beam_test
 //   name: PartitionTest
 //   description: Unit-test for the Partition example.
 //   multifile: false
+//   context_line: 34
 //   categories:
 //     - Core Transforms
 

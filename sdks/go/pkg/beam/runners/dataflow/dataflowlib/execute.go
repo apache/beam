@@ -30,6 +30,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/universal/runnerlib"
 	"github.com/golang/protobuf/proto"
 	df "google.golang.org/api/dataflow/v1b3"
+	"google.golang.org/api/googleapi"
 )
 
 // Execute submits a pipeline as a Dataflow job.
@@ -99,10 +100,16 @@ func Execute(ctx context.Context, raw *pipepb.Pipeline, opts *JobOptions, worker
 		return presult, err
 	}
 	upd, err := Submit(ctx, client, opts.Project, opts.Region, job)
+	// When in async mode, if we get a 409 because we've already submitted an actively running job with the same name
+	// just return the existing job as a convenience
+	if gErr, ok := err.(*googleapi.Error); async && ok && gErr.Code == 409 {
+		log.Info(ctx, "Unable to submit job because job with same name is already actively running. Querying Dataflow for existing job")
+		upd, err = GetRunningJobByName(client, opts.Project, opts.Region, job.Name)
+	}
 	if err != nil {
 		return presult, err
 	}
-	log.Infof(ctx, "Submitted job: %v", upd.Id)
+
 	if endpoint == "" {
 		log.Infof(ctx, "Console: https://console.cloud.google.com/dataflow/jobs/%v/%v?project=%v", opts.Region, upd.Id, opts.Project)
 	}
