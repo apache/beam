@@ -119,7 +119,7 @@ func (o *Options) Export() RawOptions {
 }
 
 // LoadOptionsFromFlags adds any flags not defined in excludeFlags to the options.
-// If the key is already defnined, it panics.
+// If the key is already defnined, it ignores that flag
 func (o *Options) LoadOptionsFromFlags(excludeFlags map[string]bool) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
@@ -129,7 +129,7 @@ func (o *Options) LoadOptionsFromFlags(excludeFlags map[string]bool) {
 	}
 
 	flag.Visit(func(f *flag.Flag) {
-		if !excludeFlags[f.Name] {
+		if !excludeFlags[f.Name] && o.opt[f.Name] == "" {
 			o.opt[f.Name] = f.Value.String()
 		}
 	})
