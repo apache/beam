@@ -37,8 +37,11 @@ package integration
 import (
 	"fmt"
 	"regexp"
+	"strings"
 	"testing"
 
+	// common runner flag.
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/jobopts"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 )
 
@@ -71,6 +74,7 @@ var directFilters = []string{
 	"TestValidateWindowedSideInputs",
 	// (BEAM-13075): The direct runner does not currently support multimap side inputs
 	"TestParDoMultiMapSideInput",
+	"TestLargeWordcount_Loopback",
 }
 
 var portableFilters = []string{
@@ -81,6 +85,8 @@ var portableFilters = []string{
 	"TestPanes",
 	// TODO(BEAM-12797): Python portable runner times out on Kafka reads.
 	"TestKafkaIO.*",
+	// TODO(BEAM-13778) needs a schemaio expansion service address flag
+	"TestJDBCIO_BasicReadWrite",
 }
 
 var flinkFilters = []string{
@@ -92,6 +98,8 @@ var flinkFilters = []string{
 	"TestTestStream.*Sequence.*",
 	// Triggers are not yet supported
 	"TestTrigger.*",
+	// TODO(BEAM-13778) needs a schemaio expansion service address flag
+	"TestJDBCIO_BasicReadWrite",
 }
 
 var samzaFilters = []string{
@@ -105,6 +113,8 @@ var samzaFilters = []string{
 	"TestPanes",
 	// TODO(BEAM-13006): Samza doesn't yet support post job metrics, used by WordCount
 	"TestWordCount.*",
+	// TODO(BEAM-13778) needs a schemaio expansion service address flag
+	"TestJDBCIO_BasicReadWrite",
 }
 
 var sparkFilters = []string{
@@ -117,6 +127,8 @@ var sparkFilters = []string{
 	// The trigger and pane tests uses TestStream
 	"TestTrigger.*",
 	"TestPanes",
+	// TODO(BEAM-13778) needs a schemaio expansion service address flag
+	"TestJDBCIO_BasicReadWrite",
 }
 
 var dataflowFilters = []string{
@@ -131,6 +143,9 @@ var dataflowFilters = []string{
 	"TestPanes",
 	// There is no infrastructure for running KafkaIO tests with Dataflow.
 	"TestKafkaIO.*",
+	// Dataflow doesn't support any test that requires loopback.
+	// Eg. For FileIO examples.
+	".*Loopback.*",
 }
 
 // CheckFilters checks if an integration test is filtered to be skipped, either
@@ -153,6 +168,8 @@ func CheckFilters(t *testing.T) {
 			t.Skipf("Test %v is currently sickbayed on all runners", n)
 		}
 	}
+	// TODO(lostluck): Improve default job names.
+	*jobopts.JobName = fmt.Sprintf("go-%v", strings.ToLower(n))
 
 	// Test for runner-specific skipping second.
 	var filters []string

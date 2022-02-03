@@ -43,6 +43,7 @@ package main
 //     by William Shakespeare.
 //   multifile: false
 //   default_example: true
+//   context_line: 69
 //   categories:
 //     - IO
 //     - Combiners

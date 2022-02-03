@@ -19,6 +19,7 @@ package filter_test
 //   name: DistinctTest
 //   description: Unit-test for the Distinct example.
 //   multifile: false
+//   context_line: 35
 //   categories:
 //     - Filtering
 //     - Core Transforms

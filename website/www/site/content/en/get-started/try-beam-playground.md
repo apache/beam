@@ -39,6 +39,8 @@ add the `beam-playground` tag into the file to be added.
 //   description: Description of the example/test/kata
 //   multifile: false
 //   pipeline_options: --option1 value1 --option2 value2
+//   default_example: false
+//   context_line: 10
 //   categories:
 //     - category 1
 //     - category 2
@@ -52,6 +54,8 @@ add the `beam-playground` tag into the file to be added.
 #   description: Description of the example/test/kata
 #   multifile: false
 #   pipeline_options: --option1 value1 --option2 value2
+#   default_example: false
+#   context_line: 10
 #   categories:
 #     - category 1
 #     - category 2
@@ -65,6 +69,8 @@ add the `beam-playground` tag into the file to be added.
 //   description: Description of the example/test/kata
 //   multifile: false
 //   pipeline_options: --option1 value1 --option2 value2
+//   default_example: false
+//   context_line: 10
 //   categories:
 //     - category 1
 //     - category 2
@@ -80,7 +86,11 @@ The 'beam-playground' tag consists of the following **required** elements:
 examples catalog.
 - `description` - string field. Description of the Beam example/test/kata that will be displayed in Beam Playground.
 - `multifile` - boolean field. Specifies if the given example consists of multiple files or not.
-- `pipeline_options` - string field. Contains information about pipeline options of the Beam example/test/kata.
+- `pipeline_options` - string field (optional). Contains information about pipeline options of the Beam example/test/kata.
+- `default_example` - boolean field (optional). Specifies if the given example is default or not. If some example is tagged
+  as default it means that this example is shown when its SDK is chosen in Beam Playground.
+  Only one example can be set as a default for each SDK.
+- `context_line` - integer field. The line where the main part of the Beam example/test/kata begins.
 - `categories` - list type field.
 Lists categories this example is included into. Available categories are listed in
 [playground/categories.yaml](https://github.com/apache/beam/blob/master/playground/categories.yaml).

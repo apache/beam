@@ -811,7 +811,8 @@ class BeamModulePlugin implements Plugin<Project> {
       // Provided configuration to match Maven provided scope
       project.configurations {
         provided
-        implementation.extendsFrom(provided)
+        compileOnly.extendsFrom(provided)
+        runtimeOnly.extendsFrom(provided)
       }
 
       // Configure the Java compiler source language and target compatibility levels. Also ensure that
