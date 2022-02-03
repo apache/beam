@@ -84,7 +84,7 @@ type readOption func(*debeziumConfig)
 // JSON string. It requires the address of an expansion service for Debezium IO.
 //
 // Example:
-// 	 username := "debezium"
+//   username := "debezium"
 //   password := "dbz"
 //   host := "localhost"
 //   port := "5432"
