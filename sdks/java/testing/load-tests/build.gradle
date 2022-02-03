@@ -109,7 +109,7 @@ def getLoadTestArgs = {
 
   if (isDataflowRunner) {
     if (isDataflowRunnerV2) {
-      loadTestArgsList.add("--experiments=beam_fn_api,use_unified_worker,use_runner_v2,shuffle_mode=service")
+      loadTestArgsList.add("--experiments=beam_fn_api,use_unified_worker,use_runner_v2,shuffle_mode=appliance")
       def sdkContainerImage = project.findProperty('sdkContainerImage') ?: project(":runners:google-cloud-dataflow-java").dockerJavaImageName
       loadTestArgsList.add("--sdkContainerImage=${sdkContainerImage}")
     } else {
