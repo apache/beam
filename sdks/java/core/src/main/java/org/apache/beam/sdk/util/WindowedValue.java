@@ -309,6 +309,7 @@ public abstract class WindowedValue<T> {
 
     public TimestampedWindowedValue(T value, Instant timestamp, PaneInfo pane) {
       super(value, pane);
+      BoundedWindow.validateTimestampBounds(timestamp);
       this.timestamp = checkNotNull(timestamp);
     }
 
@@ -616,6 +617,7 @@ public abstract class WindowedValue<T> {
     public WindowedValue<T> decode(InputStream inStream, Context context)
         throws CoderException, IOException {
       Instant timestamp = InstantCoder.of().decode(inStream);
+      BoundedWindow.validateTimestampBounds(timestamp);
       Collection<? extends BoundedWindow> windows = windowsCoder.decode(inStream);
       PaneInfo pane = PaneInfoCoder.INSTANCE.decode(inStream);
       T value = valueCoder.decode(inStream, context);
@@ -754,6 +756,7 @@ public abstract class WindowedValue<T> {
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo pane) {
+      BoundedWindow.validateTimestampBounds(timestamp);
       return new ParamWindowedValueCoder<>(valueCoder, windowCoder, timestamp, windows, pane);
     }
 
@@ -789,6 +792,7 @@ public abstract class WindowedValue<T> {
         Collection<? extends BoundedWindow> windows,
         PaneInfo pane) {
       super(valueCoder, windowCoder);
+      BoundedWindow.validateTimestampBounds(timestamp);
       this.timestamp = timestamp;
       this.windows = windows;
       this.pane = pane;

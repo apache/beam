@@ -42,7 +42,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.Matcher;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
@@ -136,28 +135,6 @@ public class ImmutableListBundleFactoryTest {
         WindowedValue.timestampedValueInGlobalWindow(2, new Instant(1000L));
 
     afterCommitGetElementsShouldHaveAddedElements(ImmutableList.of(firstValue, secondValue));
-  }
-
-  @Test
-  public void addElementsAtEndOfTimeThrows() {
-    Instant timestamp = BoundedWindow.TIMESTAMP_MAX_VALUE;
-    WindowedValue<Integer> value = WindowedValue.timestampedValueInGlobalWindow(1, timestamp);
-
-    UncommittedBundle<Integer> bundle = bundleFactory.createRootBundle();
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(timestamp.toString());
-    bundle.add(value);
-  }
-
-  @Test
-  public void addElementsPastEndOfTimeThrows() {
-    Instant timestamp = BoundedWindow.TIMESTAMP_MAX_VALUE.plus(Duration.standardMinutes(2));
-    WindowedValue<Integer> value = WindowedValue.timestampedValueInGlobalWindow(1, timestamp);
-
-    UncommittedBundle<Integer> bundle = bundleFactory.createRootBundle();
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(timestamp.toString());
-    bundle.add(value);
   }
 
   @SuppressWarnings("unchecked")

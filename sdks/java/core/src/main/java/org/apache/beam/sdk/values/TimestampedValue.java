@@ -30,6 +30,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.Preconditions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
@@ -55,6 +56,9 @@ public class TimestampedValue<V> {
 
   /** Returns a new {@code TimestampedValue} with the given value and timestamp. */
   public static <V> TimestampedValue<V> of(@Nullable V value, Instant timestamp) {
+    // Users who are not using a nullness checker may pass invalid input
+    Preconditions.checkArgumentNotNull(timestamp, "timestamp cannot be null");
+    BoundedWindow.validateTimestampBounds(timestamp);
     return new TimestampedValue<>(value, timestamp);
   }
 
