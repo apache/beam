@@ -1552,6 +1552,54 @@ func (x *GetPrecompiledObjectLogsRequest) GetCloudPath() string {
 	return ""
 }
 
+// GetPrecompiledObjectGraphRequest contains information of the PrecompiledObject cloud path.
+type GetPrecompiledObjectGraphRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	CloudPath string `protobuf:"bytes,1,opt,name=cloud_path,json=cloudPath,proto3" json:"cloud_path,omitempty"`
+}
+
+func (x *GetPrecompiledObjectGraphRequest) Reset() {
+	*x = GetPrecompiledObjectGraphRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_api_v1_api_proto_msgTypes[26]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *GetPrecompiledObjectGraphRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPrecompiledObjectGraphRequest) ProtoMessage() {}
+
+func (x *GetPrecompiledObjectGraphRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_api_proto_msgTypes[26]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPrecompiledObjectGraphRequest.ProtoReflect.Descriptor instead.
+func (*GetPrecompiledObjectGraphRequest) Descriptor() ([]byte, []int) {
+	return file_api_v1_api_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *GetPrecompiledObjectGraphRequest) GetCloudPath() string {
+	if x != nil {
+		return x.CloudPath
+	}
+	return ""
+}
+
 // GetDefaultPrecompiledObjectRequest contains information of the needed PrecompiledObject sdk.
 type GetDefaultPrecompiledObjectRequest struct {
 	state         protoimpl.MessageState
@@ -1564,7 +1612,7 @@ type GetDefaultPrecompiledObjectRequest struct {
 func (x *GetDefaultPrecompiledObjectRequest) Reset() {
 	*x = GetDefaultPrecompiledObjectRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_v1_api_proto_msgTypes[26]
+		mi := &file_api_v1_api_proto_msgTypes[27]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1577,7 +1625,7 @@ func (x *GetDefaultPrecompiledObjectRequest) String() string {
 func (*GetDefaultPrecompiledObjectRequest) ProtoMessage() {}
 
 func (x *GetDefaultPrecompiledObjectRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_api_proto_msgTypes[26]
+	mi := &file_api_v1_api_proto_msgTypes[27]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1590,7 +1638,7 @@ func (x *GetDefaultPrecompiledObjectRequest) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use GetDefaultPrecompiledObjectRequest.ProtoReflect.Descriptor instead.
 func (*GetDefaultPrecompiledObjectRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_api_proto_rawDescGZIP(), []int{26}
+	return file_api_v1_api_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *GetDefaultPrecompiledObjectRequest) GetSdk() Sdk {
@@ -1612,7 +1660,7 @@ type GetPrecompiledObjectsResponse struct {
 func (x *GetPrecompiledObjectsResponse) Reset() {
 	*x = GetPrecompiledObjectsResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_v1_api_proto_msgTypes[27]
+		mi := &file_api_v1_api_proto_msgTypes[28]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1625,7 +1673,7 @@ func (x *GetPrecompiledObjectsResponse) String() string {
 func (*GetPrecompiledObjectsResponse) ProtoMessage() {}
 
 func (x *GetPrecompiledObjectsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_api_proto_msgTypes[27]
+	mi := &file_api_v1_api_proto_msgTypes[28]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1638,7 +1686,7 @@ func (x *GetPrecompiledObjectsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPrecompiledObjectsResponse.ProtoReflect.Descriptor instead.
 func (*GetPrecompiledObjectsResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_api_proto_rawDescGZIP(), []int{27}
+	return file_api_v1_api_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *GetPrecompiledObjectsResponse) GetSdkCategories() []*Categories {
@@ -1660,7 +1708,7 @@ type GetPrecompiledObjectCodeResponse struct {
 func (x *GetPrecompiledObjectCodeResponse) Reset() {
 	*x = GetPrecompiledObjectCodeResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_v1_api_proto_msgTypes[28]
+		mi := &file_api_v1_api_proto_msgTypes[29]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1673,7 +1721,7 @@ func (x *GetPrecompiledObjectCodeResponse) String() string {
 func (*GetPrecompiledObjectCodeResponse) ProtoMessage() {}
 
 func (x *GetPrecompiledObjectCodeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_api_proto_msgTypes[28]
+	mi := &file_api_v1_api_proto_msgTypes[29]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1686,7 +1734,7 @@ func (x *GetPrecompiledObjectCodeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPrecompiledObjectCodeResponse.ProtoReflect.Descriptor instead.
 func (*GetPrecompiledObjectCodeResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_api_proto_rawDescGZIP(), []int{28}
+	return file_api_v1_api_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *GetPrecompiledObjectCodeResponse) GetCode() string {
@@ -1708,7 +1756,7 @@ type GetPrecompiledObjectOutputResponse struct {
 func (x *GetPrecompiledObjectOutputResponse) Reset() {
 	*x = GetPrecompiledObjectOutputResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_v1_api_proto_msgTypes[29]
+		mi := &file_api_v1_api_proto_msgTypes[30]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1721,7 +1769,7 @@ func (x *GetPrecompiledObjectOutputResponse) String() string {
 func (*GetPrecompiledObjectOutputResponse) ProtoMessage() {}
 
 func (x *GetPrecompiledObjectOutputResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_api_proto_msgTypes[29]
+	mi := &file_api_v1_api_proto_msgTypes[30]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1734,7 +1782,7 @@ func (x *GetPrecompiledObjectOutputResponse) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use GetPrecompiledObjectOutputResponse.ProtoReflect.Descriptor instead.
 func (*GetPrecompiledObjectOutputResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_api_proto_rawDescGZIP(), []int{29}
+	return file_api_v1_api_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *GetPrecompiledObjectOutputResponse) GetOutput() string {
@@ -1756,7 +1804,7 @@ type GetPrecompiledObjectLogsResponse struct {
 func (x *GetPrecompiledObjectLogsResponse) Reset() {
 	*x = GetPrecompiledObjectLogsResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_v1_api_proto_msgTypes[30]
+		mi := &file_api_v1_api_proto_msgTypes[31]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1769,7 +1817,7 @@ func (x *GetPrecompiledObjectLogsResponse) String() string {
 func (*GetPrecompiledObjectLogsResponse) ProtoMessage() {}
 
 func (x *GetPrecompiledObjectLogsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_api_proto_msgTypes[30]
+	mi := &file_api_v1_api_proto_msgTypes[31]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1782,12 +1830,60 @@ func (x *GetPrecompiledObjectLogsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPrecompiledObjectLogsResponse.ProtoReflect.Descriptor instead.
 func (*GetPrecompiledObjectLogsResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_api_proto_rawDescGZIP(), []int{30}
+	return file_api_v1_api_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *GetPrecompiledObjectLogsResponse) GetOutput() string {
 	if x != nil {
 		return x.Output
+	}
+	return ""
+}
+
+// GetPrecompiledObjectGraphResponse represents the string representation of the executed code graph in DOT format.
+type GetPrecompiledObjectGraphResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Graph string `protobuf:"bytes,1,opt,name=graph,proto3" json:"graph,omitempty"`
+}
+
+func (x *GetPrecompiledObjectGraphResponse) Reset() {
+	*x = GetPrecompiledObjectGraphResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_api_v1_api_proto_msgTypes[32]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *GetPrecompiledObjectGraphResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPrecompiledObjectGraphResponse) ProtoMessage() {}
+
+func (x *GetPrecompiledObjectGraphResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_api_proto_msgTypes[32]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPrecompiledObjectGraphResponse.ProtoReflect.Descriptor instead.
+func (*GetPrecompiledObjectGraphResponse) Descriptor() ([]byte, []int) {
+	return file_api_v1_api_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *GetPrecompiledObjectGraphResponse) GetGraph() string {
+	if x != nil {
+		return x.Graph
 	}
 	return ""
 }
@@ -1804,7 +1900,7 @@ type GetDefaultPrecompiledObjectResponse struct {
 func (x *GetDefaultPrecompiledObjectResponse) Reset() {
 	*x = GetDefaultPrecompiledObjectResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_v1_api_proto_msgTypes[31]
+		mi := &file_api_v1_api_proto_msgTypes[33]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1817,7 +1913,7 @@ func (x *GetDefaultPrecompiledObjectResponse) String() string {
 func (*GetDefaultPrecompiledObjectResponse) ProtoMessage() {}
 
 func (x *GetDefaultPrecompiledObjectResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_api_proto_msgTypes[31]
+	mi := &file_api_v1_api_proto_msgTypes[33]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1830,7 +1926,7 @@ func (x *GetDefaultPrecompiledObjectResponse) ProtoReflect() protoreflect.Messag
 
 // Deprecated: Use GetDefaultPrecompiledObjectResponse.ProtoReflect.Descriptor instead.
 func (*GetDefaultPrecompiledObjectResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_api_proto_rawDescGZIP(), []int{31}
+	return file_api_v1_api_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *GetDefaultPrecompiledObjectResponse) GetPrecompiledObject() *PrecompiledObject {
@@ -1852,7 +1948,7 @@ type Categories_Category struct {
 func (x *Categories_Category) Reset() {
 	*x = Categories_Category{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_api_v1_api_proto_msgTypes[32]
+		mi := &file_api_v1_api_proto_msgTypes[34]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1865,7 +1961,7 @@ func (x *Categories_Category) String() string {
 func (*Categories_Category) ProtoMessage() {}
 
 func (x *Categories_Category) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_api_proto_msgTypes[32]
+	mi := &file_api_v1_api_proto_msgTypes[34]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2188,7 +2284,7 @@ func file_api_v1_api_proto_rawDescGZIP() []byte {
 }
 
 var file_api_v1_api_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_api_v1_api_proto_msgTypes = make([]protoimpl.MessageInfo, 33)
+var file_api_v1_api_proto_msgTypes = make([]protoimpl.MessageInfo, 35)
 var file_api_v1_api_proto_goTypes = []interface{}{
 	(Sdk)(0),                                    // 0: api.v1.Sdk
 	(Status)(0),                                 // 1: api.v1.Status
@@ -2219,20 +2315,22 @@ var file_api_v1_api_proto_goTypes = []interface{}{
 	(*GetPrecompiledObjectCodeRequest)(nil),     // 26: api.v1.GetPrecompiledObjectCodeRequest
 	(*GetPrecompiledObjectOutputRequest)(nil),   // 27: api.v1.GetPrecompiledObjectOutputRequest
 	(*GetPrecompiledObjectLogsRequest)(nil),     // 28: api.v1.GetPrecompiledObjectLogsRequest
-	(*GetDefaultPrecompiledObjectRequest)(nil),  // 29: api.v1.GetDefaultPrecompiledObjectRequest
-	(*GetPrecompiledObjectsResponse)(nil),       // 30: api.v1.GetPrecompiledObjectsResponse
-	(*GetPrecompiledObjectCodeResponse)(nil),    // 31: api.v1.GetPrecompiledObjectCodeResponse
-	(*GetPrecompiledObjectOutputResponse)(nil),  // 32: api.v1.GetPrecompiledObjectOutputResponse
-	(*GetPrecompiledObjectLogsResponse)(nil),    // 33: api.v1.GetPrecompiledObjectLogsResponse
-	(*GetDefaultPrecompiledObjectResponse)(nil), // 34: api.v1.GetDefaultPrecompiledObjectResponse
-	(*Categories_Category)(nil),                 // 35: api.v1.Categories.Category
+	(*GetPrecompiledObjectGraphRequest)(nil),    // 29: api.v1.GetPrecompiledObjectGraphRequest
+	(*GetDefaultPrecompiledObjectRequest)(nil),  // 30: api.v1.GetDefaultPrecompiledObjectRequest
+	(*GetPrecompiledObjectsResponse)(nil),       // 31: api.v1.GetPrecompiledObjectsResponse
+	(*GetPrecompiledObjectCodeResponse)(nil),    // 32: api.v1.GetPrecompiledObjectCodeResponse
+	(*GetPrecompiledObjectOutputResponse)(nil),  // 33: api.v1.GetPrecompiledObjectOutputResponse
+	(*GetPrecompiledObjectLogsResponse)(nil),    // 34: api.v1.GetPrecompiledObjectLogsResponse
+	(*GetPrecompiledObjectGraphResponse)(nil),   // 35: api.v1.GetPrecompiledObjectGraphResponse
+	(*GetDefaultPrecompiledObjectResponse)(nil), // 36: api.v1.GetDefaultPrecompiledObjectResponse
+	(*Categories_Category)(nil),                 // 37: api.v1.Categories.Category
 }
 var file_api_v1_api_proto_depIdxs = []int32{
 	0,  // 0: api.v1.RunCodeRequest.sdk:type_name -> api.v1.Sdk
 	1,  // 1: api.v1.CheckStatusResponse.status:type_name -> api.v1.Status
 	2,  // 2: api.v1.PrecompiledObject.type:type_name -> api.v1.PrecompiledObjectType
 	0,  // 3: api.v1.Categories.sdk:type_name -> api.v1.Sdk
-	35, // 4: api.v1.Categories.categories:type_name -> api.v1.Categories.Category
+	37, // 4: api.v1.Categories.categories:type_name -> api.v1.Categories.Category
 	0,  // 5: api.v1.GetPrecompiledObjectsRequest.sdk:type_name -> api.v1.Sdk
 	0,  // 6: api.v1.GetDefaultPrecompiledObjectRequest.sdk:type_name -> api.v1.Sdk
 	24, // 7: api.v1.GetPrecompiledObjectsResponse.sdk_categories:type_name -> api.v1.Categories
@@ -2252,24 +2350,26 @@ var file_api_v1_api_proto_depIdxs = []int32{
 	26, // 21: api.v1.PlaygroundService.GetPrecompiledObjectCode:input_type -> api.v1.GetPrecompiledObjectCodeRequest
 	27, // 22: api.v1.PlaygroundService.GetPrecompiledObjectOutput:input_type -> api.v1.GetPrecompiledObjectOutputRequest
 	28, // 23: api.v1.PlaygroundService.GetPrecompiledObjectLogs:input_type -> api.v1.GetPrecompiledObjectLogsRequest
-	29, // 24: api.v1.PlaygroundService.GetDefaultPrecompiledObject:input_type -> api.v1.GetDefaultPrecompiledObjectRequest
-	4,  // 25: api.v1.PlaygroundService.RunCode:output_type -> api.v1.RunCodeResponse
-	6,  // 26: api.v1.PlaygroundService.CheckStatus:output_type -> api.v1.CheckStatusResponse
-	14, // 27: api.v1.PlaygroundService.GetRunOutput:output_type -> api.v1.GetRunOutputResponse
-	18, // 28: api.v1.PlaygroundService.GetLogs:output_type -> api.v1.GetLogsResponse
-	20, // 29: api.v1.PlaygroundService.GetGraph:output_type -> api.v1.GetGraphResponse
-	16, // 30: api.v1.PlaygroundService.GetRunError:output_type -> api.v1.GetRunErrorResponse
-	8,  // 31: api.v1.PlaygroundService.GetValidationOutput:output_type -> api.v1.GetValidationOutputResponse
-	10, // 32: api.v1.PlaygroundService.GetPreparationOutput:output_type -> api.v1.GetPreparationOutputResponse
-	12, // 33: api.v1.PlaygroundService.GetCompileOutput:output_type -> api.v1.GetCompileOutputResponse
-	22, // 34: api.v1.PlaygroundService.Cancel:output_type -> api.v1.CancelResponse
-	30, // 35: api.v1.PlaygroundService.GetPrecompiledObjects:output_type -> api.v1.GetPrecompiledObjectsResponse
-	31, // 36: api.v1.PlaygroundService.GetPrecompiledObjectCode:output_type -> api.v1.GetPrecompiledObjectCodeResponse
-	32, // 37: api.v1.PlaygroundService.GetPrecompiledObjectOutput:output_type -> api.v1.GetPrecompiledObjectOutputResponse
-	33, // 38: api.v1.PlaygroundService.GetPrecompiledObjectLogs:output_type -> api.v1.GetPrecompiledObjectLogsResponse
-	34, // 39: api.v1.PlaygroundService.GetDefaultPrecompiledObject:output_type -> api.v1.GetDefaultPrecompiledObjectResponse
-	25, // [25:40] is the sub-list for method output_type
-	10, // [10:25] is the sub-list for method input_type
+	29, // 24: api.v1.PlaygroundService.GetPrecompiledObjectGraph:input_type -> api.v1.GetPrecompiledObjectGraphRequest
+	30, // 25: api.v1.PlaygroundService.GetDefaultPrecompiledObject:input_type -> api.v1.GetDefaultPrecompiledObjectRequest
+	4,  // 26: api.v1.PlaygroundService.RunCode:output_type -> api.v1.RunCodeResponse
+	6,  // 27: api.v1.PlaygroundService.CheckStatus:output_type -> api.v1.CheckStatusResponse
+	14, // 28: api.v1.PlaygroundService.GetRunOutput:output_type -> api.v1.GetRunOutputResponse
+	18, // 29: api.v1.PlaygroundService.GetLogs:output_type -> api.v1.GetLogsResponse
+	20, // 30: api.v1.PlaygroundService.GetGraph:output_type -> api.v1.GetGraphResponse
+	16, // 31: api.v1.PlaygroundService.GetRunError:output_type -> api.v1.GetRunErrorResponse
+	8,  // 32: api.v1.PlaygroundService.GetValidationOutput:output_type -> api.v1.GetValidationOutputResponse
+	10, // 33: api.v1.PlaygroundService.GetPreparationOutput:output_type -> api.v1.GetPreparationOutputResponse
+	12, // 34: api.v1.PlaygroundService.GetCompileOutput:output_type -> api.v1.GetCompileOutputResponse
+	22, // 35: api.v1.PlaygroundService.Cancel:output_type -> api.v1.CancelResponse
+	31, // 36: api.v1.PlaygroundService.GetPrecompiledObjects:output_type -> api.v1.GetPrecompiledObjectsResponse
+	32, // 37: api.v1.PlaygroundService.GetPrecompiledObjectCode:output_type -> api.v1.GetPrecompiledObjectCodeResponse
+	33, // 38: api.v1.PlaygroundService.GetPrecompiledObjectOutput:output_type -> api.v1.GetPrecompiledObjectOutputResponse
+	34, // 39: api.v1.PlaygroundService.GetPrecompiledObjectLogs:output_type -> api.v1.GetPrecompiledObjectLogsResponse
+	35, // 40: api.v1.PlaygroundService.GetPrecompiledObjectGraph:output_type -> api.v1.GetPrecompiledObjectGraphResponse
+	36, // 41: api.v1.PlaygroundService.GetDefaultPrecompiledObject:output_type -> api.v1.GetDefaultPrecompiledObjectResponse
+	26, // [26:42] is the sub-list for method output_type
+	10, // [10:26] is the sub-list for method input_type
 	10, // [10:10] is the sub-list for extension type_name
 	10, // [10:10] is the sub-list for extension extendee
 	0,  // [0:10] is the sub-list for field type_name
@@ -2594,7 +2694,7 @@ func file_api_v1_api_proto_init() {
 			}
 		}
 		file_api_v1_api_proto_msgTypes[26].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetDefaultPrecompiledObjectRequest); i {
+			switch v := v.(*GetPrecompiledObjectGraphRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2606,7 +2706,7 @@ func file_api_v1_api_proto_init() {
 			}
 		}
 		file_api_v1_api_proto_msgTypes[27].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetPrecompiledObjectsResponse); i {
+			switch v := v.(*GetDefaultPrecompiledObjectRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2618,7 +2718,7 @@ func file_api_v1_api_proto_init() {
 			}
 		}
 		file_api_v1_api_proto_msgTypes[28].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetPrecompiledObjectCodeResponse); i {
+			switch v := v.(*GetPrecompiledObjectsResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2630,7 +2730,7 @@ func file_api_v1_api_proto_init() {
 			}
 		}
 		file_api_v1_api_proto_msgTypes[29].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetPrecompiledObjectOutputResponse); i {
+			switch v := v.(*GetPrecompiledObjectCodeResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2642,7 +2742,7 @@ func file_api_v1_api_proto_init() {
 			}
 		}
 		file_api_v1_api_proto_msgTypes[30].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetPrecompiledObjectLogsResponse); i {
+			switch v := v.(*GetPrecompiledObjectOutputResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2654,7 +2754,7 @@ func file_api_v1_api_proto_init() {
 			}
 		}
 		file_api_v1_api_proto_msgTypes[31].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetDefaultPrecompiledObjectResponse); i {
+			switch v := v.(*GetPrecompiledObjectLogsResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2666,6 +2766,30 @@ func file_api_v1_api_proto_init() {
 			}
 		}
 		file_api_v1_api_proto_msgTypes[32].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*GetPrecompiledObjectGraphResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_api_v1_api_proto_msgTypes[33].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*GetDefaultPrecompiledObjectResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_api_v1_api_proto_msgTypes[34].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Categories_Category); i {
 			case 0:
 				return &v.state
@@ -2684,7 +2808,7 @@ func file_api_v1_api_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_api_v1_api_proto_rawDesc,
 			NumEnums:      3,
-			NumMessages:   33,
+			NumMessages:   35,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

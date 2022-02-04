@@ -67,7 +67,7 @@ The full list of commands can be found [here](https://pkg.go.dev/cmd/go).
 
 These environment variables should be set to run the backend locally:
 
-- `BEAM_SDK` - is the SDK which backend could process (`SDK_GO` / `SDK_JAVA` / `SDK_PYTHON` / `SDK_SCIO`)
+- `BEAM_SDK` - is the SDK which backend could process (`SDK_GO` / `SDK_JAVA` / `SDK_PYTHON` / `SDK_SCIO` / `SDK_UNSPECIFIED`)
 - `APP_WORK_DIR` - is the directory where all folders will be placed to process each code processing request
 - `PREPARED_MOD_DIR` - is the directory where prepared go.mod and go.sum files are placed. It is used only for Go SDK
 
