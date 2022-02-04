@@ -118,6 +118,8 @@ on a portable runner) but the following big-ticket items remain.
 
     * Consider renaming map/flatMap to doMap/doFlatMap to avoid confusion with
     Array.map that takes a key as a second callback argument.
+    Or force the second argument to be an Object, which would lead to a less
+    confusing API and clean up the implementation.
     Also add a [do]Filter, and possibly a [do]Reduce?
 
     * Move away from using classes.
@@ -148,12 +150,22 @@ on a portable runner) but the following big-ticket items remain.
 
   * Avoid any return types (and re-enable check in compiler).
 
-  * Relative vs. absoute imports.  Remove imports from base.ts.
+  * Relative vs. absoute imports, possibly via setting a base url with a
+  `jsconfig.json``.  Also remove imports from base.ts.
 
   * More/better tests, including tests of illegal/unsupported use.
 
   * Set channel options like `grpc.max_{send,receive}_message_length` as we
   do in other SDKs.
+
+  * Reduce use of any.
+
+    * Could use `unknown` in its place where the type is truly unknown.
+
+    * It'd be nice to enforce, maybe re-enable `noImplicitAny: true` in
+    tsconfig if we can get the generated proto files to be ignored.
+
+  * Enable a linter like eslint and fix at least the low hanging fruit.
 
 There is probably more; there are many TODOs littered throughout the code.
 
