@@ -1351,21 +1351,16 @@ class BeamModulePlugin implements Plugin<Project> {
 
         project.task("jmh", type: JavaExec, dependsOn: project.classes, {
           mainClass = "org.openjdk.jmh.Main"
-          classpath = project.sourceSets.main.compileClasspath + project.sourceSets.main.runtimeClasspath
+          classpath = project.sourceSets.main.runtimeClasspath
           // For a list of arguments, see
           // https://github.com/guozheng/jmh-tutorial/blob/master/README.md
           //
-          // Filter for a specific benchmark to run (uncomment below)
-          // Note that multiple regex are supported each as a separate argument.
-          // args 'BeamFnLoggingClientBenchmark.testLoggingWithAllOptionalParameters'
-          // args 'additional regexp...'
-          //
-          // Enumerate available benchmarks and exit (uncomment below)
+          // Enumerate available benchmarks and exit (uncomment below and disable other args)
           // args '-l'
           //
-          // Enable connecting a debugger by disabling forking (uncomment below)
+          // Enable connecting a debugger by disabling forking (uncomment below and disable other args)
           // Useful for debugging via an IDE such as Intellij
-          // args '-f0'
+          // args '-f=0'
           // Specify -Pbenchmark=ProcessBundleBenchmark.testTinyBundle on the command
           // line to enable running a single benchmark.
 
@@ -1379,8 +1374,13 @@ class BeamModulePlugin implements Plugin<Project> {
               def userName = System.getProperty("user.name").toLowerCase().replaceAll(" ", "_")
               jvmArgs '-agentpath:/opt/cprof/profiler_java_agent.so=-cprof_service=' + userName + "_" + project.getProperty("benchmark").toLowerCase() + '_' + System.currentTimeMillis() + ',-cprof_project_id=' + gcpProject + ',-cprof_zone_name=us-central1-a'
             }
+          } else {
+            // We filter for only Apache Beam benchmarks to ensure that we aren't
+            // running benchmarks that may have been packaged from another library
+            // that ends up on the runtime classpath.
+            args 'org.apache.beam'
           }
-          args '-foe true'
+          args '-foe=true'
         })
 
         // Single shot of JMH benchmarks ensures that they can execute.
@@ -1388,10 +1388,17 @@ class BeamModulePlugin implements Plugin<Project> {
         // Note that these tests will fail on JVMs that JMH doesn't support.
         project.task("jmhTest", type: JavaExec, dependsOn: project.classes, {
           mainClass = "org.openjdk.jmh.Main"
-          classpath = project.sourceSets.main.compileClasspath + project.sourceSets.main.runtimeClasspath
+          classpath = project.sourceSets.main.runtimeClasspath
 
-          args '-bm ss'
-          args '-foe true'
+          // We filter for only Apache Beam benchmarks to ensure that we aren't
+          // running benchmarks that may have been packaged from another library
+          // that ends up on the runtime classpath.
+          args 'org.apache.beam'
+          args '-bm=ss'
+          args '-i=1'
+          args '-f=0'
+          args '-wf=0'
+          args '-foe=true'
         })
         project.check.dependsOn("jmhTest")
       }
