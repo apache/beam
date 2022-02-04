@@ -67,9 +67,7 @@
 
 ## Known Issues
 
-# 2.36.0 - Unreleased
-
-## Highlights
+# [2.36.0] - 2022-02-08
 
 ## I/Os
 
@@ -87,15 +85,11 @@
 * Updated the jedis from 3.x to 4.x to Java RedisIO. If you are using RedisIO and using jedis directly, please refer to [this page](https://github.com/redis/jedis/blob/v4.0.0/docs/3to4.md) to update it. ([BEAM-12092](https://issues.apache.org/jira/browse/BEAM-12092)).
 * Datatype of timestamp fields in `SqsMessage` for AWS IOs for SDK v2 was changed from `String` to `long`, visibility of all fields was fixed from `package private` to `public` [BEAM-13638](https://issues.apache.org/jira/browse/BEAM-13638).
 
-## Deprecations
-
 ## Bugfixes
 
 * Properly check output timestamps on elements output from DoFns, timers, and onWindowExpiration in Java [BEAM-12931](https://issues.apache.org/jira/browse/BEAM-12931).
 * Fixed a bug with DeferredDataFrame.xs when used with a non-tuple key
   ([BEAM-13421](https://issues.apache.org/jira/browse/BEAM-13421])).
-
-## Known Issues
 
 # [2.35.0] - 2021-12-29
 
