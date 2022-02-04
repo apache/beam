@@ -409,8 +409,8 @@ class JdbcUtil {
               }
               int dif = upperBound.charAt(0) - lowerBound.charAt(0);
               int stride = dif / partitions != 0 ? Long.valueOf(dif / partitions).intValue() : 1;
-              String currentLowerBound = String.valueOf(lowerBound.charAt(0));
-              while (currentLowerBound.charAt(0) < upperBound.charAt(0)) {
+              String currentLowerBound = lowerBound; // String.valueOf(lowerBound.charAt(0));
+              while (currentLowerBound.charAt(0) <= upperBound.charAt(0)) {
                 int upperBoundCharPoint = currentLowerBound.charAt(0) + stride;
                 upperBoundCharPoint =
                     upperBoundCharPoint > upperBound.charAt(0)
@@ -469,7 +469,7 @@ class JdbcUtil {
                 ranges.add(KV.of(i, i + stride));
                 highest = i + stride;
               }
-              if (upperBound - lowerBound > stride * (partitions - 1)) {
+              if (upperBound - lowerBound > stride * (ranges.size() - 1)) {
                 long indexFrom = highest;
                 long indexTo = upperBound + 1;
                 ranges.add(KV.of(indexFrom, indexTo));
@@ -505,11 +505,12 @@ class JdbcUtil {
               final List<KV<DateTime, DateTime>> result = new ArrayList<>();
 
               final long intervalMillis = upperBound.getMillis() - lowerBound.getMillis();
-              final long strideMillis = intervalMillis / partitions;
+              final long strideMillis =
+                  intervalMillis / partitions == 0 ? 1 : intervalMillis / partitions;
               // Add the first advancement
               DateTime currentLowerBound = lowerBound;
               // Zero output in a comparison means that elements are equal
-              while (currentLowerBound.compareTo(upperBound) < 0) {
+              while (currentLowerBound.compareTo(upperBound) <= 0) {
                 DateTime currentUpper = currentLowerBound.plus(Duration.millis(strideMillis));
                 if (currentUpper.compareTo(upperBound) >= 0) {
                   // If we hit the upper bound directly, then we want to be just-above it, so that

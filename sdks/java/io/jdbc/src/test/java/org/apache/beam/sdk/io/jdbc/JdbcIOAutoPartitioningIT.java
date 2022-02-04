@@ -196,6 +196,15 @@ public class JdbcIOAutoPartitioningIT {
     private static final Distribution millisDist =
         Metrics.distribution(MapRowDataFn.class, "millisDistribution");
 
+    static String randomStr(int seed) {
+      Random rnd = new Random(seed);
+      StringBuilder sb = new StringBuilder(rnd.nextInt(50));
+      for (int i = 0; i < sb.capacity(); i++) {
+        sb.append(Character.toChars(rnd.nextInt() + 1)[0]);
+      }
+      return sb.toString();
+    }
+
     @Override
     public RowData apply(Long input) {
       Random rnd = new Random(input);
@@ -206,7 +215,7 @@ public class JdbcIOAutoPartitioningIT {
       MapRowDataFn.millisDist.update(millisOffset);
       return new RowData(
           id,
-          String.valueOf(rnd.nextDouble()),
+          randomStr(rnd.nextInt()),
           new DateTime(Instant.EPOCH.plus(Duration.millis(millisOffset))));
     }
   }
