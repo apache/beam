@@ -31,6 +31,12 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 )
 
+func checkFlags(t *testing.T) {
+	if *integration.IoExpansionAddr == "" {
+		t.Skip("No IO expansion address provided.")
+	}
+}
+
 func setupTestContainer(t *testing.T, dbname, username, password string) string {
 	t.Helper()
 
@@ -65,6 +71,7 @@ func setupTestContainer(t *testing.T, dbname, username, password string) string 
 // TestDebeziumIO_BasicRead tests basic read transform from Debezium.
 func TestDebeziumIO_BasicRead(t *testing.T) {
 	integration.CheckFilters(t)
+	checkFlags(t)
 
 	dbname := "inventory"
 	username := "debezium"
