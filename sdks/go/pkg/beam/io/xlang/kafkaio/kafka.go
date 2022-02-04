@@ -98,9 +98,8 @@ var autoStartupAddress string = xlangx.UseAutomatedJavaExpansionService(serviceG
 // a comma-seperated list of bootstrap server addresses (see the Kafka property
 // "bootstrap.servers" for details), and at least one topic to read from.
 // If an expansion service address is provided as "", an appropriate expansion
-// service will be automatically started; however this is slower than having a 
-// persistent expansion service
-// running.
+// service will be automatically started; however this is slower than having a
+// persistent expansion service running.
 //
 // Read also accepts optional parameters as readOptions. All optional parameters
 // are predefined in this package as functions that return readOption. To set
@@ -242,9 +241,9 @@ type readPayload struct {
 // Write requires the address for an expansion service for Kafka Write
 // transforms, a comma-seperated list of bootstrap server addresses (see the
 // Kafka property "bootstrap.servers" for details), and a topic to write to.
-// If an expansion service address is not provided, one will be automatically
-// started; however this is slower than having a persistent expansion service
-// running.
+// If an expansion service address is provided as "", an appropriate expansion
+// service will be automatically started; however this is slower than having a
+// persistent expansion service running.
 //
 // Write also accepts optional parameters as writeOptions. All optional
 // parameters are predefined in this package as functions that return
