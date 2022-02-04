@@ -172,7 +172,7 @@ public class ProcessBundleBenchmark {
                   }
                 });
         InstructionRequestHandler controlClient =
-            clientPool.getSource().take(WORKER_ID, java.time.Duration.ofSeconds(2));
+            clientPool.getSource().take(WORKER_ID, java.time.Duration.ofSeconds(60));
         this.controlClient =
             SdkHarnessClient.usingFnApiClient(controlClient, dataServer.getService());
       } catch (Exception e) {
