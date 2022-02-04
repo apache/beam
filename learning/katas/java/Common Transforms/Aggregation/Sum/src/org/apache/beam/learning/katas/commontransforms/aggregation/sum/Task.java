@@ -22,6 +22,7 @@ package org.apache.beam.learning.katas.commontransforms.aggregation.sum;
 //   name: AggregationSum
 //   description: Task from katas to compute the sum of all elements.
 //   multifile: false
+//   context_line: 37
 //   categories:
 //     - Combiners
 

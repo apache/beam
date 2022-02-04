@@ -15,11 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core.construction;
+package org.apache.beam.runners.fnexecution.wire;
 
 import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects.firstNonNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList.toImmutableList;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
@@ -46,9 +47,19 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import org.apache.beam.fn.harness.Caches;
+import org.apache.beam.fn.harness.state.BeamFnStateClient;
+import org.apache.beam.fn.harness.state.StateBackedIterable;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateGetResponse;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardCoders;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.runners.core.construction.CoderTranslation.TranslationContext;
+import org.apache.beam.runners.core.construction.CoderTranslator;
+import org.apache.beam.runners.core.construction.ModelCoderRegistrar;
+import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.ByteCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -56,6 +67,7 @@ import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
+import org.apache.beam.sdk.coders.IterableLikeCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -73,11 +85,14 @@ import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableBiMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.CharStreams;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -118,6 +133,7 @@ public class CommonCoderTest {
           .put(getUrn(StandardCoders.Enum.ROW), RowCoder.class)
           .put(getUrn(StandardCoders.Enum.SHARDED_KEY), ShardedKey.Coder.class)
           .put(getUrn(StandardCoders.Enum.CUSTOM_WINDOW), TimestampPrefixingWindowCoder.class)
+          .put(getUrn(StandardCoders.Enum.STATE_BACKED_ITERABLE), StateBackedIterable.Coder.class)
           .build();
 
   @AutoValue
@@ -131,17 +147,31 @@ public class CommonCoderTest {
 
     abstract Boolean getNonDeterministic();
 
+    abstract Map<ByteString, ByteString> getState();
+
     @JsonCreator
     static CommonCoder create(
         @JsonProperty("urn") String urn,
         @JsonProperty("components") @Nullable List<CommonCoder> components,
         @JsonProperty("payload") @Nullable String payload,
-        @JsonProperty("non_deterministic") @Nullable Boolean nonDeterministic) {
+        @JsonProperty("non_deterministic") @Nullable Boolean nonDeterministic,
+        @JsonProperty("state") @Nullable Map<String, String> state) {
+      if (state == null) {
+        state = Collections.emptyMap();
+      }
+      Map<ByteString, ByteString> transformedState = new HashMap<>();
+      for (Map.Entry<String, String> entry : state.entrySet()) {
+        transformedState.put(
+            ByteString.copyFromUtf8(entry.getKey()),
+            ByteString.copyFrom(entry.getValue().getBytes(StandardCharsets.ISO_8859_1)));
+      }
+
       return new AutoValue_CommonCoderTest_CommonCoder(
           checkNotNull(urn, "urn"),
           firstNonNull(components, Collections.emptyList()),
           firstNonNull(payload, "").getBytes(StandardCharsets.ISO_8859_1),
-          firstNonNull(nonDeterministic, Boolean.FALSE));
+          firstNonNull(nonDeterministic, Boolean.FALSE),
+          transformedState);
     }
   }
 
@@ -296,8 +326,9 @@ public class CommonCoderTest {
       Instant end = new Instant(((Number) kvMap.get("end")).longValue());
       Duration span = Duration.millis(((Number) kvMap.get("span")).longValue());
       return new IntervalWindow(end.minus(span), span);
-    } else if (s.equals(getUrn(StandardCoders.Enum.ITERABLE))) {
-      Coder elementCoder = ((IterableCoder) coder).getElemCoder();
+    } else if (s.equals(getUrn(StandardCoders.Enum.ITERABLE))
+        || s.equals(getUrn(StandardCoders.Enum.STATE_BACKED_ITERABLE))) {
+      Coder elementCoder = ((IterableLikeCoder) coder).getElemCoder();
       List<Object> elements = (List<Object>) value;
       List<Object> convertedElements = new ArrayList<>();
       for (Object element : elements) {
@@ -431,11 +462,44 @@ public class CommonCoderTest {
     for (CommonCoder innerCoder : coder.getComponents()) {
       components.add(instantiateCoder(innerCoder));
     }
+
+    // We construct the state backed iterable coder explicitly instead of relying on the model
+    // translator since we need to interact with a fake state client.
+    if (coder.getUrn().equals(getUrn(StandardCoders.Enum.STATE_BACKED_ITERABLE))) {
+      BeamFnStateClient stateClient =
+          new BeamFnStateClient() {
+            @Override
+            public CompletableFuture<StateResponse> handle(StateRequest.Builder requestBuilder) {
+              checkState(requestBuilder.hasGet());
+              checkState(requestBuilder.hasStateKey());
+              checkState(requestBuilder.getStateKey().hasRunner());
+              StateResponse.Builder rval = StateResponse.newBuilder();
+              rval.setId(requestBuilder.getId());
+              rval.setGet(
+                  StateGetResponse.newBuilder()
+                      .setData(
+                          coder
+                              .getState()
+                              .getOrDefault(
+                                  requestBuilder.getStateKey().getRunner().getKey(),
+                                  ByteString.EMPTY)));
+              return CompletableFuture.completedFuture(rval.build());
+            }
+          };
+      return new StateBackedIterable.Coder<>(
+          () -> Caches.noop(),
+          stateClient,
+          () -> "instructionId",
+          (Coder) Iterables.getOnlyElement(components));
+    }
+
     Class<? extends Coder> coderType =
-        ModelCoderRegistrar.BEAM_MODEL_CODER_URNS.inverse().get(coder.getUrn());
+        ImmutableBiMap.copyOf(new ModelCoderRegistrar().getCoderURNs())
+            .inverse()
+            .get(coder.getUrn());
     checkNotNull(coderType, "Unknown coder URN: " + coder.getUrn());
 
-    CoderTranslator<?> translator = ModelCoderRegistrar.BEAM_MODEL_CODERS.get(coderType);
+    CoderTranslator<?> translator = new ModelCoderRegistrar().getCoderTranslators().get(coderType);
     checkNotNull(
         translator, "No translator found for common coder class: " + coderType.getSimpleName());
 
@@ -480,7 +544,8 @@ public class CommonCoderTest {
     } else if (s.equals(getUrn(StandardCoders.Enum.INTERVAL_WINDOW))) {
       assertEquals(expectedValue, actualValue);
 
-    } else if (s.equals(getUrn(StandardCoders.Enum.ITERABLE))) {
+    } else if (s.equals(getUrn(StandardCoders.Enum.ITERABLE))
+        || s.equals(getUrn(StandardCoders.Enum.STATE_BACKED_ITERABLE))) {
       assertThat(actualValue, instanceOf(Iterable.class));
       CommonCoder componentCoder = coder.getComponents().get(0);
       Iterator<Object> expectedValueIterator = ((Iterable<Object>) expectedValue).iterator();

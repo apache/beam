@@ -38,7 +38,7 @@ public class JvmVerification {
   static {
     versionMapping.put("0034", v1_8);
     versionMapping.put("0037", v11);
-    versionMapping.put("0043", v17);
+    versionMapping.put("003d", v17);
   }
 
   // bytecode
