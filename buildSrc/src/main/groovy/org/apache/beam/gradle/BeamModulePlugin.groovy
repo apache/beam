@@ -130,13 +130,15 @@ class BeamModulePlugin implements Plugin<Project> {
     boolean validateShadowJar = true
 
     /**
-     * Controls whether the 'jmh' source set is enabled for JMH benchmarks.
+     * Controls whether 'jmh' specific configuration is enabled to build a JMH
+     * focused module.
      *
-     * Add additional dependencies to the jmhCompile and jmhRuntime dependency
-     * sets.
+     * Add additional dependencies to the implementation configuration.
      *
      * Note that the JMH annotation processor is enabled by default and that
      * a 'jmh' task is created which executes JMH.
+     *
+     * Publishing is not allowed for JMH enabled projects.
      */
     boolean enableJmh = false
 
@@ -480,7 +482,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def spotbugs_version = "4.0.6"
     def testcontainers_version = "1.15.1"
     def arrow_version = "5.0.0"
-    def jmh_version = "1.32"
+    def jmh_version = "1.34"
 
     // A map of maps containing common libraries used per language. To use:
     // dependencies {
@@ -792,6 +794,11 @@ class BeamModulePlugin implements Plugin<Project> {
     project.ext.applyJavaNature = {
       // Use the implicit it parameter of the closure to handle zero argument or one argument map calls.
       JavaNatureConfiguration configuration = it ? it as JavaNatureConfiguration : new JavaNatureConfiguration()
+
+      // Validate configuration
+      if (configuration.enableJmh && configuration.publish) {
+        throw new GradleException("Publishing of a benchmark project is not allowed. Benchmark projects are not meant to be consumed as artifacts for end users.");
+      }
 
       if (configuration.archivesBaseName) {
         project.archivesBaseName = configuration.archivesBaseName
@@ -1325,25 +1332,12 @@ class BeamModulePlugin implements Plugin<Project> {
       }
 
       if (configuration.enableJmh) {
-        // We specifically use a separate source set for JMH to ensure that it does not
-        // become a required artifact
-        project.sourceSets {
-          jmh {
-            java {
-              srcDir "src/jmh/java"
-            }
-            resources {
-              srcDir "src/jmh/resources"
-            }
-          }
-        }
-
         project.dependencies {
-          jmhAnnotationProcessor "org.openjdk.jmh:jmh-generator-annprocess:$jmh_version"
-          jmhImplementation "org.openjdk.jmh:jmh-core:$jmh_version"
+          annotationProcessor "org.openjdk.jmh:jmh-generator-annprocess:$jmh_version"
+          implementation "org.openjdk.jmh:jmh-core:$jmh_version"
         }
 
-        project.compileJmhJava {
+        project.compileJava {
           // Always exclude checkerframework on JMH generated code. It's slow,
           // and it often raises erroneous error because we don't have checker
           // annotations for generated code and test libraries.
@@ -1355,9 +1349,9 @@ class BeamModulePlugin implements Plugin<Project> {
           }
         }
 
-        project.task("jmh", type: JavaExec, dependsOn: project.jmhClasses, {
+        project.task("jmh", type: JavaExec, dependsOn: project.classes, {
           mainClass = "org.openjdk.jmh.Main"
-          classpath = project.sourceSets.jmh.compileClasspath + project.sourceSets.jmh.runtimeClasspath
+          classpath = project.sourceSets.main.compileClasspath + project.sourceSets.main.runtimeClasspath
           // For a list of arguments, see
           // https://github.com/guozheng/jmh-tutorial/blob/master/README.md
           //
@@ -1372,7 +1366,34 @@ class BeamModulePlugin implements Plugin<Project> {
           // Enable connecting a debugger by disabling forking (uncomment below)
           // Useful for debugging via an IDE such as Intellij
           // args '-f0'
+          // Specify -Pbenchmark=ProcessBundleBenchmark.testTinyBundle on the command
+          // line to enable running a single benchmark.
+
+          // Enable Google Cloud Profiler and upload the benchmarks to GCP.
+          if (project.hasProperty("benchmark")) {
+            args project.getProperty("benchmark")
+            // Add JVM arguments allowing one to additionally use Google's Java Profiler
+            // Agent: (see https://cloud.google.com/profiler/docs/profiling-java#installing-profiler for instructions on how to install)
+            if (project.file("/opt/cprof/profiler_java_agent.so").exists()) {
+              def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+              def userName = System.getProperty("user.name").toLowerCase().replaceAll(" ", "_")
+              jvmArgs '-agentpath:/opt/cprof/profiler_java_agent.so=-cprof_service=' + userName + "_" + project.getProperty("benchmark").toLowerCase() + '_' + System.currentTimeMillis() + ',-cprof_project_id=' + gcpProject + ',-cprof_zone_name=us-central1-a'
+            }
+          }
+          args '-foe true'
         })
+
+        // Single shot of JMH benchmarks ensures that they can execute.
+        //
+        // Note that these tests will fail on JVMs that JMH doesn't support.
+        project.task("jmhTest", type: JavaExec, dependsOn: project.classes, {
+          mainClass = "org.openjdk.jmh.Main"
+          classpath = project.sourceSets.main.compileClasspath + project.sourceSets.main.runtimeClasspath
+
+          args '-bm ss'
+          args '-foe true'
+        })
+        project.check.dependsOn("jmhTest")
       }
 
       project.ext.includeInJavaBom = configuration.publish
