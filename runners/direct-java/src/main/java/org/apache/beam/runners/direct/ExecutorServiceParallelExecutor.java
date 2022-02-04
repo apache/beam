@@ -151,8 +151,8 @@ final class ExecutorServiceParallelExecutor
   @SuppressWarnings("FutureReturnValueIgnored")
   public void start(DirectGraph graph, RootProviderRegistry rootProviderRegistry) {
     int numTargetSplits = Math.max(3, targetParallelism);
-    ImmutableMap.Builder<AppliedPTransform<?, ?, ?>, Queue<CommittedBundle<?>>>
-        pendingRootBundles = ImmutableMap.builder();
+    ImmutableMap.Builder<AppliedPTransform<?, ?, ?>, Queue<CommittedBundle<?>>> pendingRootBundles =
+        ImmutableMap.builder();
     for (AppliedPTransform<?, ?, ?> root : graph.getRootTransforms()) {
       Queue<CommittedBundle<?>> pending = Queues.newArrayDeque();
       try {

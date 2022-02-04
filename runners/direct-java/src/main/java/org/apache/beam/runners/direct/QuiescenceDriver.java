@@ -73,8 +73,7 @@ class QuiescenceDriver implements ExecutionDriver {
   private final CompletionCallback defaultCompletionCallback =
       new TimerIterableCompletionCallback(Collections.emptyList());
 
-  private final Map<AppliedPTransform<?, ?, ?>, Queue<CommittedBundle<?>>>
-      pendingRootBundles;
+  private final Map<AppliedPTransform<?, ?, ?>, Queue<CommittedBundle<?>>> pendingRootBundles;
   private final Queue<WorkUpdate> pendingWork = new ConcurrentLinkedQueue<>();
   // We collect here bundles and AppliedPTransforms that have started to process bundle, but have
   // not completed it yet. The reason for that is that the bundle processing might change output
@@ -94,8 +93,7 @@ class QuiescenceDriver implements ExecutionDriver {
       BundleProcessor<PCollection<?>, CommittedBundle<?>, AppliedPTransform<?, ?, ?>>
           bundleProcessor,
       PipelineMessageReceiver pipelineMessageReceiver,
-      Map<AppliedPTransform<?, ?, ?>, Queue<CommittedBundle<?>>>
-          pendingRootBundles) {
+      Map<AppliedPTransform<?, ?, ?>, Queue<CommittedBundle<?>>> pendingRootBundles) {
     this.evaluationContext = evaluationContext;
     this.graph = graph;
     this.bundleProcessor = bundleProcessor;
@@ -224,8 +222,8 @@ class QuiescenceDriver implements ExecutionDriver {
     if (state.get() == ExecutorState.QUIESCENT) {
       synchronized (pendingRootBundles) {
         // All current TransformExecutors are blocked; add more work from the roots.
-        for (Map.Entry<AppliedPTransform<?, ?, ?>, Queue<CommittedBundle<?>>>
-                pendingRootEntry : pendingRootBundles.entrySet()) {
+        for (Map.Entry<AppliedPTransform<?, ?, ?>, Queue<CommittedBundle<?>>> pendingRootEntry :
+            pendingRootBundles.entrySet()) {
           Collection<CommittedBundle<?>> bundles = new ArrayList<>();
           // Pull all available work off of the queue, then schedule it all, so this loop
           // terminates
