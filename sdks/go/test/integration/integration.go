@@ -64,6 +64,7 @@ var directFilters = []string{
 	// The direct runner does not yet support cross-language.
 	"TestXLang.*",
 	"TestKafkaIO.*",
+	"TestDebeziumIO_BasicRead",
 	"TestJDBCIO_BasicReadWrite",
 	// Triggers, Panes are not yet supported
 	"TestTrigger.*",
@@ -94,6 +95,7 @@ var flinkFilters = []string{
 	"TestXLang_Combine.*",
 	// TODO(BEAM-12815): Test fails: "Insufficient number of network buffers".
 	"TestXLang_Multi",
+	"TestDebeziumIO_BasicRead",
 	// TODO(BEAM-12753): Flink test stream fails for non-string/byte slice inputs
 	"TestTestStream.*Sequence.*",
 	// Triggers are not yet supported
@@ -143,6 +145,8 @@ var dataflowFilters = []string{
 	"TestPanes",
 	// There is no infrastructure for running KafkaIO tests with Dataflow.
 	"TestKafkaIO.*",
+	// TestContainers won't work against dataflow.
+	"TestDebeziumIO_BasicRead",
 	// Dataflow doesn't support any test that requires loopback.
 	// Eg. For FileIO examples.
 	".*Loopback.*",

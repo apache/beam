@@ -65,6 +65,9 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.replace': [
                 "s.replace([1, 2], method='bfill')",
                 # Relies on method='pad'
+                "s.replace('a')",
+                # Relies on method='pad'
+                # value=None is not valid for pandas < 1.4
                 "s.replace('a', None)",
                 # Implicitly uses method='pad', but output doesn't rely on that
                 # behavior. Verified indepently in
@@ -96,6 +99,7 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.infer_objects': ['*'],
             'pandas.core.generic.NDFrame.ewm': ['*'],
             'pandas.core.generic.NDFrame.expanding': ['*'],
+            'pandas.core.generic.NDFrame.get': ['*'],
         },
         not_implemented_ok={
             'pandas.core.generic.NDFrame.asof': ['*'],
@@ -121,11 +125,21 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.convert_dtypes': ['*'],
             'pandas.core.generic.NDFrame.copy': ['*'],
             'pandas.core.generic.NDFrame.droplevel': ['*'],
+            'pandas.core.generic.NDFrame.get': ['*'],
             'pandas.core.generic.NDFrame.rank': [
                 # Modified dataframe
                 'df'
             ],
             'pandas.core.generic.NDFrame.rename': [
+                # Seems to be an upstream bug. The actual error has a different
+                # message:
+                #   TypeError: Index(...) must be called with a collection of
+                #   some kind, 2 was passed
+                # pandas doctests only verify the type of exception
+                'df.rename(2)'
+            ],
+            # For pandas >= 1.4, rename is changed to _rename
+            'pandas.core.generic.NDFrame._rename': [
                 # Seems to be an upstream bug. The actual error has a different
                 # message:
                 #   TypeError: Index(...) must be called with a collection of
@@ -191,6 +205,9 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.replace': [
                 "s.replace([1, 2], method='bfill')",
                 # Relies on method='pad'
+                "s.replace('a')",
+                # Relies on method='pad'
+                # value=None is not valid for pandas < 1.4
                 "s.replace('a', None)",
                 # Implicitly uses method='pad', but output doesn't rely on that
                 # behavior. Verified indepently in
@@ -288,6 +305,12 @@ class DoctestTest(unittest.TestCase):
             ],
         },
         skip={
+            # DataFrame construction from a dictionary and
+            # Series requires using the len() function, which
+            # is a non-deferred operation that we do not allow
+            'pandas.core.frame.DataFrame': [
+                'pd.DataFrame(data=d, index=[0, 1, 2, 3])',
+            ],
             # s2 created with reindex
             'pandas.core.frame.DataFrame.dot': [
                 'df.dot(s2)',
@@ -421,6 +444,7 @@ class DoctestTest(unittest.TestCase):
                 'df.fillna(method="ffill")',
                 'df.fillna(value=values, limit=1)',
             ],
+            'pandas.core.series.Series.info': ['*'],
             'pandas.core.series.Series.items': ['*'],
             'pandas.core.series.Series.iteritems': ['*'],
             # default keep is 'first'
@@ -453,6 +477,9 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.replace': [
                 "s.replace([1, 2], method='bfill')",
                 # Relies on method='pad'
+                "s.replace('a')",
+                # Relies on method='pad'
+                # value=None is not valid for pandas < 1.4
                 "s.replace('a', None)",
                 # Implicitly uses method='pad', but output doesn't rely on that
                 # behavior. Verified indepently in
@@ -717,7 +744,6 @@ class DoctestTest(unittest.TestCase):
         not_implemented_ok={
             'pandas.core.groupby.generic.DataFrameGroupBy.idxmax': ['*'],
             'pandas.core.groupby.generic.DataFrameGroupBy.idxmin': ['*'],
-            'pandas.core.groupby.generic.DataFrameGroupBy.value_counts': ['*'],
             'pandas.core.groupby.generic.SeriesGroupBy.transform': ['*'],
             'pandas.core.groupby.generic.SeriesGroupBy.idxmax': ['*'],
             'pandas.core.groupby.generic.SeriesGroupBy.idxmin': ['*'],
@@ -749,6 +775,12 @@ class DoctestTest(unittest.TestCase):
             # Skipped idxmax/idxmin due an issue with the test framework
             'pandas.core.groupby.generic.SeriesGroupBy.idxmin': ['s.idxmin()'],
             'pandas.core.groupby.generic.SeriesGroupBy.idxmax': ['s.idxmax()'],
+            # Uses as_index, which is currently not_implemented
+            'pandas.core.groupby.generic.DataFrameGroupBy.value_counts': [
+                "df.groupby('gender', as_index=False).value_counts()",
+                # pylint: disable=line-too-long
+                "df.groupby('gender', as_index=False).value_counts(normalize=True)",
+            ],
         })
     self.assertEqual(result.failed, 0)
 

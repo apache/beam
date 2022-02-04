@@ -118,6 +118,13 @@ class PlaygroundServiceClient extends $grpc.Client {
       ($0.GetPrecompiledObjectLogsRequest value) => value.writeToBuffer(),
       ($core.List<$core.int> value) =>
           $0.GetPrecompiledObjectLogsResponse.fromBuffer(value));
+  static final _$getPrecompiledObjectGraph = $grpc.ClientMethod<
+          $0.GetPrecompiledObjectGraphRequest,
+          $0.GetPrecompiledObjectGraphResponse>(
+      '/api.v1.PlaygroundService/GetPrecompiledObjectGraph',
+      ($0.GetPrecompiledObjectGraphRequest value) => value.writeToBuffer(),
+      ($core.List<$core.int> value) =>
+          $0.GetPrecompiledObjectGraphResponse.fromBuffer(value));
   static final _$getDefaultPrecompiledObject = $grpc.ClientMethod<
           $0.GetDefaultPrecompiledObjectRequest,
           $0.GetDefaultPrecompiledObjectResponse>(
@@ -211,6 +218,13 @@ class PlaygroundServiceClient extends $grpc.Client {
       getPrecompiledObjectLogs($0.GetPrecompiledObjectLogsRequest request,
           {$grpc.CallOptions? options}) {
     return $createUnaryCall(_$getPrecompiledObjectLogs, request,
+        options: options);
+  }
+
+  $grpc.ResponseFuture<$0.GetPrecompiledObjectGraphResponse>
+      getPrecompiledObjectGraph($0.GetPrecompiledObjectGraphRequest request,
+          {$grpc.CallOptions? options}) {
+    return $createUnaryCall(_$getPrecompiledObjectGraph, request,
         options: options);
   }
 
@@ -345,6 +359,15 @@ abstract class PlaygroundServiceBase extends $grpc.Service {
         ($core.List<$core.int> value) =>
             $0.GetPrecompiledObjectLogsRequest.fromBuffer(value),
         ($0.GetPrecompiledObjectLogsResponse value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.GetPrecompiledObjectGraphRequest,
+            $0.GetPrecompiledObjectGraphResponse>(
+        'GetPrecompiledObjectGraph',
+        getPrecompiledObjectGraph_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) =>
+            $0.GetPrecompiledObjectGraphRequest.fromBuffer(value),
+        ($0.GetPrecompiledObjectGraphResponse value) => value.writeToBuffer()));
     $addMethod($grpc.ServiceMethod<$0.GetDefaultPrecompiledObjectRequest,
             $0.GetDefaultPrecompiledObjectResponse>(
         'GetDefaultPrecompiledObject',
@@ -435,6 +458,12 @@ abstract class PlaygroundServiceBase extends $grpc.Service {
     return getPrecompiledObjectLogs(call, await request);
   }
 
+  $async.Future<$0.GetPrecompiledObjectGraphResponse>
+      getPrecompiledObjectGraph_Pre($grpc.ServiceCall call,
+          $async.Future<$0.GetPrecompiledObjectGraphRequest> request) async {
+    return getPrecompiledObjectGraph(call, await request);
+  }
+
   $async.Future<$0.GetDefaultPrecompiledObjectResponse>
       getDefaultPrecompiledObject_Pre($grpc.ServiceCall call,
           $async.Future<$0.GetDefaultPrecompiledObjectRequest> request) async {
@@ -470,6 +499,8 @@ abstract class PlaygroundServiceBase extends $grpc.Service {
           $grpc.ServiceCall call, $0.GetPrecompiledObjectOutputRequest request);
   $async.Future<$0.GetPrecompiledObjectLogsResponse> getPrecompiledObjectLogs(
       $grpc.ServiceCall call, $0.GetPrecompiledObjectLogsRequest request);
+  $async.Future<$0.GetPrecompiledObjectGraphResponse> getPrecompiledObjectGraph(
+      $grpc.ServiceCall call, $0.GetPrecompiledObjectGraphRequest request);
   $async.Future<$0.GetDefaultPrecompiledObjectResponse>
       getDefaultPrecompiledObject($grpc.ServiceCall call,
           $0.GetDefaultPrecompiledObjectRequest request);

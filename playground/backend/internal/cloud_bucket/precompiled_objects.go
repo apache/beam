@@ -35,6 +35,7 @@ const (
 	BucketName       = "playground-precompiled-objects"
 	OutputExtension  = "output"
 	LogsExtension    = "log"
+	GraphExtension   = "graph"
 	MetaInfoName     = "meta.info"
 	Timeout          = time.Minute
 	javaExtension    = "java"
@@ -127,6 +128,15 @@ func (cd *CloudStorage) GetPrecompiledObjectLogs(ctx context.Context, precompile
 	}
 	result := string(data)
 	return result, nil
+}
+
+// GetPrecompiledObjectGraph returns the graph of the example
+func (cd *CloudStorage) GetPrecompiledObjectGraph(ctx context.Context, precompiledObjectPath string) (string, error) {
+	data, err := cd.getFileFromBucket(ctx, precompiledObjectPath, GraphExtension)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
 }
 
 // GetPrecompiledObjects returns stored at the cloud storage bucket precompiled objects for the target category

@@ -80,11 +80,11 @@ If you have additional material that you would like to see here, please let us k
 
 ### Building Big Data Pipelines with Apache Beam
 
-**[Building Big Data Pipelines with Apache Beam](https://www.amazon.com/Building-Data-Pipelines-Apache-Beam/dp/1800564937/)** by Jan Lukavský, Packt. (January 2022). A general description of the Apache Beam model including gradually built examples that help create solid understanding of the subject. In the first part the book explains concepts using Java SDK, then SQL DSL and Portability layer with focus on Python SDK. The last part of the book is dedicated to more advanced topics like IO connectors using Splittable DoFn and description of how a typical runner executes Pipeline.
+**[Building Big Data Pipelines with Apache Beam](https://www.packtpub.com/product/building-big-data-pipelines-with-apache-beam/9781800564930)** by Jan Lukavský, Packt. (January 2022). A general description of the Apache Beam model including gradually built examples that help create solid understanding of the subject. In the first part the book explains concepts using Java SDK, then SQL DSL and Portability layer with focus on Python SDK. The last part of the book is dedicated to more advanced topics like IO connectors using Splittable DoFn and description of how a typical runner executes Pipeline.
 
 ###  Streaming Systems: The What, Where, When, and How of Large-Scale Data Processing
 
-**[Streaming Systems: The What, Where, When, and How of Large-Scale Data Processing](https://www.amazon.com/Streaming-Systems-Where-Large-Scale-Processing/dp/1491983876)** by Tyler Akidau, Slava Chernyak, Reuven Lax. (August 2018). Expanded from Tyler Akidau’s popular blog posts "Streaming 101" and "Streaming 102", this book takes you from an introductory level to a nuanced understanding of the what, where, when, and how of processing real-time data streams.
+**[Streaming Systems: The What, Where, When, and How of Large-Scale Data Processing](https://learning.oreilly.com/library/view/streaming-systems/9781491983867/)** by Tyler Akidau, Slava Chernyak, Reuven Lax. (August 2018). Expanded from Tyler Akidau’s popular blog posts "Streaming 101" and "Streaming 102", this book takes you from an introductory level to a nuanced understanding of the what, where, when, and how of processing real-time data streams.
 
 ## Interactive Labs {#interactive-labs}
 
