@@ -37,7 +37,9 @@ public class RedisCursor implements Comparable<RedisCursor>, Serializable {
   private final boolean isStart;
 
   public static final ByteKey ZERO_KEY = ByteKey.of(0x00);
+  // The zero cursor that represents the start position is represented as ByteKey.of(0x00)
   public static final RedisCursor ZERO_CURSOR = RedisCursor.of("0", 8, true);
+  // The zero cursor that represents the start position is represented as ByteKey.EMPTY
   public static final RedisCursor END_CURSOR = RedisCursor.of("0", 8, false);
 
   public static RedisCursor of(String cursor, long dbSize, boolean isStart) {
@@ -98,6 +100,12 @@ public class RedisCursor implements Comparable<RedisCursor>, Serializable {
     return isStart;
   }
 
+  /*
+   In order to write the functions that converts to and from a Redis cursor and a ByteKey the following article and
+   its sources were used as reference as they explain in detail how a Redis cursor is formed and how to transform it to
+   a sequential value that represents the current position of the scan cursor in Redis tables.
+   https://engineering.q42.nl/redis-scan-cursor/
+  */
   @VisibleForTesting
   static ByteKey redisCursorToByteKey(RedisCursor cursor) {
     if ("0".equals(cursor.getCursor())) {
