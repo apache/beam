@@ -37,9 +37,12 @@ import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** See {@link #optimize(Pipeline)}. */
 public class ProjectionPushdownOptimizer {
+  private static final Logger LOG = LoggerFactory.getLogger(ProjectionPushdownOptimizer.class);
 
   /**
    * Performs all known projection pushdown optimizations in-place on a Pipeline.
@@ -78,6 +81,13 @@ public class ProjectionPushdownOptimizer {
     // fields.
     for (Entry<ProjectionProducer<PTransform<?, ?>>, Map<TupleTag<?>, FieldAccessDescriptor>>
         entry : taggedFieldAccess.entrySet()) {
+      for (Entry<TupleTag<?>, FieldAccessDescriptor> outputFields : entry.getValue().entrySet()) {
+        LOG.info(
+            "Optimizing transform {}: output {} will contain reduced field set {}",
+            entry.getKey(),
+            outputFields.getKey(),
+            outputFields.getValue().fieldNamesAccessed());
+      }
       PTransformMatcher matcher = application -> application.getTransform() == entry.getKey();
       PushdownOverrideFactory<?, ?> overrideFactory =
           new PushdownOverrideFactory<>(entry.getValue());
