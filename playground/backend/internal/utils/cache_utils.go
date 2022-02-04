@@ -34,13 +34,12 @@ func SetToCache(ctx context.Context, cacheService cache.Cache, key uuid.UUID, su
 	return err
 }
 
-// ReadAndSetToCacheGraph read graph from file and writes it to the cache.
-func ReadAndSetToCacheGraph(ctx context.Context, cacheService cache.Cache, pipelineId uuid.UUID, graphPath string) error {
+//ReadGraph read graph from file.
+func ReadGraph(pipelineId uuid.UUID, graphPath string) (string, error) {
 	graph, err := ioutil.ReadFile(graphPath)
 	if err != nil {
 		logger.Errorf("%s: ReadAndSetToCacheGraph(): error during read from graph file: %s", pipelineId, err.Error())
-		return err
+		return "", err
 	}
-	_ = SetToCache(ctx, cacheService, pipelineId, cache.Graph, string(graph))
-	return nil
+	return string(graph), nil
 }

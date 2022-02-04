@@ -72,14 +72,14 @@ func Test_addCodeToFile(t *testing.T) {
 			// Test case with calling addCodeToFile method when original file doesn't exist.
 			// As a result, want to receive error
 			name:    "original file doesn't exist",
-			args:    args{[]interface{}{"someFile.java", writeLogCodeToFile}},
+			args:    args{[]interface{}{"someFile.java", saveLogs}},
 			wantErr: true,
 		},
 		{
 			// Test case with calling addCodeToFile method when original file exists.
 			// As a result, want to receive updated code in the original file
 			name:     "original file exists",
-			args:     args{[]interface{}{"original.py", writeLogCodeToFile}},
+			args:     args{[]interface{}{"original.py", saveLogs}},
 			wantCode: wantCode,
 			wantErr:  false,
 		},
