@@ -79,6 +79,14 @@ class PlaygroundState with ChangeNotifier {
 
   Stream<int>? get executionTime => _executionTime?.stream;
 
+  bool get isExampleChanged {
+    return selectedExample?.source != source || _arePipelineOptionsChanges;
+  }
+
+  bool get _arePipelineOptionsChanges {
+    return pipelineOptions != (_selectedExample?.pipelineOptions ?? '');
+  }
+
   setExample(ExampleModel example) {
     _selectedExample = example;
     _pipelineOptions = example.pipelineOptions ?? '';
@@ -135,9 +143,7 @@ class PlaygroundState with ChangeNotifier {
     }
     _executionTime?.close();
     _executionTime = _createExecutionTimeStream();
-    if (_selectedExample?.source == source &&
-        _selectedExample?.outputs != null &&
-        !_arePipelineOptionsChanges) {
+    if (!isExampleChanged && _selectedExample?.outputs != null) {
       _showPrecompiledResult();
     } else {
       final request = RunCodeRequestWrapper(
@@ -170,10 +176,6 @@ class PlaygroundState with ChangeNotifier {
     );
     _executionTime?.close();
     notifyListeners();
-  }
-
-  bool get _arePipelineOptionsChanges {
-    return pipelineOptions != (_selectedExample?.pipelineOptions ?? '');
   }
 
   _showPrecompiledResult() async {

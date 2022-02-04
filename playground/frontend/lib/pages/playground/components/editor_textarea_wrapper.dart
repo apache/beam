@@ -27,6 +27,7 @@ import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/notifications/components/notification.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
+import 'package:playground/utils/analytics_utils.dart';
 import 'package:provider/provider.dart';
 
 class CodeTextAreaWrapper extends StatelessWidget {
@@ -84,17 +85,21 @@ class CodeTextAreaWrapper extends StatelessWidget {
                         },
                         runCode: () {
                           final stopwatch = Stopwatch()..start();
+                          final exampleName = getAnalyticsExampleName(
+                            state.selectedExample,
+                            state.isExampleChanged,
+                            state.sdk,
+                          );
                           state.runCode(
                             onFinish: () {
                               AnalyticsService.get(context).trackRunTimeEvent(
-                                state.selectedExample?.path ??
-                                    '${AppLocalizations.of(context)!.unknownExample}, sdk ${state.sdk.displayName}',
+                                exampleName,
                                 stopwatch.elapsedMilliseconds,
                               );
                             },
                           );
                           AnalyticsService.get(context)
-                              .trackClickRunEvent(state.selectedExample);
+                              .trackClickRunEvent(exampleName);
                         },
                       ),
                     ],
