@@ -358,12 +358,14 @@ func (fake *fakeRetrievalService) ResolveArtifacts(ctx context.Context, request 
 }
 
 func (fake *fakeRetrievalService) GetArtifact(ctx context.Context, request *jobpb.GetArtifactRequest, opts ...grpc.CallOption) (jobpb.ArtifactRetrievalService_GetArtifactClient, error) {
-	if request.Artifact.TypeUrn == "resolved" {
+	switch request.Artifact.TypeUrn {
+	case "resolved":
 		return &fakeGetArtifactResponseStream{data: request.Artifact.TypePayload}, nil
-	} else if request.Artifact.TypeUrn == URNFileArtifact || request.Artifact.TypeUrn == URNUrlArtifact {
+	case URNFileArtifact, URNUrlArtifact:
 		return &fakeGetArtifactResponseStream{data: request.Artifact.RolePayload}, nil
+	default:
+		return nil, errors.Errorf("Unsupported artifact %v", request.Artifact)
 	}
-	return nil, errors.Errorf("Unsupported artifact %v", request.Artifact)
 }
 
 type fakeGetArtifactResponseStream struct {
