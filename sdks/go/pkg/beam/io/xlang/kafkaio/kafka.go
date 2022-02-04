@@ -97,8 +97,9 @@ var autoStartupAddress string = xlangx.UseAutomatedJavaExpansionService(serviceG
 // Read requires the address for an expansion service for Kafka Read transforms,
 // a comma-seperated list of bootstrap server addresses (see the Kafka property
 // "bootstrap.servers" for details), and at least one topic to read from.
-// If an expansion service address is not provided, one will be automatically
-// started; however this is slower than having a persistent expansion service
+// If an expansion service address is provided as "", an appropriate expansion
+// service will be automatically started; however this is slower than having a 
+// persistent expansion service
 // running.
 //
 // Read also accepts optional parameters as readOptions. All optional parameters
