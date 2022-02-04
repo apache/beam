@@ -34,11 +34,9 @@ To use SnowflakeIO, add the Maven artifact dependency to your `pom.xml` file.
 
 Additional resources:
 
-{{< paragraph wrap="span" >}}
 * [SnowflakeIO source code](https://github.com/apache/beam/tree/master/sdks/java/io/snowflake/src/main/java/org/apache/beam/sdk/io/snowflake)
 * [SnowflakeIO Javadoc](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/org/apache/beam/sdk/io/snowflake/SnowflakeIO.html)
 * [Snowflake documentation](https://docs.snowflake.com/en/)
-{{< /paragraph >}}
 
 ## Authentication
 
@@ -80,7 +78,20 @@ To use key pair authentication with SnowflakeIO, invoke your pipeline with one o
   --username=<USERNAME> --privateKeyPath=<PATH_TO_P8_FILE> --privateKeyPassphrase=<PASSWORD_FOR_KEY>
   {{< /highlight >}}
   The initialization of an `SnowflakeIO.DataSourceConfiguration` class may be as follows:
+  {{< highlight >}}
 
+  SnowflakeIO.DataSourceConfiguration datasource = SnowflakeIO.DataSourceConfiguration.create()
+          .withKeyPairPathAuth(
+                  options.getUsername(),
+                  options.getPrivateKeyPath(),
+                  options.getPrivateKeyPassphrase())
+          .withServerName(options.getServerName())
+          .withDatabase(options.getDatabase())
+          .withRole(options.getRole())
+          .withWarehouse(options.getWarehouse())
+          .withSchema(options.getSchema());
+
+  {{< /highlight >}}
 * with passing the key as a value:
   {{< highlight >}}
   --username=<USERNAME> --rawPrivateKey=<PRIVATE_KEY> --privateKeyPassphrase=<PASSWORD_FOR_KEY>
@@ -114,7 +125,7 @@ Once you have the token, invoke your pipeline with following Pipeline Options:
 {{< /highlight >}}
 The initialization of an `SnowflakeIO.DataSourceConfiguration` class may be as follows:
 {{< highlight >}}
- SnowflakeIO.DataSourceConfiguration
+ SnowflakeIO.DataSourceConfiguration datasource = SnowflakeIO.DataSourceConfiguration
             .create()
             .withUrl(options.getUrl())
             .withServerName(options.getServerName())
@@ -767,11 +778,9 @@ and [Cross-language transforms API and expansion service](https://beam.apache.or
 
 Additional resources:
 
-{{< paragraph class="language-py" wrap="span" >}}
 * [SnowflakeIO source code](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/snowflake.py)
 * [SnowflakeIO Pydoc](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.io.snowflake.html)
 * [Snowflake documentation](https://docs.snowflake.com/en)
-{{< /paragraph >}}
 
 ### Reading from Snowflake
 One of the functions of SnowflakeIO is reading Snowflake tables - either full tables via table name or custom data via query. Output of the read transform is a [PCollection](https://beam.apache.org/releases/pydoc/current/apache_beam.pvalue.html#apache_beam.pvalue.PCollection) of user-defined data type.
