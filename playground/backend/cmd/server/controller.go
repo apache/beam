@@ -263,7 +263,7 @@ func (controller *playgroundController) GetPrecompiledObjects(ctx context.Contex
 	catalog, err := controller.cacheService.GetCatalog(ctx)
 	if err != nil {
 		logger.Errorf("GetPrecompiledObjects(): cache error: %s", err.Error())
-		catalog, err = utils.GetCatalogFromStorage(ctx)
+		catalog, err = utils.GetCatalogFromStorage(ctx, cloud_bucket.Timeout)
 		if err != nil {
 			return nil, errors.InternalError("Error during getting Precompiled Objects", "Error with cloud connection")
 		}

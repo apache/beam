@@ -20,6 +20,7 @@ import (
 	"beam.apache.org/playground/backend/internal/cloud_bucket"
 	"beam.apache.org/playground/backend/internal/logger"
 	"context"
+	"time"
 )
 
 // PutPrecompiledObjectsToCategory adds categories with precompiled objects to protobuf object
@@ -43,9 +44,9 @@ func PutPrecompiledObjectsToCategory(categoryName string, precompiledObjects *cl
 }
 
 // GetCatalogFromStorage returns the precompiled objects catalog from the cloud storage
-func GetCatalogFromStorage(ctx context.Context) ([]*pb.Categories, error) {
+func GetCatalogFromStorage(ctx context.Context, timeout time.Duration) ([]*pb.Categories, error) {
 	bucket := cloud_bucket.New()
-	sdkToCategories, err := bucket.GetPrecompiledObjects(ctx, pb.Sdk_SDK_UNSPECIFIED, "")
+	sdkToCategories, err := bucket.GetPrecompiledObjects(ctx, pb.Sdk_SDK_UNSPECIFIED, "", timeout)
 	if err != nil {
 		logger.Errorf("GetPrecompiledObjects(): cloud storage error: %s", err.Error())
 		return nil, err

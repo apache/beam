@@ -26,6 +26,17 @@ import (
 	"context"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"google.golang.org/grpc"
+	"time"
+)
+
+const (
+	// timeout is a duration of connection to receive precompiled objects from the bucket
+	// This value is more that cloud_bucket.Timeout because we need be sure that we receive all precompiled objects from
+	//  the bucket. This value is used only to update catalog in the cache as a separate goroutine or before the server
+	//  run.
+	timeout = 2 * time.Minute
+	// pauseDuration is pause before update catalog pf the precompiled objects into cache
+	pauseDuration = time.Hour
 )
 
 // runServer is starting http server wrapped on grpc
@@ -57,6 +68,7 @@ func runServer() error {
 		if err != nil {
 			return err
 		}
+		go updateCatalog(ctx, cacheService)
 	}
 
 	errChan := make(chan error)
@@ -120,14 +132,30 @@ func setupCache(ctx context.Context, appEnv environment.ApplicationEnvs) (cache.
 
 // setupExamplesCatalog saves precompiled objects catalog from storage to cache
 func setupExamplesCatalog(ctx context.Context, cacheService cache.Cache) error {
-	catalog, err := utils.GetCatalogFromStorage(ctx)
+	catalog, err := utils.GetCatalogFromStorage(ctx, timeout)
 	if err != nil {
 		return err
 	}
 	if err = cacheService.SetCatalog(ctx, catalog); err != nil {
-		logger.Errorf("GetPrecompiledObjects(): cache error: %s", err.Error())
+		logger.Errorf("SetCatalog(): cache error: %s", err.Error())
 	}
 	return nil
+}
+
+// updateCatalog updates catalog into cache each pauseDuration
+func updateCatalog(ctx context.Context, cacheService cache.Cache) {
+	ticker := time.NewTicker(pauseDuration)
+	for {
+		select {
+		case <-ticker.C:
+			if err := setupExamplesCatalog(ctx, cacheService); err != nil {
+				logger.Errorf("Error during updating catalog: %s", err)
+			}
+		case <-ctx.Done():
+			ticker.Stop()
+			return
+		}
+	}
 }
 
 func main() {
