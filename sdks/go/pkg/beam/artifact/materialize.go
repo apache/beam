@@ -172,11 +172,11 @@ func extractStagingToPath(artifact *pipepb.ArtifactInformation) (string, error) 
 
 func MustExtractFilePayload(artifact *pipepb.ArtifactInformation) (string, string) {
 	if artifact.TypeUrn != URNFileArtifact {
-		log.Fatalf("Unsupported artifact type #{artifact.TypeUrn}")
+		log.Fatalf("Unsupported artifact type %v", artifact.TypeUrn)
 	}
 	ty := pipepb.ArtifactFilePayload{}
 	if err := proto.Unmarshal(artifact.TypePayload, &ty); err != nil {
-		log.Fatalf("failed to parse artifact file payload: #{err}")
+		log.Fatalf("failed to parse artifact file payload: %v", err)
 	}
 	return ty.Path, ty.Sha256
 }
