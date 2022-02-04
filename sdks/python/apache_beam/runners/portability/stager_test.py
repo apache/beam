@@ -771,11 +771,8 @@ class StagerTest(unittest.TestCase):
       self, requirements_file, temp_dir, populate_cache_with_sdists):
     if not populate_cache_with_sdists:
       self.create_temp_file(os.path.join(temp_dir, 'nothing.whl'), 'Fake whl')
-      self.create_temp_file(
-          os.path.join(temp_dir, 'nothing.tar.gz'), 'Fake tarball')
-    else:
-      self.create_temp_file(
-          os.path.join(temp_dir, 'nothing.tar.gz'), 'Fake tarball')
+    self.create_temp_file(
+        os.path.join(temp_dir, 'nothing.tar.gz'), 'Fake tarball')
 
   # requirements cache will popultated with bdist/whl if present
   # else source would be downloaded.
