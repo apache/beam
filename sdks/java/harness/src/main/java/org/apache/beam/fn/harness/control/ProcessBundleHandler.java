@@ -472,10 +472,6 @@ public class ProcessBundleHandler {
                 throw new RuntimeException(e);
               }
             });
-    for (BeamFnDataOutboundAggregator aggregator :
-        bundleProcessor.getOutboundAggregators().values()) {
-      aggregator.startFlushThread();
-    }
     try {
       PTransformFunctionRegistry startFunctionRegistry = bundleProcessor.getStartFunctionRegistry();
       PTransformFunctionRegistry finishFunctionRegistry =
@@ -989,6 +985,9 @@ public class ProcessBundleHandler {
     void finish() {
       inboundObserver2 =
           BeamFnDataInboundObserver2.forConsumers(getInboundDataEndpoints(), getTimerEndpoints());
+      for (BeamFnDataOutboundAggregator aggregator : getOutboundAggregators().values()) {
+        aggregator.startFlushThread();
+      }
     }
 
     synchronized void setupForProcessBundleRequest(InstructionRequest request) {
@@ -1024,6 +1023,9 @@ public class ProcessBundleHandler {
         this.cacheTokens = null;
         if (this.bundleCache != null) {
           this.bundleCache.clear();
+        }
+        for (BeamFnDataOutboundAggregator aggregator : getOutboundAggregators().values()) {
+          aggregator.discard();
         }
       }
     }

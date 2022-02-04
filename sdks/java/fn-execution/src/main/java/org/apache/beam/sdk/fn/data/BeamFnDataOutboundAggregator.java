@@ -28,8 +28,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.sdk.coders.Coder;
@@ -66,11 +66,11 @@ public class BeamFnDataOutboundAggregator {
   private final int sizeLimit;
   private final long timeLimit;
   private final Supplier<String> processBundleRequestIdSupplier;
-  private final Map<String, Receiver<?>> outputDataReceivers;
-  private final Map<TimerEndpoint, Receiver<?>> outputTimersReceivers;
+  @VisibleForTesting final Map<String, Receiver<?>> outputDataReceivers;
+  @VisibleForTesting final Map<TimerEndpoint, Receiver<?>> outputTimersReceivers;
   private final StreamObserver<Elements> outboundObserver;
-  @VisibleForTesting ScheduledFuture<?> flushFuture;
-  private final LongAdder totalByteCounter;
+  @Nullable @VisibleForTesting ScheduledFuture<?> flushFuture;
+  private long bytesWrittenSinceFlush;
   private final Object flushLock;
 
   public BeamFnDataOutboundAggregator(
@@ -83,7 +83,7 @@ public class BeamFnDataOutboundAggregator {
     this.outputTimersReceivers = new HashMap<>();
     this.outboundObserver = outboundObserver;
     this.processBundleRequestIdSupplier = processBundleRequestIdSupplier;
-    this.totalByteCounter = new LongAdder();
+    this.bytesWrittenSinceFlush = 0L;
     this.flushLock = new Object();
   }
 
@@ -117,9 +117,6 @@ public class BeamFnDataOutboundAggregator {
         checkFlushThreadException();
         synchronized (flushLock) {
           receiver.accept(data);
-          if (totalByteCounter.longValue() > sizeLimit) {
-            flush();
-          }
         }
       };
     }
@@ -153,6 +150,9 @@ public class BeamFnDataOutboundAggregator {
   }
 
   public void flush() throws IOException {
+    if (bytesWrittenSinceFlush == 0) {
+      return;
+    }
     Elements.Builder elements = convertBufferForTransmission();
     if (elements.getDataCount() > 0 || elements.getTimersCount() > 0) {
       outboundObserver.onNext(elements.build());
@@ -164,38 +164,48 @@ public class BeamFnDataOutboundAggregator {
    * bundle.
    */
   public void sendBufferedDataAndFinishOutboundStreams() {
-    if (totalByteCounter.longValue() == 0
-        && outputTimersReceivers.isEmpty()
-        && outputDataReceivers.isEmpty()) {
+    if (outputTimersReceivers.isEmpty() && outputDataReceivers.isEmpty()) {
       return;
     }
-    Elements.Builder bufferedElements = convertBufferForTransmission();
+    Elements.Builder bufferedElements;
+    if (timeLimit > 0) {
+      synchronized (flushLock) {
+        bufferedElements = convertBufferForTransmission();
+      }
+    } else {
+      bufferedElements = convertBufferForTransmission();
+    }
     LOG.debug(
-        "Closing streams for outbound endpoints {} and {}.",
-        outputDataReceivers.keySet(),
-        outputTimersReceivers.keySet());
-    LOG.debug(
-        "Sent outbound data : {}, outbound timers : {}.",
+        "Closing streams for instruction {} and outbound data {} and timers {}.",
+        processBundleRequestIdSupplier.get(),
         outputDataReceivers,
         outputTimersReceivers);
-    for (String pTransformID : outputDataReceivers.keySet()) {
+    for (Map.Entry<String, Receiver<?>> entry : outputDataReceivers.entrySet()) {
+      String pTransformId = entry.getKey();
       bufferedElements
           .addDataBuilder()
           .setInstructionId(processBundleRequestIdSupplier.get())
-          .setTransformId(pTransformID)
+          .setTransformId(pTransformId)
           .setIsLast(true);
+      entry.getValue().resetStats();
     }
-    for (TimerEndpoint timerKey : outputTimersReceivers.keySet()) {
+    for (Map.Entry<TimerEndpoint, Receiver<?>> entry : outputTimersReceivers.entrySet()) {
+      TimerEndpoint timerKey = entry.getKey();
       bufferedElements
           .addTimersBuilder()
           .setInstructionId(processBundleRequestIdSupplier.get())
           .setTransformId(timerKey.pTransformId)
           .setTimerFamilyId(timerKey.timerFamilyId)
           .setIsLast(true);
+      entry.getValue().resetStats();
     }
     outboundObserver.onNext(bufferedElements.build());
-    outputDataReceivers.values().forEach(Receiver::reset);
-    outputTimersReceivers.values().forEach(Receiver::reset);
+  }
+
+  public void discard() {
+    if (flushFuture != null) {
+      flushFuture.cancel(true);
+    }
   }
 
   private Elements.Builder convertBufferForTransmission() {
@@ -210,7 +220,7 @@ public class BeamFnDataOutboundAggregator {
           .setInstructionId(processBundleRequestIdSupplier.get())
           .setTransformId(entry.getKey())
           .setData(bytes);
-      entry.getValue().reset();
+      entry.getValue().resetOutput();
     }
     for (Map.Entry<TimerEndpoint, Receiver<?>> entry : outputTimersReceivers.entrySet()) {
       if (entry.getValue().getOutput().size() == 0) {
@@ -223,9 +233,9 @@ public class BeamFnDataOutboundAggregator {
           .setTransformId(entry.getKey().pTransformId)
           .setTimerFamilyId(entry.getKey().timerFamilyId)
           .setTimers(bytes);
-      entry.getValue().reset();
+      entry.getValue().resetOutput();
     }
-    totalByteCounter.reset();
+    bytesWrittenSinceFlush = 0L;
     return bufferedElements;
   }
 
@@ -286,16 +296,18 @@ public class BeamFnDataOutboundAggregator {
     return DEFAULT_BUFFER_LIMIT_TIME_MS;
   }
 
-  private class Receiver<T> implements FnDataReceiver<T> {
+  @VisibleForTesting
+  class Receiver<T> implements FnDataReceiver<T> {
     private final ByteString.Output output;
     private final Coder<T> coder;
-    private long byteCount;
-    private long elementCount;
+    private long perBundleByteCount;
+    private long perBundleElementCount;
 
     public Receiver(Coder<T> coder) {
       this.output = ByteString.newOutput();
       this.coder = coder;
-      this.byteCount = 0L;
+      this.perBundleByteCount = 0L;
+      this.perBundleElementCount = 0L;
     }
 
     @Override
@@ -306,10 +318,10 @@ public class BeamFnDataOutboundAggregator {
         output.write(0);
       }
       final long delta = (long) output.size() - size;
-      totalByteCounter.add(delta);
-      byteCount += delta;
-      elementCount += 1;
-      if (totalByteCounter.longValue() > sizeLimit) {
+      bytesWrittenSinceFlush += delta;
+      perBundleByteCount += delta;
+      perBundleElementCount += 1;
+      if (bytesWrittenSinceFlush > sizeLimit) {
         flush();
       }
     }
@@ -318,15 +330,27 @@ public class BeamFnDataOutboundAggregator {
       return output;
     }
 
-    public void reset() {
-      this.byteCount = 0L;
-      this.elementCount = 0L;
+    public long getByteCount() {
+      return perBundleByteCount;
+    }
+
+    public long getElementCount() {
+      return perBundleElementCount;
+    }
+
+    public void resetOutput() {
       this.output.reset();
+    }
+
+    public void resetStats() {
+      this.perBundleElementCount = 0L;
+      this.perBundleByteCount = 0L;
     }
 
     @Override
     public String toString() {
-      return String.format("Byte size: %s, Element count: %s", byteCount, elementCount);
+      return String.format(
+          "Byte size: %s, Element count: %s", perBundleByteCount, perBundleElementCount);
     }
   }
 
@@ -359,14 +383,7 @@ public class BeamFnDataOutboundAggregator {
 
     @Override
     public String toString() {
-      return "TimerEndpoint{"
-          + "pTransformId='"
-          + pTransformId
-          + '\''
-          + ", timerFamilyId='"
-          + timerFamilyId
-          + '\''
-          + '}';
+      return "pTransformId: " + pTransformId + " timerFamilyId: " + timerFamilyId;
     }
   }
 }

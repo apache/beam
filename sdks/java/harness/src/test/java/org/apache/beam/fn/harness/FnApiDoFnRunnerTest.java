@@ -3580,7 +3580,6 @@ public class FnApiDoFnRunnerTest implements Serializable {
               .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
               .coders(pProto.getComponents().getCodersMap())
               .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
-              .outboundAggregators(new HashMap<>())
               .build();
       List<WindowedValue<KV<KV<String, OffsetRange>, Double>>> mainOutputValues = new ArrayList<>();
       Coder coder =
@@ -3711,7 +3710,6 @@ public class FnApiDoFnRunnerTest implements Serializable {
               .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
               .coders(pProto.getComponents().getCodersMap())
               .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
-              .outboundAggregators(new HashMap<>())
               .build();
       List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
       Coder coder = StringUtf8Coder.of();
@@ -3771,7 +3769,6 @@ public class FnApiDoFnRunnerTest implements Serializable {
               .pCollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
               .coders(pProto.getComponents().getCodersMap())
               .windowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
-              .outboundAggregators(new HashMap<>())
               .build();
       Coder coder = StringUtf8Coder.of();
       context.addPCollectionConsumer(

@@ -22,6 +22,7 @@ import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
+import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -35,6 +36,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
+import org.apache.beam.sdk.fn.data.BeamFnDataOutboundAggregator.Receiver;
 import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -104,11 +106,11 @@ public class BeamFnDataOutboundAggregatorTest {
 
     // Test that when we close with an empty buffer we only have one end of stream
     aggregator.sendBufferedDataAndFinishOutboundStreams();
-
     assertEquals(endMessage(), values.get(2));
 
     // Test that we can close twice.
     aggregator.sendBufferedDataAndFinishOutboundStreams();
+    assertEquals(endMessage(), values.get(2));
   }
 
   @Test
@@ -135,11 +137,23 @@ public class BeamFnDataOutboundAggregatorTest {
     // Test that when we cross the buffer, we emit.
     dataReceiver.accept(new byte[49]);
     assertEquals(messageWithData(new byte[51], new byte[49]), values.get(0));
+    Receiver<?> receiver;
+    if (endpoint.isTimer()) {
+      receiver = Iterables.getOnlyElement(aggregator.outputTimersReceivers.values());
+    } else {
+      receiver = Iterables.getOnlyElement(aggregator.outputDataReceivers.values());
+    }
+    assertEquals(0L, receiver.getOutput().size());
+    assertEquals(102L, receiver.getByteCount());
+    assertEquals(2L, receiver.getElementCount());
 
     // Test that when we close we empty the value, and then send the stream terminator as part
     // of the same message
     dataReceiver.accept(new byte[1]);
     aggregator.sendBufferedDataAndFinishOutboundStreams();
+    // Test that receiver stats have been reset after sendBufferedDataAndFinishOutboundStreams.
+    assertEquals(0L, receiver.getByteCount());
+    assertEquals(0L, receiver.getElementCount());
 
     BeamFnApi.Elements.Builder builder = messageWithDataBuilder(new byte[1]);
     if (endpoint.isTimer()) {
