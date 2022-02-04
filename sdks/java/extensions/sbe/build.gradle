@@ -25,6 +25,8 @@ description = "Apache Beam :: SDKs :: Java :: Extensions :: SBE"
 ext.summary = "Add support to Beam for FIX SBE"
 
 dependencies {
+    implementation library.java.agrona
+    implementation library.java.sbe_tool
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
     testImplementation library.java.junit

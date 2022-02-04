@@ -443,6 +443,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // a dependency version which should match across multiple
     // Maven artifacts.
     def activemq_version = "5.14.5"
+    def agrona_version = "1.14.0"
     def autovalue_version = "1.8.2"
     def autoservice_version = "1.0.1"
     def aws_java_sdk_version = "1.12.135"
@@ -474,6 +475,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // Try to keep protobuf_version consistent with the protobuf version in google_cloud_platform_libraries_bom
     def protobuf_version = "3.19.2"
     def quickcheck_version = "0.8"
+    def sbe_tool_version = "1.25.1"
     def slf4j_version = "1.7.30"
     def spark2_version = "2.4.8"
     def spark3_version = "3.1.2"
@@ -496,6 +498,7 @@ class BeamModulePlugin implements Plugin<Project> {
         activemq_kahadb_store                       : "org.apache.activemq:activemq-kahadb-store:$activemq_version",
         activemq_mqtt                               : "org.apache.activemq:activemq-mqtt:$activemq_version",
         antlr                                       : "org.antlr:antlr4:4.7",
+        agrona                                      : "org.agrona:agrona:$agrona_version",
         antlr_runtime                               : "org.antlr:antlr4-runtime:4.7",
         args4j                                      : "args4j:args4j:2.33",
         auto_value_annotations                      : "com.google.auto.value:auto-value-annotations:$autovalue_version",
@@ -656,6 +659,7 @@ class BeamModulePlugin implements Plugin<Project> {
         proto_google_cloud_spanner_v1               : "com.google.api.grpc:proto-google-cloud-spanner-v1", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_spanner_admin_database_v1: "com.google.api.grpc:proto-google-cloud-spanner-admin-database-v1", // google_cloud_platform_libraries_bom sets version
         proto_google_common_protos                  : "com.google.api.grpc:proto-google-common-protos", // google_cloud_platform_libraries_bom sets version
+        sbe_tool                                    : "uk.co.real-logic:sbe-tool:$sbe_tool_version",
         slf4j_api                                   : "org.slf4j:slf4j-api:$slf4j_version",
         slf4j_simple                                : "org.slf4j:slf4j-simple:$slf4j_version",
         slf4j_jdk14                                 : "org.slf4j:slf4j-jdk14:$slf4j_version",
