@@ -45,6 +45,7 @@ import (
 	"reflect"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/xlangx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 )
 
@@ -57,6 +58,10 @@ const (
 	// PostgreSQL connector for Debezium
 	PostgreSQL = "PostgreSQL"
 )
+
+const serviceGradleTarget = ":sdks:java:io:debezium:expansion-service:shadowJar"
+
+var autoStartupAddress = xlangx.UseAutomatedJavaExpansionService(serviceGradleTarget)
 
 const readURN = "beam:transform:org.apache.beam:debezium_read:v1"
 
@@ -82,6 +87,9 @@ type readOption func(*debeziumConfig)
 
 // Read is an external PTransform which reads from Debezium and returns a
 // JSON string. It requires the address of an expansion service for Debezium IO.
+// If both the  host and port address are provided as "", an appropriate expansion
+// service will be automatically started; however this is slower than having a
+// persistent expansion service running.
 //
 // Example:
 //   username := "debezium"
@@ -105,13 +113,14 @@ func Read(s beam.Scope, username, password, host, port string, connectorClass Dr
 		opt(&dc)
 	}
 
-	// TODO: update to use default auto-expansion-service
+	expansionService := dc.expansionService
 	if dc.expansionService == "" {
-		panic("no expansion service address provided.")
+		expansionService = autoStartupAddress
 	}
+
 	pl := beam.CrossLanguagePayload(rfds)
 	outT := beam.UnnamedOutput(typex.New(t))
-	out := beam.CrossLanguage(s, readURN, pl, dc.expansionService, nil, outT)
+	out := beam.CrossLanguage(s, readURN, pl, expansionService, nil, outT)
 	return out[beam.UnnamedOutputTag()]
 }
 
