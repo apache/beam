@@ -219,6 +219,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 		experiments = append(experiments, fmt.Sprintf("min_cpu_platform=%v", *minCPUPlatform))
 	}
 
+	beam.PipelineOptions.LoadOptionsFromFlags(flagFilter)
 	opts := &dataflowlib.JobOptions{
 		Name:                jobopts.GetJobName(),
 		Experiments:         experiments,
@@ -279,13 +280,6 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 	if err != nil {
 		return nil, errors.WithContext(err, "applying container image overrides")
 	}
-
-	// Apply the all the as Go Options
-	flag.Visit(func(f *flag.Flag) {
-		if !flagFilter[f.Name] {
-			opts.Options.Options[f.Name] = f.Value.String()
-		}
-	})
 
 	if *dryRun {
 		log.Info(ctx, "Dry-run: not submitting job!")

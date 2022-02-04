@@ -18,6 +18,7 @@
 #   name: WindowingParDo
 #   description: Task from katas to assign each element a timestamp based on the the `Event.timestamp`.
 #   multifile: false
+#   context_line: 34
 #   categories:
 #     - Streaming
 

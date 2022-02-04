@@ -18,6 +18,7 @@
 #   name: AggregationLargest
 #   description: Task from katas to compute a list of the two largest elements.
 #   multifile: false
+#   context_line: 29
 #   categories:
 #     - Combiners
 

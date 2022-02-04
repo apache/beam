@@ -76,6 +76,16 @@ If you have additional material that you would like to see here, please let us k
 *   **[Timely and Stateful Processing](https://beam.apache.org/blog/2017/08/28/timely-processing.html)** - An example on how to do batched RPC calls. The call requests are stored in a mutable state as they are received. Once there are either enough requests or a certain time has passed, the batch of requests is triggered to be sent.
 *   **[Running External Libraries](https://cloud.google.com/blog/products/gcp/running-external-libraries-with-cloud-dataflow-for-grid-computing-workloads)** - Call an external library written in a language that does not have a native SDK in Apache Beam such as C++.
 
+## Books {#books}
+
+### Building Big Data Pipelines with Apache Beam
+
+**[Building Big Data Pipelines with Apache Beam](https://www.packtpub.com/product/building-big-data-pipelines-with-apache-beam/9781800564930)** by Jan Lukavský, Packt. (January 2022). A general description of the Apache Beam model including gradually built examples that help create solid understanding of the subject. In the first part the book explains concepts using Java SDK, then SQL DSL and Portability layer with focus on Python SDK. The last part of the book is dedicated to more advanced topics like IO connectors using Splittable DoFn and description of how a typical runner executes Pipeline.
+
+###  Streaming Systems: The What, Where, When, and How of Large-Scale Data Processing
+
+**[Streaming Systems: The What, Where, When, and How of Large-Scale Data Processing](https://learning.oreilly.com/library/view/streaming-systems/9781491983867/)** by Tyler Akidau, Slava Chernyak, Reuven Lax. (August 2018). Expanded from Tyler Akidau’s popular blog posts "Streaming 101" and "Streaming 102", this book takes you from an introductory level to a nuanced understanding of the what, where, when, and how of processing real-time data streams.
+
 ## Interactive Labs {#interactive-labs}
 
 ### Java
