@@ -54,6 +54,7 @@ type JobOptions struct {
 // artifact staging endpoint, and staging token if successful.
 func Prepare(ctx context.Context, client jobpb.JobServiceClient, p *pipepb.Pipeline, opt *JobOptions) (id, endpoint, stagingToken string, err error) {
 	hooks.SerializeHooksToOptions()
+	beam.PipelineOptions.LoadOptionsFromFlags(nil)
 	raw := runtime.RawOptionsWrapper{
 		Options:      beam.PipelineOptions.Export(),
 		AppName:      opt.Name,
