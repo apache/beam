@@ -63,6 +63,8 @@ type PlaygroundServiceClient interface {
 	GetPrecompiledObjectOutput(ctx context.Context, in *GetPrecompiledObjectOutputRequest, opts ...grpc.CallOption) (*GetPrecompiledObjectOutputResponse, error)
 	// Get the logs of an PrecompiledObject.
 	GetPrecompiledObjectLogs(ctx context.Context, in *GetPrecompiledObjectLogsRequest, opts ...grpc.CallOption) (*GetPrecompiledObjectLogsResponse, error)
+	// Get the graph of an PrecompiledObject.
+	GetPrecompiledObjectGraph(ctx context.Context, in *GetPrecompiledObjectGraphRequest, opts ...grpc.CallOption) (*GetPrecompiledObjectGraphResponse, error)
 	// Get the default precompile object for the sdk.
 	GetDefaultPrecompiledObject(ctx context.Context, in *GetDefaultPrecompiledObjectRequest, opts ...grpc.CallOption) (*GetDefaultPrecompiledObjectResponse, error)
 }
@@ -201,6 +203,15 @@ func (c *playgroundServiceClient) GetPrecompiledObjectLogs(ctx context.Context, 
 	return out, nil
 }
 
+func (c *playgroundServiceClient) GetPrecompiledObjectGraph(ctx context.Context, in *GetPrecompiledObjectGraphRequest, opts ...grpc.CallOption) (*GetPrecompiledObjectGraphResponse, error) {
+	out := new(GetPrecompiledObjectGraphResponse)
+	err := c.cc.Invoke(ctx, "/api.v1.PlaygroundService/GetPrecompiledObjectGraph", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *playgroundServiceClient) GetDefaultPrecompiledObject(ctx context.Context, in *GetDefaultPrecompiledObjectRequest, opts ...grpc.CallOption) (*GetDefaultPrecompiledObjectResponse, error) {
 	out := new(GetDefaultPrecompiledObjectResponse)
 	err := c.cc.Invoke(ctx, "/api.v1.PlaygroundService/GetDefaultPrecompiledObject", in, out, opts...)
@@ -242,6 +253,8 @@ type PlaygroundServiceServer interface {
 	GetPrecompiledObjectOutput(context.Context, *GetPrecompiledObjectOutputRequest) (*GetPrecompiledObjectOutputResponse, error)
 	// Get the logs of an PrecompiledObject.
 	GetPrecompiledObjectLogs(context.Context, *GetPrecompiledObjectLogsRequest) (*GetPrecompiledObjectLogsResponse, error)
+	// Get the graph of an PrecompiledObject.
+	GetPrecompiledObjectGraph(context.Context, *GetPrecompiledObjectGraphRequest) (*GetPrecompiledObjectGraphResponse, error)
 	// Get the default precompile object for the sdk.
 	GetDefaultPrecompiledObject(context.Context, *GetDefaultPrecompiledObjectRequest) (*GetDefaultPrecompiledObjectResponse, error)
 }
@@ -291,6 +304,9 @@ func (UnimplementedPlaygroundServiceServer) GetPrecompiledObjectOutput(context.C
 }
 func (UnimplementedPlaygroundServiceServer) GetPrecompiledObjectLogs(context.Context, *GetPrecompiledObjectLogsRequest) (*GetPrecompiledObjectLogsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetPrecompiledObjectLogs not implemented")
+}
+func (UnimplementedPlaygroundServiceServer) GetPrecompiledObjectGraph(context.Context, *GetPrecompiledObjectGraphRequest) (*GetPrecompiledObjectGraphResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetPrecompiledObjectGraph not implemented")
 }
 func (UnimplementedPlaygroundServiceServer) GetDefaultPrecompiledObject(context.Context, *GetDefaultPrecompiledObjectRequest) (*GetDefaultPrecompiledObjectResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetDefaultPrecompiledObject not implemented")
@@ -559,6 +575,24 @@ func _PlaygroundService_GetPrecompiledObjectLogs_Handler(srv interface{}, ctx co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PlaygroundService_GetPrecompiledObjectGraph_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPrecompiledObjectGraphRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PlaygroundServiceServer).GetPrecompiledObjectGraph(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.v1.PlaygroundService/GetPrecompiledObjectGraph",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PlaygroundServiceServer).GetPrecompiledObjectGraph(ctx, req.(*GetPrecompiledObjectGraphRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _PlaygroundService_GetDefaultPrecompiledObject_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetDefaultPrecompiledObjectRequest)
 	if err := dec(in); err != nil {
@@ -639,6 +673,10 @@ var PlaygroundService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetPrecompiledObjectLogs",
 			Handler:    _PlaygroundService_GetPrecompiledObjectLogs_Handler,
+		},
+		{
+			MethodName: "GetPrecompiledObjectGraph",
+			Handler:    _PlaygroundService_GetPrecompiledObjectGraph_Handler,
 		},
 		{
 			MethodName: "GetDefaultPrecompiledObject",
