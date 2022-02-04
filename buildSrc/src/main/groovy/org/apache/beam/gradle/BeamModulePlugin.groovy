@@ -867,20 +867,6 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
 
-      if (project.hasProperty("compileAndRunTestsWithJava17")) {
-        def java17Home = project.findProperty("java17Home")
-        project.tasks.compileTestJava {
-          options.fork = true
-          options.forkOptions.javaHome = java17Home as File
-          options.compilerArgs += ['-Xlint:-path']
-          options.compilerArgs.addAll(['--release', '17'])
-        }
-        project.tasks.withType(Test) {
-          useJUnit()
-          executable = "${java17Home}/bin/java"
-        }
-      }
-
       // Configure the default test tasks set of tests executed
       // to match the equivalent set that is executed by the maven-surefire-plugin.
       // See http://maven.apache.org/components/surefire/maven-surefire-plugin/test-mojo.html
@@ -1199,6 +1185,42 @@ class BeamModulePlugin implements Plugin<Project> {
         options.errorprone.errorproneArgs.add("-Xep:Slf4jLoggerShouldBeNonStatic:OFF")
       }
 
+      if (project.hasProperty("compileAndRunTestsWithJava17")) {
+        def java17Home = project.findProperty("java17Home")
+        project.tasks.compileTestJava {
+          options.fork = true
+          options.forkOptions.javaHome = java17Home as File
+          options.compilerArgs += ['-Xlint:-path']
+          options.compilerArgs.addAll(['--release', '17'])
+          // Error prone requires some packages to be exported/opened for Java 17
+          // Disabling checks since this property is only used for Jenkins tests
+          // https://github.com/tbroyer/gradle-errorprone-plugin#jdk-16-support
+          options.errorprone.errorproneArgs.add("-XepDisableAllChecks")
+          options.forkOptions.jvmArgs += [
+            "-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
+            "-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
+            "-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
+            "-J--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED",
+            "-J--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED",
+            "-J--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED",
+            "-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
+            "-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
+            "-J--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
+            "-J--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED"
+          ]
+        }
+        project.tasks.withType(Test) {
+          useJUnit()
+          executable = "${java17Home}/bin/java"
+          // TODO (BEAM-13735) Enable tests once ZetaSql fixes Java 17 constructor issue
+          filter {
+            excludeTestsMatching 'org.apache.beam.sdk.extensions.sql.zetasql.*'
+            excludeTestsMatching 'org.apache.beam.sdk.nexmark.queries.SqlQueryTest$SqlQueryTestZetaSql'
+            excludeTestsMatching 'org.apache.beam.sdk.nexmark.queries.sql.SqlBoundedSideInputJoinTest$SqlBoundedSideInputJoinTestZetaSql'
+            excludeTestsMatching 'org.apache.beam.sdk.nexmark.queries.sql.SqlQuery2Test$SqlQuery2TestZetaSql'
+          }
+        }
+      }
       if (configuration.shadowClosure) {
         // Enables a plugin which can perform shading of classes. See the general comments
         // above about dependency management for Java projects and how the shadow plugin

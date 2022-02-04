@@ -31,6 +31,7 @@ jobs:
       BEAM_VERSION: 2.33.0
       TERRAFORM_VERSION: 1.0.9
       FLUTTER_VERSION: 2.5.2-stable
+      STAND_SUFFIX: ''
     steps:
       - name: Clean GitHub workspace
         run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi
@@ -81,7 +82,7 @@ jobs:
         run: cat /tmp/gcp_access.json | docker login -u _json_key --password-stdin https://${{ secrets.PLAYGROUND_REGISTRY_NAME }}
         if: startsWith(github.ref, 'ref/tags/')
       - name: Create config
-        run: ./gradlew playground:frontend:createConfig -PplaygroundBackendJavaRouteUrl="https://backend-java-beta-dot-apache-beam-testing.appspot.com/" -PplaygroundBackendGoRouteUrl="https://backend-go-beta-dot-apache-beam-testing.appspot.com/" -PplaygroundBackendPythonRouteUrl="${https://backend-python-beta-dot-apache-beam-testing.appspot.com/}" -PplaygroundBackendUrl="https://backend-router-beta-dot-apache-beam-testing.appspot.com/"
+        run: ./gradlew playground:frontend:createConfig -PplaygroundBackendJavaRouteUrl="https://backend-java${{env.STAND_SUFFIX}}-dot-apache-beam-testing.appspot.com/" -PplaygroundBackendGoRouteUrl="https://backend-go${{env.STAND_SUFFIX}}-dot-apache-beam-testing.appspot.com/" -PplaygroundBackendPythonRouteUrl="https://backend-python${{env.STAND_SUFFIX}}-dot-apache-beam-testing.appspot.com/" -PplaygroundBackendUrl="https://backend-router${{env.STAND_SUFFIX}}-dot-apache-beam-testing.appspot.com/"
         if: startsWith(github.ref, 'refs/tags/')
       - name: Prepare Build
         run: ./gradlew playground:frontend:dockerTagPush -Pdocker-repository-root='${{ secrets.PLAYGROUND_REGISTRY_NAME}}/${{ secrets.PLAYGROUND_PROJECT_ID }}/playground-repository' -Pdocker-tag=${{env.DOCKERTAG}}
@@ -89,6 +90,6 @@ jobs:
       - name: Deploy Frontend Application
         env:
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp_access.json
-        run: terraform init && terraform apply -auto-approve -var="project_id=${{ secrets.PLAYGROUND_PROJECT_ID }}" -var="docker_registry_address=${{ secrets.PLAYGROUND_REGISTRY_NAME}}/${{ secrets.PLAYGROUND_PROJECT_ID }}/playground-repository" -var="docker_image_tag=${{ env.DOCKERTAG }}"
+        run: terraform init && terraform apply -auto-approve -var="project_id=${{ secrets.PLAYGROUND_PROJECT_ID }}" -var="docker_registry_address=${{ secrets.PLAYGROUND_REGISTRY_NAME}}/${{ secrets.PLAYGROUND_PROJECT_ID }}/playground-repository" -var="docker_image_tag=${{ env.DOCKERTAG }}" -var="service_name=frontend${{env.STAND_SUFFIX}}"
         working-directory: playground/terraform/applications/frontend
         if: startsWith(github.ref, 'refs/tags/')

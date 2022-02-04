@@ -145,7 +145,7 @@ class GRPCClient:
     try:
       response = await self._stub.GetGraph(request)
       return response.graph
-    except grpc.RpcError as e:
+    except grpc.RpcError:
       # Some examples doesn't have graph (katas)
       return ""
 
