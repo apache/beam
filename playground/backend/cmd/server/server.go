@@ -35,7 +35,7 @@ const (
 	//  the bucket. This value is used only to update catalog in the cache as a separate goroutine or before the server
 	//  run.
 	timeout = 2 * time.Minute
-	// pauseDuration is pause before update catalog pf the precompiled objects into cache
+	// pauseDuration is a pause before update catalog of the precompiled objects into cache
 	pauseDuration = time.Hour
 )
 
