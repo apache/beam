@@ -17,8 +17,8 @@
 
 sudo chmod 666 /var/run/docker.sock
 
-registration_url="https://api.github.com/repos/$GITHUB_REPO/beam/actions/runners/registration-token"
-echo "Requesting registration URL at '${registration_url}'"
+registration_url="https://api.github.com/orgs/$ORG_NAME/actions/runners/registration-token"
+echo "Requesting registration Org URL at '${registration_url}'"
 GITHUB_TOKEN=$(echo $GITHUB_TOKEN) #scaping GITHUB_TOKEN variable
 payload=$(curl -sX POST -H "Authorization: token $GITHUB_TOKEN" ${registration_url})
 RUNNER_TOKEN=$(echo $payload | jq '.token' --raw-output)
@@ -27,11 +27,12 @@ export RUNNER_TOKEN
 ./config.sh \
     --name $(hostname) \
     --token ${RUNNER_TOKEN} \
-    --url https://github.com/$GITHUB_REPO/beam \
+    --url https://github.com/$ORG_NAME \
     --work _work \
     --unattended \
     --replace \
-    --labels ubuntu-20.04,ubuntu-latest
+    --labels ubuntu-20.04,ubuntu-latest \
+    --runnegroup ${ORG_RUNNER_GROUP}
 
 remove() {
     ./config.sh remove --unattended --token "${RUNNER_TOKEN}"
