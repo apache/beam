@@ -16,4 +16,4 @@
  * limitations under the License.
  */
 
-rootProject.name = 'apache-beam-playground-backend-java'
+rootProject.name = 'apache-beam-playground-backend-router'

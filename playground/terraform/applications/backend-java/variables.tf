@@ -27,7 +27,7 @@ variable "docker_registry_address" {
 
 variable "docker_image_name" {
   description = "Docker Image Name To Be Deployed"
-  default = "beam_playground-backend"
+  default = "beam_playground-backend-java"
 }
 
 variable "docker_image_tag" {
