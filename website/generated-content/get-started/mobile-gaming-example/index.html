@@ -73,7 +73,7 @@ looks more like what is depicted by the red squiggly line above the ideal line.<
 
   <span class=c1>// Run the batch pipeline.
 </span><span class=c1></span>  <span class=n>pipeline</span><span class=o>.</span><span class=na>run</span><span class=o>().</span><span class=na>waitUntilFinish</span><span class=o>();</span>
-<span class=o>}</span></code></pre></div></div></div><div class="language-py snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=k>def</span> <span class=nf>run</span><span class=p>(</span><span class=n>argv</span><span class=o>=</span><span class=bp>None</span><span class=p>):</span>
+<span class=o>}</span></code></pre></div></div></div><div class="language-py snippet"><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=k>def</span> <span class=nf>run</span><span class=p>(</span><span class=n>argv</span><span class=o>=</span><span class=bp>None</span><span class=p>,</span> <span class=n>save_main_session</span><span class=o>=</span><span class=bp>True</span><span class=p>):</span>
   <span class=s2>&#34;&#34;&#34;Main entry point; defines and runs the user_score pipeline.&#34;&#34;&#34;</span>
   <span class=n>parser</span> <span class=o>=</span> <span class=n>argparse</span><span class=o>.</span><span class=n>ArgumentParser</span><span class=p>()</span>
 
@@ -93,7 +93,7 @@ looks more like what is depicted by the red squiggly line above the ideal line.<
 
   <span class=c1># We use the save_main_session option because one or more DoFn&#39;s in this</span>
   <span class=c1># workflow rely on global context (e.g., a module imported at module level).</span>
-  <span class=n>options</span><span class=o>.</span><span class=n>view_as</span><span class=p>(</span><span class=n>SetupOptions</span><span class=p>)</span><span class=o>.</span><span class=n>save_main_session</span> <span class=o>=</span> <span class=bp>True</span>
+  <span class=n>options</span><span class=o>.</span><span class=n>view_as</span><span class=p>(</span><span class=n>SetupOptions</span><span class=p>)</span><span class=o>.</span><span class=n>save_main_session</span> <span class=o>=</span> <span class=n>save_main_session</span>
 
   <span class=k>with</span> <span class=n>beam</span><span class=o>.</span><span class=n>Pipeline</span><span class=p>(</span><span class=n>options</span><span class=o>=</span><span class=n>options</span><span class=p>)</span> <span class=k>as</span> <span class=n>p</span><span class=p>:</span>
 
@@ -218,7 +218,7 @@ logical windows based on when those scores occurred in event time.</em></p><p>No
         <span class=o>|</span> <span class=s1>&#39;ExtractAndSumScore&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>ExtractAndSumScore</span><span class=p>(</span><span class=s1>&#39;team&#39;</span><span class=p>))</span>
 
 
-<span class=k>def</span> <span class=nf>run</span><span class=p>(</span><span class=n>argv</span><span class=o>=</span><span class=bp>None</span><span class=p>):</span>
+<span class=k>def</span> <span class=nf>run</span><span class=p>(</span><span class=n>argv</span><span class=o>=</span><span class=bp>None</span><span class=p>,</span> <span class=n>save_main_session</span><span class=o>=</span><span class=bp>True</span><span class=p>):</span>
   <span class=s2>&#34;&#34;&#34;Main entry point; defines and runs the hourly_team_score pipeline.&#34;&#34;&#34;</span>
   <span class=n>parser</span> <span class=o>=</span> <span class=n>argparse</span><span class=o>.</span><span class=n>ArgumentParser</span><span class=p>()</span>
 
@@ -275,7 +275,7 @@ logical windows based on when those scores occurred in event time.</em></p><p>No
 
   <span class=c1># We use the save_main_session option because one or more DoFn&#39;s in this</span>
   <span class=c1># workflow rely on global context (e.g., a module imported at module level).</span>
-  <span class=n>options</span><span class=o>.</span><span class=n>view_as</span><span class=p>(</span><span class=n>SetupOptions</span><span class=p>)</span><span class=o>.</span><span class=n>save_main_session</span> <span class=o>=</span> <span class=bp>True</span>
+  <span class=n>options</span><span class=o>.</span><span class=n>view_as</span><span class=p>(</span><span class=n>SetupOptions</span><span class=p>)</span><span class=o>.</span><span class=n>save_main_session</span> <span class=o>=</span> <span class=n>save_main_session</span>
 
   <span class=k>with</span> <span class=n>beam</span><span class=o>.</span><span class=n>Pipeline</span><span class=p>(</span><span class=n>options</span><span class=o>=</span><span class=n>options</span><span class=p>)</span> <span class=k>as</span> <span class=n>p</span><span class=p>:</span>
     <span class=p>(</span>  <span class=c1># pylint: disable=expression-not-assigned</span>
