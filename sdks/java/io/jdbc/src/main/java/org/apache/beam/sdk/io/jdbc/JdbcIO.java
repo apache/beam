@@ -1230,8 +1230,7 @@ public class JdbcIO {
                               // cannot usually accept a very large number of connections.
                               long numPartitions =
                                   Math.max(
-                                      1,
-                                      Math.round(Math.floor(Math.sqrt(input.getKey()) / 10)));
+                                      1, Math.round(Math.floor(Math.sqrt(input.getKey()) / 10)));
                               result = KV.of(numPartitions, input.getValue());
                             } else {
                               result = KV.of(getNumPartitions().longValue(), input.getValue());
