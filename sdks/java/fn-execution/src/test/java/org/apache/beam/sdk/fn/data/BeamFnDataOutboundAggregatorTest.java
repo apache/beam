@@ -152,6 +152,7 @@ public class BeamFnDataOutboundAggregatorTest {
     dataReceiver.accept(new byte[1]);
     aggregator.sendBufferedDataAndFinishOutboundStreams();
     // Test that receiver stats have been reset after sendBufferedDataAndFinishOutboundStreams.
+    assertEquals(0L, receiver.getOutput().size());
     assertEquals(0L, receiver.getByteCount());
     assertEquals(0L, receiver.getElementCount());
 
