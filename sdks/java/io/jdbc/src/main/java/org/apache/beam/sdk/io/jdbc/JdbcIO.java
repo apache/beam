@@ -1225,14 +1225,13 @@ public class JdbcIO {
                             if (getNumPartitions() == null) {
                               // In this case, we use the table row count to infer a number of
                               // partitions.
-                              // We take the square root of the number of rows, and divide it by 5
+                              // We take the square root of the number of rows, and divide it by 10
                               // to keep a relatively low number of partitions, given that an RDBMS
                               // cannot usually accept a very large number of connections.
                               long numPartitions =
-                                  Math.round(Math.floor(Math.sqrt(input.getKey()) / 5));
-                              if (numPartitions == 0) {
-                                numPartitions = 1;
-                              }
+                                  Math.max(
+                                      1,
+                                      Math.round(Math.floor(Math.sqrt(input.getKey()) / 10)));
                               result = KV.of(numPartitions, input.getValue());
                             } else {
                               result = KV.of(getNumPartitions().longValue(), input.getValue());
