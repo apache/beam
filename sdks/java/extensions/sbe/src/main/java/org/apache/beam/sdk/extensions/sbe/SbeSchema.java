@@ -17,23 +17,18 @@
  */
 package org.apache.beam.sdk.extensions.sbe;
 
-import static java.util.stream.Collectors.toCollection;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializerProvider;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import uk.co.real_logic.sbe.ir.Ir;
-import uk.co.real_logic.sbe.ir.Token;
 
 /**
  * Represents an SBE schema that can be translated to a Beam {@link Schema} and {@link
@@ -64,12 +59,17 @@ import uk.co.real_logic.sbe.ir.Token;
 public final class SbeSchema implements Serializable {
   private static final long serialVersionUID = 1L;
 
-  @Nullable private final SerializableIr ir;
-  @Nullable private final IrOptions irOptions;
+  private final @Nullable SerializableIr ir;
+  private final @Nullable IrOptions irOptions;
+  private final ImmutableList<SbeField> sbeFields;
 
-  private SbeSchema(@Nullable SerializableIr ir, @Nullable IrOptions irOptions) {
+  private SbeSchema(
+      @Nullable SerializableIr ir,
+      @Nullable IrOptions irOptions,
+      ImmutableList<SbeField> sbeFields) {
     this.ir = ir;
     this.irOptions = irOptions;
+    this.sbeFields = sbeFields;
   }
 
   /**
@@ -86,7 +86,7 @@ public final class SbeSchema implements Serializable {
    * @return a new {@link SbeSchema} instance
    */
   public static SbeSchema fromIr(Ir ir, IrOptions irOptions) {
-    validateIrOptions(ir, irOptions);
+    ImmutableList<SbeField> sbeFields = IrFieldGenerator.generateFields(ir, irOptions);
 
     Ir copy =
         new Ir(
@@ -99,33 +99,96 @@ public final class SbeSchema implements Serializable {
             ir.byteOrder(),
             ImmutableList.copyOf(ir.headerStructure().tokens()));
 
-    return new SbeSchema(SerializableIr.fromIr(copy), irOptions);
+    return new SbeSchema(SerializableIr.fromIr(copy), irOptions, sbeFields);
   }
 
-  /** Handles validation of {@link IrOptions} in relation to an {@link Ir}. */
-  private static void validateIrOptions(Ir ir, IrOptions irOptions) {
-    boolean singleMessageSchema = irOptions.messageId() == -1 && irOptions.messageName().equals("");
-    checkArgument(
-        !singleMessageSchema || ir.messages().size() == 1,
-        "irOptions assumes single message schema, but there are %s messages",
-        ir.messages().size());
+  @VisibleForTesting
+  @Nullable
+  Ir getIr() {
+    return ir == null ? null : ir.ir();
+  }
 
-    if (irOptions.messageId() > -1) {
-      checkArgument(
-          ir.getMessage(irOptions.messageId()) != null,
-          "There is no message with the id %s",
-          irOptions.messageId());
-    } else {
-      Collection<List<Token>> matchingMessages =
-          ir.messages().stream()
-              .filter(li -> !li.isEmpty() && li.get(0).name().equals(irOptions.messageName()))
-              .collect(toCollection(ArrayList::new));
-      checkArgument(
-          !matchingMessages.isEmpty(), "No message with name %s", irOptions.messageName());
-      checkArgument(
-          matchingMessages.size() == 1,
-          "More than one message has the name %s",
-          irOptions.messageName());
+  @VisibleForTesting
+  @Nullable
+  IrOptions getIrOptions() {
+    return irOptions;
+  }
+
+  @VisibleForTesting
+  ImmutableList<SbeField> getSbeFields() {
+    return sbeFields;
+  }
+
+  /**
+   * Options for controlling what to do with unsigned types, specifically whether to use a higher
+   * bit count or, in the case of uint64, a string.
+   */
+  @AutoValue
+  public abstract static class UnsignedOptions implements Serializable {
+    private static final long serialVersionUID = 1L;
+
+    public abstract Boolean useMoreBitsForUint8();
+
+    public abstract Boolean useMoreBitsForUint16();
+
+    public abstract Boolean useMoreBitsForUint32();
+
+    public abstract Boolean useStringForUint64();
+
+    /**
+     * Returns options for using the same bit size for all unsigned types.
+     *
+     * <p>This means that if an unsigned value from SBE comes in with a value outside the signed
+     * range, then the negative equivalent (in terms of bits) will be used.
+     */
+    public static UnsignedOptions usingSameBitSize() {
+      return UnsignedOptions.builder()
+          .setUseMoreBitsForUint8(false)
+          .setUseMoreBitsForUint16(false)
+          .setUseMoreBitsForUint32(false)
+          .setUseStringForUint64(false)
+          .build();
+    }
+
+    /**
+     * Returns options for using a higher bit count for unsigned types.
+     *
+     * <p>This means that if an unsigned value is encountered, it will always use the higher bit
+     * count, even if that higher bit count is unnecessary. However, this means that if it is
+     * necessary, then the proper value will be returned rather than the negative equivalent (in
+     * terms of bits).
+     *
+     * <p>The {@code includeUint64} controls the behavior of 64-bit values, since no properly
+     * higher-bit-numeric type exists. If true, then this will be converted into a string that must
+     * be parsed if intended to be used as a number. Otherwise, it will still be a 64-bit type and
+     * may return negative values.
+     */
+    public static UnsignedOptions usingHigherBitSize(boolean includeUint64) {
+      return UnsignedOptions.builder()
+          .setUseMoreBitsForUint8(true)
+          .setUseMoreBitsForUint16(true)
+          .setUseMoreBitsForUint32(true)
+          .setUseStringForUint64(includeUint64)
+          .build();
+    }
+
+    public static Builder builder() {
+      return new AutoValue_SbeSchema_UnsignedOptions.Builder();
+    }
+
+    /** Builder for {@link UnsignedOptions}. */
+    @AutoValue.Builder
+    public abstract static class Builder {
+
+      public abstract Builder setUseMoreBitsForUint8(Boolean value);
+
+      public abstract Builder setUseMoreBitsForUint16(Boolean value);
+
+      public abstract Builder setUseMoreBitsForUint32(Boolean value);
+
+      public abstract Builder setUseStringForUint64(Boolean value);
+
+      public abstract UnsignedOptions build();
     }
   }
 
@@ -143,14 +206,23 @@ public final class SbeSchema implements Serializable {
   public abstract static class IrOptions implements Serializable {
     private static final long serialVersionUID = 1L;
 
+    public static final long UNSET_MESSAGE_ID = -1;
+    public static final String UNSET_MESSAGE_NAME = "";
+
     public static final IrOptions DEFAULT = IrOptions.builder().build();
 
-    public abstract int messageId();
+    public abstract long messageId();
 
     public abstract String messageName();
 
+    public boolean assumeSingleMessageSchema() {
+      return messageId() == UNSET_MESSAGE_ID && messageName().equals(UNSET_MESSAGE_NAME);
+    }
+
     public static Builder builder() {
-      return new AutoValue_SbeSchema_IrOptions.Builder().setMessageId(-1).setMessageName("");
+      return new AutoValue_SbeSchema_IrOptions.Builder()
+          .setMessageId(UNSET_MESSAGE_ID)
+          .setMessageName(UNSET_MESSAGE_NAME);
     }
 
     public abstract Builder toBuilder();
@@ -159,7 +231,7 @@ public final class SbeSchema implements Serializable {
     @AutoValue.Builder
     public abstract static class Builder {
 
-      public abstract Builder setMessageId(int value);
+      public abstract Builder setMessageId(long value);
 
       public abstract Builder setMessageName(String value);
 
@@ -169,8 +241,8 @@ public final class SbeSchema implements Serializable {
         IrOptions opts = autoBuild();
 
         boolean messageIdentifierValid =
-            (opts.messageId() > -1 ^ !opts.messageName().equals(""))
-                || (opts.messageId() == -1 && opts.messageName().equals(""));
+            (opts.messageId() > UNSET_MESSAGE_ID ^ !opts.messageName().equals(UNSET_MESSAGE_NAME))
+                || opts.assumeSingleMessageSchema();
         checkState(messageIdentifierValid, "At most one of messageId or messageName can be set");
 
         return opts;

@@ -443,7 +443,6 @@ class BeamModulePlugin implements Plugin<Project> {
     // a dependency version which should match across multiple
     // Maven artifacts.
     def activemq_version = "5.14.5"
-    def agrona_version = "1.14.0"
     def autovalue_version = "1.8.2"
     def autoservice_version = "1.0.1"
     def aws_java_sdk_version = "1.12.135"
@@ -498,7 +497,6 @@ class BeamModulePlugin implements Plugin<Project> {
         activemq_kahadb_store                       : "org.apache.activemq:activemq-kahadb-store:$activemq_version",
         activemq_mqtt                               : "org.apache.activemq:activemq-mqtt:$activemq_version",
         antlr                                       : "org.antlr:antlr4:4.7",
-        agrona                                      : "org.agrona:agrona:$agrona_version",
         antlr_runtime                               : "org.antlr:antlr4-runtime:4.7",
         args4j                                      : "args4j:args4j:2.33",
         auto_value_annotations                      : "com.google.auto.value:auto-value-annotations:$autovalue_version",
