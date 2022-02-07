@@ -91,8 +91,8 @@ type config struct {
 
 // jdbcConfig stores the expansion service and configuration for JDBC IO.
 type jdbcConfig struct {
-	expansionService string
-	config           *config
+	expansionAddr string
+	config        *config
 }
 
 // TODO(riteshghorse): update the IO to use wrapper created in BigQueryIO.
@@ -124,7 +124,7 @@ func toRow(pl interface{}) []byte {
 // 	 username := "root"
 // 	 password := "root123"
 // 	 jdbcUrl := "jdbc:postgresql://localhost:5432/dbname"
-//	 jdbcio.Write(s, tableName, driverClassName, jdbcurl, username, password, jdbcio.ExpansionServiceWrite("localhost:9000"))
+//	 jdbcio.Write(s, tableName, driverClassName, jdbcurl, username, password, jdbcio.ExpansionAddr("localhost:9000"))
 func Write(s beam.Scope, tableName, driverClassName, jdbcUrl, username, password string, col beam.PCollection, opts ...writeOption) {
 	s = s.Scope("jdbcio.Write")
 
@@ -139,9 +139,9 @@ func Write(s beam.Scope, tableName, driverClassName, jdbcUrl, username, password
 		opt(&cfg)
 	}
 
-	expansionService := cfg.expansionService
-	if expansionService == "" {
-		expansionService = autoStartupAddress
+	expansionAddr := cfg.expansionAddr
+	if expansionAddr == "" {
+		expansionAddr = autoStartupAddress
 	}
 
 	jcs := jdbcConfigSchema{
@@ -149,7 +149,7 @@ func Write(s beam.Scope, tableName, driverClassName, jdbcUrl, username, password
 		Config:   toRow(cfg.config),
 	}
 	pl := beam.CrossLanguagePayload(jcs)
-	beam.CrossLanguage(s, writeURN, pl, expansionService, beam.UnnamedInput(col), nil)
+	beam.CrossLanguage(s, writeURN, pl, expansionAddr, beam.UnnamedInput(col), nil)
 }
 
 type writeOption func(*jdbcConfig)
@@ -177,10 +177,10 @@ func ConnectionInitSQLs(initStatements []string) writeOption {
 	}
 }
 
-// ExpansionServiceWrite sets the expansion service for JDBC IO.
-func ExpansionServiceWrite(expansionService string) writeOption {
+// ExpansionAddrWrite sets the expansion service for JDBC IO.
+func ExpansionAddrWrite(expansionAddr string) writeOption {
 	return func(jc *jdbcConfig) {
-		jc.expansionService = expansionService
+		jc.expansionAddr = expansionAddr
 	}
 }
 
@@ -204,7 +204,7 @@ func ExpansionServiceWrite(expansionService string) writeOption {
 //   password := "root123"
 //   jdbcUrl := "jdbc:postgresql://localhost:5432/dbname"
 //   outT := reflect.TypeOf((*JdbcTestRow)(nil)).Elem()
-//   jdbcio.Read(s, tableName, driverClassName, jdbcurl, username, password, outT, jdbcio.ExpansionServiceRead("localhost:9000"))
+//   jdbcio.Read(s, tableName, driverClassName, jdbcurl, username, password, outT, jdbcio.ExpansionAddrRead("localhost:9000"))
 func Read(s beam.Scope, tableName, driverClassName, jdbcUrl, username, password string, outT reflect.Type, opts ...readOption) beam.PCollection {
 	s = s.Scope("jdbcio.Read")
 
@@ -219,9 +219,9 @@ func Read(s beam.Scope, tableName, driverClassName, jdbcUrl, username, password 
 		opt(&cfg)
 	}
 
-	expansionService := cfg.expansionService
-	if expansionService == "" {
-		expansionService = autoStartupAddress
+	expansionAddr := cfg.expansionAddr
+	if expansionAddr == "" {
+		expansionAddr = autoStartupAddress
 	}
 
 	jcs := jdbcConfigSchema{
@@ -230,7 +230,7 @@ func Read(s beam.Scope, tableName, driverClassName, jdbcUrl, username, password 
 	}
 
 	pl := beam.CrossLanguagePayload(jcs)
-	result := beam.CrossLanguage(s, readURN, pl, expansionService, nil, beam.UnnamedOutput(typex.New(outT)))
+	result := beam.CrossLanguage(s, readURN, pl, expansionAddr, nil, beam.UnnamedOutput(typex.New(outT)))
 	return result[beam.UnnamedOutputTag()]
 }
 
@@ -273,9 +273,9 @@ func ReadConnectionInitSQLs(initStatements []string) readOption {
 	}
 }
 
-// ExpansionServiceRead sets the expansion service for JDBC IO.
-func ExpansionServiceRead(expansionService string) readOption {
+// ExpansionAddrRead sets the expansion service for JDBC IO.
+func ExpansionAddrRead(expansionAddr string) readOption {
 	return func(jc *jdbcConfig) {
-		jc.expansionService = expansionService
+		jc.expansionAddr = expansionAddr
 	}
 }
