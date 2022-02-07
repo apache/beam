@@ -31,7 +31,6 @@ import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
 import 'package:provider/provider.dart';
 
-const kNumberOfStringsToSkip = 16;
 const kJavaRegExp = r'import\s[A-z.0-9]*\;\n\n[(\/\*\*)|(public)|(class)]';
 const kPythonRegExp = r'[^\S\r\n](import|as)[^\S\r\n][A-z]*\n\n';
 const kGoRegExp = r'[^\S\r\n]+\'
@@ -65,6 +64,7 @@ class EditorTextArea extends StatefulWidget {
 class _EditorTextAreaState extends State<EditorTextArea> {
   CodeController? _codeController;
   var focusNode = FocusNode();
+  final GlobalKey codeFieldKey = LabeledGlobalKey('CodeFieldKey');
 
   @override
   void initState() {
@@ -86,10 +86,6 @@ class _EditorTextAreaState extends State<EditorTextArea> {
       webSpaceFix: false,
     );
 
-    if (widget.enableScrolling) {
-      _setTextScrolling();
-    }
-
     super.didChangeDependencies();
   }
 
@@ -102,6 +98,8 @@ class _EditorTextAreaState extends State<EditorTextArea> {
 
   @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance!.addPostFrameCallback((_) => _setTextScrolling());
+
     return Semantics(
       container: true,
       textField: true,
@@ -112,6 +110,7 @@ class _EditorTextAreaState extends State<EditorTextArea> {
       child: FocusScope(
         node: FocusScopeNode(canRequestFocus: widget.isEditable),
         child: CodeField(
+          key: codeFieldKey,
           focusNode: focusNode,
           enabled: widget.enabled,
           controller: _codeController!,
@@ -133,44 +132,55 @@ class _EditorTextAreaState extends State<EditorTextArea> {
     focusNode.requestFocus();
     if (_codeController!.text.isNotEmpty) {
       _codeController!.selection = TextSelection.fromPosition(
-        TextPosition(offset: _findOffset()),
+        TextPosition(
+          offset: _findOffset(),
+        ),
       );
     }
   }
 
-  _findOffset() {
-    return _codeController!.text.indexOf(
-      _skipStrings(kNumberOfStringsToSkip),
-      _getPositionAfterImportsAndLicenses(widget.sdk),
-    );
-  }
-
-  String _skipStrings(int qntOfStrings) {
-    List<String> strings = _codeController!.text
-        .substring(_getPositionAfterImportsAndLicenses(widget.sdk))
-        .split('\n');
-    String result =
-        strings.length > qntOfStrings ? strings[qntOfStrings] : strings.last;
-    if (result == '') {
-      return _skipStrings(qntOfStrings - 1);
+  int _findOffset() {
+    String pattern = _skipToTheBottom(_findQntOfStringsOnScreen());
+    print('Pattern $pattern');
+    int contextLine = _skipToContextLine();
+    if (pattern == '}') {
+      return _codeController!.text.lastIndexOf(
+        pattern,
+        contextLine,
+      );
     } else {
-      return result;
+      return _codeController!.text.indexOf(
+        pattern,
+        contextLine,
+      );
     }
   }
 
-  int _getPositionAfterImportsAndLicenses(SDK sdk) {
-    switch (sdk) {
-      case SDK.java:
-        return _codeController!.text.lastIndexOf(RegExp(kJavaRegExp));
-      case SDK.python:
-        return _codeController!.text.lastIndexOf(RegExp(kPythonRegExp));
-      case SDK.go:
-        return _codeController!.text.lastIndexOf(RegExp(kGoRegExp));
-      case SDK.scio:
-        return _codeController!.text.indexOf(
-          _codeController!.text.split('\n')[0],
-        );
-    }
+  String _skipToTheBottom(int qntOfStrings) {
+    String result = '';
+    List<String> stringAfterContextLine =
+        _codeController!.text.substring(_skipToContextLine()).split('\n');
+    do {
+      qntOfStrings = qntOfStrings - 1;
+      result = stringAfterContextLine.length > qntOfStrings
+          ? stringAfterContextLine[qntOfStrings]
+          : stringAfterContextLine.last;
+    } while (result == '');
+    return result;
+  }
+
+  int _findQntOfStringsOnScreen() {
+    RenderBox? rBox =
+        codeFieldKey.currentContext?.findRenderObject() as RenderBox;
+    double height = rBox.size.height * .75;
+    return height ~/ kCodeFontSize;
+  }
+
+  int _skipToContextLine() {
+    int ctxLine = widget.example!.contextLine;
+    return _codeController!.text.indexOf(
+      _codeController!.text.split('\n')[ctxLine],
+    );
   }
 
   _getLanguageFromSdk() {
