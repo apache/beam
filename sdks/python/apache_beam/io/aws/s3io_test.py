@@ -780,21 +780,21 @@ class TestS3IO(unittest.TestCase):
   def test_midsize_file(self):
     file_name = self.TEST_DATA_PATH + 'midsized'
     file_size = 6*1024*1024
-    self._insert_random_file(self.aws.client, file_name, file_size)
+    contents = os.urandom(file_size)
+
+    with self.aws.open(file_name, 'w') as f:
+      f.write(contents)
     with self.aws.open(file_name, 'r') as f:
-      self.assertEqual(len(f.read()), file_size)
+      self.assertEquals(f.read(), contents)
     self.aws.delete(file_name)
 
   def test_zerosize_file(self):
     file_name = self.TEST_DATA_PATH + 'zerosized'
     file_size = 0
-    assert_msg = "Zerosized file did not raise an error on real s3 client"
-    try:
-      self._insert_random_file(self.aws.client, file_name, file_size)
-      self.assertTrue(isinstance(self.client, fake_client.FakeS3Client), assert_msg)
-    except:
-      with self.assertRaises(messages.S3ClientError, msg=assert_msg):
-        raise
+    contents = os.urandom(file_size)
+    with self.aws.open(file_name, 'w') as f:
+      with self.assertRaises(messages.S3ClientError):
+        f.write(contents[:0])
 
     self.aws.delete(file_name)
 
