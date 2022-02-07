@@ -199,8 +199,6 @@ class CodeRepository {
         final log = responses[1];
         final error = responses[2];
         final graph = responses[3];
-        print('received graph');
-        print(graph.output);
         return RunCodeResult(
           pipelineUuid: pipelineUuid,
           status: status,
