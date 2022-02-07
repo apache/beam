@@ -788,8 +788,11 @@ class TestS3IO(unittest.TestCase):
   def test_zerosize_file(self):
     file_name = self.TEST_DATA_PATH + 'zerosized'
     file_size = 0
-    with self.assertRaises(messages.S3ClientError, msg="Zerosized file did not raise client error") as err:
+    try:
       self._insert_random_file(self.aws.client, file_name, file_size)
+      self.assertFalse(True, "Zerosized file did not raise an error")
+    except Exception as e:
+      self.assertTrue(isinstance(e, messages.S3ClientError), e)
 
     self.aws.delete(file_name)
 
