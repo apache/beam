@@ -20,6 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:collection/collection.dart';
 import 'package:playground/config/theme.dart';
+import 'package:playground/constants/colors.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_option_label.dart';
 import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_option_model.dart';
@@ -72,7 +73,10 @@ class PipelineOptionsForm extends StatelessWidget {
                 child: IconButton(
                   iconSize: kIconSizeMd,
                   splashRadius: kIconButtonSplashRadius,
-                  icon: const Icon(Icons.delete_outlined),
+                  icon: const Icon(
+                    Icons.delete_outlined,
+                    color: kLightPrimary,
+                  ),
                   color: ThemeColors.of(context).grey1Color,
                   onPressed: () => onDelete(index),
                 ),
