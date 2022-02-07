@@ -46,7 +46,8 @@ Tag = namedtuple(
         TagFields.pipeline_options,
         TagFields.default_example,
         TagFields.context_line
-    ], defaults=(None, None, False, None, None, False, None))
+    ],
+    defaults=(None, None, False, None, None, False, None))
 
 
 @dataclass
@@ -341,13 +342,13 @@ def _validate(tag: dict, supported_categories: List[str]) -> bool:
   # check that context line's value is integer
   context_line = tag.get(TagFields.context_line)
   if not isinstance(context_line, int):
-      logging.error(
-          "tag's field context_line is incorrect: %s \n"
-          "context_line variable should be integer format, "
-          "but tag contains: %s",
-          tag,
-          context_line)
-      valid = False
+    logging.error(
+        "tag's field context_line is incorrect: %s \n"
+        "context_line variable should be integer format, "
+        "but tag contains: %s",
+        tag,
+        context_line)
+    valid = False
   return valid
 
 
