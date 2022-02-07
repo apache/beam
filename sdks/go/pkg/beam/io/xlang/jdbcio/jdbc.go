@@ -48,6 +48,7 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/xlangx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 )
 
@@ -58,9 +59,12 @@ func init() {
 }
 
 const (
-	readURN  = "beam:transform:org.apache.beam:schemaio_jdbc_read:v1"
-	writeURN = "beam:transform:org.apache.beam:schemaio_jdbc_write:v1"
+	readURN             = "beam:transform:org.apache.beam:schemaio_jdbc_read:v1"
+	writeURN            = "beam:transform:org.apache.beam:schemaio_jdbc_write:v1"
+	serviceGradleTarget = ":sdks:java:extensions:schemaio-expansion-service:runExpansionService"
 )
+
+var autoStartupAddress string = xlangx.UseAutomatedJavaExpansionService(serviceGradleTarget)
 
 // jdbcConfigSchema is the config schema as per the expected corss language payload
 // for JDBC IO read and write transform.
@@ -109,7 +113,9 @@ func toRow(pl interface{}) []byte {
 // Write is a cross-language PTransform which writes Rows to the specified database via JDBC.
 // Write requires the address for an expansion service. tableName is a required paramater,
 // and by default, the writeStatement is generated from it. The generated write_statement
-// can be overridden by passing in a write_statment.
+// can be overridden by passing in a write_statment. If an expansion service address is not
+// provided, an appropriate expansion service will be automatically started; however
+// this is slower than having a persistent expansion service running.
 //
 // The default write statement is: "INSERT INTO tableName(column1, ...) INTO VALUES(value1, ...)"
 // Example:
@@ -132,12 +138,18 @@ func Write(s beam.Scope, tableName, driverClassName, jdbcUrl, username, password
 	for _, opt := range opts {
 		opt(&cfg)
 	}
+
+	expansionService := cfg.expansionService
+	if expansionService == "" {
+		expansionService = autoStartupAddress
+	}
+
 	jcs := jdbcConfigSchema{
 		Location: tableName,
 		Config:   toRow(cfg.config),
 	}
 	pl := beam.CrossLanguagePayload(jcs)
-	beam.CrossLanguage(s, writeURN, pl, cfg.expansionService, beam.UnnamedInput(col), nil)
+	beam.CrossLanguage(s, writeURN, pl, expansionService, beam.UnnamedInput(col), nil)
 }
 
 type writeOption func(*jdbcConfig)
@@ -175,7 +187,9 @@ func ExpansionServiceWrite(expansionService string) writeOption {
 // Read is a cross-language PTransform which read Rows from the specified database via JDBC.
 // Read requires the address for an expansion service for JDBC Read transforms,
 // tableName is a required paramater, and by default, the readQuery is generated from it.
-// The generated readQuery can be overridden by passing in a readQuery.
+// The generated readQuery can be overridden by passing in a readQuery.If an expansion service
+// address is not provided, an appropriate expansion service will be automatically started;
+// however this is slower than having a persistent expansion service running.
 //
 // The default read query is "SELECT * FROM tableName;"
 //
@@ -204,13 +218,19 @@ func Read(s beam.Scope, tableName, driverClassName, jdbcUrl, username, password 
 	for _, opt := range opts {
 		opt(&cfg)
 	}
+
+	expansionService := cfg.expansionService
+	if expansionService == "" {
+		expansionService = autoStartupAddress
+	}
+
 	jcs := jdbcConfigSchema{
 		Location: tableName,
 		Config:   toRow(cfg.config),
 	}
 
 	pl := beam.CrossLanguagePayload(jcs)
-	result := beam.CrossLanguage(s, readURN, pl, cfg.expansionService, nil, beam.UnnamedOutput(typex.New(outT)))
+	result := beam.CrossLanguage(s, readURN, pl, expansionService, nil, beam.UnnamedOutput(typex.New(outT)))
 	return result[beam.UnnamedOutputTag()]
 }
 
