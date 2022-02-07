@@ -48,7 +48,11 @@ notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527
 
 ## Known Issues
 
+* Users may encounter an unexpected java.lang.ArithmeticException when outputting a timestamp
+  for an element further than allowedSkew from an allowed DoFN skew set to a value more than
+  Integer.MAX_VALUE.
 * See a full list of open [issues that affect](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20affectedVersion%20%3D%202.36.0%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC) this version.
+
 
 ## List of Contributors
 

@@ -91,6 +91,12 @@
 * Fixed a bug with DeferredDataFrame.xs when used with a non-tuple key
   ([BEAM-13421](https://issues.apache.org/jira/browse/BEAM-13421])).
 
+# Known Issues
+
+* In some cases, users may encounter an ArithmeticException for allowedSkew when a timestamp is much larger than
+  an integer allowed DoFN skew.
+  allowed skew from the element's timestamp OR (output timestamp < BoundedWindow.MIN_VALUE && timestamp - allowedSkew overflows )
+
 # [2.35.0] - 2021-12-29
 
 ## Highlights
