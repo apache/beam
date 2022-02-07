@@ -45,6 +45,7 @@ import (
 const (
 	URNFileArtifact        = "beam:artifact:type:file:v1"
 	URNUrlArtifact         = "beam:artifact:type:url:v1"
+	URNGoWorkerBinaryRole  = "beam:artifact:role:go_worker_binary:v1"
 	URNPipRequirementsFile = "beam:artifact:role:pip_requirements_file:v1"
 	URNStagingTo           = "beam:artifact:role:staging_to:v1"
 	NoArtifactsStaged      = "__no_artifacts_staged__"

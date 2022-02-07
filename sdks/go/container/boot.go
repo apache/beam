@@ -111,7 +111,7 @@ func main() {
 	default:
 		found := false
 		for _, a := range artifacts {
-			if a.GetRoleUrn() == "beam:artifact:role:go_worker_binary:v1" {
+			if a.GetRoleUrn() == artifact.URNGoWorkerBinaryRole {
 				name, _ = artifact.MustExtractFilePayload(a)
 				found = true
 				break
