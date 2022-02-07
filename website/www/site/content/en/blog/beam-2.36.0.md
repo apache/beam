@@ -1,10 +1,10 @@
 ---
 title:  "Apache Beam 2.36.0"
-date:   2021-12-29 10:11:00 -0800
+date:   2022-02-07 10:11:00 -0800
 categories:
   - blog
 authors:
-  - tvalentyn
+  - emilymye
 ---
 
 <!--
@@ -21,7 +21,7 @@ limitations under the License.
 
 We are happy to present the new 2.36.0 release of Apache Beam.
 This release includes both improvements and new functionality.
-See the [download page](/get-started/downloads/#2350-2021-12-29) for this release.
+See the [download page](/get-started/downloads/#2360-2022-02-07) for this release.
 
 <!--more-->
 

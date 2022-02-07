@@ -67,7 +67,7 @@
 
 ## Known Issues
 
-# [2.36.0] - 2022-02-08
+# [2.36.0] - 2022-02-07
 
 ## I/Os
 
@@ -93,9 +93,9 @@
 
 # Known Issues
 
-* In some cases, users may encounter an ArithmeticException for allowedSkew when a timestamp is much larger than
-  an integer allowed DoFN skew.
-  allowed skew from the element's timestamp OR (output timestamp < BoundedWindow.MIN_VALUE && timestamp - allowedSkew overflows )
+* Users may encounter an unexpected java.lang.ArithmeticException when outputting a timestamp
+  for an element further than allowedSkew from an allowed DoFN skew set to a value more than
+  Integer.MAX_VALUE.
 
 # [2.35.0] - 2021-12-29
 
