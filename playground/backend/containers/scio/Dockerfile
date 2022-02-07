@@ -66,4 +66,4 @@ COPY allow_list.py /opt/mitmproxy/
 ENV HTTP_PROXY="http://127.0.0.1:8081"
 ENV HTTPS_PROXY="http://127.0.0.1:8081"
 
-ENTRYPOINT ["/opt/playground/backend/server_scio_backend"]
+ENTRYPOINT ["/entrypoint.sh"]
