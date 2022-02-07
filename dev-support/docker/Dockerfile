@@ -42,7 +42,8 @@ ENV DEBCONF_TERSE true
 ###
 RUN apt -q update \
    && apt install -y software-properties-common apt-utils apt-transport-https ca-certificates \
-   && add-apt-repository -y ppa:deadsnakes/ppa
+   && add-apt-repository -y ppa:deadsnakes/ppa \
+   && apt -q update
 
 RUN mkdir /package
 COPY pkglist /package/pkglist

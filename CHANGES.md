@@ -49,6 +49,24 @@
 
 * ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 -->
+# [2.37.0] - Unreleased
+
+## Highlights
+
+## I/Os
+
+## New Features / Improvements
+
+* DataFrame API now supports pandas 1.4.x ([BEAM-13605](https://issues.apache.org/jira/browse/BEAM-13605)).
+
+## Breaking Changes
+
+## Deprecations
+
+## Bugfixes
+
+## Known Issues
+
 # 2.36.0 - Unreleased
 
 ## Highlights

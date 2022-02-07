@@ -37,6 +37,7 @@ func PutPrecompiledObjectsToCategory(categoryName string, precompiledObjects *cl
 			Type:            object.Type,
 			PipelineOptions: object.PipelineOptions,
 			Link:            object.Link,
+			ContextLine:     object.ContextLine,
 			DefaultExample:  object.DefaultExample,
 		})
 	}

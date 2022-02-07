@@ -35,8 +35,9 @@ const (
 	BucketName       = "playground-precompiled-objects"
 	OutputExtension  = "output"
 	LogsExtension    = "log"
+	GraphExtension   = "graph"
 	MetaInfoName     = "meta.info"
-	Timeout          = time.Second * 10
+	Timeout          = time.Minute
 	javaExtension    = "java"
 	goExtension      = "go"
 	pyExtension      = "py"
@@ -50,8 +51,9 @@ type ObjectInfo struct {
 	Description     string                   `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
 	Type            pb.PrecompiledObjectType `protobuf:"varint,4,opt,name=type,proto3,enum=api.v1.PrecompiledObjectType" json:"type,omitempty"`
 	Categories      []string                 `json:"categories,omitempty"`
-	PipelineOptions string                   `protobuf:"bytes,5,opt,name=pipeline_options,proto3" json:"pipeline_options,omitempty"`
-	Link            string                   `protobuf:"bytes,6,opt,name=link,proto3" json:"link,omitempty"`
+	PipelineOptions string                   `protobuf:"bytes,3,opt,name=pipeline_options,proto3" json:"pipeline_options,omitempty"`
+	Link            string                   `protobuf:"bytes,3,opt,name=link,proto3" json:"link,omitempty"`
+	ContextLine     int32                    `protobuf:"varint,7,opt,name=context_line,proto3" json:"context_line,omitempty"`
 	DefaultExample  bool                     `protobuf:"varint,7,opt,name=default_example,json=defaultExample,proto3" json:"default_example,omitempty"`
 }
 
@@ -129,6 +131,15 @@ func (cd *CloudStorage) GetPrecompiledObjectLogs(ctx context.Context, precompile
 	return result, nil
 }
 
+// GetPrecompiledObjectGraph returns the graph of the example
+func (cd *CloudStorage) GetPrecompiledObjectGraph(ctx context.Context, precompiledObjectPath string) (string, error) {
+	data, err := cd.getFileFromBucket(ctx, precompiledObjectPath, GraphExtension)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
 // GetPrecompiledObjects returns stored at the cloud storage bucket precompiled objects for the target category
 func (cd *CloudStorage) GetPrecompiledObjects(ctx context.Context, targetSdk pb.Sdk, targetCategory string) (*SdkToCategories, error) {
 	client, err := storage.NewClient(ctx, option.WithoutAuthentication())
@@ -147,6 +158,7 @@ func (cd *CloudStorage) GetPrecompiledObjects(ctx context.Context, targetSdk pb.
 	if err != nil {
 		return nil, err
 	}
+	metaFiles := make(map[string][]byte, 0)
 	for objectDir := range dirs {
 		infoPath := filepath.Join(objectDir, MetaInfoName) // helping file with information about this object
 		rc, err := bucket.Object(infoPath).NewReader(ctx)
@@ -154,13 +166,18 @@ func (cd *CloudStorage) GetPrecompiledObjects(ctx context.Context, targetSdk pb.
 			logger.Errorf("Object(%q).NewReader: %v", infoPath, err.Error())
 			continue
 		}
-		data, err := ioutil.ReadAll(rc)
+		metaFile, err := ioutil.ReadAll(rc)
 		if err != nil {
 			logger.Errorf("ioutil.ReadAll: %v", err.Error())
 			continue
 		}
+		metaFiles[objectDir] = metaFile
+		rc.Close()
+	}
+
+	for objectDir, metaFile := range metaFiles {
 		precompiledObject := ObjectInfo{}
-		err = json.Unmarshal(data, &precompiledObject)
+		err = json.Unmarshal(metaFile, &precompiledObject)
 		if err != nil {
 			logger.Errorf("json.Unmarshal: %v", err.Error())
 			continue
@@ -170,7 +187,6 @@ func (cd *CloudStorage) GetPrecompiledObjects(ctx context.Context, targetSdk pb.
 				appendPrecompiledObject(precompiledObject, &precompiledObjects, objectDir, objectCategory)
 			}
 		}
-		rc.Close()
 	}
 	return &precompiledObjects, nil
 }
