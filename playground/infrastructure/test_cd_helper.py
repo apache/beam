@@ -18,7 +18,8 @@ import shutil
 
 import pytest
 
-from api.v1.api_pb2 import SDK_JAVA, STATUS_UNSPECIFIED
+from api.v1.api_pb2 import SDK_JAVA, STATUS_UNSPECIFIED, \
+    PRECOMPILED_OBJECT_TYPE_UNIT_TEST
 from cd_helper import CDHelper
 from config import Config
 from helper import Example, Tag
@@ -47,12 +48,17 @@ def test__get_gcs_object_name():
   """
     Test getting the path where file will be stored at the bucket
   """
-  expected_result = "SDK_JAVA/base_folder/file.java"
-  expected_result_with_extension = "SDK_JAVA/base_folder/file.output"
+  expected_path = "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_UNIT_TEST/base_folder"
+  expected_result = "%s/%s" % (expected_path, "file.java")
+  expected_result_with_extension = "%s/%s" % (expected_path, "file.output")
   assert CDHelper()._get_gcs_object_name(
-      SDK_JAVA, "base_folder", "file") == expected_result
+      SDK_JAVA, PRECOMPILED_OBJECT_TYPE_UNIT_TEST, "base_folder",
+      "file") == expected_result
   assert CDHelper()._get_gcs_object_name(
-      SDK_JAVA, "base_folder", "file",
+      SDK_JAVA,
+      PRECOMPILED_OBJECT_TYPE_UNIT_TEST,
+      "base_folder",
+      "file",
       "output") == expected_result_with_extension
 
 
@@ -81,11 +87,18 @@ def test__write_to_local_fs(delete_temp_folder):
       status=STATUS_UNSPECIFIED,
       tag=Tag(**object_meta),
       link="link")
+  result_filepath = "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_UNSPECIFIED/name"
   expected_result = {
-      "SDK_JAVA/name/name.java": "temp/pipeline_id/SDK_JAVA/name/name.java",
-      "SDK_JAVA/name/name.output": "temp/pipeline_id/SDK_JAVA/name/name.output",
-      "SDK_JAVA/name/name.log": "temp/pipeline_id/SDK_JAVA/name/name.log",
-      "SDK_JAVA/name/meta.info": "temp/pipeline_id/SDK_JAVA/name/meta.info"
+      "%s/%s" % (result_filepath, "name.java"): "%s/%s/%s" %
+      ("temp/pipeline_id", result_filepath, "name.java"),
+      "%s/%s" % (result_filepath, "name.output"): "%s/%s/%s" %
+      ("temp/pipeline_id", result_filepath, "name.output"),
+      "%s/%s" % (result_filepath, "name.log"): "%s/%s/%s" %
+      ("temp/pipeline_id", result_filepath, "name.log"),
+      "%s/%s" % (result_filepath, "name.graph"): "%s/%s/%s" %
+      ("temp/pipeline_id", result_filepath, "name.graph"),
+      "%s/%s" % (result_filepath, "meta.info"): "%s/%s/%s" %
+      ("temp/pipeline_id", result_filepath, "meta.info"),
   }
   assert CDHelper()._write_to_local_fs(example) == expected_result
 
