@@ -377,16 +377,16 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 					return nil, err
 				}
 
-				si[fmt.Sprintf("i%v", i)] = &pipepb.SideInput {
-					AccessPattern: &pipepb.FunctionSpec {
+				si[fmt.Sprintf("i%v", i)] = &pipepb.SideInput{
+					AccessPattern: &pipepb.FunctionSpec{
 						Urn: URNIterableSideInput,
 					},
-					ViewFn: &pipepb.FunctionSpec {
+					ViewFn: &pipepb.FunctionSpec{
 						Urn: "foo",
 					},
-					WindowMappingFn: &pipepb.FunctionSpec {
-						Urn: mappingUrn,
-						Payload: siWSpec.Payload
+					WindowMappingFn: &pipepb.FunctionSpec{
+						Urn:     mappingUrn,
+						Payload: siWSpec.Payload,
 					},
 				}
 

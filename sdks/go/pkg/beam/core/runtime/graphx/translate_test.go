@@ -127,8 +127,8 @@ func TestMarshal(t *testing.T) {
 				addDoFn(t, g, pickSideFn, g.Root(), []*graph.Node{in, side}, []*coder.Coder{intCoder(), intCoder()}, nil)
 			},
 			edges:      1,
-			transforms: 2,
-			roots:      2,
+			transforms: 1,
+			roots:      1,
 		}, {
 			name: "ScopedSideInput",
 			makeGraph: func(t *testing.T, g *graph.Graph) {
@@ -137,7 +137,7 @@ func TestMarshal(t *testing.T) {
 				addDoFn(t, g, pickSideFn, g.NewScope(g.Root(), "sub"), []*graph.Node{in, side}, []*coder.Coder{intCoder(), intCoder()}, nil)
 			},
 			edges:      1,
-			transforms: 3,
+			transforms: 2,
 			roots:      1,
 		},
 	}
