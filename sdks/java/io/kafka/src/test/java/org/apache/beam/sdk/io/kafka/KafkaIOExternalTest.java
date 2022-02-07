@@ -336,7 +336,7 @@ public class KafkaIOExternalTest {
             .getTransformsOrThrow(
                 result
                     .getComponents()
-                    .getTransformsOrThrow(writeRecordsWithOutput.getSubtransforms(0))
+                    .getTransformsOrThrow(writeRecordsWithOutput.getSubtransforms(1))
                     .getSubtransforms(0));
 
     RunnerApi.ParDoPayload parDoPayload =

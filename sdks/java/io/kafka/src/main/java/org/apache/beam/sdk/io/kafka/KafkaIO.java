@@ -66,6 +66,7 @@ import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.schemas.transforms.Convert;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.Impulse;
@@ -2592,7 +2593,7 @@ public class KafkaIO {
   @AutoValue.CopyAnnotations
   @SuppressWarnings({"rawtypes"})
   public abstract static class WriteRecordsWithOutput<K, V>
-      extends PTransform<PCollection<ProducerRecord<K, V>>, PCollection<ProducerRecord<K, V>>> {
+      extends PTransform<PCollection<ProducerRecord<K, V>>, KafkaWriteResult> {
     // TODO (Version 3.0): Create the only one generic {@code Write<T>} transform which will be
     // parameterized depending on type of input collection (KV, ProducerRecords, etc). In such case,
     // we shouldn't have to duplicate the same API for similar transforms like {@link Write} and
@@ -2801,7 +2802,7 @@ public class KafkaIO {
 
     // TODO: Set KafkaWriteREsult
     @Override
-    public PCollection<ProducerRecord<K, V>> expand(PCollection<ProducerRecord<K, V>> input) {
+    public KafkaWriteResult expand(PCollection<ProducerRecord<K, V>> input) {
       checkArgument(
           getProducerConfig().get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG) != null,
           "withBootstrapServers() is required");
@@ -2825,6 +2826,10 @@ public class KafkaIO {
           return KafkaWriteResult.in(
                   input.getPipeline(), null, null, input.apply(ParDo.of(new KafkaWriter<>(this))));
       }*/
+      // TODO: Correct Placeholders Dummy Failed
+      PCollection<ProducerRecord<K, V>> empty =
+          input.getPipeline().apply("Create Dummy Failed", Create.empty(input.getCoder()));
+
       if (isEOS()) {
         checkArgument(getTopic() != null, "withTopic() is required when isEOS() is true");
         KafkaExactlyOnceSink.ensureEOSSupport();
@@ -2835,23 +2840,32 @@ public class KafkaIO {
         //       transform initializes while processing the output. It might be better to
         //       check here to catch common mistake.
 
-        // TODO: Correct placeholder
-        return input
-            .apply(new KafkaExactlyOnceSink<>(this))
-            .apply(
-                "PlaceHolder",
-                ParDo.of(
-                    new DoFn<Void, ProducerRecord<K, V>>() {
-                      @ProcessElement
-                      public void processElement(ProcessContext ctx) {
-                        ProducerRecord<K, V> resultRecord =
-                            new ProducerRecord<K, V>("null", (V) "null");
-                        ctx.output(resultRecord);
-                      }
-                    }))
-            .setCoder(input.getCoder());
+        // TODO: Correct dummyProducerRecord
+        return KafkaWriteResult.in(
+            input.getPipeline(),
+            new TupleTag<>("failed"),
+            empty,
+            input
+                .apply(new KafkaExactlyOnceSink<>(this))
+                .apply(
+                    "PlaceHolder",
+                    ParDo.of(
+                        new DoFn<Void, ProducerRecord<K, V>>() {
+                          @ProcessElement
+                          public void processElement(ProcessContext ctx) {
+                            ProducerRecord<K, V> dummyProducerRecord =
+                                new ProducerRecord<K, V>("null", (V) "null");
+
+                            ctx.output(dummyProducerRecord);
+                          }
+                        }))
+                .setCoder(input.getCoder()));
       } else {
-        return input.apply(ParDo.of(new KafkaWriter<>(this)));
+        return KafkaWriteResult.in(
+            input.getPipeline(),
+            new TupleTag<>("failed"),
+            empty,
+            input.apply(ParDo.of(new KafkaWriter<>(this))));
       }
     }
 
