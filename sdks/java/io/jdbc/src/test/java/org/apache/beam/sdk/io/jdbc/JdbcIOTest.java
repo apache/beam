@@ -1305,27 +1305,4 @@ public class JdbcIOTest implements Serializable {
     PAssert.that(ranges.apply(Count.globally())).containsInAnyOrder(10L);
     pipeline.run().waitUntilFinish();
   }
-
-  @Test
-  public void testPartitioningStrings() {
-    PCollection<KV<String, String>> ranges =
-        pipeline
-            .apply(Create.of(KV.of(10L, KV.of("", "zardana"))))
-            .apply(ParDo.of(new PartitioningFn<>(TypeDescriptors.strings())));
-
-    PAssert.that(ranges.apply(Count.globally()))
-        .satisfies(
-            new SerializableFunction<Iterable<Long>, Void>() {
-              @Override
-              public Void apply(Iterable<Long> input) {
-                // We must have exactly least one element
-                Long count = input.iterator().next();
-                // The implementation for string range partitioning relies on the first character
-                // in the string (e.g. "z"). Becasue this space may be short, we allow more ranges.
-                assertThat(Double.valueOf(count), closeTo(10, 2));
-                return null;
-              }
-            });
-    pipeline.run().waitUntilFinish();
-  }
 }

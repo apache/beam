@@ -23,6 +23,10 @@ import static org.hamcrest.number.IsCloseTo.closeTo;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import org.apache.beam.sdk.io.jdbc.JdbcUtil.JdbcReadWithPartitionsHelper;
@@ -40,6 +44,66 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class JdbcUtilTest {
 
+  static final JdbcReadWithPartitionsHelper<String> PROTOTYPE_STRING_PARTITIONER =
+      new JdbcReadWithPartitionsHelper<String>() {
+        @Override
+        public Iterable<KV<String, String>> calculateRanges(
+            String lowerBound, String upperBound, Long partitions) {
+          List<KV<String, String>> ranges = new ArrayList<>();
+          // For now, we create ranges based on the very first letter of each string.
+          // For cases where we have empty strings, we use that as the bottom of one range,
+          // and generate other ranges from that point.
+          if (lowerBound.length() == 0) {
+            lowerBound = String.valueOf(Character.toChars(1)[0]);
+            ranges.add(KV.of("", lowerBound));
+          }
+          int dif = upperBound.charAt(0) - lowerBound.charAt(0);
+          int stride = dif / partitions != 0 ? Long.valueOf(dif / partitions).intValue() : 1;
+          String currentLowerBound = lowerBound; // String.valueOf(lowerBound.charAt(0));
+          while (currentLowerBound.charAt(0) <= upperBound.charAt(0)) {
+            int upperBoundCharPoint = currentLowerBound.charAt(0) + stride;
+            upperBoundCharPoint =
+                upperBoundCharPoint > upperBound.charAt(0)
+                    ? Character.toChars(upperBound.charAt(0) + 1)[0]
+                    : upperBoundCharPoint;
+            char currentUpperBound = Character.toChars(upperBoundCharPoint)[0];
+            if (currentUpperBound >= upperBound.charAt(0)) {
+              // This means that we have reached the end, and that we want to use our upper bound
+              // as our final upper bound.
+              int finalChar = upperBound.charAt(upperBound.length() - 1);
+              upperBound =
+                  upperBound.substring(0, upperBound.length() - 1)
+                      + Character.toChars(finalChar)[0];
+              ranges.add(KV.of(currentLowerBound, upperBound));
+              return ranges;
+            }
+            ranges.add(KV.of(currentLowerBound, String.valueOf(currentUpperBound)));
+            currentLowerBound = String.valueOf(currentUpperBound);
+          }
+          return ranges;
+        }
+
+        @Override
+        public void setParameters(KV<String, String> element, PreparedStatement preparedStatement) {
+          try {
+            preparedStatement.setString(1, element.getKey());
+            preparedStatement.setString(2, element.getValue());
+          } catch (SQLException e) {
+            throw new RuntimeException(e);
+          }
+        }
+
+        @Override
+        public KV<Long, KV<String, String>> mapRow(ResultSet resultSet) throws Exception {
+          if (resultSet.getMetaData().getColumnCount() == 3) {
+            return KV.of(
+                resultSet.getLong(3), KV.of(resultSet.getString(1), resultSet.getString(2)));
+          } else {
+            return KV.of(0L, KV.of(resultSet.getString(1), resultSet.getString(2)));
+          }
+        }
+      };
+
   @Test
   public void testGetPreparedStatementSetCaller() throws Exception {
     Schema wantSchema =
@@ -56,10 +120,9 @@ public class JdbcUtilTest {
 
   @Test
   public void testStringPartitioningWithSingleKeyFn() {
-    JdbcReadWithPartitionsHelper<String> helper =
-        JdbcUtil.JdbcReadWithPartitionsHelper.getPartitionsHelper(TypeDescriptors.strings());
+    JdbcReadWithPartitionsHelper<String> helper = PROTOTYPE_STRING_PARTITIONER;
     List<KV<String, String>> expectedRanges =
-        Lists.<KV<String, String>>newArrayList(KV.of("a", "b"));
+        Lists.<KV<String, String>>newArrayList(KV.of("a", "a"));
     List<KV<String, String>> ranges = Lists.newArrayList(helper.calculateRanges("a", "a", 10L));
     // It is not possible to generate any more than one range, because the lower and upper range are
     // exactly the same.
@@ -71,10 +134,9 @@ public class JdbcUtilTest {
 
   @Test
   public void testStringPartitioningWithSingleKeyMultiletterFn() {
-    JdbcReadWithPartitionsHelper<String> helper =
-        JdbcUtil.JdbcReadWithPartitionsHelper.getPartitionsHelper(TypeDescriptors.strings());
+    JdbcReadWithPartitionsHelper<String> helper = PROTOTYPE_STRING_PARTITIONER;
     List<KV<String, String>> expectedRanges =
-        Lists.<KV<String, String>>newArrayList(KV.of("afar", "afas"));
+        Lists.<KV<String, String>>newArrayList(KV.of("afar", "afar"));
     List<KV<String, String>> ranges =
         Lists.newArrayList(helper.calculateRanges("afar", "afar", 10L));
     // It is not possible to generate any more than one range, because the lower and upper range are
@@ -87,8 +149,7 @@ public class JdbcUtilTest {
 
   @Test
   public void testStringPartitioningWithMultiletter() {
-    JdbcReadWithPartitionsHelper<String> helper =
-        JdbcUtil.JdbcReadWithPartitionsHelper.getPartitionsHelper(TypeDescriptors.strings());
+    JdbcReadWithPartitionsHelper<String> helper = PROTOTYPE_STRING_PARTITIONER;
     List<KV<String, String>> ranges =
         Lists.newArrayList(helper.calculateRanges("afarisade", "zfastaridoteaf", 10L));
     // The upper bound is "zfastaridoteaf" to the very next element after it, which would
@@ -110,7 +171,7 @@ public class JdbcUtilTest {
             KV.of("s", "u"),
             KV.of("u", "w"),
             KV.of("w", "y"),
-            KV.of("y", "zfastaridoteag")));
+            KV.of("y", "zfastaridoteaf")));
   }
 
   @Test
