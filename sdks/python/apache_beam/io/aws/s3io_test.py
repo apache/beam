@@ -739,7 +739,6 @@ class TestS3IO(unittest.TestCase):
         ('jerry/pigpen/phil', 5),
         ('jerry/pigpen/bobby', 3),
         ('jerry/billy/bobby', 4),
-        ('jerry/billy/bigbobby', 6*1024*1024),
     ]
 
     for (object_name, size) in objects:
@@ -753,7 +752,6 @@ class TestS3IO(unittest.TestCase):
                 ('jerry/pigpen/phil', 5),
                 ('jerry/pigpen/bobby', 3),
                 ('jerry/billy/bobby', 4),
-                ('jerry/billy/bigbobby', 6*1024*1024),
             ]),
         (
             self.TEST_DATA_PATH + 'jerry/',
@@ -761,7 +759,6 @@ class TestS3IO(unittest.TestCase):
                 ('jerry/pigpen/phil', 5),
                 ('jerry/pigpen/bobby', 3),
                 ('jerry/billy/bobby', 4),
-                ('jerry/billy/bigbobby', 6*1024*1024),
             ]),
         (
             self.TEST_DATA_PATH + 'jerry/pigpen/phil', [
@@ -779,6 +776,22 @@ class TestS3IO(unittest.TestCase):
     # Clean up
     for (object_name, size) in objects:
       self.aws.delete(self.TEST_DATA_PATH + object_name)
+
+  def test_midsize_file(self):
+    file_name = self.TEST_DATA_PATH + 'midsized'
+    file_size = 6*1024*1024
+    self._insert_random_file(self.aws.client, file_name, file_size)
+    with self.aws.open(file_name, 'r') as f:
+      self.assertEqual(len(f.read()), file_size)
+    self.aws.delete(file_name)
+
+  def test_zerosize_file(self):
+    file_name = self.TEST_DATA_PATH + 'zerosized'
+    file_size = 0
+    with self.assertRaises(messages.S3ClientError, msg="Zerosized file did not raise client error") as err:
+      self._insert_random_file(self.aws.client, file_name, file_size)
+
+    self.aws.delete(file_name)
 
 
 if __name__ == '__main__':

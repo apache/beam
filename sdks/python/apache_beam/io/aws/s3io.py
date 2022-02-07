@@ -604,7 +604,10 @@ class S3Uploader(Uploader):
         raise
 
   def finish(self):
-    if len(self.buffer) > 0:
+    if len(self.parts) > 0 and len(self.buffer) == 0:
+      # write to s3 done in put()
+      pass
+    else:
       self._write_to_s3(self.buffer)
 
     if self.last_error is not None:
