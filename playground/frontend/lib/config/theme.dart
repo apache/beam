@@ -25,7 +25,6 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const kThemeMode = 'theme_mode';
-const kDarkModeString = 'ThemeMode.dark';
 
 class ThemeProvider extends ChangeNotifier {
   late SharedPreferences _preferences;
@@ -37,7 +36,7 @@ class ThemeProvider extends ChangeNotifier {
 
   _setPreferences() async {
     _preferences = await SharedPreferences.getInstance();
-    themeMode = _preferences.getString(kThemeMode) == kDarkModeString
+    themeMode = _preferences.getString(kThemeMode) == ThemeMode.dark.toString()
         ? ThemeMode.dark
         : ThemeMode.light;
     notifyListeners();
