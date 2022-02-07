@@ -43,7 +43,7 @@ const (
 	URNCombinePerKey = "beam:transform:combine_per_key:v1"
 	URNWindow        = "beam:transform:window_into:v1"
 
-	// URNIterableSideInput = "beam:side_input:iterable:v1"
+	URNIterableSideInput = "beam:side_input:iterable:v1"
 	URNMultimapSideInput = "beam:side_input:multimap:v1"
 
 	URNGlobalWindowsWindowFn  = "beam:window_fn:global_windows:v1"
@@ -369,45 +369,6 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 				// ignore: not a side input
 
 			case graph.Singleton, graph.Slice, graph.Iter, graph.ReIter:
-				// The only supported form of side input is MultiMap, but we
-				// want just iteration. So we must manually add a fixed key,
-				// "", even if the input is already KV.
-
-				out := fmt.Sprintf("%v_keyed%v_%v", nodeID(in.From), edgeID(edge.Edge), i)
-				coderId, err := m.coders.Add(makeBytesKeyedCoder(in.From.Coder))
-				if err != nil {
-					return handleErr(err)
-				}
-				if _, err := m.makeNode(out, coderId, in.From); err != nil {
-					return handleErr(err)
-				}
-
-				payload := &pipepb.ParDoPayload{
-					DoFn: &pipepb.FunctionSpec{
-						Urn: URNIterableSideInputKey,
-						Payload: []byte(protox.MustEncodeBase64(&v1pb.TransformPayload{
-							Urn: URNIterableSideInputKey,
-						})),
-					},
-				}
-
-				keyedID := fmt.Sprintf("%v_keyed%v", edgeID(edge.Edge), i)
-				keyed := &pipepb.PTransform{
-					UniqueName: keyedID,
-					Spec: &pipepb.FunctionSpec{
-						Urn:     URNParDo,
-						Payload: protox.MustEncode(payload),
-					},
-					Inputs:        map[string]string{"i0": nodeID(in.From)},
-					Outputs:       map[string]string{"i0": out},
-					EnvironmentId: m.addDefaultEnv(),
-				}
-				m.transforms[keyedID] = keyed
-				allPIds = append(allPIds, keyedID)
-
-				// Fixup input map
-				inputs[fmt.Sprintf("i%v", i)] = out
-
 				siWfn := in.From.WindowingStrategy().Fn
 				mappingUrn := getSideWindowMappingUrn(siWfn)
 
@@ -416,16 +377,16 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 					return nil, err
 				}
 
-				si[fmt.Sprintf("i%v", i)] = &pipepb.SideInput{
-					AccessPattern: &pipepb.FunctionSpec{
-						Urn: URNMultimapSideInput,
+				si[fmt.Sprintf("i%v", i)] = &pipepb.SideInput {
+					AccessPattern: &pipepb.FunctionSpec {
+						Urn: URNIterableSideInput,
 					},
-					ViewFn: &pipepb.FunctionSpec{
+					ViewFn: &pipepb.FunctionSpec {
 						Urn: "foo",
 					},
-					WindowMappingFn: &pipepb.FunctionSpec{
-						Urn:     mappingUrn,
-						Payload: siWSpec.Payload,
+					WindowMappingFn: &pipepb.FunctionSpec {
+						Urn: mappingUrn,
+						Payload: siWSpec.Payload
 					},
 				}
 
