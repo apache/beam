@@ -53,6 +53,7 @@ type ObjectInfo struct {
 	Categories      []string                 `json:"categories,omitempty"`
 	PipelineOptions string                   `protobuf:"bytes,3,opt,name=pipeline_options,proto3" json:"pipeline_options,omitempty"`
 	Link            string                   `protobuf:"bytes,3,opt,name=link,proto3" json:"link,omitempty"`
+	Multifile       bool                     `protobuf:"varint,7,opt,name=multifile,proto3" json:"multifile,omitempty"`
 	ContextLine     int32                    `protobuf:"varint,7,opt,name=context_line,proto3" json:"context_line,omitempty"`
 }
 
