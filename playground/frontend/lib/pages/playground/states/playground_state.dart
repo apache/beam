@@ -167,6 +167,7 @@ class PlaygroundState with ChangeNotifier {
       status: RunCodeStatus.finished,
       output: _result?.output,
       log: (_result?.log ?? '') + kExecutionCancelledText,
+      graph: _result?.graph,
     );
     _executionTime?.close();
     notifyListeners();
@@ -188,6 +189,7 @@ class PlaygroundState with ChangeNotifier {
       status: RunCodeStatus.finished,
       output: _selectedExample!.outputs,
       log: kCachedResultsLog + logs,
+      graph: _selectedExample!.graph,
     );
     _executionTime?.close();
     notifyListeners();
