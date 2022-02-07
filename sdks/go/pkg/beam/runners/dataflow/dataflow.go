@@ -155,6 +155,10 @@ var unique int32
 // Execute runs the given pipeline on Google Cloud Dataflow. It uses the
 // default application credentials to submit the job.
 func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error) {
+	if !beam.Initialized() {
+		panic("Beam has not been initialized. Call beam.Init() before pipeline construction.")
+	}
+
 	// (1) Gather job options
 
 	project := gcpopts.GetProjectFromFlagOrEnvironment(ctx)
