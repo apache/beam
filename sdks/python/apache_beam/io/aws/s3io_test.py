@@ -753,6 +753,7 @@ class TestS3IO(unittest.TestCase):
                 ('jerry/pigpen/phil', 5),
                 ('jerry/pigpen/bobby', 3),
                 ('jerry/billy/bobby', 4),
+                ('jerry/billy/bigbobby', 6*1024*1024),
             ]),
         (
             self.TEST_DATA_PATH + 'jerry/',
@@ -760,6 +761,7 @@ class TestS3IO(unittest.TestCase):
                 ('jerry/pigpen/phil', 5),
                 ('jerry/pigpen/bobby', 3),
                 ('jerry/billy/bobby', 4),
+                ('jerry/billy/bigbobby', 6*1024*1024),
             ]),
         (
             self.TEST_DATA_PATH + 'jerry/pigpen/phil', [
