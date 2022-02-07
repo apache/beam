@@ -168,8 +168,6 @@ public class JdbcUtilTest {
     List<KV<Long, Long>> expectedRanges =
         Lists.newArrayList(KV.of(12L, 14L), KV.of(14L, 16L), KV.of(16L, 18L), KV.of(18L, 21L));
     List<KV<Long, Long>> ranges = Lists.newArrayList(helper.calculateRanges(12L, 20L, 10L));
-    // It is not possible to generate any more than one range, because the lower and upper range are
-    // exactly the same.
     // The ranges go from the current lowerBound to ONE ELEMENT AFTER the upper bound.
     // Because the query's filter statement is : WHERE column >= lowerBound AND column < upperBound.
     assertEquals(4, ranges.size());
