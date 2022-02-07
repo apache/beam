@@ -604,8 +604,8 @@ class S3Uploader(Uploader):
         raise
 
   def finish(self):
-
-    self._write_to_s3(self.buffer)
+    if len(self.buffer) > 0:
+      self._write_to_s3(self.buffer)
 
     if self.last_error is not None:
       raise self.last_error  # pylint: disable=raising-bad-type

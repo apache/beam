@@ -739,6 +739,7 @@ class TestS3IO(unittest.TestCase):
         ('jerry/pigpen/phil', 5),
         ('jerry/pigpen/bobby', 3),
         ('jerry/billy/bobby', 4),
+        ('jerry/billy/bigbobby', 6*1024*1024),
     ]
 
     for (object_name, size) in objects:
