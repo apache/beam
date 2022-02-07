@@ -343,7 +343,7 @@ def _validate(tag: dict, supported_categories: List[str]) -> bool:
   context_line = tag.get(TagFields.context_line)
   if not isinstance(context_line, int):
     logging.error(
-        "tag's field context_line is incorrect: %s \n"
+        "Tag's field context_line is incorrect: %s \n"
         "context_line variable should be integer format, "
         "but tag contains: %s",
         tag,

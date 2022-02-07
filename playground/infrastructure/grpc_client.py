@@ -149,7 +149,6 @@ class GRPCClient:
         logging.warning("Graph for %s wasn't generated", example_filepath)
       return response.graph
     except grpc.RpcError:
-      # Some examples doesn't have graph (katas)
       logging.warning("Graph for %s wasn't generated", example_filepath)
       return ""
 
