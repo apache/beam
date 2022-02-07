@@ -62,13 +62,13 @@ public class BeamFnDataOutboundObserver<T> implements CloseableFnDataReceiver<T>
             : (FnDataReceiver<T>)
                 aggregator.registerOutputDataLocation(
                     outputLocation.getTransformId(), (Coder<Object>) coder);
-    aggregator.startFlushThread();
+    aggregator.start(false);
     this.closed = false;
   }
 
   @Override
   public void close() throws Exception {
-    this.aggregator.sendBufferedDataAndFinishOutboundStreams();
+    this.aggregator.sendOrCollectBufferedDataAndFinishOutboundStreams();
     this.closed = true;
   }
 

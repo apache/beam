@@ -67,8 +67,8 @@ public interface BeamFnDataClient {
   /**
    * Creates a {@link BeamFnDataOutboundAggregator} for buffering and sending outbound data and
    * timers over the data plane. It is important that {@link
-   * BeamFnDataOutboundAggregator#sendBufferedDataAndFinishOutboundStreams()} is called on the
-   * returned BeamFnDataOutboundAggregator at the end of each bundle.
+   * BeamFnDataOutboundAggregator#sendOrCollectBufferedDataAndFinishOutboundStreams()} is called on
+   * the returned BeamFnDataOutboundAggregator at the end of each bundle.
    *
    * <p>Closing the returned aggregator signals the end of the streams.
    *

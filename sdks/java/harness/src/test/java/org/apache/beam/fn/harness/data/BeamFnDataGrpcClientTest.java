@@ -327,7 +327,7 @@ public class BeamFnDataGrpcClientTest {
       fnDataReceiver.accept(valueInGlobalWindow("ABC"));
       fnDataReceiver.accept(valueInGlobalWindow("DEF"));
       fnDataReceiver.accept(valueInGlobalWindow("GHI"));
-      aggregator.sendBufferedDataAndFinishOutboundStreams();
+      aggregator.sendOrCollectBufferedDataAndFinishOutboundStreams();
       waitForInboundServerValuesCompletion.await();
 
       assertThat(inboundServerValues, contains(ELEMENTS_A_1, ELEMENTS_A_2));

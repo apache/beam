@@ -53,6 +53,7 @@ import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
@@ -66,6 +67,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
+import org.apache.beam.model.pipeline.v1.RunnerApi.StandardRunnerProtocols;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
 import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
@@ -156,6 +158,7 @@ public class ProcessBundleHandler {
   private final PTransformRunnerFactory defaultPTransformRunnerFactory;
   private final Cache<Object, Object> processWideCache;
   @VisibleForTesting final BundleProcessorCache bundleProcessorCache;
+  private final Set<String> runnerCapabilities;
 
   public ProcessBundleHandler(
       PipelineOptions options,
@@ -197,6 +200,7 @@ public class ProcessBundleHandler {
     this.beamFnStateGrpcClientCache = beamFnStateGrpcClientCache;
     this.finalizeBundleHandler = finalizeBundleHandler;
     this.shortIds = shortIds;
+    this.runnerCapabilities = runnerCapabilities;
     this.runnerAcceptsShortIds =
         runnerCapabilities.contains(
             BeamUrns.getUrn(RunnerApi.StandardRunnerProtocols.Enum.MONITORING_INFO_SHORT_IDS));
@@ -517,9 +521,16 @@ public class ProcessBundleHandler {
           }
         }
 
+        Elements.Builder elementsToEmbed = Elements.newBuilder();
         for (BeamFnDataOutboundAggregator aggregator :
             bundleProcessor.getOutboundAggregators().values()) {
-          aggregator.sendBufferedDataAndFinishOutboundStreams();
+          Elements elements = aggregator.sendOrCollectBufferedDataAndFinishOutboundStreams();
+          if (elements != null) {
+            elementsToEmbed.mergeFrom(elements);
+          }
+        }
+        if (elementsToEmbed.getDataCount() > 0 || elementsToEmbed.getTimersCount() > 0) {
+          response.setElements(elementsToEmbed.build());
         }
 
         // Add all checkpointed residuals to the response.
@@ -706,7 +717,8 @@ public class ProcessBundleHandler {
             metricsContainerRegistry,
             stateTracker,
             beamFnStateClient,
-            bundleFinalizationCallbackRegistrations);
+            bundleFinalizationCallbackRegistrations,
+            runnerCapabilities);
 
     // Create a BeamFnStateClient
     for (Map.Entry<String, RunnerApi.PTransform> entry :
@@ -896,7 +908,8 @@ public class ProcessBundleHandler {
         MetricsContainerStepMap metricsContainerRegistry,
         ExecutionStateTracker stateTracker,
         HandleStateCallsForBundle beamFnStateClient,
-        Collection<CallbackRegistration> bundleFinalizationCallbackRegistrations) {
+        Collection<CallbackRegistration> bundleFinalizationCallbackRegistrations,
+        Set<String> runnerCapabilities) {
       return new AutoValue_ProcessBundleHandler_BundleProcessor(
           processWideCache,
           processBundleDescriptor,
@@ -914,8 +927,9 @@ public class ProcessBundleHandler {
           /*inboundDataEndpoints=*/ new ArrayList<>(),
           /*timerEndpoints=*/ new ArrayList<>(),
           bundleFinalizationCallbackRegistrations,
-          new ArrayList<>(),
-          new HashMap<>());
+          /*channelRoots=*/ new ArrayList<>(),
+          /*outboundAggregators=*/ new HashMap<>(),
+          runnerCapabilities);
     }
 
     private String instructionId;
@@ -958,6 +972,8 @@ public class ProcessBundleHandler {
 
     abstract Map<ApiServiceDescriptor, BeamFnDataOutboundAggregator> getOutboundAggregators();
 
+    abstract Set<String> getRunnerCapabilities();
+
     synchronized String getInstructionId() {
       return this.instructionId;
     }
@@ -986,7 +1002,13 @@ public class ProcessBundleHandler {
       inboundObserver2 =
           BeamFnDataInboundObserver2.forConsumers(getInboundDataEndpoints(), getTimerEndpoints());
       for (BeamFnDataOutboundAggregator aggregator : getOutboundAggregators().values()) {
-        aggregator.startFlushThread();
+        aggregator.start(
+            getRunnerCapabilities()
+                    .contains(
+                        BeamUrns.getUrn(
+                            StandardRunnerProtocols.Enum.CONTROL_RESPONSE_ELEMENTS_EMBEDDING))
+                // TODO: Handle multiple outbound ApiServiceDescriptors.
+                && getOutboundAggregators().size() == 1);
       }
     }
 
