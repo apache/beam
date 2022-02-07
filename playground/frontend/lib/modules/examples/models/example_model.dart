@@ -43,6 +43,8 @@ class ExampleModel with Comparable<ExampleModel> {
   final String name;
   final String path;
   final String description;
+  bool isMultiFile;
+  String? multiFileLink;
   String? source;
   String? outputs;
   String? logs;
@@ -53,6 +55,8 @@ class ExampleModel with Comparable<ExampleModel> {
     required this.path,
     required this.description,
     required this.type,
+    this.isMultiFile = false,
+    this.multiFileLink,
     this.source,
     this.outputs,
     this.logs,

@@ -17,9 +17,12 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:playground/config/theme.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground/constants/font_weight.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 const kDescriptionWidth = 300.0;
 
@@ -30,6 +33,7 @@ class DescriptionPopover extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    AppLocalizations appLocale = AppLocalizations.of(context)!;
     return SizedBox(
       width: kDescriptionWidth,
       child: Card(
@@ -46,6 +50,25 @@ class DescriptionPopover extends StatelessWidget {
                 ),
               ),
               Text(example.description),
+              if (example.isMultiFile) ...[
+                Text(
+                  appLocale.multifileDescription,
+                  style: TextStyle(fontSize: kCaptionFontSize),
+                ),
+                TextButton(
+                  style: TextButton.styleFrom(
+                    textStyle: TextStyle(
+                      fontWeight: kNormalWeight,
+                      fontSize: kCaptionFontSize,
+                      color: ThemeColors.of(context).primary,
+                    ),
+                  ),
+                  onPressed: () {
+                    launch(example.multiFileLink ?? '');
+                  },
+                  child: Text(example.multiFileLink ?? ''),
+                ),
+              ]
             ],
           ),
         ),

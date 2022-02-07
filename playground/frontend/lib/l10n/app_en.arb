@@ -188,7 +188,11 @@
     "description": "Text value label"
   },
   "pipelineOptionsError": "Please check the format (example: --key1 value1 --key2 value2), only alphanumeric and \",*,/,-,:,;,',. symbols are allowed",
-  "@value": {
+  "@pipelineOptionsError": {
     "description": "Pipeline options parse error"
+  },
+  "multifileDescription": "This example contains multiple source files and can't be executed on the current version of the Playground. Please open the example using the link below.",
+  "@multifileDescription": {
+      "description": "Multifile description"
   }
 }

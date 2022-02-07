@@ -52,7 +52,7 @@ class CodeTextAreaWrapper extends StatelessWidget {
               children: [
                 Positioned.fill(
                   child: EditorTextArea(
-                    enabled: true,
+                    enabled: !(state.selectedExample?.isMultiFile ?? false),
                     example: state.selectedExample,
                     sdk: state.sdk,
                     onSourceChange: state.setSource,
@@ -72,6 +72,7 @@ class CodeTextAreaWrapper extends StatelessWidget {
                           targetAnchor: Alignment.bottomRight,
                         ),
                       RunButton(
+                        disabled: state.selectedExample?.isMultiFile ?? false,
                         isRunning: state.isCodeRunning,
                         cancelRun: () {
                           state.cancelRun().catchError(
