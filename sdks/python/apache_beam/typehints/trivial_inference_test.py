@@ -46,7 +46,7 @@ class TrivialInferenceTest(unittest.TestCase):
     # Lambda uses BUILD_TUPLE_UNPACK opcode in Python 3.
     # yapf: disable
     self.assertReturnType(
-        typehints.Tuple[int, str, str],
+        typehints.Tuple[typehints.Union[int, str], ...],
         lambda _list1, _list2: (*_list1, *_list2, *_list2),
         [typehints.List[int], typehints.List[str]])
     # yapf: enable
@@ -308,13 +308,15 @@ class TrivialInferenceTest(unittest.TestCase):
       return x1, x2
 
     self.assertReturnType(
-        typehints.Tuple[str, float],
+        typehints.Tuple[typehints.Union[str, float, int],
+                        typehints.Union[str, float, int]],
         lambda x1,
         x2,
         _list: fn(x1, x2, *_list), [str, float, typehints.List[int]])
     # No *args
     self.assertReturnType(
-        typehints.Tuple[str, typehints.List[int]],
+        typehints.Tuple[typehints.Union[str, typehints.List[int]],
+                        typehints.Union[str, typehints.List[int]]],
         lambda x1,
         x2,
         _list: fn(x1, x2, *_list), [str, typehints.List[int]])

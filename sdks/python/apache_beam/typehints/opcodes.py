@@ -40,11 +40,13 @@ from apache_beam.typehints import typehints
 from apache_beam.typehints.trivial_inference import BoundMethod
 from apache_beam.typehints.trivial_inference import Const
 from apache_beam.typehints.trivial_inference import element_type
+from apache_beam.typehints.trivial_inference import key_value_types
 from apache_beam.typehints.trivial_inference import union
 from apache_beam.typehints.typehints import Any
 from apache_beam.typehints.typehints import Dict
 from apache_beam.typehints.typehints import Iterable
 from apache_beam.typehints.typehints import List
+from apache_beam.typehints.typehints import Set
 from apache_beam.typehints.typehints import Tuple
 from apache_beam.typehints.typehints import Union
 
@@ -285,6 +287,44 @@ def build_const_key_map(state, arg):
   ]
 
 
+def list_to_tuple(state, arg):
+  base = state.stack.pop()
+  state.stack.append(Tuple[element_type(base), ...])
+
+
+def list_extend(state, arg):
+  tail = state.stack.pop()
+  base = state.stack[-arg]
+  state.stack[-arg] = List[union(element_type(base), element_type(tail))]
+
+
+def set_update(state, arg):
+  other = state.stack.pop()
+  base = state.stack[-arg]
+  state.stack[-arg] = Set[union(element_type(base), element_type(other))]
+
+
+def dict_update(state, arg):
+  other = state.stack.pop()
+  base = state.stack[-arg]
+  if isinstance(base, typehints.Dict.DictConstraint):
+    base_key_type = base.key_type
+    base_value_type = base.value_type
+  else:
+    base_key_type = Any
+    base_value_type = Any
+  if isinstance(other, typehints.Dict.DictConstraint):
+    other_key_type = other.key_type
+    other_value_type = other.value_type
+  else:
+    other_key_type, other_value_type = key_value_types(element_type(other))
+  state.stack[-arg] = Dict[union(base_key_type, other_key_type),
+                           union(base_value_type, other_value_type)]
+
+
+dict_merge = dict_update
+
+
 def load_attr(state, arg):
   """Replaces the top of the stack, TOS, with
   getattr(TOS, co_names[arg])
@@ -336,6 +376,10 @@ def load_method(state, arg):
 def compare_op(state, unused_arg):
   # Could really be anything...
   state.stack[-2:] = [bool]
+
+
+is_op = compare_op
+contains_op = compare_op
 
 
 def import_name(state, unused_arg):
@@ -416,6 +460,8 @@ def _unpack_lists(state, arg):
     type_constraint = state.stack[-i]
     if isinstance(type_constraint, typehints.IndexableTypeConstraint):
       types.extend(type_constraint._inner_types())
+    elif type_constraint == Union[()]:
+      continue
     else:
       logging.debug('Unhandled type_constraint: %r', type_constraint)
       types.append(typehints.Any)
@@ -430,7 +476,7 @@ def build_list_unpack(state, arg):
 
 def build_tuple_unpack(state, arg):
   """Joins arg count iterables from the stack into a single tuple."""
-  state.stack.append(Tuple[_unpack_lists(state, arg)])
+  state.stack.append(Tuple[Union[_unpack_lists(state, arg)], ...])
 
 
 def build_tuple_unpack_with_call(state, arg):
