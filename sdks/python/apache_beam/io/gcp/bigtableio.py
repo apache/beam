@@ -71,7 +71,8 @@ try:
 
         # If even one request fails we retry everything. BigTable mutations are
         # idempotent so this should be correct.
-        # TODO: make this more efficient by retrying only failed requests.
+        # TODO(BEAM-13849): make this more efficient by retrying only
+        # re-triable failed requests.
         for status in status_list:
           if not status:
             # BigTable client may return 'None' instead of a valid status in
@@ -183,8 +184,6 @@ class _BigTableWriteFn(beam.DoFn):
     self.batcher.mutate(row)
 
   def finish_bundle(self):
-    # TODO(BEAM-13606): failed row mutations need to be retried or
-    # output for further handling.
     self.batcher.flush()
     self.batcher = None
 
