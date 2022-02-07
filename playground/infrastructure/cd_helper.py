@@ -41,14 +41,17 @@ class CDHelper:
 
   It is used to save beam examples/katas/tests and their output on the GCS.
   """
-
   def store_examples(self, examples: List[Example]):
     """
     Store beam examples and their output in the Google Cloud.
+
+    Outputs for multifile examples are left empty.
     """
-    logging.info("Start of executing Playground examples ...")
-    asyncio.run(self._get_outputs(examples))
-    logging.info("Finish of executing Playground examples")
+    single_file_examples = list(filter(
+      lambda example: example.tag.multifile is False, examples))
+    logging.info("Start of executing only single-file Playground examples ...")
+    asyncio.run(self._get_outputs(single_file_examples))
+    logging.info("Finish of executing single-file Playground examples")
 
     logging.info("Start of sending Playground examples to the bucket ...")
     self._save_to_cloud_storage(examples)
