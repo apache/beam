@@ -124,7 +124,7 @@ func toRow(pl interface{}) []byte {
 // 	 username := "root"
 // 	 password := "root123"
 // 	 jdbcUrl := "jdbc:postgresql://localhost:5432/dbname"
-//	 jdbcio.Write(s, tableName, driverClassName, jdbcurl, username, password, jdbcio.ExpansionAddr("localhost:9000"))
+//	 jdbcio.Write(s, tableName, driverClassName, jdbcurl, username, password, jdbcio.ExpansionAddrWrite("localhost:9000"))
 func Write(s beam.Scope, tableName, driverClassName, jdbcUrl, username, password string, col beam.PCollection, opts ...writeOption) {
 	s = s.Scope("jdbcio.Write")
 
