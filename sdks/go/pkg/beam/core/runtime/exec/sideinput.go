@@ -53,13 +53,45 @@ func NewSideInputAdapter(sid StreamID, sideInputID string, c *coder.Coder, wm Wi
 	}
 
 	wc := MakeWindowEncoder(c.Window)
-	kc := MakeElementEncoder(coder.SkipW(c).Components[0])
-	ec := MakeElementDecoder(coder.SkipW(c).Components[1])
+	var kc ElementEncoder
+	var ec ElementDecoder
+	if coder.IsKV(coder.SkipW(c)) {
+		kc = MakeElementEncoder(coder.SkipW(c).Components[0])
+		ec = MakeElementDecoder(coder.SkipW(c).Components[1])
+	} else {
+		ec = MakeElementDecoder(coder.SkipW(c))
+	}
 	return &sideInputAdapter{sid: sid, sideInputID: sideInputID, wc: wc, kc: kc, ec: ec, wm: wm}
 }
 
 func (s *sideInputAdapter) NewIterable(ctx context.Context, reader StateReader, w typex.Window) (ReStream, error) {
-	return s.NewKeyedIterable(ctx, reader, w, []byte(iterableSideInputKey))
+	key := []byte(iterableSideInputKey)
+
+	mw, err := s.wm.MapWindow(w)
+	if err != nil {
+		return nil, err
+	}
+	win, err := EncodeWindow(s.wc, mw)
+	if err != nil {
+		return nil, err
+	}
+	cache := reader.GetSideInputCache()
+	// Cache hit
+	if r := cache.QueryCache(ctx, s.sid.PtransformID, s.sideInputID, win, key); r != nil {
+		return r, nil
+	}
+
+	// Cache miss, build new ReStream
+	r := &proxyReStream{
+		open: func() (Stream, error) {
+			r, err := reader.OpenSideInput(ctx, s.sid, s.sideInputID, []byte{}, win)
+			if err != nil {
+				return nil, err
+			}
+			return &elementStream{r: r, ec: s.ec}, nil
+		},
+	}
+	return cache.SetCache(ctx, s.sid.PtransformID, s.sideInputID, win, key, r), nil
 }
 
 func (s *sideInputAdapter) NewKeyedIterable(ctx context.Context, reader StateReader, w typex.Window, iterKey interface{}) (ReStream, error) {
