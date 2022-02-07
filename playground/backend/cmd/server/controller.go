@@ -325,13 +325,11 @@ func (controller *playgroundController) GetDefaultPrecompiledObject(ctx context.
 		logger.Errorf("GetDefaultPrecompiledObject(): unimplemented sdk: %s\n", info.Sdk)
 		return nil, errors.InvalidArgumentError("Error during preparing", "Sdk is not implemented yet: %s", info.Sdk.String())
 	}
-	catalog, err := utils.GetCatalogFromCacheOrStorage(ctx, controller.cacheService)
+	precompiledObject, err := utils.GetDefaultPrecompiledObject(ctx, info.Sdk, controller.cacheService)
 	if err != nil {
 		logger.Errorf("GetDefaultPrecompiledObject(): error during getting catalog: %s", err.Error())
 		return nil, errors.InternalError("Error during getting Precompiled Objects", "Error with cloud connection")
 	}
-
-	precompiledObject := utils.GetDefaultPrecompiledObject(catalog, info.Sdk)
 	response := pb.GetDefaultPrecompiledObjectResponse{PrecompiledObject: &pb.PrecompiledObject{
 		CloudPath:       precompiledObject.CloudPath,
 		Name:            precompiledObject.Name,

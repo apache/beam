@@ -95,20 +95,14 @@ func FilterCatalog(catalog []*pb.Categories, sdk pb.Sdk, categoryName string) []
 	return result
 }
 
-// GetDefaultPrecompiledObject returns the default precompiled objects from the precompiled objects catalog for sdk
-func GetDefaultPrecompiledObject(catalog []*pb.Categories, sdk pb.Sdk) *pb.PrecompiledObject {
-	for _, categoriesSdk := range catalog {
-		if categoriesSdk.Sdk == sdk {
-			for _, category := range categoriesSdk.Categories {
-				for _, precompiledObject := range category.PrecompiledObjects {
-					if precompiledObject.DefaultExample {
-						return precompiledObject
-					}
-				}
-			}
-		}
+// GetDefaultPrecompiledObject returns the default precompiled objects from cache for sdk
+func GetDefaultPrecompiledObject(ctx context.Context, sdk pb.Sdk, cacheService cache.Cache) (*pb.PrecompiledObject, error) {
+	precompiledObject, err := cacheService.GetDefaultPrecompiledObject(ctx, sdk)
+	if err != nil {
+		logger.Errorf("GetDefaultPrecompiledObject(): error during getting default precompiled object %s", err.Error())
+		return nil, err
 	}
-	return nil
+	return precompiledObject, nil
 }
 
 // GetCatalogFromCacheOrStorage returns the precompiled objects catalog from cache

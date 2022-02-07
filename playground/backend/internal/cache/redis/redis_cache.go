@@ -126,6 +126,47 @@ func (rc *Cache) GetCatalog(ctx context.Context) ([]*pb.Categories, error) {
 	return result, nil
 }
 
+func (rc *Cache) SetDefaultPrecompiledObject(ctx context.Context, sdk pb.Sdk, precompiledObject *pb.PrecompiledObject) error {
+	precompiledObjectMarsh, err := json.Marshal(precompiledObject)
+	if err != nil {
+		logger.Errorf("Redis Cache: set default precompiled object: error during marshal precompiled object: %s, err: %s\n", precompiledObject, err.Error())
+		return err
+	}
+	sdkMarsh, err := json.Marshal(sdk)
+	if err != nil {
+		logger.Errorf("Redis Cache: set default precompiled object: error during marshal sdk: %s, err: %s\n", sdk, err.Error())
+		return err
+	}
+	err = rc.HSet(ctx, cache.DefaultPrecompiledExamples, sdkMarsh, precompiledObjectMarsh).Err()
+	if err != nil {
+		logger.Errorf("Redis Cache: set default precompiled object: error during HGet operation, err: %s\n", err.Error())
+		return err
+	}
+	return nil
+
+}
+
+func (rc *Cache) GetDefaultPrecompiledObject(ctx context.Context, sdk pb.Sdk) (*pb.PrecompiledObject, error) {
+	sdkMarsh, err := json.Marshal(sdk)
+	if err != nil {
+		logger.Errorf("Redis Cache: get default precompiled object: error during marshal sdk: %s, err: %s\n", sdk, err.Error())
+		return nil, err
+	}
+
+	value, err := rc.HGet(ctx, cache.DefaultPrecompiledExamples, string(sdkMarsh)).Result()
+	if err != nil {
+		logger.Errorf("Redis Cache: get default precompiled object: error during HGet operation for key: %s, subKey: %s, err: %s\n", cache.DefaultPrecompiledExamples, sdkMarsh, err.Error())
+		return nil, err
+	}
+
+	result := new(pb.PrecompiledObject)
+	err = json.Unmarshal([]byte(value), &result)
+	if err != nil {
+		logger.Errorf("Redis Cache: get default precompiled object: error during unmarshal value, err: %s\n", err.Error())
+	}
+	return result, nil
+}
+
 // unmarshalBySubKey unmarshal value by subKey
 func unmarshalBySubKey(subKey cache.SubKey, value string) (interface{}, error) {
 	var result interface{}
