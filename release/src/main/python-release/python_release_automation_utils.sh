@@ -303,12 +303,14 @@ function verify_hourly_team_score() {
         break
       else
         retry=$(($retry-1))
-        echo "Did not find team scores, retry left: $retry"
+        echo "Did not find team scores AntiqueBrassPlatypus, retry left: $retry"
+        echo "Read from bq:"
+        echo "${bq_pull_result}"
         sleep 15
       fi
     else
       echo "FAILED: HourlyTeamScore example failed running on $1-runner. \
-        Did not found scores of team $should_see in $DATASET.leader_board"
+        Did not found scores of team $should_see in $DATASET.hourly_team_score_python_$1"
       complete "FAILED"
       exit 1
     fi
