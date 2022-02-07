@@ -17,7 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper;
 
-import static org.apache.beam.sdk.io.gcp.spanner.changestreams.util.TestStructMapper.recordsToStruct;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.util.TestStructMapper.recordsToStructWithJson;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.util.TestStructMapper.recordsToStructWithStrings;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -98,11 +99,15 @@ public class ChangeStreamRecordMapperTest {
             10L,
             2L,
             null);
-    final Struct struct = recordsToStruct(dataChangeRecord);
+    final Struct stringFieldsStruct = recordsToStructWithStrings(dataChangeRecord);
+    final Struct jsonFieldsStruct = recordsToStructWithJson(dataChangeRecord);
 
     assertEquals(
         Collections.singletonList(dataChangeRecord),
-        mapper.toChangeStreamRecords(partition, struct, resultSetMetadata));
+        mapper.toChangeStreamRecords(partition, stringFieldsStruct, resultSetMetadata));
+    assertEquals(
+        Collections.singletonList(dataChangeRecord),
+        mapper.toChangeStreamRecords(partition, jsonFieldsStruct, resultSetMetadata));
   }
 
   @Test
@@ -125,11 +130,15 @@ public class ChangeStreamRecordMapperTest {
             10L,
             2L,
             null);
-    final Struct struct = recordsToStruct(dataChangeRecord);
+    final Struct stringFieldsStruct = recordsToStructWithStrings(dataChangeRecord);
+    final Struct jsonFieldsStruct = recordsToStructWithJson(dataChangeRecord);
 
     assertEquals(
         Collections.singletonList(dataChangeRecord),
-        mapper.toChangeStreamRecords(partition, struct, resultSetMetadata));
+        mapper.toChangeStreamRecords(partition, stringFieldsStruct, resultSetMetadata));
+    assertEquals(
+        Collections.singletonList(dataChangeRecord),
+        mapper.toChangeStreamRecords(partition, jsonFieldsStruct, resultSetMetadata));
   }
 
   @Test
@@ -152,18 +161,22 @@ public class ChangeStreamRecordMapperTest {
             10L,
             2L,
             null);
-    final Struct struct = recordsToStruct(dataChangeRecord);
+    final Struct stringFieldsStruct = recordsToStructWithStrings(dataChangeRecord);
+    final Struct jsonFieldsStruct = recordsToStructWithJson(dataChangeRecord);
 
     assertEquals(
         Collections.singletonList(dataChangeRecord),
-        mapper.toChangeStreamRecords(partition, struct, resultSetMetadata));
+        mapper.toChangeStreamRecords(partition, stringFieldsStruct, resultSetMetadata));
+    assertEquals(
+        Collections.singletonList(dataChangeRecord),
+        mapper.toChangeStreamRecords(partition, jsonFieldsStruct, resultSetMetadata));
   }
 
   @Test
   public void testMappingStructRowToHeartbeatRecord() {
     final HeartbeatRecord heartbeatRecord =
         new HeartbeatRecord(Timestamp.ofTimeSecondsAndNanos(10L, 20), null);
-    final Struct struct = recordsToStruct(heartbeatRecord);
+    final Struct struct = recordsToStructWithStrings(heartbeatRecord);
 
     assertEquals(
         Collections.singletonList(heartbeatRecord),
@@ -180,7 +193,7 @@ public class ChangeStreamRecordMapperTest {
                 new ChildPartition("childToken1", Sets.newHashSet("parentToken1", "parentToken2")),
                 new ChildPartition("childToken2", Sets.newHashSet("parentToken1", "parentToken2"))),
             null);
-    final Struct struct = recordsToStruct(childPartitionsRecord);
+    final Struct struct = recordsToStructWithStrings(childPartitionsRecord);
 
     assertEquals(
         Collections.singletonList(childPartitionsRecord),
@@ -191,7 +204,7 @@ public class ChangeStreamRecordMapperTest {
   @Test
   public void testMappingStructRowFromInitialPartitionToChildPartitionRecord() {
     final Struct struct =
-        recordsToStruct(
+        recordsToStructWithStrings(
             new ChildPartitionsRecord(
                 Timestamp.ofTimeSecondsAndNanos(10L, 20),
                 "1",
@@ -217,7 +230,4 @@ public class ChangeStreamRecordMapperTest {
         Collections.singletonList(expected),
         mapper.toChangeStreamRecords(initialPartition, struct, resultSetMetadata));
   }
-
-  // TODO: Add test case for unknown record type
-  // TODO: Add test case for malformed record
 }
