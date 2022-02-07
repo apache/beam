@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -32,17 +33,18 @@ import (
 )
 
 const (
-	BucketName       = "playground-precompiled-objects"
-	OutputExtension  = "output"
-	LogsExtension    = "log"
-	GraphExtension   = "graph"
-	MetaInfoName     = "meta.info"
-	Timeout          = time.Minute
-	javaExtension    = "java"
-	goExtension      = "go"
-	pyExtension      = "py"
-	scioExtension    = "scala"
-	separatorsNumber = 2
+	BucketName                    = "playground-precompiled-objects"
+	OutputExtension               = "output"
+	LogsExtension                 = "log"
+	GraphExtension                = "graph"
+	DefaultPrecompiledObjectsInfo = "defaultPrecompiledObjects.info"
+	MetaInfoName                  = "meta.info"
+	Timeout                       = time.Minute
+	javaExtension                 = "java"
+	goExtension                   = "go"
+	pyExtension                   = "py"
+	scioExtension                 = "scala"
+	separatorsNumber              = 2
 )
 
 type ObjectInfo struct {
@@ -189,6 +191,70 @@ func (cd *CloudStorage) GetPrecompiledObjects(ctx context.Context, targetSdk pb.
 		}
 	}
 	return &precompiledObjects, nil
+}
+
+// GetDefaultPrecompiledObjects returns the default precompiled objects
+func (cd *CloudStorage) GetDefaultPrecompiledObjects(ctx context.Context) (map[pb.Sdk]*pb.PrecompiledObject, error) {
+	client, err := storage.NewClient(ctx, option.WithoutAuthentication())
+	if err != nil {
+		return nil, fmt.Errorf("storage.NewClient: %v", err)
+	}
+	defer client.Close()
+	bucket := client.Bucket(BucketName)
+
+	paths, err := cd.getDefaultPrecompiledObjectsPaths(ctx, bucket)
+	if err != nil {
+		return nil, err
+	}
+
+	defaultPrecompiledObjects := make(map[pb.Sdk]*pb.PrecompiledObject, 0)
+	for sdk, path := range paths {
+		infoPath := filepath.Join(path, MetaInfoName)
+		rc, err := bucket.Object(infoPath).NewReader(ctx)
+		if err != nil {
+			logger.Errorf("Object(%q).NewReader: %v", infoPath, err.Error())
+			continue
+		}
+		metaFile, err := ioutil.ReadAll(rc)
+		if err != nil {
+			logger.Errorf("ioutil.ReadAll: %v", err.Error())
+			continue
+		}
+		rc.Close()
+
+		precompiledObject := &pb.PrecompiledObject{}
+		err = json.Unmarshal(metaFile, &precompiledObject)
+		if err != nil {
+			logger.Errorf("json.Unmarshal: %v", err.Error())
+			return nil, err
+		}
+		precompiledObject.CloudPath = path
+		defaultPrecompiledObjects[sdk] = precompiledObject
+	}
+	return defaultPrecompiledObjects, nil
+}
+
+// getDefaultPrecompiledObjectsPaths returns map where for each SDK path to the default precompiled object is contained
+func (cd *CloudStorage) getDefaultPrecompiledObjectsPaths(ctx context.Context, bucket *storage.BucketHandle) (map[pb.Sdk]string, error) {
+	rc, err := bucket.Object(DefaultPrecompiledObjectsInfo).NewReader(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	data, err := io.ReadAll(rc)
+	if err != nil {
+		return nil, err
+	}
+
+	paths := make(map[string]string, 0)
+	sdkToPath := make(map[pb.Sdk]string, 0)
+	if err := json.Unmarshal(data, &paths); err != nil {
+		panic(err)
+	}
+	for key, value := range paths {
+		sdkToPath[pb.Sdk(pb.Sdk_value[key])] = value
+	}
+	return sdkToPath, nil
 }
 
 // getPrecompiledObjectsDirs finds directories with precompiled objects

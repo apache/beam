@@ -20,6 +20,7 @@ import (
 	"beam.apache.org/playground/backend/internal/cache"
 	"beam.apache.org/playground/backend/internal/cache/local"
 	"beam.apache.org/playground/backend/internal/cache/redis"
+	"beam.apache.org/playground/backend/internal/cloud_bucket"
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/logger"
 	"beam.apache.org/playground/backend/internal/utils"
@@ -127,19 +128,16 @@ func setupExamplesCatalog(ctx context.Context, cacheService cache.Cache) error {
 	if err = cacheService.SetCatalog(ctx, catalog); err != nil {
 		logger.Errorf("GetPrecompiledObjects(): cache error: %s", err.Error())
 	}
-Loop:
-	for _, categories := range catalog {
-		sdk := categories.Sdk
-		for _, category := range categories.Categories {
-			for _, precompiledObject := range category.PrecompiledObjects {
-				if precompiledObject.DefaultExample {
-					err = cacheService.SetDefaultPrecompiledObject(ctx, sdk, precompiledObject)
-					if err != nil {
-						logger.Errorf("Error during setup default example for sdk %s: %s", sdk.String(), err.Error())
-					}
-					continue Loop
-				}
-			}
+
+	bucket := cloud_bucket.New()
+	defaultPrecompiledObjects, err := bucket.GetDefaultPrecompiledObjects(ctx)
+	if err != nil {
+		return err
+	}
+	for sdk, precompiledObject := range defaultPrecompiledObjects {
+		if err := cacheService.SetDefaultPrecompiledObject(ctx, sdk, precompiledObject); err != nil {
+			logger.Errorf("GetPrecompiledObjects(): cache error: %s", err.Error())
+			return err
 		}
 	}
 	return nil
