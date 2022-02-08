@@ -105,6 +105,9 @@ exit_background_processes () {
   if [[ ! -z "$IO_EXPANSION_PID" ]]; then
     kill -9 $IO_EXPANSION_PID
   fi
+  if [[ ! -z "$SCHEMAIO_EXPANSION_PID" ]]; then
+    kill -9 $SCHEMAIO_EXPANSION_PID
+  fi
 }
 trap exit_background_processes SIGINT SIGTERM EXIT
 
