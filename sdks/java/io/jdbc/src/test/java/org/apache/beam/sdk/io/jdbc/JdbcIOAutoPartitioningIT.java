@@ -206,7 +206,11 @@ public class JdbcIOAutoPartitioningIT {
       Random rnd = new Random(seed);
       StringBuilder sb = new StringBuilder(rnd.nextInt(50));
       for (int i = 0; i < sb.capacity(); i++) {
-        sb.append(Character.toChars(rnd.nextInt() + 1)[0]);
+        int nextChar = rnd.nextInt();
+        while (!Character.isBmpCodePoint(nextChar)) {
+          nextChar = rnd.nextInt();
+        }
+        sb.append(Character.toChars(nextChar)[0]);
       }
       return sb.toString();
     }
@@ -221,8 +225,7 @@ public class JdbcIOAutoPartitioningIT {
       MapRowDataFn.millisDist.update(millisOffset);
       return new RowData(
           id,
-          // randomStr(rnd.nextInt()),
-          String.valueOf(rnd.nextDouble()),
+          randomStr(rnd.nextInt()),
           new DateTime(Instant.EPOCH.plus(Duration.millis(millisOffset))));
     }
   }
