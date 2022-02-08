@@ -779,7 +779,7 @@ class TestS3IO(unittest.TestCase):
 
   def test_midsize_file(self):
     file_name = self.TEST_DATA_PATH + 'midsized'
-    file_size = 6*1024*1024
+    file_size = 6 * 1024 * 1024
     self._insert_random_file(self.aws.client, file_name, file_size)
     with self.aws.open(file_name, 'r') as f:
       self.assertEqual(len(f.read()), file_size)
@@ -791,7 +791,8 @@ class TestS3IO(unittest.TestCase):
     assert_msg = "Zerosized file did not raise an error on real s3 client"
     try:
       self._insert_random_file(self.aws.client, file_name, file_size)
-      self.assertTrue(isinstance(self.client, fake_client.FakeS3Client), assert_msg)
+      self.assertTrue(
+          isinstance(self.client, fake_client.FakeS3Client), assert_msg)
     except:
       with self.assertRaises(messages.S3ClientError, msg=assert_msg):
         raise
