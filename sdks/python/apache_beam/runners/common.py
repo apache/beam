@@ -558,7 +558,7 @@ class PerWindowInvoker(DoFnInvoker):
     default_arg_values = signature.process_method.defaults
     self.has_windowed_inputs = (
         not all(si.is_globally_windowed() for si in side_inputs) or
-        (core.DoFn.WindowParam in default_arg_values) or
+        any(core.DoFn.WindowParam == arg for arg in default_arg_values) or
         signature.is_stateful_dofn())
     self.user_state_context = user_state_context
     self.is_splittable = signature.is_splittable_dofn()
@@ -592,7 +592,7 @@ class PerWindowInvoker(DoFnInvoker):
       def __init__(self, placeholder):
         self.placeholder = placeholder
 
-    if core.DoFn.ElementParam not in default_arg_values:
+    if all(core.DoFn.ElementParam != arg for arg in default_arg_values):
       # TODO(BEAM-7867): Handle cases in which len(arg_names) ==
       #   len(default_arg_values).
       args_to_pick = len(arg_names) - len(default_arg_values) - 1
