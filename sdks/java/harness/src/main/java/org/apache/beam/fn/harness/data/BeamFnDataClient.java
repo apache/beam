@@ -18,13 +18,13 @@
 package org.apache.beam.fn.harness.data;
 
 import java.util.List;
+import java.util.function.Supplier;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
-import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.fn.data.BeamFnDataOutboundAggregator;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 
 /**
  * The {@link BeamFnDataClient} is able to forward inbound elements to a {@link FnDataReceiver} and
@@ -65,16 +65,16 @@ public interface BeamFnDataClient {
   void unregisterReceiver(String instructionId, List<ApiServiceDescriptor> apiServiceDescriptors);
 
   /**
-   * Creates a {@link CloseableFnDataReceiver} using the provided instruction id and target.
+   * Creates a {@link BeamFnDataOutboundAggregator} for buffering and sending outbound data and
+   * timers over the data plane. It is important that {@link
+   * BeamFnDataOutboundAggregator#sendBufferedDataAndFinishOutboundStreams()} is called on the
+   * returned BeamFnDataOutboundAggregator at the end of each bundle.
    *
-   * <p>The provided coder is used to encode elements on the outbound stream.
+   * <p>Closing the returned aggregator signals the end of the streams.
    *
-   * <p>Closing the returned receiver signals the end of the stream.
-   *
-   * <p>The returned closeable receiver is not thread safe.
+   * <p>The returned aggregator is not thread safe.
    */
-  <T> CloseableFnDataReceiver<T> send(
+  BeamFnDataOutboundAggregator createOutboundAggregator(
       Endpoints.ApiServiceDescriptor apiServiceDescriptor,
-      LogicalEndpoint outputLocation,
-      Coder<T> coder);
+      Supplier<String> processBundleRequestIdSupplier);
 }

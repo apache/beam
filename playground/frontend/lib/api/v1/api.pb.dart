@@ -989,7 +989,8 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     ..e<PrecompiledObjectType>(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'type', $pb.PbFieldType.OE, defaultOrMaker: PrecompiledObjectType.PRECOMPILED_OBJECT_TYPE_UNSPECIFIED, valueOf: PrecompiledObjectType.valueOf, enumValues: PrecompiledObjectType.values)
     ..aOS(5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'pipelineOptions')
     ..aOS(6, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'link')
-    ..a<$core.int>(7, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'contextLine', $pb.PbFieldType.O3)
+    ..aOB(7, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'multifile')
+    ..a<$core.int>(8, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'contextLine', $pb.PbFieldType.O3)
     ..hasRequiredFields = false
   ;
 
@@ -1001,6 +1002,7 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     PrecompiledObjectType? type,
     $core.String? pipelineOptions,
     $core.String? link,
+    $core.bool? multifile,
     $core.int? contextLine,
   }) {
     final _result = create();
@@ -1021,6 +1023,9 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     }
     if (link != null) {
       _result.link = link;
+    }
+    if (multifile != null) {
+      _result.multifile = multifile;
     }
     if (contextLine != null) {
       _result.contextLine = contextLine;
@@ -1103,13 +1108,22 @@ class PrecompiledObject extends $pb.GeneratedMessage {
   void clearLink() => clearField(6);
 
   @$pb.TagNumber(7)
-  $core.int get contextLine => $_getIZ(6);
+  $core.bool get multifile => $_getBF(6);
   @$pb.TagNumber(7)
-  set contextLine($core.int v) { $_setSignedInt32(6, v); }
+  set multifile($core.bool v) { $_setBool(6, v); }
   @$pb.TagNumber(7)
-  $core.bool hasContextLine() => $_has(6);
+  $core.bool hasMultifile() => $_has(6);
   @$pb.TagNumber(7)
-  void clearContextLine() => clearField(7);
+  void clearMultifile() => clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.int get contextLine => $_getIZ(7);
+  @$pb.TagNumber(8)
+  set contextLine($core.int v) { $_setSignedInt32(7, v); }
+  @$pb.TagNumber(8)
+  $core.bool hasContextLine() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearContextLine() => clearField(8);
 }
 
 class Categories_Category extends $pb.GeneratedMessage {

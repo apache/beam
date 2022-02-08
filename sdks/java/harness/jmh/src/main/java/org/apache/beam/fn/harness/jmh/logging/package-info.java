@@ -16,5 +16,5 @@
  * limitations under the License.
  */
 
-/** Benchmarks for the SDK harness. */
-package org.apache.beam.fn.harness;
+/** Benchmarks for logging. */
+package org.apache.beam.fn.harness.jmh.logging;

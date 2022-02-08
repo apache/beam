@@ -97,7 +97,7 @@ task examples {
 }
 
 
-task mongodbioIT {
+tasks.register("mongodbioIT") {
   dependsOn 'setupVirtualenv'
 
   Random r = new Random()

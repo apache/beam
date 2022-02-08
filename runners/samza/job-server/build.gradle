@@ -193,7 +193,7 @@ task validatesPortableRunner() {
 def jobPort = BeamModulePlugin.getRandomPort()
 def artifactPort = BeamModulePlugin.getRandomPort()
 
-def setupTask = project.tasks.create(name: "samzaJobServerSetup", type: Exec) {
+def setupTask = project.tasks.register("samzaJobServerSetup", Exec) {
     dependsOn shadowJar
     def pythonDir = project.project(":sdks:python").projectDir
     def samzaJobServerJar = shadowJar.archivePath
@@ -202,7 +202,7 @@ def setupTask = project.tasks.create(name: "samzaJobServerSetup", type: Exec) {
     args '-c', "$pythonDir/scripts/run_job_server.sh stop --group_id ${project.name} && $pythonDir/scripts/run_job_server.sh start --group_id ${project.name} --job_port ${jobPort} --artifact_port ${artifactPort} --job_server_jar ${samzaJobServerJar}"
 }
 
-def cleanupTask = project.tasks.create(name: "samzaJobServerCleanup", type: Exec) {
+def cleanupTask = project.tasks.register("samzaJobServerCleanup", Exec) {
     def pythonDir = project.project(":sdks:python").projectDir
 
     executable 'sh'

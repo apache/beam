@@ -197,7 +197,6 @@ public class QueryChangeStreamAction {
               token, startTimestamp, endTimestamp, partition.getHeartbeatMillis())) {
 
         while (resultSet.next()) {
-          // TODO: Check what should we do if there is an error here
           final List<ChangeStreamRecord> records =
               changeStreamRecordMapper.toChangeStreamRecords(
                   updatedPartition, resultSet.getCurrentRowAsStruct(), resultSet.getMetadata());
@@ -229,7 +228,6 @@ public class QueryChangeStreamAction {
                       watermarkEstimator);
             } else {
               LOG.error("[" + token + "] Unknown record type " + record.getClass());
-              // FIXME: Check what should we do if the record is unknown
               throw new IllegalArgumentException("Unknown record type " + record.getClass());
             }
             if (maybeContinuation.isPresent()) {
