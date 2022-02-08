@@ -321,13 +321,14 @@ public class BeamFnDataGrpcClientTest {
               (Endpoints.ApiServiceDescriptor descriptor) -> channel,
               OutboundObserverFactory.trivial());
       BeamFnDataOutboundAggregator aggregator =
-          clientFactory.createOutboundAggregator(apiServiceDescriptor, () -> INSTRUCTION_ID_A);
+          clientFactory.createOutboundAggregator(
+              apiServiceDescriptor, () -> INSTRUCTION_ID_A, false);
       FnDataReceiver<WindowedValue<String>> fnDataReceiver =
           aggregator.registerOutputDataLocation(TRANSFORM_ID_A, CODER);
       fnDataReceiver.accept(valueInGlobalWindow("ABC"));
       fnDataReceiver.accept(valueInGlobalWindow("DEF"));
       fnDataReceiver.accept(valueInGlobalWindow("GHI"));
-      aggregator.sendBufferedDataAndFinishOutboundStreams();
+      aggregator.sendOrCollectBufferedDataAndFinishOutboundStreams();
       waitForInboundServerValuesCompletion.await();
 
       assertThat(inboundServerValues, contains(ELEMENTS_A_1, ELEMENTS_A_2));
