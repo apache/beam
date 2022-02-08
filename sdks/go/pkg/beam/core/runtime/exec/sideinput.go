@@ -43,13 +43,14 @@ type sideInputAdapter struct {
 	kc          ElementEncoder
 	ec          ElementDecoder
 	wm          WindowMapper
+	c           *coder.Coder
 }
 
 // NewSideInputAdapter returns a side input adapter for the given StreamID and coder.
-// It expects a W<KV<K,V>> coder, because the protocol supports MultiSet access only.
+// It expects a W<V> or W<KV<K,V>> coder, because the protocol requires windowing information.
 func NewSideInputAdapter(sid StreamID, sideInputID string, c *coder.Coder, wm WindowMapper) SideInputAdapter {
-	if !coder.IsW(c) || !coder.IsKV(coder.SkipW(c)) {
-		panic(fmt.Sprintf("expected WKV coder for side input %v: %v", sid, c))
+	if !coder.IsW(c) {
+		panic(fmt.Sprintf("expected WV coder for side input %v: %v", sid, c))
 	}
 
 	wc := MakeWindowEncoder(c.Window)
@@ -61,11 +62,16 @@ func NewSideInputAdapter(sid StreamID, sideInputID string, c *coder.Coder, wm Wi
 	} else {
 		ec = MakeElementDecoder(coder.SkipW(c))
 	}
-	return &sideInputAdapter{sid: sid, sideInputID: sideInputID, wc: wc, kc: kc, ec: ec, wm: wm}
+	return &sideInputAdapter{sid: sid, sideInputID: sideInputID, wc: wc, kc: kc, ec: ec, wm: wm, c: c}
 }
 
 func (s *sideInputAdapter) NewIterable(ctx context.Context, reader StateReader, w typex.Window) (ReStream, error) {
 	key := []byte(iterableSideInputKey)
+
+	// Catch if iterable values themselves are KV encoded, update element decoder.
+	if s.kc != nil {
+		s.ec = MakeElementDecoder(coder.SkipW(s.c))
+	}
 
 	mw, err := s.wm.MapWindow(w)
 	if err != nil {
@@ -95,6 +101,9 @@ func (s *sideInputAdapter) NewIterable(ctx context.Context, reader StateReader, 
 }
 
 func (s *sideInputAdapter) NewKeyedIterable(ctx context.Context, reader StateReader, w typex.Window, iterKey interface{}) (ReStream, error) {
+	if s.kc == nil {
+		return nil, fmt.Errorf("cannot make a keyed iterable for an unkeyed side input %v.", s.sideInputID)
+	}
 	key, err := EncodeElement(s.kc, iterKey)
 	if err != nil {
 		return nil, err
