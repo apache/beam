@@ -107,8 +107,7 @@ public class BeamFnDataOutboundAggregator {
                       .setDaemon(true)
                       .setNameFormat("DataBufferOutboundFlusher-thread")
                       .build())
-              .scheduleAtFixedRate(
-                  this::periodicFlush, timeLimit, timeLimit, TimeUnit.MILLISECONDS);
+              .scheduleAtFixedRate(this::flush, timeLimit, timeLimit, TimeUnit.MILLISECONDS);
     }
   }
 
@@ -160,7 +159,7 @@ public class BeamFnDataOutboundAggregator {
     return receiver;
   }
 
-  private void flush() throws IOException {
+  private void flushInternal() {
     if (bytesWrittenSinceFlush == 0) {
       return;
     }
@@ -265,10 +264,10 @@ public class BeamFnDataOutboundAggregator {
     return bufferedElements;
   }
 
-  private void periodicFlush() {
+  void flush() {
     try {
       synchronized (flushLock) {
-        flush();
+        flushInternal();
       }
     } catch (Throwable t) {
       throw new RuntimeException(t);
@@ -348,7 +347,7 @@ public class BeamFnDataOutboundAggregator {
       perBundleByteCount += delta;
       perBundleElementCount += 1;
       if (bytesWrittenSinceFlush > sizeLimit) {
-        flush();
+        flushInternal();
       }
     }
 

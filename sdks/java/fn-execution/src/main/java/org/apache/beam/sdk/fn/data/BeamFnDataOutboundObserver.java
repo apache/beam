@@ -73,7 +73,9 @@ public class BeamFnDataOutboundObserver<T> implements CloseableFnDataReceiver<T>
   }
 
   @Override
-  public void flush() throws IOException {}
+  public void flush() throws IOException {
+    aggregator.flush();
+  }
 
   @Override
   public void accept(T t) throws Exception {
