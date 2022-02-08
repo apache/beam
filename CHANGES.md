@@ -52,7 +52,9 @@
 # [2.37.0] - Unreleased
 
 ## Highlights
-
+* Java 17 support for Dataflow ([BEAM-2530](https://issues.apache.org/jira/browse/BEAM-2530)).
+  * Users using Dataflow Runner V2 may see issues with state cache due to inaccurate object sizes.
+  * ZetaSql is currently unsupported ([issue](https://github.com/google/zetasql/issues/89)).
 ## I/Os
 
 ## New Features / Improvements
