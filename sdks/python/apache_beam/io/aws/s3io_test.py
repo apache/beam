@@ -789,15 +789,10 @@ class TestS3IO(unittest.TestCase):
     file_name = self.TEST_DATA_PATH + 'zerosized'
     file_size = 0
     assert_msg = "Zerosized file did not raise an error on real s3 client"
-    try:
+    with self.assertRaises(messages.S3ClientError, msg=assert_msg):
       self._insert_random_file(self.aws.client, file_name, file_size)
-      self.assertTrue(
-          isinstance(self.client, fake_client.FakeS3Client), assert_msg)
-    except messages.S3ClientError:
-      # we expect a S3ClientError for a zerosized file on a non-fake client
-      pass
-    except:
-      self.fail(assert_msg)
+      if isinstance(self.client, fake_client.FakeS3Client):
+        raise messages.S3ClientError("fake client error", code=400)
 
     self.aws.delete(file_name)
 
