@@ -73,6 +73,11 @@ const (
 	URNArtifactFileType     = "beam:artifact:type:file:v1"
 	URNArtifactURLType      = "beam:artifact:type:url:v1"
 	URNArtifactGoWorkerRole = "beam:artifact:role:go_worker_binary:v1"
+
+	// Environment Urns.
+	URNEnvProcess  = "beam:env:process:v1"
+	URNEnvExternal = "beam:env:external:v1"
+	URNEnvDocker   = "beam:env:docker:v1"
 )
 
 func goCapabilities() []string {
@@ -89,14 +94,14 @@ func goCapabilities() []string {
 func CreateEnvironment(ctx context.Context, urn string, extractEnvironmentConfig func(context.Context) string) (*pipepb.Environment, error) {
 	var serializedPayload []byte
 	switch urn {
-	case "beam:env:process:v1":
+	case URNEnvProcess:
 		// TODO Support process based SDK Harness.
 		return nil, errors.Errorf("unsupported environment %v", urn)
-	case "beam:env:external:v1":
+	case URNEnvExternal:
 		config := extractEnvironmentConfig(ctx)
 		payload := &pipepb.ExternalPayload{Endpoint: &pipepb.ApiServiceDescriptor{Url: config}}
 		serializedPayload = protox.MustEncode(payload)
-	case "beam:env:docker:v1":
+	case URNEnvDocker:
 		fallthrough
 	default:
 		config := extractEnvironmentConfig(ctx)
