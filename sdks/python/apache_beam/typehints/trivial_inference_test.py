@@ -293,17 +293,23 @@ class TrivialInferenceTest(unittest.TestCase):
     self.assertReturnType(
         typehints.Dict[typehints.Any, typehints.Any], lambda: {})
 
+  # yapf: disable
   def testDictComprehension(self):
     fields = []
     expected_type = typehints.Dict[typehints.Any, typehints.Any]
     self.assertReturnType(
-        expected_type, lambda row: {f: row[f]
-                                    for f in fields}, [typehints.Any])
+        expected_type, lambda row: {f: row[f] for f in fields}, [typehints.Any])
 
   def testDictComprehensionSimple(self):
     self.assertReturnType(
-        typehints.Dict[str, int], lambda _list: {'a': 1
-                                                 for _ in _list}, [])
+        typehints.Dict[str, int], lambda _list: {'a': 1 for _ in _list}, [])
+
+  def testSet(self):
+    self.assertReturnType(
+        typehints.Set[typehints.Union[()]], lambda: {x for x in ()})
+    self.assertReturnType(
+        typehints.Set[int], lambda xs: {x for x in xs}, [typehints.List[int]])
+  # yapf: enable
 
   def testDepthFunction(self):
     def f(i):

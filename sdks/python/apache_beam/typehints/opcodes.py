@@ -192,8 +192,14 @@ print_newline = nop
 
 def list_append(state, arg):
   new_element_type = Const.unwrap(state.stack.pop())
-  state.stack[-arg] = List[Union[element_type(state.stack[-arg]),
-                                 new_element_type]]
+  state.stack[-arg] = List[union(
+      element_type(state.stack[-arg]), new_element_type)]
+
+
+def set_add(state, arg):
+  new_element_type = Const.unwrap(state.stack.pop())
+  state.stack[-arg] = Set[union(
+      element_type(state.stack[-arg]), new_element_type)]
 
 
 def map_add(state, arg):
@@ -264,7 +270,7 @@ def build_list(state, arg):
 
 def build_set(state, arg):
   if arg == 0:
-    state.stack.append(List[Union[()]])
+    state.stack.append(Set[Union[()]])
   else:
     state.stack[-arg:] = [Set[reduce(union, state.stack[-arg:], Union[()])]]
 
