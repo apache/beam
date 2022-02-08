@@ -40,7 +40,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * BigQueryIO}. For a description of configuration options and other defaults, see {@link
  * BigQuerySchemaIOProvider#configurationSchema()}.
  *
- * This transform is still experimental, and is still subject to breaking changes.
+ * <p>This transform is still experimental, and is still subject to breaking changes.
  */
 @Internal
 @Experimental
@@ -76,12 +76,11 @@ public class BigQuerySchemaIOProvider implements SchemaIOProvider {
    * Relevant default values for these transforms that are not configurable fields are as follows:
    *
    * <ul>
-   *   <li>ReadMethod - The input to
-   *       {@link BigQueryIO.TypedRead#withMethod(BigQueryIO.TypedRead.Method)}. Defaults to EXPORT,
-   *       since that is the only method that currently offers Beam Schema support.
-   *   <li>WriteMethod - The input to
-   *       {@link BigQueryIO.Write#withMethod(BigQueryIO.Write.Method)}. Currently defaults to
-   *       STORAGE_WRITE_API.
+   *   <li>ReadMethod - The input to {@link
+   *       BigQueryIO.TypedRead#withMethod(BigQueryIO.TypedRead.Method)}. Defaults to EXPORT, since
+   *       that is the only method that currently offers Beam Schema support.
+   *   <li>WriteMethod - The input to {@link BigQueryIO.Write#withMethod(BigQueryIO.Write.Method)}.
+   *       Currently defaults to STORAGE_WRITE_API.
    * </ul>
    */
   @Override
