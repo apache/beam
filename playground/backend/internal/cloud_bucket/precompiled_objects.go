@@ -44,7 +44,7 @@ const (
 	goExtension                   = "go"
 	pyExtension                   = "py"
 	scioExtension                 = "scala"
-	separatorsNumber              = 2
+	separatorsNumber              = 3
 )
 
 type ObjectInfo struct {
@@ -55,6 +55,7 @@ type ObjectInfo struct {
 	Categories      []string                 `json:"categories,omitempty"`
 	PipelineOptions string                   `protobuf:"bytes,3,opt,name=pipeline_options,proto3" json:"pipeline_options,omitempty"`
 	Link            string                   `protobuf:"bytes,3,opt,name=link,proto3" json:"link,omitempty"`
+	Multifile       bool                     `protobuf:"varint,7,opt,name=multifile,proto3" json:"multifile,omitempty"`
 	ContextLine     int32                    `protobuf:"varint,7,opt,name=context_line,proto3" json:"context_line,omitempty"`
 	DefaultExample  bool                     `protobuf:"varint,7,opt,name=default_example,json=defaultExample,proto3" json:"default_example,omitempty"`
 }
@@ -68,28 +69,52 @@ type SdkToCategories map[string]CategoryToPrecompiledObjects
 // the bucket where examples are stored would be public,
 // and it has a specific structure of files, namely:
 // SDK_JAVA/
+// ----defaultPrecompiledObjects.info
+// ----PRECOMPILED_OBJECT_TYPE_EXAMPLE/
 // --------MinimalWordCount/
 // ----------- MinimalWordCount.java
 // ----------- MinimalWordCount.output
+// ----------- MinimalWordCount.log
+// ----------- MinimalWordCount.graph
 // ----------- meta.info
 // --------JoinExamples/
 // ----------- JoinExamples.java
 // ----------- JoinExamples.output
+// ----------- JoinExamples.log
+// ----------- JoinExamples.graph
 // ----------- meta.info
-// ----  ...
+// ----PRECOMPILED_OBJECT_TYPE_KATA/
+// --------...
+// ----...
 // SDK_GO/
+// ----defaultPrecompiledObjects.info
+// ----PRECOMPILED_OBJECT_TYPE_EXAMPLE/
 // --------MinimalWordCount/
 // ----------- MinimalWordCount.go
 // ----------- MinimalWordCount.output
+// ----------- MinimalWordCount.log
+// ----------- MinimalWordCount.graph
 // ----------- meta.info
 // --------PingPong/
-// ----  ...
-// ...
+// ----PRECOMPILED_OBJECT_TYPE_KATA/
+// --------...
+// ----...
+//
+// defaultPrecompiledObjects.info is a file that contains path to the default example:
+// {
+//   "SDK_JAVA": "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MinimalWordCount"
+// }
+//
 // meta.info is a json file that has the following fields:
 // {
+//  "name": "name of the example",
 //	"description": "Description of an example",
-//	"type": 1, ## 1 - Example, 2 - Kata, 3 - Unit-test
+//  "multifile": false
 //	"categories": ["Common", "IO"]
+//  "pipeline_options": "--key1 value1",
+//  "default_example": false,
+//  "context_line": 1,
+//  "link": "https://github.com/apache/beam/blob/master/path/to/example"
 // }
 //
 type CloudStorage struct {
@@ -184,6 +209,10 @@ func (cd *CloudStorage) GetPrecompiledObjects(ctx context.Context, targetSdk pb.
 			logger.Errorf("json.Unmarshal: %v", err.Error())
 			continue
 		}
+
+		folderName := strings.Split(objectDir, string(os.PathSeparator))[1]
+		precompiledObject.Type = pb.PrecompiledObjectType(pb.PrecompiledObjectType_value[folderName])
+
 		for _, objectCategory := range precompiledObject.Categories {
 			if targetCategory == "" || targetCategory == objectCategory { //take only requested categories
 				appendPrecompiledObject(precompiledObject, &precompiledObjects, objectDir, objectCategory)
@@ -362,7 +391,7 @@ func getFullFilePath(objectDir string, extension string) string {
 	return filePath
 }
 
-// isPathToPrecompiledObjectFile is it a path where precompiled object is stored (i.e. SDK/ObjectName/ObjectCode.sdkExtension)
+// isPathToPrecompiledObjectFile is it a path where precompiled object is stored (i.e. SDK/ObjectType/ObjectName/ObjectCode.sdkExtension)
 func isPathToPrecompiledObjectFile(path string) bool {
 	return strings.Count(path, string(os.PathSeparator)) == separatorsNumber && !isDir(path)
 }

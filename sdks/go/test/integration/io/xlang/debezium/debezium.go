@@ -27,7 +27,7 @@ func ReadPipeline(addr, username, password, dbname, host, port string, connector
 	p, s := beam.NewPipelineWithRoot()
 	result := debeziumio.Read(s.Scope("Read from debezium"), username, password, host, port,
 		connectorClass, reflectx.String, debeziumio.MaxRecord(maxrecords),
-		debeziumio.ConnectionProperties(connectionProperties), debeziumio.ExpansionService(addr))
+		debeziumio.ConnectionProperties(connectionProperties), debeziumio.ExpansionAddr(addr))
 	expectedJson := `{"metadata":{"connector":"postgresql","version":"1.3.1.Final","name":"dbserver1","database":"inventory","schema":"inventory","table":"customers"},"before":null,"after":{"fields":{"last_name":"Thomas","id":1001,"first_name":"Sally","email":"sally.thomas@acme.com"}}}`
 	expected := beam.Create(s, expectedJson)
 	passert.Equals(s, result, expected)

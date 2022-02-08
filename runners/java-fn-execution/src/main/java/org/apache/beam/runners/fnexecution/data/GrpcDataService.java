@@ -26,9 +26,9 @@ import java.util.concurrent.TimeoutException;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.fn.data.BeamFnDataBufferingOutboundObserver;
 import org.apache.beam.sdk.fn.data.BeamFnDataGrpcMultiplexer;
 import org.apache.beam.sdk.fn.data.BeamFnDataInboundObserver;
+import org.apache.beam.sdk.fn.data.BeamFnDataOutboundObserver;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.DecodingFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
@@ -180,11 +180,11 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
         outputLocation.getInstructionId(),
         outputLocation.getTransformId());
     try {
-      return BeamFnDataBufferingOutboundObserver.forLocation(
-          options,
+      return new BeamFnDataOutboundObserver<>(
           outputLocation,
           coder,
-          connectedClient.get(3, TimeUnit.MINUTES).getOutboundObserver());
+          connectedClient.get(3, TimeUnit.MINUTES).getOutboundObserver(),
+          options);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new RuntimeException(e);

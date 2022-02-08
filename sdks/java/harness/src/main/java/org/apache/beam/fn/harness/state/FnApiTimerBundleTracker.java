@@ -180,7 +180,8 @@ public class FnApiTimerBundleTracker<K> {
     return modifications;
   }
 
-  public void outputTimers(Function<String, FnDataReceiver<Timer<K>>> getReceiver) {
+  public void outputTimers(
+      Function<String, FnDataReceiver<Timer<?>>> getTimersReceiverFromTimerIdFn) {
     for (Cell<ByteString, ByteString, Modifications<K>> cell : timerModifications.cellSet()) {
       Modifications<K> modifications = cell.getValue();
       if (modifications != null) {
@@ -190,7 +191,7 @@ public class FnApiTimerBundleTracker<K> {
           Timer<K> timer = timerCell.getValue();
           try {
             if (timerFamilyOrId != null && timer != null) {
-              getReceiver.apply(timerFamilyOrId).accept(timer);
+              getTimersReceiverFromTimerIdFn.apply(timerFamilyOrId).accept(timer);
             }
           } catch (Throwable t) {
             throw UserCodeException.wrap(t);

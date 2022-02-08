@@ -82,14 +82,18 @@ public class AwsModule extends SimpleModule {
   public static final String MAX_CONNECTIONS = "maxConnections";
   public static final String READ_TIMEOUT = "socketTimeout";
 
-  @SuppressWarnings({"nullness"})
   public AwsModule() {
     super("AwsModule");
-    setMixInAnnotation(AwsCredentialsProvider.class, AwsCredentialsProviderMixin.class);
-    setMixInAnnotation(ProxyConfiguration.class, ProxyConfigurationMixin.class);
-    setMixInAnnotation(AttributeMap.class, AttributeMapMixin.class);
-    setMixInAnnotation(SSECustomerKey.class, SSECustomerKeyMixin.class);
-    setMixInAnnotation(SSECustomerKey.Builder.class, SSECustomerKeyBuilderMixin.class);
+  }
+
+  @Override
+  public void setupModule(SetupContext cxt) {
+    cxt.setMixInAnnotations(AwsCredentialsProvider.class, AwsCredentialsProviderMixin.class);
+    cxt.setMixInAnnotations(ProxyConfiguration.class, ProxyConfigurationMixin.class);
+    cxt.setMixInAnnotations(AttributeMap.class, AttributeMapMixin.class);
+    cxt.setMixInAnnotations(SSECustomerKey.class, SSECustomerKeyMixin.class);
+    cxt.setMixInAnnotations(SSECustomerKey.Builder.class, SSECustomerKeyBuilderMixin.class);
+    super.setupModule(cxt);
   }
 
   /** A mixin to add Jackson annotations to {@link AwsCredentialsProvider}. */
