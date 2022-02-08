@@ -262,6 +262,13 @@ def build_list(state, arg):
     state.stack[-arg:] = [List[reduce(union, state.stack[-arg:], Union[()])]]
 
 
+def build_set(state, arg):
+  if arg == 0:
+    state.stack.append(List[Union[()]])
+  else:
+    state.stack[-arg:] = [Set[reduce(union, state.stack[-arg:], Union[()])]]
+
+
 # A Dict[Union[], Union[]] is the type of an empty dict.
 def build_map(state, arg):
   if arg == 0:
@@ -474,6 +481,11 @@ def build_list_unpack(state, arg):
   state.stack.append(List[Union[_unpack_lists(state, arg)]])
 
 
+def build_set_unpack(state, arg):
+  """Joins arg count iterables from the stack into a single set."""
+  state.stack.append(Set[Union[_unpack_lists(state, arg)]])
+
+
 def build_tuple_unpack(state, arg):
   """Joins arg count iterables from the stack into a single tuple."""
   state.stack.append(Tuple[Union[_unpack_lists(state, arg)], ...])
@@ -483,3 +495,19 @@ def build_tuple_unpack_with_call(state, arg):
   """Same as build_tuple_unpack, with an extra fn argument at the bottom of the
   stack, which remains untouched."""
   build_tuple_unpack(state, arg)
+
+
+def build_map_unpack(state, arg):
+  """Joins arg count maps from the stack into a single dict."""
+  key_types = []
+  value_types = []
+  for _ in range(arg):
+    type_constraint = state.stack.pop()
+    if isinstance(type_constraint, typehints.Dict.DictConstraint):
+      key_types.append(type_constraint.key_type)
+      value_types.append(type_constraint.value_type)
+    else:
+      key_type, value_type = key_value_types(element_type(type_constraint))
+      key_types.append(key_type)
+      value_types.append(value_type)
+  state.stack.append(Dict[Union[key_types], Union[value_types]])

@@ -51,6 +51,27 @@ class TrivialInferenceTest(unittest.TestCase):
         [typehints.List[int], typehints.List[str]])
     # yapf: enable
 
+  def testBuildSetUnpackOrUpdate(self):
+    self.assertReturnType(
+        typehints.Set[typehints.Union[int, str]],
+        lambda _list1,
+        _list2: {*_list1, *_list2, *_list2},
+        [typehints.List[int], typehints.List[str]])
+
+  def testBuildMapUnpackOrUpdate(self):
+    self.assertReturnType(
+        typehints.Dict[str, typehints.Union[int, str, float]],
+        lambda a,
+        b,
+        c: {
+            **a, **b, **c
+        },
+        [
+            typehints.Dict[str, int],
+            typehints.Dict[str, str],
+            typehints.List[typehints.Tuple[str, float]]
+        ])
+
   def testIdentity(self):
     self.assertReturnType(int, lambda x: x, [int])
 
