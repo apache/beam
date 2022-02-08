@@ -169,6 +169,18 @@ func TestNewIterable_BadMapper(t *testing.T) {
 	}
 }
 
+func TestNewKeyedIterable_BadMapper(t *testing.T) {
+	sid := StreamID{Port: Port{URL: "localhost:8099"}, PtransformID: "n0"}
+	sideId := "i0"
+	c := makeWindowedKVCoder()
+	adapter := NewSideInputAdapter(sid, sideId, c, &testFaultyWindowMapper{})
+
+	_, err := adapter.NewKeyedIterable(context.Background(), &testStateReader{}, window.GlobalWindow{}, "")
+	if err == nil {
+		t.Error("NewKeyedIterable succeeded when it should have failed.")
+	}
+}
+
 func TestNewIterable_KVType(t *testing.T) {
 	sid := StreamID{Port: Port{URL: "localhost:8099"}, PtransformID: "n0"}
 	sideId := "i0"
