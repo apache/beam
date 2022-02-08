@@ -16,6 +16,7 @@
 package exec
 
 import (
+	"context"
 	"reflect"
 	"testing"
 
@@ -81,5 +82,16 @@ func TestNewSideInputAdapter(t *testing.T) {
 		if got, want := reflect.TypeOf(adapterStruct.ec), reflect.TypeOf(test.ec); got != want {
 			t.Errorf("got ElementDecoder type %v, want %v", got, want)
 		}
+	}
+}
+
+func TestNewKeyedIterable_Unkeyed(t *testing.T) {
+	adapter := NewSideInputAdapter(StreamID{}, "", makeWindowedCoder(), nil)
+	rs, err := adapter.NewKeyedIterable(context.Background(), nil, nil, nil)
+	if err == nil {
+		t.Error("NewKeyedIterable() succeeded when it should have failed")
+	}
+	if rs != nil {
+		t.Errorf("NewKeyedIterable() returned a ReStream when it should not have, got %v", rs)
 	}
 }
