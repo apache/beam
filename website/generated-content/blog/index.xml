@@ -1,4 +1,140 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Wed, 29 Dec 2021 10:11:00 -0800</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.35.0</title><link>/blog/beam-2.35.0/</link><pubDate>Wed, 29 Dec 2021 10:11:00 -0800</pubDate><guid>/blog/beam-2.35.0/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Mon, 07 Feb 2022 10:11:00 -0800</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.36.0</title><link>/blog/beam-2.36.0/</link><pubDate>Mon, 07 Feb 2022 10:11:00 -0800</pubDate><guid>/blog/beam-2.36.0/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.36.0 release of Apache Beam.
+This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2360-2022-02-07">download page&lt;/a> for this release.&lt;/p>
+&lt;p>For more information on changes in 2.36.0, check out the &lt;a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12350406">detailed release
+notes&lt;/a>.&lt;/p>
+&lt;h2 id="ios">I/Os&lt;/h2>
+&lt;ul>
+&lt;li>Support for stopReadTime on KafkaIO SDF (Java).(&lt;a href="https://issues.apache.org/jira/browse/BEAM-13171">BEAM-13171&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
+&lt;ul>
+&lt;li>Added support for cloudpickle as a pickling library for Python SDK (&lt;a href="https://issues.apache.org/jira/browse/BEAM-8123">BEAM-8123&lt;/a>). To use cloudpickle, set pipeline option: &amp;ndash;pickler_lib=cloudpickle&lt;/li>
+&lt;li>Added option to specify triggering frequency when streaming to BigQuery (Python) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12865">BEAM-12865&lt;/a>).&lt;/li>
+&lt;li>Added option to enable caching uploaded artifacts across job runs for Python Dataflow jobs (&lt;a href="https://issues.apache.org/jira/browse/BEAM-13459">BEAM-13459&lt;/a>). To enable, set pipeline option: &amp;ndash;enable_artifact_caching, this will be enabled by default in a future release.&lt;/li>
+&lt;/ul>
+&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
+&lt;ul>
+&lt;li>Updated the jedis from 3.x to 4.x to Java RedisIO. If you are using RedisIO and using jedis directly, please refer to &lt;a href="https://github.com/redis/jedis/blob/v4.0.0/docs/3to4.md">this page&lt;/a> to update it. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12092">BEAM-12092&lt;/a>).&lt;/li>
+&lt;li>Datatype of timestamp fields in &lt;code>SqsMessage&lt;/code> for AWS IOs for SDK v2 was changed from &lt;code>String&lt;/code> to &lt;code>long&lt;/code>, visibility of all fields was fixed from &lt;code>package private&lt;/code> to &lt;code>public&lt;/code> &lt;a href="https://issues.apache.org/jira/browse/BEAM-13638">BEAM-13638&lt;/a>.&lt;/li>
+&lt;li>Properly check output timestamps on elements output from DoFns, timers, and onWindowExpiration in Java &lt;a href="https://issues.apache.org/jira/browse/BEAM-12931">BEAM-12931&lt;/a>.&lt;/li>
+&lt;li>Fixed a bug with DeferredDataFrame.xs when used with a non-tuple key
+(&lt;a href="https://issues.apache.org/jira/browse/BEAM-13421%5D">BEAM-13421&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="known-issues">Known Issues&lt;/h2>
+&lt;ul>
+&lt;li>Users may encounter an unexpected java.lang.ArithmeticException when outputting a timestamp
+for an element further than allowedSkew from an allowed DoFN skew set to a value more than
+Integer.MAX_VALUE.&lt;/li>
+&lt;li>See a full list of open &lt;a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20affectedVersion%20%3D%202.36.0%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC">issues that affect&lt;/a> this version.&lt;/li>
+&lt;/ul>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the 2.36.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>Ada Wong
+Ahmet Altay
+Alexander
+Alexander Dahl
+Alexandr Zhuravlev
+Alexey Romanenko
+AlikRodriguez
+Anand Inguva
+Andrew Pilloud
+Andy Ye
+Arkadiusz Gasiński
+Artur Khanin
+Arun Pandian
+Aydar Farrakhov
+Aydar Zainutdinov
+AydarZaynutdinov
+Benjamin Gonzalez
+Brian Hulette
+Chamikara Jayalath
+Daniel Collins
+Daniel Oliveira
+Daniel Thevessen
+Daniela Martín
+David Hinkes
+David Huntsperger
+Emily Ye
+Etienne Chauchot
+Evan Galpin
+Heejong Lee
+Ilya
+Ilya Kozyrev
+In-Ho Yi
+Jack McCluskey
+Janek Bevendorff
+Jarek Potiuk
+Ke Wu
+KevinGG
+Kyle Hersey
+Kyle Weaver
+Luís Bianchin
+Luke Cwik
+Masato Nakamura
+Matthias Baetens
+Mehdi Drissi
+Melissa Pashniak
+Michel Davit
+Miguel Hernandez
+MiguelAnzoWizeline
+Milena Bukal
+Moritz Mack
+Mostafa Aghajani
+Nathan J Mehl
+Niel Markwick
+Ning Kang
+Pablo Estrada
+Pavel Avilov
+Quentin Sommer
+Reuben van Ammers
+Reuven Lax
+Ritesh Ghorse
+Robert Bradshaw
+Robert Burke
+Ryan Thompson
+Sam Whittle
+Sayat
+Sergei Lebedev
+Sergey Kalinin
+Steve Niemitz
+Talat Uyarer
+Thiago Nunes
+Tianyang Hu
+Tim Robertson
+Valentyn Tymofieiev
+Vitaly Ivanov
+Yichi Zhang
+Yiru Tang
+Yu Feng
+Yu ISHIKAWA
+Zachary Houfek
+blais
+daria-malkova
+daria.malkova
+darshan-sj
+dpcollins-google
+emily
+ewianda
+johnjcasey
+kileys
+lam206
+laraschmidt
+mosche
+&lt;a href="mailto:msbukal@google.com">msbukal@google.com&lt;/a>
+tvalentyn&lt;/p></description></item><item><title>Blog: Apache Beam 2.35.0</title><link>/blog/beam-2.35.0/</link><pubDate>Wed, 29 Dec 2021 10:11:00 -0800</pubDate><guid>/blog/beam-2.35.0/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -4222,36 +4358,4 @@ Melissa Pashniak, Mikhail Gryzykhin, Mikhail Sokolov, mingmxu, Norbert
 Chen, Pablo Estrada, Prateek Chanda, Raghu Angadi, Ravi Pathak, Reuven
 Lax, Robert Bradshaw, Robert Burke, Rui Wang, Ryan Williams, Sindy Li,
 Thomas Weise, Tim Robertson, Tormod Haavi, Udi Meiri, Vaclav Plajt,
-Valentyn Tymofieiev, xiliu, XuMingmin, Yifan Zou, Yueyang Qiu.&lt;/p></description></item><item><title>Blog: Beam Summit Europe 2018</title><link>/blog/beam-summit-europe/</link><pubDate>Tue, 21 Aug 2018 00:00:01 -0800</pubDate><guid>/blog/beam-summit-europe/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>With a growing community of contributors and users, the Apache Beam project is organising the first European Beam Summit.&lt;/p>
-&lt;p>We are happy to invite you to this event, which will take place in &lt;strong>London&lt;/strong> on &lt;strong>October 1st and 2nd of 2018&lt;/strong>.&lt;/p>
-&lt;p>&lt;img src="/images/blog/Facebook-AD.png" alt="Beam Summit Europe 2018 flyer" height="360" width="640" >&lt;/p>
-&lt;h3 id="what-is-the-beam-summit-2018">What is the Beam Summit 2018?&lt;/h3>
-&lt;p>The summit is a 2 day, multi-track event.&lt;/p>
-&lt;p>During the first day we’ll host sessions to share use cases from companies using Apache Beam, community driven talks, and a session to discuss the project&amp;rsquo;s roadmap (from the main partners in the project as well as all users planning to contribute to the project and wanting to share their plans). We&amp;rsquo;ll also have break-out sessions that will allow cross team collaboration in multiple sub-topics.&lt;/p>
-&lt;p>The second day will be a &amp;ldquo;hands-on&amp;rdquo; day. We will offer an introductory session to Apache Beam. Additionally, we&amp;rsquo;ll host an advanced track for more advanced users with open-table discussions about more complex and newer Apache Beam features.&lt;/p>
-&lt;p>The agenda will grow and be communicated in the coming month, keep an eye on the page.&lt;/p>
-&lt;h3 id="event-details">Event Details&lt;/h3>
-&lt;ul>
-&lt;li>&lt;strong>Venue&lt;/strong>: &lt;a href="https://goo.gl/maps/LAC4haDzSzR2">Level39, One Canada Square, Canary Wharf, London E14 5AB&lt;/a>&lt;/li>
-&lt;li>&lt;strong>Dates&lt;/strong>: 1-2 October 2018&lt;/li>
-&lt;/ul>
-&lt;h3 id="how-do-i-register">How do I register?&lt;/h3>
-&lt;p>You can register for free on the &lt;a href="https://www.eventbrite.com/e/beam-summit-london-2018-tickets-49100625292#tickets">Eventbrite registration page&lt;/a>.&lt;/p>
-&lt;h3 id="i-am-interested-in-speaking-how-do-i-propose-my-session">I am interested in speaking, how do I propose my session?&lt;/h3>
-&lt;p>With this we are also launching a Call for Papers in case you want to secure a slot for one of the sessions. Please fill out the &lt;a href="https://goo.gl/forms/nrZOCC1JwEfLtKfA2">CfP form&lt;/a>.&lt;/p>
-&lt;h3 id="id-love-to-get-involved-as-a-volunteer-or-sponsor">I&amp;rsquo;d love to get involved as a volunteer or sponsor&lt;/h3>
-&lt;p>Furthermore, in order to keep this event free, we are looking for people to help out at and/or sponsor some parts of the conference. If you (or your company) are interested to help out, please reach out to: &lt;a href="mailto:baetensmatthias@gmail.com">baetensmatthias@gmail.com&lt;/a> or &lt;a href="mailto:alex@vanboxel.be">alex@vanboxel.be&lt;/a>. You can find more info in the &lt;a href="https://drive.google.com/file/d/1RnZ52rGaB6BR-EKneBcabdMcg9Pl7z9M">sponsor booklet&lt;/a>&lt;/p>
-&lt;p>Thanks, and we hope to see you at the event!
-The Events &amp;amp; Meetups Group&lt;/p></description></item></channel></rss>
+Valentyn Tymofieiev, xiliu, XuMingmin, Yifan Zou, Yueyang Qiu.&lt;/p></description></item></channel></rss>
