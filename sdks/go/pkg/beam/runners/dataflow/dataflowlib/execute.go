@@ -23,6 +23,7 @@ import (
 	"os"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
@@ -59,16 +60,25 @@ func Execute(ctx context.Context, raw *pipepb.Pipeline, opts *JobOptions, worker
 	}
 
 	log.Infof(ctx, "Staging worker binary: %v", bin)
-
-	if err := StageFile(ctx, opts.Project, workerURL, bin); err != nil {
+	hash, err := stageFile(ctx, opts.Project, workerURL, bin)
+	if err != nil {
 		return presult, err
 	}
 	log.Infof(ctx, "Staged worker binary: %v", workerURL)
 
+	if err := graphx.UpdateDefaultEnvWorkerType(
+		graphx.URNArtifactURLType,
+		protox.MustEncode(&pipepb.ArtifactUrlPayload{
+			Url:    workerURL,
+			Sha256: hash,
+		}), raw); err != nil {
+		return presult, err
+	}
+
 	if opts.WorkerJar != "" {
 		log.Infof(ctx, "Staging Dataflow worker jar: %v", opts.WorkerJar)
 
-		if err := StageFile(ctx, opts.Project, jarURL, opts.WorkerJar); err != nil {
+		if _, err := stageFile(ctx, opts.Project, jarURL, opts.WorkerJar); err != nil {
 			return presult, err
 		}
 		log.Infof(ctx, "Staged worker jar: %v", jarURL)

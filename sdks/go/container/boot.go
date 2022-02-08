@@ -99,6 +99,7 @@ func main() {
 		log.Fatalf("Failed to retrieve staged files: %v", err)
 	}
 
+	// TODO(BEAM-13647): Remove legacy hack once aged out.
 	const worker = "worker"
 	name := worker
 
@@ -110,10 +111,21 @@ func main() {
 	default:
 		found := false
 		for _, a := range artifacts {
-			n, _ := artifact.MustExtractFilePayload(a)
-			if n == worker {
+			if a.GetRoleUrn() == artifact.URNGoWorkerBinaryRole {
+				name, _ = artifact.MustExtractFilePayload(a)
 				found = true
 				break
+			}
+		}
+		// TODO(BEAM-13647): Remove legacy hack once aged out.
+		if !found {
+			for _, a := range artifacts {
+				n, _ := artifact.MustExtractFilePayload(a)
+				if n == worker {
+					found = true
+					log.Printf("Go worker binary found with legacy name '%v' found", worker)
+					break
+				}
 			}
 		}
 		if !found {
