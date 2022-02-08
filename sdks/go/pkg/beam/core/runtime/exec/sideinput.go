@@ -65,6 +65,8 @@ func NewSideInputAdapter(sid StreamID, sideInputID string, c *coder.Coder, wm Wi
 	return &sideInputAdapter{sid: sid, sideInputID: sideInputID, wc: wc, kc: kc, ec: ec, wm: wm, c: c}
 }
 
+// NewIterable returns a ReStream of an iterable side input from the runner, either by getting the ReStream from
+// the side input cache or by opening a new stream and reading it in.
 func (s *sideInputAdapter) NewIterable(ctx context.Context, reader StateReader, w typex.Window) (ReStream, error) {
 	key := []byte(iterableSideInputKey)
 
@@ -100,6 +102,8 @@ func (s *sideInputAdapter) NewIterable(ctx context.Context, reader StateReader, 
 	return cache.SetCache(ctx, s.sid.PtransformID, s.sideInputID, win, key, r), nil
 }
 
+// NewKeyedIterable returns a ReStream of a multimap side input from the runner, either by getting the ReStream from
+// the side input cache or by opening a new stream and reading it in.
 func (s *sideInputAdapter) NewKeyedIterable(ctx context.Context, reader StateReader, w typex.Window, iterKey interface{}) (ReStream, error) {
 	if s.kc == nil {
 		return nil, fmt.Errorf("cannot make a keyed iterable for an unkeyed side input %v.", s.sideInputID)
@@ -125,7 +129,7 @@ func (s *sideInputAdapter) NewKeyedIterable(ctx context.Context, reader StateRea
 	// Cache miss, build new ReStream
 	r := &proxyReStream{
 		open: func() (Stream, error) {
-			r, err := reader.OpenSideInput(ctx, s.sid, s.sideInputID, key, win)
+			r, err := reader.OpenMultiMapSideInput(ctx, s.sid, s.sideInputID, key, win)
 			if err != nil {
 				return nil, err
 			}

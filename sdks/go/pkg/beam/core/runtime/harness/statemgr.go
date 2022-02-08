@@ -60,8 +60,8 @@ func (s *ScopedStateReader) OpenIterableSideInput(ctx context.Context, id exec.S
 	})
 }
 
-// OpenSideInput opens a byte stream for reading multimap side input.
-func (s *ScopedStateReader) OpenSideInput(ctx context.Context, id exec.StreamID, sideInputID string, key, w []byte) (io.ReadCloser, error) {
+// OpenMultiMapSideInput opens a byte stream for reading multimap side input.
+func (s *ScopedStateReader) OpenMultiMapSideInput(ctx context.Context, id exec.StreamID, sideInputID string, key, w []byte) (io.ReadCloser, error) {
 	return s.openReader(ctx, id, func(ch *StateChannel) *stateKeyReader {
 		return newSideInputReader(ch, id, sideInputID, s.instID, key, w)
 	})
