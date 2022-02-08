@@ -202,9 +202,17 @@ func (cd *CloudStorage) GetDefaultPrecompiledObjects(ctx context.Context) (map[p
 	defer client.Close()
 	bucket := client.Bucket(BucketName)
 
-	paths, err := cd.getDefaultPrecompiledObjectsPaths(ctx, bucket)
-	if err != nil {
-		return nil, err
+	paths := make(map[pb.Sdk]string, 0)
+	for _, sdkName := range pb.Sdk_name {
+		sdk := pb.Sdk(pb.Sdk_value[sdkName])
+		if sdk == pb.Sdk_SDK_UNSPECIFIED {
+			continue
+		}
+		path, err := cd.getDefaultPrecompiledObjectsPath(ctx, bucket, sdk)
+		if err != nil {
+			return nil, err
+		}
+		paths[sdk] = path
 	}
 
 	defaultPrecompiledObjects := make(map[pb.Sdk]*pb.PrecompiledObject, 0)
@@ -234,27 +242,24 @@ func (cd *CloudStorage) GetDefaultPrecompiledObjects(ctx context.Context) (map[p
 	return defaultPrecompiledObjects, nil
 }
 
-// getDefaultPrecompiledObjectsPaths returns map where for each SDK path to the default precompiled object is contained
-func (cd *CloudStorage) getDefaultPrecompiledObjectsPaths(ctx context.Context, bucket *storage.BucketHandle) (map[pb.Sdk]string, error) {
-	rc, err := bucket.Object(DefaultPrecompiledObjectsInfo).NewReader(ctx)
+// getDefaultPrecompiledObjectsPath returns path for SDK to the default precompiled object
+func (cd *CloudStorage) getDefaultPrecompiledObjectsPath(ctx context.Context, bucket *storage.BucketHandle, sdk pb.Sdk) (string, error) {
+	pathToFile := fmt.Sprintf("%s/%s", sdk.String(), DefaultPrecompiledObjectsInfo)
+	rc, err := bucket.Object(pathToFile).NewReader(ctx)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	data, err := io.ReadAll(rc)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	paths := make(map[string]string, 0)
-	sdkToPath := make(map[pb.Sdk]string, 0)
-	if err := json.Unmarshal(data, &paths); err != nil {
-		panic(err)
+	path := make(map[string]string, 0)
+	if err := json.Unmarshal(data, &path); err != nil {
+		return "", err
 	}
-	for key, value := range paths {
-		sdkToPath[pb.Sdk(pb.Sdk_value[key])] = value
-	}
-	return sdkToPath, nil
+	return path[sdk.String()], nil
 }
 
 // getPrecompiledObjectsDirs finds directories with precompiled objects
