@@ -156,7 +156,7 @@ task examples {
   // Execute tests with xdists
   doFirst {
     def argMap = [
-            "test_opts": testOpts,
+            "test_opts": testOpts + ["--numprocesses=8", "--dist=loadfile"],
             "sdk_location": files(configurations.distTarBall.files).singleFile,
             "runner_v2": "true",
             "suite": "postCommitIT-df${pythonVersionSuffix}-xdist",
