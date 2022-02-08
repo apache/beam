@@ -44,6 +44,8 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class JdbcUtilTest {
 
+  // TODO(BEAM-13846): Support string-based partitioning once the transform supports modifying
+  //      range properties (inclusive/exclusive).
   static final JdbcReadWithPartitionsHelper<String> PROTOTYPE_STRING_PARTITIONER =
       new JdbcReadWithPartitionsHelper<String>() {
         @Override

@@ -409,10 +409,8 @@ class JdbcUtil {
                 ranges.add(KV.of(i, i + stride));
                 highest = i + stride;
               }
-              if (upperBound - lowerBound > stride * (ranges.size() - 1)) {
-                long indexFrom = highest;
-                long indexTo = upperBound + 1;
-                ranges.add(KV.of(indexFrom, indexTo));
+              if (highest < upperBound + 1) {
+                ranges.add(KV.of(highest, upperBound + 1));
               }
               return ranges;
             }
@@ -445,13 +443,12 @@ class JdbcUtil {
               final List<KV<DateTime, DateTime>> result = new ArrayList<>();
 
               final long intervalMillis = upperBound.getMillis() - lowerBound.getMillis();
-              final long strideMillis =
-                  intervalMillis / partitions == 0 ? 1 : intervalMillis / partitions;
+              final Duration stride = Duration.millis(Math.max(1, intervalMillis / partitions));
               // Add the first advancement
               DateTime currentLowerBound = lowerBound;
               // Zero output in a comparison means that elements are equal
               while (currentLowerBound.compareTo(upperBound) <= 0) {
-                DateTime currentUpper = currentLowerBound.plus(Duration.millis(strideMillis));
+                DateTime currentUpper = currentLowerBound.plus(stride);
                 if (currentUpper.compareTo(upperBound) >= 0) {
                   // If we hit the upper bound directly, then we want to be just-above it, so that
                   // it will be captured by the less-than query.
@@ -460,7 +457,7 @@ class JdbcUtil {
                   return result;
                 }
                 result.add(KV.of(currentLowerBound, currentUpper));
-                currentLowerBound = currentLowerBound.plus(Duration.millis(strideMillis));
+                currentLowerBound = currentLowerBound.plus(stride);
               }
               return result;
             }

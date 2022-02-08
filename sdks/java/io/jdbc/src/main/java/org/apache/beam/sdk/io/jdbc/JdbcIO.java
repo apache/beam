@@ -1163,7 +1163,6 @@ public class JdbcIO {
 
     @Override
     public PCollection<T> expand(PBegin input) {
-      checkNotNull(getRowMapper(), "withRowMapper() is required");
       checkNotNull(
           getDataSourceProviderFn(),
           "withDataSourceConfiguration() or withDataSourceProviderFn() is required");
@@ -1252,11 +1251,12 @@ public class JdbcIO {
       }
 
       RowMapper<T> rowMapper;
+      Schema schema = null;
       if (getUseBeamSchema()) {
-        Schema schema =
+        schema =
             ReadRows.inferBeamSchema(
                 getDataSourceProviderFn().apply(null),
-                String.format("SELECT * FROM %S", getTable()));
+                String.format("SELECT * FROM %s", getTable()));
         rowMapper = (RowMapper<T>) SchemaUtil.BeamRowMapper.of(schema);
       } else {
         rowMapper = getRowMapper();
@@ -1281,7 +1281,9 @@ public class JdbcIO {
                       ::setParameters)
               .withOutputParallelization(false);
 
-      if (getCoder() != null) {
+      if (getUseBeamSchema()) {
+        readAll = readAll.withCoder((Coder<T>) RowCoder.of(schema));
+      } else if (getCoder() != null) {
         readAll = readAll.withCoder(getCoder());
       }
 
@@ -1291,7 +1293,12 @@ public class JdbcIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder.add(DisplayData.item("rowMapper", getRowMapper().getClass().getName()));
+      builder.add(
+          DisplayData.item(
+              "rowMapper",
+              getRowMapper() == null
+                  ? "auto-infer"
+                  : getRowMapper().getClass().getCanonicalName()));
       if (getCoder() != null) {
         builder.add(DisplayData.item("coder", getCoder().getClass().getName()));
       }

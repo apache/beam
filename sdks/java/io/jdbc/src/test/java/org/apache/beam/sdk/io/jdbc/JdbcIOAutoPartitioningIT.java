@@ -28,6 +28,7 @@ import org.apache.beam.sdk.io.common.DatabaseTestHelper;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.RowMapper;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
@@ -47,6 +48,7 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
@@ -107,7 +109,7 @@ public class JdbcIOAutoPartitioningIT {
               for (int i = 0; i < maxRetries; i++) {
                 try {
                   pipelineRead.apply(base, description);
-                  // base.evaluate();
+                  base.evaluate();
                   return;
                 } catch (Throwable t) {
                   caughtThrowable = t;
@@ -130,6 +132,7 @@ public class JdbcIOAutoPartitioningIT {
 
   @Before
   public void prepareDatabase() throws SQLException {
+    pipelineRead.getOptions().setStableUniqueNames(CheckEnabled.OFF);
     DataSource dbDs = DatabaseTestHelper.getDataSourceForContainer(getDb(dbms));
     try {
       DatabaseTestHelper.createTable(
@@ -139,8 +142,11 @@ public class JdbcIOAutoPartitioningIT {
               KV.of("id", "INTEGER"),
               KV.of("name", "VARCHAR(50)"),
               KV.of("specialDate", "TIMESTAMP")));
-    } catch (Exception e) {
+    } catch (SQLException e) {
+      LOG.warn("Exception occurred when preparing database {}", dbms, e);
       return;
+    } catch (Exception e) {
+      throw e;
     }
 
     final String dbmsLocal = dbms;
@@ -215,7 +221,8 @@ public class JdbcIOAutoPartitioningIT {
       MapRowDataFn.millisDist.update(millisOffset);
       return new RowData(
           id,
-          randomStr(rnd.nextInt()),
+          // randomStr(rnd.nextInt()),
+          String.valueOf(rnd.nextDouble()),
           new DateTime(Instant.EPOCH.plus(Duration.millis(millisOffset))));
     }
   }
@@ -267,6 +274,7 @@ public class JdbcIOAutoPartitioningIT {
   }
 
   @Test
+  @Ignore("BEAM-13846")
   public void testAutomaticStringPartitioning() throws SQLException {
     final String dbmsLocal = dbms;
     PCollection<RowData> databaseData =
@@ -320,6 +328,7 @@ public class JdbcIOAutoPartitioningIT {
   }
 
   @Test
+  @Ignore("BEAM-13846")
   public void testAutomaticStringPartitioningAutomaticRangeManagement() throws SQLException {
     final String dbmsLocal = dbms;
     PCollection<RowData> databaseData =
@@ -353,6 +362,7 @@ public class JdbcIOAutoPartitioningIT {
   }
 
   @Test
+  @Ignore("BEAM-13846")
   public void testAutomaticStringPartitioningAutomaticPartitionManagement() throws SQLException {
     final String dbmsLocal = dbms;
     PCollection<RowData> databaseData =
