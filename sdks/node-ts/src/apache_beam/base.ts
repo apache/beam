@@ -49,14 +49,11 @@ type Components = runnerApi.Components | fnApi.ProcessBundleDescriptor;
 
 // TODO: Cleanup. Where to put this.
 export class PipelineContext {
-  components: Components;
   counter: number = 0;
 
   private coders: { [key: string]: Coder<any> } = {};
 
-  constructor(components: Components) {
-    this.components = components;
-  }
+  constructor(public components: Components) {}
 
   getCoder<T>(coderId: string): Coder<T> {
     const this_ = this;
