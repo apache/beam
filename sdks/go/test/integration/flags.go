@@ -30,6 +30,10 @@ var (
 	// cross-language IO transforms.
 	IoExpansionAddr = flag.String("io_expansion_addr", "", "Address of Expansion Service for cross-language IOs.")
 
+	// SchemaIoExpansionAddr is the endpoint for the expansion service for
+	// cross-language SchemaIO-based transforms.
+	SchemaIoExpansionAddr = flag.String("schemaio_expansion_addr", "", "Address of Expansion Service for cross-language SchemaIO-based IOs.")
+
 	// BootstrapServers is the address of the bootstrap servers for a Kafka
 	// cluster, used for Kafka IO tests.
 	BootstrapServers = flag.String("bootstrap_servers", "",

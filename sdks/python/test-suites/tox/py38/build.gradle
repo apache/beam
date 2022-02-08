@@ -76,6 +76,10 @@ toxTask "testPy38pandas-13", "py38-pandas-13"
 test.dependsOn "testPy38pandas-13"
 preCommitPy38.dependsOn "testPy38pandas-13"
 
+toxTask "testPy38pandas-14", "py38-pandas-14"
+test.dependsOn "testPy38pandas-14"
+preCommitPy38.dependsOn "testPy38pandas-14"
+
 toxTask "whitespacelint", "whitespacelint"
 
 task archiveFilesToLint(type: Zip) {

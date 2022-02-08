@@ -68,6 +68,7 @@ func ResolveXLangArtifacts(ctx context.Context, edges []*graph.MultiEdge, projec
 		},
 	}
 	paths, err := xlangx.ResolveArtifactsWithConfig(ctx, edges, cfg)
+	xlangx.UpdateArtifactTypeFromFileToUrl(edges)
 	if err != nil {
 		return nil, err
 	}
