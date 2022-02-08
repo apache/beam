@@ -90,7 +90,7 @@ func (s *sideInputAdapter) NewIterable(ctx context.Context, reader StateReader, 
 	// Cache miss, build new ReStream
 	r := &proxyReStream{
 		open: func() (Stream, error) {
-			r, err := reader.OpenSideInput(ctx, s.sid, s.sideInputID, nil, win)
+			r, err := reader.OpenIterableSideInput(ctx, s.sid, s.sideInputID, win)
 			if err != nil {
 				return nil, err
 			}
