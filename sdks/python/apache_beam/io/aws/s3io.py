@@ -608,7 +608,8 @@ class S3Uploader(Uploader):
       # protect ourselves from mid size files between these two sizes
       # MIN_WRITE_SIZE = 5 * 1024 * 1024
       # MAX_WRITE_SIZE = 5 * 1024 * 1024 * 1024
-      # as we will reach this finish() with len(self.buffer) == 0 but len(self.parts) > 0
+      # as we will reach this finish() with len(self.buffer) == 0
+      # but len(self.parts) > 0
       self._write_to_s3(self.buffer)
 
     if self.last_error is not None:

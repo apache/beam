@@ -793,9 +793,11 @@ class TestS3IO(unittest.TestCase):
       self._insert_random_file(self.aws.client, file_name, file_size)
       self.assertTrue(
           isinstance(self.client, fake_client.FakeS3Client), assert_msg)
+    except messages.S3ClientError:
+      # we expect a S3ClientError for a zerosized file on a non-fake client
+      pass
     except:
-      with self.assertRaises(messages.S3ClientError, msg=assert_msg):
-        raise
+      self.fail(assert_msg)
 
     self.aws.delete(file_name)
 
