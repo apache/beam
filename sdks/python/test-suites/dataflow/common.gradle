@@ -153,7 +153,7 @@ task examples {
   dependsOn ':sdks:python:sdist'
 
   doLast {
-    def testOpts = basicPytestOpts + ["--numprocesses=8", "--dist=loadfile"]
+    def testOpts = basicPytestOpts
     def argMap = [
             "test_opts": testOpts,
             "sdk_location": files(configurations.distTarBall.files).singleFile,
