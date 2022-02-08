@@ -67,8 +67,17 @@ const (
 
 	URNRequiresSplittableDoFn = "beam:requirement:pardo:splittable_dofn:v1"
 
-	URNArtifactGoWorker  = "beam:artifact:type:go_worker_binary:v1"
-	URNArtifactStagingTo = "beam:artifact:role:staging_to:v1"
+	// Deprecated: Determine worker binary based on GoWorkerBinary Role instead.
+	URNArtifactGoWorker = "beam:artifact:type:go_worker_binary:v1"
+
+	URNArtifactFileType     = "beam:artifact:type:file:v1"
+	URNArtifactURLType      = "beam:artifact:type:url:v1"
+	URNArtifactGoWorkerRole = "beam:artifact:role:go_worker_binary:v1"
+
+	// Environment Urns.
+	URNEnvProcess  = "beam:env:process:v1"
+	URNEnvExternal = "beam:env:external:v1"
+	URNEnvDocker   = "beam:env:docker:v1"
 )
 
 func goCapabilities() []string {
@@ -85,14 +94,14 @@ func goCapabilities() []string {
 func CreateEnvironment(ctx context.Context, urn string, extractEnvironmentConfig func(context.Context) string) (*pipepb.Environment, error) {
 	var serializedPayload []byte
 	switch urn {
-	case "beam:env:process:v1":
+	case URNEnvProcess:
 		// TODO Support process based SDK Harness.
 		return nil, errors.Errorf("unsupported environment %v", urn)
-	case "beam:env:external:v1":
+	case URNEnvExternal:
 		config := extractEnvironmentConfig(ctx)
 		payload := &pipepb.ExternalPayload{Endpoint: &pipepb.ApiServiceDescriptor{Url: config}}
 		serializedPayload = protox.MustEncode(payload)
-	case "beam:env:docker:v1":
+	case URNEnvDocker:
 		fallthrough
 	default:
 		config := extractEnvironmentConfig(ctx)
@@ -105,11 +114,9 @@ func CreateEnvironment(ctx context.Context, urn string, extractEnvironmentConfig
 		Capabilities: goCapabilities(),
 		Dependencies: []*pipepb.ArtifactInformation{
 			{
-				TypeUrn: URNArtifactGoWorker,
-				RoleUrn: URNArtifactStagingTo,
-				RolePayload: protox.MustEncode(&pipepb.ArtifactStagingToRolePayload{
-					StagedName: "worker",
-				}),
+				TypeUrn:     URNArtifactFileType,
+				TypePayload: protox.MustEncode(&pipepb.ArtifactFilePayload{}),
+				RoleUrn:     URNArtifactGoWorkerRole,
 			},
 		},
 	}, nil
@@ -981,6 +988,7 @@ func boolToBounded(bounded bool) pipepb.IsBounded_Enum {
 	return pipepb.IsBounded_UNBOUNDED
 }
 
+// defaultEnvId is the environment ID used for Go Pipeline Environments.
 const defaultEnvId = "go"
 
 func (m *marshaller) addDefaultEnv() string {
@@ -1258,4 +1266,24 @@ func nodeID(n *graph.Node) string {
 
 func scopeID(s *graph.Scope) string {
 	return fmt.Sprintf("s%v", s.ID())
+}
+
+// UpdateDefaultEnvWorkerType is so runners can update the pipeline's default environment
+// with the correct artifact type and payload for the Go worker binary.
+func UpdateDefaultEnvWorkerType(typeUrn string, pyld []byte, p *pipepb.Pipeline) error {
+	// Get the Go environment out.
+	envs := p.GetComponents().GetEnvironments()
+	env, ok := envs[defaultEnvId]
+	if !ok {
+		return errors.Errorf("unable to find default Go environment with ID %q", defaultEnvId)
+	}
+	for _, dep := range env.GetDependencies() {
+		if dep.RoleUrn != URNArtifactGoWorkerRole {
+			continue
+		}
+		dep.TypeUrn = typeUrn
+		dep.TypePayload = pyld
+		return nil
+	}
+	return errors.Errorf("unable to find dependency with %q role in environment with ID %q,", URNArtifactGoWorkerRole, defaultEnvId)
 }
