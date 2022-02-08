@@ -25,6 +25,7 @@ import unittest
 
 import hamcrest as hc
 
+from apache_beam.options.pipeline_options import _BeamArgumentParser
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -35,6 +36,8 @@ from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class PipelineOptionsTest(unittest.TestCase):
@@ -646,6 +649,84 @@ class PipelineOptionsTest(unittest.TestCase):
     options = PipelineOptions(flags=[''])
     self.assertEqual(
         options.get_all_options()['dataflow_service_options'], None)
+
+  def test_options_store_false_with_different_dest(self):
+    parser = _BeamArgumentParser()
+    for cls in PipelineOptions.__subclasses__():
+      cls._add_argparse_args(parser)
+
+    actions = parser._actions.copy()
+    options_to_dest = {}
+    options_diff_dest_store_true = {}  # action == store_true,
+    # dest is different name
+    for i in range(len(actions)):
+      options_name = actions[i].option_strings
+      dest = actions[i].dest
+      if isinstance(actions[i].const, bool):
+        for option_name in options_name:
+          option_name = option_name.strip(
+              '--') if '--' in option_name else option_name
+          if option_name != dest:
+            if actions[i].const:
+              options_diff_dest_store_true[option_name] = dest
+              continue
+            options_to_dest[option_name] = dest
+
+    assert len(options_diff_dest_store_true) == 0, (
+      _LOGGER.error("There should be no options that have a dest "
+                    "different from option_name and action as "
+                    "store_true. It would be confusing "
+                    "to the user. Please specify the dest as the "
+                    "option_name/flag_name instead.")
+    )
+    from apache_beam.options.pipeline_options import (
+        _STORE_FALSE_OPTIONS_WITH_DIFFERENT_DEST)
+
+    def get_options_not_present_in_map(d1, d2):
+      d = {}
+      for k in d1:
+        if k not in d2:
+          d[k] = d1[k]
+      return d
+
+    assert _STORE_FALSE_OPTIONS_WITH_DIFFERENT_DEST == options_to_dest, (
+      "If you are adding a new option with default=None, action=store_false,"
+      " with dest different from option name, please add the option_name and "
+      "dest of the option: %s to variable "
+      " _STORE_FALSE_OPTIONS_WITH_DIFFERENT_DEST in PipelineOptions.py" % (
+      get_options_not_present_in_map(options_to_dest,
+                                     _STORE_FALSE_OPTIONS_WITH_DIFFERENT_DEST))
+    )
+
+  def test_pipelineoptions_store_false_with_different_dest(self):
+
+    flags = ['--no_use_public_ips']
+    params = {'no_use_public_ips': True}
+    options_1 = PipelineOptions(flags).view_as(WorkerOptions)
+    options_2 = PipelineOptions(**params).view_as(WorkerOptions)
+    options_3 = PipelineOptions.from_dictionary(params).view_as(WorkerOptions)
+
+    assert options_1.use_public_ips == options_2.use_public_ips == (
+        options_3.use_public_ips) == False
+
+    flags = ['--use_public_ips']
+    params = {'use_public_ips': True}
+    options_1 = PipelineOptions(flags).view_as(WorkerOptions)
+    options_2 = PipelineOptions(**params).view_as(WorkerOptions)
+    options_3 = PipelineOptions.from_dictionary(params).view_as(WorkerOptions)
+
+    assert options_1.use_public_ips == options_2.use_public_ips == (
+        options_3.use_public_ips) == True
+    params = {'use_public_ips': False}  # use_public_ips = False represents
+    # that this option is not provided to the command line.
+    flags = []
+    options_1 = PipelineOptions(flags).view_as(WorkerOptions)
+    options_2 = PipelineOptions(**params).view_as(WorkerOptions)
+    options_3 = PipelineOptions.from_dictionary(params).view_as(WorkerOptions)
+
+    # Invalid override flags in params.
+    assert options_1.use_public_ips == options_2.use_public_ips == (
+        options_3.use_public_ips) == None
 
 
 if __name__ == '__main__':

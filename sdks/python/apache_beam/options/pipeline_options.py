@@ -55,6 +55,18 @@ PipelineOptionsT = TypeVar('PipelineOptionsT', bound='PipelineOptions')
 
 _LOGGER = logging.getLogger(__name__)
 
+# These options have no dest and action is store_false in the
+# argparse and default is None. When parsing these options in a dict using
+# PipelineOptions,We either ignore/discard if these options are specified.
+# Defining a map with their dest would maintain consistency
+# across PipelineOptions(**dict), PipelineOptions.from_dictionary(dict),
+# and argparse.
+_STORE_FALSE_OPTIONS_WITH_DIFFERENT_DEST = {
+    'no_use_public_ips': 'use_public_ips',
+    'no_pipeline_type_check': 'pipeline_type_check',
+    'no_direct_runner_use_stacked_bundle': 'direct_runner_use_stacked_bundle'
+}
+
 
 def _static_value_provider_of(value_type):
   """"Helper function to plug a ValueProvider into argparse.
@@ -212,12 +224,37 @@ class PipelineOptions(HasDisplayData):
     # Users access this dictionary store via __getattr__ / __setattr__ methods.
     self._all_options = kwargs
 
+    # filter bool options which are False to raise warnings.
+    # Beam doesn't support --<option_name>=False on the command line.
+    # If a boolean option specified in kwargs programmatically,
+    # Eg: {no_use_public_ips: True}, implicitly it means the option
+    # is provided on the command line as --no_use_public_ips.
+
+    self.invalid_options = {}
+    for option_name, option_value in self._all_options.items():
+      if isinstance(option_value, bool) and not option_value:
+        self.invalid_options[option_name] = option_value
+
+    for k in self.invalid_options:
+      if k in self._all_options:
+        del self._all_options[k]
+
+    if self.invalid_options:
+      _LOGGER.warning("Discarding invalid overrides: %s", self.invalid_options)
+
     # Initialize values of keys defined by this class.
     for option_name in self._visible_option_list():
       # Note that options specified in kwargs will not be overwritten.
       if option_name not in self._all_options:
         self._all_options[option_name] = getattr(
             self._visible_options, option_name)
+
+    # flags like --no_use_public_ips have a different dest.
+    # Get the dest name from _STORE_FALSE_OPTIONS_WITH_DIFFERENT_DEST
+    for option_name, option_dest in (
+      _STORE_FALSE_OPTIONS_WITH_DIFFERENT_DEST.items()):
+      if option_name in self._all_options:
+        self._all_options[option_dest] = False
 
   @classmethod
   def _add_argparse_args(cls, parser):
@@ -236,10 +273,13 @@ class PipelineOptions(HasDisplayData):
       A PipelineOptions object representing the given arguments.
     """
     flags = []
+    invalid_options = {}
     for k, v in options.items():
       if isinstance(v, bool):
         if v:
           flags.append('--%s' % k)
+        else:
+          invalid_options[k] = v
       elif isinstance(v, list):
         for i in v:
           flags.append('--%s=%s' % (k, i))
@@ -248,6 +288,8 @@ class PipelineOptions(HasDisplayData):
       else:
         flags.append('--%s=%s' % (k, v))
 
+    if invalid_options:
+      _LOGGER.warning("Discarding invalid overrides: %s", invalid_options)
     return cls(flags)
 
   def get_all_options(
@@ -390,7 +432,8 @@ class PipelineOptions(HasDisplayData):
           "'%s' object has no attribute '%s'" % (type(self).__name__, name))
 
   def __setattr__(self, name, value):
-    if name in ('_flags', '_all_options', '_visible_options'):
+    if name in ('_flags', '_all_options', '_visible_options',
+                'invalid_options'):
       super().__setattr__(name, value)
     elif name in self._visible_option_list():
       self._all_options[name] = value
