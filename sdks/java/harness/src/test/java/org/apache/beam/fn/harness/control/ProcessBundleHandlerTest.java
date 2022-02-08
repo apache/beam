@@ -35,6 +35,7 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.eq;
@@ -1029,9 +1030,10 @@ public class ProcessBundleHandlerTest {
 
                       @Override
                       public void onCompleted() {}
-                    }))
+                    },
+                    invocation.getArgument(2)))
         .when(beamFnDataClient)
-        .createOutboundAggregator(any(), any());
+        .createOutboundAggregator(any(), any(), anyBoolean());
 
     return new ProcessBundleHandler(
         PipelineOptionsFactory.create(),

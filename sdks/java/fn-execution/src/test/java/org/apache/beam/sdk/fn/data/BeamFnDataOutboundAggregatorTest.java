@@ -78,11 +78,12 @@ public class BeamFnDataOutboundAggregatorTest {
             endpoint::getInstructionId,
             TestStreams.<Elements>withOnNext(values::add)
                 .withOnCompleted(() -> onCompletedWasCalled.set(true))
-                .build());
+                .build(),
+            false);
 
     // Test that nothing is emitted till the default buffer size is surpassed.
     FnDataReceiver<byte[]> dataReceiver = registerOutputLocation(aggregator, endpoint, CODER);
-    aggregator.start(false);
+    aggregator.start();
     dataReceiver.accept(new byte[BeamFnDataOutboundAggregator.DEFAULT_BUFFER_LIMIT_BYTES - 50]);
     assertThat(values, empty());
 
@@ -127,10 +128,11 @@ public class BeamFnDataOutboundAggregatorTest {
             endpoint::getInstructionId,
             TestStreams.<Elements>withOnNext(values::add)
                 .withOnCompleted(() -> onCompletedWasCalled.set(true))
-                .build());
+                .build(),
+            false);
     // Test that nothing is emitted till the default buffer size is surpassed.
     FnDataReceiver<byte[]> dataReceiver = registerOutputLocation(aggregator, endpoint, CODER);
-    aggregator.start(false);
+    aggregator.start();
     dataReceiver.accept(new byte[51]);
     assertThat(values, empty());
 
@@ -193,11 +195,12 @@ public class BeamFnDataOutboundAggregatorTest {
                           values.add(e);
                           waitForFlush.countDown();
                         })
-                .build());
+                .build(),
+            false);
 
     // Test that it emits when time passed the time limit
     FnDataReceiver<byte[]> dataReceiver = registerOutputLocation(aggregator, endpoint, CODER);
-    aggregator.start(false);
+    aggregator.start();
     dataReceiver.accept(new byte[1]);
     waitForFlush.await(); // wait the flush thread to flush the buffer
     assertEquals(messageWithData(new byte[1]), values.get(0));
@@ -218,11 +221,12 @@ public class BeamFnDataOutboundAggregatorTest {
                         e -> {
                           throw new RuntimeException("");
                         })
-                .build());
+                .build(),
+            false);
 
     // Test that it emits when time passed the time limit
     FnDataReceiver<byte[]> dataReceiver = registerOutputLocation(aggregator, endpoint, CODER);
-    aggregator.start(false);
+    aggregator.start();
     dataReceiver.accept(new byte[1]);
     // wait the flush thread to flush the buffer
     while (!aggregator.flushFuture.isDone()) {
@@ -246,9 +250,10 @@ public class BeamFnDataOutboundAggregatorTest {
                         e -> {
                           throw new RuntimeException("");
                         })
-                .build());
+                .build(),
+            false);
     dataReceiver = registerOutputLocation(aggregator, endpoint, CODER);
-    aggregator.start(false);
+    aggregator.start();
     dataReceiver.accept(new byte[1]);
     // wait the flush thread to flush the buffer
     while (!aggregator.flushFuture.isDone()) {
@@ -278,7 +283,8 @@ public class BeamFnDataOutboundAggregatorTest {
             endpoint::getInstructionId,
             TestStreams.<Elements>withOnNext(values::add)
                 .withOnCompleted(() -> onCompletedWasCalled.set(true))
-                .build());
+                .build(),
+            false);
     // Test that nothing is emitted till the default buffer size is surpassed.
     LogicalEndpoint additionalEndpoint =
         LogicalEndpoint.data(
@@ -286,7 +292,7 @@ public class BeamFnDataOutboundAggregatorTest {
     FnDataReceiver<byte[]> dataReceiver = registerOutputLocation(aggregator, endpoint, CODER);
     FnDataReceiver<byte[]> additionalDataReceiver =
         registerOutputLocation(aggregator, additionalEndpoint, CODER);
-    aggregator.start(false);
+    aggregator.start();
     dataReceiver.accept(new byte[51]);
     assertThat(values, empty());
 

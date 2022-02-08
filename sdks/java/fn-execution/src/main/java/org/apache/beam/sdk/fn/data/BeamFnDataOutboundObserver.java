@@ -51,7 +51,7 @@ public class BeamFnDataOutboundObserver<T> implements CloseableFnDataReceiver<T>
       PipelineOptions options) {
     this.aggregator =
         new BeamFnDataOutboundAggregator(
-            options, outputLocation::getInstructionId, outboundObserver);
+            options, outputLocation::getInstructionId, outboundObserver, false);
     this.dataReceiver =
         outputLocation.isTimer()
             ? (FnDataReceiver<T>)
@@ -62,7 +62,7 @@ public class BeamFnDataOutboundObserver<T> implements CloseableFnDataReceiver<T>
             : (FnDataReceiver<T>)
                 aggregator.registerOutputDataLocation(
                     outputLocation.getTransformId(), (Coder<Object>) coder);
-    aggregator.start(false);
+    aggregator.start();
     this.closed = false;
   }
 

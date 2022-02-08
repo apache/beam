@@ -24,8 +24,8 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
@@ -58,6 +58,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest.CacheToken;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.model.pipeline.v1.Endpoints;
@@ -233,7 +234,8 @@ public class ProcessBundleHandler {
       BundleSplitListener splitListener,
       BundleFinalizer bundleFinalizer,
       Collection<BeamFnDataReadRunner> channelRoots,
-      Map<ApiServiceDescriptor, BeamFnDataOutboundAggregator> outboundAggregatorMap)
+      Map<ApiServiceDescriptor, BeamFnDataOutboundAggregator> outboundAggregatorMap,
+      Set<String> runnerCapabilities)
       throws IOException {
 
     // Recursively ensure that all consumers of the output PCollection have been created.
@@ -264,7 +266,8 @@ public class ProcessBundleHandler {
             splitListener,
             bundleFinalizer,
             channelRoots,
-            outboundAggregatorMap);
+            outboundAggregatorMap,
+            runnerCapabilities);
       }
     }
 
@@ -348,6 +351,11 @@ public class ProcessBundleHandler {
                     }
 
                     @Override
+                    public Set<String> getRunnerCapabilities() {
+                      return runnerCapabilities;
+                    }
+
+                    @Override
                     public <T> void addPCollectionConsumer(
                         String pCollectionId,
                         FnDataReceiver<WindowedValue<T>> consumer,
@@ -365,7 +373,12 @@ public class ProcessBundleHandler {
                               apiServiceDescriptor,
                               asd ->
                                   queueingClient.createOutboundAggregator(
-                                      asd, processBundleInstructionId));
+                                      asd,
+                                      processBundleInstructionId,
+                                      runnerCapabilities.contains(
+                                          BeamUrns.getUrn(
+                                              StandardRunnerProtocols.Enum
+                                                  .CONTROL_RESPONSE_ELEMENTS_EMBEDDING))));
                       return aggregator.registerOutputDataLocation(pTransformId, coder);
                     }
 
@@ -385,7 +398,12 @@ public class ProcessBundleHandler {
                               processBundleDescriptor.getTimerApiServiceDescriptor(),
                               asd ->
                                   queueingClient.createOutboundAggregator(
-                                      asd, processBundleInstructionId));
+                                      asd,
+                                      processBundleInstructionId,
+                                      runnerCapabilities.contains(
+                                          BeamUrns.getUrn(
+                                              StandardRunnerProtocols.Enum
+                                                  .CONTROL_RESPONSE_ELEMENTS_EMBEDDING))));
                       return aggregator.registerOutputTimersLocation(
                           pTransformId, timerFamilyId, coder);
                     }
@@ -521,17 +539,8 @@ public class ProcessBundleHandler {
           }
         }
 
-        Elements.Builder elementsToEmbed = Elements.newBuilder();
-        for (BeamFnDataOutboundAggregator aggregator :
-            bundleProcessor.getOutboundAggregators().values()) {
-          Elements elements = aggregator.sendOrCollectBufferedDataAndFinishOutboundStreams();
-          if (elements != null) {
-            elementsToEmbed.mergeFrom(elements);
-          }
-        }
-        if (elementsToEmbed.getDataCount() > 0 || elementsToEmbed.getTimersCount() > 0) {
-          response.setElements(elementsToEmbed.build());
-        }
+        // If bundleProcessor has not flushed any elements, embed them in response.
+        embedOutboundElementsIfApplicable(response, bundleProcessor);
 
         // Add all checkpointed residuals to the response.
         response.addAllResidualRoots(bundleProcessor.getSplitListener().getResidualRoots());
@@ -563,6 +572,38 @@ public class ProcessBundleHandler {
       // Make sure we clean-up from the active set of bundle processors.
       bundleProcessorCache.discard(bundleProcessor);
       throw e;
+    }
+  }
+
+  private void embedOutboundElementsIfApplicable(
+      ProcessBundleResponse.Builder response, BundleProcessor bundleProcessor) {
+    List<Elements> collectedElements =
+        new ArrayList<>(bundleProcessor.getOutboundAggregators().size());
+    boolean hasFlushedAggregator = false;
+    for (BeamFnDataOutboundAggregator aggregator :
+        bundleProcessor.getOutboundAggregators().values()) {
+      Elements elements = aggregator.sendOrCollectBufferedDataAndFinishOutboundStreams();
+      if (elements == null) {
+        hasFlushedAggregator = true;
+      }
+      collectedElements.add(elements);
+    }
+    if (!hasFlushedAggregator && !collectedElements.isEmpty()) {
+      Elements.Builder elementsToEmbed = Elements.newBuilder();
+      for (Elements collectedElement : collectedElements) {
+        elementsToEmbed.mergeFrom(collectedElement);
+      }
+      response.setElements(elementsToEmbed.build());
+    } else {
+      // If there's flushed aggregator, flush all other aggregators as well.
+      int i = 0;
+      for (BeamFnDataOutboundAggregator aggregator :
+          bundleProcessor.getOutboundAggregators().values()) {
+        Elements elements = collectedElements.get(i++);
+        if (elements != null) {
+          aggregator.sendElements(elements);
+        }
+      }
     }
   }
 
@@ -773,7 +814,8 @@ public class ProcessBundleHandler {
           splitListener,
           bundleFinalizer,
           bundleProcessor.getChannelRoots(),
-          bundleProcessor.getOutboundAggregators());
+          bundleProcessor.getOutboundAggregators(),
+          bundleProcessor.getRunnerCapabilities());
     }
     bundleProcessor.finish();
 
@@ -928,7 +970,7 @@ public class ProcessBundleHandler {
           /*timerEndpoints=*/ new ArrayList<>(),
           bundleFinalizationCallbackRegistrations,
           /*channelRoots=*/ new ArrayList<>(),
-          /*outboundAggregators=*/ new HashMap<>(),
+          /*outboundAggregators=*/ new LinkedHashMap<>(),
           runnerCapabilities);
     }
 
@@ -1002,13 +1044,7 @@ public class ProcessBundleHandler {
       inboundObserver2 =
           BeamFnDataInboundObserver2.forConsumers(getInboundDataEndpoints(), getTimerEndpoints());
       for (BeamFnDataOutboundAggregator aggregator : getOutboundAggregators().values()) {
-        aggregator.start(
-            getRunnerCapabilities()
-                    .contains(
-                        BeamUrns.getUrn(
-                            StandardRunnerProtocols.Enum.CONTROL_RESPONSE_ELEMENTS_EMBEDDING))
-                // TODO: Handle multiple outbound ApiServiceDescriptors.
-                && getOutboundAggregators().size() == 1);
+        aggregator.start();
       }
     }
 
