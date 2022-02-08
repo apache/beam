@@ -261,6 +261,8 @@ function rewriteSideInputs(p: runnerApi.Pipeline, pipelineStateRef: string) {
 
       // Figure out which input is the main input.
       // TODO: (Typescript) Is there a clean way to do a set difference?
+      // There is a proposal for Set.prototype.intersect: https://github.com/tc39/proposal-set-methods
+      // But I don't think there is a nicer way at the moment.
       let mainPCollTag: string = undefined!;
       for (const tag of Object.keys(transform.inputs)) {
         if (!spec.sideInputs[tag]) {

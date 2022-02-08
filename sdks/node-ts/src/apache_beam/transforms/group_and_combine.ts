@@ -304,12 +304,13 @@ class MultiCombineFn implements CombineFn<any[], any[], any[]> {
 
 // TODO: (Typescript) Can I type T as "something that has this key" and/or,
 // even better, ensure it has the correct type?
-function extractFnAndName<T, K>(
-  extractor: string | string[] | ((T) => K),
-  defaultName: string
-): [(T) => K, string | string[]] {
-  if (typeof extractor == "string") {
-    return [(element: T) => element[extractor], extractor];
+// Roughly like this. I can't get rid of the cast right now. But I imagine that should be possible.
+function extractFnAndName<T, P extends keyof T, K = T[P]>(
+  extractor: P | P[] | ((element: T) => K),
+  defaultName: P
+): [(element: T) => K, P | P[]] {
+  if (typeof extractor == "string" || typeof extractor === "number" || typeof extractor === "symbol") {
+    return [(element: T) => element[extractor] as unknown as K, extractor];
   } else if (extractor instanceof Array) {
     return [
       (element: T) => extractor.map((field) => element[field]) as any,
