@@ -2725,9 +2725,6 @@ public class BigQueryIO {
       if (input.isBounded() == IsBounded.BOUNDED) {
         checkArgument(!getAutoSharding(), "Auto-sharding is only applicable to unbounded input.");
       }
-      if (method == Write.Method.STORAGE_WRITE_API) {
-        checkArgument(!getAutoSharding(), "Auto sharding not yet available for Storage API writes");
-      }
 
       if (getJsonTimePartitioning() != null) {
         checkArgument(
