@@ -30,6 +30,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.ExperimentalOptions;
@@ -54,6 +55,12 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
+// The calling thread that invokes sendBufferedDataAndFinishOutboundStreams synchronizes on
+// flushLock effectively making the periodic flushing no longer read or mutate hasFlushedForBundle
+// and allowing the calling thread to read and mutate hasFlushedForBundle safely without needing to
+// create another memory barrier. Also note that flush is always invoked when synchronizing on
+// flushLock when there is a periodic flushing thread.
+@NotThreadSafe
 public class BeamFnDataOutboundAggregator {
 
   public static final String DATA_BUFFER_SIZE_LIMIT = "data_buffer_size_limit=";
@@ -153,7 +160,7 @@ public class BeamFnDataOutboundAggregator {
     return receiver;
   }
 
-  public void flush() throws IOException {
+  private void flush() throws IOException {
     if (bytesWrittenSinceFlush == 0) {
       return;
     }

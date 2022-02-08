@@ -577,6 +577,9 @@ public class ProcessBundleHandler {
 
   private void embedOutboundElementsIfApplicable(
       ProcessBundleResponse.Builder response, BundleProcessor bundleProcessor) {
+    if (bundleProcessor.getOutboundAggregators().isEmpty()) {
+      return;
+    }
     List<Elements> collectedElements =
         new ArrayList<>(bundleProcessor.getOutboundAggregators().size());
     boolean hasFlushedAggregator = false;
@@ -588,14 +591,16 @@ public class ProcessBundleHandler {
       }
       collectedElements.add(elements);
     }
-    if (!hasFlushedAggregator && !collectedElements.isEmpty()) {
+    if (!hasFlushedAggregator) {
       Elements.Builder elementsToEmbed = Elements.newBuilder();
       for (Elements collectedElement : collectedElements) {
         elementsToEmbed.mergeFrom(collectedElement);
       }
       response.setElements(elementsToEmbed.build());
     } else {
-      // If there's flushed aggregator, flush all other aggregators as well.
+      // Since there was at least one flushed aggregator, we have to use the aggregators that were
+      // able to successfully collect their elements to emit them and can not send them as part of
+      // the ProcessBundleResponse.
       int i = 0;
       for (BeamFnDataOutboundAggregator aggregator :
           bundleProcessor.getOutboundAggregators().values()) {
@@ -970,6 +975,7 @@ public class ProcessBundleHandler {
           /*timerEndpoints=*/ new ArrayList<>(),
           bundleFinalizationCallbackRegistrations,
           /*channelRoots=*/ new ArrayList<>(),
+          // We rely on the stable iteration order of outboundAggregators, thus using LinkedHashMap.
           /*outboundAggregators=*/ new LinkedHashMap<>(),
           runnerCapabilities);
     }
