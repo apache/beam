@@ -125,7 +125,8 @@ class FlightDelaysTest(unittest.TestCase):
       expected_df = expected_df.sort_values('airline').reset_index(drop=True)
 
       try:
-        pd.testing.assert_frame_equal(result_df, expected_df)
+        pd.testing.assert_frame_equal(
+            result_df, expected_df, check_dtype=False, atol=0.5)
       except AssertionError as e:
         raise AssertionError(
             f"date={date!r} result DataFrame:\n\n"
