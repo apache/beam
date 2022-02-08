@@ -505,7 +505,7 @@ public class GroupByKeyTest implements Serializable {
               Create.timestamped(ungroupedPairs, Arrays.asList(1L, 2L, 3L, 4L, 5L, 6L, 7L))
                   .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
       PCollection<KV<String, Iterable<Integer>>> output =
-          input.apply(Window.into(FixedWindows.of(new Duration(5)))).apply(GroupByKey.create());
+          input.apply(Window.into(FixedWindows.of(Duration.millis(5)))).apply(GroupByKey.create());
 
       PAssert.that(output)
           .satisfies(
@@ -651,7 +651,6 @@ public class GroupByKeyTest implements Serializable {
     @Category(NeedsRunner.class)
     public void testWindowFnPostMerging() throws Exception {
 
-      List<KV<String, Integer>> ungroupedPairs = ImmutableList.of(KV.of("a", 3));
       PCollection<KV<String, Integer>> windowedInput =
           p.apply(
                   Create.timestamped(
@@ -768,7 +767,7 @@ public class GroupByKeyTest implements Serializable {
                       @ProcessElement
                       public void process(ProcessContext c) {
                         int size = 0;
-                        for (String value : c.element().getValue()) {
+                        for (String unused : c.element().getValue()) {
                           size++;
                         }
                         c.output(KV.of(c.element().getKey(), size));

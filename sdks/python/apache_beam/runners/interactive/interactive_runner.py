@@ -34,6 +34,7 @@ from apache_beam.runners.interactive import background_caching_job
 from apache_beam.runners.interactive.display import pipeline_graph
 from apache_beam.runners.interactive.options import capture_control
 from apache_beam.runners.interactive.utils import to_element_list
+from apache_beam.runners.interactive.utils import watch_sources
 from apache_beam.testing.test_stream_service import TestStreamServiceController
 
 # size of PCollection samples cached.
@@ -129,7 +130,7 @@ class InteractiveRunner(runners.PipelineRunner):
       ie.current_env().evict_computed_pcollections()
 
     # Make sure that sources without a user reference are still cached.
-    inst.watch_sources(pipeline)
+    watch_sources(pipeline)
 
     user_pipeline = ie.current_env().user_pipeline(pipeline)
     pipeline_instrument = inst.build_pipeline_instrument(pipeline, options)
@@ -202,7 +203,7 @@ class InteractiveRunner(runners.PipelineRunner):
       main_job_result.wait_until_finish()
 
     if main_job_result.state is beam.runners.runner.PipelineState.DONE:
-      # pylint: disable=dict-values-not-iterating
+      # pylint: disable=bad-option-value
       ie.current_env().mark_pcollection_computed(
           pipeline_instrument.cached_pcolls)
 
@@ -221,7 +222,7 @@ class PipelineResult(beam.runners.runner.PipelineResult):
           the pipeline being executed with interactivity applied and related
           metadata including where the interactivity-backing cache lies.
     """
-    super(PipelineResult, self).__init__(underlying_result.state)
+    super().__init__(underlying_result.state)
     self._underlying_result = underlying_result
     self._pipeline_instrument = pipeline_instrument
 
@@ -249,7 +250,7 @@ class PipelineResult(beam.runners.runner.PipelineResult):
     key = self._pipeline_instrument.cache_key(pcoll)
     cache_manager = ie.current_env().get_cache_manager(
         self._pipeline_instrument.user_pipeline)
-    if cache_manager.exists('full', key):
+    if key and cache_manager.exists('full', key):
       coder = cache_manager.load_pcoder('full', key)
       reader, _ = cache_manager.read('full', key)
       return to_element_list(reader, coder, include_window_info)

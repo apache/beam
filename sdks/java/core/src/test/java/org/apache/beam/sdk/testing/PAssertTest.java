@@ -39,7 +39,7 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
-import org.apache.beam.sdk.testing.PAssert.PCollectionContentsAssert.MatcherCheckerFn;
+import org.apache.beam.sdk.testing.PAssert.MatcherCheckerFn;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -250,7 +250,8 @@ public class PAssertTest implements Serializable {
    */
   @SuppressWarnings({
     "deprecation", // test of deprecated function
-    "EqualsIncompatibleType"
+    "EqualsIncompatibleType",
+    "ReturnValueIgnored"
   })
   @Test
   public void testPAssertEqualsSingletonUnsupported() throws Exception {
@@ -267,7 +268,8 @@ public class PAssertTest implements Serializable {
    */
   @SuppressWarnings({
     "deprecation", // test of deprecated function
-    "EqualsIncompatibleType"
+    "EqualsIncompatibleType",
+    "ReturnValueIgnored"
   })
   @Test
   public void testPAssertEqualsIterableUnsupported() throws Exception {
@@ -282,7 +284,10 @@ public class PAssertTest implements Serializable {
    * Test that {@code PAssert.thatSingleton().hashCode()} is unsupported. See {@link
    * #testPAssertEqualsSingletonUnsupported}.
    */
-  @SuppressWarnings("deprecation") // test of deprecated function
+  @SuppressWarnings({
+    "deprecation", // test of deprecated function
+    "ReturnValueIgnored",
+  })
   @Test
   public void testPAssertHashCodeSingletonUnsupported() throws Exception {
     thrown.expect(UnsupportedOperationException.class);
@@ -296,7 +301,10 @@ public class PAssertTest implements Serializable {
    * Test that {@code PAssert.thatIterable().hashCode()} is unsupported. See {@link
    * #testPAssertEqualsIterableUnsupported}.
    */
-  @SuppressWarnings("deprecation") // test of deprecated function
+  @SuppressWarnings({
+    "deprecation", // test of deprecated function
+    "ReturnValueIgnored" // verify exception is thrown
+  })
   @Test
   public void testPAssertHashCodeIterableUnsupported() throws Exception {
     thrown.expect(UnsupportedOperationException.class);
@@ -400,6 +408,19 @@ public class PAssertTest implements Serializable {
   public void testContainsInAnyOrder() throws Exception {
     PCollection<Integer> pcollection = pipeline.apply(Create.of(1, 2, 3, 4));
     PAssert.that(pcollection).containsInAnyOrder(2, 1, 4, 3);
+    pipeline.run();
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testContainsInAnyOrderWithMatchers() throws Exception {
+    PCollection<Integer> pcollection = pipeline.apply(Create.of(1, 2, 3, 4));
+    PAssert.that(pcollection)
+        .containsInAnyOrder(
+            SerializableMatchers.equalTo(2),
+            SerializableMatchers.equalTo(1),
+            SerializableMatchers.equalTo(4),
+            SerializableMatchers.equalTo(3));
     pipeline.run();
   }
 

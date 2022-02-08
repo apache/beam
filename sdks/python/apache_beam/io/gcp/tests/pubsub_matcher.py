@@ -127,9 +127,8 @@ class PubSubMessageMatcher(BaseMatcher):
     start_time = time.time()
     while time.time() - start_time <= timeout:
       response = sub_client.pull(
-          self.sub_name,
+          subscription=self.sub_name,
           max_messages=self.max_messages_in_one_pull,
-          return_immediately=True,
           timeout=self.pull_timeout)
       for rm in response.received_messages:
         msg = PubsubMessage._from_message(rm.message)
@@ -149,7 +148,7 @@ class PubSubMessageMatcher(BaseMatcher):
 
       ack_ids = [rm.ack_id for rm in response.received_messages]
       if ack_ids:
-        sub_client.acknowledge(self.sub_name, ack_ids)
+        sub_client.acknowledge(subscription=self.sub_name, ack_ids=ack_ids)
       if len(total_messages) >= expected_num:
         break
       time.sleep(self.sleep_time)

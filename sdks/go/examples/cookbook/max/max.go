@@ -35,6 +35,13 @@ var (
 	output = flag.String("output", "", "Output BQ table.")
 )
 
+func init() {
+	beam.RegisterFunction(formatFn)
+	beam.RegisterFunction(extractFn)
+	beam.RegisterType(reflect.TypeOf((*WeatherDataRow)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*MaxMeanTempRow)(nil)).Elem())
+}
+
 type WeatherDataRow struct {
 	Month    int     `bigquery:"month"`
 	MeanTemp float64 `bigquery:"mean_temp"`

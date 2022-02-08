@@ -28,7 +28,7 @@ from apache_beam.runners.interactive import interactive_runner as ir
 from apache_beam.runners.interactive.display import pipeline_graph
 from apache_beam.runners.interactive.testing.mock_ipython import mock_get_ipython
 
-# pylint: disable=range-builtin-not-iterating,unused-variable,possibly-unused-variable
+# pylint: disable=bad-option-value,unused-variable,possibly-unused-variable
 # Reason:
 #   Disable pylint for pipelines built for testing. Not all PCollections are
 #   used but they need to be assigned to variables so that we can test how

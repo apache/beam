@@ -220,7 +220,7 @@ class SelectByteBuddyHelpers {
                     .write(),
                 MethodReturn.VOID);
         StackManipulation.Size size = stackManipulation.apply(methodVisitor, implementationContext);
-        return new Size(size.getMaximalSize(), numLocals);
+        return new ByteCodeAppender.Size(size.getMaximalSize(), numLocals);
       };
     }
   }
@@ -250,7 +250,8 @@ class SelectByteBuddyHelpers {
 
         @Override
         public Size apply(MethodVisitor methodVisitor, Context context) {
-          Size size = IntegerConstant.forValue(arraySize).apply(methodVisitor, context);
+          StackManipulation.Size size =
+              IntegerConstant.forValue(arraySize).apply(methodVisitor, context);
           methodVisitor.visitTypeInsn(
               Opcodes.ANEWARRAY, Generic.OBJECT.asErasure().getInternalName());
           size = size.aggregate(StackSize.ZERO.toDecreasingSize());
@@ -276,7 +277,7 @@ class SelectByteBuddyHelpers {
         }
 
         @Override
-        public Size apply(MethodVisitor methodVisitor, Context context) {
+        public StackManipulation.Size apply(MethodVisitor methodVisitor, Context context) {
           StackManipulation stackManipulation =
               new StackManipulation.Compound(
                   Duplication.SINGLE, // Duplicate the array reference
@@ -373,7 +374,8 @@ class SelectByteBuddyHelpers {
                         .getOnly()),
                 MethodReturn.REFERENCE);
         size = size.aggregate(attachToRow.apply(methodVisitor, implementationContext));
-        return new Size(size.getMaximalSize(), localVariables.getTotalNumVariables());
+        return new ByteCodeAppender.Size(
+            size.getMaximalSize(), localVariables.getTotalNumVariables());
       };
     }
 

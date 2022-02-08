@@ -69,9 +69,8 @@ class ReadCacheTest(unittest.TestCase):
     actual_pipeline = pipeline_proto
 
     # Read cache directly on the pipeline instance.
-    label = '{}{}'.format('_cache_', key)
-    transform = read_cache._ReadCacheTransform(aug_p._cache_manager, key, label)
-    p | 'source' + label >> transform
+    transform = read_cache._ReadCacheTransform(aug_p._cache_manager, key)
+    p | 'source_cache_' + key >> transform
     expected_pipeline = p.to_runner_api()
 
     # This rougly checks the equivalence between two protos, not detailed

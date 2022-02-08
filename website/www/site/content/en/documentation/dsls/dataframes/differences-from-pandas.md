@@ -87,6 +87,6 @@ The Beam DataFrame API implements many of the commonly used pandas DataFrame ope
 
 Interactive Beam is a module designed for use in interactive notebooks. The module, which by convention is imported as `ib`, provides an `ib.collect` function that brings a `PCollection` or deferred DataFrame into local memory as a pandas DataFrame. After using `ib.collect` to materialize a deferred DataFrame you will be able to perform any operation in the pandas API, not just those that are supported in Beam.
 
-<!-- TODO: Add code sample: https://issues.apache.org/jira/browse/BEAM-12535 -->
+{{< button-colab url="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/tour-of-beam/dataframes.ipynb" >}}
 
 To get started with Beam in a notebook, see [Try Apache Beam](https://beam.apache.org/get-started/try-apache-beam/).

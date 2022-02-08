@@ -468,7 +468,7 @@ class BeamIOError(IOError):
         the current state of the system.
     """
     message = "%s with exceptions %s" % (msg, exception_details)
-    super(BeamIOError, self).__init__(message)
+    super().__init__(message)
     self.exception_details = exception_details
 
 

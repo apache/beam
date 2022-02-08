@@ -106,10 +106,10 @@ class TestPipeline(Pipeline):
     self.blocking = blocking
     if options is None:
       options = PipelineOptions(self.options_list)
-    super(TestPipeline, self).__init__(runner, options)
+    super().__init__(runner, options)
 
   def run(self, test_runner_api=True):
-    result = super(TestPipeline, self).run(
+    result = super().run(
         test_runner_api=(
             False if self.not_use_test_runner_api else test_runner_api))
     if self.blocking:

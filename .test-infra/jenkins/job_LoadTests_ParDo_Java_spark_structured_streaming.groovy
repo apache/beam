@@ -22,7 +22,7 @@ import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
 import InfluxDBCredentialsHelper
 
-def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
+def commonLoadTestConfig = { jobType, isStreaming ->
   [
     [
       title          : 'Load test: ParDo 2GB 100 byte records 10 times',
@@ -32,9 +32,6 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
         project             : 'apache-beam-testing',
         appName             : "load_tests_Java_SparkStructuredStreaming_${jobType}_ParDo_1",
         tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
-        publishToBigQuery   : true,
-        bigQueryDataset     : datasetName,
-        bigQueryTable       : "java_sparkstructuredstreaming_${jobType}_ParDo_1",
         influxMeasurement   : "java_${jobType}_pardo_1",
         publishToInfluxDB   : true,
         sourceOptions       : """
@@ -58,9 +55,6 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
         project             : 'apache-beam-testing',
         appName             : "load_tests_Java_SparkStructuredStreaming_${jobType}_ParDo_2",
         tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
-        publishToBigQuery   : true,
-        bigQueryDataset     : datasetName,
-        bigQueryTable       : "java_sparkstructuredstreaming_${jobType}_ParDo_2",
         influxMeasurement   : "java_${jobType}_pardo_2",
         publishToInfluxDB   : true,
         sourceOptions       : """
@@ -85,9 +79,6 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
         project             : 'apache-beam-testing',
         appName             : "load_tests_Java_SparkStructuredStreaming_${jobType}_ParDo_3",
         tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
-        publishToBigQuery   : true,
-        bigQueryDataset     : datasetName,
-        bigQueryTable       : "java_sparkstructuredstreaming_${jobType}_ParDo_3",
         influxMeasurement   : "java_${jobType}_pardo_3",
         publishToInfluxDB   : true,
         sourceOptions       : """
@@ -112,9 +103,6 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
         project             : 'apache-beam-testing',
         appName             : "load_tests_Java_SparkStructuredStreaming_${jobType}_ParDo_4",
         tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
-        publishToBigQuery   : true,
-        bigQueryDataset     : datasetName,
-        bigQueryTable       : "java_sparkstructuredstreaming_${jobType}_ParDo_4",
         influxMeasurement   : "java_${jobType}_pardo_4",
         publishToInfluxDB   : true,
         sourceOptions       : """
@@ -135,8 +123,7 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
 
 
 def batchLoadTestJob = { scope, triggeringContext ->
-  def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
-  loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.JAVA, commonLoadTestConfig('batch', false, datasetName), "ParDo", "batch")
+  loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.JAVA, commonLoadTestConfig('batch', false), "ParDo", "batch")
 }
 
 

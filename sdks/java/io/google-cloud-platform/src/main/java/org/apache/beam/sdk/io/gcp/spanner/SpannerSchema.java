@@ -175,6 +175,9 @@ abstract class SpannerSchema implements Serializable {
       if ("NUMERIC".equals(spannerType)) {
         return Type.numeric();
       }
+      if ("JSON".equals(spannerType)) {
+        return Type.json();
+      }
 
       if (spannerType.startsWith("ARRAY")) {
         // Substring "ARRAY<xxx>"

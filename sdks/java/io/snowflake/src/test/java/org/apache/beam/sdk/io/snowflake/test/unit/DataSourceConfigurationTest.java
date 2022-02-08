@@ -194,8 +194,6 @@ public class DataSourceConfigurationTest {
             .withServerName(SERVER_NAME)
             .withKeyPairPathAuth(USERNAME, privateKeyPath, keyPassphrase);
 
-    DataSource dataSource = configuration.buildDatasource();
-
     assertEquals(USERNAME, configuration.getUsername().get());
     //  TODO  assertEquals(privateKeyPath, configuration.getPrivateKeyPath());
     assertEquals(keyPassphrase, configuration.getPrivateKeyPassphrase().get());
@@ -238,8 +236,6 @@ public class DataSourceConfigurationTest {
         configuration
             .withServerName(SERVER_NAME)
             .withKeyPairRawAuth(USERNAME, rawPrivateKey, keyPassphrase);
-
-    DataSource dataSource = configuration.buildDatasource();
 
     assertEquals(USERNAME, configuration.getUsername().get());
     assertEquals(rawPrivateKey, configuration.getRawPrivateKey().get());

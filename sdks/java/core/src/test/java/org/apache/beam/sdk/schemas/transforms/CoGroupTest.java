@@ -426,13 +426,12 @@ public class CoGroupTest {
             .setRowSchema(CG_SCHEMA_3);
 
     thrown.expect(IllegalArgumentException.class);
-    PCollection<Row> joined =
-        PCollectionTuple.of("pc1", pc1, "pc2", pc2, "pc3", pc3)
-            .apply(
-                "CoGroup1",
-                CoGroup.join("pc1", By.fieldNames("user", "country").withSideInput())
-                    .join("pc2", By.fieldNames("user2", "country2").withSideInput())
-                    .join("pc3", By.fieldNames("user3", "country3").withSideInput()));
+    PCollectionTuple.of("pc1", pc1, "pc2", pc2, "pc3", pc3)
+        .apply(
+            "CoGroup1",
+            CoGroup.join("pc1", By.fieldNames("user", "country").withSideInput())
+                .join("pc2", By.fieldNames("user2", "country2").withSideInput())
+                .join("pc3", By.fieldNames("user3", "country3").withSideInput()));
     pipeline.run();
   }
 
@@ -459,14 +458,13 @@ public class CoGroupTest {
             .setRowSchema(CG_SCHEMA_3);
 
     thrown.expect(IllegalArgumentException.class);
-    PCollection<Row> joined =
-        PCollectionTuple.of("pc1", pc1, "pc2", pc2, "pc3", pc3)
-            .apply(
-                "CoGroup1",
-                CoGroup.join("pc1", By.fieldNames("user", "country").withOptionalParticipation())
-                    .join("pc2", By.fieldNames("user2", "country2").withOptionalParticipation())
-                    .join("pc3", By.fieldNames("user3", "country3").withSideInput())
-                    .crossProductJoin());
+    PCollectionTuple.of("pc1", pc1, "pc2", pc2, "pc3", pc3)
+        .apply(
+            "CoGroup1",
+            CoGroup.join("pc1", By.fieldNames("user", "country").withOptionalParticipation())
+                .join("pc2", By.fieldNames("user2", "country2").withOptionalParticipation())
+                .join("pc3", By.fieldNames("user3", "country3").withSideInput())
+                .crossProductJoin());
     pipeline.run();
   }
 
@@ -490,12 +488,11 @@ public class CoGroupTest {
             "Create3", Create.of(Row.withSchema(CG_SCHEMA_3).addValues("user1", 17, "us").build()));
 
     thrown.expect(IllegalArgumentException.class);
-    PCollection<Row> joined =
-        PCollectionTuple.of("pc1", pc1, "pc2", pc2, "pc3", pc3)
-            .apply(
-                "CoGroup",
-                CoGroup.join("pc1", By.fieldNames("user", "country"))
-                    .join("pc2", By.fieldNames("user2", "country2")));
+    PCollectionTuple.of("pc1", pc1, "pc2", pc2, "pc3", pc3)
+        .apply(
+            "CoGroup",
+            CoGroup.join("pc1", By.fieldNames("user", "country"))
+                .join("pc2", By.fieldNames("user2", "country2")));
     pipeline.run();
   }
 
@@ -516,11 +513,10 @@ public class CoGroupTest {
             .setRowSchema(CG_SCHEMA_1);
 
     thrown.expect(IllegalArgumentException.class);
-    PCollection<Row> joined =
-        PCollectionTuple.of("pc1", pc1, "pc2", pc2)
-            .apply(
-                "CoGroup",
-                CoGroup.join("pc1", By.fieldNames("user")).join("pc2", By.fieldNames("count")));
+    PCollectionTuple.of("pc1", pc1, "pc2", pc2)
+        .apply(
+            "CoGroup",
+            CoGroup.join("pc1", By.fieldNames("user")).join("pc2", By.fieldNames("count")));
     pipeline.run();
   }
 

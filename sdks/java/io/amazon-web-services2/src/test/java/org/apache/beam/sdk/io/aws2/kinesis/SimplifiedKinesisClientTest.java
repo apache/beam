@@ -29,13 +29,15 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.Supplier;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.Minutes;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.mockito.stubbing.Answer;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.core.exception.SdkClientException;
@@ -45,18 +47,24 @@ import software.amazon.awssdk.services.cloudwatch.model.Datapoint;
 import software.amazon.awssdk.services.cloudwatch.model.GetMetricStatisticsRequest;
 import software.amazon.awssdk.services.cloudwatch.model.GetMetricStatisticsResponse;
 import software.amazon.awssdk.services.kinesis.KinesisClient;
-import software.amazon.awssdk.services.kinesis.model.DescribeStreamRequest;
-import software.amazon.awssdk.services.kinesis.model.DescribeStreamResponse;
+import software.amazon.awssdk.services.kinesis.model.DescribeStreamSummaryRequest;
+import software.amazon.awssdk.services.kinesis.model.DescribeStreamSummaryResponse;
 import software.amazon.awssdk.services.kinesis.model.ExpiredIteratorException;
 import software.amazon.awssdk.services.kinesis.model.GetRecordsRequest;
 import software.amazon.awssdk.services.kinesis.model.GetRecordsResponse;
 import software.amazon.awssdk.services.kinesis.model.GetShardIteratorRequest;
 import software.amazon.awssdk.services.kinesis.model.GetShardIteratorResponse;
 import software.amazon.awssdk.services.kinesis.model.LimitExceededException;
+import software.amazon.awssdk.services.kinesis.model.ListShardsRequest;
+import software.amazon.awssdk.services.kinesis.model.ListShardsResponse;
 import software.amazon.awssdk.services.kinesis.model.ProvisionedThroughputExceededException;
 import software.amazon.awssdk.services.kinesis.model.Record;
 import software.amazon.awssdk.services.kinesis.model.Shard;
+import software.amazon.awssdk.services.kinesis.model.ShardFilter;
+import software.amazon.awssdk.services.kinesis.model.ShardFilterType;
 import software.amazon.awssdk.services.kinesis.model.ShardIteratorType;
+import software.amazon.awssdk.services.kinesis.model.StreamDescriptionSummary;
+import software.amazon.kinesis.common.InitialPositionInStream;
 
 /** * */
 @RunWith(MockitoJUnitRunner.class)
@@ -68,9 +76,11 @@ public class SimplifiedKinesisClientTest {
   private static final String SHARD_3 = "shard-03";
   private static final String SHARD_ITERATOR = "iterator";
   private static final String SEQUENCE_NUMBER = "abc123";
+  private static final Instant CURRENT_TIMESTAMP = Instant.parse("2000-01-01T15:00:00.000Z");
 
   @Mock private KinesisClient kinesis;
   @Mock private CloudWatchClient cloudWatch;
+  @Mock private Supplier<Instant> currentInstantSupplier;
   @InjectMocks private SimplifiedKinesisClient underTest;
 
   @Test
@@ -92,7 +102,7 @@ public class SimplifiedKinesisClientTest {
   }
 
   @Test
-  public void shouldReturnIteratorStartingWithTimestamp() throws Exception {
+  public void shouldReturnIteratorStartingtimestamp() throws Exception {
     Instant timestamp = Instant.now();
     when(kinesis.getShardIterator(
             GetShardIteratorRequest.builder()
@@ -167,27 +177,291 @@ public class SimplifiedKinesisClientTest {
   }
 
   @Test
-  public void shouldListAllShards() throws Exception {
+  public void shouldListAllShardsForTrimHorizon() throws Exception {
     Shard shard1 = Shard.builder().shardId(SHARD_1).build();
     Shard shard2 = Shard.builder().shardId(SHARD_2).build();
     Shard shard3 = Shard.builder().shardId(SHARD_3).build();
-    when(kinesis.describeStream(
-            DescribeStreamRequest.builder().streamName(STREAM).exclusiveStartShardId(null).build()))
-        .thenReturn(
-            DescribeStreamResponse.builder()
-                .streamDescription(s -> s.shards(shard1, shard2).hasMoreShards(true))
-                .build());
-    when(kinesis.describeStream(
-            DescribeStreamRequest.builder()
+    ShardFilter shardFilter = ShardFilter.builder().type(ShardFilterType.AT_TRIM_HORIZON).build();
+
+    when(kinesis.listShards(
+            ListShardsRequest.builder()
                 .streamName(STREAM)
-                .exclusiveStartShardId(SHARD_2)
+                .shardFilter(shardFilter)
+                .maxResults(1_000)
                 .build()))
         .thenReturn(
-            DescribeStreamResponse.builder()
-                .streamDescription(s -> s.shards(shard3).hasMoreShards(false))
+            ListShardsResponse.builder().shards(shard1, shard2, shard3).nextToken(null).build());
+
+    List<Shard> shards =
+        underTest.listShardsAtPoint(
+            STREAM, new StartingPoint(InitialPositionInStream.TRIM_HORIZON));
+
+    assertThat(shards).containsOnly(shard1, shard2, shard3);
+  }
+
+  @Test
+  public void shouldListAllShardsForTrimHorizonWithPagedResults() throws Exception {
+    Shard shard1 = Shard.builder().shardId(SHARD_1).build();
+    Shard shard2 = Shard.builder().shardId(SHARD_2).build();
+    Shard shard3 = Shard.builder().shardId(SHARD_3).build();
+
+    ShardFilter shardFilter = ShardFilter.builder().type(ShardFilterType.AT_TRIM_HORIZON).build();
+
+    String nextListShardsToken = "testNextToken";
+    when(kinesis.listShards(
+            ListShardsRequest.builder()
+                .streamName(STREAM)
+                .shardFilter(shardFilter)
+                .maxResults(1_000)
+                .build()))
+        .thenReturn(
+            ListShardsResponse.builder()
+                .shards(shard1, shard2)
+                .nextToken(nextListShardsToken)
                 .build());
 
-    List<Shard> shards = underTest.listShards(STREAM);
+    when(kinesis.listShards(
+            ListShardsRequest.builder()
+                .maxResults(1_000)
+                .shardFilter(shardFilter)
+                .nextToken(nextListShardsToken)
+                .build()))
+        .thenReturn(ListShardsResponse.builder().shards(shard3).nextToken(null).build());
+
+    List<Shard> shards =
+        underTest.listShardsAtPoint(
+            STREAM, new StartingPoint(InitialPositionInStream.TRIM_HORIZON));
+
+    assertThat(shards).containsOnly(shard1, shard2, shard3);
+  }
+
+  @Test
+  public void shouldListAllShardsForTimestampWithinStreamRetentionAfterStreamCreationTimestamp()
+      throws Exception {
+    Shard shard1 = Shard.builder().shardId(SHARD_1).build();
+    Shard shard2 = Shard.builder().shardId(SHARD_2).build();
+    Shard shard3 = Shard.builder().shardId(SHARD_3).build();
+
+    int hoursDifference = 1;
+    int retentionPeriodHours = hoursDifference * 3;
+    Instant streamCreationTimestamp =
+        CURRENT_TIMESTAMP.minus(Duration.standardHours(retentionPeriodHours));
+    Instant startingPointTimestamp =
+        streamCreationTimestamp.plus(Duration.standardHours(hoursDifference));
+
+    when(currentInstantSupplier.get()).thenReturn(CURRENT_TIMESTAMP);
+
+    when(kinesis.describeStreamSummary(
+            DescribeStreamSummaryRequest.builder().streamName(STREAM).build()))
+        .thenReturn(
+            DescribeStreamSummaryResponse.builder()
+                .streamDescriptionSummary(
+                    StreamDescriptionSummary.builder()
+                        .retentionPeriodHours(retentionPeriodHours)
+                        .streamCreationTimestamp(TimeUtil.toJava(streamCreationTimestamp))
+                        .build())
+                .build());
+
+    ShardFilter shardFilter =
+        ShardFilter.builder()
+            .type(ShardFilterType.AT_TIMESTAMP)
+            .timestamp(TimeUtil.toJava(startingPointTimestamp))
+            .build();
+
+    when(kinesis.listShards(
+            ListShardsRequest.builder()
+                .streamName(STREAM)
+                .shardFilter(shardFilter)
+                .maxResults(1_000)
+                .build()))
+        .thenReturn(
+            ListShardsResponse.builder().shards(shard1, shard2, shard3).nextToken(null).build());
+
+    List<Shard> shards =
+        underTest.listShardsAtPoint(STREAM, new StartingPoint(startingPointTimestamp));
+
+    assertThat(shards).containsOnly(shard1, shard2, shard3);
+  }
+
+  @Test
+  public void
+      shouldListAllShardsForTimestampWithRetriedDescribeStreamSummaryCallAfterStreamCreationTimestamp()
+          throws TransientKinesisException {
+    Shard shard1 = Shard.builder().shardId(SHARD_1).build();
+    Shard shard2 = Shard.builder().shardId(SHARD_2).build();
+    Shard shard3 = Shard.builder().shardId(SHARD_3).build();
+
+    int hoursDifference = 1;
+    int retentionPeriodHours = hoursDifference * 3;
+    Instant streamCreationTimestamp =
+        CURRENT_TIMESTAMP.minus(Duration.standardHours(retentionPeriodHours));
+    Instant startingPointTimestamp =
+        streamCreationTimestamp.plus(Duration.standardHours(hoursDifference));
+
+    when(currentInstantSupplier.get()).thenReturn(CURRENT_TIMESTAMP);
+
+    when(kinesis.describeStreamSummary(
+            DescribeStreamSummaryRequest.builder().streamName(STREAM).build()))
+        .thenThrow(
+            LimitExceededException.builder().message("Fake Exception: Limit exceeded").build())
+        .thenReturn(
+            DescribeStreamSummaryResponse.builder()
+                .streamDescriptionSummary(
+                    StreamDescriptionSummary.builder()
+                        .retentionPeriodHours(retentionPeriodHours)
+                        .streamCreationTimestamp(TimeUtil.toJava(streamCreationTimestamp))
+                        .build())
+                .build());
+
+    ShardFilter shardFilter =
+        ShardFilter.builder()
+            .type(ShardFilterType.AT_TIMESTAMP)
+            .timestamp(TimeUtil.toJava(startingPointTimestamp))
+            .build();
+
+    when(kinesis.listShards(
+            ListShardsRequest.builder()
+                .streamName(STREAM)
+                .shardFilter(shardFilter)
+                .maxResults(1_000)
+                .build()))
+        .thenReturn(
+            ListShardsResponse.builder().shards(shard1, shard2, shard3).nextToken(null).build());
+
+    List<Shard> shards =
+        underTest.listShardsAtPoint(STREAM, new StartingPoint(startingPointTimestamp));
+
+    assertThat(shards).containsOnly(shard1, shard2, shard3);
+  }
+
+  @Test
+  public void shouldListAllShardsForTimestampOutsideStreamRetentionAfterStreamCreationTimestamp()
+      throws Exception {
+    Shard shard1 = Shard.builder().shardId(SHARD_1).build();
+    Shard shard2 = Shard.builder().shardId(SHARD_2).build();
+    Shard shard3 = Shard.builder().shardId(SHARD_3).build();
+
+    int retentionPeriodHours = 3;
+    int startingPointHours = 5;
+    int hoursSinceStreamCreation = 6;
+
+    Instant streamCreationTimestamp =
+        CURRENT_TIMESTAMP.minus(Duration.standardHours(hoursSinceStreamCreation));
+    Instant startingPointTimestampAfterStreamRetentionTimestamp =
+        CURRENT_TIMESTAMP.minus(Duration.standardHours(startingPointHours));
+
+    when(currentInstantSupplier.get()).thenReturn(CURRENT_TIMESTAMP);
+
+    DescribeStreamSummaryRequest describeStreamRequest =
+        DescribeStreamSummaryRequest.builder().streamName(STREAM).build();
+    when(kinesis.describeStreamSummary(describeStreamRequest))
+        .thenReturn(
+            DescribeStreamSummaryResponse.builder()
+                .streamDescriptionSummary(
+                    StreamDescriptionSummary.builder()
+                        .retentionPeriodHours(retentionPeriodHours)
+                        .streamCreationTimestamp(TimeUtil.toJava(streamCreationTimestamp))
+                        .build())
+                .build());
+
+    ShardFilter shardFilter = ShardFilter.builder().type(ShardFilterType.AT_TRIM_HORIZON).build();
+
+    when(kinesis.listShards(
+            ListShardsRequest.builder()
+                .streamName(STREAM)
+                .shardFilter(shardFilter)
+                .maxResults(1_000)
+                .build()))
+        .thenReturn(
+            ListShardsResponse.builder().shards(shard1, shard2, shard3).nextToken(null).build());
+
+    List<Shard> shards =
+        underTest.listShardsAtPoint(
+            STREAM, new StartingPoint(startingPointTimestampAfterStreamRetentionTimestamp));
+
+    assertThat(shards).containsOnly(shard1, shard2, shard3);
+  }
+
+  @Test
+  public void shouldListAllShardsForTimestampBeforeStreamCreationTimestamp() throws Exception {
+    Shard shard1 = Shard.builder().shardId(SHARD_1).build();
+    Shard shard2 = Shard.builder().shardId(SHARD_2).build();
+    Shard shard3 = Shard.builder().shardId(SHARD_3).build();
+
+    Instant startingPointTimestamp = Instant.parse("2000-01-01T15:00:00.000Z");
+    Instant streamCreationTimestamp = startingPointTimestamp.plus(Duration.standardHours(1));
+
+    DescribeStreamSummaryRequest describeStreamRequest =
+        DescribeStreamSummaryRequest.builder().streamName(STREAM).build();
+    when(kinesis.describeStreamSummary(describeStreamRequest))
+        .thenReturn(
+            DescribeStreamSummaryResponse.builder()
+                .streamDescriptionSummary(
+                    StreamDescriptionSummary.builder()
+                        .streamCreationTimestamp(TimeUtil.toJava(streamCreationTimestamp))
+                        .build())
+                .build());
+
+    ShardFilter shardFilter = ShardFilter.builder().type(ShardFilterType.AT_TRIM_HORIZON).build();
+
+    when(kinesis.listShards(
+            ListShardsRequest.builder()
+                .streamName(STREAM)
+                .shardFilter(shardFilter)
+                .maxResults(1_000)
+                .build()))
+        .thenReturn(
+            ListShardsResponse.builder().shards(shard1, shard2, shard3).nextToken(null).build());
+
+    List<Shard> shards =
+        underTest.listShardsAtPoint(STREAM, new StartingPoint(startingPointTimestamp));
+
+    assertThat(shards).containsOnly(shard1, shard2, shard3);
+  }
+
+  @Test
+  public void shouldListAllShardsForLatest() throws Exception {
+    Shard shard1 = Shard.builder().shardId(SHARD_1).build();
+    Shard shard2 = Shard.builder().shardId(SHARD_2).build();
+    Shard shard3 = Shard.builder().shardId(SHARD_3).build();
+
+    when(kinesis.listShards(
+            ListShardsRequest.builder()
+                .streamName(STREAM)
+                .shardFilter(ShardFilter.builder().type(ShardFilterType.AT_LATEST).build())
+                .maxResults(1_000)
+                .build()))
+        .thenReturn(
+            ListShardsResponse.builder().shards(shard1, shard2, shard3).nextToken(null).build());
+
+    List<Shard> shards =
+        underTest.listShardsAtPoint(STREAM, new StartingPoint(InitialPositionInStream.LATEST));
+
+    assertThat(shards).containsOnly(shard1, shard2, shard3);
+  }
+
+  @Test
+  public void shouldListAllShardsForExclusiveStartShardId() throws Exception {
+    Shard shard1 = Shard.builder().shardId(SHARD_1).build();
+    Shard shard2 = Shard.builder().shardId(SHARD_2).build();
+    Shard shard3 = Shard.builder().shardId(SHARD_3).build();
+
+    String exclusiveStartShardId = "exclusiveStartShardId";
+
+    when(kinesis.listShards(
+            ListShardsRequest.builder()
+                .streamName(STREAM)
+                .maxResults(1_000)
+                .shardFilter(
+                    ShardFilter.builder()
+                        .type(ShardFilterType.AFTER_SHARD_ID)
+                        .shardId(exclusiveStartShardId)
+                        .build())
+                .build()))
+        .thenReturn(
+            ListShardsResponse.builder().shards(shard1, shard2, shard3).nextToken(null).build());
+
+    List<Shard> shards = underTest.listShardsFollowingClosedShard(STREAM, exclusiveStartShardId);
 
     assertThat(shards).containsOnly(shard1, shard2, shard3);
   }
@@ -229,9 +503,9 @@ public class SimplifiedKinesisClientTest {
 
   private void shouldHandleShardListingError(
       Exception thrownException, Class<? extends Exception> expectedExceptionClass) {
-    when(kinesis.describeStream(any(DescribeStreamRequest.class))).thenThrow(thrownException);
+    when(kinesis.listShards(any(ListShardsRequest.class))).thenThrow(thrownException);
     try {
-      underTest.listShards(STREAM);
+      underTest.listShardsAtPoint(STREAM, new StartingPoint(InitialPositionInStream.TRIM_HORIZON));
       failBecauseExceptionWasNotThrown(expectedExceptionClass);
     } catch (Exception e) {
       assertThat(e).isExactlyInstanceOf(expectedExceptionClass);

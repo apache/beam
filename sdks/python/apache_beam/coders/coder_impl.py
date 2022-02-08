@@ -24,13 +24,16 @@ allow conditional (compiled/pure) implementations, which can be used to
 encode many elements with minimal overhead.
 
 This module may be optionally compiled with Cython, using the corresponding
-coder_impl.pxd file for type hints.
+coder_impl.pxd file for type hints.  In particular, because CoderImpls are
+never pickled and sent across the wire (unlike Coders themselves) the workers
+can use compiled Impls even if the main program does not (or vice versa).
 
 For internal use only; no backwards-compatibility guarantees.
 """
 # pytype: skip-file
 
 import enum
+import itertools
 import json
 import logging
 import pickle
@@ -49,12 +52,14 @@ from typing import Tuple
 from typing import Type
 
 import dill
+import numpy as np
 from fastavro import parse_schema
 from fastavro import schemaless_reader
 from fastavro import schemaless_writer
 
 from apache_beam.coders import observable
 from apache_beam.coders.avro_record import AvroRecord
+from apache_beam.typehints.schemas import named_tuple_from_schema
 from apache_beam.utils import proto_utils
 from apache_beam.utils import windowed_value
 from apache_beam.utils.sharded_key import ShardedKey
@@ -68,6 +73,7 @@ except ImportError:
   dataclasses = None  # type: ignore
 
 if TYPE_CHECKING:
+  import proto
   from apache_beam.transforms import userstate
   from apache_beam.transforms.window import IntervalWindow
 
@@ -307,6 +313,19 @@ class DeterministicProtoCoderImpl(ProtoCoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
   def encode(self, value):
     return value.SerializePartialToString(deterministic=True)
+
+
+class ProtoPlusCoderImpl(SimpleCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees."""
+  def __init__(self, proto_plus_type):
+    # type: (Type[proto.Message]) -> None
+    self.proto_plus_type = proto_plus_type
+
+  def encode(self, value):
+    return value._pb.SerializePartialToString(deterministic=True)
+
+  def decode(self, value):
+    return self.proto_plus_type.deserialize(value)
 
 
 UNKNOWN_TYPE = 0xFF
@@ -747,7 +766,7 @@ class IntervalWindowCoderImpl(StreamCoderImpl):
   def decode_from_stream(self, in_, nested):
     # type: (create_InputStream, bool) -> IntervalWindow
     if not TYPE_CHECKING:
-      global IntervalWindow
+      global IntervalWindow  # pylint: disable=global-variable-not-assigned
       if IntervalWindow is None:
         from apache_beam.transforms.window import IntervalWindow
     # instantiating with None is not part of the public interface
@@ -1193,12 +1212,58 @@ class TupleSequenceCoderImpl(SequenceCoderImpl):
     return tuple(components)
 
 
+class _AbstractIterable(object):
+  """Wraps an iterable hiding methods that might not always be available."""
+  def __init__(self, contents):
+    self._contents = contents
+
+  def __iter__(self):
+    return iter(self._contents)
+
+  def __repr__(self):
+    head = [repr(e) for e in itertools.islice(self, 4)]
+    if len(head) == 4:
+      head[-1] = '...'
+    return '_AbstractIterable([%s])' % ', '.join(head)
+
+  # Mostly useful for tests.
+  def __eq__(left, right):
+    end = object()
+    for a, b in itertools.zip_longest(left, right, fillvalue=end):
+      if a != b:
+        return False
+    return True
+
+
+FastPrimitivesCoderImpl.register_iterable_like_type(_AbstractIterable)
+
+# TODO(BEAM-13066): Enable using abstract iterables permanently
+_iterable_coder_uses_abstract_iterable_by_default = False
+
+
 class IterableCoderImpl(SequenceCoderImpl):
   """For internal use only; no backwards-compatibility guarantees.
 
   A coder for homogeneous iterable objects."""
+  def __init__(self, *args, use_abstract_iterable=None, **kwargs):
+    super().__init__(*args, **kwargs)
+    if use_abstract_iterable is None:
+      use_abstract_iterable = _iterable_coder_uses_abstract_iterable_by_default
+    self._use_abstract_iterable = use_abstract_iterable
+
   def _construct_from_sequence(self, components):
-    return components
+    if self._use_abstract_iterable:
+      return _AbstractIterable(components)
+    else:
+      return components
+
+
+class ListCoderImpl(SequenceCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A coder for homogeneous list objects."""
+  def _construct_from_sequence(self, components):
+    return components if isinstance(components, list) else list(components)
 
 
 class PaneInfoEncoding(object):
@@ -1390,8 +1455,7 @@ class ParamWindowedValueCoderImpl(WindowedValueCoderImpl):
   and pane info values during decoding when reconstructing the windowed
   value."""
   def __init__(self, value_coder, window_coder, payload):
-    super(ParamWindowedValueCoderImpl,
-          self).__init__(value_coder, TimestampCoderImpl(), window_coder)
+    super().__init__(value_coder, TimestampCoderImpl(), window_coder)
     self._timestamp, self._windows, self._pane_info = self._from_proto(
         payload, window_coder)
 
@@ -1511,3 +1575,122 @@ class TimestampPrefixingWindowCoderImpl(StreamCoderImpl):
     estimated_size += TimestampCoderImpl().estimate_size(value)
     estimated_size += self._window_coder_impl.estimate_size(value, nested)
     return estimated_size
+
+
+class RowCoderImpl(StreamCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees."""
+  def __init__(self, schema, components):
+    self.schema = schema
+    self.num_fields = len(self.schema.fields)
+    self.field_names = [f.name for f in self.schema.fields]
+    self.field_nullable = [field.type.nullable for field in self.schema.fields]
+    self.constructor = named_tuple_from_schema(schema)
+    self.encoding_positions = list(range(len(self.schema.fields)))
+    if self.schema.encoding_positions_set:
+      # should never be duplicate encoding positions.
+      enc_posx = list(
+          set(field.encoding_position for field in self.schema.fields))
+      if len(enc_posx) != len(self.schema.fields):
+        raise ValueError(
+            f'''Schema with id {schema.id} has encoding_positions_set=True,
+            but not all fields have encoding_position set''')
+      self.encoding_positions = list(
+          field.encoding_position for field in self.schema.fields)
+    self.encoding_positions_argsort = list(np.argsort(self.encoding_positions))
+    self.encoding_positions_are_trivial = self.encoding_positions == list(
+        range(len(self.encoding_positions)))
+    self.components = list(
+        components[self.encoding_positions.index(i)].get_impl()
+        for i in self.encoding_positions)
+    self.has_nullable_fields = any(
+        field.type.nullable for field in self.schema.fields)
+
+  def encode_to_stream(self, value, out, nested):
+    out.write_var_int64(self.num_fields)
+    attrs = [getattr(value, name) for name in self.field_names]
+
+    if self.has_nullable_fields:
+      any_nulls = False
+      for attr in attrs:
+        if attr is None:
+          any_nulls = True
+          break
+      if any_nulls:
+        out.write_var_int64((self.num_fields + 7) // 8)
+        # Pack the bits, little-endian, in consecutive bytes.
+        running = 0
+        for i, attr in enumerate(attrs):
+          if i and i % 8 == 0:
+            out.write_byte(running)
+            running = 0
+          running |= (attr is None) << (i % 8)
+        out.write_byte(running)
+      else:
+        out.write_byte(0)
+    else:
+      out.write_byte(0)
+
+    for i in range(self.num_fields):
+      if not self.encoding_positions_are_trivial:
+        i = self.encoding_positions_argsort[i]
+      attr = attrs[i]
+      if attr is None:
+        if not self.field_nullable[i]:
+          raise ValueError(
+              "Attempted to encode null for non-nullable field \"{}\".".format(
+                  self.schema.fields[i].name))
+        continue
+      component_coder = self.components[i]  # for typing
+      component_coder.encode_to_stream(attr, out, True)
+
+  def decode_from_stream(self, in_stream, nested):
+    nvals = in_stream.read_var_int64()
+    null_mask = in_stream.read_all(True)
+    if null_mask:
+      has_nulls = True
+      nulls = []
+      for i in range(nvals):
+        if i % 8 == 0:
+          running = 0 if i // 8 >= len(null_mask) else null_mask[i // 8]
+        nulls.append((running >> (i % 8)) & 0x01)
+    else:
+      has_nulls = False
+
+    # Note that if this coder's schema has *fewer* attributes than the encoded
+    # value, we just need to ignore the additional values, which will occur
+    # here because we only decode as many values as we have coders for.
+
+    sorted_components = []
+    for i in range(min(self.num_fields, nvals)):
+      if not self.encoding_positions_are_trivial:
+        i = self.encoding_positions_argsort[i]
+      if has_nulls and nulls[i]:
+        item = None
+      else:
+        component_coder = self.components[i]  # for typing
+        item = component_coder.decode_from_stream(in_stream, True)
+      sorted_components.append(item)
+
+    # If this coder's schema has more attributes than the encoded value, then
+    # the schema must have changed. Populate the unencoded fields with nulls.
+    while len(sorted_components) < self.num_fields:
+      sorted_components.append(None)
+
+    return self.constructor(
+        *(
+            sorted_components if self.encoding_positions_are_trivial else
+            [sorted_components[i] for i in self.encoding_positions]))
+
+
+class LogicalTypeCoderImpl(StreamCoderImpl):
+  def __init__(self, logical_type, representation_coder):
+    self.logical_type = logical_type
+    self.representation_coder = representation_coder.get_impl()
+
+  def encode_to_stream(self, value, out, nested):
+    return self.representation_coder.encode_to_stream(
+        self.logical_type.to_representation_type(value), out, nested)
+
+  def decode_from_stream(self, in_stream, nested):
+    return self.logical_type.to_language_type(
+        self.representation_coder.decode_from_stream(in_stream, nested))

@@ -164,7 +164,6 @@ public class BatchModeExecutionContextTest {
         BatchModeExecutionContext.forTesting(PipelineOptionsFactory.create(), "testStage");
 
     MetricsContainer metricsContainer = Mockito.mock(MetricsContainer.class);
-    ProfileScope otherScope = Mockito.mock(ProfileScope.class);
     ProfileScope profileScope = Mockito.mock(ProfileScope.class);
     ExecutionState start1 =
         executionContext.executionStateRegistry.getState(

@@ -122,7 +122,7 @@ class ReadFromSnowflake(beam.PTransform):
     An external PTransform which reads from Snowflake.
   """
 
-  URN = 'beam:external:java:snowflake:read:v1'
+  URN = 'beam:transform:org.apache.beam:snowflake_read:v1'
 
   def __init__(
       self,
@@ -263,7 +263,7 @@ class WriteToSnowflake(beam.PTransform):
     An external PTransform which writes to Snowflake.
   """
 
-  URN = 'beam:external:java:snowflake:write:v1'
+  URN = 'beam:transform:org.apache.beam:snowflake_write:v1'
 
   def __init__(
       self,

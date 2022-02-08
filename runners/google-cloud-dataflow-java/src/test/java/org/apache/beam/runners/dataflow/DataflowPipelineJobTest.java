@@ -40,29 +40,19 @@ import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.JobMessage;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
-import java.util.Collections;
-import java.util.List;
-import java.util.NavigableMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
 import org.apache.beam.runners.dataflow.util.TimeUtil;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.storage.NoopPathValidator;
 import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
 import org.apache.beam.sdk.extensions.gcp.util.FastNanoClockAndSleeper;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.ExpectedLogs;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
-import org.apache.beam.sdk.values.PInput;
-import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -342,7 +332,6 @@ public class DataflowPipelineJobTest {
     DataflowPipelineJob job =
         new DataflowPipelineJob(DataflowClient.create(options), JOB_ID, options, ImmutableMap.of());
 
-    long startTime = fastClock.nanoTime();
     thrown.expect(IOException.class);
     job.getStateWithRetries(
         BackOffAdapter.toGcpBackOff(DataflowPipelineJob.STATUS_BACKOFF_FACTORY.backoff()),
@@ -371,19 +360,6 @@ public class DataflowPipelineJobTest {
         DataflowPipelineJob.STATUS_POLLING_INTERVAL,
         DataflowPipelineJob.STATUS_POLLING_RETRIES,
         timeDiff);
-  }
-
-  private AppliedPTransform<?, ?, ?> appliedPTransform(
-      String fullName, PTransform<PInput, POutput> transform, Pipeline p) {
-    PInput input = mock(PInput.class);
-    when(input.getPipeline()).thenReturn(p);
-    return AppliedPTransform.of(
-        fullName,
-        Collections.emptyMap(),
-        Collections.emptyMap(),
-        transform,
-        ResourceHints.create(),
-        p);
   }
 
   private static class FastNanoClockAndFuzzySleeper implements NanoClock, Sleeper {
@@ -545,28 +521,6 @@ public class DataflowPipelineJobTest {
     message.setTime(TimeUtil.toCloudTime(timestamp));
     message.setMessageText(text);
     return message;
-  }
-
-  private class FakeMonitor extends MonitoringUtil {
-    // Messages in timestamp order
-    private final NavigableMap<Long, JobMessage> timestampedMessages;
-
-    public FakeMonitor(JobMessage... messages) {
-      // The client should never be used; this Fake is intended to intercept relevant methods
-      super(mockDataflowClient);
-
-      NavigableMap<Long, JobMessage> timestampedMessages = Maps.newTreeMap();
-      for (JobMessage message : messages) {
-        timestampedMessages.put(Long.parseLong(message.getTime()), message);
-      }
-
-      this.timestampedMessages = timestampedMessages;
-    }
-
-    @Override
-    public List<JobMessage> getJobMessages(String jobId, long startTimestampMs) {
-      return ImmutableList.copyOf(timestampedMessages.headMap(startTimestampMs).values());
-    }
   }
 
   private static class ZeroSleeper implements Sleeper {

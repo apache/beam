@@ -55,8 +55,9 @@ func TestFromMonitoringInfos_Counters(t *testing.T) {
 
 	attempted := []*pipepb.MonitoringInfo{mInfo}
 	committed := []*pipepb.MonitoringInfo{}
+	p := &pipepb.Pipeline{}
 
-	got := FromMonitoringInfos(attempted, committed).AllMetrics().Counters()
+	got := FromMonitoringInfos(p, attempted, committed).AllMetrics().Counters()
 	size := len(got)
 	if size < 1 {
 		t.Fatalf("Invalid array's size: got: %v, want: %v", size, 1)
@@ -104,8 +105,9 @@ func TestFromMonitoringInfos_Distributions(t *testing.T) {
 
 	attempted := []*pipepb.MonitoringInfo{mInfo}
 	committed := []*pipepb.MonitoringInfo{}
+	p := &pipepb.Pipeline{}
 
-	got := FromMonitoringInfos(attempted, committed).AllMetrics().Distributions()
+	got := FromMonitoringInfos(p, attempted, committed).AllMetrics().Distributions()
 	size := len(got)
 	if size < 1 {
 		t.Fatalf("Invalid array's size: got: %v, want: %v", size, 1)
@@ -153,8 +155,9 @@ func TestFromMonitoringInfos_Gauges(t *testing.T) {
 
 	attempted := []*pipepb.MonitoringInfo{mInfo}
 	committed := []*pipepb.MonitoringInfo{}
+	p := &pipepb.Pipeline{}
 
-	got := FromMonitoringInfos(attempted, committed).AllMetrics().Gauges()
+	got := FromMonitoringInfos(p, attempted, committed).AllMetrics().Gauges()
 	size := len(got)
 	if size < 1 {
 		t.Fatalf("Invalid array's size: got: %v, want: %v", size, 1)

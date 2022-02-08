@@ -43,7 +43,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.tools.Frameworks;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.Frameworks;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.codehaus.commons.compiler.CompileException;
@@ -307,7 +307,7 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     thrown.expect(SqlException.class);
     thrown.expectMessage("Non-SQL functions must specify a return type");
-    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    zetaSQLQueryPlanner.convertToBeamRel(sql);
   }
 
   @Test
@@ -422,7 +422,7 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
                 "message",
                 containsString("No implementation of aggregate function nonexistent found"))));
 
-    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    zetaSQLQueryPlanner.convertToBeamRel(sql);
   }
 
   @Test

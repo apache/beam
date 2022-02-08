@@ -34,7 +34,6 @@ import org.apache.beam.sdk.values.Row;
 @SuppressWarnings("nullness")
 class BigQueryStorageArrowReader implements BigQueryStorageReader {
 
-  private org.apache.beam.sdk.schemas.Schema arrowBeamSchema;
   private @Nullable RecordBatchRowIterator recordBatchIterator;
   private long rowCount;
   private ArrowSchema protoSchema;
@@ -42,10 +41,6 @@ class BigQueryStorageArrowReader implements BigQueryStorageReader {
 
   BigQueryStorageArrowReader(ReadSession readSession) throws IOException {
     protoSchema = readSession.getArrowSchema();
-    InputStream input = protoSchema.getSerializedSchema().newInput();
-    this.arrowBeamSchema =
-        ArrowConversion.ArrowSchemaTranslator.toBeamSchema(
-            ArrowConversion.arrowSchemaFromInput(input));
     this.rowCount = 0;
     this.alloc = null;
   }

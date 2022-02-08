@@ -35,7 +35,6 @@ import mock
 import parameterized
 
 import apache_beam as beam
-import apache_beam.transforms.combiners as combiners
 from apache_beam import WindowInto
 from apache_beam import coders
 from apache_beam import pvalue
@@ -51,6 +50,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms import combiners
 from apache_beam.transforms.trigger import AccumulationMode
 from apache_beam.transforms.trigger import AfterAny
 from apache_beam.transforms.trigger import AfterCount
@@ -378,12 +378,12 @@ class TypeHintsTest(unittest.TestCase):
       # [START type_hints_do_fn_annotations]
       from typing import Iterable
 
-      class FilterEvensDoFn(beam.DoFn):
+      class TypedFilterEvensDoFn(beam.DoFn):
         def process(self, element: int) -> Iterable[int]:
           if element % 2 == 0:
             yield element
 
-      evens = numbers | 'filter_evens' >> beam.ParDo(FilterEvensDoFn())
+      evens = numbers | 'filter_evens' >> beam.ParDo(TypedFilterEvensDoFn())
       # [END type_hints_do_fn_annotations]
 
     # Another example, using a list output type. Notice that the output

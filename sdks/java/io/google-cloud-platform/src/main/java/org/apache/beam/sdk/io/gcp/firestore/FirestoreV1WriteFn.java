@@ -56,6 +56,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -383,7 +384,7 @@ final class FirestoreV1WriteFn {
           continue;
         }
 
-        long elapsedMillis = end.minus(start.getMillis()).getMillis();
+        long elapsedMillis = end.minus(Duration.millis(start.getMillis())).getMillis();
 
         int okCount = 0;
         long okBytes = 0L;

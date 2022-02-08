@@ -227,7 +227,7 @@ public class CoGroupByKeyTest implements Serializable {
         createInput("CreateClicks", p, idToClick, Arrays.asList(0L, 2L, 4L, 6L, 8L))
             .apply(
                 "WindowClicks",
-                Window.<KV<Integer, String>>into(FixedWindows.of(new Duration(4)))
+                Window.<KV<Integer, String>>into(FixedWindows.of(Duration.millis(4)))
                     .withTimestampCombiner(TimestampCombiner.EARLIEST));
 
     PCollection<KV<Integer, String>> purchasesTable =
@@ -238,7 +238,7 @@ public class CoGroupByKeyTest implements Serializable {
                 Arrays.asList(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L))
             .apply(
                 "WindowPurchases",
-                Window.<KV<Integer, String>>into(FixedWindows.of(new Duration(4)))
+                Window.<KV<Integer, String>>into(FixedWindows.of(Duration.millis(4)))
                     .withTimestampCombiner(TimestampCombiner.EARLIEST));
 
     PCollection<KV<Integer, CoGbkResult>> coGbkResults =

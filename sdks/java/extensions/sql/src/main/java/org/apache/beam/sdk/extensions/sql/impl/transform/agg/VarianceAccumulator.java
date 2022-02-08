@@ -79,7 +79,7 @@ abstract class VarianceAccumulator implements Serializable {
     BigDecimal multiplier = m.divide(n.multiply(m.add(n)), VarianceFn.MATH_CTX);
 
     // (n/m * sum(x) - sum(y))^2
-    BigDecimal square = (sumX.multiply(n).divide(m, VarianceFn.MATH_CTX)).subtract(sumY).pow(2);
+    BigDecimal square = sumX.multiply(n).divide(m, VarianceFn.MATH_CTX).subtract(sumY).pow(2);
 
     return multiplier.multiply(square);
   }

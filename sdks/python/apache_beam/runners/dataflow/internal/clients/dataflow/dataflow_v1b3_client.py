@@ -47,7 +47,7 @@ class DataflowV1b3(base_api.BaseApiClient):
                additional_http_headers=None, response_encoding=None):
     """Create a new dataflow handle."""
     url = url or self.BASE_URL
-    super(DataflowV1b3, self).__init__(
+    super().__init__(
         url, credentials=credentials,
         get_credentials=get_credentials, http=http, model=model,
         log_request=log_request, log_response=log_response,
@@ -83,7 +83,7 @@ class DataflowV1b3(base_api.BaseApiClient):
     _NAME = 'projects_catalogTemplates_templateVersions'
 
     def __init__(self, client):
-      super(DataflowV1b3.ProjectsCatalogTemplatesTemplateVersionsService, self).__init__(client)
+      super().__init__(client)
       self._upload_configs = {
           }
 
@@ -120,7 +120,7 @@ class DataflowV1b3(base_api.BaseApiClient):
     _NAME = 'projects_catalogTemplates'
 
     def __init__(self, client):
-      super(DataflowV1b3.ProjectsCatalogTemplatesService, self).__init__(client)
+      super().__init__(client)
       self._upload_configs = {
           }
 
@@ -265,7 +265,7 @@ class DataflowV1b3(base_api.BaseApiClient):
     _NAME = 'projects_jobs_debug'
 
     def __init__(self, client):
-      super(DataflowV1b3.ProjectsJobsDebugService, self).__init__(client)
+      super().__init__(client)
       self._upload_configs = {
           }
 
@@ -327,7 +327,7 @@ class DataflowV1b3(base_api.BaseApiClient):
     _NAME = 'projects_jobs_messages'
 
     def __init__(self, client):
-      super(DataflowV1b3.ProjectsJobsMessagesService, self).__init__(client)
+      super().__init__(client)
       self._upload_configs = {
           }
 
@@ -363,7 +363,7 @@ class DataflowV1b3(base_api.BaseApiClient):
     _NAME = 'projects_jobs_workItems'
 
     def __init__(self, client):
-      super(DataflowV1b3.ProjectsJobsWorkItemsService, self).__init__(client)
+      super().__init__(client)
       self._upload_configs = {
           }
 
@@ -425,7 +425,7 @@ class DataflowV1b3(base_api.BaseApiClient):
     _NAME = 'projects_jobs'
 
     def __init__(self, client):
-      super(DataflowV1b3.ProjectsJobsService, self).__init__(client)
+      super().__init__(client)
       self._upload_configs = {
           }
 
@@ -617,7 +617,7 @@ class DataflowV1b3(base_api.BaseApiClient):
     _NAME = 'projects_locations_flexTemplates'
 
     def __init__(self, client):
-      super(DataflowV1b3.ProjectsLocationsFlexTemplatesService, self).__init__(client)
+      super().__init__(client)
       self._upload_configs = {
           }
 
@@ -653,7 +653,7 @@ class DataflowV1b3(base_api.BaseApiClient):
     _NAME = 'projects_locations_jobs_debug'
 
     def __init__(self, client):
-      super(DataflowV1b3.ProjectsLocationsJobsDebugService, self).__init__(client)
+      super().__init__(client)
       self._upload_configs = {
           }
 
@@ -715,7 +715,7 @@ class DataflowV1b3(base_api.BaseApiClient):
     _NAME = 'projects_locations_jobs_messages'
 
     def __init__(self, client):
-      super(DataflowV1b3.ProjectsLocationsJobsMessagesService, self).__init__(client)
+      super().__init__(client)
       self._upload_configs = {
           }
 
@@ -751,7 +751,7 @@ class DataflowV1b3(base_api.BaseApiClient):
     _NAME = 'projects_locations_jobs_snapshots'
 
     def __init__(self, client):
-      super(DataflowV1b3.ProjectsLocationsJobsSnapshotsService, self).__init__(client)
+      super().__init__(client)
       self._upload_configs = {
           }
 
@@ -787,7 +787,7 @@ class DataflowV1b3(base_api.BaseApiClient):
     _NAME = 'projects_locations_jobs_stages'
 
     def __init__(self, client):
-      super(DataflowV1b3.ProjectsLocationsJobsStagesService, self).__init__(client)
+      super().__init__(client)
       self._upload_configs = {
           }
 
@@ -823,7 +823,7 @@ class DataflowV1b3(base_api.BaseApiClient):
     _NAME = 'projects_locations_jobs_workItems'
 
     def __init__(self, client):
-      super(DataflowV1b3.ProjectsLocationsJobsWorkItemsService, self).__init__(client)
+      super().__init__(client)
       self._upload_configs = {
           }
 
@@ -885,7 +885,7 @@ class DataflowV1b3(base_api.BaseApiClient):
     _NAME = 'projects_locations_jobs'
 
     def __init__(self, client):
-      super(DataflowV1b3.ProjectsLocationsJobsService, self).__init__(client)
+      super().__init__(client)
       self._upload_configs = {
           }
 
@@ -1077,7 +1077,7 @@ class DataflowV1b3(base_api.BaseApiClient):
     _NAME = 'projects_locations_snapshots'
 
     def __init__(self, client):
-      super(DataflowV1b3.ProjectsLocationsSnapshotsService, self).__init__(client)
+      super().__init__(client)
       self._upload_configs = {
           }
 
@@ -1165,7 +1165,7 @@ class DataflowV1b3(base_api.BaseApiClient):
     _NAME = 'projects_locations_sql'
 
     def __init__(self, client):
-      super(DataflowV1b3.ProjectsLocationsSqlService, self).__init__(client)
+      super().__init__(client)
       self._upload_configs = {
           }
 
@@ -1201,7 +1201,7 @@ class DataflowV1b3(base_api.BaseApiClient):
     _NAME = 'projects_locations_templates'
 
     def __init__(self, client):
-      super(DataflowV1b3.ProjectsLocationsTemplatesService, self).__init__(client)
+      super().__init__(client)
       self._upload_configs = {
           }
 
@@ -1289,7 +1289,7 @@ class DataflowV1b3(base_api.BaseApiClient):
     _NAME = 'projects_locations'
 
     def __init__(self, client):
-      super(DataflowV1b3.ProjectsLocationsService, self).__init__(client)
+      super().__init__(client)
       self._upload_configs = {
           }
 
@@ -1325,7 +1325,7 @@ class DataflowV1b3(base_api.BaseApiClient):
     _NAME = 'projects_snapshots'
 
     def __init__(self, client):
-      super(DataflowV1b3.ProjectsSnapshotsService, self).__init__(client)
+      super().__init__(client)
       self._upload_configs = {
           }
 
@@ -1387,7 +1387,7 @@ class DataflowV1b3(base_api.BaseApiClient):
     _NAME = 'projects_templateVersions'
 
     def __init__(self, client):
-      super(DataflowV1b3.ProjectsTemplateVersionsService, self).__init__(client)
+      super().__init__(client)
       self._upload_configs = {
           }
 
@@ -1424,7 +1424,7 @@ class DataflowV1b3(base_api.BaseApiClient):
     _NAME = 'projects_templates'
 
     def __init__(self, client):
-      super(DataflowV1b3.ProjectsTemplatesService, self).__init__(client)
+      super().__init__(client)
       self._upload_configs = {
           }
 
@@ -1512,7 +1512,7 @@ class DataflowV1b3(base_api.BaseApiClient):
     _NAME = 'projects'
 
     def __init__(self, client):
-      super(DataflowV1b3.ProjectsService, self).__init__(client)
+      super().__init__(client)
       self._upload_configs = {
           }
 

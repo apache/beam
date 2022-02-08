@@ -24,8 +24,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import net.snowflake.ingest.SimpleIngestManager;
 import net.snowflake.ingest.connection.IngestResponseException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Implemenation of {@link SnowflakeService} used in production. */
 @SuppressWarnings({
@@ -33,7 +31,7 @@ import org.slf4j.LoggerFactory;
 })
 public class SnowflakeStreamingServiceImpl
     implements SnowflakeService<SnowflakeStreamingServiceConfig> {
-  private static final Logger LOG = LoggerFactory.getLogger(SnowflakeStreamingServiceImpl.class);
+
   private transient SimpleIngestManager ingestManager;
 
   /** Writing data to Snowflake in streaming mode. */

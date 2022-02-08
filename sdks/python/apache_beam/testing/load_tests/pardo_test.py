@@ -88,7 +88,7 @@ from apache_beam.transforms import userstate
 
 class ParDoTest(LoadTest):
   def __init__(self):
-    super(ParDoTest, self).__init__()
+    super().__init__()
     self.iterations = self.get_option_or_default('iterations')
     self.number_of_counters = self.get_option_or_default(
         'number_of_counters', 1)

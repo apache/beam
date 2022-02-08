@@ -57,6 +57,8 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.CombineFnUtil;
@@ -139,7 +141,13 @@ public final class TransformTranslator {
 
         JavaRDD<WindowedValue<KV<K, Iterable<V>>>> groupedByKey;
         Partitioner partitioner = getPartitioner(context);
-        if (GroupNonMergingWindowsFunctions.isEligibleForGroupByWindow(windowingStrategy)) {
+        // As this is batch, we can ignore triggering and allowed lateness parameters.
+        if (windowingStrategy.getWindowFn().equals(new GlobalWindows())
+                && windowingStrategy.getTimestampCombiner().equals(TimestampCombiner.END_OF_WINDOW)) {
+          // we can drop the windows and recover them later
+          groupedByKey = GroupNonMergingWindowsFunctions.groupByKeyInGlobalWindow(
+                  inRDD, keyCoder, coder.getValueCoder(), partitioner);
+        } else if (GroupNonMergingWindowsFunctions.isEligibleForGroupByWindow(windowingStrategy)) {
           // we can have a memory sensitive translation for non-merging windows
           groupedByKey =
               GroupNonMergingWindowsFunctions.groupByKeyAndWindow(

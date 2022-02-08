@@ -22,13 +22,13 @@ import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
-import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.Table;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.metadata.MetadataDef;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.metadata.MetadataHandler;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.metadata.ReflectiveRelMetadataProvider;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.metadata.RelMetadataProvider;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.Table;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.metadata.MetadataDef;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.metadata.MetadataHandler;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.metadata.ReflectiveRelMetadataProvider;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.metadata.RelMetadataProvider;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 /**
  * This is the implementation of NodeStatsMetadata. Methods to estimate rate and row count for
@@ -50,9 +50,11 @@ public class RelMdNodeStats implements MetadataHandler<NodeStatsMetadata> {
 
   @SuppressWarnings("UnusedDeclaration")
   public NodeStats getNodeStats(RelNode rel, RelMetadataQuery mq) {
+    assert mq instanceof BeamRelMetadataQuery;
+    BeamRelMetadataQuery bmq = (BeamRelMetadataQuery) mq;
 
     if (rel instanceof BeamRelNode) {
-      return this.getBeamNodeStats((BeamRelNode) rel, mq);
+      return this.getBeamNodeStats((BeamRelNode) rel, bmq);
     }
 
     // We can later define custom methods for all different RelNodes to prevent hitting this point.
@@ -61,7 +63,7 @@ public class RelMdNodeStats implements MetadataHandler<NodeStatsMetadata> {
     return NodeStats.UNKNOWN;
   }
 
-  private NodeStats getBeamNodeStats(BeamRelNode rel, RelMetadataQuery mq) {
+  private NodeStats getBeamNodeStats(BeamRelNode rel, BeamRelMetadataQuery mq) {
 
     // Removing the unknown results.
     // Calcite caches previous results in mq.map. This is done to prevent cyclic calls of this
@@ -78,7 +80,7 @@ public class RelMdNodeStats implements MetadataHandler<NodeStatsMetadata> {
             .filter(entry -> entry != null)
             .filter(entry -> entry.getValue() != null)
             .filter(entry -> entry.getValue() instanceof NodeStats)
-            .filter(entry -> (checkArgumentNotNull((NodeStats) entry.getValue()).isUnknown()))
+            .filter(entry -> checkArgumentNotNull((NodeStats) entry.getValue()).isUnknown())
             .collect(Collectors.toList());
 
     keys.forEach(cell -> mq.map.remove(cell.getRowKey(), cell.getColumnKey()));

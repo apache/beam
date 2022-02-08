@@ -26,7 +26,6 @@ import java.sql.SQLException;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.common.TestRow;
-import org.apache.beam.sdk.io.jdbc.JdbcIO;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.lib.db.DBWritable;
 
@@ -79,14 +78,5 @@ class TestRowDBWritable extends TestRow implements DBWritable, Writable {
   public void readFields(DataInput in) throws IOException {
     id = in.readInt();
     name = in.readUTF();
-  }
-
-  private static class PrepareStatementFromTestRow
-      implements JdbcIO.PreparedStatementSetter<TestRow> {
-    @Override
-    public void setParameters(TestRow element, PreparedStatement statement) throws SQLException {
-      statement.setLong(1, element.id());
-      statement.setString(2, element.name());
-    }
   }
 }

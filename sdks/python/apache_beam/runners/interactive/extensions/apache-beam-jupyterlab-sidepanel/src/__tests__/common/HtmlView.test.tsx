@@ -65,9 +65,8 @@ describe('HtmlView', () => {
     'only executes incrementally updated Javascript ' +
       'as html provider updated',
     () => {
-      const htmlViewRef: React.RefObject<HtmlView> = React.createRef<
-        HtmlView
-      >();
+      const htmlViewRef: React.RefObject<HtmlView> =
+        React.createRef<HtmlView>();
       const spiedConsole = jest.spyOn(console, 'log');
       const fakeHtmlProvider = {
         html: '<div></div>',

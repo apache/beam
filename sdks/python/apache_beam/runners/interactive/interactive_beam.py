@@ -41,9 +41,11 @@ from apache_beam.dataframe.frame_base import DeferredBase
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive.display import pipeline_graph
 from apache_beam.runners.interactive.display.pcoll_visualization import visualize
+from apache_beam.runners.interactive.display.pcoll_visualization import visualize_computed_pcoll
 from apache_beam.runners.interactive.options import interactive_options
 from apache_beam.runners.interactive.utils import deferred_df_to_pcollection
 from apache_beam.runners.interactive.utils import elements_to_df
+from apache_beam.runners.interactive.utils import find_pcoll_name
 from apache_beam.runners.interactive.utils import progress_indicated
 from apache_beam.runners.runner import PipelineState
 
@@ -217,6 +219,36 @@ class Options(interactive_options.InteractiveOptions):
       interactive_beam.options.display_timezone = tz
     """
     self._display_timezone = value
+
+  @property
+  def cache_root(self):
+    """The cache directory specified by the user.
+
+    Defaults to None.
+    """
+    return self._cache_root
+
+  @cache_root.setter
+  def cache_root(self, value):
+    """Sets the cache directory.
+
+    Defaults to None.
+
+    Example of local directory usage::
+      interactive_beam.options.cache_root = '/Users/username/my/cache/dir'
+
+    Example of GCS directory usage::
+      interactive_beam.options.cache_root = 'gs://my-gcs-bucket/cache/dir'
+    """
+    _LOGGER.warning(
+        'Interactive Beam has detected a set value for the cache_root '
+        'option. Please note: existing cache managers will not have '
+        'their current cache directory changed. The option must be '
+        'set in Interactive Beam prior to the initialization of new '
+        'pipelines to take effect. To apply changes to new pipelines, '
+        'the kernel must be restarted or the pipeline creation codes '
+        'must be re-executed. ')
+    self._cache_root = value
 
 
 class Recordings():
@@ -448,7 +480,7 @@ def show(
 
   # Iterate through the given PCollections and convert any deferred DataFrames
   # or Series into PCollections.
-  pcolls = []
+  pcolls = set()
 
   # The element type is used to help visualize the given PCollection. For the
   # deferred DataFrame/Series case it is the proxy of the frame.
@@ -462,14 +494,20 @@ def show(
 
     element_types[pcoll] = element_type
 
-    pcolls.append(pcoll)
+    pcolls.add(pcoll)
     assert isinstance(pcoll, beam.pvalue.PCollection), (
         '{} is not an apache_beam.pvalue.PCollection.'.format(pcoll))
 
   assert len(pcolls) > 0, (
       'Need at least 1 PCollection to show data visualization.')
 
-  user_pipeline = pcolls[0].pipeline
+  pcoll_pipeline = next(iter(pcolls)).pipeline
+  user_pipeline = ie.current_env().user_pipeline(pcoll_pipeline)
+  # Possibly showing a PCollection defined in a local scope that is not
+  # explicitly watched. Ad hoc watch it though it's a little late.
+  if not user_pipeline:
+    watch({'anonymous_pipeline_{}'.format(id(pcoll_pipeline)): pcoll_pipeline})
+    user_pipeline = pcoll_pipeline
 
   if isinstance(n, str):
     assert n == 'inf', (
@@ -487,6 +525,20 @@ def show(
 
   if duration == 'inf':
     duration = float('inf')
+
+  previously_computed_pcolls = {
+      pcoll
+      for pcoll in pcolls if pcoll in ie.current_env().computed_pcollections
+  }
+  for pcoll in previously_computed_pcolls:
+    visualize_computed_pcoll(
+        find_pcoll_name(pcoll),
+        pcoll,
+        n,
+        duration,
+        include_window_info=include_window_info,
+        display_facets=visualize_data)
+  pcolls = pcolls - previously_computed_pcolls
 
   recording_manager = ie.current_env().get_recording_manager(
       user_pipeline, create_if_absent=True)
@@ -509,7 +561,6 @@ def show(
             stream,
             include_window_info=include_window_info,
             element_type=element_types[stream.pcoll])
-
     if recording.is_computed():
       return
 
@@ -591,9 +642,24 @@ def collect(pcoll, n='inf', duration='inf', include_window_info=False):
   if duration == 'inf':
     duration = float('inf')
 
-  user_pipeline = pcoll.pipeline
+  user_pipeline = ie.current_env().user_pipeline(pcoll.pipeline)
+  # Possibly collecting a PCollection defined in a local scope that is not
+  # explicitly watched. Ad hoc watch it though it's a little late.
+  if not user_pipeline:
+    watch({'anonymous_pipeline_{}'.format(id(pcoll.pipeline)): pcoll.pipeline})
+    user_pipeline = pcoll.pipeline
   recording_manager = ie.current_env().get_recording_manager(
       user_pipeline, create_if_absent=True)
+
+  # If already computed, directly read the stream and return.
+  if pcoll in ie.current_env().computed_pcollections:
+    pcoll_name = find_pcoll_name(pcoll)
+    elements = list(
+        recording_manager.read(pcoll_name, pcoll, n, duration).read())
+    return elements_to_df(
+        elements,
+        include_window_info=include_window_info,
+        element_type=element_type)
 
   recording = recording_manager.record([pcoll], max_n=n, max_duration=duration)
 

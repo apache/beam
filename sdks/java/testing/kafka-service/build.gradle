@@ -25,13 +25,13 @@ ext.summary = """Self-contained Kafka service for testing IO transforms."""
 
 
 dependencies {
-  testCompile library.java.kafka
-  testCompile "org.apache.zookeeper:zookeeper:3.5.6"
+  testImplementation library.java.kafka
+  testImplementation "org.apache.zookeeper:zookeeper:3.5.6"
   testRuntimeOnly library.java.slf4j_log4j12
 }
 
 task runTestKafkaService (type: JavaExec) {
-  main = "org.apache.beam.sdk.testing.kafka.LocalKafka"
+  mainClass = "org.apache.beam.sdk.testing.kafka.LocalKafka"
   classpath = sourceSets.test.runtimeClasspath
   args = [
     project.findProperty("kafka.port") ?: "9092",
@@ -40,7 +40,7 @@ task runTestKafkaService (type: JavaExec) {
 }
 
 task buildTestKafkaServiceJar(type: ShadowJar) {
-  appendix = "testKafkaService"
+  archiveAppendix = "testKafkaService"
   // Use zip64 mode to avoid "Archive contains more than 65535 entries".
   zip64 = true
   mergeServiceFiles()
@@ -54,7 +54,7 @@ task buildTestKafkaServiceJar(type: ShadowJar) {
   exclude "META-INF/*.DSA"
   exclude "META-INF/*.RSA"
   configurations = [
-    project.configurations.testRuntime
+    project.configurations.testRuntimeClasspath
   ]
   from sourceSets.main.output
   from sourceSets.test.output

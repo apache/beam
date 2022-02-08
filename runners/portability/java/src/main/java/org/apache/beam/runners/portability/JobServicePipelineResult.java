@@ -33,7 +33,7 @@ import org.apache.beam.model.jobmanagement.v1.JobApi.JobStateEvent;
 import org.apache.beam.model.jobmanagement.v1.JobServiceGrpc.JobServiceBlockingStub;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -88,7 +88,7 @@ class JobServicePipelineResult implements PipelineResult, AutoCloseable {
   @Nullable
   @Override
   public State waitUntilFinish(Duration duration) {
-    if (duration.compareTo(Duration.millis(1)) < 1) {
+    if (duration.compareTo(Duration.millis(1)) <= 0) {
       // Equivalent to infinite timeout.
       return waitUntilFinish();
     } else {

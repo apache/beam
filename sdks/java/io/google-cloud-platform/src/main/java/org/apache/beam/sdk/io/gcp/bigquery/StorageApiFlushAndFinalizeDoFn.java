@@ -19,8 +19,8 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode.Code;
-import com.google.cloud.bigquery.storage.v1beta2.FinalizeWriteStreamResponse;
-import com.google.cloud.bigquery.storage.v1beta2.FlushRowsResponse;
+import com.google.cloud.bigquery.storage.v1.FinalizeWriteStreamResponse;
+import com.google.cloud.bigquery.storage.v1.FlushRowsResponse;
 import java.io.IOException;
 import java.io.Serializable;
 import java.time.Instant;
@@ -49,7 +49,7 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
   private static final Logger LOG = LoggerFactory.getLogger(StorageApiFlushAndFinalizeDoFn.class);
 
   private final BigQueryServices bqServices;
-  @Nullable private DatasetService datasetService = null;
+  private transient @Nullable DatasetService datasetService = null;
   private final Counter flushOperationsSent =
       Metrics.counter(StorageApiFlushAndFinalizeDoFn.class, "flushOperationsSent");
   private final Counter flushOperationsSucceeded =

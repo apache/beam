@@ -22,10 +22,10 @@ For internal use only; no backwards-compatibility guarantees.
 
 # pytype: skip-file
 
-import collections
 import inspect
 import sys
 import types
+from collections import abc
 
 from apache_beam import pipeline
 from apache_beam.pvalue import TaggedOutput
@@ -44,7 +44,7 @@ from apache_beam.typehints.typehints import check_constraint
 class AbstractDoFnWrapper(DoFn):
   """An abstract class to create wrapper around DoFn"""
   def __init__(self, dofn):
-    super(AbstractDoFnWrapper, self).__init__()
+    super().__init__()
     self.dofn = dofn
 
   def _inspect_start_bundle(self):
@@ -78,7 +78,7 @@ class AbstractDoFnWrapper(DoFn):
 class OutputCheckWrapperDoFn(AbstractDoFnWrapper):
   """A DoFn that verifies against common errors in the output type."""
   def __init__(self, dofn, full_label):
-    super(OutputCheckWrapperDoFn, self).__init__(dofn)
+    super().__init__(dofn)
     self.full_label = full_label
 
   def wrapper(self, method, args, kwargs):
@@ -105,7 +105,7 @@ class OutputCheckWrapperDoFn(AbstractDoFnWrapper):
           'Returning a %s from a ParDo or FlatMap is '
           'discouraged. Please use list("%s") if you really '
           'want this behavior.' % (object_type, output))
-    elif not isinstance(output, collections.Iterable):
+    elif not isinstance(output, abc.Iterable):
       raise TypeCheckError(
           'FlatMap and ParDo must return an '
           'iterable. %s was returned instead.' % type(output))
@@ -116,7 +116,7 @@ class TypeCheckWrapperDoFn(AbstractDoFnWrapper):
   """A wrapper around a DoFn which performs type-checking of input and output.
   """
   def __init__(self, dofn, type_hints, label=None):
-    super(TypeCheckWrapperDoFn, self).__init__(dofn)
+    super().__init__(dofn)
     self._process_fn = self.dofn._process_argspec_fn()
     if type_hints.input_types:
       input_args, input_kwargs = type_hints.input_types

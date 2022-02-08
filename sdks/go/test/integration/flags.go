@@ -30,6 +30,10 @@ var (
 	// cross-language IO transforms.
 	IoExpansionAddr = flag.String("io_expansion_addr", "", "Address of Expansion Service for cross-language IOs.")
 
+	// SchemaIoExpansionAddr is the endpoint for the expansion service for
+	// cross-language SchemaIO-based transforms.
+	SchemaIoExpansionAddr = flag.String("schemaio_expansion_addr", "", "Address of Expansion Service for cross-language SchemaIO-based IOs.")
+
 	// BootstrapServers is the address of the bootstrap servers for a Kafka
 	// cluster, used for Kafka IO tests.
 	BootstrapServers = flag.String("bootstrap_servers", "",
@@ -39,4 +43,10 @@ var (
 	// Kafka IO tests.
 	KafkaJar = flag.String("kafka_jar", "",
 		"The filepath to a jar for starting up a Kafka cluster. Only used if boostrap_servers is unspecified.")
+
+	// KafkaJarTimeout attempts to apply an auto-shutdown timeout to the Kafka
+	// cluster jar. Only used for Kafka IO tests.
+	KafkaJarTimeout = flag.String("kafka_jar_timeout", "10m",
+		"Sets an auto-shutdown timeout to the Kafka cluster. "+
+			"Requires the timeout command to be present in Path, unless the value is set to \"\".")
 )

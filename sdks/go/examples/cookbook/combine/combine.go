@@ -39,7 +39,11 @@ var (
 )
 
 func init() {
+	beam.RegisterFunction(concatFn)
+	beam.RegisterFunction(formatFn)
 	beam.RegisterType(reflect.TypeOf((*extractFn)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*WordRow)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*PlaysRow)(nil)).Elem())
 }
 
 type WordRow struct {

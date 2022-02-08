@@ -101,8 +101,8 @@ import org.joda.time.Duration;
  * PCollection<Integer> sum =
  *     ints
  *     .apply(Combine.globally(new SumInts()));
- * PAssert.that(sum)
- *     .is(42);
+ * PAssert.thatSingleton(sum)
+ *     .isEqualTo(42);
  * ...
  * p.run();
  * }</pre>
@@ -123,7 +123,7 @@ public class PAssert {
   private static int assertCount = 0;
 
   private static String nextAssertionName() {
-    return "PAssert$" + (assertCount++);
+    return "PAssert$" + assertCount++;
   }
 
   // Do not instantiate.
@@ -298,6 +298,22 @@ public class PAssert {
      * @return the same {@link IterableAssert} builder for further assertions
      */
     IterableAssert<T> containsInAnyOrder(T... expectedElements);
+
+    /**
+     * Asserts that the iterable in question matches the provided elements.
+     *
+     * @return the same {@link IterableAssert} builder for further assertions
+     */
+    IterableAssert<T> containsInAnyOrder(SerializableMatcher<? super T>... expectedElements);
+
+    /**
+     * Asserts that the iterable in question is empty.
+     *
+     * @return the same {@link IterableAssert} builder for further assertions
+     * @deprecated Prefer {@link #empty()} to this method.
+     */
+    @Deprecated
+    IterableAssert<T> containsInAnyOrder();
 
     /**
      * Asserts that the iterable in question contains the provided elements.
@@ -698,9 +714,15 @@ public class PAssert {
      * <p>Returns this {@code IterableAssert}.
      */
     @SafeVarargs
-    final PCollectionContentsAssert<T> containsInAnyOrder(
+    @Override
+    public final PCollectionContentsAssert<T> containsInAnyOrder(
         SerializableMatcher<? super T>... elementMatchers) {
       return satisfies(SerializableMatchers.containsInAnyOrder(elementMatchers));
+    }
+
+    @Override
+    public PCollectionContentsAssert<T> containsInAnyOrder() {
+      return empty();
     }
 
     /**
@@ -731,24 +753,9 @@ public class PAssert {
       SerializableFunction<Iterable<T>, Void> checkerFn =
           (SerializableFunction) new MatcherCheckerFn<>(matcher);
       actual.apply(
-          "PAssert$" + (assertCount++),
+          "PAssert$" + assertCount++,
           new GroupThenAssert<>(checkerFn, rewindowingStrategy, paneExtractor, site));
       return this;
-    }
-
-    /** Check that the passed-in matchers match the existing data. */
-    protected static class MatcherCheckerFn<T> implements SerializableFunction<T, Void> {
-      private SerializableMatcher<T> matcher;
-
-      public MatcherCheckerFn(SerializableMatcher<T> matcher) {
-        this.matcher = matcher;
-      }
-
-      @Override
-      public @Nullable Void apply(T actual) {
-        assertThat(actual, matcher);
-        return null;
-      }
     }
 
     /**
@@ -872,11 +879,30 @@ public class PAssert {
       return satisfies(new AssertContainsInAnyOrderRelation<>(), expectedElements);
     }
 
+    @SafeVarargs
+    @Override
+    public final PCollectionSingletonIterableAssert<T> containsInAnyOrder(
+        SerializableMatcher<? super T>... elementMatchers) {
+      @SuppressWarnings({
+        "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+        "unchecked"
+      })
+      SerializableFunction<Iterable<T>, Void> checkerFn =
+          (SerializableFunction)
+              new MatcherCheckerFn<>(SerializableMatchers.containsInAnyOrder(elementMatchers));
+      return satisfies(checkerFn);
+    }
+
+    @Override
+    public PCollectionSingletonIterableAssert<T> containsInAnyOrder() {
+      return empty();
+    }
+
     @Override
     public PCollectionSingletonIterableAssert<T> satisfies(
         SerializableFunction<Iterable<T>, Void> checkerFn) {
       actual.apply(
-          "PAssert$" + (assertCount++),
+          "PAssert$" + assertCount++,
           new GroupThenAssertForSingleton<>(checkerFn, rewindowingStrategy, paneExtractor, site));
       return this;
     }
@@ -965,7 +991,7 @@ public class PAssert {
     @Override
     public PCollectionSingletonAssert<T> satisfies(SerializableFunction<T, Void> checkerFn) {
       actual.apply(
-          "PAssert$" + (assertCount++),
+          "PAssert$" + assertCount++,
           new GroupThenAssertForSingleton<>(checkerFn, rewindowingStrategy, paneExtractor, site));
       return this;
     }
@@ -1099,7 +1125,7 @@ public class PAssert {
       actual
           .getPipeline()
           .apply(
-              "PAssert$" + (assertCount++),
+              "PAssert$" + assertCount++,
               new OneSideInputAssert<>(
                   CreateActual.from(actual, rewindowActuals, paneExtractor, view),
                   rewindowActuals.windowDummy(),
@@ -1826,6 +1852,21 @@ public class PAssert {
     int getPAssertCount() {
       checkState(pipelineVisited);
       return assertCount;
+    }
+  }
+
+  /** Check that the passed-in matchers match the existing data. */
+  protected static class MatcherCheckerFn<T> implements SerializableFunction<T, Void> {
+    private SerializableMatcher<T> matcher;
+
+    public MatcherCheckerFn(SerializableMatcher<T> matcher) {
+      this.matcher = matcher;
+    }
+
+    @Override
+    public @Nullable Void apply(T actual) {
+      assertThat(actual, matcher);
+      return null;
     }
   }
 }

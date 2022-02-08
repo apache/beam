@@ -71,7 +71,7 @@ except ImportError:
 # composite transforms support display data.
 class SpecialParDo(beam.ParDo):
   def __init__(self, fn, now):
-    super(SpecialParDo, self).__init__(fn)
+    super().__init__(fn)
     self.fn = fn
     self.now = now
 
@@ -220,7 +220,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
                 urn=common_urns.environments.DOCKER.urn,
                 payload=beam_runner_api_pb2.DockerPayload(
                     container_image='LEGACY').SerializeToString(),
-                capabilities=environments.python_sdk_capabilities())
+                capabilities=environments.python_sdk_docker_capabilities())
         ])
 
   def test_environment_override_translation_sdk_container_image(self):
@@ -240,7 +240,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
                 urn=common_urns.environments.DOCKER.urn,
                 payload=beam_runner_api_pb2.DockerPayload(
                     container_image='FOO').SerializeToString(),
-                capabilities=environments.python_sdk_capabilities())
+                capabilities=environments.python_sdk_docker_capabilities())
         ])
 
   def test_remote_runner_translation(self):
@@ -256,6 +256,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
   def test_streaming_create_translation(self):
     remote_runner = DataflowRunner()
     self.default_properties.append("--streaming")
+    self.default_properties.append("--experiments=disable_runner_v2")
     with Pipeline(remote_runner, PipelineOptions(self.default_properties)) as p:
       p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
     job_dict = json.loads(str(remote_runner.job))
@@ -513,16 +514,6 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         remote_runner.job.options.view_as(DebugOptions).experiments)
     self.assertIn('beam_fn_api', experiments_for_job)
     self.assertIn('use_staged_dataflow_worker_jar', experiments_for_job)
-
-  def test_use_fastavro_experiment_is_added_on_py3_and_onwards(self):
-    remote_runner = DataflowRunner()
-
-    with Pipeline(remote_runner, PipelineOptions(self.default_properties)) as p:
-      p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
-
-    self.assertTrue(
-        remote_runner.job.options.view_as(DebugOptions).lookup_experiment(
-            'use_fastavro', False))
 
   def test_use_fastavro_experiment_is_not_added_when_use_avro_is_present(self):
     remote_runner = DataflowRunner()
@@ -839,7 +830,8 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         'Runner determined sharding not available in Dataflow for '
         'GroupIntoBatches for jobs not using Runner V2'):
       _ = self._run_group_into_batches_and_get_step_properties(
-          True, ['--enable_streaming_engine'])
+          True,
+          ['--enable_streaming_engine', '--experiments=disable_runner_v2'])
 
     # JRH
     with self.assertRaisesRegex(
@@ -847,7 +839,12 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         'Runner determined sharding not available in Dataflow for '
         'GroupIntoBatches for jobs not using Runner V2'):
       _ = self._run_group_into_batches_and_get_step_properties(
-          True, ['--enable_streaming_engine', '--experiments=beam_fn_api'])
+          True,
+          [
+              '--enable_streaming_engine',
+              '--experiments=beam_fn_api',
+              '--experiments=disable_runner_v2'
+          ])
 
   def test_pack_combiners(self):
     class PackableCombines(beam.PTransform):

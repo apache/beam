@@ -18,11 +18,15 @@
 package org.apache.beam.sdk.expansion.service;
 
 import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
+import static org.apache.beam.sdk.expansion.service.JavaClassLookupTransformProvider.ALLOW_LIST_VERSION;
+import static org.apache.beam.sdk.expansion.service.JavaClassLookupTransformProvider.AllowList;
+import static org.apache.beam.sdk.expansion.service.JavaClassLookupTransformProvider.AllowedClass;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
@@ -32,6 +36,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.model.expansion.v1.ExpansionApi;
@@ -57,8 +62,8 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Resources;
@@ -71,8 +76,6 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link JavaClassLookupTransformProvider}. */
 @RunWith(JUnit4.class)
 public class JavaClassLookupTransformProviderTest {
-
-  private static final String TEST_URN = "test:beam:transforms:count";
 
   private static final String TEST_NAME = "TestName";
 
@@ -151,7 +154,7 @@ public class JavaClassLookupTransformProviderTest {
       }
       DummyComplexType toCompare = (DummyComplexType) obj;
       return (this.complexTypeIntField == toCompare.complexTypeIntField)
-          && (this.complexTypeStrField.equals(toCompare.complexTypeStrField));
+          && this.complexTypeStrField.equals(toCompare.complexTypeStrField);
     }
   }
 
@@ -531,6 +534,48 @@ public class JavaClassLookupTransformProviderTest {
     builderMethodRow =
         Row.withSchema(Schema.of(Field.of("intField1", FieldType.INT32)))
             .withFieldValue("intField1", 10)
+            .build();
+    builderMethodBuilder.setSchema(getProtoSchemaFromRow(builderMethodRow));
+    builderMethodBuilder.setPayload(getProtoPayloadFromRow(builderMethodRow));
+
+    payloadBuilder.addBuilderMethods(builderMethodBuilder);
+
+    testClassLookupExpansionRequestConstruction(
+        payloadBuilder.build(),
+        ImmutableMap.of("strField1", "test_str_1", "strField2", "test_str_2", "intField1", 10));
+  }
+
+  @Test
+  public void testJavaClassLookupRespectsIgnoreFields() {
+    ExternalTransforms.JavaClassLookupPayload.Builder payloadBuilder =
+        ExternalTransforms.JavaClassLookupPayload.newBuilder();
+    payloadBuilder.setClassName(
+        "org.apache.beam.sdk.expansion.service.JavaClassLookupTransformProviderTest$DummyTransformWithConstructorAndBuilderMethods");
+
+    Row constructorRow =
+        Row.withSchema(Schema.of(Field.of("ignore123", FieldType.STRING)))
+            .withFieldValue("ignore123", "test_str_1")
+            .build();
+
+    payloadBuilder.setConstructorSchema(getProtoSchemaFromRow(constructorRow));
+    payloadBuilder.setConstructorPayload(getProtoPayloadFromRow(constructorRow));
+
+    BuilderMethod.Builder builderMethodBuilder = BuilderMethod.newBuilder();
+    builderMethodBuilder.setName("withStrField2");
+    Row builderMethodRow =
+        Row.withSchema(Schema.of(Field.of("ignore456", FieldType.STRING)))
+            .withFieldValue("ignore456", "test_str_2")
+            .build();
+    builderMethodBuilder.setSchema(getProtoSchemaFromRow(builderMethodRow));
+    builderMethodBuilder.setPayload(getProtoPayloadFromRow(builderMethodRow));
+
+    payloadBuilder.addBuilderMethods(builderMethodBuilder);
+
+    builderMethodBuilder = BuilderMethod.newBuilder();
+    builderMethodBuilder.setName("withIntField1");
+    builderMethodRow =
+        Row.withSchema(Schema.of(Field.of("ignore789", FieldType.INT32)))
+            .withFieldValue("ignore789", 10)
             .build();
     builderMethodBuilder.setSchema(getProtoSchemaFromRow(builderMethodRow));
     builderMethodBuilder.setPayload(getProtoPayloadFromRow(builderMethodRow));
@@ -1057,7 +1102,7 @@ public class JavaClassLookupTransformProviderTest {
             () ->
                 testClassLookupExpansionRequestConstruction(
                     payloadBuilder.build(), ImmutableMap.of()));
-    assertTrue(thrown.getMessage().contains("Expected to find a single mapping constructor"));
+    assertTrue(thrown.getMessage().contains("Could not find a matching constructor"));
   }
 
   @Test
@@ -1091,7 +1136,7 @@ public class JavaClassLookupTransformProviderTest {
             () ->
                 testClassLookupExpansionRequestConstruction(
                     payloadBuilder.build(), ImmutableMap.of()));
-    assertTrue(thrown.getMessage().contains("Expected to find exactly one matching method"));
+    assertTrue(thrown.getMessage().contains("Could not find a matching method"));
   }
 
   private SchemaApi.Schema getProtoSchemaFromRow(Row row) {
@@ -1107,5 +1152,42 @@ public class JavaClassLookupTransformProviderTest {
     }
 
     return outputStream.toByteString();
+  }
+
+  @Test
+  public void testNothingAllowList() {
+    AllowList nothing = AllowList.nothing();
+    RuntimeException thrown =
+        assertThrows(
+            RuntimeException.class,
+            () -> nothing.getAllowedClass("org.apache.beam.sdk.transforms.KvSwap"));
+    assertTrue(thrown.getMessage(), thrown.getMessage().contains("allow list does not enable"));
+    assertTrue(
+        thrown.getMessage(), thrown.getMessage().contains("org.apache.beam.sdk.transforms.KvSwap"));
+  }
+
+  @Test
+  public void testEverythingAllowList() {
+    AllowList everything = AllowList.everything();
+    AllowedClass allowedClass = everything.getAllowedClass("org.apache.beam.sdk.transforms.KvSwap");
+    assertTrue(allowedClass.isAllowedBuilderMethod("builder"));
+    assertTrue(allowedClass.isAllowedConstructorMethod("constructor"));
+  }
+
+  @Test
+  public void testPackageAllowList() {
+    AllowList allowList =
+        AllowList.create(
+            ALLOW_LIST_VERSION,
+            Collections.singletonList(
+                AllowedClass.create(
+                    "good.package.*",
+                    Collections.singletonList("goodBuilder"),
+                    AllowedClass.WILDCARD)));
+    assertThrows(RuntimeException.class, () -> allowList.getAllowedClass("bad.package.Transform"));
+    AllowedClass allowedClass = allowList.getAllowedClass("good.package.Transform");
+    assertTrue(allowedClass.isAllowedBuilderMethod("goodBuilder"));
+    assertFalse(allowedClass.isAllowedBuilderMethod("badBuilder"));
+    assertTrue(allowedClass.isAllowedConstructorMethod("anyConstructor"));
   }
 }

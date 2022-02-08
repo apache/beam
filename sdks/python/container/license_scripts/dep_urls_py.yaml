@@ -48,6 +48,8 @@ pip_dependencies:
     license: "https://raw.githubusercontent.com/chardet/chardet/master/LICENSE"
   certifi:
     license: "https://raw.githubusercontent.com/certifi/python-certifi/master/LICENSE"
+  clang:
+    license: "https://raw.githubusercontent.com/llvm/llvm-project/main/clang/LICENSE.TXT"
   cython:
     license: "https://raw.githubusercontent.com/cython/cython/master/LICENSE.txt"
   dataclasses:
@@ -134,6 +136,8 @@ pip_dependencies:
   tensorflow:
     license: "https://raw.githubusercontent.com/tensorflow/tensorflow/master/LICENSE"
   tensorflow-estimator:
+    license: "https://raw.githubusercontent.com/tensorflow/estimator/master/LICENSE"
+  tf-estimator-nightly:
     license: "https://raw.githubusercontent.com/tensorflow/estimator/master/LICENSE"
   tensorboard-data-server:
     license: "https://raw.githubusercontent.com/tensorflow/tensorboard/master/LICENSE"

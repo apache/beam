@@ -657,15 +657,14 @@ public class TextIOWriteTest {
                     .triggering(AfterPane.elementCountAtLeast(3))
                     .withAllowedLateness(Duration.standardMinutes(1))
                     .discardingFiredPanes());
-    PCollection<String> filenames =
-        data.apply(
-                TextIO.write()
-                    .to(new File(tempFolder.getRoot(), "windowed-writes").getAbsolutePath())
-                    .withNumShards(2)
-                    .withWindowedWrites()
-                    .<Void>withOutputFilenames())
-            .getPerDestinationOutputFilenames()
-            .apply(Values.create());
+    data.apply(
+            TextIO.write()
+                .to(new File(tempFolder.getRoot(), "windowed-writes").getAbsolutePath())
+                .withNumShards(2)
+                .withWindowedWrites()
+                .<Void>withOutputFilenames())
+        .getPerDestinationOutputFilenames()
+        .apply(Values.create());
   }
 
   @Test

@@ -80,10 +80,9 @@ class SDFBoundedSourceRestrictionProviderTest(unittest.TestCase):
     split_bundles = list(
         self.sdf_restriction_provider.split(element, restriction))
     self.assertTrue(
-        all([
+        all(
             isinstance(bundle._source_bundle, SourceBundle)
-            for bundle in split_bundles
-        ]))
+            for bundle in split_bundles))
 
     splits = ([(
         bundle._source_bundle.start_position,
@@ -101,10 +100,9 @@ class SDFBoundedSourceRestrictionProviderTest(unittest.TestCase):
         sdf_concat_restriction_provider.split(
             initial_concat_source, restriction))
     self.assertTrue(
-        all([
+        all(
             isinstance(bundle._source_bundle, SourceBundle)
-            for bundle in split_bundles
-        ]))
+            for bundle in split_bundles))
     splits = ([(
         bundle._source_bundle.start_position,
         bundle._source_bundle.stop_position) for bundle in split_bundles])

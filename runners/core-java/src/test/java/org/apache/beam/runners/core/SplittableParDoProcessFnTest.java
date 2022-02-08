@@ -158,12 +158,14 @@ public class SplittableParDoProcessFnTest {
                   inputCoder,
                   restrictionCoder,
                   watermarkEstimatorStateCoder,
-                  windowingStrategy);
+                  windowingStrategy,
+                  Collections.emptyMap());
       this.tester = DoFnTester.of(processFn);
       this.timerInternals = new InMemoryTimerInternals();
       this.stateInternals = new TestInMemoryStateInternals<>("dummy");
       processFn.setStateInternalsFactory(key -> stateInternals);
       processFn.setTimerInternalsFactory(key -> timerInternals);
+      processFn.setSideInputReader(NullSideInputReader.empty());
       processFn.setProcessElementInvoker(
           new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
               fn,

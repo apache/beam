@@ -94,6 +94,11 @@ public class ProcessFnRunner<InputT, OutputT, RestrictionT>
     throw new UnsupportedOperationException("User timers unsupported in ProcessFn");
   }
 
+  @Override
+  public <KeyT> void onWindowExpiration(BoundedWindow window, Instant outputTimestamp, KeyT key) {
+    throw new UnsupportedOperationException("OnWindowExpiration unsupported in ProcessFn");
+  }
+
   private static <T> void checkTrivialOuterWindows(
       WindowedValue<KeyedWorkItem<byte[], T>> windowedKWI) {
     // In practice it will be in 0 or 1 windows (ValueInEmptyWindows or ValueInGlobalWindow)

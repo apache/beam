@@ -44,7 +44,7 @@ class FakeSource(object):
 
 class FakeSourceReader(observable.ObservableMixin):
   def __init__(self, items, notify_observers=False):
-    super(FakeSourceReader, self).__init__()
+    super().__init__()
     self.items = items
     self.entered = False
     self.exited = False

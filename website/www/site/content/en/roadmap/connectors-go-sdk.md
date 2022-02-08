@@ -17,9 +17,11 @@ limitations under the License.
 
 Roadmap for connectors developed using Go SDK.
 
-* We hope to add a Splittable DoFn implementation to Go SDK to support developing new sources. In the
-meantime bounded sources can be developed in the form of ParDos. See
-[Authoring I/O Transforms](https://beam.apache.org/documentation/io/authoring-overview/) for more details.
-
 * Go SDK plans to utilize currently available Java and Python connectors
 through cross-language transforms feature.
+  * KafkaIO via Java - DONE
+  * BigQuery via Java - In Progress
+  * Beam SQL via Java
+* The Go SDK supports SplittableDoFns for bounded pipelines, so scalable bounded pipelines are possible.
+    * The textio package supports [ReadSdf](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio#ReadSdf) and [ReadAllSdf](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio#ReadAllSdf) for efficient batch text reads.
+    * A general FileIO will be produced to simplify adding new file based connectors.

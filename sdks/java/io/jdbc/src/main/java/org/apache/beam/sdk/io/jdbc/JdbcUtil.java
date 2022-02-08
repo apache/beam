@@ -23,27 +23,23 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
-import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Collection;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TimeZone;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import javax.sql.DataSource;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.DateTime;
+import org.joda.time.ReadableDateTime;
 
 /** Provides utility functions for working with {@link JdbcIO}. */
 @SuppressWarnings({
@@ -72,44 +68,85 @@ class JdbcUtil {
           ImmutableMap.<Schema.TypeName, JdbcIO.PreparedStatementSetCaller>builder()
               .put(
                   Schema.TypeName.BYTE,
-                  (element, ps, i, fieldWithIndex) ->
-                      ps.setByte(i + 1, element.getByte(fieldWithIndex.getIndex())))
+                  (element, ps, i, fieldWithIndex) -> {
+                    Byte value = element.getByte(fieldWithIndex.getIndex());
+                    if (value == null) {
+                      setNullToPreparedStatement(ps, i);
+                    } else {
+                      ps.setByte(i + 1, value);
+                    }
+                  })
               .put(
                   Schema.TypeName.INT16,
-                  (element, ps, i, fieldWithIndex) ->
-                      ps.setInt(i + 1, element.getInt16(fieldWithIndex.getIndex())))
+                  (element, ps, i, fieldWithIndex) -> {
+                    Short value = element.getInt16(fieldWithIndex.getIndex());
+                    if (value == null) {
+                      setNullToPreparedStatement(ps, i);
+                    } else {
+                      ps.setInt(i + 1, value);
+                    }
+                  })
               .put(
                   Schema.TypeName.INT64,
-                  (element, ps, i, fieldWithIndex) ->
-                      ps.setLong(i + 1, element.getInt64(fieldWithIndex.getIndex())))
+                  (element, ps, i, fieldWithIndex) -> {
+                    Long value = element.getInt64(fieldWithIndex.getIndex());
+                    if (value == null) {
+                      setNullToPreparedStatement(ps, i);
+                    } else {
+                      ps.setLong(i + 1, value);
+                    }
+                  })
               .put(
                   Schema.TypeName.DECIMAL,
                   (element, ps, i, fieldWithIndex) ->
                       ps.setBigDecimal(i + 1, element.getDecimal(fieldWithIndex.getIndex())))
               .put(
                   Schema.TypeName.FLOAT,
-                  (element, ps, i, fieldWithIndex) ->
-                      ps.setFloat(i + 1, element.getFloat(fieldWithIndex.getIndex())))
+                  (element, ps, i, fieldWithIndex) -> {
+                    Float value = element.getFloat(fieldWithIndex.getIndex());
+                    if (value == null) {
+                      setNullToPreparedStatement(ps, i);
+                    } else {
+                      ps.setFloat(i + 1, value);
+                    }
+                  })
               .put(
                   Schema.TypeName.DOUBLE,
-                  (element, ps, i, fieldWithIndex) ->
-                      ps.setDouble(i + 1, element.getDouble(fieldWithIndex.getIndex())))
+                  (element, ps, i, fieldWithIndex) -> {
+                    Double value = element.getDouble(fieldWithIndex.getIndex());
+                    if (value == null) {
+                      setNullToPreparedStatement(ps, i);
+                    } else {
+                      ps.setDouble(i + 1, value);
+                    }
+                  })
               .put(
                   Schema.TypeName.DATETIME,
-                  (element, ps, i, fieldWithIndex) ->
-                      ps.setTimestamp(
-                          i + 1,
-                          new Timestamp(
-                              element.getDateTime(fieldWithIndex.getIndex()).getMillis())))
+                  (element, ps, i, fieldWithIndex) -> {
+                    ReadableDateTime value = element.getDateTime(fieldWithIndex.getIndex());
+                    ps.setTimestamp(i + 1, value == null ? null : new Timestamp(value.getMillis()));
+                  })
               .put(
                   Schema.TypeName.BOOLEAN,
-                  (element, ps, i, fieldWithIndex) ->
-                      ps.setBoolean(i + 1, element.getBoolean(fieldWithIndex.getIndex())))
+                  (element, ps, i, fieldWithIndex) -> {
+                    Boolean value = element.getBoolean(fieldWithIndex.getIndex());
+                    if (value == null) {
+                      setNullToPreparedStatement(ps, i);
+                    } else {
+                      ps.setBoolean(i + 1, value);
+                    }
+                  })
               .put(Schema.TypeName.BYTES, createBytesCaller())
               .put(
                   Schema.TypeName.INT32,
-                  (element, ps, i, fieldWithIndex) ->
-                      ps.setInt(i + 1, element.getInt32(fieldWithIndex.getIndex())))
+                  (element, ps, i, fieldWithIndex) -> {
+                    Integer value = element.getInt32(fieldWithIndex.getIndex());
+                    if (value == null) {
+                      setNullToPreparedStatement(ps, i);
+                    } else {
+                      ps.setInt(i + 1, value);
+                    }
+                  })
               .put(Schema.TypeName.STRING, createStringCaller())
               .build());
 
@@ -119,44 +156,69 @@ class JdbcUtil {
     switch (fieldType.getTypeName()) {
       case ARRAY:
       case ITERABLE:
-        return (element, ps, i, fieldWithIndex) ->
+        return (element, ps, i, fieldWithIndex) -> {
+          Collection<Object> value = element.getArray(fieldWithIndex.getIndex());
+          if (value == null) {
+            ps.setArray(i + 1, null);
+          } else {
             ps.setArray(
                 i + 1,
                 ps.getConnection()
                     .createArrayOf(
                         fieldType.getCollectionElementType().getTypeName().name(),
-                        element.getArray(fieldWithIndex.getIndex()).toArray()));
+                        value.toArray()));
+          }
+        };
       case LOGICAL_TYPE:
         {
+          if (Objects.equals(
+              fieldType.getLogicalType(), LogicalTypes.JDBC_UUID_TYPE.getLogicalType())) {
+            return (element, ps, i, fieldWithIndex) ->
+                ps.setObject(
+                    i + 1, element.getLogicalTypeValue(fieldWithIndex.getIndex(), UUID.class));
+          }
+
           String logicalTypeName = fieldType.getLogicalType().getIdentifier();
           JDBCType jdbcType = JDBCType.valueOf(logicalTypeName);
           switch (jdbcType) {
             case DATE:
-              return (element, ps, i, fieldWithIndex) ->
-                  ps.setDate(
-                      i + 1,
-                      new Date(
-                          getDateOrTimeOnly(
-                                  element.getDateTime(fieldWithIndex.getIndex()).toDateTime(), true)
-                              .getTime()
-                              .getTime()));
+              return (element, ps, i, fieldWithIndex) -> {
+                ReadableDateTime value = element.getDateTime(fieldWithIndex.getIndex());
+                ps.setDate(
+                    i + 1,
+                    value == null
+                        ? null
+                        : new Date(
+                            getDateOrTimeOnly(value.toDateTime(), true).getTime().getTime()));
+              };
             case TIME:
-              return (element, ps, i, fieldWithIndex) ->
-                  ps.setTime(
-                      i + 1,
-                      new Time(
-                          getDateOrTimeOnly(
-                                  element.getDateTime(fieldWithIndex.getIndex()).toDateTime(),
-                                  false)
-                              .getTime()
-                              .getTime()));
+              return (element, ps, i, fieldWithIndex) -> {
+                ReadableDateTime value = element.getDateTime(fieldWithIndex.getIndex());
+                ps.setTime(
+                    i + 1,
+                    value == null
+                        ? null
+                        : new Time(
+                            getDateOrTimeOnly(
+                                    element.getDateTime(fieldWithIndex.getIndex()).toDateTime(),
+                                    false)
+                                .getTime()
+                                .getTime()));
+              };
             case TIMESTAMP_WITH_TIMEZONE:
               return (element, ps, i, fieldWithIndex) -> {
-                Calendar calendar =
-                    withTimestampAndTimezone(
-                        element.getDateTime(fieldWithIndex.getIndex()).toDateTime());
-                ps.setTimestamp(i + 1, new Timestamp(calendar.getTime().getTime()), calendar);
+                ReadableDateTime value = element.getDateTime(fieldWithIndex.getIndex());
+                if (value == null) {
+                  ps.setTimestamp(i + 1, null);
+                } else {
+                  Calendar calendar = withTimestampAndTimezone(value.toDateTime());
+                  ps.setTimestamp(i + 1, new Timestamp(calendar.getTime().getTime()), calendar);
+                }
               };
+            case OTHER:
+              return (element, ps, i, fieldWithIndex) ->
+                  ps.setObject(
+                      i + 1, element.getValue(fieldWithIndex.getIndex()), java.sql.Types.OTHER);
             default:
               return getPreparedStatementSetCaller(fieldType.getLogicalType().getBaseType());
           }
@@ -172,6 +234,10 @@ class JdbcUtil {
           }
         }
     }
+  }
+
+  static void setNullToPreparedStatement(PreparedStatement ps, int i) throws SQLException {
+    ps.setNull(i + 1, JDBCType.NULL.getVendorTypeNumber());
   }
 
   static class BeamRowPreparedStatementSetter implements JdbcIO.PreparedStatementSetter<Row> {
@@ -198,17 +264,21 @@ class JdbcUtil {
 
   private static JdbcIO.PreparedStatementSetCaller createBytesCaller() {
     return (element, ps, i, fieldWithIndex) -> {
-      validateLogicalTypeLength(
-          fieldWithIndex.getField(), element.getBytes(fieldWithIndex.getIndex()).length);
-      ps.setBytes(i + 1, element.getBytes(fieldWithIndex.getIndex()));
+      byte[] value = element.getBytes(fieldWithIndex.getIndex());
+      if (value != null) {
+        validateLogicalTypeLength(fieldWithIndex.getField(), value.length);
+      }
+      ps.setBytes(i + 1, value);
     };
   }
 
   private static JdbcIO.PreparedStatementSetCaller createStringCaller() {
     return (element, ps, i, fieldWithIndex) -> {
-      validateLogicalTypeLength(
-          fieldWithIndex.getField(), element.getString(fieldWithIndex.getIndex()).length());
-      ps.setString(i + 1, element.getString(fieldWithIndex.getIndex()));
+      String value = element.getString(fieldWithIndex.getIndex());
+      if (value != null) {
+        validateLogicalTypeLength(fieldWithIndex.getField(), value.length());
+      }
+      ps.setString(i + 1, value);
     };
   }
 
@@ -217,7 +287,7 @@ class JdbcUtil {
       if (field.getType().getTypeName().isLogicalType()
           && field.getType().getLogicalType().getArgument() != null) {
         int maxLimit = (Integer) field.getType().getLogicalType().getArgument();
-        if (length >= maxLimit) {
+        if (length > maxLimit) {
           throw new RuntimeException(
               String.format(
                   "Length of Schema.Field[%s] data exceeds database column capacity",
@@ -264,70 +334,30 @@ class JdbcUtil {
   }
 
   /** Create partitions on a table. */
-  static class PartitioningFn extends DoFn<List<Integer>, KV<String, Integer>> {
+  static class PartitioningFn extends DoFn<KV<Integer, KV<Long, Long>>, KV<String, Long>> {
     @ProcessElement
     public void processElement(ProcessContext c) {
-      List<Integer> params = c.element();
-      Integer lowerBound = params.get(0);
-      Integer upperBound = params.get(1);
-      Integer numPartitions = params.get(2);
+      Integer numPartitions = c.element().getKey();
+      Long lowerBound = c.element().getValue().getKey();
+      Long upperBound = c.element().getValue().getValue();
       if (lowerBound > upperBound) {
         throw new RuntimeException(
             String.format(
                 "Lower bound [%s] is higher than upper bound [%s]", lowerBound, upperBound));
       }
-      int stride = (upperBound - lowerBound) / numPartitions + 1;
-      for (int i = lowerBound; i < upperBound - stride; i += stride) {
+      long stride = (upperBound - lowerBound) / numPartitions + 1;
+      for (long i = lowerBound; i < upperBound - stride; i += stride) {
         String range = String.format("%s,%s", i, i + stride);
-        KV<String, Integer> kvRange = KV.of(range, 1);
+        KV<String, Long> kvRange = KV.of(range, 1L);
         c.output(kvRange);
       }
       if (upperBound - lowerBound > stride * (numPartitions - 1)) {
-        int indexFrom = (numPartitions - 1) * stride;
-        int indexTo = upperBound + 1;
+        long indexFrom = (numPartitions - 1) * stride;
+        long indexTo = upperBound + 1;
         String range = String.format("%s,%s", indexFrom, indexTo);
-        KV<String, Integer> kvRange = KV.of(range, 1);
+        KV<String, Long> kvRange = KV.of(range, 1L);
         c.output(kvRange);
       }
     }
-  }
-
-  /**
-   * Select maximal and minimal value from a table by partitioning column.
-   *
-   * @return pair of integers corresponds to the upper and lower bounds.
-   */
-  static Integer[] getBounds(
-      PBegin input,
-      String table,
-      SerializableFunction<Void, DataSource> providerFunctionFn,
-      String partitionColumn) {
-    final Integer[] bounds = {0, 0};
-    input
-        .apply(
-            String.format("Read min and max value by %s", partitionColumn),
-            JdbcIO.<String>read()
-                .withDataSourceProviderFn(providerFunctionFn)
-                .withQuery(
-                    String.format("select min(%1$s), max(%1$s) from %2$s", partitionColumn, table))
-                .withRowMapper(
-                    (JdbcIO.RowMapper<String>)
-                        resultSet ->
-                            String.join(
-                                ",", Arrays.asList(resultSet.getString(1), resultSet.getString(2))))
-                .withOutputParallelization(false)
-                .withCoder(StringUtf8Coder.of()))
-        .apply(
-            ParDo.of(
-                new DoFn<String, String>() {
-                  @ProcessElement
-                  public void processElement(ProcessContext context) {
-                    List<String> elements = Splitter.on(',').splitToList(context.element());
-                    bounds[0] = Integer.parseInt(Objects.requireNonNull(elements.get(0)));
-                    bounds[1] = Integer.parseInt(Objects.requireNonNull(elements.get(1)));
-                    context.output(context.element());
-                  }
-                }));
-    return bounds;
   }
 }

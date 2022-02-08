@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
@@ -31,6 +32,7 @@ import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.DynamicMessage;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Functions;
@@ -189,7 +191,6 @@ public class TableRowToStorageApiProtoTest {
                           .setFields(BASE_TABLE_SCHEMA.getFields()))
                   .build());
 
-  // For now, test that no exceptions are thrown.
   @Test
   public void testDescriptorFromTableSchema() {
     DescriptorProto descriptor =
@@ -243,11 +244,6 @@ public class TableRowToStorageApiProtoTest {
             .collect(
                 Collectors.toMap(FieldDescriptorProto::getName, FieldDescriptorProto::getType));
     assertEquals(expectedBaseTypes, nestedTypes2);
-  }
-
-  @Test
-  public void testRepeatedDescriptorFromTableSchema() {
-    TableRowToStorageApiProto.descriptorSchemaFromTableSchema(BASE_TABLE_SCHEMA);
   }
 
   private static final TableRow BASE_TABLE_ROW =
@@ -308,5 +304,65 @@ public class TableRowToStorageApiProtoTest {
             .collect(Collectors.toMap(FieldDescriptor::getName, Functions.identity()));
     assertBaseRecord((DynamicMessage) msg.getField(fieldDescriptors.get("nestedvalue1")));
     assertBaseRecord((DynamicMessage) msg.getField(fieldDescriptors.get("nestedvalue2")));
+  }
+
+  private static final TableSchema REPEATED_MESSAGE_SCHEMA =
+      new TableSchema()
+          .setFields(
+              ImmutableList.of(
+                  new TableFieldSchema()
+                      .setType("STRUCT")
+                      .setName("repeated1")
+                      .setFields(BASE_TABLE_SCHEMA.getFields())
+                      .setMode("REPEATED"),
+                  new TableFieldSchema()
+                      .setType("RECORD")
+                      .setName("repeated2")
+                      .setFields(BASE_TABLE_SCHEMA.getFields())
+                      .setMode("REPEATED")));
+
+  @Test
+  public void testRepeatedDescriptorFromTableSchema() throws Exception {
+    TableRow repeatedRow =
+        new TableRow()
+            .set("repeated1", ImmutableList.of(BASE_TABLE_ROW, BASE_TABLE_ROW))
+            .set("repeated2", ImmutableList.of(BASE_TABLE_ROW, BASE_TABLE_ROW));
+    Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(REPEATED_MESSAGE_SCHEMA);
+    DynamicMessage msg = TableRowToStorageApiProto.messageFromTableRow(descriptor, repeatedRow);
+    assertEquals(2, msg.getAllFields().size());
+
+    Map<String, FieldDescriptor> fieldDescriptors =
+        descriptor.getFields().stream()
+            .collect(Collectors.toMap(FieldDescriptor::getName, Functions.identity()));
+    List<DynamicMessage> repeated1 =
+        (List<DynamicMessage>) msg.getField(fieldDescriptors.get("repeated1"));
+    assertEquals(2, repeated1.size());
+    assertBaseRecord(repeated1.get(0));
+    assertBaseRecord(repeated1.get(1));
+
+    List<DynamicMessage> repeated2 =
+        (List<DynamicMessage>) msg.getField(fieldDescriptors.get("repeated2"));
+    assertEquals(2, repeated2.size());
+    assertBaseRecord(repeated2.get(0));
+    assertBaseRecord(repeated2.get(1));
+  }
+
+  @Test
+  public void testNullRepeatedDescriptorFromTableSchema() throws Exception {
+    TableRow repeatedRow = new TableRow().set("repeated1", null).set("repeated2", null);
+    Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(REPEATED_MESSAGE_SCHEMA);
+    DynamicMessage msg = TableRowToStorageApiProto.messageFromTableRow(descriptor, repeatedRow);
+
+    Map<String, FieldDescriptor> fieldDescriptors =
+        descriptor.getFields().stream()
+            .collect(Collectors.toMap(FieldDescriptor::getName, Functions.identity()));
+    List<DynamicMessage> repeated1 =
+        (List<DynamicMessage>) msg.getField(fieldDescriptors.get("repeated1"));
+    assertTrue(repeated1.isEmpty());
+    List<DynamicMessage> repeated2 =
+        (List<DynamicMessage>) msg.getField(fieldDescriptors.get("repeated2"));
+    assertTrue(repeated2.isEmpty());
   }
 }

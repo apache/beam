@@ -118,7 +118,7 @@ class TestParquetIT(unittest.TestCase):
 
 class ProducerFn(DoFn):
   def __init__(self, number):
-    super(ProducerFn, self).__init__()
+    super().__init__()
     self._number = number
     self._string_index = 0
     self._number_index = 0

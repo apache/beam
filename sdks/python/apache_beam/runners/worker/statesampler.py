@@ -104,7 +104,7 @@ class StateSampler(statesampler_impl.StateSampler):
     self.tracked_thread = None  # type: Optional[threading.Thread]
     self.finished = False
     self.started = False
-    super(StateSampler, self).__init__(sampling_period_ms)
+    super().__init__(sampling_period_ms)
 
   @property
   def stage_name(self):
@@ -114,7 +114,7 @@ class StateSampler(statesampler_impl.StateSampler):
   def stop(self):
     # type: () -> None
     set_current_tracker(None)
-    super(StateSampler, self).stop()
+    super().stop()
 
   def stop_if_still_running(self):
     # type: () -> None
@@ -125,7 +125,7 @@ class StateSampler(statesampler_impl.StateSampler):
     # type: () -> None
     self.tracked_thread = threading.current_thread()
     set_current_tracker(self)
-    super(StateSampler, self).start()
+    super().start()
     self.started = True
 
   def get_info(self):
@@ -171,12 +171,8 @@ class StateSampler(statesampler_impl.StateSampler):
     else:
       output_counter = self._counter_factory.get_counter(
           counter_name, Counter.SUM)
-      self._states_by_name[counter_name] = super(StateSampler,
-                                                 self)._scoped_state(
-                                                     counter_name,
-                                                     name_context,
-                                                     output_counter,
-                                                     metrics_container)
+      self._states_by_name[counter_name] = super()._scoped_state(
+          counter_name, name_context, output_counter, metrics_container)
       return self._states_by_name[counter_name]
 
   def commit_counters(self):

@@ -168,7 +168,7 @@ class _TFRecordSource(FileBasedSource):
   """
   def __init__(self, file_pattern, coder, compression_type, validate):
     """Initialize a TFRecordSource.  See ReadFromTFRecord for details."""
-    super(_TFRecordSource, self).__init__(
+    super().__init__(
         file_pattern=file_pattern,
         compression_type=compression_type,
         splittable=False,
@@ -218,7 +218,7 @@ class ReadAllFromTFRecord(PTransform):
         name and the value being the actual data. If False, it only returns
         the data.
     """
-    super(ReadAllFromTFRecord, self).__init__()
+    super().__init__()
     source_from_file = partial(
         _create_tfrecordio_source,
         compression_type=compression_type,
@@ -259,7 +259,7 @@ class ReadFromTFRecord(PTransform):
     Returns:
       A ReadFromTFRecord transform object.
     """
-    super(ReadFromTFRecord, self).__init__()
+    super().__init__()
     self._source = _TFRecordSource(
         file_pattern, coder, compression_type, validate)
 
@@ -283,7 +283,7 @@ class _TFRecordSink(filebasedsink.FileBasedSink):
       compression_type):
     """Initialize a TFRecordSink. See WriteToTFRecord for details."""
 
-    super(_TFRecordSink, self).__init__(
+    super().__init__(
         file_path_prefix=file_path_prefix,
         coder=coder,
         file_name_suffix=file_name_suffix,
@@ -330,7 +330,7 @@ class WriteToTFRecord(PTransform):
     Returns:
       A WriteToTFRecord transform object.
     """
-    super(WriteToTFRecord, self).__init__()
+    super().__init__()
     self._sink = _TFRecordSink(
         file_path_prefix,
         coder,

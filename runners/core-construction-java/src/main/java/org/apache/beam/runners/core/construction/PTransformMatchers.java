@@ -482,6 +482,26 @@ public class PTransformMatchers {
     };
   }
 
+  /** A {@link PTransformMatcher} which matches {@link GroupIntoBatches} transform. */
+  public static PTransformMatcher groupIntoBatches() {
+    return new PTransformMatcher() {
+      @Override
+      public boolean matches(AppliedPTransform<?, ?, ?> application) {
+        return application.getTransform().getClass().equals(GroupIntoBatches.class);
+      }
+
+      @Override
+      public boolean matchesDuringValidation(AppliedPTransform<?, ?, ?> application) {
+        return false;
+      }
+
+      @Override
+      public String toString() {
+        return MoreObjects.toStringHelper("groupIntoBatches").toString();
+      }
+    };
+  }
+
   /**
    * A {@link PTransformMatcher} which matches {@link GroupIntoBatches} transform that allows
    * shardable states.

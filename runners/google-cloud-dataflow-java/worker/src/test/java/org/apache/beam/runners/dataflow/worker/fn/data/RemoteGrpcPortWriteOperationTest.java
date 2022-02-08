@@ -132,7 +132,6 @@ public class RemoteGrpcPortWriteOperationTest {
 
   @Test
   public void testBufferRateLimiting() throws Exception {
-    AtomicInteger processedElements = new AtomicInteger();
     AtomicInteger currentTimeMillis = new AtomicInteger(10000);
 
     final int START_BUFFER_SIZE = 3;

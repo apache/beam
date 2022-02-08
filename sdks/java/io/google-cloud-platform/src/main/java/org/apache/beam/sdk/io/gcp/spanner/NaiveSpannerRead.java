@@ -19,6 +19,8 @@ package org.apache.beam.sdk.io.gcp.spanner;
 
 import com.google.auto.value.AutoValue;
 import com.google.cloud.spanner.BatchReadOnlyTransaction;
+import com.google.cloud.spanner.Options;
+import com.google.cloud.spanner.Options.RpcPriority;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.TimestampBound;
@@ -105,6 +107,15 @@ abstract class NaiveSpannerRead
     }
 
     private ResultSet execute(ReadOperation op, BatchReadOnlyTransaction readOnlyTransaction) {
+      if (config.getRpcPriority() != null && config.getRpcPriority().get() != null) {
+        return executeWithPriority(op, readOnlyTransaction, config.getRpcPriority().get());
+      } else {
+        return executeWithoutPriority(op, readOnlyTransaction);
+      }
+    }
+
+    private ResultSet executeWithoutPriority(
+        ReadOperation op, BatchReadOnlyTransaction readOnlyTransaction) {
       if (op.getQuery() != null) {
         return readOnlyTransaction.executeQuery(op.getQuery());
       }
@@ -113,6 +124,23 @@ abstract class NaiveSpannerRead
             op.getTable(), op.getIndex(), op.getKeySet(), op.getColumns());
       }
       return readOnlyTransaction.read(op.getTable(), op.getKeySet(), op.getColumns());
+    }
+
+    private ResultSet executeWithPriority(
+        ReadOperation op, BatchReadOnlyTransaction readOnlyTransaction, RpcPriority rpcPriority) {
+      if (op.getQuery() != null) {
+        return readOnlyTransaction.executeQuery(op.getQuery(), Options.priority(rpcPriority));
+      }
+      if (op.getIndex() != null) {
+        return readOnlyTransaction.readUsingIndex(
+            op.getTable(),
+            op.getIndex(),
+            op.getKeySet(),
+            op.getColumns(),
+            Options.priority(rpcPriority));
+      }
+      return readOnlyTransaction.read(
+          op.getTable(), op.getKeySet(), op.getColumns(), Options.priority(rpcPriority));
     }
   }
 }

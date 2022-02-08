@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
+import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamSqlOutputToConsoleFn;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestUnboundedTable;
@@ -28,7 +29,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_26_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.junit.Assert;
@@ -125,13 +126,17 @@ public class BeamCoGBKJoinRelUnboundedVsUnboundedTest extends BaseRelTest {
       root = root.getInput(0);
     }
 
-    NodeStats estimate = BeamSqlRelUtils.getNodeStats(root, root.getCluster().getMetadataQuery());
+    NodeStats estimate =
+        BeamSqlRelUtils.getNodeStats(
+            root, (BeamRelMetadataQuery) root.getCluster().getMetadataQuery());
     NodeStats leftEstimate =
         BeamSqlRelUtils.getNodeStats(
-            ((BeamCoGBKJoinRel) root).getLeft(), root.getCluster().getMetadataQuery());
+            ((BeamCoGBKJoinRel) root).getLeft(),
+            (BeamRelMetadataQuery) root.getCluster().getMetadataQuery());
     NodeStats rightEstimate =
         BeamSqlRelUtils.getNodeStats(
-            ((BeamCoGBKJoinRel) root).getRight(), root.getCluster().getMetadataQuery());
+            ((BeamCoGBKJoinRel) root).getRight(),
+            (BeamRelMetadataQuery) root.getCluster().getMetadataQuery());
 
     Assert.assertFalse(estimate.isUnknown());
     Assert.assertEquals(0d, estimate.getRowCount(), 0.01);

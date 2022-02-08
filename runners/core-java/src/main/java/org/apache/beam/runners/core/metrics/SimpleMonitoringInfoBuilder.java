@@ -26,6 +26,7 @@ import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encod
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.HashMap;
+import java.util.Map;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpec;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpecs;
@@ -51,13 +52,13 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * builder.build();
  */
 public class SimpleMonitoringInfoBuilder {
+  private static final SpecMonitoringInfoValidator VALIDATOR = new SpecMonitoringInfoValidator();
   private final boolean validateAndDropInvalid;
 
-  private static final HashMap<String, MonitoringInfoSpec> specs =
+  private static final Map<String, MonitoringInfoSpec> KNOWN_SPECS =
       new HashMap<String, MonitoringInfoSpec>();
 
   private MonitoringInfo.Builder builder;
-  private SpecMonitoringInfoValidator validator = new SpecMonitoringInfoValidator();
 
   static {
     for (MonitoringInfoSpecs.Enum val : MonitoringInfoSpecs.Enum.values()) {
@@ -66,7 +67,7 @@ public class SimpleMonitoringInfoBuilder {
       if (!val.name().equals("UNRECOGNIZED")) {
         MonitoringInfoSpec spec =
             val.getValueDescriptor().getOptions().getExtension(monitoringInfoSpec);
-        SimpleMonitoringInfoBuilder.specs.put(spec.getUrn(), spec);
+        KNOWN_SPECS.put(spec.getUrn(), spec);
       }
     }
   }
@@ -167,7 +168,7 @@ public class SimpleMonitoringInfoBuilder {
    */
   public @Nullable MonitoringInfo build() {
     final MonitoringInfo result = this.builder.build();
-    if (validateAndDropInvalid && this.validator.validate(result).isPresent()) {
+    if (validateAndDropInvalid && VALIDATOR.validate(result).isPresent()) {
       return null;
     }
     return result;

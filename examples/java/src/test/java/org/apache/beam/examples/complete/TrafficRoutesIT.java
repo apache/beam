@@ -37,13 +37,10 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** End-to-end tests of TrafficRoutes. */
 @RunWith(JUnit4.class)
 public class TrafficRoutesIT {
-  private static final Logger LOG = LoggerFactory.getLogger(TrafficRoutesIT.class);
   private TrafficRoutesOptions options;
   private final String timestamp = Long.toString(System.currentTimeMillis());
   private final String outputDatasetId = "traffic_routes_" + timestamp;

@@ -56,15 +56,13 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @RunWith(JUnit4.class)
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
 })
 public class StreamingWriteTest {
-  private static final Logger LOG = LoggerFactory.getLogger(StreamingWriteTest.class);
+
   private static final String FAKE_TABLE = "TEST_TABLE";
   private static final String STAGING_BUCKET_NAME = "BUCKET/";
   private static final String STORAGE_INTEGRATION_NAME = "STORAGE_INTEGRATION";

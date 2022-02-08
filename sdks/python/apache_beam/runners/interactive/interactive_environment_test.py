@@ -27,6 +27,7 @@ from apache_beam.runners import runner
 from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive.recording_manager import RecordingManager
+from apache_beam.runners.interactive.sql.sql_chain import SqlNode
 
 # The module name is also a variable in module.
 _module_name = 'apache_beam.runners.interactive.interactive_environment_test'
@@ -45,8 +46,8 @@ class InteractiveEnvironmentTest(unittest.TestCase):
     self.assertFalse(self._is_variable_watched(variable_name, variable_val))
 
   def _is_variable_watched(self, variable_name, variable_val):
-    return any([(variable_name, variable_val) in watching
-                for watching in ie.current_env().watching()])
+    return any((variable_name, variable_val) in watching
+               for watching in ie.current_env().watching())
 
   def _a_function_with_local_watched(self):
     local_var_watched = 123  # pylint: disable=possibly-unused-variable
@@ -204,7 +205,7 @@ class InteractiveEnvironmentTest(unittest.TestCase):
 
   def test_get_cache_manager_creates_cache_manager_if_absent(self):
     env = ie.InteractiveEnvironment()
-    dummy_pipeline = 'dummy'
+    dummy_pipeline = beam.Pipeline()
     self.assertIsNone(env.get_cache_manager(dummy_pipeline))
     self.assertIsNotNone(
         env.get_cache_manager(dummy_pipeline, create_if_absent=True))
@@ -302,6 +303,56 @@ class InteractiveEnvironmentTest(unittest.TestCase):
 
     expected_description = {p1: rm1.describe(), p2: rm2.describe()}
     self.assertDictEqual(description, expected_description)
+
+  def test_get_empty_sql_chain(self):
+    env = ie.InteractiveEnvironment()
+    p = beam.Pipeline()
+    chain = env.get_sql_chain(p)
+    self.assertIsNotNone(chain)
+    self.assertEqual(chain.nodes, {})
+
+  def test_get_sql_chain_with_nodes(self):
+    env = ie.InteractiveEnvironment()
+    p = beam.Pipeline()
+    chain_with_node = env.get_sql_chain(p).append(
+        SqlNode(output_name='name', source=p, query="query"))
+    chain_got = env.get_sql_chain(p)
+    self.assertIs(chain_with_node, chain_got)
+
+  def test_get_sql_chain_setting_user_pipeline(self):
+    env = ie.InteractiveEnvironment()
+    p = beam.Pipeline()
+    chain = env.get_sql_chain(p, set_user_pipeline=True)
+    self.assertIs(chain.user_pipeline, p)
+
+  def test_get_sql_chain_None_when_setting_multiple_user_pipelines(self):
+    env = ie.InteractiveEnvironment()
+    p = beam.Pipeline()
+    chain = env.get_sql_chain(p, set_user_pipeline=True)
+    p2 = beam.Pipeline()
+    # Set the chain for a different pipeline.
+    env.sql_chain[p2] = chain
+    with self.assertRaises(ValueError):
+      env.get_sql_chain(p2, set_user_pipeline=True)
+
+  @patch(
+      'apache_beam.runners.interactive.interactive_environment.'
+      'assert_bucket_exists',
+      return_value=None)
+  def test_get_gcs_cache_dir_valid_path(self, mock_assert_bucket_exists):
+    env = ie.InteractiveEnvironment()
+    p = beam.Pipeline()
+    cache_root = 'gs://test-cache-dir/'
+    actual_cache_dir = env._get_gcs_cache_dir(p, cache_root)
+    expected_cache_dir = 'gs://test-cache-dir/{}'.format(id(p))
+    self.assertEqual(actual_cache_dir, expected_cache_dir)
+
+  def test_get_gcs_cache_dir_invalid_path(self):
+    env = ie.InteractiveEnvironment()
+    p = beam.Pipeline()
+    cache_root = 'gs://'
+    with self.assertRaises(ValueError):
+      env._get_gcs_cache_dir(p, cache_root)
 
 
 if __name__ == '__main__':

@@ -47,7 +47,6 @@ public class ReadSpannerSchemaTest {
   @Rule public final transient ExpectedException thrown = ExpectedException.none();
 
   private FakeServiceFactory serviceFactory;
-  private ReadOnlyTransaction mockTx;
 
   private static Struct columnMetadata(String tableName, String columnName, String type) {
     return Struct.newBuilder()
@@ -122,7 +121,6 @@ public class ReadSpannerSchemaTest {
   @SuppressWarnings("unchecked")
   public void setUp() throws Exception {
     serviceFactory = new FakeServiceFactory();
-    mockTx = mock(ReadOnlyTransaction.class);
   }
 
   @Test

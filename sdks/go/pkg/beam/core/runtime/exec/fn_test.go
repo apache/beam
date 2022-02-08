@@ -84,6 +84,19 @@ func TestInvoke(t *testing.T) {
 			Expected: 2,
 		},
 		{
+			// Multimap side input
+			Fn: func(a int, get func(int) func(*int) bool) int {
+				var ret int
+				iter := get(a)
+				if !iter(&ret) {
+					return a
+				}
+				return ret
+			},
+			Args:     []interface{}{1, func(_ int) func(*int) bool { return func(out *int) bool { *out = 2; return true } }},
+			Expected: 2,
+		},
+		{
 			// Sum as Main
 			Fn:       func(a, b, c int) int { return a + b + c },
 			Opt:      &MainInput{Key: FullValue{Elm: 1}},
@@ -165,7 +178,7 @@ func TestInvoke(t *testing.T) {
 				test.ExpectedTime = ts
 			}
 
-			val, err := Invoke(context.Background(), window.SingleGlobalWindow, ts, fn, test.Opt, test.Args...)
+			val, err := Invoke(context.Background(), typex.NoFiringPane(), window.SingleGlobalWindow, ts, fn, test.Opt, test.Args...)
 			if err != nil {
 				t.Fatalf("Invoke(%v,%v) failed: %v", fn.Fn.Name(), test.Args, err)
 			}
@@ -301,7 +314,7 @@ func BenchmarkInvoke(b *testing.B) {
 		ts := mtime.ZeroTimestamp.Add(2 * time.Millisecond)
 		b.Run(fmt.Sprintf("SingleInvoker_%s", test.Name), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_, err := Invoke(context.Background(), window.SingleGlobalWindow, ts, fn, test.Opt, test.Args...)
+				_, err := Invoke(context.Background(), typex.NoFiringPane(), window.SingleGlobalWindow, ts, fn, test.Opt, test.Args...)
 				if err != nil {
 					b.Fatalf("Invoke(%v,%v) failed: %v", fn.Fn.Name(), test.Args, err)
 				}
@@ -310,7 +323,7 @@ func BenchmarkInvoke(b *testing.B) {
 		b.Run(fmt.Sprintf("CachedInvoker_%s", test.Name), func(b *testing.B) {
 			inv := newInvoker(fn)
 			for i := 0; i < b.N; i++ {
-				_, err := inv.Invoke(context.Background(), window.SingleGlobalWindow, ts, test.Opt, test.Args...)
+				_, err := inv.Invoke(context.Background(), typex.NoFiringPane(), window.SingleGlobalWindow, ts, test.Opt, test.Args...)
 				if err != nil {
 					b.Fatalf("Invoke(%v,%v) failed: %v", fn.Fn.Name(), test.Args, err)
 				}

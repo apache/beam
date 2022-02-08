@@ -1284,7 +1284,6 @@ public class SnowflakeIO {
     private final SnowflakeService snowflakeService;
     private transient SimpleIngestManager ingestManager;
 
-    private transient DataSource dataSource;
     ArrayList<String> trackedFilesNames;
 
     StreamToTableFn(
@@ -1303,7 +1302,7 @@ public class SnowflakeIO {
 
     @Setup
     public void setup() throws Exception {
-      dataSource = dataSourceProviderFn.apply(null);
+      dataSourceProviderFn.apply(null);
 
       DataSourceProviderFromDataSourceConfiguration dataSourceProviderFromDataSourceConfiguration =
           (DataSourceProviderFromDataSourceConfiguration) this.dataSourceProviderFn;
@@ -1599,7 +1598,7 @@ public class SnowflakeIO {
       return builder()
           .setUsername(ValueProvider.StaticValueProvider.of(username))
           .setRawPrivateKey(ValueProvider.StaticValueProvider.of(privateKey))
-          .setPrivateKeyPassphrase(ValueProvider.StaticValueProvider.of((privateKeyPassphrase)))
+          .setPrivateKeyPassphrase(ValueProvider.StaticValueProvider.of(privateKeyPassphrase))
           .build();
     }
 
@@ -1632,8 +1631,8 @@ public class SnowflakeIO {
         String username, String rawPrivateKey, String privateKeyPassphrase) {
       return builder()
           .setUsername(ValueProvider.StaticValueProvider.of(username))
-          .setRawPrivateKey(ValueProvider.StaticValueProvider.of((rawPrivateKey)))
-          .setPrivateKeyPassphrase(ValueProvider.StaticValueProvider.of((privateKeyPassphrase)))
+          .setRawPrivateKey(ValueProvider.StaticValueProvider.of(rawPrivateKey))
+          .setPrivateKeyPassphrase(ValueProvider.StaticValueProvider.of(privateKeyPassphrase))
           .build();
     }
 

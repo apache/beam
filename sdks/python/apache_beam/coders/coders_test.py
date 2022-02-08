@@ -20,6 +20,8 @@ import base64
 import logging
 import unittest
 
+import proto
+
 from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
 from apache_beam.coders import coders
 from apache_beam.coders.avro_record import AvroRecord
@@ -109,6 +111,45 @@ class DeterministicProtoCoderTest(unittest.TestCase):
       self.assertEqual(coder.encode(mm_forward), coder.encode(mm_reverse))
 
 
+class ProtoPlusMessageB(proto.Message):
+  field1 = proto.Field(proto.BOOL, number=1)
+
+
+class ProtoPlusMessageA(proto.Message):
+  field1 = proto.Field(proto.STRING, number=1)
+  field2 = proto.RepeatedField(ProtoPlusMessageB, number=2)
+
+
+class ProtoPlusMessageWithMap(proto.Message):
+  field1 = proto.MapField(proto.STRING, ProtoPlusMessageA, number=1)
+
+
+class ProtoPlusCoderTest(unittest.TestCase):
+  def test_proto_plus_coder(self):
+    ma = ProtoPlusMessageA()
+    ma.field2 = [ProtoPlusMessageB(field1=True)]
+    ma.field1 = u'hello world'
+    expected_coder = coders.ProtoPlusCoder(ma.__class__)
+    real_coder = coders_registry.get_coder(ma.__class__)
+    self.assertTrue(issubclass(ma.__class__, proto.Message))
+    self.assertEqual(expected_coder, real_coder)
+    self.assertTrue(real_coder.is_deterministic())
+    self.assertEqual(real_coder.encode(ma), expected_coder.encode(ma))
+    self.assertEqual(ma, real_coder.decode(real_coder.encode(ma)))
+
+  def test_proto_plus_coder_determinism(self):
+    for _ in range(10):
+      keys = list(range(20))
+      mm_forward = ProtoPlusMessageWithMap()
+      for key in keys:
+        mm_forward.field1[str(key)] = ProtoPlusMessageA(field1=str(key))  # pylint: disable=E1137
+      mm_reverse = ProtoPlusMessageWithMap()
+      for key in reversed(keys):
+        mm_reverse.field1[str(key)] = ProtoPlusMessageA(field1=str(key))  # pylint: disable=E1137
+      coder = coders.ProtoPlusCoder(ProtoPlusMessageWithMap)
+      self.assertEqual(coder.encode(mm_forward), coder.encode(mm_reverse))
+
+
 class AvroTestCoder(coders.AvroGenericCoder):
   SCHEMA = """
   {
@@ -121,7 +162,7 @@ class AvroTestCoder(coders.AvroGenericCoder):
   """
 
   def __init__(self):
-    super(AvroTestCoder, self).__init__(self.SCHEMA)
+    super().__init__(self.SCHEMA)
 
 
 class AvroTestRecord(AvroRecord):

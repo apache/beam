@@ -214,7 +214,7 @@ class WriteBundlesToFiles<DestinationT, ElementT>
         c.output(
             unwrittenRecordsTag,
             KV.of(
-                ShardedKey.of(destination, (++spilledShardNumber) % SPILLED_RECORD_SHARDING_FACTOR),
+                ShardedKey.of(destination, ++spilledShardNumber % SPILLED_RECORD_SHARDING_FACTOR),
                 element.getValue()));
         return;
       }

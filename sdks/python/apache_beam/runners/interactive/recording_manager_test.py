@@ -26,7 +26,7 @@ from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileR
 from apache_beam.runners.interactive import background_caching_job as bcj
 from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
-from apache_beam.runners.interactive import pipeline_instrument as pi
+from apache_beam.runners.interactive.caching.cacheable import CacheKey
 from apache_beam.runners.interactive.interactive_runner import InteractiveRunner
 from apache_beam.runners.interactive.options.capture_limiters import Limiter
 from apache_beam.runners.interactive.recording_manager import ElementStream
@@ -66,12 +66,12 @@ class ElementStreamTest(unittest.TestCase):
     self.cache = InMemoryCache()
     self.p = beam.Pipeline()
     self.pcoll = self.p | beam.Create([])
-    self.cache_key = str(pi.CacheKey('pcoll', '', '', ''))
+    self.cache_key = str(CacheKey('pcoll', '', '', ''))
 
     # Create a MockPipelineResult to control the state of a fake run of the
     # pipeline.
     self.mock_result = MockPipelineResult()
-    ie.current_env().track_user_pipelines()
+    ie.current_env().add_user_pipeline(self.p)
     ie.current_env().set_pipeline_result(self.p, self.mock_result)
     ie.current_env().set_cache_manager(self.cache, self.p)
 
@@ -207,11 +207,7 @@ class RecordingTest(unittest.TestCase):
 
     # Create a recording.
     recording = Recording(
-        p, [elems],
-        mock_result,
-        pi.PipelineInstrument(p),
-        max_n=10,
-        max_duration_secs=60)
+        p, [elems], mock_result, max_n=10, max_duration_secs=60)
 
     # The background caching job and the recording isn't done yet so there may
     # be more elements to be recorded.
@@ -235,11 +231,7 @@ class RecordingTest(unittest.TestCase):
     bcj_mock_result.set_state(PipelineState.DONE)
     ie.current_env().set_background_caching_job(p, background_caching_job)
     recording = Recording(
-        p, [elems],
-        mock_result,
-        pi.PipelineInstrument(p),
-        max_n=10,
-        max_duration_secs=60)
+        p, [elems], mock_result, max_n=10, max_duration_secs=60)
     recording.wait_until_finish()
 
     # There are no more elements and the recording finished, meaning that the
@@ -267,11 +259,7 @@ class RecordingTest(unittest.TestCase):
 
     # Create a recording with an arbitrary start time.
     recording = Recording(
-        p, [numbers, letters],
-        mock_result,
-        pi.PipelineInstrument(p),
-        max_n=10,
-        max_duration_secs=60)
+        p, [numbers, letters], mock_result, max_n=10, max_duration_secs=60)
 
     # Get the cache key of the stream and write something to cache. This is
     # so that a pipeline doesn't have to run in the test.
@@ -422,9 +410,6 @@ class RecordingManagerTest(unittest.TestCase):
     # was run.
     rm = RecordingManager(p)
 
-    # Get the cache, key, and coder to read the PCollection from the cache.
-    pipeline_instrument = pi.PipelineInstrument(p)
-
     # Set up a mock for the Cache's clear function which will be used to clear
     # uncomputed PCollections.
     rm._clear_pcolls = MagicMock()
@@ -434,7 +419,9 @@ class RecordingManagerTest(unittest.TestCase):
     # Assert that the cache cleared the PCollection.
     rm._clear_pcolls.assert_any_call(
         unittest.mock.ANY,
-        set(pipeline_instrument.cache_key(pc) for pc in (elems, squares)))
+        # elems is unbounded source populated by the background job, thus not
+        # cleared.
+        {CacheKey.from_pcoll('squares', squares).to_str()})
 
   def test_clear(self):
     p1 = beam.Pipeline(InteractiveRunner())

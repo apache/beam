@@ -100,10 +100,6 @@ class SimpleSink<DestinationT> extends FileBasedSink<String, DestinationT, Strin
     public SimpleWriter<DestinationT> createWriter() {
       return new SimpleWriter<>(this);
     }
-
-    public ResourceId getTempDirectory() {
-      return tempDirectory.get();
-    }
   }
 
   static final class SimpleWriter<DestinationT> extends Writer<DestinationT, String> {

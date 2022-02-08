@@ -33,12 +33,6 @@ deps:
   dill:
     owners: robertwb
 
-  future:
-    owners:
-
-  futures:
-    owners:
-
   google-apitools:
     owners:
 

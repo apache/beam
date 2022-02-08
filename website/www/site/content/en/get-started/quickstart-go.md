@@ -36,7 +36,7 @@ $ go version
 The easiest way to obtain the Apache Beam Go SDK is via `go get`:
 
 {{< highlight >}}
-$ go get -u github.com/apache/beam/sdks/go/...
+$ go get -u github.com/apache/beam/sdks/v2/go/pkg/beam
 {{< /highlight >}}
 
 For development of the Go SDK itself, see [BUILD.md](https://github.com/apache/beam/blob/master/sdks/go/BUILD.md) for details.
@@ -72,7 +72,7 @@ $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
 {{< runner spark >}}
 # Build and run the Spark job server from Beam source.
 # -PsparkMasterUrl is optional. If it is unset the job will be run inside an embedded Spark cluster.
-$ ./gradlew :runners:spark:2:job-server:runShadow -PsparkMasterUrl=spark://localhost:7077
+$ ./gradlew :runners:spark:3:job-server:runShadow -PsparkMasterUrl=spark://localhost:7077
 
 # In a separate terminal, run:
 $ go install github.com/apache/beam/sdks/go/examples/wordcount

@@ -411,7 +411,6 @@ public class CassandraIO {
           @Element CassandraIO.Read<T> read, OutputReceiver<Read<T>> outputReceiver) {
         Set<RingRange> ringRanges = getRingRanges(read);
         for (RingRange rr : ringRanges) {
-          Set<RingRange> subset = ImmutableSet.<RingRange>of(rr);
           outputReceiver.output(read.withRingRanges(ImmutableSet.of(rr)));
         }
       }

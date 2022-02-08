@@ -16,6 +16,7 @@
 package beam
 
 import (
+	"fmt"
 	"io"
 	"reflect"
 
@@ -55,7 +56,24 @@ import (
 // is called in a package init() function.
 func RegisterSchemaProvider(rt reflect.Type, provider interface{}) {
 	p := provider.(SchemaProvider)
-	schema.RegisterLogicalTypeProvider(rt, p.FromLogicalType)
+	switch rt.Kind() {
+	case reflect.Interface:
+		schema.RegisterLogicalTypeProvider(rt, p.FromLogicalType)
+	case reflect.Ptr:
+		if rt.Elem().Kind() != reflect.Struct {
+			panic(fmt.Sprintf("beam.RegisterSchemaProvider: unsupported type kind for schema provider %v is a %v, must be interface, struct or *struct.", rt, rt.Kind()))
+		}
+		fallthrough
+	case reflect.Struct:
+		st, err := p.FromLogicalType(rt)
+		if err != nil {
+			panic(fmt.Sprintf("beam.RegisterSchemaProvider: schema type provider for %v, doesn't support that type", rt))
+		}
+		schema.RegisterLogicalType(schema.ToLogicalType(rt.Name(), rt, st))
+	default:
+		panic(fmt.Sprintf("beam.RegisterSchemaProvider: unsupported type kind for schema provider %v is a %v, must be interface, struct or *struct.", rt, rt.Kind()))
+	}
+
 	coder.RegisterSchemaProviders(rt, p.BuildEncoder, p.BuildDecoder)
 }
 

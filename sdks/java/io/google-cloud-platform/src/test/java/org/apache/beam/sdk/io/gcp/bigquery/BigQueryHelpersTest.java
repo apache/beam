@@ -58,8 +58,16 @@ public class BigQueryHelpersTest {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   @Test
-  public void testTablesspecParsing() {
+  public void testTablesspecParsingLegacySql() {
     TableReference ref = BigQueryHelpers.parseTableSpec("my-project:data_set.table_name");
+    assertEquals("my-project", ref.getProjectId());
+    assertEquals("data_set", ref.getDatasetId());
+    assertEquals("table_name", ref.getTableId());
+  }
+
+  @Test
+  public void testTablesspecParsingStandardSql() {
+    TableReference ref = BigQueryHelpers.parseTableSpec("my-project.data_set.table_name");
     assertEquals("my-project", ref.getProjectId());
     assertEquals("data_set", ref.getDatasetId());
     assertEquals("table_name", ref.getTableId());
@@ -87,6 +95,19 @@ public class BigQueryHelpersTest {
     assertEquals(null, ref.getProjectId());
     assertEquals("data_set", ref.getDatasetId());
     assertEquals("table_name", ref.getTableId());
+  }
+
+  @Test
+  public void testTableParsingError0() {
+    String expectedMessage =
+        "Table specification [foo_bar_baz] is not in one of the expected formats ("
+            + " [project_id]:[dataset_id].[table_id],"
+            + " [project_id].[dataset_id].[table_id],"
+            + " [dataset_id].[table_id])";
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(expectedMessage);
+    BigQueryHelpers.parseTableSpec("foo_bar_baz");
   }
 
   @Test

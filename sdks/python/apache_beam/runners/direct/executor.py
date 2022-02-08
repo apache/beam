@@ -67,7 +67,7 @@ class _ExecutorService(object):
         self,
         queue,  # type: queue.Queue[_ExecutorService.CallableTask]
         index):
-      super(_ExecutorService._ExecutorServiceWorker, self).__init__()
+      super().__init__()
       self.queue = queue
       self._index = index
       self._default_name = 'ExecutorServiceWorker-' + str(index)
@@ -188,14 +188,14 @@ class _SerialEvaluationState(_TransformEvaluationState):
   _GroupByKeyOnly.
   """
   def __init__(self, executor_service, scheduled):
-    super(_SerialEvaluationState, self).__init__(executor_service, scheduled)
+    super().__init__(executor_service, scheduled)
     self.serial_queue = collections.deque()
     self.currently_evaluating = None
     self._lock = threading.Lock()
 
   def complete(self, completed_work):
     self._update_currently_evaluating(None, completed_work)
-    super(_SerialEvaluationState, self).complete(completed_work)
+    super().complete(completed_work)
 
   def schedule(self, new_work):
     self._update_currently_evaluating(new_work, None)
@@ -210,7 +210,7 @@ class _SerialEvaluationState(_TransformEvaluationState):
       if self.serial_queue and not self.currently_evaluating:
         next_work = self.serial_queue.pop()
         self.currently_evaluating = next_work
-        super(_SerialEvaluationState, self).schedule(next_work)
+        super().schedule(next_work)
 
 
 class _TransformExecutorServices(object):

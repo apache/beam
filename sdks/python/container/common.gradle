@@ -30,9 +30,22 @@ dependencies {
   sdkHarnessLauncher project(path: ":sdks:python:container", configuration: "sdkHarnessLauncher")
 }
 
+task generatePythonRequirements() {
+  dependsOn ':sdks:python:sdist'
+  def runScriptsPath = "${rootDir}/sdks/python/container/run_generate_requirements.sh"
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', "cd ${rootDir} && ${runScriptsPath} " +
+              "${project.ext.pythonVersion} " +
+              "${files(configurations.sdkSourceTarball.files).singleFile}"
+    }
+  }
+}
+
 task copyDockerfileDependencies(type: Copy) {
   from configurations.sdkSourceTarball
-  from file("../base_image_requirements.txt")
+  from file("base_image_requirements.txt")
   into "build/target"
   if(configurations.sdkSourceTarball.isEmpty()) {
       throw new StopExecutionException();

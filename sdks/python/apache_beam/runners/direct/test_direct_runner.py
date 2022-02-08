@@ -39,7 +39,7 @@ class TestDirectRunner(DirectRunner):
     # send this option to remote executors.
     test_options.on_success_matcher = None
 
-    self.result = super(TestDirectRunner, self).run_pipeline(pipeline, options)
+    self.result = super().run_pipeline(pipeline, options)
 
     try:
       if not is_streaming:

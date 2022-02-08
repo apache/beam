@@ -51,7 +51,7 @@ class RampupThrottlingFn(DoFn):
        num_workers: A hint for the expected number of workers, used to derive
                     the local rate limit.
      """
-    super(RampupThrottlingFn, self).__init__(*unused_args, **unused_kwargs)
+    super().__init__(*unused_args, **unused_kwargs)
     self._num_workers = num_workers
     self._successful_ops = util.MovingSum(window_ms=1000, bucket_ms=1000)
     self._first_instant = datetime.datetime.now()
@@ -71,7 +71,11 @@ class RampupThrottlingFn(DoFn):
     growth = max(
         0.0, (timedelta_since_first - self._RAMP_UP_INTERVAL) /
         self._RAMP_UP_INTERVAL)
-    max_ops_budget = int(self._BASE_BUDGET / self._num_workers * (1.5**growth))
+    try:
+      max_ops_budget = int(
+          self._BASE_BUDGET / self._num_workers * (1.5**growth))
+    except OverflowError:
+      max_ops_budget = float('inf')
     return max(1, max_ops_budget)
 
   def process(self, element, **kwargs):

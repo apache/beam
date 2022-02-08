@@ -225,5 +225,6 @@ CronJobBuilder.cronJob('beam_LoadTests_Go_GBK_Flink_Batch', 'H 10 * * *', this) 
     influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
   ]
-  loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, 'batch')
+  // TODO(BEAM-12898): Re-enable this test once fixed.
+  // loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, 'batch')
 }

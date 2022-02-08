@@ -321,10 +321,4 @@ public final class DeduceNodeLocationsFunctionTest {
             .setParDo(new ParDoInstruction().setUserFn(CloudObject.forClassName(parDoClassName))),
         Nodes.ExecutionLocation.UNKNOWN);
   }
-
-  /** Creates a node already set to execute in the SDK harness. */
-  private static ParallelInstructionNode createSdkNode(String name) {
-    return ParallelInstructionNode.create(
-        new ParallelInstruction().setName(name), Nodes.ExecutionLocation.SDK_HARNESS);
-  }
 }

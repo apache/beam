@@ -97,7 +97,7 @@ class VendorJavaPlugin implements Plugin<Project> {
       project.apply plugin: "project-report"
 
       project.dependencies {
-        config.dependencies.each { compile it }
+        config.dependencies.each { implementation it }
         config.runtimeDependencies.each { runtimeOnly it }
         config.testDependencies.each { compileOnly it}
       }

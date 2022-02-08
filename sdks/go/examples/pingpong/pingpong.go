@@ -34,6 +34,12 @@ var (
 	output = flag.String("output", "/tmp/pingpong/out.", "Prefix of output.")
 )
 
+func init() {
+	beam.RegisterFunction(multiFn)
+	beam.RegisterFunction(extractFn)
+	beam.RegisterFunction(subsetFn)
+}
+
 // stitch constructs two composite PTranformations that provide input to each other. It
 // is a (deliberately) complex DAG to show what kind of structures are possible.
 func stitch(s beam.Scope, words beam.PCollection) (beam.PCollection, beam.PCollection) {
@@ -62,7 +68,7 @@ func multiFn(word string, sample []string, small, big func(string)) error {
 		size += len(w)
 	}
 	if count == 0 {
-		return errors.New("Empty sample")
+		return errors.New("empty sample")
 	}
 	avg := size / count
 
@@ -86,7 +92,7 @@ func subsetFn(_ []byte, a, b func(*string) bool) error {
 	}
 	for a(&elm) {
 		if !larger[elm] {
-			return fmt.Errorf("Extra element: %v", elm)
+			return fmt.Errorf("extra element: %v", elm)
 		}
 	}
 	return nil

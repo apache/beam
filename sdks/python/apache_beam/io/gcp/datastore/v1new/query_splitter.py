@@ -146,7 +146,7 @@ class IdOrName(object):
 
   def __lt__(self, other):
     if not isinstance(other, IdOrName):
-      return super(IdOrName, self).__lt__(other)
+      return super().__lt__(other)
 
     if self.id is not None:
       if other.id is None:
@@ -161,7 +161,7 @@ class IdOrName(object):
 
   def __eq__(self, other):
     if not isinstance(other, IdOrName):
-      return super(IdOrName, self).__eq__(other)
+      return super().__eq__(other)
     return self.id == other.id and self.name == other.name
 
   def __hash__(self):

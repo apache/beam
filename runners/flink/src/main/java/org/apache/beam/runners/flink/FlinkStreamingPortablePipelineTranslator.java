@@ -98,7 +98,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashMultiset;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -780,7 +780,7 @@ public class FlinkStreamingPortablePipelineTranslator
         context.getDataStreamOrThrow(inputPCollectionId);
 
     CoderTypeInformation<WindowedValue<OutputT>> outputTypeInformation =
-        (!outputs.isEmpty())
+        !outputs.isEmpty()
             ? new CoderTypeInformation(
                 outputCoders.get(mainOutputTag.getId()), context.getPipelineOptions())
             : null;

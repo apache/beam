@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.aws2.kinesis;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Options for Kinesis integration tests. */
 public interface KinesisTestOptions extends TestPipelineOptions {
@@ -42,11 +43,23 @@ public interface KinesisTestOptions extends TestPipelineOptions {
 
   void setAwsSecretKey(String value);
 
+  @Description("Aws service endpoint")
+  @Nullable
+  String getAwsServiceEndpoint();
+
+  void setAwsServiceEndpoint(String awsServiceEndpoint);
+
   @Description("AWS access key")
   @Default.String("aws-access-key")
   String getAwsAccessKey();
 
   void setAwsAccessKey(String value);
+
+  @Description("Flag for certificate verification (only required for KPL to write records)")
+  @Default.Boolean(true)
+  Boolean getAwsVerifyCertificate();
+
+  void setAwsVerifyCertificate(Boolean awsVerifyCertificate);
 
   @Description("Number of shards of stream")
   @Default.Integer(2)
@@ -59,4 +72,16 @@ public interface KinesisTestOptions extends TestPipelineOptions {
   Integer getNumberOfRecords();
 
   void setNumberOfRecords(Integer count);
+
+  @Description("Use localstack. Disable to test with real Kinesis")
+  @Default.Boolean(true)
+  Boolean getUseLocalstack();
+
+  void setUseLocalstack(Boolean useLocalstack);
+
+  @Description("Create stream. Enabled when using localstack")
+  @Default.Boolean(false)
+  Boolean getCreateStream();
+
+  void setCreateStream(Boolean createStream);
 }

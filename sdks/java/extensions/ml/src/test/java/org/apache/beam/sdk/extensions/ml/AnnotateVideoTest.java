@@ -27,7 +27,6 @@ import com.google.cloud.videointelligence.v1.AnnotateVideoResponse;
 import com.google.cloud.videointelligence.v1.Feature;
 import com.google.cloud.videointelligence.v1.VideoAnnotationResults;
 import com.google.cloud.videointelligence.v1.VideoIntelligenceServiceClient;
-import com.google.protobuf.ByteString;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -40,7 +39,6 @@ import org.mockito.junit.MockitoJUnitRunner;
 public class AnnotateVideoTest {
 
   private static final String TEST_URI = "fake_uri";
-  private static final ByteString TEST_BYTES = ByteString.copyFromUtf8("12345");
 
   @Mock private VideoIntelligenceServiceClient serviceClient;
   @Mock private OperationFuture<AnnotateVideoResponse, AnnotateVideoProgress> future;

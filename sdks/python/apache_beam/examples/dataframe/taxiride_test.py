@@ -22,6 +22,7 @@
 
 from __future__ import absolute_import
 
+import glob
 import logging
 import os
 import re
@@ -63,12 +64,14 @@ class TaxiRideExampleTest(unittest.TestCase):
 
   def setUp(self):
     self.tmpdir = tempfile.TemporaryDirectory()
-    self.input_path = os.path.join(self.tmpdir.name, 'rides.csv')
+    self.input_path = os.path.join(self.tmpdir.name, 'rides*.csv')
     self.lookup_path = os.path.join(self.tmpdir.name, 'lookup.csv')
     self.output_path = os.path.join(self.tmpdir.name, 'output.csv')
 
-    with open(self.input_path, 'w') as fp:
-      fp.write(self.SAMPLE_RIDES)
+    # Duplicate sample data in 100 different files to replicate multi-file read
+    for i in range(100):
+      with open(os.path.join(self.tmpdir.name, f'rides{i}.csv'), 'w') as fp:
+        fp.write(self.SAMPLE_RIDES)
 
     with open(self.lookup_path, 'w') as fp:
       fp.write(self.SAMPLE_ZONE_LOOKUP)
@@ -78,7 +81,7 @@ class TaxiRideExampleTest(unittest.TestCase):
 
   def test_aggregation(self):
     # Compute expected result
-    rides = pd.read_csv(self.input_path)
+    rides = pd.concat(pd.read_csv(path) for path in glob.glob(self.input_path))
     expected_counts = rides.groupby('DOLocationID').passenger_count.sum()
 
     taxiride.run_aggregation_pipeline(
@@ -98,7 +101,7 @@ class TaxiRideExampleTest(unittest.TestCase):
 
   def test_enrich(self):
     # Compute expected result
-    rides = pd.read_csv(self.input_path)
+    rides = pd.concat(pd.read_csv(path) for path in glob.glob(self.input_path))
     zones = pd.read_csv(self.lookup_path)
     rides = rides.merge(
         zones.set_index('LocationID').Borough,

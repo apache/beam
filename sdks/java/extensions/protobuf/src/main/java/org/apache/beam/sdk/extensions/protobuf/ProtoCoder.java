@@ -274,10 +274,6 @@ public class ProtoCoder<T extends Message> extends CustomCoder<T> {
    */
   final Set<Class<?>> extensionHostClasses;
 
-  // Constants used to serialize and deserialize
-  private static final String PROTO_MESSAGE_CLASS = "proto_message_class";
-  private static final String PROTO_EXTENSION_HOSTS = "proto_extension_hosts";
-
   // Transient fields that are lazy initialized and then memoized.
   private transient ExtensionRegistry memoizedExtensionRegistry;
   transient Parser<T> memoizedParser;

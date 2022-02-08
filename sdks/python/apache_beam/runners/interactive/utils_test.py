@@ -15,8 +15,10 @@
 # limitations under the License.
 #
 
+import importlib
 import json
 import logging
+import tempfile
 import unittest
 from typing import NamedTuple
 from unittest.mock import PropertyMock
@@ -30,12 +32,42 @@ import apache_beam as beam
 from apache_beam import coders
 from apache_beam.dataframe.convert import to_dataframe
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
+from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import utils
+from apache_beam.runners.interactive.caching.cacheable import Cacheable
 from apache_beam.runners.interactive.testing.mock_ipython import mock_get_ipython
+from apache_beam.runners.interactive.testing.test_cache_manager import InMemoryCache
 from apache_beam.testing.test_stream import WindowedValueHolder
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import WindowedValue
+
+# Protect against environments where apitools library is not available.
+try:
+  from apitools.base.py.exceptions import HttpError
+  from apitools.base.py.exceptions import HttpNotFoundError
+except ImportError:
+  _http_error_imported = False
+  HttpError = ValueError
+  HttpNotFoundError = ValueError
+else:
+  _http_error_imported = True
+
+
+class MockBuckets():
+  def __init__(self):
+    pass
+
+  def Get(self, path):
+    if path == 'test-bucket-not-found':
+      raise HttpNotFoundError({'status': 404}, {}, '')
+    elif path == 'test-bucket-not-verified':
+      raise HttpError({'status': 400}, {}, '')
+
+
+class MockStorageClient():
+  def __init__(self, buckets=MockBuckets()):
+    self.buckets = buckets
 
 
 class Record(NamedTuple):
@@ -270,6 +302,83 @@ class MessagingUtilTest(unittest.TestCase):
     # As of Python 3.6, for the CPython implementation of Python,
     # dictionaries remember the order of items inserted.
     self.assertEqual(json.loads(dummy()), MessagingUtilTest.SAMPLE_DATA)
+
+
+class GeneralUtilTest(unittest.TestCase):
+  def test_pcoll_by_name(self):
+    p = beam.Pipeline()
+    pcoll = p | beam.Create([1])
+    ib.watch({'p': p, 'pcoll': pcoll})
+
+    name_to_pcoll = utils.pcoll_by_name()
+    self.assertIn('pcoll', name_to_pcoll)
+
+  def test_cacheables(self):
+    p2 = beam.Pipeline()
+    pcoll2 = p2 | beam.Create([2])
+    ib.watch({'p2': p2, 'pcoll2': pcoll2})
+
+    cacheables = utils.cacheables()
+    cacheable_key = Cacheable.from_pcoll('pcoll2', pcoll2).to_key()
+    self.assertIn(cacheable_key, cacheables)
+
+  def test_has_unbounded_source(self):
+    p = beam.Pipeline()
+    ie.current_env().set_cache_manager(InMemoryCache(), p)
+    _ = p | 'ReadUnboundedSource' >> beam.io.ReadFromPubSub(
+        subscription='projects/fake-project/subscriptions/fake_sub')
+    self.assertTrue(utils.has_unbounded_sources(p))
+
+  def test_not_has_unbounded_source(self):
+    p = beam.Pipeline()
+    ie.current_env().set_cache_manager(InMemoryCache(), p)
+    with tempfile.NamedTemporaryFile(delete=False) as f:
+      f.write(b'test')
+    _ = p | 'ReadBoundedSource' >> beam.io.ReadFromText(f.name)
+    self.assertFalse(utils.has_unbounded_sources(p))
+
+  def test_find_pcoll_name(self):
+    p = beam.Pipeline()
+    pcoll = p | beam.Create([1, 2, 3])
+    ib.watch({
+        'p_test_find_pcoll_name': p,
+        'pcoll_test_find_pcoll_name': pcoll,
+    })
+    self.assertEqual('pcoll_test_find_pcoll_name', utils.find_pcoll_name(pcoll))
+
+  def test_create_var_in_main(self):
+    name = 'test_create_var_in_main'
+    value = Record(0, 0, 0)
+    _ = utils.create_var_in_main(name, value)
+    main_session = importlib.import_module('__main__')
+    self.assertIs(getattr(main_session, name, None), value)
+
+
+@patch(
+    'apache_beam.io.gcp.internal.clients.storage.StorageV1',
+    return_value=MockStorageClient())
+@unittest.skipIf(not _http_error_imported, 'http errors are not imported.')
+class GCSUtilsTest(unittest.TestCase):
+  @patch(
+      'apache_beam.io.gcp.internal.clients.storage.StorageBucketsGetRequest',
+      return_value='test-bucket-not-found')
+  def test_assert_bucket_exists_not_found(self, mock_response, mock_client):
+    with self.assertRaises(ValueError):
+      utils.assert_bucket_exists('')
+
+  @patch(
+      'apache_beam.io.gcp.internal.clients.storage.StorageBucketsGetRequest',
+      return_value='test-bucket-not-verified')
+  def test_assert_bucket_exists_not_verified(self, mock_response, mock_client):
+    from apache_beam.runners.interactive.utils import _LOGGER
+    with self.assertLogs(_LOGGER, level='WARNING'):
+      utils.assert_bucket_exists('')
+
+  @patch(
+      'apache_beam.io.gcp.internal.clients.storage.StorageBucketsGetRequest',
+      return_value='test-bucket-found')
+  def test_assert_bucket_exists_found(self, mock_response, mock_client):
+    utils.assert_bucket_exists('')
 
 
 if __name__ == '__main__':

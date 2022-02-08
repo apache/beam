@@ -93,6 +93,7 @@ public class JetPipelineResult implements PipelineResult {
   }
 
   @Override
+  @SuppressWarnings("EmptyCatch")
   public State cancel() throws IOException {
     if (terminalState != null) {
       throw new IllegalStateException("Job already completed");
@@ -125,7 +126,7 @@ public class JetPipelineResult implements PipelineResult {
 
   @Override
   public State waitUntilFinish() {
-    return waitUntilFinish(new Duration(Long.MAX_VALUE));
+    return waitUntilFinish(Duration.millis(Long.MAX_VALUE));
   }
 
   @Override

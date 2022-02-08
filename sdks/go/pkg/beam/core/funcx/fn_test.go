@@ -76,6 +76,16 @@ func TestNew(t *testing.T) {
 			Param: []FnParamKind{FnWindow, FnEventTime, FnType, FnValue},
 		},
 		{
+			Name:  "good6",
+			Fn:    func(int, func(string) func(*int) bool) {},
+			Param: []FnParamKind{FnValue, FnMultiMap},
+		},
+		{
+			Name:  "good7",
+			Fn:    func(typex.PaneInfo, typex.Window, typex.EventTime, reflect.Type, []byte) {},
+			Param: []FnParamKind{FnPane, FnWindow, FnEventTime, FnType, FnValue},
+		},
+		{
 			Name:  "good-method",
 			Fn:    foo{1}.Do,
 			Param: []FnParamKind{FnContext, FnValue, FnValue},
@@ -116,6 +126,11 @@ func TestNew(t *testing.T) {
 			Name: "errContextParam: multiple context",
 			Fn:   func(context.Context, context.Context, int) {},
 			Err:  errContextParam,
+		},
+		{
+			Name: "errPaneParam: after Window",
+			Fn:   func(typex.Window, typex.PaneInfo, int) {},
+			Err:  errPaneParamPrecedence,
 		},
 		{
 			Name: "errWindowParamPrecedence: after EventTime",
@@ -268,8 +283,7 @@ func TestEmits(t *testing.T) {
 				params[i].Kind = kind
 				params[i].T = nil
 			}
-			fn := new(Fn)
-			fn.Param = params
+			fn := &Fn{Param: params}
 
 			// Validate we get expected results for Emits function.
 			pos, num, exists := fn.Emits()
@@ -281,6 +295,94 @@ func TestEmits(t *testing.T) {
 			}
 			if pos != test.Pos {
 				t.Errorf("Emits() pos: got %v, want %v", pos, test.Pos)
+			}
+		})
+	}
+}
+
+func TestPane(t *testing.T) {
+	tests := []struct {
+		Name   string
+		Params []FnParamKind
+		Pos    int
+		Exists bool
+	}{
+		{
+			Name:   "pane input",
+			Params: []FnParamKind{FnContext, FnPane},
+			Pos:    1,
+			Exists: true,
+		},
+		{
+			Name:   "no pane input",
+			Params: []FnParamKind{FnContext, FnEventTime},
+			Pos:    -1,
+			Exists: false,
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.Name, func(t *testing.T) {
+			// Create a Fn with a filled params list.
+			params := make([]FnParam, len(test.Params))
+			for i, kind := range test.Params {
+				params[i].Kind = kind
+				params[i].T = nil
+			}
+			fn := &Fn{Param: params}
+
+			// Validate we get expected results for pane function.
+			pos, exists := fn.Pane()
+			if exists != test.Exists {
+				t.Errorf("Pane(%v) - exists: got %v, want %v", params, exists, test.Exists)
+			}
+			if pos != test.Pos {
+				t.Errorf("Pane(%v) - pos: got %v, want %v", params, pos, test.Pos)
+			}
+		})
+	}
+}
+
+func TestWindow(t *testing.T) {
+	tests := []struct {
+		Name   string
+		Params []FnParamKind
+		Pos    int
+		Exists bool
+	}{
+		{
+			Name:   "window input",
+			Params: []FnParamKind{FnContext, FnWindow},
+			Pos:    1,
+			Exists: true,
+		},
+		{
+			Name:   "no window input",
+			Params: []FnParamKind{FnContext, FnEventTime},
+			Pos:    -1,
+			Exists: false,
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.Name, func(t *testing.T) {
+			// Create a Fn with a filled params list.
+			params := make([]FnParam, len(test.Params))
+			for i, kind := range test.Params {
+				params[i].Kind = kind
+				params[i].T = nil
+			}
+			fn := &Fn{Param: params}
+
+			// Validate we get expected results for pane function.
+			pos, exists := fn.Window()
+			if exists != test.Exists {
+				t.Errorf("Window(%v) - exists: got %v, want %v", params, exists, test.Exists)
+			}
+			if pos != test.Pos {
+				t.Errorf("Window(%v) - pos: got %v, want %v", params, pos, test.Pos)
 			}
 		})
 	}
@@ -347,8 +449,7 @@ func TestInputs(t *testing.T) {
 				params[i].Kind = kind
 				params[i].T = nil
 			}
-			fn := new(Fn)
-			fn.Param = params
+			fn := &Fn{Param: params}
 
 			// Validate we get expected results for Inputs function.
 			pos, num, exists := fn.Inputs()

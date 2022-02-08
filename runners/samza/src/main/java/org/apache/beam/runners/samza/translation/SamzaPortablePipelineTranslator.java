@@ -103,6 +103,8 @@ public class SamzaPortablePipelineTranslator {
     @Override
     public Map<String, TransformTranslator<?>> getTransformTranslators() {
       return ImmutableMap.<String, TransformTranslator<?>>builder()
+          // Re-enable after BEAM-12999 is completed
+          //          .put(PTransformTranslation.RESHUFFLE_URN, new ReshuffleTranslator<>())
           .put(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, new GroupByKeyTranslator<>())
           .put(PTransformTranslation.FLATTEN_TRANSFORM_URN, new FlattenPCollectionsTranslator<>())
           .put(PTransformTranslation.IMPULSE_TRANSFORM_URN, new ImpulseTranslator())

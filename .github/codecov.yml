@@ -34,6 +34,12 @@ coverage:
         base: auto
         paths:
           - "sdks/python"
+      go:
+        target: auto
+        threshold: 5%
+        base: auto
+        paths:
+          - "sdks/go/pkg"
 
 parsers:
   gcov:

@@ -37,7 +37,7 @@ public abstract class GcsCreateOptions extends CreateOptions {
 
   /** Returns a {@link GcsCreateOptions.Builder}. */
   public static GcsCreateOptions.Builder builder() {
-    return new AutoValue_GcsCreateOptions.Builder();
+    return new AutoValue_GcsCreateOptions.Builder().setExpectFileToNotExist(false);
   }
 
   /** A builder for {@link GcsCreateOptions}. */

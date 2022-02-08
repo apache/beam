@@ -235,8 +235,6 @@ public class SubProcessKernel {
   private byte[] collectProcessResultsBytes(
       Process process, ProcessBuilder builder, SubProcessIOFiles outPutFiles) throws Exception {
 
-    Byte[] results;
-
     try {
 
       LOG.debug(String.format("Executing process %s", createLogEntryFromInputs(builder.command())));

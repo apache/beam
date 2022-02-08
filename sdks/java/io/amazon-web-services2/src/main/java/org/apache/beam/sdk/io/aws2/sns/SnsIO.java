@@ -48,18 +48,20 @@ import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.awscore.AwsResponseMetadata;
+import software.amazon.awssdk.http.SdkHttpResponse;
 import software.amazon.awssdk.services.sns.SnsAsyncClient;
 import software.amazon.awssdk.services.sns.SnsClient;
-import software.amazon.awssdk.services.sns.model.GetTopicAttributesRequest;
-import software.amazon.awssdk.services.sns.model.GetTopicAttributesResponse;
 import software.amazon.awssdk.services.sns.model.InternalErrorException;
+import software.amazon.awssdk.services.sns.model.InvalidParameterException;
+import software.amazon.awssdk.services.sns.model.NotFoundException;
 import software.amazon.awssdk.services.sns.model.PublishRequest;
 import software.amazon.awssdk.services.sns.model.PublishResponse;
 
 /**
  * {@link PTransform}s for writing to <a href="https://aws.amazon.com/sns/">SNS</a>.
  *
- * <h3>Writing to SNS Synchronously</h3>
+ * <h3>Writing to SNS</h3>
  *
  * <p>Example usage:
  *
@@ -67,69 +69,44 @@ import software.amazon.awssdk.services.sns.model.PublishResponse;
  * PCollection<String> data = ...;
  *
  * data.apply(SnsIO.<String>write()
- *     .withPublishRequestFn(m -> PublishRequest.builder().topicArn("topicArn").message(m).build())
  *     .withTopicArn("topicArn")
- *     .withRetryConfiguration(
- *        SnsIO.RetryConfiguration.create(
- *          4, org.joda.time.Duration.standardSeconds(10)))
- *     .withSnsClientProvider(new BasicSnsClientProvider(awsCredentialsProvider, region));
+ *     .withPublishRequestBuilder(m -> PublishRequest.builder().message(m))
+ *     .withSnsClientProvider(awsCredentialsProvider, region));
  * }</pre>
  *
  * <p>As a client, you need to provide at least the following things:
  *
  * <ul>
- *   <li>SNS topic arn you're going to publish to
- *   <li>Retry Configuration
- *   <li>AwsCredentialsProvider, which you can pass on to BasicSnsClientProvider
- *   <li>publishRequestFn, a function to convert your message into PublishRequest
+ *   <li>SNS topic ARN you're going to publish to (optional, but required for most use cases)
+ *   <li>Builder function to create SNS publish requests from your input
+ *   <li>AWS credentials provider and region for the SNS client provider
  * </ul>
  *
- * <h3>Writing to SNS Asynchronously</h3>
- *
- * <p>Example usage:
- *
- * <pre>{@code
- * PCollection<String> data = ...;
- *
- * data.apply(SnsIO.<String>writeAsync()
- * 		.withElementCoder(StringUtf8Coder.of())
- * 		.withPublishRequestFn(createPublishRequestFn())
- * 		.withSnsClientProvider(new BasicSnsClientProvider(awsCredentialsProvider, region));
- *
- * }</pre>
- *
- * <pre>{@code
- * PCollection<String> data = ...;
- *
- * PCollection<SnsResponse<String>> responses = data.apply(SnsIO.<String>writeAsync()
- *      .withElementCoder(StringUtf8Coder.of())
- *      .withPublishRequestFn(createPublishRequestFn())
- *  *   .withSnsClientProvider(new BasicSnsClientProvider(awsCredentialsProvider, region));
- *
- * }</pre>
- *
- * <p>As a client, you need to provide at least the following things:
- *
- * <ul>
- *   <li>Coder for element T.
- *   <li>publishRequestFn, a function to convert your message into PublishRequest
- *   <li>SnsClientProvider, a provider to create an async client.
- * </ul>
+ * <p>By default, the output {@link PublishResponse} contains only the SNS messageId, all other
+ * fields are null. If you need to include the full {@link SdkHttpResponse} and {@link
+ * AwsResponseMetadata}, you can call {@link Write#withFullPublishResponse()}. If you need the HTTP
+ * status code only but no headers, you can use {@link
+ * Write#withFullPublishResponseWithoutHeaders()}.
  */
 @Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public final class SnsIO {
 
-  // Write data to SNS (synchronous)
+  // Write data to SNS
   public static <T> Write<T> write() {
-    return new AutoValue_SnsIO_Write.Builder().build();
+    return new AutoValue_SnsIO_Write.Builder<T>().build();
   }
 
+  /**
+   * @deprecated Please use {@link SnsIO#write()} to avoid the risk of data loss.
+   * @see <a href="https://issues.apache.org/jira/browse/BEAM-13824">BEAM-13824</a>, <a
+   *     href="https://issues.apache.org/jira/browse/BEAM-13203">BEAM-13203</a>
+   */
+  @Deprecated
   public static <T> WriteAsync<T> writeAsync() {
-    return new AutoValue_SnsIO_WriteAsync.Builder().build();
+    return new AutoValue_SnsIO_WriteAsync.Builder<T>().build();
   }
 
   /**
@@ -143,6 +120,8 @@ public final class SnsIO {
    */
   @AutoValue
   public abstract static class RetryConfiguration implements Serializable {
+    private static final Duration DEFAULT_INITIAL_DURATION = Duration.standardSeconds(5);
+
     @VisibleForTesting
     static final RetryPredicate DEFAULT_RETRY_PREDICATE = new DefaultRetryPredicate();
 
@@ -150,18 +129,31 @@ public final class SnsIO {
 
     abstract Duration getMaxDuration();
 
+    abstract Duration getInitialDuration();
+
     abstract RetryPredicate getRetryPredicate();
 
     abstract Builder builder();
 
     public static RetryConfiguration create(int maxAttempts, Duration maxDuration) {
+      return create(maxAttempts, maxDuration, DEFAULT_INITIAL_DURATION);
+    }
+
+    @VisibleForTesting
+    static RetryConfiguration create(
+        int maxAttempts, Duration maxDuration, Duration initialDuration) {
       checkArgument(maxAttempts > 0, "maxAttempts should be greater than 0");
       checkArgument(
           maxDuration != null && maxDuration.isLongerThan(Duration.ZERO),
           "maxDuration should be greater than 0");
+      checkArgument(
+          initialDuration != null && initialDuration.isLongerThan(Duration.ZERO),
+          "initialDuration should be greater than 0");
+
       return new AutoValue_SnsIO_RetryConfiguration.Builder()
           .setMaxAttempts(maxAttempts)
           .setMaxDuration(maxDuration)
+          .setInitialDuration(initialDuration)
           .setRetryPredicate(DEFAULT_RETRY_PREDICATE)
           .build();
     }
@@ -172,6 +164,8 @@ public final class SnsIO {
 
       abstract Builder setMaxDuration(Duration maxDuration);
 
+      abstract Builder setInitialDuration(Duration initialDuration);
+
       abstract Builder setRetryPredicate(RetryPredicate retryPredicate);
 
       abstract RetryConfiguration build();
@@ -180,7 +174,7 @@ public final class SnsIO {
     /**
      * An interface used to control if we retry the SNS Publish call when a {@link Throwable}
      * occurs. If {@link RetryPredicate#test(Object)} returns true, {@link Write} tries to resend
-     * the requests to the Solr server if the {@link RetryConfiguration} permits it.
+     * the requests to SNS if the {@link RetryConfiguration} permits it.
      */
     @FunctionalInterface
     interface RetryPredicate extends Predicate<Throwable>, Serializable {}
@@ -206,11 +200,13 @@ public final class SnsIO {
 
     abstract @Nullable String getTopicArn();
 
-    abstract @Nullable SerializableFunction<T, PublishRequest> getPublishRequestFn();
+    abstract @Nullable SerializableFunction<T, PublishRequest.Builder> getPublishRequestBuilder();
 
     abstract @Nullable SnsClientProvider getSnsClientProvider();
 
     abstract @Nullable RetryConfiguration getRetryConfiguration();
+
+    abstract @Nullable Coder<PublishResponse> getCoder();
 
     abstract Builder<T> builder();
 
@@ -219,33 +215,47 @@ public final class SnsIO {
 
       abstract Builder<T> setTopicArn(String topicArn);
 
-      abstract Builder<T> setPublishRequestFn(
-          SerializableFunction<T, PublishRequest> publishRequestFn);
+      abstract Builder<T> setPublishRequestBuilder(
+          SerializableFunction<T, PublishRequest.Builder> requestBuilder);
 
       abstract Builder<T> setSnsClientProvider(SnsClientProvider snsClientProvider);
 
       abstract Builder<T> setRetryConfiguration(RetryConfiguration retryConfiguration);
 
+      abstract Builder<T> setCoder(Coder<PublishResponse> coder);
+
       abstract Write<T> build();
     }
 
     /**
-     * Specify the SNS topic which will be used for writing, this name is mandatory.
+     * SNS topic ARN used for publishing to SNS.
      *
-     * @param topicArn topicArn
+     * <p>The topic ARN is optional. If set, its existence will be validated and the SNS publish
+     * request will be configured accordingly.
      */
     public Write<T> withTopicArn(String topicArn) {
       return builder().setTopicArn(topicArn).build();
     }
 
     /**
-     * Specify a function for converting a message into PublishRequest object, this function is
-     * mandatory.
+     * Function to convert a message into a {@link PublishRequest.Builder} (mandatory).
      *
-     * @param publishRequestFn publishRequestFn
+     * <p>If an SNS topic arn is set, it will be automatically set on the {@link
+     * PublishRequest.Builder}.
      */
+    public Write<T> withPublishRequestBuilder(
+        SerializableFunction<T, PublishRequest.Builder> requestBuilder) {
+      return builder().setPublishRequestBuilder(requestBuilder).build();
+    }
+
+    /**
+     * Specify a function for converting a message into PublishRequest object.
+     *
+     * @deprecated Use {@link #withPublishRequestBuilder(SerializableFunction)} instead.
+     */
+    @Deprecated
     public Write<T> withPublishRequestFn(SerializableFunction<T, PublishRequest> publishRequestFn) {
-      return builder().setPublishRequestFn(publishRequestFn).build();
+      return builder().setPublishRequestBuilder(m -> publishRequestFn.apply(m).toBuilder()).build();
     }
 
     /**
@@ -305,46 +315,66 @@ public final class SnsIO {
       return builder().setRetryConfiguration(retryConfiguration).build();
     }
 
-    private static boolean isTopicExists(SnsClient client, String topicArn) {
-      try {
-        GetTopicAttributesRequest getTopicAttributesRequest =
-            GetTopicAttributesRequest.builder().topicArn(topicArn).build();
-        GetTopicAttributesResponse topicAttributesResponse =
-            client.getTopicAttributes(getTopicAttributesRequest);
-        return topicAttributesResponse != null
-            && topicAttributesResponse.sdkHttpResponse().statusCode() == 200;
-      } catch (Exception e) {
-        throw e;
-      }
+    /**
+     * Encode the full {@code PublishResult} object, including sdkResponseMetadata and
+     * sdkHttpMetadata with the HTTP response headers.
+     */
+    public Write<T> withFullPublishResponse() {
+      return withCoder(PublishResponseCoders.fullPublishResponse());
+    }
+
+    /**
+     * Encode the full {@code PublishResult} object, including sdkResponseMetadata and
+     * sdkHttpMetadata but excluding the HTTP response headers.
+     */
+    public Write<T> withFullPublishResponseWithoutHeaders() {
+      return withCoder(PublishResponseCoders.fullPublishResponseWithoutHeaders());
+    }
+
+    /** Encode the {@code PublishResult} with the given coder. */
+    public Write<T> withCoder(Coder<PublishResponse> coder) {
+      return builder().setCoder(coder).build();
     }
 
     @Override
     public PCollection<PublishResponse> expand(PCollection<T> input) {
-      checkArgument(getTopicArn() != null, "withTopicArn() is required");
-      checkArgument(getPublishRequestFn() != null, "withPublishRequestFn() is required");
+      checkArgument(getPublishRequestBuilder() != null, "withPublishRequestBuilder() is required");
       checkArgument(getSnsClientProvider() != null, "withSnsClientProvider() is required");
-      checkArgument(
-          isTopicExists(getSnsClientProvider().getSnsClient(), getTopicArn()),
-          "Topic arn %s does not exist",
-          getTopicArn());
+      if (getTopicArn() != null) {
+        checkArgument(checkTopicExists(), "Topic arn %s does not exist", getTopicArn());
+      }
 
-      return input.apply(ParDo.of(new SnsWriterFn<>(this)));
+      PCollection<PublishResponse> result = input.apply(ParDo.of(new SnsWriterFn<>(this)));
+      if (getCoder() != null) {
+        result.setCoder(getCoder());
+      }
+      return result;
+    }
+
+    private boolean checkTopicExists() {
+      try (SnsClient client = getSnsClientProvider().getSnsClient()) {
+        client.getTopicAttributes(b -> b.topicArn(getTopicArn()));
+        return true;
+      } catch (NotFoundException | InvalidParameterException e) {
+        LoggerFactory.getLogger(Write.class)
+            .warn("Configured topic ARN '" + getTopicArn() + "' does not exist.", e);
+        return false;
+      }
     }
 
     static class SnsWriterFn<T> extends DoFn<T, PublishResponse> {
       @VisibleForTesting
-      static final String RETRY_ATTEMPT_LOG = "Error writing to SNS. Retry attempt[%d]";
+      static final String RETRY_ATTEMPT_LOG = "Error writing to SNS. Retry attempt[{}]";
 
-      private static final Duration RETRY_INITIAL_BACKOFF = Duration.standardSeconds(5);
       private transient FluentBackoff retryBackoff; // defaults to no retries
       private static final Logger LOG = LoggerFactory.getLogger(SnsWriterFn.class);
       private static final Counter SNS_WRITE_FAILURES =
           Metrics.counter(SnsWriterFn.class, "SNS_Write_Failures");
 
-      private final Write spec;
+      private final Write<T> spec;
       private transient SnsClient producer;
 
-      SnsWriterFn(Write spec) {
+      SnsWriterFn(Write<T> spec) {
         this.spec = spec;
       }
 
@@ -353,22 +383,27 @@ public final class SnsIO {
         // Initialize SnsPublisher
         producer = spec.getSnsClientProvider().getSnsClient();
 
-        retryBackoff =
-            FluentBackoff.DEFAULT
-                .withMaxRetries(0) // default to no retrying
-                .withInitialBackoff(RETRY_INITIAL_BACKOFF);
+        retryBackoff = FluentBackoff.DEFAULT.withMaxRetries(0); // default to no retrying
         if (spec.getRetryConfiguration() != null) {
           retryBackoff =
               retryBackoff
                   .withMaxRetries(spec.getRetryConfiguration().getMaxAttempts() - 1)
+                  .withInitialBackoff(spec.getRetryConfiguration().getInitialDuration())
                   .withMaxCumulativeBackoff(spec.getRetryConfiguration().getMaxDuration());
         }
       }
 
       @ProcessElement
       public void processElement(ProcessContext context) throws Exception {
-        PublishRequest request =
-            (PublishRequest) spec.getPublishRequestFn().apply(context.element());
+        PublishRequest.Builder reqBuilder =
+            spec.getPublishRequestBuilder().apply(context.element());
+
+        if (spec.getTopicArn() != null) {
+          reqBuilder.topicArn(spec.getTopicArn());
+        }
+
+        PublishRequest request = reqBuilder.build();
+
         Sleeper sleeper = Sleeper.DEFAULT;
         BackOff backoff = retryBackoff.backoff();
         int attempt = 0;
@@ -395,7 +430,7 @@ public final class SnsIO {
                   ex);
             } else {
               // Note: this used in test cases to verify behavior
-              LOG.warn(String.format(RETRY_ATTEMPT_LOG, attempt), ex);
+              LOG.warn(RETRY_ATTEMPT_LOG, attempt, ex);
             }
           }
         }
@@ -411,7 +446,14 @@ public final class SnsIO {
     }
   }
 
-  /** Implementation of {@link #writeAsync}. */
+  /**
+   * Implementation of {@link #writeAsync}.
+   *
+   * @deprecated Please use {@link SnsIO#write()} to avoid the risk of data loss.
+   * @see <a href="https://issues.apache.org/jira/browse/BEAM-13824">BEAM-13824</a>, <a
+   *     href="https://issues.apache.org/jira/browse/BEAM-13203">BEAM-13203</a>
+   */
+  @Deprecated
   @AutoValue
   public abstract static class WriteAsync<T>
       extends PTransform<PCollection<T>, PCollection<SnsResponse<T>>> {

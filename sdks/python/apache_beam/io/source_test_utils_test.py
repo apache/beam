@@ -21,7 +21,7 @@ import logging
 import tempfile
 import unittest
 
-import apache_beam.io.source_test_utils as source_test_utils
+from apache_beam.io import source_test_utils
 from apache_beam.io.filebasedsource_test import LineSource
 
 

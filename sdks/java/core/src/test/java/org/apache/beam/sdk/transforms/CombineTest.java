@@ -746,7 +746,7 @@ public class CombineTest implements Serializable {
                   Window.<Integer>into(new GlobalWindows())
                       .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
                       .accumulatingFiredPanes()
-                      .withAllowedLateness(new Duration(0), ClosingBehavior.FIRE_ALWAYS))
+                      .withAllowedLateness(Duration.ZERO, ClosingBehavior.FIRE_ALWAYS))
               .apply(Sum.integersGlobally().withoutDefaults().withFanout(2))
               .apply(ParDo.of(new GetLast()));
 
@@ -1223,7 +1223,7 @@ public class CombineTest implements Serializable {
                   Window.<Integer>into(new GlobalWindows())
                       .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
                       .accumulatingFiredPanes()
-                      .withAllowedLateness(new Duration(0), ClosingBehavior.FIRE_ALWAYS))
+                      .withAllowedLateness(Duration.ZERO, ClosingBehavior.FIRE_ALWAYS))
               .apply(Sum.integersGlobally())
               .apply(ParDo.of(new FormatPaneInfo()));
 

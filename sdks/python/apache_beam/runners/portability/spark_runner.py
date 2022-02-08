@@ -44,7 +44,7 @@ class SparkRunner(portable_runner.PortableRunner):
         not portable_options.environment_type and
         not portable_options.output_executable_path):
       portable_options.environment_type = 'LOOPBACK'
-    return super(SparkRunner, self).run_pipeline(pipeline, options)
+    return super().run_pipeline(pipeline, options)
 
   def default_job_server(self, options):
     spark_options = options.view_as(pipeline_options.SparkRunnerOptions)
@@ -73,7 +73,7 @@ class SparkRunner(portable_runner.PortableRunner):
 
 class SparkJarJobServer(job_server.JavaJarJobServer):
   def __init__(self, options):
-    super(SparkJarJobServer, self).__init__(options)
+    super().__init__(options)
     options = options.view_as(pipeline_options.SparkRunnerOptions)
     self._jar = options.spark_job_server_jar
     self._master_url = options.spark_master_url

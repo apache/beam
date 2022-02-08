@@ -28,7 +28,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.values.PCollection;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
@@ -83,7 +82,7 @@ public class DisplayDataMatchersTest {
               }
 
               @Override
-              public void populateDisplayData(Builder builder) {
+              public void populateDisplayData(DisplayData.Builder builder) {
                 builder.add(DisplayData.item("foo", DisplayDataMatchersTest.class));
               }
             });
@@ -180,7 +179,7 @@ public class DisplayDataMatchersTest {
     }
 
     @Override
-    public void populateDisplayData(Builder builder) {
+    public void populateDisplayData(DisplayData.Builder builder) {
       builder.add(DisplayData.item(key, value));
     }
   }

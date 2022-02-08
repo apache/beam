@@ -19,6 +19,7 @@ import (
 	"reflect"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/genx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/schema"
@@ -215,3 +216,6 @@ var (
 
 // EventTimeType is the reflect.Type of EventTime.
 var EventTimeType = typex.EventTimeType
+
+// MetricResult represents a single metric value, for use in writing predicate functions to query PipelineResults.
+type MetricResult = metrics.SingleResult

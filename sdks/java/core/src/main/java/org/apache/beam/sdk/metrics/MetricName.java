@@ -30,6 +30,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
  * #getNamespace} allows grouping related metrics together and also prevents collisions between
  * multiple metrics with the same name.
  */
+@SuppressWarnings("AutoValueFinalMethods")
 @Experimental(Kind.METRICS)
 @AutoValue
 public abstract class MetricName implements Serializable {

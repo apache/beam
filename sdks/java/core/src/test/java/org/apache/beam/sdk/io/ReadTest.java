@@ -207,7 +207,7 @@ public class ReadTest implements Serializable {
                 newUnboundedReadInterceptingWatermark(
                     numElements,
                     (Serializable & Consumer<Instant>)
-                        (instant -> STATIC_INSTANT_LIST_MAP.get(uuid).add(instant))))
+                        instant -> STATIC_INSTANT_LIST_MAP.get(uuid).add(instant)))
             .apply(
                 Window.<Long>into(new GlobalWindows())
                     .discardingFiredPanes()
@@ -529,7 +529,7 @@ public class ReadTest implements Serializable {
 
       @Override
       public Instant getCurrentTimestamp() throws NoSuchElementException {
-        return current < 0 ? now : now.plus(current);
+        return current < 0 ? now : now.plus(Duration.millis(current));
       }
 
       @Override

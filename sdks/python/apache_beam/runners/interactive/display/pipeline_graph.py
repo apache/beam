@@ -182,8 +182,8 @@ class PipelineGraph(object):
       for pcoll_id in transform.outputs.values():
         pcoll_node = None
         if self._pipeline_instrument:
-          pcoll_node = self._pipeline_instrument.cacheable_var_by_pcoll_id(
-              pcoll_id)
+          cacheable = self._pipeline_instrument.cacheables.get(pcoll_id)
+          pcoll_node = cacheable.var if cacheable else None
         # If no PipelineInstrument is available or the PCollection is not
         # watched.
         if not pcoll_node:

@@ -47,13 +47,13 @@ class InteractiveEnvironmentInspectorTest(unittest.TestCase):
       pipeline = beam.Pipeline(ir.InteractiveRunner())
       # Early watch the pipeline so that cell re-execution can be handled.
       ib.watch({'pipeline': pipeline})
-      # pylint: disable=range-builtin-not-iterating
+      # pylint: disable=bad-option-value
       pcoll = pipeline | 'Create' >> beam.Create(range(10))
 
     with cell:  # Cell 2
       # Re-executes the line that created the pcoll causing the original
       # pcoll no longer inspectable.
-      # pylint: disable=range-builtin-not-iterating
+      # pylint: disable=bad-option-value
       pcoll = pipeline | 'Create' >> beam.Create(range(10))
 
     ib.watch(locals())
@@ -106,7 +106,7 @@ class InteractiveEnvironmentInspectorTest(unittest.TestCase):
   def test_list_inspectables(self, cell):
     with cell:  # Cell 1
       pipeline = beam.Pipeline(ir.InteractiveRunner())
-      # pylint: disable=range-builtin-not-iterating
+      # pylint: disable=bad-option-value
       pcoll_1 = pipeline | 'Create' >> beam.Create(range(10))
       pcoll_2 = pcoll_1 | 'Square' >> beam.Map(lambda x: x * x)
 
@@ -144,7 +144,7 @@ class InteractiveEnvironmentInspectorTest(unittest.TestCase):
   def test_get_val(self, cell):
     with cell:  # Cell 1
       pipeline = beam.Pipeline(ir.InteractiveRunner())
-      # pylint: disable=range-builtin-not-iterating
+      # pylint: disable=bad-option-value
       pcoll = pipeline | 'Create' >> beam.Create(range(10))
 
     with cell:  # Cell 2
@@ -167,7 +167,7 @@ class InteractiveEnvironmentInspectorTest(unittest.TestCase):
 
   def test_get_pcoll_data(self):
     pipeline = beam.Pipeline(ir.InteractiveRunner())
-    # pylint: disable=range-builtin-not-iterating
+    # pylint: disable=bad-option-value
     pcoll = pipeline | 'Create' >> beam.Create(list(range(10)))
     counts = pcoll | beam.combiners.Count.PerElement()
 

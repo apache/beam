@@ -33,8 +33,6 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** This class knows all the translators from a primitive BEAM transform to a Samza operator. */
 @SuppressWarnings({
@@ -42,7 +40,6 @@ import org.slf4j.LoggerFactory;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class SamzaPipelineTranslator {
-  private static final Logger LOG = LoggerFactory.getLogger(SamzaPipelineTranslator.class);
 
   private static final Map<String, TransformTranslator<?>> TRANSLATORS = loadTranslators();
 
@@ -117,7 +114,7 @@ public class SamzaPipelineTranslator {
   }
 
   private static class SamzaPipelineVisitor extends Pipeline.PipelineVisitor.Defaults {
-    private TransformVisitorFn visitorFn;
+    private final TransformVisitorFn visitorFn;
 
     private SamzaPipelineVisitor(TransformVisitorFn visitorFn) {
       this.visitorFn = visitorFn;
@@ -177,6 +174,7 @@ public class SamzaPipelineTranslator {
     public Map<String, TransformTranslator<?>> getTransformTranslators() {
       return ImmutableMap.<String, TransformTranslator<?>>builder()
           .put(PTransformTranslation.READ_TRANSFORM_URN, new ReadTranslator<>())
+          .put(PTransformTranslation.RESHUFFLE_URN, new ReshuffleTranslator<>())
           .put(PTransformTranslation.PAR_DO_TRANSFORM_URN, new ParDoBoundMultiTranslator<>())
           .put(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, new GroupByKeyTranslator<>())
           .put(PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN, new GroupByKeyTranslator<>())

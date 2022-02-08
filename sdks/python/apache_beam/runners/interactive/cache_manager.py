@@ -194,7 +194,9 @@ class FileBasedCacheManager(CacheManager):
     return 0
 
   def exists(self, *labels):
-    return bool(self._match(*labels))
+    if labels and any(labels[1:]):
+      return bool(self._match(*labels))
+    return False
 
   def _latest_version(self, *labels):
     timestamp = 0
@@ -262,7 +264,12 @@ class FileBasedCacheManager(CacheManager):
         self._path(*labels), coder=self.load_pcoder(*labels))
 
   def cleanup(self):
-    if filesystems.FileSystems.exists(self._cache_dir):
+    if self._cache_dir.startswith('gs://'):
+      from apache_beam.io.gcp import gcsfilesystem
+      from apache_beam.options.pipeline_options import PipelineOptions
+      fs = gcsfilesystem.GCSFileSystem(PipelineOptions())
+      fs.delete([self._cache_dir + '/full/'])
+    elif filesystems.FileSystems.exists(self._cache_dir):
       filesystems.FileSystems.delete([self._cache_dir])
     self._saved_pcoders = {}
 
@@ -345,7 +352,7 @@ class WriteCache(beam.PTransform):
 class SafeFastPrimitivesCoder(coders.Coder):
   """This class add an quote/unquote step to escape special characters."""
 
-  # pylint: disable=deprecated-urllib-function
+  # pylint: disable=bad-option-value
 
   def encode(self, value):
     return quote(

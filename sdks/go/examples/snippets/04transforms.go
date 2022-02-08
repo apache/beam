@@ -300,7 +300,7 @@ func filterWordsAbove(word string, lengthCutOffIter func(*float64) bool, emitAbo
 	var cutOff float64
 	ok := lengthCutOffIter(&cutOff)
 	if !ok {
-		return fmt.Errorf("No length cutoff provided.")
+		return fmt.Errorf("no length cutoff provided")
 	}
 	if float64(len(word)) > cutOff {
 		emitAboveCutoff(word)

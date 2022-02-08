@@ -43,7 +43,7 @@ from apache_beam.runners.worker import statesampler
 class _PerThreadWorkerData(threading.local):
   def __init__(self):
     # type: () -> None
-    super(_PerThreadWorkerData, self).__init__()
+    super().__init__()
     # in the list, as going up and down all the way to zero incurs several
     # reallocations.
     self.stack = []  # type: List[Dict[str, Any]]
@@ -74,7 +74,7 @@ class JsonLogFormatter(logging.Formatter):
   """A JSON formatter class as expected by the logging standard module."""
   def __init__(self, job_id, worker_id):
     # type: (str, str) -> None
-    super(JsonLogFormatter, self).__init__()
+    super().__init__()
     self.job_id = job_id
     self.worker_id = worker_id
 

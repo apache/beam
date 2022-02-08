@@ -63,8 +63,6 @@ import org.slf4j.LoggerFactory;
 @RunWith(JUnit4.class)
 public class ExampleEchoPipelineTest {
 
-  private static final Logger LOG = LoggerFactory.getLogger(ExampleEchoPipelineTest.class);
-
   @Rule public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
   @Test

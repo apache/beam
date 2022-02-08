@@ -48,7 +48,7 @@ class StorageV1(base_api.BaseApiClient):
                additional_http_headers=None, response_encoding=None):
     """Create a new storage handle."""
     url = url or self.BASE_URL
-    super(StorageV1, self).__init__(
+    super().__init__(
         url, credentials=credentials,
         get_credentials=get_credentials, http=http, model=model,
         log_request=log_request, log_response=log_response, num_retries=20,
@@ -73,7 +73,7 @@ class StorageV1(base_api.BaseApiClient):
     _NAME = u'bucketAccessControls'
 
     def __init__(self, client):
-      super(StorageV1.BucketAccessControlsService, self).__init__(client)
+      super().__init__(client)
       self._upload_configs = {
           }
 
@@ -239,7 +239,7 @@ class StorageV1(base_api.BaseApiClient):
     _NAME = u'buckets'
 
     def __init__(self, client):
-      super(StorageV1.BucketsService, self).__init__(client)
+      super().__init__(client)
       self._upload_configs = {
           }
 
@@ -509,7 +509,7 @@ class StorageV1(base_api.BaseApiClient):
     _NAME = u'channels'
 
     def __init__(self, client):
-      super(StorageV1.ChannelsService, self).__init__(client)
+      super().__init__(client)
       self._upload_configs = {
           }
 
@@ -545,7 +545,7 @@ class StorageV1(base_api.BaseApiClient):
     _NAME = u'defaultObjectAccessControls'
 
     def __init__(self, client):
-      super(StorageV1.DefaultObjectAccessControlsService, self).__init__(client)
+      super().__init__(client)
       self._upload_configs = {
           }
 
@@ -711,7 +711,7 @@ class StorageV1(base_api.BaseApiClient):
     _NAME = u'notifications'
 
     def __init__(self, client):
-      super(StorageV1.NotificationsService, self).__init__(client)
+      super().__init__(client)
       self._upload_configs = {
           }
 
@@ -825,7 +825,7 @@ class StorageV1(base_api.BaseApiClient):
     _NAME = u'objectAccessControls'
 
     def __init__(self, client):
-      super(StorageV1.ObjectAccessControlsService, self).__init__(client)
+      super().__init__(client)
       self._upload_configs = {
           }
 
@@ -991,7 +991,7 @@ class StorageV1(base_api.BaseApiClient):
     _NAME = u'objects'
 
     def __init__(self, client):
-      super(StorageV1.ObjectsService, self).__init__(client)
+      super().__init__(client)
       self._upload_configs = {
           'Insert': base_api.ApiUploadInfo(
               accept=['*/*'],
@@ -1354,7 +1354,7 @@ class StorageV1(base_api.BaseApiClient):
     _NAME = u'projects_serviceAccount'
 
     def __init__(self, client):
-      super(StorageV1.ProjectsServiceAccountService, self).__init__(client)
+      super().__init__(client)
       self._upload_configs = {
           }
 
@@ -1390,6 +1390,6 @@ class StorageV1(base_api.BaseApiClient):
     _NAME = u'projects'
 
     def __init__(self, client):
-      super(StorageV1.ProjectsService, self).__init__(client)
+      super().__init__(client)
       self._upload_configs = {
           }

@@ -39,6 +39,7 @@ class BigqueryTornadoesIT(unittest.TestCase):
   # from expected Bigquery table.
   DEFAULT_CHECKSUM = 'd860e636050c559a16a791aff40d6ad809d4daf0'
 
+  @pytest.mark.examples_postcommit
   @pytest.mark.it_postcommit
   def test_bigquery_tornadoes_it(self):
     test_pipeline = TestPipeline(is_integration_test=True)

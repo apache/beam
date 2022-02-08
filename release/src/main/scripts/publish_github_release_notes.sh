@@ -33,7 +33,7 @@ RELEASE_NOTES=$(
 )
 
 # Escape notes' content to work with JSON
-ESCAPED_NOTES=$(printf '%s' "${RELEASE_NOTES}" | python -c 'import json,sys; print(json.dumps(sys.stdin.read()))')
+ESCAPED_NOTES=$(printf '%s' "${RELEASE_NOTES}" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')
 
 # Build JSON for the API request
 REQUEST_JSON="$(cat <<-EOF

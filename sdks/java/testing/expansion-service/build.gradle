@@ -27,19 +27,20 @@ ext.summary = """Testing Expansion Service used for executing cross-language tra
 
 
 dependencies {
-  testCompile project(path: ":sdks:java:io:parquet")
-  testCompile project(":sdks:java:expansion-service")
-  testRuntime library.java.hadoop_client
+  testImplementation project(path: ":sdks:java:core", configuration: "shadow")
+  testImplementation project(":sdks:java:io:parquet")
+  testImplementation project(":sdks:java:expansion-service")
+  testRuntimeOnly library.java.hadoop_client
 }
 
 task runTestExpansionService (type: JavaExec) {
-  main = "org.apache.beam.sdk.expansion.service.ExpansionService"
+  mainClass = "org.apache.beam.sdk.expansion.service.ExpansionService"
   classpath = sourceSets.test.runtimeClasspath
   args = [project.findProperty("constructionService.port") ?: "8097"]
 }
 
 task buildTestExpansionServiceJar(type: ShadowJar) {
-  appendix = "testExpansionService"
+  archiveAppendix = "testExpansionService"
   // Use zip64 mode to avoid "Archive contains more than 65535 entries".
   zip64 = true
   mergeServiceFiles()
@@ -53,7 +54,7 @@ task buildTestExpansionServiceJar(type: ShadowJar) {
   exclude "META-INF/*.DSA"
   exclude "META-INF/*.RSA"
   configurations = [
-    project.configurations.testRuntime
+    project.configurations.testRuntimeClasspath
   ]
   from sourceSets.main.output
   from sourceSets.test.output

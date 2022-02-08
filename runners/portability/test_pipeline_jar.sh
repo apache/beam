@@ -72,8 +72,9 @@ echo "Checking for Docker image ${PYTHON_CONTAINER_IMAGE}"
 docker images --format "{{.Repository}}:{{.Tag}}" | grep $PYTHON_CONTAINER_IMAGE
 
 # Set up Python environment
-virtualenv -p python$PYTHON_VERSION $ENV_DIR
+python$PYTHON_VERSION -m venv $ENV_DIR
 . $ENV_DIR/bin/activate
+pip install --retries 10 --upgrade pip setuptools wheel
 pip install --retries 10 -e $PYTHON_ROOT_DIR
 
 PIPELINE_PY="

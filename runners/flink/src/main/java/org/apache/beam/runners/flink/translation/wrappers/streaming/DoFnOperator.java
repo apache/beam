@@ -199,6 +199,8 @@ public class DoFnOperator<InputT, OutputT>
   /** If true, we must process elements only after a checkpoint is finished. */
   private final boolean requiresStableInput;
 
+  private final boolean usesOnWindowExpiration;
+
   private final boolean finishBundleBeforeCheckpointing;
 
   /** Stores new finalizations being gathered. */
@@ -303,6 +305,8 @@ public class DoFnOperator<InputT, OutputT>
         // WindowDoFnOperator does not use a DoFn
         doFn != null
             && DoFnSignatures.getSignature(doFn.getClass()).processElement().requiresStableInput();
+    this.usesOnWindowExpiration =
+        doFn != null && DoFnSignatures.getSignature(doFn.getClass()).onWindowExpiration() != null;
 
     if (requiresStableInput) {
       Preconditions.checkState(
@@ -340,11 +344,12 @@ public class DoFnOperator<InputT, OutputT>
               timerInternals, windowingStrategy) {
             @Override
             public void setForWindow(InputT input, BoundedWindow window) {
-              if (!window.equals(GlobalWindow.INSTANCE)) {
+              if (!window.equals(GlobalWindow.INSTANCE) || usesOnWindowExpiration) {
                 // Skip setting a cleanup timer for the global window as these timers
                 // lead to potentially unbounded state growth in the runner, depending on key
                 // cardinality. Cleanup for global window will be performed upon arrival of the
                 // final watermark.
+                // In the case of OnWindowExpiration, we still set the timer.
                 super.setForWindow(input, window);
               }
             }
@@ -796,11 +801,14 @@ public class DoFnOperator<InputT, OutputT>
       if (watermark >= BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()) {
         invokeFinishBundle();
       }
+
       LOG.debug("Emitting watermark {}", watermark);
       currentOutputWatermark = watermark;
       output.emitWatermark(new Watermark(watermark));
 
       // Check if the final watermark was triggered to perform state cleanup for global window
+      // TODO: Do we need to do this when OnWindowExpiration is set, since in that case we have a
+      // cleanup timer?
       if (keyedStateInternals != null
           && currentOutputWatermark
               > adjustTimestampForFlink(GlobalWindow.INSTANCE.maxTimestamp().getMillis())) {
@@ -1125,8 +1133,8 @@ public class DoFnOperator<InputT, OutputT>
     }
 
     private void buffer(KV<Integer, WindowedValue<?>> taggedValue) {
+      bufferLock.lock();
       try {
-        bufferLock.lock();
         pushedBackElementsHandler.pushBack(taggedValue);
       } catch (Exception e) {
         throw new RuntimeException("Couldn't pushback element.", e);

@@ -499,12 +499,15 @@ public class PipelineOptionsFactory {
       new ObjectMapper()
           .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
 
-  private static final DefaultDeserializationContext DESERIALIZATION_CONTEXT =
-      new DefaultDeserializationContext.Impl(MAPPER.getDeserializationContext().getFactory())
-          .createInstance(
-              MAPPER.getDeserializationConfig(),
-              new TokenBuffer(MAPPER, false).asParser(),
-              new InjectableValues.Std());
+  private static final ThreadLocal<DefaultDeserializationContext> DESERIALIZATION_CONTEXT =
+      ThreadLocal.withInitial(
+          () ->
+              new DefaultDeserializationContext.Impl(
+                      MAPPER.getDeserializationContext().getFactory())
+                  .createInstance(
+                      MAPPER.getDeserializationConfig(),
+                      new TokenBuffer(MAPPER, false).asParser(),
+                      new InjectableValues.Std()));
 
   static final DefaultSerializerProvider SERIALIZER_PROVIDER =
       new DefaultSerializerProvider.Impl()
@@ -857,8 +860,7 @@ public class PipelineOptionsFactory {
    *
    * <p>TODO: Swap back to using Introspector once the proxy class issue with AppEngine is resolved.
    */
-  private static List<PropertyDescriptor> getPropertyDescriptors(
-      Set<Method> methods, Class<? extends PipelineOptions> beanClass)
+  private static List<PropertyDescriptor> getPropertyDescriptors(Set<Method> methods)
       throws IntrospectionException {
     SortedMap<String, Method> propertyNamesToGetters = new TreeMap<>();
     for (Map.Entry<String, Method> entry :
@@ -1012,7 +1014,7 @@ public class PipelineOptionsFactory {
             .filter(input1 -> !Modifier.isStatic(input1.getModifiers()))
             .collect(ImmutableSortedSet.toImmutableSortedSet(MethodComparator.INSTANCE));
 
-    List<PropertyDescriptor> descriptors = getPropertyDescriptors(allInterfaceMethods, iface);
+    List<PropertyDescriptor> descriptors = getPropertyDescriptors(allInterfaceMethods);
 
     // Verify that all method annotations are valid.
     validateMethodAnnotations(allInterfaceMethods, descriptors);
@@ -1729,14 +1731,19 @@ public class PipelineOptionsFactory {
       AnnotatedMember annotatedMethod = prop.getMember();
 
       Object maybeDeserializerClass =
-          DESERIALIZATION_CONTEXT.getAnnotationIntrospector().findDeserializer(annotatedMethod);
+          DESERIALIZATION_CONTEXT
+              .get()
+              .getAnnotationIntrospector()
+              .findDeserializer(annotatedMethod);
 
       JsonDeserializer<Object> jsonDeserializer =
-          DESERIALIZATION_CONTEXT.deserializerInstance(annotatedMethod, maybeDeserializerClass);
+          DESERIALIZATION_CONTEXT
+              .get()
+              .deserializerInstance(annotatedMethod, maybeDeserializerClass);
 
       if (jsonDeserializer == null) {
         jsonDeserializer =
-            DESERIALIZATION_CONTEXT.findContextualValueDeserializer(prop.getType(), prop);
+            DESERIALIZATION_CONTEXT.get().findContextualValueDeserializer(prop.getType(), prop);
       }
       return jsonDeserializer;
     } catch (JsonMappingException e) {
@@ -1793,7 +1800,7 @@ public class PipelineOptionsFactory {
     parser.nextToken();
 
     JsonDeserializer<Object> jsonDeserializer = getDeserializerForMethod(method);
-    return jsonDeserializer.deserialize(parser, DESERIALIZATION_CONTEXT);
+    return jsonDeserializer.deserialize(parser, DESERIALIZATION_CONTEXT.get());
   }
 
   /**

@@ -318,7 +318,7 @@ class GlobalWindow(BoundedWindow):
 
   def __init__(self):
     # type: () -> None
-    super(GlobalWindow, self).__init__(GlobalWindow._getTimestampFromProto())
+    super().__init__(GlobalWindow._getTimestampFromProto())
 
   def __repr__(self):
     return 'GlobalWindow'

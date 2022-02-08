@@ -522,11 +522,6 @@ public class UnboundedSourceSystem {
       return source;
     }
 
-    @SuppressWarnings("unchecked")
-    private static <T> Coder<WindowedValue<T>> getCoder(Config config) {
-      return Base64Serializer.deserializeUnchecked(config.get("coder"), Coder.class);
-    }
-
     private static SamzaPipelineOptions getPipelineOptions(Config config) {
       return Base64Serializer.deserializeUnchecked(
               config.get("beamPipelineOptions"), SerializablePipelineOptions.class)

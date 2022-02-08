@@ -52,8 +52,6 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A test of {@link org.apache.beam.sdk.io.kudu.KuduIO} on an independent Kudu instance.
@@ -90,7 +88,6 @@ import org.slf4j.LoggerFactory;
  */
 @RunWith(JUnit4.class)
 public class KuduIOIT {
-  private static final Logger LOG = LoggerFactory.getLogger(KuduIOIT.class);
 
   /** KuduIOIT options. */
   public interface KuduPipelineOptions extends IOTestPipelineOptions {

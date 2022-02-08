@@ -44,7 +44,7 @@ import org.apache.beam.sdk.transforms.Min;
 import org.apache.beam.sdk.transforms.Sample;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.calcite.v1_26_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.calcite.v1_28_0.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Built-in aggregations functions for COUNT/MAX/MIN/SUM/AVG/VAR_POP/VAR_SAMP. */
@@ -526,21 +526,21 @@ public class BeamBuiltinAggregations {
     }
 
     @Override
-    public Accum createAccumulator() {
-      return new Accum();
+    public BitOr.Accum createAccumulator() {
+      return new BitOr.Accum();
     }
 
     @Override
-    public Accum addInput(Accum accum, T input) {
+    public BitOr.Accum addInput(BitOr.Accum accum, T input) {
       accum.isEmpty = false;
       accum.bitOr |= input.longValue();
       return accum;
     }
 
     @Override
-    public Accum mergeAccumulators(Iterable<Accum> accums) {
-      Accum merged = createAccumulator();
-      for (Accum accum : accums) {
+    public BitOr.Accum mergeAccumulators(Iterable<BitOr.Accum> accums) {
+      BitOr.Accum merged = createAccumulator();
+      for (BitOr.Accum accum : accums) {
         if (accum.isEmpty) {
           continue;
         }
@@ -551,7 +551,7 @@ public class BeamBuiltinAggregations {
     }
 
     @Override
-    public Long extractOutput(Accum accum) {
+    public Long extractOutput(BitOr.Accum accum) {
       if (accum.isEmpty) {
         return null;
       }
@@ -574,21 +574,21 @@ public class BeamBuiltinAggregations {
     }
 
     @Override
-    public Accum createAccumulator() {
-      return new Accum();
+    public BitAnd.Accum createAccumulator() {
+      return new BitAnd.Accum();
     }
 
     @Override
-    public Accum addInput(Accum accum, T input) {
+    public BitAnd.Accum addInput(BitAnd.Accum accum, T input) {
       accum.isEmpty = false;
       accum.bitAnd &= input.longValue();
       return accum;
     }
 
     @Override
-    public Accum mergeAccumulators(Iterable<Accum> accums) {
-      Accum merged = createAccumulator();
-      for (Accum accum : accums) {
+    public BitAnd.Accum mergeAccumulators(Iterable<BitAnd.Accum> accums) {
+      BitAnd.Accum merged = createAccumulator();
+      for (BitAnd.Accum accum : accums) {
         if (accum.isEmpty) {
           continue;
         }
@@ -599,7 +599,7 @@ public class BeamBuiltinAggregations {
     }
 
     @Override
-    public Long extractOutput(Accum accum) {
+    public Long extractOutput(BitAnd.Accum accum) {
       if (accum.isEmpty) {
         return null;
       }
@@ -617,12 +617,12 @@ public class BeamBuiltinAggregations {
     }
 
     @Override
-    public Accum createAccumulator() {
-      return new Accum();
+    public BitXOr.Accum createAccumulator() {
+      return new BitXOr.Accum();
     }
 
     @Override
-    public Accum addInput(Accum mutableAccumulator, T input) {
+    public BitXOr.Accum addInput(Accum mutableAccumulator, T input) {
       if (input != null) {
         mutableAccumulator.isEmpty = false;
         mutableAccumulator.bitXOr ^= input.longValue();
@@ -631,9 +631,9 @@ public class BeamBuiltinAggregations {
     }
 
     @Override
-    public Accum mergeAccumulators(Iterable<Accum> accumulators) {
-      Accum merged = createAccumulator();
-      for (Accum accum : accumulators) {
+    public BitXOr.Accum mergeAccumulators(Iterable<BitXOr.Accum> accumulators) {
+      BitXOr.Accum merged = createAccumulator();
+      for (BitXOr.Accum accum : accumulators) {
         if (accum.isEmpty) {
           continue;
         }
@@ -644,7 +644,7 @@ public class BeamBuiltinAggregations {
     }
 
     @Override
-    public Long extractOutput(Accum accumulator) {
+    public Long extractOutput(BitXOr.Accum accumulator) {
       if (accumulator.isEmpty) {
         return null;
       }
