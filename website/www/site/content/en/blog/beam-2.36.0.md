@@ -26,7 +26,7 @@ See the [download page](/get-started/downloads/#2360-2022-02-07) for this releas
 <!--more-->
 
 For more information on changes in 2.36.0, check out the [detailed release
-notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12350406).
+notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12350407).
 
 ## I/Os
 
