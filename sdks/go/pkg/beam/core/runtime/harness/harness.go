@@ -41,7 +41,7 @@ import (
 // Main is the main entrypoint for the Go harness. It runs at "runtime" -- not
 // "pipeline-construction time" -- on each worker. It is a FnAPI client and
 // ultimately responsible for correctly executing user code.
-func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
+func Main(ctx context.Context, loggingEndpoint, controlEndpoint, statusEndpoint string) error {
 	hooks.DeserializeHooksFromOptions(ctx)
 
 	// Pass in the logging endpoint for use w/the default remote logging hook.
@@ -98,6 +98,44 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 		log.Debugf(ctx, "control response channel closed")
 	}()
 
+	// set up a connection to status endpoint if supported by the runner.
+	sconn, err := dial(ctx, statusEndpoint, 60*time.Second)
+	if err != nil {
+		return errors.Wrap(err, "failed to connect")
+	}
+	defer sconn.Close()
+
+	statusClient := fnpb.NewBeamFnWorkerStatusClient(sconn)
+	statusStub, err := statusClient.WorkerStatus(ctx)
+	if err != nil {
+		return errors.Wrapf(err, "failed to connect to worker status service")
+	}
+
+	log.Debugf(ctx, "Successfully connected to control @ %v", statusEndpoint)
+
+	// starting goroutine for status endpoint
+	var swg sync.WaitGroup
+	sigch := make(chan int)
+	swg.Add(1)
+	go func() {
+		for {
+			defer swg.Done()
+			select {
+			case <-sigch:
+				return
+			default:
+			}
+			req, err := statusStub.Recv()
+			if err == io.EOF {
+				return
+			}
+			resp := &fnpb.WorkerStatusResponse{Id: req.GetId(), StatusInfo: "i am the status info"}
+			if err := statusStub.Send(resp); err != nil {
+				log.Errorf(ctx, "control.Send: Failed to respond: %v", err)
+			}
+		}
+	}()
+
 	sideCache := statecache.SideInputCache{}
 	sideCache.Init(cacheSize)
 
@@ -129,6 +167,7 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 
 			if err == io.EOF {
 				recordFooter()
+				sigch <- 1
 				return nil
 			}
 			return errors.Wrapf(err, "control.Recv failed")

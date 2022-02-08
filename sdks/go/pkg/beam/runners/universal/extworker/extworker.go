@@ -79,11 +79,14 @@ func (s *Loopback) StartWorker(ctx context.Context, req *fnpb.StartWorkerRequest
 	if req.GetLoggingEndpoint().Authentication != nil || req.GetControlEndpoint().Authentication != nil {
 		return &fnpb.StartWorkerResponse{Error: "[BEAM-10610] Secure endpoints not supported."}, nil
 	}
+	if req.GetProvisionEndpoint() == nil {
+		return &fnpb.StartWorkerResponse{Error: fmt.Sprintf("Missing provision endpoint for worker %v", req.GetWorkerId())}, nil
+	}
 
 	ctx = grpcx.WriteWorkerID(s.root, req.GetWorkerId())
 	ctx, s.workers[req.GetWorkerId()] = context.WithCancel(ctx)
 
-	go harness.Main(ctx, req.GetLoggingEndpoint().GetUrl(), req.GetControlEndpoint().GetUrl())
+	go harness.Main(ctx, req.GetLoggingEndpoint().GetUrl(), req.GetControlEndpoint().GetUrl(), req.GetProvisionEndpoint().GetUrl())
 	return &fnpb.StartWorkerResponse{}, nil
 }
 
