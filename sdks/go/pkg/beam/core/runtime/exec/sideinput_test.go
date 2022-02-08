@@ -17,10 +17,14 @@ package exec
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"reflect"
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 )
 
 func makeWindowedCoder() *coder.Coder {
@@ -93,5 +97,93 @@ func TestNewKeyedIterable_Unkeyed(t *testing.T) {
 	}
 	if rs != nil {
 		t.Errorf("NewKeyedIterable() returned a ReStream when it should not have, got %v", rs)
+	}
+}
+
+type testSideCache struct{}
+
+// QueryCache for the testSideCache is a no-op.
+func (t *testSideCache) QueryCache(ctx context.Context, transformID, sideInputID string, win, key []byte) ReStream {
+	return nil
+}
+
+// SetCache for the testSideCache is a no-op that returns the input ReStream.
+func (t *testSideCache) SetCache(ctx context.Context, transformID, sideInputID string, win, key []byte, input ReStream) ReStream {
+	return input
+}
+
+type testStateReader struct{}
+
+// OpenIterableSideInput for the testStateReader is a no-op.
+func (t *testStateReader) OpenIterableSideInput(ctx context.Context, id StreamID, sideInputID string, w []byte) (io.ReadCloser, error) {
+	return nil, nil
+}
+
+// OpenMultimapSideInput for the testStateReader is a no-op.
+func (t *testStateReader) OpenMultiMapSideInput(ctx context.Context, id StreamID, sideInputID string, key, w []byte) (io.ReadCloser, error) {
+	return nil, nil
+}
+
+// OpenIterable for the testStateReader is a no-op
+func (t *testStateReader) OpenIterable(ctx context.Context, id StreamID, key []byte) (io.ReadCloser, error) {
+	return nil, nil
+}
+
+func (t *testStateReader) GetSideInputCache() SideCache {
+	return &testSideCache{}
+}
+
+type testWindowMapper struct{}
+
+func (t *testWindowMapper) MapWindow(w typex.Window) (typex.Window, error) {
+	return w, nil
+}
+
+type testFaultyWindowMapper struct{}
+
+func (t *testFaultyWindowMapper) MapWindow(w typex.Window) (typex.Window, error) {
+	return nil, fmt.Errorf("some error for window %v", w)
+}
+
+func TestNewIterable(t *testing.T) {
+	sid := StreamID{Port: Port{URL: "localhost:8099"}, PtransformID: "n0"}
+	sideId := "i0"
+	c := makeWindowedCoder()
+	adapter := NewSideInputAdapter(sid, sideId, c, &testWindowMapper{})
+
+	_, err := adapter.NewIterable(context.Background(), &testStateReader{}, window.GlobalWindow{})
+	if err != nil {
+		t.Errorf("NewIterable() failed when it should have succeeded, got %v", err)
+	}
+}
+
+func TestNewIterable_BadMapper(t *testing.T) {
+	sid := StreamID{Port: Port{URL: "localhost:8099"}, PtransformID: "n0"}
+	sideId := "i0"
+	c := makeWindowedCoder()
+	adapter := NewSideInputAdapter(sid, sideId, c, &testFaultyWindowMapper{})
+
+	_, err := adapter.NewIterable(context.Background(), &testStateReader{}, window.GlobalWindow{})
+	if err == nil {
+		t.Error("NewIterable() succeeded when it should have failed.")
+	}
+}
+
+func TestNewIterable_KVType(t *testing.T) {
+	sid := StreamID{Port: Port{URL: "localhost:8099"}, PtransformID: "n0"}
+	sideId := "i0"
+	c := makeWindowedKVCoder()
+	adapter := NewSideInputAdapter(sid, sideId, c, &testWindowMapper{})
+	_, err := adapter.NewIterable(context.Background(), &testStateReader{}, window.GlobalWindow{})
+	if err != nil {
+		t.Fatalf("NewIterable() failed when it should have succeeded, got %v", err)
+	}
+	adapterStruct, ok := adapter.(*sideInputAdapter)
+	if !ok {
+		t.Fatal("failed to convert SideInputAdapter interface to sideInputAdapter type.")
+	}
+	// Check that the element decoder type was updated to be a KV type
+	if got, want := reflect.TypeOf(adapterStruct.ec), reflect.TypeOf(&kvDecoder{}); got != want {
+		t.Errorf("got element decoder type %v, want %v", got, want)
 	}
 }
