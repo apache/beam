@@ -319,7 +319,7 @@ func TestUpdateDefaultEnvWorkerType(t *testing.T) {
 				},
 			},
 		}); err == nil {
-			t.Error("UpdateDefaultEnvWorkerType(<noGoEnvs>) no error, want err")
+			t.Error("UpdateDefaultEnvWorkerType(<badGoEnv>) no error, want err")
 		}
 	})
 	t.Run("goEnv", func(t *testing.T) {
