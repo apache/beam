@@ -57,9 +57,17 @@
   * ZetaSql is currently unsupported ([issue](https://github.com/google/zetasql/issues/89)).
 ## I/Os
 
+* Go SDK now has wrappers for the following Cross Language Transforms from Java, along with automatic expansion service startup for each.
+    *  JDBCIO ([BEAM-13293](https://issues.apache.org/jira/browse/BEAM-13293)).
+    *  Debezium ([BEAM-13761](https://issues.apache.org/jira/browse/BEAM-13761)).
+    *  BeamSQL ([BEAM-13683](https://issues.apache.org/jira/browse/BEAM-13683)).
+    *  BiqQuery ([BEAM-13732](https://issues.apache.org/jira/browse/BEAM-13732)).
+    *  KafkaIO now also has automatic expansion service startup. ([BEAM-13821](https://issues.apache.org/jira/browse/BEAM-13821)).
+
 ## New Features / Improvements
 
 * DataFrame API now supports pandas 1.4.x ([BEAM-13605](https://issues.apache.org/jira/browse/BEAM-13605)).
+* Go SDK DoFns can now observe trigger panes directly ([BEAM-13757](https://issues.apache.org/jira/browse/BEAM-13757)).
 
 ## Breaking Changes
 
