@@ -2457,7 +2457,10 @@ class BeamModulePlugin implements Plugin<Project> {
             "--clear",
             "${project.ext.envdir}",
           ]
-          project.exec { commandLine virtualenvCmd }
+          project.exec {
+            executable 'sh'
+            args '-c', virtualenvCmd.join(' ')
+          }
           project.exec {
             executable 'sh'
             args '-c', ". ${project.ext.envdir}/bin/activate && " +
