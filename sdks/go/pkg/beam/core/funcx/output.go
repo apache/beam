@@ -94,5 +94,6 @@ func isInParam(t reflect.Type) (bool, error) {
 	if typex.IsUniversal(t) || typex.IsContainer(t) {
 		return true, nil
 	}
-	return typex.AssertConcrete(t)
+	err := typex.CheckConcrete(t)
+	return err == nil, err
 }
