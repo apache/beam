@@ -274,6 +274,9 @@ class BatchedStreamingWrite<ErrorT, ElementT>
       for (ValueInSingleWindow<ErrorT> row : failedInserts) {
         context.output(failedOutputTag, row.getValue(), row.getTimestamp(), row.getWindow());
       }
+      for (ValueInSingleWindow<TableRow> row : successfulInserts) {
+        context.output(SUCCESSFUL_ROWS_TAG, row.getValue(), row.getTimestamp(), row.getWindow());
+      }
       reportStreamingApiLogging(options);
     }
 

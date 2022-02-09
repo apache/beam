@@ -78,8 +78,8 @@ type readFromDebeziumSchema struct {
 }
 
 type debeziumConfig struct {
-	expansionService string
-	readSchema       *readFromDebeziumSchema
+	expansionAddr string
+	readSchema    *readFromDebeziumSchema
 }
 
 // readOption facilitates additional parameters to debeziumio.Read() Ptransform.
@@ -99,7 +99,7 @@ type readOption func(*debeziumConfig)
 //   connectorClass := debeziumIO.POSTGRESQL
 //   maxrecords := 1
 //   debeziumio.Read(s.Scope("Read from debezium"), expansionAddr, username, password, host, port, connectorClass,
-//                   reflectx.String, debeziumio.MaxRecord(maxrecords), debeziumio.ExpansionService("localhost:9000"))
+//                   reflectx.String, debeziumio.MaxRecord(maxrecords), debeziumio.ExpansionAddr("localhost:9000"))
 func Read(s beam.Scope, username, password, host, port string, connectorClass DriverClassName, t reflect.Type, opts ...readOption) beam.PCollection {
 	rfds := readFromDebeziumSchema{
 		ConnectorClass: string(connectorClass),
@@ -113,14 +113,14 @@ func Read(s beam.Scope, username, password, host, port string, connectorClass Dr
 		opt(&dc)
 	}
 
-	expansionService := dc.expansionService
-	if dc.expansionService == "" {
-		expansionService = autoStartupAddress
+	expansionAddr := dc.expansionAddr
+	if dc.expansionAddr == "" {
+		expansionAddr = autoStartupAddress
 	}
 
 	pl := beam.CrossLanguagePayload(rfds)
 	outT := beam.UnnamedOutput(typex.New(t))
-	out := beam.CrossLanguage(s, readURN, pl, expansionService, nil, outT)
+	out := beam.CrossLanguage(s, readURN, pl, expansionAddr, nil, outT)
 	return out[beam.UnnamedOutputTag()]
 }
 
@@ -139,9 +139,9 @@ func ConnectionProperties(cp []string) readOption {
 	}
 }
 
-// ExpansionService sets the expansion service address to use for DebeziumIO cross-langauage transform.
-func ExpansionService(expansionService string) readOption {
+// ExpansionAddr sets the expansion service address to use for DebeziumIO cross-langauage transform.
+func ExpansionAddr(expansionAddr string) readOption {
 	return func(cfg *debeziumConfig) {
-		cfg.expansionService = expansionService
+		cfg.expansionAddr = expansionAddr
 	}
 }

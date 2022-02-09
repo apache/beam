@@ -45,6 +45,7 @@ import (
 const (
 	URNFileArtifact        = "beam:artifact:type:file:v1"
 	URNUrlArtifact         = "beam:artifact:type:url:v1"
+	URNGoWorkerBinaryRole  = "beam:artifact:role:go_worker_binary:v1"
 	URNPipRequirementsFile = "beam:artifact:role:pip_requirements_file:v1"
 	URNStagingTo           = "beam:artifact:role:staging_to:v1"
 	NoArtifactsStaged      = "__no_artifacts_staged__"
@@ -172,11 +173,11 @@ func extractStagingToPath(artifact *pipepb.ArtifactInformation) (string, error) 
 
 func MustExtractFilePayload(artifact *pipepb.ArtifactInformation) (string, string) {
 	if artifact.TypeUrn != URNFileArtifact {
-		log.Fatalf("Unsupported artifact type #{artifact.TypeUrn}")
+		log.Fatalf("Unsupported artifact type %v", artifact.TypeUrn)
 	}
 	ty := pipepb.ArtifactFilePayload{}
 	if err := proto.Unmarshal(artifact.TypePayload, &ty); err != nil {
-		log.Fatalf("failed to parse artifact file payload: #{err}")
+		log.Fatalf("failed to parse artifact file payload: %v", err)
 	}
 	return ty.Path, ty.Sha256
 }

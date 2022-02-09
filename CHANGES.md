@@ -52,12 +52,22 @@
 # [2.37.0] - Unreleased
 
 ## Highlights
-
+* Java 17 support for Dataflow ([BEAM-12240](https://issues.apache.org/jira/browse/BEAM-12240)).
+  * Users using Dataflow Runner V2 may see issues with state cache due to inaccurate object sizes ([BEAM-13695](https://issues.apache.org/jira/browse/BEAM-13695)).
+  * ZetaSql is currently unsupported ([issue](https://github.com/google/zetasql/issues/89)).
 ## I/Os
+
+* Go SDK now has wrappers for the following Cross Language Transforms from Java, along with automatic expansion service startup for each.
+    *  JDBCIO ([BEAM-13293](https://issues.apache.org/jira/browse/BEAM-13293)).
+    *  Debezium ([BEAM-13761](https://issues.apache.org/jira/browse/BEAM-13761)).
+    *  BeamSQL ([BEAM-13683](https://issues.apache.org/jira/browse/BEAM-13683)).
+    *  BiqQuery ([BEAM-13732](https://issues.apache.org/jira/browse/BEAM-13732)).
+    *  KafkaIO now also has automatic expansion service startup. ([BEAM-13821](https://issues.apache.org/jira/browse/BEAM-13821)).
 
 ## New Features / Improvements
 
 * DataFrame API now supports pandas 1.4.x ([BEAM-13605](https://issues.apache.org/jira/browse/BEAM-13605)).
+* Go SDK DoFns can now observe trigger panes directly ([BEAM-13757](https://issues.apache.org/jira/browse/BEAM-13757)).
 
 ## Breaking Changes
 
@@ -67,9 +77,7 @@
 
 ## Known Issues
 
-# 2.36.0 - Unreleased
-
-## Highlights
+# [2.36.0] - 2022-02-07
 
 ## I/Os
 
@@ -87,15 +95,17 @@
 * Updated the jedis from 3.x to 4.x to Java RedisIO. If you are using RedisIO and using jedis directly, please refer to [this page](https://github.com/redis/jedis/blob/v4.0.0/docs/3to4.md) to update it. ([BEAM-12092](https://issues.apache.org/jira/browse/BEAM-12092)).
 * Datatype of timestamp fields in `SqsMessage` for AWS IOs for SDK v2 was changed from `String` to `long`, visibility of all fields was fixed from `package private` to `public` [BEAM-13638](https://issues.apache.org/jira/browse/BEAM-13638).
 
-## Deprecations
-
 ## Bugfixes
 
 * Properly check output timestamps on elements output from DoFns, timers, and onWindowExpiration in Java [BEAM-12931](https://issues.apache.org/jira/browse/BEAM-12931).
 * Fixed a bug with DeferredDataFrame.xs when used with a non-tuple key
   ([BEAM-13421](https://issues.apache.org/jira/browse/BEAM-13421])).
 
-## Known Issues
+# Known Issues
+
+* Users may encounter an unexpected java.lang.ArithmeticException when outputting a timestamp
+  for an element further than allowedSkew from an allowed DoFN skew set to a value more than
+  Integer.MAX_VALUE.
 
 # [2.35.0] - 2021-12-29
 
