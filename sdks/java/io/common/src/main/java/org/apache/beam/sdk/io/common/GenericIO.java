@@ -21,8 +21,11 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -37,33 +40,38 @@ import org.joda.time.Duration;
 
 public class GenericIO {
 
-  public final static Integer DEFAULT_BATCH_SIZE = 1000;
+  public static final Integer DEFAULT_BATCH_SIZE = 1000;
 
   public static <InputT, OutputT> Write<InputT, OutputT> write() {
-    return Write.<InputT, OutputT>create();
+    return new AutoValue_GenericIO_Write.Builder<InputT, OutputT>().build();
   }
 
   @AutoValue
   public abstract static class Write<InputT, OutputT>
       extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
 
-    static <InputT, OutputT> Write<InputT, OutputT> create() {
-      return new AutoValue_GenericIO_Write();
-    }
-
     abstract BeamIOClientFactory<InputT, OutputT> getClientFactory();
+
     abstract long getElementsPerPeriod();
+
     abstract Duration getPeriod();
+
     abstract SerializableFunction<InputT, String> getDestinationFn();
 
     abstract Builder<InputT, OutputT> toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder<InputT, OutputT> {
-      abstract Builder<InputT, OutputT> setClientFactory(BeamIOClientFactory<InputT, OutputT> factory);
+      abstract Builder<InputT, OutputT> setClientFactory(
+          BeamIOClientFactory<InputT, OutputT> factory);
+
       abstract Builder<InputT, OutputT> setElementsPerPeriod(long elements);
+
       abstract Builder<InputT, OutputT> setPeriod(Duration period);
-      abstract Builder<InputT, OutputT> setDestinationFn(SerializableFunction<InputT, String> destinationFn);
+
+      abstract Builder<InputT, OutputT> setDestinationFn(
+          SerializableFunction<InputT, String> destinationFn);
+
       abstract Write<InputT, OutputT> build();
     }
 
@@ -77,7 +85,8 @@ public class GenericIO {
       return toBuilder().setElementsPerPeriod(numElements).setPeriod(periodLength).build();
     }
 
-    public Write<InputT, OutputT> withClientFactory(BeamIOClientFactory<InputT, OutputT> clientFactory) {
+    public Write<InputT, OutputT> withClientFactory(
+        BeamIOClientFactory<InputT, OutputT> clientFactory) {
       return toBuilder().setClientFactory(clientFactory).build();
     }
 
@@ -85,47 +94,50 @@ public class GenericIO {
       return toBuilder().setDestinationFn(elm -> destination).build();
     }
 
-    public Write<InputT, OutputT> withDestination(SerializableFunction<InputT, String> destinationFn) {
+    public Write<InputT, OutputT> withDestination(
+        SerializableFunction<InputT, String> destinationFn) {
       return toBuilder().setDestinationFn(destinationFn).build();
     }
 
     @Override
     public PCollection<OutputT> expand(PCollection<InputT> input) {
-      input
-          .apply(MapElements.via(new SimpleFunction<InputT, KV<String, InputT>>() {
-        @Override
-        public KV<String, InputT> apply(InputT input) {
-          return KV.of(getDestinationFn().apply(input), input);
-        }
-      }))
-          .apply(GroupIntoBatches.<String, InputT>ofSize(DEFAULT_BATCH_SIZE).withShardedKey())
-          // TODO(pabloem) Need a way to produce a stable UUID.
-          .apply(ParDo.of(new WriteFn<InputT, OutputT>(getClientFactory())));
-      return null;
+      PCollection<Iterable<OutputT>> bundleResults =
+          input
+              .apply(
+                  MapElements.via(
+                      new SimpleFunction<InputT, KV<String, InputT>>() {
+                        @Override
+                        public KV<String, InputT> apply(InputT input) {
+                          return KV.of(getDestinationFn().apply(input), input);
+                        }
+                      }))
+              .apply(GroupIntoBatches.<String, InputT>ofSize(DEFAULT_BATCH_SIZE).withShardedKey())
+              // TODO(pabloem) Need a way to produce a stable UUID.
+              .apply(ParDo.of(new WriteFn<InputT, OutputT>(getClientFactory())));
+      // TODO(pabloem): May want to return the full iterable with destination and/or UUID?
+      return bundleResults.apply(Flatten.iterables());
     }
   }
 
   /**
-   * A factory for a BeamIOClient. This is implemented by the user, and
-   * passed as a parameter at runtime.
+   * A factory for a BeamIOClient. This is implemented by the user, and passed as a parameter at
+   * runtime.
    */
   public interface BeamIOClientFactory<ElementT, ResultT> extends Serializable {
     BeamIOClient<ElementT, ResultT> connection();
   }
 
-  /**
-   * TODO
-   */
+  /** TODO */
   public interface BeamIOClient<ElementT, ResultT> {
     /**
-     * Note: The ordering of elements in the input iterable is guaranteed to be preserved
-     *           on retries.
+     * Note: The ordering of elements in the input iterable is guaranteed to be preserved on
+     * retries.
      */
-    public Iterable<ResultT> startBatch(@Nullable String destination, Iterable<ElementT> elements, UUID batchId) throws BeamIOException;
+    public Iterable<ResultT> startBatch(
+        @Nullable String destination, Iterable<ElementT> elements, UUID batchId)
+        throws BeamIOException;
 
-    /**
-     * Finalize the execution of this batch: Commit or
-     */
+    /** Finalize the execution of this batch: Commit or */
     // TODO(pabloem): Figure out if we want this result type for this function or not.
     public Iterable<ResultT> finishBatch(UUID batchId) throws BeamIOException;
   }
@@ -133,16 +145,20 @@ public class GenericIO {
   public static class BeamIOException extends Exception {
     private final Type type;
     private final Throwable e;
+
     public Type getType() {
       return type;
     }
+
     public Throwable getUnderlyingException() {
       return e;
     }
+
     BeamIOException(Type type, Throwable e) {
       this.type = type;
       this.e = e;
     }
+
     public enum Type {
       THROTTLED,
       RETRIABLE_EXCEPTION,
@@ -150,24 +166,36 @@ public class GenericIO {
     }
   }
 
-  private static class WriteFn<InputT, OutputT> extends DoFn<KV<ShardedKey<String>, Iterable<InputT>>, OutputT> {
+  private static class WriteFn<InputT, OutputT>
+      extends DoFn<KV<ShardedKey<String>, Iterable<InputT>>, Iterable<OutputT>> {
     private final BeamIOClientFactory<InputT, OutputT> clientFactory;
     private transient BeamIOClient<InputT, OutputT> client;
+    private List<UUID> batchUuids;
 
     WriteFn(BeamIOClientFactory<InputT, OutputT> clientFactory) {
       this.clientFactory = clientFactory;
     }
 
     @DoFn.ProcessElement
-    public void process(@DoFn.Element KV<ShardedKey<String>, Iterable<InputT>> elm,
-        OutputReceiver<OutputT> receiver) {
+    public void process(
+        @DoFn.Element KV<ShardedKey<String>, Iterable<InputT>> elm,
+        OutputReceiver<Iterable<OutputT>> receiver) {
       if (this.client == null) {
         this.client = this.clientFactory.connection();
       }
       try {
-        this.client.startBatch(elm.getKey().getKey(), elm.getValue(), UUID.randomUUID());
+        // TODO(pabloem): How do we make this resilient to retries?
+        UUID bundleUuid = UUID.randomUUID();
+        Iterable<OutputT> result =
+            this.client.startBatch(elm.getKey().getKey(), elm.getValue(), bundleUuid);
+        receiver.output(result);
+        if (batchUuids == null) {
+          batchUuids = new ArrayList<>();
+        }
+        this.batchUuids.add(bundleUuid);
       } catch (BeamIOException e) {
         switch (e.getType()) {
+            // TODO(pabloem): Handle each of these exception types.
           case THROTTLED:
             break;
           case PERMANENT_EXCEPTION:
@@ -179,6 +207,28 @@ public class GenericIO {
         }
       }
     }
-  }
 
+    @DoFn.FinishBundle
+    public void finishBundle(OutputReceiver<Iterable<OutputT>> receiver) {
+      // TODO(pabloem): How do we handle more than one exception per bundle finalization?
+      for (UUID batchUuid : this.batchUuids) {
+        try {
+          Iterable<OutputT> result = this.client.finishBatch(batchUuid);
+          receiver.output(result);
+        } catch (BeamIOException e) {
+          switch (e.getType()) {
+              // TODO(pabloem): Handle each of these exception types.
+            case THROTTLED:
+              break;
+            case PERMANENT_EXCEPTION:
+              break;
+            case RETRIABLE_EXCEPTION:
+              break;
+            default:
+              break;
+          }
+        }
+      }
+    }
+  }
 }
