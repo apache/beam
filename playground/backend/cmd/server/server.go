@@ -119,7 +119,7 @@ func setupCache(ctx context.Context, appEnv environment.ApplicationEnvs) (cache.
 	}
 }
 
-// setupExamplesCatalog saves precompiled objects catalog and default example from storage to cache
+// setupExamplesCatalog saves precompiled objects catalog from storage to cache
 func setupExamplesCatalog(ctx context.Context, cacheService cache.Cache) error {
 	catalog, err := utils.GetCatalogFromStorage(ctx)
 	if err != nil {
@@ -130,12 +130,12 @@ func setupExamplesCatalog(ctx context.Context, cacheService cache.Cache) error {
 	}
 
 	bucket := cloud_bucket.New()
-	defaultExamples, err := bucket.GetDefaultExamples(ctx)
+	defaultPrecompiledObjects, err := bucket.GetDefaultPrecompiledObjects(ctx)
 	if err != nil {
 		return err
 	}
-	for sdk, defaultExample := range defaultExamples {
-		if err := cacheService.SetDefaultExample(ctx, sdk, defaultExample); err != nil {
+	for sdk, precompiledObject := range defaultPrecompiledObjects {
+		if err := cacheService.SetDefaultPrecompiledObject(ctx, sdk, precompiledObject); err != nil {
 			logger.Errorf("GetPrecompiledObjects(): cache error: %s", err.Error())
 			return err
 		}

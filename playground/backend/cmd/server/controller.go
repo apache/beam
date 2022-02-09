@@ -318,18 +318,26 @@ func (controller *playgroundController) GetPrecompiledObjectGraph(ctx context.Co
 	return &response, nil
 }
 
-// GetDefaultExample returns the default precompile object for sdk.
-func (controller *playgroundController) GetDefaultExample(ctx context.Context, info *pb.GetDefaultExampleRequest) (*pb.GetDefaultExampleResponse, error) {
+// GetDefaultPrecompiledObject returns the default precompile object for sdk.
+func (controller *playgroundController) GetDefaultPrecompiledObject(ctx context.Context, info *pb.GetDefaultPrecompiledObjectRequest) (*pb.GetDefaultPrecompiledObjectResponse, error) {
 	switch info.Sdk {
 	case pb.Sdk_SDK_UNSPECIFIED:
-		logger.Errorf("GetDefaultExample(): unimplemented sdk: %s\n", info.Sdk)
+		logger.Errorf("GetDefaultPrecompiledObject(): unimplemented sdk: %s\n", info.Sdk)
 		return nil, errors.InvalidArgumentError("Error during preparing", "Sdk is not implemented yet: %s", info.Sdk.String())
 	}
-	defaultExample, err := utils.GetDefaultExample(ctx, info.Sdk, controller.cacheService)
+	precompiledObject, err := utils.GetDefaultPrecompiledObject(ctx, info.Sdk, controller.cacheService)
 	if err != nil {
-		logger.Errorf("GetDefaultExample(): error during getting default example: %s", err.Error())
-		return nil, errors.InternalError("Error during getting Default Examples", "Error with cloud connection")
+		logger.Errorf("GetDefaultPrecompiledObject(): error during getting catalog: %s", err.Error())
+		return nil, errors.InternalError("Error during getting Precompiled Objects", "Error with cloud connection")
 	}
-	response := pb.GetDefaultExampleResponse{DefaultExample: defaultExample}
+	response := pb.GetDefaultPrecompiledObjectResponse{PrecompiledObject: &pb.PrecompiledObject{
+		CloudPath:       precompiledObject.CloudPath,
+		Name:            precompiledObject.Name,
+		Description:     precompiledObject.Description,
+		Type:            precompiledObject.Type,
+		PipelineOptions: precompiledObject.PipelineOptions,
+		Link:            precompiledObject.Link,
+		DefaultExample:  precompiledObject.DefaultExample,
+	}}
 	return &response, nil
 }
