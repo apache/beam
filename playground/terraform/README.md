@@ -44,4 +44,10 @@ To deploy Playground infrastructure follow [README.md](./infrastructure/README.m
 
 ## Playground application deployment
 
-To deploy Playground applications see [README.md](./applications/README.md) from infrastructure module
+Playground require build and push to registry using gradle before apply terraform scripts.
+
+To build and push playground docker image to the Artifact registry, execute `./gradlew playground dockerTagPush` from
+Beam repository root
+
+To deploy Playground applications to Cloud App Engine see [README.md](./applications/README.md) from infrastructure
+module
