@@ -67,8 +67,12 @@ public interface BeamFnDataClient {
   /**
    * Creates a {@link BeamFnDataOutboundAggregator} for buffering and sending outbound data and
    * timers over the data plane. It is important that {@link
-   * BeamFnDataOutboundAggregator#sendBufferedDataAndFinishOutboundStreams()} is called on the
-   * returned BeamFnDataOutboundAggregator at the end of each bundle.
+   * BeamFnDataOutboundAggregator#sendOrCollectBufferedDataAndFinishOutboundStreams()} is called on
+   * the returned BeamFnDataOutboundAggregator at the end of each bundle. If
+   * collectElementsIfNoFlushes is set to true, {@link *
+   * BeamFnDataOutboundAggregator#sendOrCollectBufferedDataAndFinishOutboundStreams()} returns the
+   * buffered elements instead of sending it through the outbound StreamObserver if there's no
+   * previous flush.
    *
    * <p>Closing the returned aggregator signals the end of the streams.
    *
@@ -76,5 +80,6 @@ public interface BeamFnDataClient {
    */
   BeamFnDataOutboundAggregator createOutboundAggregator(
       Endpoints.ApiServiceDescriptor apiServiceDescriptor,
-      Supplier<String> processBundleRequestIdSupplier);
+      Supplier<String> processBundleRequestIdSupplier,
+      boolean collectElementsIfNoFlushes);
 }
