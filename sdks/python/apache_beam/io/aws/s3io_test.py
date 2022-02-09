@@ -786,6 +786,8 @@ class TestS3IO(unittest.TestCase):
     self.aws.delete(file_name)
 
   def test_zerosize_file(self):
+    # TODO(BEAM-13856): Python S3 I/O doesn't work for writing zero length
+    # files.
     file_name = self.TEST_DATA_PATH + 'zerosized'
     file_size = 0
     assert_msg = "Zerosized file did not raise an error on real s3 client"
