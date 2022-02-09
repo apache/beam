@@ -134,6 +134,7 @@ dependencies {
 
   implementation "org.threeten:threetenbp:1.4.4"
   implementation "io.opencensus:opencensus-api:0.30.0"
+  implementation "com.google.api:gax-grpc:2.8.1:testlib"
 
   testImplementation library.java.arrow_memory_netty
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
@@ -146,6 +147,7 @@ dependencies {
   testImplementation library.java.powermock
   testImplementation library.java.powermock_mockito
   testImplementation library.java.joda_time
+  testImplementation "com.google.cloud:google-cloud-spanner:6.17.4:tests"
   testRuntimeOnly library.java.slf4j_jdk14
 }
 
