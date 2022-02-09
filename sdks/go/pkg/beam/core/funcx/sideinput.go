@@ -43,7 +43,7 @@ func IsIter(t reflect.Type) bool {
 
 // IsMalformedIter returns true iff the supplied type is an illegal "single sweep
 // functional iterator" and an error explaining why it is illegal. For example,
-// an iterator is not legal if one of its out params is not concrete, universal, or
+// an iterator is not legal if one of its parameters is not concrete, universal, or
 // a container type. If the type does not have the structure of an iter or it is a
 // legal iter, IsMalformedIter returns false and no error.
 func IsMalformedIter(t reflect.Type) (bool, error) {
@@ -115,7 +115,7 @@ func IsReIter(t reflect.Type) bool {
 
 // IsMalformedReIter returns true iff the supplied type is an illegal functional
 // iterator generator and an error explaining why it is illegal. An iterator generator
-// is not legal if its first out param is not of type iterator. If the type does not
+// is not legal if its output is not of type iterator. If the type does not
 // have the structure of an iterator generator or it is a legal iterator generator,
 // IsMalformedReIter returns false and no error.
 func IsMalformedReIter(t reflect.Type) (bool, error) {
@@ -155,7 +155,7 @@ func IsMultiMap(t reflect.Type) bool {
 
 // IsMalformedMultiMap returns true iff the supplied type is an illegal keyed functional
 // iterator generator and an error explaining why it is illegal. A keyed iterator generator
-// is not legal if its out param is not of type iterator. If the type does not have the
+// is not legal if its output is not of type iterator. If the type does not have the
 // structure of a keyed iterator generator or it is a legal iterator generator,
 // IsMalformedMultiMap returns false and no error.
 func IsMalformedMultiMap(t reflect.Type) (bool, error) {
