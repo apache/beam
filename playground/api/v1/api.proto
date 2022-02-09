@@ -168,6 +168,12 @@ message PrecompiledObject{
   bool default_example = 9;
 }
 
+// DefaultExample represents the default PrecompiledObject and his code
+message DefaultExample{
+  PrecompiledObject precompiled_object = 1;
+  string code = 2;
+}
+
 // Categories represent the array of messages with sdk and categories at this sdk
 message Categories{
   message Category{
@@ -204,8 +210,8 @@ message GetPrecompiledObjectGraphRequest{
   string cloud_path = 1;
 }
 
-// GetDefaultPrecompiledObjectRequest contains information of the needed PrecompiledObject sdk.
-message GetDefaultPrecompiledObjectRequest {
+// GetDefaultExampleRequest contains information of the needed PrecompiledObject sdk.
+message GetDefaultExampleRequest {
   Sdk sdk = 1;
 }
 
@@ -234,9 +240,9 @@ message GetPrecompiledObjectGraphResponse {
   string graph = 1;
 }
 
-// GetDefaultPrecompiledObjectResponse represents the default PrecompiledObject and his category for the sdk.
-message GetDefaultPrecompiledObjectResponse {
-  PrecompiledObject precompiled_object = 1;
+// GetDefaultExampleResponse represents the default PrecompiledObject and his code for the sdk.
+message GetDefaultExampleResponse {
+  DefaultExample default_example = 1;
 }
 
 service PlaygroundService {
@@ -286,6 +292,6 @@ service PlaygroundService {
   // Get the graph of an PrecompiledObject.
   rpc GetPrecompiledObjectGraph(GetPrecompiledObjectGraphRequest) returns (GetPrecompiledObjectGraphResponse);
 
-  // Get the default precompile object for the sdk.
-  rpc GetDefaultPrecompiledObject(GetDefaultPrecompiledObjectRequest) returns (GetDefaultPrecompiledObjectResponse);
+  // Get the default example for the sdk.
+  rpc GetDefaultExample(GetDefaultExampleRequest) returns (GetDefaultExampleResponse);
 }

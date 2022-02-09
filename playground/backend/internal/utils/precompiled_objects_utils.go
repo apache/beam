@@ -21,6 +21,7 @@ import (
 	"beam.apache.org/playground/backend/internal/cloud_bucket"
 	"beam.apache.org/playground/backend/internal/logger"
 	"context"
+	"fmt"
 )
 
 // PutPrecompiledObjectsToCategory adds categories with precompiled objects to protobuf object
@@ -96,14 +97,28 @@ func FilterCatalog(catalog []*pb.Categories, sdk pb.Sdk, categoryName string) []
 	return result
 }
 
-// GetDefaultPrecompiledObject returns the default precompiled objects from cache for sdk
-func GetDefaultPrecompiledObject(ctx context.Context, sdk pb.Sdk, cacheService cache.Cache) (*pb.PrecompiledObject, error) {
-	precompiledObject, err := cacheService.GetDefaultPrecompiledObject(ctx, sdk)
+// GetDefaultExample returns the default precompiled objects from cache for sdk
+// - If there is no default example in the cache, gets the default examples from the Storage and saves it to the cache
+func GetDefaultExample(ctx context.Context, sdk pb.Sdk, cacheService cache.Cache) (*pb.DefaultExample, error) {
+	defaultExample, err := cacheService.GetDefaultExample(ctx, sdk)
 	if err != nil {
-		logger.Errorf("GetDefaultPrecompiledObject(): error during getting default precompiled object %s", err.Error())
-		return nil, err
+		bucket := cloud_bucket.New()
+		defaultExamples, err := bucket.GetDefaultExamples(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for sdk, defaultExample := range defaultExamples {
+			if err := cacheService.SetDefaultExample(ctx, sdk, defaultExample); err != nil {
+				logger.Errorf("GetDefaultExample(): cache error: %s", err.Error())
+			}
+		}
+		defaultExample, ok := defaultExamples[sdk]
+		if !ok {
+			return nil, fmt.Errorf("no default example found for this sdk: %s", sdk)
+		}
+		return defaultExample, nil
 	}
-	return precompiledObject, nil
+	return defaultExample, nil
 }
 
 // GetCatalogFromCacheOrStorage returns the precompiled objects catalog from cache

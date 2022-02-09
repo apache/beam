@@ -125,13 +125,12 @@ class PlaygroundServiceClient extends $grpc.Client {
       ($0.GetPrecompiledObjectGraphRequest value) => value.writeToBuffer(),
       ($core.List<$core.int> value) =>
           $0.GetPrecompiledObjectGraphResponse.fromBuffer(value));
-  static final _$getDefaultPrecompiledObject = $grpc.ClientMethod<
-          $0.GetDefaultPrecompiledObjectRequest,
-          $0.GetDefaultPrecompiledObjectResponse>(
-      '/api.v1.PlaygroundService/GetDefaultPrecompiledObject',
-      ($0.GetDefaultPrecompiledObjectRequest value) => value.writeToBuffer(),
+  static final _$getDefaultExample = $grpc.ClientMethod<
+          $0.GetDefaultExampleRequest, $0.GetDefaultExampleResponse>(
+      '/api.v1.PlaygroundService/GetDefaultExample',
+      ($0.GetDefaultExampleRequest value) => value.writeToBuffer(),
       ($core.List<$core.int> value) =>
-          $0.GetDefaultPrecompiledObjectResponse.fromBuffer(value));
+          $0.GetDefaultExampleResponse.fromBuffer(value));
 
   PlaygroundServiceClient($grpc.ClientChannel channel,
       {$grpc.CallOptions? options,
@@ -228,11 +227,10 @@ class PlaygroundServiceClient extends $grpc.Client {
         options: options);
   }
 
-  $grpc.ResponseFuture<$0.GetDefaultPrecompiledObjectResponse>
-      getDefaultPrecompiledObject($0.GetDefaultPrecompiledObjectRequest request,
-          {$grpc.CallOptions? options}) {
-    return $createUnaryCall(_$getDefaultPrecompiledObject, request,
-        options: options);
+  $grpc.ResponseFuture<$0.GetDefaultExampleResponse> getDefaultExample(
+      $0.GetDefaultExampleRequest request,
+      {$grpc.CallOptions? options}) {
+    return $createUnaryCall(_$getDefaultExample, request, options: options);
   }
 }
 
@@ -368,16 +366,15 @@ abstract class PlaygroundServiceBase extends $grpc.Service {
         ($core.List<$core.int> value) =>
             $0.GetPrecompiledObjectGraphRequest.fromBuffer(value),
         ($0.GetPrecompiledObjectGraphResponse value) => value.writeToBuffer()));
-    $addMethod($grpc.ServiceMethod<$0.GetDefaultPrecompiledObjectRequest,
-            $0.GetDefaultPrecompiledObjectResponse>(
-        'GetDefaultPrecompiledObject',
-        getDefaultPrecompiledObject_Pre,
+    $addMethod($grpc.ServiceMethod<$0.GetDefaultExampleRequest,
+            $0.GetDefaultExampleResponse>(
+        'GetDefaultExample',
+        getDefaultExample_Pre,
         false,
         false,
         ($core.List<$core.int> value) =>
-            $0.GetDefaultPrecompiledObjectRequest.fromBuffer(value),
-        ($0.GetDefaultPrecompiledObjectResponse value) =>
-            value.writeToBuffer()));
+            $0.GetDefaultExampleRequest.fromBuffer(value),
+        ($0.GetDefaultExampleResponse value) => value.writeToBuffer()));
   }
 
   $async.Future<$0.RunCodeResponse> runCode_Pre(
@@ -464,10 +461,10 @@ abstract class PlaygroundServiceBase extends $grpc.Service {
     return getPrecompiledObjectGraph(call, await request);
   }
 
-  $async.Future<$0.GetDefaultPrecompiledObjectResponse>
-      getDefaultPrecompiledObject_Pre($grpc.ServiceCall call,
-          $async.Future<$0.GetDefaultPrecompiledObjectRequest> request) async {
-    return getDefaultPrecompiledObject(call, await request);
+  $async.Future<$0.GetDefaultExampleResponse> getDefaultExample_Pre(
+      $grpc.ServiceCall call,
+      $async.Future<$0.GetDefaultExampleRequest> request) async {
+    return getDefaultExample(call, await request);
   }
 
   $async.Future<$0.RunCodeResponse> runCode(
@@ -501,7 +498,6 @@ abstract class PlaygroundServiceBase extends $grpc.Service {
       $grpc.ServiceCall call, $0.GetPrecompiledObjectLogsRequest request);
   $async.Future<$0.GetPrecompiledObjectGraphResponse> getPrecompiledObjectGraph(
       $grpc.ServiceCall call, $0.GetPrecompiledObjectGraphRequest request);
-  $async.Future<$0.GetDefaultPrecompiledObjectResponse>
-      getDefaultPrecompiledObject($grpc.ServiceCall call,
-          $0.GetDefaultPrecompiledObjectRequest request);
+  $async.Future<$0.GetDefaultExampleResponse> getDefaultExample(
+      $grpc.ServiceCall call, $0.GetDefaultExampleRequest request);
 }

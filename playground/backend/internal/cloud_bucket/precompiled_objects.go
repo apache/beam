@@ -222,8 +222,8 @@ func (cd *CloudStorage) GetPrecompiledObjects(ctx context.Context, targetSdk pb.
 	return &precompiledObjects, nil
 }
 
-// GetDefaultPrecompiledObjects returns the default precompiled objects
-func (cd *CloudStorage) GetDefaultPrecompiledObjects(ctx context.Context) (map[pb.Sdk]*pb.PrecompiledObject, error) {
+// GetDefaultExamples returns the default examples
+func (cd *CloudStorage) GetDefaultExamples(ctx context.Context) (map[pb.Sdk]*pb.DefaultExample, error) {
 	client, err := storage.NewClient(ctx, option.WithoutAuthentication())
 	if err != nil {
 		return nil, fmt.Errorf("storage.NewClient: %v", err)
@@ -244,7 +244,7 @@ func (cd *CloudStorage) GetDefaultPrecompiledObjects(ctx context.Context) (map[p
 		paths[sdk] = path
 	}
 
-	defaultPrecompiledObjects := make(map[pb.Sdk]*pb.PrecompiledObject, 0)
+	defaultExamples := make(map[pb.Sdk]*pb.DefaultExample, 0)
 	for sdk, path := range paths {
 		infoPath := filepath.Join(path, MetaInfoName)
 		rc, err := bucket.Object(infoPath).NewReader(ctx)
@@ -266,9 +266,18 @@ func (cd *CloudStorage) GetDefaultPrecompiledObjects(ctx context.Context) (map[p
 			return nil, err
 		}
 		precompiledObject.CloudPath = path
-		defaultPrecompiledObjects[sdk] = precompiledObject
+
+		code, err := cd.GetPrecompiledObjectCode(ctx, path)
+		if err != nil {
+			return nil, err
+		}
+
+		defaultExamples[sdk] = &pb.DefaultExample{
+			PrecompiledObject: precompiledObject,
+			Code:              code,
+		}
 	}
-	return defaultPrecompiledObjects, nil
+	return defaultExamples, nil
 }
 
 // getDefaultPrecompiledObjectsPath returns path for SDK to the default precompiled object

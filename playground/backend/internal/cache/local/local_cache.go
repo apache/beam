@@ -31,23 +31,23 @@ const (
 
 type Cache struct {
 	sync.RWMutex
-	cleanupInterval           time.Duration
-	items                     map[uuid.UUID]map[cache.SubKey]interface{}
-	pipelinesExpiration       map[uuid.UUID]time.Time
-	catalog                   []*pb.Categories
-	defaultPrecompiledObjects map[pb.Sdk]*pb.PrecompiledObject
+	cleanupInterval     time.Duration
+	items               map[uuid.UUID]map[cache.SubKey]interface{}
+	pipelinesExpiration map[uuid.UUID]time.Time
+	catalog             []*pb.Categories
+	defaultExamples     map[pb.Sdk]*pb.DefaultExample
 }
 
 func New(ctx context.Context) *Cache {
 	items := make(map[uuid.UUID]map[cache.SubKey]interface{})
 	pipelinesExpiration := make(map[uuid.UUID]time.Time)
-	defaultPrecompiledObjects := make(map[pb.Sdk]*pb.PrecompiledObject)
+	defaultExamples := make(map[pb.Sdk]*pb.DefaultExample)
 	ls := &Cache{
-		cleanupInterval:           cleanupInterval,
-		items:                     items,
-		pipelinesExpiration:       pipelinesExpiration,
-		catalog:                   nil,
-		defaultPrecompiledObjects: defaultPrecompiledObjects,
+		cleanupInterval:     cleanupInterval,
+		items:               items,
+		pipelinesExpiration: pipelinesExpiration,
+		catalog:             nil,
+		defaultExamples:     defaultExamples,
 	}
 
 	go ls.startGC(ctx)
@@ -127,17 +127,17 @@ func (lc *Cache) GetCatalog(ctx context.Context) ([]*pb.Categories, error) {
 	return lc.catalog, nil
 }
 
-func (lc *Cache) SetDefaultPrecompiledObject(ctx context.Context, sdk pb.Sdk, precompiledObject *pb.PrecompiledObject) error {
+func (lc *Cache) SetDefaultExample(ctx context.Context, sdk pb.Sdk, defaultExample *pb.DefaultExample) error {
 	lc.Lock()
 	defer lc.Unlock()
-	lc.defaultPrecompiledObjects[sdk] = precompiledObject
+	lc.defaultExamples[sdk] = defaultExample
 	return nil
 }
 
-func (lc *Cache) GetDefaultPrecompiledObject(ctx context.Context, sdk pb.Sdk) (*pb.PrecompiledObject, error) {
+func (lc *Cache) GetDefaultExample(ctx context.Context, sdk pb.Sdk) (*pb.DefaultExample, error) {
 	lc.RLock()
 	defer lc.RUnlock()
-	defaultPrecompiledObject := lc.defaultPrecompiledObjects[sdk]
+	defaultPrecompiledObject := lc.defaultExamples[sdk]
 	if defaultPrecompiledObject == nil {
 		return nil, fmt.Errorf("default precompiled obejct is not found for %s sdk", sdk.String())
 	}

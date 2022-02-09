@@ -126,43 +126,43 @@ func (rc *Cache) GetCatalog(ctx context.Context) ([]*pb.Categories, error) {
 	return result, nil
 }
 
-func (rc *Cache) SetDefaultPrecompiledObject(ctx context.Context, sdk pb.Sdk, precompiledObject *pb.PrecompiledObject) error {
-	precompiledObjectMarsh, err := json.Marshal(precompiledObject)
+func (rc *Cache) SetDefaultExample(ctx context.Context, sdk pb.Sdk, defaultExample *pb.DefaultExample) error {
+	defaultExampleMarsh, err := json.Marshal(defaultExample)
 	if err != nil {
-		logger.Errorf("Redis Cache: set default precompiled object: error during marshal precompiled object: %s, err: %s\n", precompiledObject, err.Error())
+		logger.Errorf("Redis Cache: set default example: error during marshal default example: %s, err: %s\n", defaultExample, err.Error())
 		return err
 	}
 	sdkMarsh, err := json.Marshal(sdk)
 	if err != nil {
-		logger.Errorf("Redis Cache: set default precompiled object: error during marshal sdk: %s, err: %s\n", sdk, err.Error())
+		logger.Errorf("Redis Cache: set default example: error during marshal sdk: %s, err: %s\n", sdk, err.Error())
 		return err
 	}
-	err = rc.HSet(ctx, cache.DefaultPrecompiledExamples, sdkMarsh, precompiledObjectMarsh).Err()
+	err = rc.HSet(ctx, cache.DefaultPrecompiledExamples, sdkMarsh, defaultExampleMarsh).Err()
 	if err != nil {
-		logger.Errorf("Redis Cache: set default precompiled object: error during HGet operation, err: %s\n", err.Error())
+		logger.Errorf("Redis Cache: set default example: error during HGet operation, err: %s\n", err.Error())
 		return err
 	}
 	return nil
 
 }
 
-func (rc *Cache) GetDefaultPrecompiledObject(ctx context.Context, sdk pb.Sdk) (*pb.PrecompiledObject, error) {
+func (rc *Cache) GetDefaultExample(ctx context.Context, sdk pb.Sdk) (*pb.DefaultExample, error) {
 	sdkMarsh, err := json.Marshal(sdk)
 	if err != nil {
-		logger.Errorf("Redis Cache: get default precompiled object: error during marshal sdk: %s, err: %s\n", sdk, err.Error())
+		logger.Errorf("Redis Cache: get default example: error during marshal sdk: %s, err: %s\n", sdk, err.Error())
 		return nil, err
 	}
 
 	value, err := rc.HGet(ctx, cache.DefaultPrecompiledExamples, string(sdkMarsh)).Result()
 	if err != nil {
-		logger.Errorf("Redis Cache: get default precompiled object: error during HGet operation for key: %s, subKey: %s, err: %s\n", cache.DefaultPrecompiledExamples, sdkMarsh, err.Error())
+		logger.Errorf("Redis Cache: get default example: error during HGet operation for key: %s, subKey: %s, err: %s\n", cache.DefaultPrecompiledExamples, sdkMarsh, err.Error())
 		return nil, err
 	}
 
-	result := new(pb.PrecompiledObject)
+	result := new(pb.DefaultExample)
 	err = json.Unmarshal([]byte(value), &result)
 	if err != nil {
-		logger.Errorf("Redis Cache: get default precompiled object: error during unmarshal value, err: %s\n", err.Error())
+		logger.Errorf("Redis Cache: get default example: error during unmarshal value, err: %s\n", err.Error())
 	}
 	return result, nil
 }

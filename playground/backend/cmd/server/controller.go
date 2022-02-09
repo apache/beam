@@ -318,26 +318,18 @@ func (controller *playgroundController) GetPrecompiledObjectGraph(ctx context.Co
 	return &response, nil
 }
 
-// GetDefaultPrecompiledObject returns the default precompile object for sdk.
-func (controller *playgroundController) GetDefaultPrecompiledObject(ctx context.Context, info *pb.GetDefaultPrecompiledObjectRequest) (*pb.GetDefaultPrecompiledObjectResponse, error) {
+// GetDefaultExample returns the default precompile object for sdk.
+func (controller *playgroundController) GetDefaultExample(ctx context.Context, info *pb.GetDefaultExampleRequest) (*pb.GetDefaultExampleResponse, error) {
 	switch info.Sdk {
 	case pb.Sdk_SDK_UNSPECIFIED:
-		logger.Errorf("GetDefaultPrecompiledObject(): unimplemented sdk: %s\n", info.Sdk)
+		logger.Errorf("GetDefaultExample(): unimplemented sdk: %s\n", info.Sdk)
 		return nil, errors.InvalidArgumentError("Error during preparing", "Sdk is not implemented yet: %s", info.Sdk.String())
 	}
-	precompiledObject, err := utils.GetDefaultPrecompiledObject(ctx, info.Sdk, controller.cacheService)
+	defaultExample, err := utils.GetDefaultExample(ctx, info.Sdk, controller.cacheService)
 	if err != nil {
-		logger.Errorf("GetDefaultPrecompiledObject(): error during getting catalog: %s", err.Error())
-		return nil, errors.InternalError("Error during getting Precompiled Objects", "Error with cloud connection")
+		logger.Errorf("GetDefaultExample(): error during getting default example: %s", err.Error())
+		return nil, errors.InternalError("Error during getting Default Examples", "Error with cloud connection")
 	}
-	response := pb.GetDefaultPrecompiledObjectResponse{PrecompiledObject: &pb.PrecompiledObject{
-		CloudPath:       precompiledObject.CloudPath,
-		Name:            precompiledObject.Name,
-		Description:     precompiledObject.Description,
-		Type:            precompiledObject.Type,
-		PipelineOptions: precompiledObject.PipelineOptions,
-		Link:            precompiledObject.Link,
-		DefaultExample:  precompiledObject.DefaultExample,
-	}}
+	response := pb.GetDefaultExampleResponse{DefaultExample: defaultExample}
 	return &response, nil
 }

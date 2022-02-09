@@ -65,8 +65,8 @@ type PlaygroundServiceClient interface {
 	GetPrecompiledObjectLogs(ctx context.Context, in *GetPrecompiledObjectLogsRequest, opts ...grpc.CallOption) (*GetPrecompiledObjectLogsResponse, error)
 	// Get the graph of an PrecompiledObject.
 	GetPrecompiledObjectGraph(ctx context.Context, in *GetPrecompiledObjectGraphRequest, opts ...grpc.CallOption) (*GetPrecompiledObjectGraphResponse, error)
-	// Get the default precompile object for the sdk.
-	GetDefaultPrecompiledObject(ctx context.Context, in *GetDefaultPrecompiledObjectRequest, opts ...grpc.CallOption) (*GetDefaultPrecompiledObjectResponse, error)
+	// Get the default example for the sdk.
+	GetDefaultExample(ctx context.Context, in *GetDefaultExampleRequest, opts ...grpc.CallOption) (*GetDefaultExampleResponse, error)
 }
 
 type playgroundServiceClient struct {
@@ -212,9 +212,9 @@ func (c *playgroundServiceClient) GetPrecompiledObjectGraph(ctx context.Context,
 	return out, nil
 }
 
-func (c *playgroundServiceClient) GetDefaultPrecompiledObject(ctx context.Context, in *GetDefaultPrecompiledObjectRequest, opts ...grpc.CallOption) (*GetDefaultPrecompiledObjectResponse, error) {
-	out := new(GetDefaultPrecompiledObjectResponse)
-	err := c.cc.Invoke(ctx, "/api.v1.PlaygroundService/GetDefaultPrecompiledObject", in, out, opts...)
+func (c *playgroundServiceClient) GetDefaultExample(ctx context.Context, in *GetDefaultExampleRequest, opts ...grpc.CallOption) (*GetDefaultExampleResponse, error) {
+	out := new(GetDefaultExampleResponse)
+	err := c.cc.Invoke(ctx, "/api.v1.PlaygroundService/GetDefaultExample", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -255,8 +255,8 @@ type PlaygroundServiceServer interface {
 	GetPrecompiledObjectLogs(context.Context, *GetPrecompiledObjectLogsRequest) (*GetPrecompiledObjectLogsResponse, error)
 	// Get the graph of an PrecompiledObject.
 	GetPrecompiledObjectGraph(context.Context, *GetPrecompiledObjectGraphRequest) (*GetPrecompiledObjectGraphResponse, error)
-	// Get the default precompile object for the sdk.
-	GetDefaultPrecompiledObject(context.Context, *GetDefaultPrecompiledObjectRequest) (*GetDefaultPrecompiledObjectResponse, error)
+	// Get the default example for the sdk.
+	GetDefaultExample(context.Context, *GetDefaultExampleRequest) (*GetDefaultExampleResponse, error)
 }
 
 // UnimplementedPlaygroundServiceServer should be embedded to have forward compatible implementations.
@@ -308,8 +308,8 @@ func (UnimplementedPlaygroundServiceServer) GetPrecompiledObjectLogs(context.Con
 func (UnimplementedPlaygroundServiceServer) GetPrecompiledObjectGraph(context.Context, *GetPrecompiledObjectGraphRequest) (*GetPrecompiledObjectGraphResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetPrecompiledObjectGraph not implemented")
 }
-func (UnimplementedPlaygroundServiceServer) GetDefaultPrecompiledObject(context.Context, *GetDefaultPrecompiledObjectRequest) (*GetDefaultPrecompiledObjectResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetDefaultPrecompiledObject not implemented")
+func (UnimplementedPlaygroundServiceServer) GetDefaultExample(context.Context, *GetDefaultExampleRequest) (*GetDefaultExampleResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetDefaultExample not implemented")
 }
 
 // UnsafePlaygroundServiceServer may be embedded to opt out of forward compatibility for this service.
@@ -593,20 +593,20 @@ func _PlaygroundService_GetPrecompiledObjectGraph_Handler(srv interface{}, ctx c
 	return interceptor(ctx, in, info, handler)
 }
 
-func _PlaygroundService_GetDefaultPrecompiledObject_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetDefaultPrecompiledObjectRequest)
+func _PlaygroundService_GetDefaultExample_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetDefaultExampleRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(PlaygroundServiceServer).GetDefaultPrecompiledObject(ctx, in)
+		return srv.(PlaygroundServiceServer).GetDefaultExample(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/api.v1.PlaygroundService/GetDefaultPrecompiledObject",
+		FullMethod: "/api.v1.PlaygroundService/GetDefaultExample",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(PlaygroundServiceServer).GetDefaultPrecompiledObject(ctx, req.(*GetDefaultPrecompiledObjectRequest))
+		return srv.(PlaygroundServiceServer).GetDefaultExample(ctx, req.(*GetDefaultExampleRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -679,8 +679,8 @@ var PlaygroundService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _PlaygroundService_GetPrecompiledObjectGraph_Handler,
 		},
 		{
-			MethodName: "GetDefaultPrecompiledObject",
-			Handler:    _PlaygroundService_GetDefaultPrecompiledObject_Handler,
+			MethodName: "GetDefaultExample",
+			Handler:    _PlaygroundService_GetDefaultExample_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

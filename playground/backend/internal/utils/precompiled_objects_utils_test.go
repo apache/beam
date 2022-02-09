@@ -210,10 +210,10 @@ func TestFilterPrecompiledObjects(t *testing.T) {
 	}
 }
 
-func TestGetDefaultPrecompiledObject(t *testing.T) {
+func TestGetDefaultExample(t *testing.T) {
 	ctx := context.Background()
 	cacheService := local.New(ctx)
-	defaultPrecompiledObject := &pb.PrecompiledObject{
+	precompiledObject := &pb.PrecompiledObject{
 		CloudPath:       "cloudPath",
 		Name:            "Name",
 		Description:     "Description",
@@ -223,7 +223,12 @@ func TestGetDefaultPrecompiledObject(t *testing.T) {
 		ContextLine:     1,
 		DefaultExample:  true,
 	}
-	err := cacheService.SetDefaultPrecompiledObject(ctx, pb.Sdk_SDK_JAVA, defaultPrecompiledObject)
+	defaultExample := &pb.DefaultExample{
+		PrecompiledObject: precompiledObject,
+		Code:              "CODE",
+	}
+
+	err := cacheService.SetDefaultExample(ctx, pb.Sdk_SDK_JAVA, defaultExample)
 	if err != nil {
 		logger.Errorf("Error during set up test")
 	}
@@ -236,21 +241,21 @@ func TestGetDefaultPrecompiledObject(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    *pb.PrecompiledObject
+		want    *pb.DefaultExample
 		wantErr bool
 	}{
 		{
-			name: "there is default precompiled object",
+			name: "there is default example",
 			args: args{
 				ctx:          ctx,
 				sdk:          pb.Sdk_SDK_JAVA,
 				cacheService: cacheService,
 			},
-			want:    defaultPrecompiledObject,
+			want:    defaultExample,
 			wantErr: false,
 		},
 		{
-			name: "there is no default precompiled object",
+			name: "there is no default example",
 			args: args{
 				ctx:          ctx,
 				sdk:          pb.Sdk_SDK_UNSPECIFIED,
@@ -262,13 +267,13 @@ func TestGetDefaultPrecompiledObject(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetDefaultPrecompiledObject(tt.args.ctx, tt.args.sdk, tt.args.cacheService)
+			got, err := GetDefaultExample(tt.args.ctx, tt.args.sdk, tt.args.cacheService)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("GetDefaultPrecompiledObject() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("GetDefaultExample() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GetDefaultPrecompiledObject() got = %v, want %v", got, tt.want)
+				t.Errorf("GetDefaultExample() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
