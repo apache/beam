@@ -346,6 +346,11 @@ func New(fn reflectx.Func) (*Fn, error) {
 		case t == typex.PaneInfoType:
 			kind = FnPane
 		default:
+			// Error cases
+			if ok, err := IsMalformedEmit(t); ok {
+				return nil, errors.Wrapf(err, "bad parameter type for %s: %v", fn.Name(), t)
+			}
+			// TODO(damccorm) 2022.02.08: Handle IsMalformed[Iter, ReIter, MultiMap] cases (BEAM-11095)
 			return nil, errors.Errorf("bad parameter type for %s: %v", fn.Name(), t)
 		}
 

@@ -43,10 +43,12 @@ class CIHelper:
 
     1. Find all beam examples starting from directory os.getenv("BEAM_ROOT_DIR")
     2. Group code of examples by their SDK.
-    3. Run processing for all examples to verify examples' code.
+    3. Run processing for single-file examples to verify examples' code.
     """
-    await get_statuses(examples)
-    await self._verify_examples(examples)
+    single_file_examples = list(filter(
+      lambda example: example.tag.multifile is False, examples))
+    await get_statuses(single_file_examples)
+    await self._verify_examples(single_file_examples)
 
   async def _verify_examples(self, examples: List[Example]):
     """

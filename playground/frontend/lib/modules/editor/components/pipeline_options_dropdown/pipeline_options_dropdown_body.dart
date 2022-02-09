@@ -18,7 +18,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:playground/config/theme.dart';
 import 'package:playground/constants/colors.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_option_model.dart';
@@ -26,7 +25,6 @@ import 'package:playground/modules/editor/components/pipeline_options_dropdown/p
 import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_options_dropdown_separator.dart';
 import 'package:playground/modules/editor/components/pipeline_options_dropdown/pipeline_options_form.dart';
 import 'package:playground/modules/editor/parsers/run_options_parser.dart';
-import 'package:playground/modules/notifications/components/notification.dart';
 
 const kOptionsTabIndex = 0;
 const kRawTabIndex = 1;

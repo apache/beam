@@ -136,7 +136,7 @@ intersphinx_mapping = {
   'python': ('https://docs.python.org/{}'.format(sys.version_info.major), None),
   'hamcrest': ('https://pyhamcrest.readthedocs.io/en/stable/', None),
   'google-cloud-datastore': ('https://googleapis.dev/python/datastore/latest/', None),
-  'numpy': ('http://docs.scipy.org/doc/numpy', None),
+  'numpy': ('https://numpy.org/doc/stable', None),
   'pandas': ('http://pandas.pydata.org/pandas-docs/dev', None),
 }
 

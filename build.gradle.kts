@@ -154,7 +154,7 @@ tasks.check.get().dependsOn(tasks.rat)
 // to be specified on the commandline when executing locally.
 // This indirection also makes Jenkins use the branch of the PR
 // for the test definitions.
-task("javaPreCommit") {
+tasks.register("javaPreCommit") {
   // We need to list the model/* builds since sdks/java/core doesn't
   // depend on any of the model.
   dependsOn(":model:pipeline:build")
@@ -171,21 +171,22 @@ task("javaPreCommit") {
   dependsOn(":sdks:java:container:java8:docker")
 }
 
-task("sqlPreCommit") {
+tasks.register("sqlPreCommit") {
   dependsOn(":sdks:java:extensions:sql:runBasicExample")
   dependsOn(":sdks:java:extensions:sql:runPojoExample")
   dependsOn(":sdks:java:extensions:sql:build")
   dependsOn(":sdks:java:extensions:sql:buildDependents")
 }
 
-task("javaPreCommitPortabilityApi") {
+tasks.register("javaPreCommitPortabilityApi") {
   dependsOn(":runners:google-cloud-dataflow-java:worker:build")
 }
 
-task("javaPostCommit") {
+tasks.register("javaPostCommit") {
   dependsOn(":sdks:java:extensions:google-cloud-platform-core:postCommit")
   dependsOn(":sdks:java:extensions:zetasketch:postCommit")
   dependsOn(":sdks:java:io:debezium:integrationTest")
+  dependsOn(":sdks:java:io:jdbc:integrationTest")
   dependsOn(":sdks:java:io:google-cloud-platform:postCommit")
   dependsOn(":sdks:java:io:kinesis:integrationTest")
   dependsOn(":sdks:java:io:amazon-web-services:integrationTest")
@@ -194,7 +195,7 @@ task("javaPostCommit") {
   dependsOn(":sdks:java:io:kafka:kafkaVersionsCompatibilityTest")
 }
 
-task("javaHadoopVersionsTest") {
+tasks.register("javaHadoopVersionsTest") {
   dependsOn(":sdks:java:io:hadoop-common:hadoopVersionsTest")
   dependsOn(":sdks:java:io:hadoop-file-system:hadoopVersionsTest")
   dependsOn(":sdks:java:io:hadoop-format:hadoopVersionsTest")
@@ -204,14 +205,14 @@ task("javaHadoopVersionsTest") {
   dependsOn(":runners:spark:2:hadoopVersionsTest")
 }
 
-task("sqlPostCommit") {
+tasks.register("sqlPostCommit") {
   dependsOn(":sdks:java:extensions:sql:postCommit")
   dependsOn(":sdks:java:extensions:sql:jdbc:postCommit")
   dependsOn(":sdks:java:extensions:sql:datacatalog:postCommit")
   dependsOn(":sdks:java:extensions:sql:hadoopVersionsTest")
 }
 
-task("goPreCommit") {
+tasks.register("goPreCommit") {
   // Ensure the Precommit builds run after the tests, in order to avoid the
   // flake described in BEAM-11918. This is done by splitting them into two
   // tasks and using "mustRunAfter" to enforce ordering.
@@ -219,11 +220,11 @@ task("goPreCommit") {
   dependsOn(":goPrecommitBuild")
 }
 
-task("goPrecommitTest") {
+tasks.register("goPrecommitTest") {
   dependsOn(":sdks:go:goTest")
 }
 
-task("goPrecommitBuild") {
+tasks.register("goPrecommitBuild") {
   mustRunAfter(":goPrecommitTest")
 
   dependsOn(":sdks:go:goBuild")
@@ -236,15 +237,15 @@ task("goPrecommitBuild") {
   dependsOn(":sdks:go:container:goBuild")
 }
 
-task("goPortablePreCommit") {
+tasks.register("goPortablePreCommit") {
   dependsOn(":sdks:go:test:ulrValidatesRunner")
 }
 
-task("goPostCommit") {
+tasks.register("goPostCommit") {
   dependsOn(":goIntegrationTests")
 }
 
-task("goIntegrationTests") {
+tasks.register("goIntegrationTests") {
   doLast {
     exec {
       executable("sh")
@@ -255,13 +256,13 @@ task("goIntegrationTests") {
   dependsOn(":runners:google-cloud-dataflow-java:worker:shadowJar")
 }
 
-task("playgroundPreCommit") {
+tasks.register("playgroundPreCommit") {
   dependsOn(":playground:lintProto")
   dependsOn(":playground:backend:precommit")
   dependsOn(":playground:frontend:precommit")
 }
 
-task("pythonPreCommit") {
+tasks.register("pythonPreCommit") {
   dependsOn(":sdks:python:test-suites:tox:pycommon:preCommitPyCommon")
   dependsOn(":sdks:python:test-suites:tox:py36:preCommitPy36")
   dependsOn(":sdks:python:test-suites:tox:py37:preCommitPy37")
@@ -270,31 +271,31 @@ task("pythonPreCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:preCommitIT_V2")
 }
 
-task("pythonDocsPreCommit") {
+tasks.register("pythonDocsPreCommit") {
   dependsOn(":sdks:python:test-suites:tox:pycommon:docs")
 }
 
-task("pythonDockerBuildPreCommit") {
+tasks.register("pythonDockerBuildPreCommit") {
   dependsOn(":sdks:python:container:py36:docker")
   dependsOn(":sdks:python:container:py37:docker")
   dependsOn(":sdks:python:container:py38:docker")
 }
 
-task("pythonLintPreCommit") {
+tasks.register("pythonLintPreCommit") {
   dependsOn(":sdks:python:test-suites:tox:py37:lint")
 }
 
-task("pythonFormatterPreCommit") {
+tasks.register("pythonFormatterPreCommit") {
   dependsOn("sdks:python:test-suites:tox:py38:formatter")
 }
 
-task("python36PostCommit") {
+tasks.register("python36PostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py36:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py36:postCommitIT")
   dependsOn(":sdks:python:test-suites:portable:py36:postCommitPy36")
 }
 
-task("python37PostCommit") {
+tasks.register("python37PostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py37:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py37:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py37:directRunnerIT")
@@ -306,58 +307,58 @@ task("python37PostCommit") {
   dependsOn(":sdks:python:test-suites:portable:py37:xlangSpannerIOIT")
 }
 
-task("python38PostCommit") {
+tasks.register("python38PostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py38:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py38:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py38:hdfsIntegrationTest")
   dependsOn(":sdks:python:test-suites:portable:py38:postCommitPy38")
 }
 
-task("portablePythonPreCommit") {
+tasks.register("portablePythonPreCommit") {
   dependsOn(":sdks:python:test-suites:portable:py36:preCommitPy36")
   dependsOn(":sdks:python:test-suites:portable:py37:preCommitPy37")
 }
 
-task("pythonSparkPostCommit") {
+tasks.register("pythonSparkPostCommit") {
   dependsOn(":sdks:python:test-suites:portable:py36:sparkValidatesRunner")
   dependsOn(":sdks:python:test-suites:portable:py37:sparkValidatesRunner")
   dependsOn(":sdks:python:test-suites:portable:py38:sparkValidatesRunner")
 }
 
-task("websitePreCommit") {
+tasks.register("websitePreCommit") {
   dependsOn(":website:preCommit")
 }
 
-task("communityMetricsPreCommit") {
+tasks.register("communityMetricsPreCommit") {
   dependsOn(":beam-test-infra-metrics:preCommit")
 }
 
-task("communityMetricsProber") {
+tasks.register("communityMetricsProber") {
   dependsOn(":beam-test-infra-metrics:checkProber")
 }
 
-task("javaExamplesDataflowPrecommit") {
+tasks.register("javaExamplesDataflowPrecommit") {
   dependsOn(":runners:google-cloud-dataflow-java:examples:preCommit")
   dependsOn(":runners:google-cloud-dataflow-java:examples-streaming:preCommit")
 }
 
-task("runBeamDependencyCheck") {
+tasks.register("runBeamDependencyCheck") {
   dependsOn(":dependencyUpdates")
   dependsOn(":sdks:python:dependencyUpdates")
 }
 
-task("whitespacePreCommit") {
+tasks.register("whitespacePreCommit") {
   dependsOn(":sdks:python:test-suites:tox:py38:archiveFilesToLint")
   dependsOn(":sdks:python:test-suites:tox:py38:unpackFilesToLint")
   dependsOn(":sdks:python:test-suites:tox:py38:whitespacelint")
 }
 
-task("typescriptPreCommit") {
+tasks.register("typescriptPreCommit") {
   dependsOn(":sdks:python:test-suites:tox:py38:eslint")
   dependsOn(":sdks:python:test-suites:tox:py38:jest")
 }
 
-task("pushAllDockerImages") {
+tasks.register("pushAllDockerImages") {
   dependsOn(":runners:spark:2:job-server:container:dockerPush")
   dependsOn(":runners:spark:3:job-server:container:dockerPush")
   dependsOn(":sdks:java:container:pushAll")
@@ -369,7 +370,7 @@ task("pushAllDockerImages") {
 }
 
 // Use this task to validate the environment set up for Go, Python and Java
-task("checkSetup") {
+tasks.register("checkSetup") {
   dependsOn(":sdks:go:examples:wordCount")
   dependsOn(":sdks:python:wordCount")
   dependsOn(":examples:java:wordCount")
@@ -416,7 +417,7 @@ if (project.hasProperty("javaLinkageArtifactIds")) {
     }
   }
 
-  project.task<JavaExec>("checkJavaLinkage") {
+  project.tasks.register<JavaExec>("checkJavaLinkage") {
     dependsOn(project.getTasksByName("publishMavenJavaPublicationToMavenLocal", true /* recursively */))
     classpath = linkageCheckerJava
     mainClass.value("com.google.cloud.tools.opensource.classpath.LinkageCheckerMain")

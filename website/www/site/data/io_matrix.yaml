@@ -304,6 +304,9 @@ categories:
           - language: java
             name: org.apache.beam.sdk.io.snowflake.SnowflakeIO
             url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/snowflake/SnowflakeIO.html
+          - language: py
+            name: apache_beam.io.snowflake
+            url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.snowflake.html
       - transform: SpannerIO
         description: Experimental Transforms for reading from and writing to [Google Cloud Spanner](https://cloud.google.com/spanner).
         implementations:

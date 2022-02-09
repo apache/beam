@@ -131,12 +131,12 @@ func Test_isPathToPrecompiledObjectFile(t *testing.T) {
 	}{
 		{
 			name: "Test if path is valid",
-			args: args{path: "SDK_JAVA/HelloWorld/HelloWorld.java"},
+			args: args{path: "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/HelloWorld/HelloWorld.java"},
 			want: true,
 		},
 		{
 			name: "Test if path is not valid",
-			args: args{path: "SDK_JAVA/HelloWorld/"},
+			args: args{path: "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/HelloWorld/"},
 			want: false,
 		},
 	}
