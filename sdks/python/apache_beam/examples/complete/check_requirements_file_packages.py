@@ -21,10 +21,11 @@
 
 import argparse
 import logging
-import pkg_resources as pkg
 import os
 import shutil
 import tempfile
+
+import pkg_resources as pkg
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
