@@ -96,12 +96,13 @@ func IsConcrete(t reflect.Type) bool {
 	return err == nil
 }
 
-// CheckConcrete returns nil iff the given type is a valid "concrete" data type and if not,
-// returns an error indicating why the type is not concrete. Concrete data must be fully
-// serializable. Functions and channels are examples of invalid types. Aggregate types with
-// no universals are considered concrete here.
-func CheckConcrete(t reflect.Type) error {
-	return isConcrete(t, make(map[uintptr]bool))
+// CheckConcrete returns true iff the given type is a valid "concrete" data type and if not,
+// returns false along with an error indicating why the type is not concrete. Concrete
+// data must be fully serializable. Functions and channels are examples of invalid
+// types. Aggregate types with no universals are considered concrete here.
+func CheckConcrete(t reflect.Type) (bool, error) {
+	err := isConcrete(t, make(map[uintptr]bool))
+	return err == nil, err
 }
 
 func isConcrete(t reflect.Type, visited map[uintptr]bool) error {
