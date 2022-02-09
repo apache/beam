@@ -23,6 +23,7 @@ description = "Apache Beam :: SDKs :: Go :: Examples"
 
 // Run this task to validate the Go Build environment setup for contributors
 task wordCount() {
+  dependsOn(tasks.named("goPrepare"))
   description "Run the Go word count example"
   doLast {
     project.exec {

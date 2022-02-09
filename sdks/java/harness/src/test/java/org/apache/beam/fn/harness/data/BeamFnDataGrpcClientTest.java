@@ -40,8 +40,9 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.BeamFnDataInboundObserver2;
-import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
+import org.apache.beam.sdk.fn.data.BeamFnDataOutboundAggregator;
 import org.apache.beam.sdk.fn.data.DataEndpoint;
+import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.fn.test.TestStreams;
@@ -319,14 +320,15 @@ public class BeamFnDataGrpcClientTest {
                   .create(),
               (Endpoints.ApiServiceDescriptor descriptor) -> channel,
               OutboundObserverFactory.trivial());
-
-      try (CloseableFnDataReceiver<WindowedValue<String>> consumer =
-          clientFactory.send(apiServiceDescriptor, ENDPOINT_A, CODER)) {
-        consumer.accept(valueInGlobalWindow("ABC"));
-        consumer.accept(valueInGlobalWindow("DEF"));
-        consumer.accept(valueInGlobalWindow("GHI"));
-      }
-
+      BeamFnDataOutboundAggregator aggregator =
+          clientFactory.createOutboundAggregator(
+              apiServiceDescriptor, () -> INSTRUCTION_ID_A, false);
+      FnDataReceiver<WindowedValue<String>> fnDataReceiver =
+          aggregator.registerOutputDataLocation(TRANSFORM_ID_A, CODER);
+      fnDataReceiver.accept(valueInGlobalWindow("ABC"));
+      fnDataReceiver.accept(valueInGlobalWindow("DEF"));
+      fnDataReceiver.accept(valueInGlobalWindow("GHI"));
+      aggregator.sendOrCollectBufferedDataAndFinishOutboundStreams();
       waitForInboundServerValuesCompletion.await();
 
       assertThat(inboundServerValues, contains(ELEMENTS_A_1, ELEMENTS_A_2));

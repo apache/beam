@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.direct;
 
-import java.util.Map;
-import java.util.NavigableSet;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
@@ -26,8 +24,6 @@ import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate.TimerUpdateBu
 import org.apache.beam.runners.direct.WatermarkManager.TransformWatermarks;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
@@ -39,8 +35,6 @@ class DirectTimerInternals implements TimerInternals {
   private final Clock processingTimeClock;
   private final TransformWatermarks watermarks;
   private final TimerUpdateBuilder timerUpdateBuilder;
-  private final Map<TimeDomain, NavigableSet<TimerData>> modifiedTimers;
-  private final Map<String, TimerData> modifiedTimerIds;
 
   public static DirectTimerInternals create(
       Clock clock, TransformWatermarks watermarks, TimerUpdateBuilder timerUpdateBuilder) {
@@ -52,11 +46,6 @@ class DirectTimerInternals implements TimerInternals {
     this.processingTimeClock = clock;
     this.watermarks = watermarks;
     this.timerUpdateBuilder = timerUpdateBuilder;
-    this.modifiedTimers = Maps.newHashMap();
-    this.modifiedTimers.put(TimeDomain.EVENT_TIME, Sets.newTreeSet());
-    this.modifiedTimers.put(TimeDomain.PROCESSING_TIME, Sets.newTreeSet());
-    this.modifiedTimers.put(TimeDomain.SYNCHRONIZED_PROCESSING_TIME, Sets.newTreeSet());
-    this.modifiedTimerIds = Maps.newHashMap();
   }
 
   @Override
@@ -67,7 +56,8 @@ class DirectTimerInternals implements TimerInternals {
       Instant target,
       Instant outputTimestamp,
       TimeDomain timeDomain) {
-    setTimer(TimerData.of(timerId, timerFamilyId, namespace, target, outputTimestamp, timeDomain));
+    timerUpdateBuilder.setTimer(
+        TimerData.of(timerId, timerFamilyId, namespace, target, outputTimestamp, timeDomain));
   }
 
   /**
@@ -78,8 +68,6 @@ class DirectTimerInternals implements TimerInternals {
   @Override
   public void setTimer(TimerData timerData) {
     timerUpdateBuilder.setTimer(timerData);
-    getModifiedTimersOrdered(timerData.getDomain()).add(timerData);
-    modifiedTimerIds.put(timerData.stringKey(), timerData);
   }
 
   @Override
@@ -105,25 +93,27 @@ class DirectTimerInternals implements TimerInternals {
   /** @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}. */
   @Deprecated
   @Override
-  public void deleteTimer(TimerData timerData) {
-    timerUpdateBuilder.deletedTimer(timerData);
-    modifiedTimerIds.put(timerData.stringKey(), timerData);
+  public void deleteTimer(TimerData timerKey) {
+    timerUpdateBuilder.deletedTimer(timerKey);
   }
 
   public TimerUpdate getTimerUpdate() {
     return timerUpdateBuilder.build();
   }
 
-  public NavigableSet<TimerData> getModifiedTimersOrdered(TimeDomain timeDomain) {
-    NavigableSet<TimerData> modified = modifiedTimers.get(timeDomain);
-    if (modified == null) {
-      throw new IllegalStateException("Unexpected time domain " + timeDomain);
-    }
-    return modified;
-  }
-
-  public Map<String, TimerData> getModifiedTimerIds() {
-    return modifiedTimerIds;
+  public boolean containsUpdateForTimeBefore(
+      Instant maxWatermarkTime, Instant maxProcessingTime, Instant maxSynchronizedProcessingTime) {
+    TimerUpdate update = timerUpdateBuilder.build();
+    return hasTimeBefore(
+            update.getSetTimers(),
+            maxWatermarkTime,
+            maxProcessingTime,
+            maxSynchronizedProcessingTime)
+        || hasTimeBefore(
+            update.getDeletedTimers(),
+            maxWatermarkTime,
+            maxProcessingTime,
+            maxSynchronizedProcessingTime);
   }
 
   @Override
@@ -144,5 +134,33 @@ class DirectTimerInternals implements TimerInternals {
   @Override
   public @Nullable Instant currentOutputWatermarkTime() {
     return watermarks.getOutputWatermark();
+  }
+
+  private boolean hasTimeBefore(
+      Iterable<? extends TimerData> timers,
+      Instant maxWatermarkTime,
+      Instant maxProcessingTime,
+      Instant maxSynchronizedProcessingTime) {
+    for (TimerData timerData : timers) {
+      Instant currentTime;
+      switch (timerData.getDomain()) {
+        case EVENT_TIME:
+          currentTime = maxWatermarkTime;
+          break;
+        case PROCESSING_TIME:
+          currentTime = maxProcessingTime;
+          break;
+        case SYNCHRONIZED_PROCESSING_TIME:
+          currentTime = maxSynchronizedProcessingTime;
+          break;
+        default:
+          throw new RuntimeException("Unexpected timeDomain " + timerData.getDomain());
+      }
+      if (timerData.getTimestamp().isBefore(currentTime)
+          || timerData.getTimestamp().isEqual(currentTime)) {
+        return true;
+      }
+    }
+    return false;
   }
 }

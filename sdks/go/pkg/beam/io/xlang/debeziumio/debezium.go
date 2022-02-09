@@ -45,6 +45,7 @@ import (
 	"reflect"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/xlangx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 )
 
@@ -57,6 +58,10 @@ const (
 	// PostgreSQL connector for Debezium
 	PostgreSQL = "PostgreSQL"
 )
+
+const serviceGradleTarget = ":sdks:java:io:debezium:expansion-service:shadowJar"
+
+var autoStartupAddress = xlangx.UseAutomatedJavaExpansionService(serviceGradleTarget)
 
 const readURN = "beam:transform:org.apache.beam:debezium_read:v1"
 
@@ -73,8 +78,8 @@ type readFromDebeziumSchema struct {
 }
 
 type debeziumConfig struct {
-	expansionService string
-	readSchema       *readFromDebeziumSchema
+	expansionAddr string
+	readSchema    *readFromDebeziumSchema
 }
 
 // readOption facilitates additional parameters to debeziumio.Read() Ptransform.
@@ -82,6 +87,9 @@ type readOption func(*debeziumConfig)
 
 // Read is an external PTransform which reads from Debezium and returns a
 // JSON string. It requires the address of an expansion service for Debezium IO.
+// If both the  host and port address are provided as "", an appropriate expansion
+// service will be automatically started; however this is slower than having a
+// persistent expansion service running.
 //
 // Example:
 //   username := "debezium"
@@ -91,7 +99,7 @@ type readOption func(*debeziumConfig)
 //   connectorClass := debeziumIO.POSTGRESQL
 //   maxrecords := 1
 //   debeziumio.Read(s.Scope("Read from debezium"), expansionAddr, username, password, host, port, connectorClass,
-//                   reflectx.String, debeziumio.MaxRecord(maxrecords), debeziumio.ExpansionService("localhost:9000"))
+//                   reflectx.String, debeziumio.MaxRecord(maxrecords), debeziumio.ExpansionAddr("localhost:9000"))
 func Read(s beam.Scope, username, password, host, port string, connectorClass DriverClassName, t reflect.Type, opts ...readOption) beam.PCollection {
 	rfds := readFromDebeziumSchema{
 		ConnectorClass: string(connectorClass),
@@ -105,13 +113,14 @@ func Read(s beam.Scope, username, password, host, port string, connectorClass Dr
 		opt(&dc)
 	}
 
-	// TODO: update to use default auto-expansion-service
-	if dc.expansionService == "" {
-		panic("no expansion service address provided.")
+	expansionAddr := dc.expansionAddr
+	if dc.expansionAddr == "" {
+		expansionAddr = autoStartupAddress
 	}
+
 	pl := beam.CrossLanguagePayload(rfds)
 	outT := beam.UnnamedOutput(typex.New(t))
-	out := beam.CrossLanguage(s, readURN, pl, dc.expansionService, nil, outT)
+	out := beam.CrossLanguage(s, readURN, pl, expansionAddr, nil, outT)
 	return out[beam.UnnamedOutputTag()]
 }
 
@@ -130,9 +139,9 @@ func ConnectionProperties(cp []string) readOption {
 	}
 }
 
-// ExpansionService sets the expansion service address to use for DebeziumIO cross-langauage transform.
-func ExpansionService(expansionService string) readOption {
+// ExpansionAddr sets the expansion service address to use for DebeziumIO cross-langauage transform.
+func ExpansionAddr(expansionAddr string) readOption {
 	return func(cfg *debeziumConfig) {
-		cfg.expansionService = expansionService
+		cfg.expansionAddr = expansionAddr
 	}
 }
