@@ -90,12 +90,13 @@ package main
 import (
 	"context"
 	"flag"
+	"math"
+	"reflect"
+
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/xlang/bigqueryio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
-	"math"
-	"reflect"
 )
 
 var (
