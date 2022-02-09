@@ -79,6 +79,10 @@ class PlaygroundState with ChangeNotifier {
 
   Stream<int>? get executionTime => _executionTime?.stream;
 
+  bool get graphAvailable =>
+      selectedExample?.type != ExampleType.test &&
+      [SDK.java, SDK.python].contains(sdk);
+
   setExample(ExampleModel example) {
     _selectedExample = example;
     _pipelineOptions = example.pipelineOptions ?? '';
