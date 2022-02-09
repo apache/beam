@@ -17,26 +17,24 @@
 # under the License.
 #
 
-variable "project_id" {
-  description = "The GCP Project ID where Playground Applications will be created"
-}
 
-variable "examples_bucket_name" {
-  description = "Name of Bucket to Store Playground Examples"
-  default     = "playground-examples"
-}
 
-variable "terraform_bucket_name" {
-  description = "Name of Bucket to Store Terraform States"
-  default     = "playground_terraform"
-}
+resource "google_container_cluster" "playground-gke" {
+  name               = var.gke_name
+  project            = var.project_id
+  location           = var.gke_location
+  initial_node_count = var.gke_node_count
+  node_config {
+    machine_type    = var.gke_machine_type
+    service_account = var.service_account
 
-variable "repository_id" {
-  description = "ID of Artifact Registry"
-  default     = "playground-repository"
-}
+    oauth_scopes = [
+      "https://www.googleapis.com/auth/cloud-platform"
+    ]
+    labels       = {
+      component = "beam-playground"
+    }
+    tags         = ["beam-playground"]
 
-variable "service_account" {
-  description = "Service account email"
-  default     = "service-account-playground"
+  }
 }

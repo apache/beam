@@ -21,42 +21,26 @@ variable "project_id" {
   description = "The GCP Project ID where Playground Applications will be created"
 }
 
-variable "redis_version" {
-  description = "The GCP Project ID where Playground Applications will be created"
-  default     = "REDIS_6_X"
+variable "gke_machine_type" {
+  description = "Node pool machine types"
+  default     = "e2-standard-4"
 }
 
-variable "terraform_state_bucket_name" {
-  description = "Bucket name for terraform state"
-  default     = "beam_playground_terraform"
-}
-
-variable "region" {
-  description = "Region of Redis"
-  default     = "us-central1"
-}
-
-variable "name" {
-  description = "Name of Redis"
-  default     = "playground-backend-cache"
-}
-
-variable "tier" {
-  description = "Tier of Redis"
-  default     = "STANDARD_HA"
-}
-
-variable "replica_count" {
-  description = "Redis's replica count"
+variable "gke_node_count" {
+  description = "Node pool size"
   default     = 1
 }
 
-variable "memory_size_gb" {
-  description = "Size of Redis memory"
-  default     = 4
+variable "service_account" {
+  description = "Service account email"
 }
 
-variable "display_name" {
-  default     = "Playground Cache"
-  description = "Display name for Redis service"
+variable "gke_name" {
+  description = "Name of GKE cluster"
+  default     = "playground-examples"
+}
+
+variable "gke_location" {
+  description = "Location of GKE cluster"
+  default     = "us-central1-a"
 }
