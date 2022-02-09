@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -16,54 +15,58 @@
 #
 
 """A pipeline to verify the installation of packages specified in the
-   requirements.txt.
-   python check_requirements_file_packages.py \\
-      --runner=PortableRunner \\
-      --job_endpoint=embed \\
-      --requirements_file=./requirements.txt \\
-      --environment_type="DOCKER"
+   requirements.txt. A requirements text is created during runtime with
+   package specified in _PACKAGE_IN_REQUIREMENTS_FILE.
 """
 
 import argparse
 import logging
+import pkg_resources as pkg
+import os
+import shutil
+import tempfile
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
+
+_PACKAGE_IN_REQUIREMENTS_FILE = ['matplotlib', 'seaborn']
 
 
-def run(argv=None):
+def verify_packages_from_requirements_file_are_installed(unused_element):
+  _PACKAGE_NOT_IN_REQUIREMENTS_FILE = ['torch']
+  packages_to_test = _PACKAGE_IN_REQUIREMENTS_FILE + (
+      _PACKAGE_NOT_IN_REQUIREMENTS_FILE)
+  for package_name in packages_to_test:
+    try:
+      output = pkg.get_distribution(package_name)
+    except pkg.DistributionNotFound as e:  # pylint: disable=unused-variable
+      output = None
+    if package_name in _PACKAGE_IN_REQUIREMENTS_FILE:
+      assert output is not None, ('Please check if package %s is specified'
+                                  ' in requirements file' % package_name)
+    if package_name in _PACKAGE_NOT_IN_REQUIREMENTS_FILE:
+      assert output is None
 
-  _PACKAGE_IN_REQUIREMENTS_FILE = 'matplotlib'
-  _PACKAGE_NOT_IN_REQUIREMENTS_FILE = 'torch'
 
+def run(argv=None, save_main_session=True):
   parser = argparse.ArgumentParser()
   _, pipeline_args = parser.parse_known_args(argv)
   pipeline_options = PipelineOptions(pipeline_args)
+  pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
+  temp_dir = tempfile.mkdtemp()
+  requirements_text_path = os.path.join(temp_dir, 'requirements.txt')
+  with open(requirements_text_path, 'w') as f:
+    f.write('\n'.join(_PACKAGE_IN_REQUIREMENTS_FILE))
+  pipeline_options.view_as(
+      SetupOptions).requirements_file = requirements_text_path
 
   with beam.Pipeline(options=pipeline_options) as p:
-    result = (
-        p | beam.Create(
-            [_PACKAGE_IN_REQUIREMENTS_FILE, _PACKAGE_NOT_IN_REQUIREMENTS_FILE]))
-
-    def assert_modules(p):
-      package_name, is_present = p[0], p[1]
-      if package_name == _PACKAGE_IN_REQUIREMENTS_FILE:
-        assert is_present, ('Please check if package %s is specified'
-                           'in requirements file' % package_name)
-      elif package_name == _PACKAGE_NOT_IN_REQUIREMENTS_FILE:
-        assert not is_present
-
-    def check_module_present(package_name):
-      import pkg_resources as pkg
-      try:
-        output = pkg.get_distribution(package_name)
-      except pkg.DistributionNotFound as e:  # pylint: disable=unused-variable
-        output = None
-      if output is not None:
-        return package_name, True
-      return package_name, False
-
-    (result | beam.Map(check_module_present) | beam.Map(assert_modules))  # pylint: disable=expression-not-assigned
+    ( # pylint: disable=expression-not-assigned
+        p
+        | beam.Create([None])
+        | beam.Map(verify_packages_from_requirements_file_are_installed))
+  shutil.rmtree(temp_dir)
 
 
 if __name__ == '__main__':

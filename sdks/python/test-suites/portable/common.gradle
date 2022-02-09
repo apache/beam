@@ -98,28 +98,6 @@ task portableLocalRunnerJuliaSetWithSetupPy {
   }
 }
 
-task portableLocalRunnerTestWithRequirementsFile {
-  dependsOn 'setupVirtualenv'
-  dependsOn ":sdks:python:container:py${pythonVersionSuffix}:docker"
-
-  doLast {
-    exec {
-      executable 'sh'
-      args '-c', """
-          . ${envdir}/bin/activate \\
-          && cd ${pythonRootDir} \\
-          && pip install -e . \\
-          && cd apache_beam/examples/complete \\
-          && python check_requirements_file_packages.py \\
-              --runner=PortableRunner \\
-              --job_endpoint=embed \\
-              --requirements_file=./requirements.txt \\
-              --environment_type="DOCKER"
-          """
-    }
-  }
-}
-
 task createProcessWorker {
   dependsOn ':sdks:python:container:build'
   dependsOn 'setupVirtualenv'
@@ -137,6 +115,28 @@ task createProcessWorker {
     }
     exec {
       commandLine('chmod', '+x', sdkWorkerFile)
+    }
+  }
+}
+
+// Requirements file is created during the runtime.
+task portableLocalRunnerTestWithRequirementsFile {
+  dependsOn 'setupVirtualenv'
+  dependsOn ":sdks:python:container:py${pythonVersionSuffix}:docker"
+
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', """
+          . ${envdir}/bin/activate \\
+          && cd ${pythonRootDir} \\
+          && pip install -e . \\
+          && cd apache_beam/examples/complete \\
+          && python check_requirements_file_packages.py \\
+              --runner=PortableRunner \\
+              --job_endpoint=embed \\
+              --environment_type="DOCKER"
+          """
     }
   }
 }
@@ -204,7 +204,8 @@ project.task("postCommitPy${pythonVersionSuffix}") {
                "postCommitPy${pythonVersionSuffix}IT",
                ':runners:spark:2:job-server:shadowJar',
                'portableLocalRunnerJuliaSetWithSetupPy',
-               'portableWordCountSparkRunnerBatch']
+               'portableWordCountSparkRunnerBatch',
+               'portableLocalRunnerTestWithRequirementsFile']
 }
 
 project.task("flinkExamples") {
