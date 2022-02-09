@@ -786,16 +786,11 @@ class TestS3IO(unittest.TestCase):
     self.aws.delete(file_name)
 
   def test_zerosize_file(self):
-    # TODO(BEAM-13856): Python S3 I/O doesn't work for writing zero length
-    # files.
     file_name = self.TEST_DATA_PATH + 'zerosized'
     file_size = 0
-    assert_msg = "Zerosized file did not raise an error on real s3 client"
-    with self.assertRaises(messages.S3ClientError, msg=assert_msg):
-      self._insert_random_file(self.aws.client, file_name, file_size)
-      if isinstance(self.client, fake_client.FakeS3Client):
-        raise messages.S3ClientError("fake client error", code=400)
-
+    self._insert_random_file(self.aws.client, file_name, file_size)
+    with self.aws.open(file_name, 'r') as f:
+      self.assertEqual(len(f.read()), file_size)
     self.aws.delete(file_name)
 
 
