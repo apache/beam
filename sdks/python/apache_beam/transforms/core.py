@@ -681,8 +681,9 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   # the DoFn or maybe the runner
   def infer_output_type(self, input_type):
     # TODO(BEAM-8247): Side inputs types.
-    return trivial_inference.element_type(self._strip_output_annotations(
-        trivial_inference.infer_return_type(self.process, [input_type])))
+    return trivial_inference.element_type(
+        self._strip_output_annotations(
+            trivial_inference.infer_return_type(self.process, [input_type])))
 
   def _strip_output_annotations(self, type_hint):
     annotations = (TimestampedValue, WindowedValue, pvalue.TaggedOutput)
@@ -765,8 +766,9 @@ class CallableWrapperDoFn(DoFn):
     return type_hints
 
   def infer_output_type(self, input_type):
-    return trivial_inference.element_type(self._strip_output_annotations(
-        trivial_inference.infer_return_type(self._fn, [input_type])))
+    return trivial_inference.element_type(
+        self._strip_output_annotations(
+            trivial_inference.infer_return_type(self._fn, [input_type])))
 
   def _process_argspec_fn(self):
     return getattr(self._fn, '_argspec_fn', self._fn)
