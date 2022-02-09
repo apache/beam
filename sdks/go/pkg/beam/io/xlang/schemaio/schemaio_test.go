@@ -30,13 +30,13 @@ func init() {
 }
 
 type testConfig struct {
-	cfg1 string
-	cfg2 *int
+	Cfg1 string
+	Cfg2 *int
 }
 
 type testDataSchema struct {
-	scm1 bool
-	scm2 float64
+	Scm1 bool
+	Scm2 float64
 }
 
 const testLocation = "test_location"

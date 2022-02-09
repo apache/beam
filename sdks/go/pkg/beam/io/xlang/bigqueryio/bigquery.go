@@ -103,7 +103,7 @@ const (
 	readURN  = "beam:transform:org.apache.beam:schemaio_bigquery_read:v1"
 	writeURN = "beam:transform:org.apache.beam:schemaio_bigquery_write:v1"
 
-	serviceGradleTarget = ":sdks:java:extensions:schemaio-expansion-service:runExpansionService"
+	serviceGradleTarget = ":sdks:java:io:google-cloud-platform:expansion-service:runExpansionService"
 )
 
 var autoStartupAddress = xlangx.UseAutomatedJavaExpansionService(serviceGradleTarget)
@@ -166,8 +166,8 @@ type readConfig struct {
 type readOption func(*readConfig)
 
 // ReadExpansionAddr specifies the address of a persistent expansion service to use for a Read
-// transform. If this is not provided, the transform will automatically start an appropriate
-// expansion service instead.
+// transform. If this is not provided, or if an empty string is provided, the transform will
+// automatically start an appropriate expansion service instead.
 func ReadExpansionAddr(addr string) readOption {
 	return func(rc *readConfig) {
 		rc.addr = addr
@@ -246,9 +246,9 @@ type writeConfig struct {
 }
 type writeOption func(*writeConfig)
 
-//WriteExpansionAddr specifies the address of a persistent expansion service to use for a Write
-// transform. If this is not provided, the transform will automatically start an appropriate
-// expansion service instead.
+// WriteExpansionAddr specifies the address of a persistent expansion service to use for a Write
+// transform. If this is not provided, or if an empty string is provided, the transform will
+// automatically start an appropriate expansion service instead.
 func WriteExpansionAddr(addr string) writeOption {
 	return func(wc *writeConfig) {
 		wc.addr = addr
