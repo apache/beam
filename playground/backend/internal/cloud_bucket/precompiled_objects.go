@@ -276,11 +276,13 @@ func (cd *CloudStorage) getDefaultPrecompiledObjectsPath(ctx context.Context, bu
 	pathToFile := fmt.Sprintf("%s/%s", sdk.String(), defaultPrecompiledObjectsInfo)
 	rc, err := bucket.Object(pathToFile).NewReader(ctx)
 	if err != nil {
+		logger.Errorf("Object(%q).NewReader: %v", pathToFile, err.Error())
 		return "", err
 	}
 
 	data, err := io.ReadAll(rc)
 	if err != nil {
+		logger.Errorf("ioutil.ReadAll: %v", err.Error())
 		return "", err
 	}
 

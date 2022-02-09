@@ -21,6 +21,7 @@ import (
 	"beam.apache.org/playground/backend/internal/cloud_bucket"
 	"beam.apache.org/playground/backend/internal/logger"
 	"context"
+	"fmt"
 )
 
 // PutPrecompiledObjectsToCategory adds categories with precompiled objects to protobuf object
@@ -101,7 +102,21 @@ func GetDefaultPrecompiledObject(ctx context.Context, sdk pb.Sdk, cacheService c
 	precompiledObject, err := cacheService.GetDefaultPrecompiledObject(ctx, sdk)
 	if err != nil {
 		logger.Errorf("GetDefaultPrecompiledObject(): error during getting default precompiled object %s", err.Error())
-		return nil, err
+		bucket := cloud_bucket.New()
+		defaultPrecompiledObjects, err := bucket.GetDefaultPrecompiledObjects(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for sdk, precompiledObject := range defaultPrecompiledObjects {
+			if err := cacheService.SetDefaultPrecompiledObject(ctx, sdk, precompiledObject); err != nil {
+				logger.Errorf("GetPrecompiledObjects(): cache error: %s", err.Error())
+			}
+		}
+		precompiledObject, ok := defaultPrecompiledObjects[sdk]
+		if !ok {
+			return nil, fmt.Errorf("no default precompiled object found for this sdk: %s", sdk)
+		}
+		return precompiledObject, nil
 	}
 	return precompiledObject, nil
 }

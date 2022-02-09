@@ -330,14 +330,6 @@ func (controller *playgroundController) GetDefaultPrecompiledObject(ctx context.
 		logger.Errorf("GetDefaultPrecompiledObject(): error during getting catalog: %s", err.Error())
 		return nil, errors.InternalError("Error during getting Precompiled Objects", "Error with cloud connection")
 	}
-	response := pb.GetDefaultPrecompiledObjectResponse{PrecompiledObject: &pb.PrecompiledObject{
-		CloudPath:       precompiledObject.CloudPath,
-		Name:            precompiledObject.Name,
-		Description:     precompiledObject.Description,
-		Type:            precompiledObject.Type,
-		PipelineOptions: precompiledObject.PipelineOptions,
-		Link:            precompiledObject.Link,
-		DefaultExample:  precompiledObject.DefaultExample,
-	}}
+	response := pb.GetDefaultPrecompiledObjectResponse{PrecompiledObject: precompiledObject}
 	return &response, nil
 }
