@@ -55,7 +55,7 @@
 
 ## I/Os
 
-* Go SDK now has wrappers for the following Cross Language Transforms from Java, along with automatic expansion service startup for each. 
+* Go SDK now has wrappers for the following Cross Language Transforms from Java, along with automatic expansion service startup for each.
     *  JDBCIO ([BEAM-13293](https://issues.apache.org/jira/browse/BEAM-13293)).
     *  Debezium ([BEAM-13761](https://issues.apache.org/jira/browse/BEAM-13761)).
     *  BeamSQL ([BEAM-13683])(https://issues.apache.org/jira/browse/BEAM-13683)).
