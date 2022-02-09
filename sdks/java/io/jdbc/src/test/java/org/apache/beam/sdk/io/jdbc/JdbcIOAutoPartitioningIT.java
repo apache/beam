@@ -143,7 +143,11 @@ public class JdbcIOAutoPartitioningIT {
               KV.of("name", "VARCHAR(50)"),
               KV.of("specialDate", "TIMESTAMP")));
     } catch (SQLException e) {
-      LOG.warn("Exception occurred when preparing database {}", dbms, e);
+      LOG.info(
+          "Exception occurred when preparing database {}. "
+              + "This is expected, and the test should pass.",
+          dbms,
+          e);
       return;
     } catch (Exception e) {
       throw e;
