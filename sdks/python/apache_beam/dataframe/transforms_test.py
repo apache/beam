@@ -17,7 +17,6 @@
 import typing
 import unittest
 
-import numpy as np
 import pandas as pd
 
 import apache_beam as beam
@@ -74,26 +73,8 @@ coders.registry.register_coder(Nested, coders.RowCoder)
 
 
 class TransformTest(unittest.TestCase):
-  def run_scenario(self, input, func, check_subset=False):
-    """
-    In order for us to perform non-deferred operations, we have
-    to enumerate all possible categories, even if they are
-    unobserved. The default Pandas implementation on the other hand
-    does not produce unobserved columns. This means when conducting
-    tests, we need to account for the fact that the Beam result may
-    be a superset of that of the Pandas result.
-
-    When ``check_subset`` is set to ``True``, we will only
-    check that all of the columns in the Pandas implementation is
-    contained in that of the Beam implementation.
-    """
+  def run_scenario(self, input, func):
     expected = func(input)
-    expected_proxy = expected.iloc[:0] if isinstance(
-        expected, pd.core.generic.NDFrame) else None
-    if hasattr(expected_proxy, 'columns'):
-      compare_columns = expected_proxy.columns
-    else:
-      check_subset = False
 
     empty = input.iloc[0:0]
     input_placeholder = expressions.PlaceholderExpression(empty)
@@ -101,8 +82,6 @@ class TransformTest(unittest.TestCase):
     actual_deferred = func(input_deferred)._expr.evaluate_at(
         expressions.Session({input_placeholder: input}))
 
-    actual_deferred = actual_deferred.filter(
-        compare_columns) if check_subset else actual_deferred
     check_correct(expected, actual_deferred)
 
     with beam.Pipeline() as p:
@@ -110,16 +89,13 @@ class TransformTest(unittest.TestCase):
       input_df = convert.to_dataframe(input_pcoll, proxy=empty)
       output_df = func(input_df)
 
-      output_df = output_df.filter(
-          compare_columns) if check_subset else output_df
-
       output_proxy = output_df._expr.proxy()
       if isinstance(output_proxy, pd.core.generic.NDFrame):
         self.assertTrue(
-            output_proxy.iloc[:0].equals(expected_proxy),
+            output_proxy.iloc[:0].equals(expected.iloc[:0]),
             (
                 'Output proxy is incorrect:\n'
-                f'Expected:\n{expected_proxy}\n\n'
+                f'Expected:\n{expected.iloc[:0]}\n\n'
                 f'Actual:\n{output_proxy.iloc[:0]}'))
       else:
         self.assertEqual(type(output_proxy), type(expected))
@@ -357,49 +333,6 @@ class TransformTest(unittest.TestCase):
         'repeats': [3, 1, 4, 5, 2],
     })
     self.run_scenario(df, lambda df: df.strings.str.repeat(df.repeats))
-
-  def test_get_dummies(self):
-    # Should not work because series is not a categorical type
-    with self.assertRaisesRegex(
-        frame_base.WontImplementError,
-        r"get_dummies\(\) of non-categorical type is not supported"):
-      s = pd.Series(['a ,b', 'a', 'a, d'])
-      self.run_scenario(s, lambda s: s.str.get_dummies(','), check_subset=True)
-
-    # Different separator
-    s = pd.Series(['a ,b', 'a', 'a, d', 'c'])
-    s = s.astype(pd.CategoricalDtype(categories=['a ,b', 'c', 'b', 'a,d']))
-    self.run_scenario(s, lambda s: s.str.get_dummies(','), check_subset=True)
-
-    # Pandas docs example 1
-    s = pd.Series(['a|b', 'a', 'a|c']).astype('category')
-    self.run_scenario(s, lambda s: s.str.get_dummies(','), check_subset=True)
-
-    # Pandas docs example 2
-    # Shouldn't still work even though np.nan is not considered a category
-    # because we automatically create a nan column
-    s = pd.Series(['a|b', np.nan, 'a|c']).astype('category')
-    self.run_scenario(s, lambda s: s.str.get_dummies(), check_subset=True)
-
-    # Should have two columns c, nan
-    s = pd.Series(['a|b', 'b|c', 'a|c', 'c', 'd'])
-    s = s.astype(pd.CategoricalDtype(categories=['a', 'b', 'c']))
-    self.run_scenario(s, lambda s: s.str.get_dummies(), check_subset=True)
-
-    # Explicitly pass nan as a category
-    s = pd.Series(['a|b', 'b|c', 'a|c', 'c', 'd'])
-    s = s.astype(pd.CategoricalDtype(categories=['a', 'b', 'c', 'nan']))
-    self.run_scenario(s, lambda s: s.str.get_dummies(), check_subset=True)
-
-    # Bools do not work because they are not a string type
-    with self.assertRaisesRegex(
-        AttributeError, r"Can only use .str accessor with string values"):
-      s = pd.Series([True, False, False, True])
-      self.run_scenario(s, lambda s: s.str.get_dummies(), check_subset=True)
-
-    # Bools casted to string work
-    s = pd.Series([True, False, False, True]).astype('str').astype('category')
-    self.run_scenario(s, lambda s: s.str.get_dummies(), check_subset=True)
 
   def test_rename(self):
     df = pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})

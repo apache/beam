@@ -4629,13 +4629,8 @@ class _DeferredStringMethods(frame_base.DeferredBase):
   @frame_base.args_to_kwargs(pd.core.strings.StringMethods)
   def get_dummies(self, **kwargs):
     """
-    Series must be categorical type. Either cast to ``category`` to
-    infer categories, or preferred, cast to ``CategoricalDtype``
+    Series must be categorical dtype. Please cast to ``CategoricalDtype``
     to ensure correct categories.
-
-    Booleans are not supported because entries must be a string type.
-    First cast to ``string`` and then to ``category`` if data contains
-    booleans.
     """
     dtype = self._expr.proxy().dtype
     if not isinstance(dtype, pd.CategoricalDtype):
@@ -4660,9 +4655,9 @@ class _DeferredStringMethods(frame_base.DeferredBase):
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'get_dummies',
-            lambda series: proxy.combine_first(
-              series.str.get_dummies(**kwargs)
-            ).fillna(value=0, method=None).astype(int),
+            lambda series: pd.concat(
+              [proxy, series.str.get_dummies(**kwargs)]
+              ).fillna(value=0, method=None).astype(int),
             [self._expr],
             proxy=proxy,
             requires_partition_by=partitionings.Arbitrary(),
