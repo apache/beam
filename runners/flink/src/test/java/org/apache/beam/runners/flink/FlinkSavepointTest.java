@@ -96,6 +96,9 @@ public class FlinkSavepointTest implements Serializable {
   /** Static for synchronization between the pipeline state and the test. */
   private static volatile CountDownLatch oneShotLatch;
 
+  /** Reusable executor for portable jobs. */
+  private static ListeningExecutorService flinkJobExecutor;
+
   /** Temporary folder for savepoints. */
   @ClassRule public static transient TemporaryFolder tempFolder = new TemporaryFolder();
 
@@ -104,6 +107,8 @@ public class FlinkSavepointTest implements Serializable {
 
   @BeforeClass
   public static void beforeClass() throws Exception {
+    flinkJobExecutor = MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(1));
+
     Configuration config = new Configuration();
     // Avoid port collision in parallel tests
     config.setInteger(RestOptions.PORT, 0);
@@ -132,6 +137,13 @@ public class FlinkSavepointTest implements Serializable {
   public static void afterClass() throws Exception {
     flinkCluster.close();
     flinkCluster = null;
+
+    flinkJobExecutor.shutdown();
+    flinkJobExecutor.awaitTermination(10, TimeUnit.SECONDS);
+    if (!flinkJobExecutor.isShutdown()) {
+      LOG.warn("Could not shutdown Flink job executor");
+    }
+    flinkJobExecutor = null;
   }
 
   @After
@@ -209,26 +221,20 @@ public class FlinkSavepointTest implements Serializable {
 
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline);
 
-    ListeningExecutorService executorService =
-        MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(1));
     FlinkPipelineOptions pipelineOptions = pipeline.getOptions().as(FlinkPipelineOptions.class);
-    try {
-      JobInvocation jobInvocation =
-          FlinkJobInvoker.create(null)
-              .createJobInvocation(
-                  "id",
-                  "none",
-                  executorService,
-                  pipelineProto,
-                  pipelineOptions,
-                  new FlinkPipelineRunner(pipelineOptions, null, Collections.emptyList()));
+    JobInvocation jobInvocation =
+        FlinkJobInvoker.create(null)
+            .createJobInvocation(
+                "id",
+                "none",
+                flinkJobExecutor,
+                pipelineProto,
+                pipelineOptions,
+                new FlinkPipelineRunner(pipelineOptions, null, Collections.emptyList()));
 
-      jobInvocation.start();
+    jobInvocation.start();
 
-      return waitForJobToBeReady();
-    } finally {
-      executorService.shutdown();
-    }
+    return waitForJobToBeReady();
   }
 
   private String getFlinkMaster() throws Exception {
