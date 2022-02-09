@@ -108,7 +108,6 @@ class AutocompleteTest(unittest.TestCase):
   @pytest.mark.no_xdist
   @pytest.mark.examples_postcommit
   def test_autocomplete_output_files_on_small_input(self):
-    logging.error('SAVE_MAIN_SESSION')
     test_pipeline = TestPipeline(is_integration_test=True)
     # Setup the files with expected content.
     temp_folder = tempfile.mkdtemp()

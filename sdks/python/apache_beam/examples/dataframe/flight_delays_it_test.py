@@ -28,7 +28,6 @@ import unittest
 import uuid
 
 import pandas as pd
-import pytest
 
 from apache_beam.examples.dataframe import flight_delays
 from apache_beam.io.filesystems import FileSystems
@@ -100,8 +99,9 @@ class FlightDelaysTest(unittest.TestCase):
   def tearDown(self):
     FileSystems.delete([self.outdir + '/'])
 
-  @pytest.mark.examples_postcommit
-  @pytest.mark.it_postcommit
+  # TODO(BEAM-13867) Enable once is fixed
+  # @pytest.mark.examples_postcommit
+  # @pytest.mark.it_postcommit
   def test_flight_delays(self):
     flight_delays.run_flight_delay_pipeline(
         self.test_pipeline,
@@ -125,8 +125,7 @@ class FlightDelaysTest(unittest.TestCase):
       expected_df = expected_df.sort_values('airline').reset_index(drop=True)
 
       try:
-        pd.testing.assert_frame_equal(
-            result_df, expected_df, check_dtype=False, atol=0.5)
+        pd.testing.assert_frame_equal(result_df, expected_df)
       except AssertionError as e:
         raise AssertionError(
             f"date={date!r} result DataFrame:\n\n"
