@@ -134,7 +134,8 @@ public abstract class SpannerConfig implements Serializable {
 
     abstract Builder setMaxCumulativeBackoff(ValueProvider<Duration> maxCumulativeBackoff);
 
-    abstract Builder setExecuteStreamingSqlRetrySettings(RetrySettings executeStreamingSqlRetrySettings);
+    abstract Builder setExecuteStreamingSqlRetrySettings(
+        RetrySettings executeStreamingSqlRetrySettings);
 
     abstract Builder setCommitRetrySettings(RetrySettings commitRetrySettings);
 
@@ -199,8 +200,11 @@ public abstract class SpannerConfig implements Serializable {
     return toBuilder().setMaxCumulativeBackoff(maxCumulativeBackoff).build();
   }
 
-  public SpannerConfig withExecuteStreamingSqlRetrySettings(RetrySettings executeStreamingSqlRetrySettings) {
-    return toBuilder().setExecuteStreamingSqlRetrySettings(executeStreamingSqlRetrySettings).build();
+  public SpannerConfig withExecuteStreamingSqlRetrySettings(
+      RetrySettings executeStreamingSqlRetrySettings) {
+    return toBuilder()
+        .setExecuteStreamingSqlRetrySettings(executeStreamingSqlRetrySettings)
+        .build();
   }
 
   public SpannerConfig withCommitRetrySettings(RetrySettings commitRetrySettings) {

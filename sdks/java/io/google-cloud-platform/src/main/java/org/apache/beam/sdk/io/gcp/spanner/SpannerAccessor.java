@@ -110,9 +110,13 @@ public class SpannerAccessor implements AutoCloseable {
 
     // Set retryable codes
     if (spannerConfig.getRetryableCodes() != null) {
-      builder.getSpannerStubSettingsBuilder().commitSettings()
+      builder
+          .getSpannerStubSettingsBuilder()
+          .commitSettings()
           .setRetryableCodes(spannerConfig.getRetryableCodes());
-      builder.getSpannerStubSettingsBuilder().executeStreamingSqlSettings()
+      builder
+          .getSpannerStubSettingsBuilder()
+          .executeStreamingSqlSettings()
           .setRetryableCodes(spannerConfig.getRetryableCodes());
     }
 
@@ -124,7 +128,8 @@ public class SpannerAccessor implements AutoCloseable {
       commitSettings.setRetrySettings(spannerConfig.getCommitRetrySettings());
     } else if (commitDeadline != null && commitDeadline.get().getMillis() > 0) {
       // Set the GRPC deadline on the Commit API call.
-      RetrySettings.Builder commitRetrySettingsBuilder = commitSettings.getRetrySettings().toBuilder();
+      RetrySettings.Builder commitRetrySettingsBuilder =
+          commitSettings.getRetrySettings().toBuilder();
       commitSettings.setRetrySettings(
           commitRetrySettingsBuilder
               .setTotalTimeout(org.threeten.bp.Duration.ofMillis(commitDeadline.get().getMillis()))
@@ -137,9 +142,10 @@ public class SpannerAccessor implements AutoCloseable {
     // Set execute streaming sql retry settings
     ServerStreamingCallSettings.Builder<ExecuteSqlRequest, PartialResultSet>
         executeStreamingSqlSettings =
-        builder.getSpannerStubSettingsBuilder().executeStreamingSqlSettings();
+            builder.getSpannerStubSettingsBuilder().executeStreamingSqlSettings();
     if (spannerConfig.getExecuteStreamingSqlRetrySettings() != null) {
-      executeStreamingSqlSettings.setRetrySettings(spannerConfig.getExecuteStreamingSqlRetrySettings());
+      executeStreamingSqlSettings.setRetrySettings(
+          spannerConfig.getExecuteStreamingSqlRetrySettings());
     } else {
       // Setting the timeout for streaming read to 2 hours. This is 1 hour by default
       // after BEAM 2.20.
