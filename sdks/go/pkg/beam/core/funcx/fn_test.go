@@ -232,6 +232,21 @@ func TestNew(t *testing.T) {
 			},
 			Err: errors.New(errIllegalParametersInEmit),
 		},
+		{
+			Name: "errIllegalParametersInIter - malformed Iter",
+			Fn:   func(int, func(*nonConcreteType) bool, func(*int, *string) bool) {},
+			Err:  errors.New(errIllegalParametersInIter),
+		},
+		{
+			Name: "errIllegalParametersInIter - malformed ReIter",
+			Fn:   func(int, func() func(*nonConcreteType) bool, func(*int, *string) bool) {},
+			Err:  errors.New(errIllegalParametersInReIter),
+		},
+		{
+			Name: "errIllegalParametersInMultiMap - malformed MultiMap",
+			Fn:   func(int, func(string) func(*nonConcreteType) bool) {},
+			Err:  errors.New(errIllegalParametersInMultiMap),
+		},
 	}
 
 	for _, test := range tests {
