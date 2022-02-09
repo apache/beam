@@ -767,7 +767,7 @@ class StagerTest(unittest.TestCase):
     self.assertEqual(['apache_beam\n', 'avro-python3\n', 'numpy\n'],
                      sorted(lines))
 
-  def __populate_requitements_cache_fake(
+  def _populate_requitements_cache_fake(
       self, requirements_file, temp_dir, populate_cache_with_sdists):
     if not populate_cache_with_sdists:
       self.create_temp_file(os.path.join(temp_dir, 'nothing.whl'), 'Fake whl')
@@ -792,7 +792,7 @@ class StagerTest(unittest.TestCase):
     # for default container image, the sdk_container_image option would be none
     with mock.patch('apache_beam.runners.portability.stager_test'
                     '.stager.Stager._populate_requirements_cache',
-                    staticmethod(self.__populate_requitements_cache_fake)):
+                    staticmethod(self._populate_requitements_cache_fake)):
       options.view_as(SetupOptions).requirements_cache_only_sources = False
       resources = self.stager.create_and_stage_job_resources(
           options, staging_location=staging_dir)[1]
@@ -816,7 +816,7 @@ class StagerTest(unittest.TestCase):
         os.path.join(source_dir, stager.REQUIREMENTS_FILE), 'nothing')
     with mock.patch('apache_beam.runners.portability.stager_test'
                     '.stager.Stager._populate_requirements_cache',
-                    staticmethod(self.__populate_requitements_cache_fake)):
+                    staticmethod(self._populate_requitements_cache_fake)):
       options.view_as(SetupOptions).requirements_cache_only_sources = True
       resources = self.stager.create_and_stage_job_resources(
           options, staging_location=staging_dir)[1]
