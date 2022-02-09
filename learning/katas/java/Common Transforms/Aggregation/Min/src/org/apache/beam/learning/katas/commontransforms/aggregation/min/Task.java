@@ -22,6 +22,7 @@ package org.apache.beam.learning.katas.commontransforms.aggregation.min;
 //   name: AggregationMin
 //   description: Task from katas to compute the minimum of elements.
 //   multifile: false
+//   context_line: 37
 //   categories:
 //     - Combiners
 

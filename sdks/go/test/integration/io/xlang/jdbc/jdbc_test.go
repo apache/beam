@@ -35,8 +35,8 @@ import (
 )
 
 func checkFlags(t *testing.T) {
-	if *integration.IoExpansionAddr == "" {
-		t.Skip("No IO expansion address provided.")
+	if *integration.SchemaIoExpansionAddr == "" {
+		t.Skip("No Schema IO expansion address provided.")
 	}
 }
 
@@ -101,10 +101,10 @@ func TestJDBCIO_BasicReadWrite(t *testing.T) {
 	host := "localhost"
 	jdbcUrl := fmt.Sprintf("jdbc:postgresql://%s:%d/%s", host, port, dbname)
 
-	write := WritePipeline(*integration.IoExpansionAddr, tableName, "org.postgresql.Driver", jdbcUrl, username, password)
+	write := WritePipeline(*integration.SchemaIoExpansionAddr, tableName, "org.postgresql.Driver", jdbcUrl, username, password)
 	ptest.RunAndValidate(t, write)
 
-	read := ReadPipeline(*integration.IoExpansionAddr, tableName, "org.postgresql.Driver", jdbcUrl, username, password)
+	read := ReadPipeline(*integration.SchemaIoExpansionAddr, tableName, "org.postgresql.Driver", jdbcUrl, username, password)
 	ptest.RunAndValidate(t, read)
 }
 

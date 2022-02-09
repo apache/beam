@@ -758,8 +758,13 @@ public class DisplayData implements Serializable {
       }
       if (namespace.isSynthetic() && namespace.getSimpleName().contains("$$Lambda")) {
         try {
-          namespace =
-              Class.forName(namespace.getCanonicalName().replaceFirst("\\$\\$Lambda.*", ""));
+          String className = namespace.getCanonicalName();
+          // A local class, local interface, or anonymous class does not have a canonical name.
+          // https://docs.oracle.com/javase/specs/jls/se17/html/jls-6.html#jls-6.7
+          if (className == null) {
+            className = namespace.getName();
+          }
+          namespace = Class.forName(className.replaceFirst("\\$\\$Lambda.*", ""));
         } catch (Exception e) {
           throw new PopulateDisplayDataException(
               "Failed to get the enclosing class of lambda " + subComponent, e);

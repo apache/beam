@@ -24,7 +24,7 @@ import (
 
 func TestPutPrecompiledObjectsToCategory(t *testing.T) {
 	precompiledObjectToAdd := &cloud_bucket.PrecompiledObjects{
-		{"TestName", "SDK_JAVA/TestCategory/TestName.java", "TestDescription", pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE, []string{""}, "", ""},
+		{"TestName", "SDK_JAVA/TestCategory/TestName.java", "TestDescription", pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE, []string{""}, "", "", false, 1},
 	}
 	type args struct {
 		categoryName       string
@@ -56,6 +56,7 @@ func TestPutPrecompiledObjectsToCategory(t *testing.T) {
 								Name:        "TestName",
 								Description: "TestDescription",
 								Type:        pb.PrecompiledObjectType_PRECOMPILED_OBJECT_TYPE_EXAMPLE,
+								ContextLine: 1,
 							},
 						},
 					},

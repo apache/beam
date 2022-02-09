@@ -25,6 +25,7 @@
 #   multifile: false
 #   default_example: true
 #   pipeline_options: --output output.txt
+#   context_line: 48
 #   categories:
 #     - Combiners
 #     - Options

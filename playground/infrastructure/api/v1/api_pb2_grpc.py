@@ -99,6 +99,11 @@ class PlaygroundServiceStub(object):
                 request_serializer=api__pb2.GetPrecompiledObjectLogsRequest.SerializeToString,
                 response_deserializer=api__pb2.GetPrecompiledObjectLogsResponse.FromString,
                 )
+        self.GetPrecompiledObjectGraph = channel.unary_unary(
+                '/api.v1.PlaygroundService/GetPrecompiledObjectGraph',
+                request_serializer=api__pb2.GetPrecompiledObjectGraphRequest.SerializeToString,
+                response_deserializer=api__pb2.GetPrecompiledObjectGraphResponse.FromString,
+                )
         self.GetDefaultPrecompiledObject = channel.unary_unary(
                 '/api.v1.PlaygroundService/GetDefaultPrecompiledObject',
                 request_serializer=api__pb2.GetDefaultPrecompiledObjectRequest.SerializeToString,
@@ -207,6 +212,13 @@ class PlaygroundServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GetPrecompiledObjectGraph(self, request, context):
+        """Get the graph of an PrecompiledObject.
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def GetDefaultPrecompiledObject(self, request, context):
         """Get the default precompile object for the sdk.
         """
@@ -286,6 +298,11 @@ def add_PlaygroundServiceServicer_to_server(servicer, server):
                     servicer.GetPrecompiledObjectLogs,
                     request_deserializer=api__pb2.GetPrecompiledObjectLogsRequest.FromString,
                     response_serializer=api__pb2.GetPrecompiledObjectLogsResponse.SerializeToString,
+            ),
+            'GetPrecompiledObjectGraph': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetPrecompiledObjectGraph,
+                    request_deserializer=api__pb2.GetPrecompiledObjectGraphRequest.FromString,
+                    response_serializer=api__pb2.GetPrecompiledObjectGraphResponse.SerializeToString,
             ),
             'GetDefaultPrecompiledObject': grpc.unary_unary_rpc_method_handler(
                     servicer.GetDefaultPrecompiledObject,
@@ -537,6 +554,23 @@ class PlaygroundService(object):
         return grpc.experimental.unary_unary(request, target, '/api.v1.PlaygroundService/GetPrecompiledObjectLogs',
             api__pb2.GetPrecompiledObjectLogsRequest.SerializeToString,
             api__pb2.GetPrecompiledObjectLogsResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def GetPrecompiledObjectGraph(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/api.v1.PlaygroundService/GetPrecompiledObjectGraph',
+            api__pb2.GetPrecompiledObjectGraphRequest.SerializeToString,
+            api__pb2.GetPrecompiledObjectGraphResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
