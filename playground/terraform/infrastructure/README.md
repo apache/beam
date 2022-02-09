@@ -61,7 +61,7 @@ After applying terraform following resources will be created:
 
 ### Destroy deployed resources
 
-At any point, all GCP resources can be destroyed using `terraform destroy` command:
+At any point, all GCP resources created by terraform can be destroyed using `terraform destroy` command:
 
 ```bash
 $ terraform destroy
