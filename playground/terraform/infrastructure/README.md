@@ -67,5 +67,5 @@ At any point, all GCP resources can be destroyed using `terraform destroy` comma
 $ terraform destroy
 ```
 
-For more details please see this [documentation](https://www.terraform.io/cli/commands/destroy) 
+For more details please see this [documentation](https://www.terraform.io/cli/commands/destroy)
 
