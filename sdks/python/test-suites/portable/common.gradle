@@ -36,15 +36,13 @@ def createFlinkRunnerTestTask(String workerType) {
   }
   def task = toxTask(taskName, 'flink-runner-test', options)
   // Through the Flink job server, we transitively add dependencies on the expansion services needed in tests.
-  task.configure {
-    dependsOn ":runners:flink:${latestFlinkVersion}:job-server:shadowJar"
-    // The Java SDK worker is required to execute external transforms.
-    dependsOn ':sdks:java:container:java8:docker'
-    if (workerType == 'DOCKER') {
-      dependsOn pythonContainerTask
-    } else if (workerType == 'PROCESS') {
-      dependsOn createProcessWorker
-    }
+  task.dependsOn ":runners:flink:${latestFlinkVersion}:job-server:shadowJar"
+  // The Java SDK worker is required to execute external transforms.
+  task.dependsOn ':sdks:java:container:java8:docker'
+  if (workerType == 'DOCKER') {
+    task.dependsOn ext.pythonContainerTask
+  } else if (workerType == 'PROCESS') {
+    task.dependsOn 'createProcessWorker'
   }
   return task
 }
@@ -58,7 +56,7 @@ task flinkValidatesRunner() {
 }
 
 // TODO(BEAM-8598): Enable on pre-commit.
-tasks.register("flinkTriggerTranscript") {
+task flinkTriggerTranscript() {
   dependsOn 'setupVirtualenv'
   dependsOn ":runners:flink:${latestFlinkVersion}:job-server:shadowJar"
   doLast {
@@ -77,7 +75,7 @@ tasks.register("flinkTriggerTranscript") {
 }
 
 // Verifies BEAM-10702.
-tasks.register("portableLocalRunnerJuliaSetWithSetupPy") {
+task portableLocalRunnerJuliaSetWithSetupPy {
   dependsOn 'setupVirtualenv'
   dependsOn ":sdks:python:container:py${pythonVersionSuffix}:docker"
 
@@ -122,7 +120,7 @@ task portableLocalRunnerTestWithRequirementsFile {
   }
 }
 
-def createProcessWorker = tasks.register("createProcessWorker") {
+task createProcessWorker {
   dependsOn ':sdks:python:container:build'
   dependsOn 'setupVirtualenv'
   def sdkWorkerFile = file("${buildDir}/sdk_worker.sh")
@@ -151,13 +149,11 @@ def createSamzaRunnerTestTask(String workerType) {
     options += " --environment_options=process_command=${buildDir.absolutePath}/sdk_worker.sh"
   }
   def task = toxTask(taskName, 'samza-runner-test', options)
-  task.configure {
-    dependsOn ":runners:samza:job-server:shadowJar"
-    if (workerType == 'DOCKER') {
-      dependsOn pythonContainerTask
-    } else if (workerType == 'PROCESS') {
-      dependsOn createProcessWorker
-    }
+  task.dependsOn ":runners:samza:job-server:shadowJar"
+  if (workerType == 'DOCKER') {
+    task.dependsOn ext.pythonContainerTask
+  } else if (workerType == 'PROCESS') {
+    task.dependsOn 'createProcessWorker'
   }
   return task
 }
@@ -179,13 +175,11 @@ def createSparkRunnerTestTask(String workerType) {
     options += " --environment_options=process_command=${buildDir.absolutePath}/sdk_worker.sh"
   }
   def task = toxTask(taskName, 'spark-runner-test', options)
-  task.configure {
-    dependsOn ':runners:spark:2:job-server:shadowJar'
-    if (workerType == 'DOCKER') {
-      dependsOn pythonContainerTask
-    } else if (workerType == 'PROCESS') {
-      dependsOn createProcessWorker
-    }
+  task.dependsOn ':runners:spark:2:job-server:shadowJar'
+  if (workerType == 'DOCKER') {
+    task.dependsOn ext.pythonContainerTask
+  } else if (workerType == 'PROCESS') {
+    task.dependsOn 'createProcessWorker'
   }
   return task
 }
@@ -205,7 +199,7 @@ project.task("preCommitPy${pythonVersionSuffix}") {
                'portableWordCountFlinkRunnerStreaming']
 }
 
-project.tasks.register("postCommitPy${pythonVersionSuffix}") {
+project.task("postCommitPy${pythonVersionSuffix}") {
   dependsOn = ['setupVirtualenv',
                "postCommitPy${pythonVersionSuffix}IT",
                ':runners:spark:2:job-server:shadowJar',
@@ -213,7 +207,7 @@ project.tasks.register("postCommitPy${pythonVersionSuffix}") {
                'portableWordCountSparkRunnerBatch']
 }
 
-project.tasks.register("flinkExamples") {
+project.task("flinkExamples") {
   dependsOn = [
           'setupVirtualenv',
           'installGcpTest',
@@ -234,7 +228,7 @@ project.tasks.register("flinkExamples") {
             "test_opts": testOpts,
             "suite": "postCommitExamples-flink-py${pythonVersionSuffix}",
             "pipeline_opts": pipelineOpts.join(" "),
-            "collect": "examples_postcommit and not sickbay_flink"
+            "collect": "examples_postcommit"
     ])
     exec {
       executable 'sh'
@@ -243,7 +237,7 @@ project.tasks.register("flinkExamples") {
   }
 }
 
-project.tasks.register("sparkExamples") {
+project.task("sparkExamples") {
   dependsOn = [
           'setupVirtualenv',
           'installGcpTest',
@@ -265,7 +259,7 @@ project.tasks.register("sparkExamples") {
             "test_opts": testOpts,
             "suite": "postCommitExamples-spark-py${pythonVersionSuffix}",
             "pipeline_opts": pipelineOpts.join(" "),
-            "collect": "examples_postcommit and not sickbay_spark"
+            "collect": "examples_postcommit"
     ])
     exec {
       executable 'sh'
@@ -274,7 +268,7 @@ project.tasks.register("sparkExamples") {
   }
 }
 
-project.tasks.register("postCommitPy${pythonVersionSuffix}IT") {
+project.task("postCommitPy${pythonVersionSuffix}IT") {
   dependsOn = [
           'setupVirtualenv',
           'installGcpTest',
@@ -298,11 +292,11 @@ project.tasks.register("postCommitPy${pythonVersionSuffix}IT") {
     ]
     def testOpts = ["${tests.join(' ')}"] + ["--log-cli-level=INFO"]
     def pipelineOpts = [
-            "--runner=FlinkRunner",
-            "--project=apache-beam-testing",
-            "--environment_type=LOOPBACK",
-            "--temp_location=gs://temp-storage-for-end-to-end-tests/temp-it",
-            "--flink_job_server_jar=${project(":runners:flink:${latestFlinkVersion}:job-server").shadowJar.archivePath}",
+        "--runner=FlinkRunner",
+        "--project=apache-beam-testing",
+        "--environment_type=LOOPBACK",
+        "--temp_location=gs://temp-storage-for-end-to-end-tests/temp-it",
+        "--flink_job_server_jar=${project(":runners:flink:${latestFlinkVersion}:job-server").shadowJar.archivePath}",
     ]
     def cmdArgs = mapToArgString([
             "test_opts": testOpts,
@@ -318,7 +312,7 @@ project.tasks.register("postCommitPy${pythonVersionSuffix}IT") {
   }
 }
 
-project.tasks.register("xlangSpannerIOIT") {
+project.task("xlangSpannerIOIT") {
   dependsOn = [
           'setupVirtualenv',
           'installGcpTest',
@@ -337,11 +331,11 @@ project.tasks.register("xlangSpannerIOIT") {
     ]
     def testOpts = ["${tests.join(' ')}"] + ["--log-cli-level=INFO"]
     def pipelineOpts = [
-            "--runner=FlinkRunner",
-            "--project=apache-beam-testing",
-            "--environment_type=LOOPBACK",
-            "--temp_location=gs://temp-storage-for-end-to-end-tests/temp-it",
-            "--flink_job_server_jar=${project(":runners:flink:${latestFlinkVersion}:job-server").shadowJar.archivePath}",
+        "--runner=FlinkRunner",
+        "--project=apache-beam-testing",
+        "--environment_type=LOOPBACK",
+        "--temp_location=gs://temp-storage-for-end-to-end-tests/temp-it",
+        "--flink_job_server_jar=${project(":runners:flink:${latestFlinkVersion}:job-server").shadowJar.archivePath}",
     ]
     def cmdArgs = mapToArgString([
             "test_opts": testOpts,
@@ -356,19 +350,19 @@ project.tasks.register("xlangSpannerIOIT") {
 }
 
 def addTestJavaJarCreator(String runner, Task jobServerJarTask) {
-  project.tasks.register("testJavaJarCreator${runner}") {
+  project.tasks.create(name: "testJavaJarCreator${runner}") {
     dependsOn jobServerJarTask
     dependsOn pythonContainerTask
     doLast{
       exec {
         executable "sh"
         def options = [
-                "--runner ${runner}",
-                "--job_server_jar ${jobServerJarTask.archivePath}",
-                "--env_dir ${project.rootProject.buildDir}/gradleenv/${project.path.hashCode()}",
-                "--python_root_dir ${project.rootDir}/sdks/python",
-                "--python_version ${project.ext.pythonVersion}",
-                "--python_container_image ${project.docker_image_default_repo_root}/"
+            "--runner ${runner}",
+            "--job_server_jar ${jobServerJarTask.archivePath}",
+            "--env_dir ${project.rootProject.buildDir}/gradleenv/${project.path.hashCode()}",
+            "--python_root_dir ${project.rootDir}/sdks/python",
+            "--python_version ${project.ext.pythonVersion}",
+            "--python_container_image ${project.docker_image_default_repo_root}/"
                 + "${project.docker_image_default_repo_prefix}"
                 + "python${project.ext.pythonVersion}_sdk:${project.sdk_version}",
         ]
@@ -391,12 +385,12 @@ def addTestFlinkUberJar(boolean saveMainSession) {
       exec {
         executable "sh"
         def options = [
-                "--flink_job_server_jar ${tasks.getByPath(":runners:flink:${latestFlinkVersion}:job-server:shadowJar").archivePath}",
-                "--flink_mini_cluster_jar ${tasks.getByPath(":runners:flink:${latestFlinkVersion}:job-server:miniCluster").archivePath}",
-                "--env_dir ${project.rootProject.buildDir}/gradleenv/${project.path.hashCode()}",
-                "--python_root_dir ${project.rootDir}/sdks/python",
-                "--python_version ${project.ext.pythonVersion}",
-                "--python_container_image ${project.docker_image_default_repo_root}/"
+            "--flink_job_server_jar ${tasks.getByPath(":runners:flink:${latestFlinkVersion}:job-server:shadowJar").archivePath}",
+            "--flink_mini_cluster_jar ${tasks.getByPath(":runners:flink:${latestFlinkVersion}:job-server:miniCluster").archivePath}",
+            "--env_dir ${project.rootProject.buildDir}/gradleenv/${project.path.hashCode()}",
+            "--python_root_dir ${project.rootDir}/sdks/python",
+            "--python_version ${project.ext.pythonVersion}",
+            "--python_container_image ${project.docker_image_default_repo_root}/"
                 + "${project.docker_image_default_repo_prefix}"
                 + "python${project.ext.pythonVersion}_sdk:${project.sdk_version}",
         ]
