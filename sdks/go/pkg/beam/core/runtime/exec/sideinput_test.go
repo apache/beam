@@ -66,26 +66,28 @@ func TestNewSideInputAdapter(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		adapter := NewSideInputAdapter(test.sid, test.sideInputID, test.c, nil)
-		adapterStruct, ok := adapter.(*sideInputAdapter)
-		if !ok {
-			t.Errorf("failed to convert interface to sideInputAdapter struct in test %v", test)
-		}
-		if got, want := adapterStruct.sid, test.sid; got != want {
-			t.Errorf("got SID %v, want %v", got, want)
-		}
-		if got, want := adapterStruct.sideInputID, test.sideInputID; got != want {
-			t.Errorf("got sideInputID %v, want %v", got, want)
-		}
-		if got, want := adapterStruct.c, test.c; got != want {
-			t.Errorf("got coder %v, want %v", got, want)
-		}
-		if got, want := reflect.TypeOf(adapterStruct.kc), reflect.TypeOf(test.kc); got != want {
-			t.Errorf("got ElementEncoder type %v, want %v", got, want)
-		}
-		if got, want := reflect.TypeOf(adapterStruct.ec), reflect.TypeOf(test.ec); got != want {
-			t.Errorf("got ElementDecoder type %v, want %v", got, want)
-		}
+		t.Run(test.name, func(t *testing.T) {
+				adapter := NewSideInputAdapter(test.sid, test.sideInputID, test.c, nil)
+				adapterStruct, ok := adapter.(*sideInputAdapter)
+				if !ok {
+					t.Errorf("failed to convert interface to sideInputAdapter struct in test %v", test)
+				}
+				if got, want := adapterStruct.sid, test.sid; got != want {
+					t.Errorf("got SID %v, want %v", got, want)
+				}
+				if got, want := adapterStruct.sideInputID, test.sideInputID; got != want {
+					t.Errorf("got sideInputID %v, want %v", got, want)
+				}
+				if got, want := adapterStruct.c, test.c; got != want {
+					t.Errorf("got coder %v, want %v", got, want)
+				}
+				if got, want := reflect.TypeOf(adapterStruct.kc), reflect.TypeOf(test.kc); got != want {
+					t.Errorf("got ElementEncoder type %v, want %v", got, want)
+				}
+				if got, want := reflect.TypeOf(adapterStruct.ec), reflect.TypeOf(test.ec); got != want {
+					t.Errorf("got ElementDecoder type %v, want %v", got, want)
+				}
+		})
 	}
 }
 
