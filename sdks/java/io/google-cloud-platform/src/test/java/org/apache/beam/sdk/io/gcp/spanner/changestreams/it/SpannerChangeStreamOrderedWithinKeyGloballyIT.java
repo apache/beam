@@ -53,7 +53,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -88,12 +87,6 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
     tableName = ENV.createSingersTable();
     changeStreamName = ENV.createChangeStreamFor(tableName);
     databaseClient = ENV.getDatabaseClient();
-  }
-
-  @Before
-  public void before() {
-    pipeline.getOptions().as(ChangeStreamTestPipelineOptions.class).setStreaming(true);
-    pipeline.getOptions().as(ChangeStreamTestPipelineOptions.class).setBlockOnRun(false);
   }
 
   @Test
