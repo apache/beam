@@ -191,8 +191,20 @@
   "@pipelineOptionsError": {
     "description": "Pipeline options parse error"
   },
-  "multifileDescription": "This example contains multiple source files and can't be executed on the current version of the Playground. Please open the example using the link below.",
-  "@multifileDescription": {
-      "description": "Multifile description"
+  "viewOnGithub": "View on GitHub",
+  "@viewOnGithub": {
+    "description": "View on Github button"
+  },
+  "addExample": "Add your own example",
+  "@addExample": {
+    "description": "Add example link text"
+  },
+  "multifile": "Multifile",
+  "@multifile": {
+    "description": "Multifile example"
+  },
+  "multifileWarning": "Multifile not supported yet for running in playground. Open it on github.",
+  "@multifileWarning": {
+    "description": "Multifile not supported text"
   }
 }

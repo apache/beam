@@ -17,8 +17,10 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground/components/loading_indicator/loading_indicator.dart';
 import 'package:playground/config/theme.dart';
+import 'package:playground/constants/links.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/examples/components/examples_components.dart';
 import 'package:playground/modules/examples/models/selector_size_model.dart';
@@ -26,12 +28,13 @@ import 'package:playground/pages/playground/states/example_selector_state.dart';
 import 'package:playground/pages/playground/states/examples_state.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 const int kAnimationDurationInMilliseconds = 80;
 const Offset kAnimationBeginOffset = Offset(0.0, -0.02);
 const Offset kAnimationEndOffset = Offset(0.0, 0.0);
 const double kAdditionalDyAlignment = 50.0;
-const double kLgContainerHeight = 444.0;
+const double kLgContainerHeight = 490.0;
 const double kLgContainerWidth = 400.0;
 
 class ExampleSelector extends StatefulWidget {
@@ -161,7 +164,7 @@ class _ExampleSelectorState extends State<ExampleSelector>
                         child: exampleState.sdkCategories == null ||
                                 playgroundState.selectedExample == null
                             ? const LoadingIndicator(size: kContainerHeight)
-                            : _buildDropdownContent(playgroundState),
+                            : _buildDropdownContent(context, playgroundState),
                       ),
                     ),
                   ),
@@ -174,7 +177,10 @@ class _ExampleSelectorState extends State<ExampleSelector>
     );
   }
 
-  Widget _buildDropdownContent(PlaygroundState playgroundState) {
+  Widget _buildDropdownContent(
+    BuildContext context,
+    PlaygroundState playgroundState,
+  ) {
     return Column(
       children: [
         SearchField(controller: textController),
@@ -185,6 +191,19 @@ class _ExampleSelectorState extends State<ExampleSelector>
           animationController: animationController,
           dropdown: examplesDropdown,
         ),
+        Divider(
+          height: kDividerHeight,
+          color: ThemeColors.of(context).greyColor,
+          indent: kLgSpacing,
+          endIndent: kLgSpacing,
+        ),
+        TextButton(
+          child: Padding(
+            padding: const EdgeInsets.all(kLgSpacing),
+            child: Text(AppLocalizations.of(context)!.addExample),
+          ),
+          onPressed: () => launch(kAddExampleLink),
+        )
       ],
     );
   }

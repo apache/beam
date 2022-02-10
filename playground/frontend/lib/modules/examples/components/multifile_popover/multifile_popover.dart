@@ -18,7 +18,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:playground/config/theme.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground/constants/assets.dart';
 import 'package:playground/constants/font_weight.dart';
@@ -26,18 +25,18 @@ import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-const kDescriptionWidth = 300.0;
+const kMultifileWidth = 300.0;
 
-class DescriptionPopover extends StatelessWidget {
+class MultifilePopover extends StatelessWidget {
   final ExampleModel example;
 
-  const DescriptionPopover({Key? key, required this.example}) : super(key: key);
+  const MultifilePopover({Key? key, required this.example}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     AppLocalizations appLocale = AppLocalizations.of(context)!;
     return SizedBox(
-      width: kDescriptionWidth,
+      width: kMultifileWidth,
       child: Card(
         child: Padding(
           padding: const EdgeInsets.all(kLgSpacing),
@@ -45,13 +44,13 @@ class DescriptionPopover extends StatelessWidget {
             runSpacing: kSmSpacing,
             children: [
               Text(
-                example.name,
+                appLocale.multifile,
                 style: const TextStyle(
                   fontSize: kTitleFontSize,
                   fontWeight: kBoldWeight,
                 ),
               ),
-              Text(example.description),
+              Text(appLocale.multifileWarning),
               TextButton.icon(
                 icon: SvgPicture.asset(kGithubIconAsset),
                 onPressed: () {

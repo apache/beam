@@ -18,11 +18,14 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:playground/constants/assets.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/analytics/analytics_service.dart';
 import 'package:playground/modules/editor/components/editor_textarea.dart';
 import 'package:playground/modules/editor/components/run_button.dart';
 import 'package:playground/modules/examples/components/description_popover/description_popover_button.dart';
+import 'package:playground/modules/examples/components/multifile_popover/multifile_popover_button.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/modules/notifications/components/notification.dart';
 import 'package:playground/modules/sdk/models/sdk.dart';
@@ -65,12 +68,21 @@ class CodeTextAreaWrapper extends StatelessWidget {
                   height: kButtonHeight,
                   child: Row(
                     children: [
-                      if (state.selectedExample != null)
+                      if (state.selectedExample != null) ...[
+                        if (state.selectedExample?.isMultiFile ?? false)
+                          MultifilePopoverButton(
+                            parentContext: context,
+                            example: state.selectedExample!,
+                            followerAnchor: Alignment.topLeft,
+                            targetAnchor: Alignment.topRight,
+                          ),
                         DescriptionPopoverButton(
+                          parentContext: context,
                           example: state.selectedExample!,
                           followerAnchor: Alignment.topRight,
                           targetAnchor: Alignment.bottomRight,
                         ),
+                      ],
                       RunButton(
                         disabled: state.selectedExample?.isMultiFile ?? false,
                         isRunning: state.isCodeRunning,
