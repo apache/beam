@@ -62,7 +62,7 @@
 
 ## New Features / Improvements
 
-* Pipeline dependencies supplied through `--requirements_file` will now be staged to the runner using their binary distributions (wheels) of the PyPI packages for linux_x86_64 platform ([BEAM-4032](https://issues.apache.org/jira/browse/BEAM-4032)). 
+* Pipeline dependencies supplied through `--requirements_file` will now be staged to the runner using their binary distributions (wheels) of the PyPI packages for linux_x86_64 platform ([BEAM-4032](https://issues.apache.org/jira/browse/BEAM-4032)).
 To restore the behavior to use source distributions, set pipeline option `--requirements_cache_only_sources`. To skip staging the packages at submission time, set pipeline option `--requirements_cache=skip` (Python)
 ## Breaking Changes
 
