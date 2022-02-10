@@ -31,19 +31,16 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Expansion Service"
 ext.summary = "Expansion service serving several Java IOs"
 
 dependencies {
-  compile project(":sdks:java:expansion-service")
+  implementation project(":sdks:java:expansion-service")
   permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
-  compile project(":sdks:java:io:kafka")
+  implementation project(":sdks:java:io:kafka")
   permitUnusedDeclared project(":sdks:java:io:kafka") // BEAM-11761
-  // Include postgres so it can be used with external JDBC
-  compile library.java.postgres
-  permitUnusedDeclared library.java.postgres // BEAM-11761
-  runtime library.java.kafka_clients
-  runtime library.java.slf4j_jdk14
+  runtimeOnly library.java.kafka_clients
+  runtimeOnly library.java.slf4j_jdk14
 }
 
 task runExpansionService (type: JavaExec) {
-  main = "org.apache.beam.sdk.expansion.service.ExpansionService"
+  mainClass = "org.apache.beam.sdk.expansion.service.ExpansionService"
   classpath = sourceSets.test.runtimeClasspath
   args = [project.findProperty("constructionService.port") ?: "8097"]
 }

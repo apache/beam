@@ -15,7 +15,11 @@
 
 package validators
 
-const UnitTestValidatorName = "UnitTest"
+const (
+	UnitTestValidatorName    = "UnitTest"
+	KatasValidatorName       = "Katas"
+	PublicClassValidatorName = "ClassName"
+)
 
 type Validator struct {
 	Validator func(args ...interface{}) (bool, error)

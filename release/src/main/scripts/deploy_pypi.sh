@@ -43,6 +43,7 @@ cd ${LOCAL_CLONE_DIR}
 
 python3 -m venv deploy_pypi_env
 source ./deploy_pypi_env/bin/activate
+pip install --upgrade pip setuptools wheel
 pip install twine
 
 wget -r --no-parent -A zip,whl "https://dist.apache.org/repos/dist/dev/beam/${RELEASE}/python"

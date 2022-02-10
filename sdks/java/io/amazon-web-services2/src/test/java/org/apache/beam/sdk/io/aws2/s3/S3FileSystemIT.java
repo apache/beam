@@ -41,7 +41,6 @@ import org.junit.rules.ExternalResource;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.S3ClientBuilder;
 
 /**
  * Integration test to write and read from a S3 compatible file system.
@@ -61,8 +60,7 @@ public class S3FileSystemIT {
   public interface S3ITOptions extends ITEnvironment.ITOptions, S3Options {}
 
   @ClassRule
-  public static ITEnvironment<S3ITOptions> env =
-      new ITEnvironment<>(S3, S3ITOptions.class, S3ClientFixFix::set);
+  public static ITEnvironment<S3ITOptions> env = new ITEnvironment<>(S3, S3ITOptions.class);
 
   @Rule public TestPipeline pipelineWrite = env.createTestPipeline();
   @Rule public TestPipeline pipelineRead = env.createTestPipeline();
@@ -100,20 +98,6 @@ public class S3FileSystemIT {
       try (S3Client client = env.buildClient(S3Client.builder())) {
         client.createBucket(b -> b.bucket(name));
       }
-    }
-  }
-
-  // Disable chunkedEncoding to prevent localstack bug, see
-  // https://github.com/localstack/localstack/issues/4987
-  private static class S3ClientFixFix extends DefaultS3ClientBuilderFactory {
-    private static void set(S3Options s3Options) {
-      s3Options.setS3ClientFactoryClass(S3ClientFixFix.class);
-    }
-
-    @Override
-    public S3ClientBuilder createBuilder(S3Options s3Options) {
-      return super.createBuilder(s3Options)
-          .serviceConfiguration(c -> c.chunkedEncodingEnabled(false));
     }
   }
 }

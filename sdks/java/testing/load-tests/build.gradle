@@ -27,7 +27,6 @@ description = "Apache Beam :: SDKs :: Java :: Load Tests"
 
 
 def mainClassProperty = "loadTest.mainClass"
-def mainClass = project.findProperty(mainClassProperty)
 
 // When running via Gradle, this property can be used to pass commandline arguments
 // to the load-tests launch
@@ -66,18 +65,20 @@ configurations {
 }
 
 dependencies {
-  compile library.java.kafka_clients
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(":sdks:java:io:synthetic")
-  compile project(":sdks:java:testing:test-utils")
-  compile project(":sdks:java:io:google-cloud-platform")
-  compile project(":sdks:java:io:kafka")
-  compile project(":sdks:java:io:kinesis")
-  compile library.java.aws_java_sdk_core
-  compile library.java.google_cloud_core
-  compile library.java.joda_time
-  compile library.java.vendored_guava_26_0_jre
-  compile library.java.slf4j_api
+  implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+
+  implementation library.java.kafka_clients
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(":sdks:java:io:synthetic")
+  implementation project(":sdks:java:testing:test-utils")
+  implementation project(":sdks:java:io:google-cloud-platform")
+  implementation project(":sdks:java:io:kafka")
+  implementation project(":sdks:java:io:kinesis")
+  implementation library.java.aws_java_sdk_core
+  implementation library.java.google_cloud_core
+  implementation library.java.joda_time
+  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.slf4j_api
 
   gradleRun project(project.path)
   gradleRun project(path: runnerDependency, configuration: runnerConfiguration)
@@ -109,7 +110,7 @@ def getLoadTestArgs = {
   if (isDataflowRunner) {
     if (isDataflowRunnerV2) {
       loadTestArgsList.add("--experiments=beam_fn_api,use_unified_worker,use_runner_v2,shuffle_mode=service")
-      def sdkContainerImage = project.findProperty('sdkContainerImage') ?: project(":runners:google-cloud-dataflow-java").dockerImageName
+      def sdkContainerImage = project.findProperty('sdkContainerImage') ?: project(":runners:google-cloud-dataflow-java").dockerJavaImageName
       loadTestArgsList.add("--sdkContainerImage=${sdkContainerImage}")
     } else {
       def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
@@ -127,13 +128,13 @@ task run(type: JavaExec) {
   def loadTestArgsList = getLoadTestArgs()
   if (isDataflowRunner) {
     if (isDataflowRunnerV2){
-      dependsOn ":runners:google-cloud-dataflow-java:buildAndPushDockerContainer"
-      finalizedBy ":runners:google-cloud-dataflow-java:cleanUpDockerImages"
+      dependsOn ":runners:google-cloud-dataflow-java:buildAndPushDockerJavaContainer"
+      finalizedBy ":runners:google-cloud-dataflow-java:cleanUpDockerJavaImages"
     } else {
       dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
     }
   }
-  main = mainClass
+  mainClass = project.findProperty(mainClassProperty)
   classpath = configurations.gradleRun
   args loadTestArgsList.toArray()
 }

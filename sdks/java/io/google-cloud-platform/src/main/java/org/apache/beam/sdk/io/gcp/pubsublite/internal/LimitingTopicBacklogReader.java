@@ -24,7 +24,7 @@ import com.google.api.gax.rpc.ApiException;
 import com.google.cloud.pubsublite.Offset;
 import com.google.cloud.pubsublite.proto.ComputeMessageStatsResponse;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
-import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Ticker;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
@@ -46,8 +46,8 @@ final class LimitingTopicBacklogReader implements TopicBacklogReader {
         CacheBuilder.newBuilder()
             .ticker(ticker)
             .maximumSize(1)
-            .expireAfterWrite(Duration.ofMinutes(1))
-            .refreshAfterWrite(Duration.ofSeconds(10))
+            .expireAfterWrite(1, TimeUnit.MINUTES)
+            .refreshAfterWrite(10, TimeUnit.SECONDS)
             .build(
                 new CacheLoader<String, ComputeMessageStatsResponse>() {
                   @Override

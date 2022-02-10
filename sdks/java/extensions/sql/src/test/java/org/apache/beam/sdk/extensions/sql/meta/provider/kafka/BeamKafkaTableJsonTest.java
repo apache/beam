@@ -24,7 +24,7 @@ import java.util.List;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
-import org.testcontainers.shaded.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 public class BeamKafkaTableJsonTest extends BeamKafkaTableTest {
 

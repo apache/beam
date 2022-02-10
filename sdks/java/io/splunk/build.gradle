@@ -25,22 +25,22 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Splunk"
 ext.summary = "IO to write events to Splunk Http Event Collector (HEC)"
 
 dependencies {
-    compile platform(library.java.google_cloud_platform_libraries_bom)
-    compile project(path: ":sdks:java:core", configuration: "shadow")
-    compile library.java.google_api_client
+    implementation platform(library.java.google_cloud_platform_libraries_bom)
+    implementation project(path: ":sdks:java:core", configuration: "shadow")
+    implementation library.java.google_api_client
     permitUnusedDeclared library.java.google_api_client // BEAM-11761
-    compile library.java.google_http_client_apache_v2
-    compile library.java.google_code_gson
-    compile library.java.google_http_client
-    compile library.java.http_client
-    compile library.java.http_core
-    compile library.java.joda_time
-    compile library.java.slf4j_api
-    compile library.java.vendored_guava_26_0_jre
-    testCompile library.java.junit
-    testCompile group: 'org.mock-server', name: 'mockserver-junit-rule', version: '5.10.0'
-    testCompile group: 'org.mock-server', name: 'mockserver-client-java', version: '5.10.0'
-    testCompile group: 'org.junit.jupiter', name: 'junit-jupiter-api', version: '5.6.2'
+    implementation library.java.google_http_client_apache_v2
+    implementation library.java.google_code_gson
+    implementation library.java.google_http_client
+    implementation library.java.http_client
+    implementation library.java.http_core
+    implementation library.java.joda_time
+    implementation library.java.slf4j_api
+    implementation library.java.vendored_guava_26_0_jre
+    testImplementation library.java.junit
+    testImplementation group: 'org.mock-server', name: 'mockserver-junit-rule', version: '5.10.0'
+    testImplementation group: 'org.mock-server', name: 'mockserver-client-java', version: '5.10.0'
+    testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-api', version: '5.6.2'
     testRuntimeOnly library.java.slf4j_jdk14
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

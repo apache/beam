@@ -988,7 +988,8 @@ class BigQueryWrapper(object):
       create_disposition=None,
       additional_load_parameters=None,
       source_format=None,
-      job_labels=None):
+      job_labels=None,
+      load_job_project_id=None):
     """Starts a job to load data into BigQuery.
 
     Returns:
@@ -1005,8 +1006,12 @@ class BigQueryWrapper(object):
           'Only one of source_uris and source_stream may be specified. '
           'Got both.')
 
+    project_id = (
+        destination.projectId
+        if load_job_project_id is None else load_job_project_id)
+
     return self._insert_load_job(
-        destination.projectId,
+        project_id,
         job_id,
         destination,
         source_uris=source_uris,

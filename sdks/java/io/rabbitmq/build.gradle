@@ -25,17 +25,18 @@ ext.summary = "IO to read and write to a RabbitMQ broker."
 def qpid_version = "8.0.1"
 
 dependencies {
-  compile library.java.vendored_guava_26_0_jre
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile library.java.joda_time
-  compile "com.rabbitmq:amqp-client:5.7.3"
+  implementation library.java.vendored_guava_26_0_jre
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation library.java.joda_time
+  implementation "com.rabbitmq:amqp-client:5.7.3"
   provided library.java.jackson_dataformat_xml
-  testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
-  testCompile "org.apache.qpid:qpid-broker-core:$qpid_version"
-  testCompile "org.apache.qpid:qpid-broker-plugins-memory-store:$qpid_version"
-  testCompile "org.apache.qpid:qpid-broker-plugins-amqp-0-8-protocol:$qpid_version"
-  testCompile library.java.junit
-  testCompile library.java.slf4j_api
+  permitUnusedDeclared library.java.jackson_dataformat_xml
+  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+  testImplementation "org.apache.qpid:qpid-broker-core:$qpid_version"
+  testImplementation "org.apache.qpid:qpid-broker-plugins-memory-store:$qpid_version"
+  testImplementation "org.apache.qpid:qpid-broker-plugins-amqp-0-8-protocol:$qpid_version"
+  testImplementation library.java.junit
+  testImplementation library.java.slf4j_api
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

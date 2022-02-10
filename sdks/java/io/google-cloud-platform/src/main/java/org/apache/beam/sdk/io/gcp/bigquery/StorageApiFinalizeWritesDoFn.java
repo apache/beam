@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import com.google.cloud.bigquery.storage.v1beta2.BatchCommitWriteStreamsResponse;
-import com.google.cloud.bigquery.storage.v1beta2.FinalizeWriteStreamResponse;
-import com.google.cloud.bigquery.storage.v1beta2.StorageError;
-import com.google.cloud.bigquery.storage.v1beta2.StorageError.StorageErrorCode;
+import com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsResponse;
+import com.google.cloud.bigquery.storage.v1.FinalizeWriteStreamResponse;
+import com.google.cloud.bigquery.storage.v1.StorageError;
+import com.google.cloud.bigquery.storage.v1.StorageError.StorageErrorCode;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;

@@ -28,7 +28,7 @@ include: package:flutter_lints/flutter.yaml
 
 # exclude generated files
 analyzer:
-  exclude: [ lib/api/**, test/**.mocks.dart, lib/**.g.dart, build/** ]
+  exclude: [lib/api/**, test/**.mocks.dart, lib/**.g.dart, lib/l10n/**.arb, build/**]
 
 linter:
   # The lint rules applied to this project can be customized in the
@@ -45,7 +45,7 @@ linter:
   rules:
     eol_at_end_of_file: true
     avoid_web_libraries_in_flutter: false
-#     avoid_print: false  # Uncomment to disable the `avoid_print` rule
+    avoid_print: false  # Uncomment to disable the `avoid_print` rule
     prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
 
 # Additional information about this file can be found at

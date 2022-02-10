@@ -20,6 +20,8 @@ package org.apache.beam.sdk.extensions.sql.meta.provider;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.ProjectionProducer;
 import org.apache.beam.sdk.schemas.Schema;
@@ -32,6 +34,8 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -119,11 +123,13 @@ public class TestSchemaIOTableProviderWrapper extends SchemaIOTableProviderWrapp
 
     @Override
     public PTransform<PBegin, PCollection<Row>> actuateProjectionPushdown(
-        String outputId, FieldAccessDescriptor fieldAccessDescriptor) {
-      if (!outputId.equals("output")) {
+        Map<TupleTag<?>, FieldAccessDescriptor> outputFields) {
+      Entry<TupleTag<?>, FieldAccessDescriptor> output =
+          Iterables.getOnlyElement(outputFields.entrySet());
+      if (!output.getKey().getId().equals("output")) {
         throw new UnsupportedOperationException("Can only do pushdown on the main output.");
       }
-      return new TestProjectionProducer(schema, fieldAccessDescriptor);
+      return new TestProjectionProducer(schema, output.getValue());
     }
 
     @Override

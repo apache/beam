@@ -18,13 +18,16 @@
 package org.apache.beam.fn.harness;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.emptyIterable;
-import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 
+import org.apache.beam.fn.harness.Cache.Shrinkable;
+import org.apache.beam.fn.harness.Caches.ClearableCache;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.util.Weighted;
+import org.apache.beam.sdk.util.WeightedValue;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -33,32 +36,53 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class CachesTest {
   @Test
-  public void testNoopCache() {
+  public void testNoopCache() throws Exception {
     Cache<String, String> cache = Caches.noop();
     cache.put("key", "value");
     assertNull(cache.peek("key"));
     assertEquals("value", cache.computeIfAbsent("key", (unused) -> "value"));
     assertNull(cache.peek("key"));
-    assertThat(cache.keys(), is(emptyIterable()));
   }
 
   @Test
-  public void testEternalCache() {
+  public void testShrinkableIsShrunk() throws Exception {
+    WeightedValue<String> shrinkableKey = WeightedValue.of("shrinkable", MB);
+    Shrinkable<Object> shrinkable =
+        new Shrinkable<Object>() {
+
+          @Override
+          public Object shrink() {
+            return WeightedValue.of("wasShrunk", 1);
+          }
+        };
+
+    Cache<Object, Object> cache = Caches.forMaximumBytes(2 * MB);
+    cache.put(shrinkableKey, WeightedValue.of(shrinkable, MB));
+    // Check that we didn't evict it yet
+    assertSame(shrinkable, cache.peek(shrinkableKey));
+
+    // The next insertion should cause the value to be "shrunk"
+    cache.put(WeightedValue.of("other", 1), WeightedValue.of("value", 1));
+    assertEquals("wasShrunk", cache.peek(shrinkableKey));
+  }
+
+  @Test
+  public void testEternalCache() throws Exception {
     testCache(Caches.eternal());
   }
 
   @Test
-  public void testDefaultCache() {
+  public void testDefaultCache() throws Exception {
     testCache(Caches.fromOptions(PipelineOptionsFactory.create()));
   }
 
   @Test
-  public void testSubCache() {
+  public void testSubCache() throws Exception {
     testCache(Caches.subCache(Caches.eternal(), "prefix"));
   }
 
   @Test
-  public void testSiblingSubCaches() {
+  public void testSiblingSubCaches() throws Exception {
     Cache<String, String> parent = Caches.eternal();
     Cache<String, String> cacheA = Caches.subCache(parent, "prefixA");
     Cache<String, String> cacheACopy = Caches.subCache(parent, "prefixA");
@@ -70,20 +94,10 @@ public class CachesTest {
     assertEquals("valueA", cacheA.peek("keyA"));
     assertEquals("valueA", cacheACopy.peek("keyA"));
     assertNull(cacheB.peek("keyA"));
-
-    // Test clearing a cache with a different prefix doesn't impact keys without the same prefix
-    cacheB.clear();
-    assertEquals("valueA", cacheA.peek("keyA"));
-    assertEquals("valueA", cacheACopy.peek("keyA"));
-
-    // Test clearing a cache with the same prefix impacts other instances
-    cacheACopy.clear();
-    assertNull(cacheA.peek("keyA"));
-    assertNull(cacheACopy.peek("keyA"));
   }
 
   @Test
-  public void testNestedSubCaches() {
+  public void testNestedSubCaches() throws Exception {
     Cache<String, String> parent = Caches.eternal();
     Cache<String, String> child = Caches.subCache(parent, "child");
     Cache<String, String> childOfChild = Caches.subCache(child, "childOfChild");
@@ -109,15 +123,28 @@ public class CachesTest {
     childOfChild.remove("keyB");
     assertEquals("childB", child.peek("keyB"));
     assertNull(childOfChild.peek("keyB"));
+  }
 
-    // Test that clearing the middle cache impacts children but not parent
-    parent.put("keyA", "parentA");
-    parent.put("keyB", "parentB");
-    child.clear();
-    assertThat(child.keys(), is(emptyIterable()));
-    assertThat(childOfChild.keys(), is(emptyIterable()));
-    assertEquals("parentA", parent.peek("keyA"));
-    assertEquals("parentB", parent.peek("keyB"));
+  @Test
+  public void testClearableCache() {
+    ClearableCache<String, String> cache = new ClearableCache<>(Caches.eternal());
+    testCache(cache);
+    testCache(Caches.subCache(cache, "clearableChild"));
+  }
+
+  @Test
+  public void testClearableCacheClearing() {
+    Cache<String, String> parent = Caches.eternal();
+    ClearableCache<String, String> cache = new ClearableCache<>(parent);
+
+    parent.put("untracked", "untrackedValue");
+    parent.put("tracked", "parentValue");
+    cache.put("tracked", "parentValueNowTracked");
+    cache.computeIfAbsent("tracked2", (unused) -> "trackedValue2");
+    cache.clear();
+    assertNull(parent.peek("tracked"));
+    assertNull(parent.peek("tracked2"));
+    assertEquals("untrackedValue", parent.peek("untracked"));
   }
 
   private void testCache(Cache<String, String> cache) {
@@ -134,19 +161,64 @@ public class CachesTest {
     // Test compute with load
     assertEquals("value2", cache.computeIfAbsent("key2", (unused) -> "value2"));
     assertEquals("value2", cache.peek("key2"));
+  }
 
-    assertThat(cache.keys(), containsInAnyOrder("key1", "key2"));
+  private static final long MB = 1 << 20;
 
-    // Test removal
-    cache.remove("key1");
-    assertNull(cache.peek("key1"));
-    assertEquals("value2", cache.peek("key2"));
-    assertThat(cache.keys(), containsInAnyOrder("key2"));
+  private static class ShrinkableString implements Shrinkable<ShrinkableString>, Weighted {
+    private final String value;
+    private final long weight;
 
-    // Test clear
-    cache.clear();
-    assertNull(cache.peek("key1"));
-    assertNull(cache.peek("key2"));
-    assertThat(cache.keys(), is(emptyIterable()));
+    public ShrinkableString(String value, long weight) {
+      this.value = value;
+      this.weight = weight;
+    }
+
+    @Override
+    public ShrinkableString shrink() {
+      if (weight < 800 * MB) {
+        return null;
+      }
+      return new ShrinkableString(value, weight / 2);
+    }
+
+    @Override
+    public long getWeight() {
+      return weight;
+    }
+  }
+
+  @Test
+  public void testDescribeStats() throws Exception {
+    Cache<WeightedValue<Integer>, ShrinkableString> cache = Caches.forMaximumBytes(1000 * MB);
+    for (int i = 0; i < 100; ++i) {
+      cache.computeIfAbsent(
+          WeightedValue.of(i, MB), (key) -> new ShrinkableString("value", 2 * MB));
+      cache.peek(WeightedValue.of(i, MB));
+      cache.put(WeightedValue.of(100 + i, MB), new ShrinkableString("value", 2 * MB));
+    }
+
+    assertThat(cache.describeStats(), containsString("used/max 600/1000 MB"));
+    assertThat(cache.describeStats(), containsString("hit 50.00%"));
+    assertThat(cache.describeStats(), containsString("lookups 200"));
+    assertThat(cache.describeStats(), containsString("avg load time"));
+    assertThat(cache.describeStats(), containsString("loads 100"));
+    assertThat(cache.describeStats(), containsString("evictions 0"));
+
+    // Test eviction, evict all the other 200 elements that were added
+    cache.put(WeightedValue.of(1000, 100 * MB), new ShrinkableString("value", 900 * MB));
+    assertThat(cache.describeStats(), containsString("used/max 1000/1000 MB"));
+    assertThat(cache.describeStats(), containsString("evictions 200"));
+
+    // Test shrinking, 900 -> 450 + 100 + 55 + 1 = 606
+    cache.put(WeightedValue.of(1001, MB), new ShrinkableString("value", 55 * MB));
+    assertThat(cache.describeStats(), containsString("used/max 606/1000 MB"));
+    assertThat(cache.describeStats(), containsString("evictions 201"));
+
+    // Test composite key namespace is weighed as well.
+    // 33 + 8 + 3 = 44 more then last used/max of 606 = 650
+    Caches.subCache(cache, WeightedValue.of("subCache", 33 * MB))
+        .put(WeightedValue.of("subCacheKey", 8 * MB), WeightedValue.of("subCacheValue", 3 * MB));
+    assertThat(cache.describeStats(), containsString("used/max 650/1000 MB"));
   }
 }

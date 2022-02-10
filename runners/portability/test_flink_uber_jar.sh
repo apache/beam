@@ -82,6 +82,7 @@ docker images --format "{{.Repository}}:{{.Tag}}" | grep "$PYTHON_CONTAINER_IMAG
 # Set up Python environment
 python$PYTHON_VERSION -m venv "$ENV_DIR"
 . $ENV_DIR/bin/activate
+pip install --retries 10 --upgrade pip setuptools wheel
 pip install --retries 10 -e "$PYTHON_ROOT_DIR"
 
 # Hacky python script to find a free port. Note there is a small chance the chosen port could

@@ -31,19 +31,21 @@ configurations {
 }
 
 dependencies {
-  compile project(":sdks:java:extensions:sql")
-  compile "jline:jline:2.14.6"
+  implementation project(":sdks:java:extensions:sql")
+  implementation "jline:jline:2.14.6"
   permitUnusedDeclared "jline:jline:2.14.6" // BEAM-11761
-  compile "sqlline:sqlline:1.4.0"
-  compile library.java.vendored_guava_26_0_jre
-  testCompile project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntime")
-  testCompile library.java.junit
+  implementation "sqlline:sqlline:1.4.0"
+  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.vendored_calcite_1_28_0
+  permitUnusedDeclared library.java.vendored_calcite_1_28_0
+  testImplementation project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntimeMigration")
+  testImplementation library.java.junit
   // Depending on outputs so integrationTest can run with only test dependencies.
   // This enables us to test the JDBC jar being loaded on a custom classloader.
   integrationTest sourceSets.test.output
   integrationTest sourceSets.main.output
   integrationTest library.java.junit
-  compile project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
 }
 
 processResources {
@@ -58,12 +60,7 @@ shadowJar {
   }
 }
 
-test {
-  doFirst {
-    // Assert everything is in the output or test jar
-    assert classpath.size() == 2
-  }
-}
+test {}
 
 task shadowJarTest(type: Test, dependsOn: ":sdks:java:extensions:sql:jdbc:shadowJar") {
   group = "Verification"

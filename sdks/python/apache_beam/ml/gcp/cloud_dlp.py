@@ -20,9 +20,11 @@ functionality.
 """
 
 import logging
+from typing import List
 
 from google.cloud import dlp_v2
 
+from apache_beam import typehints
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import ParDo
@@ -35,6 +37,8 @@ _LOGGER = logging.getLogger(__name__)
 
 
 @experimental()
+@typehints.with_input_types(str)
+@typehints.with_output_types(str)
 class MaskDetectedDetails(PTransform):
   """Scrubs sensitive information detected in text.
   The ``PTransform`` returns a ``PCollection`` of ``str``
@@ -126,6 +130,8 @@ class MaskDetectedDetails(PTransform):
 
 
 @experimental()
+@typehints.with_input_types(str)
+@typehints.with_output_types(List[dlp_v2.types.dlp.Finding])
 class InspectForDetails(PTransform):
   """Inspects input text for sensitive information.
   the ``PTransform`` returns a ``PCollection`` of
@@ -190,13 +196,13 @@ class _DeidentifyFn(DoFn):
       self.client = dlp_v2.DlpServiceClient()
     self.params = {
         'timeout': self.timeout,
-        'parent': self.client.common_project_path(self.project)
     }
-    self.params.update(self.config)
+    self.parent = self.client.common_project_path(self.project)
 
   def process(self, element, **kwargs):
-    operation = self.client.deidentify_content(
-        item={"value": element}, **self.params)
+    request = {'item': {'value': element}, 'parent': self.parent}
+    request.update(self.config)
+    operation = self.client.deidentify_content(request=request, **self.params)
     yield operation.item.value
 
 
@@ -213,12 +219,12 @@ class _InspectFn(DoFn):
       self.client = dlp_v2.DlpServiceClient()
     self.params = {
         'timeout': self.timeout,
-        "parent": self.client.common_project_path(self.project)
     }
-    self.params.update(self.config)
+    self.parent = self.client.common_project_path(self.project)
 
   def process(self, element, **kwargs):
-    operation = self.client.inspect_content(
-        item={"value": element}, **self.params)
+    request = {'item': {'value': element}, 'parent': self.parent}
+    request.update(self.config)
+    operation = self.client.inspect_content(request=request, **self.params)
     hits = [x for x in operation.result.findings]
     yield hits

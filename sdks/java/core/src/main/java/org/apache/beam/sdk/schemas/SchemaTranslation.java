@@ -40,7 +40,7 @@ import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
 import org.apache.beam.sdk.schemas.logicaltypes.UnknownLogicalType;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -156,16 +156,21 @@ public class SchemaTranslation {
         } else {
           logicalTypeBuilder =
               SchemaApi.LogicalType.newBuilder()
-                  .setArgumentType(
-                      fieldTypeToProto(logicalType.getArgumentType(), serializeLogicalType))
-                  .setArgument(
-                      fieldValueToProto(logicalType.getArgumentType(), logicalType.getArgument()))
                   .setRepresentation(
                       fieldTypeToProto(logicalType.getBaseType(), serializeLogicalType))
                   // TODO(BEAM-7855): "javasdk" types should only be a last resort. Types defined in
                   // Beam should have their own URN, and there should be a mechanism for users to
                   // register their own types by URN.
                   .setUrn(URN_BEAM_LOGICAL_JAVASDK);
+          if (logicalType.getArgumentType() != null) {
+            logicalTypeBuilder =
+                logicalTypeBuilder
+                    .setArgumentType(
+                        fieldTypeToProto(logicalType.getArgumentType(), serializeLogicalType))
+                    .setArgument(
+                        fieldValueToProto(
+                            logicalType.getArgumentType(), logicalType.getArgument()));
+          }
           if (serializeLogicalType) {
             logicalTypeBuilder =
                 logicalTypeBuilder.setPayload(

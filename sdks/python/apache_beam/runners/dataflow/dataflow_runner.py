@@ -571,7 +571,8 @@ class DataflowRunner(PipelineRunner):
       return result
 
     # Get a Dataflow API client and set its options
-    self.dataflow_client = apiclient.DataflowApplicationClient(options)
+    self.dataflow_client = apiclient.DataflowApplicationClient(
+        options, self.job.root_staging_location)
 
     # Create the job description and send a request to the service. The result
     # can be None if there is no need to send a request to the service (e.g.

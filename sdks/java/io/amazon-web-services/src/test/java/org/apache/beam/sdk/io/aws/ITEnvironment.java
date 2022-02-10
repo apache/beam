@@ -18,16 +18,18 @@
 package org.apache.beam.sdk.io.aws;
 
 import static org.apache.beam.sdk.testing.TestPipeline.testingPipelineOptions;
+import static org.testcontainers.containers.localstack.LocalStackContainer.Service.S3;
 
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
-import java.util.function.Consumer;
 import org.apache.beam.sdk.io.aws.options.AwsOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.commons.lang3.StringUtils;
 import org.junit.rules.ExternalResource;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.localstack.LocalStackContainer;
@@ -54,7 +56,7 @@ import org.testcontainers.utility.DockerImageName;
  */
 public class ITEnvironment<OptionsT extends ITEnvironment.ITOptions> extends ExternalResource {
   private static final String LOCALSTACK = "localstack/localstack";
-  private static final String LOCALSTACK_VERSION = "0.12.18";
+  private static final String LOCALSTACK_VERSION = "0.13.1";
 
   public interface ITOptions extends AwsOptions, TestPipelineOptions {
     @Description("Number of rows to write and read by the test")
@@ -75,30 +77,28 @@ public class ITEnvironment<OptionsT extends ITEnvironment.ITOptions> extends Ext
     void setLocalstackLogLevel(String level);
   }
 
-  private final Service service;
   private final OptionsT options;
   private final LocalStackContainer localstack;
 
-  public ITEnvironment(Service service, Class<OptionsT> optionsClass) {
-    this(service, optionsClass, o -> {});
+  public ITEnvironment(Service service, Class<OptionsT> optionsClass, String... env) {
+    this(new Service[] {service}, optionsClass, env);
   }
 
-  public ITEnvironment(
-      Service service, Class<OptionsT> optionsClass, Consumer<OptionsT> optionsMutator) {
-    this.service = service;
+  public ITEnvironment(Service[] services, Class<OptionsT> optionsClass, String... env) {
     localstack =
         new LocalStackContainer(DockerImageName.parse(LOCALSTACK).withTag(LOCALSTACK_VERSION))
-            .withServices(service)
+            .withServices(services)
             .withStartupAttempts(3);
 
     PipelineOptionsFactory.register(optionsClass);
     options = testingPipelineOptions().as(optionsClass);
-    optionsMutator.accept(options);
 
+    localstack.setEnv(ImmutableList.copyOf(env));
     if (options.getLocalstackLogLevel() != null) {
       localstack
           .withEnv("LS_LOG", options.getLocalstackLogLevel())
-          .withLogConsumer(new Slf4jLogConsumer(LoggerFactory.getLogger(service.name())));
+          .withLogConsumer(
+              new Slf4jLogConsumer(LoggerFactory.getLogger(StringUtils.join(services))));
     }
   }
 
@@ -136,7 +136,8 @@ public class ITEnvironment<OptionsT extends ITEnvironment.ITOptions> extends Ext
   /** Necessary setup for localstack environment. */
   private void startLocalstack() {
     localstack.start();
-    options.setAwsServiceEndpoint(localstack.getEndpointOverride(service).toString());
+    options.setAwsServiceEndpoint(
+        localstack.getEndpointOverride(S3).toString()); // service irrelevant
     options.setAwsRegion(localstack.getRegion());
     options.setAwsCredentialsProvider(localstack.getDefaultCredentialsProvider());
   }

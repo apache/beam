@@ -18,6 +18,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:playground/constants/sizes.dart';
+import 'package:playground/modules/analytics/analytics_service.dart';
+import 'package:playground/modules/examples/components/description_popover/description_popover_button.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
 import 'package:playground/pages/playground/states/examples_state.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
@@ -25,8 +27,17 @@ import 'package:provider/provider.dart';
 
 class ExpansionPanelItem extends StatelessWidget {
   final ExampleModel example;
+  final ExampleModel selectedExample;
+  final AnimationController animationController;
+  final OverlayEntry? dropdown;
 
-  const ExpansionPanelItem({Key? key, required this.example}) : super(key: key);
+  const ExpansionPanelItem({
+    Key? key,
+    required this.example,
+    required this.selectedExample,
+    required this.animationController,
+    required this.dropdown,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -36,26 +47,49 @@ class ExpansionPanelItem extends StatelessWidget {
         child: GestureDetector(
           onTap: () async {
             if (playgroundState.selectedExample != example) {
+              closeDropdown(exampleState);
               final exampleWithInfo = await exampleState.loadExampleInfo(
                 example,
                 playgroundState.sdk,
               );
               playgroundState.setExample(exampleWithInfo);
+              AnalyticsService.get(context).trackSelectExample(exampleWithInfo);
             }
           },
           child: Container(
             color: Colors.transparent,
             margin: const EdgeInsets.only(left: kXxlSpacing),
             height: kContainerHeight,
-            child: Row(
-              children: [
-                // Wrapped with Row for better user interaction and positioning
-                Text(example.name),
-              ],
+            child: Padding(
+              padding: const EdgeInsets.only(right: kLgSpacing),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Wrapped with Row for better user interaction and positioning
+                  Text(
+                    example.name,
+                    style: example == selectedExample
+                        ? const TextStyle(fontWeight: FontWeight.bold)
+                        : const TextStyle(),
+                  ),
+                  DescriptionPopoverButton(
+                    parentContext: context,
+                    example: example,
+                    followerAnchor: Alignment.topLeft,
+                    targetAnchor: Alignment.topRight,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       ),
     );
+  }
+
+  void closeDropdown(ExampleState exampleState) {
+    animationController.reverse();
+    dropdown?.remove();
+    exampleState.changeSelectorVisibility();
   }
 }

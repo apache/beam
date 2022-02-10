@@ -24,31 +24,40 @@ applyJavaNature(
   automaticModuleName: 'org.apache.beam.sdk.extensions.sql.datacatalog')
 
 dependencies {
-  compile enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
-  compile(library.java.google_cloud_datacatalog_v1beta1) {
+  implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+  implementation(library.java.google_cloud_datacatalog_v1beta1) {
     exclude group: 'io.grpc', module: 'grpc-core' // Use Beam's version
   }
-  compile library.java.gax
-  compile library.java.google_auth_library_credentials
-  compile library.java.proto_google_cloud_datacatalog_v1beta1
-  compile library.java.protobuf_java
-  compile library.java.slf4j_api
-  compile library.java.vendored_guava_26_0_jre
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile "org.threeten:threetenbp:1.4.5"
+  implementation library.java.gax
+  implementation library.java.google_auth_library_credentials
+  implementation library.java.proto_google_cloud_datacatalog_v1beta1
+  implementation library.java.protobuf_java
+  implementation library.java.slf4j_api
+  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.vendored_calcite_1_28_0
+  implementation "com.alibaba:fastjson:1.2.69"
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation "org.threeten:threetenbp:1.4.5"
   provided project(":sdks:java:extensions:sql")
 
   // Dependencies for the example
+  implementation project(":sdks:java:extensions:google-cloud-platform-core")
   provided project(":sdks:java:io:google-cloud-platform")
-  provided library.java.slf4j_api
+  permitUnusedDeclared project(":sdks:java:io:google-cloud-platform")
+  implementation library.java.slf4j_api
 
-  testCompile project(":sdks:java:extensions:sql:zetasql")
+  testImplementation project(":sdks:java:extensions:sql")
+  testImplementation project(":sdks:java:extensions:sql:zetasql")
+  testImplementation project(":runners:direct-java")
+  testImplementation project(":sdks:java:io:google-cloud-platform")
+  testImplementation library.java.google_api_services_bigquery
+  testImplementation library.java.junit
   testRuntimeOnly library.java.slf4j_simple
 }
 
 task runDataCatalogExample(type: JavaExec) {
   description = "Run SQL example of how to use Data Catalog table provider"
-  main = "org.apache.beam.sdk.extensions.sql.example.BeamSqlDataCatalogExample"
+  mainClass = "org.apache.beam.sdk.extensions.sql.example.BeamSqlDataCatalogExample"
   classpath = sourceSets.main.runtimeClasspath
 
   def runner = project.findProperty('runner') ?: 'DirectRunner'

@@ -59,6 +59,7 @@ var (
 	numWorkers           = flag.Int64("num_workers", 0, "Number of workers (optional).")
 	maxNumWorkers        = flag.Int64("max_num_workers", 0, "Maximum number of workers during scaling (optional).")
 	diskSizeGb           = flag.Int64("disk_size_gb", 0, "Size of root disk for VMs, in GB (optional).")
+	diskType             = flag.String("disk_type", "", "Type of root disk for VMs (optional).")
 	autoscalingAlgorithm = flag.String("autoscaling_algorithm", "", "Autoscaling mode to use (optional).")
 	zone                 = flag.String("zone", "", "GCP zone (optional)")
 	network              = flag.String("network", "", "GCP network (optional)")
@@ -95,6 +96,7 @@ var flagFilter = map[string]bool{
 	"num_workers":                    true,
 	"max_num_workers":                true,
 	"disk_size_gb":                   true,
+	"disk_type":                      true,
 	"autoscaling_algorithm":          true,
 	"zone":                           true,
 	"network":                        true,
@@ -153,9 +155,13 @@ var unique int32
 // Execute runs the given pipeline on Google Cloud Dataflow. It uses the
 // default application credentials to submit the job.
 func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error) {
+	if !beam.Initialized() {
+		panic("Beam has not been initialized. Call beam.Init() before pipeline construction.")
+	}
+
 	// (1) Gather job options
 
-	project := *gcpopts.Project
+	project := gcpopts.GetProjectFromFlagOrEnvironment(ctx)
 	if project == "" {
 		return nil, errors.New("no Google Cloud project specified. Use --project=<project>")
 	}
@@ -217,6 +223,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 		experiments = append(experiments, fmt.Sprintf("min_cpu_platform=%v", *minCPUPlatform))
 	}
 
+	beam.PipelineOptions.LoadOptionsFromFlags(flagFilter)
 	opts := &dataflowlib.JobOptions{
 		Name:                jobopts.GetJobName(),
 		Experiments:         experiments,
@@ -230,6 +237,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 		NumWorkers:          *numWorkers,
 		MaxNumWorkers:       *maxNumWorkers,
 		DiskSizeGb:          *diskSizeGb,
+		DiskType:            *diskType,
 		Algorithm:           *autoscalingAlgorithm,
 		MachineType:         *machineType,
 		Labels:              jobLabels,
@@ -276,13 +284,6 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 	if err != nil {
 		return nil, errors.WithContext(err, "applying container image overrides")
 	}
-
-	// Apply the all the as Go Options
-	flag.Visit(func(f *flag.Flag) {
-		if !flagFilter[f.Name] {
-			opts.Options.Options[f.Name] = f.Value.String()
-		}
-	})
 
 	if *dryRun {
 		log.Info(ctx, "Dry-run: not submitting job!")

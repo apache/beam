@@ -23,6 +23,7 @@ import (
 
 const logId = "playground-log"
 
+// CloudLoggingHandler represents 'Cloud Logging' package that logs to Google Cloud Logging service.
 type CloudLoggingHandler struct {
 	logger *logging.Logger
 	client *logging.Client

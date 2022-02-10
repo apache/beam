@@ -34,6 +34,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.joda.time.DateTimeUtils;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -75,6 +76,11 @@ public class RampupThrottlingFnTest {
     rampupThrottlingFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
     rampupThrottlingFnTester.startBundle();
     rampupThrottlingFn.throttlingMsecs = mockCounter;
+  }
+
+  @After
+  public void tearDown() {
+    DateTimeUtils.setCurrentMillisSystem();
   }
 
   @Test

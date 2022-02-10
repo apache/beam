@@ -21,58 +21,6 @@ applyGoNature()
 
 description = "Apache Beam :: SDKs :: Go :: Test :: Load"
 
-// Disable gogradle's dependency resolution so it uses Go modules instead.
-installDependencies.enabled = false
-resolveBuildDependencies.enabled = false
-resolveTestDependencies.enabled = false
-
-def getLocalPlatform = {
-  String hostOs = com.github.blindpirate.gogradle.crossplatform.Os.getHostOs()
-  String hostArch = com.github.blindpirate.gogradle.crossplatform.Arch.getHostArch()
-  return hostOs + '-' + hostArch
-}
-
-dependencies {
-  golang {
-    // TODO(herohde): use "./" prefix to prevent gogradle use base github path, for now.
-    // TODO(herohde): get the pkg subdirectory only, if possible. We spend mins pulling cmd/beamctl deps.
-    build name: './github.com/apache/beam/sdks/go', dir: project(':sdks:go').projectDir
-    test name: './github.com/apache/beam/sdks/go', dir: project(':sdks:go').projectDir
-  }
-}
-
-golang {
-  packagePath = 'github.com/apache/beam/sdks/v2/go/test/load'
-
-  // Set -modcacherw on common tasks so module cache can be deleted by goBuild.
-  goTest {
-    environment 'GOFLAGS', '-modcacherw'
-  }
-  goVet {
-    environment 'GOFLAGS', '-modcacherw'
-  }
-  gofmt {
-    environment 'GOFLAGS', '-modcacherw'
-  }
-  goBuild {
-    environment 'GOFLAGS', '-modcacherw'
-
-    // We always want to build linux-amd64 in addition to the user host platform
-    // so we can submit this as the remote binary used within the Go container.
-    //
-    // TODO: Move this into build_rules.gradle applyGoNature. This currently
-    // can't be done because com.github.blindpirate.gogradle.crossplatform.*
-    // is not found within when invoked from within build_rules.gradle applyGoNature
-    targetPlatform = [getLocalPlatform(), 'linux-amd64']
-    // Build all the tests
-    go 'build -o ./build/bin/${GOOS}_${GOARCH}/pardo github.com/apache/beam/sdks/v2/go/test/load/pardo'
-    go 'build -o ./build/bin/${GOOS}_${GOARCH}/combine github.com/apache/beam/sdks/v2/go/test/load/combine'
-    go 'build -o ./build/bin/${GOOS}_${GOARCH}/group_by_key github.com/apache/beam/sdks/v2/go/test/load/group_by_key'
-    go 'build -o ./build/bin/${GOOS}_${GOARCH}/sideinput github.com/apache/beam/sdks/v2/go/test/load/sideinput'
-    go 'build -o ./build/bin/${GOOS}_${GOARCH}/cogbk github.com/apache/beam/sdks/v2/go/test/load/cogbk'
-  }
-}
-
 task run {
   dependsOn goBuild
   def arguments = project.findProperty("loadTest.args") ?: ""
@@ -82,7 +30,7 @@ task run {
   doLast {
     exec {
       workingDir "${projectDir}/build/bin"
-      commandLine 'sh', '-c', "./${getLocalPlatform().replace("-", "_")}/${binary} ${arguments}"
+      commandLine 'sh', '-c', "./linux_amd64/${binary} ${arguments}"
     }
   }
 }

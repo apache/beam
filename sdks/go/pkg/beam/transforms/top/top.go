@@ -105,7 +105,7 @@ func SmallestPerKey(s beam.Scope, col beam.PCollection, n int, less interface{})
 
 func validate(t typex.FullType, n int, less interface{}) {
 	if n < 1 {
-		panic(fmt.Sprintf("n must be > 0"))
+		panic("n must be > 0")
 	}
 	funcx.MustSatisfy(less, funcx.Replace(sig, beam.TType, t.Type()))
 }
@@ -244,8 +244,7 @@ func (f *combineFn) MergeAccumulators(a, b accum) accum {
 	if err := b.unmarshal(); err != nil {
 		panic(err)
 	}
-	var ret []interface{}
-	ret = append(a.list, b.list...)
+	ret := append(a.list, b.list...)
 	return f.trim(ret)
 }
 

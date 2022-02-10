@@ -45,7 +45,8 @@ func (row *RunOutputWriter) Write(p []byte) (int, error) {
 
 	prevOutput, err := row.CacheService.GetValue(row.Ctx, row.PipelineId, cache.RunOutput)
 	if err != nil {
-		return 0, err
+		customErr := fmt.Errorf("error during saving output: %s", err)
+		return 0, customErr
 	}
 
 	// concat prevValue and new value
@@ -54,7 +55,8 @@ func (row *RunOutputWriter) Write(p []byte) (int, error) {
 	// set new cache value
 	err = row.CacheService.SetValue(row.Ctx, row.PipelineId, cache.RunOutput, str)
 	if err != nil {
-		return 0, err
+		customErr := fmt.Errorf("error during saving output: %s", err)
+		return 0, customErr
 	}
 	return len(p), nil
 }

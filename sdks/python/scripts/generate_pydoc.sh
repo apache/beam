@@ -93,6 +93,7 @@ echo "    :inherited-members:" >> target/docs/source/apache_beam.dataframe.frame
 cat > target/docs/source/conf.py <<'EOF'
 import os
 import sys
+from apache_beam import version as beam_version
 
 import sphinx_rtd_theme
 
@@ -117,6 +118,8 @@ master_doc = 'index'
 html_theme = 'sphinx_rtd_theme'
 html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 project = 'Apache Beam'
+version = beam_version.__version__
+release = version
 
 autoclass_content = 'both'
 autodoc_inherit_docstrings = False
@@ -133,7 +136,7 @@ intersphinx_mapping = {
   'python': ('https://docs.python.org/{}'.format(sys.version_info.major), None),
   'hamcrest': ('https://pyhamcrest.readthedocs.io/en/stable/', None),
   'google-cloud-datastore': ('https://googleapis.dev/python/datastore/latest/', None),
-  'numpy': ('http://docs.scipy.org/doc/numpy', None),
+  'numpy': ('https://numpy.org/doc/stable', None),
   'pandas': ('http://pandas.pydata.org/pandas-docs/dev', None),
 }
 

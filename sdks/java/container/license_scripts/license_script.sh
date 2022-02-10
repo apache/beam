@@ -41,14 +41,16 @@ mkdir -p "$DOWNLOAD_DIR"
 cp -r "${EXISTING_LICENSE_DIR}"/*.jar "${DOWNLOAD_DIR}"
 
 $PYTHON -m venv ${ENV_DIR} && . ${ENV_DIR}/bin/activate
+pip install --retries 10 --upgrade pip setuptools wheel
 
 # install packages
-${ENV_DIR}/bin/pip install -r ${SCRIPT_DIR}/requirement.txt
+pip install --retries 10 -r ${SCRIPT_DIR}/requirement.txt
 
 # pull licenses, notices and source code
 FLAGS="--license_index=${INDEX_FILE} \
        --output_dir=${DOWNLOAD_DIR} \
-       --dep_url_yaml=${SCRIPT_DIR}/dep_urls_java.yaml "
+       --dep_url_yaml=${SCRIPT_DIR}/dep_urls_java.yaml \
+       --manual_license_path=${SCRIPT_DIR}/manual_licenses"
 
 echo "Executing ${ENV_DIR}/bin/python ${SCRIPT_DIR}/pull_licenses_java.py $FLAGS"
 "${ENV_DIR}/bin/python" "${SCRIPT_DIR}/pull_licenses_java.py" $FLAGS

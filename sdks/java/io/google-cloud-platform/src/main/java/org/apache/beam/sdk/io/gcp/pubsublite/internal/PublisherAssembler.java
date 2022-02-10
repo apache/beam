@@ -17,18 +17,20 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 
+import static com.google.cloud.pubsublite.cloudpubsub.PublisherSettings.DEFAULT_BATCHING_SETTINGS;
 import static com.google.cloud.pubsublite.internal.ExtractStatus.toCanonical;
-import static com.google.cloud.pubsublite.internal.wire.ServiceClients.addDefaultMetadata;
 import static com.google.cloud.pubsublite.internal.wire.ServiceClients.addDefaultSettings;
+import static com.google.cloud.pubsublite.internal.wire.ServiceClients.getCallContext;
 
+import com.google.api.gax.rpc.ApiCallContext;
 import com.google.api.gax.rpc.ApiException;
 import com.google.cloud.pubsublite.AdminClient;
 import com.google.cloud.pubsublite.AdminClientSettings;
 import com.google.cloud.pubsublite.MessageMetadata;
 import com.google.cloud.pubsublite.Partition;
-import com.google.cloud.pubsublite.cloudpubsub.PublisherSettings;
 import com.google.cloud.pubsublite.internal.Publisher;
 import com.google.cloud.pubsublite.internal.wire.PartitionCountWatchingPublisherSettings;
+import com.google.cloud.pubsublite.internal.wire.PartitionPublisherFactory;
 import com.google.cloud.pubsublite.internal.wire.PubsubContext;
 import com.google.cloud.pubsublite.internal.wire.PubsubContext.Framework;
 import com.google.cloud.pubsublite.internal.wire.RoutingMetadata;
@@ -64,33 +66,50 @@ class PublisherAssembler {
     }
   }
 
-  private PublisherServiceClient newServiceClient(Partition partition) {
-    PublisherServiceSettings.Builder settingsBuilder = PublisherServiceSettings.newBuilder();
-    settingsBuilder =
-        addDefaultMetadata(
-            PubsubContext.of(FRAMEWORK),
-            RoutingMetadata.of(options.topicPath(), partition),
-            settingsBuilder);
+  private PublisherServiceClient newServiceClient() {
     try {
       return PublisherServiceClient.create(
-          addDefaultSettings(options.topicPath().location().extractRegion(), settingsBuilder));
+          addDefaultSettings(
+              options.topicPath().location().extractRegion(),
+              PublisherServiceSettings.newBuilder()));
     } catch (Throwable t) {
       throw toCanonical(t).underlying;
     }
   }
 
-  @SuppressWarnings("unchecked")
+  private PartitionPublisherFactory getPartitionPublisherFactory() throws ApiException {
+    PublisherServiceClient client = newServiceClient();
+    return new PartitionPublisherFactory() {
+      @Override
+      public com.google.cloud.pubsublite.internal.Publisher<MessageMetadata> newPublisher(
+          Partition partition) throws ApiException {
+        SinglePartitionPublisherBuilder.Builder singlePartitionBuilder =
+            SinglePartitionPublisherBuilder.newBuilder()
+                .setTopic(options.topicPath())
+                .setPartition(partition)
+                .setBatchingSettings(DEFAULT_BATCHING_SETTINGS)
+                .setStreamFactory(
+                    responseStream -> {
+                      ApiCallContext context =
+                          getCallContext(
+                              PubsubContext.of(FRAMEWORK),
+                              RoutingMetadata.of(options.topicPath(), partition));
+                      return client.publishCallable().splitCall(responseStream, context);
+                    });
+        return singlePartitionBuilder.build();
+      }
+
+      @Override
+      public void close() {
+        client.close();
+      }
+    };
+  }
+
   Publisher<MessageMetadata> newPublisher() throws ApiException {
     return PartitionCountWatchingPublisherSettings.newBuilder()
         .setTopic(options.topicPath())
-        .setPublisherFactory(
-            partition ->
-                SinglePartitionPublisherBuilder.newBuilder()
-                    .setTopic(options.topicPath())
-                    .setPartition(partition)
-                    .setServiceClient(newServiceClient(partition))
-                    .setBatchingSettings(PublisherSettings.DEFAULT_BATCHING_SETTINGS)
-                    .build())
+        .setPublisherFactory(getPartitionPublisherFactory())
         .setAdminClient(newAdminClient())
         .build()
         .instantiate();

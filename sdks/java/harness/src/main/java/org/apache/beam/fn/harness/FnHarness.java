@@ -19,7 +19,6 @@ package org.apache.beam.fn.harness;
 
 import java.util.Collections;
 import java.util.EnumMap;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
@@ -56,8 +55,8 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.grpc.v1p36p0.com.google.protobuf.TextFormat;
-import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p43p2.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1p43p2.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
@@ -169,8 +168,7 @@ public class FnHarness {
       @Nullable Endpoints.ApiServiceDescriptor statusApiServiceDescriptor)
       throws Exception {
     ManagedChannelFactory channelFactory;
-    List<String> experiments = options.as(ExperimentalOptions.class).getExperiments();
-    if (experiments != null && experiments.contains("beam_fn_api_epoll")) {
+    if (ExperimentalOptions.hasExperiment(options, "beam_fn_api_epoll")) {
       channelFactory = ManagedChannelFactory.createEpoll();
     } else {
       channelFactory = ManagedChannelFactory.createDefault();
@@ -214,7 +212,7 @@ public class FnHarness {
       Endpoints.ApiServiceDescriptor statusApiServiceDescriptor,
       ManagedChannelFactory channelFactory,
       OutboundObserverFactory outboundObserverFactory,
-      Cache<?, ?> processWideCache)
+      Cache<Object, Object> processWideCache)
       throws Exception {
     channelFactory =
         channelFactory.withInterceptors(ImmutableList.of(AddHarnessIdInterceptor.create(id)));
@@ -279,7 +277,8 @@ public class FnHarness {
               beamFnDataMultiplexer,
               beamFnStateGrpcClientCache,
               finalizeBundleHandler,
-              metricsShortIds);
+              metricsShortIds,
+              processWideCache);
 
       BeamFnStatusClient beamFnStatusClient = null;
       if (statusApiServiceDescriptor != null) {
@@ -288,7 +287,8 @@ public class FnHarness {
                 statusApiServiceDescriptor,
                 channelFactory::forDescriptor,
                 processBundleHandler.getBundleProcessorCache(),
-                options);
+                options,
+                processWideCache);
       }
 
       // TODO(BEAM-9729): Remove once runners no longer send this instruction.

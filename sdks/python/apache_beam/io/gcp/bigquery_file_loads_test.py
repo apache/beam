@@ -459,6 +459,90 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
 
       assert_that(jobs, equal_to([job_reference]), label='CheckJobs')
 
+  def test_load_job_id_used(self):
+    job_reference = bigquery_api.JobReference()
+    job_reference.projectId = 'loadJobProject'
+    job_reference.jobId = 'job_name1'
+
+    result_job = bigquery_api.Job()
+    result_job.jobReference = job_reference
+
+    mock_job = mock.Mock()
+    mock_job.status.state = 'DONE'
+    mock_job.status.errorResult = None
+    mock_job.jobReference = job_reference
+
+    bq_client = mock.Mock()
+    bq_client.jobs.Get.return_value = mock_job
+
+    bq_client.jobs.Insert.return_value = result_job
+
+    transform = bqfl.BigQueryBatchFileLoads(
+        'project1:dataset1.table1',
+        custom_gcs_temp_location=self._new_tempdir(),
+        test_client=bq_client,
+        validate=False,
+        load_job_project_id='loadJobProject')
+
+    with TestPipeline('DirectRunner') as p:
+      outputs = p | beam.Create(_ELEMENTS) | transform
+      jobs = outputs[bqfl.BigQueryBatchFileLoads.DESTINATION_JOBID_PAIRS] \
+             | "GetJobs" >> beam.Map(lambda x: x[1])
+
+      assert_that(jobs, equal_to([job_reference]), label='CheckJobProjectIds')
+
+  def test_load_job_id_use_for_copy_job(self):
+    destination = 'project1:dataset1.table1'
+
+    job_reference = bigquery_api.JobReference()
+    job_reference.projectId = 'loadJobProject'
+    job_reference.jobId = 'job_name1'
+    result_job = mock.Mock()
+    result_job.jobReference = job_reference
+
+    mock_job = mock.Mock()
+    mock_job.status.state = 'DONE'
+    mock_job.status.errorResult = None
+    mock_job.jobReference = job_reference
+
+    bq_client = mock.Mock()
+    bq_client.jobs.Get.return_value = mock_job
+
+    bq_client.jobs.Insert.return_value = result_job
+    bq_client.tables.Delete.return_value = None
+
+    with TestPipeline('DirectRunner') as p:
+      outputs = (
+          p
+          | beam.Create(_ELEMENTS, reshuffle=False)
+          | bqfl.BigQueryBatchFileLoads(
+              destination,
+              custom_gcs_temp_location=self._new_tempdir(),
+              test_client=bq_client,
+              validate=False,
+              temp_file_format=bigquery_tools.FileFormat.JSON,
+              max_file_size=45,
+              max_partition_size=80,
+              max_files_per_partition=2,
+              load_job_project_id='loadJobProject'))
+
+      dest_copy_jobs = outputs[
+          bqfl.BigQueryBatchFileLoads.DESTINATION_COPY_JOBID_PAIRS]
+
+      copy_jobs = dest_copy_jobs | "GetCopyJobs" >> beam.Map(lambda x: x[1])
+
+      assert_that(
+          copy_jobs,
+          equal_to([
+              job_reference,
+              job_reference,
+              job_reference,
+              job_reference,
+              job_reference,
+              job_reference
+          ]),
+          label='CheckCopyJobProjectIds')
+
   @mock.patch('time.sleep')
   def test_wait_for_job_completion(self, sleep_mock):
     job_references = [bigquery_api.JobReference(), bigquery_api.JobReference()]

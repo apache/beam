@@ -90,14 +90,26 @@ type ApplicationEnvs struct {
 
 	// pipelineExecuteTimeout is timeout for code processing
 	pipelineExecuteTimeout time.Duration
+
+	// launchSite is a launch site of application
+	launchSite string
+
+	// projectId is the Google Сloud project id
+	projectId string
+
+	// pipelinesFolder is name of folder in which the pipelines resources are stored
+	pipelinesFolder string
 }
 
 // NewApplicationEnvs constructor for ApplicationEnvs
-func NewApplicationEnvs(workingDir string, cacheEnvs *CacheEnvs, pipelineExecuteTimeout time.Duration) *ApplicationEnvs {
+func NewApplicationEnvs(workingDir, launchSite, projectId, pipelinesFolder string, cacheEnvs *CacheEnvs, pipelineExecuteTimeout time.Duration) *ApplicationEnvs {
 	return &ApplicationEnvs{
 		workingDir:             workingDir,
 		cacheEnvs:              cacheEnvs,
 		pipelineExecuteTimeout: pipelineExecuteTimeout,
+		launchSite:             launchSite,
+		projectId:              projectId,
+		pipelinesFolder:        pipelinesFolder,
 	}
 }
 
@@ -114,4 +126,19 @@ func (ae *ApplicationEnvs) CacheEnvs() *CacheEnvs {
 // PipelineExecuteTimeout returns timeout for code processing
 func (ae *ApplicationEnvs) PipelineExecuteTimeout() time.Duration {
 	return ae.pipelineExecuteTimeout
+}
+
+// LaunchSite returns launch site of application
+func (ae *ApplicationEnvs) LaunchSite() string {
+	return ae.launchSite
+}
+
+// GoogleProjectId returns Google Сloud project id
+func (ae *ApplicationEnvs) GoogleProjectId() string {
+	return ae.projectId
+}
+
+// PipelinesFolder returns name of folder in which the pipelines resources are stored
+func (ae *ApplicationEnvs) PipelinesFolder() string {
+	return ae.pipelinesFolder
 }

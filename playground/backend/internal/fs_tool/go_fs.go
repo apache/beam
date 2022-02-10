@@ -25,6 +25,6 @@ const (
 )
 
 // newGoLifeCycle creates LifeCycle with go SDK environment.
-func newGoLifeCycle(pipelineId uuid.UUID, workingDir string) *LifeCycle {
-	return newCompilingLifeCycle(pipelineId, workingDir, goSourceFileExtension, goExecutableFileExtension)
+func newGoLifeCycle(pipelineId uuid.UUID, pipelinesFolder string) *LifeCycle {
+	return newCompilingLifeCycle(pipelineId, pipelinesFolder, goSourceFileExtension, goExecutableFileExtension)
 }

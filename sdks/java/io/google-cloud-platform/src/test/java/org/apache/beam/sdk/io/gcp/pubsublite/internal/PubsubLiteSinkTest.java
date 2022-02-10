@@ -23,14 +23,11 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.api.core.ApiFutures;
-import com.google.api.core.ApiService;
 import com.google.api.core.SettableApiFuture;
 import com.google.api.gax.rpc.StatusCode.Code;
 import com.google.cloud.pubsublite.CloudRegion;
@@ -52,7 +49,6 @@ import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.io.gcp.pubsublite.PublisherOptions;
@@ -68,7 +64,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.MockitoAnnotations;
 import org.mockito.Spy;
-import org.mockito.stubbing.Answer;
 
 @RunWith(JUnit4.class)
 public class PubsubLiteSinkTest {
@@ -92,9 +87,6 @@ public class PubsubLiteSinkTest {
 
   private final PubsubLiteSink sink = new PubsubLiteSink(defaultOptions());
 
-  // Initialized in setUp.
-  private ApiService.Listener listener;
-
   @Captor
   final ArgumentCaptor<Message> publishedMessageCaptor = ArgumentCaptor.forClass(Message.class);
 
@@ -110,16 +102,6 @@ public class PubsubLiteSinkTest {
   public void setUp() throws Exception {
     MockitoAnnotations.initMocks(this);
     PerServerPublisherCache.PUBLISHER_CACHE.set(defaultOptions(), publisher);
-    doAnswer(
-            (Answer<Void>)
-                args -> {
-                  listener = args.getArgument(0);
-                  return null;
-                })
-        .when(publisher)
-        .addListener(any(), any());
-    sink.setup();
-    verify(publisher).addListener(any(), any());
   }
 
   @Test
@@ -206,33 +188,5 @@ public class PubsubLiteSinkTest {
     assertTrue(statusOr.isPresent());
     assertThat(statusOr.get().code(), equalTo(Code.INTERNAL));
     exec.shutdownNow();
-  }
-
-  @Test
-  public void listenerExceptionOnBundleFinish() throws Exception {
-    Message message1 = Message.builder().build();
-    SettableApiFuture<MessageMetadata> future = SettableApiFuture.create();
-
-    SettableApiFuture<Void> publishFuture = SettableApiFuture.create();
-    when(publisher.publish(message1))
-        .thenAnswer(
-            args -> {
-              publishFuture.set(null);
-              return future;
-            });
-    Future<?> executorFuture =
-        Executors.newSingleThreadExecutor()
-            .submit(
-                () -> {
-                  PipelineExecutionException e =
-                      assertThrows(PipelineExecutionException.class, () -> runWith(message1));
-                  Optional<CheckedApiException> statusOr = ExtractStatus.extract(e.getCause());
-                  assertTrue(statusOr.isPresent());
-                  assertThat(statusOr.get().code(), equalTo(Code.INTERNAL));
-                });
-    publishFuture.get();
-    listener.failed(null, new CheckedApiException(Code.INTERNAL).underlying);
-    future.set(MessageMetadata.of(Partition.of(1), Offset.of(2)));
-    executorFuture.get();
   }
 }

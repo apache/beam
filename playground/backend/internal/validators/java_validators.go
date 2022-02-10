@@ -25,6 +25,7 @@ import (
 const (
 	javaExtension       = ".java"
 	javaUnitTestPattern = "@Test"
+	javaKatasPattern    = "org.apache.beam.learning.katas"
 )
 
 // GetJavaValidators return validators methods that should be applied to Java code
@@ -39,21 +40,45 @@ func GetJavaValidators(filePath string) *[]Validator {
 		Name:      "Valid path",
 	}
 	unitTestValidator := Validator{
-		Validator: CheckIsUnitTestJava,
+		Validator: checkIsUnitTestJava,
 		Args:      validatorArgs,
 		Name:      UnitTestValidatorName,
 	}
-	validators := []Validator{pathCheckerValidator, unitTestValidator}
+	katasValidator := Validator{
+		Validator: checkIsKataJava,
+		Args:      validatorArgs,
+		Name:      KatasValidatorName,
+	}
+	validators := []Validator{pathCheckerValidator, unitTestValidator, katasValidator}
 	return &validators
 }
 
-func CheckIsUnitTestJava(args ...interface{}) (bool, error) {
+//checkIsUnitTestJava checks if the pipeline is a UnitTest
+func checkIsUnitTestJava(args ...interface{}) (bool, error) {
+	ok, err := checkPipelineType(append(args, javaUnitTestPattern)...)
+	if err != nil {
+		return false, err
+	}
+	return ok, nil
+}
+
+//checkIsKataJava checks if the pipeline is a kata
+func checkIsKataJava(args ...interface{}) (bool, error) {
+	ok, err := checkPipelineType(append(args, javaKatasPattern)...)
+	if err != nil {
+		return false, err
+	}
+	return ok, nil
+}
+
+func checkPipelineType(args ...interface{}) (bool, error) {
 	filePath := args[0].(string)
+	pattern := args[2].(string)
 	code, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		logger.Errorf("Validation: Error during open file: %s, err: %s\n", filePath, err.Error())
 		return false, err
 	}
-	// check whether s contains substring unit test
-	return strings.Contains(string(code), javaUnitTestPattern), nil
+	// check whether s contains substring unit test or katas
+	return strings.Contains(string(code), pattern), nil
 }

@@ -96,11 +96,8 @@ class PerSubscriptionPartitionSdf extends DoFn<SubscriptionPartition, SequencedM
   @GetInitialRestriction
   public OffsetByteRange getInitialRestriction(
       @Element SubscriptionPartition subscriptionPartition) {
-    try (InitialOffsetReader reader = offsetReaderFactory.apply(subscriptionPartition)) {
-      Offset offset = reader.read();
-      return OffsetByteRange.of(
-          new OffsetRange(offset.value(), Long.MAX_VALUE /* open interval */));
-    }
+    Offset offset = offsetReaderFactory.apply(subscriptionPartition).read();
+    return OffsetByteRange.of(new OffsetRange(offset.value(), Long.MAX_VALUE /* open interval */));
   }
 
   @NewTracker

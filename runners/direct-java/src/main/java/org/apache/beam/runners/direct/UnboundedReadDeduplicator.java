@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.runners.core.construction.SplittableParDo.PrimitiveUnboundedRead;
 import org.apache.beam.runners.local.StructuralKey;
@@ -73,7 +74,7 @@ interface UnboundedReadDeduplicator {
     private CachedIdDeduplicator() {
       ids =
           CacheBuilder.newBuilder()
-              .expireAfterAccess(java.time.Duration.ofMillis(MAX_RETENTION_SINCE_ACCESS))
+              .expireAfterAccess(MAX_RETENTION_SINCE_ACCESS, TimeUnit.MILLISECONDS)
               .maximumSize(100_000L)
               .build(new TrueBooleanLoader());
     }

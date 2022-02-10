@@ -20,6 +20,9 @@ package org.apache.beam.sdk.fn.stream;
 /** An {@link Iterable} that returns {@link PrefetchableIterator}s. */
 public interface PrefetchableIterable<T> extends Iterable<T> {
 
+  /** Ensures that the next iterator returned has been prefetched. */
+  void prefetch();
+
   @Override
   PrefetchableIterator<T> iterator();
 }

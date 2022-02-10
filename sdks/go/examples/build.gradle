@@ -21,79 +21,14 @@ applyGoNature()
 
 description = "Apache Beam :: SDKs :: Go :: Examples"
 
-// Disable gogradle's dependency resolution so it uses Go modules instead.
-installDependencies.enabled = false
-resolveBuildDependencies.enabled = false
-resolveTestDependencies.enabled = false
-
-def getLocalPlatform = {
-  String hostOs = com.github.blindpirate.gogradle.crossplatform.Os.getHostOs()
-  String hostArch = com.github.blindpirate.gogradle.crossplatform.Arch.getHostArch()
-  return hostOs + '-' + hostArch
-}
-
-clean.dependsOn cleanVendor
-
-dependencies {
-  golang {
-    // TODO(herohde): use "./" prefix to prevent gogradle use base github path, for now.
-    // TODO(herohde): get the pkg subdirectory only, if possible. We spend mins pulling cmd/beamctl deps.
-    build name: './github.com/apache/beam/sdks/go', dir: project(':sdks:go').projectDir
-    test name: './github.com/apache/beam/sdks/go', dir: project(':sdks:go').projectDir
-  }
-}
-
-golang {
-  packagePath = 'github.com/apache/beam/sdks/v2/go/examples'
-
-  // Set -modcacherw on common tasks so module cache can be deleted by goBuild.
-  goTest {
-    environment 'GOFLAGS', '-modcacherw'
-  }
-  goVet {
-    environment 'GOFLAGS', '-modcacherw'
-  }
-  gofmt {
-    environment 'GOFLAGS', '-modcacherw'
-  }
-  goBuild {
-    environment 'GOFLAGS', '-modcacherw'
-
-    // We always want to build linux-amd64 in addition to the user host platform
-    // so we can submit this as the remote binary used within the Go container.
-    //
-    // TODO: Move this into build_rules.gradle applyGoNature. This currently
-    // can't be done because com.github.blindpirate.gogradle.crossplatform.*
-    // is not found within when invoked from within build_rules.gradle applyGoNature
-    targetPlatform = [getLocalPlatform(), 'linux-amd64']
-
-    // Build all the examples
-    go 'build -o ./build/bin/${GOOS}_${GOARCH}/autocomplete github.com/apache/beam/sdks/v2/go/examples/complete/autocomplete'
-    go 'build -o ./build/bin/${GOOS}_${GOARCH}/combine github.com/apache/beam/sdks/v2/go/examples/cookbook/combine'
-    go 'build -o ./build/bin/${GOOS}_${GOARCH}/contains github.com/apache/beam/sdks/v2/go/examples/contains'
-    go 'build -o ./build/bin/${GOOS}_${GOARCH}/debugging_wordcount github.com/apache/beam/sdks/v2/go/examples/debugging_wordcount'
-    go 'build -o ./build/bin/${GOOS}_${GOARCH}/filter github.com/apache/beam/sdks/v2/go/examples/cookbook/filter'
-    go 'build -o ./build/bin/${GOOS}_${GOARCH}/forest github.com/apache/beam/sdks/v2/go/examples/forest'
-    go 'build -o ./build/bin/${GOOS}_${GOARCH}/grades github.com/apache/beam/sdks/v2/go/examples/grades'
-    go 'build -o ./build/bin/${GOOS}_${GOARCH}/join github.com/apache/beam/sdks/v2/go/examples/cookbook/join'
-    go 'build -o ./build/bin/${GOOS}_${GOARCH}/max github.com/apache/beam/sdks/v2/go/examples/cookbook/max'
-    go 'build -o ./build/bin/${GOOS}_${GOARCH}/minimal_wordcount github.com/apache/beam/sdks/v2/go/examples/minimal_wordcount'
-    go 'build -o ./build/bin/${GOOS}_${GOARCH}/pingpong github.com/apache/beam/sdks/v2/go/examples/pingpong'
-    go 'build -o ./build/bin/${GOOS}_${GOARCH}/tornadoes github.com/apache/beam/sdks/v2/go/examples/cookbook/tornadoes'
-    go 'build -o ./build/bin/${GOOS}_${GOARCH}/windowed_wordcount github.com/apache/beam/sdks/v2/go/examples/windowed_wordcount'
-    go 'build -o ./build/bin/${GOOS}_${GOARCH}/wordcount github.com/apache/beam/sdks/v2/go/examples/wordcount'
-    go 'build -o ./build/bin/${GOOS}_${GOARCH}/yatzy github.com/apache/beam/sdks/v2/go/examples/yatzy'
-  }
-
-  // Ignore spurious vet errors during check for [BEAM-8992].
-  goVet {
-    continueOnFailure = true
-  }
-}
-
-// Run this task to validate the Go environment setup for contributors
-task wordCount(type: com.github.blindpirate.gogradle.Go) {
+// Run this task to validate the Go Build environment setup for contributors
+task wordCount() {
+  dependsOn(tasks.named("goPrepare"))
   description "Run the Go word count example"
-  dependsOn goVendor
-  go 'build -o ./build/bin/${GOOS}_${GOARCH}/wordcount github.com/apache/beam/sdks/v2/go/examples/wordcount'
+  doLast {
+    project.exec {
+      executable "sh"
+      args '-c', "${project.ext.goCmd} build -o ./build/bin/wordcount github.com/apache/beam/sdks/v2/go/examples/wordcount"
+    }
+  }
 }

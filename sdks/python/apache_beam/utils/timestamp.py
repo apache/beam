@@ -103,7 +103,7 @@ class Timestamp(object):
     Args:
       dt: A ``datetime.datetime`` object in UTC (offset-aware).
     """
-    if dt.tzinfo != pytz.utc:
+    if dt.tzinfo != pytz.utc and dt.tzinfo != datetime.timezone.utc:
       raise ValueError('dt not in UTC: %s' % dt)
     duration = dt - cls._epoch_datetime_utc()
     return Timestamp(duration.total_seconds())

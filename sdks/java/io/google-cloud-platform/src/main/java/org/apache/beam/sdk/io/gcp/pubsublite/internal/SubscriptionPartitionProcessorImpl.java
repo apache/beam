@@ -55,7 +55,7 @@ class SubscriptionPartitionProcessorImpl extends Listener
   private final OutputReceiver<SequencedMessage> receiver;
   private final Subscriber subscriber;
   private final SettableFuture<Void> completionFuture = SettableFuture.create();
-  // Queue to transfer messages from subscriber callback to runFor downcall, since all
+  // Queue to transfer messages from subscriber callback to runFor downcall.
   private final SynchronousQueue<List<SequencedMessage>> transfer = new SynchronousQueue<>();
   private final FlowControlSettings flowControlSettings;
   private Optional<Offset> lastClaimedOffset = Optional.empty();

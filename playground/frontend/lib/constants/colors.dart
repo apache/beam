@@ -45,3 +45,5 @@ const Color kErrorNotificationColor = Color(0xFFE54545);
 const Color kSuccessNotificationColor = Color(0xFF37AC66);
 const Color kWarningNotificationColor = Color(0xFFEEAB00);
 const Color kInfoNotificationColor = Color(0xFF3E67F6);
+
+const Color kLinkColor = Color(0xFF3E67F6);

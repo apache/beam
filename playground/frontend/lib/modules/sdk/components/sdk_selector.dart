@@ -17,6 +17,7 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground/components/dropdown_button/dropdown_button.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
@@ -28,10 +29,10 @@ import 'package:provider/provider.dart';
 typedef SetSdk = void Function(SDK sdk);
 typedef SetExample = void Function(ExampleModel example);
 
-const kSdkSelectorLabel = 'Select SDK Dropdown';
+const kEmptyExampleName = 'Catalog';
 
 const double kWidth = 150;
-const double kHeight = 172;
+const double kHeight = 137;
 
 class SDKSelector extends StatelessWidget {
   final SDK sdk;
@@ -49,7 +50,7 @@ class SDKSelector extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       container: true,
-      label: kSdkSelectorLabel,
+      label: AppLocalizations.of(context)!.selectSdkDropdown,
       child: AppDropdownButton(
         buttonText: Text(
           'SDK: ${sdk.displayName}',
@@ -57,7 +58,10 @@ class SDKSelector extends StatelessWidget {
         createDropdown: (close) => Column(
           children: [
             const SizedBox(height: kMdSpacing),
-            ...SDK.values.map((SDK value) {
+            // SCIO is not supported yet
+            ...SDK.values
+                .where((element) => element != SDK.scio)
+                .map((SDK value) {
               return SizedBox(
                 width: double.infinity,
                 child: Consumer<ExampleState>(
@@ -66,7 +70,15 @@ class SDKSelector extends StatelessWidget {
                     onSelect: () {
                       close();
                       setSdk(value);
-                      setExample(state.defaultExamplesMap![value]!);
+                      setExample(
+                        state.defaultExamplesMap![value] ??
+                            ExampleModel(
+                              name: kEmptyExampleName,
+                              path: '',
+                              description: '',
+                              type: ExampleType.example,
+                            ),
+                      );
                     },
                   ),
                 ),

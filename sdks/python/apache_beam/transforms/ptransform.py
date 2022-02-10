@@ -436,7 +436,7 @@ class PTransform(WithTypeHints, HasDisplayData):
 
     Raises:
       ValueError: if provided hints are unknown to the SDK. See
-        :mod:~apache_beam.transforms.resources` for a list of known hints.
+        :mod:`apache_beam.transforms.resources` for a list of known hints.
 
     Returns:
       PTransform: A reference to the instance of this particular
@@ -1003,6 +1003,8 @@ class _PTransformFnPTransform(PTransform):
 
 
 def ptransform_fn(fn):
+  # type: (Callable) -> Callable[..., _PTransformFnPTransform]
+
   """A decorator for a function-based PTransform.
 
   Args:

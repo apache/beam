@@ -103,7 +103,7 @@ func ParDo0(s Scope, dofn interface{}, col PCollection, opts ...Option) {
 // user-specified function on each of the elements of the input PCollection
 // to produce zero or more output elements, all of which are collected into
 // the output PCollection. Use one of the ParDo variants for a different
-// number of output PCollections. The PCollections do no need to have the
+// number of output PCollections. The PCollections do not need to have the
 // same types.
 //
 // Elements are processed independently, and possibly in parallel across

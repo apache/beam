@@ -30,6 +30,7 @@ import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.jsontype.TypeDeserializer;
 import com.fasterxml.jackson.databind.jsontype.TypeSerializer;
@@ -81,13 +82,18 @@ public class AwsModule extends SimpleModule {
   public static final String MAX_CONNECTIONS = "maxConnections";
   public static final String READ_TIMEOUT = "socketTimeout";
 
-  @SuppressWarnings({"nullness"})
   public AwsModule() {
     super("AwsModule");
-    setMixInAnnotation(AwsCredentialsProvider.class, AwsCredentialsProviderMixin.class);
-    setMixInAnnotation(ProxyConfiguration.class, ProxyConfigurationMixin.class);
-    setMixInAnnotation(AttributeMap.class, AttributeMapMixin.class);
-    setMixInAnnotation(SSECustomerKey.class, SSECustomerKeyMixin.class);
+  }
+
+  @Override
+  public void setupModule(SetupContext cxt) {
+    cxt.setMixInAnnotations(AwsCredentialsProvider.class, AwsCredentialsProviderMixin.class);
+    cxt.setMixInAnnotations(ProxyConfiguration.class, ProxyConfigurationMixin.class);
+    cxt.setMixInAnnotations(AttributeMap.class, AttributeMapMixin.class);
+    cxt.setMixInAnnotations(SSECustomerKey.class, SSECustomerKeyMixin.class);
+    cxt.setMixInAnnotations(SSECustomerKey.Builder.class, SSECustomerKeyBuilderMixin.class);
+    super.setupModule(cxt);
   }
 
   /** A mixin to add Jackson annotations to {@link AwsCredentialsProvider}. */
@@ -383,34 +389,9 @@ public class AwsModule extends SimpleModule {
     }
   }
 
-  @JsonDeserialize(using = SSECustomerKeyDeserializer.class)
+  @JsonDeserialize(builder = SSECustomerKey.Builder.class)
   private static class SSECustomerKeyMixin {}
 
-  private static class SSECustomerKeyDeserializer extends JsonDeserializer<SSECustomerKey> {
-
-    @Override
-    public SSECustomerKey deserialize(JsonParser parser, DeserializationContext context)
-        throws IOException {
-      Map<String, String> asMap =
-          checkNotNull(
-              parser.readValueAs(new TypeReference<Map<String, String>>() {}),
-              "Serialized SSECustomerKey is null");
-
-      final String key = getNotNull(asMap, "key");
-      final String algorithm = getNotNull(asMap, "algorithm");
-      SSECustomerKey.Builder builder = SSECustomerKey.builder().key(key).algorithm(algorithm);
-
-      final String md5 = asMap.get("md5");
-      if (md5 != null) {
-        builder.md5(md5);
-      }
-      return builder.build();
-    }
-
-    @SuppressWarnings({"nullness"})
-    private String getNotNull(Map<String, String> map, String key) {
-      return checkNotNull(
-          map.get(key), "Encryption %s is missing in serialized SSECustomerKey", key);
-    }
-  }
+  @JsonPOJOBuilder(withPrefix = "")
+  private static class SSECustomerKeyBuilderMixin {}
 }

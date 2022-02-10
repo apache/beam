@@ -21,6 +21,9 @@ import (
 	"testing"
 )
 
+// TestMain setups and teardown all necessary functionality for tests
+// in 'validators' package (i.e. for java_validators_test, go_validators_test,
+// python_validators_test)
 func TestMain(m *testing.M) {
 	setup()
 	defer teardown()
@@ -32,6 +35,7 @@ func setup() {
 	writeFile(javaCodePath, javaCode)
 	writeFile(goUnitTestFilePath, goUnitTestCode)
 	writeFile(goCodePath, goCode)
+	writeFile(javaKataFilePath, javaKataCode)
 }
 
 func teardown() {
@@ -39,6 +43,7 @@ func teardown() {
 	removeFile(javaCodePath)
 	removeFile(goUnitTestFilePath)
 	removeFile(goCodePath)
+	removeFile(javaKataFilePath)
 }
 
 func removeFile(path string) {

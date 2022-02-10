@@ -26,13 +26,9 @@ applyPythonNature()
 
 evaluationDependsOn(":sdks:java:harness")
 evaluationDependsOn(":sdks:java:io:kafka")
+evaluationDependsOn(":sdks:java:io:jdbc")
 
 description = "Apache Beam :: SDKs :: Java :: Container"
-
-// Disable gogradle's dependency resolution so it uses Go modules instead.
-installDependencies.enabled = false
-resolveBuildDependencies.enabled = false
-resolveTestDependencies.enabled = false
 
 configurations {
   dockerDependency
@@ -40,12 +36,6 @@ configurations {
 }
 
 dependencies {
-  golang {
-    // TODO(herohde): use "./" prefix to prevent gogradle use base github path, for now.
-    // TODO(herohde): get the pkg subdirectory only, if possible. We spend mins pulling cmd/beamctl deps.
-    build name: './github.com/apache/beam/sdks/go', dir: project(':sdks:go').projectDir
-    test name: './github.com/apache/beam/sdks/go', dir: project(':sdks:go').projectDir
-  }
   dockerDependency library.java.slf4j_api
   dockerDependency library.java.slf4j_jdk14
   dockerDependency project(path: ":sdks:java:harness", configuration: "shadow")
@@ -53,28 +43,12 @@ dependencies {
   dockerDependency project(":sdks:java:io:kafka")
   // This dependency is set to 'provided' scope in :sdks:java:io:kafka
   dockerDependency library.java.kafka_clients
+  dockerDependency library.java.jamm
 }
 
-golang {
-  packagePath = 'github.com/apache/beam/sdks/v2/java/container'
-
-  // Set -modcacherw on common tasks so module cache can be deleted by goBuild.
-  goTest {
-    environment 'GOFLAGS', '-modcacherw'
-  }
-  goVet {
-    environment 'GOFLAGS', '-modcacherw'
-  }
-  gofmt {
-    environment 'GOFLAGS', '-modcacherw'
-  }
-  goBuild {
-    environment 'GOFLAGS', '-modcacherw'
-
-    // TODO(herohde): build local platform + linux-amd64, if possible.
-    targetPlatform = ['linux-amd64']
-    outputLocation = './build/target/${GOOS}_${GOARCH}/boot'
-  }
+goBuild {
+  goTargets = '*.go' // only build the immediate directory.
+  outputLocation = './build/target/${GOOS}_${GOARCH}/boot'
 }
 
 // command: ./gradlew generateLicenseReport
@@ -82,7 +56,8 @@ import com.github.jk1.license.render.*
 licenseReport {
   projects = [project,
               project.rootProject.findProject(':sdks:java:harness'),
-              project.rootProject.findProject(':sdks:java:io:kafka')]
+              project.rootProject.findProject(':sdks:java:io:kafka'),
+              project.rootProject.findProject(':sdks:java:io:jdbc')]
   excludeOwnGroup = true
   excludeGroups = ["beam.*"] // project dependencies do not match their maven coords
   configurations = ALL
@@ -111,4 +86,5 @@ artifacts {
 task pushAll {
   dependsOn ":sdks:java:container:java8:dockerPush"
   dependsOn ":sdks:java:container:java11:dockerPush"
+  dependsOn ":sdks:java:container:java17:dockerPush"
 }

@@ -66,3 +66,19 @@ func (f *fs) Size(_ context.Context, filename string) (int64, error) {
 	}
 	return info.Size(), nil
 }
+
+// Remove the named file from the filesystem.
+func (f *fs) Remove(_ context.Context, filename string) error {
+	return os.Remove(filename)
+}
+
+// Rename the old path to the new path.
+func (f *fs) Rename(_ context.Context, oldpath, newpath string) error {
+	return os.Rename(oldpath, newpath)
+}
+
+// Compile time check for interface implementations.
+var (
+	_ filesystem.Remover = ((*fs)(nil))
+	_ filesystem.Renamer = ((*fs)(nil))
+)

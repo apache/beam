@@ -141,3 +141,14 @@ func TestGetJar_present(t *testing.T) {
 		t.Errorf("Jar path mismatch: wanted %v, got %v", expJarPath, jarPath)
 	}
 }
+
+func TestGetJar_dev(t *testing.T) {
+	gradleTarget := ":sdks:java:jake:runJar"
+	_, err := GetBeamJar(gradleTarget, "1.2.3.dev")
+	if err == nil {
+		t.Fatal("GetBeamJar succeeded when it should have failed")
+	}
+	if !strings.Contains(err.Error(), gradleTarget) {
+		t.Errorf("error message does not contain gradle command %v for user, got message: %v", gradleTarget, err)
+	}
+}

@@ -23,8 +23,12 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Common"
 ext.summary = "Code used by all Beam IOs"
 
 dependencies {
-  testCompile library.java.vendored_guava_26_0_jre
-  testCompile library.java.junit
-  testCompile library.java.postgres
-  testCompile project(path: ":sdks:java:core", configuration: "shadow")
+  testImplementation library.java.vendored_guava_26_0_jre
+  testImplementation library.java.junit
+  testImplementation library.java.hamcrest
+  testImplementation library.java.postgres
+  testImplementation library.java.testcontainers_mysql
+  testImplementation library.java.testcontainers_postgresql
+  testImplementation 'com.zaxxer:HikariCP-java6:2.3.13'
+  testImplementation project(path: ":sdks:java:core", configuration: "shadow")
 }

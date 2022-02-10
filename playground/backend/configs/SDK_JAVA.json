@@ -15,6 +15,6 @@
   "test_args": [
     "-cp",
     "bin:",
-    "JUnit"
+    "org.junit.runner.JUnitCore"
   ]
 }

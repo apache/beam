@@ -17,12 +17,13 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:playground/components/split_view/split_view.dart';
 import 'package:playground/config/theme.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/output/components/output.dart';
 import 'package:playground/modules/output/models/output_placement.dart';
-import 'package:playground/pages/playground/components/editor_textarea_wrapper.dart';
 import 'package:playground/modules/output/models/output_placement_state.dart';
+import 'package:playground/pages/playground/components/editor_textarea_wrapper.dart';
 import 'package:provider/provider.dart';
 
 class PlaygroundPageBody extends StatelessWidget {
@@ -33,30 +34,33 @@ class PlaygroundPageBody extends StatelessWidget {
     return Consumer<OutputPlacementState>(builder: (context, state, child) {
       switch (state.placement) {
         case OutputPlacement.bottom:
-          return Column(children: [
-            codeTextArea,
-            getHorizontalSeparator(context),
-            output,
-          ]);
+          return SplitView(
+            direction: SplitViewDirection.vertical,
+            first: codeTextArea,
+            second: output,
+            dividerSize: kMdSpacing,
+          );
         case OutputPlacement.left:
-          return Row(children: [
-            output,
-            getVerticalSeparator(context),
-            codeTextArea,
-          ]);
+          return SplitView(
+            direction: SplitViewDirection.horizontal,
+            first: output,
+            second: codeTextArea,
+            dividerSize: kMdSpacing,
+          );
         case OutputPlacement.right:
-          return Row(children: [
-            codeTextArea,
-            getVerticalSeparator(context),
-            output,
-          ]);
+          return SplitView(
+            direction: SplitViewDirection.horizontal,
+            first: codeTextArea,
+            second: output,
+            dividerSize: kMdSpacing,
+          );
       }
     });
   }
 
-  Widget get codeTextArea => const Expanded(child: CodeTextAreaWrapper());
+  Widget get codeTextArea => const CodeTextAreaWrapper();
 
-  Widget get output => const Expanded(child: Output());
+  Widget get output => const Output(isEmbedded: false);
 
   Widget getVerticalSeparator(BuildContext context) => Container(
         width: kMdSpacing,

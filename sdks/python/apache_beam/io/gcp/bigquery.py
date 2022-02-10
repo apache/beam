@@ -1789,6 +1789,7 @@ class _StreamToBigQuery(PTransform):
       schema_side_inputs,
       schema,
       batch_size,
+      triggering_frequency,
       create_disposition,
       write_disposition,
       kms_key,
@@ -1802,6 +1803,7 @@ class _StreamToBigQuery(PTransform):
     self.schema_side_inputs = schema_side_inputs
     self.schema = schema
     self.batch_size = batch_size
+    self.triggering_frequency = triggering_frequency
     self.create_disposition = create_disposition
     self.write_disposition = write_disposition
     self.kms_key = kms_key
@@ -1874,6 +1876,7 @@ class _StreamToBigQuery(PTransform):
           tagged_data
           | 'WithAutoSharding' >> beam.GroupIntoBatches.WithShardedKey(
               (self.batch_size or BigQueryWriteFn.DEFAULT_MAX_BUFFERED_ROWS),
+              self.triggering_frequency or
               DEFAULT_BATCH_BUFFERING_DURATION_LIMIT_SEC)
           | 'DropShard' >> beam.Map(lambda kv: (kv[0].key, kv[1])))
 
@@ -1926,7 +1929,8 @@ class WriteToBigQuery(PTransform):
       ignore_insert_ids=False,
       # TODO(BEAM-11857): Switch the default when the feature is mature.
       with_auto_sharding=False,
-      ignore_unknown_columns=False):
+      ignore_unknown_columns=False,
+      load_job_project_id=None):
     """Initialize a WriteToBigQuery transform.
 
     Args:
@@ -2026,14 +2030,22 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         passed to the table callable (if one is provided).
       schema_side_inputs: A tuple with ``AsSideInput`` PCollections to be
         passed to the schema callable (if one is provided).
-      triggering_frequency (int): Every triggering_frequency duration, a
-        BigQuery load job will be triggered for all the data written since
-        the last load job. BigQuery has limits on how many load jobs can be
+      triggering_frequency (float):
+        When method is FILE_LOADS:
+        Value will be converted to int. Every triggering_frequency seconds, a
+        BigQuery load job will be triggered for all the data written since the
+        last load job. BigQuery has limits on how many load jobs can be
         triggered per day, so be careful not to set this duration too low, or
         you may exceed daily quota. Often this is set to 5 or 10 minutes to
-        ensure that the project stays well under the BigQuery quota.
-        See https://cloud.google.com/bigquery/quota-policy for more information
+        ensure that the project stays well under the BigQuery quota. See
+        https://cloud.google.com/bigquery/quota-policy for more information
         about BigQuery quotas.
+
+        When method is STREAMING_INSERTS and with_auto_sharding=True:
+        A streaming inserts batch will be submitted at least every
+        triggering_frequency seconds when data is waiting. The batch can be
+        sent earlier if it reaches the maximum batch size set by batch_size.
+        Default value is 0.2 seconds.
       validate: Indicates whether to perform validation checks on
         inputs. This parameter is primarily used for testing.
       temp_file_format: The format to use for file loads into BigQuery. The
@@ -2058,6 +2070,9 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         which treats unknown values as errors. This option is only valid for
         method=STREAMING_INSERTS. See reference:
         https://cloud.google.com/bigquery/docs/reference/rest/v2/tabledata/insertAll
+      load_job_project_id: Specifies an alternate GCP project id to use for
+        billingBatch File Loads. By default, the project id of the table is
+        used.
     """
     self._table = table
     self._dataset = dataset
@@ -2092,6 +2107,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     self.schema_side_inputs = schema_side_inputs or ()
     self._ignore_insert_ids = ignore_insert_ids
     self._ignore_unknown_columns = ignore_unknown_columns
+    self.load_job_project_id = load_job_project_id
 
   # Dict/schema methods were moved to bigquery_tools, but keep references
   # here for backward compatibility.
@@ -2134,10 +2150,10 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
             'Schema auto-detection is not supported for streaming '
             'inserts into BigQuery. Only for File Loads.')
 
-      if self.triggering_frequency:
+      if self.triggering_frequency is not None and not self.with_auto_sharding:
         raise ValueError(
-            'triggering_frequency can only be used with '
-            'FILE_LOADS method of writing to BigQuery.')
+            'triggering_frequency with STREAMING_INSERTS can only be used with '
+            'with_auto_sharding=True.')
 
       outputs = pcoll | _StreamToBigQuery(
           table_reference=self.table_reference,
@@ -2145,6 +2161,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           schema_side_inputs=self.schema_side_inputs,
           schema=self.schema,
           batch_size=self.batch_size,
+          triggering_frequency=self.triggering_frequency,
           create_disposition=self.create_disposition,
           write_disposition=self.write_disposition,
           kms_key=self.kms_key,
@@ -2168,13 +2185,18 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
               'Avro based file loads')
 
       from apache_beam.io.gcp import bigquery_file_loads
-
+      # Only cast to int when a value is given.
+      # We only use an int for BigQueryBatchFileLoads
+      if self.triggering_frequency is not None:
+        triggering_frequency = int(self.triggering_frequency)
+      else:
+        triggering_frequency = self.triggering_frequency
       return pcoll | bigquery_file_loads.BigQueryBatchFileLoads(
           destination=self.table_reference,
           schema=self.schema,
           create_disposition=self.create_disposition,
           write_disposition=self.write_disposition,
-          triggering_frequency=self.triggering_frequency,
+          triggering_frequency=triggering_frequency,
           with_auto_sharding=self.with_auto_sharding,
           temp_file_format=self._temp_file_format,
           max_file_size=self.max_file_size,
@@ -2185,7 +2207,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           schema_side_inputs=self.schema_side_inputs,
           additional_bq_parameters=self.additional_bq_parameters,
           validate=self._validate,
-          is_streaming_pipeline=is_streaming_pipeline)
+          is_streaming_pipeline=is_streaming_pipeline,
+          load_job_project_id=self.load_job_project_id)
 
   def display_data(self):
     res = {}

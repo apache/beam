@@ -86,6 +86,7 @@ public class BeamFnDataReadRunner<OutputT> {
 
       BeamFnDataReadRunner<OutputT> runner =
           new BeamFnDataReadRunner<>(
+              context.getBundleCacheSupplier(),
               context.getPTransformId(),
               context.getPTransform(),
               context.getProcessBundleInstructionIdSupplier(),
@@ -115,6 +116,7 @@ public class BeamFnDataReadRunner<OutputT> {
   private long stopIndex;
 
   BeamFnDataReadRunner(
+      Supplier<Cache<?, ?>> cache,
       String pTransformId,
       RunnerApi.PTransform grpcReadNode,
       Supplier<String> processBundleInstructionIdSupplier,
@@ -137,6 +139,11 @@ public class BeamFnDataReadRunner<OutputT> {
                 coders.get(port.getCoderId()),
                 components,
                 new StateBackedIterableTranslationContext() {
+                  @Override
+                  public Supplier<Cache<?, ?>> getCache() {
+                    return cache;
+                  }
+
                   @Override
                   public BeamFnStateClient getStateClient() {
                     return beamFnStateClient;

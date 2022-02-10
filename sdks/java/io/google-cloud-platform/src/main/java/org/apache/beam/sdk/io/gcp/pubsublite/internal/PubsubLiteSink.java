@@ -17,25 +17,20 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite.internal;
 
+import static java.util.concurrent.TimeUnit.MINUTES;
+
 import com.google.api.core.ApiFuture;
-import com.google.api.core.ApiFutureCallback;
 import com.google.api.core.ApiFutures;
-import com.google.api.core.ApiService.Listener;
-import com.google.api.core.ApiService.State;
 import com.google.api.gax.rpc.ApiException;
 import com.google.cloud.pubsublite.Message;
 import com.google.cloud.pubsublite.MessageMetadata;
 import com.google.cloud.pubsublite.internal.CheckedApiException;
-import com.google.cloud.pubsublite.internal.ExtractStatus;
 import com.google.cloud.pubsublite.internal.Publisher;
-import com.google.cloud.pubsublite.internal.wire.SystemExecutors;
 import com.google.cloud.pubsublite.proto.PubSubMessage;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import java.util.ArrayDeque;
 import java.util.Deque;
-import java.util.function.Consumer;
 import org.apache.beam.sdk.io.gcp.pubsublite.PublisherOptions;
-import org.apache.beam.sdk.io.gcp.pubsublite.internal.PublisherOrError.Kind;
 import org.apache.beam.sdk.transforms.DoFn;
 
 /** A sink which publishes messages to Pub/Sub Lite. */
@@ -46,98 +41,44 @@ public class PubsubLiteSink extends DoFn<PubSubMessage, Void> {
   private final PublisherOptions options;
 
   @GuardedBy("this")
-  private transient PublisherOrError publisherOrError;
-
-  // Whenever outstanding is decremented, notify() must be called.
-  @GuardedBy("this")
-  private transient int outstanding;
-
-  @GuardedBy("this")
-  private transient Deque<CheckedApiException> errorsSinceLastFinish;
+  private transient RunState runState;
 
   public PubsubLiteSink(PublisherOptions options) {
     this.options = options;
   }
 
-  @Setup
-  public void setup() throws ApiException {
-    Publisher<MessageMetadata> publisher;
-    publisher = PerServerPublisherCache.PUBLISHER_CACHE.get(options);
-    synchronized (this) {
-      outstanding = 0;
-      errorsSinceLastFinish = new ArrayDeque<>();
-      publisherOrError = PublisherOrError.ofPublisher(publisher);
+  private static class RunState {
+    private final Deque<ApiFuture<MessageMetadata>> futures = new ArrayDeque<>();
+
+    private final Publisher<MessageMetadata> publisher;
+
+    RunState(PublisherOptions options) {
+      publisher = PerServerPublisherCache.PUBLISHER_CACHE.get(options);
     }
-    // cannot declare in inner class since 'this' means something different.
-    Consumer<Throwable> onFailure =
-        t -> {
-          synchronized (this) {
-            publisherOrError = PublisherOrError.ofError(ExtractStatus.toCanonical(t));
-          }
-        };
-    publisher.addListener(
-        new Listener() {
-          @Override
-          public void failed(State s, Throwable t) {
-            onFailure.accept(t);
-          }
-        },
-        SystemExecutors.getFuturesExecutor());
+
+    void publish(PubSubMessage message) {
+      futures.add(publisher.publish(Message.fromProto(message)));
+    }
+
+    void waitForDone() throws Exception {
+      ApiFutures.allAsList(futures).get(1, MINUTES);
+    }
   }
 
-  private synchronized void decrementOutstanding() {
-    --outstanding;
-    notify();
+  @StartBundle
+  public synchronized void startBundle() throws ApiException {
+    runState = new RunState(options);
   }
 
   @ProcessElement
   public synchronized void processElement(@Element PubSubMessage message)
       throws CheckedApiException {
-    ++outstanding;
-    if (publisherOrError.getKind() == Kind.ERROR) {
-      throw publisherOrError.error();
-    }
-    ApiFuture<MessageMetadata> future =
-        publisherOrError.publisher().publish(Message.fromProto(message));
-    // cannot declare in inner class since 'this' means something different.
-    Consumer<Throwable> onFailure =
-        t -> {
-          synchronized (this) {
-            decrementOutstanding();
-            errorsSinceLastFinish.push(ExtractStatus.toCanonical(t));
-          }
-        };
-    ApiFutures.addCallback(
-        future,
-        new ApiFutureCallback<MessageMetadata>() {
-          @Override
-          public void onSuccess(MessageMetadata messageMetadata) {
-            decrementOutstanding();
-          }
-
-          @Override
-          public void onFailure(Throwable t) {
-            onFailure.accept(t);
-          }
-        },
-        SystemExecutors.getFuturesExecutor());
+    runState.publish(message);
   }
 
   // Intentionally don't flush on bundle finish to allow multi-sink client reuse.
   @FinishBundle
-  public synchronized void finishBundle() throws CheckedApiException, InterruptedException {
-    while (outstanding > 0) {
-      wait();
-    }
-    if (!errorsSinceLastFinish.isEmpty()) {
-      CheckedApiException canonical = errorsSinceLastFinish.pop();
-      while (!errorsSinceLastFinish.isEmpty()) {
-        canonical.addSuppressed(errorsSinceLastFinish.pop());
-      }
-      throw canonical;
-    }
-    if (publisherOrError.getKind() == Kind.ERROR) {
-      throw publisherOrError.error();
-    }
+  public synchronized void finishBundle() throws Exception {
+    runState.waitForDone();
   }
 }

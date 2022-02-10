@@ -17,7 +17,7 @@
 #    Provide the following environment to run this script:
 #
 #    GCLOUD_ZONE: Google cloud zone. Optional. Default: "us-central1-a"
-#    DATAPROC_VERSION: Dataproc version. Optional. Default: 1.2
+#    DATAPROC_VERSION: Dataproc version. Optional. Default: 1.5
 #    CLUSTER_NAME: Cluster name
 #    GCS_BUCKET: GCS bucket url for Dataproc resources (init actions)
 #    HARNESS_IMAGES_TO_PULL: Urls to SDK Harness' images to pull on dataproc workers (optional: 0, 1 or multiple urls for every harness image)
@@ -46,7 +46,7 @@ set -Eeuxo pipefail
 
 # GCloud properties
 GCLOUD_ZONE="${GCLOUD_ZONE:=us-central1-a}"
-DATAPROC_VERSION="${DATAPROC_VERSION:=1.2}"
+DATAPROC_VERSION="${DATAPROC_VERSION:=1.5}"
 
 MASTER_NAME="$CLUSTER_NAME-m"
 

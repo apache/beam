@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.auto.value.AutoValue;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -45,9 +46,11 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayLis
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import redis.clients.jedis.Jedis;
-import redis.clients.jedis.Pipeline;
-import redis.clients.jedis.ScanParams;
-import redis.clients.jedis.ScanResult;
+import redis.clients.jedis.StreamEntryID;
+import redis.clients.jedis.Transaction;
+import redis.clients.jedis.params.ScanParams;
+import redis.clients.jedis.params.XAddParams;
+import redis.clients.jedis.resps.ScanResult;
 
 /**
  * An IO to manipulate Redis key/value database.
@@ -105,6 +108,44 @@ import redis.clients.jedis.ScanResult;
  *   .apply(RedisIO.write().withEndpoint("::1", 6379))
  *
  * }</pre>
+ *
+ * <h3>Writing Redis Streams</h3>
+ *
+ * <p>{@link #writeStreams()} appends the entries of a {@link PCollection} of key/value pairs
+ * represented as {@link KV} to the Redis stream at the specified key using the <a
+ * href='https://redis.io/commands/XADD'>XADD</a> API.
+ *
+ * <p>To configure the target Redis server, you have to provide a Redis server hostname and port
+ * number. The following example illustrates how to configure a sink:
+ *
+ * <pre>{@code
+ * pipeline.apply(...)
+ *   // here we have a PCollection<KV<String, Map<String, String>>>
+ *   .apply(RedisIO.writeStreams().withEndpoint("::1", 6379))
+ * }</pre>
+ *
+ * <p>Redis Streams optionally can be capped to a specific or exact length (see the documentation
+ * for the <a href="https://redis.io/commands/xtrim">XTRIM</a> API); {@link #writeStreams()} lets
+ * you specify MAXLEN using the {@code withMaxLen()} option.
+ *
+ * <p>Trimming a stream to an exact length is noted in the Redis documentation as being inefficient;
+ * the {@code withApproximateTrim()} boolean option will add the {@code ~} prefix to {@code MAXLEN},
+ * which tells Redis to use "almost exact" trimming.
+ *
+ * <p>See the <a href="https://redis.io/topics/streams-intro">Redis Streams documentation</a> for a
+ * deeper discussion of the issues involved.
+ *
+ * <p>The following example illustrates how to configure a sink with trimming:
+ *
+ * <pre>{@code
+ * pipeline.apply(...)
+ *   // here we have a PCollection<KV<String, Map<String, String>>>
+ *   .apply(RedisIO.writeStreams()
+ *     .withEndpoint("::1", 6379)
+ *     .withMaxLen(1024L)
+ *     .withApproximateTrim(true)
+ *    )
+ * }</pre>
  */
 @Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
@@ -139,6 +180,15 @@ public class RedisIO {
     return new AutoValue_RedisIO_Write.Builder()
         .setConnectionConfiguration(RedisConnectionConfiguration.create())
         .setMethod(Write.Method.APPEND)
+        .build();
+  }
+
+  /** Write stream data to a Redis server. */
+  public static WriteStreams writeStreams() {
+    return new AutoValue_RedisIO_WriteStreams.Builder()
+        .setConnectionConfiguration(RedisConnectionConfiguration.create())
+        .setMaxLen(0L)
+        .setApproximateTrim(true)
         .build();
   }
 
@@ -568,7 +618,7 @@ public class RedisIO {
       private final Write spec;
 
       private transient Jedis jedis;
-      private transient Pipeline pipeline;
+      private transient @Nullable Transaction transaction;
 
       private int batchCount;
 
@@ -583,8 +633,7 @@ public class RedisIO {
 
       @StartBundle
       public void startBundle() {
-        pipeline = jedis.pipelined();
-        pipeline.multi();
+        transaction = jedis.multi();
         batchCount = 0;
       }
 
@@ -597,9 +646,8 @@ public class RedisIO {
         batchCount++;
 
         if (batchCount >= DEFAULT_BATCH_SIZE) {
-          pipeline.exec();
-          pipeline.sync();
-          pipeline.multi();
+          transaction.exec();
+          transaction.multi();
           batchCount = 0;
         }
       }
@@ -629,7 +677,7 @@ public class RedisIO {
         String key = record.getKey();
         String value = record.getValue();
 
-        pipeline.append(key, value);
+        transaction.append(key, value);
 
         setExpireTimeWhenRequired(key, expireTime);
       }
@@ -639,9 +687,9 @@ public class RedisIO {
         String value = record.getValue();
 
         if (expireTime != null) {
-          pipeline.psetex(key, expireTime, value);
+          transaction.psetex(key, expireTime, value);
         } else {
-          pipeline.set(key, value);
+          transaction.set(key, value);
         }
       }
 
@@ -652,9 +700,9 @@ public class RedisIO {
         String value = record.getValue();
 
         if (Method.LPUSH == method) {
-          pipeline.lpush(key, value);
+          transaction.lpush(key, value);
         } else if (Method.RPUSH == method) {
-          pipeline.rpush(key, value);
+          transaction.rpush(key, value);
         }
 
         setExpireTimeWhenRequired(key, expireTime);
@@ -664,7 +712,7 @@ public class RedisIO {
         String key = record.getKey();
         String value = record.getValue();
 
-        pipeline.sadd(key, value);
+        transaction.sadd(key, value);
 
         setExpireTimeWhenRequired(key, expireTime);
       }
@@ -673,7 +721,7 @@ public class RedisIO {
         String key = record.getKey();
         String value = record.getValue();
 
-        pipeline.pfadd(key, value);
+        transaction.pfadd(key, value);
 
         setExpireTimeWhenRequired(key, expireTime);
       }
@@ -682,7 +730,7 @@ public class RedisIO {
         String key = record.getKey();
         String value = record.getValue();
         long inc = Long.parseLong(value);
-        pipeline.incrBy(key, inc);
+        transaction.incrBy(key, inc);
 
         setExpireTimeWhenRequired(key, expireTime);
       }
@@ -691,23 +739,185 @@ public class RedisIO {
         String key = record.getKey();
         String value = record.getValue();
         long decr = Long.parseLong(value);
-        pipeline.decrBy(key, decr);
+        transaction.decrBy(key, decr);
 
         setExpireTimeWhenRequired(key, expireTime);
       }
 
       private void setExpireTimeWhenRequired(String key, Long expireTime) {
         if (expireTime != null) {
-          pipeline.pexpire(key, expireTime);
+          transaction.pexpire(key, expireTime);
         }
       }
 
       @FinishBundle
       public void finishBundle() {
-        if (pipeline.isInMulti()) {
-          pipeline.exec();
-          pipeline.sync();
+        if (batchCount > 0) {
+          transaction.exec();
         }
+        if (transaction != null) {
+          transaction.close();
+        }
+        transaction = null;
+        batchCount = 0;
+      }
+
+      @Teardown
+      public void teardown() {
+        jedis.close();
+      }
+    }
+  }
+
+  /**
+   * A {@link PTransform} to write stream key pairs (https://redis.io/topics/streams-intro) to a
+   * Redis server.
+   */
+  @AutoValue
+  public abstract static class WriteStreams
+      extends PTransform<PCollection<KV<String, Map<String, String>>>, PDone> {
+
+    abstract RedisConnectionConfiguration connectionConfiguration();
+
+    abstract long maxLen();
+
+    abstract boolean approximateTrim();
+
+    abstract Builder toBuilder();
+
+    /** Set the hostname and port of the Redis server to connect to. */
+    public WriteStreams withEndpoint(String host, int port) {
+      checkArgument(host != null, "host can not be null");
+      checkArgument(port > 0, "port can not be negative or 0");
+      return toBuilder()
+          .setConnectionConfiguration(connectionConfiguration().withHost(host).withPort(port))
+          .build();
+    }
+
+    /**
+     * Use the redis AUTH command when connecting to the server; the format of the string can be
+     * either just a password or a username and password separated by a space. See
+     * https://redis.io/commands/auth for details
+     */
+    public WriteStreams withAuth(String auth) {
+      checkArgument(auth != null, "auth can not be null");
+      return toBuilder()
+          .setConnectionConfiguration(connectionConfiguration().withAuth(auth))
+          .build();
+    }
+
+    /** Set the connection timeout for the Redis server connection. */
+    public WriteStreams withTimeout(int timeout) {
+      checkArgument(timeout >= 0, "timeout can not be negative");
+      return toBuilder()
+          .setConnectionConfiguration(connectionConfiguration().withTimeout(timeout))
+          .build();
+    }
+
+    /** Predefine a {@link RedisConnectionConfiguration} and pass it to the builder. */
+    public WriteStreams withConnectionConfiguration(RedisConnectionConfiguration connection) {
+      checkArgument(connection != null, "connection can not be null");
+      return toBuilder().setConnectionConfiguration(connection).build();
+    }
+
+    /** When appending (XADD) to a stream, set a MAXLEN option. */
+    public WriteStreams withMaxLen(long maxLen) {
+      checkArgument(maxLen >= 0L, "maxLen must be positive if set");
+      return toBuilder().setMaxLen(maxLen).build();
+    }
+
+    /**
+     * If {@link #withMaxLen(long)} is used, set the "~" prefix to the MAXLEN value, indicating to
+     * the server that it should use "close enough" trimming.
+     */
+    public WriteStreams withApproximateTrim(boolean approximateTrim) {
+      return toBuilder().setApproximateTrim(approximateTrim).build();
+    }
+
+    @AutoValue.Builder
+    abstract static class Builder {
+
+      abstract Builder setConnectionConfiguration(
+          RedisConnectionConfiguration connectionConfiguration);
+
+      abstract Builder setMaxLen(long maxLen);
+
+      abstract Builder setApproximateTrim(boolean approximateTrim);
+
+      abstract WriteStreams build();
+    }
+
+    @Override
+    public PDone expand(PCollection<KV<String, Map<String, String>>> input) {
+      checkArgument(connectionConfiguration() != null, "withConnectionConfiguration() is required");
+
+      input.apply(ParDo.of(new WriteStreamFn(this)));
+      return PDone.in(input.getPipeline());
+    }
+
+    private static class WriteStreamFn extends DoFn<KV<String, Map<String, String>>, Void> {
+
+      private static final int DEFAULT_BATCH_SIZE = 1000;
+
+      private final WriteStreams spec;
+
+      private transient Jedis jedis;
+      private transient @Nullable Transaction transaction;
+
+      private int batchCount;
+
+      public WriteStreamFn(WriteStreams spec) {
+        this.spec = spec;
+      }
+
+      @Setup
+      public void setup() {
+        jedis = spec.connectionConfiguration().connect();
+      }
+
+      @StartBundle
+      public void startBundle() {
+        transaction = jedis.multi();
+        batchCount = 0;
+      }
+
+      @ProcessElement
+      public void processElement(ProcessContext c) {
+        KV<String, Map<String, String>> record = c.element();
+
+        writeRecord(record);
+
+        batchCount++;
+
+        if (batchCount >= DEFAULT_BATCH_SIZE) {
+          transaction.exec();
+          transaction.multi();
+          batchCount = 0;
+        }
+      }
+
+      private void writeRecord(KV<String, Map<String, String>> record) {
+        String key = record.getKey();
+        Map<String, String> value = record.getValue();
+        final XAddParams params = new XAddParams().id(StreamEntryID.NEW_ENTRY);
+        if (spec.maxLen() > 0L) {
+          params.maxLen(spec.maxLen());
+          if (spec.approximateTrim()) {
+            params.approximateTrimming();
+          }
+        }
+        transaction.xadd(key, params, value);
+      }
+
+      @FinishBundle
+      public void finishBundle() {
+        if (batchCount > 0) {
+          transaction.exec();
+        }
+        if (transaction != null) {
+          transaction.close();
+        }
+        transaction = null;
         batchCount = 0;
       }
 

@@ -55,7 +55,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.InOrder;
@@ -69,6 +71,8 @@ public class SubscriptionPartitionProcessorImplTest {
   @Spy RestrictionTracker<OffsetByteRange, OffsetByteProgress> tracker;
   @Mock OutputReceiver<SequencedMessage> receiver;
   @Mock Function<Consumer<List<SequencedMessage>>, Subscriber> subscriberFactory;
+
+  @Rule public Timeout globalTimeout = Timeout.seconds(30);
 
   abstract static class FakeSubscriber extends FakeApiService implements Subscriber {}
 

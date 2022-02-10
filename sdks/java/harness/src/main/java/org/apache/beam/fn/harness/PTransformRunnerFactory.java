@@ -20,12 +20,14 @@ package org.apache.beam.fn.harness;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
-import org.apache.beam.fn.harness.data.BeamFnTimerClient;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
 import org.apache.beam.model.pipeline.v1.Endpoints;
+import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.Timer;
@@ -53,9 +55,6 @@ public interface PTransformRunnerFactory<T> {
     /** A client for handling state requests. */
     BeamFnStateClient getBeamFnStateClient();
 
-    /** A client for handling inbound and outbound timer streams. */
-    BeamFnTimerClient getBeamFnTimerClient();
-
     /** The id of the PTransform. */
     String getPTransformId();
 
@@ -64,6 +63,15 @@ public interface PTransformRunnerFactory<T> {
 
     /** A supplier containing the active process bundle instruction id. */
     Supplier<String> getProcessBundleInstructionIdSupplier();
+
+    /** A supplier containing the active cache tokens for this bundle. */
+    Supplier<List<ProcessBundleRequest.CacheToken>> getCacheTokensSupplier();
+
+    /** A cache that is used for each bundle and cleared when the bundle completes. */
+    Supplier<Cache<?, ?>> getBundleCacheSupplier();
+
+    /** A cache that is process wide and persists across bundle boundaries. */
+    Cache<?, ?> getProcessWideCache();
 
     /** An immutable mapping from PCollection id to PCollection definition. */
     Map<String, RunnerApi.PCollection> getPCollections();
@@ -74,12 +82,29 @@ public interface PTransformRunnerFactory<T> {
     /** An immutable mapping from windowing strategy id to windowing strategy definition. */
     Map<String, RunnerApi.WindowingStrategy> getWindowingStrategies();
 
+    /** An immutable set of runner capability urns. */
+    Set<String> getRunnerCapabilities();
+
     /** Register as a consumer for a given PCollection id. */
     <T> void addPCollectionConsumer(
         String pCollectionId, FnDataReceiver<WindowedValue<T>> consumer, Coder<T> valueCoder);
 
     /** Returns a {@link FnDataReceiver} to send output to for the specified PCollection id. */
     <T> FnDataReceiver<T> getPCollectionConsumer(String pCollectionId);
+
+    /**
+     * Registers the outbound data endpoint with given {@link Endpoints.ApiServiceDescriptor} and
+     * {@link Coder}, returns the {@link FnDataReceiver} responsible for sending the outbound data.
+     */
+    <T> FnDataReceiver<T> addOutgoingDataEndpoint(
+        ApiServiceDescriptor apiServiceDescriptor, Coder<T> coder);
+
+    /**
+     * Registers the outbound timers endpoint with given timer family id and {@link Coder}, returns
+     * the {@link FnDataReceiver} responsible for sending the outbound timers.
+     */
+    <T> FnDataReceiver<Timer<T>> addOutgoingTimersEndpoint(
+        String timerFamilyId, Coder<Timer<T>> coder);
 
     /** Register any {@link DoFn.StartBundle} methods. */
     void addStartBundleFunction(ThrowingRunnable startBundleFunction);

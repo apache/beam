@@ -28,3 +28,13 @@ task("generateProto") {
     }
   }
 }
+// lint proto files
+task("lintProto") {
+  group = "build"
+  doLast {
+    exec {
+      executable("buf")
+      args("lint", "--path", "api/")
+    }
+  }
+}

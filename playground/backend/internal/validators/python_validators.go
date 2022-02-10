@@ -15,8 +15,34 @@
 
 package validators
 
-// GetPythonValidators return validators methods that should be applied to Go code
-func GetPythonValidators() *[]Validator {
-	//TODO: Will be added in task [BEAM-13292]
-	return &[]Validator{}
+import (
+	"beam.apache.org/playground/backend/internal/logger"
+	"io/ioutil"
+	"strings"
+)
+
+const pyUnitTestPattern = "import unittest"
+
+// GetPyValidators return validators methods that should be applied to Python code
+func GetPyValidators(filePath string) *[]Validator {
+	validatorArgs := make([]interface{}, 1)
+	validatorArgs[0] = filePath
+	unitTestValidator := Validator{
+		Validator: CheckIsUnitTestPy,
+		Args:      validatorArgs,
+		Name:      UnitTestValidatorName,
+	}
+	validators := []Validator{unitTestValidator}
+	return &validators
+}
+
+func CheckIsUnitTestPy(args ...interface{}) (bool, error) {
+	filePath := args[0].(string)
+	code, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		logger.Errorf("Validation: Error during open file: %s, err: %s\n", filePath, err.Error())
+		return false, err
+	}
+	// check whether Python code is unit test code
+	return strings.Contains(string(code), pyUnitTestPattern), nil
 }
