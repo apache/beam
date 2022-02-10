@@ -28,9 +28,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
@@ -170,9 +172,10 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
           // this can happen when compression is enabled in Kafka (seems to be fixed in 0.10)
           // should we check if the offset is way off from consumedOffset (say > 1M)?
           LOG.warn(
-              "{}: ignoring already consumed offset {} for {}",
+              "{}: ignoring already consumed offset {} that should be >= expected {} for {}",
               this,
               offset,
+              expected,
               pState.topicPartition);
           continue;
         }
@@ -340,6 +343,8 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   // consumer achieved best throughput in tests (see `defaultConsumerProperties`).
   private final ExecutorService consumerPollThread = Executors.newSingleThreadExecutor();
   private AtomicReference<Exception> consumerPollException = new AtomicReference<>();
+  // private final BlockingQueue<ConsumerRecords<byte[], byte[]>> availableRecordsQueue =
+  //     new LinkedBlockingDeque<>(10);
   private final SynchronousQueue<ConsumerRecords<byte[], byte[]>> availableRecordsQueue =
       new SynchronousQueue<>();
   private AtomicReference<KafkaCheckpointMark> finalizedCheckpointMark = new AtomicReference<>();
@@ -359,6 +364,8 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
 
   /** watermark before any records have been read. */
   private static Instant initialWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
+
+  private final Duration artificialExtraPollLatency;
 
   @Override
   public String toString() {
@@ -463,7 +470,11 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
       KafkaUnboundedSource<K, V> source, @Nullable KafkaCheckpointMark checkpointMark) {
     this.source = source;
     this.name = "Reader-" + source.getId();
-
+    artificialExtraPollLatency = source.getSpec().getArtificialExtraPollLatency();
+    if (artificialExtraPollLatency != null) {
+      LOG.info("Requested artificial extra poll latency of {}ms",
+          artificialExtraPollLatency.getMillis());
+    }
     List<TopicPartition> partitions = source.getSpec().getTopicPartitions();
     List<PartitionState<K, V>> states = new ArrayList<>(partitions.size());
 
@@ -512,22 +523,94 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     backlogElementsOfSplit = SourceMetrics.backlogElementsOfSplit(splitId);
   }
 
+  private static class PoolLoopStats {
+    long polls = 0;
+    Duration pollDuration = Duration.ZERO;
+    long successfulPolls = 0;
+    Duration successfulPollDuration = Duration.ZERO;
+    long offers = 0;
+    Duration offerDuration = Duration.ZERO;
+    long successfulOffers = 0;
+    Duration successfulOfferDuration = Duration.ZERO;
+    Duration checkpointDuration = Duration.ZERO;
+
+    public void pollComplete(Duration duration, boolean success) {
+      polls += 1;
+      if (success) {
+        successfulPolls += 1;
+        successfulPollDuration = successfulPollDuration.plus(duration);
+      }
+      pollDuration = pollDuration.plus(duration);
+    }
+
+    public void offerComplete(Duration duration, boolean success) {
+      offers += 1;
+      if (success) {
+        successfulOffers += 1;
+        successfulOfferDuration = successfulOfferDuration.plus(duration);
+      }
+      offerDuration = offerDuration.plus(duration);
+    }
+
+    public void checkpointComplete(Duration duration) {
+      checkpointDuration = checkpointDuration.plus(duration);
+    }
+
+    private Duration totalDuration() {
+      return pollDuration.plus(offerDuration).plus(checkpointDuration);
+    }
+
+    public void log() {
+      Duration avgSuccessfulPollDuration =
+          successfulPolls != 0 ? successfulPollDuration.dividedBy(successfulPolls) : Duration.ZERO;
+      Duration avgSuccessfulOfferDuration =
+          successfulOffers != 0 ? successfulOfferDuration.dividedBy(successfulOffers)
+              : Duration.ZERO;
+      LOG.info(
+          "consumerPollLoop stats: polls -- {} total, {}ms total, {} ok, {}ms avg ok; " +
+              "offers -- {} total, {}ms total, {} ok, {}ms avg ok.",
+          polls, pollDuration.getMillis(), successfulPolls, avgSuccessfulPollDuration.getMillis(),
+          offers, offerDuration.getMillis(), successfulOffers,
+          avgSuccessfulOfferDuration.getMillis());
+    }
+  }
+
   private void consumerPollLoop() {
     // Read in a loop and enqueue the batch of records, if any, to availableRecordsQueue.
 
+    LOG.info("Starting consumerPollLoop()");
     try {
+      PoolLoopStats stats = new PoolLoopStats();
       ConsumerRecords<byte[], byte[]> records = ConsumerRecords.empty();
       while (!closed.get()) {
         try {
           if (records.isEmpty()) {
+            Instant pollStart = Instant.now();
             records = consumer.poll(KAFKA_POLL_TIMEOUT.getMillis());
-          } else if (availableRecordsQueue.offer(
-              records, RECORDS_ENQUEUE_POLL_TIMEOUT.getMillis(), TimeUnit.MILLISECONDS)) {
-            records = ConsumerRecords.empty();
+            // Only extend successful polls.
+            if (artificialExtraPollLatency != null && !records.isEmpty()) {
+              Thread.sleep(artificialExtraPollLatency.getMillis());
+            }
+            stats.pollComplete(new Duration(pollStart, Instant.now()), !records.isEmpty());
+          } else {
+            Instant offerStart = Instant.now();
+            boolean offerOk = availableRecordsQueue.offer(
+                records, RECORDS_ENQUEUE_POLL_TIMEOUT.getMillis(), TimeUnit.MILLISECONDS);
+            stats.offerComplete(new Duration(offerStart, Instant.now()), offerOk);
+            if (offerOk) {
+              records = ConsumerRecords.empty();
+            }
           }
           KafkaCheckpointMark checkpointMark = finalizedCheckpointMark.getAndSet(null);
           if (checkpointMark != null) {
+            Instant checkpointStart = Instant.now();
             commitCheckpointMark(checkpointMark);
+            stats.checkpointComplete(new Duration(checkpointStart, Instant.now()));
+          }
+
+          if (stats.totalDuration().getStandardSeconds() >= 30) {
+            stats.log();
+            stats = new PoolLoopStats();
           }
         } catch (InterruptedException e) {
           LOG.warn("{}: consumer thread is interrupted", this, e); // not expected
@@ -537,6 +620,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
         }
       }
       LOG.info("{}: Returning from consumer pool loop", this);
+      stats.log();
     } catch (Exception e) { // mostly an unrecoverable KafkaException.
       LOG.error("{}: Exception while reading from Kafka", this, e);
       consumerPollException.set(e);

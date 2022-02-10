@@ -22,3 +22,11 @@ project.ext {
 
 // Load the main build script which contains all build logic.
 apply from: "../common.gradle"
+
+task pushToGcr(type:Exec) {
+    dependsOn ":sdks:java:container:java11:dockerPrepare"
+    commandLine """
+        gcloud builds submit build/docker
+        -t gcr.io/google.com/dataflow-streaming/dmitryo-test/beam_java11_sdk:2.35.0.q
+    """.split()
+}
