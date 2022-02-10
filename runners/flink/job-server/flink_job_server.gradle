@@ -222,7 +222,7 @@ task validatesPortableRunner() {
 def jobPort = BeamModulePlugin.getRandomPort()
 def artifactPort = BeamModulePlugin.getRandomPort()
 
-def setupTask = project.tasks.create(name: "flinkJobServerSetup", type: Exec) {
+def setupTask = project.tasks.register("flinkJobServerSetup", Exec) {
   dependsOn shadowJar
   def pythonDir = project.project(":sdks:python").projectDir
   def flinkJobServerJar = shadowJar.archivePath
@@ -231,7 +231,7 @@ def setupTask = project.tasks.create(name: "flinkJobServerSetup", type: Exec) {
   args '-c', "$pythonDir/scripts/run_job_server.sh stop --group_id ${project.name} && $pythonDir/scripts/run_job_server.sh start --group_id ${project.name} --job_port ${jobPort} --artifact_port ${artifactPort} --job_server_jar ${flinkJobServerJar}"
 }
 
-def cleanupTask = project.tasks.create(name: "flinkJobServerCleanup", type: Exec) {
+def cleanupTask = project.tasks.register("flinkJobServerCleanup", Exec) {
   def pythonDir = project.project(":sdks:python").projectDir
 
   executable 'sh'

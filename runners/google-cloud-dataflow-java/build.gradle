@@ -54,8 +54,8 @@ processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'dataflow.legacy_environment_major_version' : '8',
     'dataflow.fnapi_environment_major_version' : '8',
-    'dataflow.legacy_container_version' : 'beam-master-20220124',
-    'dataflow.fnapi_container_version' : 'beam-master-20220124',
+    'dataflow.legacy_container_version' : 'beam-master-20220203',
+    'dataflow.fnapi_container_version' : 'beam-master-20220203',
     'dataflow.container_base_repository' : 'gcr.io/cloud-dataflow/v1beta3',
   ]
 }
@@ -263,7 +263,7 @@ def createRunnerV2ValidatesRunnerTest = { Map args ->
 // NB: Tasks which consume docker images from the registry should depend on this
 // task directly ('dependsOn buildAndPushDockerJavaContainer'). This ensures the correct
 // task ordering such that the registry doesn't get cleaned up prior to task completion.
-task buildAndPushDockerJavaContainer() {
+def buildAndPushDockerJavaContainer = tasks.register("buildAndPushDockerJavaContainer") {
   def javaVer = "java8"
   if(project.hasProperty('compileAndRunTestsWithJava17')) {
     javaVer = "java17"
@@ -286,7 +286,7 @@ task buildAndPushDockerJavaContainer() {
 }
 
 // Clean up built Java images
-task cleanUpDockerJavaImages() {
+def cleanUpDockerJavaImages = tasks.register("cleanUpDockerJavaImages") {
   doLast {
     exec {
       commandLine "docker", "rmi", "--force", "${dockerJavaImageName}"
@@ -304,7 +304,7 @@ task cleanUpDockerJavaImages() {
 // NB: Tasks which consume docker images from the registry should depend on this
 // task directly ('dependsOn buildAndPushDockerPythonContainer'). This ensures the correct
 // task ordering such that the registry doesn't get cleaned up prior to task completion.
-task buildAndPushDockerPythonContainer() {
+def buildAndPushDockerPythonContainer = tasks.create("buildAndPushDockerPythonContainer") {
   if (!project.project(":sdks:python").buildFile.exists()) {
     System.err.println 'Python build file not found. Skipping buildAndPushDockerPythonContainer task.'
     return
@@ -327,7 +327,7 @@ task buildAndPushDockerPythonContainer() {
 }
 
 // Clean up built Python images
-task cleanUpDockerPythonImages() {
+def cleanUpDockerPythonImages = tasks.register("cleanUpDockerPythonImages") {
   doLast {
     exec {
       commandLine "docker", "rmi", "--force", "${dockerPythonImageName}"
@@ -385,12 +385,12 @@ task validatesRunnerStreaming {
   ))
 }
 
-task setupXVR {
+def setupXVR = tasks.register("setupXVR") {
   dependsOn buildAndPushDockerJavaContainer
   dependsOn buildAndPushDockerPythonContainer
 }
 
-task cleanupXVR {
+def cleanupXVR = tasks.register("cleanupXVR") {
   finalizedBy cleanUpDockerJavaImages
   finalizedBy cleanUpDockerPythonImages
 }

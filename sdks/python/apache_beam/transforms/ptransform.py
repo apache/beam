@@ -1003,6 +1003,8 @@ class _PTransformFnPTransform(PTransform):
 
 
 def ptransform_fn(fn):
+  # type: (Callable) -> Callable[..., _PTransformFnPTransform]
+
   """A decorator for a function-based PTransform.
 
   Args:

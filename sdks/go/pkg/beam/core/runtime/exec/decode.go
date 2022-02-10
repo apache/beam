@@ -22,7 +22,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 )
 
-// Decoder is a uniform custom encoder interface. It wraps various
+// Decoder is a uniform custom decoder interface. It wraps various
 // forms of reflectx.Funcs.
 type Decoder interface {
 	// Decode decodes the []byte in to a value of the given type.

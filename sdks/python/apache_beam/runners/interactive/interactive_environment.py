@@ -29,15 +29,21 @@ import importlib
 import logging
 import os
 import tempfile
+import warnings
 from collections.abc import Iterable
+from pathlib import PurePath
 
 import apache_beam as beam
+from apache_beam.pipeline import Pipeline
+from apache_beam.runners import DataflowRunner
 from apache_beam.runners import runner
+from apache_beam.runners.direct import direct_runner
 from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.runners.interactive.messaging.interactive_environment_inspector import InteractiveEnvironmentInspector
 from apache_beam.runners.interactive.recording_manager import RecordingManager
 from apache_beam.runners.interactive.sql.sql_chain import SqlChain
 from apache_beam.runners.interactive.user_pipeline_tracker import UserPipelineTracker
+from apache_beam.runners.interactive.utils import assert_bucket_exists
 from apache_beam.runners.interactive.utils import register_ipython_log_handler
 from apache_beam.utils.interactive_utils import is_in_ipython
 from apache_beam.utils.interactive_utils import is_in_notebook
@@ -357,19 +363,48 @@ class InteractiveEnvironment(object):
     given pipeline. If the pipeline is absent from the environment while
     create_if_absent is True, creates and returns a new file based cache
     manager for the pipeline."""
+    if self._is_in_ipython:
+      warnings.filterwarnings(
+          'ignore',
+          'options is deprecated since First stable release. References to '
+          '<pipeline>.options will not be supported',
+          category=DeprecationWarning)
+
     cache_manager = self._cache_managers.get(str(id(pipeline)), None)
-    if not cache_manager and create_if_absent:
-      from apache_beam.runners.interactive import interactive_beam as ib
-      if ib.options.cache_root:
-        #TODO(victorhc): Handle the case when the path starts with "gs://"
-        if ib.options.cache_root.startswith("gs://"):
-          raise ValueError("GCS paths are not currently supported.")
-        cache_dir = tempfile.mkdtemp(dir=ib.options.cache_root)
+    if isinstance(pipeline, Pipeline):
+      from apache_beam.runners.interactive.interactive_runner import InteractiveRunner
+      if isinstance(pipeline.runner, InteractiveRunner):
+        pipeline_runner = pipeline.runner._underlying_runner
       else:
-        cache_dir = tempfile.mkdtemp(
-            suffix=str(id(pipeline)),
-            prefix='it-',
-            dir=os.environ.get('TEST_TMPDIR', None))
+        pipeline_runner = pipeline.runner
+    else:
+      pipeline_runner = None
+    if not cache_manager and create_if_absent:
+      cache_root = self.options.cache_root
+      if cache_root:
+        if cache_root.startswith('gs://'):
+          cache_dir = self._get_gcs_cache_dir(pipeline, cache_root)
+        else:
+          cache_dir = tempfile.mkdtemp(dir=cache_root)
+          if not isinstance(pipeline_runner, direct_runner.DirectRunner):
+            _LOGGER.warning(
+                'A local cache directory has been specified while '
+                'not using DirectRunner. It is recommended to cache into a '
+                'GCS bucket instead.')
+      else:
+        staging_location = pipeline.options.get_all_options(
+        )['staging_location']
+        if isinstance(pipeline_runner, DataflowRunner) and staging_location:
+          cache_dir = self._get_gcs_cache_dir(pipeline, staging_location)
+          _LOGGER.info(
+              'No cache_root detected. '
+              'Defaulting to staging_location %s for cache location.',
+              staging_location)
+        else:
+          cache_dir = tempfile.mkdtemp(
+              suffix=str(id(pipeline)),
+              prefix='it-',
+              dir=os.environ.get('TEST_TMPDIR', None))
       cache_manager = cache.FileBasedCacheManager(cache_dir)
       self._cache_managers[str(id(pipeline))] = cache_manager
     return cache_manager
@@ -675,3 +710,12 @@ class InteractiveEnvironment(object):
             pipeline)
       chain.user_pipeline = pipeline
     return chain
+
+  def _get_gcs_cache_dir(self, pipeline, cache_dir):
+    cache_dir_path = PurePath(cache_dir)
+    if len(cache_dir_path.parts) < 2:
+      _LOGGER.error('GCS bucket cache path is too short to be valid.')
+      raise ValueError('cache_root GCS bucket path is invalid.')
+    bucket_name = cache_dir_path.parts[1]
+    assert_bucket_exists(bucket_name)
+    return 'gs://{}/{}'.format('/'.join(cache_dir_path.parts[1:]), id(pipeline))

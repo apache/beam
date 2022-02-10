@@ -175,7 +175,6 @@ public class ChildPartitionsRecordAction {
               partition.getEndTimestamp(),
               partition.getHeartbeatMillis(),
               childPartition);
-      // FIXME: Figure out what to do if this throws an exception
       LOG.debug("[" + partitionToken + "] Inserting child partition token " + childPartitionToken);
       final Boolean insertedRow =
           partitionMetadataDao

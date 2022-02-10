@@ -91,10 +91,6 @@ func main() {
 	flag.Parse()
 	beam.Init()
 
-	if *expansionAddr == "" {
-		log.Fatal("no expansion service address provided")
-	}
-
 	p, s := beam.NewPipelineWithRoot()
 
 	moves := makeDemoMoves()
@@ -117,6 +113,14 @@ func main() {
 	// The query should be provded as a string in the SQL dialect specified in the options
 	// above. When specifying fields from the struct, wrap the names in ``
 	query := "SELECT * FROM PCOLLECTION WHERE `Character` = 'Blanka'"
+
+	if *expansionAddr != "" {
+		// The expansion address can be specified per-call here or overwritten for all
+		// calls using xlangx.RegisterOverrideForUrn(sqlx.Urn, *expansionAddr).
+		opts = append(opts, sql.ExpansionAddr(*expansionAddr))
+	} else {
+		log.Print("no expansion service address provided, will start automated service")
+	}
 
 	outputCollection := sql.Transform(s, query, opts...)
 
