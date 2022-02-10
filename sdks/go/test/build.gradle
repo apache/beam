@@ -120,7 +120,7 @@ task sparkValidatesRunner {
 // The ULR can exhibit strange behavior when containers are built with outdated
 // vendored directories. For best results use the clean task, like so:
 //   ./gradlew clean :sdks:go:test:ulrValidatesRunner
-task ulrValidatesRunner {
+tasks.register("ulrValidatesRunner") {
   group = "Verification"
 
   dependsOn ":sdks:go:test:goBuild"
@@ -150,19 +150,25 @@ task ulrValidatesRunner {
 // A method for configuring a cross-language validates runner test task,
 // intended to be used in calls to createCrossLanguageValidatesRunnerTask.
 ext.goIoValidatesRunnerTask = { proj, name, scriptOpts ->
-  return proj.tasks.create(name: name) {
+  return proj.tasks.register(name) {
     group = "Verification"
 
     dependsOn ":sdks:go:test:goBuild"
     dependsOn ":sdks:go:container:docker"
     dependsOn ":sdks:java:io:expansion-service:build"
+    dependsOn ":sdks:java:extensions:schemaio-expansion-service:build"
+    dependsOn ":sdks:java:io:debezium:expansion-service:build"
     dependsOn ":sdks:java:testing:kafka-service:buildTestKafkaServiceJar"
 
     doLast {
       def ioExpJar = project(":sdks:java:io:expansion-service").shadowJar.archivePath
+      def schemaIoExpJar = project(":sdks:java:extensions:schemaio-expansion-service").shadowJar.archivePath
+      def debeziumIoExpJar = project(":sdks:java:io:debezium:expansion-service").shadowJar.archivePath
       def kafkaJar = project(":sdks:java:testing:kafka-service:").buildTestKafkaServiceJar.archivePath
       def options = [
           "--io_expansion_jar ${ioExpJar}",
+          "--schemaio_expansion_jar ${schemaIoExpJar}",
+          "--debeziumio_expansion_jar ${debeziumIoExpJar}",
           "--pipeline_opts \"--kafka_jar=${kafkaJar}\"",
       ]
       options.addAll(scriptOpts)

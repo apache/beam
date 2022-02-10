@@ -39,9 +39,6 @@ const (
 )
 
 func checkFlags(t *testing.T) {
-	if *integration.IoExpansionAddr == "" {
-		t.Skip("No IO expansion address provided.")
-	}
 	if bootstrapAddr == "" {
 		t.Skip("No bootstrap server address provided.")
 	}
