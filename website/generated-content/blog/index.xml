@@ -196,6 +196,7 @@ see &lt;a href="https://storage.googleapis.com/cloud-opensource-java-dashboard/c
 &lt;li>Fixed data loss when writing to DynamoDB without setting deduplication key names (Java)
 (&lt;a href="https://issues.apache.org/jira/browse/BEAM-13009">BEAM-13009&lt;/a>).&lt;/li>
 &lt;li>Go SDK Examples now have types and functions registered. (Go) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-5378">BEAM-5378&lt;/a>)&lt;/li>
+&lt;li>Fixed data loss when using Python WriteToFiles in streaming pipeline (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12950">BEAM-12950&lt;/a>).&lt;/li>
 &lt;/ul>
 &lt;h2 id="known-issues">Known Issues&lt;/h2>
 &lt;ul>
@@ -226,6 +227,7 @@ Daniel Oliveira
 daria.malkova
 darshan-sj
 David Huntsperger
+David Prieto Rivera
 Dmitrii Kuzin
 dpcollins-google
 dprieto
@@ -1080,7 +1082,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 &lt;p>We are happy to present the new 2.28.0 release of Apache Beam. This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/#2280-2021-02-13">download page&lt;/a> for this release.
+See the &lt;a href="/get-started/downloads/#2280-2021-02-22">download page&lt;/a> for this release.
 For more information on changes in 2.28.0, check out the
 &lt;a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12349499">detailed release notes&lt;/a>.&lt;/p>
 &lt;h2 id="highlights">Highlights&lt;/h2>

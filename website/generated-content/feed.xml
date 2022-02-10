@@ -196,6 +196,7 @@ see &lt;a href="https://storage.googleapis.com/cloud-opensource-java-dashboard/c
 &lt;li>Fixed data loss when writing to DynamoDB without setting deduplication key names (Java)
 (&lt;a href="https://issues.apache.org/jira/browse/BEAM-13009">BEAM-13009&lt;/a>).&lt;/li>
 &lt;li>Go SDK Examples now have types and functions registered. (Go) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-5378">BEAM-5378&lt;/a>)&lt;/li>
+&lt;li>Fixed data loss when using Python WriteToFiles in streaming pipeline (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12950">BEAM-12950&lt;/a>).&lt;/li>
 &lt;/ul>
 &lt;h2 id="known-issues">Known Issues&lt;/h2>
 &lt;ul>
@@ -226,6 +227,7 @@ Daniel Oliveira
 daria.malkova
 darshan-sj
 David Huntsperger
+David Prieto Rivera
 Dmitrii Kuzin
 dpcollins-google
 dprieto
