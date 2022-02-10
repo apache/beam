@@ -40,6 +40,8 @@ const (
 	logFileName            = "logs.log"
 	defaultExampleInSbt    = "WordCount.scala"
 	shCmd                  = "sh"
+	rmCmd                  = "rm"
+	cpCmd                  = "cp"
 	scioProject            = "new_scio_project.sh"
 	scioCommonConstants    = "ExampleData.scala"
 )
@@ -173,11 +175,12 @@ func prepareSbtFiles(lc *fs_tool.LifeCycle, pipelineFolder string, workingDir st
 	projectFolder, _ := filepath.Abs(filepath.Join(pipelineFolder, scioProjectName))
 	executableName := lc.Paths.ExecutableName
 
-	_, err = exec.Command("rm", filepath.Join(absFileFolderPath, defaultExampleInSbt)).Output()
+	_, err = exec.Command(rmCmd, filepath.Join(absFileFolderPath, defaultExampleInSbt)).Output()
 	if err != nil {
 		return nil, err
 	}
-	_, err = exec.Command("cp", filepath.Join(workingDir, scioCommonConstants), absFileFolderPath).Output()
+
+	_, err = exec.Command(cpCmd, filepath.Join(workingDir, scioCommonConstants), absFileFolderPath).Output()
 	if err != nil {
 		return nil, err
 	}
