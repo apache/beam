@@ -28,6 +28,7 @@ import unittest
 import uuid
 
 import pandas as pd
+import pytest
 
 from apache_beam.examples.dataframe import flight_delays
 from apache_beam.io.filesystems import FileSystems
@@ -99,9 +100,8 @@ class FlightDelaysTest(unittest.TestCase):
   def tearDown(self):
     FileSystems.delete([self.outdir + '/'])
 
-  # TODO(BEAM-13867) Enable once is fixed
-  # @pytest.mark.examples_postcommit
-  # @pytest.mark.it_postcommit
+  @pytest.mark.examples_postcommit
+  @pytest.mark.it_postcommit
   def test_flight_delays(self):
     flight_delays.run_flight_delay_pipeline(
         self.test_pipeline,
