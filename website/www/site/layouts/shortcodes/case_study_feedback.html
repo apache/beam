@@ -13,16 +13,7 @@ limitations under the License. See accompanying LICENSE file.
 <div class="case-study-feedback" id="case-study-feedback">
   <p class="case-study-feedback-title">Was this information useful?</p>
   <div>
-    <button class="btn case-study-feedback-btn" onclick="sendCaseStudyFeedback(true)">Yes</button>
-    <button class="btn case-study-feedback-btn" onclick="sendCaseStudyFeedback(false)">No</button>
+    <button class="btn case-study-feedback-btn" onclick="sendCaseStudyFeedback(true, '{{ .Get 0 }}')">Yes</button>
+    <button class="btn case-study-feedback-btn" onclick="sendCaseStudyFeedback(false, '{{ .Get 0 }}')">No</button>
   </div>
 </div>
-
-<script>
-  function sendCaseStudyFeedback(isUseful) {
-    ga('send', 'event', 'Case Study Feedback', 'Click',isUseful ? 'yes' : 'no');
-    var caseStudyFeedbackContainerId = 'case-study-feedback';
-    const container = document.getElementById(caseStudyFeedbackContainerId)
-    container.innerHTML = '<p class="case-study-feedback-title">Thank you for your feedback!</p>'
-  }
-</script>
