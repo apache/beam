@@ -350,7 +350,15 @@ func New(fn reflectx.Func) (*Fn, error) {
 			if ok, err := IsMalformedEmit(t); ok {
 				return nil, errors.Wrapf(err, "bad parameter type for %s: %v", fn.Name(), t)
 			}
-			// TODO(damccorm) 2022.02.08: Handle IsMalformed[Iter, ReIter, MultiMap] cases (BEAM-11095)
+			if ok, err := IsMalformedIter(t); ok {
+				return nil, errors.Wrapf(err, "bad parameter type for %s: %v", fn.Name(), t)
+			}
+			if ok, err := IsMalformedReIter(t); ok {
+				return nil, errors.Wrapf(err, "bad parameter type for %s: %v", fn.Name(), t)
+			}
+			if ok, err := IsMalformedMultiMap(t); ok {
+				return nil, errors.Wrapf(err, "bad parameter type for %s: %v", fn.Name(), t)
+			}
 			return nil, errors.Errorf("bad parameter type for %s: %v", fn.Name(), t)
 		}
 
