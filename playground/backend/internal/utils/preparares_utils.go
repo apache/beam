@@ -16,10 +16,7 @@
 package utils
 
 import (
-	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/logger"
-	"beam.apache.org/playground/backend/internal/preparers"
-	"beam.apache.org/playground/backend/internal/validators"
 	"errors"
 	"fmt"
 	"io"
@@ -28,7 +25,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"sync"
 )
 
 const (
@@ -45,32 +41,6 @@ const (
 	RegularDefinition PipelineDefinitionType = 0 // the definition of python pipeline like: "p = beam.Pipeline(some_options)"
 	WithDefinition    PipelineDefinitionType = 1 // the definition of python pipeline like: "with beam.Pipeline(some_options) as p:"
 )
-
-// GetPreparers returns slice of preparers.Preparer according to sdk
-func GetPreparers(sdk pb.Sdk, filepath string, valResults *sync.Map) (*[]preparers.Preparer, error) {
-	isUnitTest, ok := valResults.Load(validators.UnitTestValidatorName)
-	if !ok {
-		return nil, fmt.Errorf("GetPreparers:: No information about unit test validation result")
-	}
-	builder := preparers.NewPreparersBuilder(filepath)
-	switch sdk {
-	case pb.Sdk_SDK_JAVA:
-		isKata, ok := valResults.Load(validators.KatasValidatorName)
-		if !ok {
-			return nil, fmt.Errorf("GetPreparers:: No information about katas validation result")
-		}
-		preparers.GetJavaPreparers(builder, isUnitTest.(bool), isKata.(bool))
-	case pb.Sdk_SDK_GO:
-		preparers.GetGoPreparers(builder, isUnitTest.(bool))
-	case pb.Sdk_SDK_PYTHON:
-		preparers.GetPythonPreparers(builder, isUnitTest.(bool))
-	case pb.Sdk_SDK_SCIO:
-		preparers.GetScioPreparers(builder)
-	default:
-		return nil, fmt.Errorf("incorrect sdk: %s", sdk)
-	}
-	return builder.Build().GetPreparers(), nil
-}
 
 // ReplaceSpacesWithEquals prepares pipelineOptions by replacing spaces between option and them value to equals.
 func ReplaceSpacesWithEquals(pipelineOptions string) string {
