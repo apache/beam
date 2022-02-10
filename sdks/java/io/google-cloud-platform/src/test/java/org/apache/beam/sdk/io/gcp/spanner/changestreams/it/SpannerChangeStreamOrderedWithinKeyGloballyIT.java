@@ -63,7 +63,7 @@ import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** End-to-end test of Cloud Spanner Change Streams Transactions Ordered Within Key. */
+/** End-to-end test of Cloud Spanner Change Streams Transactions Ordered Within Key Globally. */
 @RunWith(JUnit4.class)
 public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
 
@@ -149,12 +149,12 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
                     .withChangeStreamName(changeStreamName)
                     .withMetadataDatabase(databaseId)
                     .withInclusiveStartAt(startTimestamp))
-                    // .withInclusiveEndAt(endTimestamp))
+                    .withInclusiveEndAt(endTimestamp))
             .apply(ParDo.of(new BreakRecordByModFn()))
             .apply(ParDo.of(new KeyByIdFn()))
             .apply(ParDo.of(new KeyValueByCommitTimestampAndTransactionIdFn<>()))
             .apply(
-                ParDo.of(new BufferKeyUntilOutputTimestamp(null, timeIncrementInSeconds)))
+                ParDo.of(new BufferKeyUntilOutputTimestamp(endTimestamp, timeIncrementInSeconds)))
             .apply(ParDo.of(new ToStringFn()));
 
     // Assert that the returned PCollection contains one entry per key for the committed
