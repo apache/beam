@@ -62,9 +62,8 @@
 
 ## New Features / Improvements
 
-*  Added support for downloading and staging wheels/bdists for the PyPI packages. Currently supported for `linux_86_64 platforms`.
-This would be the default behavior. To enable downloading only sources/sdists, set pipeline option `--requirements_cache_only_sources`([BEAM-4032](https://issues.apache.org/jira/browse/BEAM-4032)) (Python)
-* Added support to skip populating requirements cache. To skip populating the requirements cache, set pipeline option  `--requirements_cache=skip`(Python)
+* Pipeline dependencies supplied through `--requirements_file` will now be staged to the runner using their binary distributions (wheels) of the PyPI packages for linux_x86_64 platform ([BEAM-4032](https://issues.apache.org/jira/browse/BEAM-4032)). 
+To restore the behavior to use source distributions, set pipeline option `--requirements_cache_only_sources`. To skip staging the packages at submission time, set pipeline option `--requirements_cache=skip` (Python)
 ## Breaking Changes
 
 * X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
