@@ -131,8 +131,8 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
     // per key.
     com.google.cloud.Timestamp endTimestamp = writeTransactionsToDatabase();
 
-    LOG.debug("Reading change streams from {} to {}", startTimestamp.toString(),
-        endTimestamp.toString());
+    LOG.debug(
+        "Reading change streams from {} to {}", startTimestamp.toString(), endTimestamp.toString());
 
     final PCollection<String> tokens =
         pipeline
@@ -343,6 +343,7 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
         pipelineEndTime = null;
       }
     }
+
     @SuppressWarnings("unused")
     @TimerId("timer")
     private final TimerSpec timerSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
@@ -420,8 +421,8 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
             recordsToOutput.add(record);
           } else {
             LOG.debug(
-                "Expired at {} but adding record with key {} and value {} back to buffer " +
-                "due to commit timestamp {}",
+                "Expired at {} but adding record with key {} and value {} back to buffer "
+                    + "due to commit timestamp {}",
                 context.timestamp().toString(),
                 record.getValue().getMods().get(0).getKeysJson(),
                 recordString,
