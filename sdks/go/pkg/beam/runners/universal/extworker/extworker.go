@@ -25,6 +25,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/provision"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
 	"google.golang.org/grpc"
 )
@@ -85,8 +86,12 @@ func (s *Loopback) StartWorker(ctx context.Context, req *fnpb.StartWorkerRequest
 
 	ctx = grpcx.WriteWorkerID(s.root, req.GetWorkerId())
 	ctx, s.workers[req.GetWorkerId()] = context.WithCancel(ctx)
-
-	go harness.Main(ctx, req.GetLoggingEndpoint().GetUrl(), req.GetControlEndpoint().GetUrl(), req.GetProvisionEndpoint().GetUrl())
+	status, err := provision.Info(ctx, req.GetProvisionEndpoint().GetUrl())
+	if err != nil {
+		return &fnpb.StartWorkerResponse{Error: fmt.Sprintf("error in getting provision info: %v", err)}, nil
+	}
+	log.Infof(ctx, "provision info: %v", status.GetStatusEndpoint().GetUrl())
+	go harness.Main(ctx, req.GetLoggingEndpoint().GetUrl(), req.GetControlEndpoint().GetUrl(), status.GetStatusEndpoint().GetUrl())
 	return &fnpb.StartWorkerResponse{}, nil
 }
 

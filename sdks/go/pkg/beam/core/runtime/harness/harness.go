@@ -97,45 +97,44 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint, statusEndpoint 
 		}
 		log.Debugf(ctx, "control response channel closed")
 	}()
-
-	// set up a connection to status endpoint if supported by the runner.
-	sconn, err := dial(ctx, statusEndpoint, 60*time.Second)
-	if err != nil {
-		return errors.Wrap(err, "failed to connect")
-	}
-	defer sconn.Close()
-
-	statusClient := fnpb.NewBeamFnWorkerStatusClient(sconn)
-	statusStub, err := statusClient.WorkerStatus(ctx)
-	if err != nil {
-		return errors.Wrapf(err, "failed to connect to worker status service")
-	}
-
-	log.Debugf(ctx, "Successfully connected to control @ %v", statusEndpoint)
-
-	// starting goroutine for status endpoint
 	var swg sync.WaitGroup
 	sigch := make(chan int)
-	swg.Add(1)
-	go func() {
-		for {
-			defer swg.Done()
-			select {
-			case <-sigch:
-				return
-			default:
-			}
-			req, err := statusStub.Recv()
-			if err == io.EOF {
-				return
-			}
-			resp := &fnpb.WorkerStatusResponse{Id: req.GetId(), StatusInfo: "i am the status info"}
-			if err := statusStub.Send(resp); err != nil {
-				log.Errorf(ctx, "control.Send: Failed to respond: %v", err)
-			}
+	if statusEndpoint != "" {
+		sconn, err := dial(ctx, statusEndpoint, 6*time.Second)
+		if err != nil {
+			return errors.Wrap(err, fmt.Sprintf("failed to connect status: %v\n", statusEndpoint))
 		}
-	}()
+		defer sconn.Close()
+		statusClient := fnpb.NewBeamFnWorkerStatusClient(sconn)
+		statusStub, err := statusClient.WorkerStatus(ctx)
+		if err != nil {
+			return errors.Wrapf(err, "failed to connect to worker status service")
+		}
 
+		log.Debugf(ctx, "Successfully connected to status endpoint @ %v", statusEndpoint)
+
+		// starting goroutine for status endpoint
+
+		swg.Add(1)
+		go func() {
+			defer swg.Done()
+			for {
+				req, _ := statusStub.Recv()
+				// if err == io.EOF {
+				// 	return
+				// }
+				select {
+				case <-sigch:
+					return
+				default:
+				}
+				resp := &fnpb.WorkerStatusResponse{Id: req.GetId(), StatusInfo: "i am the status info"}
+				if err := statusStub.Send(resp); err != nil {
+					log.Errorf(ctx, "control.Send: Failed to respond: %v", err)
+				}
+			}
+		}()
+	}
 	sideCache := statecache.SideInputCache{}
 	sideCache.Init(cacheSize)
 
@@ -151,7 +150,6 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint, statusEndpoint 
 		state:       &StateChannelManager{},
 		cache:       &sideCache,
 	}
-
 	// gRPC requires all readers of a stream be the same goroutine, so this goroutine
 	// is responsible for managing the network data. All it does is pull data from
 	// the stream, and hand off the message to a goroutine to actually be handled,
@@ -164,10 +162,9 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint, statusEndpoint 
 			atomic.AddInt32(&shutdown, 1)
 			close(respc)
 			wg.Wait()
-
+			sigch <- 1
 			if err == io.EOF {
 				recordFooter()
-				sigch <- 1
 				return nil
 			}
 			return errors.Wrapf(err, "control.Recv failed")
