@@ -46,6 +46,10 @@ resource "google_app_engine_flexible_app_version" "backend_app_go" {
     cpu       = 8
   }
 
+  network {
+    name = var.network_name
+  }
+
   env_variables = {
     CACHE_TYPE        = var.cache_type
     CACHE_ADDRESS     = "${var.cache_address}:6379"

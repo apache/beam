@@ -36,6 +36,10 @@ resource "google_app_engine_flexible_app_version" "frontend_app" {
     instances = 1
   }
 
+  network {
+    name = var.network_name
+  }
+
   deployment {
     container {
       image = "${var.docker_registry_address}/${var.docker_image_name}:${var.docker_image_tag}"

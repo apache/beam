@@ -33,7 +33,6 @@ resource "google_app_engine_flexible_app_version" "backend_app_python" {
     path = "/readiness"
   }
 
-
   automatic_scaling {
     max_total_instances = 7
     min_total_instances = 2
@@ -41,6 +40,10 @@ resource "google_app_engine_flexible_app_version" "backend_app_python" {
     cpu_utilization {
       target_utilization = 0.7
     }
+  }
+
+  network {
+    name = var.network_name
   }
 
   resources {

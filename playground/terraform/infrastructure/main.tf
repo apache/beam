@@ -62,7 +62,8 @@ module "memorystore" {
   redis_tier                  = var.redis_tier
   redis_replica_count         = var.redis_replica_count
   redis_memory_size_gb        = var.redis_memory_size_gb
-  depends_on                  = [module.artifact_registry]
+  redis_network               = module.vpc.vpc_name
+  depends_on                  = [module.artifact_registry, module.vpc]
 }
 
 module "gke" {

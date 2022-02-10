@@ -42,8 +42,13 @@ variable "redis_name" {
 }
 
 variable "redis_tier" {
-  description = "Tier of Redis"
+  description = "Tier of Redis. For tired 'STANDARD_HA' need set read_replicas_mode "
   default     = "STANDARD_HA"
+}
+
+variable "redis_network" {
+  description = "Network of Redis"
+  default     = "default"
 }
 
 variable "redis_replica_count" {

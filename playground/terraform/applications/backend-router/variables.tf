@@ -27,7 +27,7 @@ variable "docker_registry_address" {
 
 variable "docker_image_name" {
   description = "Docker Image Name To Be Deployed"
-  default = "beam_playground-backend-router"
+  default     = "beam_playground-backend-router"
 }
 
 variable "docker_image_tag" {
@@ -45,4 +45,9 @@ variable "cache_type" {
 
 variable "cache_address" {
   default = ""
+}
+
+variable "network_name" {
+  description = "Vpc Name, name by default 'default'"
+  default     = "playground-vpc"
 }
