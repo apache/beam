@@ -141,7 +141,7 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
                     .withSpannerConfig(spannerConfig)
                     .withChangeStreamName(changeStreamName)
                     .withMetadataDatabase(databaseId)
-                    .withInclusiveStartAt(startTimestamp))
+                    .withInclusiveStartAt(startTimestamp)
                     .withInclusiveEndAt(endTimestamp))
             .apply(ParDo.of(new BreakRecordByModFn()))
             .apply(ParDo.of(new KeyByIdFn()))
