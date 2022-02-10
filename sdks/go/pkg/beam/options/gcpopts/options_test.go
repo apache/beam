@@ -16,9 +16,11 @@
 package gcpopts
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"testing"
 )
 
@@ -58,7 +60,42 @@ func TestGetProject_FlagSet(t *testing.T) {
 	setupFakeCredentialFile(t, "")
 	*Project = "test"
 	if got, want := GetProject(nil), "test"; got != want {
-		t.Fatalf("GetProjectFromFlagOrEnvironment() = %q, want %q", got, want)
+		t.Fatalf("GetProject() = %q, want %q", got, want)
+	}
+}
+
+func TestGetRegion_FlagSet(t *testing.T) {
+	*Region = "test"
+	if got, want := GetRegion(nil), "test"; got != want {
+		t.Fatalf("GetRegion() = %q, want %q", got, want)
+	}
+}
+
+func TestGetRegion_EnvSet(t *testing.T) {
+	*Region = ""
+	os.Setenv("CLOUDSDK_COMPUTE_REGION", "envRegion")
+	if got, want := GetRegion(nil), "envRegion"; got != want {
+		t.Fatalf("GetRegion() = %q, want %q", got, want)
+	}
+}
+
+func TestGetRegion_BothSet(t *testing.T) {
+	*Region = "test"
+	os.Setenv("CLOUDSDK_COMPUTE_REGION", "envRegion")
+	if got, want := GetRegion(nil), "test"; got != want {
+		t.Fatalf("GetRegion() = %q, want %q", got, want)
+	}
+}
+
+func TestGetRegion_NeitherSet(t *testing.T) {
+	*Region = ""
+	os.Setenv("CLOUDSDK_COMPUTE_REGION", "")
+	execCommand = func(ctx context.Context, _ string, _ ...string) *exec.Cmd {
+		return exec.Command("echo", "version")
+	}
+	defer func() { execCommand = exec.CommandContext }()
+	if got, want := GetRegion(nil), "version"; got != want {
+		t.Fatalf("GetRegion() = %q, want %q", got, want)
 	}
 }
 
