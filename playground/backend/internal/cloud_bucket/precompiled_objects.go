@@ -33,18 +33,18 @@ import (
 )
 
 const (
-	BucketName                    = "playground-precompiled-objects"
-	OutputExtension               = "output"
-	LogsExtension                 = "log"
-	GraphExtension                = "graph"
+	BucketName                   = "playground-precompiled-objects"
+	OutputExtension              = "output"
+	LogsExtension                = "log"
+	GraphExtension               = "graph"
 	defaultPrecompiledObjectInfo = "defaultPrecompiledObject.info"
-	MetaInfoName                  = "meta.info"
-	Timeout                       = time.Minute
-	javaExtension                 = "java"
-	goExtension                   = "go"
-	pyExtension                   = "py"
-	scioExtension                 = "scala"
-	separatorsNumber              = 3
+	MetaInfoName                 = "meta.info"
+	Timeout                      = time.Minute
+	javaExtension                = "java"
+	goExtension                  = "go"
+	pyExtension                  = "py"
+	scioExtension                = "scala"
+	separatorsNumber             = 3
 )
 
 type ObjectInfo struct {
@@ -69,7 +69,7 @@ type SdkToCategories map[string]CategoryToPrecompiledObjects
 // the bucket where examples are stored would be public,
 // and it has a specific structure of files, namely:
 // SDK_JAVA/
-// ----defaultPrecompiledObjects.info
+// ----defaultPrecompiledObject.info
 // ----PRECOMPILED_OBJECT_TYPE_EXAMPLE/
 // --------MinimalWordCount/
 // ----------- MinimalWordCount.java
@@ -87,7 +87,7 @@ type SdkToCategories map[string]CategoryToPrecompiledObjects
 // --------...
 // ----...
 // SDK_GO/
-// ----defaultPrecompiledObjects.info
+// ----defaultPrecompiledObject.info
 // ----PRECOMPILED_OBJECT_TYPE_EXAMPLE/
 // --------MinimalWordCount/
 // ----------- MinimalWordCount.go
@@ -100,7 +100,7 @@ type SdkToCategories map[string]CategoryToPrecompiledObjects
 // --------...
 // ----...
 //
-// defaultPrecompiledObjects.info is a file that contains path to the default example:
+// defaultPrecompiledObject.info is a file that contains path to the default example:
 // {
 //   "SDK_JAVA": "SDK_JAVA/PRECOMPILED_OBJECT_TYPE_EXAMPLE/MinimalWordCount"
 // }
