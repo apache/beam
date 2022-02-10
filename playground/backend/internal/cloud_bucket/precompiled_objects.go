@@ -37,7 +37,7 @@ const (
 	OutputExtension               = "output"
 	LogsExtension                 = "log"
 	GraphExtension                = "graph"
-	defaultPrecompiledObjectsInfo = "defaultPrecompiledObjects.info"
+	defaultPrecompiledObjectInfo = "defaultPrecompiledObject.info"
 	MetaInfoName                  = "meta.info"
 	Timeout                       = time.Minute
 	javaExtension                 = "java"
@@ -273,7 +273,7 @@ func (cd *CloudStorage) GetDefaultPrecompiledObjects(ctx context.Context) (map[p
 
 // getDefaultPrecompiledObjectsPath returns path for SDK to the default precompiled object
 func (cd *CloudStorage) getDefaultPrecompiledObjectsPath(ctx context.Context, bucket *storage.BucketHandle, sdk pb.Sdk) (string, error) {
-	pathToFile := fmt.Sprintf("%s/%s", sdk.String(), defaultPrecompiledObjectsInfo)
+	pathToFile := fmt.Sprintf("%s/%s", sdk.String(), defaultPrecompiledObjectInfo)
 	rc, err := bucket.Object(pathToFile).NewReader(ctx)
 	if err != nil {
 		logger.Errorf("Object(%q).NewReader: %v", pathToFile, err.Error())
