@@ -87,7 +87,7 @@ func InitVars() (string, string, error, bool, PipelineDefinitionType) {
 func AddGraphToEndOfFile(spaces string, err error, tempFile *os.File, pipelineName string) {
 	line := emptyLine
 	regs := []*regexp.Regexp{regexp.MustCompile("^")}
-	_, err = Wrap(addGraphCode)(tempFile, &line, &spaces, &pipelineName, &regs)
+	_, err = wrap(addGraphCode)(tempFile, &line, &spaces, &pipelineName, &regs)
 }
 
 // ProcessLine process the current line from the file by either:
@@ -99,10 +99,10 @@ func ProcessLine(curLine string, pipelineName *string, spaces *string, regs *[]*
 	definitionType := RegularDefinition
 	if *pipelineName == "" {
 		// Try tempFile find where the beam pipeline name is defined
-		definitionType, err = Wrap(getVarName)(tempFile, &curLine, spaces, pipelineName, regs)
+		definitionType, err = wrap(getVarName)(tempFile, &curLine, spaces, pipelineName, regs)
 	} else {
 		// Try tempFile find where beam pipeline definition is finished and add code tempFile store the graph
-		_, err = Wrap(addGraphCode)(tempFile, &curLine, spaces, pipelineName, regs)
+		_, err = wrap(addGraphCode)(tempFile, &curLine, spaces, pipelineName, regs)
 		if *regs == nil {
 			done = true
 		}
@@ -139,15 +139,10 @@ func addGraphCode(line, spaces, pipelineName *string, regs *[]*regexp.Regexp) Pi
 	return 0
 }
 
-func Pass(_, _, _ *string, _ *[]*regexp.Regexp) PipelineDefinitionType {
-	// No need to find or change anything, just use Wrap method
-	return RegularDefinition
-}
-
 type WrappedFunction func(line, spaces, pipelineName *string, regs *[]*regexp.Regexp) PipelineDefinitionType
 
-// Wrap decorator that writes new line to temp file and a line received from "getLine" method.
-func Wrap(wrappedFunction WrappedFunction) func(to *os.File, line, spaces, pipelineName *string, regs *[]*regexp.Regexp) (PipelineDefinitionType, error) {
+// wrap decorator that writes new line to temp file and a line received from "getLine" method.
+func wrap(wrappedFunction WrappedFunction) func(to *os.File, line, spaces, pipelineName *string, regs *[]*regexp.Regexp) (PipelineDefinitionType, error) {
 	return func(to *os.File, line, spaces, pipelineName *string, regs *[]*regexp.Regexp) (PipelineDefinitionType, error) {
 		err := AddNewLine(true, to)
 		if err != nil {
