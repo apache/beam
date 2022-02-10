@@ -34,10 +34,6 @@ var (
 
 	// Region is the GCP region where the job should be run.
 	Region = flag.String("region", "", "GCP Region (required)")
-
-	// Command used to execute a named program with args.
-	// Extracted to a variable for easier mocking.
-	execCommand = exec.CommandContext
 )
 
 // GetProject returns the project, if non empty and exits otherwise.
@@ -72,7 +68,7 @@ func GetRegion(ctx context.Context) string {
 			return env
 		}
 
-		cmd := execCommand(ctx, "gcloud", "config", "get-value", "compute/region")
+		cmd := exec.CommandContext(ctx, "gcloud", "config", "get-value", "compute/region")
 		if out, err := cmd.Output(); err == nil && len(out) > 0 {
 			region := strings.TrimSpace(string(out))
 			// TODO(bamnet): Replace hardcoded gcloud reference with `cmd.String()` when
