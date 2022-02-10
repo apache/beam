@@ -16,6 +16,7 @@
 package fs_tool
 
 import (
+	"beam.apache.org/playground/backend/internal/utils"
 	"github.com/google/uuid"
 	"path/filepath"
 )
@@ -39,7 +40,7 @@ func newCompilingLifeCycle(pipelineId uuid.UUID, pipelinesFolder, sourceFileExte
 	absExecFilePath, _ := filepath.Abs(filepath.Join(absExecFileFolderPath, execFileName))
 	absBaseFolderPath, _ := filepath.Abs(baseFileFolder)
 	absLogFilePath, _ := filepath.Abs(filepath.Join(absBaseFolderPath, logFileName))
-	absGraphFilePath, _ := filepath.Abs(filepath.Join(absBaseFolderPath, graphFileName))
+	absGraphFilePath, _ := filepath.Abs(filepath.Join(absBaseFolderPath, utils.GraphFileName))
 
 	return &LifeCycle{
 		folderGlobs: []string{baseFileFolder, srcFileFolder, binFileFolder},
@@ -65,7 +66,7 @@ func newInterpretedLifeCycle(pipelineId uuid.UUID, pipelinesFolder, sourceFileEx
 	absFileFolderPath, _ := filepath.Abs(sourceFileFolder)
 	absFilePath, _ := filepath.Abs(filepath.Join(absFileFolderPath, fileName))
 	absLogFilePath, _ := filepath.Abs(filepath.Join(absFileFolderPath, logFileName))
-	absGraphFilePath, _ := filepath.Abs(filepath.Join(absFileFolderPath, graphFileName))
+	absGraphFilePath, _ := filepath.Abs(filepath.Join(absFileFolderPath, utils.GraphFileName))
 
 	return &LifeCycle{
 		folderGlobs: []string{sourceFileFolder},

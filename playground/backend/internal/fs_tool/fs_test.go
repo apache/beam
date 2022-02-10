@@ -17,6 +17,7 @@ package fs_tool
 
 import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"beam.apache.org/playground/backend/internal/utils"
 	"fmt"
 	"github.com/google/uuid"
 	"os"
@@ -294,7 +295,7 @@ func TestNewLifeCycle(t *testing.T) {
 					AbsoluteExecutableFilePath:       filepath.Join(execFileFolder, fmt.Sprintf("%s%s", pipelineId.String(), javaCompiledFileExtension)),
 					AbsoluteBaseFolderPath:           baseFileFolder,
 					AbsoluteLogFilePath:              filepath.Join(baseFileFolder, logFileName),
-					AbsoluteGraphFilePath:            filepath.Join(baseFileFolder, graphFileName),
+					AbsoluteGraphFilePath:            filepath.Join(baseFileFolder, utils.GraphFileName),
 				},
 			},
 		},
@@ -316,7 +317,7 @@ func TestNewLifeCycle(t *testing.T) {
 					AbsoluteExecutableFilePath:       filepath.Join(execFileFolder, fmt.Sprintf("%s%s", pipelineId.String(), goExecutableFileExtension)),
 					AbsoluteBaseFolderPath:           baseFileFolder,
 					AbsoluteLogFilePath:              filepath.Join(baseFileFolder, logFileName),
-					AbsoluteGraphFilePath:            filepath.Join(baseFileFolder, graphFileName),
+					AbsoluteGraphFilePath:            filepath.Join(baseFileFolder, utils.GraphFileName),
 				},
 			},
 		},
@@ -338,7 +339,7 @@ func TestNewLifeCycle(t *testing.T) {
 					AbsoluteExecutableFilePath:       filepath.Join(baseFileFolder, fmt.Sprintf("%s%s", pipelineId.String(), pythonExecutableFileExtension)),
 					AbsoluteBaseFolderPath:           baseFileFolder,
 					AbsoluteLogFilePath:              filepath.Join(baseFileFolder, logFileName),
-					AbsoluteGraphFilePath:            filepath.Join(baseFileFolder, graphFileName),
+					AbsoluteGraphFilePath:            filepath.Join(baseFileFolder, utils.GraphFileName),
 				},
 			},
 		},

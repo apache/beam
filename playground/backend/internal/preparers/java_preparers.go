@@ -109,9 +109,9 @@ func (builder *JavaPreparersBuilder) WithGraphHandler() *JavaPreparersBuilder {
 func addCodeToSaveGraph(args ...interface{}) error {
 	filePath := args[0].(string)
 	pipelineObjectName, _ := findPipelineObjectName(filePath)
-	graphSaveCode := fmt.Sprintf(graphSavePattern, pipelineObjectName, graphFileName, pipelineObjectName)
+	graphSaveCode := fmt.Sprintf(graphSavePattern, pipelineObjectName, utils.GraphFileName, pipelineObjectName)
 
-	if pipelineObjectName != preparers_utils.EmptyLine {
+	if pipelineObjectName != utils.EmptyLine {
 		err := replace(filePath, fmt.Sprintf("%s.run", pipelineObjectName), graphSaveCode)
 		if err != nil {
 			logger.Error("Can't add graph extractor. Can't add new import")

@@ -32,7 +32,6 @@ const (
 	indentationPattern      = `^(%s){0,1}\w+`
 	findPipelinePattern     = `^(\s*)(.+) = beam.Pipeline`
 	runPipelinePattern      = `^(\s*).*%s.run\(\)`
-	GraphFileName           = "graph.dot"
 )
 
 // GetPythonPreparers returns preparation methods that should be applied to Python code
@@ -177,11 +176,6 @@ func saveGraph(from *os.File, tempFile *os.File) error {
 	}
 	if !done && pipelineName != "" {
 		utils.AddGraphToEndOfFile(spaces, err, tempFile, pipelineName)
-	}
-	if spaces == "" {
-		line := ""
-		reg = regexp.MustCompile("^")
-		err = writeLineToFile(addCodeForGraph)(newLine, to, &line, &spaces, &pipelineName, &reg)
 	}
 	return scanner.Err()
 }

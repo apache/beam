@@ -26,9 +26,8 @@ import (
 )
 
 const (
-	fileMode      = 0600
-	logFileName   = "logs.log"
-	graphFileName = "graph.dot"
+	fileMode    = 0600
+	logFileName = "logs.log"
 )
 
 // LifeCyclePaths contains all files/folders paths

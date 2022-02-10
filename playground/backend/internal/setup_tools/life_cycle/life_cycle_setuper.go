@@ -19,6 +19,7 @@ import (
 	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/fs_tool"
 	"beam.apache.org/playground/backend/internal/logger"
+	"beam.apache.org/playground/backend/internal/utils"
 	"bufio"
 	"errors"
 	"github.com/google/uuid"
@@ -38,7 +39,6 @@ const (
 	scioProjectName        = "scioproject"
 	projectPath            = "scioproject/src/main/scala/scioproject"
 	logFileName            = "logs.log"
-	graphFileName          = "graph.dot"
 	defaultExampleInSbt    = "WordCount.scala"
 	shCmd                  = "sh"
 	scioProject            = "new_scio_project.sh"
@@ -170,7 +170,7 @@ func prepareSbtFiles(lc *fs_tool.LifeCycle, pipelineFolder string, workingDir st
 	absFileFolderPath, _ := filepath.Abs(sourceFileFolder)
 	absFilePath, _ := filepath.Abs(filepath.Join(absFileFolderPath, fileName))
 	absLogFilePath, _ := filepath.Abs(filepath.Join(absFileFolderPath, logFileName))
-	absGraphFilePath, _ := filepath.Abs(filepath.Join(absFileFolderPath, graphFileName))
+	absGraphFilePath, _ := filepath.Abs(filepath.Join(absFileFolderPath, utils.GraphFileName))
 	projectFolder, _ := filepath.Abs(filepath.Join(pipelineFolder, scioProjectName))
 	executableName := lc.Paths.ExecutableName
 
