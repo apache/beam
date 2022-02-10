@@ -62,8 +62,9 @@
 
 ## New Features / Improvements
 
-* X feature added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-
+*  Added support for downloading and staging wheels/bdists for the PyPI packages. Currently supported for `linux_86_64 platforms`.
+  This would be the default behavior. To enable downloading only sources/sdists, set pipeline option `--requirements_cache_only_sources`([BEAM-4032](https://issues.apache.org/jira/browse/BEAM-4032)) (Python)  
+* Added support to skip populating requirements cache. To skip populating the requirements cache, set pipeline option  `--requirements_cache=skip`(Python)
 ## Breaking Changes
 
 * X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
