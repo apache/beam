@@ -162,8 +162,13 @@ func saveGraph(from *os.File, tempFile *os.File) error {
 				}
 			}
 		} else {
-			// No need to find or add anything, just add current `curLine` to file
-			_, err = utils.Wrap(utils.Pass)(tempFile, &line, &spaces, &pipelineName, nil)
+			// No need to find or add anything, just add current `line` to file
+			err = utils.AddNewLine(true, tempFile)
+			if err == nil {
+				if _, err = io.WriteString(tempFile, line); err != nil {
+					logger.Errorf("Preparation: Error during write \"%s\" to tmp file, err: %s\n", line, err.Error())
+				}
+			}
 		}
 		if err != nil {
 			logger.Errorf("Preparation: Error during write \"%s\" tempFile tmp file, err: %s\n", line, err.Error())
