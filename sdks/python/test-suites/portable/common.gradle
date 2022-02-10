@@ -133,8 +133,8 @@ task portableLocalRunnerTestWithRequirementsFile {
           . ${envdir}/bin/activate \\
           && cd ${pythonRootDir} \\
           && pip install -e . \\
-          && cd apache_beam/examples/complete \\
-          && python check_requirements_file_packages.py \\
+          && cd apache_beam/runners/portability \\
+          && python requirements_cache_it_test.py \\
               --runner=PortableRunner \\
               --job_endpoint=embed \\
               --environment_type="DOCKER"
