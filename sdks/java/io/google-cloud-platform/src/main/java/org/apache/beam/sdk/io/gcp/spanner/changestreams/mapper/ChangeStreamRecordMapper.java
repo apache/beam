@@ -19,6 +19,8 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper;
 
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Struct;
+import com.google.cloud.spanner.Type;
+import com.google.cloud.spanner.Value;
 import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -42,6 +44,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 /**
  * This class is responsible for transforming a {@link Struct} to a {@link List} of {@link
  * ChangeStreamRecord} models.
+ *
+ * <p>The change stream full specification can be seen in the internal documentation
+ * https://docs.google.com/document/d/1nLlMGvQLIeUSDNmtoLT9vaQo0hVGl4CIf6iCSOkdIbA/edit#bookmark=id.fxgtygh8eony
  */
 public class ChangeStreamRecordMapper {
 
@@ -274,22 +279,25 @@ public class ChangeStreamRecordMapper {
   }
 
   private ColumnType columnTypeFrom(Struct struct) {
+    // TODO: Move to type struct.getJson when backend is fully migrated
+    final String type = getJsonString(struct.getValue(TYPE_COLUMN));
     return new ColumnType(
         struct.getString(NAME_COLUMN),
-        new TypeCode(struct.getString(TYPE_COLUMN)),
+        new TypeCode(type),
         struct.getBoolean(IS_PRIMARY_KEY_COLUMN),
         struct.getLong(ORDINAL_POSITION_COLUMN));
   }
 
   private Mod modFrom(Struct struct) {
-    final String keysJson = struct.getString(KEYS_COLUMN);
-    final String oldValuesJson =
-        struct.isNull(OLD_VALUES_COLUMN) ? null : struct.getString(OLD_VALUES_COLUMN);
-    final String newValuesJson =
-        struct.isNull(NEW_VALUES_COLUMN)
-            ? null
-            : struct.getString(ChangeStreamRecordMapper.NEW_VALUES_COLUMN);
-    return new Mod(keysJson, oldValuesJson, newValuesJson);
+    // TODO: Move to keys struct.getJson when backend is fully migrated
+    final String keys = getJsonString(struct.getValue(KEYS_COLUMN));
+    // TODO: Move to oldValues struct.getJson when backend is fully migrated
+    final String oldValues =
+        struct.isNull(OLD_VALUES_COLUMN) ? null : getJsonString(struct.getValue(OLD_VALUES_COLUMN));
+    // TODO: Move to newValues struct.getJson when backend is fully migrated
+    final String newValues =
+        struct.isNull(NEW_VALUES_COLUMN) ? null : getJsonString(struct.getValue(NEW_VALUES_COLUMN));
+    return new Mod(keys, oldValues, newValues);
   }
 
   private ChildPartition childPartitionFrom(String partitionToken, Struct struct) {
@@ -320,5 +328,16 @@ public class ChangeStreamRecordMapper {
         .withTotalStreamTimeMillis(resultSetMetadata.getTotalStreamDuration().getMillis())
         .withNumberOfRecordsRead(resultSetMetadata.getNumberOfRecordsRead())
         .build();
+  }
+
+  // TODO: Remove when backend is fully migrated to JSON
+  private String getJsonString(Value value) {
+    if (value.getType().equals(Type.json())) {
+      return value.getJson();
+    } else if (value.getType().equals(Type.string())) {
+      return value.getString();
+    } else {
+      throw new IllegalArgumentException("Can not extract string from value " + value);
+    }
   }
 }

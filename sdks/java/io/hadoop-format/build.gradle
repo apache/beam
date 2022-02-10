@@ -104,6 +104,9 @@ dependencies {
   testImplementation library.java.cassandra_driver_core
   testImplementation library.java.cassandra_driver_mapping
   testImplementation "org.apache.cassandra:cassandra-all:3.11.8"
+  testImplementation library.java.hadoop_common
+  testImplementation library.java.hadoop_hdfs
+  testImplementation library.java.hadoop_mapreduce_client_core
   testImplementation library.java.postgres
   testImplementation library.java.junit
   testImplementation library.java.hamcrest
@@ -142,7 +145,12 @@ hadoopVersions.each {kv ->
 }
 
 // Hadoop dependencies require old version of Guava (BEAM-11626)
-configurations.all {
+configurations.all (Configuration it) -> {
+  // error-prone requires newer guava, don't override for annotation processing
+  // https://github.com/google/error-prone/issues/2745
+  if (it.name == "annotationProcessor" || it.name =="testAnnotationProcessor") {
+    return
+  }
   resolutionStrategy {
     force 'com.google.guava:guava:25.1-jre'
   }

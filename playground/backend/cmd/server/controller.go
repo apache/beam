@@ -50,7 +50,7 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 		return nil, errors.InvalidArgumentError("Error during preparing", "Incorrect sdk. Want to receive %s, but the request contains %s", controller.env.BeamSdkEnvs.ApacheBeamSdk.String(), info.Sdk.String())
 	}
 	switch info.Sdk {
-	case pb.Sdk_SDK_UNSPECIFIED, pb.Sdk_SDK_SCIO:
+	case pb.Sdk_SDK_UNSPECIFIED:
 		logger.Errorf("RunCode(): unimplemented sdk: %s\n", info.Sdk)
 		return nil, errors.InvalidArgumentError("Error during preparing", "Sdk is not implemented yet: %s", info.Sdk.String())
 	}
@@ -255,23 +255,25 @@ func (controller *playgroundController) Cancel(ctx context.Context, info *pb.Can
 	return &pb.CancelResponse{}, nil
 }
 
-// GetPrecompiledObjects returns the list of examples
+// GetPrecompiledObjects returns the catalog with examples
+// Tries to get the whole catalog from the cache
+// - If there is no catalog in the cache, gets the catalog from the Storage and saves it to the cache
+// - If SDK or category is specified in the request, gets the catalog from the cache and filters it by SDK and category
 func (controller *playgroundController) GetPrecompiledObjects(ctx context.Context, info *pb.GetPrecompiledObjectsRequest) (*pb.GetPrecompiledObjectsResponse, error) {
-	bucket := cloud_bucket.New()
-	sdkToCategories, err := bucket.GetPrecompiledObjects(ctx, info.Sdk, info.Category)
+	catalog, err := controller.cacheService.GetCatalog(ctx)
 	if err != nil {
-		logger.Errorf("GetPrecompiledObjects(): cloud storage error: %s", err.Error())
-		return nil, errors.InternalError("Error during getting Precompiled Objects", "Error with cloud connection")
-	}
-	response := pb.GetPrecompiledObjectsResponse{SdkCategories: make([]*pb.Categories, 0)}
-	for sdkName, categories := range *sdkToCategories {
-		sdkCategory := pb.Categories{Sdk: pb.Sdk(pb.Sdk_value[sdkName]), Categories: make([]*pb.Categories_Category, 0)}
-		for categoryName, precompiledObjects := range categories {
-			utils.PutPrecompiledObjectsToCategory(categoryName, &precompiledObjects, &sdkCategory)
+		logger.Errorf("GetPrecompiledObjects(): cache error: %s", err.Error())
+		catalog, err = utils.GetCatalogFromStorage(ctx)
+		if err != nil {
+			return nil, errors.InternalError("Error during getting Precompiled Objects", "Error with cloud connection")
 		}
-		response.SdkCategories = append(response.SdkCategories, &sdkCategory)
+		if err = controller.cacheService.SetCatalog(ctx, catalog); err != nil {
+			logger.Errorf("GetPrecompiledObjects(): cache error: %s", err.Error())
+		}
 	}
-	return &response, nil
+	return &pb.GetPrecompiledObjectsResponse{
+		SdkCategories: utils.FilterCatalog(catalog, info.Sdk, info.Category),
+	}, nil
 }
 
 // GetPrecompiledObjectCode returns the code of the specific example
@@ -307,5 +309,17 @@ func (controller *playgroundController) GetPrecompiledObjectLogs(ctx context.Con
 		return nil, errors.InternalError("Error during getting Precompiled Object's logs", "Error with cloud connection")
 	}
 	response := pb.GetPrecompiledObjectLogsResponse{Output: logs}
+	return &response, nil
+}
+
+// GetPrecompiledObjectGraph returns the graph of the compiled and run example
+func (controller *playgroundController) GetPrecompiledObjectGraph(ctx context.Context, info *pb.GetPrecompiledObjectGraphRequest) (*pb.GetPrecompiledObjectGraphResponse, error) {
+	cb := cloud_bucket.New()
+	logs, err := cb.GetPrecompiledObjectGraph(ctx, info.GetCloudPath())
+	if err != nil {
+		logger.Errorf("GetPrecompiledObjectGraph(): cloud storage error: %s", err.Error())
+		return nil, errors.InternalError("Error during getting Precompiled Object's graph", "Error with cloud connection")
+	}
+	response := pb.GetPrecompiledObjectGraphResponse{Graph: logs}
 	return &response, nil
 }

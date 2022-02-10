@@ -17,6 +17,12 @@
  */
 
 ///
+//  Generated code. Do not modify.
+//  source: api/v1/api.proto
+//
+// @dart = 2.12
+// ignore_for_file: annotate_overrides,camel_case_types,unnecessary_const,non_constant_identifier_names,library_prefixes,unused_import,unused_shown_name,return_of_invalid_type,unnecessary_this,prefer_final_fields
+
 import 'dart:core' as $core;
 
 import 'package:protobuf/protobuf.dart' as $pb;
@@ -983,6 +989,8 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     ..e<PrecompiledObjectType>(4, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'type', $pb.PbFieldType.OE, defaultOrMaker: PrecompiledObjectType.PRECOMPILED_OBJECT_TYPE_UNSPECIFIED, valueOf: PrecompiledObjectType.valueOf, enumValues: PrecompiledObjectType.values)
     ..aOS(5, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'pipelineOptions')
     ..aOS(6, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'link')
+    ..aOB(7, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'multifile')
+    ..a<$core.int>(8, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'contextLine', $pb.PbFieldType.O3)
     ..hasRequiredFields = false
   ;
 
@@ -994,6 +1002,8 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     PrecompiledObjectType? type,
     $core.String? pipelineOptions,
     $core.String? link,
+    $core.bool? multifile,
+    $core.int? contextLine,
   }) {
     final _result = create();
     if (cloudPath != null) {
@@ -1013,6 +1023,12 @@ class PrecompiledObject extends $pb.GeneratedMessage {
     }
     if (link != null) {
       _result.link = link;
+    }
+    if (multifile != null) {
+      _result.multifile = multifile;
+    }
+    if (contextLine != null) {
+      _result.contextLine = contextLine;
     }
     return _result;
   }
@@ -1090,6 +1106,24 @@ class PrecompiledObject extends $pb.GeneratedMessage {
   $core.bool hasLink() => $_has(5);
   @$pb.TagNumber(6)
   void clearLink() => clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.bool get multifile => $_getBF(6);
+  @$pb.TagNumber(7)
+  set multifile($core.bool v) { $_setBool(6, v); }
+  @$pb.TagNumber(7)
+  $core.bool hasMultifile() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearMultifile() => clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.int get contextLine => $_getIZ(7);
+  @$pb.TagNumber(8)
+  set contextLine($core.int v) { $_setSignedInt32(7, v); }
+  @$pb.TagNumber(8)
+  $core.bool hasContextLine() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearContextLine() => clearField(8);
 }
 
 class Categories_Category extends $pb.GeneratedMessage {
@@ -1404,6 +1438,100 @@ class GetPrecompiledObjectLogsRequest extends $pb.GeneratedMessage {
   void clearCloudPath() => clearField(1);
 }
 
+class GetPrecompiledObjectGraphRequest extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'GetPrecompiledObjectGraphRequest', package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'api.v1'), createEmptyInstance: create)
+    ..aOS(1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'cloudPath')
+    ..hasRequiredFields = false
+  ;
+
+  GetPrecompiledObjectGraphRequest._() : super();
+  factory GetPrecompiledObjectGraphRequest({
+    $core.String? cloudPath,
+  }) {
+    final _result = create();
+    if (cloudPath != null) {
+      _result.cloudPath = cloudPath;
+    }
+    return _result;
+  }
+  factory GetPrecompiledObjectGraphRequest.fromBuffer($core.List<$core.int> i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(i, r);
+  factory GetPrecompiledObjectGraphRequest.fromJson($core.String i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(i, r);
+  @$core.Deprecated(
+  'Using this can add significant overhead to your binary. '
+  'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+  'Will be removed in next major version')
+  GetPrecompiledObjectGraphRequest clone() => GetPrecompiledObjectGraphRequest()..mergeFromMessage(this);
+  @$core.Deprecated(
+  'Using this can add significant overhead to your binary. '
+  'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+  'Will be removed in next major version')
+  GetPrecompiledObjectGraphRequest copyWith(void Function(GetPrecompiledObjectGraphRequest) updates) => super.copyWith((message) => updates(message as GetPrecompiledObjectGraphRequest)) as GetPrecompiledObjectGraphRequest; // ignore: deprecated_member_use
+  $pb.BuilderInfo get info_ => _i;
+  @$core.pragma('dart2js:noInline')
+  static GetPrecompiledObjectGraphRequest create() => GetPrecompiledObjectGraphRequest._();
+  GetPrecompiledObjectGraphRequest createEmptyInstance() => create();
+  static $pb.PbList<GetPrecompiledObjectGraphRequest> createRepeated() => $pb.PbList<GetPrecompiledObjectGraphRequest>();
+  @$core.pragma('dart2js:noInline')
+  static GetPrecompiledObjectGraphRequest getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<GetPrecompiledObjectGraphRequest>(create);
+  static GetPrecompiledObjectGraphRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get cloudPath => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set cloudPath($core.String v) { $_setString(0, v); }
+  @$pb.TagNumber(1)
+  $core.bool hasCloudPath() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearCloudPath() => clearField(1);
+}
+
+class GetDefaultPrecompiledObjectRequest extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'GetDefaultPrecompiledObjectRequest', package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'api.v1'), createEmptyInstance: create)
+    ..e<Sdk>(1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'sdk', $pb.PbFieldType.OE, defaultOrMaker: Sdk.SDK_UNSPECIFIED, valueOf: Sdk.valueOf, enumValues: Sdk.values)
+    ..hasRequiredFields = false
+  ;
+
+  GetDefaultPrecompiledObjectRequest._() : super();
+  factory GetDefaultPrecompiledObjectRequest({
+    Sdk? sdk,
+  }) {
+    final _result = create();
+    if (sdk != null) {
+      _result.sdk = sdk;
+    }
+    return _result;
+  }
+  factory GetDefaultPrecompiledObjectRequest.fromBuffer($core.List<$core.int> i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(i, r);
+  factory GetDefaultPrecompiledObjectRequest.fromJson($core.String i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(i, r);
+  @$core.Deprecated(
+  'Using this can add significant overhead to your binary. '
+  'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+  'Will be removed in next major version')
+  GetDefaultPrecompiledObjectRequest clone() => GetDefaultPrecompiledObjectRequest()..mergeFromMessage(this);
+  @$core.Deprecated(
+  'Using this can add significant overhead to your binary. '
+  'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+  'Will be removed in next major version')
+  GetDefaultPrecompiledObjectRequest copyWith(void Function(GetDefaultPrecompiledObjectRequest) updates) => super.copyWith((message) => updates(message as GetDefaultPrecompiledObjectRequest)) as GetDefaultPrecompiledObjectRequest; // ignore: deprecated_member_use
+  $pb.BuilderInfo get info_ => _i;
+  @$core.pragma('dart2js:noInline')
+  static GetDefaultPrecompiledObjectRequest create() => GetDefaultPrecompiledObjectRequest._();
+  GetDefaultPrecompiledObjectRequest createEmptyInstance() => create();
+  static $pb.PbList<GetDefaultPrecompiledObjectRequest> createRepeated() => $pb.PbList<GetDefaultPrecompiledObjectRequest>();
+  @$core.pragma('dart2js:noInline')
+  static GetDefaultPrecompiledObjectRequest getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<GetDefaultPrecompiledObjectRequest>(create);
+  static GetDefaultPrecompiledObjectRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  Sdk get sdk => $_getN(0);
+  @$pb.TagNumber(1)
+  set sdk(Sdk v) { setField(1, v); }
+  @$pb.TagNumber(1)
+  $core.bool hasSdk() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSdk() => clearField(1);
+}
+
 class GetPrecompiledObjectsResponse extends $pb.GeneratedMessage {
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'GetPrecompiledObjectsResponse', package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'api.v1'), createEmptyInstance: create)
     ..pc<Categories>(1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'sdkCategories', $pb.PbFieldType.PM, subBuilder: Categories.create)
@@ -1584,5 +1712,101 @@ class GetPrecompiledObjectLogsResponse extends $pb.GeneratedMessage {
   $core.bool hasOutput() => $_has(0);
   @$pb.TagNumber(1)
   void clearOutput() => clearField(1);
+}
+
+class GetPrecompiledObjectGraphResponse extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'GetPrecompiledObjectGraphResponse', package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'api.v1'), createEmptyInstance: create)
+    ..aOS(1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'graph')
+    ..hasRequiredFields = false
+  ;
+
+  GetPrecompiledObjectGraphResponse._() : super();
+  factory GetPrecompiledObjectGraphResponse({
+    $core.String? graph,
+  }) {
+    final _result = create();
+    if (graph != null) {
+      _result.graph = graph;
+    }
+    return _result;
+  }
+  factory GetPrecompiledObjectGraphResponse.fromBuffer($core.List<$core.int> i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(i, r);
+  factory GetPrecompiledObjectGraphResponse.fromJson($core.String i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(i, r);
+  @$core.Deprecated(
+  'Using this can add significant overhead to your binary. '
+  'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+  'Will be removed in next major version')
+  GetPrecompiledObjectGraphResponse clone() => GetPrecompiledObjectGraphResponse()..mergeFromMessage(this);
+  @$core.Deprecated(
+  'Using this can add significant overhead to your binary. '
+  'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+  'Will be removed in next major version')
+  GetPrecompiledObjectGraphResponse copyWith(void Function(GetPrecompiledObjectGraphResponse) updates) => super.copyWith((message) => updates(message as GetPrecompiledObjectGraphResponse)) as GetPrecompiledObjectGraphResponse; // ignore: deprecated_member_use
+  $pb.BuilderInfo get info_ => _i;
+  @$core.pragma('dart2js:noInline')
+  static GetPrecompiledObjectGraphResponse create() => GetPrecompiledObjectGraphResponse._();
+  GetPrecompiledObjectGraphResponse createEmptyInstance() => create();
+  static $pb.PbList<GetPrecompiledObjectGraphResponse> createRepeated() => $pb.PbList<GetPrecompiledObjectGraphResponse>();
+  @$core.pragma('dart2js:noInline')
+  static GetPrecompiledObjectGraphResponse getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<GetPrecompiledObjectGraphResponse>(create);
+  static GetPrecompiledObjectGraphResponse? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get graph => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set graph($core.String v) { $_setString(0, v); }
+  @$pb.TagNumber(1)
+  $core.bool hasGraph() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearGraph() => clearField(1);
+}
+
+class GetDefaultPrecompiledObjectResponse extends $pb.GeneratedMessage {
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'GetDefaultPrecompiledObjectResponse', package: const $pb.PackageName(const $core.bool.fromEnvironment('protobuf.omit_message_names') ? '' : 'api.v1'), createEmptyInstance: create)
+    ..aOM<PrecompiledObject>(1, const $core.bool.fromEnvironment('protobuf.omit_field_names') ? '' : 'precompiledObject', subBuilder: PrecompiledObject.create)
+    ..hasRequiredFields = false
+  ;
+
+  GetDefaultPrecompiledObjectResponse._() : super();
+  factory GetDefaultPrecompiledObjectResponse({
+    PrecompiledObject? precompiledObject,
+  }) {
+    final _result = create();
+    if (precompiledObject != null) {
+      _result.precompiledObject = precompiledObject;
+    }
+    return _result;
+  }
+  factory GetDefaultPrecompiledObjectResponse.fromBuffer($core.List<$core.int> i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(i, r);
+  factory GetDefaultPrecompiledObjectResponse.fromJson($core.String i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(i, r);
+  @$core.Deprecated(
+  'Using this can add significant overhead to your binary. '
+  'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
+  'Will be removed in next major version')
+  GetDefaultPrecompiledObjectResponse clone() => GetDefaultPrecompiledObjectResponse()..mergeFromMessage(this);
+  @$core.Deprecated(
+  'Using this can add significant overhead to your binary. '
+  'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
+  'Will be removed in next major version')
+  GetDefaultPrecompiledObjectResponse copyWith(void Function(GetDefaultPrecompiledObjectResponse) updates) => super.copyWith((message) => updates(message as GetDefaultPrecompiledObjectResponse)) as GetDefaultPrecompiledObjectResponse; // ignore: deprecated_member_use
+  $pb.BuilderInfo get info_ => _i;
+  @$core.pragma('dart2js:noInline')
+  static GetDefaultPrecompiledObjectResponse create() => GetDefaultPrecompiledObjectResponse._();
+  GetDefaultPrecompiledObjectResponse createEmptyInstance() => create();
+  static $pb.PbList<GetDefaultPrecompiledObjectResponse> createRepeated() => $pb.PbList<GetDefaultPrecompiledObjectResponse>();
+  @$core.pragma('dart2js:noInline')
+  static GetDefaultPrecompiledObjectResponse getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<GetDefaultPrecompiledObjectResponse>(create);
+  static GetDefaultPrecompiledObjectResponse? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  PrecompiledObject get precompiledObject => $_getN(0);
+  @$pb.TagNumber(1)
+  set precompiledObject(PrecompiledObject v) { setField(1, v); }
+  @$pb.TagNumber(1)
+  $core.bool hasPrecompiledObject() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearPrecompiledObject() => clearField(1);
+  @$pb.TagNumber(1)
+  PrecompiledObject ensurePrecompiledObject() => $_ensure(0);
 }
 

@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""Unittest for GCP Bigtable testing."""
+"""Integration tests for bigtableio."""
 # pytype: skip-file
 
 import datetime
@@ -27,6 +27,7 @@ import uuid
 from typing import TYPE_CHECKING
 from typing import List
 
+import pytest
 import pytz
 
 import apache_beam as beam
@@ -139,7 +140,9 @@ class BigtableIOWriteTest(unittest.TestCase):
           self.cluster_id,
           self.LOCATION_ID,
           default_storage_type=self.STORAGE_TYPE)
-      self.instance.create(clusters=[cluster])
+      operation = self.instance.create(clusters=[cluster])
+      operation.result(timeout=10)
+
     self.table = self.instance.table(self.table_id)
 
     if not self.table.exists():
@@ -171,6 +174,7 @@ class BigtableIOWriteTest(unittest.TestCase):
     if self.instance.exists():
       self.instance.delete()
 
+  @pytest.mark.it_postcommit
   def test_bigtable_write(self):
     number = self.number
     pipeline_args = self.test_pipeline.options_list

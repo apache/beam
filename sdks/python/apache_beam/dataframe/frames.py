@@ -43,6 +43,7 @@ from typing import Optional
 
 import numpy as np
 import pandas as pd
+from pandas._libs import lib
 from pandas.core.groupby.generic import DataFrameGroupBy
 
 from apache_beam.dataframe import expressions
@@ -638,10 +639,13 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     order-sensitive. It cannot be specified.
 
     If ``limit`` is specified this operation is not parallelizable."""
+    value_compare = None if PD_VERSION < (1, 4) else lib.no_default
     if method is not None and not isinstance(to_replace,
-                                             dict) and value is None:
+                                             dict) and value is value_compare:
       # pandas only relies on method if to_replace is not a dictionary, and
-      # value is None
+      # value is the <no_default> value. This is different than
+      # if ``None`` is explicitly passed for ``value``. In this case, it will be
+      # respected
       raise frame_base.WontImplementError(
           f"replace(method={method!r}) is not supported because it is "
           "order sensitive. Only replace(method=None) is supported.",
@@ -1317,6 +1321,9 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       base=pd.DataFrame,
       requires_partition_by=partitionings.Arbitrary(),
       preserves_partition_by=partitionings.Singleton())
+
+  info = frame_base.wont_implement_method(
+      pd.Series, 'info', reason="non-deferred-result")
 
   def _idxmaxmin_helper(self, op, **kwargs):
     if op == 'idxmax':
@@ -2674,11 +2681,9 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
     by = subset or list(self.columns)
 
-    # Workaround a bug where groupby.apply() that returns a single-element
-    # Series moves index label to column
     return self.groupby(by).apply(
         lambda df: pd.DataFrame(df.duplicated(keep=keep, subset=subset),
-                                columns=[None]))[None]
+                                columns=[None]))[None].droplevel(by)
 
   @frame_base.with_docs_from(pd.DataFrame)
   @frame_base.args_to_kwargs(pd.DataFrame)
@@ -3975,7 +3980,19 @@ class DeferredGroupBy(frame_base.DeferredFrame):
     object of the same type as what will be returned when the pipeline is
     processing actual data. If the result is a pandas object it should have the
     same type and name (for a Series) or column types and names (for
-    a DataFrame) as the actual results."""
+    a DataFrame) as the actual results.
+
+    Note that in pandas, ``apply`` attempts to detect if the index is unmodified
+    in ``func`` (indicating ``func`` is a transform) and drops the duplicate
+    index in the output. To determine this, pandas tests the indexes for
+    equality. However, Beam cannot do this since it is sensitive to the input
+    data; instead this implementation tests if the indexes are equivalent
+    with ``is``. See the `pandas 1.4.0 release notes
+    <https://pandas.pydata.org/docs/dev/whatsnew/v1.4.0.html#groupby-apply-consistent-transform-detection>`_
+    for a good explanation of the distinction between these approaches. In
+    practice, this just means that in some cases the Beam result will have
+    a duplicate index, whereas pandas would have dropped it."""
+
     project = _maybe_project_func(self._projection)
     grouping_indexes = self._grouping_indexes
     grouping_columns = self._grouping_columns
@@ -3986,28 +4003,81 @@ class DeferredGroupBy(frame_base.DeferredFrame):
     fn_input = project(self._ungrouped_with_index.proxy().reset_index(
         grouping_columns, drop=True))
     result = func(fn_input)
-    if isinstance(result, pd.core.generic.NDFrame):
-      if result.index is fn_input.index:
-        proxy = result
+    def index_to_arrays(index):
+      return [index.get_level_values(level)
+              for level in range(index.nlevels)]
+
+
+    # By default do_apply will just call pandas apply()
+    # We override it below if necessary
+    do_apply = lambda gb: gb.apply(func, *args, **kwargs)
+
+    if (isinstance(result, pd.core.generic.NDFrame) and
+        result.index is fn_input.index):
+      # Special case where apply fn is a transform
+      # Note we trust that if the user fn produces a proxy with the identical
+      # index, it will produce results with identical indexes at execution
+      # time too
+      proxy = result
+    elif isinstance(result, pd.DataFrame):
+      # apply fn is not a transform, we need to make sure the original index
+      # values are prepended to the result's index
+      proxy = result[:0]
+
+      # First adjust proxy
+      proxy.index = pd.MultiIndex.from_arrays(
+          index_to_arrays(self._ungrouped.proxy().index) +
+          index_to_arrays(proxy.index),
+          names=self._ungrouped.proxy().index.names + proxy.index.names)
+
+      # Then override do_apply function
+      new_index_names = self._ungrouped.proxy().index.names
+      if len(new_index_names) > 1:
+        def add_key_index(key, df):
+          # df is a dataframe or Series representing the result of func for
+          # a single key
+          # key is a tuple with the MultiIndex values for this key
+          df.index = pd.MultiIndex.from_arrays(
+              [[key[i]] * len(df) for i in range(len(new_index_names))] +
+              index_to_arrays(df.index),
+              names=new_index_names + df.index.names)
+          return df
       else:
-        proxy = result[:0]
+        def add_key_index(key, df):
+          # df is a dataframe or Series representing the result of func for
+          # a single key
+          df.index = pd.MultiIndex.from_arrays(
+              [[key] * len(df)] + index_to_arrays(df.index),
+              names=new_index_names + df.index.names)
+          return df
 
-        def index_to_arrays(index):
-          return [index.get_level_values(level)
-                  for level in range(index.nlevels)]
 
-        # The final result will have the grouped indexes + the indexes from the
-        # result
-        proxy.index = pd.MultiIndex.from_arrays(
-            index_to_arrays(self._ungrouped.proxy().index) +
-            index_to_arrays(proxy.index),
-            names=self._ungrouped.proxy().index.names + proxy.index.names)
+      do_apply = lambda gb: pd.concat([
+          add_key_index(k, func(gb.get_group(k), *args, **kwargs))
+          for k in gb.groups.keys()])
+    elif isinstance(result, pd.Series):
+      if isinstance(fn_input, pd.DataFrame):
+        # DataFrameGroupBy
+        # In this case pandas transposes the Series result, s.t. the Series
+        # index values are the columns, and the grouping keys are the new index
+        # values.
+        dtype = pd.Series([result]).dtype
+        proxy = pd.DataFrame(columns=result.index,
+                             dtype=result.dtype,
+                             index=self._ungrouped.proxy().index)
+      elif isinstance(fn_input, pd.Series):
+        # SeriesGroupBy
+        # In this case the output is still a Series, but with an additional
+        # index with the grouping keys.
+        proxy = pd.Series(dtype=result.dtype,
+                          name=result.name,
+                          index=index_to_arrays(self._ungrouped.proxy().index) +
+                                index_to_arrays(result[:0].index))
     else:
       # The user fn returns some non-pandas type. The expected result is a
       # Series where each element is the result of one user fn call.
       dtype = pd.Series([result]).dtype
       proxy = pd.Series([], dtype=dtype, index=self._ungrouped.proxy().index)
-
 
     def do_partition_apply(df):
       # Remove columns from index, we only needed them there for partitioning
@@ -4017,7 +4087,8 @@ class DeferredGroupBy(frame_base.DeferredFrame):
                       by=grouping_columns or None)
 
       gb = project(gb)
-      return gb.apply(func, *args, **kwargs)
+
+      return do_apply(gb)
 
     return DeferredDataFrame(
         expressions.ComputedExpression(
@@ -4117,8 +4188,29 @@ class DeferredGroupBy(frame_base.DeferredFrame):
   @property  # type: ignore
   @frame_base.with_docs_from(DataFrameGroupBy)
   def dtypes(self):
-    grouping_columns = self._grouping_columns
-    return self.apply(lambda df: df.drop(grouping_columns, axis=1).dtypes)
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'dtypes',
+            lambda gb: gb.dtypes,
+            [self._expr],
+            requires_partition_by=partitionings.Arbitrary(),
+            preserves_partition_by=partitionings.Arbitrary()
+        )
+    )
+
+  if hasattr(DataFrameGroupBy, 'value_counts'):
+    @frame_base.with_docs_from(DataFrameGroupBy)
+    def value_counts(self, **kwargs):
+      """
+      DataFrameGroupBy.value_counts() is the same as DataFrame.value_counts()
+      """
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'value_counts',
+              lambda df: df.value_counts(**kwargs), [self._expr],
+              preserves_partition_by=partitionings.Arbitrary(),
+              requires_partition_by=partitionings.Arbitrary())
+      )
 
   fillna = frame_base.wont_implement_method(
       DataFrameGroupBy, 'fillna', explanation=(
@@ -4664,6 +4756,8 @@ ELEMENTWISE_STRING_METHODS = [
             'match',
             'pad',
             'partition',
+            'removeprefix',
+            'removesuffix',
             'replace',
             'rpartition',
             'rstrip',

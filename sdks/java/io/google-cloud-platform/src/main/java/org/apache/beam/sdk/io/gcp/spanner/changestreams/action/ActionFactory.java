@@ -23,6 +23,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.ChangeStreamRecordMapper;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.PartitionMetadataMapper;
+import org.joda.time.Duration;
 
 /**
  * Factory class for creating instances that will handle each type of record within a change stream
@@ -38,6 +39,7 @@ public class ActionFactory implements Serializable {
   private static HeartbeatRecordAction heartbeatRecordActionInstance;
   private static ChildPartitionsRecordAction childPartitionsRecordActionInstance;
   private static QueryChangeStreamAction queryChangeStreamActionInstance;
+  private static DetectNewPartitionsAction detectNewPartitionsActionInstance;
 
   /**
    * Creates and returns a singleton instance of an action class capable of processing {@link
@@ -127,5 +129,29 @@ public class ActionFactory implements Serializable {
               childPartitionsRecordAction);
     }
     return queryChangeStreamActionInstance;
+  }
+
+  /**
+   * Creates and returns a single instance of an action class capable of detecting and scheduling
+   * new partitions to be queried.
+   *
+   * @param partitionMetadataDao DAO class to access the Connector's metadata tables
+   * @param partitionMetadataMapper mapper class to transform partition metadata table rows into the
+   *     Connector's domain models
+   * @param metrics metrics gathering class
+   * @param resumeDuration specifies the periodic schedule to re-execute the action
+   * @return single instance of the {@link DetectNewPartitionsAction}
+   */
+  public synchronized DetectNewPartitionsAction detectNewPartitionsAction(
+      PartitionMetadataDao partitionMetadataDao,
+      PartitionMetadataMapper partitionMetadataMapper,
+      ChangeStreamMetrics metrics,
+      Duration resumeDuration) {
+    if (detectNewPartitionsActionInstance == null) {
+      detectNewPartitionsActionInstance =
+          new DetectNewPartitionsAction(
+              partitionMetadataDao, partitionMetadataMapper, metrics, resumeDuration);
+    }
+    return detectNewPartitionsActionInstance;
   }
 }

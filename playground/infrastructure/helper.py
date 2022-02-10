@@ -44,8 +44,10 @@ Tag = namedtuple(
         TagFields.multifile,
         TagFields.categories,
         TagFields.pipeline_options,
-        TagFields.default_example
-    ], defaults=(None, None, False, None, None, False))
+        TagFields.default_example,
+        TagFields.context_line
+    ],
+    defaults=(None, None, False, None, None, False, None))
 
 
 @dataclass
@@ -64,6 +66,7 @@ class Example:
   type: PrecompiledObjectType = PRECOMPILED_OBJECT_TYPE_UNSPECIFIED
   pipeline_id: str = ""
   output: str = ""
+  graph: str = ""
 
 
 @dataclass
@@ -86,6 +89,7 @@ def find_examples(work_dir: str, supported_categories: List[str],
       description: Description of NameOfExample.
       multifile: false
       default_example: false
+      context_line: 10
       categories:
           - category-1
           - category-2
@@ -244,8 +248,13 @@ def _get_example(filepath: str, filename: str, tag: ExampleTag) -> Example:
   with open(filepath, encoding="utf-8") as parsed_file:
     content = parsed_file.read()
   content = content.replace(tag.tag_as_string, "")
+  tag.tag_as_dict[TagFields.context_line] -= tag.tag_as_string.count("\n")
   root_dir = os.getenv("BEAM_ROOT_DIR", "")
-  link = "{}{}".format(Config.LINK_PREFIX, (filepath.replace(root_dir, "", 1)))
+  file_path_without_root = filepath.replace(root_dir, "", 1)
+  if file_path_without_root.startswith("/"):
+    link = "{}{}".format(Config.LINK_PREFIX, file_path_without_root)
+  else:
+    link = "{}/{}".format(Config.LINK_PREFIX, file_path_without_root)
 
   return Example(
       name=name,
@@ -274,9 +283,12 @@ def _validate(tag: dict, supported_categories: List[str]) -> bool:
       In case tag is not valid, False
   """
   valid = True
-  required_tag_fields = {f.default for f in fields(TagFields)
-                if f.default not in
-                {o_f.default for o_f in fields(OptionalTagFields)}}
+  required_tag_fields = {
+      f.default
+      for f in fields(TagFields)
+      if f.default not in {o_f.default
+                           for o_f in fields(OptionalTagFields)}
+  }
   # check that all fields exist and they have no empty value
   for field in required_tag_fields:
     if field not in tag:
@@ -290,8 +302,7 @@ def _validate(tag: dict, supported_categories: List[str]) -> bool:
       valid = False
     if valid is True:
       value = tag.get(field)
-      if (value == "" or
-          value is None) and field != TagFields.pipeline_options:
+      if (value == "" or value is None) and field != TagFields.pipeline_options:
         logging.error(
             "tag's value is incorrect: %s\n%s field can not be empty.",
             tag,
@@ -331,6 +342,17 @@ def _validate(tag: dict, supported_categories: List[str]) -> bool:
             category,
             category)
         valid = False
+
+  # check that context line's value is integer
+  context_line = tag.get(TagFields.context_line)
+  if not isinstance(context_line, int):
+    logging.error(
+        "Tag's field context_line is incorrect: %s \n"
+        "context_line variable should be integer format, "
+        "but tag contains: %s",
+        tag,
+        context_line)
+    valid = False
   return valid
 
 

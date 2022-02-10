@@ -29,7 +29,7 @@ from typing import List
 from tqdm import tqdm
 from google.cloud import storage
 
-from api.v1.api_pb2 import Sdk
+from api.v1.api_pb2 import Sdk, SDK_PYTHON, SDK_JAVA, PrecompiledObjectType
 from config import Config, PrecompiledExample
 from grpc_client import GRPCClient
 from helper import Example, get_statuses
@@ -41,14 +41,17 @@ class CDHelper:
 
   It is used to save beam examples/katas/tests and their output on the GCS.
   """
-
   def store_examples(self, examples: List[Example]):
     """
     Store beam examples and their output in the Google Cloud.
+
+    Outputs for multifile examples are left empty.
     """
-    logging.info("Start of executing Playground examples ...")
-    asyncio.run(self._get_outputs(examples))
-    logging.info("Finish of executing Playground examples")
+    single_file_examples = list(filter(
+      lambda example: example.tag.multifile is False, examples))
+    logging.info("Start of executing only single-file Playground examples ...")
+    asyncio.run(self._get_outputs(single_file_examples))
+    logging.info("Finish of executing single-file Playground examples")
 
     logging.info("Start of sending Playground examples to the bucket ...")
     self._save_to_cloud_storage(examples)
@@ -73,6 +76,17 @@ class CDHelper:
 
     tasks = [client.get_log(example.pipeline_id) for example in examples]
     logs = await asyncio.gather(*tasks)
+
+    if len(examples) > 0 and (examples[0].sdk is SDK_PYTHON or
+                              examples[0].sdk is SDK_JAVA):
+      tasks = [
+          client.get_graph(example.pipeline_id, example.filepath)
+          for example in examples
+      ]
+      graphs = await asyncio.gather(*tasks)
+
+      for graph, example in zip(graphs, examples):
+        example.graph = graph
 
     for output, example in zip(outputs, examples):
       example.output = output
@@ -110,36 +124,48 @@ class CDHelper:
         Config.TEMP_FOLDER,
         example.pipeline_id,
         Sdk.Name(example.sdk),
+        PrecompiledObjectType.Name(example.type),
         example.tag.name)
     Path(path_to_object_folder).mkdir(parents=True, exist_ok=True)
 
     file_names = {}
     code_path = self._get_gcs_object_name(
         sdk=example.sdk,
+        type=example.type,
         base_folder_name=example.tag.name,
         file_name=example.tag.name)
     output_path = self._get_gcs_object_name(
         sdk=example.sdk,
+        type=example.type,
         base_folder_name=example.tag.name,
         file_name=example.tag.name,
         extension=PrecompiledExample.OUTPUT_EXTENSION)
     log_path = self._get_gcs_object_name(
         sdk=example.sdk,
+        type=example.type,
         base_folder_name=example.tag.name,
         file_name=example.tag.name,
         extension=PrecompiledExample.LOG_EXTENSION)
+    graph_path = self._get_gcs_object_name(
+        sdk=example.sdk,
+        type=example.type,
+        base_folder_name=example.tag.name,
+        file_name=example.tag.name,
+        extension=PrecompiledExample.GRAPH_EXTENSION)
     meta_path = self._get_gcs_object_name(
         sdk=example.sdk,
+        type=example.type,
         base_folder_name=example.tag.name,
         file_name=PrecompiledExample.META_NAME,
         extension=PrecompiledExample.META_EXTENSION)
     file_names[code_path] = example.code
     file_names[output_path] = example.output
     meta = example.tag._asdict()
-    meta["type"] = example.type
     meta["link"] = example.link
     file_names[meta_path] = json.dumps(meta)
     file_names[log_path] = example.logs
+    if example.sdk == SDK_PYTHON or example.sdk == SDK_JAVA:
+      file_names[graph_path] = example.graph
     for file_name, file_content in file_names.items():
       local_file_path = os.path.join(
           Config.TEMP_FOLDER, example.pipeline_id, file_name)
@@ -152,6 +178,7 @@ class CDHelper:
   def _get_gcs_object_name(
       self,
       sdk: Sdk,
+      type: PrecompiledObjectType,
       base_folder_name: str,
       file_name: str,
       extension: str = None):
@@ -160,6 +187,7 @@ class CDHelper:
 
     Args:
       sdk: sdk of the example
+      type: type of the example
       file_name: name of the example
       base_folder_name: name of the folder where example is stored
         (eq. to example name)
@@ -170,7 +198,10 @@ class CDHelper:
     if extension is None:
       extension = Config.SDK_TO_EXTENSION[sdk]
     return os.path.join(
-        Sdk.Name(sdk), base_folder_name, f"{file_name}.{extension}")
+        Sdk.Name(sdk),
+        PrecompiledObjectType.Name(type),
+        base_folder_name,
+        f"{file_name}.{extension}")
 
   def _upload_blob(self, source_file: str, destination_blob_name: str):
     """
