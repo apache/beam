@@ -16,18 +16,9 @@
  * limitations under the License.
  */
 
-/**
- * Unit tests for commont Python components.
- */
-
-// TODO(BEAM-9980): See if we can avoid hardcoding python version here.
-plugins { id 'org.apache.beam.module' }
+apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyPythonNature()
 
-toxTask "docs", "py38-docs"
-assemble.dependsOn docs
-
-task preCommitPyCommon() {
-}
-
-toxTask "dependency-check", "py3-dependency-check"
+// Required to setup a Python 3 virtualenv and task names.
+pythonVersion = '3.9'
+apply from: "../common.gradle"
