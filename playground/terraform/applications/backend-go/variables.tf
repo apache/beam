@@ -36,7 +36,7 @@ variable "docker_image_tag" {
 }
 
 variable "service_name" {
-  default = "backend"
+  default = "backend-go"
 }
 
 variable "cache_type" {

@@ -23,7 +23,7 @@ variable "project_id" {
 
 variable "gke_machine_type" {
   description = "Node pool machine types"
-  default     = "e2-standard-4"
+  default     = "c2d-highcpu-16"
 }
 
 variable "gke_node_count" {

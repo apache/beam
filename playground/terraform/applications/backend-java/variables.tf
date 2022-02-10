@@ -48,7 +48,7 @@ variable "volume_size" {
 }
 
 variable "service_name" {
-  default = "backend"
+  default = "backend-java"
 }
 
 variable "cache_type" {

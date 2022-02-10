@@ -18,36 +18,10 @@
 #
 
 variable "project_id" {
-  description = "Project ID"
-}
-
-variable "docker_registry_address" {
-  description = "Docker registry address"
-}
-
-variable "docker_image_name" {
-  description = "Docker Image Name To Be Deployed"
-  default     = "beam_playground-backend-router"
-}
-
-variable "docker_image_tag" {
-  description = "Docker Image Tag To Be Deployed"
-  default     = "latest"
-}
-
-variable "service_name" {
-  default = "backend-router"
-}
-
-variable "cache_type" {
-  default = "remote"
+  description = "The GCP Project ID where Playground Applications will be created"
 }
 
 variable "cache_address" {
+  description = "IP Address for Redis service"
   default = ""
-}
-
-variable "network_name" {
-  description = "Vpc Name, name by default 'default'"
-  default     = "playground-vpc"
 }
