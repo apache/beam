@@ -141,19 +141,11 @@ class _EditorTextAreaState extends State<EditorTextArea> {
 
   int _findOffset() {
     String pattern = _skipToTheBottom(_findQntOfStringsOnScreen());
-    print('Pattern $pattern');
     int contextLine = _skipToContextLine();
-    if (pattern == '}') {
-      return _codeController!.text.lastIndexOf(
-        pattern,
-        contextLine,
-      );
-    } else {
-      return _codeController!.text.indexOf(
-        pattern,
-        contextLine,
-      );
-    }
+    return _codeController!.text.indexOf(
+      pattern,
+      contextLine,
+    );
   }
 
   String _skipToTheBottom(int qntOfStrings) {
@@ -165,7 +157,7 @@ class _EditorTextAreaState extends State<EditorTextArea> {
       result = stringAfterContextLine.length > qntOfStrings
           ? stringAfterContextLine[qntOfStrings]
           : stringAfterContextLine.last;
-    } while (result == '');
+    } while (result == '' || result[result.length - 1] == '}');
     return result;
   }
 
@@ -179,7 +171,7 @@ class _EditorTextAreaState extends State<EditorTextArea> {
   int _skipToContextLine() {
     int ctxLine = widget.example!.contextLine;
     return _codeController!.text.indexOf(
-      _codeController!.text.split('\n')[ctxLine],
+      _codeController!.text.split('\n')[ctxLine - 1],
     );
   }
 
