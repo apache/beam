@@ -139,8 +139,9 @@ def test__write_default_example_path_to_local_fs(delete_temp_folder):
         after method execution
   """
   sdk = Sdk.Name(SDK_GO)
-  default_example_path = "SDK_GO\\PRECOMPILED_OBJECT_TYPE_EXAMPLE\\MinimalWordCount"
+  default_example_path = "SDK_GO/PRECOMPILED_OBJECT_TYPE_EXAMPLE/WordCount"
   expected_result = str(pathlib.Path(sdk, Config.DEFAULT_PRECOMPILED_OBJECT))
-  cloud_path = CDHelper()._write_default_example_path_to_local_fs(default_example_path)
+  cloud_path = CDHelper()._write_default_example_path_to_local_fs(
+      default_example_path)
   assert cloud_path == expected_result
-  assert os.path.exists("temp\\" + cloud_path) is True
+  assert os.path.exists(os.path.join("temp", cloud_path))
