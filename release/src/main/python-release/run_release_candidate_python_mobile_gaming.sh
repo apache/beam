@@ -162,8 +162,8 @@ function run_release_candidate_python_mobile_gaming() {
   BEAM_PYTHON_SDK=$(get_sdk_name $1)
 
   install_sdk $1 $2
-  verify_userscore_direct
-  verify_userscore_dataflow
+  # verify_userscore_direct
+  # verify_userscore_dataflow
   verify_hourlyteamscore_direct
   verify_hourlyteamscore_dataflow
 
