@@ -17,12 +17,6 @@
 # under the License.
 #
 
-provider "google" {
-  region = "us-central"
-}
-provider "google-beta" {
-  region = "us-central"
-}
 
 module "backend-go" {
   source        = "./backend-go"

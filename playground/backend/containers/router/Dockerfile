@@ -54,6 +54,15 @@ RUN go mod download &&\
 # Null image
 FROM debian:stretch-slim
 
+# Install deps being used by sh files
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+    && apt-get autoremove -yqq --purge \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
 # Set Environment
 ENV SERVER_IP=0.0.0.0
 ENV SERVER_PORT=8080

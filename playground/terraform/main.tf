@@ -17,19 +17,11 @@
 # under the License.
 #
 
-terraform {
-  # this describe buket for save state playground cloud
-  backend "gcs" {
-    bucket  = "dev-playground-project-state"
-    prefix  = "terraform/state"
-  }
+module "infrastructure" {
+  source      = "./infrastructure"
+  project_id  = var.project_id
+  environment = var.environment
 }
 
-provider "google" {
-  region = "us-central"
-  project = var.project_id
-}
-provider "google-beta" {
-  region = "us-central"
-  project = var.project_id
-}
+
+

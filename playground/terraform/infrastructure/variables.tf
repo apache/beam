@@ -38,21 +38,6 @@ variable "examples_storage_class" {
   default     = "STANDARD"
 }
 
-variable "terraform_bucket_name" {
-  description = "Name of Bucket to Store Terraform States"
-  default     = "playground_terraform"
-}
-
-variable "terraform_bucket_location" {
-  description = "Location of Playground Examples Bucket"
-  default     = "US"
-}
-
-variable "terraform_storage_class" {
-  description = "Terrafomr Bucket Storage Class"
-  default     = "STANDARD"
-}
-
 # Artifact Registry
 
 variable "repository_id" {
@@ -66,8 +51,7 @@ variable "repository_location" {
 }
 
 variable "service_account" {
-  description = "Service account email"
-  default     = "service-account-playground"
+  description = "Service account email (id) for example service-account-playground@friendly-tower-340607.iam.gserviceaccount.com"
 }
 
 #Redis
@@ -103,8 +87,8 @@ variable "redis_replica_count" {
 }
 
 variable "redis_memory_size_gb" {
-  description = "Size of Redis memory"
-  default     = 4
+  description = "Size of Redis memory ,  if set 'read replica' it must be from 5GB to 100GB."
+  default     = 5
 }
 
 #VPC
@@ -145,4 +129,8 @@ variable "gke_name" {
 variable "gke_location" {
   description = "Location of GKE cluster"
   default     = "us-central1-a"
+}
+
+variable "environment" {
+  description = "prod,dev"
 }

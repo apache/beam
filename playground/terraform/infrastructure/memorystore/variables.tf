@@ -57,8 +57,8 @@ variable "redis_replica_count" {
 }
 
 variable "redis_memory_size_gb" {
-  description = "Size of Redis memory"
-  default     = 4
+  description = "Size of Redis memory,  if set 'read replica' it must be from 5GB to 100GB."
+  default     = 5
 }
 
 variable "display_name" {

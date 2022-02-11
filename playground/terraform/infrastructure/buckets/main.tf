@@ -30,9 +30,3 @@ resource "google_storage_bucket_access_control" "public_rule" {
   entity = "allUsers"
 }
 
-resource "google_storage_bucket" "terraform_bucket" {
-  name          = var.terraform_bucket_name
-  location      = var.terraform_bucket_location
-  project       = var.project_id
-  storage_class = var.terraform_storage_class
-}

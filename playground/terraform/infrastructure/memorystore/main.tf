@@ -18,12 +18,12 @@
 #
 
 
-data "terraform_remote_state" "remote_state_vpc" {
-  backend = "gcs"
-  config  = {
-    bucket = var.terraform_state_bucket_name
-  }
-}
+#data "terraform_remote_state" "remote_state_vpc" {
+#  backend = "gcs"
+#  config  = {
+#    bucket = var.terraform_state_bucket_name
+#  }
+#}
 
 
 # Redis for storing state of Playground application.
@@ -38,5 +38,7 @@ resource "google_redis_instance" "cache" {
   read_replicas_mode = "READ_REPLICAS_ENABLED"
   redis_version      = var.redis_version
   display_name       = var.display_name
+  tier               = var.redis_tier
+  name               = "playground-backend-cache"
 
 }

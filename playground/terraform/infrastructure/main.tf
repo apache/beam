@@ -17,29 +17,19 @@
 # under the License.
 #
 
-provider "google" {
-  region = "us-central"
-}
-provider "google-beta" {
-  region = "us-central"
-}
-
 
 module "vpc" {
   source         = "./vpc"
   project_id     = var.project_id
   create_subnets = var.create_subnets
   mtu            = var.mtu
-  vpc_name       = var.vpc_name
+  vpc_name       = "${var.environment}-${var.vpc_name}"
 }
 
 module "buckets" {
   source                    = "./buckets"
   project_id                = var.project_id
-  terraform_bucket_name     = var.terraform_bucket_name
-  terraform_storage_class   = var.examples_storage_class
-  terraform_bucket_location = var.terraform_bucket_location
-  examples_bucket_name      = var.examples_bucket_name
+  examples_bucket_name      = "${var.environment}-${var.examples_bucket_name}"
   examples_storage_class    = var.examples_storage_class
   examples_bucket_location  = var.examples_bucket_location
 }
@@ -55,7 +45,6 @@ module "artifact_registry" {
 module "memorystore" {
   source                      = "./memorystore"
   project_id                  = var.project_id
-  terraform_state_bucket_name = var.terraform_bucket_name
   redis_version               = var.redis_version
   redis_region                = var.redis_region
   redis_name                  = var.redis_name

@@ -38,6 +38,12 @@ details [here](https://cloud.google.com/sdk/gcloud/reference/auth/activate-servi
 Playground deployment requires terraform. There is
 required [documentation](https://www.terraform.io/intro/getting-started/install.html) for terraform installation.
 
+Prepare bucket to save terraform state , example  set  PROJECT_ID as 'apache-beam-testing'
+```bash
+$ gsutil mb -p ${PROJECT_ID} gs://playground-project-state
+$ gsutil versioning set on gs://playground-project-state
+```
+
 ## GCP infrastructure deployment
 
 To deploy Playground infrastructure follow [README.md](./infrastructure/README.md) for infrastructure module
