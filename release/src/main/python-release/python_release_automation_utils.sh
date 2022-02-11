@@ -228,7 +228,7 @@ function cleanup_pubsub() {
 #   $2 - pid: the pid of running pipeline
 #   $3 - running_job (DataflowRunner only): the job id of streaming pipeline running on DataflowRunner
 #######################################
-function verify_steaming_result() {
+function verify_streaming_result() {
   retry=3
   should_see="Python: "
   while(( $retry > 0 )); do
@@ -295,6 +295,9 @@ function verify_user_score() {
 function verify_hourly_team_score() {
   retry=3
   should_see='AntiqueBrassPlatypus'
+
+  sleep 30
+
   while(( $retry >= 0 )); do
     if [[ $retry > 0 ]]; then
       bq_pull_result=$(bq head -n 500 $DATASET.hourly_team_score_python_$1)
@@ -308,7 +311,7 @@ function verify_hourly_team_score() {
       fi
     else
       echo "FAILED: HourlyTeamScore example failed running on $1-runner. \
-        Did not found scores of team $should_see in $DATASET.leader_board"
+        Did not found scores of team $should_see in $DATASET.hourly_team_score_python_$1"
       complete "FAILED"
       exit 1
     fi
