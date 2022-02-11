@@ -156,7 +156,7 @@ amplified by collaborative organizations.
   <p class="case-study-quote-text">
     Knowledge sharing and collaboration is something that comes naturally in the community. If we 
     see some room for improvement, we exchange ideas and this way, we keep driving Apache Beam and 
-    Apache Hop projects forward  Together, we can work with the most complex problems and just solve them.
+    Apache Hop projects forward. Together, we can work with the most complex problems and just solve them.
   </p>
   <div class="case-study-quote-author">
     <div class="case-study-quote-author-img">
