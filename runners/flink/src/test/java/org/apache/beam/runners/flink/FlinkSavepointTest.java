@@ -24,6 +24,7 @@ import java.io.Serializable;
 import java.net.URI;
 import java.util.Collections;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -50,10 +51,10 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
@@ -178,6 +179,7 @@ public class FlinkSavepointTest implements Serializable {
     options.setShutdownSourcesAfterIdleMs(Long.MAX_VALUE);
 
     oneShotLatch = new CountDownLatch(1);
+    options.setJobName("initial");
     Pipeline pipeline = Pipeline.create(options);
     createStreamingJob(pipeline, false, isPortablePipeline);
 
@@ -195,6 +197,7 @@ public class FlinkSavepointTest implements Serializable {
     oneShotLatch = new CountDownLatch(1);
     // Increase parallelism
     options.setParallelism(4);
+    options.setJobName("restored");
     pipeline = Pipeline.create(options);
     createStreamingJob(pipeline, true, isPortablePipeline);
 
@@ -209,7 +212,7 @@ public class FlinkSavepointTest implements Serializable {
   private JobID executeLegacy(Pipeline pipeline) throws Exception {
     JobGraph jobGraph = getJobGraph(pipeline);
     flinkCluster.submitJob(jobGraph).get();
-    return waitForJobToBeReady();
+    return waitForJobToBeReady(pipeline.getOptions().getJobName());
   }
 
   private JobID executePortable(Pipeline pipeline) throws Exception {
@@ -234,7 +237,7 @@ public class FlinkSavepointTest implements Serializable {
 
     jobInvocation.start();
 
-    return waitForJobToBeReady();
+    return waitForJobToBeReady(pipeline.getOptions().getJobName());
   }
 
   private String getFlinkMaster() throws Exception {
@@ -249,11 +252,21 @@ public class FlinkSavepointTest implements Serializable {
     }
   }
 
-  private JobID waitForJobToBeReady() throws InterruptedException, ExecutionException {
+  private JobID waitForJobToBeReady(String jobName)
+      throws InterruptedException, ExecutionException {
     while (true) {
-      JobStatusMessage jobStatus = Iterables.getFirst(flinkCluster.listJobs().get(), null);
-      if (jobStatus != null && jobStatus.getJobState().name().equals("RUNNING")) {
-        return jobStatus.getJobId();
+      Optional<JobStatusMessage> jobId =
+          flinkCluster.listJobs().get().stream()
+              .filter((status) -> status.getJobName().equals(jobName))
+              .findAny();
+      if (jobId.isPresent()) {
+        JobStatusMessage status = jobId.get();
+        if (status.getJobState().equals(JobStatus.RUNNING)) {
+          return status.getJobId();
+        }
+        LOG.debug("Job '{}' is in state {}, waiting...", jobName, status.getJobState());
+      } else {
+        LOG.debug("Job '{}' does not yet exist, waiting...", jobName);
       }
       Thread.sleep(100);
     }
