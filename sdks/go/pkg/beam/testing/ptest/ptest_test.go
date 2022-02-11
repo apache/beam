@@ -26,7 +26,7 @@ func TestCreate(t *testing.T) {
 	p, s, col := Create(inputs)
 	passert.EqualsList(s, col, inputs)
 	if err := Run(p); err != nil {
-		t.Errorf("create pipeline failed, got %v", err)
+		t.Errorf("Run(p) returned error %v, want nil", err)
 	}
 }
 
@@ -35,7 +35,7 @@ func TestCreateList(t *testing.T) {
 	p, s, col := CreateList(inputs)
 	passert.EqualsList(s, col, inputs)
 	if err := Run(p); err != nil {
-		t.Errorf("create list pipeline failed, got %v", err)
+		t.Errorf("Run(p) returned error %v, want nil", err)
 	}
 }
 
@@ -46,7 +46,7 @@ func TestCreate2(t *testing.T) {
 	passert.EqualsList(s, colOne, inputOne)
 	passert.EqualsList(s, colTwo, inputTwo)
 	if err := Run(p); err != nil {
-		t.Errorf("create list pipeline failed, got %v", err)
+		t.Errorf("Run(p) returned error %v, want nil", err)
 	}
 }
 
@@ -57,6 +57,6 @@ func TestCreateList2(t *testing.T) {
 	passert.EqualsList(s, colOne, inputOne)
 	passert.EqualsList(s, colTwo, inputTwo)
 	if err := Run(p); err != nil {
-		t.Errorf("create list pipeline failed, got %v", err)
+		t.Errorf("Run(p) returned error %v, want nil", err)
 	}
 }
