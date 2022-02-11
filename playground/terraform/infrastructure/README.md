@@ -29,7 +29,7 @@ $ terraform init
 Once it has been done, default Terraform configuration can be applied:
 
 ```bash
-$ terraform apply
+$ terraform apply -target=module.infrastructure
 ```
 
 Then the following dialog will be displayed in the console:
