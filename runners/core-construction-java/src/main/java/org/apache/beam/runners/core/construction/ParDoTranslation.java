@@ -46,6 +46,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardRequirements;
+import org.apache.beam.model.pipeline.v1.RunnerApi.StandardUserStateTypes;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformTranslator;
 import org.apache.beam.sdk.Pipeline;
@@ -122,6 +123,11 @@ public class ParDoTranslation {
   public static final String REQUIRES_ON_WINDOW_EXPIRATION_URN =
       "beam:requirement:pardo:on_window_expiration:v1";
 
+  /** Represents a user state specification that supports a bag. */
+  public static final String BAG_USER_STATE = "beam:user_state:bag:v1";
+  /** Represents a user state specification that supports a multimap. */
+  public static final String MULTIMAP_USER_STATE = "beam:user_state:multimap:v1";
+
   static {
     checkState(
         REQUIRES_STATEFUL_PROCESSING_URN.equals(
@@ -140,6 +146,8 @@ public class ParDoTranslation {
     checkState(
         REQUIRES_ON_WINDOW_EXPIRATION_URN.equals(
             getUrn(StandardRequirements.Enum.REQUIRES_ON_WINDOW_EXPIRATION)));
+    checkState(BAG_USER_STATE.equals(getUrn(StandardUserStateTypes.Enum.BAG)));
+    checkState(MULTIMAP_USER_STATE.equals(getUrn(StandardUserStateTypes.Enum.MULTIMAP)));
   }
 
   /** The URN for an unknown Java {@link DoFn}. */
@@ -571,6 +579,7 @@ public class ParDoTranslation {
                 .setReadModifyWriteSpec(
                     RunnerApi.ReadModifyWriteStateSpec.newBuilder()
                         .setCoderId(registerCoderOrThrow(components, valueCoder)))
+                .setProtocol(FunctionSpec.newBuilder().setUrn(BAG_USER_STATE))
                 .build();
           }
 
@@ -580,6 +589,7 @@ public class ParDoTranslation {
                 .setBagSpec(
                     RunnerApi.BagStateSpec.newBuilder()
                         .setElementCoderId(registerCoderOrThrow(components, elementCoder)))
+                .setProtocol(FunctionSpec.newBuilder().setUrn(BAG_USER_STATE))
                 .build();
           }
 
@@ -589,6 +599,8 @@ public class ParDoTranslation {
                 .setOrderedListSpec(
                     RunnerApi.OrderedListStateSpec.newBuilder()
                         .setElementCoderId(registerCoderOrThrow(components, elementCoder)))
+                // TODO(BEAM-10650): Update with correct protocol once the protocol is defined and
+                // the SDK harness uses it.
                 .build();
           }
 
@@ -600,6 +612,7 @@ public class ParDoTranslation {
                     RunnerApi.CombiningStateSpec.newBuilder()
                         .setAccumulatorCoderId(registerCoderOrThrow(components, accumCoder))
                         .setCombineFn(CombineTranslation.toProto(combineFn, components)))
+                .setProtocol(FunctionSpec.newBuilder().setUrn(BAG_USER_STATE))
                 .build();
           }
 
@@ -610,6 +623,7 @@ public class ParDoTranslation {
                     RunnerApi.MapStateSpec.newBuilder()
                         .setKeyCoderId(registerCoderOrThrow(components, keyCoder))
                         .setValueCoderId(registerCoderOrThrow(components, valueCoder)))
+                .setProtocol(FunctionSpec.newBuilder().setUrn(MULTIMAP_USER_STATE))
                 .build();
           }
 
@@ -619,6 +633,7 @@ public class ParDoTranslation {
                 .setSetSpec(
                     RunnerApi.SetStateSpec.newBuilder()
                         .setElementCoderId(registerCoderOrThrow(components, elementCoder)))
+                .setProtocol(FunctionSpec.newBuilder().setUrn(MULTIMAP_USER_STATE))
                 .build();
           }
         });
