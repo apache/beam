@@ -2840,26 +2840,11 @@ public class KafkaIO {
         //       transform initializes while processing the output. It might be better to
         //       check here to catch common mistake.
 
-        // TODO: Correct dummyProducerRecord
         return KafkaWriteResult.in(
             input.getPipeline(),
             new TupleTag<>("failed"),
             empty,
-            input
-                .apply(new KafkaExactlyOnceSink<>(this))
-                .apply(
-                    "PlaceHolder",
-                    ParDo.of(
-                        new DoFn<Void, ProducerRecord<K, V>>() {
-                          @ProcessElement
-                          public void processElement(ProcessContext ctx) {
-                            ProducerRecord<K, V> dummyProducerRecord =
-                                new ProducerRecord<K, V>("null", (V) "null");
-
-                            ctx.output(dummyProducerRecord);
-                          }
-                        }))
-                .setCoder(input.getCoder()));
+            input.apply(new KafkaExactlyOnceSink<>(this)).setCoder(input.getCoder()));
       } else {
         return KafkaWriteResult.in(
             input.getPipeline(),

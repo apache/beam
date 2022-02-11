@@ -135,6 +135,7 @@ import org.hamcrest.collection.IsIterableContainingInAnyOrder;
 import org.hamcrest.collection.IsIterableWithSize;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -1655,6 +1656,50 @@ public class KafkaIOTest {
       }
     }
   }
+
+  private static class CheckKafkaWriteResults<K, V> extends DoFn<ProducerRecord<K, V>, Void> {
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      Assert.assertNotNull(c.element());
+    }
+  }
+
+  @Test
+  public <K, V> void testSinkWithKafkaWriteResults() {
+    // we are expecting that the results are returned in the KafkaWriteResults Object
+    int numElements = 1;
+    SimpleEntry<String, String> header = new SimpleEntry<>("header_key", "header_value");
+    try (MockProducerWrapper producerWrapper = new MockProducerWrapper()) {
+
+      ProducerSendCompletionThread completionThread =
+          new ProducerSendCompletionThread(producerWrapper.mockProducer).start();
+
+      String defaultTopic = "test";
+      KafkaWriteResult<K, V> returnResult =
+          p.apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn()).withoutMetadata())
+              .apply(
+                  ParDo.of(
+                      new KV2ProducerRecord(
+                          defaultTopic, true, System.currentTimeMillis(), header)))
+              .setCoder(ProducerRecordCoder.of(VarIntCoder.of(), VarLongCoder.of()))
+              .apply(
+                  KafkaIO.<Integer, Long>writeRecordsWithOutput()
+                      .withBootstrapServers("none")
+                      .withKeySerializer(IntegerSerializer.class)
+                      .withValueSerializer(LongSerializer.class)
+                      .withInputTimestamp()
+                      .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey)));
+      returnResult.getSuccessfulWrites().apply(ParDo.of(new CheckKafkaWriteResults<>()));
+      p.run();
+
+      completionThread.shutdown();
+    }
+  }
+  // TODO: Test - equivalency of element, timestamp, window
+  // use test stream, into window (tell you wehre each element is in the window)
+  // have one element use secondly windows, put one element in each window
+  // window would have this window , pull out windows
+  // check objects , extract the timestamp as a value in lambda , check that timestamp exists
 
   @Test
   public void testUnboundedSourceStartReadTime() {

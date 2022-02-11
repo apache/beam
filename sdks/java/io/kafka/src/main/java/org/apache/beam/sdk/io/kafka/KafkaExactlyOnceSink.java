@@ -46,9 +46,11 @@ import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Reify;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
@@ -57,6 +59,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TimestampedValue.TimestampedValueCoder;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
@@ -94,7 +97,7 @@ import org.slf4j.LoggerFactory;
   "unused" // TODO(BEAM-13271): Remove when new version of errorprone is released (2.11.0)
 })
 class KafkaExactlyOnceSink<K, V>
-    extends PTransform<PCollection<ProducerRecord<K, V>>, PCollection<Void>> {
+    extends PTransform<PCollection<ProducerRecord<K, V>>, PCollection<ProducerRecord<K, V>>> {
 
   // Dataflow ensures at-least once processing for side effects like sinks. In order to provide
   // exactly-once semantics, a sink needs to be idempotent or it should avoid writing records
@@ -153,7 +156,7 @@ class KafkaExactlyOnceSink<K, V>
   }
 
   @Override
-  public PCollection<Void> expand(PCollection<ProducerRecord<K, V>> input) {
+  public PCollection<ProducerRecord<K, V>> expand(PCollection<ProducerRecord<K, V>> input) {
 
     int numShards = spec.getNumShards();
     if (numShards <= 0) {
@@ -168,6 +171,23 @@ class KafkaExactlyOnceSink<K, V>
     }
     checkState(numShards > 0, "Could not set number of shards");
 
+    // TODO: Apply the original window, get the window from input
+    // reapply window, put c.output with timestamp
+    // PCollection<Integer> randomPcoll =
+    //    input.getPipeline().apply(Create.of(1)).apply(Window.into(FixedWindows.of(Duration(0))));
+
+    WindowingStrategy<?, ?> originalWindowStrategy = input.getWindowingStrategy();
+
+    // randomPcoll.apply(Window.into(FixedWindows.of(Duration(10))))
+    //    .apply(Window.into(A.withWindowFn()));
+
+    // ExactlyOnceWriter
+    //      input REIFY.extractTimestampsFromValues
+    //      output the Iterable<KV<>>
+    // Flatten.Iterables PTransform Iterable<KV<>> , PCollection<KV>
+    // reapply windowstrategy
+    // should be original state
+
     return input
         .apply(
             Window.<ProducerRecord<K, V>>into(new GlobalWindows()) // Everything into global window.
@@ -181,7 +201,19 @@ class KafkaExactlyOnceSink<K, V>
         .apply("Persist ids", GroupByKey.create())
         .apply(
             String.format("Write to Kafka topic '%s'", spec.getTopic()),
-            ParDo.of(new ExactlyOnceWriter<>(spec, input.getCoder())));
+            ParDo.of(new ExactlyOnceWriter<>(spec, input.getCoder())))
+        .setWindowingStrategyInternal(originalWindowStrategy)
+        .apply(Flatten.iterables())
+        .apply("Extract Timestamp", Reify.extractTimestampsFromValues())
+        .apply(
+            "Extract ProducerRecord",
+            ParDo.of(
+                new DoFn<KV<Long, ProducerRecord<K, V>>, ProducerRecord<K, V>>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext c) {
+                    c.output(c.element().getValue());
+                  }
+                }));
   }
 
   /** Shuffle messages assigning each randomly to a shard. */
@@ -230,7 +262,9 @@ class KafkaExactlyOnceSink<K, V>
   }
 
   private static class ExactlyOnceWriter<K, V>
-      extends DoFn<KV<Integer, Iterable<KV<Long, TimestampedValue<ProducerRecord<K, V>>>>>, Void> {
+      extends DoFn<
+          KV<Integer, Iterable<KV<Long, TimestampedValue<ProducerRecord<K, V>>>>>,
+          Iterable<KV<Long, TimestampedValue<ProducerRecord<K, V>>>>> {
 
     private static final String NEXT_ID = "nextId";
     private static final String MIN_BUFFERED_ID = "minBufferedId";
@@ -396,6 +430,10 @@ class KafkaExactlyOnceSink<K, V>
         }
 
         writer.commitTxn(nextId - 1, numTransactions);
+        // TODO: ctx.output record here
+        // what are they doing to make sure it is correct
+        // fire out the data (see if Finally needs to output as well)
+        // c.output with timestamp
         nextIdState.write(nextId);
 
       } catch (ProducerSpEL.UnrecoverableProducerException e) {
@@ -421,6 +459,7 @@ class KafkaExactlyOnceSink<K, V>
       } finally {
         if (writer != null) {
           cache.insert(shard, writer);
+          ctx.output(ctx.element().getValue());
         }
       }
     }
