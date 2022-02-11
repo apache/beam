@@ -42,7 +42,7 @@ func TestCreateList(t *testing.T) {
 func TestCreate2(t *testing.T) {
 	inputOne := []interface{}{"a", "b", "c"}
 	inputTwo := []interface{}{"d", "e", "f", "g"}
-	p, s, colOne, colTwo := CreateList2(inputOne, inputTwo)
+	p, s, colOne, colTwo := Create2(inputOne, inputTwo)
 	passert.EqualsList(s, colOne, inputOne)
 	passert.EqualsList(s, colTwo, inputTwo)
 	if err := Run(p); err != nil {
