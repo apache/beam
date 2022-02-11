@@ -26,7 +26,7 @@ class CommonTestProperties {
   }
 
   static String getFlinkVersion() {
-    return "1.13"
+    return "1.9.3" //Flink Version in dataproc 1.5
   }
 
   enum Runner {
