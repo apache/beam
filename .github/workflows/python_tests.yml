@@ -103,12 +103,8 @@ jobs:
           {"py_ver": "3.6", "tox_env": "py36"},
           {"py_ver": "3.7", "tox_env": "py37"},
           {"py_ver": "3.8", "tox_env": "py38"},
+          {"py_ver": "3.9", "tox_env": "py39"},
         ]
-        exclude:
-          # TODO remove exclusion after issue with protobuf is solved
-          # https://github.com/protocolbuffers/protobuf/issues/7765
-          - os: windows-latest
-            params: {"py_ver": "3.8", "tox_env": "py38"}
     steps:
       - name: Clean GitHub workspace
         if: contains(matrix.os, 'ubuntu-20.04')
@@ -147,12 +143,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [[self-hosted, ubuntu-20.04], macos-latest, windows-latest]
-        python: [3.6, 3.7, 3.8]
-        exclude:
-          # TODO remove exclusion after issue with protobuf is solved
-          # https://github.com/protocolbuffers/protobuf/issues/7765
-          - os: windows-latest
-            python: 3.8
+        python: [3.6, 3.7, 3.8, 3.9]
     steps:
       - name: Clean GitHub workspace
         if: contains(matrix.os, 'ubuntu-20.04')
@@ -183,12 +174,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [[self-hosted, ubuntu-20.04], macos-latest, windows-latest]
-        python: [3.6, 3.7, 3.8]
-        exclude:
-          # TODO remove exclusion after issue with protobuf is solved
-          # https://github.com/protocolbuffers/protobuf/issues/7765
-          - os: windows-latest
-            python: 3.8
+        python: [3.6, 3.7, 3.8, 3.9]
     steps:
       - name: Clean GitHub workspace
         if: contains(matrix.os, 'ubuntu-20.04')

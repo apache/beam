@@ -381,7 +381,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.37.0'
+    project.version = '2.38.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -407,6 +407,23 @@ class BeamModulePlugin implements Plugin<Project> {
       // https://discuss.gradle.org/t/do-not-cache-if-condition-matched-jacoco-agent-configured-with-append-true-satisfied/23504
       def enabled = graph.allTasks.any { it instanceof JacocoReport || it.name.contains("javaPreCommit") }
       project.tasks.withType(Test) { jacoco.enabled = enabled }
+    }
+
+    // Add Retry Gradle Plugin to mitigate flaky tests
+    if (project.hasProperty("retryFlakyTest")) {
+      project.apply plugin: "org.gradle.test-retry"
+      project.tasks.withType(Test) {
+        reports{
+          junitXml{
+            mergeReruns = true
+          }
+        }
+        retry {
+          failOnPassedAfterRetry = false
+          maxFailures = 10
+          maxRetries = 3
+        }
+      }
     }
 
     // Apply a plugin which provides tasks for dependency / property / task reports.
@@ -2445,6 +2462,7 @@ class BeamModulePlugin implements Plugin<Project> {
       // Python interpreter version for virtualenv setup and test run. This value can be
       // set from commandline with -PpythonVersion, or in build script of certain project.
       // If none of them applied, version set here will be used as default value.
+      // TODO(BEAM-12000): Move default value to Py3.9.
       project.ext.pythonVersion = project.hasProperty('pythonVersion') ?
           project.pythonVersion : '3.8'
 
@@ -2621,6 +2639,7 @@ class BeamModulePlugin implements Plugin<Project> {
             ':sdks:python:container:py36:docker',
             ':sdks:python:container:py37:docker',
             ':sdks:python:container:py38:docker',
+            ':sdks:python:container:py39:docker',
           ]
           doLast {
             // TODO: Figure out GCS credentials and use real GCS input and output.
