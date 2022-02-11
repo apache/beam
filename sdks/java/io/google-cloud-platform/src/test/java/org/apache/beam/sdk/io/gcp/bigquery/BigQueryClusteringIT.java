@@ -99,12 +99,12 @@ public class BigQueryClusteringIT {
     public ClusteredDestinations(String tableName) {
       this.tableName = tableName;
     }
-
+    /*
     @Override
     public @Nullable Coder<TableDestination> getDestinationCoder() {
       return TableDestinationCoderV3.of();
     }
-
+    */
     @Override
     public TableDestination getDestination(ValueInSingleWindow<TableRow> element) {
       return new TableDestination(
