@@ -243,6 +243,23 @@ func TestRedisCache_SetValue(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			// Test case with calling SetValue method with incorrect value.
+			// As a result, want to receive an error during marshal value.
+			name: "set incorrect value",
+			mocks: func() {
+				mock.ExpectHSet(pipelineId.String(), marshSubKey, marshValue).SetVal(1)
+				mock.ExpectExpire(pipelineId.String(), time.Minute*15).SetVal(true)
+			},
+			fields: fields{client},
+			args: args{
+				ctx:        context.Background(),
+				pipelineId: pipelineId,
+				subKey:     subKey,
+				value:      make(chan int),
+			},
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -487,6 +504,9 @@ func Test_unmarshalBySubKey(t *testing.T) {
 	statusValue, _ := json.Marshal(status)
 	output := "MOCK_OUTPUT"
 	outputValue, _ := json.Marshal(output)
+	canceledValue, _ := json.Marshal(false)
+	runOutputIndex := 0
+	runOutputIndexValue, _ := json.Marshal(runOutputIndex)
 	type args struct {
 		ctx    context.Context
 		subKey cache.SubKey
@@ -533,6 +553,24 @@ func Test_unmarshalBySubKey(t *testing.T) {
 				value:  string(outputValue),
 			},
 			want:    output,
+			wantErr: false,
+		},
+		{
+			name: "Canceled subKey",
+			args: args{
+				subKey: cache.Canceled,
+				value:  string(canceledValue),
+			},
+			want:    false,
+			wantErr: false,
+		},
+		{
+			name: "RunOutputIndex subKey",
+			args: args{
+				subKey: cache.RunOutputIndex,
+				value:  string(runOutputIndexValue),
+			},
+			want:    float64(runOutputIndex),
 			wantErr: false,
 		},
 	}
