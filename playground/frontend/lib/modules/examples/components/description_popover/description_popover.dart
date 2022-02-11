@@ -18,7 +18,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:playground/config/theme.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:playground/constants/assets.dart';
 import 'package:playground/constants/font_weight.dart';
@@ -42,7 +41,7 @@ class DescriptionPopover extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(kLgSpacing),
           child: Wrap(
-            runSpacing: kSmSpacing,
+            runSpacing: kMdSpacing,
             children: [
               Text(
                 example.name,
@@ -52,13 +51,14 @@ class DescriptionPopover extends StatelessWidget {
                 ),
               ),
               Text(example.description),
-              TextButton.icon(
-                icon: SvgPicture.asset(kGithubIconAsset),
-                onPressed: () {
-                  launch(example.link ?? '');
-                },
-                label: Text(appLocale.viewOnGithub),
-              ),
+              if (example.link?.isNotEmpty ?? false)
+                TextButton.icon(
+                  icon: SvgPicture.asset(kGithubIconAsset),
+                  onPressed: () {
+                    launch(example.link ?? '');
+                  },
+                  label: Text(appLocale.viewOnGithub),
+                ),
             ],
           ),
         ),

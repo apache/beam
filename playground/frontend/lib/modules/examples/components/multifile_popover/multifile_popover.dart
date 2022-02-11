@@ -41,7 +41,7 @@ class MultifilePopover extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(kLgSpacing),
           child: Wrap(
-            runSpacing: kSmSpacing,
+            runSpacing: kMdSpacing,
             children: [
               Text(
                 appLocale.multifile,

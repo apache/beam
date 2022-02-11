@@ -18,8 +18,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import 'package:playground/constants/assets.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/analytics/analytics_service.dart';
 import 'package:playground/modules/editor/components/editor_textarea.dart';
@@ -71,13 +69,11 @@ class CodeTextAreaWrapper extends StatelessWidget {
                       if (state.selectedExample != null) ...[
                         if (state.selectedExample?.isMultiFile ?? false)
                           MultifilePopoverButton(
-                            parentContext: context,
                             example: state.selectedExample!,
-                            followerAnchor: Alignment.topLeft,
-                            targetAnchor: Alignment.topRight,
+                            followerAnchor: Alignment.topRight,
+                            targetAnchor: Alignment.bottomRight,
                           ),
                         DescriptionPopoverButton(
-                          parentContext: context,
                           example: state.selectedExample!,
                           followerAnchor: Alignment.topRight,
                           targetAnchor: Alignment.bottomRight,

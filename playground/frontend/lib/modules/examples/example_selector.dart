@@ -197,12 +197,21 @@ class _ExampleSelectorState extends State<ExampleSelector>
           indent: kLgSpacing,
           endIndent: kLgSpacing,
         ),
-        TextButton(
-          child: Padding(
-            padding: const EdgeInsets.all(kLgSpacing),
-            child: Text(AppLocalizations.of(context)!.addExample),
+        SizedBox(
+          width: double.infinity,
+          child: TextButton(
+            child: Padding(
+              padding: const EdgeInsets.all(kXlSpacing),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  AppLocalizations.of(context)!.addExample,
+                  style: TextStyle(color: ThemeColors.of(context).primary),
+                ),
+              ),
+            ),
+            onPressed: () => launch(kAddExampleLink),
           ),
-          onPressed: () => launch(kAddExampleLink),
         )
       ],
     );
