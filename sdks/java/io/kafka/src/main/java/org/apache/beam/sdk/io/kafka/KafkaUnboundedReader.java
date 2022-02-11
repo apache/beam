@@ -334,8 +334,8 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
    */
   private static final Duration KAFKA_POLL_TIMEOUT = Duration.millis(1000);
 
-  private static final Duration RECORDS_DEQUEUE_POLL_TIMEOUT = Duration.millis(10);
-  private static final Duration RECORDS_ENQUEUE_POLL_TIMEOUT = Duration.millis(100);
+  private static final Duration RECORDS_DEQUEUE_POLL_TIMEOUT = Duration.standardSeconds(10);
+  private static final Duration RECORDS_ENQUEUE_POLL_TIMEOUT = Duration.standardSeconds(1);
 
   // Use a separate thread to read Kafka messages. Kafka Consumer does all its work including
   // network I/O inside poll(). Polling only inside #advance(), especially with a small timeout
@@ -525,6 +525,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
 
   private static class PoolLoopStats {
     long polls = 0;
+    long count = 0;
     Duration pollDuration = Duration.ZERO;
     long successfulPolls = 0;
     Duration successfulPollDuration = Duration.ZERO;
@@ -534,10 +535,11 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     Duration successfulOfferDuration = Duration.ZERO;
     Duration checkpointDuration = Duration.ZERO;
 
-    public void pollComplete(Duration duration, boolean success) {
+    public void pollComplete(Duration duration, boolean success, int count) {
       polls += 1;
       if (success) {
         successfulPolls += 1;
+        this.count += count;
         successfulPollDuration = successfulPollDuration.plus(duration);
       }
       pollDuration = pollDuration.plus(duration);
@@ -563,15 +565,17 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     public void log() {
       Duration avgSuccessfulPollDuration =
           successfulPolls != 0 ? successfulPollDuration.dividedBy(successfulPolls) : Duration.ZERO;
+      long countPerPoll = successfulPolls != 0 ? count /  successfulPolls: 0;
       Duration avgSuccessfulOfferDuration =
           successfulOffers != 0 ? successfulOfferDuration.dividedBy(successfulOffers)
               : Duration.ZERO;
       LOG.info(
           "consumerPollLoop stats: polls -- {} total, {}ms total, {} ok, {}ms avg ok; " +
-              "offers -- {} total, {}ms total, {} ok, {}ms avg ok.",
+              "offers -- {} total, {}ms total, {} ok, {}ms avg ok; " +
+              "count -- {}, {} avg per ok poll",
           polls, pollDuration.getMillis(), successfulPolls, avgSuccessfulPollDuration.getMillis(),
           offers, offerDuration.getMillis(), successfulOffers,
-          avgSuccessfulOfferDuration.getMillis());
+          avgSuccessfulOfferDuration.getMillis(), count, countPerPoll);
     }
   }
 
@@ -591,7 +595,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
             if (artificialExtraPollLatency != null && !records.isEmpty()) {
               Thread.sleep(artificialExtraPollLatency.getMillis());
             }
-            stats.pollComplete(new Duration(pollStart, Instant.now()), !records.isEmpty());
+            stats.pollComplete(new Duration(pollStart, Instant.now()), !records.isEmpty(), records.count());
           } else {
             Instant offerStart = Instant.now();
             boolean offerOk = availableRecordsQueue.offer(
