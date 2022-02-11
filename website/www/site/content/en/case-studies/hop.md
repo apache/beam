@@ -102,8 +102,8 @@ and [workflow engines(plugins)](https://hop.apache.org/dev-manual/latest/sdk/hop
 Apache Hop’s custom plugins and metadata objects for [some of the most popular technologies](https://hop.apache.org/manual/latest/technology/technology.html),
 such as [Neo4j](https://neo4j.com/), empower users to execute database- and technology-specific transforms inside
 the Apache Beam pipelines, which allows for native optimized connectivity and flexible Apache Beam pipeline configurations.
-For instance, the Apache Hop’s [Neo4j metadata objects](https://hop.apache.org/manual/latest/technology/neo4j/index.html#_description) 
-provide a way to store logging and execution lineage of Apache Beam pipelines in the Neo4j graph database and 
+For instance, the Apache Hop’s [Neo4j plugin](https://hop.apache.org/manual/latest/technology/neo4j/index.html#_description) 
+stores logging and execution lineage of Apache Beam pipelines in the Neo4j graph database and enables users to
 query this information for more details, such as quickly jump to the place where an error occurred. The combination of 
 Apache Hop transforms, [Apache Beam built-in I/Os](https://beam.apache.org/documentation/io/built-in/), 
 and Apache Beam-powered data processing opens up new horizons for more sinks and sources and custom use cases.
