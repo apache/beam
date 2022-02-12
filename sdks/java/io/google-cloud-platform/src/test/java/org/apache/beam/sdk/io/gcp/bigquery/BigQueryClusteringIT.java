@@ -25,6 +25,7 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import java.util.Arrays;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
@@ -35,6 +36,7 @@ import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -97,12 +99,12 @@ public class BigQueryClusteringIT {
     public ClusteredDestinations(String tableName) {
       this.tableName = tableName;
     }
-    /*
+    
     @Override
     public @Nullable Coder<TableDestination> getDestinationCoder() {
       return TableDestinationCoderV3.of();
     }
-    */
+    
     @Override
     public TableDestination getDestination(ValueInSingleWindow<TableRow> element) {
       return new TableDestination(
