@@ -66,7 +66,7 @@
 
 ## Breaking Changes
 
-* X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* (Python) Previously `DoFn.infer_output_types` was expected to return `Iterable[element_type]` where `element_type` is the PCollection elemnt type. It is now expected to return `element_type`. Take care if you have overriden `infer_output_type` in a `DoFn` (this is not common). See [BEAM-13860](https://issues.apache.org/jira/browse/BEAM-13860).
 
 ## Deprecations
 
