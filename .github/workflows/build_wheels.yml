@@ -24,10 +24,10 @@ on:
     - cron: '10 2 * * *'
   push:
     branches: ['master', 'release-*']
-    tags: 'v*'
+    tags: ['v*']
   pull_request:
     branches: ['master', 'release-*']
-    tags: 'v*'
+    tags: ['v*']
     paths: ['sdks/python/**', 'model/**', 'release/**']
   workflow_dispatch:
 
@@ -248,7 +248,7 @@ jobs:
       run: cibuildwheel --print-build-identifiers && cibuildwheel --output-dir wheelhouse
       shell: bash
     - name: Install sha512sum on MacOS
-      if: startsWith(matrix.os_python.os, 'macos')
+      if: contains(matrix.os_python.os, 'macos-latest')
       run: brew install coreutils
     - name: Add checksums
       working-directory: apache-beam-source/wheelhouse/
