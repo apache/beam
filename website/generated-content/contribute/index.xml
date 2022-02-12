@@ -594,7 +594,7 @@ Measurements are available on &lt;a href="http://metrics.beam.apache.org">metric
 &lt;p>All Runners which publish data should be checked for the following, in both &lt;em>batch&lt;/em> and &lt;em>streaming&lt;/em> mode:&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="http://metrics.beam.apache.org/d/MOi-kf3Zk/pardo-load-tests">ParDo&lt;/a> and &lt;a href="http://metrics.beam.apache.org/d/UYZ-oJ3Zk/gbk-load-test">GBK&lt;/a>: Runtime, latency, checkpoint duration&lt;/li>
-&lt;li>&lt;a href="http://metrics.beam.apache.org/d/ahuaA_zGz/nexmark">Nexmark&lt;/a>: Query runtime for all queries&lt;/li>
+&lt;li>&lt;a href="http://metrics.beam.apache.org/d/ahudA_zGz/nexmark">Nexmark&lt;/a>: Query runtime for all queries&lt;/li>
 &lt;li>&lt;a href="http://metrics.beam.apache.org/d/bnlHKP3Wz/java-io-it-tests-dataflow">IO&lt;/a>: Runtime&lt;/li>
 &lt;/ul>
 &lt;p>If regressions are found, the release branch can still be created, but the regressions should be investigated and fixed as part of the release process.
