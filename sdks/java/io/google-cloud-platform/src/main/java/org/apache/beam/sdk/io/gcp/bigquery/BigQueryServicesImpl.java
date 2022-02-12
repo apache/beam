@@ -985,6 +985,23 @@ class BigQueryServicesImpl implements BigQueryServices {
           // impossible to insert into BigQuery, and so we send it out through the dead-letter
           // queue.
           if (nextRowSize >= maxRowBatchSize) {
+            Boolean isRetryAlways = false;
+            try {
+              // We verify whether the retryPolicy parameter is "retryAlways". If it is, then
+              // it will return true. Otherwise it will return false, or it may throw an NPE,
+              // which we need to catch and ignore.
+              isRetryAlways = retryPolicy.shouldRetry(null);
+            } catch (NullPointerException e) {
+              // We do not need to do anything about this exception, as it was expected;
+            }
+            if (isRetryAlways) {
+              throw new RuntimeException(
+                  String.format(
+                      "We have observed a row that is %s bytes in size. BigQuery supports"
+                          + " request sizes up to 10MB. You can set the pipeline option"
+                          + " maxStreamingBatchSize to a larger number to unblock this pipeline.",
+                      nextRowSize));
+            }
             errorContainer.add(
                 failedInserts,
                 new InsertErrors()
