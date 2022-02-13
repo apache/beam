@@ -50,10 +50,6 @@ variable "repository_location" {
   default     = "us-central1"
 }
 
-variable "service_account" {
-  description = "Service account email (id) for example service-account-playground@friendly-tower-340607.iam.gserviceaccount.com"
-}
-
 #Redis
 
 variable "redis_version" {
@@ -110,7 +106,6 @@ variable "mtu" {
 
 # GKE
 
-
 variable "gke_machine_type" {
   description = "Node pool machine types"
   default     = "e2-standard-4"
@@ -130,6 +125,13 @@ variable "gke_location" {
   description = "Location of GKE cluster"
   default     = "us-central1-a"
 }
+
+variable "service_account" {
+  description = "Service account email (id) for example service-account-playground@friendly-tower-340607.iam.gserviceaccount.com"
+  default     = "service-account-playground@friendly-tower-340607.iam.gserviceaccount.com"
+}
+
+# Over
 
 variable "environment" {
   description = "prod,dev"

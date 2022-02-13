@@ -23,5 +23,11 @@ module "infrastructure" {
   environment = var.environment
 }
 
+module "applications" {
+  source      = "./applications"
+  project_id  = var.project_id
+  environment = var.environment
+}
+
 
 

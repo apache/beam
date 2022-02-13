@@ -17,21 +17,6 @@
 # under the License.
 #
 
-variable "project_id" {
-  description = "The GCP Project ID where Playground Applications will be created"
-}
-
-variable "cache_address" {
-  description = "IP Address for Redis service"
-  default = ""
-}
-
-variable "environment" {
-  description = "prod,dev"
-  default = "dev"
-}
-
-variable "network_name" {
-  description = "Vpc Name, name by default 'default'"
-  default     = "playground-vpc"
+output "redis_ip" {
+  value = google_redis_instance.cache.host
 }

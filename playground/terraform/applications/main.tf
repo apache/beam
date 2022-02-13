@@ -17,38 +17,64 @@
 # under the License.
 #
 
+data "terraform_remote_state" "playground-state" {
+  backend = "gcs"
+  config  = {
+    bucket = "dev-playground-project-state"
+    prefix = "terraform/state"
+  }
+}
 
 module "backend-go" {
-  source        = "./backend-go"
-  project_id    = var.project_id
-  cache_address = var.cache_address
+  source                  = "./backend-go"
+  project_id              = var.project_id
+  cache_address           = "${data.terraform_remote_state.playground-state.outputs.playground_redis_ip}"
+  docker_registry_address = "${data.terraform_remote_state.playground-state.outputs.playground_registry_id}"
+  network_name            = "${data.terraform_remote_state.playground-state.outputs.playground_vpc_name}"
+  environment             = var.environment
 }
 
 module "backend-java" {
-  source        = "./backend-java"
-  project_id    = var.project_id
-  cache_address = var.cache_address
+  source                  = "./backend-java"
+  project_id              = var.project_id
+  cache_address           = "${data.terraform_remote_state.playground-state.outputs.playground_redis_ip}"
+  docker_registry_address = "${data.terraform_remote_state.playground-state.outputs.playground_registry_id}"
+  network_name            = "${data.terraform_remote_state.playground-state.outputs.playground_vpc_name}"
+  environment             = var.environment
 }
 
 module "backend-python" {
-  source        = "./backend-python"
-  project_id    = var.project_id
-  cache_address = var.cache_address
+  source                  = "./backend-python"
+  project_id              = var.project_id
+  cache_address           = "${data.terraform_remote_state.playground-state.outputs.playground_redis_ip}"
+  docker_registry_address = "${data.terraform_remote_state.playground-state.outputs.playground_registry_id}"
+  network_name            = "${data.terraform_remote_state.playground-state.outputs.playground_vpc_name}"
+  environment             = var.environment
 }
 
 module "backend-router" {
-  source        = "./backend-router"
-  project_id    = var.project_id
-  cache_address = var.cache_address
+  source                  = "./backend-router"
+  project_id              = var.project_id
+  cache_address           = "${data.terraform_remote_state.playground-state.outputs.playground_redis_ip}"
+  docker_registry_address = "${data.terraform_remote_state.playground-state.outputs.playground_registry_id}"
+  network_name            = "${data.terraform_remote_state.playground-state.outputs.playground_vpc_name}"
+  environment             = var.environment
 }
 
 module "backend-scio" {
-  source        = "./backend-scio"
-  project_id    = var.project_id
-  cache_address = var.cache_address
+  source                  = "./backend-scio"
+  project_id              = var.project_id
+  cache_address           = "${data.terraform_remote_state.playground-state.outputs.playground_redis_ip}"
+  docker_registry_address = "${data.terraform_remote_state.playground-state.outputs.playground_registry_id}"
+  network_name            = "${data.terraform_remote_state.playground-state.outputs.playground_vpc_name}"
+  environment             = var.environment
 }
 
 module "frontend" {
-  source     = "./frontend"
-  project_id = var.project_id
+  source                  = "./frontend"
+  project_id              = var.project_id
+  docker_registry_address = "${data.terraform_remote_state.playground-state.outputs.playground_registry_id}"
+  network_name            = "${data.terraform_remote_state.playground-state.outputs.playground_vpc_name}"
+  environment             = var.environment
 }
+

@@ -17,10 +17,11 @@
 # under the License.
 #
 
+
 resource "google_app_engine_flexible_app_version" "backend_app_go" {
   version_id                = "v1"
   project                   = var.project_id
-  service                   = var.service_name
+  service                   = "${var.service_name} + ${var.environment}"
   runtime                   = "custom"
   delete_service_on_destroy = true
 

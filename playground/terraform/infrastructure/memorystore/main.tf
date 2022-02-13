@@ -18,14 +18,6 @@
 #
 
 
-#data "terraform_remote_state" "remote_state_vpc" {
-#  backend = "gcs"
-#  config  = {
-#    bucket = var.terraform_state_bucket_name
-#  }
-#}
-
-
 # Redis for storing state of Playground application.
 # In this cache Playground instances stores pipeline's statuses, outputs and pipeline's graph
 resource "google_redis_instance" "cache" {

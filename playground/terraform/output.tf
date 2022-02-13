@@ -17,21 +17,14 @@
 # under the License.
 #
 
-variable "project_id" {
-  description = "The GCP Project ID where Playground Applications will be created"
+output "playground_registry_id" {
+  value = module.infrastructure.playground_registry_id
 }
 
-variable "cache_address" {
-  description = "IP Address for Redis service"
-  default = ""
+output "playground_vpc_name" {
+  value = module.infrastructure.playground_vpc_name
 }
 
-variable "environment" {
-  description = "prod,dev"
-  default = "dev"
-}
-
-variable "network_name" {
-  description = "Vpc Name, name by default 'default'"
-  default     = "playground-vpc"
+output "playground_redis_ip" {
+  value = module.infrastructure.playground_redis_ip
 }
