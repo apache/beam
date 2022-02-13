@@ -104,6 +104,7 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.values.FailsafeValueInSingleWindow;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Verify;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
@@ -915,9 +916,9 @@ public class BigQueryServicesImplTest {
         new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
     List<FailsafeValueInSingleWindow<TableRow, TableRow>> rows =
         ImmutableList.of(
+            wrapValue(new TableRow().set("row", Strings.repeat("abcdefghi", 1024 * 1025))),
             wrapValue(new TableRow().set("row", "a")),
-            wrapValue(new TableRow().set("row", "b")),
-            wrapValue(new TableRow().set("row", "cdefghijklmnopqrstuvwxyz")));
+            wrapValue(new TableRow().set("row", "b")));
     List<String> insertIds = ImmutableList.of("a", "b", "c");
 
     final TableDataInsertAllResponse allRowsSucceeded = new TableDataInsertAllResponse();
@@ -937,7 +938,9 @@ public class BigQueryServicesImplTest {
     DatasetServiceImpl dataService =
         new DatasetServiceImpl(
             bigquery, null, PipelineOptionsFactory.fromArgs("--maxStreamingBatchSize=15").create());
-    dataService.insertAll(
+    List<ValueInSingleWindow<TableRow>> failedInserts = Lists.newArrayList();
+    List<ValueInSingleWindow<TableRow>> successfulRows = Lists.newArrayList();
+    dataService.<TableRow>insertAll(
         ref,
         rows,
         insertIds,
@@ -945,16 +948,12 @@ public class BigQueryServicesImplTest {
         TEST_BACKOFF,
         new MockSleeper(),
         InsertRetryPolicy.alwaysRetry(),
-        new ArrayList<>(),
+        failedInserts,
         ErrorContainer.TABLE_ROW_ERROR_CONTAINER,
         false,
         false,
         false,
-        null);
-
-    verifyAllResponsesAreRead();
-
-    verifyWriteMetricWasSet("project", "dataset", "table", "ok", 2);
+        successfulRows);
   }
 
   /** Tests that {@link DatasetServiceImpl#insertAll} does not go over limit of rows per request. */
