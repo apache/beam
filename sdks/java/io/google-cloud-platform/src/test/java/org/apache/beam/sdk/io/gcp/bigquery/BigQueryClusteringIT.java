@@ -152,7 +152,7 @@ public class BigQueryClusteringIT {
 
     Table table = bqClient.tables().get(options.getProject(), DATASET_NAME, tableName).execute();
 
-    String query = String.format("SELECT station_number, date FROM [%s]", options.getOutput());
+    String query = String.format("SELECT station_number, date FROM [%s]", tableName);
     assertThat(
         BigqueryMatcher.createQuery(options.getAppName(), options.getProject(), query),
         BigqueryMatcher.queryResultHasChecksum(DEFAULT_OUTPUT_CHECKSUM));
@@ -179,7 +179,7 @@ public class BigQueryClusteringIT {
 
     Table table = bqClient.tables().get(options.getProject(), DATASET_NAME, tableName).execute();
 
-    String query = String.format("SELECT station_number, date FROM [%s]", options.getOutput());
+    String query = String.format("SELECT station_number, date FROM [%s]", tableName);
     assertThat(
         BigqueryMatcher.createQuery(options.getAppName(), options.getProject(), query),
         BigqueryMatcher.queryResultHasChecksum(DEFAULT_OUTPUT_CHECKSUM));
