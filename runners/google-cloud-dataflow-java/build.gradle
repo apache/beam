@@ -583,6 +583,7 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test, dependsOn: copyG
   exclude '**/FhirIOReadIT.class'
   exclude '**/SpannerChangeStreamIT.class'
   exclude '**/SpannerChangeStreamOrderedWithinKeyIT.class'
+  exclude '**/SpannerChangeStreamOrderedWithinKeyGloballyIT.class'
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest
   testClassesDirs = files(project(":sdks:java:io:google-cloud-platform").sourceSets.test.output.classesDirs)
