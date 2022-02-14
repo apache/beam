@@ -4657,7 +4657,7 @@ class _DeferredStringMethods(frame_base.DeferredBase):
             'get_dummies',
             lambda series: pd.concat(
               [proxy, series.str.get_dummies(**kwargs)]
-              ).fillna(value=0, method=None).astype(int),
+              ).fillna(value=0, method=None).astype('int64'),
             [self._expr],
             proxy=proxy,
             requires_partition_by=partitionings.Arbitrary(),
