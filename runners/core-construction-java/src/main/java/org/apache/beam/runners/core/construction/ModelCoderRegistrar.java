@@ -30,6 +30,7 @@ import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.TimestampPrefixingWindowCoder;
@@ -76,6 +77,7 @@ public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
           .put(RowCoder.class, ModelCoders.ROW_CODER_URN)
           .put(ShardedKey.Coder.class, ModelCoders.SHARDED_KEY_CODER_URN)
           .put(TimestampPrefixingWindowCoder.class, ModelCoders.CUSTOM_WINDOW_CODER_URN)
+          .put(NullableCoder.class, ModelCoders.NULLABLE_CODER_URN)
           .build();
 
   public static final Set<String> WELL_KNOWN_CODER_URNS = BEAM_MODEL_CODER_URNS.values();
@@ -99,6 +101,7 @@ public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
           .put(RowCoder.class, CoderTranslators.row())
           .put(ShardedKey.Coder.class, CoderTranslators.shardedKey())
           .put(TimestampPrefixingWindowCoder.class, CoderTranslators.timestampPrefixingWindow())
+          .put(NullableCoder.class, CoderTranslators.nullable())
           .build();
 
   static {

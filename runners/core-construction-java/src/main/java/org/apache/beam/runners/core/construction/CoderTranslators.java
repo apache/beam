@@ -27,6 +27,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.TimestampPrefixingWindowCoder;
 import org.apache.beam.sdk.schemas.Schema;
@@ -199,6 +200,20 @@ class CoderTranslators {
 
       @Override
       public List<? extends Coder<?>> getComponents(TimestampPrefixingWindowCoder<?> from) {
+        return from.getComponents();
+      }
+    };
+  }
+
+  static CoderTranslator<NullableCoder<?>> nullable(){
+    return new SimpleStructuredCoderTranslator<NullableCoder<?>>() {
+      @Override
+      protected NullableCoder<?> fromComponents(List<Coder<?>> components) {
+        return NullableCoder.of(components.get(0));
+      }
+
+      @Override
+      public List<? extends Coder<?>> getComponents(NullableCoder<?> from) {
         return from.getComponents();
       }
     };

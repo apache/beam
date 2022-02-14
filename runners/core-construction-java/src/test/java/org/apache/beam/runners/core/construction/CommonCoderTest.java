@@ -57,6 +57,7 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.TimestampPrefixingWindowCoder;
@@ -118,6 +119,7 @@ public class CommonCoderTest {
           .put(getUrn(StandardCoders.Enum.ROW), RowCoder.class)
           .put(getUrn(StandardCoders.Enum.SHARDED_KEY), ShardedKey.Coder.class)
           .put(getUrn(StandardCoders.Enum.CUSTOM_WINDOW), TimestampPrefixingWindowCoder.class)
+          .put(getUrn(StandardCoders.Enum.NULLABLE), NullableCoder.class)
           .build();
 
   @AutoValue
@@ -171,7 +173,7 @@ public class CommonCoderTest {
     @SuppressWarnings("mutable")
     abstract byte[] getSerialized();
 
-    abstract Object getValue();
+    abstract @Nullable Object getValue();
 
     static OneCoderTestSpec create(
         CommonCoder coder, boolean nested, byte[] serialized, Object value) {
@@ -351,6 +353,16 @@ public class CommonCoderTest {
       Map<String, Object> kvMap = (Map<String, Object>) value;
       Coder windowCoder = ((TimestampPrefixingWindowCoder) coder).getWindowCoder();
       return convertValue(kvMap.get("window"), coderSpec.getComponents().get(0), windowCoder);
+    } else if (s.equals(getUrn(StandardCoders.Enum.NULLABLE))) {
+      if (coderSpec.getComponents().size() == 1 && coderSpec.getComponents().get(0).getUrn().equals(getUrn(StandardCoders.Enum.BYTES))){
+        if (value == null){
+          return null;
+        } else {
+          return ((String) value).getBytes(StandardCharsets.ISO_8859_1);
+        }
+      } else {
+        throw new IllegalStateException("Unknown or missing nested coder for nullable coder");
+      }
     } else {
       throw new IllegalStateException("Unknown coder URN: " + coderSpec.getUrn());
     }
@@ -510,6 +522,8 @@ public class CommonCoderTest {
       assertEquals(expectedValue, actualValue);
     } else if (s.equals(getUrn(StandardCoders.Enum.CUSTOM_WINDOW))) {
       assertEquals(expectedValue, actualValue);
+    } else if (s.equals(getUrn(StandardCoders.Enum.NULLABLE))){
+      assertThat(expectedValue, equalTo(actualValue));
     } else {
       throw new IllegalStateException("Unknown coder URN: " + coder.getUrn());
     }

@@ -1052,6 +1052,14 @@ message StandardCoders {
     // Components: the user key coder.
     // Experimental.
     SHARDED_KEY = 15 [(beam_urn) = "beam:coder:sharded_key:v1"];
+
+    //Wraps a coder of a potentially null value
+    //
+    // A Nullable coder encodes nullable values of wrapped coder value that does
+    // not tolerate null values. A Nullable coder uses exactly 1 byte per entry
+    // to indicate whether the value is null, then adds the encoding of the
+    // inner coder for non-null values.
+    NULLABLE = 17 [(beam_urn) = "beam:coder:nullable:v1"];
   }
 }
 
