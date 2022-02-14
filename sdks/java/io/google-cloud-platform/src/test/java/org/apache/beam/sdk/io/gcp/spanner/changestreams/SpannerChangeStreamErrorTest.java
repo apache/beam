@@ -128,60 +128,6 @@ public class SpannerChangeStreamErrorTest implements Serializable {
   }
 
   @Test
-  public void testDeadlineExceededDoesNotRetry() {
-    assertThat(
-        mockSpannerService.countRequestsOfType(ExecuteSqlRequest.class), Matchers.equalTo(0));
-    mockSpannerService.setExecuteStreamingSqlExecutionTime(
-        SimulatedExecutionTime.ofStickyException(Status.DEADLINE_EXCEEDED.asRuntimeException()));
-
-    final Timestamp now = Timestamp.now();
-    final Timestamp after3Seconds =
-        Timestamp.ofTimeSecondsAndNanos(now.getSeconds() + 3, now.getNanos());
-    try {
-      pipeline.apply(
-          SpannerIO.readChangeStream()
-              .withSpannerConfig(getSpannerConfig())
-              .withChangeStreamName(TEST_CHANGE_STREAM)
-              .withMetadataDatabase(TEST_DATABASE)
-              .withInclusiveStartAt(now)
-              .withInclusiveEndAt(after3Seconds));
-      pipeline.run().waitUntilFinish();
-    } finally {
-      assertThat(
-          mockSpannerService.countRequestsOfType(ExecuteSqlRequest.class), Matchers.equalTo(1));
-      thrown.expect(PipelineExecutionException.class);
-      thrown.expectMessage(ErrorCode.DEADLINE_EXCEEDED.name());
-    }
-  }
-
-  @Test
-  public void testInternalExceptionDoesNotRetry() {
-    mockSpannerService.setExecuteStreamingSqlExecutionTime(
-        SimulatedExecutionTime.ofStickyException(Status.INTERNAL.asRuntimeException()));
-    assertThat(
-        mockSpannerService.countRequestsOfType(ExecuteSqlRequest.class), Matchers.equalTo(0));
-
-    final Timestamp now = Timestamp.now();
-    final Timestamp after3Seconds =
-        Timestamp.ofTimeSecondsAndNanos(now.getSeconds() + 3, now.getNanos());
-    try {
-      pipeline.apply(
-          SpannerIO.readChangeStream()
-              .withSpannerConfig(getSpannerConfig())
-              .withChangeStreamName(TEST_CHANGE_STREAM)
-              .withMetadataDatabase(TEST_DATABASE)
-              .withInclusiveStartAt(now)
-              .withInclusiveEndAt(after3Seconds));
-      pipeline.run().waitUntilFinish();
-    } finally {
-      assertThat(
-          mockSpannerService.countRequestsOfType(ExecuteSqlRequest.class), Matchers.equalTo(1));
-      thrown.expect(PipelineExecutionException.class);
-      thrown.expectMessage(ErrorCode.INTERNAL.name());
-    }
-  }
-
-  @Test
   public void testUnavailableExceptionRetries() {
     mockSpannerService.setExecuteStreamingSqlExecutionTime(
         SimulatedExecutionTime.ofExceptions(
