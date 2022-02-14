@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.Table;
@@ -27,6 +29,7 @@ import java.util.Arrays;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
+import org.apache.beam.sdk.io.gcp.testing.BigqueryMatcher;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.ExperimentalOptions;
@@ -46,6 +49,7 @@ import org.junit.runners.JUnit4;
 /** Integration test that clusters sample data in BigQuery. */
 @RunWith(JUnit4.class)
 public class BigQueryClusteringIT {
+  private static final String DEFAULT_OUTPUT_CHECKSUM = "1ab4c7ec460b94bbb3c3885b178bf0e6bed56e1f";
   private static final String WEATHER_SAMPLES_TABLE =
       "clouddataflow-readonly:samples.weather_stations";
   private static final String DATASET_NAME = "BigQueryClusteringIT";
@@ -149,6 +153,9 @@ public class BigQueryClusteringIT {
     Table table = bqClient.tables().get(options.getProject(), DATASET_NAME, tableName).execute();
 
     Assert.assertEquals(CLUSTERING, table.getClustering());
+    assertThat(
+        BigqueryMatcher.createQuery(options.getAppName(), options.getProject(), query),
+        BigqueryMatcher.queryResultHasChecksum(DEFAULT_OUTPUT_CHECKSUM));
   }
 
   @Test
