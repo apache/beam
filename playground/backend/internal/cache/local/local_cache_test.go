@@ -106,6 +106,8 @@ func TestLocalCache_GetValue(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			// Test case with calling GetValue method with exist value the expiration time of which has ended.
+			// As a result, want to receive an error.
 			name: "Get exist value the expiration time of which has ended",
 			fields: fields{
 				cleanupInterval:     cleanupInterval,
@@ -234,6 +236,8 @@ func TestLocalCache_SetExpTime(t *testing.T) {
 		wantErr bool
 	}{
 		{
+			// Test case with calling SetExpTime method with pipelineId and his expiration time.
+			// As a result, want to set expiration time for this pipelineId.
 			name: "Set expiration time",
 			fields: fields{
 				cleanupInterval:     cleanupInterval,
@@ -248,6 +252,8 @@ func TestLocalCache_SetExpTime(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			// Test case with calling SetExpTime method with pipelineId which not set in cache and expiration time.
+			// As a result, want to receive an error.
 			name: "Set expiration time for not exist value",
 			fields: fields{
 				cleanupInterval:     cleanupInterval,
@@ -482,6 +488,8 @@ func TestLocalCache_startGC(t *testing.T) {
 			},
 		},
 		{
+			// Test case with calling startGC method with nil items.
+			// As a result, items stay the same.
 			name: "Checking for deleting expired pipelines with nil items",
 			fields: fields{
 				cleanupInterval:     time.Microsecond,

@@ -556,6 +556,8 @@ func Test_unmarshalBySubKey(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			// Test case with calling unmarshalBySubKey method with Canceled subKey.
+			// As a result, want to receive false.
 			name: "Canceled subKey",
 			args: args{
 				subKey: cache.Canceled,
@@ -565,6 +567,8 @@ func Test_unmarshalBySubKey(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			// Test case with calling unmarshalBySubKey method with RunOutputIndex subKey.
+			// As a result, want to receive expected runOutputIndexValue.
 			name: "RunOutputIndex subKey",
 			args: args{
 				subKey: cache.RunOutputIndex,
