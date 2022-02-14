@@ -52,7 +52,6 @@ def check_correct(expected, actual):
 
 
 def concat(parts):
-  # import pdb; pdb.set_trace()
   if len(parts) > 1:
     return pd.concat(parts)
   elif len(parts) == 1:
@@ -82,7 +81,7 @@ class TransformTest(unittest.TestCase):
     input_deferred = frame_base.DeferredFrame.wrap(input_placeholder)
     actual_deferred = func(input_deferred)._expr.evaluate_at(
         expressions.Session({input_placeholder: input}))
-    # import pdb; pdb.set_trace()
+
     check_correct(expected, actual_deferred)
 
     with beam.Pipeline() as p:
