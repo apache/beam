@@ -15,7 +15,17 @@
 
 package utils
 
-import "testing"
+import (
+	pb "beam.apache.org/playground/backend/internal/api/v1"
+	"beam.apache.org/playground/backend/internal/fs_tool"
+	"beam.apache.org/playground/backend/internal/validators"
+	"fmt"
+	"github.com/google/uuid"
+	"os"
+	"path/filepath"
+	"sync"
+	"testing"
+)
 
 func TestSpacesToEqualsOption(t *testing.T) {
 	type args struct {
@@ -46,6 +56,52 @@ func TestSpacesToEqualsOption(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := ReplaceSpacesWithEquals(tt.args.pipelineOptions); got != tt.want {
 				t.Errorf("ReplaceSpacesWithEquals() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_ChangeJavaTestFileName(t *testing.T) {
+	codeWithPublicClass := "package org.apache.beam.sdk.transforms; \n public class Class {\n    public static void main(String[] args) {\n        System.out.println(\"Hello World!\");\n    }\n}"
+	path, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
+	lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, uuid.New(), filepath.Join(path, "temp"))
+	_ = lc.CreateFolders()
+	defer os.RemoveAll(filepath.Join(path, "temp"))
+	_ = lc.CreateSourceCodeFile(codeWithPublicClass)
+	validationResults := sync.Map{}
+	validationResults.Store(validators.UnitTestValidatorName, true)
+
+	type args struct {
+		args []interface{}
+	}
+	tests := []struct {
+		name     string
+		args     args
+		wantErr  bool
+		wantName string
+	}{
+		{
+			// Test that file changes its name to the name of its public class
+			name:     "file with java unit test code to be renamed",
+			args:     args{[]interface{}{lc.Paths.AbsoluteSourceFilePath, &validationResults}},
+			wantErr:  false,
+			wantName: "Class.java",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := ChangeTestFileName(tt.args.args...); (err != nil) != tt.wantErr {
+				t.Errorf("changeTestFileName() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			files, err := filepath.Glob(fmt.Sprintf("%s/*java", lc.Paths.AbsoluteSourceFileFolderPath))
+			if err != nil {
+				t.Errorf("changeTestFileName() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if filepath.Base(files[0]) != "Class.java" {
+				t.Errorf("changeTestFileName() expected name = %v, got %v", tt.wantName, filepath.Base(files[0]))
 			}
 		})
 	}

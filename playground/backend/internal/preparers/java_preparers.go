@@ -86,8 +86,8 @@ func (builder *JavaPreparersBuilder) WithPackageRemover() *JavaPreparersBuilder 
 //WithFileNameChanger adds preparer to remove package
 func (builder *JavaPreparersBuilder) WithFileNameChanger() *JavaPreparersBuilder {
 	unitTestFileNameChanger := Preparer{
-		Prepare: changeJavaTestFileName,
-		Args:    []interface{}{builder.filePath},
+		Prepare: utils.ChangeTestFileName,
+		Args:    []interface{}{builder.filePath, javaPublicClassNamePattern},
 	}
 	builder.AddPreparer(unitTestFileNameChanger)
 	return builder
@@ -223,19 +223,6 @@ func replaceAndWriteLine(newLine bool, to *os.File, line string, reg *regexp.Reg
 	line = reg.ReplaceAllString(line, newPattern)
 	if _, err = io.WriteString(to, line); err != nil {
 		logger.Errorf("Preparation: Error during write \"%s\" to tmp file, err: %s\n", line, err.Error())
-		return err
-	}
-	return nil
-}
-
-func changeJavaTestFileName(args ...interface{}) error {
-	filePath := args[0].(string)
-	className, err := utils.GetPublicClassName(filePath, javaPublicClassNamePattern)
-	if err != nil {
-		return err
-	}
-	err = utils.RenameSourceCodeFile(filePath, className)
-	if err != nil {
 		return err
 	}
 	return nil

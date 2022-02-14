@@ -1,9 +1,13 @@
 package preparers
 
 import (
+	pb "beam.apache.org/playground/backend/internal/api/v1"
 	"beam.apache.org/playground/backend/internal/logger"
+	"beam.apache.org/playground/backend/internal/validators"
 	"fmt"
 	"os"
+	"reflect"
+	"sync"
 	"testing"
 )
 
@@ -73,5 +77,98 @@ func teardown() {
 		if err != nil {
 			logger.Fatal(err)
 		}
+	}
+}
+
+func TestGetPreparers(t *testing.T) {
+	filepath := ""
+	validationResults := sync.Map{}
+	validationResults.Store(validators.UnitTestValidatorName, false)
+	validationResults.Store(validators.KatasValidatorName, false)
+
+	type args struct {
+		sdk        pb.Sdk
+		filepath   string
+		valResults *sync.Map
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    *[]Preparer
+		wantErr bool
+	}{
+		{
+			name: "get java preparer",
+			args: args{
+				sdk:        pb.Sdk_SDK_JAVA,
+				filepath:   filepath,
+				valResults: &validationResults,
+			},
+			want: NewPreparersBuilder(filepath).
+				JavaPreparers().
+				WithPublicClassRemover().
+				WithPackageChanger().
+				WithGraphHandler().
+				Build().
+				GetPreparers(),
+			wantErr: false,
+		},
+		{
+			name: "get py preparer",
+			args: args{
+				sdk:        pb.Sdk_SDK_PYTHON,
+				filepath:   filepath,
+				valResults: &validationResults,
+			},
+			want: NewPreparersBuilder(filepath).
+				PythonPreparers().
+				WithLogHandler().
+				WithGraphHandler().
+				Build().
+				GetPreparers(),
+			wantErr: false,
+		},
+		{
+			name: "get go preparer",
+			args: args{
+				sdk:        pb.Sdk_SDK_GO,
+				filepath:   filepath,
+				valResults: &validationResults,
+			},
+			want: NewPreparersBuilder(filepath).
+				GoPreparers().
+				WithCodeFormatter().
+				Build().
+				GetPreparers(),
+			wantErr: false,
+		},
+		{
+			name: "get scio preparer",
+			args: args{
+				sdk:        pb.Sdk_SDK_SCIO,
+				filepath:   filepath,
+				valResults: &validationResults,
+			},
+			want: NewPreparersBuilder(filepath).
+				ScioPreparers().
+				WithPackageRemover().
+				WithImportRemover().
+				WithFileNameChanger().
+				Build().
+				GetPreparers(),
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := GetPreparers(tt.args.sdk, tt.args.filepath, tt.args.valResults)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetPreparers() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(len(*got), len(*tt.want)) {
+				t.Errorf("GetPreparers() got = %v, want %v", len(*got), len(*tt.want))
+			}
+		})
 	}
 }

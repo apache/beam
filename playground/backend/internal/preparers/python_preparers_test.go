@@ -173,6 +173,7 @@ func Test_writeToFile(t *testing.T) {
 
 func Test_saveGraph(t *testing.T) {
 	file, _ := os.Open(pyGraphFile)
+	noPipelineFile, _ := os.Open(pyCode)
 	tmp, _ := utils.CreateTempFile(pyGraphFile)
 	defer tmp.Close()
 	type args struct {
@@ -192,6 +193,14 @@ func Test_saveGraph(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "No pipeline at code",
+			args: args{
+				from:     noPipelineFile,
+				tempFile: tmp,
+			},
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -199,7 +208,7 @@ func Test_saveGraph(t *testing.T) {
 				t.Errorf("saveGraph() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			bytes, _ := ioutil.ReadFile(fmt.Sprintf("%s_%s", "tmp", pyGraphFile))
-			if !strings.Contains(string(bytes), "pipeline_graph.PipelineGraph") {
+			if !strings.Contains(string(bytes), "pipeline_graph.PipelineGraph") && tt.wantErr == false {
 				t.Errorf("saveGraph() error = %v, wantErr %v", "No graph code was added", tt.wantErr)
 			}
 		})

@@ -33,7 +33,6 @@ const (
 	GraphFileName          = "graph.dot"
 	pythonGraphCodePattern = "$0# Write graph to file\n$0from apache_beam.runners.interactive.display import pipeline_graph\n$0dot = pipeline_graph.PipelineGraph(%s).get_dot()\n$0with open('%s', 'w') as file:\n$0  file.write(dot)\n"
 	newLinePattern         = "\n"
-	pathSeparatorPattern   = os.PathSeparator
 	tmpFileSuffix          = "tmp"
 )
 
@@ -166,4 +165,18 @@ func CreateTempFile(originalFilePath string) (*os.File, error) {
 	tmpFileName := fmt.Sprintf("%s_%s", tmpFileSuffix, fileName)
 	tmpFilePath := strings.Replace(originalFilePath, fileName, tmpFileName, 1)
 	return os.Create(tmpFilePath)
+}
+
+func ChangeTestFileName(args ...interface{}) error {
+	filePath := args[0].(string)
+	publicClassNamePattern := args[1].(string)
+	className, err := GetPublicClassName(filePath, publicClassNamePattern)
+	if err != nil {
+		return err
+	}
+	err = RenameSourceCodeFile(filePath, className)
+	if err != nil {
+		return err
+	}
+	return nil
 }
