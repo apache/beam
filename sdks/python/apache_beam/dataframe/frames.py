@@ -4783,7 +4783,7 @@ class _DeferredStringMethods(frame_base.DeferredBase):
     """
     Like other non-deferred methods, dtype must be CategoricalDtype.
     One exception is when ``expand`` is ``False``. Because we are not
-    creating new columns at construction time dtype can be `str`.
+    creating new columns at construction time, dtype can be `str`.
     """
     return self._split_helper(
       rsplit=False, pat=pat, expand=expand, regex=regex, **kwargs)
@@ -4794,7 +4794,7 @@ class _DeferredStringMethods(frame_base.DeferredBase):
     """
     Like other non-deferred methods, dtype must be CategoricalDtype.
     One exception is when ``expand`` is ``False``. Because we are not
-    creating new columns at construction time dtype can be `str`.
+    creating new columns at construction time, dtype can be `str`.
     """
     return self._split_helper(rsplit=True, pat=pat, expand=expand, **kwargs)
 
