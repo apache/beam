@@ -4871,7 +4871,7 @@ without having to install Apache Beam in your environment.&lt;/p>
 &lt;a href="https://frontend-beta-dot-apache-beam-testing.appspot.com/">Beam Playground&lt;/a>.&lt;/p>
 &lt;h2 id="beam-playground-wordcount-example">Beam Playground WordCount Example&lt;/h2>
 &lt;iframe
-src="https://frontend-beta-dot-apache-beam-testing.appspot.com/embedded?enabled=true&amp;example=SDK_JAVA%2fMinimalWordCount&amp;code="
+src="https://frontend-beta-dot-apache-beam-testing.appspot.com/embedded?enabled=true&amp;example=SDK_JAVA%2fPRECOMPILED_OBJECT_TYPE_EXAMPLE%2fMinimalWordCount&amp;code="
 width="100%"
 height="700px"
 class="code-snippet playground"
