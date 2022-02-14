@@ -21,6 +21,14 @@ output "playground_registry_id" {
   value = module.artifact_registry.registry_id
 }
 
+output "playground_registry_name" {
+  value = module.artifact_registry.registry_name
+}
+
+output "playground_registry_location" {
+  value = module.artifact_registry.registry_location
+}
+
 output "playground_vpc_name" {
   value = module.vpc.vpc_name
 }

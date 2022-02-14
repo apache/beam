@@ -16,6 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+locals {
+  registry_domain = "-docker.pkg.dev"
+}
 
 data "terraform_remote_state" "playground-state" {
   backend = "gcs"
@@ -25,56 +28,22 @@ data "terraform_remote_state" "playground-state" {
   }
 }
 
-module "backend-go" {
-  source                  = "./backend-go"
+module "backend" {
+  source                  = "./backend"
   project_id              = var.project_id
   cache_address           = "${data.terraform_remote_state.playground-state.outputs.playground_redis_ip}"
-  docker_registry_address = "${data.terraform_remote_state.playground-state.outputs.playground_registry_id}"
+  docker_registry_address = "${data.terraform_remote_state.playground-state.outputs.playground_registry_location}${local.registry_domain}/${var.project_id}/${data.terraform_remote_state.playground-state.outputs.playground_registry_name}"
   network_name            = "${data.terraform_remote_state.playground-state.outputs.playground_vpc_name}"
   environment             = var.environment
-}
-
-module "backend-java" {
-  source                  = "./backend-java"
-  project_id              = var.project_id
-  cache_address           = "${data.terraform_remote_state.playground-state.outputs.playground_redis_ip}"
-  docker_registry_address = "${data.terraform_remote_state.playground-state.outputs.playground_registry_id}"
-  network_name            = "${data.terraform_remote_state.playground-state.outputs.playground_vpc_name}"
-  environment             = var.environment
-}
-
-module "backend-python" {
-  source                  = "./backend-python"
-  project_id              = var.project_id
-  cache_address           = "${data.terraform_remote_state.playground-state.outputs.playground_redis_ip}"
-  docker_registry_address = "${data.terraform_remote_state.playground-state.outputs.playground_registry_id}"
-  network_name            = "${data.terraform_remote_state.playground-state.outputs.playground_vpc_name}"
-  environment             = var.environment
-}
-
-module "backend-router" {
-  source                  = "./backend-router"
-  project_id              = var.project_id
-  cache_address           = "${data.terraform_remote_state.playground-state.outputs.playground_redis_ip}"
-  docker_registry_address = "${data.terraform_remote_state.playground-state.outputs.playground_registry_id}"
-  network_name            = "${data.terraform_remote_state.playground-state.outputs.playground_vpc_name}"
-  environment             = var.environment
-}
-
-module "backend-scio" {
-  source                  = "./backend-scio"
-  project_id              = var.project_id
-  cache_address           = "${data.terraform_remote_state.playground-state.outputs.playground_redis_ip}"
-  docker_registry_address = "${data.terraform_remote_state.playground-state.outputs.playground_registry_id}"
-  network_name            = "${data.terraform_remote_state.playground-state.outputs.playground_vpc_name}"
-  environment             = var.environment
+  docker_image_tag        = "${var.docker_image_tag == "" ? var.environment : var.docker_image_tag}"
 }
 
 module "frontend" {
   source                  = "./frontend"
   project_id              = var.project_id
-  docker_registry_address = "${data.terraform_remote_state.playground-state.outputs.playground_registry_id}"
+  docker_registry_address = "${data.terraform_remote_state.playground-state.outputs.playground_registry_location}${local.registry_domain}/${var.project_id}/${data.terraform_remote_state.playground-state.outputs.playground_registry_name}"
   network_name            = "${data.terraform_remote_state.playground-state.outputs.playground_vpc_name}"
   environment             = var.environment
+  docker_image_tag        = "${var.docker_image_tag == "" ? var.environment : var.docker_image_tag}"
 }
 

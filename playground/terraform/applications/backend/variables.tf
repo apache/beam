@@ -21,8 +21,19 @@ variable "project_id" {
   description = "The GCP Project ID where Playground Applications will be created"
 }
 
+variable "cache_address" {
+  description = "IP Address for Redis service"
+  default = ""
+}
+
 variable "environment" {
   description = "prod,dev"
+  default = "dev"
+}
+
+variable "network_name" {
+  description = "Vpc Name, name by default 'default'"
+  default     = "playground-vpc"
 }
 
 variable "docker_image_tag" {
@@ -30,3 +41,6 @@ variable "docker_image_tag" {
   default     = ""
 }
 
+variable "docker_registry_address" {
+  description = "Docker registry address"
+}

@@ -27,11 +27,11 @@ module "vpc" {
 }
 
 module "buckets" {
-  source                    = "./buckets"
-  project_id                = var.project_id
-  examples_bucket_name      = "${var.environment}-${var.examples_bucket_name}"
-  examples_storage_class    = var.examples_storage_class
-  examples_bucket_location  = var.examples_bucket_location
+  source                   = "./buckets"
+  project_id               = var.project_id
+  examples_bucket_name     = "${var.environment}-${var.examples_bucket_name}"
+  examples_storage_class   = var.examples_storage_class
+  examples_bucket_location = var.examples_bucket_location
 }
 
 module "artifact_registry" {
@@ -43,16 +43,16 @@ module "artifact_registry" {
 }
 
 module "memorystore" {
-  source                      = "./memorystore"
-  project_id                  = var.project_id
-  redis_version               = var.redis_version
-  redis_region                = var.redis_region
-  redis_name                  = var.redis_name
-  redis_tier                  = var.redis_tier
-  redis_replica_count         = var.redis_replica_count
-  redis_memory_size_gb        = var.redis_memory_size_gb
-  redis_network               = module.vpc.vpc_name
-  depends_on                  = [module.artifact_registry, module.vpc]
+  source               = "./memorystore"
+  project_id           = var.project_id
+  redis_version        = var.redis_version
+  redis_region         = var.redis_region
+  redis_name           = var.redis_name
+  redis_tier           = var.redis_tier
+  redis_replica_count  = var.redis_replica_count
+  redis_memory_size_gb = var.redis_memory_size_gb
+  redis_network        = module.vpc.vpc_name
+  depends_on           = [module.artifact_registry, module.vpc]
 }
 
 module "gke" {

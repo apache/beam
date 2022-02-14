@@ -46,7 +46,7 @@ $ gsutil versioning set on gs://playground-project-state
 
 ## GCP infrastructure deployment
 
-To deploy Playground infrastructure follow [README.md](./infrastructure/README.md) for infrastructure module
+To deploy Playground infrastructure follow [README.md](infrastructure/README.md) for infrastructure module
 
 ## Playground application deployment
 
@@ -55,5 +55,5 @@ Playground require build and push to registry using gradle before apply terrafor
 To build and push playground docker image to the Artifact registry, execute `./gradlew playground dockerTagPush` from
 Beam repository root
 
-To deploy Playground applications to Cloud App Engine see [README.md](./applications/README.md) from infrastructure
+To deploy Playground applications to Cloud App Engine see [README.md](applications/README.md) from infrastructure
 module

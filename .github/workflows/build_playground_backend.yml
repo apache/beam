@@ -89,33 +89,12 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
       - name: Clean All Build directories
         run: ./gradlew clean
-      - name: Deploy Backend Application Java
+      - name: Deploy Backend Applications
         env:
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp_access.json
-        run: terraform init && terraform apply -auto-approve -var="project_id=${{ secrets.PLAYGROUND_PROJECT_ID }}" -var="docker_registry_address=${{ secrets.PLAYGROUND_REGISTRY_NAME}}/${{ secrets.PLAYGROUND_PROJECT_ID }}/playground-repository" -var="docker_image_tag=${{ env.DOCKERTAG }}" -var="service_name=backend-java${{env.STAND_SUFFIX}}"
-        working-directory: playground/terraform/applications/backend-java
+          PLAYGROUND_PROJECT_ID: ${{ secrets.PLAYGROUND_PROJECT_ID }}
+          PLAYGROUND_ENVIRONMENT: {{env.STAND_SUFFIX}}
+          PLAYGROUND_DOCKER_TAG: ${{ env.DOCKERTAG }}
+        run: ./gradlew playground:terraform:terraformApplyAppBack
         if: startsWith(github.ref, 'refs/tags/')
-      - name: Deploy Backend Application Go
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp_access.json
-        run: terraform init && terraform apply -auto-approve -var="project_id=${{ secrets.PLAYGROUND_PROJECT_ID }}" -var="docker_registry_address=${{ secrets.PLAYGROUND_REGISTRY_NAME}}/${{ secrets.PLAYGROUND_PROJECT_ID }}/playground-repository" -var="docker_image_tag=${{ env.DOCKERTAG }}" -var="service_name=backend-go${{env.STAND_SUFFIX}}"
-        working-directory: playground/terraform/applications/backend-go
-        if: startsWith(github.ref, 'refs/tags/')
-      - name: Deploy Backend Application Python
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp_access.json
-        run: terraform init && terraform apply -auto-approve -var="project_id=${{ secrets.PLAYGROUND_PROJECT_ID }}" -var="docker_registry_address=${{ secrets.PLAYGROUND_REGISTRY_NAME}}/${{ secrets.PLAYGROUND_PROJECT_ID }}/playground-repository" -var="docker_image_tag=${{ env.DOCKERTAG }}" -var="service_name=backend-python${{env.STAND_SUFFIX}}"
-        working-directory: playground/terraform/applications/backend-python
-        if: startsWith(github.ref, 'refs/tags/')
-      - name: Deploy Backend Application SCIO
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp_access.json
-        run: terraform init && terraform apply -auto-approve -var="project_id=${{ secrets.PLAYGROUND_PROJECT_ID }}" -var="docker_registry_address=${{ secrets.PLAYGROUND_REGISTRY_NAME}}/${{ secrets.PLAYGROUND_PROJECT_ID }}/playground-repository" -var="docker_image_tag=${{ env.DOCKERTAG }}" -var="service_name=backend-scio${{env.STAND_SUFFIX}}"
-        working-directory: playground/terraform/applications/backend-scio
-        if: startsWith(github.ref, 'refs/tags/')
-      - name: Deploy Backend Application Router
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp_access.json
-        run: terraform init && terraform apply -auto-approve -var="project_id=${{ secrets.PROJECT_ID_PROJECT_ID }}" -var="docker_registry_address=${{ secrets.PLAYGROUND_REGISTRY_NAME}}/${{ secrets.PLAYGROUND_PROJECT_ID }}/playground-repository" -var="docker_image_tag=${{ env.DOCKERTAG }}" -var="service_name=backend-router${{env.STAND_SUFFIX}}"
-        working-directory: playground/terraform/applications/backend-router
-        if: startsWith(github.ref, 'refs/tags/')
+

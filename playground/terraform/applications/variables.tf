@@ -35,3 +35,8 @@ variable "network_name" {
   description = "Vpc Name, name by default 'default'"
   default     = "playground-vpc"
 }
+
+variable "docker_image_tag" {
+  description = "Docker Image Tag To Be Deployed"
+  default     = ""
+}
