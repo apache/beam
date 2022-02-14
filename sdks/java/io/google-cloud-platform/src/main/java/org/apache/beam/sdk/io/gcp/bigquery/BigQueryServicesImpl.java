@@ -991,7 +991,7 @@ class BigQueryServicesImpl implements BigQueryServices {
           if (nextRowSize >= MAX_BQ_ROW_PAYLOAD) {
             InsertErrors error =
                 new InsertErrors()
-                    .setErrors(ImmutableList.of(new ErrorProto().setReason("row too large")));
+                    .setErrors(ImmutableList.of(new ErrorProto().setReason("row-too-large")));
             // We verify whether the retryPolicy parameter expects us to retry. If it does, then
             // it will return true. Otherwise it will return false.
             Boolean isRetry = retryPolicy.shouldRetry(new InsertRetryPolicy.Context(error));
@@ -1005,6 +1005,7 @@ class BigQueryServicesImpl implements BigQueryServices {
                       nextRowSize));
             } else {
               errorContainer.add(failedInserts, error, ref, rowsToPublish.get(rowIndex));
+              failedIndices.add(rowIndex);
               rowIndex++;
               continue;
             }
