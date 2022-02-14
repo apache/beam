@@ -152,10 +152,11 @@ public class BigQueryClusteringIT {
 
     Table table = bqClient.tables().get(options.getProject(), DATASET_NAME, tableName).execute();
 
-    Assert.assertEquals(CLUSTERING, table.getClustering());
+    String query = String.format("SELECT station_number, date FROM [%s]", options.getOutput());
     assertThat(
         BigqueryMatcher.createQuery(options.getAppName(), options.getProject(), query),
         BigqueryMatcher.queryResultHasChecksum(DEFAULT_OUTPUT_CHECKSUM));
+    Assert.assertEquals(CLUSTERING, table.getClustering());
   }
 
   @Test
@@ -178,6 +179,10 @@ public class BigQueryClusteringIT {
 
     Table table = bqClient.tables().get(options.getProject(), DATASET_NAME, tableName).execute();
 
+    String query = String.format("SELECT station_number, date FROM [%s]", options.getOutput());
+    assertThat(
+        BigqueryMatcher.createQuery(options.getAppName(), options.getProject(), query),
+        BigqueryMatcher.queryResultHasChecksum(DEFAULT_OUTPUT_CHECKSUM));
     Assert.assertEquals(CLUSTERING, table.getClustering());
   }
 }
