@@ -499,24 +499,12 @@ examples:
 
 
 ---
-# code snippet:
-#  public static void main(String[] args) throws Exception{
-#    Coder<byte[]> coder = NullableCoder.of(ByteArrayCoder.of());
-#    byte[] bytes = CoderUtils.encodeToByteArray(coder, null);
-#    String str = new String(bytes, java.nio.charset.StandardCharsets.ISO_8859_1);
-#    StringBuilder example = new StringBuilder();
-#    for(int i = 0; i < str.length(); i++){
-#      example.append(CharUtils.unicodeEscaped(str.charAt(i)));
-#    }
-#    System.out.println(example);
-#  }
-
 coder:
   urn: "beam:coder:nullable:v1"
   components: [{urn: "beam:coder:bytes:v1"}]
-  contex: nested
+nested: true
 
 examples:
-  "\u0001\u0061\u0062\u0063" : "abc"
-  "\u0001\u006d\u006f\u0072\u0065\u0020\u0062\u0079\u0074\u0065\u0073" : "more bytes"
+  "\u0001\u0003\u0061\u0062\u0063" : "abc"
+  "\u0001\u000a\u006d\u006f\u0072\u0065\u0020\u0062\u0079\u0074\u0065\u0073" : "more bytes"
   "\u0000" : null
