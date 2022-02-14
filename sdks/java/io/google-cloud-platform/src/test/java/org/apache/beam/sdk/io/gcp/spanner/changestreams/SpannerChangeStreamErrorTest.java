@@ -34,8 +34,6 @@ import com.google.api.gax.grpc.testing.MockServiceHelper;
 import com.google.api.gax.retrying.RetrySettings;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.ErrorCode;
-import com.google.cloud.spanner.MockDatabaseAdminServiceImpl;
-import com.google.cloud.spanner.MockOperationsServiceImpl;
 import com.google.cloud.spanner.MockSpannerServiceImpl;
 import com.google.cloud.spanner.MockSpannerServiceImpl.SimulatedExecutionTime;
 import com.google.cloud.spanner.MockSpannerServiceImpl.StatementResult;
@@ -52,10 +50,11 @@ import com.google.spanner.v1.Type;
 import com.google.spanner.v1.TypeCode;
 import io.grpc.Status;
 import java.io.Serializable;
-import java.util.Arrays;
+import java.util.Collections;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerConfig;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.DaoFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -83,7 +82,8 @@ public class SpannerChangeStreamErrorTest implements Serializable {
   public final transient TestPipeline pipeline =
       TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
-  @Rule public final transient ExpectedException thrown = ExpectedException.none();
+  @Rule
+  public final transient ExpectedException thrown = ExpectedException.none();
 
   private MockSpannerServiceImpl mockSpannerService;
   private MockServiceHelper serviceHelper;
@@ -91,13 +91,9 @@ public class SpannerChangeStreamErrorTest implements Serializable {
   @Before
   public void setUp() throws Exception {
     mockSpannerService = new MockSpannerServiceImpl();
-    MockOperationsServiceImpl mockOperationsService = new MockOperationsServiceImpl();
-    MockDatabaseAdminServiceImpl mockDatabaseAdminService =
-        new MockDatabaseAdminServiceImpl(mockOperationsService);
-    serviceHelper =
-        new MockServiceHelper(
-            SPANNER_HOST,
-            Arrays.asList(mockSpannerService, mockOperationsService, mockDatabaseAdminService));
+    serviceHelper = new MockServiceHelper(
+        SPANNER_HOST,
+        Collections.singletonList(mockSpannerService));
     serviceHelper.start();
     serviceHelper.reset();
   }
@@ -107,6 +103,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
     serviceHelper.reset();
     serviceHelper.stop();
     mockSpannerService.reset();
+    DaoFactory.reset();
   }
 
   @Test
@@ -379,7 +376,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
 
     Statement watermarkStatement =
         Statement.newBuilder(
-                "SELECT Watermark FROM my-metadata-table WHERE State != @state ORDER BY Watermark ASC LIMIT 1")
+            "SELECT Watermark FROM my-metadata-table WHERE State != @state ORDER BY Watermark ASC LIMIT 1")
             .bind("state")
             .to(State.FINISHED.name())
             .build();
@@ -407,16 +404,25 @@ public class SpannerChangeStreamErrorTest implements Serializable {
 
     Statement getPartitionsAfterStatement =
         Statement.newBuilder(
-                "SELECT * FROM my-metadata-table WHERE CreatedAt > @timestamp ORDER BY CreatedAt ASC, StartTimestamp ASC")
+            "SELECT * FROM my-metadata-table WHERE CreatedAt > @timestamp ORDER BY CreatedAt ASC, StartTimestamp ASC")
             .bind("timestamp")
             .to(Timestamp.ofTimeSecondsAndNanos(now.getSeconds(), now.getNanos() - 1_000))
             .build();
     mockSpannerService.putStatementResult(
         StatementResult.query(getPartitionsAfterStatement, getPartitionResultSet));
 
+    Statement getPartitionsAfterStatement2 =
+        Statement.newBuilder(
+            "SELECT * FROM my-metadata-table WHERE CreatedAt > @timestamp ORDER BY CreatedAt ASC, StartTimestamp ASC")
+            .bind("timestamp")
+            .to(Timestamp.ofTimeSecondsAndNanos(now.getSeconds(), now.getNanos() + 1_000))
+            .build();
+    mockSpannerService.putStatementResult(
+        StatementResult.query(getPartitionsAfterStatement2, getPartitionResultSet));
+
     Statement changeStreamQueryStatement =
         Statement.newBuilder(
-                "SELECT * FROM READ_my-change-stream(   start_timestamp => @startTimestamp,   end_timestamp => @endTimestamp,   partition_token => @partitionToken,   read_options => null,   heartbeat_milliseconds => @heartbeatMillis)")
+            "SELECT * FROM READ_my-change-stream(   start_timestamp => @startTimestamp,   end_timestamp => @endTimestamp,   partition_token => @partitionToken,   read_options => null,   heartbeat_milliseconds => @heartbeatMillis)")
             .bind("startTimestamp")
             .to(now)
             .bind("endTimestamp")
@@ -426,8 +432,50 @@ public class SpannerChangeStreamErrorTest implements Serializable {
             .bind("heartbeatMillis")
             .to(500)
             .build();
+    ResultSetMetadata readChangeStreamResultSetMetadata =
+        ResultSetMetadata.newBuilder()
+            .setRowType(
+                StructType.newBuilder()
+                    .addFields(
+                        Field.newBuilder()
+                            .setName("COL1")
+                            .setType(Type.newBuilder().setCode(TypeCode.ARRAY)
+                                .setArrayElementType(
+                                    Type.newBuilder()
+                                        .setCode(TypeCode.STRUCT)
+                                        .setStructType(StructType.newBuilder()
+                                            .addFields(Field.newBuilder().setName("field_name")
+                                                .setType(Type.newBuilder()
+                                                    .setCode(TypeCode.STRUCT)
+                                                    .setStructType(
+                                                        StructType.newBuilder().addFields(
+                                                            Field.newBuilder().setType(
+                                                                Type.newBuilder()
+                                                                    .setCode(TypeCode.STRING))
+                                                                .build()).build())))
+                                            .build())
+                                        .build())
+                                .build())
+                            .build())
+                    .build()
+            )
+            .build();
+    ResultSet readChangeStreamResultSet =
+        ResultSet.newBuilder()
+            .addRows(ListValue.newBuilder()
+                .addValues(Value.newBuilder().setListValue(ListValue.newBuilder().addValues(
+                    Value.newBuilder()
+                        .setListValue(ListValue.newBuilder()
+                            .addValues(Value.newBuilder().setListValue(ListValue.newBuilder()
+                                .addValues(Value.newBuilder().setStringValue("bad_value").build()))
+                                .build()))
+                        .build())
+                    .build()
+                ).build()))
+            .setMetadata(readChangeStreamResultSetMetadata)
+            .build();
     mockSpannerService.putStatementResult(
-        StatementResult.query(changeStreamQueryStatement, getPartitionResultSet));
+        StatementResult.query(changeStreamQueryStatement, readChangeStreamResultSet));
 
     try {
       pipeline.apply(
@@ -441,7 +489,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
       pipeline.run().waitUntilFinish();
     } finally {
       thrown.expect(PipelineExecutionException.class);
-      // thrown.expectMessage(ErrorCode..name());
+      thrown.expectMessage("Field not found");
     }
   }
 
