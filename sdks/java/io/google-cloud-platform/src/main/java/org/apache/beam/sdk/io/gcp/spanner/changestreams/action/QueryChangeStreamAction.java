@@ -28,7 +28,6 @@ import io.opencensus.trace.Tracer;
 import io.opencensus.trace.Tracing;
 import java.util.List;
 import java.util.Optional;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.TimestampConverter;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamResultSet;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
@@ -39,7 +38,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRec
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.HeartbeatRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
-import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
@@ -149,7 +148,7 @@ public class QueryChangeStreamAction {
   @VisibleForTesting
   public ProcessContinuation run(
       PartitionMetadata partition,
-      RestrictionTracker<OffsetRange, Long> tracker,
+      RestrictionTracker<TimestampRange, Timestamp> tracker,
       OutputReceiver<DataChangeRecord> receiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator,
       BundleFinalizer bundleFinalizer) {
@@ -166,11 +165,10 @@ public class QueryChangeStreamAction {
      * time, and ignore any records that are before the restriction start time. This way the child
      * partition should be returned within the query.
      */
-    final Timestamp restrictionStartTimestamp =
-        Timestamp.ofTimeMicroseconds(tracker.currentRestriction().getFrom());
+    final Timestamp restrictionStartTimestamp = tracker.currentRestriction().getFrom();
     final Timestamp previousStartTimestamp =
-        Timestamp.ofTimeMicroseconds(
-            TimestampConverter.timestampToMicros(restrictionStartTimestamp) - 1);
+        Timestamp.ofTimeSecondsAndNanos(
+            restrictionStartTimestamp.getSeconds(), restrictionStartTimestamp.getNanos() - 1);
     final boolean isFirstRun =
         restrictionStartTimestamp.compareTo(partition.getStartTimestamp()) == 0;
     final Timestamp startTimestamp =
@@ -260,9 +258,8 @@ public class QueryChangeStreamAction {
       }
     }
 
-    final long endMicros = TimestampConverter.timestampToMicros(endTimestamp);
     LOG.debug("[" + token + "] change stream completed successfully");
-    if (tracker.tryClaim(endMicros)) {
+    if (tracker.tryClaim(endTimestamp)) {
       LOG.debug("[" + token + "] Finishing partition");
       partitionMetadataDao.updateToFinished(token);
       LOG.info("[" + token + "] Partition finished");
@@ -277,7 +274,7 @@ public class QueryChangeStreamAction {
       LOG.debug("[" + token + "] Updating current watermark to " + watermark);
       try {
         partitionMetadataDao.updateWatermark(
-            token, TimestampConverter.timestampFromMillis(watermark.getMillis()));
+            token, Timestamp.ofTimeMicroseconds(watermark.getMillis() * 1_000L));
       } catch (SpannerException e) {
         if (e.getErrorCode() == ErrorCode.NOT_FOUND) {
           LOG.debug("[" + token + "] Unable to update the current watermark, partition NOT FOUND");

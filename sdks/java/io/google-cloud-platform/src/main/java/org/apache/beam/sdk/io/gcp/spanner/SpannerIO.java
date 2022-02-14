@@ -56,7 +56,6 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
@@ -66,7 +65,6 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.TimestampConverter;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.action.ActionFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.DaoFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.DetectNewPartitionsDoFn;
@@ -1522,12 +1520,8 @@ public class SpannerIO {
                 .withEmulatorHost(changeStreamSpannerConfig.getEmulatorHost())
                 .withMaxCumulativeBackoff(changeStreamSpannerConfig.getMaxCumulativeBackoff());
         final String changeStreamName = getChangeStreamName();
-        // FIXME: The backend only supports microsecond granularity. Remove when fixed.
-        final Timestamp startTimestamp = TimestampConverter.truncateNanos(getInclusiveStartAt());
-        final Timestamp endTimestamp =
-            Optional.ofNullable(getInclusiveEndAt())
-                .map(TimestampConverter::truncateNanos)
-                .orElse(null);
+        final Timestamp startTimestamp = getInclusiveStartAt();
+        final Timestamp endTimestamp = getInclusiveEndAt();
         final MapperFactory mapperFactory = new MapperFactory();
         final ChangeStreamMetrics metrics = new ChangeStreamMetrics();
         final RpcPriority rpcPriority =
