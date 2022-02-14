@@ -1984,7 +1984,7 @@ class BeamSpecificTest(unittest.TestCase):
         # are all NaN in actual
         extra_columns = actual_cols - expected_cols
         if extra_columns:
-          actual_extra_only = actual[extra_columns]
+          actual_extra_only = actual[list(extra_columns)]
 
           if np.isnan(extra_col_value):
             extra_cols_all_match = actual_extra_only.isna().all().all()

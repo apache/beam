@@ -55,35 +55,6 @@ Beam DataFrame operations are deferred, but the schemas of the resulting DataFra
 
 Currently there’s no workaround for this issue. But in the future, Beam Dataframe may support non-deferred column operations on categorical columns. This work is being tracked in [BEAM-12169](https://issues.apache.org/jira/browse/BEAM-12169).
 
-We have started to implemented a few of these operations. So far the following have been implemented.
-- ``get_dummies()``
-
-#### Usage
-Note: In order to support non-deferred column operations, we must know the specific categories at construction time. Since at construction time, we don't have access to the data to infer the types from, users must specify the categories with [CategoricalDtype](https://pandas.pydata.org/docs/user_guide/categorical.html#categorical-categoricaldtype).
-```
->>>s = pd.Series(['a', 'a', 'b', 'b', 'c'])
->>>s = s.astype(pd.CategoricalDtype(categories=['a', 'b', 'c', 'd']))
->>>s.str.get_dummies()
-   a  b  c
-0  1  0  0
-1  1  0  0
-2  0  1  0
-3  0  1  0
-4  0  0  1
-```
-This also works to create `CategoricalDtype`.
-```
-s = pd.Series(['a', 'a', 'b', 'b', 'c'], dtype=pd.CategoricalDtype(categories=['a', 'b', 'c', 'd']))
-```
-If you do not cast to `CategoricalDtype`, an error will be thrown
-```
->>>s = pd.Series(['a', 'a', 'b', 'b', 'c'])
->>>s.str.get_dummies()
-E       apache_beam.dataframe.frame_base.WontImplementError: get_dummies() of non-categorical type is not supported because the type of the output column depends on the data. Please use pd.CategoricalDtype with explicit categories.
-E       For more information see https://s.apache.org/dataframe-non-deferred-columns.
-```
-
-
 ### Operations that produce non-deferred values or plots
 
 Because Beam operations are deferred, it’s infeasible to implement DataFrame APIs that produce non-deferred values or plots. If invoked, these operations raise a [WontImplementError](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.dataframe.frame_base.html#apache_beam.dataframe.frame_base.WontImplementError).
