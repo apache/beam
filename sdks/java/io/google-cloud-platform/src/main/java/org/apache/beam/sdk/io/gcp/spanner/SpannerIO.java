@@ -80,6 +80,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.schemas.Schema;
@@ -1442,6 +1443,7 @@ public class SpannerIO {
       return toBuilder().setMetadataDatabase(metadataDatabase).build();
     }
 
+    /** Specifies the metadata table name. */
     public ReadChangeStream withMetadataTable(String metadataTable) {
       return toBuilder().setMetadataTable(metadataTable).build();
     }
@@ -1585,6 +1587,11 @@ public class SpannerIO {
             new PostProcessingMetricsDoFn(metrics);
 
         LOG.info("Partition metadata table that will be used is " + partitionMetadataTableName);
+        input
+            .getPipeline()
+            .getOptions()
+            .as(SpannerChangeStreamOptions.class)
+            .setMetadataTable(partitionMetadataTableName);
 
         return input
             .apply(Impulse.create())
@@ -1594,6 +1601,19 @@ public class SpannerIO {
             .apply("Gather metrics", ParDo.of(postProcessingMetricsDoFn));
       }
     }
+  }
+
+  /**
+   * Interface to display the name of the metadata table on Dataflow UI. This is only used for
+   * internal purpose. This should not be used to pass the name of the metadata table.
+   */
+  public interface SpannerChangeStreamOptions extends StreamingOptions {
+
+    /** Returns the name of the metadata table. */
+    String getMetadataTable();
+
+    /** Specifies the name of the metadata table. */
+    void setMetadataTable(String table);
   }
 
   private static class ToMutationGroupFn extends DoFn<Mutation, MutationGroup> {
