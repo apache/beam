@@ -16,6 +16,9 @@
 package preparers
 
 import (
+	"beam.apache.org/playground/backend/internal/utils"
+	"fmt"
+	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -96,10 +99,8 @@ func Test_addCodeToFile(t *testing.T) {
 }
 
 func Test_saveLogs(t *testing.T) {
-	file, _ := os.Open("original.py")
-	defer file.Close()
-	tmp, _ := createTempFile("tmp.py")
-
+	file, _ := os.Open(correctPyFile)
+	tmp, _ := utils.CreateTempFile(correctPyFile)
 	defer tmp.Close()
 
 	type args struct {
@@ -114,8 +115,8 @@ func Test_saveLogs(t *testing.T) {
 		{
 			name: "save logs successfully",
 			args: args{
-				from: nil,
-				to:   nil,
+				from: file,
+				to:   tmp,
 			},
 			wantErr: false,
 		},
@@ -124,6 +125,82 @@ func Test_saveLogs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if err := saveLogs(tt.args.from, tt.args.to); (err != nil) != tt.wantErr {
 				t.Errorf("saveLogs() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func Test_writeToFile(t *testing.T) {
+	tmp, _ := utils.CreateTempFile(correctPyFile)
+	defer tmp.Close()
+	tmp2, _ := os.OpenFile(incorrectPyFile, os.O_CREATE, 0)
+	defer tmp2.Close()
+
+	type args struct {
+		to  *os.File
+		str string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "Successfully write to file",
+			args: args{
+				to:  tmp,
+				str: "just a string",
+			},
+			wantErr: false,
+		},
+		{
+			name: "Write to file which is read-only",
+			args: args{
+				to:  tmp2,
+				str: "just a string",
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := writeToFile(tt.args.to, tt.args.str); (err != nil) != tt.wantErr {
+				t.Errorf("writeToFile() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func Test_saveGraph(t *testing.T) {
+	file, _ := os.Open(pyGraphFile)
+	tmp, _ := utils.CreateTempFile(pyGraphFile)
+	defer tmp.Close()
+	type args struct {
+		from     *os.File
+		tempFile *os.File
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "Successfully save graph",
+			args: args{
+				from:     file,
+				tempFile: tmp,
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := saveGraph(tt.args.from, tt.args.tempFile); (err != nil) != tt.wantErr {
+				t.Errorf("saveGraph() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			bytes, _ := ioutil.ReadFile(fmt.Sprintf("%s_%s", "tmp", pyGraphFile))
+			if !strings.Contains(string(bytes), "pipeline_graph.PipelineGraph") {
+				t.Errorf("saveGraph() error = %v, wantErr %v", "No graph code was added", tt.wantErr)
 			}
 		})
 	}

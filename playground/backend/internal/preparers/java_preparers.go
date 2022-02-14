@@ -24,7 +24,6 @@ import (
 	"io/ioutil"
 	"os"
 	"regexp"
-	"strings"
 )
 
 const (
@@ -33,8 +32,6 @@ const (
 	packagePattern                    = `^(package) (([\w]+\.)+[\w]+);`
 	importStringPattern               = `import $2.*;`
 	newLinePattern                    = "\n"
-	pathSeparatorPattern              = os.PathSeparator
-	tmpFileSuffix                     = "tmp"
 	javaPublicClassNamePattern        = "public class (.*?) [{|implements(.*)]"
 	pipelineNamePattern               = `Pipeline\s([A-z|0-9_]*)\s=\sPipeline\.create`
 	graphSavePattern                  = "String dotString = org.apache.beam.runners.core.construction.renderer.PipelineDotRenderer.toDotString(%s);\n" +
@@ -171,7 +168,7 @@ func replace(args ...interface{}) error {
 	}
 	defer file.Close()
 
-	tmp, err := createTempFile(filePath)
+	tmp, err := utils.CreateTempFile(filePath)
 	if err != nil {
 		logger.Errorf("Preparation: Error during create new temporary file, err: %s\n", err.Error())
 		return err
@@ -229,17 +226,6 @@ func replaceAndWriteLine(newLine bool, to *os.File, line string, reg *regexp.Reg
 		return err
 	}
 	return nil
-}
-
-// createTempFile creates temporary file next to originalFile
-func createTempFile(originalFilePath string) (*os.File, error) {
-	// all folders which are included in filePath
-	filePathSlice := strings.Split(originalFilePath, string(pathSeparatorPattern))
-	fileName := filePathSlice[len(filePathSlice)-1]
-
-	tmpFileName := fmt.Sprintf("%s_%s", tmpFileSuffix, fileName)
-	tmpFilePath := strings.Replace(originalFilePath, fileName, tmpFileName, 1)
-	return os.Create(tmpFilePath)
 }
 
 func changeJavaTestFileName(args ...interface{}) error {
