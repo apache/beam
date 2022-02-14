@@ -4723,12 +4723,19 @@ class _DeferredStringMethods(frame_base.DeferredBase):
 
   def _split_helper(
     self, rsplit=False, pat=None, expand=False, regex=None, **kwargs):
+
+    # Adding arguments to kwargs. regex introduced in pandas 1.4
+    # but only for split, not rsplit
+    kwargs['pat'] = pat
+    kwargs['expand'] = expand
+    if PD_VERSION >= (1, 4) and not rsplit:
+      kwargs['regex'] = regex
+
     if not expand:
       # Not creating separate columns
       proxy = self._expr.proxy()
       func = lambda s: pd.concat([proxy,
-        (s.str.split(pat=pat, expand=expand, regex=regex, **kwargs)
-        if not rsplit else s.str.rsplit(pat=pat, expand=expand, **kwargs))]
+        (s.str.split(**kwargs) if not rsplit else s.str.rsplit(**kwargs))]
       )
     else:
       # Creating separate columns, so must be more strict on dtype
@@ -4742,7 +4749,10 @@ class _DeferredStringMethods(frame_base.DeferredBase):
             reason="non-deferred-columns")
 
       if regex is False or (
-        regex is None and isinstance(pat, str) and len(pat) == 1):
+        regex is None and (
+          (not pat) or (isinstance(pat, str) and len(pat) == 1)
+        )
+      ):
         # Treat pat as literal string
         split_cats = [
           cat.split(
@@ -4764,8 +4774,7 @@ class _DeferredStringMethods(frame_base.DeferredBase):
       proxy = pd.DataFrame(columns=range(max_splits))
 
       func = lambda s: pd.concat([proxy,
-        (s.str.split(pat=pat, expand=expand, regex=regex, **kwargs)
-        if not rsplit else s.str.rsplit(pat=pat, expand=expand, **kwargs))]
+        (s.str.split(**kwargs) if not rsplit else s.str.rsplit(**kwargs))]
       ).replace(np.nan, value=None)
 
     return frame_base.DeferredFrame.wrap(

@@ -2351,7 +2351,7 @@ class BeamSpecificTest(unittest.TestCase):
 
   @unittest.skipIf(PD_VERSION < (1, 4), "regex arg is new in pandas 1.4")
   def test_split_pat_is_regex(self):
-    # My own one: regex, but expand=False
+    # regex=True, but expand=False
     s = pd.Series(['foojpgbar.jpg']).astype('category')
     s = s.astype(pd.CategoricalDtype(categories=["foojpgbar.jpg"]))
     result = self._evaluate(
