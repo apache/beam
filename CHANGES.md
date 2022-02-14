@@ -62,11 +62,11 @@
 
 ## New Features / Improvements
 
-* Pipeline dependencies supplied through `--requirements_file` will now be staged to the runner using their binary distributions (wheels) of the PyPI packages for linux_x86_64 platform ([BEAM-4032](https://issues.apache.org/jira/browse/BEAM-4032)).
-To restore the behavior to use source distributions, set pipeline option `--requirements_cache_only_sources`. To skip staging the packages at submission time, set pipeline option `--requirements_cache=skip` (Python)
+* Pipeline dependencies supplied through `--requirements_file` will now be staged to the runner using binary distributions (wheels) of the PyPI packages for linux_x86_64 platform ([BEAM-4032](https://issues.apache.org/jira/browse/BEAM-4032)). To restore the behavior to use source distributions, set pipeline option `--requirements_cache_only_sources`. To skip staging the packages at submission time, set pipeline option `--requirements_cache=skip` (Python).
+
 ## Breaking Changes
 
-* X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* (Python) Previously `DoFn.infer_output_types` was expected to return `Iterable[element_type]` where `element_type` is the PCollection elemnt type. It is now expected to return `element_type`. Take care if you have overriden `infer_output_type` in a `DoFn` (this is not common). See [BEAM-13860](https://issues.apache.org/jira/browse/BEAM-13860).
 
 ## Deprecations
 
