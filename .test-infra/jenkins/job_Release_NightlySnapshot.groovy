@@ -66,6 +66,8 @@ job('beam_Release_NightlySnapshot') {
       commonJobProperties.setGradleSwitches(delegate)
       // Publish a snapshot build.
       switches("-Ppublishing")
+      // No need to run checker framework for snapshot publishing
+      switches("-PskipCheckerFramework")
       // Don't run tasks in parallel, currently the maven-publish/signing plugins
       // cause build failures when run in parallel with messages like 'error snapshotting'
       switches('--no-parallel')
