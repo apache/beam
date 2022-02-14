@@ -43,7 +43,6 @@ EXPECTED_RESULTS = set([
 EXPECTED_LINE_RE = r'\(u?\'([a-z]*)\', \(\'.*([0-9]\.txt)\', (.*)\)\)'
 
 
-@pytest.mark.examples_postcommit
 class TfIdfTest(unittest.TestCase):
   def create_file(self, path, contents):
     logging.info('Creating temp file: %s', path)
@@ -66,6 +65,7 @@ class TfIdfTest(unittest.TestCase):
       # To actually trigger the check the pipeline must be run (e.g. by
       # exiting the with context).
 
+  @pytest.mark.examples_postcommit
   def test_basics(self):
     # Setup the files with expected content.
     temp_folder = tempfile.mkdtemp()

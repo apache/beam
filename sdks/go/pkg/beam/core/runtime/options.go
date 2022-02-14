@@ -16,6 +16,7 @@
 package runtime
 
 import (
+	"flag"
 	"sync"
 )
 
@@ -115,6 +116,23 @@ func (o *Options) Export() RawOptions {
 	defer o.mu.Unlock()
 
 	return RawOptions{Options: copyMap(o.opt)}
+}
+
+// LoadOptionsFromFlags adds any flags not defined in excludeFlags to the options.
+// If the key is already defnined, it ignores that flag
+func (o *Options) LoadOptionsFromFlags(excludeFlags map[string]bool) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	if o.ro {
+		return // ignore silently to allow init-time set of options
+	}
+
+	flag.Visit(func(f *flag.Flag) {
+		if !excludeFlags[f.Name] && o.opt[f.Name] == "" {
+			o.opt[f.Name] = f.Value.String()
+		}
+	})
 }
 
 func copyMap(m map[string]string) map[string]string {

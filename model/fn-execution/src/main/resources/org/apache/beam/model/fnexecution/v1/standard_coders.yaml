@@ -477,6 +477,79 @@ examples:
 
 ---
 
+
+coder:
+  urn: "beam:coder:state_backed_iterable:v1"
+  components: [{urn: "beam:coder:varint:v1"}]
+examples:
+  "\0\0\0\u0001\0": [0]
+  "\0\0\0\u0004\u0001\n\u00c8\u0001\u00e8\u0007": [1, 10, 200, 1000]
+  "\0\0\0\0": []
+
+---
+
+coder:
+  urn: "beam:coder:state_backed_iterable:v1"
+  components: [{urn: "beam:coder:bytes:v1"}]
+examples:
+  "\0\0\0\u0001\u0003abc": ["abc"]
+  "\0\0\0\u0002\u0004ab\0c\u0004de\0f": ["ab\0c", "de\0f"]
+  "\0\0\0\0": []
+
+---
+
+coder:
+  urn: "beam:coder:state_backed_iterable:v1"
+  components: [{urn: "beam:coder:bool:v1"}]
+examples:
+  "\0\0\0\u0001\u0001": [True]
+  "\0\0\0\u0002\u0001\0": [True, False]
+  "\0\0\0\0": []
+
+---
+
+coder:
+  urn: "beam:coder:state_backed_iterable:v1"
+  components: [{urn: "beam:coder:bytes:v1"}]
+  # This is for iterables of unknown length, where the encoding is not
+  # deterministic.
+  non_deterministic: True
+examples:
+  "\u00ff\u00ff\u00ff\u00ff\u0000": []
+  "\u00ff\u00ff\u00ff\u00ff\u0001\u0003abc\u0000": ["abc"]
+  "\u00ff\u00ff\u00ff\u00ff\u0002\u0004ab\u0000c\u0004de\u0000f\u0000": ["ab\0c", "de\0f"]
+
+---
+
+coder:
+  urn: "beam:coder:state_backed_iterable:v1"
+  components: [{urn: "beam:coder:global_window:v1"}]
+examples:
+  "\0\0\0\u0001": [""]
+
+---
+
+coder:
+  urn: "beam:coder:state_backed_iterable:v1"
+  components: [{urn: "beam:coder:varint:v1"}]
+  state: {
+    emptySuffix: "",
+    nonEmptySuffix: "\u0001\n"   # Represents the values [1, 10]
+  }
+  # This is for iterables of unknown length, where the encoding is not
+  # deterministic.
+  non_deterministic: True
+
+examples:
+  "\u00FF\u00FF\u00FF\u00FF\0": []  # Unknown length with empty prefix and no token
+  "\u00FF\u00FF\u00FF\u00FF\u0002\u00C8\u0001\u00E8\u0007\0": [200, 1000]  # Unknown length with non-empty prefix and no token
+  "\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u0001\u000BemptySuffix": []  # Unknown length with empty prefix and token with empty suffix
+  "\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u0001\u000EnonEmptySuffix": [1, 10]  # Unknown length with empty prefix and token with non-empty suffix
+  "\u00FF\u00FF\u00FF\u00FF\u0002\u00C8\u0001\u00E8\u0007\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u0001\u000BemptySuffix": [200, 1000]  # Unknown length with non-empty prefix and token with empty suffix
+  "\u00FF\u00FF\u00FF\u00FF\u0002\u00C8\u0001\u00E8\u0007\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u00FF\u0001\u000EnonEmptySuffix": [200, 1000, 1, 10]  # Unknown length with non-empty prefix and token with non-empty suffix
+
+---
+
 # Java code snippet to generate example bytes:
 #  TimestampPrefixingWindowCoder<IntervalWindow> coder = TimestampPrefixingWindowCoder.of(IntervalWindowCoder.of());
 #  Instant end = new Instant(-9223372036854410L);

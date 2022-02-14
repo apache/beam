@@ -28,10 +28,9 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.
 import org.apache.beam.sdk.transforms.DoFn;
 
 /**
- * A SplittableDoFn (SDF) that is responsible for initializing the change stream Connector. It
- * handles the creation of the partition metadata table and the insertion of a fake partition (see
- * {@link InitialPartition#PARTITION_TOKEN}), which will be used to dispatch the change streams
- * query.
+ * A DoFn responsible for initializing the change stream Connector. It handles the creation of the
+ * partition metadata table and the insertion of a fake partition (see {@link
+ * InitialPartition#PARTITION_TOKEN}), which will be used to dispatch the change streams query.
  */
 public class InitializeDoFn extends DoFn<byte[], PartitionMetadata> implements Serializable {
 

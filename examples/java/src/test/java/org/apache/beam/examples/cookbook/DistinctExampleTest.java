@@ -21,6 +21,7 @@ package org.apache.beam.examples.cookbook;
 //   name: DistinctExampleTest
 //   description: Unit-test for the DistinctExample example.
 //   multifile: false
+//   context_line: 45
 //   categories:
 //     - Core Transforms
 //     - Filtering

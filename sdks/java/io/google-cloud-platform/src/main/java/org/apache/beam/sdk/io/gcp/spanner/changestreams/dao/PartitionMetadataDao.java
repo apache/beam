@@ -44,8 +44,10 @@ import io.opencensus.trace.AttributeValue;
 import io.opencensus.trace.Tracer;
 import io.opencensus.trace.Tracing;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State;
@@ -125,32 +127,6 @@ public class PartitionMetadataDao {
   }
 
   /**
-   * Fetches all the partitions from the partition metadata table that are in the given state and
-   * returns them ordered by the {@link PartitionMetadataAdminDao#COLUMN_START_TIMESTAMP} column in
-   * ascending order.
-   *
-   * @param state the {@link State} to fetch all the partitions
-   * @return a {@link ResultSet} with the partition rows fetched
-   */
-  public ResultSet getPartitionsInState(State state) {
-    try (Scope scope =
-        TRACER.spanBuilder("getPartitionsInState").setRecordEvents(true).startScopedSpan()) {
-      final Statement statement =
-          Statement.newBuilder(
-                  "SELECT * FROM "
-                      + metadataTableName
-                      + " WHERE State = @state"
-                      + " ORDER BY "
-                      + COLUMN_START_TIMESTAMP
-                      + " ASC")
-              .bind("state")
-              .to(state.toString())
-              .build();
-      return databaseClient.singleUse().executeQuery(statement);
-    }
-  }
-
-  /**
    * Fetches the earliest partition watermark from the partition metadata table that is not in a
    * {@link State#FINISHED} state.
    *
@@ -183,6 +159,33 @@ public class PartitionMetadataDao {
   }
 
   /**
+   * Fetches all partitions with a {@link PartitionMetadataAdminDao#COLUMN_CREATED_AT} less than the
+   * given timestamp. The results are ordered by the {@link
+   * PartitionMetadataAdminDao#COLUMN_CREATED_AT} and {@link
+   * PartitionMetadataAdminDao#COLUMN_START_TIMESTAMP} columns in ascending order.
+   */
+  public ResultSet getAllPartitionsCreatedAfter(Timestamp timestamp) {
+    final Statement statement =
+        Statement.newBuilder(
+                "SELECT * FROM "
+                    + metadataTableName
+                    + " WHERE "
+                    + COLUMN_CREATED_AT
+                    + " > @timestamp"
+                    + " ORDER BY "
+                    + COLUMN_CREATED_AT
+                    + " ASC"
+                    + ", "
+                    + COLUMN_START_TIMESTAMP
+                    + " ASC")
+            .bind("timestamp")
+            .to(timestamp)
+            .build();
+
+    return databaseClient.singleUse().executeQuery(statement);
+  }
+
+  /**
    * Inserts the partition metadata.
    *
    * @param row the partition metadata to be inserted
@@ -195,14 +198,14 @@ public class PartitionMetadataDao {
   }
 
   /**
-   * Updates a partition row to {@link State#SCHEDULED} state.
+   * Updates multiple partition row to {@link State#SCHEDULED} state.
    *
-   * @param partitionToken the partition unique identifier
+   * @param partitionTokens the partitions' unique identifiers
    * @return the commit timestamp of the read / write transaction
    */
-  public Timestamp updateToScheduled(String partitionToken) {
+  public Timestamp updateToScheduled(List<String> partitionTokens) {
     final TransactionResult<Void> transactionResult =
-        runInTransaction(transaction -> transaction.updateToScheduled(partitionToken));
+        runInTransaction(transaction -> transaction.updateToScheduled(partitionTokens));
     return transactionResult.getCommitTimestamp();
   }
 
@@ -304,22 +307,17 @@ public class PartitionMetadataDao {
     }
 
     /**
-     * Updates a partition row to {@link State#SCHEDULED} state.
+     * Updates multiple partition rows to {@link State#SCHEDULED} state.
      *
-     * @param partitionToken the partition unique identifier
+     * @param partitionTokens the partitions' unique identifiers
      */
-    public Void updateToScheduled(String partitionToken) {
-      try (Scope scope =
-          TRACER.spanBuilder("updateToScheduled").setRecordEvents(true).startScopedSpan()) {
-        TRACER
-            .getCurrentSpan()
-            .putAttribute(
-                PARTITION_ID_ATTRIBUTE_LABEL, AttributeValue.stringAttributeValue(partitionToken));
-        transaction.buffer(
-            ImmutableList.of(
-                createUpdateMetadataStateMutationFrom(partitionToken, State.SCHEDULED)));
-        return null;
-      }
+    public Void updateToScheduled(List<String> partitionTokens) {
+      final List<Mutation> mutations =
+          partitionTokens.stream()
+              .map(token -> createUpdateMetadataStateMutationFrom(token, State.SCHEDULED))
+              .collect(Collectors.toList());
+      transaction.buffer(mutations);
+      return null;
     }
 
     /**
