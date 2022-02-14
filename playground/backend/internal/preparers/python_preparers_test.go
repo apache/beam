@@ -50,14 +50,7 @@ func TestGetPythonPreparers(t *testing.T) {
 }
 
 func Test_addCodeToFile(t *testing.T) {
-	originalCode := "import logging as l\n\nif __name__ == \"__main__\":\n    logging.info(\"INFO\")\n"
-	wantCode := "import logging\nlogging.basicConfig(\n    level=logging.DEBUG,\n    format=\"%(asctime)s [%(levelname)s] %(message)s\",\n    handlers=[\n        logging.FileHandler(\"logs.log\"),\n    ]\n)\n" + originalCode
-
-	err := os.WriteFile("original.py", []byte(originalCode), 0600)
-	if err != nil {
-		panic(err)
-	}
-	defer os.RemoveAll("original.py")
+	wantCode := "import logging\nlogging.basicConfig(\n    level=logging.DEBUG,\n    format=\"%(asctime)s [%(levelname)s] %(message)s\",\n    handlers=[\n        logging.FileHandler(\"logs.log\"),\n    ]\n)\n" + pyCode
 
 	type args struct {
 		args []interface{}
@@ -72,14 +65,14 @@ func Test_addCodeToFile(t *testing.T) {
 			// Test case with calling addCodeToFile method when original file doesn't exist.
 			// As a result, want to receive error
 			name:    "original file doesn't exist",
-			args:    args{[]interface{}{"someFile.java", saveLogs}},
+			args:    args{[]interface{}{incorrectPyFile, saveLogs}},
 			wantErr: true,
 		},
 		{
 			// Test case with calling addCodeToFile method when original file exists.
 			// As a result, want to receive updated code in the original file
 			name:     "original file exists",
-			args:     args{[]interface{}{"original.py", saveLogs}},
+			args:     args{[]interface{}{correctPyFile, saveLogs}},
 			wantCode: wantCode,
 			wantErr:  false,
 		},
@@ -97,6 +90,40 @@ func Test_addCodeToFile(t *testing.T) {
 				if !strings.EqualFold(string(data), tt.wantCode) {
 					t.Errorf("addToCode() code = {%v}, wantCode {%v}", string(data), tt.wantCode)
 				}
+			}
+		})
+	}
+}
+
+func Test_saveLogs(t *testing.T) {
+	file, _ := os.Open("original.py")
+	defer file.Close()
+	tmp, _ := createTempFile("tmp.py")
+
+	defer tmp.Close()
+
+	type args struct {
+		from *os.File
+		to   *os.File
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "save logs successfully",
+			args: args{
+				from: nil,
+				to:   nil,
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := saveLogs(tt.args.from, tt.args.to); (err != nil) != tt.wantErr {
+				t.Errorf("saveLogs() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
