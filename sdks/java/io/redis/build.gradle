@@ -28,7 +28,12 @@ dependencies {
   implementation "redis.clients:jedis:4.0.1"
   testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
   testImplementation library.java.junit
-  testImplementation "io.oden:embedded-redis:0.0.3"
+  testImplementation "org.signal:embedded-redis:0.8.2"
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+}
+
+configurations.testRuntimeClasspath {
+  // force version required by embedded-redis:0.8.2 in tests
+  resolutionStrategy { force "commons-io:commons-io:2.7" }
 }

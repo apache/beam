@@ -20,6 +20,7 @@ package org.apache.beam.fn.harness;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
@@ -80,6 +81,9 @@ public interface PTransformRunnerFactory<T> {
 
     /** An immutable mapping from windowing strategy id to windowing strategy definition. */
     Map<String, RunnerApi.WindowingStrategy> getWindowingStrategies();
+
+    /** An immutable set of runner capability urns. */
+    Set<String> getRunnerCapabilities();
 
     /** Register as a consumer for a given PCollection id. */
     <T> void addPCollectionConsumer(

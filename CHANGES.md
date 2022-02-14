@@ -49,15 +49,61 @@
 
 * ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 -->
-# [2.37.0] - Unreleased
+# [2.38.0] - Unreleased
 
 ## Highlights
 
+* New highly anticipated feature X added to Python SDK ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* New highly anticipated feature Y added to Java SDK ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
+
 ## I/Os
+
+* Support for X source added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+
+## New Features / Improvements
+
+* Pipeline dependencies supplied through `--requirements_file` will now be staged to the runner using their binary distributions (wheels) of the PyPI packages for linux_x86_64 platform ([BEAM-4032](https://issues.apache.org/jira/browse/BEAM-4032)).
+To restore the behavior to use source distributions, set pipeline option `--requirements_cache_only_sources`. To skip staging the packages at submission time, set pipeline option `--requirements_cache=skip` (Python)
+## Breaking Changes
+
+* X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+
+## Deprecations
+
+* X behavior is deprecated and will be removed in X versions ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+
+## Bugfixes
+
+* Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+
+## Known Issues
+
+* ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+
+# [2.37.0] - Unreleased, Branch Cut
+
+## Highlights
+* Java 17 support for Dataflow ([BEAM-12240](https://issues.apache.org/jira/browse/BEAM-12240)).
+  * Users using Dataflow Runner V2 may see issues with state cache due to inaccurate object sizes ([BEAM-13695](https://issues.apache.org/jira/browse/BEAM-13695)).
+  * ZetaSql is currently unsupported ([issue](https://github.com/google/zetasql/issues/89)).
+* Python 3.9 support in Apache Beam ([BEAM-12000](https://issues.apache.org/jira/browse/BEAM-12000)).
+  * Dataflow support for Python 3.9 is expected to be available with 2.37.0,
+    but may not be fully available yet when the release is announced ([BEAM-13864](https://issues.apache.org/jira/browse/BEAM-13864)).
+  * Users of Dataflow Runner V2 can run Python 3.9 pipelines with 2.37.0 release right away.
+
+## I/Os
+
+* Go SDK now has wrappers for the following Cross Language Transforms from Java, along with automatic expansion service startup for each.
+    *  JDBCIO ([BEAM-13293](https://issues.apache.org/jira/browse/BEAM-13293)).
+    *  Debezium ([BEAM-13761](https://issues.apache.org/jira/browse/BEAM-13761)).
+    *  BeamSQL ([BEAM-13683](https://issues.apache.org/jira/browse/BEAM-13683)).
+    *  BiqQuery ([BEAM-13732](https://issues.apache.org/jira/browse/BEAM-13732)).
+    *  KafkaIO now also has automatic expansion service startup. ([BEAM-13821](https://issues.apache.org/jira/browse/BEAM-13821)).
 
 ## New Features / Improvements
 
 * DataFrame API now supports pandas 1.4.x ([BEAM-13605](https://issues.apache.org/jira/browse/BEAM-13605)).
+* Go SDK DoFns can now observe trigger panes directly ([BEAM-13757](https://issues.apache.org/jira/browse/BEAM-13757)).
 
 ## Breaking Changes
 

@@ -74,7 +74,12 @@ class TestWriteBigTable(unittest.TestCase):
       direct_rows = [self.generate_row(i) for i in range(number_of_rows * 2)]
       for direct_row in direct_rows:
         write_fn.process(direct_row)
-      write_fn.finish_bundle()
+      try:
+        write_fn.finish_bundle()
+      except:  # pylint: disable=bare-except
+        # Currently we fail the bundle when there are any failures.
+        # TODO(BEAM-13849): remove after bigtableio can selectively retry.
+        pass
       self.verify_write_call_metric(
           self._PROJECT_ID,
           self._INSTANCE_ID,

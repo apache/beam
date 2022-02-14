@@ -78,11 +78,12 @@ public class BeamFnDataOutboundAggregatorTest {
             endpoint::getInstructionId,
             TestStreams.<Elements>withOnNext(values::add)
                 .withOnCompleted(() -> onCompletedWasCalled.set(true))
-                .build());
+                .build(),
+            false);
 
     // Test that nothing is emitted till the default buffer size is surpassed.
     FnDataReceiver<byte[]> dataReceiver = registerOutputLocation(aggregator, endpoint, CODER);
-    aggregator.startFlushThread();
+    aggregator.start();
     dataReceiver.accept(new byte[BeamFnDataOutboundAggregator.DEFAULT_BUFFER_LIMIT_BYTES - 50]);
     assertThat(values, empty());
 
@@ -105,11 +106,11 @@ public class BeamFnDataOutboundAggregatorTest {
         values.get(1));
 
     // Test that when we close with an empty buffer we only have one end of stream
-    aggregator.sendBufferedDataAndFinishOutboundStreams();
+    aggregator.sendOrCollectBufferedDataAndFinishOutboundStreams();
     assertEquals(endMessage(), values.get(2));
 
     // Test that we can close twice.
-    aggregator.sendBufferedDataAndFinishOutboundStreams();
+    aggregator.sendOrCollectBufferedDataAndFinishOutboundStreams();
     assertEquals(endMessage(), values.get(2));
   }
 
@@ -127,10 +128,11 @@ public class BeamFnDataOutboundAggregatorTest {
             endpoint::getInstructionId,
             TestStreams.<Elements>withOnNext(values::add)
                 .withOnCompleted(() -> onCompletedWasCalled.set(true))
-                .build());
+                .build(),
+            false);
     // Test that nothing is emitted till the default buffer size is surpassed.
     FnDataReceiver<byte[]> dataReceiver = registerOutputLocation(aggregator, endpoint, CODER);
-    aggregator.startFlushThread();
+    aggregator.start();
     dataReceiver.accept(new byte[51]);
     assertThat(values, empty());
 
@@ -150,8 +152,9 @@ public class BeamFnDataOutboundAggregatorTest {
     // Test that when we close we empty the value, and then send the stream terminator as part
     // of the same message
     dataReceiver.accept(new byte[1]);
-    aggregator.sendBufferedDataAndFinishOutboundStreams();
-    // Test that receiver stats have been reset after sendBufferedDataAndFinishOutboundStreams.
+    aggregator.sendOrCollectBufferedDataAndFinishOutboundStreams();
+    // Test that receiver stats have been reset after
+    // sendOrCollectBufferedDataAndFinishOutboundStreams.
     assertEquals(0L, receiver.getOutput().size());
     assertEquals(0L, receiver.getByteCount());
     assertEquals(0L, receiver.getElementCount());
@@ -192,11 +195,12 @@ public class BeamFnDataOutboundAggregatorTest {
                           values.add(e);
                           waitForFlush.countDown();
                         })
-                .build());
+                .build(),
+            false);
 
     // Test that it emits when time passed the time limit
     FnDataReceiver<byte[]> dataReceiver = registerOutputLocation(aggregator, endpoint, CODER);
-    aggregator.startFlushThread();
+    aggregator.start();
     dataReceiver.accept(new byte[1]);
     waitForFlush.await(); // wait the flush thread to flush the buffer
     assertEquals(messageWithData(new byte[1]), values.get(0));
@@ -217,11 +221,12 @@ public class BeamFnDataOutboundAggregatorTest {
                         e -> {
                           throw new RuntimeException("");
                         })
-                .build());
+                .build(),
+            false);
 
     // Test that it emits when time passed the time limit
     FnDataReceiver<byte[]> dataReceiver = registerOutputLocation(aggregator, endpoint, CODER);
-    aggregator.startFlushThread();
+    aggregator.start();
     dataReceiver.accept(new byte[1]);
     // wait the flush thread to flush the buffer
     while (!aggregator.flushFuture.isDone()) {
@@ -245,9 +250,10 @@ public class BeamFnDataOutboundAggregatorTest {
                         e -> {
                           throw new RuntimeException("");
                         })
-                .build());
+                .build(),
+            false);
     dataReceiver = registerOutputLocation(aggregator, endpoint, CODER);
-    aggregator.startFlushThread();
+    aggregator.start();
     dataReceiver.accept(new byte[1]);
     // wait the flush thread to flush the buffer
     while (!aggregator.flushFuture.isDone()) {
@@ -256,7 +262,7 @@ public class BeamFnDataOutboundAggregatorTest {
     try {
       // Test that the exception caught in the flush thread is propagated to
       // the main thread when closing
-      aggregator.sendBufferedDataAndFinishOutboundStreams();
+      aggregator.sendOrCollectBufferedDataAndFinishOutboundStreams();
       fail();
     } catch (Exception e) {
       // expected
@@ -277,7 +283,8 @@ public class BeamFnDataOutboundAggregatorTest {
             endpoint::getInstructionId,
             TestStreams.<Elements>withOnNext(values::add)
                 .withOnCompleted(() -> onCompletedWasCalled.set(true))
-                .build());
+                .build(),
+            false);
     // Test that nothing is emitted till the default buffer size is surpassed.
     LogicalEndpoint additionalEndpoint =
         LogicalEndpoint.data(
@@ -285,7 +292,7 @@ public class BeamFnDataOutboundAggregatorTest {
     FnDataReceiver<byte[]> dataReceiver = registerOutputLocation(aggregator, endpoint, CODER);
     FnDataReceiver<byte[]> additionalDataReceiver =
         registerOutputLocation(aggregator, additionalEndpoint, CODER);
-    aggregator.startFlushThread();
+    aggregator.start();
     dataReceiver.accept(new byte[51]);
     assertThat(values, empty());
 
@@ -300,7 +307,7 @@ public class BeamFnDataOutboundAggregatorTest {
     // Test that when we close we empty the value, and then the stream terminator as part
     // of the same message
     dataReceiver.accept(new byte[1]);
-    aggregator.sendBufferedDataAndFinishOutboundStreams();
+    aggregator.sendOrCollectBufferedDataAndFinishOutboundStreams();
 
     BeamFnApi.Elements.Builder builder = messageWithDataBuilder(new byte[1]);
     if (endpoint.isTimer()) {

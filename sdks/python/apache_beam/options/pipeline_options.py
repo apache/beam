@@ -1053,7 +1053,20 @@ class SetupOptions(PipelineOptions):
         default=None,
         help=(
             'Path to a folder to cache the packages specified in '
-            'the requirements file using the --requirements_file option.'))
+            'the requirements file using the --requirements_file option.'
+            'If you want to skip populating requirements cache, please '
+            'specify --requirements_cache="skip".'))
+    parser.add_argument(
+        '--requirements_cache_only_sources',
+        action='store_true',
+        help=(
+            'Enable this flag to populate requirements cache only '
+            'with Source distributions(sdists) of the dependencies '
+            'mentioned in the --requirements_file'
+            'Note: (BEAM-4032): This flag may significantly slow down '
+            'the pipeline submission. It is added to preserve the requirements'
+            ' cache behavior prior to 2.37.0 and will likely be removed in '
+            'future releases.'))
     parser.add_argument(
         '--setup_file',
         default=None,

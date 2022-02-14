@@ -53,8 +53,15 @@ func NewScopedStateReaderWithCache(mgr *StateChannelManager, instID instructionI
 	return &ScopedStateReader{mgr: mgr, instID: instID, cache: cache}
 }
 
-// OpenSideInput opens a byte stream for reading iterable side input.
-func (s *ScopedStateReader) OpenSideInput(ctx context.Context, id exec.StreamID, sideInputID string, key, w []byte) (io.ReadCloser, error) {
+// OpenIterableSideInput opens a byte stream for reading iterable side input
+func (s *ScopedStateReader) OpenIterableSideInput(ctx context.Context, id exec.StreamID, sideInputID string, w []byte) (io.ReadCloser, error) {
+	return s.openReader(ctx, id, func(ch *StateChannel) *stateKeyReader {
+		return newIterableSideInputReader(ch, id, sideInputID, s.instID, w)
+	})
+}
+
+// OpenMultiMapSideInput opens a byte stream for reading multimap side input.
+func (s *ScopedStateReader) OpenMultiMapSideInput(ctx context.Context, id exec.StreamID, sideInputID string, key, w []byte) (io.ReadCloser, error) {
 	return s.openReader(ctx, id, func(ch *StateChannel) *stateKeyReader {
 		return newSideInputReader(ch, id, sideInputID, s.instID, key, w)
 	})
@@ -133,6 +140,24 @@ func newSideInputReader(ch *StateChannel, id exec.StreamID, sideInputID string, 
 			},
 		},
 	}
+	return &stateKeyReader{
+		instID: instID,
+		key:    key,
+		ch:     ch,
+	}
+}
+
+func newIterableSideInputReader(ch *StateChannel, id exec.StreamID, sideInputID string, instID instructionID, w []byte) *stateKeyReader {
+	key := &fnpb.StateKey{
+		Type: &fnpb.StateKey_IterableSideInput_{
+			IterableSideInput: &fnpb.StateKey_IterableSideInput{
+				TransformId: id.PtransformID,
+				SideInputId: sideInputID,
+				Window:      w,
+			},
+		},
+	}
+
 	return &stateKeyReader{
 		instID: instID,
 		key:    key,

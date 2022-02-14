@@ -30,7 +30,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.ExperimentalOptions;
@@ -55,6 +55,12 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
+// The calling thread that invokes sendBufferedDataAndFinishOutboundStreams synchronizes on
+// flushLock effectively making the periodic flushing no longer read or mutate hasFlushedForBundle
+// and allowing the calling thread to read and mutate hasFlushedForBundle safely without needing to
+// create another memory barrier. Also note that flush is always invoked when synchronizing on
+// flushLock when there is a periodic flushing thread.
+@NotThreadSafe
 public class BeamFnDataOutboundAggregator {
 
   public static final String DATA_BUFFER_SIZE_LIMIT = "data_buffer_size_limit=";
@@ -72,23 +78,28 @@ public class BeamFnDataOutboundAggregator {
   @Nullable @VisibleForTesting ScheduledFuture<?> flushFuture;
   private long bytesWrittenSinceFlush;
   private final Object flushLock;
+  private final boolean collectElementsIfNoFlushes;
+  private boolean hasFlushedForBundle;
 
   public BeamFnDataOutboundAggregator(
       PipelineOptions options,
       Supplier<String> processBundleRequestIdSupplier,
-      StreamObserver<BeamFnApi.Elements> outboundObserver) {
+      StreamObserver<Elements> outboundObserver,
+      boolean collectElementsIfNoFlushes) {
     this.sizeLimit = getSizeLimit(options);
     this.timeLimit = getTimeLimit(options);
+    this.collectElementsIfNoFlushes = collectElementsIfNoFlushes;
     this.outputDataReceivers = new HashMap<>();
     this.outputTimersReceivers = new HashMap<>();
     this.outboundObserver = outboundObserver;
     this.processBundleRequestIdSupplier = processBundleRequestIdSupplier;
     this.bytesWrittenSinceFlush = 0L;
     this.flushLock = new Object();
+    this.hasFlushedForBundle = false;
   }
 
   /** Starts the flushing daemon thread if data_buffer_time_limit_ms is set. */
-  public void startFlushThread() {
+  public void start() {
     if (timeLimit > 0 && this.flushFuture == null) {
       this.flushFuture =
           Executors.newSingleThreadScheduledExecutor(
@@ -96,8 +107,7 @@ public class BeamFnDataOutboundAggregator {
                       .setDaemon(true)
                       .setNameFormat("DataBufferOutboundFlusher-thread")
                       .build())
-              .scheduleAtFixedRate(
-                  this::periodicFlush, timeLimit, timeLimit, TimeUnit.MILLISECONDS);
+              .scheduleAtFixedRate(this::flush, timeLimit, timeLimit, TimeUnit.MILLISECONDS);
     }
   }
 
@@ -149,7 +159,7 @@ public class BeamFnDataOutboundAggregator {
     return receiver;
   }
 
-  public void flush() throws IOException {
+  private void flushInternal() {
     if (bytesWrittenSinceFlush == 0) {
       return;
     }
@@ -157,15 +167,18 @@ public class BeamFnDataOutboundAggregator {
     if (elements.getDataCount() > 0 || elements.getTimersCount() > 0) {
       outboundObserver.onNext(elements.build());
     }
+    hasFlushedForBundle = true;
   }
 
   /**
    * Closes the streams for all registered outbound endpoints. Should be called at the end of each
-   * bundle.
+   * bundle. Returns the buffered Elements if the BeamFnDataOutboundAggregator started with
+   * collectElementsIfNoFlushes=true, and there was no previous flush in this bundle, otherwise
+   * returns null.
    */
-  public void sendBufferedDataAndFinishOutboundStreams() {
+  public Elements sendOrCollectBufferedDataAndFinishOutboundStreams() {
     if (outputTimersReceivers.isEmpty() && outputDataReceivers.isEmpty()) {
-      return;
+      return null;
     }
     Elements.Builder bufferedElements;
     if (timeLimit > 0) {
@@ -199,7 +212,19 @@ public class BeamFnDataOutboundAggregator {
           .setIsLast(true);
       entry.getValue().resetStats();
     }
+    if (collectElementsIfNoFlushes && !hasFlushedForBundle) {
+      return bufferedElements.build();
+    }
     outboundObserver.onNext(bufferedElements.build());
+    // This is now at the end of a bundle, so we reset hasFlushedForBundle to prepare for new
+    // bundles.
+    hasFlushedForBundle = false;
+    return null;
+  }
+
+  // Send the elements to the StreamObserver associated with this aggregator.
+  public void sendElements(Elements elements) {
+    outboundObserver.onNext(elements);
   }
 
   public void discard() {
@@ -239,10 +264,10 @@ public class BeamFnDataOutboundAggregator {
     return bufferedElements;
   }
 
-  private void periodicFlush() {
+  void flush() {
     try {
       synchronized (flushLock) {
-        flush();
+        flushInternal();
       }
     } catch (Throwable t) {
       throw new RuntimeException(t);
@@ -322,7 +347,7 @@ public class BeamFnDataOutboundAggregator {
       perBundleByteCount += delta;
       perBundleElementCount += 1;
       if (bytesWrittenSinceFlush > sizeLimit) {
-        flush();
+        flushInternal();
       }
     }
 
