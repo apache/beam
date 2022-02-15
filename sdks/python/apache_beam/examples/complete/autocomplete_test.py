@@ -28,11 +28,16 @@ import pytest
 
 import apache_beam as beam
 from apache_beam.examples.complete import autocomplete
-from apache_beam.io.gcp import gcsio
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_utils import compute_hash
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+
+# Protect against environments where gcsio library is not available.
+try:
+  from apache_beam.io.gcp import gcsio
+except ImportError:
+  gcsio = None
 
 
 def read_gcs_output_file(file_pattern):
