@@ -42,8 +42,8 @@ const (
 		"		out.println(dotString);\n    " +
 		"	} catch (java.io.FileNotFoundException e) {\n" +
 		"      e.printStackTrace();\n    " +
-		"\n}\n" +
-		"%s.run"
+		"\n}\n"
+	graphRunPattern = "(.*%s.run.*;)"
 )
 
 //JavaPreparersBuilder facet of PreparersBuilder
@@ -109,12 +109,22 @@ func (builder *JavaPreparersBuilder) WithGraphHandler() *JavaPreparersBuilder {
 func addCodeToSaveGraph(args ...interface{}) error {
 	filePath := args[0].(string)
 	pipelineObjectName, _ := findPipelineObjectName(filePath)
-	graphSaveCode := fmt.Sprintf(graphSavePattern, pipelineObjectName, utils.GraphFileName, pipelineObjectName)
+	graphSaveCode := fmt.Sprintf(graphSavePattern, pipelineObjectName, utils.GraphFileName)
 
 	if pipelineObjectName != utils.EmptyLine {
-		err := replace(filePath, fmt.Sprintf("%s.run", pipelineObjectName), graphSaveCode)
+		reg := regexp.MustCompile(fmt.Sprintf(graphRunPattern, pipelineObjectName))
+		code, err := ioutil.ReadFile(filePath)
 		if err != nil {
-			logger.Error("Can't add graph extractor. Can't add new import")
+			logger.Error("Can't read file")
+			return err
+		}
+		result := reg.ReplaceAllString(string(code), fmt.Sprintf(`%s$1`, graphSaveCode))
+		if err != nil {
+			logger.Error("Can't add graph extraction code")
+			return err
+		}
+		if err = ioutil.WriteFile(filePath, []byte(result), 0666); err != nil {
+			logger.Error("Can't rewrite file %s", filePath)
 			return err
 		}
 	}
@@ -142,7 +152,7 @@ func GetJavaPreparers(builder *PreparersBuilder, isUnitTest bool, isKata bool) {
 	}
 }
 
-// findPipelineObjectName finds name of pipeline in JAVA code when pipeline creates
+// findPipelineObjectName finds name of pipeline in JAVA code when pipeline is created
 func findPipelineObjectName(filepath string) (string, error) {
 	reg := regexp.MustCompile(pipelineNamePattern)
 	b, err := ioutil.ReadFile(filepath)
