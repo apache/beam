@@ -57,6 +57,7 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
+import org.apache.beam.sdk.testing.UsesProcessingTimeTimers;
 import org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime;
 import org.apache.beam.sdk.testing.UsesTimersInParDo;
 import org.apache.beam.sdk.testing.UsesUnboundedPCollections;
@@ -242,7 +243,12 @@ public class GroupByKeyTest implements Serializable {
      * suite.
      */
     @Test
-    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesUnboundedPCollections.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+      UsesProcessingTimeTimers.class,
+      UsesUnboundedPCollections.class
+    })
     public void testAfterProcessingTimeContinuationTriggerUsingState() throws Exception {
       final long triggerMillis = 1;
       final long waitMillis = 500;
