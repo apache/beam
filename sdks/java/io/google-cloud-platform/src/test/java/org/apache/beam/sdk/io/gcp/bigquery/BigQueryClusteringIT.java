@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.Table;
@@ -29,7 +27,6 @@ import java.util.Arrays;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
-import org.apache.beam.sdk.io.gcp.testing.BigqueryMatcher;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.ExperimentalOptions;
