@@ -43,6 +43,7 @@ class BigQuerySideInputIT(unittest.TestCase):
 
     self.output = '/'.join([self.DEFAULT_OUTPUT_FILE, self.uuid, 'results'])
 
+  @pytest.mark.no_xdist
   @pytest.mark.examples_postcommit
   def test_bigquery_side_input_it(self):
     state_verifier = PipelineStateMatcher(PipelineState.DONE)

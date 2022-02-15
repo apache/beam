@@ -213,11 +213,9 @@ class PlaygroundState with ChangeNotifier {
       timer = Timer.periodic(timerInterval, tick);
     }
 
-    streamController = StreamController<int>(
+    streamController = StreamController<int>.broadcast(
       onListen: startTimer,
       onCancel: stopTimer,
-      onResume: startTimer,
-      onPause: stopTimer,
     );
 
     return streamController;
