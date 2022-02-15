@@ -44,7 +44,7 @@ def read_gcs_output_file(file_pattern):
   file_names = gcs.list_prefix(file_pattern).keys()
   output = []
   for file_name in file_names:
-    output.append(gcs.open(file_name).read().decode('utf-8'))
+    output.append(gcs.open(file_name).read().decode('utf-8').strip())
   return '\n'.join(output)
 
 
