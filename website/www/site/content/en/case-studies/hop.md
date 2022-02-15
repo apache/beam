@@ -138,8 +138,8 @@ technology.
 
 <blockquote class="case-study-quote-block case-study-quote-wrapped">
   <p class="case-study-quote-text">
-    In general, a visual pipeline design interface is really valuable for a non-developer audience… 
-    We categorically choose the side of the organization when it comes to lowering setup costs, 
+    In general, a visual pipeline design interface is really valuable for a non-developer audience…
+    We categorically choose the side of the organization when it comes to lowering setup costs,
     maintenance costs, increasing ROI, and safeguarding an investment over time.
   </p>
   <div class="case-study-quote-author">
@@ -175,8 +175,8 @@ community and amplified by collaborative organizations.
 
 <blockquote class="case-study-quote-block case-study-quote-wrapped">
   <p class="case-study-quote-text">
-    Knowledge sharing and collaboration is something that comes naturally in the community. If we 
-    see some room for improvement, we exchange ideas and this way, we keep driving Apache Beam and 
+    Knowledge sharing and collaboration is something that comes naturally in the community. If we
+    see some room for improvement, we exchange ideas and this way, we keep driving Apache Beam and
     Apache Hop projects forward. Together, we can work with the most complex problems and just solve them.
   </p>
   <div class="case-study-quote-author">
