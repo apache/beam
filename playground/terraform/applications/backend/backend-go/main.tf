@@ -45,6 +45,11 @@ resource "google_app_engine_flexible_app_version" "backend_app_go" {
   resources {
     memory_gb = 16
     cpu       = 8
+    volumes {
+      name        = "inmemory"
+      size_gb     = var.volume_size
+      volume_type = "tmpfs"
+    }
   }
 
   network {

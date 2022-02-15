@@ -18,6 +18,7 @@
 #
 
 
+
 module "backend-go" {
   source                  = "./backend-go"
   project_id              = var.project_id
@@ -25,7 +26,11 @@ module "backend-go" {
   docker_registry_address = var.docker_registry_address
   network_name            = var.network_name
   environment             = var.environment
+  docker_image_name       = "${var.docker_image_name}-go}"
   docker_image_tag        = var.docker_image_tag
+  service_name            = "${var.base_service_name}-go"
+  cache_type              = var.cache_type
+  volume_size             = var.go_volume_size
 }
 
 module "backend-java" {
@@ -35,7 +40,11 @@ module "backend-java" {
   docker_registry_address = var.docker_registry_address
   network_name            = var.network_name
   environment             = var.environment
+  docker_image_name       = "${var.docker_image_name}-java}"
   docker_image_tag        = var.docker_image_tag
+  service_name            = "${var.base_service_name}-java"
+  cache_type              = var.cache_type
+  volume_size             = var.java_volume_size
 }
 
 module "backend-python" {
@@ -45,7 +54,11 @@ module "backend-python" {
   docker_registry_address = var.docker_registry_address
   network_name            = var.network_name
   environment             = var.environment
+  docker_image_name       = "${var.docker_image_name}-python}"
   docker_image_tag        = var.docker_image_tag
+  service_name            = "${var.base_service_name}-python"
+  cache_type              = var.cache_type
+  volume_size             = var.python_volume_size
 }
 
 module "backend-router" {
@@ -55,7 +68,11 @@ module "backend-router" {
   docker_registry_address = var.docker_registry_address
   network_name            = var.network_name
   environment             = var.environment
+  docker_image_name       = "${var.docker_image_name}-router}"
   docker_image_tag        = var.docker_image_tag
+  service_name            = "${var.base_service_name}-router"
+  cache_type              = var.cache_type
+  volume_size             = var.router_volume_size
 }
 
 module "backend-scio" {
@@ -65,7 +82,11 @@ module "backend-scio" {
   docker_registry_address = var.docker_registry_address
   network_name            = var.network_name
   environment             = var.environment
+  docker_image_name       = "${var.docker_image_name}-scio}"
   docker_image_tag        = var.docker_image_tag
+  service_name            = "${var.base_service_name}-scio"
+  cache_type              = var.cache_type
+  volume_size             = var.scio_volume_size
 }
 
 

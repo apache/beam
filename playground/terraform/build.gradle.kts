@@ -28,7 +28,7 @@ terraformPlugin {
 
 tasks {
     /* init Infrastucture for migrate */
-    register<TerraformTask>("erraformInit") {
+    register<TerraformTask>("terraformInit") {
         // exec args can be passed by commandline, for example
         var project_id = project.property("project_id") as String?
         var environment = project.property("project_environment") as String?

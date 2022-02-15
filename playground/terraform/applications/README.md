@@ -44,13 +44,22 @@ Do you want to perform these actions?
   Enter a value:
 ```
 
-Type `yes` and hit **Enter**. Applying of the configuration could take several minutes. `Apply complete!` will be displayed
-when it is finished, along with the number of created resources.
+Type `yes` and hit **Enter**. Applying of the configuration could take several minutes. `Apply complete!` will be
+displayed when it is finished, along with the number of created resources.
 
 ### Applying a non-default configuration
 
 To apply non-default Terraform configuration, pass the corresponding values as a variables with `terraform apply`
 command. All variables are listed in the [variables.tf](variables.tf) file.
+
+Each of service will be deployed with default resources and scaling configuration. It might be changed in following
+files:
+
+* [Go](./backend/backend-go/main.tf)
+* [Java](./backend/backend-java/main.tf)
+* [Python](./backend/backend-python/main.tf)
+* [SCIO](./backend/backend-scio/main.tf)
+* [Router](./backend/backend-router/main.tf)
 
 ### Destroy deployed resources
 

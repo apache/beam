@@ -23,12 +23,12 @@ variable "project_id" {
 
 variable "cache_address" {
   description = "IP Address for Redis service"
-  default = ""
+  default     = ""
 }
 
 variable "environment" {
   description = "prod,dev"
-  default = "dev"
+  default     = "dev"
 }
 
 variable "network_name" {
@@ -41,6 +41,63 @@ variable "docker_image_tag" {
   default     = ""
 }
 
+variable "docker_image_name" {
+  default     = "beam_playground-backend"
+  description = "Base prefix for docker images"
+}
+
 variable "docker_registry_address" {
   description = "Docker registry address"
+}
+
+
+variable "base_service_name" {
+  default = "backend"
+}
+
+variable "cache_type" {
+  description = "remote or local. Set remote to use Redis and local to use in-memory application level cache"
+  default     = "remote"
+}
+
+
+# SCIO variables
+
+variable "scio_volume_size" {
+  description = "Size of the in memory file system to be used by the application, in GB"
+  type        = number
+  default     = 1
+}
+
+# Go variables
+
+variable "go_volume_size" {
+  description = "Size of the in memory file system to be used by the application, in GB"
+  type        = number
+  default     = 1
+}
+
+# Python variables
+
+
+variable "python_volume_size" {
+  description = "Size of the in memory file system to be used by the application, in GB"
+  type        = number
+  default     = 1
+}
+
+# Java variables
+
+variable "java_volume_size" {
+  description = "Size of the in memory file system to be used by the application, in GB"
+  type        = number
+  default     = 1
+}
+
+# Router variables
+
+variable "router_volume_size" {
+  description = "Size of the in memory file system to be used by the application, in GB"
+  type        = number
+  default     = 1
 }

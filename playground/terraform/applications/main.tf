@@ -23,7 +23,7 @@ locals {
 data "terraform_remote_state" "playground-state" {
   backend = "gcs"
   config  = {
-    bucket = var.terraform_state_bucket
+    bucket = "playground_terraform"
     prefix = "terraform/state"
   }
 }
@@ -35,7 +35,15 @@ module "backend" {
   docker_registry_address = "${data.terraform_remote_state.playground-state.outputs.playground_registry_location}${local.registry_domain}/${var.project_id}/${data.terraform_remote_state.playground-state.outputs.playground_registry_name}"
   network_name            = data.terraform_remote_state.playground-state.outputs.playground_vpc_name
   environment             = var.environment
-  docker_image_tag        = "${var.docker_image_tag == "" ? var.environment : var.docker_image_tag}"
+  docker_image_tag        = var.docker_image_tag == "" ? var.environment : var.docker_image_tag
+  docker_image_name       = "${var.docker_image_name}-backend"
+  cache_type              = var.cache_type
+
+  go_volume_size     = var.go_volume_size
+  java_volume_size   = var.java_volume_size
+  python_volume_size = var.python_volume_size
+  router_volume_size = var.router_volume_size
+  scio_volume_size   = var.scio_volume_size
 }
 
 module "frontend" {
@@ -44,8 +52,8 @@ module "frontend" {
   docker_registry_address = "${data.terraform_remote_state.playground-state.outputs.playground_registry_location}${local.registry_domain}/${var.project_id}/${data.terraform_remote_state.playground-state.outputs.playground_registry_name}"
   network_name            = data.terraform_remote_state.playground-state.outputs.playground_vpc_name
   environment             = var.environment
-  docker_image_tag        = "${var.docker_image_tag == "" ? var.environment : var.docker_image_tag}"
-  docker_image_name       = var.frontend_docker_image_name
+  docker_image_tag        = var.docker_image_tag == "" ? var.environment : var.docker_image_tag
+  docker_image_name       = "${var.docker_image_name}-frontend"
   service_name            = var.frontend_service_name
 }
 

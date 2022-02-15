@@ -36,45 +36,27 @@ variable "docker_image_tag" {
   default     = ""
 }
 
-variable "terraform_state_bucket" {
-  description = "Bucket to store terraform state"
-}
-
 variable "backend_service_name" {
   default = "backend"
 }
+
+variable "docker_image_name" {
+  default     = "beam_playground"
+  description = "Base prefix for docker images"
+}
+
+variable "cache_type" {
+  description = "remote or local. Set remote to use Redis and local to use in-memory application level cache"
+  default     = "remote"
+}
+
 # Frontend variables
-
-variable "frontend_docker_image_name" {
-  description = "Docker Image Name To Be Deployed"
-  default     = "beam_playground-frontend"
-}
-
-variable "frontend_docker_image_tag" {
-  description = "Docker Image Tag To Be Deployed"
-  default     = "latest"
-}
 
 variable "frontend_service_name" {
   default = "frontend"
 }
 
 # SCIO variables
-
-variable "scio_docker_image_name" {
-  description = "Docker Image Name To Be Deployed"
-  default     = "beam_playground-backend-scio"
-}
-
-variable "scio_docker_image_tag" {
-  description = "Docker Image Tag To Be Deployed"
-  default     = "latest"
-}
-
-variable "scio_cache_type" {
-  description = "remote or local. Set remote to use Redis and local to use in-memory application level cache"
-  default     = "remote"
-}
 
 variable "scio_volume_size" {
   description = "Size of the in memory file system to be used by the application, in GB"
@@ -84,21 +66,6 @@ variable "scio_volume_size" {
 
 # Go variables
 
-variable "go_docker_image_name" {
-  description = "Docker Image Name To Be Deployed"
-  default     = "beam_playground-backend-scio"
-}
-
-variable "go_docker_image_tag" {
-  description = "Docker Image Tag To Be Deployed"
-  default     = "latest"
-}
-
-variable "go_cache_type" {
-  description = "remote or local. Set remote to use Redis and local to use in-memory application level cache"
-  default     = "remote"
-}
-
 variable "go_volume_size" {
   description = "Size of the in memory file system to be used by the application, in GB"
   type        = number
@@ -106,22 +73,6 @@ variable "go_volume_size" {
 }
 
 # Python variables
-
-variable "python_docker_image_name" {
-  description = "Docker Image Name To Be Deployed"
-  default     = "beam_playground-backend-scio"
-}
-
-variable "python_docker_image_tag" {
-  description = "Docker Image Tag To Be Deployed"
-  default     = "latest"
-}
-
-
-variable "python_cache_type" {
-  description = "remote or local. Set remote to use Redis and local to use in-memory application level cache"
-  default     = "remote"
-}
 
 variable "python_volume_size" {
   description = "Size of the in memory file system to be used by the application, in GB"
@@ -131,22 +82,6 @@ variable "python_volume_size" {
 
 # Java variables
 
-variable "java_docker_image_name" {
-  description = "Docker Image Name To Be Deployed"
-  default     = "beam_playground-backend-scio"
-}
-
-variable "java_docker_image_tag" {
-  description = "Docker Image Tag To Be Deployed"
-  default     = "latest"
-}
-
-
-variable "java_cache_type" {
-  description = "remote or local. Set remote to use Redis and local to use in-memory application level cache"
-  default     = "remote"
-}
-
 variable "java_volume_size" {
   description = "Size of the in memory file system to be used by the application, in GB"
   type        = number
@@ -154,21 +89,6 @@ variable "java_volume_size" {
 }
 
 # Router variables
-
-variable "router_docker_image_name" {
-  description = "Docker Image Name To Be Deployed"
-  default     = "beam_playground-backend-scio"
-}
-
-variable "router_docker_image_tag" {
-  description = "Docker Image Tag To Be Deployed"
-  default     = "latest"
-}
-
-variable "router_cache_type" {
-  description = "remote or local. Set remote to use Redis and local to use in-memory application level cache"
-  default     = "remote"
-}
 
 variable "router_volume_size" {
   description = "Size of the in memory file system to be used by the application, in GB"

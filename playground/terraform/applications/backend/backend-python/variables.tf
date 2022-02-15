@@ -55,3 +55,9 @@ variable "environment" {
   description = "prod,dev"
   default     = "dev"
 }
+
+variable "volume_size" {
+  description = "Size of the in memory file system to be used by the application, in GB"
+  type        = number
+  default     = 1
+}
