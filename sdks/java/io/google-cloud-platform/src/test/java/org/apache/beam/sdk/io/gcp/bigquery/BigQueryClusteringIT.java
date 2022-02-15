@@ -49,7 +49,8 @@ import org.junit.runners.JUnit4;
 /** Integration test that clusters sample data in BigQuery. */
 @RunWith(JUnit4.class)
 public class BigQueryClusteringIT {
-  private static final String DEFAULT_OUTPUT_CHECKSUM = "1ab4c7ec460b94bbb3c3885b178bf0e6bed56e1f";
+  private static final Long EXPECTED_BYTES = 55L;
+  private static final Integer EXPECTED_ROWS = 100;
   private static final String WEATHER_SAMPLES_TABLE =
       "clouddataflow-readonly:samples.weather_stations";
   private static final String DATASET_NAME = "BigQueryClusteringIT";
@@ -150,14 +151,17 @@ public class BigQueryClusteringIT {
 
     p.run().waitUntilFinish();
 
-    Table table = bqClient.tables().get(options.getProject(), DATASET_NAME, tableName).execute();
-
     String query =
         String.format("SELECT station_number, date FROM [%s.%s]", DATASET_NAME, tableName);
     assertThat(
         BigqueryMatcher.createQuery(options.getAppName(), options.getProject(), query),
         BigqueryMatcher.queryResultHasChecksum(DEFAULT_OUTPUT_CHECKSUM));
+
+    Table table = bqClient.tables().get(options.getProject(), DATASET_NAME, tableName).execute();
+
     Assert.assertEquals(CLUSTERING, table.getClustering());
+    Assert.assertEquals(EXPECTED_BYTES, table.getNumBytes());
+    Assert.assertEquals(EXPECTED_ROWS, table.getNumRows());
   }
 
   @Test
@@ -180,11 +184,8 @@ public class BigQueryClusteringIT {
 
     Table table = bqClient.tables().get(options.getProject(), DATASET_NAME, tableName).execute();
 
-    String query =
-        String.format("SELECT station_number, date FROM `%s.%s`", DATASET_NAME, tableName);
-    assertThat(
-        BigqueryMatcher.createQuery(options.getAppName(), options.getProject(), query),
-        BigqueryMatcher.queryResultHasChecksum(DEFAULT_OUTPUT_CHECKSUM));
     Assert.assertEquals(CLUSTERING, table.getClustering());
+    Assert.assertEquals(EXPECTED_BYTES, table.getNumBytes());
+    Assert.assertEquals(EXPECTED_ROWS, table.getNumRows());
   }
 }
