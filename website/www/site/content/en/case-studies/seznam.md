@@ -60,7 +60,7 @@ to Apache Beam pipelines running in Apache Spark and Apache Flink clusters in Se
 ## Journey to Apache Beam
 
 Seznam started using MapReduce in a Hadoop Yarn cluster back in 2010 to facilitate concurrent batch jobs processing
-for the web crawler component of their search engine.
+for the web crawler components of their search engine.
 Within several years, their data infrastructure evolved to [over 40 billion rows with 400 terabytes](https://www.youtube.com/watch?v=rJIpva0tD0g)
 in HBase, 2 on-premises data centers with over 1,100 bare metal servers, 13 PB storage, and 50 TB memory, which made their business logic more complex.
 MapReduce no longer provided enough flexibility, [cost efficiency, and performance](https://youtu.be/rJIpva0tD0g?t=130)
@@ -95,7 +95,7 @@ In 2014, Seznam started work on Euphoria API - a proprietary programming model t
 in batch and streaming pipelines and allow for runner independent implementation.
 
 Apache Beam was released in 2016 and became a readily available and well-defined unified programming model.
-This engine-independent model has been evolving very fast, supported multiple shuffle operators and fit perfectly
+This engine-independent model has been evolving very fast, supports multiple shuffle operators and fits perfectly
 into Seznam’s existing on-premises data infrastructure. For a while, Seznam continued to develop Euphoria,
 but soon the high cost and the amount of effort needed to maintain the solution and create their own
 runners in-house surpassed the benefits of having a proprietary framework.
@@ -147,6 +147,9 @@ runner pipeline that maps, joins, and processes search logs to calculate SLO met
 
 <div class="post-scheme">
     <img src="/images/seznam_scheme_3.png">
+</div>
+<div class="post-scheme">
+    <img src="/images/seznam_scheme_4.png">
 </div>
 
 Over the years, Seznam’s approach has evolved. They have realized the tremendous benefits of Apache Beam
@@ -201,10 +204,9 @@ After evaluation, Seznam transitioned their workloads to Apache Beam and integra
 [Euphoria API](https://beam.apache.org/documentation/sdks/java/euphoria/)
 (a fast prototyping framework developed by Seznam), contributing to the Apache Beam open source community.
 
-The Apache Beam abstraction and execution model allowed Seznam to robustly scale their data processing,
-provided the flexibility to write the business logic just once and keep freedom of choice between runners.
+The Apache Beam abstraction and execution model allowed Seznam to robustly scale their data processing.
+It also provided the flexibility to write the business logic just once and keep freedom of choice between runners.
 The model was especially valuable for pipeline maintainability in complex use cases.
 Apache Beam helped overcome memory and compute resource constraints by reshuffling unevenly distributed data into manageable partitions.
-Thus, Apache Beam reduced on-premises data center costs for Seznam’s petabyte-sized core business workloads.
 </div>
 <div class="clear-nav"></div>
