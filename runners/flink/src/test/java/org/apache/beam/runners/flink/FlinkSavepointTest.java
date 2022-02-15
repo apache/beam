@@ -25,6 +25,7 @@ import java.net.URI;
 import java.util.Collections;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -179,7 +180,7 @@ public class FlinkSavepointTest implements Serializable {
     options.setShutdownSourcesAfterIdleMs(Long.MAX_VALUE);
 
     oneShotLatch = new CountDownLatch(1);
-    options.setJobName("initial");
+    options.setJobName("initial-" + UUID.randomUUID());
     Pipeline pipeline = Pipeline.create(options);
     createStreamingJob(pipeline, false, isPortablePipeline);
 
@@ -197,7 +198,7 @@ public class FlinkSavepointTest implements Serializable {
     oneShotLatch = new CountDownLatch(1);
     // Increase parallelism
     options.setParallelism(4);
-    options.setJobName("restored");
+    options.setJobName("restored-" + UUID.randomUUID());
     pipeline = Pipeline.create(options);
     createStreamingJob(pipeline, true, isPortablePipeline);
 
@@ -264,9 +265,9 @@ public class FlinkSavepointTest implements Serializable {
         if (status.getJobState().equals(JobStatus.RUNNING)) {
           return status.getJobId();
         }
-        LOG.debug("Job '{}' is in state {}, waiting...", jobName, status.getJobState());
+        LOG.info("Job '{}' is in state {}, waiting...", jobName, status.getJobState());
       } else {
-        LOG.debug("Job '{}' does not yet exist, waiting...", jobName);
+        LOG.info("Job '{}' does not yet exist, waiting...", jobName);
       }
       Thread.sleep(100);
     }
