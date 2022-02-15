@@ -133,11 +133,4 @@ public class DaoFactory implements Serializable {
     }
     return changeStreamDaoInstance;
   }
-
-  /** Resets the DaoFactory for testing. */
-  public static void reset() {
-    partitionMetadataAdminDao = null;
-    partitionMetadataDaoInstance = null;
-    changeStreamDaoInstance = null;
-  }
 }

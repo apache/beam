@@ -108,12 +108,15 @@ public class SpannerAccessor implements AutoCloseable {
   private static SpannerAccessor createAndConnect(SpannerConfig spannerConfig) {
     SpannerOptions.Builder builder = SpannerOptions.newBuilder();
 
-    // Set retryable codes
+    // Set retryable codes for all API methods
     if (spannerConfig.getRetryableCodes() != null) {
       builder
           .getSpannerStubSettingsBuilder()
-          .commitSettings()
-          .setRetryableCodes(spannerConfig.getRetryableCodes());
+          .applyToAllUnaryMethods(
+              input -> {
+                input.setRetryableCodes(spannerConfig.getRetryableCodes());
+                return null;
+              });
       builder
           .getSpannerStubSettingsBuilder()
           .executeStreamingSqlSettings()

@@ -97,11 +97,11 @@ public class SpannerChangeStreamErrorTest implements Serializable {
   }
 
   @After
-  public void tearDown() {
+  public void tearDown() throws NoSuchFieldException, IllegalAccessException {
     serviceHelper.reset();
     serviceHelper.stop();
     mockSpannerService.reset();
-    DaoFactory.reset();
+    resetDaoFactoryFields();
   }
 
   @Test
@@ -211,158 +211,15 @@ public class SpannerChangeStreamErrorTest implements Serializable {
     final Timestamp after3Seconds =
         Timestamp.ofTimeSecondsAndNanos(now.getSeconds() + 3, now.getNanos());
 
-    Statement tableExistsStatement =
-        Statement.of(
-            "SELECT t.table_name FROM information_schema.tables AS t WHERE t.table_catalog = '' AND t.table_schema = '' AND t.table_name = 'my-metadata-table'");
-    ResultSetMetadata tableExistsResultSetMetadata =
-        ResultSetMetadata.newBuilder()
-            .setRowType(
-                StructType.newBuilder()
-                    .addFields(
-                        Field.newBuilder()
-                            .setName("table_name")
-                            .setType(Type.newBuilder().setCode(TypeCode.STRING).build())
-                            .build())
-                    .build())
-            .build();
-    ResultSet tableExistsResultSet =
-        ResultSet.newBuilder()
-            .addRows(
-                ListValue.newBuilder()
-                    .addValues(Value.newBuilder().setStringValue(TEST_TABLE).build())
-                    .build())
-            .setMetadata(tableExistsResultSetMetadata)
-            .build();
-    mockSpannerService.putStatementResult(
-        StatementResult.query(tableExistsStatement, tableExistsResultSet));
-
-    Statement getPartitionStatement =
-        Statement.newBuilder("SELECT * FROM my-metadata-table WHERE PartitionToken = @partition")
-            .bind("partition")
-            .to("Parent0")
-            .build();
-    ResultSetMetadata partitionMetadataResultSetMetadata =
-        ResultSetMetadata.newBuilder()
-            .setRowType(
-                StructType.newBuilder()
-                    .addFields(
-                        Field.newBuilder()
-                            .setName(COLUMN_PARTITION_TOKEN)
-                            .setType(Type.newBuilder().setCode(TypeCode.STRING))
-                            .build())
-                    .addFields(
-                        Field.newBuilder()
-                            .setName(COLUMN_PARENT_TOKENS)
-                            .setType(
-                                Type.newBuilder()
-                                    .setCode(TypeCode.ARRAY)
-                                    .setArrayElementType(
-                                        Type.newBuilder().setCode(TypeCode.STRING)))
-                            .build())
-                    .addFields(
-                        Field.newBuilder()
-                            .setName(COLUMN_START_TIMESTAMP)
-                            .setType(Type.newBuilder().setCode(TypeCode.TIMESTAMP)))
-                    .addFields(
-                        Field.newBuilder()
-                            .setName(COLUMN_END_TIMESTAMP)
-                            .setType(Type.newBuilder().setCode(TypeCode.TIMESTAMP)))
-                    .addFields(
-                        Field.newBuilder()
-                            .setName(COLUMN_HEARTBEAT_MILLIS)
-                            .setType(Type.newBuilder().setCode(TypeCode.INT64)))
-                    .addFields(
-                        Field.newBuilder()
-                            .setName(COLUMN_STATE)
-                            .setType(Type.newBuilder().setCode(TypeCode.STRING)))
-                    .addFields(
-                        Field.newBuilder()
-                            .setName(COLUMN_WATERMARK)
-                            .setType(Type.newBuilder().setCode(TypeCode.TIMESTAMP)))
-                    .addFields(
-                        Field.newBuilder()
-                            .setName(COLUMN_CREATED_AT)
-                            .setType(Type.newBuilder().setCode(TypeCode.TIMESTAMP)))
-                    .addFields(
-                        Field.newBuilder()
-                            .setName(COLUMN_SCHEDULED_AT)
-                            .setType(Type.newBuilder().setCode(TypeCode.TIMESTAMP)))
-                    .addFields(
-                        Field.newBuilder()
-                            .setName(COLUMN_RUNNING_AT)
-                            .setType(Type.newBuilder().setCode(TypeCode.TIMESTAMP)))
-                    .addFields(
-                        Field.newBuilder()
-                            .setName(COLUMN_FINISHED_AT)
-                            .setType(Type.newBuilder().setCode(TypeCode.TIMESTAMP)))
-                    .build())
-            .build();
-    ResultSet getPartitionResultSet =
-        ResultSet.newBuilder()
-            .addRows(
-                ListValue.newBuilder()
-                    .addValues(Value.newBuilder().setStringValue("Parent0"))
-                    .addValues(Value.newBuilder().setListValue(ListValue.newBuilder().build()))
-                    .addValues(Value.newBuilder().setStringValue(now.toString()))
-                    .addValues(Value.newBuilder().setStringValue(after3Seconds.toString()))
-                    .addValues(Value.newBuilder().setStringValue("500"))
-                    .addValues(Value.newBuilder().setStringValue(State.CREATED.name()))
-                    .addValues(Value.newBuilder().setStringValue(now.toString()))
-                    .addValues(Value.newBuilder().setStringValue(now.toString()))
-                    .addValues(Value.newBuilder().setNullValue(NullValue.NULL_VALUE).build())
-                    .addValues(Value.newBuilder().setNullValue(NullValue.NULL_VALUE).build())
-                    .addValues(Value.newBuilder().setNullValue(NullValue.NULL_VALUE).build())
-                    .build())
-            .setMetadata(partitionMetadataResultSetMetadata)
-            .build();
-    mockSpannerService.putStatementResult(
-        StatementResult.query(getPartitionStatement, getPartitionResultSet));
-
-    Statement watermarkStatement =
-        Statement.newBuilder(
-                "SELECT Watermark FROM my-metadata-table WHERE State != @state ORDER BY Watermark ASC LIMIT 1")
-            .bind("state")
-            .to(State.FINISHED.name())
-            .build();
-    ResultSetMetadata watermarkResultSetMetadata =
-        ResultSetMetadata.newBuilder()
-            .setRowType(
-                StructType.newBuilder()
-                    .addFields(
-                        Field.newBuilder()
-                            .setName("Watermark")
-                            .setType(Type.newBuilder().setCode(TypeCode.TIMESTAMP).build())
-                            .build())
-                    .build())
-            .build();
-    ResultSet watermarkResultSet =
-        ResultSet.newBuilder()
-            .addRows(
-                ListValue.newBuilder()
-                    .addValues(Value.newBuilder().setStringValue(now.toString()).build())
-                    .build())
-            .setMetadata(watermarkResultSetMetadata)
-            .build();
-    mockSpannerService.putStatementResult(
-        StatementResult.query(watermarkStatement, watermarkResultSet));
-
-    Statement getPartitionsAfterStatement =
-        Statement.newBuilder(
-                "SELECT * FROM my-metadata-table WHERE CreatedAt > @timestamp ORDER BY CreatedAt ASC, StartTimestamp ASC")
-            .bind("timestamp")
-            .to(Timestamp.ofTimeSecondsAndNanos(now.getSeconds(), now.getNanos() - 1_000))
-            .build();
-    mockSpannerService.putStatementResult(
-        StatementResult.query(getPartitionsAfterStatement, getPartitionResultSet));
-
-    Statement getPartitionsAfterStatement2 =
-        Statement.newBuilder(
-                "SELECT * FROM my-metadata-table WHERE CreatedAt > @timestamp ORDER BY CreatedAt ASC, StartTimestamp ASC")
-            .bind("timestamp")
-            .to(Timestamp.ofTimeSecondsAndNanos(now.getSeconds(), now.getNanos() + 1_000))
-            .build();
-    mockSpannerService.putStatementResult(
-        StatementResult.query(getPartitionsAfterStatement2, getPartitionResultSet));
+    mockTableExists();
+    ResultSet getPartitionResultSet = mockGetParentPartition(now, after3Seconds);
+    mockGetWatermark(now);
+    mockGetPartitionsAfter(
+        Timestamp.ofTimeSecondsAndNanos(now.getSeconds(), now.getNanos() + 1000),
+        getPartitionResultSet);
+    mockGetPartitionsAfter(
+        Timestamp.ofTimeSecondsAndNanos(now.getSeconds(), now.getNanos() - 1000),
+        getPartitionResultSet);
 
     Statement changeStreamQueryStatement =
         Statement.newBuilder(
@@ -406,14 +263,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
                                                                                             .newBuilder()
                                                                                             .setCode(
                                                                                                 TypeCode
-                                                                                                    .STRING))
-                                                                                    .build())
-                                                                            .build())))
-                                                    .build())
-                                            .build())
-                                    .build())
-                            .build())
-                    .build())
+                                                                                                    .STRING)))))))))))
             .build();
     ResultSet readChangeStreamResultSet =
         ResultSet.newBuilder()
@@ -434,12 +284,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
                                                                     .addValues(
                                                                         Value.newBuilder()
                                                                             .setStringValue(
-                                                                                "bad_value")
-                                                                            .build()))
-                                                            .build()))
-                                            .build())
-                                    .build())
-                            .build()))
+                                                                                "bad_value")))))))))
             .setMetadata(readChangeStreamResultSetMetadata)
             .build();
     mockSpannerService.putStatementResult(
@@ -461,6 +306,103 @@ public class SpannerChangeStreamErrorTest implements Serializable {
     }
   }
 
+  private void mockGetPartitionsAfter(Timestamp timestamp, ResultSet getPartitionResultSet) {
+    Statement getPartitionsAfterStatement =
+        Statement.newBuilder(
+                "SELECT * FROM my-metadata-table WHERE CreatedAt > @timestamp ORDER BY CreatedAt ASC, StartTimestamp ASC")
+            .bind("timestamp")
+            .to(Timestamp.ofTimeSecondsAndNanos(timestamp.getSeconds(), timestamp.getNanos()))
+            .build();
+    mockSpannerService.putStatementResult(
+        StatementResult.query(getPartitionsAfterStatement, getPartitionResultSet));
+  }
+
+  private void mockGetWatermark(Timestamp now) {
+    Statement watermarkStatement =
+        Statement.newBuilder(
+                "SELECT Watermark FROM my-metadata-table WHERE State != @state ORDER BY Watermark ASC LIMIT 1")
+            .bind("state")
+            .to(State.FINISHED.name())
+            .build();
+    ResultSetMetadata watermarkResultSetMetadata =
+        ResultSetMetadata.newBuilder()
+            .setRowType(
+                StructType.newBuilder()
+                    .addFields(
+                        Field.newBuilder()
+                            .setName("Watermark")
+                            .setType(Type.newBuilder().setCode(TypeCode.TIMESTAMP).build())
+                            .build())
+                    .build())
+            .build();
+    ResultSet watermarkResultSet =
+        ResultSet.newBuilder()
+            .addRows(
+                ListValue.newBuilder()
+                    .addValues(Value.newBuilder().setStringValue(now.toString()).build())
+                    .build())
+            .setMetadata(watermarkResultSetMetadata)
+            .build();
+    mockSpannerService.putStatementResult(
+        StatementResult.query(watermarkStatement, watermarkResultSet));
+  }
+
+  private ResultSet mockGetParentPartition(Timestamp now, Timestamp after3Seconds) {
+    Statement getPartitionStatement =
+        Statement.newBuilder("SELECT * FROM my-metadata-table WHERE PartitionToken = @partition")
+            .bind("partition")
+            .to("Parent0")
+            .build();
+    ResultSet getPartitionResultSet =
+        ResultSet.newBuilder()
+            .addRows(
+                ListValue.newBuilder()
+                    .addValues(Value.newBuilder().setStringValue("Parent0"))
+                    .addValues(Value.newBuilder().setListValue(ListValue.newBuilder().build()))
+                    .addValues(Value.newBuilder().setStringValue(now.toString()))
+                    .addValues(Value.newBuilder().setStringValue(after3Seconds.toString()))
+                    .addValues(Value.newBuilder().setStringValue("500"))
+                    .addValues(Value.newBuilder().setStringValue(State.CREATED.name()))
+                    .addValues(Value.newBuilder().setStringValue(now.toString()))
+                    .addValues(Value.newBuilder().setStringValue(now.toString()))
+                    .addValues(Value.newBuilder().setNullValue(NullValue.NULL_VALUE).build())
+                    .addValues(Value.newBuilder().setNullValue(NullValue.NULL_VALUE).build())
+                    .addValues(Value.newBuilder().setNullValue(NullValue.NULL_VALUE).build())
+                    .build())
+            .setMetadata(PARTITION_METADATA_RESULT_SET_METADATA)
+            .build();
+    mockSpannerService.putStatementResult(
+        StatementResult.query(getPartitionStatement, getPartitionResultSet));
+    return getPartitionResultSet;
+  }
+
+  private void mockTableExists() {
+    Statement tableExistsStatement =
+        Statement.of(
+            "SELECT t.table_name FROM information_schema.tables AS t WHERE t.table_catalog = '' AND t.table_schema = '' AND t.table_name = 'my-metadata-table'");
+    ResultSetMetadata tableExistsResultSetMetadata =
+        ResultSetMetadata.newBuilder()
+            .setRowType(
+                StructType.newBuilder()
+                    .addFields(
+                        Field.newBuilder()
+                            .setName("table_name")
+                            .setType(Type.newBuilder().setCode(TypeCode.STRING).build())
+                            .build())
+                    .build())
+            .build();
+    ResultSet tableExistsResultSet =
+        ResultSet.newBuilder()
+            .addRows(
+                ListValue.newBuilder()
+                    .addValues(Value.newBuilder().setStringValue(TEST_TABLE).build())
+                    .build())
+            .setMetadata(tableExistsResultSetMetadata)
+            .build();
+    mockSpannerService.putStatementResult(
+        StatementResult.query(tableExistsStatement, tableExistsResultSet));
+  }
+
   private SpannerConfig getSpannerConfig() {
     RetrySettings quickRetrySettings =
         RetrySettings.newBuilder()
@@ -478,4 +420,75 @@ public class SpannerChangeStreamErrorTest implements Serializable {
         .withInstanceId(TEST_INSTANCE)
         .withDatabaseId(TEST_DATABASE);
   }
+
+  private static void resetDaoFactoryFields() throws NoSuchFieldException, IllegalAccessException {
+    java.lang.reflect.Field partitionMetadataAdminDaoField =
+        DaoFactory.class.getDeclaredField("partitionMetadataAdminDao");
+    partitionMetadataAdminDaoField.setAccessible(true);
+    partitionMetadataAdminDaoField.set(null, null);
+    java.lang.reflect.Field partitionMetadataDaoInstanceField =
+        DaoFactory.class.getDeclaredField("partitionMetadataDaoInstance");
+    partitionMetadataDaoInstanceField.setAccessible(true);
+    partitionMetadataDaoInstanceField.set(null, null);
+    java.lang.reflect.Field changeStreamDaoInstanceField =
+        DaoFactory.class.getDeclaredField("changeStreamDaoInstance");
+    changeStreamDaoInstanceField.setAccessible(true);
+    changeStreamDaoInstanceField.set(null, null);
+  }
+
+  private final ResultSetMetadata PARTITION_METADATA_RESULT_SET_METADATA =
+      ResultSetMetadata.newBuilder()
+          .setRowType(
+              StructType.newBuilder()
+                  .addFields(
+                      Field.newBuilder()
+                          .setName(COLUMN_PARTITION_TOKEN)
+                          .setType(Type.newBuilder().setCode(TypeCode.STRING))
+                          .build())
+                  .addFields(
+                      Field.newBuilder()
+                          .setName(COLUMN_PARENT_TOKENS)
+                          .setType(
+                              Type.newBuilder()
+                                  .setCode(TypeCode.ARRAY)
+                                  .setArrayElementType(Type.newBuilder().setCode(TypeCode.STRING)))
+                          .build())
+                  .addFields(
+                      Field.newBuilder()
+                          .setName(COLUMN_START_TIMESTAMP)
+                          .setType(Type.newBuilder().setCode(TypeCode.TIMESTAMP)))
+                  .addFields(
+                      Field.newBuilder()
+                          .setName(COLUMN_END_TIMESTAMP)
+                          .setType(Type.newBuilder().setCode(TypeCode.TIMESTAMP)))
+                  .addFields(
+                      Field.newBuilder()
+                          .setName(COLUMN_HEARTBEAT_MILLIS)
+                          .setType(Type.newBuilder().setCode(TypeCode.INT64)))
+                  .addFields(
+                      Field.newBuilder()
+                          .setName(COLUMN_STATE)
+                          .setType(Type.newBuilder().setCode(TypeCode.STRING)))
+                  .addFields(
+                      Field.newBuilder()
+                          .setName(COLUMN_WATERMARK)
+                          .setType(Type.newBuilder().setCode(TypeCode.TIMESTAMP)))
+                  .addFields(
+                      Field.newBuilder()
+                          .setName(COLUMN_CREATED_AT)
+                          .setType(Type.newBuilder().setCode(TypeCode.TIMESTAMP)))
+                  .addFields(
+                      Field.newBuilder()
+                          .setName(COLUMN_SCHEDULED_AT)
+                          .setType(Type.newBuilder().setCode(TypeCode.TIMESTAMP)))
+                  .addFields(
+                      Field.newBuilder()
+                          .setName(COLUMN_RUNNING_AT)
+                          .setType(Type.newBuilder().setCode(TypeCode.TIMESTAMP)))
+                  .addFields(
+                      Field.newBuilder()
+                          .setName(COLUMN_FINISHED_AT)
+                          .setType(Type.newBuilder().setCode(TypeCode.TIMESTAMP)))
+                  .build())
+          .build();
 }
