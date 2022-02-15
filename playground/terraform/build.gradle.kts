@@ -26,25 +26,34 @@ terraformPlugin {
     terraformVersion.set("1.0.9")
 }
 
-
 tasks {
-
-    register<TerraformTask>("terraformInit") {
+    /* init Infrastucture for migrate */
+    register<TerraformTask>("erraformInit") {
         // exec args can be passed by commandline, for example
-        var project_id = System.getenv("PLAYGROUND_PROJECT_ID")
-        var environment = System.getenv("PLAYGROUND_ENVIRONMENT")
+        var project_id = project.property("project_id") as String?
+        var environment = project.property("project_environment") as String?
         args(
-            "init", "-upgrade",
+            "init", "-migrate-state",
+            "-var=project_id=$project_id",
+            "-var=environment=$environment"
+        )
+    }
+    /* refresh Infrastucture for remote state */
+    register<TerraformTask>("terraformRef") {
+        var project_id = project.property("project_id") as String?
+        var environment = project.property("project_environment") as String?
+        args(
+            "refresh",
             "-var=project_id=$project_id",
             "-var=environment=$environment"
         )
     }
 
+    /* deploy all App */
     register<TerraformTask>("terraformApplyApp") {
-        var project_id = System.getenv("PLAYGROUND_PROJECT_ID")
-        var environment = System.getenv("PLAYGROUND_ENVIRONMENT")
-        var docker_tag = System.getenv("PLAYGROUND_DOCKER_TAG")
-        )
+        var project_id = project.property("project_id") as String?
+        var environment = project.property("project_environment") as String?
+        var docker_tag = if (project.hasProperty("docker-tag")) { project.property("docker-tag") as String } else {environment}
         args(
             "apply",
             "-auto-approve",
@@ -56,10 +65,11 @@ tasks {
         )
     }
 
+    /* deploy  App - Only all services for  backend */
     register<TerraformTask>("terraformApplyAppBack") {
-        var project_id = System.getenv("PLAYGROUND_PROJECT_ID")
-        var environment = System.getenv("PLAYGROUND_ENVIRONMENT")
-        var docker_tag = System.getenv("PLAYGROUND_DOCKER_TAG")
+        var project_id = project.property("project_id") as String?
+        var environment = project.property("project_environment") as String?
+        var docker_tag = if (project.hasProperty("docker-tag")) { project.property("docker-tag") as String } else {environment}
         args(
             "apply",
             "-auto-approve",
@@ -70,11 +80,13 @@ tasks {
             "-var=docker_image_tag=$docker_tag"
         )
     }
+
+    /* deploy  App - Only services for frontend */
     register<TerraformTask>("terraformApplyAppFront") {
-        var project_id = System.getenv("PLAYGROUND_PROJECT_ID")
-        var environment = System.getenv("PLAYGROUND_ENVIRONMENT")
-        var docker_tag = System.getenv("PLAYGROUND_DOCKER_TAG")
-      args(
+        var project_id = project.property("project_id") as String?
+        var environment = project.property("project_environment") as String?
+        var docker_tag = if (project.hasProperty("docker-tag")) { project.property("docker-tag") as String } else {environment}
+        args(
             "apply",
             "-auto-approve",
             "-lock=false",
@@ -85,9 +97,10 @@ tasks {
         )
     }
 
+    /* build only Infrastructurte */
     register<TerraformTask>("terraformApplyInf") {
-        var project_id = System.getenv("PLAYGROUND_PROJECT_ID")
-        var environment = System.getenv("PLAYGROUND_ENVIRONMENT")
+        var project_id = project.property("project_id") as String?
+        var environment = project.property("project_environment") as String?
         args(
             "apply",
             "-auto-approve",
@@ -98,10 +111,11 @@ tasks {
         )
     }
 
+    /* build All */
     register<TerraformTask>("terraformApply") {
-        var project_id = System.getenv("PLAYGROUND_PROJECT_ID")
-        var environment = System.getenv("PLAYGROUND_ENVIRONMENT")
-        var docker_tag = System.getenv("PLAYGROUND_DOCKER_TAG")
+        var project_id = project.property("project_id") as String?
+        var environment = project.property("project_environment") as String?
+        var docker_tag = if (project.hasProperty("docker-tag")) { project.property("docker-tag") as String } else {environment}
         args(
             "apply",
             "-auto-approve",
@@ -113,10 +127,9 @@ tasks {
     }
 
     register<TerraformTask>("terraformDestroy") {
-        var project_id = System.getenv("PLAYGROUND_PROJECT_ID")
-        var environment = System.getenv("PLAYGROUND_ENVIRONMENT")
+        var project_id = project.property("project_id") as String?
+        var environment = project.property("project_environment") as String?
         args("destroy", "-auto-approve", "-lock=false", "-var=project_id=$project_id", "-var=environment=$environment")
     }
-
-
 }
+
