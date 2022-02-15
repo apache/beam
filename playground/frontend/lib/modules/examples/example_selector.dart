@@ -23,6 +23,8 @@ import 'package:playground/config/theme.dart';
 import 'package:playground/constants/links.dart';
 import 'package:playground/constants/sizes.dart';
 import 'package:playground/modules/examples/components/examples_components.dart';
+import 'package:playground/modules/examples/components/outside_click_handler.dart';
+import 'package:playground/modules/examples/models/popover_state.dart';
 import 'package:playground/modules/examples/models/selector_size_model.dart';
 import 'package:playground/pages/playground/states/example_selector_state.dart';
 import 'package:playground/pages/playground/states/examples_state.dart';
@@ -124,54 +126,54 @@ class _ExampleSelectorState extends State<ExampleSelector>
 
     return OverlayEntry(
       builder: (context) {
-        return Consumer2<ExampleState, PlaygroundState>(
-          builder: (context, exampleState, playgroundState, child) => Stack(
-            children: [
-              GestureDetector(
-                onTap: () {
-                  closeDropdown(exampleState);
-                  // handle description dialogs
-                  Navigator.of(context, rootNavigator: true).popUntil((route) {
-                    return route.isFirst;
-                  });
-                },
-                child: Container(
-                  color: Colors.transparent,
-                  height: double.infinity,
-                  width: double.infinity,
-                ),
-              ),
-              ChangeNotifierProvider(
-                create: (context) => ExampleSelectorState(
-                  exampleState,
-                  playgroundState,
-                  exampleState.getCategories(playgroundState.sdk)!,
-                ),
-                builder: (context, _) => Positioned(
-                  left: posModel.xAlignment,
-                  top: posModel.yAlignment + kAdditionalDyAlignment,
-                  child: SlideTransition(
-                    position: offsetAnimation,
-                    child: Material(
-                      elevation: kElevation.toDouble(),
-                      child: Container(
-                        height: kLgContainerHeight,
-                        width: kLgContainerWidth,
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).backgroundColor,
-                          borderRadius: BorderRadius.circular(kMdBorderRadius),
+        return ChangeNotifierProvider<PopoverState>(
+          create: (context) => PopoverState(false),
+          builder: (context, state) {
+            return Consumer2<ExampleState, PlaygroundState>(
+              builder: (context, exampleState, playgroundState, child) => Stack(
+                children: [
+                  OutsideClickHandler(
+                    onTap: () {
+                      closeDropdown(exampleState);
+                      // handle description dialogs
+                      Navigator.of(context, rootNavigator: true).popUntil((route) {
+                        return route.isFirst;
+                      });
+                    },
+                  ),
+                  ChangeNotifierProvider(
+                    create: (context) => ExampleSelectorState(
+                      exampleState,
+                      playgroundState,
+                      exampleState.getCategories(playgroundState.sdk)!,
+                    ),
+                    builder: (context, _) => Positioned(
+                      left: posModel.xAlignment,
+                      top: posModel.yAlignment + kAdditionalDyAlignment,
+                      child: SlideTransition(
+                        position: offsetAnimation,
+                        child: Material(
+                          elevation: kElevation.toDouble(),
+                          child: Container(
+                            height: kLgContainerHeight,
+                            width: kLgContainerWidth,
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).backgroundColor,
+                              borderRadius: BorderRadius.circular(kMdBorderRadius),
+                            ),
+                            child: exampleState.sdkCategories == null ||
+                                    playgroundState.selectedExample == null
+                                ? const LoadingIndicator(size: kContainerHeight)
+                                : _buildDropdownContent(context, playgroundState),
+                          ),
                         ),
-                        child: exampleState.sdkCategories == null ||
-                                playgroundState.selectedExample == null
-                            ? const LoadingIndicator(size: kContainerHeight)
-                            : _buildDropdownContent(context, playgroundState),
                       ),
                     ),
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
+            );
+          }
         );
       },
     );

@@ -29,6 +29,8 @@ class MultifilePopoverButton extends StatelessWidget {
   final ExampleModel example;
   final Alignment followerAnchor;
   final Alignment targetAnchor;
+  final void Function()? onOpen;
+  final void Function()? onClose;
 
   const MultifilePopoverButton({
     Key? key,
@@ -36,6 +38,8 @@ class MultifilePopoverButton extends StatelessWidget {
     required this.example,
     required this.followerAnchor,
     required this.targetAnchor,
+    this.onOpen,
+    this.onClose,
   }) : super(key: key);
 
   @override
@@ -60,12 +64,15 @@ class MultifilePopoverButton extends StatelessWidget {
     ExampleModel example,
     Alignment followerAnchor,
     Alignment targetAnchor,
-  ) {
+  ) async {
     // close previous dialogs
     Navigator.of(context, rootNavigator: true).popUntil((route) {
       return route.isFirst;
     });
-    showAlignedDialog(
+    if (onOpen != null) {
+      onOpen!();
+    }
+    await showAlignedDialog(
       context: context,
       builder: (dialogContext) => MultifilePopover(
         example: example,
@@ -74,5 +81,8 @@ class MultifilePopoverButton extends StatelessWidget {
       targetAnchor: targetAnchor,
       barrierColor: Colors.transparent,
     );
+    if (onClose != null) {
+      onClose!();
+    }
   }
 }

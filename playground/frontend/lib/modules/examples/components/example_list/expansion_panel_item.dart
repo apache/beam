@@ -22,6 +22,7 @@ import 'package:playground/modules/analytics/analytics_service.dart';
 import 'package:playground/modules/examples/components/description_popover/description_popover_button.dart';
 import 'package:playground/modules/examples/components/multifile_popover/multifile_popover_button.dart';
 import 'package:playground/modules/examples/models/example_model.dart';
+import 'package:playground/modules/examples/models/popover_state.dart';
 import 'package:playground/pages/playground/states/examples_state.dart';
 import 'package:playground/pages/playground/states/playground_state.dart';
 import 'package:provider/provider.dart';
@@ -81,12 +82,24 @@ class ExpansionPanelItem extends StatelessWidget {
                           example: example,
                           followerAnchor: Alignment.topLeft,
                           targetAnchor: Alignment.topRight,
+                          onOpen: () =>
+                              Provider.of<PopoverState>(context, listen: false)
+                                  .setOpen(true),
+                          onClose: () =>
+                              Provider.of<PopoverState>(context, listen: false)
+                                  .setOpen(false),
                         ),
                       DescriptionPopoverButton(
                         parentContext: context,
                         example: example,
                         followerAnchor: Alignment.topLeft,
                         targetAnchor: Alignment.topRight,
+                        onOpen: () =>
+                            Provider.of<PopoverState>(context, listen: false)
+                                .setOpen(true),
+                        onClose: () =>
+                            Provider.of<PopoverState>(context, listen: false)
+                                .setOpen(false),
                       ),
                     ],
                   )
