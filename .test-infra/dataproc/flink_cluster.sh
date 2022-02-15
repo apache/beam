@@ -46,7 +46,7 @@ set -Eeuxo pipefail
 
 # GCloud properties
 GCLOUD_ZONE="${GCLOUD_ZONE:=us-central1-a}"
-DATAPROC_VERSION="${DATAPROC_VERSION:=1.5}"
+DATAPROC_VERSION="${DATAPROC_VERSION:=2.0}"
 
 MASTER_NAME="$CLUSTER_NAME-m"
 
