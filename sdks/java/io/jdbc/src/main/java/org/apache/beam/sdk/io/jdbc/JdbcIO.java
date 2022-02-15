@@ -1267,19 +1267,47 @@ public class JdbcIO {
               .apply("Partitioning", ParDo.of(new PartitioningFn<>(getPartitionColumnType())))
               .apply("Reshuffle partitions", Reshuffle.viaRandomKey());
 
-      JdbcIO.ReadAll<KV<PartitionColumnT, PartitionColumnT>, T> readAll =
-          JdbcIO.<KV<PartitionColumnT, PartitionColumnT>, T>readAll()
+      // DoFn<KV<PartitionColumnT, PartitionColumnT>, T> fn =
+      //     new ReadSDF<PartitionColumnT, T>(
+      //         getDataSourceProviderFn(),
+      //         String.format(
+      //             "select * from %1$s where %2$s >= ? and %2$s < ?",
+      //             getTable(), getPartitionColumn()),
+      //
+      // (JdbcUtil.JdbcReadWithPartitionsHelper.getPartitionsHelper(getPartitionColumnType()))
+      //             ::setParameters,
+      //         rowMapper,
+      //         1000,
+      //
+      // (JdbcUtil.JdbcReadWithPartitionsHelper.getPartitionsHelper(getPartitionColumnType())),
+      //         new SerializableFunction<ResultSet, PartitionColumnT>() {
+      //           @Override
+      //           public PartitionColumnT apply(ResultSet input) {
+      //             try {
+      //               return (PartitionColumnT) input.getObject(getPartitionColumn());
+      //             } catch (java.sql.SQLException e) {
+      //               throw new RuntimeException(e);
+      //             }
+      //           }
+      //         });
+
+      ReadAllWithSdf<PartitionColumnT, T> readAll =
+          ReadAllWithSdf.<PartitionColumnT, T>create()
               .withDataSourceProviderFn(getDataSourceProviderFn())
               .withQuery(
                   String.format(
-                      "select * from %1$s where %2$s >= ? and %2$s < ?",
+                      "select * from %1$s where %2$s >= ? and %2$s < ? ORDER BY %2$s ASC",
                       getTable(), getPartitionColumn()))
               .withRowMapper(rowMapper)
+              .withPartitioningColumn(getPartitionColumn())
+              .withRestrictionCoder(ranges.getCoder())
               .withParameterSetter(
                   (JdbcUtil.JdbcReadWithPartitionsHelper.getPartitionsHelper(
                           getPartitionColumnType()))
                       ::setParameters)
-              .withOutputParallelization(false);
+              .withHelper(
+                  JdbcUtil.JdbcReadWithPartitionsHelper.getPartitionsHelper(
+                      getPartitionColumnType()));
 
       if (getUseBeamSchema()) {
         readAll = readAll.withCoder((Coder<T>) RowCoder.of(schema));

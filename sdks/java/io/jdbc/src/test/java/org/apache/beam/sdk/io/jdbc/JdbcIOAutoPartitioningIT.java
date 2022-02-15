@@ -48,10 +48,10 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
+import org.junit.rules.Timeout;
 import org.junit.runner.Description;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -69,6 +69,8 @@ public class JdbcIOAutoPartitioningIT {
 
   public static final Integer NUM_ROWS = 1_000;
   public static final String TABLE_NAME = "baseTable";
+
+  @Rule public final Timeout testTimeout = Timeout.seconds(60);
 
   @ClassRule public static TestPipeline pipelineWrite = TestPipeline.create();
   @Rule public TestPipeline pipelineRead = TestPipeline.create();
@@ -139,7 +141,7 @@ public class JdbcIOAutoPartitioningIT {
           dbDs,
           TABLE_NAME,
           Lists.newArrayList(
-              KV.of("id", "INTEGER"),
+              KV.of("id", "BIGINT"),
               KV.of("name", "VARCHAR(50)"),
               KV.of("specialDate", "TIMESTAMP")));
     } catch (SQLException e) {
@@ -188,12 +190,12 @@ public class JdbcIOAutoPartitioningIT {
 
   @DefaultSchema(JavaFieldSchema.class)
   static class RowData {
-    public final Integer id;
+    public final Long id;
     public final String name;
     public final DateTime specialDate;
 
     @SchemaCreate
-    public RowData(Integer id, String name, DateTime specialDate) {
+    public RowData(Long id, String name, DateTime specialDate) {
       this.id = id;
       this.name = name;
       this.specialDate = specialDate;
@@ -211,7 +213,7 @@ public class JdbcIOAutoPartitioningIT {
       StringBuilder sb = new StringBuilder(rnd.nextInt(50));
       for (int i = 0; i < sb.capacity(); i++) {
         int nextChar = rnd.nextInt();
-        while (!Character.isBmpCodePoint(nextChar)) {
+        while (!Character.isBmpCodePoint(nextChar) || nextChar == 0) {
           nextChar = rnd.nextInt();
         }
         sb.append(Character.toChars(nextChar)[0]);
@@ -224,12 +226,13 @@ public class JdbcIOAutoPartitioningIT {
       Random rnd = new Random(input);
       int millisOffset = rnd.nextInt();
       millisOffset = millisOffset < 0 ? -millisOffset : millisOffset;
-      int id = rnd.nextInt();
+      long id = rnd.nextLong();
       MapRowDataFn.intDist.update(id);
       MapRowDataFn.millisDist.update(millisOffset);
       return new RowData(
           id,
           randomStr(rnd.nextInt()),
+          // String.valueOf(rnd.nextDouble()),
           new DateTime(Instant.EPOCH.plus(Duration.millis(millisOffset))));
     }
   }
@@ -238,7 +241,7 @@ public class JdbcIOAutoPartitioningIT {
     @Override
     public RowData mapRow(ResultSet resultSet) throws Exception {
       return new RowData(
-          resultSet.getInt(1), resultSet.getString(2), new DateTime(resultSet.getTimestamp(3)));
+          resultSet.getLong(1), resultSet.getString(2), new DateTime(resultSet.getTimestamp(3)));
     }
   }
 
@@ -281,7 +284,6 @@ public class JdbcIOAutoPartitioningIT {
   }
 
   @Test
-  @Ignore("BEAM-13846")
   public void testAutomaticStringPartitioning() throws SQLException {
     final String dbmsLocal = dbms;
     PCollection<RowData> databaseData =
@@ -335,7 +337,6 @@ public class JdbcIOAutoPartitioningIT {
   }
 
   @Test
-  @Ignore("BEAM-13846")
   public void testAutomaticStringPartitioningAutomaticRangeManagement() throws SQLException {
     final String dbmsLocal = dbms;
     PCollection<RowData> databaseData =
@@ -345,7 +346,7 @@ public class JdbcIOAutoPartitioningIT {
                 .withDataSourceProviderFn(
                     voide -> DatabaseTestHelper.getDataSourceForContainer(getDb(dbmsLocal)))
                 .withTable("baseTable")
-                .withNumPartitions(5)
+                .withNumPartitions(1)
                 .withRowMapper(new RowDataMapper()));
 
     PAssert.that(databaseData.apply(Count.globally())).containsInAnyOrder(NUM_ROWS.longValue());
@@ -369,7 +370,6 @@ public class JdbcIOAutoPartitioningIT {
   }
 
   @Test
-  @Ignore("BEAM-13846")
   public void testAutomaticStringPartitioningAutomaticPartitionManagement() throws SQLException {
     final String dbmsLocal = dbms;
     PCollection<RowData> databaseData =

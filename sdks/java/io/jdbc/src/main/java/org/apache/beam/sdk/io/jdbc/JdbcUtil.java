@@ -383,6 +383,10 @@ class JdbcUtil {
       T upperBound = c.element().getValue().getValue();
       JdbcReadWithPartitionsHelper<T> helper =
           JdbcReadWithPartitionsHelper.getPartitionsHelper(partitioningColumnType);
+      if (c.element().getKey() == 1L) {
+        c.output(c.element().getValue());
+        return;
+      }
       List<KV<T, T>> ranges =
           Lists.newArrayList(helper.calculateRanges(lowerBound, upperBound, c.element().getKey()));
       LOG.warn("Total of {} ranges: {}", ranges.size(), ranges);
@@ -432,6 +436,67 @@ class JdbcUtil {
                     resultSet.getLong(3), KV.of(resultSet.getLong(1), resultSet.getLong(2)));
               } else {
                 return KV.of(0L, KV.of(resultSet.getLong(1), resultSet.getLong(2)));
+              }
+            }
+          },
+          String.class,
+          new JdbcReadWithPartitionsHelper<String>() {
+            @Override
+            public Iterable<KV<String, String>> calculateRanges(
+                String lowerBound, String upperBound, Long partitions) {
+              List<KV<String, String>> ranges = new ArrayList<>();
+              // For now, we create ranges based on the very first letter of each string.
+              // For cases where we have empty strings, we use that as the bottom of one range,
+              // and generate other ranges from that point.
+              if (lowerBound.length() == 0) {
+                lowerBound = String.valueOf(Character.toChars(1)[0]);
+                ranges.add(KV.of("", lowerBound));
+              }
+              int dif = upperBound.charAt(0) - lowerBound.charAt(0);
+              int stride = dif / partitions != 0 ? Long.valueOf(dif / partitions).intValue() : 1;
+              String currentLowerBound = lowerBound; // String.valueOf(lowerBound.charAt(0));
+              while (currentLowerBound.charAt(0) <= upperBound.charAt(0)) {
+                int upperBoundCharPoint = currentLowerBound.charAt(0) + stride;
+                upperBoundCharPoint =
+                    upperBoundCharPoint > upperBound.charAt(0)
+                        ? Character.toChars(upperBound.charAt(0) + 1)[0]
+                        : upperBoundCharPoint;
+                char currentUpperBound = Character.toChars(upperBoundCharPoint)[0];
+                if (currentUpperBound >= upperBound.charAt(0)) {
+                  // This means that we have reached the end, and that we want to use our upper
+                  // bound
+                  // as our final upper bound.
+                  int finalChar = upperBound.charAt(upperBound.length() - 1);
+                  upperBound =
+                      upperBound.substring(0, upperBound.length() - 1)
+                          + Character.toChars(finalChar)[0];
+                  ranges.add(KV.of(currentLowerBound, upperBound));
+                  return ranges;
+                }
+                ranges.add(KV.of(currentLowerBound, String.valueOf(currentUpperBound)));
+                currentLowerBound = String.valueOf(currentUpperBound);
+              }
+              return ranges;
+            }
+
+            @Override
+            public void setParameters(
+                KV<String, String> element, PreparedStatement preparedStatement) {
+              try {
+                preparedStatement.setString(1, element.getKey());
+                preparedStatement.setString(2, element.getValue());
+              } catch (SQLException e) {
+                throw new RuntimeException(e);
+              }
+            }
+
+            @Override
+            public KV<Long, KV<String, String>> mapRow(ResultSet resultSet) throws Exception {
+              if (resultSet.getMetaData().getColumnCount() == 3) {
+                return KV.of(
+                    resultSet.getLong(3), KV.of(resultSet.getString(1), resultSet.getString(2)));
+              } else {
+                return KV.of(0L, KV.of(resultSet.getString(1), resultSet.getString(2)));
               }
             }
           },
