@@ -21,6 +21,10 @@ variable "project_id" {
   description = "The GCP Project ID where Playground Applications will be created"
 }
 
+variable "environment" {
+  description = "Environment name, e.g. prod,dev"
+}
+
 #GCS
 
 variable "examples_bucket_name" {
@@ -57,13 +61,8 @@ variable "redis_version" {
   default     = "REDIS_6_X"
 }
 
-variable "terraform_state_bucket_name" {
-  description = "Bucket name for terraform state"
-  default     = "beam_playground_terraform"
-}
-
-variable "redis_region" {
-  description = "Region of Redis"
+variable "region" {
+  description = "Infrastructure Region"
   default     = "us-central1"
 }
 
@@ -127,12 +126,6 @@ variable "gke_location" {
 }
 
 variable "service_account" {
-  description = "Service account email (id) for example service-account-playground@friendly-tower-340607.iam.gserviceaccount.com"
+  description = "Service account id for example service-account-playground@friendly-tower-340607.iam.gserviceaccount.com"
   default     = "service-account-playground@friendly-tower-340607.iam.gserviceaccount.com"
-}
-
-# Over
-
-variable "environment" {
-  description = "prod,dev"
 }

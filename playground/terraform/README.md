@@ -21,10 +21,12 @@
 
 The following items need to be setup for the Playground cluster deployment on GCP:
 
-* [GCP account](https://cloud.google.com/) 
+* [GCP account](https://cloud.google.com/)
 * [`gcloud` command-line tool](https://cloud.google.com/sdk/gcloud)
 * [Terraform](https://www.terraform.io/downloads.html) tool
 * [Docker](https://www.docker.com/get-started)
+
+### Authentication
 
 Authentication is required for the deployment process. `gcloud` tool can be used to log in into the GCP account:
 
@@ -35,11 +37,17 @@ $ gcloud auth login
 Service account also can be used for authentication using `gcloud` cli. See more
 details [here](https://cloud.google.com/sdk/gcloud/reference/auth/activate-service-account).
 
-Prepare bucket to save terraform state , example  set  PROJECT_ID as 'apache-beam-testing'
+### Terraform state storage
+
+GCS bucket is required for Playground deployment that store terraform state, example set PROJECT_ID as '
+apache-beam-testing'
+
 ```bash
-$ gsutil mb -p ${PROJECT_ID} gs://playground-project-state
-$ gsutil versioning set on gs://playground-project-state
+$ gsutil mb -p ${PROJECT_ID} gs://state-bucket-name
+$ gsutil versioning set on gs://state-bucket-name
 ```
+
+This bucket required to deploy applications. Use the same bucket name in related variable.
 
 ## GCP infrastructure deployment
 

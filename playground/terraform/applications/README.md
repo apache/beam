@@ -49,11 +49,16 @@ when it is finished, along with the number of created resources.
 
 ### Applying a non-default configuration
 
-To apply non-default Terraform configuration, pass the corresponding values as a variables with `terraform apply` command.
-All variables are listed in the [variables.tf (TBD)](variables.tf) file.
+To apply non-default Terraform configuration, pass the corresponding values as a variables with `terraform apply`
+command. All variables are listed in the [variables.tf](variables.tf) file.
 
-### What is installed
+### Destroy deployed resources
 
-TBD
+At any point, all GCP resources created by terraform can be destroyed using the following command:
 
+```bash
+$ terraform destroy
+```
 
+For more details on destroying deployed resources, please see
+this [documentation](https://www.terraform.io/cli/commands/destroy).

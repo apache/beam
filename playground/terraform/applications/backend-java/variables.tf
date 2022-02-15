@@ -66,5 +66,5 @@ variable "network_name" {
 
 variable "environment" {
   description = "prod,dev"
-  default = "dev"
+  default     = "dev"
 }

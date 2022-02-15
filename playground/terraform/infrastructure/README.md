@@ -44,13 +44,13 @@ Do you want to perform these actions?
   Enter a value:
 ```
 
-Type `yes` and hit **Enter**. Applying of the configuration could take several minutes. `Apply complete!` will be displayed
-when it is finished, along with the number of created resources.
+Type `yes` and hit **Enter**. Applying of the configuration could take several minutes. `Apply complete!` will be
+displayed when it is finished, along with the number of created resources.
 
 ### Applying a non-default configuration
 
-To apply non-default Terraform configuration, pass the corresponding values as a variables with `terraform apply` command.
-All variables are listed in the [variables.tf](variables.tf) file.
+To apply non-default Terraform configuration, pass the corresponding values as a variables with `terraform apply`
+command. All variables are listed in the [variables.tf](variables.tf) file.
 
 ### What is installed
 
@@ -58,8 +58,8 @@ After applying Terraform following resources will be created:
 
 * GCP [Artifact Registry](https://cloud.google.com/artifact-registry) to store application docker files
 * [VPC](https://cloud.google.com/vpc) to run GCP [App Engine](https://cloud.google.com/appengine) VMs
-* 2 GCP [Cloud Storage buckets]((https://cloud.google.com/storage/docs/key-terms#buckets)) to store
-  Examples for Playground Application and Terraform states
+* 2 GCP [Cloud Storage buckets]((https://cloud.google.com/storage/docs/key-terms#buckets)) to store Examples for
+  Playground Application and Terraform states
 * [GKE](https://cloud.google.com/kubernetes-engine) cluster for Playground's CI/CD process
 
 ### Destroy deployed resources
@@ -70,5 +70,6 @@ At any point, all GCP resources created by terraform can be destroyed using the 
 $ terraform destroy
 ```
 
-For more details on destroying deployed resources, please see this [documentation](https://www.terraform.io/cli/commands/destroy).
+For more details on destroying deployed resources, please see
+this [documentation](https://www.terraform.io/cli/commands/destroy).
 

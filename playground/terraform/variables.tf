@@ -17,6 +17,8 @@
 # under the License.
 #
 
+# Common variables
+
 variable "project_id" {
   description = "The GCP Project ID where Playground Applications will be created"
 }
@@ -25,3 +27,252 @@ variable "environment" {
   description = "prod,dev"
 }
 
+variable "region" {
+  description = "Infrastructure Region"
+  default     = "us-central1"
+}
+
+variable "terraform_state_bucket" {
+  description = "Bucket to store terraform state"
+}
+
+# Infrastructure variables
+
+#GKE
+
+variable "gke_machine_type" {
+  description = "Node pool machine types"
+  default     = "e2-standard-4"
+}
+
+variable "gke_node_count" {
+  description = "Node pool size"
+  default     = 1
+}
+
+variable "gke_name" {
+  description = "Name of GKE cluster"
+  default     = "playground-examples"
+}
+
+variable "gke_location" {
+  description = "Location of GKE cluster"
+  default     = "us-central1-a"
+}
+
+variable "service_account" {
+  description = "Service account id for example service-account-playground@friendly-tower-340607.iam.gserviceaccount.com"
+  default     = "service-account-playground@friendly-tower-340607.iam.gserviceaccount.com"
+}
+
+#GCS
+
+variable "examples_bucket_name" {
+  description = "Name of Bucket to Store Playground Examples"
+  default     = "playground-examples"
+}
+
+variable "examples_bucket_location" {
+  description = "Location of Playground Examples Bucket"
+  default     = "US"
+}
+
+variable "examples_storage_class" {
+  description = "Examples Bucket Storage Class"
+  default     = "STANDARD"
+}
+
+# Artifact Registry
+
+variable "repository_id" {
+  description = "ID of Artifact Registry"
+  default     = "playground-repository"
+}
+
+variable "repository_location" {
+  description = "Location of Artifact Registry"
+  default     = "us-central1"
+}
+
+#Redis
+
+variable "redis_version" {
+  description = "The GCP Project ID where Playground Applications will be created"
+  default     = "REDIS_6_X"
+}
+
+variable "redis_name" {
+  description = "Name of Redis"
+  default     = "playground-backend-cache"
+}
+
+variable "redis_tier" {
+  description = "Tier of Redis"
+  default     = "STANDARD_HA"
+}
+
+variable "redis_replica_count" {
+  description = "Redis's replica count"
+  default     = 1
+}
+
+variable "redis_memory_size_gb" {
+  description = "Size of Redis memory ,  if set 'read replica' it must be from 5GB to 100GB."
+  default     = 5
+}
+
+#VPC
+
+variable "vpc_name" {
+  description = "Name of VPC to be created"
+  default     = "playground-vpc"
+}
+
+variable "create_subnets" {
+  description = "Auto Create Subnets Inside VPC"
+  default     = true
+}
+
+variable "mtu" {
+  description = "MTU Inside VPC"
+  default     = 1460
+}
+
+# Applications
+
+
+variable "backend_service_name" {
+  default = "backend"
+}
+
+# Frontend variables
+
+variable "frontend_docker_image_name" {
+  description = "Docker Image Name To Be Deployed"
+  default     = "beam_playground-frontend"
+}
+
+variable "frontend_docker_image_tag" {
+  description = "Docker Image Tag To Be Deployed"
+  default     = "latest"
+}
+
+variable "frontend_service_name" {
+  default = "frontend"
+}
+
+# SCIO variables
+
+variable "scio_docker_image_name" {
+  description = "Docker Image Name To Be Deployed"
+  default     = "beam_playground-backend-scio"
+}
+
+variable "scio_docker_image_tag" {
+  description = "Docker Image Tag To Be Deployed"
+  default     = "latest"
+}
+
+
+variable "scio_cache_type" {
+  description = "remote or local. Set remote to use Redis and local to use in-memory application level cache"
+  default     = "remote"
+}
+
+variable "scio_volume_size" {
+  description = "Size of the in memory file system to be used by the application, in GB"
+  type        = number
+  default     = 1
+}
+
+# Go variables
+
+variable "go_docker_image_name" {
+  description = "Docker Image Name To Be Deployed"
+  default     = "beam_playground-backend-scio"
+}
+
+variable "go_docker_image_tag" {
+  description = "Docker Image Tag To Be Deployed"
+  default     = "latest"
+}
+
+variable "go_cache_type" {
+  description = "remote or local. Set remote to use Redis and local to use in-memory application level cache"
+  default     = "remote"
+}
+
+variable "go_volume_size" {
+  description = "Size of the in memory file system to be used by the application, in GB"
+  type        = number
+  default     = 1
+}
+
+# Python variables
+
+variable "python_docker_image_name" {
+  description = "Docker Image Name To Be Deployed"
+  default     = "beam_playground-backend-scio"
+}
+
+variable "python_docker_image_tag" {
+  description = "Docker Image Tag To Be Deployed"
+  default     = "latest"
+}
+
+variable "python_cache_type" {
+  description = "remote or local. Set remote to use Redis and local to use in-memory application level cache"
+  default     = "remote"
+}
+
+variable "python_volume_size" {
+  description = "Size of the in memory file system to be used by the application, in GB"
+  type        = number
+  default     = 1
+}
+
+# Java variables
+
+variable "java_docker_image_name" {
+  description = "Docker Image Name To Be Deployed"
+  default     = "beam_playground-backend-scio"
+}
+
+variable "java_docker_image_tag" {
+  description = "Docker Image Tag To Be Deployed"
+  default     = "latest"
+}
+
+variable "java_cache_type" {
+  description = "remote or local. Set remote to use Redis and local to use in-memory application level cache"
+  default     = "remote"
+}
+
+variable "java_volume_size" {
+  description = "Size of the in memory file system to be used by the application, in GB"
+  type        = number
+  default     = 1
+}
+
+# Router variables
+
+variable "router_docker_image_name" {
+  description = "Docker Image Name To Be Deployed"
+  default     = "beam_playground-backend-scio"
+}
+
+variable "router_docker_image_tag" {
+  description = "Docker Image Tag To Be Deployed"
+  default     = "latest"
+}
+
+variable "router_cache_type" {
+  description = "remote or local. Set remote to use Redis and local to use in-memory application level cache"
+  default     = "remote"
+}
+
+variable "router_volume_size" {
+  description = "Size of the in memory file system to be used by the application, in GB"
+  type        = number
+  default     = 1
+}

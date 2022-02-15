@@ -20,16 +20,16 @@
 terraform {
   # this describe buket for save state playground cloud
   backend "gcs" {
-    bucket  = "dev-playground-project-state"
-    prefix  = "terraform/state"
+    bucket = var.terraform_state_bucket
+    prefix = "terraform/state"
   }
 }
 
 provider "google" {
-  region = "us-central"
+  region  = var.region
   project = var.project_id
 }
 provider "google-beta" {
-  region = "us-central"
+  region  = var.region
   project = var.project_id
 }

@@ -35,7 +35,3 @@ variable "mtu" {
   description = "MTU Inside VPC"
   default     = 1460
 }
-
-
-
-

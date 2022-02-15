@@ -36,7 +36,7 @@ resource "google_app_engine_flexible_app_version" "backend_app_router" {
   automatic_scaling {
     max_total_instances = 3
     min_total_instances = 1
-    cool_down_period = "120s"
+    cool_down_period    = "120s"
     cpu_utilization {
       target_utilization = 0.7
     }
@@ -52,9 +52,9 @@ resource "google_app_engine_flexible_app_version" "backend_app_router" {
   }
 
   env_variables = {
-    CACHE_TYPE        = var.cache_type
-    CACHE_ADDRESS     = "${var.cache_address}:6379"
-    LAUNCH_SITE = "app_engine"
+    CACHE_TYPE    = var.cache_type
+    CACHE_ADDRESS = "${var.cache_address}:6379"
+    LAUNCH_SITE   = "app_engine"
   }
 
   deployment {

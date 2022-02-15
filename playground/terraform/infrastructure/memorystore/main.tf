@@ -32,7 +32,5 @@ resource "google_redis_instance" "cache" {
   read_replicas_mode = var.read_replicas_mode
   redis_version      = var.redis_version
   display_name       = var.display_name
-  tier               = var.redis_tier
-  name               = "playground-backend-cache"
 
 }

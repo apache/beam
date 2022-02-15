@@ -18,15 +18,72 @@
 #
 
 module "infrastructure" {
-  source      = "./infrastructure"
-  project_id  = var.project_id
-  environment = var.environment
+  source                   = "./infrastructure"
+  project_id               = var.project_id
+  environment              = var.environment
+  region                   = var.region
+  #GCS
+  examples_bucket_name     = var.examples_bucket_name
+  examples_bucket_location = var.examples_bucket_location
+  examples_storage_class   = var.examples_storage_class
+  #Artifact Registry
+  repository_id            = var.repository_id
+  repository_location      = var.repository_location
+  #Redis
+  redis_version            = var.redis_version
+  redis_name               = var.redis_name
+  redis_tier               = var.redis_tier
+  redis_replica_count      = var.redis_replica_count
+  redis_memory_size_gb     = var.redis_memory_size_gb
+  #VPC
+  vpc_name                 = var.vpc_name
+  create_subnets           = var.create_subnets
+  mtu                      = var.mtu
+  #GKE
+  gke_machine_type         = var.gke_machine_type
+  gke_node_count           = var.gke_node_count
+  gke_name                 = var.gke_name
+  gke_location             = var.gke_location
+  service_account          = var.service_account
+
 }
 
 module "applications" {
   source      = "./applications"
   project_id  = var.project_id
   environment = var.environment
+  region      = var.region
+
+  backend_service_name       = var.backend_service_name
+  #Go
+  go_docker_image_name       = var.go_docker_image_name
+  go_docker_image_tag        = var.go_docker_image_tag
+  go_cache_type              = var.go_cache_type
+  go_volume_size             = var.go_volume_size
+  #Java
+  java_docker_image_name     = var.java_docker_image_name
+  java_docker_image_tag      = var.java_docker_image_tag
+  java_cache_type            = var.java_cache_type
+  java_volume_size           = var.java_volume_size
+  #Python
+  python_docker_image_name   = var.python_docker_image_name
+  python_docker_image_tag    = var.python_docker_image_tag
+  python_cache_type          = var.python_cache_type
+  python_volume_size         = var.python_volume_size
+  #Router
+  router_docker_image_name   = var.router_docker_image_name
+  router_docker_image_tag    = var.router_docker_image_tag
+  router_cache_type          = var.router_cache_type
+  router_volume_size         = var.router_volume_size
+  #Scio
+  scio_docker_image_name     = var.scio_docker_image_name
+  scio_docker_image_tag      = var.scio_docker_image_tag
+  scio_cache_type            = var.scio_cache_type
+  scio_volume_size           = var.scio_volume_size
+  #Frontend
+  frontend_docker_image_name = var.frontend_docker_image_name
+  frontend_docker_image_tag  = var.frontend_docker_image_tag
+  frontend_service_name      = var.frontend_service_name
 }
 
 

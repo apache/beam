@@ -27,7 +27,7 @@ variable "docker_registry_address" {
 
 variable "docker_image_name" {
   description = "Docker Image Name To Be Deployed"
-  default = "beam_playground-backend-go"
+  default     = "beam_playground-backend-go"
 }
 
 variable "docker_image_tag" {
@@ -54,5 +54,5 @@ variable "network_name" {
 
 variable "environment" {
   description = "prod,dev"
-  default = "dev"
+  default     = "dev"
 }

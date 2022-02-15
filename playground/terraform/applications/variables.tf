@@ -21,17 +21,152 @@ variable "project_id" {
   description = "The GCP Project ID where Playground Applications will be created"
 }
 
-variable "cache_address" {
-  description = "IP Address for Redis service"
-  default = ""
-}
-
 variable "environment" {
-  description = "prod,dev"
-  default = "dev"
+  description = "Environment name, e.g. prod,dev"
+  default     = "dev"
 }
 
 variable "network_name" {
-  description = "Vpc Name, name by default 'default'"
+  description = "Vpc Name"
   default     = "playground-vpc"
+}
+
+variable "terraform_state_bucket" {
+  description = "Bucket to store terraform state"
+}
+
+variable "backend_service_name" {
+  default = "backend"
+}
+# Frontend variables
+
+variable "frontend_docker_image_name" {
+  description = "Docker Image Name To Be Deployed"
+  default     = "beam_playground-frontend"
+}
+
+variable "frontend_docker_image_tag" {
+  description = "Docker Image Tag To Be Deployed"
+  default     = "latest"
+}
+
+variable "frontend_service_name" {
+  default = "frontend"
+}
+
+# SCIO variables
+
+variable "scio_docker_image_name" {
+  description = "Docker Image Name To Be Deployed"
+  default     = "beam_playground-backend-scio"
+}
+
+variable "scio_docker_image_tag" {
+  description = "Docker Image Tag To Be Deployed"
+  default     = "latest"
+}
+
+variable "scio_cache_type" {
+  description = "remote or local. Set remote to use Redis and local to use in-memory application level cache"
+  default     = "remote"
+}
+
+variable "scio_volume_size" {
+  description = "Size of the in memory file system to be used by the application, in GB"
+  type        = number
+  default     = 1
+}
+
+# Go variables
+
+variable "go_docker_image_name" {
+  description = "Docker Image Name To Be Deployed"
+  default     = "beam_playground-backend-scio"
+}
+
+variable "go_docker_image_tag" {
+  description = "Docker Image Tag To Be Deployed"
+  default     = "latest"
+}
+
+variable "go_cache_type" {
+  description = "remote or local. Set remote to use Redis and local to use in-memory application level cache"
+  default     = "remote"
+}
+
+variable "go_volume_size" {
+  description = "Size of the in memory file system to be used by the application, in GB"
+  type        = number
+  default     = 1
+}
+
+# Python variables
+
+variable "python_docker_image_name" {
+  description = "Docker Image Name To Be Deployed"
+  default     = "beam_playground-backend-scio"
+}
+
+variable "python_docker_image_tag" {
+  description = "Docker Image Tag To Be Deployed"
+  default     = "latest"
+}
+
+
+variable "python_cache_type" {
+  description = "remote or local. Set remote to use Redis and local to use in-memory application level cache"
+  default     = "remote"
+}
+
+variable "python_volume_size" {
+  description = "Size of the in memory file system to be used by the application, in GB"
+  type        = number
+  default     = 1
+}
+
+# Java variables
+
+variable "java_docker_image_name" {
+  description = "Docker Image Name To Be Deployed"
+  default     = "beam_playground-backend-scio"
+}
+
+variable "java_docker_image_tag" {
+  description = "Docker Image Tag To Be Deployed"
+  default     = "latest"
+}
+
+
+variable "java_cache_type" {
+  description = "remote or local. Set remote to use Redis and local to use in-memory application level cache"
+  default     = "remote"
+}
+
+variable "java_volume_size" {
+  description = "Size of the in memory file system to be used by the application, in GB"
+  type        = number
+  default     = 1
+}
+
+# Router variables
+
+variable "router_docker_image_name" {
+  description = "Docker Image Name To Be Deployed"
+  default     = "beam_playground-backend-scio"
+}
+
+variable "router_docker_image_tag" {
+  description = "Docker Image Tag To Be Deployed"
+  default     = "latest"
+}
+
+variable "router_cache_type" {
+  description = "remote or local. Set remote to use Redis and local to use in-memory application level cache"
+  default     = "remote"
+}
+
+variable "router_volume_size" {
+  description = "Size of the in memory file system to be used by the application, in GB"
+  type        = number
+  default     = 1
 }
