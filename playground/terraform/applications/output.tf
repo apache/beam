@@ -17,26 +17,6 @@
 # under the License.
 #
 
-output "playground_registry_id" {
-  value = module.infrastructure.playground_registry_id
-}
-
-output "playground_registry_location" {
-  value = module.infrastructure.playground_registry_location
-}
-
-output "playground_registry_name" {
-  value = module.infrastructure.playground_registry_name
-}
-
-output "playground_vpc_name" {
-  value = module.infrastructure.playground_vpc_name
-}
-
-output "playground_redis_ip" {
-  value = module.infrastructure.playground_redis_ip
-}
-
 output "docker-repository-root" {
-  value = module.applications.docker-repository-root
+  value = "${data.terraform_remote_state.playground-state.outputs.playground_registry_location}${local.registry_domain}/${var.project_id}/${data.terraform_remote_state.playground-state.outputs.playground_registry_name}"
 }
