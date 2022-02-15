@@ -47,7 +47,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class BigQueryClusteringIT {
   private static final Long EXPECTED_BYTES = 55L;
-  private static final Integer EXPECTED_ROWS = 100;
+  private static final Integer EXPECTED_ROWS = 1000;
   private static final String WEATHER_SAMPLES_TABLE =
       "clouddataflow-readonly:samples.weather_stations";
   private static final String DATASET_NAME = "BigQueryClusteringIT";
@@ -176,7 +176,7 @@ public class BigQueryClusteringIT {
     Table table = bqClient.tables().get(options.getProject(), DATASET_NAME, tableName).execute();
 
     Assert.assertEquals(CLUSTERING, table.getClustering());
-    Assert.assertEquals(EXPECTED_BYTES, table.getNumBytes());
     Assert.assertEquals(EXPECTED_ROWS, table.getNumRows());
+    Assert.assertEquals(EXPECTED_BYTES, table.getNumBytes());
   }
 }
