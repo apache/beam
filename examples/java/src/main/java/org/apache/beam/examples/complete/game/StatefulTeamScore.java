@@ -117,6 +117,10 @@ public class StatefulTeamScore extends LeaderBoard {
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
     // Enforce that this pipeline is always run in streaming mode.
     options.setStreaming(true);
+    runStatefulTeamScore(options);
+  }
+
+  static void runStatefulTeamScore(Options options) {
     ExampleUtils exampleUtils = new ExampleUtils(options);
     Pipeline pipeline = Pipeline.create(options);
 

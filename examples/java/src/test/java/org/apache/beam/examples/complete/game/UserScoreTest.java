@@ -17,9 +17,15 @@
  */
 package org.apache.beam.examples.complete.game;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
+import com.google.common.base.Splitter;
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.Serializable;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Scanner;
 import org.apache.beam.examples.complete.game.UserScore.ExtractAndSumScore;
 import org.apache.beam.examples.complete.game.UserScore.GameActionInfo;
 import org.apache.beam.examples.complete.game.UserScore.ParseEventFn;
@@ -34,70 +40,25 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Resources;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Tests of UserScore. */
 @RunWith(JUnit4.class)
 public class UserScoreTest implements Serializable {
 
-  static final String[] GAME_EVENTS_ARRAY =
-      new String[] {
-        "user0_MagentaKangaroo,MagentaKangaroo,3,1447955630000,2015-11-19 09:53:53.444",
-        "user13_ApricotQuokka,ApricotQuokka,15,1447955630000,2015-11-19 09:53:53.444",
-        "user6_AmberNumbat,AmberNumbat,11,1447955630000,2015-11-19 09:53:53.444",
-        "user7_AlmondWallaby,AlmondWallaby,15,1447955630000,2015-11-19 09:53:53.444",
-        "user7_AndroidGreenKookaburra,AndroidGreenKookaburra,12,1447955630000,2015-11-19 09:53:53.444",
-        "user6_AliceBlueDingo,AliceBlueDingo,4,xxxxxxx,2015-11-19 09:53:53.444",
-        "user7_AndroidGreenKookaburra,AndroidGreenKookaburra,11,1447955630000,2015-11-19 09:53:53.444",
-        "THIS IS A PARSE ERROR,2015-11-19 09:53:53.444",
-        "user19_BisqueBilby,BisqueBilby,6,1447955630000,2015-11-19 09:53:53.444",
-        "user19_BisqueBilby,BisqueBilby,8,1447955630000,2015-11-19 09:53:53.444"
-      };
+  private static final Logger LOG = LoggerFactory.getLogger(UserScoreTest.class);
 
-  static final String[] GAME_EVENTS_ARRAY2 =
-      new String[] {
-        "user6_AliceBlueDingo,AliceBlueDingo,4,xxxxxxx,2015-11-19 09:53:53.444",
-        "THIS IS A PARSE ERROR,2015-11-19 09:53:53.444",
-        "user13_BisqueBilby,BisqueBilby,xxx,1447955630000,2015-11-19 09:53:53.444"
-      };
-
-  static final List<String> GAME_EVENTS = Arrays.asList(GAME_EVENTS_ARRAY);
-  static final List<String> GAME_EVENTS2 = Arrays.asList(GAME_EVENTS_ARRAY2);
-
-  static final List<GameActionInfo> GAME_ACTION_INFO_LIST =
-      Lists.newArrayList(
-          new GameActionInfo("user0_MagentaKangaroo", "MagentaKangaroo", 3, 1447955630000L),
-          new GameActionInfo("user13_ApricotQuokka", "ApricotQuokka", 15, 1447955630000L),
-          new GameActionInfo("user6_AmberNumbat", "AmberNumbat", 11, 1447955630000L),
-          new GameActionInfo("user7_AlmondWallaby", "AlmondWallaby", 15, 1447955630000L),
-          new GameActionInfo(
-              "user7_AndroidGreenKookaburra", "AndroidGreenKookaburra", 12, 1447955630000L),
-          new GameActionInfo(
-              "user7_AndroidGreenKookaburra", "AndroidGreenKookaburra", 11, 1447955630000L),
-          new GameActionInfo("user19_BisqueBilby", "BisqueBilby", 6, 1447955630000L),
-          new GameActionInfo("user19_BisqueBilby", "BisqueBilby", 8, 1447955630000L));
-
-  static final List<KV<String, Integer>> USER_SUMS =
-      Arrays.asList(
-          KV.of("user0_MagentaKangaroo", 3),
-          KV.of("user13_ApricotQuokka", 15),
-          KV.of("user6_AmberNumbat", 11),
-          KV.of("user7_AlmondWallaby", 15),
-          KV.of("user7_AndroidGreenKookaburra", 23),
-          KV.of("user19_BisqueBilby", 14));
-
-  static final List<KV<String, Integer>> TEAM_SUMS =
-      Arrays.asList(
-          KV.of("MagentaKangaroo", 3),
-          KV.of("ApricotQuokka", 15),
-          KV.of("AmberNumbat", 11),
-          KV.of("AlmondWallaby", 15),
-          KV.of("AndroidGreenKookaburra", 23),
-          KV.of("BisqueBilby", 14));
+  static List<String> GAME_EVENTS = getRecordsFromCSVFile("user_score_test_events1.csv");
+  static List<String> GAME_EVENTS2 = getRecordsFromCSVFile("user_score_test_events2.csv");
+  static List<String> USER_SUMS = getRecordsFromCSVFile("user_score_test_user_sums.csv");
+  static List<String> TEAM_SUMS = getRecordsFromCSVFile("user_score_test_team_sums.csv");
 
   @Rule public TestPipeline p = TestPipeline.create();
 
@@ -107,7 +68,24 @@ public class UserScoreTest implements Serializable {
     PCollection<String> input = p.apply(Create.of(GAME_EVENTS));
     PCollection<GameActionInfo> output = input.apply(ParDo.of(new ParseEventFn()));
 
-    PAssert.that(output).containsInAnyOrder(GAME_ACTION_INFO_LIST);
+    List<GameActionInfo> gameActionInfoList = Lists.newArrayList();
+
+    GAME_EVENTS.forEach(
+        s -> {
+          List<String> listRow = Splitter.on(',').splitToList(s);
+
+          if (listRow.get(0).equals("user6_AliceBlueDingo")
+              || listRow.get(0).equals("THIS IS A PARSE ERROR")) return;
+
+          gameActionInfoList.add(
+              new GameActionInfo(
+                  listRow.get(0),
+                  listRow.get(1),
+                  Integer.valueOf(listRow.get(2)),
+                  Long.valueOf(listRow.get(3))));
+        });
+
+    PAssert.that(output).containsInAnyOrder(gameActionInfoList);
 
     p.run().waitUntilFinish();
   }
@@ -125,8 +103,10 @@ public class UserScoreTest implements Serializable {
             // Extract and sum username/score pairs from the event data.
             .apply("ExtractUserScore", new ExtractAndSumScore("user"));
 
+    List<KV<String, Integer>> kvUserSums = getKVs(USER_SUMS);
+
     // Check the user score sums.
-    PAssert.that(output).containsInAnyOrder(USER_SUMS);
+    PAssert.that(output).containsInAnyOrder(kvUserSums);
 
     p.run().waitUntilFinish();
   }
@@ -144,8 +124,10 @@ public class UserScoreTest implements Serializable {
             // Extract and sum teamname/score pairs from the event data.
             .apply("ExtractTeamScore", new ExtractAndSumScore("team"));
 
+    List<KV<String, Integer>> kvTeamSums = getKVs(TEAM_SUMS);
+
     // Check the team score sums.
-    PAssert.that(output).containsInAnyOrder(TEAM_SUMS);
+    PAssert.that(output).containsInAnyOrder(kvTeamSums);
 
     p.run().waitUntilFinish();
   }
@@ -168,5 +150,40 @@ public class UserScoreTest implements Serializable {
     PAssert.that(extract).empty();
 
     p.run().waitUntilFinish();
+  }
+
+  private static List<String> getRecordsFromCSVFile(String filePath) {
+
+    String resourcesDir = "./";
+
+    String file = Resources.getResource(resourcesDir + filePath).getPath();
+
+    List<String> values = new ArrayList<>();
+    Scanner lineScanner = null;
+
+    try {
+      lineScanner = new Scanner(new File(file), UTF_8.name());
+    } catch (FileNotFoundException e) {
+      LOG.error(e.getMessage());
+    }
+
+    lineScanner.useDelimiter(System.lineSeparator());
+
+    while (lineScanner.hasNext()) {
+      values.add(lineScanner.next());
+    }
+
+    return values;
+  }
+
+  private List<KV<String, Integer>> getKVs(List<String> records) {
+    List<KV<String, Integer>> sums = new ArrayList<>();
+
+    records.forEach(
+        s -> {
+          List<String> listRow = Splitter.on(',').splitToList(s);
+          sums.add(KV.of(listRow.get(0), Integer.parseInt(listRow.get(1))));
+        });
+    return sums;
   }
 }

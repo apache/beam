@@ -195,7 +195,13 @@ public class LeaderBoard extends HourlyTeamScore {
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
     // Enforce that this pipeline is always run in streaming mode.
     options.setStreaming(true);
+    runLeaderBoard(options);
+  }
+
+  static void runLeaderBoard(Options options) {
+
     ExampleUtils exampleUtils = new ExampleUtils(options);
+
     Pipeline pipeline = Pipeline.create(options);
 
     // Read game events from Pub/Sub using custom timestamps, which are extracted from the pubsub
