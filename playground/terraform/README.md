@@ -19,35 +19,37 @@
 
 ## Requirements and setup
 
-There are following requirements for deployment Playground cluster on GCP using terraform:
+The following items need to be setup for the Playground cluster deployment on GCP:
 
-* An [GCP account](https://cloud.google.com/) and the [`gcloud`](https://cloud.google.com/sdk/gcloud) command-line tool
+* [GCP account](https://cloud.google.com/) 
+* [`gcloud` command-line tool](https://cloud.google.com/sdk/gcloud)
 * [Terraform](https://www.terraform.io/downloads.html) tool
+* [Docker](https://www.docker.com/get-started)
 
-Authentication is required for the deployment process. `gcloud` tool can be used to login into the GCP account.
+Authentication is required for the deployment process. `gcloud` tool can be used to log in into the GCP account:
 
 ```bash
 $ gcloud auth login
 ```
 
-Service account also can be used for authentication using gcloud cli. See more
-details [here](https://cloud.google.com/sdk/gcloud/reference/auth/activate-service-account)
-
-## Installation
-
-Playground deployment requires terraform. There is
-required [documentation](https://www.terraform.io/intro/getting-started/install.html) for terraform installation.
+Service account also can be used for authentication using `gcloud` cli. See more
+details [here](https://cloud.google.com/sdk/gcloud/reference/auth/activate-service-account).
 
 ## GCP infrastructure deployment
 
-To deploy Playground infrastructure follow [README.md](./infrastructure/README.md) for infrastructure module
+To deploy Playground infrastructure follow [README.md](./infrastructure/README.md) for infrastructure module.
 
 ## Playground application deployment
 
-Playground require build and push to registry using gradle before apply terraform scripts.
+Playground requires building and pushing to registry using gradle before applying of Terraform scripts.
 
-To build and push playground docker image to the Artifact registry, execute `./gradlew playground dockerTagPush` from
-Beam repository root
+To build and push Playground Docker image to the [Artifact Registry](https://cloud.google.com/artifact-registry)
+from Apache Beam repository root, execute the following commands:
 
-To deploy Playground applications to Cloud App Engine see [README.md](./applications/README.md) from infrastructure
-module
+```bash
+$ cd /path/to/beam
+$ ./gradlew playground dockerTagPush
+```
+
+To deploy Playground applications to Cloud App Engine see [README.md](./applications/README.md) from applications
+module.
