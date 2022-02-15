@@ -34,9 +34,7 @@ func TestGetPythonPreparers(t *testing.T) {
 		want int
 	}{
 		{
-			// Test case with calling GetPythonPreparers method.
-			// As a result, want to receive slice of preparers with len = 1
-			name: "get python preparers",
+			name: "get number of python preparers",
 			args: args{"MOCK_FILEPATH"},
 			want: 2,
 		},
@@ -65,15 +63,15 @@ func Test_addCodeToFile(t *testing.T) {
 		wantErr  bool
 	}{
 		{
-			// Test case with calling addCodeToFile method when original file doesn't exist.
+			// Call addCodeToFile method if the file doesn't exist.
 			// As a result, want to receive error
-			name:    "original file doesn't exist",
+			name:    "file doesn't exist",
 			args:    args{[]interface{}{incorrectPyFile, saveLogs}},
 			wantErr: true,
 		},
 		{
-			// Test case with calling addCodeToFile method when original file exists.
-			// As a result, want to receive updated code in the original file
+			// Call addCodeToFile method when file exists.
+			// As a result, want to receive an updated code
 			name:     "original file exists",
 			args:     args{[]interface{}{correctPyFile, saveLogs}},
 			wantCode: wantCode,
@@ -113,7 +111,7 @@ func Test_saveLogs(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			// Test case with calling saveLogs method to add logs code to tmp file.
+			// Call saveLogs method to add logs code to tmp file.
 			name: "Save logs successfully",
 			args: args{
 				from: file,
@@ -147,7 +145,7 @@ func Test_writeToFile(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			// Test case with calling writeToFile method to successfully add line to tmp file.
+			// Call writeToFile method to successfully add line to tmp file.
 			name: "Successfully write to file",
 			args: args{
 				to:  tmp,
@@ -156,7 +154,7 @@ func Test_writeToFile(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			// Test case with calling writeToFile method to add line to tmp fil which open only for reading.
+			// Call writeToFile method to write to tmp file which is open only for reading.
 			// As a result, want to receive error.
 			name: "Write to file which is read-only",
 			args: args{
@@ -191,8 +189,7 @@ func Test_saveGraph(t *testing.T) {
 		wantGraph bool
 	}{
 		{
-			// Test case with calling saveGraph method to add code to tmp file to save graph to file.
-			// There is pipeline definition at the code.
+			// Call saveGraph method to add code (to tmp file) which will save graph to file.
 			name: "Successfully save graph",
 			args: args{
 				from:     file,
@@ -202,8 +199,7 @@ func Test_saveGraph(t *testing.T) {
 			wantGraph: true,
 		},
 		{
-			// Test case with calling saveGraph method to add code to tmp file to save graph to file.
-			// There is no pipeline definition at the code.
+			// There is no pipeline definition at the code and no graph code will be added.
 			name: "No pipeline at code",
 			args: args{
 				from:     noPipelineFile,
