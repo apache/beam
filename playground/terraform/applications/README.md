@@ -19,7 +19,9 @@
 
 ## Deployment to AppEngine
 
-Installation of all Terraform dependencies required to get started building GCP resources with Terraform:
+*Note: All requirements are listed in the [README.md](../README.md) of the Terraform module.*
+
+Installation of all Terraform dependencies is required to get started building GCP resources with Terraform:
 
 ```bash
 $ terraform init
@@ -42,12 +44,13 @@ Do you want to perform these actions?
   Enter a value:
 ```
 
-Type `yes` and hit **Enter**. Applying the configuration could take several minutes. `Apply complete!` will be displayed
-when it's finished, along with some other information, including the number of resources created.
+Type `yes` and hit **Enter**. Applying of the configuration could take several minutes. `Apply complete!` will be displayed
+when it is finished, along with the number of created resources.
 
 ### Applying a non-default configuration
 
-To apply non-default Terraform configuration, change the [variables.tf](variables.tf) with custom values. TBD
+To apply non-default Terraform configuration, pass the corresponding values as a variables with `terraform apply` command.
+All variables are listed in the [variables.tf (TBD)](variables.tf) file.
 
 ### What is installed
 

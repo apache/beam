@@ -40,7 +40,7 @@ variable "service_name" {
 }
 
 variable "network_name" {
-  description = "Vpc Name, name by default 'default'"
+  description = "VPC Name"
   default     = "playground-vpc"
 }
 

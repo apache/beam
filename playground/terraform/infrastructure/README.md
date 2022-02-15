@@ -19,7 +19,9 @@
 
 ## Creating GCP resources using Terraform
 
-Installation of all Terraform dependencies required to get started building GCP resources with Terraform:
+*Note: All requirements are listed in the [README.md](../README.md) of the Terraform module.*
+
+Installation of all Terraform dependencies is required to get started building GCP resources with Terraform:
 
 ```bash
 $ terraform init
@@ -42,30 +44,31 @@ Do you want to perform these actions?
   Enter a value:
 ```
 
-Type `yes` and hit **Enter**. Applying the configuration could take several minutes. `Apply complete!` will be displayed
-when it's finished, along with some other information, including the number of resources created.
+Type `yes` and hit **Enter**. Applying of the configuration could take several minutes. `Apply complete!` will be displayed
+when it is finished, along with the number of created resources.
 
 ### Applying a non-default configuration
 
-To apply non-default Terraform configuration, change the [variables.tf](variables.tf) with custom values.
+To apply non-default Terraform configuration, pass the corresponding values as a variables with `terraform apply` command.
+All variables are listed in the [variables.tf](variables.tf) file.
 
 ### What is installed
 
-After applying terraform following resources will be created:
+After applying Terraform following resources will be created:
 
-* GCP [Artifact Registry](https://cloud.google.com/artifact-registry) used to store application docker files:
-* VPC to run GCP App Engine VM's ([VPC](https://cloud.google.com/vpc))
-* 2 buckets to store Examples for Playground Application and Terraform
-  states [buckets](https://cloud.google.com/storage/docs/key-terms#buckets)
-* GKE cluster for Playground's CI/CD process.
+* GCP [Artifact Registry](https://cloud.google.com/artifact-registry) to store application docker files
+* [VPC](https://cloud.google.com/vpc) to run GCP [App Engine](https://cloud.google.com/appengine) VMs
+* 2 GCP [Cloud Storage buckets]((https://cloud.google.com/storage/docs/key-terms#buckets)) to store
+  Examples for Playground Application and Terraform states
+* [GKE](https://cloud.google.com/kubernetes-engine) cluster for Playground's CI/CD process
 
 ### Destroy deployed resources
 
-At any point, all GCP resources created by terraform can be destroyed using `terraform destroy` command:
+At any point, all GCP resources created by terraform can be destroyed using the following command:
 
 ```bash
 $ terraform destroy
 ```
 
-For more details please see this [documentation](https://www.terraform.io/cli/commands/destroy)
+For more details on destroying deployed resources, please see this [documentation](https://www.terraform.io/cli/commands/destroy).
 
