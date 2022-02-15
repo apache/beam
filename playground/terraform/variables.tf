@@ -27,6 +27,11 @@ variable "environment" {
   description = "prod,dev"
 }
 
+variable "docker_image_tag" {
+  description = "Docker Image Tag To Be Deployed"
+  default     = ""
+}
+
 variable "region" {
   description = "Infrastructure Region"
   default     = "us-central1"

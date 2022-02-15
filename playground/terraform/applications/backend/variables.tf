@@ -17,33 +17,30 @@
 # under the License.
 #
 
-resource "google_app_engine_flexible_app_version" "frontend_app" {
-  version_id                = "v1"
-  project                   = var.project_id
-  service                   = "${var.service_name}-${var.environment}"
-  runtime                   = "custom"
-  delete_service_on_destroy = true
-
-  liveness_check {
-    path = ""
-  }
-
-  readiness_check {
-    path = ""
-  }
-
-  manual_scaling {
-    instances = 1
-  }
-
-  network {
-    name = var.network_name
-  }
-
-  deployment {
-    container {
-      image = "${var.docker_registry_address}/${var.docker_image_name}:${var.docker_image_tag}"
-    }
-  }
+variable "project_id" {
+  description = "The GCP Project ID where Playground Applications will be created"
 }
 
+variable "cache_address" {
+  description = "IP Address for Redis service"
+  default = ""
+}
+
+variable "environment" {
+  description = "prod,dev"
+  default = "dev"
+}
+
+variable "network_name" {
+  description = "Vpc Name, name by default 'default'"
+  default     = "playground-vpc"
+}
+
+variable "docker_image_tag" {
+  description = "Docker Image Tag To Be Deployed"
+  default     = ""
+}
+
+variable "docker_registry_address" {
+  description = "Docker registry address"
+}

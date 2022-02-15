@@ -31,6 +31,11 @@ variable "network_name" {
   default     = "playground-vpc"
 }
 
+variable "docker_image_tag" {
+  description = "Docker Image Tag To Be Deployed"
+  default     = ""
+}
+
 variable "terraform_state_bucket" {
   description = "Bucket to store terraform state"
 }

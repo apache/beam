@@ -52,6 +52,7 @@ module "applications" {
   source      = "./applications"
   project_id  = var.project_id
   environment = var.environment
+  docker_image_tag = var.docker_image_tag
   region      = var.region
 
   backend_service_name       = var.backend_service_name
