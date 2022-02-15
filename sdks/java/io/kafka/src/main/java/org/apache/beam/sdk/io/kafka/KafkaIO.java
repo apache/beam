@@ -468,6 +468,19 @@ import org.slf4j.LoggerFactory;
  *   );
  * }</pre>
  *
+ * <p>To produce Avro values you can use class {@link
+ * io.confluent.kafka.serializers.KafkaAvroSerializer}. To make this class work with {@link
+ * KafkaIO#write()} and method withValueSerializer() make sure to erase the generic types by casting
+ * to (Class) as shown in the following example:
+ *
+ * <pre>{@code
+ * KafkaIO.<Long, String>write()
+ *   ...
+ *   .withValueSerializer((Class)KafkaAvroSerializer.class)
+ *   .withProducerConfigUpdates( <Map with schema registry configuration details> )
+ *   ...
+ * }</pre>
+ *
  * <p>Often you might want to write just values without any keys to Kafka. Use {@code values()} to
  * write records with default empty(null) key:
  *
