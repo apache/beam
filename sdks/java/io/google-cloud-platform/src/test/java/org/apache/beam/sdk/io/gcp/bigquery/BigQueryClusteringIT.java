@@ -148,12 +148,6 @@ public class BigQueryClusteringIT {
 
     p.run().waitUntilFinish();
 
-    String query =
-        String.format("SELECT station_number, date FROM [%s.%s]", DATASET_NAME, tableName);
-    assertThat(
-        BigqueryMatcher.createQuery(options.getAppName(), options.getProject(), query),
-        BigqueryMatcher.queryResultHasChecksum(DEFAULT_OUTPUT_CHECKSUM));
-
     Table table = bqClient.tables().get(options.getProject(), DATASET_NAME, tableName).execute();
 
     Assert.assertEquals(CLUSTERING, table.getClustering());
