@@ -17,7 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.transform.agg;
 
+import com.google.auto.value.AutoValue;
 import java.io.Serializable;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.transforms.Combine;
 
 /**
@@ -33,21 +37,30 @@ public class CountIf {
 
   public static class CountIfFn extends Combine.CombineFn<Boolean, CountIfFn.Accum, Long> {
 
-    public static class Accum implements Serializable {
-      boolean isExpressionFalse = true;
-      long countIfResult = 0L;
+    @AutoValue
+    public abstract static class Accum implements Serializable {
+      abstract boolean isExpressionFalse();
+
+      abstract long countIfResult();
+
+      static Accum empty() {
+        return of(true, 0L);
+      }
+
+      static Accum of(boolean isExpressionFalse, long countIfResult) {
+        return new AutoValue_CountIf_CountIfFn_Accum(isExpressionFalse, countIfResult);
+      }
     }
 
     @Override
     public Accum createAccumulator() {
-      return new Accum();
+      return Accum.empty();
     }
 
     @Override
     public Accum addInput(Accum accum, Boolean input) {
-      if (input) {
-        accum.isExpressionFalse = false;
-        accum.countIfResult += 1;
+      if (Boolean.TRUE.equals(input)) {
+        return Accum.of(false, accum.countIfResult() + 1);
       }
       return accum;
     }
@@ -56,18 +69,22 @@ public class CountIf {
     public Accum mergeAccumulators(Iterable<Accum> accums) {
       CountIfFn.Accum merged = createAccumulator();
       for (CountIfFn.Accum accum : accums) {
-        if (!accum.isExpressionFalse) {
-          merged.isExpressionFalse = false;
-          merged.countIfResult += accum.countIfResult;
+        if (!accum.isExpressionFalse()) {
+          merged = Accum.of(false, merged.countIfResult() + accum.countIfResult());
         }
       }
       return merged;
     }
 
     @Override
+    public Coder<Accum> getAccumulatorCoder(CoderRegistry registry, Coder<Boolean> inputCoder) {
+      return SerializableCoder.of(Accum.class);
+    }
+
+    @Override
     public Long extractOutput(Accum accum) {
-      if (!accum.isExpressionFalse) {
-        return accum.countIfResult;
+      if (!accum.isExpressionFalse()) {
+        return accum.countIfResult();
       }
       return 0L;
     }
