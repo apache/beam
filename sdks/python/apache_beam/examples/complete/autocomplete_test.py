@@ -20,20 +20,35 @@
 # pytype: skip-file
 
 import logging
-import os
 import re
-import tempfile
 import unittest
+import uuid
 
 import pytest
 
 import apache_beam as beam
 from apache_beam.examples.complete import autocomplete
+from apache_beam.io.gcp import gcsio
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_utils import compute_hash
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.testing.util import open_shards
+
+
+def read_gcs_output_file(file_pattern):
+  gcs = gcsio.GcsIO()
+  file_names = gcs.list_prefix(file_pattern).keys()
+  output = []
+  for file_name in file_names:
+    output.append(gcs.open(file_name).read().decode('utf-8'))
+  return '\n'.join(output)
+
+
+def create_content_input_file(path, contents):
+  logging.info('Creating file: %s', path)
+  gcs = gcsio.GcsIO()
+  with gcs.open(path, 'w') as f:
+    f.write(str.encode(contents, 'utf-8'))
 
 
 def format_output_file(output_string):
@@ -59,12 +74,6 @@ def format_output_file(output_string):
       map(
           lambda line: extract_prefix_topk_words_tuples(line),
           output_string.split('\n')))
-
-
-def create_content_input_file(path, contents):
-  logging.info('Creating temp file: %s', path)
-  with open(path, 'w') as f:
-    f.write(contents)
 
 
 class AutocompleteTest(unittest.TestCase):
@@ -110,19 +119,19 @@ class AutocompleteTest(unittest.TestCase):
   def test_autocomplete_output_files_on_small_input(self):
     test_pipeline = TestPipeline(is_integration_test=True)
     # Setup the files with expected content.
-    temp_folder = tempfile.mkdtemp()
-    create_content_input_file(
-        os.path.join(temp_folder, 'input.txt'), ' '.join(self.WORDS))
-    extra_opts = {
-        'input': '%s/input.txt' % temp_folder,
-        'output': os.path.join(temp_folder, 'result')
-    }
+    OUTPUT_FILE_DIR = \
+        'gs://temp-storage-for-end-to-end-tests/py-it-cloud/output'
+    output = '/'.join([OUTPUT_FILE_DIR, str(uuid.uuid4()), 'result'])
+    INPUT_FILE_DIR = \
+        'gs://temp-storage-for-end-to-end-tests/py-it-cloud/input'
+    input = '/'.join([INPUT_FILE_DIR, str(uuid.uuid4()), 'input.txt'])
+    create_content_input_file(input, ' '.join(self.WORDS))
+    extra_opts = {'input': input, 'output': output}
 
     autocomplete.run(test_pipeline.get_full_options_as_args(**extra_opts))
 
     # Load result file and compare.
-    with open_shards(os.path.join(temp_folder, 'result-*-of-*')) as result_file:
-      result = result_file.read().strip()
+    result = read_gcs_output_file(output).strip()
 
     self.assertEqual(
         sorted(self.EXPECTED_PREFIXES), sorted(format_output_file(result)))
