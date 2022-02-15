@@ -2306,7 +2306,7 @@ class BeamModulePlugin implements Plugin<Project> {
         dependsOn ":sdks:python:installGcpTest"
         // setup test env
         executable 'sh'
-        args '-c', "$pythonDir/scripts/run_expansion_services.sh stop --group_id ${project.name} && $pythonDir/scripts/run_expansion_services.sh start $serviceArgs"
+        args '-c', "$pythonDir/scripts/run_expansion_services.sh stop --group_id ${project.name} ; $pythonDir/scripts/run_expansion_services.sh start $serviceArgs"
       }
 
       def mainTask = project.tasks.register(config.name) {

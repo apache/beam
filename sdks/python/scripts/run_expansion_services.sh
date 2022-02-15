@@ -88,20 +88,6 @@ fi
 
 TEMP_DIR=/tmp
 pid=$TEMP_DIR/$FILE_BASE.pid
-lock=$TEMP_DIR/$FILE_BASE.lock
-
-# Check whether flock exists since some OS distributions (like MacOS)
-# don't have it by default
-command -v flock >/dev/null 2>&1
-CHECK_FLOCK=$?
-
-if [[ $CHECK_FLOCK -eq 0 ]]; then
-  exec 200>$lock
-  if ! flock -n 200; then
-    echo "script already running."
-    exit 0
-  fi
-fi
 
 case $STARTSTOP in
   start)
@@ -131,6 +117,7 @@ case $STARTSTOP in
     ;;
   stop)
     if [ -f "$pid" ]; then
+      echo "Found expansion service: $pid."
       while read stop_pid; do
         if kill -0 $stop_pid >/dev/null 2>&1; then
           echo "Stopping expansion service pid: $stop_pid."
@@ -139,11 +126,8 @@ case $STARTSTOP in
           echo "Skipping invalid pid: $stop_pid."
         fi
       done < $pid
+      echo "Removing expansion service pid file: $pid."
       rm $pid
     fi
     ;;
 esac
-
-if [[ $CHECK_FLOCK -eq 0 ]]; then
-  flock -u 200
-fi
