@@ -20,8 +20,6 @@
 terraform {
   # this describe buket for save state playground cloud
   backend "gcs" {
-    bucket  = "dev-playground-project-state"
-    prefix  = "terraform/state"
   }
 }
 
