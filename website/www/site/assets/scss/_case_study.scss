@@ -18,7 +18,7 @@
   margin-right: 80px;
   font-family: "Source Sans Pro", Roboto, arial, sans-serif;
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
 
   .case-study-header {
     border-bottom: 2px solid rgba(255, 109, 5, 0.24);
@@ -48,7 +48,7 @@
 
   .case-study-content {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     justify-content: center;
   }
 
