@@ -98,7 +98,9 @@ func TestGetPreparers(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "get java preparer",
+			// Test case with calling GetPreparers method with Java sdk.
+			// As a result, want to receive 3 preparers
+			name: "Get Java preparers",
 			args: args{
 				sdk:        pb.Sdk_SDK_JAVA,
 				filepath:   filepath,
@@ -114,7 +116,9 @@ func TestGetPreparers(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "get py preparer",
+			// Test case with calling GetPreparers method with Python sdk.
+			// As a result, want to receive 2 preparers
+			name: "Get Python Preparers",
 			args: args{
 				sdk:        pb.Sdk_SDK_PYTHON,
 				filepath:   filepath,
@@ -129,7 +133,9 @@ func TestGetPreparers(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "get go preparer",
+			// Test case with calling GetPreparers method with Go sdk.
+			// As a result, want to receive 1 preparer
+			name: "Get Go preparer",
 			args: args{
 				sdk:        pb.Sdk_SDK_GO,
 				filepath:   filepath,
@@ -143,7 +149,9 @@ func TestGetPreparers(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "get scio preparer",
+			// Test case with calling GetPreparers method with Scio sdk.
+			// As a result, want to receive 3 preparers
+			name: "Get Scio preparers",
 			args: args{
 				sdk:        pb.Sdk_SDK_SCIO,
 				filepath:   filepath,

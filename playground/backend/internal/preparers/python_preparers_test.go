@@ -113,7 +113,8 @@ func Test_saveLogs(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "save logs successfully",
+			// Test case with calling saveLogs method to add logs code to tmp file.
+			name: "Save logs successfully",
 			args: args{
 				from: file,
 				to:   tmp,
@@ -146,6 +147,7 @@ func Test_writeToFile(t *testing.T) {
 		wantErr bool
 	}{
 		{
+			// Test case with calling writeToFile method to successfully add line to tmp file.
 			name: "Successfully write to file",
 			args: args{
 				to:  tmp,
@@ -154,6 +156,8 @@ func Test_writeToFile(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			// Test case with calling writeToFile method to add line to tmp fil which open only for reading.
+			// As a result, want to receive error.
 			name: "Write to file which is read-only",
 			args: args{
 				to:  tmp2,
@@ -173,7 +177,7 @@ func Test_writeToFile(t *testing.T) {
 
 func Test_saveGraph(t *testing.T) {
 	file, _ := os.Open(pyGraphFile)
-	noPipelineFile, _ := os.Open(pyCode)
+	noPipelineFile, _ := os.Open(correctPyFile)
 	tmp, _ := utils.CreateTempFile(pyGraphFile)
 	defer tmp.Close()
 	type args struct {
@@ -181,25 +185,32 @@ func Test_saveGraph(t *testing.T) {
 		tempFile *os.File
 	}
 	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
+		name      string
+		args      args
+		wantErr   bool
+		wantGraph bool
 	}{
 		{
+			// Test case with calling saveGraph method to add code to tmp file to save graph to file.
+			// There is pipeline definition at the code.
 			name: "Successfully save graph",
 			args: args{
 				from:     file,
 				tempFile: tmp,
 			},
-			wantErr: false,
+			wantErr:   false,
+			wantGraph: true,
 		},
 		{
+			// Test case with calling saveGraph method to add code to tmp file to save graph to file.
+			// There is no pipeline definition at the code.
 			name: "No pipeline at code",
 			args: args{
 				from:     noPipelineFile,
 				tempFile: tmp,
 			},
-			wantErr: true,
+			wantErr:   false,
+			wantGraph: false,
 		},
 	}
 	for _, tt := range tests {
@@ -208,7 +219,7 @@ func Test_saveGraph(t *testing.T) {
 				t.Errorf("saveGraph() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			bytes, _ := ioutil.ReadFile(fmt.Sprintf("%s_%s", "tmp", pyGraphFile))
-			if !strings.Contains(string(bytes), "pipeline_graph.PipelineGraph") && tt.wantErr == false {
+			if tt.wantGraph && !strings.Contains(string(bytes), "pipeline_graph.PipelineGraph") {
 				t.Errorf("saveGraph() error = %v, wantErr %v", "No graph code was added", tt.wantErr)
 			}
 		})
