@@ -32,8 +32,11 @@ tasks {
         // exec args can be passed by commandline, for example
         var project_id = project.property("project_id") as String?
         var environment = project.property("project_environment") as String?
+        var bucket = project.property("bucket") as String?
         args(
             "init", "-migrate-state",
+            "-backend-config=bucket=$bucket",
+            "-backend-config=prefix=terraform/state",
             "-var=project_id=$project_id",
             "-var=environment=$environment"
         )
@@ -53,7 +56,11 @@ tasks {
     register<TerraformTask>("terraformApplyApp") {
         var project_id = project.property("project_id") as String?
         var environment = project.property("project_environment") as String?
-        var docker_tag = if (project.hasProperty("docker-tag")) { project.property("docker-tag") as String } else {environment}
+        var docker_tag = if (project.hasProperty("docker-tag")) {
+            project.property("docker-tag") as String
+        } else {
+            environment
+        }
         args(
             "apply",
             "-auto-approve",
@@ -69,7 +76,11 @@ tasks {
     register<TerraformTask>("terraformApplyAppBack") {
         var project_id = project.property("project_id") as String?
         var environment = project.property("project_environment") as String?
-        var docker_tag = if (project.hasProperty("docker-tag")) { project.property("docker-tag") as String } else {environment}
+        var docker_tag = if (project.hasProperty("docker-tag")) {
+            project.property("docker-tag") as String
+        } else {
+            environment
+        }
         args(
             "apply",
             "-auto-approve",
@@ -85,7 +96,11 @@ tasks {
     register<TerraformTask>("terraformApplyAppFront") {
         var project_id = project.property("project_id") as String?
         var environment = project.property("project_environment") as String?
-        var docker_tag = if (project.hasProperty("docker-tag")) { project.property("docker-tag") as String } else {environment}
+        var docker_tag = if (project.hasProperty("docker-tag")) {
+            project.property("docker-tag") as String
+        } else {
+            environment
+        }
         args(
             "apply",
             "-auto-approve",
@@ -115,7 +130,11 @@ tasks {
     register<TerraformTask>("terraformApply") {
         var project_id = project.property("project_id") as String?
         var environment = project.property("project_environment") as String?
-        var docker_tag = if (project.hasProperty("docker-tag")) { project.property("docker-tag") as String } else {environment}
+        var docker_tag = if (project.hasProperty("docker-tag")) {
+            project.property("docker-tag") as String
+        } else {
+            environment
+        }
         args(
             "apply",
             "-auto-approve",
@@ -129,7 +148,13 @@ tasks {
     register<TerraformTask>("terraformDestroy") {
         var project_id = project.property("project_id") as String?
         var environment = project.property("project_environment") as String?
-        args("destroy", "-auto-approve", "-lock=false", "-var=project_id=$project_id", "-var=environment=$environment")
+        args(
+            "destroy",
+            "-auto-approve",
+            "-lock=false",
+            "-var=project_id=$project_id",
+            "-var=environment=$environment"
+        )
     }
 }
 
