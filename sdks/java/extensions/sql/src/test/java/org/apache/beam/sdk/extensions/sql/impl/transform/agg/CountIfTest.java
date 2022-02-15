@@ -23,7 +23,9 @@ import static org.junit.Assert.assertNotNull;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.coders.BooleanCoder;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.transforms.Combine;
 import org.junit.Test;
 
 /** Unit tests for {@link CountIf}. */
@@ -31,45 +33,46 @@ public class CountIfTest {
 
   @Test
   public void testCreatesEmptyAccumulator() {
-    assertEquals(CountIf.CountIfFn.Accum.empty(), CountIf.combineFn().createAccumulator());
+    long[] accumulator = (long[]) CountIf.combineFn().createAccumulator();
+
+    assertEquals(0, accumulator[0]);
   }
 
   @Test
   public void testReturnsAccumulatorUnchangedForNullInput() {
-    CountIf.CountIfFn countIfFn = new CountIf.CountIfFn();
-    CountIf.CountIfFn.Accum accumulator = countIfFn.createAccumulator();
-    assertEquals(accumulator, countIfFn.addInput(accumulator, null));
+    Combine.CombineFn countIfFn = CountIf.combineFn();
+    long[] accumulator = (long[]) countIfFn.addInput(countIfFn.createAccumulator(), null);
+
+    assertEquals(0L, accumulator[0]);
   }
 
   @Test
   public void testAddsInputToAccumulator() {
-    CountIf.CountIfFn countIfFn = new CountIf.CountIfFn();
-    CountIf.CountIfFn.Accum expectedAccumulator = CountIf.CountIfFn.Accum.of(false, 1);
+    Combine.CombineFn countIfFn = CountIf.combineFn();
+    long[] accumulator = (long[]) countIfFn.addInput(countIfFn.createAccumulator(), Boolean.TRUE);
 
-    assertEquals(
-        expectedAccumulator, countIfFn.addInput(countIfFn.createAccumulator(), Boolean.TRUE));
+    assertEquals(1L, accumulator[0]);
   }
 
   @Test
-  public void testCreatesAccumulatorCoder() {
+  public void testCreatesAccumulatorCoder() throws CannotProvideCoderException {
     assertNotNull(
         CountIf.combineFn().getAccumulatorCoder(CoderRegistry.createDefault(), BooleanCoder.of()));
   }
 
   @Test
   public void testMergeAccumulators() {
-    CountIf.CountIfFn countIfFn = new CountIf.CountIfFn();
-    List<CountIf.CountIfFn.Accum> accums =
-        Arrays.asList(CountIf.CountIfFn.Accum.of(false, 2), CountIf.CountIfFn.Accum.of(false, 2));
-    CountIf.CountIfFn.Accum expectedAccumulator = CountIf.CountIfFn.Accum.of(false, 4);
+    Combine.CombineFn countIfFn = CountIf.combineFn();
+    List<long[]> accums = Arrays.asList(new long[] {2}, new long[] {2});
+    long[] accumulator = (long[]) countIfFn.mergeAccumulators(accums);
 
-    assertEquals(expectedAccumulator, countIfFn.mergeAccumulators(accums));
+    assertEquals(4L, accumulator[0]);
   }
 
   @Test
   public void testExtractsOutput() {
-    CountIf.CountIfFn countIfFn = new CountIf.CountIfFn();
-    CountIf.CountIfFn.Accum expectedAccumulator = countIfFn.createAccumulator();
-    assertEquals(Long.valueOf(0), countIfFn.extractOutput(expectedAccumulator));
+    Combine.CombineFn countIfFn = CountIf.combineFn();
+
+    assertEquals(0L, countIfFn.extractOutput(countIfFn.createAccumulator()));
   }
 }
