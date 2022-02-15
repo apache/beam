@@ -177,3 +177,25 @@
     }
   }
 }
+
+.case-study-feedback {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  .case-study-feedback-title {
+    font-weight: 700;
+    margin-bottom: 16px;
+  }
+  .case-study-feedback-btn {
+    width: 100px;
+    height: 60px;
+    background-color: #f26628;
+    border-radius: 4px;
+    color: white;
+    font-weight: 700;
+    font-size: 16px;
+    &:first-child {
+      margin-right: 16px;
+    }
+  }
+}
