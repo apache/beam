@@ -46,6 +46,11 @@ variable "redis_tier" {
   default     = "STANDARD_HA"
 }
 
+variable "read_replicas_mode" {
+  description = "If enabled read endpoint will be provided and the instance can scale up and down the number of replicas"
+  default     = "READ_REPLICAS_ENABLED"
+}
+
 variable "redis_network" {
   description = "Network of Redis"
   default     = "default"

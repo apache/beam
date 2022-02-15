@@ -32,10 +32,12 @@ resource "google_redis_instance" "cache" {
   provider           = google-beta
   project            = var.project_id
   region             = var.redis_region
+  name               = var.redis_name
+  tier               = var.redis_tier
   memory_size_gb     = var.redis_memory_size_gb
   replica_count      = var.redis_replica_count
   authorized_network = var.redis_network
-  read_replicas_mode = "READ_REPLICAS_ENABLED"
+  read_replicas_mode = var.read_replicas_mode
   redis_version      = var.redis_version
   display_name       = var.display_name
 
