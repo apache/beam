@@ -164,7 +164,7 @@ class InterfaceTest(unittest.TestCase):
     context = pipeline_context.PipelineContext()
     state = BagStateSpec('statename', VarIntCoder())
     state_proto = state.to_runner_api(context)
-    self.assertEquals(
+    self.assertEqual(
         beam_runner_api_pb2.FunctionSpec(urn=common_urns.user_state.BAG.urn),
         state_proto.protocol)
 
@@ -172,21 +172,21 @@ class InterfaceTest(unittest.TestCase):
     state = CombiningValueStateSpec(
         'statename', VarIntCoder(), TopCombineFn(10))
     state_proto = state.to_runner_api(context)
-    self.assertEquals(
+    self.assertEqual(
         beam_runner_api_pb2.FunctionSpec(urn=common_urns.user_state.BAG.urn),
         state_proto.protocol)
 
     context = pipeline_context.PipelineContext()
     state = SetStateSpec('setstatename', VarIntCoder())
     state_proto = state.to_runner_api(context)
-    self.assertEquals(
+    self.assertEqual(
         beam_runner_api_pb2.FunctionSpec(urn=common_urns.user_state.BAG.urn),
         state_proto.protocol)
 
     context = pipeline_context.PipelineContext()
     state = ReadModifyWriteStateSpec('valuestatename', VarIntCoder())
     state_proto = state.to_runner_api(context)
-    self.assertEquals(
+    self.assertEqual(
         beam_runner_api_pb2.FunctionSpec(urn=common_urns.user_state.BAG.urn),
         state_proto.protocol)
 
