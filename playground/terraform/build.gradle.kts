@@ -175,14 +175,16 @@ task("setDockerRegistry") {
     //get Docker Registry
     dependsOn(":playground:terraform:terraformInit")
     dependsOn(":playground:terraform:terraformRef")
-    var stdout = ByteArrayOutputStream()
-    //set Docker Registry
-    exec {
-        commandLine = listOf("terraform", "output", "docker-repository-root")
-        standardOutput = stdout
+    try {
+        var stdout = ByteArrayOutputStream()
+        //set Docker Registry
+        exec {
+            commandLine = listOf("terraform", "output", "docker-repository-root")
+            standardOutput = stdout
+        }
+        project.rootProject.extra["docker-repository-root"] = stdout.toString().trim().replace("\"", "")
+    } catch (e: Exception) {
     }
-    project.rootProject.extra["docker-repository-root"] = stdout.toString().trim().replace("\"", "")
-
 }
 
 task("setFrontConfig") {
@@ -234,7 +236,7 @@ task("setFrontConfig") {
     }
 }
 
-task("pushBack"){
+task("pushBack") {
     dependsOn(":playground:backend:containers:go:dockerTagsPush")
     dependsOn(":playground:backend:containers:java:dockerTagsPush")
     dependsOn(":playground:backend:containers:python:dockerTagsPush")
