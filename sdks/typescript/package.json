@@ -3,6 +3,8 @@
   "version": "0.37.0.dev",
   "devDependencies": {
     "@types/mocha": "^9.0.0",
+    "codecov": "^3.8.3",
+    "istanbul": "^0.4.5",
     "js-yaml": "^4.1.0",
     "mocha": "^9.1.3",
     "prettier": "^2.5.1",
@@ -17,7 +19,9 @@
     "worker": "node dist/src/apache_beam/worker/external_worker_service.js",
     "pretest": "npm run build",
     "test": "mocha dist/test",
-    "prettier": "prettier --write dist/"
+    "codecovTest": "istanbul cover mocha dist/test --reporter lcovonly -- -R spec && codecov",
+    "prettier": "prettier --write src/",
+    "prettier-check": "prettier --check src/"
   },
   "dependencies": {
     "@grpc/grpc-js": "^1.4.6",
