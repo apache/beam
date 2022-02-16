@@ -147,7 +147,16 @@ dependencies {
   implementation "org.apache.flink:flink-core:$flink_version"
   implementation "org.apache.flink:flink-metrics-core:$flink_version"
   implementation "org.apache.flink:flink-java:$flink_version"
-  implementation "org.apache.flink:flink-runtime_2.11:$flink_version"
+  if (flink_version.compareTo("1.14") >= 0) {
+    implementation "org.apache.flink:flink-runtime:$flink_version"
+    implementation "org.apache.flink:flink-optimizer:$flink_version"
+    testImplementation "org.apache.flink:flink-runtime:$flink_version:tests"
+    testImplementation "org.apache.flink:flink-rpc-akka:$flink_version"
+  } else {
+    implementation "org.apache.flink:flink-runtime_2.11:$flink_version"
+    implementation "org.apache.flink:flink-optimizer_2.11:$flink_version"
+    testImplementation "org.apache.flink:flink-runtime_2.11:$flink_version:tests"
+  }
   implementation "org.apache.flink:flink-streaming-java_2.11:$flink_version"
   // RocksDB state backend (included in the Flink distribution)
   provided "org.apache.flink:flink-statebackend-rocksdb_2.11:$flink_version"
@@ -163,7 +172,6 @@ dependencies {
   testImplementation project(":sdks:java:io:google-cloud-platform")
   testImplementation library.java.jackson_dataformat_yaml
   testImplementation "org.apache.flink:flink-core:$flink_version:tests"
-  testImplementation "org.apache.flink:flink-runtime_2.11:$flink_version:tests"
   testImplementation "org.apache.flink:flink-streaming-java_2.11:$flink_version:tests"
   testImplementation "org.apache.flink:flink-test-utils_2.11:$flink_version"
   testImplementation project(":sdks:java:harness")
@@ -178,7 +186,6 @@ dependencies {
   implementation project(":sdks:java:fn-execution")
   implementation library.java.jackson_databind
   implementation "org.apache.flink:flink-annotations:$flink_version"
-  implementation "org.apache.flink:flink-optimizer_2.11:$flink_version"
   examplesJavaIntegrationTest project(project.path)
   examplesJavaIntegrationTest project(":examples:java")
   examplesJavaIntegrationTest project(path: ":examples:java", configuration: "testRuntimeMigration")
