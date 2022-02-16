@@ -17,6 +17,20 @@
  */
 package org.apache.beam.examples.complete;
 
+// beam-playground:
+//   name: TrafficMaxLaneFlow
+//   description: An example that analyzes traffic sensor data using SlidingWindows. For each window, it finds the lane
+//     that had the highest flow recorded, for each sensor station. It writes those max values along with auxiliary info
+//     to a BigQuery table.
+//   multifile: true
+//   context_line: 93
+//   categories:
+//     - Combiners
+//     - Batch
+//     - Streaming
+//     - Options
+//     - Windowing
+
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
