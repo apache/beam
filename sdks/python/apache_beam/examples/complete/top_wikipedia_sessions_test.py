@@ -101,6 +101,8 @@ class ComputeTopSessionsTest(unittest.TestCase):
 
       assert_that(result, equal_to(self.EXPECTED))
 
+  # TODO Enable when fixed this tests for Dataflow runner
+  @pytest.mark.sickbay_direct
   @pytest.mark.no_xdist
   @pytest.mark.examples_postcommit
   def test_top_wikipedia_sessions_output_files_on_small_input(self):
