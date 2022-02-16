@@ -18,7 +18,7 @@
 package org.apache.beam.examples.complete;
 
 // beam-playground:
-//   name: TrafficMaxLaneFlow
+//   name: TopWikipediaSessions
 //   description: An example that reads Wikipedia edit data from Cloud Storage and computes the user with the longest
 //     string of edits separated by no more than an hour within each month.
 //   multifile: true
