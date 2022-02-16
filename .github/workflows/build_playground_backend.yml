@@ -94,4 +94,3 @@ jobs:
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp_access.json
         run: ./gradlew playground:terraform:terraformApplyAppBack -Pdocker-tag=${{env.DOCKERTAG}} -Pproject_id=${{ secrets.PLAYGROUND_PROJECT_ID }} -Pproject_environment={{env.STAND_SUFFIX}}
         if: startsWith(github.ref, 'refs/tags/')
-

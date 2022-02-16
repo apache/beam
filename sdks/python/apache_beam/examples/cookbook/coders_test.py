@@ -74,6 +74,7 @@ class CodersTest(unittest.TestCase):
           | beam.CombinePerKey(sum))
       assert_that(result, equal_to(self.EXPECTED_RESULT))
 
+  @pytest.mark.no_xdist
   @pytest.mark.examples_postcommit
   def test_coders_output_files_on_small_input(self):
     test_pipeline = TestPipeline(is_integration_test=True)

@@ -25,6 +25,7 @@ import contextlib
 import copy
 import functools
 import glob
+import logging
 import threading
 from collections import OrderedDict
 from typing import Dict
@@ -694,12 +695,35 @@ class JavaJarExpansionService(object):
   def __init__(self, path_to_jar, extra_args=None, classpath=None):
     self._path_to_jar = path_to_jar
     self._extra_args = extra_args
-    self._classpath = classpath
+    self._classpath = classpath or []
     self._service_count = 0
 
+  @staticmethod
+  def _expand_jars(jar):
+    if glob.glob(jar):
+      return glob.glob(jar)
+    elif isinstance(jar, str) and (jar.startswith('http://') or
+                                   jar.startswith('https://')):
+      return [jar]
+    else:
+      # If the input JAR is not a local glob, nor an http/https URL, then
+      # we assume that it's a gradle-style Java artifact in Maven Central,
+      # in the form group:artifact:version, so we attempt to parse that way.
+      try:
+        group_id, artifact_id, version = jar.split(':')
+      except ValueError:
+        # If we are not able to find a JAR, nor a JAR artifact, nor a URL for
+        # a JAR path, we still choose to include it in the path.
+        logging.warning('Unable to parse %s into group:artifact:version.', jar)
+        return [jar]
+      path = subprocess_server.JavaJarServer.path_to_maven_jar(
+          artifact_id, group_id, version)
+      return [path]
+
   def _default_args(self):
-    to_stage = ','.join([self._path_to_jar] + sum(
-        (glob.glob(path) or [path] for path in self._classpath or []), []))
+    to_stage = ','.join([self._path_to_jar] + sum((
+        JavaJarExpansionService._expand_jars(jar)
+        for jar in self._classpath or []), []))
     return ['{{PORT}}', f'--filesToStage={to_stage}']
 
   def __enter__(self):
@@ -709,11 +733,21 @@ class JavaJarExpansionService(object):
       if self._extra_args is None:
         self._extra_args = self._default_args()
       # Consider memoizing these servers (with some timeout).
+      logging.info(
+          'Starting a JAR-based expansion service from JAR %s ' + (
+              'and with classpath: %s' %
+              self._classpath if self._classpath else ''),
+          self._path_to_jar)
+      classpath_urls = [
+          subprocess_server.JavaJarServer.local_jar(path)
+          for jar in self._classpath
+          for path in JavaJarExpansionService._expand_jars(jar)
+      ]
       self._service_provider = subprocess_server.JavaJarServer(
           ExpansionAndArtifactRetrievalStub,
           self._path_to_jar,
           self._extra_args,
-          classpath=self._classpath)
+          classpath=classpath_urls)
       self._service = self._service_provider.__enter__()
     self._service_count += 1
     return self._service

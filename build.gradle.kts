@@ -186,6 +186,7 @@ tasks.register("javaPostCommit") {
   dependsOn(":sdks:java:extensions:google-cloud-platform-core:postCommit")
   dependsOn(":sdks:java:extensions:zetasketch:postCommit")
   dependsOn(":sdks:java:io:debezium:integrationTest")
+  dependsOn(":sdks:java:io:jdbc:integrationTest")
   dependsOn(":sdks:java:io:google-cloud-platform:postCommit")
   dependsOn(":sdks:java:io:kinesis:integrationTest")
   dependsOn(":sdks:java:io:amazon-web-services:integrationTest")
@@ -266,6 +267,7 @@ tasks.register("pythonPreCommit") {
   dependsOn(":sdks:python:test-suites:tox:py36:preCommitPy36")
   dependsOn(":sdks:python:test-suites:tox:py37:preCommitPy37")
   dependsOn(":sdks:python:test-suites:tox:py38:preCommitPy38")
+  dependsOn(":sdks:python:test-suites:tox:py39:preCommitPy39")
   dependsOn(":sdks:python:test-suites:dataflow:preCommitIT")
   dependsOn(":sdks:python:test-suites:dataflow:preCommitIT_V2")
 }
@@ -278,9 +280,11 @@ tasks.register("pythonDockerBuildPreCommit") {
   dependsOn(":sdks:python:container:py36:docker")
   dependsOn(":sdks:python:container:py37:docker")
   dependsOn(":sdks:python:container:py38:docker")
+  dependsOn(":sdks:python:container:py39:docker")
 }
 
 tasks.register("pythonLintPreCommit") {
+  // TODO(BEAM-9980): Find a better way to specify lint and formatter tasks without hardcoding py version.
   dependsOn(":sdks:python:test-suites:tox:py37:lint")
 }
 
@@ -313,15 +317,24 @@ tasks.register("python38PostCommit") {
   dependsOn(":sdks:python:test-suites:portable:py38:postCommitPy38")
 }
 
+tasks.register("python39PostCommit") {
+  // TODO(BEAM-12920): Enable DF suite here.
+  // dependsOn(":sdks:python:test-suites:dataflow:py39:postCommitIT")
+  dependsOn(":sdks:python:test-suites:direct:py39:postCommitIT")
+  dependsOn(":sdks:python:test-suites:direct:py39:hdfsIntegrationTest")
+  dependsOn(":sdks:python:test-suites:portable:py39:postCommitPy39")
+}
+
 tasks.register("portablePythonPreCommit") {
   dependsOn(":sdks:python:test-suites:portable:py36:preCommitPy36")
-  dependsOn(":sdks:python:test-suites:portable:py37:preCommitPy37")
+  dependsOn(":sdks:python:test-suites:portable:py39:preCommitPy39")
 }
 
 tasks.register("pythonSparkPostCommit") {
   dependsOn(":sdks:python:test-suites:portable:py36:sparkValidatesRunner")
   dependsOn(":sdks:python:test-suites:portable:py37:sparkValidatesRunner")
   dependsOn(":sdks:python:test-suites:portable:py38:sparkValidatesRunner")
+  dependsOn(":sdks:python:test-suites:portable:py39:sparkValidatesRunner")
 }
 
 tasks.register("websitePreCommit") {
@@ -347,12 +360,14 @@ tasks.register("runBeamDependencyCheck") {
 }
 
 tasks.register("whitespacePreCommit") {
+  // TODO(BEAM-9980): Find a better way to specify the tasks without hardcoding py version.
   dependsOn(":sdks:python:test-suites:tox:py38:archiveFilesToLint")
   dependsOn(":sdks:python:test-suites:tox:py38:unpackFilesToLint")
   dependsOn(":sdks:python:test-suites:tox:py38:whitespacelint")
 }
 
 tasks.register("typescriptPreCommit") {
+  // TODO(BEAM-9980): Find a better way to specify the tasks without hardcoding py version.
   dependsOn(":sdks:python:test-suites:tox:py38:eslint")
   dependsOn(":sdks:python:test-suites:tox:py38:jest")
 }

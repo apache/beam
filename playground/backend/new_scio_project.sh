@@ -15,4 +15,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-yes scioproject | sbt new spotify/scio-template.g8
+yes | sbt new spotify/scio-template.g8

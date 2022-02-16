@@ -83,10 +83,12 @@ class CodeTextAreaWrapper extends StatelessWidget {
                               );
                         },
                         runCode: () {
+                          AnalyticsService analyticsService =
+                              AnalyticsService.get(context);
                           final stopwatch = Stopwatch()..start();
                           state.runCode(
                             onFinish: () {
-                              AnalyticsService.get(context).trackRunTimeEvent(
+                              analyticsService.trackRunTimeEvent(
                                 state.selectedExample?.path ??
                                     '${AppLocalizations.of(context)!.unknownExample}, sdk ${state.sdk.displayName}',
                                 stopwatch.elapsedMilliseconds,
