@@ -14,11 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import re
 import unittest
 
 import numpy as np
 import pandas as pd
-import re
 from parameterized import parameterized
 
 import apache_beam as beam
