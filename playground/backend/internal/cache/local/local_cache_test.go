@@ -236,8 +236,6 @@ func TestLocalCache_SetExpTime(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			// Test case with calling SetExpTime method with pipelineId and his expiration time.
-			// As a result, want to set expiration time for this pipelineId.
 			name: "Set expiration time",
 			fields: fields{
 				cleanupInterval:     cleanupInterval,
