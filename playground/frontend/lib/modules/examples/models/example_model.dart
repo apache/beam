@@ -47,6 +47,7 @@ class ExampleModel with Comparable<ExampleModel> {
   String? outputs;
   String? logs;
   String? pipelineOptions;
+  String? graph;
 
   ExampleModel({
     required this.name,
@@ -57,6 +58,7 @@ class ExampleModel with Comparable<ExampleModel> {
     this.outputs,
     this.logs,
     this.pipelineOptions,
+    this.graph,
   });
 
   setSource(String source) {
@@ -69,6 +71,10 @@ class ExampleModel with Comparable<ExampleModel> {
 
   setLogs(String logs) {
     this.logs = logs;
+  }
+
+  setGraph(String graph) {
+    this.graph = graph;
   }
 
   bool isInfoFetched() {
