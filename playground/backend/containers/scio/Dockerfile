@@ -75,7 +75,8 @@ RUN mkdir -p /opt/playground/backend/executable_files/
 
 # Chown all required files to the `appuser`.
 RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ \
-  && chmod -R 777 /usr/local/share/ca-certificates/extra/ && chmod -R 777 /etc/ssl/certs && chmod +x /entrypoint.sh
+  && chmod -R 777 /usr/local/share/ca-certificates/extra/ && chmod -R 777 /usr/local/openjdk-8/jre/lib/security/ \
+  && chmod -R 777 /etc/ssl/certs && chmod +x /entrypoint.sh
 
 # Switch to appuser
 USER appuser
