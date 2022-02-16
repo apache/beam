@@ -32,8 +32,12 @@
     align-items: center;
     justify-content: center;
 
-    .case-study-used-by-car, .case-study-cardd {
-      margin: 32px;
+    .case-study-used-by-card, .case-study-card {
+      margin: 0 0 32px;
+    }
+
+    .case-study-card .case-study-card-description {
+      height: auto;
     }
   }
 }

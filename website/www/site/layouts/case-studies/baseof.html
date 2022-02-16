@@ -27,6 +27,7 @@
   </div>
   {{ partial "footer.html" . }}
   <script>
+      // Handle case study feedback buttons
       function sendCaseStudyFeedback(isUseful, name) {
           ga('send', 'event', 'Case Study Feedback', 'Click', name + (isUseful ? ', yes' : ', no'));
           var caseStudyFeedbackContainerId = 'case-study-feedback';
