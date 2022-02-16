@@ -24,11 +24,11 @@
 3. Add project/company logo to the [images](https://github.com/apache/beam/tree/master/website/www/site/static/images) folder
 4. Copy template below to the created file and replace next fields with your data
 
-Field | Name
---- | ---
-title | Project/Company name
-icon | Path to the logo e.g. "/images/logo.png"
-cardDescription | Description of the project
+| Field           | Name                                     |
+|-----------------|------------------------------------------|
+| title           | Project/Company name                     |
+| icon            | Path to the logo e.g. "/images/logo.png" |
+| cardDescription | Description of the project               |
 
 
 ```

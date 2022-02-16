@@ -26,5 +26,13 @@
     </div>
   </div>
   {{ partial "footer.html" . }}
+  <script>
+      function sendCaseStudyFeedback(isUseful, name) {
+          ga('send', 'event', 'Case Study Feedback', 'Click', name + (isUseful ? ', yes' : ', no'));
+          var caseStudyFeedbackContainerId = 'case-study-feedback';
+          const container = document.getElementById(caseStudyFeedbackContainerId)
+          container.innerHTML = '<p class="case-study-feedback-title">Thank you for your feedback!</p>'
+      }
+  </script>
 </body>
 </html>

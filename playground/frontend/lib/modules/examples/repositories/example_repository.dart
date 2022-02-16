@@ -54,4 +54,11 @@ class ExampleRepository {
     final result = await _client.getExampleLogs(request);
     return result.output;
   }
+
+  Future<String> getExampleGraph(
+    GetExampleRequestWrapper request,
+  ) async {
+    final result = await _client.getExampleGraph(request);
+    return result.output;
+  }
 }
