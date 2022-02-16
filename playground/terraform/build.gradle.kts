@@ -175,14 +175,16 @@ task("setDockerRegistry") {
     //get Docker Registry
     dependsOn(":playground:terraform:terraformInit")
     dependsOn(":playground:terraform:terraformRef")
-    var stdout = ByteArrayOutputStream()
-    //set Docker Registry
-    exec {
-        commandLine = listOf("terraform", "output", "docker-repository-root")
-        standardOutput = stdout
+    try {
+        var stdout = ByteArrayOutputStream()
+        //set Docker Registry
+        exec {
+            commandLine = listOf("terraform", "output", "docker-repository-root")
+            standardOutput = stdout
+        }
+        project.rootProject.extra["docker-repository-root"] = stdout.toString().trim().replace("\"", "")
+    } catch (e: Exception) {
     }
-    project.rootProject.extra["docker-repository-root"] = stdout.toString().trim().replace("\"", "")
-
 }
 
 task("setFrontConfig") {
@@ -198,7 +200,7 @@ task("setFrontConfig") {
 
         }
         project.rootProject.extra["playgroundBackendGoRouteUrl"] = stdout.toString().trim().replace("\"", "")
-        println("GO app address:"  + project.rootProject["playgroundBackendGoRouteUrl"])
+        println("GO app address:")
 //set Java - playgroundBackendJavaRouteUrl
 
         exec {
@@ -207,7 +209,7 @@ task("setFrontConfig") {
         }
         project.rootProject.extra["playgroundBackendJavaRouteUrl"] = stdout.toString().trim().replace("\"", "")
 
-        println("Java app address:"  + project.rootProject["playgroundBackendJavaRouteUrl"])
+        println("Java app address:")
 
 //set Python - playgroundBackendPythonRouteUrl
         exec {
@@ -215,26 +217,26 @@ task("setFrontConfig") {
             standardOutput = stdout
         }
         project.rootProject.extra["playgroundBackendPythonRouteUrl"] = stdout.toString().trim().replace("\"", "")
-        println("Python app address:"  + project.rootProject["playgroundBackendPythonRouteUrl"])
+        println("Python app address:")
 //set Router - playgroundBackendUrl
         exec {
             commandLine = listOf("terraform", "output", "router-server-url")
             standardOutput = stdout
         }
         project.rootProject.extra["playgroundBackendUrl"] = stdout.toString().trim().replace("\"", "")
-        println("Router app address:"  + project.rootProject["playgroundBackendUrl"]))
+        println("Router app address:")
 //set Scio - playgroundBackendScioRouteUrl
         exec {
             commandLine = listOf("terraform", "output", "scio-server-url")
             standardOutput = stdout
         }
         project.rootProject.extra["playgroundBackendScioRouteUrl"] = stdout.toString().trim().replace("\"", "")
-        println("Scio app address:" + project.rootProject["playgroundBackendScioRouteUrl"])
+        println("Scio app address:")
     } catch (e: Exception) {
     }
 }
 
-task("pushBack"){
+task("pushBack") {
     dependsOn(":playground:backend:containers:go:dockerTagsPush")
     dependsOn(":playground:backend:containers:java:dockerTagsPush")
     dependsOn(":playground:backend:containers:python:dockerTagsPush")
