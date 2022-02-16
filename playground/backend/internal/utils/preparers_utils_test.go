@@ -16,14 +16,10 @@
 package utils
 
 import (
-	pb "beam.apache.org/playground/backend/internal/api/v1"
-	"beam.apache.org/playground/backend/internal/fs_tool"
-	"beam.apache.org/playground/backend/internal/validators"
 	"fmt"
-	"github.com/google/uuid"
+	"io/ioutil"
 	"os"
 	"path/filepath"
-	"sync"
 	"testing"
 )
 
@@ -61,19 +57,17 @@ func TestSpacesToEqualsOption(t *testing.T) {
 	}
 }
 
-func Test_ChangeJavaTestFileName(t *testing.T) {
+func Test_ChangeTestFileName(t *testing.T) {
 	codeWithPublicClass := "package org.apache.beam.sdk.transforms; \n public class Class {\n    public static void main(String[] args) {\n        System.out.println(\"Hello World!\");\n    }\n}"
 	path, err := os.Getwd()
 	if err != nil {
 		panic(err)
 	}
-	lc, _ := fs_tool.NewLifeCycle(pb.Sdk_SDK_JAVA, uuid.New(), filepath.Join(path, "temp"))
-	_ = lc.CreateFolders()
-	defer os.RemoveAll(filepath.Join(path, "temp"))
-	_ = lc.CreateSourceCodeFile(codeWithPublicClass)
-	validationResults := sync.Map{}
-	validationResults.Store(validators.UnitTestValidatorName, true)
-
+	path = filepath.Join(path, "temp.java")
+	err = ioutil.WriteFile(path, []byte(codeWithPublicClass), 0644)
+	if err != nil {
+		panic(err)
+	}
 	type args struct {
 		args []interface{}
 	}
@@ -86,7 +80,7 @@ func Test_ChangeJavaTestFileName(t *testing.T) {
 		{
 			// Test that file changes its name to the name of its public class
 			name:     "file with java unit test code to be renamed",
-			args:     args{[]interface{}{lc.Paths.AbsoluteSourceFilePath, &validationResults}},
+			args:     args{[]interface{}{path, "public class (.*?) [{|implements(.*)]"}},
 			wantErr:  false,
 			wantName: "Class.java",
 		},
@@ -96,7 +90,8 @@ func Test_ChangeJavaTestFileName(t *testing.T) {
 			if err := ChangeTestFileName(tt.args.args...); (err != nil) != tt.wantErr {
 				t.Errorf("changeTestFileName() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			files, err := filepath.Glob(fmt.Sprintf("%s/*java", lc.Paths.AbsoluteSourceFileFolderPath))
+			path, _ = os.Getwd()
+			files, err := filepath.Glob(fmt.Sprintf("%s/*java", path))
 			if err != nil {
 				t.Errorf("changeTestFileName() error = %v, wantErr %v", err, tt.wantErr)
 			}
