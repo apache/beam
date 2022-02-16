@@ -38,6 +38,7 @@ from typing import TypeVar
 
 from apache_beam.coders import Coder
 from apache_beam.coders import coders
+from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.transforms.timeutil import TimeDomain
 
@@ -76,7 +77,9 @@ class ReadModifyWriteStateSpec(StateSpec):
     # type: (PipelineContext) -> beam_runner_api_pb2.StateSpec
     return beam_runner_api_pb2.StateSpec(
         read_modify_write_spec=beam_runner_api_pb2.ReadModifyWriteStateSpec(
-            coder_id=context.coders.get_id(self.coder)))
+            coder_id=context.coders.get_id(self.coder)),
+        protocol=beam_runner_api_pb2.FunctionSpec(
+            urn=common_urns.user_state.BAG.urn))
 
 
 class BagStateSpec(StateSpec):
@@ -85,7 +88,9 @@ class BagStateSpec(StateSpec):
     # type: (PipelineContext) -> beam_runner_api_pb2.StateSpec
     return beam_runner_api_pb2.StateSpec(
         bag_spec=beam_runner_api_pb2.BagStateSpec(
-            element_coder_id=context.coders.get_id(self.coder)))
+            element_coder_id=context.coders.get_id(self.coder)),
+        protocol=beam_runner_api_pb2.FunctionSpec(
+            urn=common_urns.user_state.BAG.urn))
 
 
 class SetStateSpec(StateSpec):
@@ -94,7 +99,9 @@ class SetStateSpec(StateSpec):
     # type: (PipelineContext) -> beam_runner_api_pb2.StateSpec
     return beam_runner_api_pb2.StateSpec(
         set_spec=beam_runner_api_pb2.SetStateSpec(
-            element_coder_id=context.coders.get_id(self.coder)))
+            element_coder_id=context.coders.get_id(self.coder)),
+        protocol=beam_runner_api_pb2.FunctionSpec(
+            urn=common_urns.user_state.BAG.urn))
 
 
 class CombiningValueStateSpec(StateSpec):
@@ -141,7 +148,9 @@ class CombiningValueStateSpec(StateSpec):
     return beam_runner_api_pb2.StateSpec(
         combining_spec=beam_runner_api_pb2.CombiningStateSpec(
             combine_fn=self.combine_fn.to_runner_api(context),
-            accumulator_coder_id=context.coders.get_id(self.coder)))
+            accumulator_coder_id=context.coders.get_id(self.coder)),
+        protocol=beam_runner_api_pb2.FunctionSpec(
+            urn=common_urns.user_state.BAG.urn))
 
 
 # TODO(BEAM-9562): Update Timer to have of() and clear() APIs.

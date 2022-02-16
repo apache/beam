@@ -75,7 +75,7 @@ class GrpcExampleClient implements ExampleClient {
               OutputResponse(replaceIncorrectSymbols(response.output)))
           .catchError((err) {
         print(err);
-        OutputResponse('');
+        return OutputResponse('');
       }),
     );
   }
@@ -89,7 +89,21 @@ class GrpcExampleClient implements ExampleClient {
               OutputResponse(replaceIncorrectSymbols(response.output)))
           .catchError((err) {
         print(err);
-        OutputResponse('');
+        return OutputResponse('');
+      }),
+    );
+  }
+
+  @override
+  Future<OutputResponse> getExampleGraph(GetExampleRequestWrapper request) {
+    return _runSafely(
+      () => _defaultClient
+          .getPrecompiledObjectGraph(
+              _getExampleGraphRequestToGrpcRequest(request))
+          .then((response) => OutputResponse(response.graph))
+          .catchError((err) {
+        print(err);
+        return OutputResponse('');
       }),
     );
   }
@@ -128,6 +142,12 @@ class GrpcExampleClient implements ExampleClient {
     GetExampleRequestWrapper request,
   ) {
     return grpc.GetPrecompiledObjectLogsRequest()..cloudPath = request.path;
+  }
+
+  grpc.GetPrecompiledObjectGraphRequest _getExampleGraphRequestToGrpcRequest(
+    GetExampleRequestWrapper request,
+  ) {
+    return grpc.GetPrecompiledObjectGraphRequest()..cloudPath = request.path;
   }
 
   grpc.Sdk _getGrpcSdk(SDK sdk) {
