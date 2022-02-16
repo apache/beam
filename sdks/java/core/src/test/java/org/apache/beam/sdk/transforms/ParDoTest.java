@@ -105,6 +105,7 @@ import org.apache.beam.sdk.testing.UsesMapState;
 import org.apache.beam.sdk.testing.UsesOnWindowExpiration;
 import org.apache.beam.sdk.testing.UsesOrderedListState;
 import org.apache.beam.sdk.testing.UsesParDoLifecycle;
+import org.apache.beam.sdk.testing.UsesProcessingTimeTimers;
 import org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput;
 import org.apache.beam.sdk.testing.UsesSetState;
 import org.apache.beam.sdk.testing.UsesSideInputs;
@@ -2130,7 +2131,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesProcessingTimeTimers.class})
     public void testProcessElementSkew() {
       TimestampedValues<KV<String, Duration>> input =
           Create.timestamped(Arrays.asList(KV.of("2", Duration.millis(1L))), Arrays.asList(1L));
@@ -4356,7 +4357,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesProcessingTimeTimers.class})
     public void testOutOfBoundsProcessingTimeTimerHold() throws Exception {
       final String timerId = "foo";
 
@@ -4402,6 +4403,7 @@ public class ParDoTest implements Serializable {
     @Category({
       ValidatesRunner.class,
       UsesTimersInParDo.class,
+      UsesProcessingTimeTimers.class,
       UsesTestStream.class,
       UsesTestStreamWithProcessingTime.class
     })
@@ -4572,6 +4574,7 @@ public class ParDoTest implements Serializable {
     @Category({
       ValidatesRunner.class,
       UsesTimersInParDo.class,
+      UsesProcessingTimeTimers.class,
       UsesTestStream.class,
       UsesTestStreamWithProcessingTime.class
     })
@@ -5000,6 +5003,7 @@ public class ParDoTest implements Serializable {
       ValidatesRunner.class,
       UsesStatefulParDo.class,
       UsesTimersInParDo.class,
+      UsesProcessingTimeTimers.class,
       UsesTestStream.class,
       UsesTestStreamWithProcessingTime.class,
       UsesTestStreamWithOutputTimestamp.class
@@ -5269,6 +5273,7 @@ public class ParDoTest implements Serializable {
     @Category({
       NeedsRunner.class,
       UsesTimersInParDo.class,
+      UsesProcessingTimeTimers.class,
       UsesTestStream.class,
       UsesTestStreamWithProcessingTime.class
     })
@@ -5349,6 +5354,7 @@ public class ParDoTest implements Serializable {
     @Category({
       NeedsRunner.class,
       UsesTimersInParDo.class,
+      UsesProcessingTimeTimers.class,
       UsesTestStream.class,
       UsesTestStreamWithProcessingTime.class
     })
@@ -5426,6 +5432,7 @@ public class ParDoTest implements Serializable {
     @Category({
       NeedsRunner.class,
       UsesTimersInParDo.class,
+      UsesProcessingTimeTimers.class,
       UsesTestStream.class,
       UsesTestStreamWithProcessingTime.class
     })
@@ -5539,6 +5546,7 @@ public class ParDoTest implements Serializable {
     @Category({
       NeedsRunner.class,
       UsesTimersInParDo.class,
+      UsesProcessingTimeTimers.class,
       UsesTestStream.class,
       UsesTestStreamWithProcessingTime.class
     })
@@ -6174,6 +6182,7 @@ public class ParDoTest implements Serializable {
     @Category({
       ValidatesRunner.class,
       UsesTimersInParDo.class,
+      UsesProcessingTimeTimers.class,
       UsesTestStream.class,
       UsesTestStreamWithProcessingTime.class,
       UsesTimerMap.class
