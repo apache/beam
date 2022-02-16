@@ -78,7 +78,7 @@ func TestLocalCache_GetValue(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "Get exist value",
+			name: "get existing value",
 			fields: fields{
 				cleanupInterval:     cleanupInterval,
 				items:               preparedItemsMap,
@@ -93,7 +93,7 @@ func TestLocalCache_GetValue(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "Get not exist value",
+			name: "get not existing value",
 			fields: fields{
 				cleanupInterval: cleanupInterval,
 				items:           make(map[uuid.UUID]map[cache.SubKey]interface{}),
@@ -106,9 +106,9 @@ func TestLocalCache_GetValue(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			// Test case with calling GetValue method with exist value the expiration time of which has ended.
+			// Test case with calling GetValue method with existing value that is expiring.
 			// As a result, want to receive an error.
-			name: "Get exist value the expiration time of which has ended",
+			name: "get an existing value that is expiring",
 			fields: fields{
 				cleanupInterval:     cleanupInterval,
 				items:               preparedItemsMap,
@@ -181,7 +181,7 @@ func TestLocalCache_SetValue(t *testing.T) {
 		{
 			// Test case with calling SetValue method with RunOutputIndex subKey.
 			// As a result, want to save value to cache.
-			name: "Set value for some index subKey",
+			name: "Set value for RunOutputIndex subKey",
 			fields: fields{
 				cleanupInterval:     cleanupInterval,
 				items:               make(map[uuid.UUID]map[cache.SubKey]interface{}),
@@ -254,7 +254,7 @@ func TestLocalCache_SetExpTime(t *testing.T) {
 		{
 			// Test case with calling SetExpTime method with pipelineId which not set in cache and expiration time.
 			// As a result, want to receive an error.
-			name: "Set expiration time for not exist value",
+			name: "Set expiration time for not existing value in cache items",
 			fields: fields{
 				cleanupInterval:     cleanupInterval,
 				items:               make(map[uuid.UUID]map[cache.SubKey]interface{}),
@@ -488,9 +488,9 @@ func TestLocalCache_startGC(t *testing.T) {
 			},
 		},
 		{
-			// Test case with calling startGC method with nil items.
+			// Test case with calling startGC method with nil cache items.
 			// As a result, items stay the same.
-			name: "Checking for deleting expired pipelines with nil items",
+			name: "Checking for deleting expired pipelines with nil cache items",
 			fields: fields{
 				cleanupInterval:     time.Microsecond,
 				items:               nil,
@@ -621,9 +621,7 @@ func TestNew(t *testing.T) {
 		want *Cache
 	}{
 		{
-			// Test case with calling New method.
-			// As a result, want to receive an expected Cache.
-			name: "initialize local cache",
+			name: "Initialize local cache",
 			args: args{ctx: context.Background()},
 			want: &Cache{
 				cleanupInterval:     cleanupInterval,

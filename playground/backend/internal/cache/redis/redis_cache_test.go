@@ -68,7 +68,7 @@ func TestRedisCache_GetValue(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "all success",
+			name: "get existing value",
 			mocks: func() {
 				mock.ExpectHGet(pipelineId.String(), string(marshSubKey)).SetVal(string(marshValue))
 			},
@@ -148,7 +148,7 @@ func TestRedisCache_SetExpTime(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "error during Expire operation",
+			name: "Set expiration time with error during Expire operation",
 			mocks: func() {
 				mock.ExpectExists(pipelineId.String()).SetVal(1)
 				mock.ExpectExpire(pipelineId.String(), expTime).SetErr(fmt.Errorf("MOCK_ERROR"))
@@ -162,7 +162,7 @@ func TestRedisCache_SetExpTime(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "all success",
+			name: "Set expiration time",
 			mocks: func() {
 				mock.ExpectExists(pipelineId.String()).SetVal(1)
 				mock.ExpectExpire(pipelineId.String(), expTime).SetVal(true)
@@ -229,7 +229,7 @@ func TestRedisCache_SetValue(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "all success",
+			name: "set correct value",
 			mocks: func() {
 				mock.ExpectHSet(pipelineId.String(), marshSubKey, marshValue).SetVal(1)
 				mock.ExpectExpire(pipelineId.String(), time.Minute*15).SetVal(true)
@@ -244,8 +244,6 @@ func TestRedisCache_SetValue(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			// Test case with calling SetValue method with incorrect value.
-			// As a result, want to receive an error during marshal value.
 			name: "set incorrect value",
 			mocks: func() {
 				mock.ExpectHSet(pipelineId.String(), marshSubKey, marshValue).SetVal(1)
@@ -335,7 +333,7 @@ func TestCache_GetCatalog(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "Success",
+			name: "Get existing catalog",
 			mocks: func() {
 				mock.ExpectGet(cache.ExamplesCatalog).SetVal(string(catalogMarsh))
 			},
@@ -433,7 +431,7 @@ func TestCache_SetCatalog(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "Success",
+			name: "Set catalog",
 			mocks: func() {
 				mock.ExpectSet(cache.ExamplesCatalog, catalogMarsh, 0).SetVal("")
 			},
@@ -568,7 +566,7 @@ func Test_unmarshalBySubKey(t *testing.T) {
 		},
 		{
 			// Test case with calling unmarshalBySubKey method with RunOutputIndex subKey.
-			// As a result, want to receive expected runOutputIndexValue.
+			// As a result, want to receive expected runOutputIndex.
 			name: "RunOutputIndex subKey",
 			args: args{
 				subKey: cache.RunOutputIndex,
