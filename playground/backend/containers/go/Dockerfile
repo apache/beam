@@ -69,9 +69,6 @@ ENV HTTP_PROXY="http://127.0.0.1:8081"
 ENV HTTPS_PROXY="http://127.0.0.1:8081"
 
 COPY entrypoint.sh /
-COPY proxy.sh /
-# Run proxy
-RUN sh /proxy.sh
 
 # Create a user group `appgroup` and a user `appuser`
 RUN groupadd --gid 20000 appgroup \
@@ -79,8 +76,9 @@ RUN groupadd --gid 20000 appgroup \
 
 RUN mkdir -p /opt/playground/backend/executable_files/
 
-# Chown all the files to the `appuser`.
-RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ && chmod +x /entrypoint.sh
+# Chown all required files to the `appuser`.
+RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ \
+  && chmod -R 777 /usr/local/share/ca-certificates/extra/ && chmod -R 777 /etc/ssl/certs && chmod +x /entrypoint.sh
 
 # Switch to appuser
 USER appuser
