@@ -17,8 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.transform.agg;
 
-import java.io.Serializable;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.Count;
 
 /**
  * Returns the count of TRUE values for expression. Returns 0 if there are zero input rows, or if
@@ -27,49 +30,41 @@ import org.apache.beam.sdk.transforms.Combine;
 public class CountIf {
   private CountIf() {}
 
-  public static CountIfFn combineFn() {
-    return new CountIf.CountIfFn();
+  public static Combine.CombineFn<Boolean, ?, Long> combineFn() {
+    return new CountIfFn();
   }
 
-  public static class CountIfFn extends Combine.CombineFn<Boolean, CountIfFn.Accum, Long> {
+  public static class CountIfFn extends Combine.CombineFn<Boolean, long[], Long> {
+    private final Combine.CombineFn<Boolean, long[], Long> countFn =
+        (Combine.CombineFn<Boolean, long[], Long>) Count.<Boolean>combineFn();
 
-    public static class Accum implements Serializable {
-      boolean isExpressionFalse = true;
-      long countIfResult = 0L;
+    @Override
+    public long[] createAccumulator() {
+      return countFn.createAccumulator();
     }
 
     @Override
-    public Accum createAccumulator() {
-      return new Accum();
-    }
-
-    @Override
-    public Accum addInput(Accum accum, Boolean input) {
-      if (input) {
-        accum.isExpressionFalse = false;
-        accum.countIfResult += 1;
+    public long[] addInput(long[] accumulator, Boolean input) {
+      if (Boolean.TRUE.equals(input)) {
+        countFn.addInput(accumulator, input);
       }
-      return accum;
+      return accumulator;
     }
 
     @Override
-    public Accum mergeAccumulators(Iterable<Accum> accums) {
-      CountIfFn.Accum merged = createAccumulator();
-      for (CountIfFn.Accum accum : accums) {
-        if (!accum.isExpressionFalse) {
-          merged.isExpressionFalse = false;
-          merged.countIfResult += accum.countIfResult;
-        }
-      }
-      return merged;
+    public long[] mergeAccumulators(Iterable<long[]> accumulators) {
+      return countFn.mergeAccumulators(accumulators);
     }
 
     @Override
-    public Long extractOutput(Accum accum) {
-      if (!accum.isExpressionFalse) {
-        return accum.countIfResult;
-      }
-      return 0L;
+    public Long extractOutput(long[] accumulator) {
+      return countFn.extractOutput(accumulator);
+    }
+
+    @Override
+    public Coder<long[]> getAccumulatorCoder(CoderRegistry registry, Coder<Boolean> inputCoder)
+        throws CannotProvideCoderException {
+      return countFn.getAccumulatorCoder(registry, inputCoder);
     }
   }
 }
