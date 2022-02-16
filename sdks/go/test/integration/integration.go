@@ -86,8 +86,6 @@ var portableFilters = []string{
 	"TestPanes",
 	// TODO(BEAM-12797): Python portable runner times out on Kafka reads.
 	"TestKafkaIO.*",
-	// TODO(BEAM-13778) needs a schemaio expansion service address flag
-	"TestJDBCIO_BasicReadWrite",
 }
 
 var flinkFilters = []string{
@@ -100,8 +98,6 @@ var flinkFilters = []string{
 	"TestTestStream.*Sequence.*",
 	// Triggers are not yet supported
 	"TestTrigger.*",
-	// TODO(BEAM-13778) needs a schemaio expansion service address flag
-	"TestJDBCIO_BasicReadWrite",
 }
 
 var samzaFilters = []string{
@@ -115,8 +111,6 @@ var samzaFilters = []string{
 	"TestPanes",
 	// TODO(BEAM-13006): Samza doesn't yet support post job metrics, used by WordCount
 	"TestWordCount.*",
-	// TODO(BEAM-13778) needs a schemaio expansion service address flag
-	"TestJDBCIO_BasicReadWrite",
 }
 
 var sparkFilters = []string{
@@ -129,13 +123,14 @@ var sparkFilters = []string{
 	// The trigger and pane tests uses TestStream
 	"TestTrigger.*",
 	"TestPanes",
-	// TODO(BEAM-13778) needs a schemaio expansion service address flag
-	"TestJDBCIO_BasicReadWrite",
+	// [BEAM-13921]: Spark doesn't support side inputs to executable stages
+	"TestDebeziumIO_BasicRead",
 }
 
 var dataflowFilters = []string{
 	// The Dataflow runner doesn't work with tests using testcontainers locally.
 	"TestJDBCIO_BasicReadWrite",
+	"TestDebeziumIO_BasicRead",
 	// TODO(BEAM-11576): TestFlattenDup failing on this runner.
 	"TestFlattenDup",
 	// The Dataflow runner does not support the TestStream primitive
@@ -145,8 +140,6 @@ var dataflowFilters = []string{
 	"TestPanes",
 	// There is no infrastructure for running KafkaIO tests with Dataflow.
 	"TestKafkaIO.*",
-	// TestContainers won't work against dataflow.
-	"TestDebeziumIO_BasicRead",
 	// Dataflow doesn't support any test that requires loopback.
 	// Eg. For FileIO examples.
 	".*Loopback.*",

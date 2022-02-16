@@ -46,7 +46,8 @@ Tag = namedtuple(
         TagFields.pipeline_options,
         TagFields.default_example,
         TagFields.context_line
-    ], defaults=(None, None, False, None, None, False, None))
+    ],
+    defaults=(None, None, False, None, None, False, None))
 
 
 @dataclass
@@ -249,7 +250,11 @@ def _get_example(filepath: str, filename: str, tag: ExampleTag) -> Example:
   content = content.replace(tag.tag_as_string, "")
   tag.tag_as_dict[TagFields.context_line] -= tag.tag_as_string.count("\n")
   root_dir = os.getenv("BEAM_ROOT_DIR", "")
-  link = "{}{}".format(Config.LINK_PREFIX, (filepath.replace(root_dir, "", 1)))
+  file_path_without_root = filepath.replace(root_dir, "", 1)
+  if file_path_without_root.startswith("/"):
+    link = "{}{}".format(Config.LINK_PREFIX, file_path_without_root)
+  else:
+    link = "{}/{}".format(Config.LINK_PREFIX, file_path_without_root)
 
   return Example(
       name=name,
@@ -341,13 +346,13 @@ def _validate(tag: dict, supported_categories: List[str]) -> bool:
   # check that context line's value is integer
   context_line = tag.get(TagFields.context_line)
   if not isinstance(context_line, int):
-      logging.error(
-          "tag's field context_line is incorrect: %s \n"
-          "context_line variable should be integer format, "
-          "but tag contains: %s",
-          tag,
-          context_line)
-      valid = False
+    logging.error(
+        "Tag's field context_line is incorrect: %s \n"
+        "context_line variable should be integer format, "
+        "but tag contains: %s",
+        tag,
+        context_line)
+    valid = False
   return valid
 
 

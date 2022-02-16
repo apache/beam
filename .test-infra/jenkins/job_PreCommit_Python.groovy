@@ -21,6 +21,9 @@ import PrecommitJobBuilder
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
     nameBase: 'Python',
+    gradleSwitches: [
+      '-PretryFlakyTest=true',
+    ],
     gradleTask: ':pythonPreCommit',
     timeoutMins: 180,
     triggerPathPatterns: [
@@ -32,6 +35,10 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
 builder.build {
   // Publish all test results to Jenkins.
   publishers {
-    archiveJunit('**/pytest*.xml')
+    archiveJunit('**/pytest*.xml'){
+      testDataPublishers {
+        publishFlakyTestsReport()
+      }
+    }
   }
 }

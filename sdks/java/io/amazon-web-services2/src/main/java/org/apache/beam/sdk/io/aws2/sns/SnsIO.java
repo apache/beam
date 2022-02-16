@@ -90,14 +90,13 @@ import software.amazon.awssdk.services.sns.model.PublishResponse;
  */
 @Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public final class SnsIO {
 
   // Write data to SNS
   public static <T> Write<T> write() {
-    return new AutoValue_SnsIO_Write.Builder().build();
+    return new AutoValue_SnsIO_Write.Builder<T>().build();
   }
 
   /**
@@ -107,7 +106,7 @@ public final class SnsIO {
    */
   @Deprecated
   public static <T> WriteAsync<T> writeAsync() {
-    return new AutoValue_SnsIO_WriteAsync.Builder().build();
+    return new AutoValue_SnsIO_WriteAsync.Builder<T>().build();
   }
 
   /**

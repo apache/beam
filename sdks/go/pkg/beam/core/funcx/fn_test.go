@@ -17,6 +17,7 @@ package funcx
 
 import (
 	"context"
+	"errors"
 	"reflect"
 	"strings"
 	"testing"
@@ -28,6 +29,15 @@ import (
 
 type foo struct {
 	i int
+}
+
+type nonConcreteType struct {
+	Ghi func(string) string
+}
+
+type illegalEmitType struct {
+	Abc string
+	Def nonConcreteType
 }
 
 func (m foo) Do(context.Context, int, string) (string, int, error) {
@@ -197,6 +207,45 @@ func TestNew(t *testing.T) {
 				return "", mtime.ZeroTimestamp
 			},
 			Err: errEventTimeRetPrecedence,
+		},
+		{
+			Name: "errIllegalParametersInEmit - malformed emit struct",
+			Fn:   func(context.Context, typex.EventTime, reflect.Type, func(nonConcreteType)) error { return nil },
+			Err:  errors.New(errIllegalParametersInEmit),
+		},
+		{
+			Name: "errIllegalParametersInEmit - malformed emit nested in struct",
+			Fn:   func(context.Context, typex.EventTime, reflect.Type, func(illegalEmitType)) error { return nil },
+			Err:  errors.New(errIllegalParametersInEmit),
+		},
+		{
+			Name: "errIllegalParametersInEmit - malformed emit nested in map value",
+			Fn: func(context.Context, typex.EventTime, reflect.Type, func(map[string]nonConcreteType)) error {
+				return nil
+			},
+			Err: errors.New(errIllegalParametersInEmit),
+		},
+		{
+			Name: "errIllegalParametersInEmit - malformed emit nested in slice",
+			Fn: func(context.Context, typex.EventTime, reflect.Type, func([]nonConcreteType)) error {
+				return nil
+			},
+			Err: errors.New(errIllegalParametersInEmit),
+		},
+		{
+			Name: "errIllegalParametersInIter - malformed Iter",
+			Fn:   func(int, func(*nonConcreteType) bool, func(*int, *string) bool) {},
+			Err:  errors.New(errIllegalParametersInIter),
+		},
+		{
+			Name: "errIllegalParametersInIter - malformed ReIter",
+			Fn:   func(int, func() func(*nonConcreteType) bool, func(*int, *string) bool) {},
+			Err:  errors.New(errIllegalParametersInReIter),
+		},
+		{
+			Name: "errIllegalParametersInMultiMap - malformed MultiMap",
+			Fn:   func(int, func(string) func(*nonConcreteType) bool) {},
+			Err:  errors.New(errIllegalParametersInMultiMap),
 		},
 	}
 

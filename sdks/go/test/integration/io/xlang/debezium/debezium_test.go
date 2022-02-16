@@ -32,8 +32,8 @@ import (
 )
 
 func checkFlags(t *testing.T) {
-	if *integration.IoExpansionAddr == "" {
-		t.Skip("No IO expansion address provided.")
+	if *integration.DebeziumIoExpansionAddr == "" {
+		t.Skip("No DebeziumIo expansion address provided.")
 	}
 }
 
@@ -84,7 +84,7 @@ func TestDebeziumIO_BasicRead(t *testing.T) {
 		"database.include.list=inventory",
 		"include.schema.changes=false",
 	}
-	read := ReadPipeline(*integration.IoExpansionAddr, username, password, dbname, host, port, debeziumio.PostgreSQL, 1, connectionProperties)
+	read := ReadPipeline(*integration.DebeziumIoExpansionAddr, username, password, dbname, host, port, debeziumio.PostgreSQL, 1, connectionProperties)
 	ptest.RunAndValidate(t, read)
 }
 

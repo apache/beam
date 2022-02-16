@@ -51,7 +51,7 @@ categories_file = os.getenv("BEAM_EXAMPLE_CATEGORIES")
 
 def _ci_step(examples: List[Example]):
   """
-  CI step to verify all beam examples/tests/katas
+  CI step to verify single-file beam examples/tests/katas
   """
 
   ci_helper = CIHelper()
@@ -84,9 +84,10 @@ def _run_ci_cd(step: config.Config.CI_CD_LITERAL, sdk: Sdk):
   logging.info("Number of found Playground examples: %s", len(examples))
 
   if step == config.Config.CI_STEP_NAME:
-    logging.info("Start of verification Playground examples ...")
+    logging.info(
+        "Start of verification only single_file Playground examples ...")
     _ci_step(examples=examples)
-    logging.info("Finish of verification Playground examples")
+    logging.info("Finish of verification single_file Playground examples")
   if step == config.Config.CD_STEP_NAME:
     logging.info("Start of storing Playground examples ...")
     _cd_step(examples=examples)

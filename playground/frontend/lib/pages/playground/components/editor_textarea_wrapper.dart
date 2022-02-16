@@ -84,6 +84,8 @@ class CodeTextAreaWrapper extends StatelessWidget {
                               );
                         },
                         runCode: () {
+                          AnalyticsService analyticsService =
+                              AnalyticsService.get(context);
                           final stopwatch = Stopwatch()..start();
                           final exampleName = getAnalyticsExampleName(
                             state.selectedExample,
@@ -92,7 +94,7 @@ class CodeTextAreaWrapper extends StatelessWidget {
                           );
                           state.runCode(
                             onFinish: () {
-                              AnalyticsService.get(context).trackRunTimeEvent(
+                              analyticsService.trackRunTimeEvent(
                                 exampleName,
                                 stopwatch.elapsedMilliseconds,
                               );
