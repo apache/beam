@@ -17,6 +17,11 @@
  */
 package org.apache.beam.sdk.schemas;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.PipedInputStream;
+import java.io.PipedOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +33,7 @@ import org.apache.beam.model.pipeline.v1.SchemaApi.ArrayTypeValue;
 import org.apache.beam.model.pipeline.v1.SchemaApi.AtomicTypeValue;
 import org.apache.beam.model.pipeline.v1.SchemaApi.FieldValue;
 import org.apache.beam.model.pipeline.v1.SchemaApi.IterableTypeValue;
+import org.apache.beam.model.pipeline.v1.SchemaApi.LogicalTypeValue;
 import org.apache.beam.model.pipeline.v1.SchemaApi.MapTypeEntry;
 import org.apache.beam.model.pipeline.v1.SchemaApi.MapTypeValue;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -45,6 +51,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditio
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Utility methods for translating schemas. */
@@ -319,6 +326,7 @@ public class SchemaTranslation {
             fieldTypeFromProto(protoFieldType.getMapType().getValueType()));
       case LOGICAL_TYPE:
         String urn = protoFieldType.getLogicalType().getUrn();
+        SchemaApi.LogicalType logicalType = protoFieldType.getLogicalType();
         Class<? extends LogicalType<?, ?>> logicalTypeClass = STANDARD_LOGICAL_TYPES.get(urn);
         if (logicalTypeClass != null) {
           try {
@@ -351,22 +359,21 @@ public class SchemaTranslation {
           return FieldType.logicalType(
               (LogicalType)
                   SerializableUtils.deserializeFromByteArray(
-                      protoFieldType.getLogicalType().getPayload().toByteArray(), "logicalType"));
+                      logicalType.getPayload().toByteArray(), "logicalType"));
         } else {
           @Nullable FieldType argumentType = null;
           @Nullable Object argumentValue = null;
-          if (protoFieldType.getLogicalType().hasArgumentType()) {
-            argumentType = fieldTypeFromProto(protoFieldType.getLogicalType().getArgumentType());
-            argumentValue =
-                fieldValueFromProto(argumentType, protoFieldType.getLogicalType().getArgument());
+          if (logicalType.hasArgumentType()) {
+            argumentType = fieldTypeFromProto(logicalType.getArgumentType());
+            argumentValue = fieldValueFromProto(argumentType, logicalType.getArgument());
           }
           return FieldType.logicalType(
               new UnknownLogicalType(
                   urn,
-                  protoFieldType.getLogicalType().getPayload().toByteArray(),
+                  logicalType.getPayload().toByteArray(),
                   argumentType,
                   argumentValue,
-                  fieldTypeFromProto(protoFieldType.getLogicalType().getRepresentation())));
+                  fieldTypeFromProto(logicalType.getRepresentation())));
         }
       default:
         throw new IllegalArgumentException(
@@ -393,6 +400,14 @@ public class SchemaTranslation {
 
   static SchemaApi.FieldValue fieldValueToProto(FieldType fieldType, Object value) {
     FieldValue.Builder builder = FieldValue.newBuilder();
+    if (value == null) {
+      if (fieldType.getNullable()) {
+        return builder.build();
+      } else {
+        throw new RuntimeException("Null value found for field that doesn't support nulls.");
+      }
+    }
+
     switch (fieldType.getTypeName()) {
       case ARRAY:
         return builder
@@ -411,26 +426,76 @@ public class SchemaTranslation {
             .build();
       case ROW:
         return builder.setRowValue(rowToProto((Row) value)).build();
+      case DATETIME:
+        return builder
+            .setLogicalTypeValue(logicalTypeToProtoViaCoder(FieldType.INT64, fieldType, value))
+            .build();
+      case DECIMAL:
+        return builder
+            .setLogicalTypeValue(logicalTypeToProtoViaCoder(FieldType.BYTES, fieldType, value))
+            .build();
       case LOGICAL_TYPE:
+        return builder
+            .setLogicalTypeValue(logicalTypeToProto(fieldType.getLogicalType(), value))
+            .build();
       default:
         return builder.setAtomicValue(primitiveRowFieldToProto(fieldType, value)).build();
     }
   }
 
+  /** Returns if the given field is null and throws exception if it is and can't be. */
+  static boolean isNullFieldValueFromProto(FieldType fieldType, boolean hasNonNullValue) {
+    if (!hasNonNullValue && !fieldType.getNullable()) {
+      throw new RuntimeException("FieldTypeValue has no value but the field cannot be null.");
+    }
+    return !hasNonNullValue;
+  }
+
   static Object fieldValueFromProto(FieldType fieldType, SchemaApi.FieldValue value) {
     switch (fieldType.getTypeName()) {
       case ARRAY:
+        if (isNullFieldValueFromProto(fieldType, value.hasArrayValue())) {
+          return null;
+        }
         return arrayValueFromProto(fieldType.getCollectionElementType(), value.getArrayValue());
       case ITERABLE:
+        if (isNullFieldValueFromProto(fieldType, value.hasIterableValue())) {
+          return null;
+        }
         return iterableValueFromProto(
             fieldType.getCollectionElementType(), value.getIterableValue());
       case MAP:
+        if (isNullFieldValueFromProto(fieldType, value.hasMapValue())) {
+          return null;
+        }
         return mapFromProto(
             fieldType.getMapKeyType(), fieldType.getMapValueType(), value.getMapValue());
       case ROW:
+        if (isNullFieldValueFromProto(fieldType, value.hasRowValue())) {
+          return null;
+        }
         return rowFromProto(value.getRowValue(), fieldType);
       case LOGICAL_TYPE:
+        if (isNullFieldValueFromProto(fieldType, value.hasLogicalTypeValue())) {
+          return null;
+        }
+        return logicalTypeFromProto(fieldType.getLogicalType(), value);
+      case DATETIME:
+        if (isNullFieldValueFromProto(fieldType, value.hasLogicalTypeValue())) {
+          return null;
+        }
+        return logicalTypeFromProtoViaCoder(
+            FieldType.INT64, fieldType, value.getLogicalTypeValue());
+      case DECIMAL:
+        if (isNullFieldValueFromProto(fieldType, value.hasLogicalTypeValue())) {
+          return null;
+        }
+        return logicalTypeFromProtoViaCoder(
+            FieldType.BYTES, fieldType, value.getLogicalTypeValue());
       default:
+        if (isNullFieldValueFromProto(fieldType, value.hasAtomicValue())) {
+          return null;
+        }
         return primitiveFromProto(fieldType, value.getAtomicValue());
     }
   }
@@ -483,6 +548,70 @@ public class SchemaTranslation {
             Collectors.toMap(
                 entry -> fieldValueFromProto(mapKeyType, entry.getKey()),
                 entry -> fieldValueFromProto(mapValueType, entry.getValue())));
+  }
+
+  private static Object logicalTypeFromProtoViaCoder(
+      FieldType baseType, FieldType inputType, LogicalTypeValue value) {
+    try {
+      PipedInputStream in = new PipedInputStream();
+      DataOutputStream stream = new DataOutputStream(new PipedOutputStream(in));
+      switch (baseType.getTypeName()) {
+        case INT64:
+          stream.writeLong(value.getValue().getAtomicValue().getInt64());
+          break;
+        case BYTES:
+          stream.write(value.getValue().getAtomicValue().getBytes().toByteArray());
+          break;
+        default:
+          throw new UnsupportedOperationException(
+              "Unsupported underlying type for parsing logical type via coder.");
+      }
+      stream.close();
+      return SchemaCoderHelpers.coderForFieldType(inputType).decode(in);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  private static LogicalTypeValue logicalTypeToProtoViaCoder(
+      FieldType baseType, FieldType inputType, Object value) {
+    try {
+      PipedInputStream in = new PipedInputStream();
+      PipedOutputStream out = new PipedOutputStream(in);
+      SchemaCoderHelpers.coderForFieldType(inputType).encode(value, out);
+      out.close(); // Close required for toByteArray.
+      Object baseObject;
+      switch (baseType.getTypeName()) {
+        case INT64:
+          baseObject = new DataInputStream(in).readLong();
+          break;
+        case BYTES:
+          baseObject = ByteStreams.toByteArray(in);
+          break;
+        default:
+          throw new UnsupportedOperationException(
+              "Unsupported underlying type for producing LogicalType via coder.");
+      }
+      return LogicalTypeValue.newBuilder()
+          .setValue(fieldValueToProto(baseType, baseObject))
+          .build();
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  private static LogicalTypeValue logicalTypeToProto(LogicalType logicalType, Object value) {
+    return LogicalTypeValue.newBuilder()
+        .setValue(
+            fieldValueToProto(logicalType.getBaseType(), logicalType.toBaseTypeGeneric(value)))
+        .build();
+  }
+
+  private static Object logicalTypeFromProto(
+      LogicalType logicalType, SchemaApi.FieldValue logicalValue) {
+    return logicalType.toInputTypeGeneric(
+        fieldValueFromProto(
+            logicalType.getBaseType(), logicalValue.getLogicalTypeValue().getValue()));
   }
 
   private static AtomicTypeValue primitiveRowFieldToProto(FieldType fieldType, Object value) {

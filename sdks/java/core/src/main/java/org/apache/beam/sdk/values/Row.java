@@ -42,6 +42,7 @@ import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.values.RowUtils.CapturingRowCases;
 import org.apache.beam.sdk.values.RowUtils.FieldOverride;
@@ -460,7 +461,11 @@ public abstract class Row implements Serializable {
       if (a == null || b == null) {
         return a == b;
       } else if (fieldType.getTypeName() == TypeName.LOGICAL_TYPE) {
-        return deepEquals(a, b, fieldType.getLogicalType().getBaseType());
+        LogicalType<?, ?> logicalType = fieldType.getLogicalType();
+        return deepEquals(
+            logicalType.toBaseTypeGeneric(a),
+            logicalType.toBaseTypeGeneric(b),
+            logicalType.getBaseType());
       } else if (fieldType.getTypeName() == Schema.TypeName.BYTES) {
         return Arrays.equals((byte[]) a, (byte[]) b);
       } else if (fieldType.getTypeName() == TypeName.ARRAY) {
@@ -598,6 +603,9 @@ public abstract class Row implements Serializable {
   }
 
   private String toString(Schema.FieldType fieldType, Object value, boolean includeFieldNames) {
+    if (value == null) {
+      return "";
+    }
     StringBuilder builder = new StringBuilder();
     switch (fieldType.getTypeName()) {
       case ARRAY:
