@@ -198,7 +198,7 @@ task("setFrontConfig") {
 
         }
         project.rootProject.extra["playgroundBackendGoRouteUrl"] = stdout.toString().trim().replace("\"", "")
-        println("GO app address:"  + project.rootProject["playgroundBackendGoRouteUrl"])
+        println("GO app address:")
 //set Java - playgroundBackendJavaRouteUrl
 
         exec {
@@ -207,7 +207,7 @@ task("setFrontConfig") {
         }
         project.rootProject.extra["playgroundBackendJavaRouteUrl"] = stdout.toString().trim().replace("\"", "")
 
-        println("Java app address:"  + project.rootProject["playgroundBackendJavaRouteUrl"])
+        println("Java app address:")
 
 //set Python - playgroundBackendPythonRouteUrl
         exec {
@@ -215,21 +215,21 @@ task("setFrontConfig") {
             standardOutput = stdout
         }
         project.rootProject.extra["playgroundBackendPythonRouteUrl"] = stdout.toString().trim().replace("\"", "")
-        println("Python app address:"  + project.rootProject["playgroundBackendPythonRouteUrl"])
+        println("Python app address:")
 //set Router - playgroundBackendUrl
         exec {
             commandLine = listOf("terraform", "output", "router-server-url")
             standardOutput = stdout
         }
         project.rootProject.extra["playgroundBackendUrl"] = stdout.toString().trim().replace("\"", "")
-        println("Router app address:"  + project.rootProject["playgroundBackendUrl"]))
+        println("Router app address:")
 //set Scio - playgroundBackendScioRouteUrl
         exec {
             commandLine = listOf("terraform", "output", "scio-server-url")
             standardOutput = stdout
         }
         project.rootProject.extra["playgroundBackendScioRouteUrl"] = stdout.toString().trim().replace("\"", "")
-        println("Scio app address:" + project.rootProject["playgroundBackendScioRouteUrl"])
+        println("Scio app address:")
     } catch (e: Exception) {
     }
 }
