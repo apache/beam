@@ -35,7 +35,6 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerConfig;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO;
-import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChangeStreamRecordMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.StateSpec;
@@ -98,7 +97,7 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
             .withDatabaseId(databaseId);
 
     // Get the time increment interval at which to flush data changes ordered by key.
-    final long timeIncrementInSeconds = 70;
+    final long timeIncrementInSeconds = 5;
 
     // Commit a initial transaction to get the timestamp to start reading from.
     List<Mutation> mutations = new ArrayList<>();
@@ -113,7 +112,7 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
     try {
       Thread.sleep(timeIncrementInSeconds * 1000);
     } catch (InterruptedException e) {
-      System.out.println(e);
+      LOG.error(e.toString());
     }
 
     // This will be the second batch of transactions that will have strict timestamp ordering
@@ -124,7 +123,7 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
     try {
       Thread.sleep(timeIncrementInSeconds * 1000);
     } catch (InterruptedException e) {
-      System.out.println(e);
+      LOG.error(e.toString());
     }
 
     // This will be the final batch of transactions that will have strict timestamp ordering
@@ -241,22 +240,6 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
     @ProcessElement
     public void processElement(
         @Element DataChangeRecord record, OutputReceiver<DataChangeRecord> outputReceiver) {
-      final ChangeStreamRecordMetadata fakeChangeStreamMetadata =
-          ChangeStreamRecordMetadata.newBuilder()
-              .withPartitionToken("1")
-              .withRecordTimestamp(com.google.cloud.Timestamp.ofTimeMicroseconds(2L))
-              .withPartitionStartTimestamp(com.google.cloud.Timestamp.ofTimeMicroseconds(3L))
-              .withPartitionEndTimestamp(com.google.cloud.Timestamp.ofTimeMicroseconds(4L))
-              .withPartitionCreatedAt(com.google.cloud.Timestamp.ofTimeMicroseconds(5L))
-              .withPartitionScheduledAt(com.google.cloud.Timestamp.ofTimeMicroseconds(6L))
-              .withPartitionRunningAt(com.google.cloud.Timestamp.ofTimeMicroseconds(7L))
-              .withQueryStartedAt(com.google.cloud.Timestamp.ofTimeMicroseconds(8L))
-              .withRecordStreamStartedAt(com.google.cloud.Timestamp.ofTimeMicroseconds(9L))
-              .withRecordStreamEndedAt(com.google.cloud.Timestamp.ofTimeMicroseconds(10L))
-              .withRecordReadAt(com.google.cloud.Timestamp.ofTimeMicroseconds(11L))
-              .withTotalStreamTimeMillis(12L)
-              .withNumberOfRecordsRead(13L)
-              .build();
       record.getMods().stream()
           .map(
               mod ->
@@ -273,7 +256,7 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
                       record.getValueCaptureType(),
                       record.getNumberOfRecordsInTransaction(),
                       record.getNumberOfPartitionsInTransaction(),
-                      fakeChangeStreamMetadata))
+                      record.getMetadata()))
           .forEach(outputReceiver::output);
     }
   }
@@ -316,7 +299,7 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
   // We utilize a looping timer to determine when to flush the buffer:
   //
   // 1. When we see a data change record for a key for the first time, we will set the timer to
-  //    fire at the data change record's commit timestamp.
+  //    fire at an interval after the data change record's commit timestamp.
   // 2. Then, when the timer fires, if the current timer's expiration time is before the pipeline
   //    end time, if set, we still have data left to process. We will set the next timer to the
   //    current timer's expiration time plus incrementIntervalInSeconds.
