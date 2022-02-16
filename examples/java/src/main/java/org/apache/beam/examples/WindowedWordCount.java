@@ -17,6 +17,18 @@
  */
 package org.apache.beam.examples;
 
+// beam-playground:
+//   name: WindowedWordCount
+//   description: An example that counts words in text, and can run over either unbounded or bounded input collections.
+//   multifile: true
+//   pipeline_options: --output output.txt
+//   context_line: 102
+//   categories:
+//     - Combiners
+//     - Options
+//     - Windowing
+//     - Quickstart
+
 import java.io.IOException;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.examples.common.ExampleBigQueryTableOptions;
