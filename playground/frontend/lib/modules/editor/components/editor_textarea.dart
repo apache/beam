@@ -38,6 +38,7 @@ const kGoRegExp = r'[^\S\r\n]+\'
     r'.*'
     r'"'
     r'\n\)\n\n';
+const kAdditionalLinesForScrolling = 4;
 
 class EditorTextArea extends StatefulWidget {
   final SDK sdk;
@@ -133,46 +134,77 @@ class _EditorTextAreaState extends State<EditorTextArea> {
     if (_codeController!.text.isNotEmpty) {
       _codeController!.selection = TextSelection.fromPosition(
         TextPosition(
-          offset: _findOffset(),
+          offset: _getOffset(),
         ),
       );
     }
   }
 
-  int _findOffset() {
-    String pattern = _skipToTheBottom(_findQntOfStringsOnScreen());
-    int contextLine = _skipToContextLine();
+  int _getOffset() {
+    int contextLine = _getIndexOfContextLine();
+    String pattern = _getPattern(_getQntOfStringsOnScreen());
+
+    if (pattern == '' || pattern == '}') {
+      return _codeController!.text.lastIndexOf(pattern);
+    }
+
     return _codeController!.text.indexOf(
       pattern,
       contextLine,
     );
   }
 
-  String _skipToTheBottom(int qntOfStrings) {
-    String result = '';
-    List<String> stringAfterContextLine =
-        _codeController!.text.substring(_skipToContextLine()).split('\n');
-    do {
-      qntOfStrings = qntOfStrings - 1;
-      result = stringAfterContextLine.length > qntOfStrings
-          ? stringAfterContextLine[qntOfStrings]
-          : stringAfterContextLine.last;
-    } while (result == '' || result[result.length - 1] == '}');
+  String _getPattern(int qntOfStrings) {
+    int contextLineIndex = _getIndexOfContextLine();
+    List<String> stringsAfterContextLine =
+        _codeController!.text.substring(contextLineIndex).split('\n');
+
+    String result =
+        stringsAfterContextLine.length + kAdditionalLinesForScrolling >
+                qntOfStrings
+            ? _getResultSubstring(stringsAfterContextLine, qntOfStrings)
+            : stringsAfterContextLine.last;
+
     return result;
   }
 
-  int _findQntOfStringsOnScreen() {
+  int _getQntOfStringsOnScreen() {
     RenderBox? rBox =
         codeFieldKey.currentContext?.findRenderObject() as RenderBox;
     double height = rBox.size.height * .75;
+
     return height ~/ kCodeFontSize;
   }
 
-  int _skipToContextLine() {
-    int ctxLine = widget.example!.contextLine;
-    return _codeController!.text.indexOf(
-      _codeController!.text.split('\n')[ctxLine - 1],
-    );
+  int _getIndexOfContextLine() {
+    int ctxLineNumber = widget.example!.contextLine;
+    String contextLine = _codeController!.text.split('\n')[ctxLineNumber];
+
+    while (contextLine == '') {
+      ctxLineNumber -= 1;
+      contextLine = _codeController!.text.split('\n')[ctxLineNumber];
+    }
+
+    return _codeController!.text.indexOf(contextLine);
+  }
+
+  // This function made for more accuracy in the process of finding an exact line.
+  String _getResultSubstring(
+    List<String> stringsAfterContextLine,
+    int qntOfStrings,
+  ) {
+    String result = '';
+
+    for (int i = qntOfStrings - kAdditionalLinesForScrolling;
+        i < qntOfStrings + kAdditionalLinesForScrolling;
+        i++) {
+      if (i == stringsAfterContextLine.length - 1) {
+        return result;
+      }
+      result += stringsAfterContextLine[i] + '\n';
+    }
+
+    return result;
   }
 
   _getLanguageFromSdk() {
