@@ -19,9 +19,10 @@ package org.apache.beam.examples.complete;
 
 // beam-playground:
 //   name: TrafficRoutes
-//   description: An example that analyzes traffic sensor data using SlidingWindows. For each window, it calculates the
-//     average speed over the window for some small set of predefined 'routes', and looks for 'slowdowns' in those
-//     routes. It writes its results to a BigQuery table.
+//   description: An example that analyzes traffic sensor data using SlidingWindows.
+//     For each window, it calculates the average speed over the window for some small set
+//     of predefined 'routes', and looks for 'slowdowns' in those routes. It writes its
+//     results to a BigQuery table.
 //   multifile: true
 //   context_line: 97
 //   categories:

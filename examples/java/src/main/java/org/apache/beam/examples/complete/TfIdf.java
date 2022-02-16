@@ -19,7 +19,8 @@ package org.apache.beam.examples.complete;
 
 // beam-playground:
 //   name: TfIdf
-//   description: An example that computes a basic TF-IDF search table for a directory or GCS prefix.
+//   description: An example that computes a basic TF-IDF search table for a directory or
+//     GCS prefix.
 //   multifile: true
 //   pipeline_options: --output output.txt
 //   context_line: 84
