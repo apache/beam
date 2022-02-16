@@ -17,30 +17,8 @@
 # under the License.
 #
 
-output "docker-repository-root" {
-  value = "${data.terraform_remote_state.playground-state.outputs.playground_registry_location}${local.registry_domain}/${var.project_id}/${data.terraform_remote_state.playground-state.outputs.playground_registry_name}"
+output "front-url" {
+  value = google_app_engine_flexible_app_version.frontend_app.service
 }
 
-output "go-server-url" {
-  value = module.backend.go-server-url
-}
 
-output "java-server-url" {
-  value = module.backend.java-server-url
-}
-
-output "python-server-url" {
-  value = module.backend.python-server-url
-}
-
-output "router-server-url" {
-  value = module.backend.router-server-url
-}
-
-output "scio-server-url" {
-  value = module.backend.scio-server-url
-}
-
-output "front-server-url" {
-  value = module.frontend.front-url
-}

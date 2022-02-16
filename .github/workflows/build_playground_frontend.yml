@@ -80,7 +80,7 @@ jobs:
         run: cat /tmp/gcp_access.json | docker login -u _json_key --password-stdin https://${{ secrets.PLAYGROUND_REGISTRY_NAME }}
         if: startsWith(github.ref, 'ref/tags/')
       - name: Create config
-        run: ./gradlew playground:frontend:createConfig -PplaygroundBackendJavaRouteUrl="https://backend-java${{env.STAND_SUFFIX}}${{env.GOOGLE_DOMAIN}}/" -PplaygroundBackendGoRouteUrl="https://backend-go${{env.STAND_SUFFIX}}${{env.GOOGLE_DOMAIN}}/" -PplaygroundBackendPythonRouteUrl="https://backend-python${{env.STAND_SUFFIX}}${{env.GOOGLE_DOMAIN}}/" -PplaygroundBackendUrl="https://backend-router${{env.STAND_SUFFIX}}${{env.GOOGLE_DOMAIN}}/" -PplaygroundBackendScioRouteUrl="https://backend-scio${{env.STAND_SUFFIX}}${{env.GOOGLE_DOMAIN}}/" -PplaygroundBackendUrl="https://backend-router${{env.STAND_SUFFIX}}${{env.GOOGLE_DOMAIN}}/"
+        run: ./gradlew playground:frontend:createConfig -PplaygroundBackendJavaRouteUrl="https://backend-java${{env.STAND_SUFFIX}}${{env.GOOGLE_DOMAIN}}/" -PplaygroundBackendGoRouteUrl="https://backend-go${{env.STAND_SUFFIX}}${{env.GOOGLE_DOMAIN}}/" -PplaygroundBackendPythonRouteUrl="https://backend-python${{env.STAND_SUFFIX}}${{env.GOOGLE_DOMAIN}}/" -PplaygroundBackendUrl="https://backend-router${{env.STAND_SUFFIX}}${{env.GOOGLE_DOMAIN}}/" -PplaygroundBackendScioRouteUrl="https://backend-scio${{env.STAND_SUFFIX}}${{env.GOOGLE_DOMAIN}}/"
         if: startsWith(github.ref, 'refs/tags/')
       - name: Prepare Build Frontend
         run: ./gradlew playground:frontend:dockerTagPush -Pdocker-repository-root='${{ secrets.PLAYGROUND_REGISTRY_NAME}}/${{ secrets.PLAYGROUND_PROJECT_ID }}/playground-repository' -Pdocker-tag=${{env.DOCKERTAG}}

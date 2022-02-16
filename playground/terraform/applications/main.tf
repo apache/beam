@@ -23,8 +23,8 @@ locals {
 data "terraform_remote_state" "playground-state" {
   backend = "gcs"
   config  = {
-    bucket = "playground_terraform"
-    prefix = "terraform/state"
+    bucket = var.state_bucket
+    prefix = var.state_prefix
   }
 }
 

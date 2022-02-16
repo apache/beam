@@ -64,7 +64,8 @@ module "applications" {
   router_volume_size = var.router_volume_size
   scio_volume_size   = var.scio_volume_size
 
-
+  state_bucket = var.state_bucket
+  state_prefix = var.state_prefix
 }
 
 

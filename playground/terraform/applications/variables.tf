@@ -95,3 +95,6 @@ variable "router_volume_size" {
   type        = number
   default     = 1
 }
+
+variable "state_bucket" {}
+variable "state_prefix" {}

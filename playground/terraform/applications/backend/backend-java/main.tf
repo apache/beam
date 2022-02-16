@@ -17,7 +17,7 @@
 # under the License.
 #
 
-resource "google_app_engine_flexible_app_version" "backend_app" {
+resource "google_app_engine_flexible_app_version" "backend_app_java" {
   version_id                = "v1"
   project                   = var.project_id
   service                   = "${var.service_name}-${var.environment}"

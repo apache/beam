@@ -17,6 +17,7 @@
  */
 
 import com.pswidersk.gradle.terraform.TerraformTask
+import java.io.ByteArrayOutputStream
 
 plugins {
     id("com.pswidersk.terraform-plugin") version "1.0.0"
@@ -32,22 +33,24 @@ tasks {
         // exec args can be passed by commandline, for example
         var project_id = project.property("project_id") as String?
         var environment = project.property("project_environment") as String?
-        var bucket = project.property("bucket") as String?
         args(
             "init", "-migrate-state",
-            "-backend-config=bucket=$bucket",
-            "-backend-config=prefix=terraform/state",
+            "-backend-config=./environment/$environment/state.tfbackend",
+            "-var-file=./environment/$environment/terraform.tfvars",
             "-var=project_id=$project_id",
             "-var=environment=$environment"
         )
     }
     /* refresh Infrastucture for remote state */
     register<TerraformTask>("terraformRef") {
+        mustRunAfter(":playground:terraform:terraformInit")
         var project_id = project.property("project_id") as String?
         var environment = project.property("project_environment") as String?
         args(
             "refresh",
+            "-lock=false",
             "-var=project_id=$project_id",
+            "-var-file=./environment/$environment/terraform.tfvars",
             "-var=environment=$environment"
         )
     }
@@ -67,6 +70,7 @@ tasks {
             "-lock=false",
             "-target=module.applications",
             "-var=project_id=$project_id",
+            "-var-file=./environment/$environment/terraform.tfvars",
             "-var=environment=$environment",
             "-var=docker_image_tag=$docker_tag"
         )
@@ -74,6 +78,7 @@ tasks {
 
     /* deploy  App - Only all services for  backend */
     register<TerraformTask>("terraformApplyAppBack") {
+        println("Deploy Back")
         var project_id = project.property("project_id") as String?
         var environment = project.property("project_environment") as String?
         var docker_tag = if (project.hasProperty("docker-tag")) {
@@ -87,6 +92,7 @@ tasks {
             "-lock=false",
             "-target=module.applications.module.backend",
             "-var=project_id=$project_id",
+            "-var-file=./environment/$environment/terraform.tfvars",
             "-var=environment=$environment",
             "-var=docker_image_tag=$docker_tag"
         )
@@ -94,6 +100,7 @@ tasks {
 
     /* deploy  App - Only services for frontend */
     register<TerraformTask>("terraformApplyAppFront") {
+        println("Deploy Front")
         var project_id = project.property("project_id") as String?
         var environment = project.property("project_environment") as String?
         var docker_tag = if (project.hasProperty("docker-tag")) {
@@ -107,6 +114,7 @@ tasks {
             "-lock=false",
             "-target=module.applications.module.frontend",
             "-var=project_id=$project_id",
+            "-var-file=./environment/$environment/terraform.tfvars",
             "-var=environment=$environment",
             "-var=docker_image_tag=$docker_tag"
         )
@@ -122,6 +130,7 @@ tasks {
             "-lock=false",
             "-target=module.infrastructure",
             "-var=project_id=$project_id",
+            "-var-file=./environment/$environment/terraform.tfvars",
             "-var=environment=$environment"
         )
     }
@@ -140,6 +149,7 @@ tasks {
             "-auto-approve",
             "-lock=false",
             "-var=project_id=$project_id",
+            "-var-file=./environment/$environment/terraform.tfvars",
             "-var=environment=$environment",
             "-var=docker_image_tag=$docker_tag"
         )
@@ -153,8 +163,114 @@ tasks {
             "-auto-approve",
             "-lock=false",
             "-var=project_id=$project_id",
+            "-var-file=./environment/$environment/terraform.tfvars",
             "-var=environment=$environment"
         )
     }
 }
 
+
+/* set Docker Registry to params from Inf */
+task("setDockerRegistry") {
+    //get Docker Registry
+    dependsOn(":playground:terraform:terraformInit")
+    dependsOn(":playground:terraform:terraformRef")
+    var stdout = ByteArrayOutputStream()
+    //set Docker Registry
+    exec {
+        commandLine = listOf("terraform", "output", "docker-repository-root")
+        standardOutput = stdout
+    }
+    project.rootProject.extra["docker-repository-root"] = stdout.toString().trim().replace("\"", "")
+
+}
+
+task("setFrontConfig") {
+//get Docker Registry
+    dependsOn(":playground:terraform:terraformInit")
+    dependsOn(":playground:terraform:terraformRef")
+    try {
+        var stdout = ByteArrayOutputStream()
+//set GO - playgroundBackendGoRouteUrl
+        exec {
+            commandLine = listOf("terraform", "output", "go-server-url")
+            standardOutput = stdout
+
+        }
+        project.rootProject.extra["playgroundBackendGoRouteUrl"] = stdout.toString().trim().replace("\"", "")
+        println("GO app address:"  + project.rootProject["playgroundBackendGoRouteUrl"])
+//set Java - playgroundBackendJavaRouteUrl
+
+        exec {
+            commandLine = listOf("terraform", "output", "java-server-url")
+            standardOutput = stdout
+        }
+        project.rootProject.extra["playgroundBackendJavaRouteUrl"] = stdout.toString().trim().replace("\"", "")
+
+        println("Java app address:"  + project.rootProject["playgroundBackendJavaRouteUrl"])
+
+//set Python - playgroundBackendPythonRouteUrl
+        exec {
+            commandLine = listOf("terraform", "output", "python-server-url")
+            standardOutput = stdout
+        }
+        project.rootProject.extra["playgroundBackendPythonRouteUrl"] = stdout.toString().trim().replace("\"", "")
+        println("Python app address:"  + project.rootProject["playgroundBackendPythonRouteUrl"])
+//set Router - playgroundBackendUrl
+        exec {
+            commandLine = listOf("terraform", "output", "router-server-url")
+            standardOutput = stdout
+        }
+        project.rootProject.extra["playgroundBackendUrl"] = stdout.toString().trim().replace("\"", "")
+        println("Router app address:"  + project.rootProject["playgroundBackendUrl"]))
+//set Scio - playgroundBackendScioRouteUrl
+        exec {
+            commandLine = listOf("terraform", "output", "scio-server-url")
+            standardOutput = stdout
+        }
+        project.rootProject.extra["playgroundBackendScioRouteUrl"] = stdout.toString().trim().replace("\"", "")
+        println("Scio app address:" + project.rootProject["playgroundBackendScioRouteUrl"])
+    } catch (e: Exception) {
+    }
+}
+
+task("pushBack"){
+    dependsOn(":playground:backend:containers:go:dockerTagsPush")
+    dependsOn(":playground:backend:containers:java:dockerTagsPush")
+    dependsOn(":playground:backend:containers:python:dockerTagsPush")
+    dependsOn(":playground:backend:containers:scio:dockerTagsPush")
+    dependsOn(":playground:backend:containers:router:dockerTagsPush")
+}
+
+task("pushFront") {
+    dependsOn(":playground:frontend:createConfig")
+    dependsOn(":playground:frontend:dockerTagsPush")
+}
+
+/* build, push, deploy Frontend app */
+task("deployFrontend") {
+
+    val config = tasks.getByName("setFrontConfig")
+    val push = tasks.getByName("pushFront")
+    val deploy = tasks.getByName("terraformApplyAppFront")
+
+    dependsOn(push)
+    dependsOn(config)
+    dependsOn(deploy)
+    push.mustRunAfter(config)
+    deploy.mustRunAfter(push)
+}
+
+/* build, push, deploy Backend app */
+task("deployBackend") {
+
+    val config = tasks.getByName("setDockerRegistry")
+    val push = tasks.getByName("pushBack")
+    val deploy = tasks.getByName("terraformApplyAppBack")
+
+    dependsOn(push)
+    dependsOn(config)
+    dependsOn(deploy)
+    push.mustRunAfter(config)
+    deploy.mustRunAfter(push)
+}
