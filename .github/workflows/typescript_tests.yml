@@ -57,17 +57,5 @@ jobs:
         working-directory: ./sdks/typescript
       - run: npm run prettier-check
         working-directory: ./sdks/typescript
-      - run: npm test
+      - run: npm codecovTest
         working-directory: ./sdks/typescript
-      # :runners:core-java:test
-      # - name: Run :runners:core-java:test
-      #   uses: ./.github/actions/gradle-command-action
-      #   with:
-      #     arguments: :runners:core-java:test
-      #   if: always()
-      # - name: Upload test logs for :runners:core-java:test
-      #   uses: actions/upload-artifact@v2
-      #   if: always()
-      #   with:
-      #     name: java_unit_tests-runners-core-java-test-${{ matrix.os }}
-      #     path: runners/core-java/build/reports/tests/test
