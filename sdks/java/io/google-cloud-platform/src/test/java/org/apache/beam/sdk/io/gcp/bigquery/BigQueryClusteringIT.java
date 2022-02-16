@@ -23,6 +23,7 @@ import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import java.math.BigInteger;
 import java.util.Arrays;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
@@ -47,7 +48,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class BigQueryClusteringIT {
   private static final Long EXPECTED_BYTES = 16000L;
-  private static final Integer EXPECTED_ROWS = 1000;
+  private static final BigInteger EXPECTED_ROWS = new BigInteger("1000");
   private static final String WEATHER_SAMPLES_TABLE =
       "clouddataflow-readonly:samples.weather_stations";
   private static final String DATASET_NAME = "BigQueryClusteringIT";
