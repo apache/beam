@@ -1,4 +1,4 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – BI &amp; Analytics</title><link>/categories/bi-analytics/</link><description>Recent content in BI &amp; Analytics on Apache Beam</description><generator>Hugo -- gohugo.io</generator><atom:link href="/categories/bi-analytics/index.xml" rel="self" type="application/rss+xml"/><item><title>Case-Studies: Beam visual pipeline development with Hop</title><link>/case-studies/neo4j/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/neo4j/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – BI &amp; Analytics</title><link>/categories/bi-analytics/</link><description>Recent content in BI &amp; Analytics on Apache Beam</description><generator>Hugo -- gohugo.io</generator><atom:link href="/categories/bi-analytics/index.xml" rel="self" type="application/rss+xml"/><item><title>Case-Studies: Beam visual pipeline development with Hop</title><link>/case-studies/hop/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/hop/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -10,10 +10,163 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-&lt;div>
-&lt;header class="case-study-header">
-&lt;h2 itemprop="name headline">Beam visual pipeline development with Hop&lt;/h2>
-&lt;/header>
-&lt;p>Neo4j is a graph database management system that leverages data relationships between data records to enable fast queries. They use Apache Beam support in Kettle to do everything and more in project Hop. The various Apache Beam runners are now directly supported as Hop pipeline engines.
-&lt;a href="http://hop.apache.org">Apache Hop (incubating)&lt;/a>: Hop provides a complete data orchestration (ETL / DI) toolset with visual pipeline development. It supports execution on the main Apache Beam runners.&lt;/p>
-&lt;/div></description></item></channel></rss>
+&lt;div class="case-study-opinion">
+&lt;div class="case-study-opinion-img">
+&lt;img src="/images/logos/powered-by/hop.png"/>
+&lt;/div>
+&lt;blockquote class="case-study-quote-block">
+&lt;p class="case-study-quote-text">
+“Apache Beam and its abstraction of the execution engines is a big thing for us. The amount of work that that saves...it would be hard to build that support for Dataflow or Spark all by yourself. It is amazing that this technology exists in the first place, really amazing! Not having to worry about all those underlying platforms - that is tremendous!”
+&lt;/p>
+&lt;div class="case-study-quote-author">
+&lt;div class="case-study-quote-author-img">
+&lt;img src="/images/matt_casters_photo.png">
+&lt;/div>
+&lt;div class="case-study-quote-author-info">
+&lt;div class="case-study-quote-author-name">
+Matt Casters
+&lt;/div>
+&lt;div class="case-study-quote-author-position">
+Chief Solutions Architect, Neo4j, Apache Hop co-founder
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/blockquote>
+&lt;/div>
+&lt;div class="case-study-post">
+&lt;h1 id="visual-apache-beam-pipeline-design-and-orchestration-with-apache-hop">Visual Apache Beam Pipeline Design and Orchestration with Apache Hop&lt;/h1>
+&lt;h2 id="background">Background&lt;/h2>
+&lt;p>&lt;a href="https://hop.apache.org/">Apache Hop&lt;/a> is an open source data orchestration and data engineering
+platform that aims to facilitate all aspects of data processing with visual pipeline development
+environment. This easy-to-use, fast, and flexible platform enables developers to create and manage
+Apache Beam batch and streaming pipelines in Hop GUI. Apache Hop uses metadata and kernel to
+describe how the data should be processed, and Apache Beam to “design once, run anywhere”.&lt;/p>
+&lt;p>&lt;a href="https://neo4j.com/">Neo4j’s&lt;/a> Chief Solutions
+Architect, &lt;a href="https://be.linkedin.com/in/mattcasters">Matt Casters&lt;/a>, has been an early adopter of
+Apache Beam and its abstraction of execution engines. Matt has been an active member of the Apache
+open-source community for years and has leveraged Apache Beam as an execution engine to build Apache
+Hop.&lt;/p>
+&lt;h2 id="apache-hop-project">Apache Hop Project&lt;/h2>
+&lt;p>Thriving popularity and the growing number of Apache Beam users across the globe inspired Matt
+Casters to expand the idea of abstraction to visual pipeline lifecycle management and development.
+Matt co-founded and incubated the
+&lt;a href="https://hop.apache.org/">Apache Hop&lt;/a> project that became a top level project at
+the &lt;a href="https://www.apache.org/">Apache Software Foundation&lt;/a>
+in December 2021. The platform enables users of all skill levels to build, test, launch, and deploy
+powerful data workflows without writing code. Apache Hop’s intuitive drag and drop interface
+provides a visual representation of Apache Beam pipelines, simplifying pipeline design, execution,
+preview, monitoring, and debugging.&lt;/p>
+&lt;blockquote class="case-study-quote-block case-study-quote-wrapped">
+&lt;p class="case-study-quote-text">
+I was a big fan of Beam from the get go. Apache Beam is now a very important part of the Apache Hop project.
+&lt;/p>
+&lt;div class="case-study-quote-author">
+&lt;div class="case-study-quote-author-img">
+&lt;img src="/images/matt_casters_photo.png">
+&lt;/div>
+&lt;div class="case-study-quote-author-info">
+&lt;div class="case-study-quote-author-name">
+Matt Casters
+&lt;/div>
+&lt;div class="case-study-quote-author-position">
+Chief Solutions Architect, Neo4j,
+&lt;br>Apache Hop co-founder
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/blockquote>
+&lt;p>The Apache Hop GUI allows data professionals to work visually and focus on “what” they need to do
+rather than “how”, using metadata to describe how the Apache Beam pipelines should be processed.
+Apache
+Hop’s &lt;a href="https://hop.apache.org/manual/latest/pipeline/create-pipeline.html#_concepts">transform-agnostic&lt;/a>
+action
+plugins (&lt;a href="https://hop.apache.org/manual/latest/pipeline/create-pipeline.html#_concepts">“hops”&lt;/a>)
+link transforms together, creating a pipeline. Various Apache Beam runners, such as
+&lt;a href="https://hop.apache.org/manual/latest/pipeline/pipeline-run-configurations/beam-spark-pipeline-engine.html">Spark&lt;/a>
+,
+&lt;a href="https://hop.apache.org/manual/latest/pipeline/pipeline-run-configurations/beam-flink-pipeline-engine.html">Flink&lt;/a>
+,
+&lt;a href="https://hop.apache.org/manual/latest/pipeline/pipeline-run-configurations/beam-dataflow-pipeline-engine.html">Dataflow&lt;/a>
+, and
+the &lt;a href="https://hop.apache.org/manual/latest/pipeline/pipeline-run-configurations/beam-direct-pipeline-engine.html">Direct&lt;/a>
+runner, read the metadata with help of Apache
+Hop&amp;rsquo;s &lt;a href="https://hop.apache.org/dev-manual/latest/sdk/hop-sdk.html#_hop_metadata_providers">Metadata Provider&lt;/a>
+and &lt;a href="https://hop.apache.org/dev-manual/latest/sdk/hop-sdk.html#_workflow_execution">workflow engines(plugins)&lt;/a>
+, and execute the pipeline.&lt;/p>
+&lt;p>Apache Hop’s custom plugins and metadata objects
+for &lt;a href="https://hop.apache.org/manual/latest/technology/technology.html">some of the most popular technologies&lt;/a>
+, such as &lt;a href="https://neo4j.com/">Neo4j&lt;/a>, empower users to execute database- and technology-specific
+transforms inside the Apache Beam pipelines, which allows for native optimized connectivity and
+flexible Apache Beam pipeline configurations. For instance, the Apache
+Hop’s &lt;a href="https://hop.apache.org/manual/latest/technology/neo4j/index.html#_description">Neo4j plugin&lt;/a>
+stores logging and execution lineage of Apache Beam pipelines in the Neo4j graph database and
+enables users to query this information for more details, such as quickly jump to the place where an
+error occurred. The combination of Apache Hop
+transforms, &lt;a href="https://beam.apache.org/documentation/io/built-in/">Apache Beam built-in I/Os&lt;/a>, and
+Apache Beam-powered data processing opens up new horizons for more sinks and sources and custom use
+cases.&lt;/p>
+&lt;p>Apache Hop aims to bring a no-code approach to Apache Beam data pipelines. Sometimes the choice of a
+particular programming language, framework, or engine is driven by developers&amp;rsquo; preferences, which
+results in businesses becoming tied to a specific technology skill set and stack. Apache Hop
+eliminates this dependency by abstracting out the I/Os with a fully pluggable runtime support and
+providing a graphic user interface on top of Apache Beam pipelines. All settings for pipeline
+elements are performed in the Hop’s visual editor just once, and pipeline is automatically described
+as metadata in JSON and CSV formats. Programming data pipelines’ source code becomes an option, not
+a necessity. Apache Hop does not require knowledge of a particular programming language to create
+pipelines, helping with the adoption of Apache Beam unified streaming and batch processing
+technology.&lt;/p>
+&lt;blockquote class="case-study-quote-block case-study-quote-wrapped">
+&lt;p class="case-study-quote-text">
+In general, a visual pipeline design interface is really valuable for a non-developer audience…
+We categorically choose the side of the organization when it comes to lowering setup costs,
+maintenance costs, increasing ROI, and safeguarding an investment over time.
+&lt;/p>
+&lt;div class="case-study-quote-author">
+&lt;div class="case-study-quote-author-img">
+&lt;img src="/images/matt_casters_photo.png">
+&lt;/div>
+&lt;div class="case-study-quote-author-info">
+&lt;div class="case-study-quote-author-name">
+Matt Casters
+&lt;/div>
+&lt;div class="case-study-quote-author-position">
+Chief Solutions Architect, Neo4j,
+&lt;br>Apache Hop co-founder
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/blockquote>
+&lt;h2 id="results">Results&lt;/h2>
+&lt;p>Apache Beam continuously expands the number of use cases and scenarios it supports and makes it
+possible to bring advanced technology solutions into a reality. Being an early adopter of Apache
+Beam and its powerful abstraction, Matt Casters leveraged this knowledge and experience to create
+Apache Hop. The platform creates a value-add for Apache Beam users by enabling visual pipeline
+development and lifecycle management.&lt;/p>
+&lt;p>Matt sees Apache Beam as a foundation and a driving force behind Apache Hop. Communication between
+Apache Beam and Apache Hop projects keeps fostering co-creation and enriches both products with new
+features.&lt;/p>
+&lt;p>Apache Hop project is the example of the continuous improvement driven by the Apache open source
+community and amplified by collaborative organizations.&lt;/p>
+&lt;blockquote class="case-study-quote-block case-study-quote-wrapped">
+&lt;p class="case-study-quote-text">
+Knowledge sharing and collaboration is something that comes naturally in the community. If we
+see some room for improvement, we exchange ideas and this way, we keep driving Apache Beam and
+Apache Hop projects forward. Together, we can work with the most complex problems and just solve them.
+&lt;/p>
+&lt;div class="case-study-quote-author">
+&lt;div class="case-study-quote-author-img">
+&lt;img src="/images/matt_casters_photo.png">
+&lt;/div>
+&lt;div class="case-study-quote-author-info">
+&lt;div class="case-study-quote-author-name">
+Matt Casters
+&lt;/div>
+&lt;div class="case-study-quote-author-position">
+Chief Solutions Architect, Neo4j,
+&lt;br>Apache Hop co-founder
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/blockquote>
+&lt;/div>
+&lt;div class="clear-nav">&lt;/div></description></item></channel></rss>
