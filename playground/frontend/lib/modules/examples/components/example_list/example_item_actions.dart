@@ -42,27 +42,23 @@ class ExampleItemActions extends StatelessWidget {
     );
   }
 
-  Widget get multifilePopover {
-    return MultifilePopoverButton(
-      parentContext: parentContext,
-      example: example,
-      followerAnchor: Alignment.topLeft,
-      targetAnchor: Alignment.topRight,
-      onOpen: () => _setPopoverOpen(parentContext, true),
-      onClose: () => _setPopoverOpen(parentContext, false),
-    );
-  }
+  Widget get multifilePopover => MultifilePopoverButton(
+        parentContext: parentContext,
+        example: example,
+        followerAnchor: Alignment.topLeft,
+        targetAnchor: Alignment.topRight,
+        onOpen: () => _setPopoverOpen(parentContext, true),
+        onClose: () => _setPopoverOpen(parentContext, false),
+      );
 
-  Widget get descriptionPopover {
-    return DescriptionPopoverButton(
-      parentContext: parentContext,
-      example: example,
-      followerAnchor: Alignment.topLeft,
-      targetAnchor: Alignment.topRight,
-      onOpen: () => _setPopoverOpen(parentContext, true),
-      onClose: () => _setPopoverOpen(parentContext, false),
-    );
-  }
+  Widget get descriptionPopover => DescriptionPopoverButton(
+        parentContext: parentContext,
+        example: example,
+        followerAnchor: Alignment.topLeft,
+        targetAnchor: Alignment.topRight,
+        onOpen: () => _setPopoverOpen(parentContext, true),
+        onClose: () => _setPopoverOpen(parentContext, false),
+      );
 
   void _setPopoverOpen(BuildContext context, bool isOpen) {
     Provider.of<PopoverState>(context, listen: false).setOpen(isOpen);

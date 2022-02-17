@@ -34,7 +34,7 @@ class DescriptionPopover extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    AppLocalizations appLocale = AppLocalizations.of(context)!;
+    final hasLink = example.link?.isNotEmpty ?? false;
     return SizedBox(
       width: kDescriptionWidth,
       child: Card(
@@ -43,26 +43,34 @@ class DescriptionPopover extends StatelessWidget {
           child: Wrap(
             runSpacing: kMdSpacing,
             children: [
-              Text(
-                example.name,
-                style: const TextStyle(
-                  fontSize: kTitleFontSize,
-                  fontWeight: kBoldWeight,
-                ),
-              ),
-              Text(example.description),
-              if (example.link?.isNotEmpty ?? false)
-                TextButton.icon(
-                  icon: SvgPicture.asset(kGithubIconAsset),
-                  onPressed: () {
-                    launch(example.link ?? '');
-                  },
-                  label: Text(appLocale.viewOnGithub),
-                ),
+              title,
+              description,
+              if (hasLink) getViewOnGithub(context),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget get title => Text(
+        example.name,
+        style: const TextStyle(
+          fontSize: kTitleFontSize,
+          fontWeight: kBoldWeight,
+        ),
+      );
+
+  Widget get description => Text(example.description);
+
+  Widget getViewOnGithub(BuildContext context) {
+    AppLocalizations appLocale = AppLocalizations.of(context)!;
+    return TextButton.icon(
+      icon: SvgPicture.asset(kGithubIconAsset),
+      onPressed: () {
+        launch(example.link ?? '');
+      },
+      label: Text(appLocale.viewOnGithub),
     );
   }
 }
