@@ -566,50 +566,39 @@ public class DoFnOperator<InputT, OutputT>
   }
 
   @Override
-  public void dispose() throws Exception {
-    try {
-      Optional.ofNullable(flinkMetricContainer)
-          .ifPresent(FlinkMetricContainer::registerMetricsForPipelineResult);
-      Optional.ofNullable(checkFinishBundleTimer).ifPresent(timer -> timer.cancel(true));
-      Workarounds.deleteStaticCaches();
-      Optional.ofNullable(doFnInvoker).ifPresent(DoFnInvoker::invokeTeardown);
-    } finally {
-      // This releases all task's resources. We need to call this last
-      // to ensure that state, timers, or output buffers can still be
-      // accessed during finishing the bundle.
-      super.dispose();
-    }
+  void cleanUp() throws Exception {
+    Optional.ofNullable(flinkMetricContainer)
+        .ifPresent(FlinkMetricContainer::registerMetricsForPipelineResult);
+    Optional.ofNullable(checkFinishBundleTimer).ifPresent(timer -> timer.cancel(true));
+    Workarounds.deleteStaticCaches();
+    Optional.ofNullable(doFnInvoker).ifPresent(DoFnInvoker::invokeTeardown);
   }
 
   @Override
-  public void close() throws Exception {
-    try {
-      // This is our last change to block shutdown of this operator while
-      // there are still remaining processing-time timers. Flink will ignore pending
-      // processing-time timers when upstream operators have shut down and will also
-      // shut down this operator with pending processing-time timers.
-      if (numProcessingTimeTimers() > 0) {
-        timerInternals.processPendingProcessingTimeTimers();
-      }
-      if (numProcessingTimeTimers() > 0) {
-        throw new RuntimeException(
-            "There are still "
-                + numProcessingTimeTimers()
-                + " processing-time timers left, this indicates a bug");
-      }
-      // make sure we send a +Inf watermark downstream. It can happen that we receive +Inf
-      // in processWatermark*() but have holds, so we have to re-evaluate here.
-      processWatermark(new Watermark(Long.MAX_VALUE));
-      // Make sure to finish the current bundle
-      while (bundleStarted) {
-        invokeFinishBundle();
-      }
-      if (currentOutputWatermark < Long.MAX_VALUE) {
-        throw new RuntimeException(
-            "There are still watermark holds. Watermark held at " + currentOutputWatermark);
-      }
-    } finally {
-      super.close();
+  void flushData() throws Exception {
+    // This is our last change to block shutdown of this operator while
+    // there are still remaining processing-time timers. Flink will ignore pending
+    // processing-time timers when upstream operators have shut down and will also
+    // shut down this operator with pending processing-time timers.
+    if (numProcessingTimeTimers() > 0) {
+      timerInternals.processPendingProcessingTimeTimers();
+    }
+    if (numProcessingTimeTimers() > 0) {
+      throw new RuntimeException(
+          "There are still "
+              + numProcessingTimeTimers()
+              + " processing-time timers left, this indicates a bug");
+    }
+    // make sure we send a +Inf watermark downstream. It can happen that we receive +Inf
+    // in processWatermark*() but have holds, so we have to re-evaluate here.
+    processWatermark(new Watermark(Long.MAX_VALUE));
+    // Make sure to finish the current bundle
+    while (bundleStarted) {
+      invokeFinishBundle();
+    }
+    if (currentOutputWatermark < Long.MAX_VALUE) {
+      throw new RuntimeException(
+          "There are still watermark holds. Watermark held at " + currentOutputWatermark);
     }
 
     // sanity check: these should have been flushed out by +Inf watermarks
