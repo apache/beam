@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.aws2;
 import static org.apache.beam.sdk.testing.TestPipeline.testingPipelineOptions;
 import static org.testcontainers.containers.localstack.LocalStackContainer.Service.S3;
 
-import java.net.URI;
 import org.apache.beam.sdk.io.aws2.options.AwsOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
@@ -113,11 +112,11 @@ public class ITEnvironment<OptionsT extends ITEnvironment.ITOptions> extends Ext
   public <BuilderT extends AwsClientBuilder<BuilderT, ClientT>, ClientT> ClientT buildClient(
       BuilderT builder) {
     if (options.getEndpoint() != null) {
-      builder.endpointOverride(URI.create(options.getEndpoint()));
+      builder.endpointOverride(options.getEndpoint());
     }
     return builder
         .credentialsProvider(options.getAwsCredentialsProvider())
-        .region(Region.of(options.getAwsRegion()))
+        .region(options.getAwsRegion())
         .build();
   }
 
@@ -140,8 +139,8 @@ public class ITEnvironment<OptionsT extends ITEnvironment.ITOptions> extends Ext
   /** Necessary setup for localstack environment. */
   private void startLocalstack() {
     localstack.start();
-    options.setEndpoint(localstack.getEndpointOverride(S3).toString()); // service irrelevant
-    options.setAwsRegion(localstack.getRegion());
+    options.setEndpoint(localstack.getEndpointOverride(S3)); // service irrelevant
+    options.setAwsRegion(Region.of(localstack.getRegion()));
     options.setAwsCredentialsProvider(
         StaticCredentialsProvider.create(
             AwsBasicCredentials.create(localstack.getAccessKey(), localstack.getSecretKey())));

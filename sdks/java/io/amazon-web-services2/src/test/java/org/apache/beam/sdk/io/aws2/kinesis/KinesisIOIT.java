@@ -46,7 +46,6 @@ import org.junit.rules.ExternalResource;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
-import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kinesis.KinesisClient;
 import software.amazon.awssdk.services.kinesis.model.DescribeStreamResponse;
 import software.amazon.awssdk.services.kinesis.model.StreamStatus;
@@ -126,8 +125,8 @@ public class KinesisIOIT implements Serializable {
                 .withAWSClientsProvider(
                     credentials.accessKeyId(),
                     credentials.secretAccessKey(),
-                    Regions.fromName(options.getAwsRegion()),
-                    options.getEndpoint(),
+                    Regions.fromName(options.getAwsRegion().id()),
+                    options.getEndpoint() != null ? options.getEndpoint().toString() : null,
                     !options.getUseLocalstack()));
 
     writePipeline.run().waitUntilFinish();
@@ -142,10 +141,6 @@ public class KinesisIOIT implements Serializable {
         readPipeline.apply(
             KinesisIO.read()
                 .withStreamName(options.getKinesisStream())
-                .withAWSClientsProvider(
-                    options.getAwsCredentialsProvider(),
-                    Region.of(options.getAwsRegion()),
-                    options.getEndpoint())
                 .withMaxNumRecords(records)
                 // to prevent endless running in case of error
                 .withMaxReadTime(Duration.standardMinutes(10))

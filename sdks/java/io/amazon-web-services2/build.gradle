@@ -32,6 +32,7 @@ dependencies {
   implementation library.java.vendored_guava_26_0_jre
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation library.java.aws_java_sdk2_apache_client
+  implementation library.java.aws_java_sdk2_netty_client
   implementation library.java.aws_java_sdk2_auth
   implementation library.java.aws_java_sdk2_cloudwatch
   implementation library.java.aws_java_sdk2_dynamodb
@@ -53,7 +54,6 @@ dependencies {
   implementation "software.amazon.kinesis:amazon-kinesis-client:2.3.4"
   implementation "commons-lang:commons-lang:2.6"
   implementation library.java.commons_lang3
-  implementation library.java.http_core
   implementation library.java.commons_codec
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
