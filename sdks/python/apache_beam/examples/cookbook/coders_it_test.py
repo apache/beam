@@ -66,6 +66,16 @@ def format_result(result_string):
 
 
 class CodersIT(unittest.TestCase):
+  SAMPLE_RECORDS = [{
+      'host': ['Germany', 1], 'guest': ['Italy', 0]
+  }, {
+      'host': ['Germany', 1], 'guest': ['Brasil', 3]
+  }, {
+      'host': ['Brasil', 1], 'guest': ['Italy', 0]
+  }]
+
+  EXPECTED_RESULT = [('Italy', 0), ('Brasil', 6), ('Germany', 3)]
+
   @pytest.mark.no_xdist
   @pytest.mark.examples_postcommit
   def test_coders_output_files_on_small_input(self):

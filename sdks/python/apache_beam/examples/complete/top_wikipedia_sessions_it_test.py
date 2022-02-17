@@ -18,6 +18,7 @@
 """End-to-end test for Top Wikipedia Sessions example."""
 # pytype: skip-file
 
+import json
 import logging
 import unittest
 import uuid
@@ -51,6 +52,43 @@ def create_content_input_file(path, contents):
 
 
 class ComputeTopSessionsIT(unittest.TestCase):
+  EDITS = [
+      json.dumps({
+          'timestamp': 0.0, 'contributor_username': 'user1'
+      }),
+      json.dumps({
+          'timestamp': 0.001, 'contributor_username': 'user1'
+      }),
+      json.dumps({
+          'timestamp': 0.002, 'contributor_username': 'user1'
+      }),
+      json.dumps({
+          'timestamp': 0.0, 'contributor_username': 'user2'
+      }),
+      json.dumps({
+          'timestamp': 0.001, 'contributor_username': 'user2'
+      }),
+      json.dumps({
+          'timestamp': 3.601, 'contributor_username': 'user2'
+      }),
+      json.dumps({
+          'timestamp': 3.602, 'contributor_username': 'user2'
+      }),
+      json.dumps({
+          'timestamp': 2 * 3600.0, 'contributor_username': 'user2'
+      }),
+      json.dumps({
+          'timestamp': 35 * 24 * 3.600, 'contributor_username': 'user3'
+      })
+  ]
+
+  EXPECTED = [
+      'user1 : [0.0, 3600.002) : 3 : [0.0, 2592000.0)',
+      'user2 : [0.0, 3603.602) : 4 : [0.0, 2592000.0)',
+      'user2 : [7200.0, 10800.0) : 1 : [0.0, 2592000.0)',
+      'user3 : [3024.0, 6624.0) : 1 : [0.0, 2592000.0)',
+  ]
+
   # TODO Enable when fixed this tests for Dataflow runner
   @pytest.mark.sickbay_dataflow
   @pytest.mark.no_xdist

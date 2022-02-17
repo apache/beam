@@ -77,6 +77,17 @@ def format_output_file(output_string):
 
 
 class AutocompleteIT(unittest.TestCase):
+  WORDS = ['this', 'this', 'that', 'to', 'to', 'to']
+  EXPECTED_PREFIXES = [
+      ('t', ((3, 'to'), (2, 'this'), (1, 'that'))),
+      ('to', ((3, 'to'), )),
+      ('th', ((2, 'this'), (1, 'that'))),
+      ('thi', ((2, 'this'), )),
+      ('this', ((2, 'this'), )),
+      ('tha', ((1, 'that'), )),
+      ('that', ((1, 'that'), )),
+  ]
+
   @pytest.mark.no_xdist
   @pytest.mark.examples_postcommit
   def test_autocomplete_output_files_on_small_input(self):
