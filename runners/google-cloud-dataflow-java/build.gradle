@@ -512,6 +512,10 @@ task validatesRunnerV2Streaming {
       'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testSessionsCombineWithContext',
       'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testSlidingWindowsCombineWithContext',
 
+      // TODO(BEAM-13961) Investigation needed.
+      'org.apache.beam.sdk.transforms.GroupByKeyTest.testAfterProcessingTimeContinuationTriggerUsingState'
+
+
       'org.apache.beam.runners.dataflow.DataflowRunnerTest.testBatchGroupIntoBatchesOverride',
 
       'org.apache.beam.sdk.transforms.GroupByKeyTest.testCombiningAccumulatingProcessingTime',
