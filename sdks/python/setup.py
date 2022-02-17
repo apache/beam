@@ -206,7 +206,7 @@ GCP_REQUIREMENTS = [
 
 INTERACTIVE_BEAM = [
     'facets-overview>=1.0.0,<2',
-    'ipython>=7,<8',
+    'ipython>=8,<9',
     'ipykernel>=5.2.0,<6',
     'ipywidgets>=7.6.5,<8',
     # Skip version 6.1.13 due to
