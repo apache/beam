@@ -28,6 +28,7 @@ import io.opencensus.trace.Tracer;
 import io.opencensus.trace.Tracing;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamResultSet;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
@@ -166,9 +167,7 @@ public class QueryChangeStreamAction {
      * partition should be returned within the query.
      */
     final Timestamp restrictionStartTimestamp = tracker.currentRestriction().getFrom();
-    final Timestamp previousStartTimestamp =
-        Timestamp.ofTimeSecondsAndNanos(
-            restrictionStartTimestamp.getSeconds(), restrictionStartTimestamp.getNanos() - 1);
+    final Timestamp previousStartTimestamp = previousTimestampFrom(restrictionStartTimestamp);
     final boolean isFirstRun =
         restrictionStartTimestamp.compareTo(partition.getStartTimestamp()) == 0;
     final Timestamp startTimestamp =
@@ -290,5 +289,17 @@ public class QueryChangeStreamAction {
             || e.getErrorCode() == ErrorCode.OUT_OF_RANGE)
         && e.getMessage() != null
         && e.getMessage().contains(OUT_OF_RANGE_ERROR_MESSAGE);
+  }
+
+  private Timestamp previousTimestampFrom(Timestamp timestamp) {
+    if (timestamp.equals(Timestamp.MIN_VALUE)) {
+      return timestamp;
+    }
+    final long seconds = timestamp.getSeconds();
+    final int nanos = timestamp.getNanos();
+    final int previousNanos = nanos - 1 < 0 ? (int) TimeUnit.SECONDS.toNanos(1) - 1 : nanos - 1;
+    final long previousSeconds = nanos - 1 < 0 ? seconds - 1 : seconds;
+
+    return Timestamp.ofTimeSecondsAndNanos(previousSeconds, previousNanos);
   }
 }
