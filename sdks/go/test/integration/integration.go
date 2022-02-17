@@ -123,6 +123,8 @@ var sparkFilters = []string{
 	// The trigger and pane tests uses TestStream
 	"TestTrigger.*",
 	"TestPanes",
+	// [BEAM-13921]: Spark doesn't support side inputs to executable stages
+	"TestDebeziumIO_BasicRead",
 }
 
 var dataflowFilters = []string{

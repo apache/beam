@@ -54,6 +54,7 @@ class EstimatePiTest(unittest.TestCase):
       # trials.
       assert_that(result, in_between(3.125, 3.155))
 
+  @pytest.mark.no_xdist
   @pytest.mark.examples_postcommit
   def test_estimate_pi_output_file(self):
     test_pipeline = TestPipeline(is_integration_test=True)

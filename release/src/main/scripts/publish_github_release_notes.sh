@@ -17,11 +17,11 @@ set -e
 #    limitations under the License.
 #
 
-# Load environment variables
-. script.config
-
 # Get this script's absolute path
 SCRIPT_PATH=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+
+# Load environment variables
+. "${SCRIPT_PATH}/script.config"
 
 # Extract release notes from the blog post
 POST_PATH=$(echo "${SCRIPT_PATH}/../../../../website/www/site/content/en/blog/beam-${RELEASE_VER}.md")
@@ -29,7 +29,8 @@ RELEASE_NOTES=$(
     cat ${POST_PATH} |                               # Read post's content
     sed -n '/<!--/,$p' |                             # Remove post's metadata
     sed -e :a -Ee 's/<!--.*-->.*//g;/<!--/N;//ba' |  # Remove license
-    sed '/./,$!d'                                    # Remove leading whitespace
+    sed '/./,$!d' |                                  # Remove leading whitespace
+    sed 's=](/=](https://beam.apache.org/=g'         # Replace relative website path with absolute
 )
 
 # Escape notes' content to work with JSON
