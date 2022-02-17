@@ -65,7 +65,7 @@ variable "service_account" {
 
 variable "examples_bucket_name" {
   description = "Name of Bucket to Store Playground Examples"
-  default     = "playground-examples"
+  default     = "playground-precompiled-objects"
 }
 
 variable "examples_bucket_location" {
@@ -195,5 +195,11 @@ variable "router_volume_size" {
   default     = 1
 }
 
-variable "state_bucket" {}
-variable "state_prefix" {}
+variable "state_bucket" {
+  description = "GCP bucket that used to store terraform state"
+  default     = "beam_playground_terraform"
+}
+variable "state_prefix" {
+  description = "terraform state prefix on GCP"
+  default     = "memorystore/"
+}

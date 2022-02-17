@@ -1,5 +1,0 @@
-state_bucket = "dev-playground-project-state"
-state_prefix = "terraform/state"
-vpc_name     = "playground-vpc"
-examples_bucket_name = "dev-playground-precompiled-objects"
-service_account = "service-account-playground@friendly-tower-340607.iam.gserviceaccount.com"

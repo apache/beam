@@ -1,2 +1,0 @@
-bucket  = "dev-playground-project-state"
-prefix  = "terraform/state"
