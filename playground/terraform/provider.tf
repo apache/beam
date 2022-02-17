@@ -20,6 +20,7 @@
 provider "google" {
   region = "us-central"
 }
+# TODO Please remove it when all resources are available in the stable version
 provider "google-beta" {
   region = "us-central"
 }

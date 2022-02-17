@@ -49,7 +49,7 @@ variable "terraform_bucket_location" {
 }
 
 variable "terraform_storage_class" {
-  description = "Terrafomr Bucket Storage Class"
+  description = "Terraform Bucket Storage Class"
   default     = "STANDARD"
 }
 
@@ -66,7 +66,7 @@ variable "repository_location" {
 }
 
 variable "service_account" {
-  description = "Service account email"
+  description = "Service account id"
   default     = "service-account-playground"
 }
 
