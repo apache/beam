@@ -147,8 +147,7 @@ public class SpannerChangeStreamOrderedByTimestampAndTransactionIdIT {
                         .CreateArtificialKeyFn()))
             .apply(
                 ParDo.of(
-                    new BufferRecordsUntilOutputTimestamp(
-                        endTimestamp, timeIncrementInSeconds)))
+                    new BufferRecordsUntilOutputTimestamp(endTimestamp, timeIncrementInSeconds)))
             .apply(
                 ParDo.of(new SpannerChangeStreamOrderedByTimestampAndTransactionIdIT.ToStringFn()));
 
@@ -648,7 +647,8 @@ public class SpannerChangeStreamOrderedByTimestampAndTransactionIdIT {
 
     @Override
     public int compareTo(SpannerChangeStreamOrderedByTimestampAndTransactionIdIT.SortKey other) {
-      return Comparator.<SpannerChangeStreamOrderedByTimestampAndTransactionIdIT.SortKey>comparingDouble(
+      return Comparator
+          .<SpannerChangeStreamOrderedByTimestampAndTransactionIdIT.SortKey>comparingDouble(
               sortKey ->
                   sortKey.getCommitTimestamp().getSeconds()
                       + sortKey.getCommitTimestamp().getNanos() / 1000000000.0)
