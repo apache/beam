@@ -19,32 +19,13 @@
 
 # pytype: skip-file
 
-import json
 import logging
 import unittest
-import uuid
-
-import pytest
 
 from apache_beam.examples.complete import estimate_pi
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import BeamAssertException
 from apache_beam.testing.util import assert_that
-
-# Protect against environments where gcsio library is not available.
-try:
-  from apache_beam.io.gcp import gcsio
-except ImportError:
-  gcsio = None
-
-
-def read_gcs_output_file(file_pattern):
-  gcs = gcsio.GcsIO()
-  file_names = gcs.list_prefix(file_pattern).keys()
-  output = []
-  for file_name in file_names:
-    output.append(gcs.open(file_name).read().decode('utf-8'))
-  return '\n'.join(output)
 
 
 def in_between(lower, upper):
@@ -66,23 +47,6 @@ class EstimatePiTest(unittest.TestCase):
       # that is very small (VERY) given that we run at least 500 thousand
       # trials.
       assert_that(result, in_between(3.125, 3.155))
-
-  @pytest.mark.no_xdist
-  @pytest.mark.examples_postcommit
-  def test_estimate_pi_output_file(self):
-    test_pipeline = TestPipeline(is_integration_test=True)
-    OUTPUT_FILE = \
-      'gs://temp-storage-for-end-to-end-tests/py-it-cloud/output'
-    output = '/'.join([OUTPUT_FILE, str(uuid.uuid4()), 'result'])
-    extra_opts = {'output': output}
-    estimate_pi.run(test_pipeline.get_full_options_as_args(**extra_opts))
-    # Load result file and compare.
-    result = read_gcs_output_file(output)
-    [_, _, estimated_pi] = json.loads(result.strip())
-    # Note: Probabilistically speaking this test can fail with a probability
-    # that is very small (VERY) given that we run at least 100 thousand
-    # trials.
-    self.assertTrue(3.125 <= estimated_pi <= 3.155)
 
 
 if __name__ == '__main__':
