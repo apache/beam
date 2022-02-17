@@ -46,6 +46,7 @@ COPY --from=build /go/bin/server_scio_backend /opt/playground/backend/
 COPY --from=build /go/src/playground/backend/configs /opt/playground/backend/configs/
 COPY --from=build /go/src/playground/backend/logging.properties /opt/playground/backend/
 COPY --from=build /go/src/playground/backend/new_scio_project.sh /opt/playground/backend/
+COPY --from=build /go/src/playground/backend/internal/fs_tool/ExampleData.scala /opt/playground/backend/
 
 # Install sbt
 RUN echo "deb https://repo.scala-sbt.org/scalasbt/debian all main" | tee /etc/apt/sources.list.d/sbt.list &&\
