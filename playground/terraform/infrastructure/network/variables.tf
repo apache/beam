@@ -17,9 +17,25 @@
 # under the License.
 #
 
-resource "google_compute_network" "playground_vpc" {
-  project                 = var.project_id
-  name                    = var.vpc_name
-  auto_create_subnetworks = var.create_subnets
-  mtu                     = var.mtu
+variable "project_id" {
+  description = "The GCP Project ID where Playground Applications will be created"
+}
+
+variable "region" {
+  description = "The Google Cloud Platform (GCP) region in which to provision resources"
+}
+
+variable "network_name" {
+  description = "Name of VPC to be created"
+  default     = "playground-vpc"
+}
+
+variable "subnetwork_name" {
+  description = "Name of VPC to be created"
+  default     = "playground-vpc"
+}
+
+variable "subnetwork_cidr_range" {
+  description = "The address range for this subnet, in CIDR notation. Use a standard private VPC network address range: for example, 10.0.0.0/9."
+  default     = "10.128.0.0/20"
 }

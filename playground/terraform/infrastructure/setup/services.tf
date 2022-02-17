@@ -17,24 +17,14 @@
 # under the License.
 #
 
-variable "project_id" {
-  description = "The GCP Project ID where Playground Applications will be created"
+resource "google_project_service" "required_services" {
+  for_each = toset([
+    "artifactregistry",
+    "compute",
+    "container",
+    "redis",
+  ])
+  service            = "${each.key}.googleapis.com"
+  disable_on_destroy = false
 }
-
-variable "vpc_name" {
-  description = "Name of VPC to be created"
-  default     = "playground-vpc"
-}
-
-variable "create_subnets" {
-  description = "Auto Create Subnets Inside VPC"
-  default     = true
-}
-
-variable "mtu" {
-  description = "MTU Inside VPC"
-  default     = 1460
-}
-
-
 

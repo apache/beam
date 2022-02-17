@@ -17,10 +17,14 @@
 # under the License.
 #
 
-output "vpc_name" {
-  value = google_compute_network.playground_vpc.name
+variable "project_id" {
+  description = "The GCP Project ID where Playground Applications will be created"
 }
 
-output "vpc_id" {
-  value = google_compute_network.playground_vpc.id
+variable "region" {
+  description = "The GCP region within which we provision resources"
+}
+
+variable "service_account_id" {
+  description = "Service account ID"
 }

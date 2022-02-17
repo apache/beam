@@ -21,6 +21,18 @@ variable "project_id" {
   description = "The GCP Project ID where Playground Applications will be created"
 }
 
+variable "region" {
+  description = "The GCP region within which we provision resources"
+  default     = "us-central1"
+}
+
+#IAM
+
+variable "service_account_id" {
+  description = "Service account ID"
+  default     = "beam-playground"
+}
+
 #GCS
 
 variable "examples_bucket_name" {
@@ -104,7 +116,12 @@ variable "redis_replica_count" {
 
 variable "redis_memory_size_gb" {
   description = "Size of Redis memory"
-  default     = 4
+  default     = 5
+}
+
+variable "read_replicas_mode" {
+  description = "Read replica mode. Can only be specified when trying to create the instance."
+  default     = "READ_REPLICAS_ENABLED"
 }
 
 #VPC

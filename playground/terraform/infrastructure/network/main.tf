@@ -17,38 +17,17 @@
 # under the License.
 #
 
-variable "project_id" {
-  description = "The GCP Project ID where Playground Applications will be created"
+resource "google_compute_network" "playground" {
+  project = var.project_id
+  name    = var.network_name
+  auto_create_subnetworks = false
 }
 
-variable "machine_type" {
-  description = "Node pool machine types"
-  default     = "e2-standard-4"
-}
-
-variable "node_count" {
-  description = "Node pool size"
-  default     = 1
-}
-
-variable "service_account_email" {
-  description = "Service account email"
-}
-
-variable "name" {
-  description = "Name of GKE cluster"
-  default     = "playground-examples"
-}
-
-variable "location" {
-  description = "Location of GKE cluster"
-  default     = "us-central1-a"
-}
-
-variable "network" {
-  description = "GCP network within which resources are provisioned"
-}
-
-variable "subnetwork" {
-  description = "GCP subnetwork within which resources are provisioned"
+resource "google_compute_subnetwork" "playground" {
+  ip_cidr_range            = var.subnetwork_cidr_range
+  name                     = var.subnetwork_name
+  network                  = google_compute_network.playground.id
+  region                   = var.region
+  project                  = var.project_id
+  private_ip_google_access = true
 }

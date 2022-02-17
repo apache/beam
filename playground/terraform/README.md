@@ -17,39 +17,25 @@
     under the License.
 -->
 
-## Requirements and setup
+# Requirements
 
 The following items need to be setup for the Playground cluster deployment on GCP:
 
 * [GCP account](https://cloud.google.com/) 
-* [`gcloud` command-line tool](https://cloud.google.com/sdk/gcloud)
+* [`gcloud` command-line tool](https://cloud.google.com/sdk/gcloud) and required setup i.e. login
 * [Terraform](https://www.terraform.io/downloads.html) tool
 * [Docker](https://www.docker.com/get-started)
 
-Authentication is required for the deployment process. `gcloud` tool can be used to log in into the GCP account:
+# Deployment steps
 
-```bash
-$ gcloud auth login
-```
-
-Service account also can be used for authentication using `gcloud` cli. See more
-details [here](https://cloud.google.com/sdk/gcloud/reference/auth/activate-service-account).
-
-## GCP infrastructure deployment
+## 1. Provision infrastructure
 
 To deploy Playground infrastructure follow [README.md](./infrastructure/README.md) for infrastructure module.
 
-## Playground application deployment
+## 2. Build containers
 
-Playground requires building and pushing to registry using gradle before applying of Terraform scripts.
+TBD
 
-To build and push Playground Docker image to the [Artifact Registry](https://cloud.google.com/artifact-registry)
-from Apache Beam repository root, execute the following commands:
+## 3. Deploy application
 
-```bash
-$ cd /path/to/beam
-$ ./gradlew playground dockerTagPush
-```
-
-To deploy Playground applications to Cloud App Engine see [README.md](./applications/README.md) from applications
-module.
+TBD

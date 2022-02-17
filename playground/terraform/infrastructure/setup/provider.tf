@@ -17,38 +17,7 @@
 # under the License.
 #
 
-variable "project_id" {
-  description = "The GCP Project ID where Playground Applications will be created"
-}
-
-variable "machine_type" {
-  description = "Node pool machine types"
-  default     = "e2-standard-4"
-}
-
-variable "node_count" {
-  description = "Node pool size"
-  default     = 1
-}
-
-variable "service_account_email" {
-  description = "Service account email"
-}
-
-variable "name" {
-  description = "Name of GKE cluster"
-  default     = "playground-examples"
-}
-
-variable "location" {
-  description = "Location of GKE cluster"
-  default     = "us-central1-a"
-}
-
-variable "network" {
-  description = "GCP network within which resources are provisioned"
-}
-
-variable "subnetwork" {
-  description = "GCP subnetwork within which resources are provisioned"
+provider "google" {
+  region  = var.region
+  project = var.project_id
 }

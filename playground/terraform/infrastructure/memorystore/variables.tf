@@ -47,16 +47,31 @@ variable "redis_tier" {
 }
 
 variable "redis_replica_count" {
+  type        = number
   description = "Redis's replica count"
   default     = 1
 }
 
 variable "redis_memory_size_gb" {
+  type        = number
   description = "Size of Redis memory"
-  default     = 4
+  default     = 5
 }
 
 variable "display_name" {
   default     = "Playground Cache"
   description = "Display name for Redis service"
+}
+
+variable "read_replicas_mode" {
+  description = "Read replica mode. Can only be specified when trying to create the instance."
+  default     = "READ_REPLICAS_ENABLED"
+}
+
+variable "network" {
+  description = "GCP network within which resources are provisioned"
+}
+
+variable "subnetwork" {
+  description = "GCP subnetwork within which resources are provisioned"
 }

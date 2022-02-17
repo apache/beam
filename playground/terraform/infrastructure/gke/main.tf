@@ -17,24 +17,24 @@
 # under the License.
 #
 
-
-
 resource "google_container_cluster" "playground-gke" {
-  name               = var.gke_name
+  name               = var.name
   project            = var.project_id
-  location           = var.gke_location
-  initial_node_count = var.gke_node_count
+  location           = var.location
+  initial_node_count = var.node_count
+  network            = var.network
+  subnetwork         = var.subnetwork
   node_config {
-    machine_type    = var.gke_machine_type
-    service_account = var.service_account
+    machine_type    = var.machine_type
+    service_account = var.service_account_email
 
     oauth_scopes = [
       "https://www.googleapis.com/auth/cloud-platform"
     ]
-    labels       = {
+    labels = {
       component = "beam-playground"
     }
-    tags         = ["beam-playground"]
+    tags = ["beam-playground"]
 
   }
 }
