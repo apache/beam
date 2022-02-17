@@ -220,7 +220,25 @@ public class SpannerChangeStreamErrorTest implements Serializable {
     mockGetPartitionsAfter(
         Timestamp.ofTimeSecondsAndNanos(now.getSeconds(), now.getNanos() - 1000),
         getPartitionResultSet);
+    mockInvalidChangeStreamRecordReceived(now, after3Seconds);
 
+    try {
+      pipeline.apply(
+          SpannerIO.readChangeStream()
+              .withSpannerConfig(getSpannerConfig())
+              .withChangeStreamName(TEST_CHANGE_STREAM)
+              .withMetadataDatabase(TEST_DATABASE)
+              .withMetadataTable(TEST_TABLE)
+              .withInclusiveStartAt(now)
+              .withInclusiveEndAt(after3Seconds));
+      pipeline.run().waitUntilFinish();
+    } finally {
+      thrown.expect(PipelineExecutionException.class);
+      thrown.expectMessage("Field not found");
+    }
+  }
+
+  private void mockInvalidChangeStreamRecordReceived(Timestamp now, Timestamp after3Seconds) {
     Statement changeStreamQueryStatement =
         Statement.newBuilder(
                 "SELECT * FROM READ_my-change-stream(   start_timestamp => @startTimestamp,   end_timestamp => @endTimestamp,   partition_token => @partitionToken,   read_options => null,   heartbeat_milliseconds => @heartbeatMillis)")
@@ -289,21 +307,6 @@ public class SpannerChangeStreamErrorTest implements Serializable {
             .build();
     mockSpannerService.putStatementResult(
         StatementResult.query(changeStreamQueryStatement, readChangeStreamResultSet));
-
-    try {
-      pipeline.apply(
-          SpannerIO.readChangeStream()
-              .withSpannerConfig(getSpannerConfig())
-              .withChangeStreamName(TEST_CHANGE_STREAM)
-              .withMetadataDatabase(TEST_DATABASE)
-              .withMetadataTable(TEST_TABLE)
-              .withInclusiveStartAt(now)
-              .withInclusiveEndAt(after3Seconds));
-      pipeline.run().waitUntilFinish();
-    } finally {
-      thrown.expect(PipelineExecutionException.class);
-      thrown.expectMessage("Field not found");
-    }
   }
 
   private void mockGetPartitionsAfter(Timestamp timestamp, ResultSet getPartitionResultSet) {
