@@ -20,21 +20,23 @@
 # How to add your logo
 
 1. Fork [Apache Beam](https://github.com/apache/beam) repository
-2. Add file with company or project name to the [case-studies](https://github.com/apache/beam/tree/master/website/www/site/content/en/case-studies) folder
-3. Add project/company logo to the [images](https://github.com/apache/beam/tree/master/website/www/site/static/images) folder
+2. Add file with company or project name to
+   the [case-studies](https://github.com/apache/beam/tree/master/website/www/site/content/en/case-studies) folder
+3. Add project/company logo to
+   the [images/logos/powered-by](https://github.com/apache/beam/tree/master/website/www/site/static/images/logos/powered-by)
+   folder. Please use your company/project name e.g. `ricardo.png`
 4. Copy template below to the created file and replace next fields with your data
 
-| Field           | Name                                     |
-|-----------------|------------------------------------------|
-| title           | Project/Company name                     |
-| icon            | Path to the logo e.g. "/images/logo.png" |
-| cardDescription | Description of the project               |
-
+| Field           | Name                                             |
+|-----------------|--------------------------------------------------|
+| title           | Project/Company name                             |
+| icon            | Path to the logo e.g. "/images/company_name.png" |
+| cardDescription | Description of the project                       |
 
 ```
 ---
 title: "Cloud Dataflow"
-icon: /images/logo.png
+icon: /images/company_name.png
 cardDescription: "Project/Company description"
 ---
 <!--
@@ -51,4 +53,5 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 ```
+
 5. Create pull request to the apache beam repository with your changes

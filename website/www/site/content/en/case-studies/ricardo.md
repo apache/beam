@@ -1,7 +1,7 @@
 ---
 title: "Apache Beam Amplified Ricardo’s Real-time and ML Data Processing for eCommerce Platform"
 name: "Ricardo"
-icon: /images/logos/case-study/ricardo.png
+icon: /images/logos/powered-by/ricardo.png
 category: study
 cardTitle: "Four Apache Technologies Combined for Fun and Profit"
 cardDescription: "Ricardo, the largest online marketplace in Switzerland, uses Apache Beam to stream-process platform data and enables the Data Intelligence team to provide scalable data integration, analytics, and smart services."
@@ -24,7 +24,7 @@ limitations under the License.
 -->
 <div class="case-study-opinion">
     <div class="case-study-opinion-img">
-        <img src="/images/logos/case-study/ricardo.png"/>
+        <img src="/images/logos/powered-by/ricardo.png"/>
     </div>
     <blockquote class="case-study-quote-block">
       <p class="case-study-quote-text">
@@ -47,7 +47,7 @@ limitations under the License.
 </div>
 <div class="case-study-post">
 
-#  Apache Beam Amplified Ricardo’s Real-time and ML Data Processing for eCommerce Platform
+#  Apache Beam Amplified Ricardo’s Real-time and ML Data Processing for eCommerce Platform.
 
 ## Background
 
@@ -86,7 +86,7 @@ datacenter as the initial environment.
 
 <blockquote class="case-study-quote-block case-study-quote-wrapped">
   <p class="case-study-quote-text">
-    We wanted to implement a solution that would multiply our possibilities, and that’s exactly where Beam comes in. One of the major drivers in this decision was the ability to evolve without adding too much operational load
+    We wanted to implement a solution that would multiply our possibilities, and that’s exactly where Beam comes in. One of the major drivers in this decision was the ability to evolve without adding too much operational load.
   </p>
   <div class="case-study-quote-author">
     <div class="case-study-quote-author-img">
@@ -159,7 +159,7 @@ data science and ML.
 
 <blockquote class="case-study-quote-block case-study-quote-wrapped">
   <p class="case-study-quote-text">
-    Once you start laying out the simple use cases, you will always figure out the edge case scenarios. This pipeline has been running for a year now, and Beam handles it all, from super simple use cases to something crazy
+    Once you start laying out the simple use cases, you will always figure out the edge case scenarios. This pipeline has been running for a year now, and Beam handles it all, from super simple use cases to something crazy.
   </p>
   <div class="case-study-quote-author">
     <div class="case-study-quote-author-img">
@@ -192,7 +192,7 @@ other teams at Ricardo to adopt it.
 
 <blockquote class="case-study-quote-block case-study-quote-wrapped">
   <p class="case-study-quote-text">
-    [Apache Beam] is a framework that is so good that other teams are picking up the idea and starting to work with it after we tested it
+    [Apache Beam] is a framework that is so good that other teams are picking up the idea and starting to work with it after we tested it.
   </p>
   <div class="case-study-quote-author">
     <div class="case-study-quote-author-img">
@@ -221,7 +221,7 @@ to value.
 
 <blockquote class="case-study-quote-block case-study-quote-wrapped">
   <p class="case-study-quote-text">
-    After this first pipeline, we are working on other use cases and planning to move them to Beam. I was always trying to spread the idea that this a framework that is reliable, it actually helps you to get the stuff done in a consistent way
+    After this first pipeline, we are working on other use cases and planning to move them to Beam. I was always trying to spread the idea that this a framework that is reliable, it actually helps you to get the stuff done in a consistent way.
   </p>
   <div class="case-study-quote-author">
     <div class="case-study-quote-author-img">

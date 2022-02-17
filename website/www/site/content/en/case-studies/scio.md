@@ -1,6 +1,6 @@
 ---
 title:  "Scio"
-icon: /images/logos/case-study/scio.png
+icon: /images/logos/powered-by/scio.png
 hasNav: true
 cardDescription: "Scio is a Scala API for Apache Beam and Google Cloud Dataflow inspired by Apache Spark and Scalding."
 ---

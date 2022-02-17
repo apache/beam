@@ -1,6 +1,6 @@
 ---
 title:  "Kio"
-icon: /images/logos/case-study/kio.png
+icon: /images/logos/powered-by/kio.png
 hasNav: true
 cardDescription: "Kio is a set of Kotlin extensions for Apache Beam to implement fluent-like API for Java SDK."
 ---

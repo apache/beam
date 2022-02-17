@@ -1,7 +1,7 @@
 ---
 title: "Scalability and Cost Optimization for Search Engine's Workloads"
 name: "Seznam"
-icon: /images/logos/case-study/seznam.png
+icon: /images/logos/powered-by/seznam.png
 category: study
 cardTitle: "Scalability and Cost Optimization for Search Engine's Workloads"
 cardDescription: "Dive into the Czech search engine’s experience of scaling the on-premises infrastructure to learn more about the benefits of byte-based data shuffling and the use cases where Apache Beam portability and abstraction bring the utmost value."
@@ -24,7 +24,7 @@ limitations under the License.
 -->
 <div class="case-study-opinion">
     <div class="case-study-opinion-img">
-        <img src="/images/logos/case-study/seznam.png"/>
+        <img src="/images/logos/powered-by/seznam.png"/>
     </div>
     <blockquote class="case-study-quote-block">
       <p class="case-study-quote-text">
@@ -191,14 +191,6 @@ by analyzing cluster resource utilization, memory allocated, CPU used, etc. For 
 on Kubernetes cluster, Seznam employs Elasticsearch to store, search, and analyze metrics.
 
 ## Results
-
-Apache Beam has provided Ricardo with a scalable and reliable data processing framework that supported Ricardo’s
-fundamental business scenarios and enabled new use cases to respond to events in real-time.
-
-Throughout Ricardo’s transformation, Apache Beam has been a unified framework that can run batch and stream pipelines,
-offers on-premises and cloud managed services execution, and programming language options like Java and Python,
-empowered data science and research teams to advance customer experience with new real-time scenarios fast-tracking time
-to value.
 
 Apache Beam offered a unified model for Seznam’s stream and batch processing that provided performance at scale.
 Apache Beam supported multiple runners, language SDKs, and built-in and custom pluggable I/O transforms,

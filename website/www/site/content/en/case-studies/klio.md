@@ -1,6 +1,6 @@
 ---
 title:  "Klio"
-icon: /images/logos/case-study/klio.png
+icon: /images/logos/powered-by/klio.png
 hasNav: true
 cardDescription: "Developed at Spotify and built on top of Apache Beam for Python, Klio is an open source framework that lets researchers and engineers build smarter data pipelines for processing audio and other media files, easily and at scale."
 ---
