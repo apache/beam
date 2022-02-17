@@ -41,28 +41,26 @@ output "docker-repository-root" {
   value = module.applications.docker-repository-root
 }
 
-
 output "go-server-url" {
-  value = "https://${module.applications.go-server-url}-dot-${var.project_id}.lm.r.appspot.com/"
+  value = module.applications.go-server-url
 }
 
 output "java-server-url" {
-  value = "https://${module.applications.java-server-url}-dot-${var.project_id}.lm.r.appspot.com/"
+  value = module.applications.java-server-url
 }
 
 output "python-server-url" {
-  value = "https://${module.applications.python-server-url}-dot-${var.project_id}.lm.r.appspot.com/"
+  value = module.applications.python-server-url
 }
 
 output "router-server-url" {
-  value = "https://${module.applications.router-server-url}-dot-${var.project_id}.lm.r.appspot.com/"
+  value = module.applications.router-server-url
 }
 
 output "scio-server-url" {
-  value = "https://${module.applications.scio-server-url}-dot-${var.project_id}.lm.r.appspot.com/"
+  value = module.applications.scio-server-url
 }
 
 output "front-server-url" {
-  //https://frontend-dev-dot-friendly-tower-340607.lm.r.appspot.com/
-  value = "https://${module.applications.front-server-url}-dot-${var.project_id}.lm.r.appspot.com/"
+  value = module.applications.front-server-url
 }

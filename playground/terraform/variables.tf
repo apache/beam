@@ -57,8 +57,8 @@ variable "gke_location" {
 }
 
 variable "service_account" {
-  description = "Service account id for example service-account-playground@friendly-tower-340607.iam.gserviceaccount.com"
-  default     = "service-account-playground@friendly-tower-340607.iam.gserviceaccount.com"
+  description = "Service account id"
+  default     = "playground-deploy@apache-beam-testing.iam.gserviceaccount.com"
 }
 
 #GCS
@@ -121,7 +121,7 @@ variable "redis_memory_size_gb" {
 
 variable "vpc_name" {
   description = "Name of VPC to be created"
-  default     = "playground-vpc"
+  default     = "default"
 }
 
 variable "create_subnets" {
@@ -163,7 +163,6 @@ variable "cache_type" {
 variable "backend_service_name" {
   default = "backend"
 }
-
 
 variable "scio_volume_size" {
   description = "Size of the in memory file system to be used by the application, in GB"

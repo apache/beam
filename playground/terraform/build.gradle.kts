@@ -36,9 +36,13 @@ tasks {
         args(
             "init", "-migrate-state",
             "-backend-config=./environment/$environment/state.tfbackend",
-            "-var-file=./environment/$environment/terraform.tfvars",
             "-var=project_id=$project_id",
-            "-var=environment=$environment"
+            "-var=environment=$environment",
+            if (file("./environment/$environment/terraform.tfvars").exists()) {
+                "-var-file=./environment/$environment/terraform.tfvars"
+            } else {
+                "-no-color"
+            }
         )
     }
     /* refresh Infrastucture for remote state */
@@ -50,8 +54,12 @@ tasks {
             "refresh",
             "-lock=false",
             "-var=project_id=$project_id",
-            "-var-file=./environment/$environment/terraform.tfvars",
-            "-var=environment=$environment"
+            "-var=environment=$environment",
+            if (file("./environment/$environment/terraform.tfvars").exists()) {
+                "-var-file=./environment/$environment/terraform.tfvars"
+            } else {
+                "-no-color"
+            }
         )
     }
 
@@ -70,9 +78,13 @@ tasks {
             "-lock=false",
             "-target=module.applications",
             "-var=project_id=$project_id",
-            "-var-file=./environment/$environment/terraform.tfvars",
             "-var=environment=$environment",
-            "-var=docker_image_tag=$docker_tag"
+            "-var=docker_image_tag=$docker_tag",
+            if (file("./environment/$environment/terraform.tfvars").exists()) {
+                "-var-file=./environment/$environment/terraform.tfvars"
+            } else {
+                "-no-color"
+            }
         )
     }
 
@@ -92,9 +104,13 @@ tasks {
             "-lock=false",
             "-target=module.applications.module.backend",
             "-var=project_id=$project_id",
-            "-var-file=./environment/$environment/terraform.tfvars",
             "-var=environment=$environment",
-            "-var=docker_image_tag=$docker_tag"
+            "-var=docker_image_tag=$docker_tag",
+            if (file("./environment/$environment/terraform.tfvars").exists()) {
+                "-var-file=./environment/$environment/terraform.tfvars"
+            } else {
+                "-no-color"
+            }
         )
     }
 
@@ -114,9 +130,13 @@ tasks {
             "-lock=false",
             "-target=module.applications.module.frontend",
             "-var=project_id=$project_id",
-            "-var-file=./environment/$environment/terraform.tfvars",
             "-var=environment=$environment",
-            "-var=docker_image_tag=$docker_tag"
+            "-var=docker_image_tag=$docker_tag",
+            if (file("./environment/$environment/terraform.tfvars").exists()) {
+                "-var-file=./environment/$environment/terraform.tfvars"
+            } else {
+                "-no-color"
+            }
         )
     }
 
@@ -130,8 +150,12 @@ tasks {
             "-lock=false",
             "-target=module.infrastructure",
             "-var=project_id=$project_id",
-            "-var-file=./environment/$environment/terraform.tfvars",
-            "-var=environment=$environment"
+            "-var=environment=$environment",
+            if (file("./environment/$environment/terraform.tfvars").exists()) {
+                "-var-file=./environment/$environment/terraform.tfvars"
+            } else {
+                "-no-color"
+            }
         )
     }
 
@@ -149,9 +173,13 @@ tasks {
             "-auto-approve",
             "-lock=false",
             "-var=project_id=$project_id",
-            "-var-file=./environment/$environment/terraform.tfvars",
             "-var=environment=$environment",
-            "-var=docker_image_tag=$docker_tag"
+            "-var=docker_image_tag=$docker_tag",
+            if (file("./environment/$environment/terraform.tfvars").exists()) {
+                "-var-file=./environment/$environment/terraform.tfvars"
+            } else {
+                "-no-color"
+            }
         )
     }
 
@@ -163,8 +191,12 @@ tasks {
             "-auto-approve",
             "-lock=false",
             "-var=project_id=$project_id",
-            "-var-file=./environment/$environment/terraform.tfvars",
-            "-var=environment=$environment"
+            "-var=environment=$environment",
+            if (file("./environment/$environment/terraform.tfvars").exists()) {
+                "-var-file=./environment/$environment/terraform.tfvars"
+            } else {
+                "-no-color"
+            }
         )
     }
 }

@@ -98,3 +98,11 @@ variable "router_volume_size" {
 
 variable "state_bucket" {}
 variable "state_prefix" {}
+
+variable "app_domain" {
+  default = "lm.r.appspot.com"
+}
+
+variable "registry_domain" {
+  default = "-docker.pkg.dev"
+}

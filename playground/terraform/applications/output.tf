@@ -18,29 +18,29 @@
 #
 
 output "docker-repository-root" {
-  value = "${data.terraform_remote_state.playground-state.outputs.playground_registry_location}${local.registry_domain}/${var.project_id}/${data.terraform_remote_state.playground-state.outputs.playground_registry_name}"
+  value = "${data.terraform_remote_state.playground-state.outputs.playground_registry_location}${var.registry_domain}/${var.project_id}/${data.terraform_remote_state.playground-state.outputs.playground_registry_name}"
 }
 
 output "go-server-url" {
-  value = module.backend.go-server-url
+  value = "https://${module.backend.go-server-url}-dot-${var.project_id}.lm.r.appspot.com/"
 }
 
 output "java-server-url" {
-  value = module.backend.java-server-url
+  value = "https://${module.backend.java-server-url}-dot-${var.project_id}.lm.r.appspot.com/"
 }
 
 output "python-server-url" {
-  value = module.backend.python-server-url
+  value = "https://${module.backend.python-server-url}-dot-${var.project_id}.lm.r.appspot.com/"
 }
 
 output "router-server-url" {
-  value = module.backend.router-server-url
+  value = "https://${module.backend.router-server-url}-dot-${var.project_id}.lm.r.appspot.com/"
 }
 
 output "scio-server-url" {
-  value = module.backend.scio-server-url
+  value = "https://${module.backend.scio-server-url}-dot-${var.project_id}.lm.r.appspot.com/"
 }
 
 output "front-server-url" {
-  value = module.frontend.front-url
+  value = "https://${module.frontend.front-url}-dot-${var.project_id}.${var.app_domain}/"
 }
