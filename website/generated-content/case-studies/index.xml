@@ -34,7 +34,7 @@ Senior Data Engineer @ Ricardo
 &lt;/blockquote>
 &lt;/div>
 &lt;div class="case-study-post">
-&lt;h1 id="apache-beam-amplified-ricardos-real-time-and-ml-data-processing-for-ecommerce-platform">Apache Beam Amplified Ricardo’s Real-time and ML Data Processing for eCommerce Platform&lt;/h1>
+&lt;h1 id="apache-beam-amplified-ricardos-real-time-and-ml-data-processing-for-ecommerce-platform">Apache Beam Amplified Ricardo’s Real-time and ML Data Processing for eCommerce Platform.&lt;/h1>
 &lt;h2 id="background">Background&lt;/h2>
 &lt;p>&lt;a href="https://www.ricardo.ch/">Ricardo&lt;/a> is a leading second hand marketplace in Switzerland. The site supports over 4 million
 registered buyers and sellers, processing more than 6.5 million article transactions via the platform annually. Ricardo
@@ -63,7 +63,7 @@ Flink is well known for its reliability and cost-efficiency and an on-premises c
 datacenter as the initial environment.&lt;/p>
 &lt;blockquote class="case-study-quote-block case-study-quote-wrapped">
 &lt;p class="case-study-quote-text">
-We wanted to implement a solution that would multiply our possibilities, and that’s exactly where Beam comes in. One of the major drivers in this decision was the ability to evolve without adding too much operational load
+We wanted to implement a solution that would multiply our possibilities, and that’s exactly where Beam comes in. One of the major drivers in this decision was the ability to evolve without adding too much operational load.
 &lt;/p>
 &lt;div class="case-study-quote-author">
 &lt;div class="case-study-quote-author-img">
@@ -127,7 +127,7 @@ Apache Beam joins them both together.&lt;/p>
 data science and ML.&lt;/p>
 &lt;blockquote class="case-study-quote-block case-study-quote-wrapped">
 &lt;p class="case-study-quote-text">
-Once you start laying out the simple use cases, you will always figure out the edge case scenarios. This pipeline has been running for a year now, and Beam handles it all, from super simple use cases to something crazy
+Once you start laying out the simple use cases, you will always figure out the edge case scenarios. This pipeline has been running for a year now, and Beam handles it all, from super simple use cases to something crazy.
 &lt;/p>
 &lt;div class="case-study-quote-author">
 &lt;div class="case-study-quote-author-img">
@@ -157,7 +157,7 @@ supports advanced scenarios and acts as a glue between Kafka, BigQuery, and plat
 other teams at Ricardo to adopt it.&lt;/p>
 &lt;blockquote class="case-study-quote-block case-study-quote-wrapped">
 &lt;p class="case-study-quote-text">
-[Apache Beam] is a framework that is so good that other teams are picking up the idea and starting to work with it after we tested it
+[Apache Beam] is a framework that is so good that other teams are picking up the idea and starting to work with it after we tested it.
 &lt;/p>
 &lt;div class="case-study-quote-author">
 &lt;div class="case-study-quote-author-img">
@@ -182,7 +182,7 @@ empowered data science and research teams to advance customer experience with ne
 to value.&lt;/p>
 &lt;blockquote class="case-study-quote-block case-study-quote-wrapped">
 &lt;p class="case-study-quote-text">
-After this first pipeline, we are working on other use cases and planning to move them to Beam. I was always trying to spread the idea that this a framework that is reliable, it actually helps you to get the stuff done in a consistent way
+After this first pipeline, we are working on other use cases and planning to move them to Beam. I was always trying to spread the idea that this a framework that is reliable, it actually helps you to get the stuff done in a consistent way.
 &lt;/p>
 &lt;div class="case-study-quote-author">
 &lt;div class="case-study-quote-author-img">
@@ -395,6 +395,13 @@ Chief Solutions Architect, Neo4j,
 &lt;/div>
 &lt;/div>
 &lt;/blockquote>
+&lt;div class="case-study-feedback" id="case-study-feedback">
+&lt;p class="case-study-feedback-title">Was this information useful?&lt;/p>
+&lt;div>
+&lt;button class="btn case-study-feedback-btn" onclick="sendCaseStudyFeedback(true, 'Hop')">Yes&lt;/button>
+&lt;button class="btn case-study-feedback-btn" onclick="sendCaseStudyFeedback(false, 'Hop')">No&lt;/button>
+&lt;/div>
+&lt;/div>
 &lt;/div>
 &lt;div class="clear-nav">&lt;/div></description></item><item><title>Case-Studies: Cloud Dataflow</title><link>/case-studies/dataflow/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/dataflow/</guid><description>
 &lt;!--
@@ -644,12 +651,6 @@ of downtimes in their performance. Babar allows for easier monitoring, debugging
 by analyzing cluster resource utilization, memory allocated, CPU used, etc. For Apache Beam pipelines executed by Flink runner
 on Kubernetes cluster, Seznam employs Elasticsearch to store, search, and analyze metrics.&lt;/p>
 &lt;h2 id="results">Results&lt;/h2>
-&lt;p>Apache Beam has provided Ricardo with a scalable and reliable data processing framework that supported Ricardo’s
-fundamental business scenarios and enabled new use cases to respond to events in real-time.&lt;/p>
-&lt;p>Throughout Ricardo’s transformation, Apache Beam has been a unified framework that can run batch and stream pipelines,
-offers on-premises and cloud managed services execution, and programming language options like Java and Python,
-empowered data science and research teams to advance customer experience with new real-time scenarios fast-tracking time
-to value.&lt;/p>
 &lt;p>Apache Beam offered a unified model for Seznam’s stream and batch processing that provided performance at scale.
 Apache Beam supported multiple runners, language SDKs, and built-in and custom pluggable I/O transforms,
 thus eliminating the need to invest into the development and support of proprietary runners and solutions.
@@ -659,7 +660,15 @@ After evaluation, Seznam transitioned their workloads to Apache Beam and integra
 &lt;p>The Apache Beam abstraction and execution model allowed Seznam to robustly scale their data processing.
 It also provided the flexibility to write the business logic just once and keep freedom of choice between runners.
 The model was especially valuable for pipeline maintainability in complex use cases.
-Apache Beam helped overcome memory and compute resource constraints by reshuffling unevenly distributed data into manageable partitions.&lt;/p>
+Apache Beam helped overcome memory and compute resource constraints by reshuffling unevenly distributed data into manageable partitions.
+&lt;div class="case-study-feedback" id="case-study-feedback">
+&lt;p class="case-study-feedback-title">Was this information useful?&lt;/p>
+&lt;div>
+&lt;button class="btn case-study-feedback-btn" onclick="sendCaseStudyFeedback(true, 'Seznam')">Yes&lt;/button>
+&lt;button class="btn case-study-feedback-btn" onclick="sendCaseStudyFeedback(false, 'Seznam')">No&lt;/button>
+&lt;/div>
+&lt;/div>
+&lt;/p>
 &lt;/div>
 &lt;div class="clear-nav">&lt;/div></description></item><item><title>Case-Studies: Scio</title><link>/case-studies/scio/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/scio/</guid><description>
 &lt;!--
