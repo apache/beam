@@ -213,13 +213,16 @@ jobs:
         os_python: [
           {"os": [self-hosted, ubuntu-20.04], "python": "cp36-* cp37-* cp38-*"},
           {"os": [macos-latest], "python": "cp36-* cp37-* cp38-*"},
-          {"os": [windows-latest], "python": "cp36-* cp37-* cp38-*"},
+          {"os": [self-hosted,windows-server-2019], "python": "cp36-* cp37-* cp38-*"},
         ]
         arch: [auto]
         include:
           - os_python: {"os": [self-hosted, ubuntu-20.04], "python": "cp36-* cp37-* cp38-*"}
             arch: aarch64
     steps:
+    - name: Clean wheels folder (Windows)
+      if: contains(matrix.os_python.os, 'windows-server-2019')
+      run: if ((Test-Path C:\actionsDir\_work\beam\beam\apache-beam-source\wheelhouse)) { Get-ChildItem -Path C:\actionsDir\_work\beam\beam\apache-beam-source\wheelhouse -Include *.* -File -Recurse | foreach { $_.Delete()}}
     - name: Download python source distribution from artifacts
       uses: actions/download-artifact@v2
       with:
@@ -294,7 +297,7 @@ jobs:
     if: needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     strategy:
       matrix:
-        os : [[self-hosted, ubuntu-20.04], macos-latest, windows-latest]
+        os : [[self-hosted, ubuntu-20.04], macos-latest, [self-hosted,windows-server-2019]]
     steps:
     - name: Download wheels from artifacts
       uses: actions/download-artifact@v2

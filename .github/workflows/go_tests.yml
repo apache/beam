@@ -29,11 +29,11 @@ on:
     branches: ['master', 'release-*']
     tags: 'v*'
     paths: ['sdks/go/pkg/**']
-  workflow_dispatch:
 
 jobs:
   build:
     runs-on: [self-hosted, ubuntu-20.04]
+    name: Go Build
     steps:
       - name: Clean GitHub workspace
         run: if [ -d "$GITHUB_WORKSPACE" ]; then sudo rm -rf $GITHUB_WORKSPACE/* ; fi

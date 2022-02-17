@@ -21,7 +21,6 @@ on:
   pull_request:
     paths: ['playground/frontend/**']
   workflow_dispatch:
-
 jobs:
   build_playground_frontend_docker_image:
     name: Build Playground Frontend App

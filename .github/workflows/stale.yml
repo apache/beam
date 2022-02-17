@@ -26,7 +26,6 @@ jobs:
     permissions:
       issues: write
       pull-requests: write
-
     steps:
     - uses: actions/stale@v3
       with:

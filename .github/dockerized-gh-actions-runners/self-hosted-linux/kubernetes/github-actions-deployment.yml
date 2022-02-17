@@ -46,6 +46,10 @@ spec:
             requests:
               memory: "1028Mi"
               cpu: "2"
+          lifecycle:
+            preStop:
+              exec:
+                command: [ "/bin/sh", "-c",'./config.sh remove --unattended --token "${RUNNER_TOKEN}"' ]
       volumes:
         - name: docker-sock
           hostPath:

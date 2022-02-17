@@ -37,6 +37,7 @@ on:
 
 
 jobs:
+
   check_gcp_variables:
     timeout-minutes: 5
     name: "Check GCP variables"
@@ -98,7 +99,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [[self-hosted, ubuntu-20.04], macos-latest, windows-latest]
+        os: [[self-hosted, ubuntu-20.04], macos-latest, [self-hosted,windows-server-2019]]
         params: [
           {"py_ver": "3.6", "tox_env": "py36"},
           {"py_ver": "3.7", "tox_env": "py37"},
@@ -126,7 +127,7 @@ jobs:
         run: tox -c tox.ini -e ${{ matrix.params.tox_env }}
         # Commented by the moment to run memory&cpu resources.
       - name: Run tests basic windows
-        if: startsWith(matrix.os, 'windows')
+        if: contains(matrix.os, 'windows-server-2019')
         working-directory: ./sdks/python
         run: tox -c tox.ini -e ${{ matrix.params.tox_env }}-win
       - name: Upload test logs
@@ -142,7 +143,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [[self-hosted, ubuntu-20.04], macos-latest, windows-latest]
+        os: [[self-hosted, ubuntu-20.04], macos-latest, [self-hosted,windows-server-2019]]
         python: [3.6, 3.7, 3.8, 3.9]
     steps:
       - name: Clean GitHub workspace
@@ -173,7 +174,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [[self-hosted, ubuntu-20.04], macos-latest, windows-latest]
+        os: [[self-hosted, ubuntu-20.04], macos-latest, [self-hosted,windows-server-2019]]
         python: [3.6, 3.7, 3.8, 3.9]
     steps:
       - name: Clean GitHub workspace

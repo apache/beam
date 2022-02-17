@@ -18,7 +18,6 @@
 # To learn more about GitHub Actions in Apache Beam check the CI.md
 
 name: Java Tests
-
 on:
   workflow_dispatch:
     inputs:
@@ -65,7 +64,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [[self-hosted, ubuntu-20.04], macos-latest, windows-latest]
+        os: [[self-hosted, ubuntu-20.04], macos-latest, [self-hosted,windows-server-2019]]
     steps:
       - name: Clean GitHub workspace
         if: contains(matrix.os, 'ubuntu-20.04')
@@ -127,7 +126,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [[self-hosted, ubuntu-20.04], macos-latest, windows-latest]
+        os: [[self-hosted, ubuntu-20.04], macos-latest, [self-hosted,windows-server-2019]]
     steps:
       - name: Clean GitHub workspace
         if: contains(matrix.os, 'ubuntu-20.04')
@@ -177,7 +176,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [[self-hosted, ubuntu-20.04], macos-latest, windows-latest]
+        os: [[self-hosted, ubuntu-20.04], macos-latest, [self-hosted,windows-server-2019]]
     steps:
       - name: Clean GitHub workspace
         if: contains(matrix.os, 'ubuntu-20.04')
