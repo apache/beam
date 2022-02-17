@@ -17,15 +17,12 @@
  */
 package org.apache.beam.sdk.io.aws2.s3;
 
-import java.net.URI;
+import org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory;
 import org.apache.beam.sdk.io.aws2.options.S3ClientBuilderFactory;
 import org.apache.beam.sdk.io.aws2.options.S3Options;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import software.amazon.awssdk.http.apache.ApacheHttpClient;
-import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
 
@@ -44,26 +41,11 @@ public class DefaultS3ClientBuilderFactory implements S3ClientBuilderFactory {
 
   @VisibleForTesting
   static S3ClientBuilder createBuilder(S3ClientBuilder builder, S3Options s3Options) {
-    if (s3Options.getAwsCredentialsProvider() != null) {
-      builder.credentialsProvider(s3Options.getAwsCredentialsProvider());
-    }
-
-    if (s3Options.getProxyConfiguration() != null) {
-      builder.httpClient(
-          ApacheHttpClient.builder().proxyConfiguration(s3Options.getProxyConfiguration()).build());
-    }
-
-    if (!Strings.isNullOrEmpty(s3Options.getEndpoint())) {
-      builder.endpointOverride(URI.create(s3Options.getEndpoint()));
-    }
-
-    if (!Strings.isNullOrEmpty(s3Options.getAwsRegion())) {
-      builder.region(Region.of(s3Options.getAwsRegion()));
-    } else {
+    if (s3Options.getAwsRegion() == null) {
       LOG.info(
           "The AWS S3 Beam extension was included in this build, but the awsRegion flag "
               + "was not specified. If you don't plan to use S3, then ignore this message.");
     }
-    return builder;
+    return ClientBuilderFactory.getFactory(s3Options).create(builder, s3Options);
   }
 }

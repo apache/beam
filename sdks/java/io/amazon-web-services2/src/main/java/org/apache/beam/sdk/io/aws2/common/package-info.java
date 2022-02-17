@@ -15,20 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.aws2.sns;
 
-import org.apache.beam.sdk.io.aws2.StaticSupplier;
-import software.amazon.awssdk.services.sns.SnsClient;
+/** Common code for AWS sources and sinks such as retry configuration. */
+@Experimental(Kind.SOURCE_SINK)
+package org.apache.beam.sdk.io.aws2.common;
 
-/** Client provider supporting unserializable clients such as mock instances for unit tests. */
-class StaticSnsClientProvider extends StaticSupplier<SnsClient, StaticSnsClientProvider>
-    implements SnsClientProvider {
-  static SnsClientProvider of(SnsClient client) {
-    return new StaticSnsClientProvider().withObject(client);
-  }
-
-  @Override
-  public SnsClient getSnsClient() {
-    return get();
-  }
-}
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;

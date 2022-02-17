@@ -83,7 +83,7 @@ class SimplifiedKinesisClient {
   private final Integer limit;
   private final Supplier<Instant> currentInstantSupplier;
 
-  public SimplifiedKinesisClient(
+  SimplifiedKinesisClient(
       KinesisClient kinesis,
       CloudWatchClient cloudWatch,
       Integer limit,
@@ -92,11 +92,6 @@ class SimplifiedKinesisClient {
     this.cloudWatch = checkNotNull(cloudWatch, "cloudWatch");
     this.limit = limit;
     this.currentInstantSupplier = currentInstantSupplier;
-  }
-
-  public static SimplifiedKinesisClient from(AWSClientsProvider provider, Integer limit) {
-    return new SimplifiedKinesisClient(
-        provider.getKinesisClient(), provider.getCloudWatchClient(), limit, Instant::now);
   }
 
   public String getShardIterator(
