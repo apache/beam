@@ -47,6 +47,7 @@ set -Eeuxo pipefail
 # GCloud properties
 GCLOUD_ZONE="${GCLOUD_ZONE:=us-central1-a}"
 DATAPROC_VERSION="${DATAPROC_VERSION:=2.0}"
+GCLOUD_REGION="${GCLOUD_ZONE:=us-central1}"
 
 MASTER_NAME="$CLUSTER_NAME-m"
 
@@ -134,7 +135,7 @@ function create_cluster() {
   # Docker init action restarts yarn so we need to start yarn session after this restart happens.
   # This is why flink init action is invoked last.
   #--initialization-actions $DOCKER_INIT,$BEAM_INIT,$FLINK_INIT Older initialization 
-  gcloud dataproc clusters create $CLUSTER_NAME --region=$GCLOUD_ZONE --num-workers=$num_dataproc_workers  --metadata "${metadata}", --image-version=$image_version --zone=$GCLOUD_ZONE  --optional-components=FLINK,DOCKER  --quiet
+  gcloud dataproc clusters create $CLUSTER_NAME --region=$GCLOUD_REGION --num-workers=$num_dataproc_workers  --metadata "${metadata}", --image-version=$image_version --zone=$GCLOUD_ZONE  --optional-components=FLINK,DOCKER  --quiet
 }
 
 # Runs init actions for Docker, Portability framework (Beam) and Flink cluster
@@ -155,7 +156,7 @@ function restart() {
 
 # Deletes a Flink cluster.
 function delete() {
-  gcloud dataproc clusters delete $CLUSTER_NAME --region=global --quiet
+  gcloud dataproc clusters delete $CLUSTER_NAME --region=$GCLOUD_REGION --quiet
 }
 
 "$@"
