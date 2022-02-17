@@ -190,12 +190,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 &lt;h1 id="java-sdk-roadmap">Java SDK Roadmap&lt;/h1>
-&lt;h2 id="next-java-lts-version-support-java-11--189">Next Java LTS version support (Java 11 / 18.9)&lt;/h2>
+&lt;h2 id="next-java-lts-version-support-java-17">Next Java LTS version support (Java 17)&lt;/h2>
 &lt;p>Work to support the next LTS release of Java is in progress. For more details
 about the scope and info on the various tasks please see the JIRA ticket.&lt;/p>
 &lt;ul>
-&lt;li>JIRA: &lt;a href="https://issues.apache.org/jira/browse/BEAM-2530">BEAM-2530&lt;/a>&lt;/li>
-&lt;li>Contact: &lt;a href="mailto:mwalenia@apache.org">Michał Walenia&lt;/a>&lt;/li>
+&lt;li>JIRA: &lt;a href="https://issues.apache.org/jira/browse/BEAM-12240">BEAM-12240&lt;/a>&lt;/li>
 &lt;/ul></description></item><item><title>Roadmap: Multi-SDK Connector Efforts</title><link>/roadmap/connectors-multi-sdk/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/roadmap/connectors-multi-sdk/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
