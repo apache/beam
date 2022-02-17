@@ -57,5 +57,6 @@ jobs:
         working-directory: ./sdks/typescript
       - run: npm run prettier-check
         working-directory: ./sdks/typescript
+        if: ${{ matrix.os == 'ubuntu-latest' }}
       - run: npm run codecovTest
         working-directory: ./sdks/typescript
