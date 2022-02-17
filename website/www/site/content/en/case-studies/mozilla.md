@@ -1,10 +1,8 @@
 ---
 title: "The Nitty-Gritty of Moving Data with Beam"
-categories:
-  - Commercial
-  - Enterprise
 icon: /images/logos/powered-by/mozilla.png
 hasNav: true
+cardDescription: "Mozilla is the non-profit Firefox browser. This use case focuses on complexity that comes from moving data from one system to another safely, modeling data as it passes from one transform to another, handling errors, testing the system, and organizing the code to make the pipeline configurable for different source and destination systems in their open source codebase for ingesting telemetry data from Firefox clients"
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
