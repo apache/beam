@@ -27,7 +27,7 @@ variable "cache_address" {
 }
 
 variable "environment" {
-  description = "prod,dev"
+  description = "prod,dev,beta"
   default     = "dev"
 }
 

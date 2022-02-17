@@ -22,7 +22,7 @@ variable "project_id" {
 }
 
 variable "environment" {
-  description = "Environment name, e.g. prod,dev"
+  description = "Environment name, e.g. prod,dev,beta"
   default     = "dev"
 }
 

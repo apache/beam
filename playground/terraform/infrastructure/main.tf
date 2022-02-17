@@ -23,13 +23,13 @@ module "vpc" {
   project_id     = var.project_id
   create_subnets = var.create_subnets
   mtu            = var.mtu
-  vpc_name       = "${var.environment}-${var.vpc_name}"
+  vpc_name       = var.vpc_name
 }
 
 module "buckets" {
   source                   = "./buckets"
   project_id               = var.project_id
-  examples_bucket_name     = "${var.environment}-${var.examples_bucket_name}"
+  examples_bucket_name     = var.examples_bucket_name
   examples_storage_class   = var.examples_storage_class
   examples_bucket_location = var.examples_bucket_location
 }

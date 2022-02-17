@@ -24,7 +24,7 @@ variable "project_id" {
 }
 
 variable "environment" {
-  description = "prod,dev"
+  description = "prod,dev,beta"
 }
 
 variable "region" {
