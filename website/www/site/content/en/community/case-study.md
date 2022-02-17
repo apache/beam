@@ -1,7 +1,9 @@
 ---
 title: "Case Study"
 aliases:
-  - /community/
+
+- /community/
+
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,19 +21,16 @@ limitations under the License.
 
 # Case Study
 
+Your company uses Apache Beam? There are several options to highlight it and make your company stand out!
+
 ## Share your story
 
-<div class="case-study-row-button-container">
-    <a href="mailto:dev@beam.apache.org?subject=Beam Website Add New Case Study" class="case-study-primary-button">
-        <span>Share your story</span>
-    </a>
-</div>
+Sharing your story and making a Case Study out of it might have a significant impact on helping users with adopting
+Apache Beam. And, of course, gaining interest for your company.
+<a href="mailto:dev@beam.apache.org?subject=Beam Website Add New Case Stud">Contact the community</a> to get Case Study
+started!
 
 ## Add your logo
 
-<div class="case-study-row-button-container">
-    <a href="https://github.com/apache/beam/tree/master/website/ADD_LOGO.md" class="case-study-primary-button">
-        <img src="/images/add.svg"/>
-        <span>Add your logo</span>
-    </a>
-</div>
+Want to tell the world you are using Apache Beam? Just walk
+through [this instruction](https://github.com/apache/beam/tree/master/website/ADD_LOGO.md) and make it happen!
