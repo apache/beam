@@ -205,6 +205,7 @@ GCP_REQUIREMENTS = [
 
 INTERACTIVE_BEAM = [
     'facets-overview>=1.0.0,<2',
+    'google-cloud-dataproc>=3.0.0,<3.2.0',
     'ipython>=7,<8',
     'ipykernel>=5.2.0,<6',
     'ipywidgets>=7.6.5,<8',
