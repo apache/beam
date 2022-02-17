@@ -72,15 +72,8 @@ from Apache Beam repository root, execute the following commands:
 
 ```bash
 $ cd /path/to/beam
-# Pproject_environment might be anything like dev/test/prod and affect to names of services and images
-$ ./gradlew playground:terraform:terraformRef  -Pproject_id=gcp-project-id -Pproject_environment=environment_name 
-$ cd playground/terraform && export $DOCKER_REPOSITORY_ROOT==$(terraform output docker-repository-root) && cd -
-$ ./gradlew playground:backend:containers:java:dockerTagPush -Pdocker-repository-root=$DOCKER_REPOSITORY_ROOT  -Pdocker-tag=docker-tag
-$ ./gradlew playground:backend:containers:python:dockerTagPush -Pdocker-repository-root=$DOCKER_REPOSITORY_ROOT  -Pdocker-tag=docker-tag
-$ ./gradlew playground:backend:containers:go:dockerTagPush -Pdocker-repository-root=$DOCKER_REPOSITORY_ROOT -Pdocker-tag=docker-tag
-$ ./gradlew playground:backend:containers:scio:dockerTagPush -Pdocker-repository-root=$DOCKER_REPOSITORY_ROOT -Pdocker-tag=docker-tag
-$ ./gradlew playground:backend:containers:router:dockerTagPush -Pdocker-repository-root=$DOCKER_REPOSITORY_ROOT -Pdocker-tag=docker-tag
-# Frontend TBD
+./gradlew playground:terraform:deployBackend -Pproject_id=gcp-project-id -Pproject_environment=environment_name -Pdocker-tag=docker-tag
+./gradlew playground:terraform:deployFrontend -Pproject_id=gcp-project-id -Pproject_environment=environment_name -Pdocker-tag=docker-tag
 ``` 
 
 To deploy Playground applications to Cloud App Engine run gradle task
