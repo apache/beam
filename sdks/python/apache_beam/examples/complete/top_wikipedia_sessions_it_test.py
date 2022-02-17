@@ -111,3 +111,8 @@ class ComputeTopSessionsIT(unittest.TestCase):
     result = read_gcs_output_file(output).strip().splitlines()
 
     self.assertEqual(self.EXPECTED, sorted(result, key=lambda x: x.split()[0]))
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()

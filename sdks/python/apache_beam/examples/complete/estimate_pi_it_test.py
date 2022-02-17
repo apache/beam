@@ -19,6 +19,7 @@
 # pytype: skip-file
 
 import json
+import logging
 import unittest
 import uuid
 
@@ -60,3 +61,8 @@ class EstimatePiIT(unittest.TestCase):
     # that is very small (VERY) given that we run at least 100 thousand
     # trials.
     self.assertTrue(3.125 <= estimated_pi <= 3.155)
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()

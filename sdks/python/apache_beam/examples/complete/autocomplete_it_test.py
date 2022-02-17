@@ -109,3 +109,8 @@ class AutocompleteIT(unittest.TestCase):
 
     self.assertEqual(
         sorted(self.EXPECTED_PREFIXES), sorted(format_output_file(result)))
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()

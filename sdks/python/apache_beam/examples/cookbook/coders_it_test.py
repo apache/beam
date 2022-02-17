@@ -97,3 +97,8 @@ class CodersIT(unittest.TestCase):
 
     self.assertEqual(
         sorted(self.EXPECTED_RESULT), sorted(format_result(result)))
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()
