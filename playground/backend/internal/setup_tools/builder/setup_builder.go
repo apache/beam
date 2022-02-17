@@ -20,6 +20,7 @@ import (
 	"beam.apache.org/playground/backend/internal/environment"
 	"beam.apache.org/playground/backend/internal/executors"
 	"beam.apache.org/playground/backend/internal/fs_tool"
+	"beam.apache.org/playground/backend/internal/preparers"
 	"beam.apache.org/playground/backend/internal/utils"
 	"fmt"
 	"path/filepath"
@@ -49,7 +50,7 @@ func Validator(paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs) (*ex
 // Preparer return executor with set args for preparer
 func Preparer(paths *fs_tool.LifeCyclePaths, sdkEnv *environment.BeamEnvs, valResults *sync.Map) (*executors.ExecutorBuilder, error) {
 	sdk := sdkEnv.ApacheBeamSdk
-	prep, err := utils.GetPreparers(sdk, paths.AbsoluteSourceFilePath, valResults)
+	prep, err := preparers.GetPreparers(sdk, paths.AbsoluteSourceFilePath, valResults)
 	if err != nil {
 		return nil, err
 	}

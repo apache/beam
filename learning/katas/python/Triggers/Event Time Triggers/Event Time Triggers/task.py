@@ -17,34 +17,33 @@
 # under the License.
 #
 
+# beam-playground:
+#   name: EventTimeTriggers
+#   description: Task from katas to count events with event time triggers
+#   multifile: true
+#   context_line: 46
+#   categories:
+#     - Streaming
+
 import apache_beam as beam
 from generate_event import GenerateEvent
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.trigger import AccumulationMode
 from apache_beam.transforms.trigger import AfterWatermark
 from apache_beam.utils.timestamp import Duration
-from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.pipeline_options import StandardOptions
 from log_elements import LogElements
 
 
-def apply_transform(events):
-    return (events
-            | beam.WindowInto(FixedWindows(5),
-                              trigger=AfterWatermark(),
-                              accumulation_mode=AccumulationMode.DISCARDING,
-                              allowed_lateness=Duration(seconds=0))
-            | beam.CombineGlobally(beam.combiners.CountCombineFn()).without_defaults())
+class CountEvents(beam.PTransform):
+    def expand(self, events):
+      return (events
+              | beam.WindowInto(FixedWindows(5),
+                                trigger=AfterWatermark(),
+                                accumulation_mode=AccumulationMode.DISCARDING,
+                                allowed_lateness=Duration(seconds=0))
+              | beam.CombineGlobally(beam.combiners.CountCombineFn()).without_defaults())
 
-
-def main():
-    options = PipelineOptions()
-    options.view_as(StandardOptions).streaming = True
-    with beam.Pipeline(options=options) as p:
-        events = p | GenerateEvent.sample_data()
-        output = apply_transform(events)
-        output | LogElements(with_window=True)
-
-
-if __name__ == "__main__":
-    main()
+with beam.Pipeline() as p:
+    (p | GenerateEvent.sample_data()
+     | CountEvents()
+     | LogElements(with_window=True))

@@ -58,6 +58,13 @@ class ExampleState with ChangeNotifier {
     );
   }
 
+
+  Future<String> getExampleGraph(String id, SDK sdk) async {
+    return await _exampleRepository.getExampleGraph(
+      GetExampleRequestWrapper(id, sdk),
+    );
+  }
+
   Future<ExampleModel> loadExampleInfo(ExampleModel example, SDK sdk) async {
     if (example.isInfoFetched()) {
       return example;
@@ -65,11 +72,13 @@ class ExampleState with ChangeNotifier {
     final exampleData = await Future.wait([
       getExampleSource(example.path, sdk),
       getExampleOutput(example.path, sdk),
-      getExampleLogs(example.path, sdk)
+      getExampleLogs(example.path, sdk),
+      getExampleGraph(example.path, sdk)
     ]);
     example.setSource(exampleData[0]);
     example.setOutputs(exampleData[1]);
     example.setLogs(exampleData[2]);
+    example.setGraph(exampleData[3]);
     return example;
   }
 

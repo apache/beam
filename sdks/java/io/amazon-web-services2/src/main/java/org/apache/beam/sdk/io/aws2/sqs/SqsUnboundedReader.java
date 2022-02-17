@@ -49,6 +49,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
+import org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory;
+import org.apache.beam.sdk.io.aws2.common.ClientConfiguration;
+import org.apache.beam.sdk.io.aws2.options.AwsOptions;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.Min;
@@ -147,6 +150,9 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
 
   /** Clock for internal time. */
   private final Clock clock;
+
+  /** AWS options. */
+  private final AwsOptions awsOptions;
 
   /**
    * The closed state of this {@link SqsUnboundedReader}. If true, the reader has not yet been
@@ -306,16 +312,22 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
         function);
   }
 
-  public SqsUnboundedReader(SqsUnboundedSource source, SqsCheckpointMark sqsCheckpointMark)
+  public SqsUnboundedReader(
+      SqsUnboundedSource source, SqsCheckpointMark sqsCheckpointMark, AwsOptions awsOptions)
       throws IOException {
-    this(source, sqsCheckpointMark, Clock.systemUTC());
+    this(source, sqsCheckpointMark, awsOptions, Clock.systemUTC());
   }
 
   @VisibleForTesting
-  SqsUnboundedReader(SqsUnboundedSource source, SqsCheckpointMark sqsCheckpointMark, Clock clock)
+  SqsUnboundedReader(
+      SqsUnboundedSource source,
+      SqsCheckpointMark sqsCheckpointMark,
+      AwsOptions awsOptions,
+      Clock clock)
       throws IOException {
     this.source = source;
     this.clock = clock;
+    this.awsOptions = awsOptions;
 
     messagesNotYetRead = new ArrayDeque<>(MAX_NUMBER_OF_MESSAGES);
     safeToDeleteIds = new HashSet<>();
@@ -441,7 +453,13 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
 
   private void initClient() {
     if (sqsClient == null) {
-      sqsClient = source.getRead().sqsClientProvider().getSqsClient();
+      if (source.getRead().sqsClientProvider() != null) {
+        // build client using legacy SqsClientProvider
+        sqsClient = source.getRead().sqsClientProvider().getSqsClient();
+      } else {
+        ClientConfiguration config = source.getRead().clientConfiguration();
+        sqsClient = ClientBuilderFactory.buildClient(awsOptions, SqsClient.builder(), config);
+      }
     }
   }
 

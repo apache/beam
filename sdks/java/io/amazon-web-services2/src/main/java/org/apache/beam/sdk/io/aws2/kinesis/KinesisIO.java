@@ -18,15 +18,23 @@
 package org.apache.beam.sdk.io.aws2.kinesis;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
+import java.net.URI;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.Read.Unbounded;
+import org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory;
+import org.apache.beam.sdk.io.aws2.common.ClientConfiguration;
+import org.apache.beam.sdk.io.aws2.kinesis.RateLimitPolicyFactory.DefaultRateLimiter;
+import org.apache.beam.sdk.io.aws2.options.AwsOptions;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -34,13 +42,10 @@ import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
-import software.amazon.awssdk.services.kinesis.KinesisClient;
 import software.amazon.kinesis.common.InitialPositionInStream;
 
 /**
- * {@link PTransform}s for reading from <a href="https://aws.amazon.com/kinesis/">Kinesis</a>
- * streams.
+ * IO to read from <a href="https://aws.amazon.com/kinesis/">Kinesis</a> streams.
  *
  * <p>Note that KinesisIO.Write is based on the Kinesis Producer Library which does not yet have an
  * update to be compatible with AWS SDK for Java version 2 so for now the version in {@code
@@ -54,76 +59,23 @@ import software.amazon.kinesis.common.InitialPositionInStream;
  * p.apply(KinesisIO.read()
  *     .withStreamName("streamName")
  *     .withInitialPositionInStream(InitialPositionInStream.LATEST)
- *     // using AWS default credentials provider chain (recommended)
- *     .withAWSClientsProvider(DefaultCredentialsProvider.create(), STREAM_REGION)
  *  .apply( ... ) // other transformations
  * }</pre>
  *
- * <pre>{@code
- * p.apply(KinesisIO.read()
- *     .withStreamName("streamName")
- *     .withInitialPositionInStream(InitialPositionInStream.LATEST)
- *     // using plain AWS key and secret
- *     .withAWSClientsProvider("AWS_KEY", "AWS_SECRET", STREAM_REGION)
- *  .apply( ... ) // other transformations
- * }</pre>
- *
- * <p>As you can see you need to provide 3 things:
+ * <p>At a minimum you have to provide:
  *
  * <ul>
- *   <li>name of the stream you're going to read
- *   <li>position in the stream where reading should start. There are two options:
- *       <ul>
- *         <li>{@link InitialPositionInStream#LATEST} - reading will begin from end of the stream
- *         <li>{@link InitialPositionInStream#TRIM_HORIZON} - reading will begin at the very
- *             beginning of the stream
- *       </ul>
- *   <li>data used to initialize {@link KinesisClient} and {@link CloudWatchClient} clients:
- *       <ul>
- *         <li>AWS credentials
- *         <li>region where the stream is located
- *       </ul>
+ *   <li>the name of the stream to read
+ *   <li>the position in the stream where to start reading, e.g. {@link
+ *       InitialPositionInStream#LATEST}, {@link InitialPositionInStream#TRIM_HORIZON}, or
+ *       alternatively, using an arbitrary point in time with {@link
+ *       Read#withInitialTimestampInStream(Instant)}.
  * </ul>
  *
- * <p>In case when you want to set up {@link KinesisClient} or {@link CloudWatchClient} client by
- * your own (for example if you're using more sophisticated authorization methods like Amazon STS,
- * etc.) you can do it by implementing {@link AWSClientsProvider} class:
+ * <h4>Watermarks</h4>
  *
- * <pre>{@code
- * public class MyCustomKinesisClientProvider implements AWSClientsProvider {
- *   public KinesisClient getKinesisClient() {
- *     // set up your client here
- *   }
- *
- *   public CloudWatchClient getCloudWatchClient() {
- *     // set up your client here
- *   }
- *
- * }
- * }</pre>
- *
- * <p>Usage is pretty straightforward:
- *
- * <pre>{@code
- * p.apply(KinesisIO.read()
- *    .withStreamName("streamName")
- *    .withInitialPositionInStream(InitialPositionInStream.LATEST)
- *    .withAWSClientsProvider(new MyCustomKinesisClientProvider())
- *  .apply( ... ) // other transformations
- * }</pre>
- *
- * <p>There’s also possibility to start reading using arbitrary point in time - in this case you
- * need to provide {@link Instant} object:
- *
- * <pre>{@code
- * p.apply(KinesisIO.read()
- *     .withStreamName("streamName")
- *     .withInitialTimestampInStream(instant)
- *     .withAWSClientsProvider(new MyCustomKinesisClientProvider())
- *  .apply( ... ) // other transformations
- * }</pre>
- *
- * <p>Kinesis IO uses ArrivalTimeWatermarkPolicy by default. To use Processing time as event time:
+ * <p>Kinesis IO uses arrival time for watermarks by default. To use processing time instead, use
+ * {@link Read#withProcessingTimeWatermarkPolicy()}:
  *
  * <pre>{@code
  * p.apply(KinesisIO.read()
@@ -132,102 +84,44 @@ import software.amazon.kinesis.common.InitialPositionInStream;
  *    .withProcessingTimeWatermarkPolicy())
  * }</pre>
  *
- * <p>It is also possible to specify a custom watermark policy to control watermark computation.
- * Below is an example
+ * <p>It is also possible to specify a custom watermark policy to control watermark computation
+ * using {@link Read#withCustomWatermarkPolicy(WatermarkPolicyFactory)}. This requires implementing
+ * {@link WatermarkPolicy} with a corresponding {@link WatermarkPolicyFactory}.
  *
- * <pre>{@code
- * // custom policy
- * class MyCustomPolicy implements WatermarkPolicy {
- *     private WatermarkPolicyFactory.CustomWatermarkPolicy customWatermarkPolicy;
+ * <h4>Throttling</h4>
  *
- *     MyCustomPolicy() {
- *       this.customWatermarkPolicy = new WatermarkPolicyFactory.CustomWatermarkPolicy(WatermarkParameters.create());
- *     }
+ * <p>By default Kinesis IO will poll the Kinesis {@code getRecords()} API as fast as possible as
+ * long as records are returned. The {@link DefaultRateLimiter} will start throttling once {@code
+ * getRecords()} returns an empty response or if API calls get throttled by AWS.
  *
- *     public Instant getWatermark() {
- *       return customWatermarkPolicy.getWatermark();
- *     }
+ * <p>A {@link RateLimitPolicy} is always applied to each shard individually.
  *
- *     public void update(KinesisRecord record) {
- *       customWatermarkPolicy.update(record);
- *     }
- *   }
+ * <p>You may provide a custom rate limit policy using {@link
+ * Read#withCustomRateLimitPolicy(RateLimitPolicyFactory)}. This requires implementing {@link
+ * RateLimitPolicy} with a corresponding {@link RateLimitPolicyFactory}.
  *
- * // custom factory
- * class MyCustomPolicyFactory implements WatermarkPolicyFactory {
- *     public WatermarkPolicy createWatermarkPolicy() {
- *       return new MyCustomPolicy();
- *     }
- * }
+ * <h3>Configuration of AWS clients</h3>
  *
- * p.apply(KinesisIO.read()
- *    .withStreamName("streamName")
- *    .withInitialPositionInStream(InitialPositionInStream.LATEST)
- *    .withCustomWatermarkPolicy(new MyCustomPolicyFactory())
- * }</pre>
+ * <p>AWS clients for all AWS IOs can be configured using {@link AwsOptions}, e.g. {@code
+ * --awsRegion=us-west-1}. {@link AwsOptions} contain reasonable defaults based on default providers
+ * for {@link Region} and {@link AwsCredentialsProvider}.
  *
- * <p>By default Kinesis IO will poll the Kinesis getRecords() API as fast as possible which may
- * lead to excessive read throttling. To limit the rate of getRecords() calls you can set a rate
- * limit policy. For example, the default fixed delay policy will limit the rate to one API call per
- * second per shard:
+ * <p>If you require more advanced configuration, you may change the {@link ClientBuilderFactory}
+ * using {@link AwsOptions#setClientBuilderFactory(Class)}.
  *
- * <pre>{@code
- * p.apply(KinesisIO.read()
- *    .withStreamName("streamName")
- *    .withInitialPositionInStream(InitialPositionInStream.LATEST)
- *    .withFixedDelayRateLimitPolicy())
- * }</pre>
+ * <p>Configuration for a specific IO can be overwritten using {@code withClientConfiguration()},
+ * which also allows to configure the retry behavior for the respective IO.
  *
- * <p>You can also use a fixed delay policy with a specified delay interval, for example:
+ * <h4>Retries</h4>
  *
- * <pre>{@code
- * p.apply(KinesisIO.read()
- *    .withStreamName("streamName")
- *    .withInitialPositionInStream(InitialPositionInStream.LATEST)
- *    .withFixedDelayRateLimitPolicy(Duration.millis(500))
- * }</pre>
+ * <p>Retries for failed requests can be configured using {@link
+ * ClientConfiguration.Builder#retry(Consumer)} and are handled by the AWS SDK unless there's a
+ * partial success (batch requests). The SDK uses a backoff strategy with equal jitter for computing
+ * the delay before the next retry.
  *
- * <p>If you need to change the polling interval of a Kinesis pipeline at runtime, for example to
- * compensate for adding and removing additional consumers to the stream, then you can supply the
- * delay interval as a function so that you can obtain the current delay interval from some external
- * source:
- *
- * <pre>{@code
- * p.apply(KinesisIO.read()
- *    .withStreamName("streamName")
- *    .withInitialPositionInStream(InitialPositionInStream.LATEST)
- *    .withDynamicDelayRateLimitPolicy(() -> Duration.millis(<some delay interval>))
- * }</pre>
- *
- * <p>Finally, you can create a custom rate limit policy that responds to successful read calls
- * and/or read throttling exceptions with your own rate-limiting logic:
- *
- * <pre>{@code
- * // custom policy
- * public class MyCustomPolicy implements RateLimitPolicy {
- *
- *   public void onSuccess(List<KinesisRecord> records) throws InterruptedException {
- *     // handle successful getRecords() call
- *   }
- *
- *   public void onThrottle(KinesisClientThrottledException e) throws InterruptedException {
- *     // handle Kinesis read throttling exception
- *   }
- * }
- *
- * // custom factory
- * class MyCustomPolicyFactory implements RateLimitPolicyFactory {
- *
- *   public RateLimitPolicy getRateLimitPolicy() {
- *     return new MyCustomPolicy();
- *   }
- * }
- *
- * p.apply(KinesisIO.read()
- *    .withStreamName("streamName")
- *    .withInitialPositionInStream(InitialPositionInStream.LATEST)
- *    .withCustomRateLimitPolicy(new MyCustomPolicyFactory())
- * }</pre>
+ * <p><b>Note:</b> Once retries are exhausted the error is surfaced to the runner which <em>may</em>
+ * then opt to retry the current partition in entirety or abort if the max number of retries of the
+ * runner is reached.
  */
 @Experimental(Kind.SOURCE_SINK)
 @SuppressWarnings({
@@ -238,6 +132,7 @@ public final class KinesisIO {
   /** Returns a new {@link Read} transform for reading from Kinesis. */
   public static Read read() {
     return new AutoValue_KinesisIO_Read.Builder()
+        .setClientConfiguration(ClientConfiguration.builder().build())
         .setMaxNumRecords(Long.MAX_VALUE)
         .setUpToDateThreshold(Duration.ZERO)
         .setWatermarkPolicyFactory(WatermarkPolicyFactory.withArrivalTimePolicy())
@@ -253,6 +148,8 @@ public final class KinesisIO {
     abstract @Nullable String getStreamName();
 
     abstract @Nullable StartingPoint getInitialPosition();
+
+    abstract @Nullable ClientConfiguration getClientConfiguration();
 
     abstract @Nullable AWSClientsProvider getAWSClientsProvider();
 
@@ -278,6 +175,8 @@ public final class KinesisIO {
       abstract Builder setStreamName(String streamName);
 
       abstract Builder setInitialPosition(StartingPoint startingPoint);
+
+      abstract Builder setClientConfiguration(ClientConfiguration config);
 
       abstract Builder setAWSClientsProvider(AWSClientsProvider clientProvider);
 
@@ -317,32 +216,23 @@ public final class KinesisIO {
     }
 
     /**
-     * Allows to specify custom {@link AWSClientsProvider}. {@link AWSClientsProvider} provides
-     * {@link KinesisClient} and {@link CloudWatchClient} instances which are later used for
-     * communication with Kinesis. You should use this method if {@link
-     * Read#withAWSClientsProvider(AwsCredentialsProvider, Region)} does not suit your needs.
+     * @deprecated Use {@link #withClientConfiguration(ClientConfiguration)} instead. Alternatively
+     *     you can configure a custom {@link ClientBuilderFactory} in {@link AwsOptions}.
      */
-    public Read withAWSClientsProvider(AWSClientsProvider awsClientsProvider) {
-      return toBuilder().setAWSClientsProvider(awsClientsProvider).build();
+    @Deprecated
+    public Read withAWSClientsProvider(AWSClientsProvider clientProvider) {
+      checkArgument(clientProvider != null, "AWSClientsProvider cannot be null");
+      return toBuilder().setClientConfiguration(null).setAWSClientsProvider(clientProvider).build();
     }
 
-    /**
-     * Specify credential details and region to be used to read from Kinesis. If you need more
-     * sophisticated credential protocol, then you should look at {@link
-     * Read#withAWSClientsProvider(AWSClientsProvider)}.
-     */
+    /** @deprecated Use {@link #withClientConfiguration(ClientConfiguration)} instead. */
+    @Deprecated
     public Read withAWSClientsProvider(String awsAccessKey, String awsSecretKey, Region region) {
       return withAWSClientsProvider(awsAccessKey, awsSecretKey, region, null);
     }
 
-    /**
-     * Specify credential details and region to be used to read from Kinesis. If you need more
-     * sophisticated credential protocol, then you should look at {@link
-     * Read#withAWSClientsProvider(AWSClientsProvider)}.
-     *
-     * <p>The {@code serviceEndpoint} sets an alternative service host. This is useful to execute
-     * the tests with a kinesis service emulator.
-     */
+    /** @deprecated Use {@link #withClientConfiguration(ClientConfiguration)} instead. */
+    @Deprecated
     public Read withAWSClientsProvider(
         String awsAccessKey, String awsSecretKey, Region region, String serviceEndpoint) {
       AwsCredentialsProvider awsCredentialsProvider =
@@ -350,28 +240,38 @@ public final class KinesisIO {
       return withAWSClientsProvider(awsCredentialsProvider, region, serviceEndpoint);
     }
 
-    /**
-     * Specify {@link AwsCredentialsProvider} and region to be used to read from Kinesis. If you
-     * need more sophisticated credential protocol, then you should look at {@link
-     * Read#withAWSClientsProvider(AWSClientsProvider)}.
-     */
+    /** @deprecated Use {@link #withClientConfiguration(ClientConfiguration)} instead. */
+    @Deprecated
     public Read withAWSClientsProvider(
         AwsCredentialsProvider awsCredentialsProvider, Region region) {
       return withAWSClientsProvider(awsCredentialsProvider, region, null);
     }
 
-    /**
-     * Specify {@link AwsCredentialsProvider} and region to be used to read from Kinesis. If you
-     * need more sophisticated credential protocol, then you should look at {@link
-     * Read#withAWSClientsProvider(AWSClientsProvider)}.
-     *
-     * <p>The {@code serviceEndpoint} sets an alternative service host. This is useful to execute
-     * the tests with a kinesis service emulator.
-     */
+    /** @deprecated Use {@link #withClientConfiguration(ClientConfiguration)} instead. */
+    @Deprecated
     public Read withAWSClientsProvider(
         AwsCredentialsProvider awsCredentialsProvider, Region region, String serviceEndpoint) {
-      return withAWSClientsProvider(
-          new BasicKinesisProvider(awsCredentialsProvider, region, serviceEndpoint));
+      URI endpoint = serviceEndpoint != null ? URI.create(serviceEndpoint) : null;
+      return updateClientConfig(
+          b ->
+              b.credentialsProvider(awsCredentialsProvider)
+                  .region(region)
+                  .endpoint(endpoint)
+                  .build());
+    }
+
+    /** Configuration of Kinesis & Cloudwatch clients. */
+    public Read withClientConfiguration(ClientConfiguration config) {
+      return updateClientConfig(ignore -> config);
+    }
+
+    private Read updateClientConfig(Function<ClientConfiguration.Builder, ClientConfiguration> fn) {
+      checkState(
+          getAWSClientsProvider() == null,
+          "Legacy AWSClientsProvider is set, but incompatible with ClientConfiguration.");
+      ClientConfiguration config = fn.apply(getClientConfiguration().toBuilder());
+      checkArgument(config != null, "ClientConfiguration cannot be null");
+      return toBuilder().setClientConfiguration(config).build();
     }
 
     /** Specifies to read at most a given number of records. */
@@ -494,9 +394,13 @@ public final class KinesisIO {
 
     @Override
     public PCollection<KinesisRecord> expand(PBegin input) {
-      checkArgument(getAWSClientsProvider() != null, "AWSClientsProvider is required");
       checkArgument(getWatermarkPolicyFactory() != null, "WatermarkPolicyFactory is required");
       checkArgument(getRateLimitPolicyFactory() != null, "RateLimitPolicyFactory is required");
+      if (getAWSClientsProvider() == null) {
+        checkArgument(getClientConfiguration() != null, "ClientConfiguration is required");
+        AwsOptions awsOptions = input.getPipeline().getOptions().as(AwsOptions.class);
+        ClientBuilderFactory.validate(awsOptions, getClientConfiguration());
+      }
 
       Unbounded<KinesisRecord> unbounded =
           org.apache.beam.sdk.io.Read.from(new KinesisSource(this));
