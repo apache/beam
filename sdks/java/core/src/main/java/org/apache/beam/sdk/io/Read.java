@@ -28,6 +28,7 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -543,11 +544,17 @@ public class Read {
           tracker.currentRestriction();
 
       UnboundedSourceValue<OutputT>[] out = new UnboundedSourceValue[1];
+      Instant claimLoopStart = Instant.now();
+      long claimLoopCount = 0;
+      LOG.info("dmitryo-read: entering tracker.tryClaim(out) loop");
       while (tracker.tryClaim(out) && out[0] != null) {
+        claimLoopCount++;
         watermarkEstimator.setWatermark(out[0].getWatermark());
         receiver.outputWithTimestamp(
             new ValueWithRecordId<>(out[0].getValue(), out[0].getId()), out[0].getTimestamp());
       }
+      LOG.info("dmitryo-read: tracker.tryClaim(out) looped {} times in {}",
+          claimLoopCount, new Duration(claimLoopStart, Instant.now()));
 
       UnboundedSourceRestriction<OutputT, CheckpointT> currentRestriction =
           tracker.currentRestriction();
@@ -859,6 +866,7 @@ public class Read {
             initializeCurrentReader();
           }
           if (currentReader instanceof EmptyUnboundedSource.EmptyUnboundedReader) {
+            LOG.info("dmitryo-read: reader changed into an EmptyUnboundedReader");
             return false;
           }
           if (!readerHasBeenStarted) {
@@ -868,6 +876,7 @@ public class Read {
               return true;
             }
           } else if (!currentReader.advance()) {
+            LOG.info("dmitryo-read: currentReader.advance() returned false");
             position[0] = null;
             return true;
           }
