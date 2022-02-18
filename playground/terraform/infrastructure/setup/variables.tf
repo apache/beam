@@ -17,9 +17,31 @@
 # under the License.
 #
 
-resource "google_compute_network" "playground_vpc" {
-  project                 = var.project_id
-  name                    = var.vpc_name
-  auto_create_subnetworks = var.create_subnets
-  mtu                     = var.mtu
+variable "project_id" {
+  description = "The GCP Project ID where Playground Applications will be created"
 }
+
+variable "vpc_name" {
+  description = "Name of VPC to be created"
+  default     = "playground-vpc"
+}
+
+variable "create_subnets" {
+  description = "Auto Create Subnets Inside VPC"
+  default     = true
+}
+
+variable "region" {
+  description = "The GCP region within which we provision resources"
+}
+
+variable "mtu" {
+  description = "MTU Inside VPC"
+  default     = 1460
+}
+
+variable "service_account_id" {
+  description = "Service account ID"
+}
+
+

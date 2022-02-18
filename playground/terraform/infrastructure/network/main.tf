@@ -17,18 +17,17 @@
 # under the License.
 #
 
-terraform {
-  # this describe buket for save state playground cloud
-  backend "gcs" {
-  }
+resource "google_compute_network" "playground" {
+  project = var.project_id
+  name    = var.network_name
+  auto_create_subnetworks = false
 }
 
-provider "google" {
-  region  = var.region
-  project = var.project_id
-}
-# TODO Please remove it when all resources are available in the stable version
-provider "google-beta" {
-  region  = var.region
-  project = var.project_id
+resource "google_compute_subnetwork" "playground" {
+  ip_cidr_range            = var.subnetwork_cidr_range
+  name                     = var.subnetwork_name
+  network                  = google_compute_network.playground.id
+  region                   = var.region
+  project                  = var.project_id
+  private_ip_google_access = true
 }

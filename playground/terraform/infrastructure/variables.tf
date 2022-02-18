@@ -25,6 +25,17 @@ variable "environment" {
   description = "Environment name, e.g. prod,dev,beta"
 }
 
+#IAM
+
+variable "service_account_id" {
+  description = "Service account ID"
+  default     = "beam-playground"
+}
+variable "service_account" {
+  description = "Service account email"
+  default     = "service-account-playground"
+}
+
 #GCS
 
 variable "examples_bucket_name" {
@@ -42,6 +53,21 @@ variable "examples_storage_class" {
   default     = "STANDARD"
 }
 
+variable "terraform_bucket_name" {
+  description = "Name of Bucket to Store Terraform States"
+  default     = "playground_terraform"
+}
+
+variable "terraform_bucket_location" {
+  description = "Location of Playground Examples Bucket"
+  default     = "US"
+}
+
+variable "terraform_storage_class" {
+  description = "TerraformBucket Storage Class"
+  default     = "STANDARD"
+}
+
 # Artifact Registry
 
 variable "repository_id" {
@@ -54,6 +80,7 @@ variable "repository_location" {
   default     = "us-central1"
 }
 
+
 #Redis
 
 variable "redis_version" {
@@ -63,6 +90,15 @@ variable "redis_version" {
 
 variable "region" {
   description = "Infrastructure Region"
+  default     = "us-central1"
+}
+variable "terraform_state_bucket_name" {
+  description = "Bucket name for terraform state"
+  default     = "beam_playground_terraform"
+}
+
+variable "redis_region" {
+  description = "Region of Redis"
   default     = "us-central1"
 }
 
@@ -84,6 +120,11 @@ variable "redis_replica_count" {
 variable "redis_memory_size_gb" {
   description = "Size of Redis memory ,  if set 'read replica' it must be from 5GB to 100GB."
   default     = 5
+}
+
+variable "read_replicas_mode" {
+  description = "Read replica mode. Can only be specified when trying to create the instance."
+  default     = "READ_REPLICAS_ENABLED"
 }
 
 #VPC
@@ -123,9 +164,4 @@ variable "gke_name" {
 variable "gke_location" {
   description = "Location of GKE cluster"
   default     = "us-central1-a"
-}
-
-variable "service_account" {
-  description = "Service account id for example service-account-playground@friendly-tower-340607.iam.gserviceaccount.com"
-  default     = "service-account-playground@friendly-tower-340607.iam.gserviceaccount.com"
 }

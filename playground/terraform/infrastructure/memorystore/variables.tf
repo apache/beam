@@ -26,6 +26,11 @@ variable "redis_version" {
   default     = "REDIS_6_X"
 }
 
+variable "terraform_state_bucket_name" {
+  description = "Bucket name for terraform state"
+  default     = "beam_playground_terraform"
+}
+
 variable "redis_region" {
   description = "Region of Redis"
   default     = "us-central1"
@@ -52,11 +57,13 @@ variable "redis_network" {
 }
 
 variable "redis_replica_count" {
+  type        = number
   description = "Redis's replica count"
   default     = 1
 }
 
 variable "redis_memory_size_gb" {
+  type        = number
   description = "Size of Redis memory,  if set 'read replica' it must be from 5GB to 100GB."
   default     = 5
 }
@@ -64,4 +71,12 @@ variable "redis_memory_size_gb" {
 variable "display_name" {
   default     = "Playground Cache"
   description = "Display name for Redis service"
+}
+
+variable "network" {
+  description = "GCP network within which resources are provisioned"
+}
+
+variable "subnetwork" {
+  description = "GCP subnetwork within which resources are provisioned"
 }

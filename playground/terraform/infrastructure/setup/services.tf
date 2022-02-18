@@ -17,10 +17,14 @@
 # under the License.
 #
 
-output "vpc_name" {
-  value = google_compute_network.playground_vpc.name
+resource "google_project_service" "required_services" {
+  for_each = toset([
+    "artifactregistry",
+    "compute",
+    "container",
+    "redis",
+  ])
+  service            = "${each.key}.googleapis.com"
+  disable_on_destroy = false
 }
 
-output "vpc_id" {
-  value = google_compute_network.playground_vpc.id
-}

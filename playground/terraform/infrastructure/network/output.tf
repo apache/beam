@@ -17,18 +17,10 @@
 # under the License.
 #
 
-terraform {
-  # this describe buket for save state playground cloud
-  backend "gcs" {
-  }
+output "network" {
+  value = google_compute_network.playground.name
 }
 
-provider "google" {
-  region  = var.region
-  project = var.project_id
-}
-# TODO Please remove it when all resources are available in the stable version
-provider "google-beta" {
-  region  = var.region
-  project = var.project_id
+output "subnetwork" {
+  value = google_compute_subnetwork.playground.name
 }

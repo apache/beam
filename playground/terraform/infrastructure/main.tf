@@ -18,52 +18,70 @@
 #
 
 
-module "vpc" {
-  source         = "./vpc"
-  project_id     = var.project_id
-  create_subnets = var.create_subnets
-  mtu            = var.mtu
-  vpc_name       = var.vpc_name
+module "setup" {
+  source             = "./setup"
+  project_id         = var.project_id
+  region             = var.region
+  service_account_id = var.service_account_id
+}
+
+module "network" {
+  depends_on = [module.setup]
+  source     = "./network"
+  project_id = var.project_id
+  region     = var.region
+  mtu        = var.mtu
+  vpc_name   = var.vpc_name
 }
 
 module "buckets" {
-  source                   = "./buckets"
-  project_id               = var.project_id
-  examples_bucket_name     = var.examples_bucket_name
-  examples_storage_class   = var.examples_storage_class
-  examples_bucket_location = var.examples_bucket_location
+  depends_on                = [module.setup]
+  source                    = "./buckets"
+  project_id                = var.project_id
+  terraform_bucket_name     = var.terraform_bucket_name
+  terraform_storage_class   = var.examples_storage_class
+  terraform_bucket_location = var.terraform_bucket_location
+  examples_bucket_name      = var.examples_bucket_name
+  examples_storage_class    = var.examples_storage_class
+  examples_bucket_location  = var.examples_bucket_location
 }
 
 module "artifact_registry" {
+  depends_on          = [module.setup, module.buckets]
   source              = "./artifact_registry"
   project_id          = var.project_id
   repository_id       = var.repository_id
   repository_location = var.repository_location
-  depends_on          = [module.buckets]
 }
 
 module "memorystore" {
+  depends_on           = [module.setup, module.artifact_registry, module.vpc]
   source               = "./memorystore"
   project_id           = var.project_id
   redis_version        = var.redis_version
-  redis_region         = var.region
+  redis_region         = var.redis_region
   redis_name           = var.redis_name
   redis_tier           = var.redis_tier
   redis_replica_count  = var.redis_replica_count
   redis_memory_size_gb = var.redis_memory_size_gb
-  redis_network        = module.vpc.vpc_name
-  depends_on           = [module.artifact_registry, module.vpc]
+  read_replicas_mode   = var.read_replicas_mode
+  network              = module.network.network
+  redis_network        = module.network.network
+  subnetwork           = module.network.subnetwork
 }
 
 module "gke" {
-  source           = "./gke"
-  project_id       = var.project_id
-  service_account  = var.service_account
-  gke_machine_type = var.gke_machine_type
-  gke_node_count   = var.gke_node_count
-  gke_name         = var.gke_name
-  gke_location     = var.gke_location
-  depends_on       = [module.artifact_registry, module.memorystore]
+  depends_on      = [module.setup, module.artifact_registry, module.memorystore]
+  source          = "./gke"
+  project_id      = var.project_id
+  service_account = var.
+  service_account_email = module.
+setup.service_account_email
+gke_machine_type = var.gke_machine_type
+gke_node_count = var.gke_node_count
+gke_name = var.gke_name
+gke_location = var.gke_location
+depends_on = [
+module.artifact_registry, module.memorystore
+]
 }
-
-

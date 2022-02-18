@@ -19,57 +19,68 @@
 
 ## Creating GCP resources using Terraform
 
-*Note: All requirements are listed in the [README.md](../README.md) of the Terraform module.*
+This directory provisions required infrastructure for the application.
 
-Installation of all Terraform dependencies is required to get started building GCP resources with Terraform:
+# Requirements
 
-```bash
-$ terraform init
-# This will create a .terraform folder
-```
+See [playground/README.md](../README.md) for a list of the requirements
+prior to following these instructions.
 
-Once it has been done, default Terraform configuration can be applied:
+# Usage
 
 ```bash
 $ terraform apply -target=module.infrastructure
 ```
+## Terraform init
 
-Then the following dialog will be displayed in the console:
+Follow conventional terraform workflow to build this solution.
+You will be prompted for required variables.
+Alternatively, you may create a `vars.tfvars` file and
+apply the `-var-file=vars.tfvars` flag.
 
-```bash
-Do you want to perform these actions?
-  Terraform will perform the actions described above.
-  Only 'yes' will be accepted to approve.
+Initialize the terraform environment.
 
-  Enter a value:
 ```
 
 Type `yes` and hit **Enter**. Applying of the configuration could take several minutes. `Apply complete!` will be
 displayed when it is finished, along with the number of created resources.
+terraform init -target=module.infrastructure
+```
 
-### Applying a non-default configuration
+## Terraform plan
 
 To apply non-default Terraform configuration, pass the corresponding values as a variables with `terraform apply`
 command. All variables are listed in the [variables.tf](variables.tf) file.
+Plan the terraform solution.
 
-### What is installed
+```
+terraform plan -target=module.infrastructure
+```
 
-After applying Terraform following resources will be created:
+or
 
 * GCP [Artifact Registry](https://cloud.google.com/artifact-registry) to store application docker files
 * [VPC](https://cloud.google.com/vpc) to run GCP [App Engine](https://cloud.google.com/appengine) VMs
 * 2 GCP [Cloud Storage buckets]((https://cloud.google.com/storage/docs/key-terms#buckets)) to store Examples for
   Playground Application and Terraform states
 * [GKE](https://cloud.google.com/kubernetes-engine) cluster for Playground's CI/CD process
+```
+terraform plan -var-file=vars.tfvars -target=module.infrastructure
+```
 
-### Destroy deployed resources
+## Terraform apply
 
-At any point, all GCP resources created by terraform can be destroyed using the following command:
+Apply the terraform solution.
 
-```bash
-$ terraform destroy
 ```
 
 For more details on destroying deployed resources, please see
 this [documentation](https://www.terraform.io/cli/commands/destroy).
+terraform apply -target=module.infrastructure
+```
 
+or
+
+```
+terraform apply -var-file=vars.tfvars -target=module.infrastructure
+```
