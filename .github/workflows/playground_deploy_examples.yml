@@ -19,6 +19,9 @@ on:
   push:
     tags: 'v*'
     branch: 'beta-version'
+  pull_request:
+    branch:
+      - master
   workflow_dispatch:
 
 jobs:
