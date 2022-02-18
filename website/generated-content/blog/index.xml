@@ -22,7 +22,7 @@ notes&lt;/a>.&lt;/p>
 &lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
 &lt;ul>
 &lt;li>💻 Support for ARM64 / Mac M1 out of the box. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11703">BEAM-11703&lt;/a>).&lt;/li>
-&lt;li>Added support for cloudpickle as a pickling library for Python SDK (&lt;a href="https://issues.apache.org/jira/browse/BEAM-8123">BEAM-8123&lt;/a>). To use cloudpickle, set pipeline option: &amp;ndash;pickler_lib=cloudpickle&lt;/li>
+&lt;li>Added support for cloudpickle as a pickling library for Python SDK (&lt;a href="https://issues.apache.org/jira/browse/BEAM-8123">BEAM-8123&lt;/a>). To use cloudpickle, set pipeline option: &amp;ndash;pickle_library=cloudpickle&lt;/li>
 &lt;li>Added option to specify triggering frequency when streaming to BigQuery (Python) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12865">BEAM-12865&lt;/a>).&lt;/li>
 &lt;li>Added option to enable caching uploaded artifacts across job runs for Python Dataflow jobs (&lt;a href="https://issues.apache.org/jira/browse/BEAM-13459">BEAM-13459&lt;/a>). To enable, set pipeline option: &amp;ndash;enable_artifact_caching, this will be enabled by default in a future release.&lt;/li>
 &lt;/ul>
