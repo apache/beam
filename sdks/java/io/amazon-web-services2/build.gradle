@@ -30,6 +30,7 @@ ext.summary = "IO library to read and write Amazon Web Services services from Be
 
 dependencies {
   implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.error_prone_annotations
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation library.java.aws_java_sdk2_apache_client
   implementation library.java.aws_java_sdk2_netty_client
