@@ -27,7 +27,6 @@ package org.apache.beam.examples.complete;
 //   context_line: 97
 //   categories:
 //     - Combiners
-//     - Batch
 //     - Streaming
 //     - Options
 //     - Windowing

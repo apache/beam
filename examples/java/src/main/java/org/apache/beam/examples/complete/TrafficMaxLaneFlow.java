@@ -23,10 +23,9 @@ package org.apache.beam.examples.complete;
 //     window, it finds the lane that had the highest flow recorded, for each sensor station.
 //     It writes those max values along with auxiliary info to a BigQuery table.
 //   multifile: true
-//   context_line: 93
+//   context_line: 92
 //   categories:
 //     - Combiners
-//     - Batch
 //     - Streaming
 //     - Options
 //     - Windowing
