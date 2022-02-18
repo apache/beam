@@ -111,7 +111,7 @@ public class CoderTranslationTest {
       // tests, which demonstrates that they are serialized via components and specified URNs rather
       // than java serialized
       Set<Class<? extends Coder>> knownCoderClasses =
-          ModelCoderRegistrar.BEAM_MODEL_CODER_URNS.keySet();
+          new ModelCoderRegistrar().getCoderURNs().keySet();
       Set<Class<? extends Coder>> knownCoderTests = new HashSet<>();
       for (Coder<?> coder : KNOWN_CODERS) {
         knownCoderTests.add(coder.getClass());
@@ -130,12 +130,12 @@ public class CoderTranslationTest {
     public void validateCoderTranslators() {
       assertThat(
           "Every Model Coder must have a Translator",
-          ModelCoderRegistrar.BEAM_MODEL_CODER_URNS.keySet(),
-          equalTo(ModelCoderRegistrar.BEAM_MODEL_CODERS.keySet()));
+          new ModelCoderRegistrar().getCoderURNs().keySet(),
+          equalTo(new ModelCoderRegistrar().getCoderTranslators().keySet()));
       assertThat(
           "All Model Coders should be registered",
           CoderTranslation.KNOWN_TRANSLATORS.keySet(),
-          hasItems(ModelCoderRegistrar.BEAM_MODEL_CODERS.keySet().toArray(new Class[0])));
+          hasItems(new ModelCoderRegistrar().getCoderTranslators().keySet().toArray(new Class[0])));
     }
   }
 

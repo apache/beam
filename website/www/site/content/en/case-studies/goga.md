@@ -1,10 +1,8 @@
 ---
 title: "Beam and Geocoding"
-categories:
-  - Commercial
-  - Machine Learning
 icon: /images/logos/powered-by/goga.png
 hasNav: true
+cardDescription: "GOGA Data Analysis and Consulting is a company based in Japan that specializes in analytics of geospatial and mapping data. They use Apache Beam and Cloud Dataflow for a smooth data transformation process for analytical purposes. This use case focuses on handling multiple extractions, geocoding, and insertion process by wrangling and requesting API call of each data based on the location provided."
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

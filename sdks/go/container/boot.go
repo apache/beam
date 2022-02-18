@@ -17,7 +17,9 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -25,6 +27,8 @@ import (
 	"strings"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/artifact"
+	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
+	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/provision"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/execx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
@@ -58,25 +62,9 @@ func main() {
 	}
 	log.Printf("Provision info:\n%v", info)
 
-	// TODO(BEAM-8201): Simplify once flags are no longer used.
-	if info.GetLoggingEndpoint().GetUrl() != "" {
-		*loggingEndpoint = info.GetLoggingEndpoint().GetUrl()
-	}
-	if info.GetArtifactEndpoint().GetUrl() != "" {
-		*artifactEndpoint = info.GetArtifactEndpoint().GetUrl()
-	}
-	if info.GetControlEndpoint().GetUrl() != "" {
-		*controlEndpoint = info.GetControlEndpoint().GetUrl()
-	}
-
-	if *loggingEndpoint == "" {
-		log.Fatal("No logging endpoint provided.")
-	}
-	if *artifactEndpoint == "" {
-		log.Fatal("No artifact endpoint provided.")
-	}
-	if *controlEndpoint == "" {
-		log.Fatal("No control endpoint provided.")
+	err = ensureEndpointsSet(info)
+	if err != nil {
+		log.Fatalf("Endpoint not set: %v", err)
 	}
 	log.Printf("Initializing Go harness: %v", strings.Join(os.Args, " "))
 
@@ -99,26 +87,9 @@ func main() {
 		log.Fatalf("Failed to retrieve staged files: %v", err)
 	}
 
-	const worker = "worker"
-	name := worker
-
-	switch len(artifacts) {
-	case 0:
-		log.Fatal("No artifacts staged")
-	case 1:
-		name, _ = artifact.MustExtractFilePayload(artifacts[0])
-	default:
-		found := false
-		for _, a := range artifacts {
-			n, _ := artifact.MustExtractFilePayload(a)
-			if n == worker {
-				found = true
-				break
-			}
-		}
-		if !found {
-			log.Fatalf("No artifact named '%v' found", worker)
-		}
+	name, err := getGoWorkerArtifactName(artifacts)
+	if err != nil {
+		log.Fatalf("Failed to get Go Worker Artifact Name: %v", err)
 	}
 
 	// (3) The persist dir may be on a noexec volume, so we must
@@ -141,6 +112,62 @@ func main() {
 	}
 
 	log.Fatalf("User program exited: %v", execx.Execute(prog, args...))
+}
+
+func getGoWorkerArtifactName(artifacts []*pipepb.ArtifactInformation) (string, error) {
+	const worker = "worker"
+	name := worker
+
+	switch len(artifacts) {
+	case 0:
+		return "", errors.New(fmt.Sprintf("No artifacts staged"))
+	case 1:
+		name, _ = artifact.MustExtractFilePayload(artifacts[0])
+		return name, nil
+	default:
+		for _, a := range artifacts {
+			if a.GetRoleUrn() == artifact.URNGoWorkerBinaryRole {
+				name, _ = artifact.MustExtractFilePayload(a)
+				return name, nil
+			}
+		}
+		// TODO(BEAM-13647): Remove legacy hack once aged out.
+		for _, a := range artifacts {
+			n, _ := artifact.MustExtractFilePayload(a)
+			if n == worker {
+				log.Printf("Go worker binary found with legacy name '%v'", worker)
+				return n, nil
+			}
+		}
+		return "", errors.New(fmt.Sprintf("No artifact named '%v' found", worker))
+	}
+
+	return name, nil
+}
+
+func ensureEndpointsSet(info *fnpb.ProvisionInfo) error {
+	// TODO(BEAM-8201): Simplify once flags are no longer used.
+	if info.GetLoggingEndpoint().GetUrl() != "" {
+		*loggingEndpoint = info.GetLoggingEndpoint().GetUrl()
+	}
+	if info.GetArtifactEndpoint().GetUrl() != "" {
+		*artifactEndpoint = info.GetArtifactEndpoint().GetUrl()
+	}
+	if info.GetControlEndpoint().GetUrl() != "" {
+		*controlEndpoint = info.GetControlEndpoint().GetUrl()
+	}
+
+	if *loggingEndpoint == "" {
+		return errors.New("No logging endpoint provided.")
+	}
+	if *artifactEndpoint == "" {
+		return errors.New("No artifact endpoint provided.")
+	}
+	if *controlEndpoint == "" {
+		return errors.New("No control endpoint provided.")
+	}
+
+	return nil
 }
 
 func copyExe(from, to string) error {

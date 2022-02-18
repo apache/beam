@@ -36,13 +36,15 @@ def createFlinkRunnerTestTask(String workerType) {
   }
   def task = toxTask(taskName, 'flink-runner-test', options)
   // Through the Flink job server, we transitively add dependencies on the expansion services needed in tests.
-  task.dependsOn ":runners:flink:${latestFlinkVersion}:job-server:shadowJar"
-  // The Java SDK worker is required to execute external transforms.
-  task.dependsOn ':sdks:java:container:java8:docker'
-  if (workerType == 'DOCKER') {
-    task.dependsOn ext.pythonContainerTask
-  } else if (workerType == 'PROCESS') {
-    task.dependsOn 'createProcessWorker'
+  task.configure {
+    dependsOn ":runners:flink:${latestFlinkVersion}:job-server:shadowJar"
+    // The Java SDK worker is required to execute external transforms.
+    dependsOn ':sdks:java:container:java8:docker'
+    if (workerType == 'DOCKER') {
+      dependsOn pythonContainerTask
+    } else if (workerType == 'PROCESS') {
+      dependsOn createProcessWorker
+    }
   }
   return task
 }
@@ -56,7 +58,7 @@ task flinkValidatesRunner() {
 }
 
 // TODO(BEAM-8598): Enable on pre-commit.
-task flinkTriggerTranscript() {
+tasks.register("flinkTriggerTranscript") {
   dependsOn 'setupVirtualenv'
   dependsOn ":runners:flink:${latestFlinkVersion}:job-server:shadowJar"
   doLast {
@@ -75,7 +77,7 @@ task flinkTriggerTranscript() {
 }
 
 // Verifies BEAM-10702.
-task portableLocalRunnerJuliaSetWithSetupPy {
+tasks.register("portableLocalRunnerJuliaSetWithSetupPy") {
   dependsOn 'setupVirtualenv'
   dependsOn ":sdks:python:container:py${pythonVersionSuffix}:docker"
 
@@ -98,7 +100,7 @@ task portableLocalRunnerJuliaSetWithSetupPy {
   }
 }
 
-task createProcessWorker {
+def createProcessWorker = tasks.register("createProcessWorker") {
   dependsOn ':sdks:python:container:build'
   dependsOn 'setupVirtualenv'
   def sdkWorkerFile = file("${buildDir}/sdk_worker.sh")
@@ -119,6 +121,28 @@ task createProcessWorker {
   }
 }
 
+// Requirements file is created during the runtime.
+task portableLocalRunnerTestWithRequirementsFile {
+  dependsOn 'setupVirtualenv'
+  dependsOn ":sdks:python:container:py${pythonVersionSuffix}:docker"
+
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', """
+          . ${envdir}/bin/activate \\
+          && cd ${pythonRootDir} \\
+          && pip install -e . \\
+          && cd apache_beam/runners/portability \\
+          && python requirements_cache_it_test.py \\
+              --runner=PortableRunner \\
+              --job_endpoint=embed \\
+              --environment_type="DOCKER"
+          """
+    }
+  }
+}
+
 def createSamzaRunnerTestTask(String workerType) {
   def taskName = "samzaCompatibilityMatrix${workerType}"
   def jobServerJar = "${rootDir}/runners/samza/job-server/build/libs/beam-runners-samza-job-server-${version}.jar"
@@ -127,11 +151,13 @@ def createSamzaRunnerTestTask(String workerType) {
     options += " --environment_options=process_command=${buildDir.absolutePath}/sdk_worker.sh"
   }
   def task = toxTask(taskName, 'samza-runner-test', options)
-  task.dependsOn ":runners:samza:job-server:shadowJar"
-  if (workerType == 'DOCKER') {
-    task.dependsOn ext.pythonContainerTask
-  } else if (workerType == 'PROCESS') {
-    task.dependsOn 'createProcessWorker'
+  task.configure {
+    dependsOn ":runners:samza:job-server:shadowJar"
+    if (workerType == 'DOCKER') {
+      dependsOn pythonContainerTask
+    } else if (workerType == 'PROCESS') {
+      dependsOn createProcessWorker
+    }
   }
   return task
 }
@@ -153,11 +179,13 @@ def createSparkRunnerTestTask(String workerType) {
     options += " --environment_options=process_command=${buildDir.absolutePath}/sdk_worker.sh"
   }
   def task = toxTask(taskName, 'spark-runner-test', options)
-  task.dependsOn ':runners:spark:2:job-server:shadowJar'
-  if (workerType == 'DOCKER') {
-    task.dependsOn ext.pythonContainerTask
-  } else if (workerType == 'PROCESS') {
-    task.dependsOn 'createProcessWorker'
+  task.configure {
+    dependsOn ':runners:spark:2:job-server:shadowJar'
+    if (workerType == 'DOCKER') {
+      dependsOn pythonContainerTask
+    } else if (workerType == 'PROCESS') {
+      dependsOn createProcessWorker
+    }
   }
   return task
 }
@@ -177,15 +205,16 @@ project.task("preCommitPy${pythonVersionSuffix}") {
                'portableWordCountFlinkRunnerStreaming']
 }
 
-project.task("postCommitPy${pythonVersionSuffix}") {
+project.tasks.register("postCommitPy${pythonVersionSuffix}") {
   dependsOn = ['setupVirtualenv',
                "postCommitPy${pythonVersionSuffix}IT",
                ':runners:spark:2:job-server:shadowJar',
                'portableLocalRunnerJuliaSetWithSetupPy',
-               'portableWordCountSparkRunnerBatch']
+               'portableWordCountSparkRunnerBatch',
+               'portableLocalRunnerTestWithRequirementsFile']
 }
 
-project.task("flinkExamples") {
+project.tasks.register("flinkExamples") {
   dependsOn = [
           'setupVirtualenv',
           'installGcpTest',
@@ -206,7 +235,7 @@ project.task("flinkExamples") {
             "test_opts": testOpts,
             "suite": "postCommitExamples-flink-py${pythonVersionSuffix}",
             "pipeline_opts": pipelineOpts.join(" "),
-            "collect": "examples_postcommit"
+            "collect": "examples_postcommit and not sickbay_flink"
     ])
     exec {
       executable 'sh'
@@ -215,7 +244,7 @@ project.task("flinkExamples") {
   }
 }
 
-project.task("sparkExamples") {
+project.tasks.register("sparkExamples") {
   dependsOn = [
           'setupVirtualenv',
           'installGcpTest',
@@ -237,7 +266,7 @@ project.task("sparkExamples") {
             "test_opts": testOpts,
             "suite": "postCommitExamples-spark-py${pythonVersionSuffix}",
             "pipeline_opts": pipelineOpts.join(" "),
-            "collect": "examples_postcommit"
+            "collect": "examples_postcommit and not sickbay_spark"
     ])
     exec {
       executable 'sh'
@@ -246,7 +275,7 @@ project.task("sparkExamples") {
   }
 }
 
-project.task("postCommitPy${pythonVersionSuffix}IT") {
+project.tasks.register("postCommitPy${pythonVersionSuffix}IT") {
   dependsOn = [
           'setupVirtualenv',
           'installGcpTest',
@@ -290,7 +319,7 @@ project.task("postCommitPy${pythonVersionSuffix}IT") {
   }
 }
 
-project.task("xlangSpannerIOIT") {
+project.tasks.register("xlangSpannerIOIT") {
   dependsOn = [
           'setupVirtualenv',
           'installGcpTest',
@@ -328,7 +357,7 @@ project.task("xlangSpannerIOIT") {
 }
 
 def addTestJavaJarCreator(String runner, Task jobServerJarTask) {
-  project.tasks.create(name: "testJavaJarCreator${runner}") {
+  project.tasks.register("testJavaJarCreator${runner}") {
     dependsOn jobServerJarTask
     dependsOn pythonContainerTask
     doLast{

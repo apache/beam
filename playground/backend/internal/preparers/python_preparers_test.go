@@ -35,13 +35,13 @@ func TestGetPythonPreparers(t *testing.T) {
 			// As a result, want to receive slice of preparers with len = 1
 			name: "get python preparers",
 			args: args{"MOCK_FILEPATH"},
-			want: 1,
+			want: 2,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			builder := NewPreparersBuilder(tt.args.filePath)
-			GetPythonPreparers(builder)
+			GetPythonPreparers(builder, false)
 			if got := builder.Build().GetPreparers(); len(*got) != tt.want {
 				t.Errorf("GetPythonPreparers() returns %v Preparers, want %v", len(*got), tt.want)
 			}
@@ -72,14 +72,14 @@ func Test_addCodeToFile(t *testing.T) {
 			// Test case with calling addCodeToFile method when original file doesn't exist.
 			// As a result, want to receive error
 			name:    "original file doesn't exist",
-			args:    args{[]interface{}{"someFile.java", addLogHandlerCode}},
+			args:    args{[]interface{}{"someFile.java", saveLogs}},
 			wantErr: true,
 		},
 		{
 			// Test case with calling addCodeToFile method when original file exists.
 			// As a result, want to receive updated code in the original file
 			name:     "original file exists",
-			args:     args{[]interface{}{"original.py", addLogHandlerCode}},
+			args:     args{[]interface{}{"original.py", saveLogs}},
 			wantCode: wantCode,
 			wantErr:  false,
 		},

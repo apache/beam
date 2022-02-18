@@ -26,7 +26,6 @@ import static org.testcontainers.containers.localstack.LocalStackContainer.Servi
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.Serializable;
-import java.net.URI;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.aws2.ITEnvironment;
 import org.apache.beam.sdk.io.aws2.sqs.SqsIO;
@@ -82,24 +81,14 @@ public class SnsIOIT {
             "Write to SNS",
             SnsIO.<TestRow>write()
                 .withTopicArn(resources.snsTopic)
-                .withPublishRequestBuilder(r -> PublishRequest.builder().message(r.name()))
-                .withSnsClientProvider(
-                    opts.getAwsCredentialsProvider(),
-                    opts.getAwsRegion(),
-                    toURI(opts.getEndpoint())));
+                .withPublishRequestBuilder(r -> PublishRequest.builder().message(r.name())));
 
     // Read test dataset from SQS.
     PCollection<String> output =
         pipelineRead
             .apply(
                 "Read from SQS",
-                SqsIO.read()
-                    .withQueueUrl(resources.sqsQueue)
-                    .withMaxNumRecords(rows)
-                    .withSqsClientProvider(
-                        opts.getAwsCredentialsProvider(),
-                        opts.getAwsRegion(),
-                        toURI(opts.getEndpoint())))
+                SqsIO.read().withQueueUrl(resources.sqsQueue).withMaxNumRecords(rows))
             .apply("Extract message", MapElements.into(strings()).via(SnsIOIT::extractMessage));
 
     PAssert.thatSingleton(output.apply("Count All", Count.globally())).isEqualTo((long) rows);
@@ -150,9 +139,5 @@ public class SnsIOIT {
         sqs.close();
       }
     }
-  }
-
-  private static URI toURI(String uri) {
-    return uri == null ? null : URI.create(uri);
   }
 }

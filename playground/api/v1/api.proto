@@ -163,6 +163,8 @@ message PrecompiledObject{
   string pipeline_options = 5;
   // Link to the example in the Beam repository
   string link = 6;
+  bool multifile = 7;
+  int32 context_line = 8;
 }
 
 // Categories represent the array of messages with sdk and categories at this sdk
@@ -196,6 +198,11 @@ message GetPrecompiledObjectLogsRequest{
   string cloud_path = 1;
 }
 
+// GetPrecompiledObjectGraphRequest contains information of the PrecompiledObject cloud path.
+message GetPrecompiledObjectGraphRequest{
+  string cloud_path = 1;
+}
+
 // GetDefaultPrecompiledObjectRequest contains information of the needed PrecompiledObject sdk.
 message GetDefaultPrecompiledObjectRequest {
   Sdk sdk = 1;
@@ -219,6 +226,11 @@ message GetPrecompiledObjectOutputResponse {
 // GetPrecompiledObjectLogsResponse represents the result of the executed code.
 message GetPrecompiledObjectLogsResponse {
   string output = 1;
+}
+
+// GetPrecompiledObjectGraphResponse represents the string representation of the executed code graph in DOT format.
+message GetPrecompiledObjectGraphResponse {
+  string graph = 1;
 }
 
 // GetDefaultPrecompiledObjectResponse represents the default PrecompiledObject and his category for the sdk.
@@ -269,6 +281,9 @@ service PlaygroundService {
 
   // Get the logs of an PrecompiledObject.
   rpc GetPrecompiledObjectLogs(GetPrecompiledObjectLogsRequest) returns (GetPrecompiledObjectLogsResponse);
+
+  // Get the graph of an PrecompiledObject.
+  rpc GetPrecompiledObjectGraph(GetPrecompiledObjectGraphRequest) returns (GetPrecompiledObjectGraphResponse);
 
   // Get the default precompile object for the sdk.
   rpc GetDefaultPrecompiledObject(GetDefaultPrecompiledObjectRequest) returns (GetDefaultPrecompiledObjectResponse);

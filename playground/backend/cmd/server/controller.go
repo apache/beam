@@ -50,7 +50,7 @@ func (controller *playgroundController) RunCode(ctx context.Context, info *pb.Ru
 		return nil, errors.InvalidArgumentError("Error during preparing", "Incorrect sdk. Want to receive %s, but the request contains %s", controller.env.BeamSdkEnvs.ApacheBeamSdk.String(), info.Sdk.String())
 	}
 	switch info.Sdk {
-	case pb.Sdk_SDK_UNSPECIFIED, pb.Sdk_SDK_SCIO:
+	case pb.Sdk_SDK_UNSPECIFIED:
 		logger.Errorf("RunCode(): unimplemented sdk: %s\n", info.Sdk)
 		return nil, errors.InvalidArgumentError("Error during preparing", "Sdk is not implemented yet: %s", info.Sdk.String())
 	}
@@ -309,5 +309,17 @@ func (controller *playgroundController) GetPrecompiledObjectLogs(ctx context.Con
 		return nil, errors.InternalError("Error during getting Precompiled Object's logs", "Error with cloud connection")
 	}
 	response := pb.GetPrecompiledObjectLogsResponse{Output: logs}
+	return &response, nil
+}
+
+// GetPrecompiledObjectGraph returns the graph of the compiled and run example
+func (controller *playgroundController) GetPrecompiledObjectGraph(ctx context.Context, info *pb.GetPrecompiledObjectGraphRequest) (*pb.GetPrecompiledObjectGraphResponse, error) {
+	cb := cloud_bucket.New()
+	logs, err := cb.GetPrecompiledObjectGraph(ctx, info.GetCloudPath())
+	if err != nil {
+		logger.Errorf("GetPrecompiledObjectGraph(): cloud storage error: %s", err.Error())
+		return nil, errors.InternalError("Error during getting Precompiled Object's graph", "Error with cloud connection")
+	}
+	response := pb.GetPrecompiledObjectGraphResponse{Graph: logs}
 	return &response, nil
 }

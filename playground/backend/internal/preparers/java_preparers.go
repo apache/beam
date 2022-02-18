@@ -17,12 +17,11 @@ package preparers
 
 import (
 	"beam.apache.org/playground/backend/internal/logger"
+	"beam.apache.org/playground/backend/internal/utils"
 	"bufio"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -35,7 +34,7 @@ const (
 	newLinePattern                    = "\n"
 	pathSeparatorPattern              = os.PathSeparator
 	tmpFileSuffix                     = "tmp"
-	publicClassNamePattern            = "public class (.*?) [{|implements(.*)]"
+	javaPublicClassNamePattern        = "public class (.*?) [{|implements(.*)]"
 )
 
 //JavaPreparersBuilder facet of PreparersBuilder
@@ -167,7 +166,7 @@ func writeWithReplace(from *os.File, to *os.File, pattern, newPattern string) er
 
 // replaceAndWriteLine replaces pattern from line to newPattern and writes updated line to the file
 func replaceAndWriteLine(newLine bool, to *os.File, line string, reg *regexp.Regexp, newPattern string) error {
-	err := addNewLine(newLine, to)
+	err := utils.AddNewLine(newLine, to)
 	if err != nil {
 		logger.Errorf("Preparation: Error during write \"%s\" to tmp file, err: %s\n", newLinePattern, err.Error())
 		return err
@@ -191,44 +190,15 @@ func createTempFile(originalFilePath string) (*os.File, error) {
 	return os.Create(tmpFilePath)
 }
 
-// addNewLine adds a new line at the end of the file
-func addNewLine(newLine bool, file *os.File) error {
-	if !newLine {
-		return nil
-	}
-	if _, err := io.WriteString(file, newLinePattern); err != nil {
-		return err
-	}
-	return nil
-}
-
 func changeJavaTestFileName(args ...interface{}) error {
 	filePath := args[0].(string)
-	className, err := getPublicClassName(filePath)
+	className, err := utils.GetPublicClassName(filePath, javaPublicClassNamePattern)
 	if err != nil {
 		return err
 	}
-	err = renameJavaFile(filePath, className)
+	err = utils.RenameSourceCodeFile(filePath, className)
 	if err != nil {
 		return err
 	}
 	return nil
-}
-
-func renameJavaFile(filePath string, className string) error {
-	currentFileName := filepath.Base(filePath)
-	newFilePath := strings.Replace(filePath, currentFileName, fmt.Sprintf("%s%s", className, filepath.Ext(currentFileName)), 1)
-	err := os.Rename(filePath, newFilePath)
-	return err
-}
-
-func getPublicClassName(filePath string) (string, error) {
-	code, err := ioutil.ReadFile(filePath)
-	if err != nil {
-		logger.Errorf("Preparer: Error during open file: %s, err: %s\n", filePath, err.Error())
-		return "", err
-	}
-	re := regexp.MustCompile(publicClassNamePattern)
-	className := re.FindStringSubmatch(string(code))[1]
-	return className, err
 }

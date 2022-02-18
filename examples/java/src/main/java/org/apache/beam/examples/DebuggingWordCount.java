@@ -23,6 +23,7 @@ package org.apache.beam.examples;
 //     filter("Flourish|stomach").
 //   multifile: false
 //   pipeline_options: --output output.txt
+//   context_line: 86
 //   categories:
 //     - Debugging
 //     - Filtering
