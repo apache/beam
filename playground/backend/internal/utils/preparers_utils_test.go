@@ -68,6 +68,8 @@ func Test_ChangeTestFileName(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
+	defer os.Remove(path)
+
 	type args struct {
 		args []interface{}
 	}
