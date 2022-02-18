@@ -117,7 +117,7 @@ export class PersistentState {
   private async commitStateToRepo() {
     await exec.exec("git pull origin pr-bot-state");
     await exec.exec("git add state/*");
-    await exec.exec('git commit -m "Updating config from bot');
+    await exec.exec(`git commit -m "Updating config from bot" --allow-empty`);
     await exec.exec("git push origin pr-bot-state");
   }
 }
