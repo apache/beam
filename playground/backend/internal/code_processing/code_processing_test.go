@@ -125,7 +125,7 @@ func Test_Process(t *testing.T) {
 		{
 			// Test case with calling processCode method with small timeout.
 			// As a result status into cache should be set as Status_STATUS_RUN_TIMEOUT.
-			name:                  "small pipeline execution timeout",
+			name:                  "Small pipeline execution timeout",
 			createExecFile:        false,
 			code:                  "",
 			cancelFunc:            false,
@@ -144,7 +144,7 @@ func Test_Process(t *testing.T) {
 		{
 			// Test case with calling processCode method without preparing files with code.
 			// As a result status into cache should be set as Status_STATUS_VALIDATION_ERROR.
-			name:                  "validation failed",
+			name:                  "Validation failed",
 			createExecFile:        false,
 			code:                  "",
 			cancelFunc:            false,
@@ -163,7 +163,7 @@ func Test_Process(t *testing.T) {
 		{
 			// Test case with calling processCode method with incorrect code.
 			// As a result status into cache should be set as Status_STATUS_COMPILE_ERROR.
-			name:                  "compilation failed",
+			name:                  "Compilation failed",
 			createExecFile:        true,
 			code:                  "MOCK_CODE",
 			cancelFunc:            false,
@@ -182,7 +182,7 @@ func Test_Process(t *testing.T) {
 		{
 			// Test case with calling processCode method with incorrect logic into code.
 			// As a result status into cache should be set as Status_STATUS_RUN_ERROR.
-			name:                  "run failed",
+			name:                  "Run failed",
 			createExecFile:        true,
 			code:                  "class HelloWorld {\n    public static void main(String[] args) {\n        System.out.println(1/0);\n    }\n}",
 			cancelFunc:            false,
@@ -201,7 +201,7 @@ func Test_Process(t *testing.T) {
 		{
 			// Test case with calling processCode with canceling code processing.
 			// As a result status into cache should be set as Status_STATUS_CANCELED.
-			name:                  "cancel",
+			name:                  "Cancel",
 			createExecFile:        true,
 			code:                  "class HelloWorld {\n    public static void main(String[] args) {\n        while(true){}\n    }\n}",
 			cancelFunc:            true,
@@ -220,7 +220,7 @@ func Test_Process(t *testing.T) {
 		{
 			// Test case with calling processCode without any error cases.
 			// As a result status into cache should be set as Status_STATUS_FINISHED.
-			name:                  "processing complete successfully on java sdk",
+			name:                  "Processing complete successfully on java sdk",
 			createExecFile:        true,
 			cancelFunc:            false,
 			code:                  "class HelloWorld {\n    public static void main(String[] args) {\n        System.out.println(\"Hello world!\");\n    }\n}",
@@ -239,7 +239,7 @@ func Test_Process(t *testing.T) {
 		{
 			// Test case with calling processCode method with incorrect go code.
 			// As a result status into cache should be set as Status_STATUS_PREPARATION_ERROR.
-			name:                  "prepare step failed",
+			name:                  "Prepare step failed",
 			createExecFile:        true,
 			code:                  "package main\nimport \"fmt\"\nfunc main() {\n    fmt.Println(\"hello world\").\n}\n",
 			cancelFunc:            false,
@@ -336,7 +336,7 @@ func TestGetProcessingOutput(t *testing.T) {
 		{
 			// Test case with calling GetProcessingOutput with pipelineId which doesn't contain run output.
 			// As a result, want to receive an error.
-			name: "get run output with incorrect pipelineId",
+			name: "Get run output with incorrect pipelineId",
 			args: args{
 				ctx:          context.Background(),
 				cacheService: cacheService,
@@ -350,7 +350,7 @@ func TestGetProcessingOutput(t *testing.T) {
 		{
 			// Test case with calling GetProcessingOutput with pipelineId which contains incorrect run output.
 			// As a result, want to receive an error.
-			name: "get run output with incorrect run output",
+			name: "Get run output with incorrect run output",
 			args: args{
 				ctx:          context.Background(),
 				cacheService: cacheService,
@@ -364,7 +364,7 @@ func TestGetProcessingOutput(t *testing.T) {
 		{
 			// Test case with calling GetProcessingOutput with pipelineId which contains run output.
 			// As a result, want to receive an expected string.
-			name: "get run output with correct pipelineId",
+			name: "Get run output with correct pipelineId",
 			args: args{
 				ctx:          context.Background(),
 				cacheService: cacheService,
@@ -418,7 +418,7 @@ func TestGetProcessingStatus(t *testing.T) {
 		{
 			// Test case with calling GetProcessingStatus with pipelineId which doesn't contain status.
 			// As a result, want to receive an error.
-			name: "get status with incorrect pipelineId",
+			name: "Get status with incorrect pipelineId",
 			args: args{
 				ctx:          context.Background(),
 				cacheService: cacheService,
@@ -431,7 +431,7 @@ func TestGetProcessingStatus(t *testing.T) {
 		{
 			// Test case with calling GetProcessingStatus with pipelineId which contains incorrect status value in cache.
 			// As a result, want to receive an error.
-			name: "get status with incorrect cache value",
+			name: "Get status with incorrect cache value",
 			args: args{
 				ctx:          context.Background(),
 				cacheService: cacheService,
@@ -444,7 +444,7 @@ func TestGetProcessingStatus(t *testing.T) {
 		{
 			// Test case with calling GetProcessingStatus with pipelineId which contains status.
 			// As a result, want to receive an expected status.
-			name: "get status with correct pipelineId",
+			name: "Get status with correct pipelineId",
 			args: args{
 				ctx:          context.Background(),
 				cacheService: cacheService,
@@ -494,7 +494,7 @@ func TestGetLastIndex(t *testing.T) {
 		{
 			// Test case with calling GetLastIndex with pipelineId which doesn't contain last index.
 			// As a result, want to receive an error.
-			name: "get last index with incorrect pipelineId",
+			name: "Get last index with incorrect pipelineId",
 			args: args{
 				ctx:          context.Background(),
 				cacheService: cacheService,
@@ -508,7 +508,7 @@ func TestGetLastIndex(t *testing.T) {
 		{
 			// Test case with calling GetLastIndex with pipelineId which contains incorrect status value in cache.
 			// As a result, want to receive an error.
-			name: "get last index with incorrect cache value",
+			name: "Get last index with incorrect cache value",
 			args: args{
 				ctx:          context.Background(),
 				cacheService: cacheService,
@@ -522,7 +522,7 @@ func TestGetLastIndex(t *testing.T) {
 		{
 			// Test case with calling GetLastIndex with pipelineId which contains last index.
 			// As a result, want to receive an expected last index.
-			name: "get last index with correct pipelineId",
+			name: "Get last index with correct pipelineId",
 			args: args{
 				ctx:          context.Background(),
 				cacheService: cacheService,
@@ -578,7 +578,7 @@ func Test_getRunOrTestCmd(t *testing.T) {
 	}{
 		{
 			//Get cmd objects with set run executor
-			name: "get run cmd",
+			name: "Get run cmd",
 			args: args{
 				isUnitTest:     false,
 				executor:       &runEx,
@@ -588,7 +588,7 @@ func Test_getRunOrTestCmd(t *testing.T) {
 		},
 		{
 			//Get cmd objects with set test executor
-			name: "get test cmd",
+			name: "Get test cmd",
 			args: args{
 				isUnitTest:     true,
 				executor:       &testEx,
@@ -702,19 +702,19 @@ func Benchmark_ProcessPython(b *testing.B) {
 	}
 
 	ctx := context.Background()
-	code := "import argparse\nimport logging\nimport re\n\nimport apache_beam as beam\nfrom apache_beam.io import ReadFromText\nfrom apache_beam.io import WriteToText\nfrom apache_beam.options.pipeline_options import PipelineOptions\nfrom apache_beam.options.pipeline_options import SetupOptions\n\n\nclass WordExtractingDoFn(beam.DoFn):\n  \"\"\"Parse each line of input text into words.\"\"\"\n  def process(self, element):\n    \"\"\"Returns an iterator over the words of this element.\n\n    The element is a line of text.  If the line is blank, note that, too.\n\n    Args:\n      element: the element being processed\n\n    Returns:\n      The processed element.\n    \"\"\"\n    return re.findall(r'[\\w\\']+', element, re.UNICODE)\n\n\ndef run(argv=None, save_main_session=True):\n  \"\"\"Main entry point; defines and runs the wordcount pipeline.\"\"\"\n  parser = argparse.ArgumentParser()\n  parser.add_argument(\n      '--input',\n      dest='input',\n      default='gs://dataflow-samples/shakespeare/kinglear.txt',\n      help='Input file to process.')\n  parser.add_argument(\n      '--output',\n      dest='output',\n      required=True,\n      help='Output file to write results to.')\n  known_args, pipeline_args = parser.parse_known_args(argv)\n\n  # We use the save_main_session option because one or more DoFn's in this\n  # workflow rely on global context (e.g., a module imported at module level).\n  pipeline_options = PipelineOptions(pipeline_args)\n  pipeline_options.view_as(SetupOptions).save_main_session = save_main_session\n\n  # The pipeline will be run on exiting the with block.\n  with beam.Pipeline(options=pipeline_options) as p:\n\n    # Read the text file[pattern] into a PCollection.\n    lines = p | 'Read' >> ReadFromText(known_args.input)\n\n    counts = (\n        lines\n        | 'Split' >> (beam.ParDo(WordExtractingDoFn()).with_output_types(str))\n        | 'PairWithOne' >> beam.Map(lambda x: (x, 1))\n        | 'GroupAndSum' >> beam.CombinePerKey(sum))\n\n    # Format the counts into a PCollection of strings.\n    def format_result(word, count):\n      return '%s: %d' % (word, count)\n\n    output = counts | 'Format' >> beam.MapTuple(format_result)\n\n    # Write the output using a \"Write\" transform that has side effects.\n    # pylint: disable=expression-not-assigned\n    output | 'Write' >> WriteToText(known_args.output)\n\n\nif __name__ == '__main__':\n  logging.getLogger().setLevel(logging.INFO)\n  run()"
-
+	wordCountCode := "import argparse\nimport logging\nimport re\n\nimport apache_beam as beam\nfrom apache_beam.io import ReadFromText\nfrom apache_beam.io import WriteToText\nfrom apache_beam.options.pipeline_options import PipelineOptions\nfrom apache_beam.options.pipeline_options import SetupOptions\n\n\nclass WordExtractingDoFn(beam.DoFn):\n  \"\"\"Parse each line of input text into words.\"\"\"\n  def process(self, element):\n    \"\"\"Returns an iterator over the words of this element.\n\n    The element is a line of text.  If the line is blank, note that, too.\n\n    Args:\n      element: the element being processed\n\n    Returns:\n      The processed element.\n    \"\"\"\n    return re.findall(r'[\\w\\']+', element, re.UNICODE)\n\n\ndef run(argv=None, save_main_session=True):\n  \"\"\"Main entry point; defines and runs the wordcount pipeline.\"\"\"\n  parser = argparse.ArgumentParser()\n  parser.add_argument(\n      '--input',\n      dest='input',\n      default='gs://dataflow-samples/shakespeare/kinglear.txt',\n      help='Input file to process.')\n  parser.add_argument(\n      '--output',\n      dest='output',\n      required=True,\n      help='Output file to write results to.')\n  known_args, pipeline_args = parser.parse_known_args(argv)\n\n  # We use the save_main_session option because one or more DoFn's in this\n  # workflow rely on global context (e.g., a module imported at module level).\n  pipeline_options = PipelineOptions(pipeline_args)\n  pipeline_options.view_as(SetupOptions).save_main_session = save_main_session\n\n  # The pipeline will be run on exiting the with block.\n  with beam.Pipeline(options=pipeline_options) as p:\n\n    # Read the text file[pattern] into a PCollection.\n    lines = p | 'Read' >> ReadFromText(known_args.input)\n\n    counts = (\n        lines\n        | 'Split' >> (beam.ParDo(WordExtractingDoFn()).with_output_types(str))\n        | 'PairWithOne' >> beam.Map(lambda x: (x, 1))\n        | 'GroupAndSum' >> beam.CombinePerKey(sum))\n\n    # Format the counts into a PCollection of strings.\n    def format_result(word, count):\n      return '%s: %d' % (word, count)\n\n    output = counts | 'Format' >> beam.MapTuple(format_result)\n\n    # Write the output using a \"Write\" transform that has side effects.\n    # pylint: disable=expression-not-assigned\n    output | 'Write' >> WriteToText(known_args.output)\n\n\nif __name__ == '__main__':\n  logging.getLogger().setLevel(logging.INFO)\n  run()"
+	pipelineOptions := "--output t.txt"
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
 		pipelineId := uuid.New()
-		lc := prepareFiles(b, pipelineId, code, pb.Sdk_SDK_PYTHON)
+		lc := prepareFiles(b, pipelineId, wordCountCode, pb.Sdk_SDK_PYTHON)
 		if err = utils.SetToCache(ctx, cacheService, pipelineId, cache.Canceled, false); err != nil {
 			b.Fatal("error during set cancel flag to cache")
 		}
 		b.StartTimer()
 
-		Process(ctx, cacheService, lc, pipelineId, appEnv, sdkEnv, "--output t.txt")
+		Process(ctx, cacheService, lc, pipelineId, appEnv, sdkEnv, pipelineOptions)
 	}
 }
 
@@ -975,6 +975,9 @@ func Test_runStep(t *testing.T) {
 	sdkPythonEnv.ApacheBeamSdk = pb.Sdk_SDK_PYTHON
 	sdkGoEnv := *sdkJavaEnv
 	sdkGoEnv.ApacheBeamSdk = pb.Sdk_SDK_GO
+	helloWordPython := "if __name__ == \"__main__\":\n    print(\"Hello world!\")\n"
+	helloWordGo := "package main\nimport \"fmt\"\nfunc main() {\n    fmt.Println(\"hello world\")\n}\n"
+	helloWordJava := "class HelloWorld {\n    public static void main(String[] args) {\n        System.out.println(\"Hello world!\");\n    }\n}"
 	type args struct {
 		ctx                  context.Context
 		cacheService         cache.Cache
@@ -987,12 +990,13 @@ func Test_runStep(t *testing.T) {
 		createExecFile       bool
 	}
 	tests := []struct {
-		name string
-		args args
-		code string
+		name           string
+		args           args
+		code           string
+		expectedStatus pb.Status
 	}{
 		{
-			name: "Test run step working on python sdk without an error",
+			name: "Test run step working on python sdk",
 			args: args{
 				ctx:                  context.Background(),
 				cacheService:         cacheService,
@@ -1004,7 +1008,8 @@ func Test_runStep(t *testing.T) {
 				cancelChannel:        make(chan bool, 1),
 				createExecFile:       true,
 			},
-			code: "if __name__ == \"__main__\":\n    print(\"Hello world!\")\n",
+			code:           helloWordPython,
+			expectedStatus: pb.Status_STATUS_RUN_ERROR,
 		},
 		{
 			name: "Test run step working on go sdk",
@@ -1019,7 +1024,8 @@ func Test_runStep(t *testing.T) {
 				cancelChannel:        make(chan bool, 1),
 				createExecFile:       true,
 			},
-			code: "package main\nimport \"fmt\"\nfunc main() {\n    fmt.Println(\"hello world\")\n}\n",
+			code:           helloWordGo,
+			expectedStatus: pb.Status_STATUS_RUN_ERROR,
 		},
 		{
 			name: "Test run step without preparing files with code",
@@ -1034,7 +1040,8 @@ func Test_runStep(t *testing.T) {
 				cancelChannel:        make(chan bool, 1),
 				createExecFile:       false,
 			},
-			code: "class HelloWorld {\n    public static void main(String[] args) {\n        System.out.println(\"Hello world!\");\n    }\n}",
+			code:           helloWordJava,
+			expectedStatus: pb.Status_STATUS_ERROR,
 		},
 	}
 	for _, tt := range tests {
@@ -1048,6 +1055,10 @@ func Test_runStep(t *testing.T) {
 				_ = lc.CreateSourceCodeFile(tt.code)
 			}
 			runStep(tt.args.ctx, tt.args.cacheService, &lc.Paths, tt.args.pipelineId, tt.args.isUnitTest, tt.args.sdkEnv, tt.args.pipelineOptions, tt.args.pipelineLifeCycleCtx, tt.args.cancelChannel)
+			status, _ := cacheService.GetValue(tt.args.ctx, tt.args.pipelineId, cache.Status)
+			if status != tt.expectedStatus {
+				t.Errorf("runStep() got status = %v, want %v", status, tt.expectedStatus)
+			}
 		})
 	}
 }
@@ -1087,7 +1098,7 @@ func TestGetGraph(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "get graph when key exist in cache",
+			name: "Get graph when key exist in cache",
 			args: args{
 				ctx:          context.Background(),
 				cacheService: cacheService,
@@ -1098,7 +1109,7 @@ func TestGetGraph(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "get graph when key doesn't exist in cache",
+			name: "Get graph when key doesn't exist in cache",
 			args: args{
 				ctx:          context.Background(),
 				cacheService: cacheService,
@@ -1109,7 +1120,7 @@ func TestGetGraph(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "get graph when value from cache by key couldn't be converted to a string",
+			name: "Get graph when value from cache by key couldn't be converted to a string",
 			args: args{
 				ctx:          context.Background(),
 				cacheService: cacheService,
