@@ -69,28 +69,19 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.QueryPriority;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.JobType;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StorageClient;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.ConversionOptions;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices.FakeBigQueryServerStream;
 import org.apache.beam.sdk.io.gcp.testing.FakeDatasetService;
 import org.apache.beam.sdk.io.gcp.testing.FakeJobService;
 import org.apache.beam.sdk.options.ValueProvider;
-import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
-import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -102,7 +93,10 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.model.Statement;
 
-/** Tests for {@link BigQueryIO#readTableRows()} using {@link Method#DIRECT_READ}. */
+/**
+ * Tests for {@link BigQueryIO#read(SerializableFunction)} using {@link Method#DIRECT_READ} and
+ * {@link BigQueryIO.TypedRead#fromQuery(String)}.
+ */
 @RunWith(JUnit4.class)
 public class BigQueryIOStorageQueryTest {
 
@@ -760,31 +754,6 @@ public class BigQueryIOStorageQueryTest {
     thrown.expect(UnsupportedOperationException.class);
     thrown.expectMessage("BigQuery storage source must be split before reading");
     querySource.createReader(options);
-  }
-
-  @Test
-  public void testActuateProjectionPushdown() {
-    org.apache.beam.sdk.schemas.Schema schema =
-        org.apache.beam.sdk.schemas.Schema.builder()
-            .addStringField("foo")
-            .addStringField("bar")
-            .build();
-    TypedRead<Row> read =
-        BigQueryIO.read(
-                record ->
-                    BigQueryUtils.toBeamRow(
-                        record.getRecord(), schema, ConversionOptions.builder().build()))
-            .withMethod(Method.DIRECT_READ)
-            .withCoder(SchemaCoder.of(schema));
-
-    assertTrue(read.supportsProjectionPushdown());
-    PTransform<PBegin, PCollection<Row>> pushdownT =
-        read.actuateProjectionPushdown(
-            ImmutableMap.of(new TupleTag<>("output"), FieldAccessDescriptor.withFieldNames("foo")));
-
-    TypedRead<Row> pushdownRead = (TypedRead<Row>) pushdownT;
-    assertEquals(Method.DIRECT_READ, pushdownRead.getMethod());
-    assertThat(pushdownRead.getSelectedFields().get(), Matchers.containsInAnyOrder("foo"));
   }
 
   @Test
