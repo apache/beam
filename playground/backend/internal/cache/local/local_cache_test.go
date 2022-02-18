@@ -78,7 +78,7 @@ func TestLocalCache_GetValue(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "get existing value",
+			name: "Get existing value",
 			fields: fields{
 				cleanupInterval:     cleanupInterval,
 				items:               preparedItemsMap,
@@ -93,7 +93,7 @@ func TestLocalCache_GetValue(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "get not existing value",
+			name: "Get not existing value",
 			fields: fields{
 				cleanupInterval: cleanupInterval,
 				items:           make(map[uuid.UUID]map[cache.SubKey]interface{}),
@@ -106,9 +106,7 @@ func TestLocalCache_GetValue(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			// Test case with calling GetValue method with existing value that is expiring.
-			// As a result, want to receive an error.
-			name: "get an existing value that is expiring",
+			name: "Get an existing value that is expiring",
 			fields: fields{
 				cleanupInterval:     cleanupInterval,
 				items:               preparedItemsMap,
@@ -179,8 +177,6 @@ func TestLocalCache_SetValue(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			// Test case with calling SetValue method with RunOutputIndex subKey.
-			// As a result, want to save value to cache.
 			name: "Set value for RunOutputIndex subKey",
 			fields: fields{
 				cleanupInterval:     cleanupInterval,
@@ -250,8 +246,6 @@ func TestLocalCache_SetExpTime(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			// Test case with calling SetExpTime method with pipelineId which not set in cache and expiration time.
-			// As a result, want to receive an error.
 			name: "Set expiration time for not existing value in cache items",
 			fields: fields{
 				cleanupInterval:     cleanupInterval,
