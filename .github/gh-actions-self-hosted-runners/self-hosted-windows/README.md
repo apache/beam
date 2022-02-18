@@ -16,8 +16,9 @@
     limitations under the License.
 -->
 
-This folder contains the required resources to deploy the GitHub Actions self-hosted runners for the workflows running in Windows OS.
+# GitHub Actions - Self-hosted Windows Runners
 
+This folder contains the required resources to deploy the GitHub Actions self-hosted runners for the workflows running in Windows OS.
 
 #### How to build a new instance template for the instance group?
 
