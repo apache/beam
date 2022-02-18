@@ -38,10 +38,10 @@ Ubuntu Self-hosted runners are implemented using Google Kubernetes Engine with t
 
 #### AutoScaling
 * Horizontal Pod Autoscaling
-  * 4-8 nodes
+  * 5-10 nodes
   * HorizontalPodAutoscaler
-    * Min replicas: 4 
-    * Max replicas: 14 
+    * Min replicas: 10 
+    * Max replicas: 20 
     * CPU utilization: 70%
 * Vertical Pod Autoscaling: updateMode: "Auto"
 

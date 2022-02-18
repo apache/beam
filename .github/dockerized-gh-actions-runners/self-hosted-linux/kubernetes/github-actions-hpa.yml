@@ -23,7 +23,7 @@ spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: github-actions-runners-deployment
-  minReplicas: 5
-  maxReplicas: 12
-  targetCPUUtilizationPercentage: 50
+    name: ubuntu-runners
+  minReplicas: 10
+  maxReplicas: 20
+  targetCPUUtilizationPercentage: 70
