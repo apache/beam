@@ -25,6 +25,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -2096,6 +2097,31 @@ public class BigQueryIOStorageReadTest {
     TypedRead<Row> pushdownRead = (TypedRead<Row>) pushdownT;
     assertEquals(Method.DIRECT_READ, pushdownRead.getMethod());
     assertThat(pushdownRead.getSelectedFields().get(), Matchers.containsInAnyOrder("foo"));
+  }
+
+  @Test
+  public void testReadFromQueryDoesNotSupportProjectionPushdown() {
+    org.apache.beam.sdk.schemas.Schema schema =
+        org.apache.beam.sdk.schemas.Schema.builder()
+            .addStringField("foo")
+            .addStringField("bar")
+            .build();
+    TypedRead<Row> read =
+        BigQueryIO.read(
+                record ->
+                    BigQueryUtils.toBeamRow(
+                        record.getRecord(), schema, ConversionOptions.builder().build()))
+            .fromQuery("SELECT bar FROM `dataset.table`")
+            .withMethod(Method.DIRECT_READ)
+            .withCoder(SchemaCoder.of(schema));
+
+    assertFalse(read.supportsProjectionPushdown());
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            read.actuateProjectionPushdown(
+                ImmutableMap.of(
+                    new TupleTag<>("output"), FieldAccessDescriptor.withFieldNames("foo"))));
   }
 
   private static org.apache.arrow.vector.types.pojo.Field field(
