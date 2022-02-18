@@ -18,8 +18,8 @@
 
 const path = require("path");
 
-export const REPO_OWNER = "damccorm";
-export const REPO = "beam-pr-bot-demo";
+export const REPO_OWNER = "apache";
+export const REPO = "beam";
 export const PATH_TO_CONFIG_FILE = path.join(
   __dirname,
   "../../../../../.github/REVIEWERS.yml"
