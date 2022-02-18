@@ -100,7 +100,7 @@ type ApplicationEnvs struct {
 	// pipelinesFolder is name of folder in which the pipelines resources are stored
 	pipelinesFolder string
 
-	// bucketName is a name of the GCS's bucket
+	// bucketName is a name of the GCS's bucket with examples
 	bucketName string
 }
 
@@ -147,7 +147,7 @@ func (ae *ApplicationEnvs) PipelinesFolder() string {
 	return ae.pipelinesFolder
 }
 
-// BucketName returns name of the GCS's bucket
+// BucketName returns name of the GCS's bucket with examples
 func (ae *ApplicationEnvs) BucketName() string {
 	return ae.bucketName
 }

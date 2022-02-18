@@ -230,7 +230,7 @@ func (cd *CloudStorage) getPrecompiledObjectsDirs(ctx context.Context, targetSdk
 		if err != nil {
 			bucketAttrs, errWithAttrs := bucket.Attrs(ctx)
 			if errWithAttrs != nil {
-				return nil, fmt.Errorf("rrror during receiving bucket's attributes: %s", err)
+				return nil, fmt.Errorf("error during receiving bucket's attributes: %s", err)
 			}
 			return nil, fmt.Errorf("Bucket(%q).Objects: %v", bucketAttrs.Name, err)
 		}
