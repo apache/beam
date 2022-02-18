@@ -195,6 +195,8 @@ public class StreamingDataflowWorker {
   // retrieving extra work from Windmill without working on it, leading to better
   // prioritization / utilization.
   static final int MAX_WORK_UNITS_QUEUED = 100;
+  // Maximum bytes of WorkItems being processed in the work queue at a time.
+  static final int MAX_WORK_UNITS_BYTES = 500 << 20; // 500MB
   static final long TARGET_COMMIT_BUNDLE_BYTES = 32 << 20;
   static final int MAX_COMMIT_QUEUE_BYTES = 500 << 20; // 500MB
   static final int NUM_COMMIT_STREAMS = 1;
@@ -666,7 +668,8 @@ public class StreamingDataflowWorker {
             chooseMaximumNumberOfThreads(),
             THREAD_EXPIRATION_TIME_SEC,
             TimeUnit.SECONDS,
-            MAX_WORK_UNITS_QUEUED,
+            MAX_WORK_UNITS_QUEUED + chooseMaximumNumberOfThreads(),
+            MAX_WORK_UNITS_BYTES,
             threadFactory);
 
     maxSinkBytes =
@@ -804,7 +807,7 @@ public class StreamingDataflowWorker {
 
   @VisibleForTesting
   public boolean workExecutorIsEmpty() {
-    return workUnitExecutor.getQueue().isEmpty();
+    return workUnitExecutor.executorQueueIsEmpty();
   }
 
   public void start() {
@@ -949,9 +952,6 @@ public class StreamingDataflowWorker {
       memoryMonitor.stop();
       memoryMonitorThread.join();
       workUnitExecutor.shutdown();
-      if (!workUnitExecutor.awaitTermination(5, TimeUnit.MINUTES)) {
-        throw new RuntimeException("Work executor did not terminate within 5 minutes");
-      }
       for (ComputationState state : computationMap.values()) {
         state.close();
       }
@@ -2285,7 +2285,7 @@ public class StreamingDataflowWorker {
           // Fall through to execute without the lock held.
         }
       }
-      executor.execute(work);
+      executor.execute(work, work.getWorkItem().getSerializedSize());
       return true;
     }
 
@@ -2511,27 +2511,9 @@ public class StreamingDataflowWorker {
   }
 
   private class MetricsDataProvider implements StatusDataProvider {
-
     @Override
     public void appendSummaryHtml(PrintWriter writer) {
-      writer.println(
-          "Worker Threads: "
-              + workUnitExecutor.getPoolSize()
-              + "/"
-              + workUnitExecutor.getMaximumPoolSize()
-              + "<br>");
-      writer.println("Active Threads: " + workUnitExecutor.getActiveCount() + "<br>");
-      writer.println(
-          "Work Queue Size: "
-              + workUnitExecutor.getQueue().size()
-              + "/"
-              + MAX_WORK_UNITS_QUEUED
-              + "<br>");
-      writer.print("Commit Queue: ");
-      appendHumanizedBytes(commitQueue.weight(), writer);
-      writer.print(", ");
-      writer.print(commitQueue.size());
-      writer.println(" elements<br>");
+      writer.println(workUnitExecutor.summaryHtml());
 
       writer.print("Active commit: ");
       appendHumanizedBytes(activeCommitBytes.get(), writer);
