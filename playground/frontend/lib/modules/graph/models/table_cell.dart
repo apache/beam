@@ -15,20 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.aws2.sns;
 
-import org.apache.beam.sdk.io.aws2.StaticSupplier;
-import software.amazon.awssdk.services.sns.SnsClient;
+class TableCell<T> {
+  final T row;
+  final T column;
 
-/** Client provider supporting unserializable clients such as mock instances for unit tests. */
-class StaticSnsClientProvider extends StaticSupplier<SnsClient, StaticSnsClientProvider>
-    implements SnsClientProvider {
-  static SnsClientProvider of(SnsClient client) {
-    return new StaticSnsClientProvider().withObject(client);
-  }
+  TableCell({required this.row, required this.column});
 
-  @Override
-  public SnsClient getSnsClient() {
-    return get();
-  }
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+          other is TableCell &&
+              runtimeType == other.runtimeType &&
+              row == other.row &&
+              column == other.column;
+
+  @override
+  int get hashCode => row.hashCode ^ column.hashCode;
 }

@@ -381,7 +381,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.37.0'
+    project.version = '2.38.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -407,6 +407,23 @@ class BeamModulePlugin implements Plugin<Project> {
       // https://discuss.gradle.org/t/do-not-cache-if-condition-matched-jacoco-agent-configured-with-append-true-satisfied/23504
       def enabled = graph.allTasks.any { it instanceof JacocoReport || it.name.contains("javaPreCommit") }
       project.tasks.withType(Test) { jacoco.enabled = enabled }
+    }
+
+    // Add Retry Gradle Plugin to mitigate flaky tests
+    if (project.hasProperty("retryFlakyTest")) {
+      project.apply plugin: "org.gradle.test-retry"
+      project.tasks.withType(Test) {
+        reports{
+          junitXml{
+            mergeReruns = true
+          }
+        }
+        retry {
+          failOnPassedAfterRetry = false
+          maxFailures = 10
+          maxRetries = 3
+        }
+      }
     }
 
     // Apply a plugin which provides tasks for dependency / property / task reports.
@@ -481,7 +498,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def spark2_version = "2.4.8"
     def spark3_version = "3.1.2"
     def spotbugs_version = "4.0.6"
-    def testcontainers_version = "1.15.1"
+    def testcontainers_version = "1.16.3"
     def arrow_version = "5.0.0"
     def jmh_version = "1.34"
 
@@ -513,6 +530,7 @@ class BeamModulePlugin implements Plugin<Project> {
         aws_java_sdk_sqs                            : "com.amazonaws:aws-java-sdk-sqs:$aws_java_sdk_version",
         aws_java_sdk_sts                            : "com.amazonaws:aws-java-sdk-sts:$aws_java_sdk_version",
         aws_java_sdk2_apache_client                 : "software.amazon.awssdk:apache-client:$aws_java_sdk2_version",
+        aws_java_sdk2_netty_client                  : "software.amazon.awssdk:netty-nio-client:$aws_java_sdk2_version",
         aws_java_sdk2_auth                          : "software.amazon.awssdk:auth:$aws_java_sdk2_version",
         aws_java_sdk2_cloudwatch                    : "software.amazon.awssdk:cloudwatch:$aws_java_sdk2_version",
         aws_java_sdk2_dynamodb                      : "software.amazon.awssdk:dynamodb:$aws_java_sdk2_version",
@@ -673,18 +691,20 @@ class BeamModulePlugin implements Plugin<Project> {
         spark3_sql                                  : "org.apache.spark:spark-sql_2.12:$spark3_version",
         spark3_streaming                            : "org.apache.spark:spark-streaming_2.12:$spark3_version",
         stax2_api                                   : "org.codehaus.woodstox:stax2-api:4.2.1",
+        testcontainers_base                         : "org.testcontainers:testcontainers:$testcontainers_version",
         testcontainers_clickhouse                   : "org.testcontainers:clickhouse:$testcontainers_version",
         testcontainers_elasticsearch                : "org.testcontainers:elasticsearch:$testcontainers_version",
         testcontainers_kafka                        : "org.testcontainers:kafka:$testcontainers_version",
         testcontainers_localstack                   : "org.testcontainers:localstack:$testcontainers_version",
         testcontainers_postgresql                   : "org.testcontainers:postgresql:$testcontainers_version",
+        testcontainers_mysql                        : "org.testcontainers:mysql:$testcontainers_version",
         testcontainers_gcloud                       : "org.testcontainers:gcloud:$testcontainers_version",
         vendored_bytebuddy_1_11_0                   : "org.apache.beam:beam-vendor-bytebuddy-1_11_0:0.1",
         vendored_grpc_1_43_2                        : "org.apache.beam:beam-vendor-grpc-1_43_2:0.1",
         vendored_guava_26_0_jre                     : "org.apache.beam:beam-vendor-guava-26_0-jre:0.1",
         vendored_calcite_1_28_0                     : "org.apache.beam:beam-vendor-calcite-1_28_0:0.2",
         woodstox_core_asl                           : "org.codehaus.woodstox:woodstox-core-asl:4.4.1",
-        zstd_jni                                    : "com.github.luben:zstd-jni:1.4.5-2",
+        zstd_jni                                    : "com.github.luben:zstd-jni:1.5.2-1",
         quickcheck_core                             : "com.pholser:junit-quickcheck-core:$quickcheck_version",
         arrow_vector                                : "org.apache.arrow:arrow-vector:$arrow_version",
         arrow_memory_core                           : "org.apache.arrow:arrow-memory-core:$arrow_version",
@@ -2443,6 +2463,7 @@ class BeamModulePlugin implements Plugin<Project> {
       // Python interpreter version for virtualenv setup and test run. This value can be
       // set from commandline with -PpythonVersion, or in build script of certain project.
       // If none of them applied, version set here will be used as default value.
+      // TODO(BEAM-12000): Move default value to Py3.9.
       project.ext.pythonVersion = project.hasProperty('pythonVersion') ?
           project.pythonVersion : '3.8'
 
@@ -2455,7 +2476,10 @@ class BeamModulePlugin implements Plugin<Project> {
             "--clear",
             "${project.ext.envdir}",
           ]
-          project.exec { commandLine virtualenvCmd }
+          project.exec {
+            executable 'sh'
+            args '-c', virtualenvCmd.join(' ')
+          }
           project.exec {
             executable 'sh'
             args '-c', ". ${project.ext.envdir}/bin/activate && " +
@@ -2616,6 +2640,7 @@ class BeamModulePlugin implements Plugin<Project> {
             ':sdks:python:container:py36:docker',
             ':sdks:python:container:py37:docker',
             ':sdks:python:container:py38:docker',
+            ':sdks:python:container:py39:docker',
           ]
           doLast {
             // TODO: Figure out GCS credentials and use real GCS input and output.

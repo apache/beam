@@ -55,7 +55,7 @@ processResources {
     'dataflow.legacy_environment_major_version' : '8',
     'dataflow.fnapi_environment_major_version' : '8',
     'dataflow.legacy_container_version' : 'beam-master-20220203',
-    'dataflow.fnapi_container_version' : 'beam-master-20220203',
+    'dataflow.fnapi_container_version' : 'beam-master-20220216',
     'dataflow.container_base_repository' : 'gcr.io/cloud-dataflow/v1beta3',
   ]
 }
@@ -555,6 +555,9 @@ task validatesRunnerV2Streaming {
       // TODO(BEAM-13525)
       'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testProcessElementSkew',
       'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testOnWindowTimestampSkew',
+
+      // TODO(BEAM-13952)
+      'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
     ]
   ))
 }
@@ -581,6 +584,9 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test, dependsOn: copyG
   exclude '**/BigQueryIOStorageReadTableRowIT.class'
   exclude '**/PubsubReadIT.class'
   exclude '**/FhirIOReadIT.class'
+  exclude '**/SpannerChangeStreamIT.class'
+  exclude '**/SpannerChangeStreamOrderedWithinKeyIT.class'
+  exclude '**/SpannerChangeStreamOrderedWithinKeyGloballyIT.class'
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest
   testClassesDirs = files(project(":sdks:java:io:google-cloud-platform").sourceSets.test.output.classesDirs)

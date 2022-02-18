@@ -105,6 +105,7 @@ import org.apache.beam.sdk.testing.UsesMapState;
 import org.apache.beam.sdk.testing.UsesOnWindowExpiration;
 import org.apache.beam.sdk.testing.UsesOrderedListState;
 import org.apache.beam.sdk.testing.UsesParDoLifecycle;
+import org.apache.beam.sdk.testing.UsesProcessingTimeTimers;
 import org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput;
 import org.apache.beam.sdk.testing.UsesSetState;
 import org.apache.beam.sdk.testing.UsesSideInputs;
@@ -1808,7 +1809,11 @@ public class ParDoTest implements Serializable {
           && e.getMessage().contains(elementTimestamp.toString())
           && e.getMessage().contains("timestamp " + outputTimestamp)
           && e.getMessage()
-              .contains("allowed skew (" + PeriodFormat.getDefault().print(allowedSkew.toPeriod()))
+              .contains(
+                  "allowed skew ("
+                      + (allowedSkew.getMillis() >= Integer.MAX_VALUE
+                          ? allowedSkew
+                          : PeriodFormat.getDefault().print(allowedSkew.toPeriod())))
           && e.getMessage().contains("getAllowedTimestampSkew");
     }
 
@@ -1837,7 +1842,7 @@ public class ParDoTest implements Serializable {
           context.outputWithTimestamp(OUTPUT_ELEMENT, outputTimestamp);
         } catch (IllegalArgumentException e) {
           if (hasExpectedError(e, allowedSkew, context.timestamp(), outputTimestamp)) {
-            context.output(OUTPUT_ELEMENT + outputTimestamp.toString());
+            context.output(OUTPUT_ELEMENT + outputTimestamp);
           }
         }
         try {
@@ -1845,7 +1850,7 @@ public class ParDoTest implements Serializable {
           context.output(TIMER_ELEMENT);
         } catch (IllegalArgumentException e) {
           if (hasExpectedError(e, allowedSkew, context.timestamp(), outputTimestamp)) {
-            context.output(TIMER_ELEMENT + outputTimestamp.toString());
+            context.output(TIMER_ELEMENT + outputTimestamp);
           }
         }
       }
@@ -2126,7 +2131,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesProcessingTimeTimers.class})
     public void testProcessElementSkew() {
       TimestampedValues<KV<String, Duration>> input =
           Create.timestamped(Arrays.asList(KV.of("2", Duration.millis(1L))), Arrays.asList(1L));
@@ -2143,6 +2148,23 @@ public class ParDoTest implements Serializable {
               .apply("createSkew", input)
               .apply("skew", ParDo.of(new ProcessElementTimestampSkewingDoFn(Duration.millis(2L))));
       PAssert.that(skew).containsInAnyOrder(TIMER_ELEMENT, OUTPUT_ELEMENT);
+
+      // Check that we properly print out large allowed skews: pick allowed skew large enough to
+      // trigger failure on PeriodFormat, but small enough to trigger the error.
+      Duration allowedSkew = Duration.millis(Long.valueOf(Integer.MAX_VALUE) * 10000000);
+      Duration offset = allowedSkew.plus(Duration.millis(2L));
+      TimestampedValues<KV<String, Duration>> largeValues =
+          Create.timestamped(Arrays.asList(KV.of("2", offset)), Arrays.asList(0L));
+
+      PCollection<String> largeSkew =
+          pipeline
+              .apply("createLargeSkew", largeValues)
+              .apply("largeSkew", ParDo.of(new ProcessElementTimestampSkewingDoFn(allowedSkew)));
+      PAssert.that(largeSkew)
+          .containsInAnyOrder(
+              TIMER_ELEMENT + new Instant(0L).minus(offset),
+              OUTPUT_ELEMENT + new Instant(0L).minus(offset));
+
       pipeline.run();
     }
 
@@ -2168,6 +2190,20 @@ public class ParDoTest implements Serializable {
                   ParDo.of(
                       new OnTimerTimestampSkewingDoFn(Duration.millis(3L), Duration.millis(2L))));
       PAssert.that(skew).containsInAnyOrder(OUTPUT_ELEMENT, TIMER_ELEMENT);
+
+      // Check that we properly print out large allowed skews: pick allowed skew large enough to
+      // trigger failure on PeriodFormat, but small enough to trigger the error.
+      Duration allowedSkew = Duration.millis(Long.valueOf(Integer.MAX_VALUE) * 10000000);
+      Duration offset = allowedSkew.plus(Duration.millis(2L));
+      PCollection<String> largeSkew =
+          pipeline
+              .apply("createLargeSkew", input)
+              .apply("largeSkew", ParDo.of(new OnTimerTimestampSkewingDoFn(allowedSkew, offset)));
+      PAssert.that(largeSkew)
+          .containsInAnyOrder(
+              TIMER_ELEMENT + new Instant(0L).minus(offset),
+              OUTPUT_ELEMENT + new Instant(0L).minus(offset));
+
       pipeline.run();
     }
 
@@ -4321,7 +4357,7 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesTimersInParDo.class})
+    @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesProcessingTimeTimers.class})
     public void testOutOfBoundsProcessingTimeTimerHold() throws Exception {
       final String timerId = "foo";
 
@@ -4367,6 +4403,7 @@ public class ParDoTest implements Serializable {
     @Category({
       ValidatesRunner.class,
       UsesTimersInParDo.class,
+      UsesProcessingTimeTimers.class,
       UsesTestStream.class,
       UsesTestStreamWithProcessingTime.class
     })
@@ -4537,6 +4574,7 @@ public class ParDoTest implements Serializable {
     @Category({
       ValidatesRunner.class,
       UsesTimersInParDo.class,
+      UsesProcessingTimeTimers.class,
       UsesTestStream.class,
       UsesTestStreamWithProcessingTime.class
     })
@@ -4965,6 +5003,7 @@ public class ParDoTest implements Serializable {
       ValidatesRunner.class,
       UsesStatefulParDo.class,
       UsesTimersInParDo.class,
+      UsesProcessingTimeTimers.class,
       UsesTestStream.class,
       UsesTestStreamWithProcessingTime.class,
       UsesTestStreamWithOutputTimestamp.class
@@ -5234,6 +5273,7 @@ public class ParDoTest implements Serializable {
     @Category({
       NeedsRunner.class,
       UsesTimersInParDo.class,
+      UsesProcessingTimeTimers.class,
       UsesTestStream.class,
       UsesTestStreamWithProcessingTime.class
     })
@@ -5314,6 +5354,7 @@ public class ParDoTest implements Serializable {
     @Category({
       NeedsRunner.class,
       UsesTimersInParDo.class,
+      UsesProcessingTimeTimers.class,
       UsesTestStream.class,
       UsesTestStreamWithProcessingTime.class
     })
@@ -5391,6 +5432,7 @@ public class ParDoTest implements Serializable {
     @Category({
       NeedsRunner.class,
       UsesTimersInParDo.class,
+      UsesProcessingTimeTimers.class,
       UsesTestStream.class,
       UsesTestStreamWithProcessingTime.class
     })
@@ -5504,6 +5546,7 @@ public class ParDoTest implements Serializable {
     @Category({
       NeedsRunner.class,
       UsesTimersInParDo.class,
+      UsesProcessingTimeTimers.class,
       UsesTestStream.class,
       UsesTestStreamWithProcessingTime.class
     })
@@ -6139,6 +6182,7 @@ public class ParDoTest implements Serializable {
     @Category({
       ValidatesRunner.class,
       UsesTimersInParDo.class,
+      UsesProcessingTimeTimers.class,
       UsesTestStream.class,
       UsesTestStreamWithProcessingTime.class,
       UsesTimerMap.class
