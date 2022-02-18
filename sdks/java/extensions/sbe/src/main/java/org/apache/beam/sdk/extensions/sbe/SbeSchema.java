@@ -49,11 +49,6 @@ import uk.co.real_logic.sbe.ir.Ir;
  * the SBE schema, since it is a tokenized form of the original XML schema. To help deal with some
  * ambiguities, such as which message to base the schema around, passing {@link IrOptions} is
  * required. See the Javadoc for the options for more details.
- *
- * <p>At this time, we cannot support serialization to an SBE message through IR. As a result, the
- * {@code byte[]} output from the {@link PayloadSerializerProvider} serializer will be from a JSON
- * representation of the message, not an SBE-serialized message. Downstream systems will need to
- * account for this.
  */
 @Experimental(Kind.SCHEMAS)
 public final class SbeSchema implements Serializable {
@@ -117,79 +112,6 @@ public final class SbeSchema implements Serializable {
   @VisibleForTesting
   ImmutableList<SbeField> getSbeFields() {
     return sbeFields;
-  }
-
-  /**
-   * Options for controlling what to do with unsigned types, specifically whether to use a higher
-   * bit count or, in the case of uint64, a string.
-   */
-  @AutoValue
-  public abstract static class UnsignedOptions implements Serializable {
-    private static final long serialVersionUID = 1L;
-
-    public abstract Boolean useMoreBitsForUint8();
-
-    public abstract Boolean useMoreBitsForUint16();
-
-    public abstract Boolean useMoreBitsForUint32();
-
-    public abstract Boolean useStringForUint64();
-
-    /**
-     * Returns options for using the same bit size for all unsigned types.
-     *
-     * <p>This means that if an unsigned value from SBE comes in with a value outside the signed
-     * range, then the negative equivalent (in terms of bits) will be used.
-     */
-    public static UnsignedOptions usingSameBitSize() {
-      return UnsignedOptions.builder()
-          .setUseMoreBitsForUint8(false)
-          .setUseMoreBitsForUint16(false)
-          .setUseMoreBitsForUint32(false)
-          .setUseStringForUint64(false)
-          .build();
-    }
-
-    /**
-     * Returns options for using a higher bit count for unsigned types.
-     *
-     * <p>This means that if an unsigned value is encountered, it will always use the higher bit
-     * count, even if that higher bit count is unnecessary. However, this means that if it is
-     * necessary, then the proper value will be returned rather than the negative equivalent (in
-     * terms of bits).
-     *
-     * <p>The {@code includeUint64} controls the behavior of 64-bit values, since no properly
-     * higher-bit-numeric type exists. If true, then this will be converted into a string that must
-     * be parsed if intended to be used as a number. Otherwise, it will still be a 64-bit type and
-     * may return negative values.
-     */
-    public static UnsignedOptions usingHigherBitSize(boolean includeUint64) {
-      return UnsignedOptions.builder()
-          .setUseMoreBitsForUint8(true)
-          .setUseMoreBitsForUint16(true)
-          .setUseMoreBitsForUint32(true)
-          .setUseStringForUint64(includeUint64)
-          .build();
-    }
-
-    public static Builder builder() {
-      return new AutoValue_SbeSchema_UnsignedOptions.Builder();
-    }
-
-    /** Builder for {@link UnsignedOptions}. */
-    @AutoValue.Builder
-    public abstract static class Builder {
-
-      public abstract Builder setUseMoreBitsForUint8(Boolean value);
-
-      public abstract Builder setUseMoreBitsForUint16(Boolean value);
-
-      public abstract Builder setUseMoreBitsForUint32(Boolean value);
-
-      public abstract Builder setUseStringForUint64(Boolean value);
-
-      public abstract UnsignedOptions build();
-    }
   }
 
   /**
