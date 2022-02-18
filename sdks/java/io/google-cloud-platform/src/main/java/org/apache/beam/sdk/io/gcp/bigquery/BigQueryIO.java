@@ -1625,7 +1625,9 @@ public class BigQueryIO {
 
     @Override
     public boolean supportsProjectionPushdown() {
-      return Method.DIRECT_READ.equals(getMethod());
+      // We can't do projection pushdown when a query is set. The query may project certain fields
+      // itself, and we can't know without parsing the query.
+      return Method.DIRECT_READ.equals(getMethod()) && getQuery() == null;
     }
 
     @Override
