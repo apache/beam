@@ -32,7 +32,6 @@ const (
 	indentationPattern      = `^(%s){0,1}\w+`
 	findPipelinePattern     = `^(\s*)(.+) = beam.Pipeline`
 	runPipelinePattern      = `^(\s*).*%s.run\(\)`
-	GraphFileName           = "graph.dot"
 )
 
 // GetPythonPreparers returns preparation methods that should be applied to Python code
@@ -89,7 +88,7 @@ func addCodeToFile(args ...interface{}) error {
 	}
 	defer file.Close()
 
-	tmp, err := createTempFile(filePath)
+	tmp, err := utils.CreateTempFile(filePath)
 	if err != nil {
 		logger.Errorf("Preparation: Error during create new temporary file, err: %s\n", err.Error())
 		return err
