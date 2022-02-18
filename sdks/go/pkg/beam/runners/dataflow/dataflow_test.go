@@ -82,6 +82,64 @@ func TestGetJobOptions(t *testing.T) {
 	}
 }
 
+func TestGetJobOptions_NoExperimentsSet(t *testing.T) {
+	*labels = `{"label1": "val1", "label2": "val2"}`
+	*stagingLocation = "gs://testStagingLocation"
+	*autoscalingAlgorithm = "NONE"
+	*minCPUPlatform = ""
+
+	*gcpopts.Project = "testProject"
+	*gcpopts.Region = "testRegion"
+
+	*jobopts.Experiments = ""
+	*jobopts.JobName = "testJob"
+
+	opts, err := getJobOptions(nil)
+
+	if err != nil {
+		t.Fatalf("getJobOptions() returned error %q, want %q", err, "nil")
+	}
+	if got, want := len(opts.Experiments), 2; got != want {
+		t.Fatalf("len(getJobOptions().Experiments) = %q, want %q", got, want)
+	}
+	sort.Strings(opts.Experiments)
+	expectedExperiments := []string{"use_portable_job_submission", "use_unified_worker"}
+	for i := 0; i < 2; i++ {
+		if got, want := opts.Experiments[i], expectedExperiments[i]; got != want {
+			t.Fatalf("getJobOptions().Experiments = %q, want %q", got, want)
+		}
+	}
+}
+
+func TestGetJobOptions_NoStagingLocation(t *testing.T) {
+	*stagingLocation = ""
+	*gcpopts.Project = "testProject"
+	*gcpopts.Region = "testRegion"
+
+	_, err := getJobOptions(nil)
+	if err == nil {
+		t.Fatalf("getJobOptions() returned error nil, want an error")
+	}
+}
+
+func TestGetJobOptions_InvalidAutoscaling(t *testing.T) {
+	*labels = `{"label1": "val1", "label2": "val2"}`
+	*stagingLocation = "gs://testStagingLocation"
+	*autoscalingAlgorithm = "INVALID"
+	*minCPUPlatform = "testPlatform"
+
+	*gcpopts.Project = "testProject"
+	*gcpopts.Region = "testRegion"
+
+	*jobopts.Experiments = "use_runner_v2,use_portable_job_submission"
+	*jobopts.JobName = "testJob"
+
+	_, err := getJobOptions(nil)
+	if err == nil {
+		t.Fatalf("getJobOptions() returned error nil, want an error")
+	}
+}
+
 func TestGetJobOptions_DockerNoImage(t *testing.T) {
 	*jobopts.EnvironmentType = "docker"
 	*jobopts.EnvironmentConfig = "testContainerImage"
