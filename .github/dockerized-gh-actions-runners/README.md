@@ -40,8 +40,8 @@ Ubuntu Self-hosted runners are implemented using Google Kubernetes Engine with t
 * Horizontal Pod Autoscaling
   * 5-10 nodes
   * HorizontalPodAutoscaler
-    * Min replicas: 10 
-    * Max replicas: 20 
+    * Min replicas: 10
+    * Max replicas: 20
     * CPU utilization: 70%
 * Vertical Pod Autoscaling: updateMode: "Auto"
 
@@ -49,9 +49,9 @@ Ubuntu Self-hosted runners are implemented using Google Kubernetes Engine with t
 ## Windows
 Windows Virtual machines have the following specifications
 
-#### VM specifications 
+#### VM specifications
 * Machine Type: n2-standard-2
-* Disk Size: 70 GB 
+* Disk Size: 70 GB
 * CPU: 2 vCPUs
 * Memory : 8 GB
 
@@ -61,7 +61,7 @@ Windows Virtual machines have the following specifications
 * Cooldown period: 300s
 
 #### Notes:
-At first glance we considered to implement Windows runners using K8s, however this was not optimal because of the following reasons:
+At first glance we considered implementing Windows runners using K8s, however this was not optimal because of the following reasons:
 
 * VS Build tools are required for certain workflows, unfortunately official images that support this dependency are huge in size, reaching 20GB easily which is not an ideal case for k8S management.
 * Windows Subsystem For Linux(WSL) is a feature that allows to execute bash scripts inside Windows which removes tech debt by avoiding writing steps in powershell, but this feature is disabled with payload removed in Windows containers.
@@ -74,7 +74,7 @@ At first glance we considered to implement Windows runners using K8s, however th
 
 Depending on the termination event, sometimes the removal script for offline runners is not triggered correctly from inside the VMs or K8s pod, because of that an additional pipeline was created in order to clean up the list of GitHub runners in the group.
 
-This was implemented using a Cloud function subscribed to a Pub/Sub Topic, the topic is triggered through a Cloud Scheduler that is executed once per day, the function consumes a Github API to delete offline self-hosted runners from the organization retrieving the token with it's service account to secrets manager.
+This was implemented using a Cloud function subscribed to a Pub/Sub Topic, the topic is triggered through a Cloud Scheduler that is executed once per day, the function consumes a GitHub API to delete offline self-hosted runners from the organization retrieving the token with its service account to secrets manager.
 
 
 ![Delete Offline Self-hosted Runners](diagrams/self-hosted-runners-delete-function.png)
