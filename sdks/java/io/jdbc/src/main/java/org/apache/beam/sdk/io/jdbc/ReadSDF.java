@@ -27,29 +27,33 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.PreparedStatementSetter;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.RowMapper;
 import org.apache.beam.sdk.io.jdbc.JdbcUtil.JdbcReadWithPartitionsHelper;
+import org.apache.beam.sdk.io.jdbc.JdbcUtil.StartEndRange;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
-import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/** A {@link DoFn} executing the SQL query to read from the database. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 @BoundedPerElement
-public class ReadSDF<ParameterT, OutputT> extends DoFn<KV<ParameterT, ParameterT>, OutputT> {
+public class ReadSDF<ParameterT, PartitionT, OutputT> extends DoFn<ParameterT, OutputT> {
   private static final Logger LOG = LoggerFactory.getLogger(ReadSDF.class);
   private final SerializableFunction<Void, DataSource> dataSourceProviderFn;
   private final String query;
-  private final PreparedStatementSetter<KV<ParameterT, ParameterT>> parameterSetter;
+  private final PreparedStatementSetter<ParameterT> parameterSetter;
   private final RowMapper<OutputT> rowMapper;
+  private final Coder<ParameterT> restrictionCoder;
   private final int fetchSize;
-  private final JdbcReadWithPartitionsHelper<ParameterT> partitioningHelper;
-  private final SerializableFunction<ResultSet, ParameterT> rowPartitionValueGetter;
-  private final Coder<KV<ParameterT, ParameterT>> restrictionCoder;
 
   private DataSource dataSource;
   private Connection connection;
@@ -57,76 +61,93 @@ public class ReadSDF<ParameterT, OutputT> extends DoFn<KV<ParameterT, ParameterT
   ReadSDF(
       SerializableFunction<Void, DataSource> dataSourceProviderFn,
       String query,
-      PreparedStatementSetter<KV<ParameterT, ParameterT>> parameterSetter,
+      PreparedStatementSetter<ParameterT> parameterSetter,
       RowMapper<OutputT> rowMapper,
       int fetchSize,
-      JdbcReadWithPartitionsHelper<ParameterT> partitioningHelper,
-      SerializableFunction<ResultSet, ParameterT> rowPartitionValueGetter,
-      Coder<KV<ParameterT, ParameterT>> restrictionCoder) {
+      Coder<ParameterT> restrictionCoder) {
     this.dataSourceProviderFn = dataSourceProviderFn;
     this.query = query;
     this.parameterSetter = parameterSetter;
     this.rowMapper = rowMapper;
     this.fetchSize = fetchSize;
-    this.partitioningHelper = partitioningHelper;
-    this.rowPartitionValueGetter = rowPartitionValueGetter;
     this.restrictionCoder = restrictionCoder;
   }
 
-  static class ReadRestrictionTracker<ParameterT>
-      extends RestrictionTracker<KV<ParameterT, ParameterT>, ParameterT> {
-    private ParameterT lowerBound;
-    private ParameterT lastClaimed;
-    private ParameterT upperBound;
-    private final JdbcReadWithPartitionsHelper<ParameterT> helper;
+  static class ReadRestrictionTracker<ParameterT, PositionT>
+      extends RestrictionTracker<ParameterT, PositionT> {
+    private PositionT lowerBound;
+    private PositionT lastClaimed;
+    private PositionT upperBound;
+    private final JdbcReadWithPartitionsHelper<PositionT> helper;
+    private final TypeDescriptor<PositionT> typeDescriptor;
+    private final String columnName;
 
     ReadRestrictionTracker(
-        ParameterT lowerBound,
-        ParameterT upperBound,
-        JdbcReadWithPartitionsHelper<ParameterT> helper) {
+        PositionT lowerBound,
+        PositionT upperBound,
+        JdbcReadWithPartitionsHelper<PositionT> helper,
+        TypeDescriptor<PositionT> typeDescriptor,
+        String columnName) {
       this.lowerBound = lowerBound;
       this.lastClaimed = lowerBound;
       this.upperBound = upperBound;
       this.helper = helper;
+      this.typeDescriptor = typeDescriptor;
+      this.columnName = columnName;
     }
 
     @Override
-    public boolean tryClaim(ParameterT position) {
-      System.out.println(
-          this.toString()
-              + " CLAIMING "
-              + position.toString()
-              + " lowbound: "
-              + lowerBound.toString()
-              + " highbound: "
-              + upperBound.toString());
-      if (upperBound instanceof DateTime && position instanceof java.sql.Timestamp) {
-        this.lastClaimed = (ParameterT) new DateTime(position);
-        return ((DateTime) upperBound).getMillis() >= new DateTime(position).getMillis();
+    public boolean tryClaim(PositionT position) {
+      if (position == null) {
+        return true;
       } else {
-        this.lastClaimed = position;
-        return ((Comparable<ParameterT>) position).compareTo(upperBound) <= 0;
+        // Position is a value that we want to claim.
+        if (upperBound instanceof DateTime && position instanceof java.sql.Timestamp) {
+          this.lastClaimed = (PositionT) new DateTime(position);
+          return ((DateTime) upperBound).getMillis() >= new DateTime(position).getMillis();
+        } else {
+          assert ((Comparable<PositionT>) position).compareTo(lowerBound) >= 0;
+          this.lastClaimed = position;
+          return ((Comparable<PositionT>) position).compareTo(upperBound) < 0;
+        }
       }
     }
 
     @Override
-    public KV<ParameterT, ParameterT> currentRestriction() {
-      return KV.of(lastClaimed, upperBound);
-    }
-
-    @Override
-    public @Nullable SplitResult<KV<ParameterT, ParameterT>> trySplit(double fractionOfRemainder) {
-      List<KV<ParameterT, ParameterT>> ranges =
-          Lists.newArrayList(this.helper.calculateRanges(this.lastClaimed, this.upperBound, 2L));
-      System.out.println("SPLITTING RESULT !" + ranges.toString());
-
-      if (ranges.size() > 1) {
-        this.upperBound = ranges.get(0).getValue();
-        return SplitResult.of(
-            ranges.get(0), KV.of(ranges.get(1).getKey(), ranges.get(ranges.size() - 1).getValue()));
-      } else {
+    public ParameterT currentRestriction() {
+      if (columnName == null) {
         return null;
+      } else {
+        // TODO: Validate that ParameterT is `StartEndRange<PositionT>` somehow.
+        return (ParameterT)
+            new StartEndRange<PositionT>(lastClaimed, upperBound, typeDescriptor, columnName);
       }
+    }
+
+    @Override
+    public @Nullable SplitResult<ParameterT> trySplit(double fractionOfRemainder) {
+      // If the column name is null, then this means that we are not trying to partition this
+      // query based on a particular function, so we reject any split requests.
+      if (columnName != null) {
+        List<StartEndRange<PositionT>> ranges =
+            Lists.newArrayList(
+                this.helper.calculateRanges(this.lastClaimed, this.upperBound, 2L, columnName));
+
+        // TODO: Validate that ParameterT is `StartEndRange<PositionT>` somehow.
+        if (ranges.size() > 1) {
+          this.upperBound = ranges.get(0).end();
+          return SplitResult.<ParameterT>of(
+              (ParameterT) ranges.get(0),
+              (ParameterT)
+                  new StartEndRange<PositionT>(
+                      ranges.get(1).start(),
+                      ranges.get(ranges.size() - 1).end(),
+                      ranges.get(0).type(),
+                      ranges.get(0).columnName()));
+        }
+        // TODO do something nice?
+      }
+      return null;
     }
 
     @Override
@@ -139,22 +160,30 @@ public class ReadSDF<ParameterT, OutputT> extends DoFn<KV<ParameterT, ParameterT
   }
 
   @DoFn.GetInitialRestriction
-  public KV<ParameterT, ParameterT> getInitialRestriction(
-      @DoFn.Element KV<ParameterT, ParameterT> range) {
-    // The input ParameterT is a Range.
-    return range;
+  public ParameterT getInitialRestriction(@DoFn.Element ParameterT elm) {
+    return elm;
   }
 
   @GetRestrictionCoder
-  public Coder<KV<ParameterT, ParameterT>> getRestrictionCoder() {
+  public Coder<ParameterT> getRestrictionCoder() {
     return restrictionCoder;
   }
 
   @NewTracker
-  public ReadRestrictionTracker<ParameterT> restrictionTracker(
-      @Restriction KV<ParameterT, ParameterT> restriction) {
-    return new ReadRestrictionTracker<ParameterT>(
-        restriction.getKey(), restriction.getValue(), partitioningHelper);
+  public ReadRestrictionTracker<ParameterT, PartitionT> restrictionTracker(
+      @Restriction ParameterT restriction) {
+    if (restriction instanceof StartEndRange) {
+      StartEndRange<PartitionT> rangeRestriction = (StartEndRange<PartitionT>) restriction;
+      return new ReadRestrictionTracker<ParameterT, PartitionT>(
+          rangeRestriction.start(),
+          rangeRestriction.end(),
+          (JdbcReadWithPartitionsHelper<PartitionT>)
+              JdbcUtil.PRESET_HELPERS.get(rangeRestriction.type().getRawType()),
+          rangeRestriction.type(),
+          ((StartEndRange<?>) restriction).columnName());
+    } else {
+      return new ReadRestrictionTracker<ParameterT, PartitionT>(null, null, null, null, null);
+    }
   }
 
   @Setup
@@ -166,8 +195,8 @@ public class ReadSDF<ParameterT, OutputT> extends DoFn<KV<ParameterT, ParameterT
   // Spotbugs seems to not understand the nested try-with-resources
   @SuppressFBWarnings("OBL_UNSATISFIED_OBLIGATION")
   public void processElement(
-      @Element KV<ParameterT, ParameterT> range,
-      RestrictionTracker<KV<ParameterT, ParameterT>, ParameterT> tracker,
+      @Element ParameterT range,
+      RestrictionTracker<ParameterT, PartitionT> tracker,
       OutputReceiver<OutputT> outputReceiver)
       throws Exception {
     // Only acquire the connection if we need to perform a read.
@@ -182,12 +211,28 @@ public class ReadSDF<ParameterT, OutputT> extends DoFn<KV<ParameterT, ParameterT
         connection.prepareStatement(
             query, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
       statement.setFetchSize(fetchSize);
-      parameterSetter.setParameters(tracker.currentRestriction(), statement);
+      // This DoFn can be called with non-splittable parameters, or with splittable parameters.
+      // If the parameters are splittable, then the restriction will not be null, and the parameters
+      // will be part of the restriction (therefore tracker.currentRestriction() != null).
+      // A "splittable parameter" wil represent a StartEndRange produced within
+      // JdbcIO.ReadWithPartitions.
+      // If the parameters are non-splittable (i.e. a normal, user-provided parameter from
+      // JdbcIO.Read or JdbcIO.ReadVoid.
+      if (tracker.currentRestriction() != null) {
+        parameterSetter.setParameters(tracker.currentRestriction(), statement);
+      } else {
+        parameterSetter.setParameters(range, statement);
+      }
       try (ResultSet resultSet = statement.executeQuery()) {
-        System.out.println("STATEMENT: " + statement.toString());
         while (resultSet.next()) {
-          if (tracker.tryClaim(rowPartitionValueGetter.apply(resultSet))) {
-            System.out.println("OUTPUTTING " + rowMapper.mapRow(resultSet).toString());
+          Object position = null;
+          if (range instanceof StartEndRange) {
+            position = resultSet.getObject(((StartEndRange<?>) range).columnName());
+          }
+          // For null positions (i.e. a non-splittable parameter), the restriction tracker will
+          // always allow us to claim said position, while for non-null positions, we may have
+          // performed a split.
+          if (tracker.tryClaim((PartitionT) position)) {
             outputReceiver.output(rowMapper.mapRow(resultSet));
           } else {
             // We have arrived to the end of the restriction, and we must end the query
@@ -195,7 +240,6 @@ public class ReadSDF<ParameterT, OutputT> extends DoFn<KV<ParameterT, ParameterT
           }
         }
       }
-      tracker.tryClaim(tracker.currentRestriction().getValue());
     }
   }
 

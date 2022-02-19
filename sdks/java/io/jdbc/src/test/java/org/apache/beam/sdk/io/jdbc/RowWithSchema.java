@@ -26,10 +26,10 @@ import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 @DefaultSchema(JavaBeanSchema.class)
 public class RowWithSchema implements Serializable {
   private final String name;
-  private final int id;
+  private final long id;
 
   @SchemaCreate
-  public RowWithSchema(String name, int id) {
+  public RowWithSchema(String name, long id) {
     this.name = name;
     this.id = id;
   }
@@ -38,7 +38,7 @@ public class RowWithSchema implements Serializable {
     return name;
   }
 
-  public int getId() {
+  public long getId() {
     return id;
   }
 }

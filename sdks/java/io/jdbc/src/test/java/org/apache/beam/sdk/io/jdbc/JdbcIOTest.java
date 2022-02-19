@@ -70,6 +70,7 @@ import org.apache.beam.sdk.io.common.TestRow;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.DataSourceConfiguration;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.PoolableDataSourceProvider;
 import org.apache.beam.sdk.io.jdbc.JdbcUtil.PartitioningFn;
+import org.apache.beam.sdk.io.jdbc.JdbcUtil.StartEndRange;
 import org.apache.beam.sdk.io.jdbc.LogicalTypes.FixedPrecisionNumeric;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -293,14 +294,14 @@ public class JdbcIOTest implements Serializable {
         Schema.of(
             Schema.Field.of("NAME", LogicalTypes.variableLengthString(JDBCType.VARCHAR, 500))
                 .withNullable(true),
-            Schema.Field.of("ID", Schema.FieldType.INT32).withNullable(true));
+            Schema.Field.of("ID", FieldType.INT64).withNullable(true));
 
     assertEquals(expectedSchema, rows.getSchema());
 
     PCollection<Row> output = rows.apply(Select.fieldNames("NAME", "ID"));
     PAssert.that(output)
         .containsInAnyOrder(
-            ImmutableList.of(Row.withSchema(expectedSchema).addValues("Testval1", 1).build()));
+            ImmutableList.of(Row.withSchema(expectedSchema).addValues("Testval1", 1L).build()));
 
     pipeline.run();
   }
@@ -387,14 +388,14 @@ public class JdbcIOTest implements Serializable {
         Schema.of(
             Schema.Field.of("NAME", LogicalTypes.variableLengthString(JDBCType.VARCHAR, 500))
                 .withNullable(true),
-            Schema.Field.of("ID", Schema.FieldType.INT32).withNullable(true));
+            Schema.Field.of("ID", Schema.FieldType.INT64).withNullable(true));
 
     assertEquals(expectedSchema, rows.getSchema());
 
     PCollection<Row> output = rows.apply(Select.fieldNames("NAME", "ID"));
     PAssert.that(output)
         .containsInAnyOrder(
-            ImmutableList.of(Row.withSchema(expectedSchema).addValues(name, 1).build()));
+            ImmutableList.of(Row.withSchema(expectedSchema).addValues(name, 1L).build()));
 
     pipeline.run();
   }
@@ -403,7 +404,7 @@ public class JdbcIOTest implements Serializable {
   public void testReadWithSchema() {
     SerializableFunction<Void, DataSource> dataSourceProvider = ignored -> DATA_SOURCE;
     JdbcIO.RowMapper<RowWithSchema> rowMapper =
-        rs -> new RowWithSchema(rs.getString("NAME"), rs.getInt("ID"));
+        rs -> new RowWithSchema(rs.getString("NAME"), rs.getLong("ID"));
     pipeline.getSchemaRegistry().registerJavaBean(RowWithSchema.class);
 
     PCollection<RowWithSchema> rows =
@@ -420,14 +421,14 @@ public class JdbcIOTest implements Serializable {
     Schema expectedSchema =
         Schema.of(
             Schema.Field.of("name", Schema.FieldType.STRING),
-            Schema.Field.of("id", Schema.FieldType.INT32));
+            Schema.Field.of("id", FieldType.INT64));
 
     assertEquals(expectedSchema, rows.getSchema());
 
     PCollection<Row> output = rows.apply(Select.fieldNames("name", "id"));
     PAssert.that(output)
         .containsInAnyOrder(
-            ImmutableList.of(Row.withSchema(expectedSchema).addValues("Testval1", 1).build()));
+            ImmutableList.of(Row.withSchema(expectedSchema).addValues("Testval1", 1L).build()));
 
     pipeline.run();
   }
@@ -1245,7 +1246,7 @@ public class JdbcIOTest implements Serializable {
     DatabaseTestHelper.createTable(DATA_SOURCE, secondTableName);
 
     Schema.Builder schemaBuilder = Schema.builder();
-    schemaBuilder.addField(Schema.Field.of("id", Schema.FieldType.INT32));
+    schemaBuilder.addField(Schema.Field.of("id", FieldType.INT64));
     schemaBuilder.addField(Schema.Field.of("name", Schema.FieldType.STRING));
     Schema schema = schemaBuilder.build();
     try {
@@ -1273,10 +1274,10 @@ public class JdbcIOTest implements Serializable {
 
   @Test
   public void testPartitioningDateTime() {
-    PCollection<KV<DateTime, DateTime>> ranges =
+    PCollection<StartEndRange<DateTime>> ranges =
         pipeline
             .apply(Create.of(KV.of(10L, KV.of(new DateTime(0), DateTime.now()))))
-            .apply(ParDo.of(new PartitioningFn<>(TypeDescriptor.of(DateTime.class))));
+            .apply(ParDo.of(new PartitioningFn<>(TypeDescriptor.of(DateTime.class), "")));
 
     PAssert.that(ranges.apply(Count.globally()))
         .satisfies(
@@ -1297,10 +1298,10 @@ public class JdbcIOTest implements Serializable {
 
   @Test
   public void testPartitioningLongs() {
-    PCollection<KV<Long, Long>> ranges =
+    PCollection<StartEndRange<Long>> ranges =
         pipeline
             .apply(Create.of(KV.of(10L, KV.of(0L, 12346789L))))
-            .apply(ParDo.of(new PartitioningFn<>(TypeDescriptors.longs())));
+            .apply(ParDo.of(new PartitioningFn<>(TypeDescriptors.longs(), "")));
 
     PAssert.that(ranges.apply(Count.globally())).containsInAnyOrder(10L);
     pipeline.run().waitUntilFinish();

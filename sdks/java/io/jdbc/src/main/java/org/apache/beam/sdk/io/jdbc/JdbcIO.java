@@ -53,6 +53,7 @@ import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.WriteFn.WriteFnSpec;
 import org.apache.beam.sdk.io.jdbc.JdbcUtil.PartitioningFn;
+import org.apache.beam.sdk.io.jdbc.JdbcUtil.StartEndRange;
 import org.apache.beam.sdk.io.jdbc.SchemaUtil.FieldWithIndex;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -834,7 +835,7 @@ public class JdbcIO {
       if (getCoder() != null) {
         readAll = readAll.toBuilder().setCoder(getCoder()).build();
       }
-      return input.apply(Create.of((Void) null)).apply(readAll);
+      return input.apply(Create.of((Void) null)).setCoder(VoidCoder.of()).apply(readAll);
     }
 
     @Override
@@ -998,16 +999,19 @@ public class JdbcIO {
           "Unable to infer a coder for JdbcIO.readAll() transform. "
               + "Provide a coder via withCoder, or ensure that one can be inferred from the"
               + " provided RowMapper.");
+
       PCollection<OutputT> output =
           input
               .apply(
                   ParDo.of(
-                      new ReadFn<>(
+                      // TODO: Second param is not void?
+                      new ReadSDF<ParameterT, Void, OutputT>(
                           getDataSourceProviderFn(),
-                          getQuery(),
+                          getQuery().get(),
                           getParameterSetter(),
                           getRowMapper(),
-                          getFetchSize())))
+                          getFetchSize(),
+                          input.getCoder())))
               .setCoder(coder);
 
       if (getOutputParallelization()) {
@@ -1262,52 +1266,25 @@ public class JdbcIO {
         rowMapper = getRowMapper();
       }
 
-      PCollection<KV<PartitionColumnT, PartitionColumnT>> ranges =
+      PCollection<StartEndRange<PartitionColumnT>> ranges =
           params
-              .apply("Partitioning", ParDo.of(new PartitioningFn<>(getPartitionColumnType())))
+              .apply(
+                  "Partitioning",
+                  ParDo.of(new PartitioningFn<>(getPartitionColumnType(), getPartitionColumn())))
               .apply("Reshuffle partitions", Reshuffle.viaRandomKey());
 
-      // DoFn<KV<PartitionColumnT, PartitionColumnT>, T> fn =
-      //     new ReadSDF<PartitionColumnT, T>(
-      //         getDataSourceProviderFn(),
-      //         String.format(
-      //             "select * from %1$s where %2$s >= ? and %2$s < ?",
-      //             getTable(), getPartitionColumn()),
-      //
-      // (JdbcUtil.JdbcReadWithPartitionsHelper.getPartitionsHelper(getPartitionColumnType()))
-      //             ::setParameters,
-      //         rowMapper,
-      //         1000,
-      //
-      // (JdbcUtil.JdbcReadWithPartitionsHelper.getPartitionsHelper(getPartitionColumnType())),
-      //         new SerializableFunction<ResultSet, PartitionColumnT>() {
-      //           @Override
-      //           public PartitionColumnT apply(ResultSet input) {
-      //             try {
-      //               return (PartitionColumnT) input.getObject(getPartitionColumn());
-      //             } catch (java.sql.SQLException e) {
-      //               throw new RuntimeException(e);
-      //             }
-      //           }
-      //         });
-
-      ReadAllWithSdf<PartitionColumnT, T> readAll =
-          ReadAllWithSdf.<PartitionColumnT, T>create()
+      ReadAll<StartEndRange<PartitionColumnT>, T> readAll =
+          JdbcIO.<StartEndRange<PartitionColumnT>, T>readAll()
               .withDataSourceProviderFn(getDataSourceProviderFn())
               .withQuery(
                   String.format(
                       "select * from %1$s where %2$s >= ? and %2$s < ? ORDER BY %2$s ASC",
                       getTable(), getPartitionColumn()))
               .withRowMapper(rowMapper)
-              .withPartitioningColumn(getPartitionColumn())
-              .withRestrictionCoder(ranges.getCoder())
               .withParameterSetter(
                   (JdbcUtil.JdbcReadWithPartitionsHelper.getPartitionsHelper(
                           getPartitionColumnType()))
-                      ::setParameters)
-              .withHelper(
-                  JdbcUtil.JdbcReadWithPartitionsHelper.getPartitionsHelper(
-                      getPartitionColumnType()));
+                      ::setParameters);
 
       if (getUseBeamSchema()) {
         readAll = readAll.withCoder((Coder<T>) RowCoder.of(schema));
@@ -1344,82 +1321,6 @@ public class JdbcIO {
               "upperBound", getUpperBound() == null ? "auto-infer" : getUpperBound().toString()));
       if (getDataSourceProviderFn() instanceof HasDisplayData) {
         ((HasDisplayData) getDataSourceProviderFn()).populateDisplayData(builder);
-      }
-    }
-  }
-
-  /** A {@link DoFn} executing the SQL query to read from the database. */
-  private static class ReadFn<ParameterT, OutputT> extends DoFn<ParameterT, OutputT> {
-
-    private final SerializableFunction<Void, DataSource> dataSourceProviderFn;
-    private final ValueProvider<String> query;
-    private final PreparedStatementSetter<ParameterT> parameterSetter;
-    private final RowMapper<OutputT> rowMapper;
-    private final int fetchSize;
-
-    private DataSource dataSource;
-    private Connection connection;
-
-    private ReadFn(
-        SerializableFunction<Void, DataSource> dataSourceProviderFn,
-        ValueProvider<String> query,
-        PreparedStatementSetter<ParameterT> parameterSetter,
-        RowMapper<OutputT> rowMapper,
-        int fetchSize) {
-      this.dataSourceProviderFn = dataSourceProviderFn;
-      this.query = query;
-      this.parameterSetter = parameterSetter;
-      this.rowMapper = rowMapper;
-      this.fetchSize = fetchSize;
-    }
-
-    @Setup
-    public void setup() throws Exception {
-      dataSource = dataSourceProviderFn.apply(null);
-    }
-
-    @ProcessElement
-    // Spotbugs seems to not understand the nested try-with-resources
-    @SuppressFBWarnings("OBL_UNSATISFIED_OBLIGATION")
-    public void processElement(ProcessContext context) throws Exception {
-      // Only acquire the connection if we need to perform a read.
-      if (connection == null) {
-        connection = dataSource.getConnection();
-      }
-      // PostgreSQL requires autocommit to be disabled to enable cursor streaming
-      // see https://jdbc.postgresql.org/documentation/head/query.html#query-with-cursor
-      LOG.info("Autocommit has been disabled");
-      connection.setAutoCommit(false);
-      try (PreparedStatement statement =
-          connection.prepareStatement(
-              query.get(), ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
-        statement.setFetchSize(fetchSize);
-        parameterSetter.setParameters(context.element(), statement);
-        try (ResultSet resultSet = statement.executeQuery()) {
-          while (resultSet.next()) {
-            context.output(rowMapper.mapRow(resultSet));
-          }
-        }
-      }
-    }
-
-    @FinishBundle
-    public void finishBundle() throws Exception {
-      cleanUpConnection();
-    }
-
-    @Override
-    protected void finalize() throws Throwable {
-      cleanUpConnection();
-    }
-
-    private void cleanUpConnection() throws Exception {
-      if (connection != null) {
-        try {
-          connection.close();
-        } finally {
-          connection = null;
-        }
       }
     }
   }

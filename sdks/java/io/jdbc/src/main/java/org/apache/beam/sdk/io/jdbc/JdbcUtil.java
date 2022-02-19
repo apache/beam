@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
+import java.io.Serializable;
 import java.sql.Date;
 import java.sql.JDBCType;
 import java.sql.PreparedStatement;
@@ -43,6 +44,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.joda.time.DateTime;
@@ -349,7 +351,7 @@ class JdbcUtil {
    * @param <PartitionT>
    */
   interface JdbcReadWithPartitionsHelper<PartitionT>
-      extends PreparedStatementSetter<KV<PartitionT, PartitionT>>,
+      extends PreparedStatementSetter<StartEndRange<PartitionT>>,
           RowMapper<KV<Long, KV<PartitionT, PartitionT>>> {
     static <T> JdbcReadWithPartitionsHelper<T> getPartitionsHelper(TypeDescriptor<T> type) {
       // This cast is unchecked, thus this is a small type-checking risk. We just need
@@ -358,23 +360,108 @@ class JdbcUtil {
       return (JdbcReadWithPartitionsHelper<T>) PRESET_HELPERS.get(type.getRawType());
     }
 
-    Iterable<KV<PartitionT, PartitionT>> calculateRanges(
-        PartitionT lowerBound, PartitionT upperBound, Long partitions);
+    Iterable<StartEndRange<PartitionT>> calculateRanges(
+        PartitionT lowerBound, PartitionT upperBound, Long partitions, String columnName);
 
     @Override
-    void setParameters(KV<PartitionT, PartitionT> element, PreparedStatement preparedStatement);
+    void setParameters(StartEndRange<PartitionT> element, PreparedStatement preparedStatement);
 
     @Override
     KV<Long, KV<PartitionT, PartitionT>> mapRow(ResultSet resultSet) throws Exception;
   }
 
+  public static class StartEndRange<T> implements Serializable {
+    private final T start;
+    private final T end;
+    private final TypeDescriptor<T> typeDescriptor;
+    private final String columnName;
+
+    StartEndRange(T start, T end, TypeDescriptor<T> typeDescriptor, String columnName) {
+      this.start = start;
+      this.end = end;
+      this.typeDescriptor = typeDescriptor;
+      this.columnName = columnName;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof StartEndRange)) {
+        return false;
+      }
+      StartEndRange<?> that = (StartEndRange<?>) o;
+      return Objects.equals(start, that.start)
+          && Objects.equals(end, that.end)
+          && Objects.equals(typeDescriptor, that.typeDescriptor)
+          && Objects.equals(columnName, that.columnName);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(start, end, typeDescriptor, columnName);
+    }
+
+    @Override
+    public String toString() {
+      return "StartEndRange{"
+          + "start="
+          + start
+          + ", end="
+          + end
+          + ", typeDescriptor="
+          + typeDescriptor
+          + ", columnName='"
+          + columnName
+          + '\''
+          + '}';
+    }
+
+    T start() {
+      return start;
+    }
+
+    T end() {
+      return end;
+    }
+
+    String columnName() {
+      return columnName;
+    }
+
+    TypeDescriptor<T> type() {
+      return typeDescriptor;
+    }
+
+    KV<StartEndRange<T>, StartEndRange<T>> split(double fraction) {
+      List<StartEndRange<T>> ranges =
+          Lists.newArrayList(
+              ((JdbcReadWithPartitionsHelper<T>) PRESET_HELPERS.get(type().getRawType()))
+                  .calculateRanges(start(), end(), 2L, columnName));
+      return KV.of(
+          new StartEndRange<T>(
+              ranges.get(0).start(),
+              ranges.get(0).end(),
+              typeDescriptor,
+              ranges.get(0).columnName()),
+          new StartEndRange<T>(
+              ranges.get(1).start(),
+              ranges.get(ranges.size() - 1).end(),
+              typeDescriptor,
+              ranges.get(1).columnName()));
+    }
+  }
+
   /** Create partitions on a table. */
-  static class PartitioningFn<T> extends DoFn<KV<Long, KV<T, T>>, KV<T, T>> {
+  static class PartitioningFn<T> extends DoFn<KV<Long, KV<T, T>>, StartEndRange<T>> {
     private static final Logger LOG = LoggerFactory.getLogger(PartitioningFn.class);
     final TypeDescriptor<T> partitioningColumnType;
+    final String partitioningColumnName;
 
-    PartitioningFn(TypeDescriptor<T> partitioningColumnType) {
+    PartitioningFn(TypeDescriptor<T> partitioningColumnType, String partitioningColumnName) {
       this.partitioningColumnType = partitioningColumnType;
+      this.partitioningColumnName = partitioningColumnName;
     }
 
     @ProcessElement
@@ -384,13 +471,24 @@ class JdbcUtil {
       JdbcReadWithPartitionsHelper<T> helper =
           JdbcReadWithPartitionsHelper.getPartitionsHelper(partitioningColumnType);
       if (c.element().getKey() == 1L) {
-        c.output(c.element().getValue());
+        c.output(
+            new StartEndRange<T>(
+                c.element().getValue().getKey(),
+                c.element().getValue().getValue(),
+                partitioningColumnType,
+                partitioningColumnName));
         return;
       }
-      List<KV<T, T>> ranges =
-          Lists.newArrayList(helper.calculateRanges(lowerBound, upperBound, c.element().getKey()));
-      LOG.warn("Total of {} ranges: {}", ranges.size(), ranges);
-      for (KV<T, T> e : ranges) {
+      List<StartEndRange<T>> ranges =
+          Lists.newArrayList(
+              helper.calculateRanges(
+                  lowerBound, upperBound, c.element().getKey(), partitioningColumnName));
+      LOG.info(
+          "Partitioned range {} into a total of {} ranges: {}",
+          c.element().getValue(),
+          ranges.size(),
+          ranges);
+      for (StartEndRange<T> e : ranges) {
         c.output(e);
       }
     }
@@ -401,29 +499,33 @@ class JdbcUtil {
           Long.class,
           new JdbcReadWithPartitionsHelper<Long>() {
             @Override
-            public Iterable<KV<Long, Long>> calculateRanges(
-                Long lowerBound, Long upperBound, Long partitions) {
-              List<KV<Long, Long>> ranges = new ArrayList<>();
+            public Iterable<StartEndRange<Long>> calculateRanges(
+                Long lowerBound, Long upperBound, Long partitions, String columnName) {
+              List<StartEndRange<Long>> ranges = new ArrayList<>();
               // We divide by partitions FIRST to make sure that we can cover the whole LONG range.
               // If we substract first, then we may end up with Long.MAX - Long.MIN, which is 2*MAX,
               // and we'd have trouble with the pipeline.
               long stride = (upperBound / partitions - lowerBound / partitions) + 1;
               long highest = lowerBound;
               for (long i = lowerBound; i < upperBound - stride; i += stride) {
-                ranges.add(KV.of(i, i + stride));
+                ranges.add(
+                    new StartEndRange<Long>(i, i + stride, TypeDescriptors.longs(), columnName));
                 highest = i + stride;
               }
               if (highest < upperBound + 1) {
-                ranges.add(KV.of(highest, upperBound + 1));
+                ranges.add(
+                    new StartEndRange<Long>(
+                        highest, upperBound, TypeDescriptors.longs(), columnName));
               }
               return ranges;
             }
 
             @Override
-            public void setParameters(KV<Long, Long> element, PreparedStatement preparedStatement) {
+            public void setParameters(
+                StartEndRange<Long> element, PreparedStatement preparedStatement) {
               try {
-                preparedStatement.setLong(1, element.getKey());
-                preparedStatement.setLong(2, element.getValue());
+                preparedStatement.setLong(1, element.start());
+                preparedStatement.setLong(2, element.end());
               } catch (SQLException e) {
                 throw new RuntimeException(e);
               }
@@ -433,79 +535,18 @@ class JdbcUtil {
             public KV<Long, KV<Long, Long>> mapRow(ResultSet resultSet) throws Exception {
               if (resultSet.getMetaData().getColumnCount() == 3) {
                 return KV.of(
-                    resultSet.getLong(3), KV.of(resultSet.getLong(1), resultSet.getLong(2)));
+                    resultSet.getLong(3), KV.of(resultSet.getLong(1), resultSet.getLong(2) + 1));
               } else {
-                return KV.of(0L, KV.of(resultSet.getLong(1), resultSet.getLong(2)));
-              }
-            }
-          },
-          String.class,
-          new JdbcReadWithPartitionsHelper<String>() {
-            @Override
-            public Iterable<KV<String, String>> calculateRanges(
-                String lowerBound, String upperBound, Long partitions) {
-              List<KV<String, String>> ranges = new ArrayList<>();
-              // For now, we create ranges based on the very first letter of each string.
-              // For cases where we have empty strings, we use that as the bottom of one range,
-              // and generate other ranges from that point.
-              if (lowerBound.length() == 0) {
-                lowerBound = String.valueOf(Character.toChars(1)[0]);
-                ranges.add(KV.of("", lowerBound));
-              }
-              int dif = upperBound.charAt(0) - lowerBound.charAt(0);
-              int stride = dif / partitions != 0 ? Long.valueOf(dif / partitions).intValue() : 1;
-              String currentLowerBound = lowerBound; // String.valueOf(lowerBound.charAt(0));
-              while (currentLowerBound.charAt(0) <= upperBound.charAt(0)) {
-                int upperBoundCharPoint = currentLowerBound.charAt(0) + stride;
-                upperBoundCharPoint =
-                    upperBoundCharPoint > upperBound.charAt(0)
-                        ? Character.toChars(upperBound.charAt(0) + 1)[0]
-                        : upperBoundCharPoint;
-                char currentUpperBound = Character.toChars(upperBoundCharPoint)[0];
-                if (currentUpperBound >= upperBound.charAt(0)) {
-                  // This means that we have reached the end, and that we want to use our upper
-                  // bound
-                  // as our final upper bound.
-                  int finalChar = upperBound.charAt(upperBound.length() - 1);
-                  upperBound =
-                      upperBound.substring(0, upperBound.length() - 1)
-                          + Character.toChars(finalChar)[0];
-                  ranges.add(KV.of(currentLowerBound, upperBound));
-                  return ranges;
-                }
-                ranges.add(KV.of(currentLowerBound, String.valueOf(currentUpperBound)));
-                currentLowerBound = String.valueOf(currentUpperBound);
-              }
-              return ranges;
-            }
-
-            @Override
-            public void setParameters(
-                KV<String, String> element, PreparedStatement preparedStatement) {
-              try {
-                preparedStatement.setString(1, element.getKey());
-                preparedStatement.setString(2, element.getValue());
-              } catch (SQLException e) {
-                throw new RuntimeException(e);
-              }
-            }
-
-            @Override
-            public KV<Long, KV<String, String>> mapRow(ResultSet resultSet) throws Exception {
-              if (resultSet.getMetaData().getColumnCount() == 3) {
-                return KV.of(
-                    resultSet.getLong(3), KV.of(resultSet.getString(1), resultSet.getString(2)));
-              } else {
-                return KV.of(0L, KV.of(resultSet.getString(1), resultSet.getString(2)));
+                return KV.of(0L, KV.of(resultSet.getLong(1), resultSet.getLong(2) + 1));
               }
             }
           },
           DateTime.class,
           new JdbcReadWithPartitionsHelper<DateTime>() {
             @Override
-            public Iterable<KV<DateTime, DateTime>> calculateRanges(
-                DateTime lowerBound, DateTime upperBound, Long partitions) {
-              final List<KV<DateTime, DateTime>> result = new ArrayList<>();
+            public Iterable<StartEndRange<DateTime>> calculateRanges(
+                DateTime lowerBound, DateTime upperBound, Long partitions, String columnName) {
+              final List<StartEndRange<DateTime>> result = new ArrayList<>();
 
               final long intervalMillis = upperBound.getMillis() - lowerBound.getMillis();
               final Duration stride = Duration.millis(Math.max(1, intervalMillis / partitions));
@@ -518,10 +559,20 @@ class JdbcUtil {
                   // If we hit the upper bound directly, then we want to be just-above it, so that
                   // it will be captured by the less-than query.
                   currentUpper = upperBound.plusMillis(1);
-                  result.add(KV.of(currentLowerBound, currentUpper));
+                  result.add(
+                      new StartEndRange<DateTime>(
+                          currentLowerBound,
+                          currentUpper,
+                          TypeDescriptor.of(DateTime.class),
+                          columnName));
                   return result;
                 }
-                result.add(KV.of(currentLowerBound, currentUpper));
+                result.add(
+                    new StartEndRange<DateTime>(
+                        currentLowerBound,
+                        currentUpper,
+                        TypeDescriptor.of(DateTime.class),
+                        columnName));
                 currentLowerBound = currentLowerBound.plus(stride);
               }
               return result;
@@ -529,10 +580,10 @@ class JdbcUtil {
 
             @Override
             public void setParameters(
-                KV<DateTime, DateTime> element, PreparedStatement preparedStatement) {
+                StartEndRange<DateTime> element, PreparedStatement preparedStatement) {
               try {
-                preparedStatement.setTimestamp(1, new Timestamp(element.getKey().getMillis()));
-                preparedStatement.setTimestamp(2, new Timestamp(element.getValue().getMillis()));
+                preparedStatement.setTimestamp(1, new Timestamp(element.start().getMillis()));
+                preparedStatement.setTimestamp(2, new Timestamp(element.end().getMillis()));
               } catch (SQLException e) {
                 throw new RuntimeException(e);
               }
@@ -545,13 +596,13 @@ class JdbcUtil {
                     resultSet.getLong(3),
                     KV.of(
                         new DateTime(resultSet.getTimestamp(1)),
-                        new DateTime(resultSet.getTimestamp(2))));
+                        new DateTime(resultSet.getTimestamp(2).getTime() + 1)));
               } else {
                 return KV.of(
                     0L,
                     KV.of(
                         new DateTime(resultSet.getTimestamp(1)),
-                        new DateTime(resultSet.getTimestamp(2))));
+                        new DateTime(resultSet.getTimestamp(2).getTime() + 1)));
               }
             }
           });

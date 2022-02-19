@@ -30,12 +30,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import org.apache.beam.sdk.io.jdbc.JdbcUtil.JdbcReadWithPartitionsHelper;
+import org.apache.beam.sdk.io.jdbc.JdbcUtil.StartEndRange;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.joda.time.DateTime;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -49,15 +51,16 @@ public class JdbcUtilTest {
   static final JdbcReadWithPartitionsHelper<String> PROTOTYPE_STRING_PARTITIONER =
       new JdbcReadWithPartitionsHelper<String>() {
         @Override
-        public Iterable<KV<String, String>> calculateRanges(
-            String lowerBound, String upperBound, Long partitions) {
-          List<KV<String, String>> ranges = new ArrayList<>();
+        public Iterable<StartEndRange<String>> calculateRanges(
+            String lowerBound, String upperBound, Long partitions, String columnName) {
+          List<StartEndRange<String>> ranges = new ArrayList<>();
           // For now, we create ranges based on the very first letter of each string.
           // For cases where we have empty strings, we use that as the bottom of one range,
           // and generate other ranges from that point.
           if (lowerBound.length() == 0) {
             lowerBound = String.valueOf(Character.toChars(1)[0]);
-            ranges.add(KV.of("", lowerBound));
+            ranges.add(
+                new StartEndRange<String>("", lowerBound, TypeDescriptors.strings(), columnName));
           }
           int dif = upperBound.charAt(0) - lowerBound.charAt(0);
           int stride = dif / partitions != 0 ? Long.valueOf(dif / partitions).intValue() : 1;
@@ -76,20 +79,28 @@ public class JdbcUtilTest {
               upperBound =
                   upperBound.substring(0, upperBound.length() - 1)
                       + Character.toChars(finalChar)[0];
-              ranges.add(KV.of(currentLowerBound, upperBound));
+              ranges.add(
+                  new StartEndRange<>(
+                      currentLowerBound, upperBound, TypeDescriptors.strings(), columnName));
               return ranges;
             }
-            ranges.add(KV.of(currentLowerBound, String.valueOf(currentUpperBound)));
+            ranges.add(
+                new StartEndRange<>(
+                    currentLowerBound,
+                    String.valueOf(currentUpperBound),
+                    TypeDescriptors.strings(),
+                    columnName));
             currentLowerBound = String.valueOf(currentUpperBound);
           }
           return ranges;
         }
 
         @Override
-        public void setParameters(KV<String, String> element, PreparedStatement preparedStatement) {
+        public void setParameters(
+            StartEndRange<String> element, PreparedStatement preparedStatement) {
           try {
-            preparedStatement.setString(1, element.getKey());
-            preparedStatement.setString(2, element.getValue());
+            preparedStatement.setString(1, element.start());
+            preparedStatement.setString(2, element.end());
           } catch (SQLException e) {
             throw new RuntimeException(e);
           }
@@ -121,11 +132,13 @@ public class JdbcUtilTest {
   }
 
   @Test
+  @Ignore("BEAM-13846")
   public void testStringPartitioningWithSingleKeyFn() {
     JdbcReadWithPartitionsHelper<String> helper = PROTOTYPE_STRING_PARTITIONER;
     List<KV<String, String>> expectedRanges =
         Lists.<KV<String, String>>newArrayList(KV.of("a", "a"));
-    List<KV<String, String>> ranges = Lists.newArrayList(helper.calculateRanges("a", "a", 10L));
+    List<StartEndRange<String>> ranges =
+        Lists.newArrayList(helper.calculateRanges("a", "a", 10L, ""));
     // It is not possible to generate any more than one range, because the lower and upper range are
     // exactly the same.
     // The range is "a" to the very next element after it, which would be "a"+1 -> "b".
@@ -135,12 +148,13 @@ public class JdbcUtilTest {
   }
 
   @Test
+  @Ignore("BEAM-13846")
   public void testStringPartitioningWithSingleKeyMultiletterFn() {
     JdbcReadWithPartitionsHelper<String> helper = PROTOTYPE_STRING_PARTITIONER;
     List<KV<String, String>> expectedRanges =
         Lists.<KV<String, String>>newArrayList(KV.of("afar", "afar"));
-    List<KV<String, String>> ranges =
-        Lists.newArrayList(helper.calculateRanges("afar", "afar", 10L));
+    List<StartEndRange<String>> ranges =
+        Lists.newArrayList(helper.calculateRanges("afar", "afar", 10L, ""));
     // It is not possible to generate any more than one range, because the lower and upper range are
     // exactly the same.
     // The range is "afar" to the very next element after it, which would be "afar"+1 -> "afas".
@@ -150,10 +164,11 @@ public class JdbcUtilTest {
   }
 
   @Test
+  @Ignore("(BEAM-13846)")
   public void testStringPartitioningWithMultiletter() {
     JdbcReadWithPartitionsHelper<String> helper = PROTOTYPE_STRING_PARTITIONER;
-    List<KV<String, String>> ranges =
-        Lists.newArrayList(helper.calculateRanges("afarisade", "zfastaridoteaf", 10L));
+    List<StartEndRange<String>> ranges =
+        Lists.newArrayList(helper.calculateRanges("afarisade", "zfastaridoteaf", 10L, ""));
     // The upper bound is "zfastaridoteaf" to the very next element after it, which would
     // be "zfastaridoteaf"+1 -> "zfastaridoteaf".
     // Because the query's filter statement is : WHERE column >= lowerBound AND column < upperBound.
@@ -182,10 +197,12 @@ public class JdbcUtilTest {
         JdbcUtil.JdbcReadWithPartitionsHelper.getPartitionsHelper(
             TypeDescriptor.of(DateTime.class));
     DateTime onlyPoint = DateTime.now();
-    List<KV<DateTime, DateTime>> expectedRanges =
-        Lists.newArrayList(KV.of(onlyPoint, onlyPoint.plusMillis(1)));
-    List<KV<DateTime, DateTime>> ranges =
-        Lists.newArrayList(helper.calculateRanges(onlyPoint, onlyPoint, 10L));
+    List<StartEndRange<DateTime>> expectedRanges =
+        Lists.newArrayList(
+            new StartEndRange<DateTime>(
+                onlyPoint, onlyPoint.plusMillis(1), TypeDescriptor.of(DateTime.class), ""));
+    List<StartEndRange<DateTime>> ranges =
+        Lists.newArrayList(helper.calculateRanges(onlyPoint, onlyPoint, 10L, ""));
     // It is not possible to generate any more than one range, because the lower and upper range are
     // exactly the same.
     // The range goes from the current DateTime to ONE MILISECOND AFTER.
@@ -202,8 +219,8 @@ public class JdbcUtilTest {
     DateTime lastPoint = DateTime.now();
     // At least 10ms in the past, or more.
     DateTime firstPoint = lastPoint.minusMillis(10 + new Random().nextInt(Integer.MAX_VALUE));
-    List<KV<DateTime, DateTime>> ranges =
-        Lists.newArrayList(helper.calculateRanges(firstPoint, lastPoint, 10L));
+    List<StartEndRange<DateTime>> ranges =
+        Lists.newArrayList(helper.calculateRanges(firstPoint, lastPoint, 10L, ""));
     // DateTime ranges are able to work out 10-11 ranges because they split in miliseconds which is
     // very small granularity.
     assertThat(Double.valueOf(ranges.size()), closeTo(10, 1));
@@ -213,8 +230,10 @@ public class JdbcUtilTest {
   public void testLongPartitioningWithSingleKey() {
     JdbcReadWithPartitionsHelper<Long> helper =
         JdbcUtil.JdbcReadWithPartitionsHelper.getPartitionsHelper(TypeDescriptors.longs());
-    List<KV<Long, Long>> expectedRanges = Lists.newArrayList(KV.of(12L, 13L));
-    List<KV<Long, Long>> ranges = Lists.newArrayList(helper.calculateRanges(12L, 12L, 10L));
+    List<StartEndRange<Long>> expectedRanges =
+        Lists.newArrayList(new StartEndRange<>(12L, 12L, TypeDescriptors.longs(), ""));
+    List<StartEndRange<Long>> ranges =
+        Lists.newArrayList(helper.calculateRanges(12L, 12L, 10L, ""));
     // It is not possible to generate any more than one range, because the lower and upper range are
     // exactly the same.
     // The range goes from the current Long element to ONE ELEMENT AFTER.
@@ -228,9 +247,14 @@ public class JdbcUtilTest {
     JdbcReadWithPartitionsHelper<Long> helper =
         JdbcUtil.JdbcReadWithPartitionsHelper.getPartitionsHelper(TypeDescriptors.longs());
     // The minimum stride is one, which is what causes this sort of partitioning.
-    List<KV<Long, Long>> expectedRanges =
-        Lists.newArrayList(KV.of(12L, 14L), KV.of(14L, 16L), KV.of(16L, 18L), KV.of(18L, 21L));
-    List<KV<Long, Long>> ranges = Lists.newArrayList(helper.calculateRanges(12L, 20L, 10L));
+    List<StartEndRange<Long>> expectedRanges =
+        Lists.newArrayList(
+            new StartEndRange<>(12L, 14L, TypeDescriptors.longs(), ""),
+            new StartEndRange<>(14L, 16L, TypeDescriptors.longs(), ""),
+            new StartEndRange<>(16L, 18L, TypeDescriptors.longs(), ""),
+            new StartEndRange<>(18L, 20L, TypeDescriptors.longs(), ""));
+    List<StartEndRange<Long>> ranges =
+        Lists.newArrayList(helper.calculateRanges(12L, 20L, 10L, ""));
     // The ranges go from the current lowerBound to ONE ELEMENT AFTER the upper bound.
     // Because the query's filter statement is : WHERE column >= lowerBound AND column < upperBound.
     assertEquals(4, ranges.size());

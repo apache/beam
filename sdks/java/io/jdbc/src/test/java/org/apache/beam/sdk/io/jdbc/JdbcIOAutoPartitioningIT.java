@@ -48,6 +48,7 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
@@ -67,7 +68,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 public class JdbcIOAutoPartitioningIT {
   private static final Logger LOG = LoggerFactory.getLogger(JdbcIOAutoPartitioningIT.class);
 
-  public static final Integer NUM_ROWS = 1_000;
+  public static final Integer NUM_ROWS = 1_00;
   public static final String TABLE_NAME = "baseTable";
 
   @Rule public final Timeout testTimeout = Timeout.seconds(60);
@@ -232,7 +233,6 @@ public class JdbcIOAutoPartitioningIT {
       return new RowData(
           id,
           randomStr(rnd.nextInt()),
-          // String.valueOf(rnd.nextDouble()),
           new DateTime(Instant.EPOCH.plus(Duration.millis(millisOffset))));
     }
   }
@@ -284,6 +284,7 @@ public class JdbcIOAutoPartitioningIT {
   }
 
   @Test
+  @Ignore("BEAM-13846")
   public void testAutomaticStringPartitioning() throws SQLException {
     final String dbmsLocal = dbms;
     PCollection<RowData> databaseData =
@@ -337,6 +338,7 @@ public class JdbcIOAutoPartitioningIT {
   }
 
   @Test
+  @Ignore("BEAM-13846")
   public void testAutomaticStringPartitioningAutomaticRangeManagement() throws SQLException {
     final String dbmsLocal = dbms;
     PCollection<RowData> databaseData =
@@ -346,7 +348,7 @@ public class JdbcIOAutoPartitioningIT {
                 .withDataSourceProviderFn(
                     voide -> DatabaseTestHelper.getDataSourceForContainer(getDb(dbmsLocal)))
                 .withTable("baseTable")
-                .withNumPartitions(1)
+                .withNumPartitions(5)
                 .withRowMapper(new RowDataMapper()));
 
     PAssert.that(databaseData.apply(Count.globally())).containsInAnyOrder(NUM_ROWS.longValue());
@@ -370,6 +372,7 @@ public class JdbcIOAutoPartitioningIT {
   }
 
   @Test
+  @Ignore("BEAM-13846")
   public void testAutomaticStringPartitioningAutomaticPartitionManagement() throws SQLException {
     final String dbmsLocal = dbms;
     PCollection<RowData> databaseData =

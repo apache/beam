@@ -97,7 +97,7 @@ public class DatabaseTestHelper {
     createTable(
         dataSource,
         tableName,
-        Lists.newArrayList(KV.of("id", "INT"), KV.of("name", "VARCHAR(500)")));
+        Lists.newArrayList(KV.of("id", "BIGINT"), KV.of("name", "VARCHAR(500)")));
   }
 
   public static void deleteTable(DataSource dataSource, String tableName) throws SQLException {
