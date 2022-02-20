@@ -1939,6 +1939,7 @@ class WriteToBigQuery(PTransform):
       schema_side_inputs=None,
       triggering_frequency=None,
       validate=True,
+      coder=None,
       temp_file_format=None,
       ignore_insert_ids=False,
       # TODO(BEAM-11857): Switch the default when the feature is mature.
@@ -2064,6 +2065,13 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         Default value is 0.2 seconds.
       validate: Indicates whether to perform validation checks on
         inputs. This parameter is primarily used for testing.
+      coder (~apache_beam.coders.coders.Coder): The coder for the
+        table rows if serialized to disk. If :data:`None`, then the default
+        coder is :class:`~apache_beam.io.gcp.bigquery_tools.RowAsDictJsonCoder`,
+        which will interpret every element written to the sink as a dictionary
+        that will be JSON serialized as a line in a file. This argument needs a
+        value only in special cases when writing table rows as dictionaries is
+        not desirable.
       temp_file_format: The format to use for file loads into BigQuery. The
         options are NEWLINE_DELIMITED_JSON or AVRO, with NEWLINE_DELIMITED_JSON
         being used by default. For advantages and limitations of the two
@@ -2116,6 +2124,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     self.with_auto_sharding = with_auto_sharding
     self.insert_retry_strategy = insert_retry_strategy
     self._validate = validate
+    self.coder = coder or RowAsDictJsonCoder()
     self._temp_file_format = temp_file_format or bigquery_tools.FileFormat.JSON
 
     self.additional_bq_parameters = additional_bq_parameters or {}
@@ -2224,6 +2233,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           schema_side_inputs=self.schema_side_inputs,
           additional_bq_parameters=self.additional_bq_parameters,
           validate=self._validate,
+          coder=self.coder,
           is_streaming_pipeline=is_streaming_pipeline,
           load_job_project_id=self.load_job_project_id)
 
@@ -2274,6 +2284,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         'schema_side_inputs': schema_side_inputs,
         'triggering_frequency': self.triggering_frequency,
         'validate': self._validate,
+        'coder': self.coder,
         'temp_file_format': self._temp_file_format,
         'ignore_insert_ids': self._ignore_insert_ids,
         'with_auto_sharding': self.with_auto_sharding,

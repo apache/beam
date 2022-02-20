@@ -1556,17 +1556,24 @@ class JsonRowWriter(io.IOBase):
   A writer which provides an IOBase-like interface for writing table rows
   (represented as dicts) as newline-delimited JSON strings.
   """
-  def __init__(self, file_handle):
+  def __init__(self, file_handle, coder=None):
     """Initialize an JsonRowWriter.
 
     Args:
       file_handle (io.IOBase): Output stream to write to.
+      coder (~apache_beam.coders.coders.Coder): The coder for the
+        table rows if serialized to disk. If :data:`None`, then the default
+        coder is :class:`~apache_beam.io.gcp.bigquery_tools.RowAsDictJsonCoder`,
+        which will interpret every element written to the sink as a dictionary
+        that will be JSON serialized as a line in a file. This argument needs a
+        value only in special cases when writing table rows as dictionaries is
+        not desirable.
     """
     if not file_handle.writable():
       raise ValueError("Output stream must be writable")
 
     self._file_handle = file_handle
-    self._coder = RowAsDictJsonCoder()
+    self._coder = coder or RowAsDictJsonCoder()
 
   def close(self):
     self._file_handle.close()

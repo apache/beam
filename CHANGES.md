@@ -86,6 +86,7 @@
 
 ## Bugfixes
 
+* Fixed 10785 (Python) ([BEAM-10785](https://issues.apache.org/jira/browse/BEAM-10785)).
 * Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
 ## Known Issues

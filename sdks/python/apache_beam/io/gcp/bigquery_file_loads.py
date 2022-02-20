@@ -119,7 +119,8 @@ def _make_new_file_writer(
     destination,
     file_format,
     schema=None,
-    schema_side_inputs=tuple()):
+    schema_side_inputs=tuple(),
+    coder=None):
   destination = bigquery_tools.get_hashable_destination(destination)
 
   # Windows does not allow : on filenames. Replacing with underscore.
@@ -145,7 +146,7 @@ def _make_new_file_writer(
         fs.FileSystems.create(file_path, "application/avro"), schema)
   elif file_format == bigquery_tools.FileFormat.JSON:
     writer = bigquery_tools.JsonRowWriter(
-        fs.FileSystems.create(file_path, "application/text"))
+        fs.FileSystems.create(file_path, "application/text"), coder)
   else:
     raise ValueError((
         'Only AVRO and JSON are supported as intermediate formats for '
@@ -205,7 +206,8 @@ class WriteRecordsToFile(beam.DoFn):
       schema,
       max_files_per_bundle=_DEFAULT_MAX_WRITERS_PER_BUNDLE,
       max_file_size=_DEFAULT_MAX_FILE_SIZE,
-      file_format=None):
+      file_format=None,
+      coder=None):
     """Initialize a :class:`WriteRecordsToFile`.
 
     Args:
@@ -214,18 +216,27 @@ class WriteRecordsToFile(beam.DoFn):
         whelming the worker memory.
       max_file_size (int): The maximum size in bytes for a file to be used in
         an export job.
+      coder (~apache_beam.coders.coders.Coder): The coder for the
+        table rows if serialized to disk. If :data:`None`, then the default
+        coder is :class:`~apache_beam.io.gcp.bigquery_tools.RowAsDictJsonCoder`,
+        which will interpret every element written to the sink as a dictionary
+        that will be JSON serialized as a line in a file. This argument needs a
+        value only in special cases when writing table rows as dictionaries is
+        not desirable.
 
     """
     self.schema = schema
     self.max_files_per_bundle = max_files_per_bundle
     self.max_file_size = max_file_size
     self.file_format = file_format or bigquery_tools.FileFormat.JSON
+    self.coder = coder or bigquery_tools.RowAsDictJsonCoder()
 
   def display_data(self):
     return {
         'max_files_per_bundle': self.max_files_per_bundle,
         'max_file_size': str(self.max_file_size),
         'file_format': self.file_format,
+        'coder': self.coder,
     }
 
   def start_bundle(self):
@@ -246,7 +257,8 @@ class WriteRecordsToFile(beam.DoFn):
             destination,
             self.file_format,
             self.schema,
-            schema_side_inputs)
+            schema_side_inputs,
+            self.coder)
       else:
         yield pvalue.TaggedOutput(
             WriteRecordsToFile.UNWRITTEN_RECORD_TAG, element)
@@ -288,10 +300,15 @@ class WriteGroupedRecordsToFile(beam.DoFn):
   Experimental; no backwards compatibility guarantees.
   """
   def __init__(
-      self, schema, max_file_size=_DEFAULT_MAX_FILE_SIZE, file_format=None):
+      self,
+      schema,
+      max_file_size=_DEFAULT_MAX_FILE_SIZE,
+      file_format=None,
+      coder=None):
     self.schema = schema
     self.max_file_size = max_file_size
     self.file_format = file_format or bigquery_tools.FileFormat.JSON
+    self.coder = coder or bigquery_tools.RowAsDictJsonCoder()
 
   def process(self, element, file_prefix, *schema_side_inputs):
     destination = bigquery_tools.get_hashable_destination(element[0])
@@ -306,7 +323,8 @@ class WriteGroupedRecordsToFile(beam.DoFn):
             destination,
             self.file_format,
             self.schema,
-            schema_side_inputs)
+            schema_side_inputs,
+            self.coder)
 
       writer.write(row)
 
@@ -801,6 +819,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
       schema_side_inputs=None,
       test_client=None,
       validate=True,
+      coder=None,
       is_streaming_pipeline=False,
       load_job_project_id=None):
     self.destination = destination
@@ -840,6 +859,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
     self._validate = validate
     if self._validate:
       self.verify()
+    self.coder = coder or bigquery_tools.RowAsDictJsonCoder()
 
   def verify(self):
     if (isinstance(self._custom_gcs_temp_location.get(), vp.StaticValueProvider)
@@ -916,7 +936,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
                 schema=self.schema,
                 max_files_per_bundle=self.max_files_per_bundle,
                 max_file_size=self.max_file_size,
-                file_format=self._temp_file_format),
+                file_format=self._temp_file_format,
+                coder=self.coder),
             file_prefix_pcv,
             *self.schema_side_inputs).with_outputs(
                 WriteRecordsToFile.UNWRITTEN_RECORD_TAG,
@@ -939,7 +960,9 @@ class BigQueryBatchFileLoads(beam.PTransform):
         | "DropShardNumber" >> beam.Map(lambda x: (x[0][0], x[1]))
         | "WriteGroupedRecordsToFile" >> beam.ParDo(
             WriteGroupedRecordsToFile(
-                schema=self.schema, file_format=self._temp_file_format),
+                schema=self.schema,
+                file_format=self._temp_file_format,
+                coder=self.coder),
             file_prefix_pcv,
             *self.schema_side_inputs))
 
