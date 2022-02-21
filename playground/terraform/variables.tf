@@ -63,17 +63,17 @@ variable "service_account" {
 
 #GCS
 
-variable "examples_bucket_name" {
+variable "bucket_examples_name" {
   description = "Name of Bucket to Store Playground Examples"
   default     = "playground-precompiled-objects"
 }
 
-variable "examples_bucket_location" {
+variable "bucket_examples_location" {
   description = "Location of Playground Examples Bucket"
   default     = "US"
 }
 
-variable "examples_storage_class" {
+variable "bucket_examples_storage_class" {
   description = "Examples Bucket Storage Class"
   default     = "STANDARD"
 }
@@ -118,34 +118,32 @@ variable "redis_memory_size_gb" {
 }
 
 #VPC
-
-variable "vpc_name" {
+variable "network_name" {
   description = "Name of VPC to be created"
   default     = "default"
 }
 
-variable "create_subnets" {
-  description = "Auto Create Subnets Inside VPC"
-  default     = true
-}
-
-variable "mtu" {
-  description = "MTU Inside VPC"
-  default     = 1460
-}
-
 # Applications
 
+variable "create_default_service" {
+  description = "Whether or not to create a default app engine service"
+  type        = bool
+  default = true
+}
 
 variable "docker_image_tag" {
   description = "Docker Image Tag To Be Deployed"
   default     = ""
 }
 
-
 variable "docker_image_name" {
   default     = "beam_playground"
   description = "Base prefix for docker images"
+}
+
+variable "application_location" {
+  description = "Location of App"
+  default     = "us-central"
 }
 
 # Frontend variables
@@ -198,7 +196,8 @@ variable "state_bucket" {
   description = "GCP bucket that used to store terraform state"
   default     = "beam_playground_terraform"
 }
+
 variable "state_prefix" {
   description = "terraform state prefix on GCP"
-  default     = "memorystore/"
+  default     = ""
 }

@@ -29,16 +29,29 @@ output "playground_registry_name" {
   value = module.infrastructure.playground_registry_name
 }
 
-output "playground_vpc_name" {
-  value = module.infrastructure.playground_vpc_name
+output "playground_network_id" {
+  value = module.infrastructure.playground_network_id
 }
+
+output "playground_subnetwork_id" {
+  value = module.infrastructure.playground_subnetwork_id
+}
+
+output "playground_network_name" {
+  value = module.infrastructure.playground_network_name
+}
+
+output "playground_subnetwork_name" {
+  value = module.infrastructure.playground_subnetwork_name
+}
+
 
 output "playground_redis_ip" {
   value = module.infrastructure.playground_redis_ip
 }
 
 output "docker-repository-root" {
-  value = module.applications.docker-repository-root
+  value = module.infrastructure.docker-repository-root
 }
 
 output "go-server-url" {

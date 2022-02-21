@@ -90,7 +90,6 @@ tasks {
 
     /* deploy  App - Only all services for  backend */
     register<TerraformTask>("terraformApplyAppBack") {
-        println("Deploy Back")
         var project_id = project.property("project_id") as String?
         var environment = project.property("project_environment") as String?
         var docker_tag = if (project.hasProperty("docker-tag")) {
@@ -116,7 +115,6 @@ tasks {
 
     /* deploy  App - Only services for frontend */
     register<TerraformTask>("terraformApplyAppFront") {
-        println("Deploy Front")
         var project_id = project.property("project_id") as String?
         var environment = project.property("project_environment") as String?
         var docker_tag = if (project.hasProperty("docker-tag")) {
@@ -229,41 +227,32 @@ task("setFrontConfig") {
         exec {
             commandLine = listOf("terraform", "output", "go-server-url")
             standardOutput = stdout
-
         }
         project.rootProject.extra["playgroundBackendGoRouteUrl"] = stdout.toString().trim().replace("\"", "")
-        println("GO app address:")
 //set Java - playgroundBackendJavaRouteUrl
-
         exec {
             commandLine = listOf("terraform", "output", "java-server-url")
             standardOutput = stdout
         }
         project.rootProject.extra["playgroundBackendJavaRouteUrl"] = stdout.toString().trim().replace("\"", "")
-
-        println("Java app address:")
-
 //set Python - playgroundBackendPythonRouteUrl
         exec {
             commandLine = listOf("terraform", "output", "python-server-url")
             standardOutput = stdout
         }
         project.rootProject.extra["playgroundBackendPythonRouteUrl"] = stdout.toString().trim().replace("\"", "")
-        println("Python app address:")
 //set Router - playgroundBackendUrl
         exec {
             commandLine = listOf("terraform", "output", "router-server-url")
             standardOutput = stdout
         }
         project.rootProject.extra["playgroundBackendUrl"] = stdout.toString().trim().replace("\"", "")
-        println("Router app address:")
 //set Scio - playgroundBackendScioRouteUrl
         exec {
             commandLine = listOf("terraform", "output", "scio-server-url")
             standardOutput = stdout
         }
         project.rootProject.extra["playgroundBackendScioRouteUrl"] = stdout.toString().trim().replace("\"", "")
-        println("Scio app address:")
     } catch (e: Exception) {
     }
 }
@@ -279,6 +268,13 @@ task("pushBack") {
 task("pushFront") {
     dependsOn(":playground:frontend:createConfig")
     dependsOn(":playground:frontend:dockerTagsPush")
+}
+task("InitInfrastructure") {
+    val init = tasks.getByName("terraformApplyInf")
+    val apply = tasks.getByName("terraformApplyInf")
+    dependsOn(init)
+    dependsOn(apply)
+    apply.mustRunAfter(init)
 }
 
 /* build, push, deploy Frontend app */

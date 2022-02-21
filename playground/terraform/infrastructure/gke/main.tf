@@ -18,14 +18,14 @@
 #
 
 resource "google_container_cluster" "playground-gke" {
-  name               = var.name
+  name               = var.gke_name
   project            = var.project_id
-  location           = var.location
-  initial_node_count = var.node_count
-  network            = var.network
-  subnetwork         = var.subnetwork
+  location           = var.gke_location
+  initial_node_count = var.gke_node_count
+  network            = var.gke_network
+  subnetwork         = var.gke_subnetwork
   node_config {
-    machine_type    = var.machine_type
+    machine_type    = var.gke_machine_type
     service_account = var.service_account_email
 
     oauth_scopes = [

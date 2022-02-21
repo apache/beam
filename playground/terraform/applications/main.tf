@@ -26,12 +26,20 @@ data "terraform_remote_state" "playground-state" {
   }
 }
 
+module "default" {
+  source                 = "./default"
+  project_id             = var.project_id
+  create_default_service = var.create_default_service
+}
+
 module "backend" {
+  depends_on              = [module.default]
   source                  = "./backend"
   project_id              = var.project_id
   cache_address           = data.terraform_remote_state.playground-state.outputs.playground_redis_ip
-  docker_registry_address = "${data.terraform_remote_state.playground-state.outputs.playground_registry_location}${var.registry_domain}/${var.project_id}/${data.terraform_remote_state.playground-state.outputs.playground_registry_name}"
-  network_name            = data.terraform_remote_state.playground-state.outputs.playground_vpc_name
+  docker_registry_address = data.terraform_remote_state.playground-state.outputs.docker-repository-root
+  network_name            = data.terraform_remote_state.playground-state.outputs.playground_network_name
+  subnetwork_name         = data.terraform_remote_state.playground-state.outputs.playground_subnetwork_name
   environment             = var.environment
   docker_image_tag        = var.docker_image_tag == "" ? var.environment : var.docker_image_tag
   docker_image_name       = "${var.docker_image_name}-backend"
@@ -45,10 +53,12 @@ module "backend" {
 }
 
 module "frontend" {
+  depends_on              = [module.default]
   source                  = "./frontend"
   project_id              = var.project_id
-  docker_registry_address = "${data.terraform_remote_state.playground-state.outputs.playground_registry_location}${var.registry_domain}/${var.project_id}/${data.terraform_remote_state.playground-state.outputs.playground_registry_name}"
-  network_name            = data.terraform_remote_state.playground-state.outputs.playground_vpc_name
+  docker_registry_address = data.terraform_remote_state.playground-state.outputs.docker-repository-root
+  network_name            = data.terraform_remote_state.playground-state.outputs.playground_network_name
+  subnetwork_name         = data.terraform_remote_state.playground-state.outputs.playground_subnetwork_name
   environment             = var.environment
   docker_image_tag        = var.docker_image_tag == "" ? var.environment : var.docker_image_tag
   docker_image_name       = "${var.docker_image_name}-frontend"

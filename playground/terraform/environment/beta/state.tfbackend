@@ -1,2 +1,1 @@
-bucket  = "beam_playground_terraform"
-prefix  = "memorystore/"
+bucket  = "state-bucket-name1"

@@ -21,67 +21,62 @@
 module "setup" {
   source             = "./setup"
   project_id         = var.project_id
-  region             = var.region
   service_account_id = var.service_account_id
 }
 
 module "network" {
-  depends_on = [module.setup]
-  source     = "./network"
-  project_id = var.project_id
-  region     = var.region
-  mtu        = var.mtu
-  vpc_name   = var.vpc_name
+  depends_on      = [module.setup]
+  source          = "./network"
+  project_id      = var.project_id
+  region          = var.network_region
+  network_name    = var.network_name
+  subnetwork_name = var.subnetwork_name
 }
 
 module "buckets" {
-  depends_on                = [module.setup]
-  source                    = "./buckets"
-  project_id                = var.project_id
-  terraform_bucket_name     = var.terraform_bucket_name
-  terraform_storage_class   = var.examples_storage_class
-  terraform_bucket_location = var.terraform_bucket_location
-  examples_bucket_name      = var.examples_bucket_name
-  examples_storage_class    = var.examples_storage_class
-  examples_bucket_location  = var.examples_bucket_location
+  depends_on    = [module.setup]
+  source        = "./buckets"
+  project_id    = var.project_id
+  #  terraform_bucket_name     = var.bucket_terraform_state_name
+  #  terraform_storage_class   = var.bucket_terraform_state_storage_class
+  #  terraform_bucket_location = var.bucket_terraform_state_location
+  name          = var.bucket_examples_name
+  storage_class = var.bucket_examples_storage_class
+  location      = var.bucket_examples_location
 }
 
 module "artifact_registry" {
-  depends_on          = [module.setup, module.buckets]
-  source              = "./artifact_registry"
-  project_id          = var.project_id
-  repository_id       = var.repository_id
-  repository_location = var.repository_location
+  depends_on = [module.setup, module.buckets]
+  source     = "./artifact_registry"
+  project_id = var.project_id
+  id         = var.repository_id
+  location   = var.repository_location
 }
 
 module "memorystore" {
-  depends_on           = [module.setup, module.artifact_registry, module.vpc]
-  source               = "./memorystore"
-  project_id           = var.project_id
-  redis_version        = var.redis_version
-  redis_region         = var.redis_region
-  redis_name           = var.redis_name
-  redis_tier           = var.redis_tier
-  redis_replica_count  = var.redis_replica_count
-  redis_memory_size_gb = var.redis_memory_size_gb
-  read_replicas_mode   = var.read_replicas_mode
-  network              = module.network.network
-  redis_network        = module.network.network
-  subnetwork           = module.network.subnetwork
+  depends_on     = [module.setup, module.network]
+  source         = "./memorystore"
+  project_id     = var.project_id
+  redis_version  = var.redis_version
+  region         = var.redis_region
+  name           = var.redis_name
+  tier           = var.redis_tier
+  replica_count  = var.redis_replica_count
+  memory_size_gb = var.redis_memory_size_gb
+  replicas_mode  = var.read_replicas_mode
+  network        = module.network.playground_network_id
+  subnetwork     = module.network.playground_subnetwork_id
 }
 
 module "gke" {
-  depends_on      = [module.setup, module.artifact_registry, module.memorystore]
-  source          = "./gke"
-  project_id      = var.project_id
-  service_account = var.
-  service_account_email = module.
-setup.service_account_email
-gke_machine_type = var.gke_machine_type
-gke_node_count = var.gke_node_count
-gke_name = var.gke_name
-gke_location = var.gke_location
-depends_on = [
-module.artifact_registry, module.memorystore
-]
+  depends_on            = [module.setup, module.artifact_registry, module.memorystore, module.network]
+  source                = "./gke"
+  project_id            = var.project_id
+  service_account_email = module.setup.service_account_email
+  gke_machine_type      = var.gke_machine_type
+  gke_node_count        = var.gke_node_count
+  gke_name              = var.gke_name
+  gke_location          = var.gke_location
+  gke_subnetwork        = module.network.playground_subnetwork_id
+  gke_network           = module.network.playground_network_id
 }

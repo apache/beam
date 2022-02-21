@@ -31,6 +31,11 @@ variable "network_name" {
   default     = "playground-vpc"
 }
 
+variable "subnetwork_name" {
+  description = "Vpc Name"
+  default     = "playground-vpc"
+}
+
 variable "docker_image_tag" {
   description = "Docker Image Tag To Be Deployed"
   default     = ""
@@ -48,6 +53,15 @@ variable "docker_image_name" {
 variable "cache_type" {
   description = "remote or local. Set remote to use Redis and local to use in-memory application level cache"
   default     = "remote"
+}
+
+variable "location" {
+  description = "Location of App"
+  default     = "us-central"
+}
+
+variable "app_domain" {
+  default = "lm.r.appspot.com"
 }
 
 # Frontend variables
@@ -96,13 +110,12 @@ variable "router_volume_size" {
   default     = 1
 }
 
+
+variable "create_default_service" {
+  description = "Whether or not to create a default app engine service"
+  type        = bool
+  default = true
+}
+
 variable "state_bucket" {}
 variable "state_prefix" {}
-
-variable "app_domain" {
-  default = "lm.r.appspot.com"
-}
-
-variable "registry_domain" {
-  default = "-docker.pkg.dev"
-}

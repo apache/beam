@@ -18,10 +18,10 @@
 #
 
 resource "google_storage_bucket" "examples_bucket" {
-  name          = var.examples_bucket_name
-  location      = var.examples_bucket_location
+  name          = var.name
+  location      = var.location
   project       = var.project_id
-  storage_class = var.examples_storage_class
+  storage_class = var.storage_class
 }
 
 resource "google_storage_bucket_access_control" "public_rule" {

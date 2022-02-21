@@ -17,10 +17,6 @@
 # under the License.
 #
 
-output "docker-repository-root" {
-  value = "${data.terraform_remote_state.playground-state.outputs.playground_registry_location}${var.registry_domain}/${var.project_id}/${data.terraform_remote_state.playground-state.outputs.playground_registry_name}"
-}
-
 output "go-server-url" {
   value = "https://${module.backend.go-server-url}-dot-${var.project_id}.lm.r.appspot.com/"
 }

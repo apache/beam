@@ -21,12 +21,12 @@ variable "project_id" {
   description = "The GCP Project ID where Playground Applications will be created"
 }
 
-variable "machine_type" {
+variable "gke_machine_type" {
   description = "Node pool machine types"
   default     = "c2d-highcpu-16"
 }
 
-variable "node_count" {
+variable "gke_node_count" {
   description = "Node pool size"
   default     = 1
 }
@@ -35,20 +35,20 @@ variable "service_account_email" {
   description = "Service account email"
 }
 
-variable "name" {
+variable "gke_name" {
   description = "Name of GKE cluster"
   default     = "playground-examples"
 }
 
-variable "location" {
+variable "gke_location" {
   description = "Location of GKE cluster"
   default     = "us-central1-a"
 }
 
-variable "network" {
+variable "gke_network" {
   description = "GCP network within which resources are provisioned"
 }
 
-variable "subnetwork" {
+variable "gke_subnetwork" {
   description = "GCP subnetwork within which resources are provisioned"
 }

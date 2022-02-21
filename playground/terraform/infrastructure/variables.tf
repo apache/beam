@@ -17,6 +17,8 @@
 # under the License.
 #
 
+#COMMON
+
 variable "project_id" {
   description = "The GCP Project ID where Playground Applications will be created"
 }
@@ -24,6 +26,12 @@ variable "project_id" {
 variable "environment" {
   description = "Environment name, e.g. prod,dev,beta"
 }
+
+variable "region" {
+  description = "Infrastructure Region"
+  default     = "us-central1"
+}
+
 
 #IAM
 
@@ -38,35 +46,36 @@ variable "service_account" {
 
 #GCS
 
-variable "examples_bucket_name" {
+variable "bucket_examples_name" {
   description = "Name of Bucket to Store Playground Examples"
   default     = "playground-examples"
 }
 
-variable "examples_bucket_location" {
+variable "bucket_examples_location" {
   description = "Location of Playground Examples Bucket"
   default     = "US"
 }
 
-variable "examples_storage_class" {
+variable "bucket_examples_storage_class" {
   description = "Examples Bucket Storage Class"
   default     = "STANDARD"
 }
 
-variable "terraform_bucket_name" {
+variable "bucket_terraform_state_name" {
   description = "Name of Bucket to Store Terraform States"
-  default     = "playground_terraform"
+  default     = "beam_playground_terraform"
 }
 
-variable "terraform_bucket_location" {
+variable "bucket_terraform_state_location" {
   description = "Location of Playground Examples Bucket"
   default     = "US"
 }
 
-variable "terraform_storage_class" {
+variable "bucket_terraform_state_storage_class" {
   description = "TerraformBucket Storage Class"
   default     = "STANDARD"
 }
+
 
 # Artifact Registry
 
@@ -80,21 +89,15 @@ variable "repository_location" {
   default     = "us-central1"
 }
 
+variable "repository_domain" {
+  default = "-docker.pkg.dev"
+}
 
-#Redis
+#REDIS
 
 variable "redis_version" {
   description = "The GCP Project ID where Playground Applications will be created"
   default     = "REDIS_6_X"
-}
-
-variable "region" {
-  description = "Infrastructure Region"
-  default     = "us-central1"
-}
-variable "terraform_state_bucket_name" {
-  description = "Bucket name for terraform state"
-  default     = "beam_playground_terraform"
 }
 
 variable "redis_region" {
@@ -127,21 +130,21 @@ variable "read_replicas_mode" {
   default     = "READ_REPLICAS_ENABLED"
 }
 
-#VPC
+#NETWORK
 
-variable "vpc_name" {
+variable "network_name" {
   description = "Name of VPC to be created"
   default     = "playground-vpc"
 }
 
-variable "create_subnets" {
-  description = "Auto Create Subnets Inside VPC"
-  default     = true
+variable "subnetwork_name" {
+  description = "Name of VPC to be created"
+  default     = "playground-vpc-sub"
 }
 
-variable "mtu" {
-  description = "MTU Inside VPC"
-  default     = 1460
+variable "network_region" {
+  description = "Region of Redis"
+  default     = "us-central1"
 }
 
 # GKE

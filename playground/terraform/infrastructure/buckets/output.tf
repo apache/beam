@@ -25,10 +25,6 @@ output "examples-bucket-name" {
   value = google_storage_bucket.examples_bucket.name
 }
 
-output "examples-bucket-project" {
-  value = google_storage_bucket.examples_bucket.project
-}
-
 output "examples-bucket-location" {
   value = google_storage_bucket.examples_bucket.location
 }

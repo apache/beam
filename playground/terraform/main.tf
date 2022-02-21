@@ -18,34 +18,31 @@
 #
 
 module "infrastructure" {
-  source                   = "./infrastructure"
-  project_id               = var.project_id
-  environment              = var.environment
-  region                   = var.region
+  source                        = "./infrastructure"
+  project_id                    = var.project_id
+  environment                   = var.environment
+  region                        = var.region
   #GCS
-  examples_bucket_name     = var.examples_bucket_name
-  examples_bucket_location = var.examples_bucket_location
-  examples_storage_class   = var.examples_storage_class
+  bucket_examples_name          = var.bucket_examples_name
+  bucket_examples_location      = var.bucket_examples_location
+  bucket_examples_storage_class = var.bucket_examples_storage_class
   #Artifact Registry
-  repository_id            = var.repository_id
-  repository_location      = var.repository_location
+  repository_id                 = var.repository_id
+  repository_location           = var.repository_location
   #Redis
-  redis_version            = var.redis_version
-  redis_name               = var.redis_name
-  redis_tier               = var.redis_tier
-  redis_replica_count      = var.redis_replica_count
-  redis_memory_size_gb     = var.redis_memory_size_gb
-  #VPC
-  vpc_name                 = var.vpc_name
-  create_subnets           = var.create_subnets
-  mtu                      = var.mtu
+  redis_version                 = var.redis_version
+  redis_name                    = var.redis_name
+  redis_tier                    = var.redis_tier
+  redis_replica_count           = var.redis_replica_count
+  redis_memory_size_gb          = var.redis_memory_size_gb
+  #NETWORK
+  network_name                  = var.network_name
   #GKE
-  gke_machine_type         = var.gke_machine_type
-  gke_node_count           = var.gke_node_count
-  gke_name                 = var.gke_name
-  gke_location             = var.gke_location
-  service_account          = var.service_account
-
+  gke_machine_type              = var.gke_machine_type
+  gke_node_count                = var.gke_node_count
+  gke_name                      = var.gke_name
+  gke_location                  = var.gke_location
+  service_account               = var.service_account
 }
 
 module "applications" {
@@ -64,6 +61,8 @@ module "applications" {
   router_volume_size = var.router_volume_size
   scio_volume_size   = var.scio_volume_size
 
+  location = var.application_location
+  create_default_service = var.create_default_service
   state_bucket = var.state_bucket
   state_prefix = var.state_prefix
 }

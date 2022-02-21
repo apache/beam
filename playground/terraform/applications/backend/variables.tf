@@ -32,7 +32,12 @@ variable "environment" {
 }
 
 variable "network_name" {
-  description = "Vpc Name, name by default 'default'"
+  description = "VPC Name"
+  default     = "playground-vpc"
+}
+
+variable "subnetwork_name" {
+  description = "Vpc Name"
   default     = "playground-vpc"
 }
 

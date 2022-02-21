@@ -29,10 +29,27 @@ output "playground_registry_location" {
   value = module.artifact_registry.registry_location
 }
 
-output "playground_vpc_name" {
-  value = module.vpc.vpc_name
+output "playground_network_id" {
+  value = module.network.playground_network_id
+}
+
+output "playground_subnetwork_id" {
+  value = module.network.playground_subnetwork_id
+}
+
+output "playground_network_name" {
+  value = module.network.playground_network_name
+}
+
+output "playground_subnetwork_name" {
+  value = module.network.playground_subnetwork_name
 }
 
 output "playground_redis_ip" {
   value = module.memorystore.redis_ip
 }
+
+output "docker-repository-root" {
+  value = "${module.artifact_registry.registry_location}${var.repository_domain}/${var.project_id}/${module.artifact_registry.registry_name}"
+}
+

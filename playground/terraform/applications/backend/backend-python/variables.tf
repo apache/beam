@@ -51,6 +51,11 @@ variable "network_name" {
   default     = "playground-vpc"
 }
 
+variable "subnetwork_name" {
+  description = "Vpc Name"
+  default     = "playground-vpc"
+}
+
 variable "environment" {
   description = "prod,dev,beta"
   default     = "dev"

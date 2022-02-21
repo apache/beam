@@ -38,6 +38,7 @@ resource "google_app_engine_flexible_app_version" "frontend_app" {
 
   network {
     name = var.network_name
+    subnetwork = var.subnetwork_name
   }
 
   deployment {
