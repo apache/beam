@@ -25,13 +25,14 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"os/signal"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"syscall"
 	"sync"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/artifact"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
@@ -74,8 +75,8 @@ const (
 
 func main() {
 	if err := mainError(); err != nil {
-	    log.Print(err)
-	    os.Exit(1)
+		log.Print(err)
+		os.Exit(1)
 	}
 }
 
@@ -151,28 +152,24 @@ func mainError() error {
 	//
 	// No log.Fatalf() from here on, otherwise deferred cleanups will not be called!
 
+	// Trap signals, so we can clean up properly.
+	signalChannel := make(chan os.Signal, 1)
+	signal.Notify(signalChannel, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
+
 	venvDir, err := setupVenv(filepath.Join(*semiPersistDir, "beam-venv"), *id)
 	if err != nil {
-	    return fmt.Errorf("Failed to initialize Python venv.")
+		return fmt.Errorf("Failed to initialize Python venv.")
 	}
 	cleanupFunc := func() {
-	    log.Printf("Cleaning up temporary venv ...")
-	    os.RemoveAll(venvDir)
+		log.Printf("Cleaning up temporary venv ...")
+		os.RemoveAll(venvDir)
 	}
 	defer cleanupFunc()
-	signalChannel := make(chan os.Signal, 1)
-	signal.Notify(signalChannel, syscall.SIGINT, syscall.SIGTERM)
-	go func() {
-	    log.Printf("Received signal: ", (<-signalChannel).String())
-	    cleanupFunc()
-	    os.Exit(1)
-	}()
 
 	dir := filepath.Join(*semiPersistDir, "staged")
-
 	files, err := artifact.Materialize(ctx, *artifactEndpoint, info.GetDependencies(), info.GetRetrievalToken(), dir)
 	if err != nil {
-	    return fmt.Errorf("Failed to retrieve staged files: %v", err)
+		return fmt.Errorf("Failed to retrieve staged files: %v", err)
 	}
 
 	// TODO(herohde): the packages to install should be specified explicitly. It
@@ -180,17 +177,17 @@ func mainError() error {
 	fileNames := make([]string, len(files))
 	requirementsFiles := []string{requirementsFile}
 	for i, v := range files {
-	    name, _ := artifact.MustExtractFilePayload(v)
-	    log.Printf("Found artifact: %s", name)
-	    fileNames[i] = name
+		name, _ := artifact.MustExtractFilePayload(v)
+		log.Printf("Found artifact: %s", name)
+		fileNames[i] = name
 
-	    if v.RoleUrn == artifact.URNPipRequirementsFile {
-	        requirementsFiles = append(requirementsFiles, name)
-	    }
+		if v.RoleUrn == artifact.URNPipRequirementsFile {
+			requirementsFiles = append(requirementsFiles, name)
+		}
 	}
 
 	if setupErr := installSetupPackages(fileNames, dir, requirementsFiles); setupErr != nil {
-	    return fmt.Errorf("Failed to install required packages: %v", setupErr)
+		return fmt.Errorf("Failed to install required packages: %v", setupErr)
 	}
 
 	// (3) Invoke python
@@ -214,41 +211,105 @@ func mainError() error {
 		}
 	}
 
+	workerIds := append([]string{*id}, info.GetSiblingWorkerIds()...)
+
+	// Keep track of child PIDs for clean shutdown without zombies
+	childPids := struct {
+		v []int
+		canceled bool
+		mu sync.Mutex
+	} {v: make([]int, 0, len(workerIds))}
+
+	// Forward trapped signals to child process groups in order to terminate them gracefully and avoid zombies
+	go func() {
+		log.Printf("Received signal: %v", <-signalChannel)
+		childPids.mu.Lock()
+		childPids.canceled = true
+		for _, pid := range childPids.v {
+			syscall.Kill(-pid, syscall.SIGTERM)
+			go func() {
+				// This goroutine will be canceled if the main process exits before the 5 seconds
+				// have elapsed, i.e., as soon as all subprocesses have returned from Wait().
+				time.Sleep(5 * time.Second)
+				log.Printf("Worker process did not respond, killing it.")
+				syscall.Kill(-pid, syscall.SIGKILL)
+			}()
+		}
+		childPids.mu.Unlock()
+	}()
+
 	args := []string{
 		"-m",
 		sdkHarnessEntrypoint,
 	}
 
-	workerIds := append([]string{*id}, info.GetSiblingWorkerIds()...)
 	var wg sync.WaitGroup
 	wg.Add(len(workerIds))
 	for _, workerId := range workerIds {
 		go func(workerId string) {
 			defer wg.Done()
+
+			childPids.mu.Lock()
+			if childPids.canceled {
+				childPids.mu.Unlock()
+				return
+			}
 			log.Printf("Executing Python (worker %v): python %v", workerId, strings.Join(args, " "))
-			log.Printf("Python (worker %v) exited with code: %v", workerId, execx.ExecuteEnv(map[string]string{"WORKER_ID": workerId}, "python", args...))
+			cmd := StartCommandEnv(map[string]string{"WORKER_ID": workerId}, "python", args...)
+			childPids.v = append(childPids.v, cmd.Process.Pid)
+			childPids.mu.Unlock()
+
+			if err := cmd.Wait(); err != nil {
+				log.Printf("Python (worker %v) exited: %v", workerId, err)
+			} else {
+				log.Printf("Python (worker %v) exited.", workerId)
+			}
 		}(workerId)
 	}
 	wg.Wait()
-
 	return nil
 }
 
-// setupVenv initialize a local Python venv and set the corresponding env variables
+// Start a command object in a new process group with the given arguments with
+// additional environment variables. It attaches stdio to the child process.
+// Returns the process handle.
+func StartCommandEnv(env map[string]string, prog string, args ...string) *exec.Cmd {
+	cmd := exec.Command(prog, args...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if env != nil {
+		cmd.Env = os.Environ()
+		for k, v := range env {
+			cmd.Env = append(cmd.Env, k+"="+v)
+		}
+	}
+
+	// Create process group so we can clean up the whole subtree later without creating zombies
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true, Pgid: 0}
+	cmd.Start()
+	return cmd
+}
+
+// setupVenv initializes a local Python venv and sets the corresponding env variables
 func setupVenv(baseDir, workerId string) (string, error) {
 	log.Printf("Initializing temporary Python venv ...")
 
-	if err := os.MkdirAll(baseDir, 0750); err != nil {
-	    return "", fmt.Errorf("Failed to create venv base directory: %s", err)
+	dir := filepath.Join(baseDir, "beam-venv-worker-" + workerId)
+	if _, err := os.Stat(dir); !os.IsNotExist(err) {
+		// Probably leftovers from a previous run
+		log.Printf("Cleaning up previous venv ...")
+		if err := os.RemoveAll(dir); err != nil {
+			return "", err
+		}
 	}
-	dir, err := ioutil.TempDir(baseDir, fmt.Sprintf("beam-venv-%s-", workerId))
-	if err != nil {
-	    return "", fmt.Errorf("Failed Python venv directory: %s", err)
+	if err := os.MkdirAll(dir, 0750); err != nil {
+		return "", fmt.Errorf("Failed to create Python venv directory: %s", err)
 	}
-	args := []string{"-m", "venv", "--system-site-packages", dir}
-	if err := execx.Execute("python", args...); err != nil {
-	    return "", err
+	if err := execx.Execute("python", "-m", "venv", "--system-site-packages", dir); err != nil {
+		return "", fmt.Errorf("Python venv initialization failed: %s", err)
 	}
+
 	os.Setenv("VIRTUAL_ENV", dir)
 	os.Setenv("PATH", strings.Join([]string{filepath.Join(dir, "bin"), os.Getenv("PATH")}, ":"))
 	return dir, nil
