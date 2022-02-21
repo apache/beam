@@ -17,19 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 
-import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_AGGREGATE_SCAN;
-import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_ARRAY_SCAN;
-import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_FILTER_SCAN;
-import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_JOIN_SCAN;
-import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_LIMIT_OFFSET_SCAN;
-import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_ORDER_BY_SCAN;
-import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_PROJECT_SCAN;
-import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_SET_OPERATION_SCAN;
-import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_SINGLE_ROW_SCAN;
-import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_TABLE_SCAN;
-import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_TVFSCAN;
-import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_WITH_REF_SCAN;
-import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_WITH_SCAN;
+import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.*;
 import static java.util.stream.Collectors.toList;
 
 import com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind;
@@ -60,6 +48,7 @@ public class QueryStatementConverter extends RelConverter<ResolvedQueryStmt> {
     this.rules =
         ImmutableMultimap.<ResolvedNodeKind, RelConverter>builder()
             .put(RESOLVED_AGGREGATE_SCAN, new AggregateScanConverter(context))
+            .put(RESOLVED_ANALYTIC_SCAN, new AnalyticScanConverter(context))
             .put(RESOLVED_ARRAY_SCAN, new ArrayScanToJoinConverter(context))
             .put(RESOLVED_ARRAY_SCAN, new ArrayScanLiteralToUncollectConverter(context))
             .put(RESOLVED_ARRAY_SCAN, new ArrayScanColumnRefToUncollect(context))

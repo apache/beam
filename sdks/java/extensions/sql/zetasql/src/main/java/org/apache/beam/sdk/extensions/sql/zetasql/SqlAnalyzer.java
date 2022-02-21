@@ -147,6 +147,7 @@ public class SqlAnalyzer {
                     LanguageFeature.FEATURE_CREATE_AGGREGATE_FUNCTION,
                     LanguageFeature.FEATURE_CREATE_TABLE_FUNCTION,
                     LanguageFeature.FEATURE_DISALLOW_GROUP_BY_FLOAT,
+                    LanguageFeature.FEATURE_ANALYTIC_FUNCTIONS,
                     LanguageFeature.FEATURE_NUMERIC_TYPE,
                     LanguageFeature.FEATURE_TABLE_VALUED_FUNCTIONS,
                     LanguageFeature.FEATURE_TEMPLATE_FUNCTIONS,

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.planner;
 
+
+import org.apache.beam.sdk.extensions.sql.impl.CalciteQueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BaseRelTest;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
@@ -24,6 +26,8 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+
+import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithUTCTimeZone;
 
 /**
  * Tests the behavior of {@code CalciteQueryPlanner}. Note that this is not for the JDBC path. It
@@ -39,6 +43,26 @@ public class CalciteQueryPlannerTest extends BaseRelTest {
                 Schema.FieldType.INT32, "large_key",
                 Schema.FieldType.INT32, "id")
             .addRows(1, 1, 1, 1, 1, 2, 1, 1, 3, 1, 1, 4, 1, 1, 5));
+
+    registerTable(
+            "KeyValue",
+            TestBoundedTable.of(
+                            Schema.builder()
+                                    .addInt64Field("Key")
+                                    .addStringField("Value")
+                                    .addStringField("Category")
+                                    .addDateTimeField("ts")
+                                    .build())
+                    .addRows(
+                            14L,
+                            "KeyValue234",
+                            "A",
+                            parseTimestampWithUTCTimeZone("2018-07-01 21:26:06"),
+                            15L,
+                            "KeyValue235",
+                            "B",
+                            parseTimestampWithUTCTimeZone("2018-07-01 21:26:07"))
+    );
   }
 
   @Test
@@ -70,4 +94,21 @@ public class CalciteQueryPlannerTest extends BaseRelTest {
         root.getCluster().getMetadataQuery().getCumulativeCost(root) instanceof BeamCostModel);
     Assert.assertFalse(root.getCluster().getMetadataQuery().getCumulativeCost(root).isInfinite());
   }
+
+  @Test
+  public void testAnalyticOver() {
+    String sql ="select SUM(Key) over(PARTITION BY Category), Count(Key) over(ORDER BY Key) From KeyValue";
+    BeamRelNode root = env.parseQuery(sql);
+    Assert.assertTrue(
+            root.getCluster().getMetadataQuery().getCumulativeCost(root) instanceof BeamCostModel);
+  }
+
+  @Test
+  public void testAggregate() {
+    String sql = "SELECT Key, COUNT(*) FROM KeyValue GROUP BY Key";
+    BeamRelNode root = env.parseQuery(sql);
+    Assert.assertTrue(
+            root.getCluster().getMetadataQuery().getCumulativeCost(root) instanceof BeamCostModel);
+  }
+
 }
