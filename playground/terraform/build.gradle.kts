@@ -255,6 +255,16 @@ task("setFrontConfig") {
         project.rootProject.extra["playgroundBackendScioRouteUrl"] = stdout.toString().trim().replace("\"", "")
     } catch (e: Exception) {
     }
+    try {
+        var stdout = ByteArrayOutputStream()
+        //set Docker Registry
+        exec {
+            commandLine = listOf("terraform", "output", "docker-repository-root")
+            standardOutput = stdout
+        }
+        project.rootProject.extra["docker-repository-root"] = stdout.toString().trim().replace("\"", "")
+    } catch (e: Exception) {
+    }
 }
 
 task("pushBack") {
@@ -265,10 +275,19 @@ task("pushBack") {
     dependsOn(":playground:backend:containers:router:dockerTagsPush")
 }
 
+task("cleanBack") {
+    dependsOn(":playground:backend:containers:go:clean")
+    dependsOn(":playground:backend:containers:java:clean")
+    dependsOn(":playground:backend:containers:python:clean")
+    dependsOn(":playground:backend:containers:scio:clean")
+    dependsOn(":playground:backend:containers:router:clean")
+}
+
 task("pushFront") {
     dependsOn(":playground:frontend:createConfig")
     dependsOn(":playground:frontend:dockerTagsPush")
 }
+
 task("InitInfrastructure") {
     val init = tasks.getByName("terraformInit")
     val apply = tasks.getByName("terraformApplyInf")
@@ -284,8 +303,9 @@ task("deployFrontend") {
     val push = tasks.getByName("pushFront")
     val deploy = tasks.getByName("terraformApplyAppFront")
 
-    dependsOn(push)
     dependsOn(config)
+
+    dependsOn(push)
     dependsOn(deploy)
     push.mustRunAfter(config)
     deploy.mustRunAfter(push)
@@ -295,12 +315,15 @@ task("deployFrontend") {
 task("deployBackend") {
 
     val config = tasks.getByName("setDockerRegistry")
+    val clean = tasks.getByName("cleanBack")
     val push = tasks.getByName("pushBack")
     val deploy = tasks.getByName("terraformApplyAppBack")
-
-    dependsOn(push)
-    dependsOn(config)
-    dependsOn(deploy)
     push.mustRunAfter(config)
+    dependsOn(config)
+    Thread.sleep(10)
     deploy.mustRunAfter(push)
+    dependsOn(push)
+    dependsOn(deploy)
+
 }
+
