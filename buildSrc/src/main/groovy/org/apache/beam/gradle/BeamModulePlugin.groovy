@@ -499,7 +499,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def spark3_version = "3.1.2"
     def spotbugs_version = "4.0.6"
     def testcontainers_version = "1.16.3"
-    def arrow_version = "5.0.0"
+    def arrow_version = "7.0.0"
     def jmh_version = "1.34"
 
     // A map of maps containing common libraries used per language. To use:
@@ -616,7 +616,7 @@ class BeamModulePlugin implements Plugin<Project> {
         grpc_protobuf                               : "io.grpc:grpc-protobuf", // google_cloud_platform_libraries_bom sets version
         grpc_protobuf_lite                          : "io.grpc:grpc-protobuf-lite:$grpc_version",
         grpc_netty                                  : "io.grpc:grpc-netty", // google_cloud_platform_libraries_bom sets version
-        grpc_netty_shaded                           : "io.grpc:grpc-netty-shaded", // google_cloud_platform_libraries_bom sets version
+        grpc_netty_shaded                           : "io.grpc:grpc-netty-shaded:1.44.1", // google_cloud_platform_libraries_bom sets version
         grpc_stub                                   : "io.grpc:grpc-stub", // google_cloud_platform_libraries_bom sets version
         guava                                       : "com.google.guava:guava:$guava_version",
         guava_testlib                               : "com.google.guava:guava-testlib:$guava_version",
@@ -659,7 +659,7 @@ class BeamModulePlugin implements Plugin<Project> {
         nemo_compiler_frontend_beam                 : "org.apache.nemo:nemo-compiler-frontend-beam:$nemo_version",
         netty_all                                   : "io.netty:netty-all:$netty_version",
         netty_handler                               : "io.netty:netty-handler:$netty_version",
-        netty_tcnative_boringssl_static             : "io.netty:netty-tcnative-boringssl-static:2.0.33.Final",
+        netty_tcnative_boringssl_static             : "io.netty:netty-tcnative-boringssl-static:2.0.48.Final",
         netty_transport_native_epoll                : "io.netty:netty-transport-native-epoll:$netty_version",
         postgres                                    : "org.postgresql:postgresql:$postgres_version",
         powermock                                   : "org.powermock:powermock-module-junit4:$powermock_version",
