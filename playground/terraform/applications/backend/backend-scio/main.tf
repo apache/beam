@@ -54,6 +54,7 @@ resource "google_app_engine_flexible_app_version" "backend_app_scio" {
 
   network {
     name = var.network_name
+    subnetwork = var.subnetwork_name
   }
 
   env_variables = {

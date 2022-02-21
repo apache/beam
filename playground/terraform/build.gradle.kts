@@ -302,13 +302,12 @@ task("deployFrontend") {
     val config = tasks.getByName("setFrontConfig")
     val push = tasks.getByName("pushFront")
     val deploy = tasks.getByName("terraformApplyAppFront")
-
+    push.mustRunAfter(config)
     dependsOn(config)
-
+    Thread.sleep(10)
+    deploy.mustRunAfter(push)
     dependsOn(push)
     dependsOn(deploy)
-    push.mustRunAfter(config)
-    deploy.mustRunAfter(push)
 }
 
 /* build, push, deploy Backend app */

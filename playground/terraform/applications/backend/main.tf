@@ -25,6 +25,7 @@ module "backend-go" {
   cache_address           = var.cache_address
   docker_registry_address = var.docker_registry_address
   network_name            = var.network_name
+  subnetwork_name         = var.subnetwork_name
   environment             = var.environment
   docker_image_name       = "${var.docker_image_name}-go"
   docker_image_tag        = var.docker_image_tag
@@ -39,6 +40,7 @@ module "backend-java" {
   cache_address           = var.cache_address
   docker_registry_address = var.docker_registry_address
   network_name            = var.network_name
+  subnetwork_name         = var.subnetwork_name
   environment             = var.environment
   docker_image_name       = "${var.docker_image_name}-java"
   docker_image_tag        = var.docker_image_tag
@@ -53,6 +55,7 @@ module "backend-python" {
   cache_address           = var.cache_address
   docker_registry_address = var.docker_registry_address
   network_name            = var.network_name
+  subnetwork_name         = var.subnetwork_name
   environment             = var.environment
   docker_image_name       = "${var.docker_image_name}-python"
   docker_image_tag        = var.docker_image_tag
@@ -67,6 +70,7 @@ module "backend-router" {
   cache_address           = var.cache_address
   docker_registry_address = var.docker_registry_address
   network_name            = var.network_name
+  subnetwork_name         = var.subnetwork_name
   environment             = var.environment
   docker_image_name       = "${var.docker_image_name}-router"
   docker_image_tag        = var.docker_image_tag
@@ -81,6 +85,7 @@ module "backend-scio" {
   cache_address           = var.cache_address
   docker_registry_address = var.docker_registry_address
   network_name            = var.network_name
+  subnetwork_name         = var.subnetwork_name
   environment             = var.environment
   docker_image_name       = "${var.docker_image_name}-scio"
   docker_image_tag        = var.docker_image_tag
