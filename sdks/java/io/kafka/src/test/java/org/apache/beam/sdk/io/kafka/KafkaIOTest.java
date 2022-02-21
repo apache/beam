@@ -357,7 +357,7 @@ public class KafkaIOTest {
     }
   }
 
-  private static KafkaIO.Read<Integer, Long> mkKafkaReadTransform(
+  static KafkaIO.Read<Integer, Long> mkKafkaReadTransform(
       int numElements, @Nullable SerializableFunction<KV<Integer, Long>, Instant> timestampFn) {
     return mkKafkaReadTransform(numElements, numElements, timestampFn);
   }
@@ -366,9 +366,9 @@ public class KafkaIOTest {
    * Creates a consumer with two topics, with 10 partitions each. numElements are (round-robin)
    * assigned all the 20 partitions.
    */
-  private static KafkaIO.Read<Integer, Long> mkKafkaReadTransform(
+  static KafkaIO.Read<Integer, Long> mkKafkaReadTransform(
       int numElements,
-      int maxNumRecords,
+      @Nullable Integer maxNumRecords,
       @Nullable SerializableFunction<KV<Integer, Long>, Instant> timestampFn) {
 
     List<String> topics = ImmutableList.of("topic_a", "topic_b");
@@ -381,8 +381,10 @@ public class KafkaIOTest {
                 new ConsumerFactoryFn(
                     topics, 10, numElements, OffsetResetStrategy.EARLIEST)) // 20 partitions
             .withKeyDeserializer(IntegerDeserializer.class)
-            .withValueDeserializer(LongDeserializer.class)
-            .withMaxNumRecords(maxNumRecords);
+            .withValueDeserializer(LongDeserializer.class);
+    if (maxNumRecords != null) {
+      reader = reader.withMaxNumRecords(maxNumRecords);
+    }
 
     if (timestampFn != null) {
       return reader.withTimestampFn(timestampFn);
@@ -1007,8 +1009,7 @@ public class KafkaIOTest {
   }
 
   /** A timestamp function that uses the given value as the timestamp. */
-  private static class ValueAsTimestampFn
-      implements SerializableFunction<KV<Integer, Long>, Instant> {
+  static class ValueAsTimestampFn implements SerializableFunction<KV<Integer, Long>, Instant> {
     @Override
     public Instant apply(KV<Integer, Long> input) {
       return new Instant(input.getValue());
