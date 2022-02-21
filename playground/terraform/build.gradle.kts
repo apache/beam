@@ -270,7 +270,7 @@ task("pushFront") {
     dependsOn(":playground:frontend:dockerTagsPush")
 }
 task("InitInfrastructure") {
-    val init = tasks.getByName("terraformApplyInf")
+    val init = tasks.getByName("terraformInit")
     val apply = tasks.getByName("terraformApplyInf")
     dependsOn(init)
     dependsOn(apply)
