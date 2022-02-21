@@ -217,54 +217,9 @@ task("setDockerRegistry") {
     }
 }
 
-task("setFrontConfig") {
-//get Docker Registry
+task("readState") {
     dependsOn(":playground:terraform:terraformInit")
     dependsOn(":playground:terraform:terraformRef")
-    try {
-        var stdout = ByteArrayOutputStream()
-//set GO - playgroundBackendGoRouteUrl
-        exec {
-            commandLine = listOf("terraform", "output", "go-server-url")
-            standardOutput = stdout
-        }
-        project.rootProject.extra["playgroundBackendGoRouteUrl"] = stdout.toString().trim().replace("\"", "")
-//set Java - playgroundBackendJavaRouteUrl
-        exec {
-            commandLine = listOf("terraform", "output", "java-server-url")
-            standardOutput = stdout
-        }
-        project.rootProject.extra["playgroundBackendJavaRouteUrl"] = stdout.toString().trim().replace("\"", "")
-//set Python - playgroundBackendPythonRouteUrl
-        exec {
-            commandLine = listOf("terraform", "output", "python-server-url")
-            standardOutput = stdout
-        }
-        project.rootProject.extra["playgroundBackendPythonRouteUrl"] = stdout.toString().trim().replace("\"", "")
-//set Router - playgroundBackendUrl
-        exec {
-            commandLine = listOf("terraform", "output", "router-server-url")
-            standardOutput = stdout
-        }
-        project.rootProject.extra["playgroundBackendUrl"] = stdout.toString().trim().replace("\"", "")
-//set Scio - playgroundBackendScioRouteUrl
-        exec {
-            commandLine = listOf("terraform", "output", "scio-server-url")
-            standardOutput = stdout
-        }
-        project.rootProject.extra["playgroundBackendScioRouteUrl"] = stdout.toString().trim().replace("\"", "")
-    } catch (e: Exception) {
-    }
-    try {
-        var stdout = ByteArrayOutputStream()
-        //set Docker Registry
-        exec {
-            commandLine = listOf("terraform", "output", "docker-repository-root")
-            standardOutput = stdout
-        }
-        project.rootProject.extra["docker-repository-root"] = stdout.toString().trim().replace("\"", "")
-    } catch (e: Exception) {
-    }
 }
 
 task("pushBack") {
@@ -275,19 +230,91 @@ task("pushBack") {
     dependsOn(":playground:backend:containers:router:dockerTagsPush")
 }
 
-task("cleanBack") {
-    dependsOn(":playground:backend:containers:go:clean")
-    dependsOn(":playground:backend:containers:java:clean")
-    dependsOn(":playground:backend:containers:python:clean")
-    dependsOn(":playground:backend:containers:scio:clean")
-    dependsOn(":playground:backend:containers:router:clean")
-}
-
 task("pushFront") {
-    dependsOn(":playground:frontend:createConfig")
     dependsOn(":playground:frontend:dockerTagsPush")
 }
 
+task("prepareConfig") {
+    doLast {
+        var playgroundBackendUrl = ""
+        var playgroundBackendJavaRouteUrl = ""
+        var playgroundBackendGoRouteUrl = ""
+        var playgroundBackendPythonRouteUrl = ""
+        var playgroundBackendScioRouteUrl = ""
+        var stdout = ByteArrayOutputStream()
+        exec {
+            commandLine = listOf("terraform", "output", "router-server-url")
+            standardOutput = stdout
+        }
+        playgroundBackendUrl = stdout.toString().trim().replace("\"", "")
+        stdout = ByteArrayOutputStream()
+        exec {
+            commandLine = listOf("terraform", "output", "go-server-url")
+            standardOutput = stdout
+        }
+        playgroundBackendGoRouteUrl = stdout.toString().trim().replace("\"", "")
+        stdout = ByteArrayOutputStream()
+        exec {
+            commandLine = listOf("terraform", "output", "java-server-url")
+            standardOutput = stdout
+        }
+        playgroundBackendJavaRouteUrl = stdout.toString().trim().replace("\"", "")
+        stdout = ByteArrayOutputStream()
+        exec {
+            commandLine = listOf("terraform", "output", "python-server-url")
+            standardOutput = stdout
+        }
+        playgroundBackendPythonRouteUrl = stdout.toString().trim().replace("\"", "")
+        stdout = ByteArrayOutputStream()
+        exec {
+            commandLine = listOf("terraform", "output", "scio-server-url")
+            standardOutput = stdout
+        }
+        playgroundBackendScioRouteUrl = stdout.toString().trim().replace("\"", "")
+        val configFileName = "gradle.properties"
+        val modulePath = project(":playground:frontend").projectDir.absolutePath
+        var file = File(modulePath + "/" + configFileName)
+
+        file.writeText(
+            """################################################################################
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+################################################################################
+
+playgroundBackendUrl=${playgroundBackendUrl}
+analyticsUA=UA-73650088-1
+playgroundBackendJavaRouteUrl=${playgroundBackendJavaRouteUrl}
+playgroundBackendGoRouteUrl=${playgroundBackendGoRouteUrl}
+playgroundBackendPythonRouteUrl=${playgroundBackendPythonRouteUrl}
+playgroundBackendScioRouteUrl=${playgroundBackendScioRouteUrl}
+"""
+        )
+        try {
+            var stdout = ByteArrayOutputStream()
+            //set Docker Registry
+            exec {
+                commandLine = listOf("terraform", "output", "docker-repository-root")
+                standardOutput = stdout
+            }
+            project.rootProject.extra["docker-repository-root"] = stdout.toString().trim().replace("\"", "")
+        } catch (e: Exception) {
+        }
+    }
+}
+/* initialization infrastructure */
 task("InitInfrastructure") {
     val init = tasks.getByName("terraformInit")
     val apply = tasks.getByName("terraformApplyInf")
@@ -298,13 +325,16 @@ task("InitInfrastructure") {
 
 /* build, push, deploy Frontend app */
 task("deployFrontend") {
-
-    val config = tasks.getByName("setFrontConfig")
+    val read = tasks.getByName("readState")
+    val prepare = tasks.getByName("prepareConfig")
     val push = tasks.getByName("pushFront")
     val deploy = tasks.getByName("terraformApplyAppFront")
-    push.mustRunAfter(config)
-    dependsOn(config)
+    dependsOn(read)
     Thread.sleep(10)
+
+    prepare.mustRunAfter(read)
+    dependsOn(prepare)
+    push.mustRunAfter(prepare)
     deploy.mustRunAfter(push)
     dependsOn(push)
     dependsOn(deploy)
@@ -314,12 +344,11 @@ task("deployFrontend") {
 task("deployBackend") {
 
     val config = tasks.getByName("setDockerRegistry")
-    val clean = tasks.getByName("cleanBack")
     val push = tasks.getByName("pushBack")
     val deploy = tasks.getByName("terraformApplyAppBack")
-    push.mustRunAfter(config)
     dependsOn(config)
     Thread.sleep(10)
+    push.mustRunAfter(config)
     deploy.mustRunAfter(push)
     dependsOn(push)
     dependsOn(deploy)

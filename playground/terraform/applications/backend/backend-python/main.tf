@@ -34,8 +34,8 @@ resource "google_app_engine_flexible_app_version" "backend_app_python" {
   }
 
   automatic_scaling {
-    max_total_instances = 7
-    min_total_instances = 2
+    max_total_instances = 2
+    min_total_instances = 1
     cool_down_period    = "120s"
     cpu_utilization {
       target_utilization = 0.7
@@ -48,8 +48,8 @@ resource "google_app_engine_flexible_app_version" "backend_app_python" {
   }
 
   resources {
-    memory_gb = 16
-    cpu       = 8
+    memory_gb = 12
+    cpu       = 2
     volumes {
       name        = "inmemory"
       size_gb     = var.volume_size

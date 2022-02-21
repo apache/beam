@@ -34,7 +34,7 @@ resource "google_app_engine_flexible_app_version" "backend_app_router" {
   }
 
   automatic_scaling {
-    max_total_instances = 3
+    max_total_instances = 2
     min_total_instances = 1
     cool_down_period    = "120s"
     cpu_utilization {

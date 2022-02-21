@@ -22,8 +22,8 @@ variable "project_id" {
 }
 
 variable "gke_machine_type" {
-  description = "Node pool machine types"
-  default     = "c2d-highcpu-16"
+  description = "Node pool machine types , for prod set  c2d-highcpu-16"
+  default     = "e2-standard-4"
 }
 
 variable "gke_node_count" {

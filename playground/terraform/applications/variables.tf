@@ -61,7 +61,7 @@ variable "location" {
 }
 
 variable "app_domain" {
-  default = "lm.r.appspot.com"
+  default = "uc.r.appspot.com"
 }
 
 # Frontend variables
