@@ -17,89 +17,42 @@
     under the License.
 -->
 
-## Requirements and setup
+# Requirements
 
 The following items need to be setup for the Playground cluster deployment on GCP:
 
 * [GCP account](https://cloud.google.com/)
-* [`gcloud` command-line tool](https://cloud.google.com/sdk/gcloud)
+* [`gcloud` command-line tool](https://cloud.google.com/sdk/gcloud) and required setup i.e. login
 * [Terraform](https://www.terraform.io/downloads.html) tool
 * [Docker](https://www.docker.com/get-started)
 
-### Authentication
+# Deployment steps
 
-Authentication is required for the deployment process. `gcloud` tool can be used to log in into the GCP account:
-
-```bash
-$ gcloud auth login
-```
-
-Service account also can be used for authentication using `gcloud` cli. See more
-details [here](https://cloud.google.com/sdk/gcloud/reference/auth/activate-service-account).
-
-## First time Playground deployment
-
-### Terraform state storage
-
-GCS bucket is required for Playground deployment that store terraform state, example set PROJECT_ID as '
-apache-beam-testing'
+## 0. Create GCS bucket for state
 
 ```bash
 $ gsutil mb -p ${PROJECT_ID} gs://state-bucket-name
 $ gsutil versioning set on gs://state-bucket-name
 ```
 
-This bucket required to deploy applications. Use the same bucket name in related variable.
+## 1. Provision infrastructure
 
-### GCP infrastructure deployment
-
-To deploy Playground infrastructure run gradle task
+To deploy Playground infrastructure follow [README.md](./infrastructure/README.md) for infrastructure module.
 
 ```bash
-$ cd /path/to/beam
-# Pproject_environment might be anything like dev/test/prod and affect to names of services and images
-$ ./gradlew playground:terraform:terraformInit  -Pproject_id=gcp-project-id -Pbucket=state-bucket-name -Pproject_environment=environment_name
+./gradlew playground:terraform:InitInfrastructure -Pproject_id="project-id" -Pproject_environment="env-name" -Pdocker-tag="tag-name"
 ```
 
-or follow [README.md](./infrastructure/README.md) for deploy infrastructure module via terraform manually.
-
-### Playground application deployment
-
-Playground requires building and pushing to registry using gradle before applying of Terraform scripts.
-
-To build and push Playground Docker image to the [Artifact Registry](https://cloud.google.com/artifact-registry)
-from Apache Beam repository root, execute the following commands:
+## 2. Deploy application
 
 ```bash
-$ cd /path/to/beam
-./gradlew playground:terraform:deployBackend -Pproject_id=gcp-project-id -Pproject_environment=environment_name -Pdocker-tag=docker-tag
-./gradlew playground:terraform:deployFrontend -Pproject_id=gcp-project-id -Pproject_environment=environment_name -Pdocker-tag=docker-tag
-``` 
-
-To deploy Playground applications to Cloud App Engine run gradle task
+gcloud auth configure-docker us-central1-docker.pkg.dev
+  ```
 
 ```bash
-$ cd /path/to/beam
-# Pproject_environment might be anything like dev/test/prod and affect to names of services and images
-$ ./gradlew playground:terraform:terraformApplyApp \
- -Pproject_id=gcp-project-id \
- -Pbucket=state-bucket-name \
- -Pproject_environment=environment_name \
- -Pdocker-tag=docker-tag
+./gradlew playground:terraform:deployBackend -Pproject_id="project-id" -Pproject_environment="env-name" -Pdocker-tag="tag-name"
 ```
 
-or see [README.md](./applications/README.md) for deploy applications module via terraform manually.
-
-## Update Playground
-
-To update infrastructure or applications execute following commands
-
-**Update all**
-
 ```bash
-$ cd /path/to/beam
-$ ./gradlew playground:terraform:terraformApply \
-  -Pproject_id=gcp-project-id \ 
-  -Pproject_environment=dev terraformApply \
-  -Pdocker-tag=docker-tag
+./gradlew playground:terraform:deployFrontend -Pproject_id="project-id" -Pproject_environment="env-name" -Pdocker-tag="tag-name"
 ```

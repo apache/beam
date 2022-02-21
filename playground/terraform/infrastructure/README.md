@@ -17,7 +17,7 @@
     under the License.
 -->
 
-## Creating GCP resources using Terraform
+# Overview
 
 This directory provisions required infrastructure for the application.
 
@@ -28,9 +28,6 @@ prior to following these instructions.
 
 # Usage
 
-```bash
-$ terraform apply -target=module.infrastructure
-```
 ## Terraform init
 
 Follow conventional terraform workflow to build this solution.
@@ -41,31 +38,21 @@ apply the `-var-file=vars.tfvars` flag.
 Initialize the terraform environment.
 
 ```
-
-Type `yes` and hit **Enter**. Applying of the configuration could take several minutes. `Apply complete!` will be
-displayed when it is finished, along with the number of created resources.
-terraform init -target=module.infrastructure
+terraform init
 ```
 
 ## Terraform plan
 
-To apply non-default Terraform configuration, pass the corresponding values as a variables with `terraform apply`
-command. All variables are listed in the [variables.tf](variables.tf) file.
 Plan the terraform solution.
 
 ```
-terraform plan -target=module.infrastructure
+terraform plan
 ```
 
 or
 
-* GCP [Artifact Registry](https://cloud.google.com/artifact-registry) to store application docker files
-* [VPC](https://cloud.google.com/vpc) to run GCP [App Engine](https://cloud.google.com/appengine) VMs
-* 2 GCP [Cloud Storage buckets]((https://cloud.google.com/storage/docs/key-terms#buckets)) to store Examples for
-  Playground Application and Terraform states
-* [GKE](https://cloud.google.com/kubernetes-engine) cluster for Playground's CI/CD process
 ```
-terraform plan -var-file=vars.tfvars -target=module.infrastructure
+terraform plan -var-file=vars.tfvars
 ```
 
 ## Terraform apply
@@ -73,14 +60,11 @@ terraform plan -var-file=vars.tfvars -target=module.infrastructure
 Apply the terraform solution.
 
 ```
-
-For more details on destroying deployed resources, please see
-this [documentation](https://www.terraform.io/cli/commands/destroy).
-terraform apply -target=module.infrastructure
+terraform apply
 ```
 
 or
 
 ```
-terraform apply -var-file=vars.tfvars -target=module.infrastructure
+terraform apply -var-file=vars.tfvars
 ```
