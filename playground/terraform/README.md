@@ -40,7 +40,7 @@ $ gsutil versioning set on gs://state-bucket-name
 To deploy Playground infrastructure follow [README.md](./infrastructure/README.md) for infrastructure module.
 
 ```bash
-./gradlew playground:terraform:InitInfrastructure -Pproject_id="project-id" -Pproject_environment="env-name" -Pdocker-tag="tag-name"
+./gradlew playground:terraform:InitInfrastructure -Pproject_environment="env-name"
 ```
 
 ## 2. Deploy application
@@ -50,9 +50,9 @@ gcloud auth configure-docker us-central1-docker.pkg.dev
   ```
 
 ```bash
-./gradlew playground:terraform:deployBackend -Pproject_id="project-id" -Pproject_environment="env-name" -Pdocker-tag="tag-name"
+./gradlew playground:terraform:deployBackend  -Pproject_environment="env-name"
 ```
 
 ```bash
-./gradlew playground:terraform:deployFrontend -Pproject_id="project-id" -Pproject_environment="env-name" -Pdocker-tag="tag-name"
+./gradlew playground:terraform:deployFrontend  -Pproject_environment="env-name"
 ```

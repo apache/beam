@@ -17,11 +17,17 @@
 # under the License.
 #
 
+resource "google_app_engine_application" "app_playground" {
+  project     = var.project_id
+  location_id = var.location
+}
+
 resource "google_app_engine_flexible_app_version" "default_app" {
-  count      =  var.create_default_service ? 1 : 0
+  count      = var.create_default_service ? 1 : 0
   service    = "default"
   version_id = "mlflow-default"
   runtime    = "custom"
+  project    = var.project_id
 
   deployment {
     container {

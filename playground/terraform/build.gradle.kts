@@ -31,18 +31,13 @@ tasks {
     /* init Infrastucture for migrate */
     register<TerraformTask>("terraformInit") {
         // exec args can be passed by commandline, for example
-        var project_id = "unknow"
         var environment = "unknow"
-        if (project.hasProperty("project_id")) {
-            project_id = project.property("project_id") as String
-        }
         if (project.hasProperty("project_environment")) {
             environment = project.property("project_environment") as String
         }
         args(
             "init", "-migrate-state",
             "-backend-config=./environment/$environment/state.tfbackend",
-            "-var=project_id=$project_id",
             "-var=environment=$environment",
             if (file("./environment/$environment/terraform.tfvars").exists()) {
                 "-var-file=./environment/$environment/terraform.tfvars"
@@ -108,27 +103,16 @@ tasks {
 
     /* deploy  App - Only all services for  backend */
     register<TerraformTask>("terraformApplyAppBack") {
-        var project_id = "unknow"
         var environment = "unknow"
-        if (project.hasProperty("project_id")) {
-            project_id = project.property("project_id") as String
-        }
         if (project.hasProperty("project_environment")) {
             environment = project.property("project_environment") as String
-        }
-        var docker_tag = if (project.hasProperty("docker-tag")) {
-            project.property("docker-tag") as String
-        } else {
-            environment
         }
         args(
             "apply",
             "-auto-approve",
             "-lock=false",
             "-target=module.applications.module.backend",
-            "-var=project_id=$project_id",
             "-var=environment=$environment",
-            "-var=docker_image_tag=$docker_tag",
             if (file("./environment/$environment/terraform.tfvars").exists()) {
                 "-var-file=./environment/$environment/terraform.tfvars"
             } else {
@@ -170,11 +154,7 @@ tasks {
 
     /* build only Infrastructurte */
     register<TerraformTask>("terraformApplyInf") {
-        var project_id = "unknow"
         var environment = "unknow"
-        if (project.hasProperty("project_id")) {
-            project_id = project.property("project_id") as String
-        }
         if (project.hasProperty("project_environment")) {
             environment = project.property("project_environment") as String
         }
@@ -183,7 +163,6 @@ tasks {
             "-auto-approve",
             "-lock=false",
             "-target=module.infrastructure",
-            "-var=project_id=$project_id",
             "-var=environment=$environment",
             if (file("./environment/$environment/terraform.tfvars").exists()) {
                 "-var-file=./environment/$environment/terraform.tfvars"
@@ -328,6 +307,7 @@ task("prepareConfig") {
         var file = File(modulePath + "/" + configFileName)
 
         file.writeText(
+        // TODO please move to constants
             """################################################################################
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -400,6 +380,10 @@ task("deployFrontend") {
 task("deployBackend") {
     group = "deploy"
     description = "deploy Backend app"
+    //TODO please add default tag from project_environment property
+    //if !(project.hasProperty("docker-tag")) {
+    //    project.extra.set("docker-tag", project.property("project_environment") as String)
+    //}
     val config = tasks.getByName("setDockerRegistry")
     val push = tasks.getByName("pushBack")
     val deploy = tasks.getByName("terraformApplyAppBack")
