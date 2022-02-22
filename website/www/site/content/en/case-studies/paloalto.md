@@ -157,7 +157,7 @@ format. The Row structure supports primitives, byte arrays, and containers, and 
 order as the schema definition.
 
 Apache Beam’s cross-language transforms allow the Cortex Data Lake team to execute SQL with Java. The output of
-an [SQL Transform](https://beam.apache.org/releases/javadoc/2.7.0/org/apache/beam/sdk/extensions/sql/SqlTransform.html))
+an [SQL Transform](https://beam.apache.org/releases/javadoc/2.7.0/org/apache/beam/sdk/extensions/sql/SqlTransform.html)
 performed inside the Apache Beam pipeline is sequentially converted from Beam Row format to a generic record, then to
 the output format required by a subscriber application, such as Avro, JSON, CSV, etc.
 
