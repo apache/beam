@@ -73,12 +73,16 @@ func (t Time) Milliseconds() int64 {
 	return int64(t)
 }
 
-// Add returns the time plus the duration.
+// Add returns the time plus the duration. Input Durations of less than one
+// millisecond will not increment the time due to a loss of precision when
+// converting to milliseconds.
 func (t Time) Add(d time.Duration) Time {
 	return Normalize(Time(int64(t) + d.Milliseconds()))
 }
 
-// Subtract returns the time minus the duration.
+// Subtract returns the time minus the duration. Input Durations of less than one
+// millisecond will not increment the time due to a loss of precision when
+// converting to milliseconds.
 func (t Time) Subtract(d time.Duration) Time {
 	return Normalize(Time(int64(t) - d.Milliseconds()))
 }
