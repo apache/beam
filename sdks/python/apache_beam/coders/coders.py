@@ -326,10 +326,10 @@ class Coder(object):
   @classmethod
   @overload
   def register_urn(
-      cls,
-      urn,  # type: str
-      parameter_type,  # type: Optional[Type[T]]
-      fn  # type: Callable[[T, List[Coder], PipelineContext], Any]
+          cls,
+          urn,  # type: str
+          parameter_type,  # type: Optional[Type[T]]
+          fn  # type: Callable[[T, List[Coder], PipelineContext], Any]
   ):
     # type: (...) -> None
     pass
@@ -572,6 +572,16 @@ class NullableCoder(FastCoder):
   def to_type_hint(self):
     return typehints.Optional[self._value_coder.to_type_hint()]
 
+  def _get_component_coders(self):
+    # type: () -> List[Coder]
+    return [self._value_coder]
+
+  @classmethod
+  def from_type_hint(cls, typehint, registry):
+    value_type = list(
+        filter(lambda t: t is not type(None), typehint._inner_types()))[0]
+    return cls(registry.get_coder(value_type))
+
   def is_deterministic(self):
     # type: () -> bool
     return self._value_coder.is_deterministic()
@@ -582,6 +592,9 @@ class NullableCoder(FastCoder):
 
   def __hash__(self):
     return hash(type(self)) + hash(self._value_coder)
+
+
+Coder.register_structured_urn(common_urns.coders.NULLABLE.urn, NullableCoder)
 
 
 class VarIntCoder(FastCoder):
@@ -1489,15 +1502,14 @@ Coder.register_structured_urn(
 
 
 class StateBackedIterableCoder(FastCoder):
-
   DEFAULT_WRITE_THRESHOLD = 1
 
   def __init__(
-      self,
-      element_coder,  # type: Coder
-      read_state=None,  # type: Optional[coder_impl.IterableStateReader]
-      write_state=None,  # type: Optional[coder_impl.IterableStateWriter]
-      write_state_threshold=DEFAULT_WRITE_THRESHOLD):
+          self,
+          element_coder,  # type: Coder
+          read_state=None,  # type: Optional[coder_impl.IterableStateReader]
+          write_state=None,  # type: Optional[coder_impl.IterableStateWriter]
+          write_state_threshold=DEFAULT_WRITE_THRESHOLD):
     self._element_coder = element_coder
     self._read_state = read_state
     self._write_state = write_state

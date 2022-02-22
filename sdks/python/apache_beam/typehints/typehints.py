@@ -507,6 +507,9 @@ class UnionHint(CompositeTypeHint):
       for t in self.union_types:
         yield t
 
+    def contains_type(self, maybe_type):
+      return maybe_type in self.union_types
+
     def _consistent_with_check_(self, sub):
       if isinstance(sub, UnionConstraint):
         # A union type is compatible if every possible type is compatible.
