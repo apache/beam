@@ -499,7 +499,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def spark3_version = "3.1.2"
     def spotbugs_version = "4.0.6"
     def testcontainers_version = "1.16.3"
-    def arrow_version = "7.0.0"
+    def arrow_version = "5.0.0"
     def jmh_version = "1.34"
 
     // A map of maps containing common libraries used per language. To use:
