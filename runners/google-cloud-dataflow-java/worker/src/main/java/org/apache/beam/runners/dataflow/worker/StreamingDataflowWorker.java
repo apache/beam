@@ -191,12 +191,6 @@ public class StreamingDataflowWorker {
   // Maximum number of threads for processing.  Currently each thread processes one key at a time.
   static final int MAX_PROCESSING_THREADS = 300;
   static final long THREAD_EXPIRATION_TIME_SEC = 60;
-  // Maximum work units retrieved from Windmill and queued before processing. Limiting this delays
-  // retrieving extra work from Windmill without working on it, leading to better
-  // prioritization / utilization.
-  static final int MAX_WORK_UNITS_QUEUED = 100;
-  // Maximum bytes of WorkItems being processed in the work queue at a time.
-  static final int MAX_WORK_UNITS_BYTES = 500 << 20; // 500MB
   static final long TARGET_COMMIT_BUNDLE_BYTES = 32 << 20;
   static final int MAX_COMMIT_QUEUE_BYTES = 500 << 20; // 500MB
   static final int NUM_COMMIT_STREAMS = 1;
@@ -211,9 +205,6 @@ public class StreamingDataflowWorker {
   // Reserved ID for counter updates.
   // Matches kWindmillCounterUpdate in workflow_worker_service_multi_hubs.cc.
   private static final String WINDMILL_COUNTER_UPDATE_WORK_ID = "3";
-
-  /** Maximum number of items to return in a GetWork request. */
-  private static final long MAX_GET_WORK_ITEMS = MAX_WORK_UNITS_QUEUED + MAX_PROCESSING_THREADS;
 
   /** Maximum number of failure stacktraces to report in each update sent to backend. */
   private static final int MAX_FAILURES_TO_REPORT_IN_UPDATE = 1000;
@@ -668,8 +659,8 @@ public class StreamingDataflowWorker {
             chooseMaximumNumberOfThreads(),
             THREAD_EXPIRATION_TIME_SEC,
             TimeUnit.SECONDS,
-            MAX_WORK_UNITS_QUEUED + chooseMaximumNumberOfThreads(),
-            MAX_WORK_UNITS_BYTES,
+            chooseMaximumBundlesOutstanding(),
+            options.getMaxBytesFromWindmillOutstanding(),
             threadFactory);
 
     maxSinkBytes =
@@ -786,6 +777,10 @@ public class StreamingDataflowWorker {
       return options.getNumberOfWorkerHarnessThreads();
     }
     return MAX_PROCESSING_THREADS;
+  }
+
+  private int chooseMaximumBundlesOutstanding() {
+    return Math.max(options.getMaxBundlesFromWindmillOutstanding(), chooseMaximumNumberOfThreads());
   }
 
   void addStateNameMappings(Map<String, String> nameMap) {
@@ -1065,7 +1060,7 @@ public class StreamingDataflowWorker {
           windmillServer.getWorkStream(
               Windmill.GetWorkRequest.newBuilder()
                   .setClientId(clientId)
-                  .setMaxItems(MAX_GET_WORK_ITEMS)
+                  .setMaxItems(chooseMaximumBundlesOutstanding())
                   .setMaxBytes(MAX_GET_WORK_FETCH_BYTES)
                   .build(),
               (String computation,
@@ -1726,7 +1721,7 @@ public class StreamingDataflowWorker {
     return windmillServer.getWork(
         Windmill.GetWorkRequest.newBuilder()
             .setClientId(clientId)
-            .setMaxItems(MAX_GET_WORK_ITEMS)
+            .setMaxItems(chooseMaximumBundlesOutstanding())
             .setMaxBytes(MAX_GET_WORK_FETCH_BYTES)
             .build());
   }

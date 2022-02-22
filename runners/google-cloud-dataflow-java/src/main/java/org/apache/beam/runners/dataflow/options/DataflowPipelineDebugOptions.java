@@ -178,6 +178,24 @@ public interface DataflowPipelineDebugOptions extends ExperimentalOptions, Pipel
   void setNumberOfWorkerHarnessThreads(int value);
 
   /**
+   * Maximum number of bundles outstanding from windmill before the worker stops requesting.
+   */
+  @Description(
+      "Maximum number of bundles outstanding from windmill before the worker stops requesting.")
+  @Default.Integer(400)
+  int getMaxBundlesFromWindmillOutstanding();
+  void setMaxBundlesFromWindmillOutstanding(int value);
+
+  /**
+   * Maximum number of bytes outstanding from windmill before the worker stops requesting.
+   */
+  @Description(
+      "Maximum number of bytes outstanding from windmill before the worker stops requesting.")
+  @Default.Long(500L << 20L) // 500MB
+  long getMaxBytesFromWindmillOutstanding();
+  void setMaxBytesFromWindmillOutstanding(long value);
+
+  /**
    * If {@literal true}, save a heap dump before killing a thread or process which is GC thrashing
    * or out of memory. The location of the heap file will either be echoed back to the user, or the
    * user will be given the opportunity to download the heap file.
