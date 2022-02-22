@@ -11,7 +11,7 @@ Thank you for your contribution! Follow this checklist to help us incorporate yo
 
 See the [Contributor Guide](https://beam.apache.org/contribute) for more tips on [how to make review process smoother](https://beam.apache.org/contribute/#make-reviewers-job-easier).
 
-To check the build health, please visit [https://github.com/apache/beam/blob/master/.test-infra/BUILD_STATUS.md](https://github.com/apache/beam/blob/master/.test-infra/validate-runner/README.md)
+To check the build health, please visit [https://github.com/apache/beam/blob/master/.test-infra/BUILD_STATUS.md](https://github.com/apache/beam/blob/master/.test-infra/BUILD_STATUS.md)
 
 GitHub Actions Tests Status (on master branch)
 ------------------------------------------------------------------------------------------------
