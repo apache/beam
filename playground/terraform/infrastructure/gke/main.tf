@@ -17,24 +17,24 @@
 # under the License.
 #
 
-variable "project_id" {
-  description = "Project ID"
-}
+resource "google_container_cluster" "playground-gke" {
+  name               = var.name
+  project            = var.project_id
+  location           = var.location
+  initial_node_count = var.node_count
+  network            = var.network
+  subnetwork         = var.subnetwork
+  node_config {
+    machine_type    = var.machine_type
+    service_account = var.service_account_email
 
-variable "docker_registry_address" {
-  description = "Docker registry address"
-}
+    oauth_scopes = [
+      "https://www.googleapis.com/auth/cloud-platform"
+    ]
+    labels = {
+      component = "beam-playground"
+    }
+    tags = ["beam-playground"]
 
-variable "docker_image_name" {
-  description = "Docker Image Name To Be Deployed"
-  default = "beam_playground-frontend"
-}
-
-variable "docker_image_tag" {
-  description = "Docker Image Tag To Be Deployed"
-  default     = "latest"
-}
-
-variable "service_name" {
-  default = "frontend"
+  }
 }

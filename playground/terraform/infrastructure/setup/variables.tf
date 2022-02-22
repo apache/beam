@@ -1,4 +1,3 @@
-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,9 +17,14 @@
 # under the License.
 #
 
-resource "google_compute_network" "playground_vpc" {
-  project                 = "${var.project_id}"
-  name                    = "${var.vpc_name}"
-  auto_create_subnetworks = "${var.create_subnets}"
-  mtu                     = "${var.mtu}"
+variable "project_id" {
+  description = "The GCP Project ID where Playground Applications will be created"
+}
+
+variable "region" {
+  description = "The GCP region within which we provision resources"
+}
+
+variable "service_account_id" {
+  description = "Service account ID"
 }

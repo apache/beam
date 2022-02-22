@@ -1,4 +1,3 @@
-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,28 +17,6 @@
 # under the License.
 #
 
-terraform {
-  backend "gcs" {
-    bucket  = "playground_terraform"
-  }
-}
-
-resource "google_container_cluster" "playground-gke" {
-  name               = "playground-examples"
-  project            = "${var.project_id}"
-  location           = "us-central1-a"
-  initial_node_count = "${var.node_count}"
-  node_config {
-    machine_type     = "${var.machine_type}"
-    service_account  = "${var.service_account}"
-
-    oauth_scopes    = [
-      "https://www.googleapis.com/auth/cloud-platform"
-    ]
-    labels = {
-      component      = "beam-playground"
-    }
-    tags             = ["beam-playground"]
-
-  }
+output "gke_name" {
+  value = google_container_cluster.playground-gke.name
 }

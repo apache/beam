@@ -17,34 +17,25 @@
 # under the License.
 #
 
-output "examples-bucket-id" {
-  value = "${google_storage_bucket.examples_bucket.id}"
+variable "project_id" {
+  description = "The GCP Project ID where Playground Applications will be created"
 }
 
-output "examples-bucket-name" {
-  value = "${google_storage_bucket.examples_bucket.name}"
+variable "region" {
+  description = "The Google Cloud Platform (GCP) region in which to provision resources"
 }
 
-output "examples-bucket-project" {
-  value = "${google_storage_bucket.examples_bucket.project}"
+variable "network_name" {
+  description = "Name of VPC to be created"
+  default     = "playground-vpc"
 }
 
-output "examples-bucket-location" {
-  value = "${google_storage_bucket.examples_bucket.location}"
+variable "subnetwork_name" {
+  description = "Name of VPC to be created"
+  default     = "playground-vpc"
 }
 
-output "terraform-bucket-id" {
-  value = "${google_storage_bucket.terraform_bucket.id}"
-}
-
-output "terraform-bucket-name" {
-  value = "${google_storage_bucket.terraform_bucket.name}"
-}
-
-output "terraform-bucket-project" {
-  value = "${google_storage_bucket.terraform_bucket.project}"
-}
-
-output "terraform-bucket-location" {
-  value = "${google_storage_bucket.terraform_bucket.location}"
+variable "subnetwork_cidr_range" {
+  description = "The address range for this subnet, in CIDR notation. Use a standard private VPC network address range: for example, 10.0.0.0/9."
+  default     = "10.128.0.0/20"
 }

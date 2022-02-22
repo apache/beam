@@ -17,24 +17,13 @@
 # under the License.
 #
 
-variable "project_id" {
-  description = "Project ID"
-}
+resource "google_artifact_registry_repository" "playground_repo" {
+  // TODO: remove when generally available
+  provider = google-beta
 
-variable "docker_registry_address" {
-  description = "Docker registry address"
-}
-
-variable "docker_image_name" {
-  description = "Docker Image Name To Be Deployed"
-  default = "beam_playground-frontend"
-}
-
-variable "docker_image_tag" {
-  description = "Docker Image Tag To Be Deployed"
-  default     = "latest"
-}
-
-variable "service_name" {
-  default = "frontend"
+  project       = var.project_id
+  location      = var.repository_location
+  repository_id = var.repository_id
+  description   = "Playground docker repository"
+  format        = "DOCKER"
 }
