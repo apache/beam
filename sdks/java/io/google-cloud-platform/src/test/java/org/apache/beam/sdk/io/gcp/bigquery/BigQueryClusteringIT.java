@@ -158,9 +158,10 @@ public class BigQueryClusteringIT {
 
   @Test
   public void testStreamingE2EBigQueryClusteringNoPartitionTableFunction() throws Exception {
-    String tableName = "weather_stations_streamed_clustered_table_function_" + System.currentTimeMillis();
+    String tableName =
+        "weather_stations_streamed_clustered_table_function_" + System.currentTimeMillis();
     BigQueryClusteringITOptions streamOptions = options;
-    
+
     streamOptions.setStreaming(true);
 
     Pipeline p = Pipeline.create(streamOptions);
@@ -183,7 +184,8 @@ public class BigQueryClusteringIT {
 
     p.run().waitUntilFinish();
 
-    Table table = bqClient.tables().get(streamOptions.getProject(), DATASET_NAME, tableName).execute();
+    Table table =
+        bqClient.tables().get(streamOptions.getProject(), DATASET_NAME, tableName).execute();
 
     Assert.assertEquals(CLUSTERING, table.getClustering());
     Assert.assertEquals(EXPECTED_BYTES, table.getNumBytes());
