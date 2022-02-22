@@ -326,10 +326,10 @@ class Coder(object):
   @classmethod
   @overload
   def register_urn(
-          cls,
-          urn,  # type: str
-          parameter_type,  # type: Optional[Type[T]]
-          fn  # type: Callable[[T, List[Coder], PipelineContext], Any]
+      cls,
+      urn,  # type: str
+      parameter_type,  # type: Optional[Type[T]]
+      fn  # type: Callable[[T, List[Coder], PipelineContext], Any]
   ):
     # type: (...) -> None
     pass
@@ -1505,11 +1505,11 @@ class StateBackedIterableCoder(FastCoder):
   DEFAULT_WRITE_THRESHOLD = 1
 
   def __init__(
-          self,
-          element_coder,  # type: Coder
-          read_state=None,  # type: Optional[coder_impl.IterableStateReader]
-          write_state=None,  # type: Optional[coder_impl.IterableStateWriter]
-          write_state_threshold=DEFAULT_WRITE_THRESHOLD):
+      self,
+      element_coder,  # type: Coder
+      read_state=None,  # type: Optional[coder_impl.IterableStateReader]
+      write_state=None,  # type: Optional[coder_impl.IterableStateWriter]
+      write_state_threshold=DEFAULT_WRITE_THRESHOLD):
     self._element_coder = element_coder
     self._read_state = read_state
     self._write_state = write_state
