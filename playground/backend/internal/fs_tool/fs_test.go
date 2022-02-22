@@ -30,10 +30,21 @@ const (
 	destinationDir  = "destinationDir"
 	testFileMode    = 0755
 	pipelinesFolder = "executable_files"
+	fileName        = "file.txt"
+	directoryName   = "incorrect"
 )
 
+func TestMain(m *testing.M) {
+	err := prepareFiles()
+	if err != nil {
+		panic(fmt.Errorf("error during test setup: %s", err.Error()))
+	}
+	defer teardownFiles()
+	m.Run()
+}
+
 func prepareFiles() error {
-	err := os.Mkdir(sourceDir, testFileMode)
+	err := os.MkdirAll(filepath.Join(sourceDir, directoryName), testFileMode)
 	if err != nil {
 		return err
 	}
@@ -41,7 +52,7 @@ func prepareFiles() error {
 	if err != nil {
 		return err
 	}
-	filePath := filepath.Join(sourceDir, "file.txt")
+	filePath := filepath.Join(sourceDir, fileName)
 	_, err = os.Create(filePath)
 	return err
 }
@@ -66,11 +77,6 @@ func teardownFolders(baseFileFolder string) error {
 }
 
 func TestLifeCycle_CopyFile(t *testing.T) {
-	if err := prepareFiles(); err != nil {
-		t.Fatalf("Error during preparing files for test: %s", err)
-	}
-	defer teardownFiles()
-
 	type fields struct {
 		folderGlobs []string
 		Paths       LifeCyclePaths
@@ -87,7 +93,7 @@ func TestLifeCycle_CopyFile(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "file doesn't exist",
+			name: "File doesn't exist",
 			fields: fields{
 				folderGlobs: nil,
 			},
@@ -99,16 +105,28 @@ func TestLifeCycle_CopyFile(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "file exists",
+			name: "File exists",
 			fields: fields{
 				folderGlobs: nil,
 			},
 			args: args{
-				fileName:       "file.txt",
+				fileName:       fileName,
 				sourceDir:      sourceDir,
 				destinationDir: destinationDir,
 			},
 			wantErr: false,
+		},
+		{
+			name: "Copy directory instead of file",
+			fields: fields{
+				folderGlobs: nil,
+			},
+			args: args{
+				fileName:       directoryName,
+				sourceDir:      sourceDir,
+				destinationDir: destinationDir,
+			},
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
@@ -176,7 +194,7 @@ func TestLifeCycle_CreateSourceCodeFile(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "source file folder path doesn't exist",
+			name: "Source file folder path doesn't exist",
 			fields: fields{
 				Paths: LifeCyclePaths{
 					AbsoluteSourceFileFolderPath: "src",
@@ -184,7 +202,7 @@ func TestLifeCycle_CreateSourceCodeFile(t *testing.T) {
 			}, wantErr: true,
 		},
 		{
-			name: "source file folder path exists",
+			name: "Source file folder path exists",
 			fields: fields{
 				Paths: LifeCyclePaths{
 					AbsoluteSourceFileFolderPath: filepath.Join(baseFileFolder, "src"),
@@ -334,6 +352,27 @@ func TestNewLifeCycle(t *testing.T) {
 					ExecutableFileName:               fmt.Sprintf("%s%s", pipelineId.String(), pythonExecutableFileExtension),
 					AbsoluteExecutableFileFolderPath: baseFileFolder,
 					AbsoluteExecutableFilePath:       filepath.Join(baseFileFolder, fmt.Sprintf("%s%s", pipelineId.String(), pythonExecutableFileExtension)),
+					AbsoluteBaseFolderPath:           baseFileFolder,
+					AbsoluteLogFilePath:              filepath.Join(baseFileFolder, logFileName),
+				},
+			},
+		},
+		{
+			name: "SCIO LifeCycle",
+			args: args{
+				sdk:             pb.Sdk_SDK_SCIO,
+				pipelineId:      pipelineId,
+				pipelinesFolder: pipelinesFolder,
+			},
+			want: &LifeCycle{
+				folderGlobs: []string{baseFileFolder},
+				Paths: LifeCyclePaths{
+					SourceFileName:                   fmt.Sprintf("%s%s", pipelineId.String(), scioExecutableFileExtension),
+					AbsoluteSourceFileFolderPath:     baseFileFolder,
+					AbsoluteSourceFilePath:           filepath.Join(baseFileFolder, fmt.Sprintf("%s%s", pipelineId.String(), scioExecutableFileExtension)),
+					ExecutableFileName:               fmt.Sprintf("%s%s", pipelineId.String(), scioExecutableFileExtension),
+					AbsoluteExecutableFileFolderPath: baseFileFolder,
+					AbsoluteExecutableFilePath:       filepath.Join(baseFileFolder, fmt.Sprintf("%s%s", pipelineId.String(), scioExecutableFileExtension)),
 					AbsoluteBaseFolderPath:           baseFileFolder,
 					AbsoluteLogFilePath:              filepath.Join(baseFileFolder, logFileName),
 				},
