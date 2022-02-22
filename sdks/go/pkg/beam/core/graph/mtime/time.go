@@ -65,7 +65,7 @@ func FromDuration(d time.Duration) Time {
 
 // FromTime returns a milli-second precision timestamp from a time.Time.
 func FromTime(t time.Time) Time {
-	return Normalize(Time(n2m(t.UnixNano())))
+	return Normalize(Time(t.UnixMilli()))
 }
 
 // Milliseconds returns the number of milli-seconds since the Unix epoch.
@@ -75,12 +75,12 @@ func (t Time) Milliseconds() int64 {
 
 // Add returns the time plus the duration.
 func (t Time) Add(d time.Duration) Time {
-	return Normalize(Time(int64(t) + n2m(d.Nanoseconds())))
+	return Normalize(Time(int64(t) + d.Milliseconds()))
 }
 
 // Subtract returns the time minus the duration.
 func (t Time) Subtract(d time.Duration) Time {
-	return Normalize(Time(int64(t) - n2m(d.Nanoseconds())))
+	return Normalize(Time(int64(t) - d.Milliseconds()))
 }
 
 func (t Time) String() string {
@@ -115,9 +115,4 @@ func Max(a, b Time) Time {
 // Normalize ensures a Time is within [MinTimestamp,MaxTimestamp].
 func Normalize(t Time) Time {
 	return Min(Max(t, MinTimestamp), MaxTimestamp)
-}
-
-// n2m converts nanoseconds to milliseconds.
-func n2m(v int64) int64 {
-	return v / 1e6
 }
