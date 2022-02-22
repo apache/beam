@@ -68,6 +68,7 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
         .addNullableField("writeStatement", FieldType.STRING)
         .addNullableField("fetchSize", FieldType.INT16)
         .addNullableField("outputParallelization", FieldType.BOOLEAN)
+        .addNullableField("autosharding", FieldType.BOOLEAN)
         .build();
   }
 
@@ -128,6 +129,9 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
           if (config.getBoolean("outputParallelization") != null) {
             readRows =
                 readRows.withOutputParallelization(config.getBoolean("outputParallelization"));
+          }
+          if (config.getBoolean("autosharding") != null && config.getBoolean("autosharding")) {
+            readRows = readRows.withAutosharding();
           }
           return input.apply(readRows);
         }
